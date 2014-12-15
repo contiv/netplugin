@@ -28,6 +28,7 @@ type Network interface {
 	// comunicate.
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
+	FetchNetwork(id string) (*State, error)
 }
 
 type Endpoint interface {
@@ -35,6 +36,7 @@ type Endpoint interface {
 	// belongs to a single network.
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
+	FetchEndpoint(id string) (*State, error)
 }
 
 type Plugin interface {
@@ -65,7 +67,7 @@ type EndpointDriver interface {
 	Driver
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
-	GetEndpointAddress(id string) (Address, error) //determine the endpoint's address
+	MakeEndpointAddress(id string) (Address, error)
 }
 
 type StateDriver interface {

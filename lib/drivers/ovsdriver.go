@@ -357,6 +357,6 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	return nil
 }
 
-func (d *OvsDriver) GetEndpointAddress() (Address, error) {
+func (d *OvsDriver) MakeEndpointAddress() (Address, error) {
 	return nil, error{"Not supported"}
 }

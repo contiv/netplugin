@@ -8,13 +8,15 @@ import (
 // implements the State interface for a network implemented using
 // vlans with ovs. The state is stored as Json objects.
 const (
-	BASE_PATH    = "contiv.io/"
-	CFG_PATH     = BASE_PATH + "config/"
-	NW_CFG_PATH  = CFG_PATH + "nets/%s/"
-	EP_CFG_PATH  = CFG_PATH + "eps/%s/"
-	OPER_PATH    = BASE_PATH + "oper/"
-	NW_OPER_PATH = OPER_PATH + "nets/%s/"
-	EP_OPER_PATH = OPER_PATH + "eps/%s/"
+	BASE_PATH          = "contiv.io/"
+	CFG_PATH           = BASE_PATH + "config/"
+	NW_CFG_PATH_PREFIX = CFG_PATH + "nets/"
+	NW_CFG_PATH        = NW_CFG_PATH_PREFIX + "%s/"
+	EP_CFG_PATH_PREFIX = CFG_PATH + "eps/"
+	EP_CFG_PATH        = EP_CFG_PATH_PREFIX + "%s/"
+	OPER_PATH          = BASE_PATH + "oper/"
+	NW_OPER_PATH       = OPER_PATH + "nets/%s/"
+	EP_OPER_PATH       = OPER_PATH + "eps/%s/"
 )
 
 type OvsCfgNetworkState struct {

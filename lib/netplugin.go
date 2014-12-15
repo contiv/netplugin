@@ -1,11 +1,11 @@
-package main
+package core
 
 import (
 	"code.google.com/p/gcfg"
 	"reflect"
 )
 
-// daemon implementation for a ovs (vlan based) + etcd state
+// implements the generic Plugin interface
 
 type DriverConfigTypes struct {
 	DriverType reflect.Type
@@ -113,18 +113,24 @@ func (p *NetPlugin) Init(config *Config) {
 func (p *NetPlugin) Deinit() {
 }
 
-func (p *Netplugin) CreateNetwork(id string) error {
+func (p *NetPlugin) CreateNetwork(id string) error {
 	return p.NetworkDriver.CreateNetwork(id)
 }
 
-func (p *Netplugin) DeleteNetwork(id string) error {
+func (p *NetPlugin) DeleteNetwork(id string) error {
 	return p.NetworkDriver.DeleteNetwork(id)
 }
 
-func (p *Netplugin) CreateEndpoint(id string) error {
+func (p *NetPlugin) FetchNetwork(id string) (*State, error) {
+}
+
+func (p *NetPlugin) CreateEndpoint(id string) error {
 	return p.EndpointDriver.CreateEndpoint(id)
 }
 
 func (p *Netplugin) DeleteEndpoint(id string) error {
 	return p.EndpointDriver.DeleteEndpoint(id)
+}
+
+func (p *NetPlugin) FetchEndpoint(id string) (*State, error) {
 }

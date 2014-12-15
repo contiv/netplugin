@@ -15,7 +15,7 @@ type EtcdStateDriverConfig struct {
 }
 
 type EtcdStateDriver struct {
-	client *etcd.Client
+	Client *etcd.Client
 }
 
 func (d *EtcdStateDriver) Init(config *Config) error {

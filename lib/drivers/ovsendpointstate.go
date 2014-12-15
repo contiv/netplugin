@@ -35,12 +35,12 @@ type OvsOperEndpointState struct {
 	PortName    string       `json:"portName"`
 }
 
-func (s *OvsOperEndpointState) WriteEndpointState() error {
+func (s *OvsOperEndpointState) Write() error {
 	key = fmt.Sprintf(EP_OPER_PATH, id)
 	return s.stateDriver.WriteState(key, s, json.Marshal)
 }
 
-func (s *OvsOperEndpointState) ReadEndpointState(id string) error {
+func (s *OvsOperEndpointState) Read(id string) error {
 	key = fmt.Sprintf(EP_OPER_PATH, id)
 	return s.stateDriver.ReadState(key, s, json.Marshal)
 }
