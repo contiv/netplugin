@@ -1,8 +1,9 @@
-package core
+package drivers
 
 import (
 	"encoding/json"
 	"fmt"
+	"netplugin/core"
 )
 
 // implements the State interface for a network implemented using
@@ -20,40 +21,43 @@ const (
 )
 
 type OvsCfgNetworkState struct {
-	stateDriver *StateDriver `json:"-"`
-	Id          string       `json:"id"`
+	stateDriver core.StateDriver `json:"-"`
+	Id          string           `json:"id"`
 }
 
 func (s *OvsCfgNetworkState) Write() error {
-	return error{"Not implemented, shouldn't be called from plugin!"}
+	return &core.Error{Desc: "Not implemented, shouldn't be called from plugin!"}
 }
 
 func (s *OvsCfgNetworkState) Read(id string) error {
-	key = fmt.Sprintf(NW_CFG_PATH, id)
-	return s.stateDriver.ReadState(key, s, json.Marshal)
+	key := fmt.Sprintf(NW_CFG_PATH, id)
+	state := core.State(s)
+	return s.stateDriver.ReadState(key, state, json.Unmarshal)
 }
 
-func (s *OvsCfgNetworkState) Clear(id string) error {
-	return error{"Not implemented, shouldn't be called from plugin!"}
+func (s *OvsCfgNetworkState) Clear() error {
+	return &core.Error{"Not implemented, shouldn't be called from plugin!"}
 }
 
 type OvsOperNetworkState struct {
-	stateDriver *StateDriver `json:"-"`
-	Id          string       `json:"id"`
-	EpCount     int          `json:"epCount"`
+	stateDriver core.StateDriver `json:"-"`
+	Id          string           `json:"id"`
+	EpCount     int              `json:"epCount"`
 }
 
 func (s *OvsOperNetworkState) Write() error {
-	key = fmt.Sprintf(NW_OPER_PATH, id)
-	return s.stateDriver.WriteState(key, s, json.Marshal)
+	key := fmt.Sprintf(NW_OPER_PATH, s.Id)
+	state := core.State(s)
+	return s.stateDriver.WriteState(key, state, json.Marshal)
 }
 
 func (s *OvsOperNetworkState) Read(id string) error {
-	key = fmt.Sprintf(NW_OPER_PATH, id)
-	return s.stateDriver.ReadState(key, s, json.Unmarshal)
+	key := fmt.Sprintf(NW_OPER_PATH, id)
+	state := core.State(s)
+	return s.stateDriver.ReadState(key, state, json.Unmarshal)
 }
 
 func (s *OvsOperNetworkState) Clear() error {
-	key = fmt.Sprintf(NW_OPER_PATH, id)
+	key := fmt.Sprintf(NW_OPER_PATH, s.Id)
 	return s.stateDriver.ClearState(key)
 }

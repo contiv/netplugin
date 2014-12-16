@@ -1,9 +1,11 @@
-package core
+package drivers
 
 import (
 	"fmt"
 	"github.com/socketplane/libovsdb"
 	"log"
+	"netplugin/core"
+	"reflect"
 )
 
 // implements the NetworkDriver and EndpointDriver interface for an vlan based
@@ -27,8 +29,8 @@ const (
 
 type OvsDriverConfig struct {
 	Ovs struct {
-		OvsDbIp   string
-		OvsDbPort int
+		DbIp   string
+		DbPort int
 	}
 }
 
@@ -38,7 +40,7 @@ type OvsDriverConfig struct {
 type OvsDriver struct {
 	ovs         *libovsdb.OvsdbClient
 	cache       map[string]map[string]libovsdb.Row
-	stateDriver *StateDriver
+	stateDriver core.StateDriver
 	currPortNum int // used to allocate port names. XXX: should it be user controlled?
 }
 
@@ -80,7 +82,7 @@ func (d *OvsDriver) Echo([]interface{}) {
 
 func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 	namedUuid := "netplugin"
-	opStr = "insert"
+	opStr := "insert"
 	if op != CREATE_BRIDGE {
 		opStr = "delete"
 	}
@@ -102,7 +104,7 @@ func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 	mutateUuid := []libovsdb.UUID{libovsdb.UUID{namedUuid}}
 	mutateSet, _ := libovsdb.NewOvsSet(mutateUuid)
 	mutation := libovsdb.NewMutation("bridges", opStr, mutateSet)
-	condition := libovsdb.NewCondition("_uuid", "==", libovsdb.UUID{getRootUuid()})
+	condition := libovsdb.NewCondition("_uuid", "==", libovsdb.UUID{d.getRootUuid()})
 
 	// simple mutate operation
 	mutateOp := libovsdb.Operation{
@@ -118,7 +120,7 @@ func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 	if len(reply) < len(operations) {
 		log.Println("Number of Replies should be atleast equal to ",
 			"number of Operations")
-		return error{"Unexpected number of replies"}
+		return &core.Error{Desc: "Unexpected number of replies"}
 	}
 	ok := true
 	for i, o := range reply {
@@ -135,7 +137,7 @@ func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 		log.Println("Bridge operation ", opStr, " Successful: ", reply[0].UUID.GoUuid)
 		return nil
 	} else {
-		return error{"Bridge operation ", opStr, " Addition Failed"}
+		return &core.Error{Desc: fmt.Sprintf("Bridge operation %s Failed", opStr)}
 	}
 }
 
@@ -144,35 +146,42 @@ func (d *OvsDriver) getPortName() string {
 	// the algorithm to take care of port being deleted and reuse unsed port
 	// numbers
 	d.currPortNum += 1
-	return "port" + d.currPortNum
+	return fmt.Sprintf("port%d", d.currPortNum)
 }
 
 func (d *OvsDriver) getPortNameFromId(id string) string {
 	for _, row := range d.cache[PORT_TABLE] {
-		if portId, ok = row.Fields["external_ids"]["endpoint-id"]; ok && portId == id {
-			return row.Fields["name"]
+		if extIds, ok := row.Fields["external_ids"]; ok {
+			extIdMap := extIds.(map[string]string)
+			if portId, ok := extIdMap["endpoint-id"]; ok && portId == id {
+				return row.Fields["name"].(string)
+			}
 		}
 	}
 	return ""
 }
 
-func (d *OvsDriver) createDeletePort(portName string, tag string, id string,
+func (d *OvsDriver) createDeletePort(portName string, id string, tag int,
 	op oper) error {
 	// portName is assumed to be unique enough to become uuid
 	namedUuid := portName
-	opStr = "insert"
+	opStr := "insert"
 	if op != CREATE_PORT {
 		opStr = "delete"
 	}
+	var err error = nil
 
 	// insert/delete a row in Interface table
 	intf := make(map[string]interface{})
+	idMap := make(map[string]string)
 	intf["name"] = portName
 	if op == CREATE_PORT {
 		intf["type"] = "internal"
-		idMap = make(map[string]string)
 		idMap["endpoint-id"] = id
-		intf["external_ids"] = libovsdb.NewOvsMap(idMap)
+		intf["external_ids"], err = libovsdb.NewOvsMap(idMap)
+		if err != nil {
+			return err
+		}
 	}
 	intfOp := libovsdb.Operation{
 		Op:       opStr,
@@ -183,13 +192,19 @@ func (d *OvsDriver) createDeletePort(portName string, tag string, id string,
 
 	// insert/delete a row in Port table
 	port := make(map[string]interface{})
+	intfUuid := []libovsdb.UUID{libovsdb.UUID{namedUuid}}
 	port["name"] = portName
 	if op == CREATE_PORT {
 		port["vlan_mode"] = "access"
-		port["tag"] = tag
-		intfUuid = []libovsdb.UUID{libovsdb.UUID{namedUuid}}
-		port["interfaces"] = libovsdb.NewOvsSet(intfUuid)
-		port["external_ids"] = libovsdb.NewOvsMap(idMap)
+		port["tag"] = fmt.Sprintf("%d", tag)
+		port["interfaces"], err = libovsdb.NewOvsSet(intfUuid)
+		if err != nil {
+			return err
+		}
+		port["external_ids"], err = libovsdb.NewOvsMap(idMap)
+		if err != nil {
+			return err
+		}
 	}
 	portOp := libovsdb.Operation{
 		Op:       opStr,
@@ -215,7 +230,7 @@ func (d *OvsDriver) createDeletePort(portName string, tag string, id string,
 	if len(reply) < len(operations) {
 		log.Println("Number of Replies should be atleast equal to ",
 			"number of Operations")
-		return error{"Unexpected number of replies"}
+		return &core.Error{Desc: "Unexpected number of replies"}
 	}
 	ok := true
 	for i, o := range reply {
@@ -233,16 +248,20 @@ func (d *OvsDriver) createDeletePort(portName string, tag string, id string,
 			reply[0].UUID.GoUuid)
 		return nil
 	} else {
-		return error{"Port operation ", opStr, " Addition Failed"}
+		return &core.Error{Desc: fmt.Sprintf("Port operation %s failed", opStr)}
 	}
 }
 
-func (d *OvsDriver) Init(config *Config, stateDriver *StateDriver) error {
-	cfg := OvsDriverConfig(config.v)
+func (d *OvsDriver) Init(config *core.Config, stateDriver core.StateDriver) error {
+	cfg, ok := config.V.(OvsDriverConfig)
+	if !ok {
+		log.Println("Invalid type passed.")
+		return &core.Error{Desc: "Invalid type passed"}
+	}
 
-	ovs, err := libovsdb.Connect(cfg.ovs.ovsdbIp, cfg.ovs.OvsDbPort)
+	ovs, err := libovsdb.Connect(cfg.Ovs.DbIp, cfg.Ovs.DbPort)
 	if err != nil {
-		log.Println("Unable to Connect ", err)
+		log.Println("Unable to Connect. Error: ", err)
 		return err
 	}
 
@@ -251,12 +270,12 @@ func (d *OvsDriver) Init(config *Config, stateDriver *StateDriver) error {
 
 	// Create a bridge
 	// XXX: revisit if the bridge-name needs to be configurable
-	err = createDeleteBridge(d.ovs, DEFAULT_BRIDGE_NAME, CREATE_BRIDGE)
+	err = d.createDeleteBridge(DEFAULT_BRIDGE_NAME, CREATE_BRIDGE)
 	if err != nil {
 		return err
 	}
 
-	d.ovs.Register(*d)
+	d.ovs.Register(d)
 	initial, _ := d.ovs.MonitorAll(DATABASE, "")
 	d.populateCache(*initial)
 
@@ -265,7 +284,7 @@ func (d *OvsDriver) Init(config *Config, stateDriver *StateDriver) error {
 
 func (d *OvsDriver) Deinit() {
 	if d.ovs != nil {
-		createDeleteBridge(d.ovs, DEFAULT_BRIDGE_NAME, DELETE_BRIDGE)
+		d.createDeleteBridge(DEFAULT_BRIDGE_NAME, DELETE_BRIDGE)
 		(*d.ovs).Disconnect()
 	}
 }
@@ -290,7 +309,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 
-	err = createDeletePort(d.ovs, portName, cfgEpState.Id, cfgEpState.VlanTag,
+	err = d.createDeletePort(portName, cfgEpState.Id, cfgEpState.VlanTag,
 		CREATE_PORT)
 	if err != nil {
 		return err
@@ -298,7 +317,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 	//all went well, update the runtime state of network and endpoint
 	operEpState := OvsOperEndpointState{stateDriver: d.stateDriver, Id: id,
-		PortName: portName, NetId: cfgEpState.netId}
+		PortName: portName, NetId: cfgEpState.NetId}
 	err = operEpState.Write()
 	if err != nil {
 		return err
@@ -323,10 +342,10 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	// delete the internal ovs port corresponding to the endpoint
 	portName := d.getPortNameFromId(id)
 	if portName == "" {
-		return error{fmt.Sprintf("Ovs port not found for id: %s", id)}
+		return &core.Error{Desc: fmt.Sprintf("Ovs port not found for id: %s", id)}
 	}
 
-	err := createDeletePort(d.ovs, portName, 0, 0, DELETE_PORT)
+	err := d.createDeletePort(portName, "", 0, DELETE_PORT)
 	if err != nil {
 		return err
 	}
@@ -349,7 +368,7 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 		return err
 	}
 
-	err = operEpState.Clear(id)
+	err = operEpState.Clear()
 	if err != nil {
 		return err
 	}
@@ -357,6 +376,6 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	return nil
 }
 
-func (d *OvsDriver) MakeEndpointAddress() (Address, error) {
-	return nil, error{"Not supported"}
+func (d *OvsDriver) MakeEndpointAddress() (*core.Address, error) {
+	return nil, &core.Error{Desc: "Not supported"}
 }

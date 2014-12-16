@@ -15,12 +15,12 @@ type Address struct {
 type State interface {
 	Write() error
 	Read(id string) error
-	Clear(id string) error
+	Clear() error
 }
 
 type Config struct {
 	// Config object parsed from a git-config like config
-	v interface{}
+	V interface{}
 }
 
 type Network interface {
@@ -28,7 +28,7 @@ type Network interface {
 	// comunicate.
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
-	FetchNetwork(id string) (*State, error)
+	FetchNetwork(id string) (State, error)
 }
 
 type Endpoint interface {
@@ -36,14 +36,14 @@ type Endpoint interface {
 	// belongs to a single network.
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
-	FetchEndpoint(id string) (*State, error)
+	FetchEndpoint(id string) (State, error)
 }
 
 type Plugin interface {
 	// A plugin brings together an implementation of a network, endpoint and
 	// state drivers. Along with implementing north-bound interfaces for
 	// network and endpoint operations
-	Init(config *Config)
+	Init(config *Config) error
 	Deinit()
 	Network
 	Endpoint
@@ -51,13 +51,13 @@ type Plugin interface {
 
 type Driver interface {
 	// A driver implements the programming logic
-	Init(config *Config, stateDriver *StateDriver) error
-	Deinit()
 }
 
 type NetworkDriver interface {
 	// A network driver implements the programming logic for network
 	Driver
+	Init(config *Config, stateDriver StateDriver) error
+	Deinit()
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
 }
@@ -65,9 +65,11 @@ type NetworkDriver interface {
 type EndpointDriver interface {
 	// An endpoint driver implements the programming logic for endpoints
 	Driver
+	Init(config *Config, stateDriver StateDriver) error
+	Deinit()
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
-	MakeEndpointAddress(id string) (Address, error)
+	MakeEndpointAddress(id string) (*Address, error)
 }
 
 type StateDriver interface {
@@ -76,13 +78,14 @@ type StateDriver interface {
 	// stored as key-value pairs with keys of type 'string' and value to be an
 	// opaque binary string, encoded/decoded by the logic specific to the
 	// high-level(consumer) interface.
+	Driver
 	Init(config *Config) error
 	Deinit()
 	Write(key string, value []byte) error
 	Read(key string) ([]byte, error)
-	WriteState(key string, value *State,
+	WriteState(key string, value State,
 		marshal func(interface{}) ([]byte, error)) error
-	ReadState(key string, value *State,
-		unmarshal func([]byte, interface{}) error)
+	ReadState(key string, value State,
+		unmarshal func([]byte, interface{}) error) error
 	ClearState(key string) error
 }

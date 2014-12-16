@@ -1,27 +1,27 @@
 package main
 
 import (
-	"core"
 	"github.com/coreos/go-etcd/etcd"
 	"log"
+	"netplugin/core"
+	"netplugin/drivers"
+	"netplugin/plugin"
+	"os"
+	"strings"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
 // network provisioning interfaces
 
-var pluginConfig = PluginConfig{Network: "ovs", Endpoint: "ovs", State: "etcd"}
-var plugin = Netplugin{configFile: "/tmp"} // XXX: should get the file as argument
-var waitChan = make(chan error)
-
 const (
 	RECURSIVE = true
 )
 
-func receiver(plugin *core.NetPlugin, rsps chan *etcd.Response,
+func receiver(netPlugin plugin.NetPlugin, rsps chan *etcd.Response,
 	stop chan bool, retErr chan error) {
 	for {
 		// block on change notifications
-		rsp <- rsps
+		rsp := <-rsps
 
 		//determine if the Node is interesting
 		//XXX: how does etcd notifies deletes.
@@ -31,28 +31,29 @@ func receiver(plugin *core.NetPlugin, rsps chan *etcd.Response,
 			isDelete = true
 			node = rsp.PrevNode
 		}
+		var err error = nil
 		switch key := node.Key; {
-		case strings.HasPrefix(key, core.NW_CFG_PATH_PREFIX):
-			netId := strings.TtrimPrefix(key, core.NW_CFG_PATH_PREFIX)
+		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
+			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
 			if isDelete {
-				err := plugin.NetworkDelete(netId)
+				err = netPlugin.DeleteNetwork(netId)
 			} else {
-				err := plugin.NetworkCreate(netId)
+				err = netPlugin.CreateNetwork(netId)
 			}
 			if err != nil {
-				retErr <- true
+				retErr <- err
 				stop <- true
 				return
 			}
-		case strings.HasPrefix(key, core.EP_CFG_PATH_PREFIX):
-			epId := strings.TrimPrefix(key, core.EP_CFG_PATH_PREFIX)
+		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
+			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
 			if isDelete {
-				err := plugin.EndpointDelete(epId)
+				err = netPlugin.DeleteEndpoint(epId)
 			} else {
-				err := plugin.EndpointCreate(epId)
+				err = netPlugin.CreateEndpoint(epId)
 			}
 			if err != nil {
-				retErr <- true
+				retErr <- err
 				stop <- true
 				return
 			}
@@ -63,23 +64,24 @@ func receiver(plugin *core.NetPlugin, rsps chan *etcd.Response,
 	retErr <- nil
 }
 
-func run(plugin *Netplugin) error {
+func run(netPlugin plugin.NetPlugin) error {
 	// watch the etcd changes and call the respective plugin APIs
 	rsps := make(chan *etcd.Response)
 	recvErr := make(chan error)
 	stop := make(chan bool)
-	client := plugin.StateDriver.Client
+	etcdDriver := netPlugin.StateDriver.(*drivers.EtcdStateDriver)
+	client := etcdDriver.Client
 
-	go receiver(plugin, rsps, stop, recvErr)
+	go receiver(netPlugin, rsps, stop, recvErr)
 
 	// XXX: todo, restore any config that might have been created till this
 	// point
-	_, err = client.Watch(core.CFG_PATH, 0, RECURSIVE, rsps, stop)
-	if err != ErrWatchStoppedByUser {
+	_, err := client.Watch(drivers.CFG_PATH, 0, RECURSIVE, rsps, stop)
+	if err != etcd.ErrWatchStoppedByUser {
 		return err
 	}
 
-	err <- recvErr
+	err = <-recvErr
 	if err != nil {
 		return err
 	}
@@ -88,19 +90,24 @@ func run(plugin *Netplugin) error {
 }
 
 func main() {
-	err := plugin.Init(&pluginConfig)
+	pluginConfig := plugin.PluginConfig{}
+	pluginConfig.Drivers.Network = "ovs"
+	pluginConfig.Drivers.Endpoint = "ovs"
+	pluginConfig.Drivers.State = "etcd"
+	config := core.Config{V: pluginConfig}
+	// XXX: should get the file as argument
+	netPlugin := plugin.NetPlugin{ConfigFile: "/tmp"}
+
+	err := netPlugin.Init(&config)
 	if err != nil {
-		log.println("Failed to initialize the plugin. Error: ", err)
-		exit(1)
+		log.Println("Failed to initialize the plugin. Error: ", err)
+		os.Exit(1)
 	}
 
-	go run(plugin)
-
-	err = <-waitChan
-
+	err = run(netPlugin)
 	if err != nil {
-		exit(1)
+		os.Exit(1)
 	} else {
-		exit(0)
+		os.Exit(0)
 	}
 }
