@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"github.com/socketplane/libovsdb"
 	"log"
-	"netplugin/core"
 	"reflect"
+
+	"github.com/mapuri/netplugin/core"
 )
 
 // implements the NetworkDriver and EndpointDriver interface for an vlan based

@@ -3,7 +3,8 @@ package drivers
 import (
 	"encoding/base64"
 	"github.com/coreos/go-etcd/etcd"
-	"netplugin/core"
+
+	"github.com/mapuri/netplugin/core"
 )
 
 // implements the StateDriver interface for an etcd based distributed

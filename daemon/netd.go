@@ -3,11 +3,12 @@ package main
 import (
 	"github.com/coreos/go-etcd/etcd"
 	"log"
-	"netplugin/core"
-	"netplugin/drivers"
-	"netplugin/plugin"
 	"os"
 	"strings"
+
+	"github.com/mapuri/netplugin/core"
+	"github.com/mapuri/netplugin/drivers"
+	"github.com/mapuri/netplugin/plugin"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's

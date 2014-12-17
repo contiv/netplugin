@@ -3,7 +3,8 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
-	"netplugin/core"
+
+	"github.com/mapuri/netplugin/core"
 )
 
 // implements the State interface for an endpoint implemented using

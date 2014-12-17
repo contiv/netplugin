@@ -3,9 +3,10 @@ package plugin
 import (
 	"code.google.com/p/gcfg"
 	"fmt"
-	"netplugin/core"
-	"netplugin/drivers"
 	"reflect"
+
+	"github.com/mapuri/netplugin/core"
+	"github.com/mapuri/netplugin/drivers"
 )
 
 // implements the generic Plugin interface
