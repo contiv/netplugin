@@ -3,13 +3,13 @@
 
 $provision = <<SCRIPT
 ## install packages
-apt-get update -qq && apt-get install -y vim curl python-software-properties git golang openvswitch-switch || exit 1
+apt-get update -qq && apt-get install -y vim curl python-software-properties git openvswitch-switch || exit 1
 
 ## setup enviorment. XXX: remove http-proxy stuff
 cat > /etc/profile.d/envvar.sh <<'EOF'
 export GOPATH=/opt/golang
 export GOBIN=$GOPATH/bin
-export PATH=$PATH:$GOBIN
+export PATH=$PATH:/usr/local/go/bin:$GOBIN
 export http_proxy=proxy.esl.cisco.com:8080
 export https_proxy=$http_proxy
 export HTTP_PROXY=$http_proxy
@@ -18,8 +18,13 @@ EOF
 
 . /etc/profile.d/envvar.sh || exit 1
 
+## install Go 1.4
+(cd /usr/local/ && \
+curl -L https://storage.googleapis.com/golang/go1.4.linux-amd64.tar.gz -o go1.4.linux-amd64.tar.gz && \
+tar -xzf go1.4.linux-amd64.tar.gz) || exit 1
+
 ## install and start etcd
-( cd /tmp && \
+(cd /tmp && \
 curl -L  https://github.com/coreos/etcd/releases/download/v0.4.6/etcd-v0.4.6-linux-amd64.tar.gz -o etcd-v0.4.6-linux-amd64.tar.gz && \
 tar xzvf etcd-v0.4.6-linux-amd64.tar.gz && \
 cd /usr/bin && \
@@ -27,8 +32,11 @@ ln -s /tmp/etcd-v0.4.6-linux-amd64/etcd && \
 ln -s /tmp/etcd-v0.4.6-linux-amd64/etcdctl && \
 etcd &) || exit 1
 
-## go get the netplugin repo
-go get -u github.com/mapuri/netplugin || exit 1
+## link the netplugin repo, for quick test-fix-test turnaround
+(mkdir -p $GOPATH/github.com/mapuri && \
+sudo ln -s /vagrant github.com/mapuri/netplugin) || exit 1
+
+#go get -u github.com/mapuri/netplugin || exit 1
 
 SCRIPT
 VAGRANTFILE_API_VERSION = "2"

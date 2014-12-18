@@ -92,8 +92,8 @@ func TestRead(t *testing.T) {
 }
 
 type testState struct {
-	intField int    `json:"intField"`
-	strField string `json:"strField"`
+	IntField int    `json:"intField"`
+	StrField string `json:"strField"`
 }
 
 func (s *testState) Write() error {
@@ -110,7 +110,7 @@ func (s *testState) Clear() error {
 
 func TestWriteState(t *testing.T) {
 	driver := setupDriver(t)
-	state := &testState{intField: 1234, strField: "testString"}
+	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKey"
 
 	err := driver.WriteState(key, state, json.Marshal)
@@ -121,7 +121,7 @@ func TestWriteState(t *testing.T) {
 
 func TestWriteStateForUpdate(t *testing.T) {
 	driver := setupDriver(t)
-	state := &testState{intField: 1234, strField: "testString"}
+	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKeyForUpdate"
 
 	err := driver.WriteState(key, state, json.Marshal)
@@ -129,7 +129,7 @@ func TestWriteStateForUpdate(t *testing.T) {
 		t.Fatalf("failed to write state. Error: %s", err)
 	}
 
-	state.strField = "testString-update"
+	state.StrField = "testString-update"
 	err = driver.WriteState(key, state, json.Marshal)
 	if err != nil {
 		t.Fatalf("failed to update state. Error: %s", err)
@@ -138,7 +138,7 @@ func TestWriteStateForUpdate(t *testing.T) {
 
 func TestClearState(t *testing.T) {
 	driver := setupDriver(t)
-	state := &testState{intField: 1234, strField: "testString"}
+	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKeyClear"
 
 	err := driver.WriteState(key, state, json.Marshal)
@@ -154,7 +154,7 @@ func TestClearState(t *testing.T) {
 
 func TestReadState(t *testing.T) {
 	driver := setupDriver(t)
-	state := &testState{intField: 1234, strField: "testString"}
+	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKeyRead"
 
 	err := driver.WriteState(key, state, json.Marshal)
@@ -168,7 +168,7 @@ func TestReadState(t *testing.T) {
 		t.Fatalf("failed to read state. Error: %s", err)
 	}
 
-	if readState.intField != state.intField || readState.strField != state.strField {
+	if readState.IntField != state.IntField || readState.StrField != state.StrField {
 		t.Fatalf("Read state didn't match state written. Wrote: %v Read: %v",
 			state, readState)
 	}
@@ -176,15 +176,15 @@ func TestReadState(t *testing.T) {
 
 func TestReadStateAfterUpdate(t *testing.T) {
 	driver := setupDriver(t)
-	state := &testState{intField: 1234, strField: "testString"}
-	key := "testKeyRead"
+	state := &testState{IntField: 1234, StrField: "testString"}
+	key := "testKeyReadUpdate"
 
 	err := driver.WriteState(key, state, json.Marshal)
 	if err != nil {
 		t.Fatalf("failed to write state. Error: %s", err)
 	}
 
-	state.strField = "testStringUpdated"
+	state.StrField = "testStringUpdated"
 	err = driver.WriteState(key, state, json.Marshal)
 	if err != nil {
 		t.Fatalf("failed to update state. Error: %s", err)
@@ -196,8 +196,31 @@ func TestReadStateAfterUpdate(t *testing.T) {
 		t.Fatalf("failed to read state. Error: %s", err)
 	}
 
-	if readState.intField != state.intField || readState.strField != state.strField {
+	if readState.IntField != state.IntField || readState.StrField != state.StrField {
 		t.Fatalf("Read state didn't match state written. Wrote: %v Read: %v",
 			state, readState)
+	}
+}
+
+func TestReadStateAfterClear(t *testing.T) {
+	driver := setupDriver(t)
+	state := &testState{IntField: 1234, StrField: "testString"}
+	key := "testKeyReadClear"
+
+	err := driver.WriteState(key, state, json.Marshal)
+	if err != nil {
+		t.Fatalf("failed to write state. Error: %s", err)
+	}
+
+	err = driver.ClearState(key)
+	if err != nil {
+		t.Fatalf("failed to clear state. Error: %s", err)
+	}
+
+	readState := &testState{}
+	err = driver.ReadState(key, readState, json.Unmarshal)
+	if err == nil {
+		t.Fatalf("Able to read cleared state!. Key: %s, Value: %v",
+			key, readState)
 	}
 }

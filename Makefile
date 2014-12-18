@@ -1,9 +1,10 @@
 all: build unit-test system-test
 
 build:
-	go install -v
+	go get ./...
+	go install -v 
 
-unit-test:
+unit-test: build
 	go test -v github.com/mapuri/netplugin/drivers
 
 system-test:
