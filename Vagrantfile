@@ -2,7 +2,10 @@
 # vi: set ft=ruby :
 
 $provision = <<SCRIPT
-apt-get update -qq && apt-get install -y vim curl python-software-properties git golang openvswitch-switch
+## install packages
+apt-get update -qq && apt-get install -y vim curl python-software-properties git golang openvswitch-switch || exit 1
+
+## setup enviorment. XXX: remove http-proxy stuff
 cat > /etc/profile.d/envvar.sh <<'EOF'
 export GOPATH=/opt/golang
 export GOBIN=$GOPATH/bin
@@ -12,8 +15,21 @@ export https_proxy=$http_proxy
 export HTTP_PROXY=$http_proxy
 export HTTPS_PROXY=$http_proxy
 EOF
-. /etc/profile.d/envvar.sh
-go get -u github.com/mapuri/netplugin
+
+. /etc/profile.d/envvar.sh || exit 1
+
+## install and start etcd
+( cd /tmp && \
+curl -L  https://github.com/coreos/etcd/releases/download/v0.4.6/etcd-v0.4.6-linux-amd64.tar.gz -o etcd-v0.4.6-linux-amd64.tar.gz && \
+tar xzvf etcd-v0.4.6-linux-amd64.tar.gz && \
+cd /usr/bin && \
+ln -s /tmp/etcd-v0.4.6-linux-amd64/etcd && \
+ln -s /tmp/etcd-v0.4.6-linux-amd64/etcdctl && \
+etcd &) || exit 1
+
+## go get the netplugin repo
+go get -u github.com/mapuri/netplugin || exit 1
+
 SCRIPT
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
