@@ -44,11 +44,11 @@ func setupDriver(t *testing.T) *EtcdStateDriver {
 	return driver
 }
 
-func TestDriverInit(t *testing.T) {
+func TestEtcdStateDriverInit(t *testing.T) {
 	setupDriver(t)
 }
 
-func TestDriverInitInvalidConfig(t *testing.T) {
+func TestEtcdStateDriverInitInvalidConfig(t *testing.T) {
 	config := &core.Config{}
 
 	driver := EtcdStateDriver{}
@@ -57,9 +57,14 @@ func TestDriverInitInvalidConfig(t *testing.T) {
 	if err == nil {
 		t.Fatalf("driver init succeeded, should have failed.")
 	}
+
+	err = driver.Init(nil)
+	if err == nil {
+		t.Fatalf("driver init succeeded, should have failed.")
+	}
 }
 
-func TestWrite(t *testing.T) {
+func TestEtcdStateDriverWrite(t *testing.T) {
 	driver := setupDriver(t)
 	testBytes := []byte{0xb, 0xa, 0xd, 0xb, 0xa, 0xb, 0xe}
 	key := "TestKeyRawWrite"
@@ -70,7 +75,7 @@ func TestWrite(t *testing.T) {
 	}
 }
 
-func TestRead(t *testing.T) {
+func TestEtcdStateDriverRead(t *testing.T) {
 	driver := setupDriver(t)
 	testBytes := []byte{0xb, 0xa, 0xd, 0xb, 0xa, 0xb, 0xe}
 	key := "TestKeyRawRead"
@@ -108,7 +113,7 @@ func (s *testState) Clear() error {
 	return &core.Error{Desc: "Should not be called!!"}
 }
 
-func TestWriteState(t *testing.T) {
+func TestEtcdStateDriverWriteState(t *testing.T) {
 	driver := setupDriver(t)
 	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKey"
@@ -119,7 +124,7 @@ func TestWriteState(t *testing.T) {
 	}
 }
 
-func TestWriteStateForUpdate(t *testing.T) {
+func TestEtcdStateDriverWriteStateForUpdate(t *testing.T) {
 	driver := setupDriver(t)
 	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKeyForUpdate"
@@ -136,7 +141,7 @@ func TestWriteStateForUpdate(t *testing.T) {
 	}
 }
 
-func TestClearState(t *testing.T) {
+func TestEtcdStateDriverClearState(t *testing.T) {
 	driver := setupDriver(t)
 	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKeyClear"
@@ -152,7 +157,7 @@ func TestClearState(t *testing.T) {
 	}
 }
 
-func TestReadState(t *testing.T) {
+func TestEtcdStateDriverReadState(t *testing.T) {
 	driver := setupDriver(t)
 	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKeyRead"
@@ -174,7 +179,7 @@ func TestReadState(t *testing.T) {
 	}
 }
 
-func TestReadStateAfterUpdate(t *testing.T) {
+func TestEtcdStateDriverReadStateAfterUpdate(t *testing.T) {
 	driver := setupDriver(t)
 	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKeyReadUpdate"
@@ -202,7 +207,7 @@ func TestReadStateAfterUpdate(t *testing.T) {
 	}
 }
 
-func TestReadStateAfterClear(t *testing.T) {
+func TestEtcdStateDriverReadStateAfterClear(t *testing.T) {
 	driver := setupDriver(t)
 	state := &testState{IntField: 1234, StrField: "testString"}
 	key := "testKeyReadClear"

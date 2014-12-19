@@ -64,9 +64,9 @@ func (p *NetPlugin) initDriver(driverRegistry map[string]DriverConfigTypes,
 			return nil, nil, err
 		}
 
-		config := core.Config{V: driverConfig}
+		config := &core.Config{V: driverConfig}
 		driver := reflect.New(driverType)
-		return driver, &config, nil
+		return driver, config, nil
 	} else {
 		return nil, nil,
 			&core.Error{Desc: fmt.Sprintf("Failed to find a registered driver for: %s", name)}

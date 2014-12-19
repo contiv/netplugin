@@ -23,8 +23,7 @@ func (s *OvsCfgEndpointState) Write() error {
 
 func (s *OvsCfgEndpointState) Read(id string) error {
 	key := fmt.Sprintf(EP_CFG_PATH, id)
-	state := core.State(s)
-	return s.stateDriver.ReadState(key, state, json.Unmarshal)
+	return s.stateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 func (s *OvsCfgEndpointState) Clear() error {
@@ -40,14 +39,12 @@ type OvsOperEndpointState struct {
 
 func (s *OvsOperEndpointState) Write() error {
 	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
-	state := core.State(s)
-	return s.stateDriver.WriteState(key, state, json.Marshal)
+	return s.stateDriver.WriteState(key, s, json.Marshal)
 }
 
 func (s *OvsOperEndpointState) Read(id string) error {
 	key := fmt.Sprintf(EP_OPER_PATH, id)
-	state := core.State(s)
-	return s.stateDriver.ReadState(key, state, json.Unmarshal)
+	return s.stateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 func (s *OvsOperEndpointState) Clear() error {

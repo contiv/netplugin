@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"encoding/base64"
+	"fmt"
 	"github.com/coreos/go-etcd/etcd"
 
 	"github.com/mapuri/netplugin/core"
@@ -21,9 +22,10 @@ type EtcdStateDriver struct {
 }
 
 func (d *EtcdStateDriver) Init(config *core.Config) error {
-	// XXX: initialize with default setting i.e. etcd cluster running on
-	// localhost. Revisit once we figure out how the config is passed to
-	// the state driver
+	if config == nil {
+		return &core.Error{Desc: fmt.Sprintf("Invalid arguments. cfg: %v", config)}
+	}
+
 	cfg, ok := config.V.(EtcdStateDriverConfig)
 
 	if !ok {
