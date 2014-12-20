@@ -19,7 +19,7 @@ type State interface {
 }
 
 type Config struct {
-	// Config object parsed from a git-config like config
+	// Config object parsed from a json styled config
 	V interface{}
 }
 
@@ -43,7 +43,7 @@ type Plugin interface {
 	// A plugin brings together an implementation of a network, endpoint and
 	// state drivers. Along with implementing north-bound interfaces for
 	// network and endpoint operations
-	Init(config *Config) error
+	Init(configStr string) error
 	Deinit()
 	Network
 	Endpoint
@@ -69,7 +69,7 @@ type EndpointDriver interface {
 	Deinit()
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
-	MakeEndpointAddress(id string) (*Address, error)
+	MakeEndpointAddress() (*Address, error)
 }
 
 type StateDriver interface {

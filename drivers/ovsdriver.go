@@ -289,7 +289,7 @@ func (d *OvsDriver) Init(config *core.Config, stateDriver core.StateDriver) erro
 		return &core.Error{Desc: fmt.Sprintf("Invalid arguments. cfg: %v, stateDriver: %v", config, stateDriver)}
 	}
 
-	cfg, ok := config.V.(OvsDriverConfig)
+	cfg, ok := config.V.(*OvsDriverConfig)
 	if !ok {
 		return &core.Error{Desc: "Invalid type passed"}
 	}
@@ -306,11 +306,23 @@ func (d *OvsDriver) Init(config *core.Config, stateDriver core.StateDriver) erro
 	initial, _ := d.ovs.MonitorAll(DATABASE, "")
 	d.populateCache(*initial)
 
-	// Create a bridge after registering for events as we depend on ovsdb cache
+	// Create a bridge after registering for events as we depend on ovsdb cache.
+	// Since the same dirver is used as endpoint driver, only create the bridge
+	// if it's not already created
 	// XXX: revisit if the bridge-name needs to be configurable
-	err = d.createDeleteBridge(DEFAULT_BRIDGE_NAME, CREATE_BRIDGE)
-	if err != nil {
-		return err
+	brCreated := false
+	for _, row := range d.cache[BRIDGE_TABLE] {
+		if row.Fields["name"] == DEFAULT_BRIDGE_NAME {
+			brCreated = true
+			break
+		}
+	}
+
+	if !brCreated {
+		err = d.createDeleteBridge(DEFAULT_BRIDGE_NAME, CREATE_BRIDGE)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

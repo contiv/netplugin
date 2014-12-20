@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"code.google.com/p/gcfg"
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -52,34 +52,45 @@ type NetPlugin struct {
 	StateDriver    core.StateDriver
 }
 
-func (p *NetPlugin) initDriver(driverRegistry map[string]DriverConfigTypes,
-	name string) (core.Driver, *core.Config, error) {
-	if _, ok := driverRegistry[name]; ok {
-		configType := driverRegistry[name].ConfigType
-		driverType := driverRegistry[name].DriverType
+func (p *NetPlugin) InitHelper(driverRegistry map[string]DriverConfigTypes,
+	driverName string, configStr string) (core.Driver, *core.Config, error) {
+	if _, ok := driverRegistry[driverName]; ok {
+		configType := driverRegistry[driverName].ConfigType
+		driverType := driverRegistry[driverName].DriverType
 
-		driverConfig := reflect.New(configType)
-		err := gcfg.ReadFileInto(driverConfig, p.ConfigFile)
+		driverConfig := reflect.New(configType).Interface()
+		err := json.Unmarshal([]byte(configStr), driverConfig)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		config := &core.Config{V: driverConfig}
-		driver := reflect.New(driverType)
+		driver := reflect.New(driverType).Interface()
 		return driver, config, nil
 	} else {
 		return nil, nil,
-			&core.Error{Desc: fmt.Sprintf("Failed to find a registered driver for: %s", name)}
+			&core.Error{Desc: fmt.Sprintf("Failed to find a registered driver for: %s",
+				driverName)}
 	}
 
 }
 
-func (p *NetPlugin) Init(config *core.Config) error {
-	pluginConfig := config.V.(PluginConfig)
+func (p *NetPlugin) Init(configStr string) error {
+	if configStr == "" {
+		return &core.Error{Desc: "empty config passed"}
+	}
+
+	var driver core.Driver = nil
+	drvConfig := &core.Config{}
+	pluginConfig := &PluginConfig{}
+	err := json.Unmarshal([]byte(configStr), pluginConfig)
+	if err != nil {
+		return err
+	}
 
 	// initialize state driver
-	driver, drvConfig, err := p.initDriver(StateDriverRegistry,
-		pluginConfig.Drivers.State)
+	driver, drvConfig, err = p.InitHelper(StateDriverRegistry,
+		pluginConfig.Drivers.State, configStr)
 	if err != nil {
 		return err
 	}
@@ -88,10 +99,15 @@ func (p *NetPlugin) Init(config *core.Config) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			p.StateDriver.Deinit()
+		}
+	}()
 
 	// initialize network driver
-	driver, drvConfig, err = p.initDriver(NetworkDriverRegistry,
-		pluginConfig.Drivers.Network)
+	driver, drvConfig, err = p.InitHelper(NetworkDriverRegistry,
+		pluginConfig.Drivers.Network, configStr)
 	if err != nil {
 		return err
 	}
@@ -100,10 +116,15 @@ func (p *NetPlugin) Init(config *core.Config) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			p.NetworkDriver.Deinit()
+		}
+	}()
 
 	// initialize endpoint driver
-	driver, drvConfig, err = p.initDriver(EndpointDriverRegistry,
-		pluginConfig.Drivers.Endpoint)
+	driver, drvConfig, err = p.InitHelper(EndpointDriverRegistry,
+		pluginConfig.Drivers.Endpoint, configStr)
 	if err != nil {
 		return err
 	}
@@ -112,11 +133,25 @@ func (p *NetPlugin) Init(config *core.Config) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			p.EndpointDriver.Deinit()
+		}
+	}()
 
 	return nil
 }
 
 func (p *NetPlugin) Deinit() {
+	if p.EndpointDriver != nil {
+		p.EndpointDriver.Deinit()
+	}
+	if p.NetworkDriver != nil {
+		p.NetworkDriver.Deinit()
+	}
+	if p.StateDriver != nil {
+		p.StateDriver.Deinit()
+	}
 }
 
 func (p *NetPlugin) CreateNetwork(id string) error {

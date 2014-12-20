@@ -29,7 +29,7 @@ import (
 //}
 
 func setupDriver(t *testing.T) *EtcdStateDriver {
-	etcdConfig := EtcdStateDriverConfig{}
+	etcdConfig := &EtcdStateDriverConfig{}
 	etcdConfig.Etcd.Machines = []string{}
 	config := &core.Config{V: etcdConfig}
 

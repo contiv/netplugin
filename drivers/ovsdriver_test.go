@@ -98,7 +98,7 @@ func (d *testOvsStateDriver) WriteState(key string, value core.State,
 
 func initOvsDriver(t *testing.T) *OvsDriver {
 	driver := &OvsDriver{}
-	ovsConfig := OvsDriverConfig{}
+	ovsConfig := &OvsDriverConfig{}
 	ovsConfig.Ovs.DbIp = ""
 	ovsConfig.Ovs.DbPort = 0
 	config := &core.Config{V: ovsConfig}

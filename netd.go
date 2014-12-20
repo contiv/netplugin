@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mapuri/netplugin/core"
 	"github.com/mapuri/netplugin/drivers"
 	"github.com/mapuri/netplugin/plugin"
 )
@@ -91,15 +90,23 @@ func run(netPlugin plugin.NetPlugin) error {
 }
 
 func main() {
-	pluginConfig := plugin.PluginConfig{}
-	pluginConfig.Drivers.Network = "ovs"
-	pluginConfig.Drivers.Endpoint = "ovs"
-	pluginConfig.Drivers.State = "etcd"
-	config := core.Config{V: pluginConfig}
-	// XXX: should get the file as argument
-	netPlugin := plugin.NetPlugin{ConfigFile: "/tmp"}
+	configStr := `{
+                    "drivers" : {
+                       "network": "ovs",
+                       "endpoint": "ovs",
+                       "state": "etcd"
+                    },
+                    "ovs" : {
+                       "dbip": "127.0.0.1",
+                       "dbport": 6640
+                    },
+                    "etcd" : {
+                        "machines": ["127.0.0.1:4001"]
+                    }
+                  }`
+	netPlugin := plugin.NetPlugin{}
 
-	err := netPlugin.Init(&config)
+	err := netPlugin.Init(configStr)
 	if err != nil {
 		log.Println("Failed to initialize the plugin. Error: ", err)
 		os.Exit(1)

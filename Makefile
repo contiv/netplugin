@@ -8,6 +8,7 @@ clean:
 	go clean -i -r -v
 
 unit-test: build
-	go test -v github.com/mapuri/netplugin/drivers
+	go test -v github.com/mapuri/netplugin/drivers \
+		github.com/mapuri/netplugin/plugin
 
 system-test:

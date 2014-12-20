@@ -26,7 +26,7 @@ func (d *EtcdStateDriver) Init(config *core.Config) error {
 		return &core.Error{Desc: fmt.Sprintf("Invalid arguments. cfg: %v", config)}
 	}
 
-	cfg, ok := config.V.(EtcdStateDriverConfig)
+	cfg, ok := config.V.(*EtcdStateDriverConfig)
 
 	if !ok {
 		return &core.Error{Desc: "Invalid config type passed!"}
