@@ -34,14 +34,12 @@ ln -s /tmp/etcd-v0.4.6-linux-amd64/etcdctl && \
 etcd &) || exit 1
 
 ## link the netplugin repo, for quick test-fix-test turnaround
-(mkdir -p $GOSRC/github.com/mapuri && \
-sudo ln -s /vagrant $GOSRC/github.com/mapuri/netplugin) || exit 1
+(mkdir -p $GOSRC/github.com/contiv && \
+sudo ln -s /vagrant $GOSRC/github.com/contiv/netplugin) || exit 1
 
 ##enable ovsdb-server to listen for incoming requests
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
 ovs-vsctl set-manager ptcp:6640) || exit 1
-
-#go get -u github.com/mapuri/netplugin || exit 1
 
 SCRIPT
 VAGRANTFILE_API_VERSION = "2"

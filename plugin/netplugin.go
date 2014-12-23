@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/mapuri/netplugin/core"
-	"github.com/mapuri/netplugin/drivers"
+	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 )
 
 // implements the generic Plugin interface

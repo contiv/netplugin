@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/mapuri/netplugin/core"
+	"github.com/contiv/netplugin/core"
 )
 
 // setup a etcd cluster, run tests and then cleanup the cluster

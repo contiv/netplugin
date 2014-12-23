@@ -5,7 +5,7 @@ import (
 	"github.com/socketplane/libovsdb"
 	"reflect"
 
-	"github.com/mapuri/netplugin/core"
+	"github.com/contiv/netplugin/core"
 )
 
 // implements the NetworkDriver and EndpointDriver interface for an vlan based

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mapuri/netplugin/core"
+	"github.com/contiv/netplugin/core"
 )
 
 const (

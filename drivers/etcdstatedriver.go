@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/coreos/go-etcd/etcd"
 
-	"github.com/mapuri/netplugin/core"
+	"github.com/contiv/netplugin/core"
 )
 
 // implements the StateDriver interface for an etcd based distributed

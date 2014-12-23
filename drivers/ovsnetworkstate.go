@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/mapuri/netplugin/core"
+	"github.com/contiv/netplugin/core"
 )
 
 // implements the State interface for a network implemented using

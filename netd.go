@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mapuri/netplugin/drivers"
-	"github.com/mapuri/netplugin/plugin"
+	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/plugin"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
