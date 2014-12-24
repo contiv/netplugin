@@ -28,9 +28,8 @@ func receiver(netPlugin plugin.NetPlugin, rsps chan *etcd.Response,
 		isDelete := false
 		operStr := ""
 		node := rsp.Node
-		if rsp.Node == nil {
+		if rsp.Node.Value == "" {
 			isDelete = true
-			node = rsp.PrevNode
 		}
 		var err error = nil
 		log.Printf("Received event for key: %s", node.Key)

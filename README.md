@@ -62,5 +62,8 @@ Play with daemon:
 
 `ip link show`
 
-TODO: 'delete' operation is not yet working
+- delete the endpoint
 
+`$GOBIN/cli -oper delete -construct endpoint foo-ep`
+
+Read the network and endpoint state to verify that they are updated.

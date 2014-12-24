@@ -424,9 +424,7 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 		return err
 	}
 	defer func() {
-		if err != nil {
-			operEpState.Clear()
-		}
+		operEpState.Clear()
 	}()
 
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
