@@ -30,7 +30,7 @@ import (
 
 func setupDriver(t *testing.T) *EtcdStateDriver {
 	etcdConfig := &EtcdStateDriverConfig{}
-	etcdConfig.Etcd.Machines = []string{}
+	etcdConfig.Etcd.Machines = []string{"http://127.0.0.1:4001"}
 	config := &core.Config{V: etcdConfig}
 
 	driver := &EtcdStateDriver{}
@@ -97,8 +97,9 @@ func TestEtcdStateDriverRead(t *testing.T) {
 }
 
 type testState struct {
-	IntField int    `json:"intField"`
-	StrField string `json:"strField"`
+	IgnoredField core.StateDriver `json:"-"`
+	IntField     int              `json:"intField"`
+	StrField     string           `json:"strField"`
 }
 
 func (s *testState) Write() error {
@@ -115,7 +116,8 @@ func (s *testState) Clear() error {
 
 func TestEtcdStateDriverWriteState(t *testing.T) {
 	driver := setupDriver(t)
-	state := &testState{IntField: 1234, StrField: "testString"}
+	state := &testState{IgnoredField: driver, IntField: 1234,
+		StrField: "testString"}
 	key := "testKey"
 
 	err := driver.WriteState(key, state, json.Marshal)
@@ -126,7 +128,8 @@ func TestEtcdStateDriverWriteState(t *testing.T) {
 
 func TestEtcdStateDriverWriteStateForUpdate(t *testing.T) {
 	driver := setupDriver(t)
-	state := &testState{IntField: 1234, StrField: "testString"}
+	state := &testState{IgnoredField: driver, IntField: 1234,
+		StrField: "testString"}
 	key := "testKeyForUpdate"
 
 	err := driver.WriteState(key, state, json.Marshal)
@@ -159,8 +162,9 @@ func TestEtcdStateDriverClearState(t *testing.T) {
 
 func TestEtcdStateDriverReadState(t *testing.T) {
 	driver := setupDriver(t)
-	state := &testState{IntField: 1234, StrField: "testString"}
-	key := "testKeyRead"
+	state := &testState{IgnoredField: driver, IntField: 1234,
+		StrField: "testString"}
+	key := "contiv.io/dir1/testKeyRead"
 
 	err := driver.WriteState(key, state, json.Marshal)
 	if err != nil {

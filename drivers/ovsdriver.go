@@ -336,19 +336,31 @@ func (d *OvsDriver) Deinit() {
 }
 
 func (d *OvsDriver) CreateNetwork(id string) error {
-	// no-op for a vlan based network
+	// no-op for a vlan based network, just create oper state
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver, Id: id}
+	err := operNwState.Write()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (d *OvsDriver) DeleteNetwork(id string) error {
-	// no-op for vlan based network
+	// no-op for a vlan based network, just delete oper state
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver, Id: id}
+	err := operNwState.Clear()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (d *OvsDriver) CreateEndpoint(id string) error {
 	// add an internal ovs port with vlan-tag information from the state
 	portName := d.getPortName()
-	cfgEpState := OvsCfgEndpointState{stateDriver: d.stateDriver}
+	cfgEpState := OvsCfgEndpointState{StateDriver: d.stateDriver}
 
 	err := cfgEpState.Read(id)
 	if err != nil {
@@ -367,14 +379,19 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}()
 
 	//all went well, update the runtime state of network and endpoint
-	operEpState := OvsOperEndpointState{stateDriver: d.stateDriver, Id: id,
+	operEpState := OvsOperEndpointState{StateDriver: d.stateDriver, Id: id,
 		PortName: portName, NetId: cfgEpState.NetId}
 	err = operEpState.Write()
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			operEpState.Clear()
+		}
+	}()
 
-	operNwState := OvsOperNetworkState{stateDriver: d.stateDriver}
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
 	err = operNwState.Read(cfgEpState.NetId)
 	if err != nil {
 		return err
@@ -401,13 +418,18 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 		return err
 	}
 
-	operEpState := OvsOperEndpointState{stateDriver: d.stateDriver}
+	operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
 	err = operEpState.Read(id)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			operEpState.Clear()
+		}
+	}()
 
-	operNwState := OvsOperNetworkState{stateDriver: d.stateDriver}
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
 	err = operNwState.Read(operEpState.NetId)
 	if err != nil {
 		return err
@@ -415,11 +437,6 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 
 	operNwState.EpCount -= 1
 	err = operNwState.Write()
-	if err != nil {
-		return err
-	}
-
-	err = operEpState.Clear()
 	if err != nil {
 		return err
 	}

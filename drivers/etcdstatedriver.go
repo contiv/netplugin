@@ -44,7 +44,7 @@ func (d *EtcdStateDriver) Write(key string, value []byte) error {
 	// XXX: etcd go client right now accepts only string values, so
 	// encode the received byte array as base64 string before storing it.
 	encodedStr := base64.URLEncoding.EncodeToString(value)
-	_, err := d.Client.Set(key, encodedStr, 5)
+	_, err := d.Client.Set(key, encodedStr, 0)
 
 	return err
 }

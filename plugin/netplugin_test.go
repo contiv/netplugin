@@ -16,7 +16,7 @@ func TestNetPluginInit(t *testing.T) {
                        "dbport": 6640
                     },
                     "etcd" : {
-                        "machines": ["127.0.0.1:4001"]
+                        "machines": ["http://1.0.0.1:4001"]
                     }
                   }`
 	plugin := NetPlugin{}
@@ -47,7 +47,7 @@ func TestNetPluginInitInvalidConfigMissingStateDriverName(t *testing.T) {
                        "dbport": 6640
                     },
                     "etcd" : {
-                        "machines": ["127.0.0.1:4001"]
+                        "machines": ["http://1.0.0.1:4001"]
                     }
                   }`
 	plugin := NetPlugin{}
@@ -88,7 +88,7 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriverName(t *testing.T) {
                        "dbport": 6640
                     },
                     "etcd" : {
-                        "machines": ["127.0.0.1:4001"]
+                        "machines": ["http://1.0.0.1:4001"]
                     }
                   }`
 	plugin := NetPlugin{}
@@ -109,7 +109,7 @@ func TestNetPluginInitInvalidConfigMissingEndpointDriverName(t *testing.T) {
                        "dbport": 6640
                     },
                     "etcd" : {
-                        "machines": ["127.0.0.1:4001"]
+                        "machines": ["http://1.0.0.1:4001"]
                     }
                   }`
 	plugin := NetPlugin{}
@@ -127,7 +127,7 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriver(t *testing.T) {
                        "state": "etcd"
                     },
                     "etcd" : {
-                        "machines": ["127.0.0.1:4001"]
+                        "machines": ["http://1.0.0.1:4001"]
                     }
                   }`
 	plugin := NetPlugin{}

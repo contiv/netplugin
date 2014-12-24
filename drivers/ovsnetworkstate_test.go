@@ -9,8 +9,8 @@ import (
 
 const (
 	testNwId  = "testNw"
-	nwCfgKey  = NW_CFG_PATH_PREFIX + testNwId + "/"
-	nwOperKey = NW_OPER_PATH_PREFIX + testNwId + "/"
+	nwCfgKey  = NW_CFG_PATH_PREFIX + testNwId
+	nwOperKey = NW_OPER_PATH_PREFIX + testNwId
 )
 
 var nwStateDriver *testNwStateDriver = &testNwStateDriver{}
@@ -57,7 +57,7 @@ func (d *testNwStateDriver) WriteState(key string, value core.State,
 }
 
 func TestOvsCfgNetworkStateRead(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{stateDriver: nwStateDriver}
+	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver}
 
 	err := epCfg.Read(testNwId)
 	if err != nil {
@@ -66,25 +66,25 @@ func TestOvsCfgNetworkStateRead(t *testing.T) {
 }
 
 func TestOvsCfgNetworkStateWrite(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{stateDriver: nwStateDriver, Id: testNwId}
+	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver, Id: testNwId}
 
 	err := epCfg.Write()
-	if err == nil {
-		t.Fatalf("write config state succeeded failed, expeted to fail")
+	if err != nil {
+		t.Fatalf("write config state failed. Error: %s", err)
 	}
 }
 
 func TestOvsCfgNetworkStateClear(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{stateDriver: nwStateDriver, Id: testNwId}
+	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver, Id: testNwId}
 
 	err := epCfg.Clear()
-	if err == nil {
-		t.Fatalf("clear config state succeeded failed, expeted to fail")
+	if err != nil {
+		t.Fatalf("clear config state failed. Error: %s", err)
 	}
 }
 
 func TestOvsOperNetworkStateRead(t *testing.T) {
-	epOper := &OvsOperNetworkState{stateDriver: nwStateDriver}
+	epOper := &OvsOperNetworkState{StateDriver: nwStateDriver}
 
 	err := epOper.Read(testNwId)
 	if err != nil {
@@ -93,7 +93,7 @@ func TestOvsOperNetworkStateRead(t *testing.T) {
 }
 
 func TestOvsOperNetworkStateWrite(t *testing.T) {
-	epOper := &OvsOperNetworkState{stateDriver: nwStateDriver, Id: testNwId}
+	epOper := &OvsOperNetworkState{StateDriver: nwStateDriver, Id: testNwId}
 
 	err := epOper.Write()
 	if err != nil {
@@ -102,7 +102,7 @@ func TestOvsOperNetworkStateWrite(t *testing.T) {
 }
 
 func TestOvsOperNetworkStateClear(t *testing.T) {
-	epOper := &OvsOperNetworkState{stateDriver: nwStateDriver, Id: testNwId}
+	epOper := &OvsOperNetworkState{StateDriver: nwStateDriver, Id: testNwId}
 
 	err := epOper.Clear()
 	if err != nil {

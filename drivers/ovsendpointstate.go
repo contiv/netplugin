@@ -11,27 +11,29 @@ import (
 // vlans with ovs. The state is stored as Json objects.
 
 type OvsCfgEndpointState struct {
-	stateDriver core.StateDriver `json:"-"`
+	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
 	VlanTag     int              `json:"vlanTag"`
 }
 
 func (s *OvsCfgEndpointState) Write() error {
-	return &core.Error{Desc: "Not implemented, shouldn't be called from plugin!"}
+	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
+	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 func (s *OvsCfgEndpointState) Read(id string) error {
 	key := fmt.Sprintf(EP_CFG_PATH, id)
-	return s.stateDriver.ReadState(key, s, json.Unmarshal)
+	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 func (s *OvsCfgEndpointState) Clear() error {
-	return &core.Error{Desc: "Not implemented, shouldn't be called from plugin!"}
+	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
+	return s.StateDriver.ClearState(key)
 }
 
 type OvsOperEndpointState struct {
-	stateDriver core.StateDriver `json:"-"`
+	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
 	PortName    string           `json:"portName"`
@@ -39,15 +41,15 @@ type OvsOperEndpointState struct {
 
 func (s *OvsOperEndpointState) Write() error {
 	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
-	return s.stateDriver.WriteState(key, s, json.Marshal)
+	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 func (s *OvsOperEndpointState) Read(id string) error {
 	key := fmt.Sprintf(EP_OPER_PATH, id)
-	return s.stateDriver.ReadState(key, s, json.Unmarshal)
+	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 func (s *OvsOperEndpointState) Clear() error {
 	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
-	return s.stateDriver.ClearState(key)
+	return s.StateDriver.ClearState(key)
 }

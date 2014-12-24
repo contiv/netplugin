@@ -2,10 +2,10 @@ all: build unit-test system-test
 
 build:
 	go get ./...
-	go install -v 
+	go install -v -installsuffix=netplugin ./...
 
 clean:
-	go clean -i -r -v
+	go clean -i -r -v ./...
 
 unit-test: build
 	go test -v github.com/contiv/netplugin/drivers \

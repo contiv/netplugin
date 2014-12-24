@@ -9,8 +9,8 @@ import (
 
 const (
 	testEpId  = "testEp"
-	epCfgKey  = EP_CFG_PATH_PREFIX + testEpId + "/"
-	epOperKey = EP_OPER_PATH_PREFIX + testEpId + "/"
+	epCfgKey  = EP_CFG_PATH_PREFIX + testEpId
+	epOperKey = EP_OPER_PATH_PREFIX + testEpId
 )
 
 var epStateDriver *testEpStateDriver = &testEpStateDriver{}
@@ -57,7 +57,7 @@ func (d *testEpStateDriver) WriteState(key string, value core.State,
 }
 
 func TestOvsCfgEndpointStateRead(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{stateDriver: epStateDriver}
+	epCfg := &OvsCfgEndpointState{StateDriver: epStateDriver}
 
 	err := epCfg.Read(testEpId)
 	if err != nil {
@@ -66,25 +66,25 @@ func TestOvsCfgEndpointStateRead(t *testing.T) {
 }
 
 func TestOvsCfgEndpointStateWrite(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{stateDriver: epStateDriver, Id: testEpId}
+	epCfg := &OvsCfgEndpointState{StateDriver: epStateDriver, Id: testEpId}
 
 	err := epCfg.Write()
-	if err == nil {
-		t.Fatalf("write config state succeeded failed, expeted to fail")
+	if err != nil {
+		t.Fatalf("write config state failed. Error: %s", err)
 	}
 }
 
 func TestOvsCfgEndpointStateClear(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{stateDriver: epStateDriver, Id: testEpId}
+	epCfg := &OvsCfgEndpointState{StateDriver: epStateDriver, Id: testEpId}
 
 	err := epCfg.Clear()
-	if err == nil {
-		t.Fatalf("clear config state succeeded failed, expeted to fail")
+	if err != nil {
+		t.Fatalf("clear config state failed. Error: %s", err)
 	}
 }
 
 func TestOvsOperEndpointStateRead(t *testing.T) {
-	epOper := &OvsOperEndpointState{stateDriver: epStateDriver}
+	epOper := &OvsOperEndpointState{StateDriver: epStateDriver}
 
 	err := epOper.Read(testEpId)
 	if err != nil {
@@ -93,7 +93,7 @@ func TestOvsOperEndpointStateRead(t *testing.T) {
 }
 
 func TestOvsOperEndpointStateWrite(t *testing.T) {
-	epOper := &OvsOperEndpointState{stateDriver: epStateDriver, Id: testEpId}
+	epOper := &OvsOperEndpointState{StateDriver: epStateDriver, Id: testEpId}
 
 	err := epOper.Write()
 	if err != nil {
@@ -102,7 +102,7 @@ func TestOvsOperEndpointStateWrite(t *testing.T) {
 }
 
 func TestOvsOperEndpointStateClear(t *testing.T) {
-	epOper := &OvsOperEndpointState{stateDriver: epStateDriver, Id: testEpId}
+	epOper := &OvsOperEndpointState{StateDriver: epStateDriver, Id: testEpId}
 
 	err := epOper.Clear()
 	if err != nil {
