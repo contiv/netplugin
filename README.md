@@ -46,7 +46,7 @@ Play with daemon:
 
 - create an endpoint
 
-`$GOBIN/cli -oper create -construct endpoint -net-id foo-net -vlan-tag 12 foo-ep`
+`$GOBIN/cli -oper create -construct endpoint -net-id foo-net -tag 12 foo-ep`
 
 - read back some oper state
 
@@ -56,7 +56,7 @@ Play with daemon:
 
 - Ensure that a port got added to the ovs bridge named vlanBr
 
-`ovsctl show`
+`sudo ovsctl show`
 
 - verify that a linux device is also created for the port added above
 
