@@ -17,6 +17,7 @@ package main
 
 import (
 	"github.com/coreos/go-etcd/etcd"
+    "github.com/samalba/dockerclient"
 	"log"
 	"os"
 	"strings"
@@ -32,7 +33,7 @@ const (
 	RECURSIVE = true
 )
 
-func receiver(netPlugin plugin.NetPlugin, rsps chan *etcd.Response,
+func handleEtcdEvents(netPlugin plugin.NetPlugin, rsps chan *etcd.Response,
 	stop chan bool, retErr chan error) {
 	for {
 		// block on change notifications
@@ -86,19 +87,43 @@ func receiver(netPlugin plugin.NetPlugin, rsps chan *etcd.Response,
 	retErr <- nil
 }
 
+func handleDockerEvents(event *dockerclient.Event, args ...interface{}) {
+    var err error
+
+    netPlugin, ok := args[0].(plugin.NetPlugin)
+    if !ok {
+        log.Printf("error decoding netplugin in handleDocker \n");
+    }
+
+    retErr, ok := args[1].(chan error)
+    if !ok {
+        log.Printf("error decoding netplugin in handleDocker \n");
+    }
+
+    log.Printf("Received event: %#v, for netPlugin %v \n", *event, netPlugin)
+    if err != nil {
+        retErr <- err
+    }
+}
+
 func run(netPlugin plugin.NetPlugin) error {
 	// watch the etcd changes and call the respective plugin APIs
 	rsps := make(chan *etcd.Response)
 	recvErr := make(chan error, 1)
 	stop := make(chan bool, 1)
 	etcdDriver := netPlugin.StateDriver.(*drivers.EtcdStateDriver)
-	client := etcdDriver.Client
+	etcdClient := etcdDriver.Client
 
-	go receiver(netPlugin, rsps, stop, recvErr)
+	go handleEtcdEvents(netPlugin, rsps, stop, recvErr)
+
+    // start docker client and handle docker events 
+    // wait on error chan for problems handling the docker events
+    dockerDriver := netPlugin.ContainerDriver.(*drivers.DockerDriver)
+    dockerDriver.Client.StartMonitorEvents(handleDockerEvents, netPlugin, recvErr)
 
 	// XXX: todo, restore any config that might have been created till this
 	// point
-	_, err := client.Watch(drivers.CFG_PATH, 0, RECURSIVE, rsps, stop)
+	_, err := etcdClient.Watch(drivers.CFG_PATH, 0, RECURSIVE, rsps, stop)
 	if err != nil && err != etcd.ErrWatchStoppedByUser {
 		log.Printf("etcd watch failed. Error: %s", err)
 		return err
@@ -118,7 +143,8 @@ func main() {
                     "drivers" : {
                        "network": "ovs",
                        "endpoint": "ovs",
-                       "state": "etcd"
+                       "state": "etcd",
+                       "container": "docker"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -126,6 +152,9 @@ func main() {
                     },
                     "etcd" : {
                         "machines": ["http://127.0.0.1:4001"]
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
 	netPlugin := plugin.NetPlugin{}

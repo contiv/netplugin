@@ -20,8 +20,8 @@ Note: make sure virtualbox is installed
 
 `make unit-test`
 
-Play with daemon:
-=================
+Play with netplugin daemon:
+==========================
 `vagrant ssh default`
 
 `sudo -s`
@@ -32,27 +32,27 @@ Play with daemon:
 
 `make build`
 
-`$GOBIN/daemon`
+`$GOBIN/netplugin`
 
 - from another terminal:
 --------------------------
 - create a network
 
-`$GOBIN/cli -oper create -construct network foo-net`
+`$GOBIN/netdcli -oper create -construct network foo-net`
 
 - read it's oper state
 
-`$GOBIN/cli -oper get -construct network foo-net`
+`$GOBIN/netdcli -oper get -construct network foo-net`
 
 - create an endpoint
 
-`$GOBIN/cli -oper create -construct endpoint -net-id foo-net -tag 12 foo-ep`
+`$GOBIN/netdcli -oper create -construct endpoint -net-id foo-net -tag 12 foo-ep`
 
 - read back some oper state
 
-`$GOBIN/cli -oper get -construct network foo-net`
+`$GOBIN/netdcli -oper get -construct network foo-net`
 
-`$GOBIN/cli -oper get -construct endpoint foo-ep`
+`$GOBIN/netdcli -oper get -construct endpoint foo-ep`
 
 - Ensure that a port got added to the ovs bridge named vlanBr
 
@@ -64,6 +64,6 @@ Play with daemon:
 
 - delete the endpoint
 
-`$GOBIN/cli -oper delete -construct endpoint foo-ep`
+`$GOBIN/netdcli -oper delete -construct endpoint foo-ep`
 
 Read the network and endpoint state to verify that they are updated.

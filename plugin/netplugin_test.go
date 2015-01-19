@@ -24,7 +24,8 @@ func TestNetPluginInit(t *testing.T) {
                     "drivers" : {
                        "network": "ovs",
                        "endpoint": "ovs",
-                       "state": "etcd"
+                       "state": "etcd",
+                       "container": "docker"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -32,6 +33,9 @@ func TestNetPluginInit(t *testing.T) {
                     },
                     "etcd" : {
                         "machines": ["http://1.0.0.1:4001"]
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
 	plugin := NetPlugin{}
@@ -56,6 +60,7 @@ func TestNetPluginInitInvalidConfigMissingStateDriverName(t *testing.T) {
                     "drivers" : {
                        "network": "ovs",
                        "endpoint": "ovs"
+                       "container": "docker"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -63,7 +68,11 @@ func TestNetPluginInitInvalidConfigMissingStateDriverName(t *testing.T) {
                     },
                     "etcd" : {
                         "machines": ["http://1.0.0.1:4001"]
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
                     }
+
                   }`
 	plugin := NetPlugin{}
 	err := plugin.Init(configStr)
@@ -77,11 +86,15 @@ func TestNetPluginInitInvalidConfigMissingStateDriver(t *testing.T) {
                     "drivers" : {
                        "network": "ovs",
                        "endpoint": "ovs",
-                       "state": "etcd"
+                       "state": "etcd",
+                       "container": "docker"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
                        "dbport": 6640
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
 	plugin := NetPlugin{}
@@ -96,7 +109,8 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriverName(t *testing.T) {
 	configStr := `{
                     "drivers" : {
                        "endpoint": "ovs",
-                       "state": "etcd"
+                       "state": "etcd",
+                       "container": "docker"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -104,6 +118,9 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriverName(t *testing.T) {
                     },
                     "etcd" : {
                         "machines": ["http://1.0.0.1:4001"]
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
 	plugin := NetPlugin{}
@@ -117,7 +134,8 @@ func TestNetPluginInitInvalidConfigMissingEndpointDriverName(t *testing.T) {
 	configStr := `{
                     "drivers" : {
                        "network": "ovs",
-                       "state": "etcd"
+                       "state": "etcd",
+                       "container": "docker"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -125,6 +143,9 @@ func TestNetPluginInitInvalidConfigMissingEndpointDriverName(t *testing.T) {
                     },
                     "etcd" : {
                         "machines": ["http://1.0.0.1:4001"]
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
 	plugin := NetPlugin{}
@@ -139,7 +160,60 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriver(t *testing.T) {
                     "drivers" : {
                        "network": "ovs",
                        "endpoint": "ovs",
+                       "state": "etcd",
+                       "container": "docker"
+                    },
+                    "etcd" : {
+                        "machines": ["http://1.0.0.1:4001"]
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
+                    }
+                  }`
+	plugin := NetPlugin{}
+	err := plugin.Init(configStr)
+	if err != nil {
+		t.Fatalf("plugin init failed: Error: %s", err)
+	}
+	defer func() { plugin.Deinit() }()
+}
+
+func TestNetPluginInitInvalidConfigMissingContainerDriverName(t *testing.T) {
+	configStr := `{
+                    "drivers" : {
+                       "network": "ovs",
+                       "endpoint": "ovs",
                        "state": "etcd"
+                    },
+                    "ovs" : {
+                       "dbip": "127.0.0.1",
+                       "dbport": 6640
+                    },
+                    "etcd" : {
+                        "machines": ["http://1.0.0.1:4001"]
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
+                    }
+                  }`
+	plugin := NetPlugin{}
+	err := plugin.Init(configStr)
+	if err == nil {
+		t.Fatalf("plugin init failed: Error: %s", err)
+	}
+}
+
+func TestNetPluginInitInvalidConfigMissingContainerDriver(t *testing.T) {
+	configStr := `{
+                    "drivers" : {
+                       "network": "ovs",
+                       "endpoint": "ovs",
+                       "state": "etcd",
+                       "container": "docker"
+                    },
+                    "ovs" : {
+                       "dbip": "127.0.0.1",
+                       "dbport": 6640
                     },
                     "etcd" : {
                         "machines": ["http://1.0.0.1:4001"]

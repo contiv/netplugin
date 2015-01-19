@@ -164,7 +164,7 @@ func main() {
 	case CLI_OPER_GET:
 		err = state.Read(idStr)
 		if err != nil {
-			log.Printf("Failed to create %s. Error: %s", construct.Get(), err)
+			log.Printf("Failed to read %s. Error: %s", construct.Get(), err)
 			os.Exit(1)
 		} else {
 			log.Printf("%s State: %v", construct.Get(), state)

@@ -33,6 +33,9 @@ ln -s /tmp/etcd-v0.4.6-linux-amd64/etcd && \
 ln -s /tmp/etcd-v0.4.6-linux-amd64/etcdctl && \
 etcd &) || exit 1
 
+## install and start docker
+curl -sSL https://get.docker.com/ubuntu/ | sudo sh
+
 ## link the netplugin repo, for quick test-fix-test turnaround
 (mkdir -p $GOSRC/github.com/contiv && \
 sudo ln -s /vagrant $GOSRC/github.com/contiv/netplugin) || exit 1

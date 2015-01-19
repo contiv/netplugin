@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# the script cleans up any remnants from previous run of netdeamon
+# like etcd state, ovs configuration, etc.
+# the script is not meant to be used in production, rather something to
+# allow easy experimentation on failure runs or crashes that leaves
+# system in invalid state 
+
+if ! $(which etcdctl > /dev/null 2>&1)
+then
+    echo "etcdctl not found !\n"
+    exit 1
+fi
+
+if ! $(which ovs-vsctl > /dev/null 2>&1)
+then
+    echo "etcdctl not found !\n"
+    exit 1
+fi
+
+etcdctl rm -recursive /contiv
+ovs-vsctl del-br vlanBr
+
+# ip link delete portx

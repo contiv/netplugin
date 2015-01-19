@@ -52,19 +52,28 @@ var StateDriverRegistry = map[string]DriverConfigTypes{
 	},
 }
 
+var ContainerDriverRegistry = map[string]DriverConfigTypes{
+	"docker": DriverConfigTypes{
+		DriverType: reflect.TypeOf(drivers.DockerDriver{}),
+		ConfigType: reflect.TypeOf(drivers.DockerDriverConfig{}),
+	},
+}
+
 type PluginConfig struct {
 	Drivers struct {
-		Network  string
-		Endpoint string
-		State    string
+		Network     string
+		Endpoint    string
+		State       string
+		Container   string
 	}
 }
 
 type NetPlugin struct {
-	ConfigFile     string
-	NetworkDriver  core.NetworkDriver
-	EndpointDriver core.EndpointDriver
-	StateDriver    core.StateDriver
+	ConfigFile      string
+	NetworkDriver   core.NetworkDriver
+	EndpointDriver  core.EndpointDriver
+	StateDriver     core.StateDriver
+    ContainerDriver core.ContainerDriver
 }
 
 func (p *NetPlugin) InitHelper(driverRegistry map[string]DriverConfigTypes,
@@ -151,6 +160,23 @@ func (p *NetPlugin) Init(configStr string) error {
 	defer func() {
 		if err != nil {
 			p.EndpointDriver.Deinit()
+		}
+	}()
+
+    // initialize container driver
+    driver, drvConfig, err = p.InitHelper(ContainerDriverRegistry,
+        pluginConfig.Drivers.Container, configStr)
+	if err != nil {
+		return err
+	}
+	p.ContainerDriver = driver.(core.ContainerDriver)
+	err = p.ContainerDriver.Init(drvConfig)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			p.ContainerDriver.Deinit()
 		}
 	}()
 

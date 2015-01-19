@@ -104,3 +104,11 @@ type StateDriver interface {
 		unmarshal func([]byte, interface{}) error) error
 	ClearState(key string) error
 }
+
+type ContainerDriver interface {
+    // Container driver provides a mechanism to interface with container
+    // runtime to handle events create, start, die, stop, pause, etc.
+    Driver
+    Init(config *Config) error
+    Deinit()
+}
