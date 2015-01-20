@@ -382,6 +382,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 
+    // TODO: some updates may mean implicit delete of the previous state
 	err = d.createDeletePort(portName, cfgEpState.Id, cfgEpState.VlanTag,
 		CREATE_PORT)
 	if err != nil {
@@ -394,8 +395,9 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}()
 
 	//all went well, update the runtime state of network and endpoint
-	operEpState := OvsOperEndpointState{StateDriver: d.stateDriver, Id: id,
-		PortName: portName, NetId: cfgEpState.NetId}
+	operEpState := OvsOperEndpointState{
+                        StateDriver: d.stateDriver, Id: id, PortName: portName, 
+                        NetId: cfgEpState.NetId, ContId: cfgEpState.ContId}
 	err = operEpState.Write()
 	if err != nil {
 		return err

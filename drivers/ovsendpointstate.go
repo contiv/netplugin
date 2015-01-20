@@ -30,6 +30,7 @@ type OvsCfgEndpointState struct {
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
 	VlanTag     int              `json:"vlanTag"`
+    ContId      string           `json:"contId"`
 }
 
 func (s *OvsCfgEndpointState) Write() error {
@@ -51,6 +52,7 @@ type OvsOperEndpointState struct {
 	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
+	ContId      string           `json:"contId"`
 	PortName    string           `json:"portName"`
 }
 

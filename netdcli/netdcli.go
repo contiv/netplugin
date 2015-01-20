@@ -31,7 +31,11 @@ const (
 	CLI_OPER_GET     = "get"
 	CLI_OPER_CREATE  = "create"
 	CLI_OPER_DELETE  = "delete"
+	CLI_OPER_ATTACH  = "attach"
+	CLI_OPER_DETACH  = "detach"
 )
+
+var validOperList = []string { CLI_OPER_GET, CLI_OPER_CREATE, CLI_OPER_DELETE, CLI_OPER_ATTACH, CLI_OPER_DETACH }
 
 type CliError struct {
 	Desc string
@@ -45,13 +49,23 @@ type Operation struct {
 	val string
 }
 
+func (o *Operation) isValid(val string) bool {
+    for _, str := range validOperList {
+        if str == val {
+            return true
+        }
+    }
+    return false
+}
+
 func (o *Operation) String() string {
-	return fmt.Sprintf("%s, %s or %s", CLI_OPER_GET, CLI_OPER_CREATE, CLI_OPER_DELETE)
+	return fmt.Sprintf("%s ", validOperList)
 }
 
 func (o *Operation) Set(val string) error {
-	if val != CLI_OPER_GET && val != CLI_OPER_CREATE && val != CLI_OPER_DELETE {
-		return &CliError{Desc: fmt.Sprintf("invalid value for construct (%s). Allowed values: %s",
+	if ! o.isValid(val) {
+		return &CliError{
+            Desc: fmt.Sprintf("invalid value for construct (%s). Allowed values: %s",
 			val, o.String())}
 	}
 	o.val = val
@@ -84,7 +98,7 @@ func (c *Construct) Get() interface{} {
 }
 
 func main() {
-	flagSet := flag.NewFlagSet("netd-cli", flag.ExitOnError)
+	flagSet := flag.NewFlagSet("netdcli", flag.ExitOnError)
 	oper := &Operation{}
 	flagSet.Var(oper, "oper", "Operation to perform")
 	construct := &Construct{}
@@ -95,6 +109,9 @@ func main() {
 	flagSet.StringVar(&netId, "net-id", "", "Network id of the endpoint")
 	vlanTag := 0
 	flagSet.IntVar(&vlanTag, "tag", 0, "Vlan tag of the endpoint")
+	contId := ""
+	flagSet.StringVar(&contId, "container-id", "", 
+                      "Container Id to identify a runningcontainer")
 	idStr := ""
 
 	err := flagSet.Parse(os.Args[1:])
@@ -116,6 +133,12 @@ func main() {
 	/* make sure all arguments are specified for endpoint create */
 	if oper.Get() == CLI_OPER_CREATE && construct.Get() == CLI_CONSTRUCT_EP && (netId == "" || vlanTag == 0) {
 		log.Printf("A valid net-id and vlan tag needs to be specified for endpoint creation")
+		os.Exit(1)
+	}
+
+	if (oper.Get() == CLI_OPER_ATTACH || oper.Get() == CLI_OPER_DETACH) && 
+        construct.Get() == CLI_CONSTRUCT_EP && contId == "" {
+		log.Printf("A valid container-id is needed to attach/detach a container to an ep")
 		os.Exit(1)
 	}
 
@@ -142,12 +165,31 @@ func main() {
 		if oper.Get() == CLI_OPER_GET {
 			epOper := &drivers.OvsOperEndpointState{StateDriver: etcdDriver}
 			state = epOper
-		} else {
-			epCfg := &drivers.OvsCfgEndpointState{StateDriver: etcdDriver}
-			epCfg.Id = idStr
-			epCfg.NetId = netId
-			epCfg.VlanTag = vlanTag
-			state = epCfg
+        } else if oper.Get() == CLI_OPER_ATTACH || oper.Get() == CLI_OPER_DETACH {
+            epCfg := &drivers.OvsCfgEndpointState{StateDriver: etcdDriver}
+		    err = epCfg.Read(idStr)
+            if err != nil {
+                log.Printf("Failed to read ep %s. Error: %s", construct.Get(), err)
+                os.Exit(1)
+            }
+            if (oper.Get() == CLI_OPER_ATTACH) {
+                epCfg.ContId = contId
+            } else {
+                if epCfg.ContId != contId {
+                    log.Printf("Can not detach container '%s' from endpoint '%s' - " +
+                               "container not attached \n", contId, idStr)
+                    os.Exit(1)
+                }
+                epCfg.ContId = ""
+            }
+            state = epCfg
+        } else {
+            epCfg := &drivers.OvsCfgEndpointState{StateDriver: etcdDriver}
+            epCfg.Id = idStr
+            epCfg.NetId = netId
+            epCfg.VlanTag = vlanTag
+            epCfg.ContId = contId
+            state = epCfg
 		}
 	case CLI_CONSTRUCT_NW:
 		if oper.Get() == CLI_OPER_GET {
@@ -169,7 +211,7 @@ func main() {
 		} else {
 			log.Printf("%s State: %v", construct.Get(), state)
 		}
-	case CLI_OPER_CREATE:
+    case CLI_OPER_ATTACH, CLI_OPER_DETACH, CLI_OPER_CREATE:
 		err = state.Write()
 		if err != nil {
 			log.Printf("Failed to create %s. Error: %s", construct.Get(), err)

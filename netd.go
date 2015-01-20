@@ -33,7 +33,7 @@ const (
 	RECURSIVE = true
 )
 
-func handleEtcdEvents(netPlugin plugin.NetPlugin, rsps chan *etcd.Response,
+func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 	stop chan bool, retErr chan error) {
 	for {
 		// block on change notifications
@@ -90,7 +90,7 @@ func handleEtcdEvents(netPlugin plugin.NetPlugin, rsps chan *etcd.Response,
 func handleDockerEvents(event *dockerclient.Event, args ...interface{}) {
     var err error
 
-    netPlugin, ok := args[0].(plugin.NetPlugin)
+    netPlugin, ok := args[0].(*plugin.NetPlugin)
     if !ok {
         log.Printf("error decoding netplugin in handleDocker \n");
     }
@@ -106,7 +106,7 @@ func handleDockerEvents(event *dockerclient.Event, args ...interface{}) {
     }
 }
 
-func run(netPlugin plugin.NetPlugin) error {
+func run(netPlugin *plugin.NetPlugin) error {
 	// watch the etcd changes and call the respective plugin APIs
 	rsps := make(chan *etcd.Response)
 	recvErr := make(chan error, 1)
@@ -157,7 +157,7 @@ func main() {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
-	netPlugin := plugin.NetPlugin{}
+	netPlugin := &plugin.NetPlugin{}
 
 	err := netPlugin.Init(configStr)
 	if err != nil {

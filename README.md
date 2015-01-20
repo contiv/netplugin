@@ -22,6 +22,9 @@ Note: make sure virtualbox is installed
 
 Play with netplugin daemon:
 ==========================
+
+- Bring up the netplugin daemon
+
 `vagrant ssh default`
 
 `sudo -s`
@@ -32,29 +35,45 @@ Play with netplugin daemon:
 
 `make build`
 
-`$GOBIN/netplugin`
+Ensure that $GOBIN is included in $PATH, then start the daemon as:
 
-- from another terminal:
---------------------------
-- create a network
+`netplugin`
 
-`$GOBIN/netdcli -oper create -construct network foo-net`
+- Create a network
 
-- read it's oper state
+Acquire another terminal to execute netdcli commands to ensrue the logs from netplugin does not mix with netdcli output. 
+`netdcli -oper create -construct network tenant1-net1`
 
-`$GOBIN/netdcli -oper get -construct network foo-net`
+The oepration state of network can be read using 
 
-- create an endpoint
+`netdcli -oper get -construct network tenant1-net1`
 
-`$GOBIN/netdcli -oper create -construct endpoint -net-id foo-net -tag 12 foo-ep`
+- Create an endpoint (an endpoint is an interface to be associated with container)
 
-- read back some oper state
+`netdcli -oper create -construct endpoint -net-id tenant1-net1 -tag 12 tenant1-net1-ep1`
 
-`$GOBIN/netdcli -oper get -construct network foo-net`
+Reading back the endpoint operation state can be done using
 
-`$GOBIN/netdcli -oper get -construct endpoint foo-ep`
+`netdcli -oper get -construct network tenant1-net1`
 
-- Ensure that a port got added to the ovs bridge named vlanBr
+`netdcli -oper get -construct endpoint tenant1-net1-ep1`
+
+- Associate an endpoint to a container (this can also be done during endpoint create)
+
+In order to associate a container to, create a container first
+`docker run -it --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash`
+
+Then, attach the container to the endpoint. Even if the association was done earlier it would work exactly the same
+`netdcli -oper attach -construct endpoint -container-id myContainer1 tenant1-net1-ep1`
+
+To associate the container during endpoint creation just pass `cont-id` parameter
+
+To detach an endpoint from a container use detach command
+`netdcli -oper detach -construct endpoint -container-id myContainer1 tenant1-net1-ep1`
+
+- Ensure that all is operational
+
+Ensure that a port got added to the ovs bridge named vlanBr
 
 `sudo ovsctl show`
 
@@ -62,8 +81,8 @@ Play with netplugin daemon:
 
 `ip link show`
 
-- delete the endpoint
+- Delete the endpoint
 
-`$GOBIN/netdcli -oper delete -construct endpoint foo-ep`
+`netdcli -oper delete -construct endpoint tenant1-net1-ep1`
 
-Read the network and endpoint state to verify that they are updated.
+Read the network and endpoint state to verify that they are updated
