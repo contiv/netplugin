@@ -121,7 +121,7 @@ func (d *DockerDriver)moveIfToContainer(ifId string, contId string) error {
     return err
 }
 
-func (d *DockerDriver)cleanupNetns(contId string) error {
+func (d *DockerDriver)cleanupNetns (contId string) error {
     contPid, err := d.getContPid(contId)
     if err != nil {
         return err
@@ -136,6 +136,41 @@ func (d *DockerDriver)cleanupNetns(contId string) error {
     return nil
 }
 
+func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
+
+    log.Printf("configure ip: addr -%s- \n", ctx.IpAddress)
+    if ctx.IpAddress == "" {
+        return nil
+    }
+
+    contPid, err := d.getContPid(ctx.NewContId)
+    if err != nil {
+        return err
+    }
+
+    // ip netns exec $NSPID ip addr add $IPADDR dev $CONTAINER_IFNAME
+    out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "addr",
+        "add", ctx.IpAddress, "dev", ctx.InterfaceId).Output()
+    if err != nil {
+        log.Printf("error configuring ip address for interface %s " +
+            "%s 'out = %s', err = %s\n", ctx.InterfaceId, out, err)
+        return err
+    }
+    log.Printf("successfully configured ip address \n")
+
+    // ip netns exec $NSPID ip link set $CONTAINER_IFNAME up
+    out, err = exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "link",
+        "set", ctx.InterfaceId, "up").Output()
+    if err != nil {
+        log.Printf("error bringing interface %s up 'out = %s', err = %s\n", 
+            ctx.InterfaceId, out, err)
+        return err
+    }
+    log.Printf("successfully brought up the container \n")
+
+    return err
+}
+
 // this function installs acl/qos and policy associated with the 
 // container to be done upon attach
 func (d *DockerDriver)AttachEndpoint(ctx *core.ContainerEpContext) error {
@@ -146,6 +181,10 @@ func (d *DockerDriver)AttachEndpoint(ctx *core.ContainerEpContext) error {
     }
 
     // configure ip address
+    err = d.configureIfAddress(ctx)
+    if err != nil {
+        return err
+    }
 
     // configure policies: acl/qos for the container on the host
 
@@ -160,10 +199,13 @@ func (d *DockerDriver)AttachEndpoint(ctx *core.ContainerEpContext) error {
 func (d *DockerDriver)DetachEndpoint(ctx *core.ContainerEpContext) error {
     var err error
 
-    err = nil
-
-    log.Printf("Detached called for container %s with %s interface\n", 
+    // log.Printf("Detached called for container %s with %s interface\n", 
                 ctx.CurrContId, ctx.InterfaceId)
+
+    // no need to move the interface out of containre, etc.
+    // usually deletion of ep takes care of that
+
+    // TODO: unconfigure policies
 
     return err
 }

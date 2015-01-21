@@ -109,6 +109,9 @@ func main() {
 	flagSet.StringVar(&netId, "net-id", "", "Network id of the endpoint")
 	vlanTag := 0
 	flagSet.IntVar(&vlanTag, "tag", 0, "Vlan tag of the endpoint")
+	ipAddr := ""
+	flagSet.StringVar(&ipAddr, "ip-address", "", 
+                      "IP address associated with the endpoint")
 	contId := ""
 	flagSet.StringVar(&contId, "container-id", "", 
                       "Container Id to identify a runningcontainer")
@@ -120,6 +123,7 @@ func main() {
 		os.Exit(1)
 	}
 
+    // TODO: move all validation to a different routine 
 	if oper.Get() == "" {
 		log.Printf("An operation must be specified")
 		os.Exit(1)
@@ -131,8 +135,10 @@ func main() {
 	}
 
 	/* make sure all arguments are specified for endpoint create */
-	if oper.Get() == CLI_OPER_CREATE && construct.Get() == CLI_CONSTRUCT_EP && (netId == "" || vlanTag == 0) {
-		log.Printf("A valid net-id and vlan tag needs to be specified for endpoint creation")
+	if oper.Get() == CLI_OPER_CREATE && construct.Get() == CLI_CONSTRUCT_EP && 
+        (netId == "" || vlanTag == 0 || ipAddr == "") {
+		log.Printf("Endpoint creation requires a valid net-id, vlan tag, and ip address")
+		log.Printf("Specified ip addr %s \n", ipAddr)
 		os.Exit(1)
 	}
 
@@ -141,6 +147,8 @@ func main() {
 		log.Printf("A valid container-id is needed to attach/detach a container to an ep")
 		os.Exit(1)
 	}
+
+    // TODO: validate ip to be a ipv4 or ipv6 format
 
 	if flagSet.NArg() != 1 {
 		log.Printf("One argument is expected")
@@ -188,6 +196,7 @@ func main() {
             epCfg.Id = idStr
             epCfg.NetId = netId
             epCfg.VlanTag = vlanTag
+            epCfg.IpAddress = ipAddr
             epCfg.ContId = contId
             state = epCfg
 		}

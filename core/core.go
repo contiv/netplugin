@@ -110,7 +110,7 @@ type ContainerEpContext struct {
     NewContId   string 
     CurrContId  string 
     InterfaceId string
-    Addr        Address
+    IpAddress   string
 }
 
 type ContainerDriver interface {

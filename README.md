@@ -1,10 +1,19 @@
-netplugin
-=========
+## Netplugin
 
-Generic network plugin (experimental)
+Generic network plugin (experimental) is designed to handle networking use cases in clustered multi-host systems, beyond what is offered by the docker default plugin. Specifically it is designed to handle:
+- Instantiating policies/acl/qos associated with containers
+- Multi-tenant environment where disjoint networks are offered to containers on the same host
+- SDN applications
+- Interoperability with non container environment
+- Multicast or multi-destination dependent applications
+- Integration with existing IPAM tools for migrating customers
 
-Testing
-=======
+The overall design is not assumed to be complete, because of ongoing work in the docker community with regards to the suitable APIs to interface with network extensions like this. Regardless, flexibility in the design has been taken into consideration to allow using a different state driver for key-value synchronization, or a different flavor of a soft-switch i.e. linux-bridge, macvlan, or openvswitch
+
+The ability to specify the intent succintly is the primary goal of the design and thus some of the specificed user interface will change, and in some cases functionality will be enhanced to accomodate the same. Design details and future work to be captured in a separate document.
+
+
+###Building and Testing
 
 `vagrant up`
 
@@ -20,10 +29,11 @@ Note: make sure virtualbox is installed
 
 `make unit-test`
 
-Play with netplugin daemon:
-==========================
+###Trying it out 
 
-- Bring up the netplugin daemon
+The netplug produces two binaries, netplugin (a daemon) and a CLI to interface with it.
+
+####Bring up the netplugin daemon
 
 `vagrant ssh default`
 
@@ -39,7 +49,7 @@ Ensure that $GOBIN is included in $PATH, then start the daemon as:
 
 `netplugin`
 
-- Create a network
+####Create a network
 
 Acquire another terminal to execute netdcli commands to ensrue the logs from netplugin does not mix with netdcli output. 
 `netdcli -oper create -construct network tenant1-net1`
@@ -48,9 +58,9 @@ The oepration state of network can be read using
 
 `netdcli -oper get -construct network tenant1-net1`
 
-- Create an endpoint (an endpoint is an interface to be associated with container)
+####Create an endpoint (an endpoint is an interface to be associated with container)
 
-`netdcli -oper create -construct endpoint -net-id tenant1-net1 -tag 12 tenant1-net1-ep1`
+`netdcli -oper create -construct endpoint -net-id tenant1-net1 -tag 12 -ip-address="11.1.1.1" tenant1-net1-ep1`
 
 Reading back the endpoint operation state can be done using
 
@@ -58,7 +68,7 @@ Reading back the endpoint operation state can be done using
 
 `netdcli -oper get -construct endpoint tenant1-net1-ep1`
 
-- Associate an endpoint to a container (this can also be done during endpoint create)
+####Associate an endpoint to a container (this can also be done during endpoint create)
 
 In order to associate a container to, create a container first
 `docker run -it --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash`
@@ -71,7 +81,7 @@ To associate the container during endpoint creation just pass `cont-id` paramete
 To detach an endpoint from a container use detach command
 `netdcli -oper detach -construct endpoint -container-id myContainer1 tenant1-net1-ep1`
 
-- Ensure that all is operational
+####Ensure that all is operational
 
 Ensure that a port got added to the ovs bridge named vlanBr
 
@@ -81,8 +91,9 @@ Ensure that a port got added to the ovs bridge named vlanBr
 
 `ip link show`
 
-- Delete the endpoint
+####Delete the endpoint
 
 `netdcli -oper delete -construct endpoint tenant1-net1-ep1`
 
 Read the network and endpoint state to verify that they are updated
+

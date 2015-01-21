@@ -31,6 +31,7 @@ type OvsCfgEndpointState struct {
 	NetId       string           `json:"netId"`
 	VlanTag     int              `json:"vlanTag"`
     ContId      string           `json:"contId"`
+    IpAddress   string           `json:"ipAddress"`
 }
 
 func (s *OvsCfgEndpointState) Write() error {

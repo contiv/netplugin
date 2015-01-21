@@ -384,6 +384,7 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
 		return &epCtx, nil
 	}
     epCtx.NewContId = cfgEpState.ContId
+    epCtx.IpAddress = cfgEpState.IpAddress
 
     operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
     err = operEpState.Read(epId)
@@ -394,7 +395,6 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
     // and current state from oper params
     epCtx.CurrContId = operEpState.ContId
     epCtx.InterfaceId = operEpState.PortName
-    // epCtx.Address = operEpState.Address
 
 	return &epCtx, err
 }
