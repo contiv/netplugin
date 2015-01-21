@@ -372,6 +372,33 @@ func (d *OvsDriver) DeleteNetwork(id string) error {
 	return nil
 }
 
+func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpContext, error) {
+	// return the ep context associated with the container
+    // to be used by container attach/detach routines
+    var epCtx core.ContainerEpContext
+
+    // read the new desired state from config
+	cfgEpState := OvsCfgEndpointState{StateDriver: d.stateDriver}
+	err := cfgEpState.Read(epId)
+	if err != nil {
+		return &epCtx, nil
+	}
+    epCtx.NewContId = cfgEpState.ContId
+
+    operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
+    err = operEpState.Read(epId)
+    if err != nil {
+        return &epCtx, nil
+    }
+
+    // and current state from oper params
+    epCtx.CurrContId = operEpState.ContId
+    epCtx.InterfaceId = operEpState.PortName
+    // epCtx.Address = operEpState.Address
+
+	return &epCtx, err
+}
+
 func (d *OvsDriver) CreateEndpoint(id string) error {
 	// add an internal ovs port with vlan-tag information from the state
 	portName := d.getPortName()
@@ -414,6 +441,9 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 
+    // TODO: although EpCount is used for informational purposes
+    // it must use distributed lock from etcd to ensure concurrency
+    // for multi-host scenarios
 	operNwState.EpCount += 1
 	err = operNwState.Write()
 	if err != nil {

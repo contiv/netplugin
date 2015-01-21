@@ -85,6 +85,7 @@ type EndpointDriver interface {
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
 	MakeEndpointAddress() (*Address, error)
+	GetEndpointContainerContext(id string) (*ContainerEpContext, error)
 }
 
 type StateDriver interface {
@@ -105,10 +106,19 @@ type StateDriver interface {
 	ClearState(key string) error
 }
 
+type ContainerEpContext struct {
+    NewContId   string 
+    CurrContId  string 
+    InterfaceId string
+    Addr        Address
+}
+
 type ContainerDriver interface {
     // Container driver provides a mechanism to interface with container
     // runtime to handle events create, start, die, stop, pause, etc.
     Driver
     Init(config *Config) error
     Deinit()
+    AttachEndpoint(ctx *ContainerEpContext) error
+    DetachEndpoint(ctx *ContainerEpContext) error
 }

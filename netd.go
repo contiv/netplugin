@@ -67,6 +67,15 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 			}
 		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
 			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
+
+            // read the context before it changes
+            contEpContext, err := netPlugin.GetEndpointContainerContext(epId)
+            if err != nil {
+                log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
+                continue
+            }
+            // log.Printf("read endpoint context: %v \n", contEpContext)
+
 			if isDelete {
 				err = netPlugin.DeleteEndpoint(epId)
 				operStr = "delete"
@@ -77,9 +86,32 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 			if err != nil {
 				log.Printf("Endpoint operation %s failed. Error: %s",
 					operStr, err)
-			} else {
-				log.Printf("Endpoint operation %s succeeded", operStr)
-			}
+                continue
+			} 
+            log.Printf("Endpoint operation %s succeeded", operStr)
+
+            // attach or detach an endpoint to a container
+            if isDelete || 
+               (contEpContext.NewContId == "" && contEpContext.CurrContId != "") {
+                err = netPlugin.DetachEndpoint(contEpContext)
+                if err != nil {
+                    log.Printf("Endpoint detach container '%s' from ep '%s' failed . " +
+                               "Error: %s", contEpContext.CurrContId, epId, err)
+                } else {
+                    log.Printf("Endpoint detach container '%s' from ep '%s' succeeded",
+                               contEpContext.CurrContId, epId)
+                }
+            } 
+            if !isDelete && contEpContext.NewContId != "" {
+                err = netPlugin.AttachEndpoint(contEpContext)
+                if err != nil {
+                    log.Printf("Endpoint attach container '%s' to ep '%s' failed . " +
+                               "Error: %s", contEpContext.NewContId, epId, err)
+                } else {
+                    log.Printf("Endpoint attach container '%s' to ep '%s' succeeded",
+                               contEpContext.NewContId, epId)
+                }
+            }
 		}
 	}
 
