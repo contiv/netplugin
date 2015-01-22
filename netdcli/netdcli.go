@@ -172,8 +172,6 @@ func main() {
             logGwAndMaskFormatError()
         }
         subnetMask = strs[1]
-
-        log.Printf("defaultGw '%s' subnetMask '%s' \n", defaultGw, subnetMask)
     }
 
 	/* make sure all arguments are specified for endpoint create */

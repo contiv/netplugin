@@ -68,7 +68,7 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
 			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
 
-            // read the context before it changes
+            // read the context before (to be compared with what changed after
             contEpContext, err := netPlugin.GetEndpointContainerContext(epId)
             if err != nil {
                 log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
@@ -103,6 +103,14 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
                 }
             } 
             if !isDelete && contEpContext.NewContId != "" {
+                if contEpContext.InterfaceId == "" {
+                    newContEpContext, err1 := netPlugin.GetEndpointContainerContext(epId)
+                    if err1 != nil {
+                        log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
+                        continue
+                    }
+                    contEpContext.InterfaceId = newContEpContext.InterfaceId
+                }
                 err = netPlugin.AttachEndpoint(contEpContext)
                 if err != nil {
                     log.Printf("Endpoint attach container '%s' to ep '%s' failed . " +

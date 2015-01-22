@@ -31,7 +31,7 @@ Note: make sure virtualbox is installed
 
 ###Trying it out 
 
-The netplug produces two binaries, netplugin (a daemon) and a CLI to interface with it.
+The netplugin produces two binaries, a netplugin daemon and a netdcli tool to interact with it.
 
 ####Bring up the netplugin daemon
 
@@ -98,11 +98,10 @@ Ensure that a port got added to the ovs bridge named vlanBr
 Let's start another container
 `docker run -it --name=myContainer2 --hostname=myContainer2 ubuntu /bin/bash`
 
-Add the newly added container to the same tenant's network and attach it to a container
-`netdcli -oper create -construct endpoint -net-id tenant1-net1 -ip-address="11.1.1.2" -net1-ep2`
-`netdcli -oper attach -construct endpoint -container-id myContainer2 tenant1-net1-ep2`
+Add the newly added container to the same tenant's network and attach it to a container. This time, instead of using ep create and attach ep to container, let's specify all parameters during ep creation
+`netdcli -oper create -construct endpoint -net-id tenant1-net1 -ip-address="11.1.1.2" -container-id myContainer2 tenant1-net1-ep2`
 
-Now go to any one of the running containers, you'll see that their inerfaces and IPs have been configured. Issue a ping from myContainer1 to myContainer2 - it should work.
+At this point both containers would have been configured with IP address in a dedicated network called 'tenant1-net1' with an IP address allocated from the subnet/mask associated with the network. Therefore, if a ping test is done from either myContainer1 or myContainer2, it would succeed. IP address can overlap in various networks as long as outbound rules are non overlapping.
 
 ####Delete the endpoint
 

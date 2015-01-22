@@ -80,6 +80,8 @@ func (d *DockerDriver)getContPid(contId string) (string, error) {
 // from pipework utility
 func (d *DockerDriver)moveIfToContainer(ifId string, contId string) error {
 
+    // log.Printf("Moving interface '%s' into container '%s' \n", ifId, contId)
+
     contPid, err := d.getContPid(contId)
     if err != nil {
         return err
@@ -112,8 +114,8 @@ func (d *DockerDriver)moveIfToContainer(ifId string, contId string) error {
     out, err := exec.Command("/sbin/ip", "link", "set", ifId, 
         "netns", contPid).Output()
     if err != nil {
-        log.Printf("error moving container's namespace 'out = %s', err = %s\n",
-            out, err)
+        log.Printf("error moving interface into container's namespace " + 
+            "out = '%s', err = '%s'\n", out, err)
         return err
     }
 
@@ -153,10 +155,9 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
         "add", ctx.IpAddress + "/" + ctx.SubnetMask, "dev", ctx.InterfaceId).Output()
     if err != nil {
         log.Printf("error configuring ip address for interface %s " +
-            "%s 'out = %s', err = %s\n", ctx.InterfaceId, out, err)
+            "%s out = '%s', err = '%s'\n", ctx.InterfaceId, out, err)
         return err
     }
-    log.Printf("successfully configured ip address \n")
 
     // ip netns exec $NSPID ip link set $CONTAINER_IFNAME up
     out, err = exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "link",
@@ -166,7 +167,7 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
             ctx.InterfaceId, out, err)
         return err
     }
-    log.Printf("successfully brought up the container \n")
+    log.Printf("successfully configured ip and brought up the interface \n")
 
     return err
 }
