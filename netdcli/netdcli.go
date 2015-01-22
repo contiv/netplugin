@@ -99,175 +99,231 @@ func (c *Construct) Get() interface{} {
 	return c.val
 }
 
-func logGwAndMaskFormatError() {
-    log.Fatalf("gateway IP and mask must be specified e.g. 11.0.1.1/24 or if gateway is not required to be specified then 0/24")
+type cliOpts struct {
+    help        bool
+    oper        Operation
+    etcdUrl     string
+    construct   Construct
+    netId       string
+    pktTag      string
+    pktTagType  string
+    gwAndMask   string
+    ipAddr      string
+    contId      string
+    idStr       string
+    defaultGw   string
+    subnetMask  string
 }
 
-func main() {
-	flagSet := flag.NewFlagSet("netdcli", flag.ExitOnError)
-	oper := &Operation{}
-	flagSet.Var(oper, "oper", "Operation to perform")
-	construct := &Construct{}
-	flagSet.Var(construct, "construct", "Construct to operate on i.e network or endpoint")
-	etcdUrl := ""
-	flagSet.StringVar(&etcdUrl, "etcd-url", "http://127.0.0.1:4001", "Etcd cluster url")
-	netId := ""
-	flagSet.StringVar(&netId, "net-id", "", "Network id of the endpoint")
-	pktTag := "auto"
-	flagSet.StringVar(&pktTag, "tag", "", "Vlan/Vxlan tag of the network")
-	gwAndMask := ""
-	flagSet.StringVar(&gwAndMask, "gw", "", "Default Gateway IP and mask e.g. 11.0.1.1/24")
-	pktTagType := ""
-	flagSet.StringVar(&pktTagType, "tag-type", "vlan", "Vlan/Vxlan tag of the network")
-	ipAddr := "auto"
-	flagSet.StringVar(&ipAddr, "ip-address", "auto", 
-                      "IP address associated with the endpoint")
-	contId := ""
-	flagSet.StringVar(&contId, "container-id", "", 
-                      "Container Id to identify a runningcontainer")
-	idStr := ""
+var opts cliOpts
+var flagSet *flag.FlagSet
 
-	err := flagSet.Parse(os.Args[1:])
-	if err != nil {
-		log.Fatalf("Failed to parse command. Error: %s", err)
+func init() {
+	flagSet = flag.NewFlagSet("netdcli", flag.ExitOnError)
+	flagSet.Var(&opts.oper,
+        "oper",
+        "Operation to perform")
+	flagSet.Var(&opts.construct,
+        "construct",
+        "Construct to operate on i.e network or endpoint")
+	flagSet.StringVar(&opts.etcdUrl,
+        "etcd-url",
+        "http://127.0.0.1:4001",
+        "Etcd cluster url")
+	flagSet.StringVar(&opts.netId,
+        "net-id",
+        "",
+        "Network id of the endpoint")
+	flagSet.StringVar(&opts.pktTag,
+        "tag",
+        "auto",
+        "Vlan/Vxlan tag of the network")
+	flagSet.StringVar(&opts.pktTagType,
+        "tag-type",
+        "vlan",
+        "Vlan/Vxlan tag of the network")
+	flagSet.StringVar(&opts.gwAndMask,
+        "gw",
+        "",
+        "Default Gateway IP and mask e.g. 11.0.1.1/24")
+	flagSet.StringVar(&opts.ipAddr,
+        "ip-address",
+        "auto",
+        "IP address associated with the endpoint")
+	flagSet.StringVar(&opts.contId,
+        "container-id",
+        "",
+        "Container Id to identify a runningcontainer")
+    flagSet.BoolVar(&opts.help, "help", false, "prints this message")
+}
+
+func usage() {
+    fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
+    flagSet.PrintDefaults()
+}
+
+func logFatalGwAndMaskFormatError() {
+    log.Fatalf("gateway IP and mask must be specified e.g. 11.0.1.1/24 or " +
+        "if gateway is not required to be specified then 0/24")
+}
+
+func validateOpts() error {
+    var err error
+
+	if flagSet.NArg() != 1 || opts.help {
+        usage()
+        os.Exit(0)
 	}
 
-    // TODO: move all validation to a different routine 
-	if oper.Get() == "" {
+	if opts.oper.Get() == "" {
 		log.Fatalf("An operation must be specified")
 	}
 
-	if construct.Get() == "" {
+	if opts.construct.Get() == "" {
 		log.Fatalf("A construct must be specified")
 	}
 
-	// network create argument validation 
-	if oper.Get() == CLI_OPER_CREATE && construct.Get() == CLI_CONSTRUCT_NW && 
-        (pktTag == "auto" || pktTagType != "vlan" || gwAndMask == "") {
-        if pktTag == "auto" {
+    // network create params validation
+	if opts.oper.Get() == CLI_OPER_CREATE &&
+       opts.construct.Get() == CLI_CONSTRUCT_NW &&
+       (opts.pktTag == "auto" || opts.pktTagType != "vlan" || opts.gwAndMask == "") {
+        if opts.pktTag == "auto" {
             log.Fatalf("vxlan tunneling and auto allocation of vlan/vxlan is coming soon...")
-        } else if pktTagType != "vlan" {
+        } else if opts.pktTagType != "vlan" {
             log.Fatalf("vxlan and other packet tag support is coming soon...")
         } else {
-            logGwAndMaskFormatError()
+            logFatalGwAndMaskFormatError()
         }
-		os.Exit(1)
 	}
 
-    // parse default gw and mask and ensure that gw and mask format is correct
-    defaultGw := ""
-    subnetMask := ""
-    if (oper.Get() == CLI_OPER_CREATE && construct.Get() == CLI_CONSTRUCT_NW) {
-        strs := strings.Split(gwAndMask, "/")
+    // default gw and mask parsing
+    if (opts.oper.Get() == CLI_OPER_CREATE &&
+        opts.construct.Get() == CLI_CONSTRUCT_NW) {
+        strs := strings.Split(opts.gwAndMask, "/")
         if len(strs) != 2 {
-            logGwAndMaskFormatError()
+            logFatalGwAndMaskFormatError()
         }
 
         // TODO: validate ipv4/v6 gateway IP
         if strs[0] != "0" {
-            defaultGw = strs[0]
+            opts.defaultGw = strs[0]
         }
         if intMask, _ := strconv.Atoi(strs[1]); intMask > 32 {
             log.Printf("invalid mask in gateway/mask specification ")
-            logGwAndMaskFormatError()
+            logFatalGwAndMaskFormatError()
         }
-        subnetMask = strs[1]
+        opts.subnetMask = strs[1]
     }
 
-	/* make sure all arguments are specified for endpoint create */
-	if oper.Get() == CLI_OPER_CREATE && construct.Get() == CLI_CONSTRUCT_EP && 
-        (netId == "" || ipAddr == "" || ipAddr == "auto") {
-            if ipAddr == "auto" {
-                log.Fatalf("auto ip address assignemt is coming soon... for now please specify an IP address associated with an endpoint\n")
-            } else {
-		        log.Fatalf("Endpoint creation requires a valid net-id, vlan tag, and ip address")
-            }
+	// endpoint parameters validation
+	if opts.oper.Get() == CLI_OPER_CREATE &&
+       opts.construct.Get() == CLI_CONSTRUCT_EP &&
+       (opts.netId == "" || opts.ipAddr == "" || opts.ipAddr == "auto") {
+        if opts.ipAddr == "auto" {
+            log.Fatalf("auto ip address assignemt is coming soon... for now " +
+                "please specify an IP address associated with an endpoint\n")
+        } else {
+            log.Fatalf("Endpoint creation requires a valid net-id, vlan tag, " +
+                "and ip address")
+        }
 	}
 
-	if (oper.Get() == CLI_OPER_ATTACH || oper.Get() == CLI_OPER_DETACH) && 
-        construct.Get() == CLI_CONSTRUCT_EP && contId == "" {
+    // attach detach parameters validation
+	if (opts.oper.Get() == CLI_OPER_ATTACH || opts.oper.Get() == CLI_OPER_DETACH) &&
+        opts.construct.Get() == CLI_CONSTRUCT_EP && opts.contId == "" {
 		log.Fatalf("A valid container-id is needed to attach/detach a container to an ep")
 	}
 
-    // TODO: validate ip to be a ipv4 or ipv6 format
+    return err
+}
 
-	if flagSet.NArg() != 1 {
-		log.Fatalf("One argument is expected")
-	} else {
-		idStr = flagSet.Arg(0)
+func main() {
+    var err error
+	var state core.State = nil
+
+	err = flagSet.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatalf("Failed to parse command. Error: %s", err)
 	}
+    opts.idStr = flagSet.Arg(0)
+    err = validateOpts()
+    if err != nil {
+        os.Exit(1)
+    }
+    log.Printf("parsed all valuees = %v \n", opts)
 
+    // initialize drivers
 	etcdDriver := &drivers.EtcdStateDriver{}
 	driverConfig := &drivers.EtcdStateDriverConfig{}
-	driverConfig.Etcd.Machines = []string{etcdUrl}
+	driverConfig.Etcd.Machines = []string{opts.etcdUrl}
 	config := &core.Config{V: driverConfig}
 	err = etcdDriver.Init(config)
 	if err != nil {
 		log.Fatalf("Failed to init etcd driver. Error: %s", err)
 	}
 
-	var state core.State = nil
-	switch construct.Get() {
+	switch opts.construct.Get() {
 	case CLI_CONSTRUCT_EP:
-		if oper.Get() == CLI_OPER_GET {
+		if opts.oper.Get() == CLI_OPER_GET {
 			epOper := &drivers.OvsOperEndpointState{StateDriver: etcdDriver}
 			state = epOper
-        } else if oper.Get() == CLI_OPER_ATTACH || oper.Get() == CLI_OPER_DETACH {
+        } else if opts.oper.Get() == CLI_OPER_ATTACH || opts.oper.Get() == CLI_OPER_DETACH {
             epCfg := &drivers.OvsCfgEndpointState{StateDriver: etcdDriver}
-		    err = epCfg.Read(idStr)
+		    err = epCfg.Read(opts.idStr)
             if err != nil {
-                log.Fatalf("Failed to read ep %s. Error: %s", construct.Get(), err)
+                log.Fatalf("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
             }
-            if (oper.Get() == CLI_OPER_ATTACH) {
-                epCfg.ContId = contId
+            log.Printf("read ep state as %v for container %s \n", epCfg, opts.contId)
+            if (opts.oper.Get() == CLI_OPER_ATTACH) {
+                epCfg.ContId = opts.contId
             } else {
-                if epCfg.ContId != contId {
+                if epCfg.ContId != opts.contId {
                     log.Fatalf("Can not detach container '%s' from endpoint '%s' - " +
-                               "container not attached \n", contId, idStr)
+                               "container not attached \n", opts.contId, opts.idStr)
                 }
                 epCfg.ContId = ""
             }
             state = epCfg
         } else {
             epCfg := &drivers.OvsCfgEndpointState{StateDriver: etcdDriver}
-            epCfg.Id = idStr
-            epCfg.NetId = netId
-            epCfg.IpAddress = ipAddr
-            epCfg.ContId = contId
+            epCfg.Id = opts.idStr
+            epCfg.NetId = opts.netId
+            epCfg.IpAddress = opts.ipAddr
+            epCfg.ContId = opts.contId
             state = epCfg
 		}
 	case CLI_CONSTRUCT_NW:
-		if oper.Get() == CLI_OPER_GET {
+		if opts.oper.Get() == CLI_OPER_GET {
 			nwOper := &drivers.OvsOperNetworkState{StateDriver: etcdDriver}
 			state = nwOper
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
-            nwCfg.PktTag, _ = strconv.Atoi(pktTag)
-            nwCfg.PktTagType = pktTagType
-            nwCfg.DefaultGw = defaultGw
-            nwCfg.SubnetMask = subnetMask
-			nwCfg.Id = idStr
+            nwCfg.PktTag, _ = strconv.Atoi(opts.pktTag)
+            nwCfg.PktTagType = opts.pktTagType
+            nwCfg.DefaultGw = opts.defaultGw
+            nwCfg.SubnetMask = opts.subnetMask
+			nwCfg.Id = opts.idStr
 			state = nwCfg
 		}
 	}
 
-	switch oper.Get() {
+	switch opts.oper.Get() {
 	case CLI_OPER_GET:
-		err = state.Read(idStr)
+		err = state.Read(opts.idStr)
 		if err != nil {
-			log.Fatalf("Failed to read %s. Error: %s", construct.Get(), err)
+			log.Fatalf("Failed to read %s. Error: %s", opts.construct.Get(), err)
 		} else {
-			log.Fatalf("%s State: %v", construct.Get(), state)
+			log.Fatalf("%s State: %v", opts.construct.Get(), state)
 		}
     case CLI_OPER_ATTACH, CLI_OPER_DETACH, CLI_OPER_CREATE:
 		err = state.Write()
 		if err != nil {
-			log.Fatalf("Failed to create %s. Error: %s", construct.Get(), err)
+			log.Fatalf("Failed to create %s. Error: %s", opts.construct.Get(), err)
 		}
 	case CLI_OPER_DELETE:
 		err = state.Clear()
 		if err != nil {
-			log.Fatalf("Failed to delete %s. Error: %s", construct.Get(), err)
+			log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
 		}
 	}
 

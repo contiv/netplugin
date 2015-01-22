@@ -397,6 +397,14 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
     epCtx.NewContId = cfgEpState.ContId
     epCtx.IpAddress = cfgEpState.IpAddress
 
+	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err = cfgNetState.Read(cfgEpState.NetId)
+	if err != nil {
+		return &epCtx, err
+    }
+    epCtx.DefaultGw = cfgNetState.DefaultGw
+    epCtx.SubnetMask = cfgNetState.SubnetMask
+
     operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
     err = operEpState.Read(epId)
     if err != nil {
@@ -404,14 +412,6 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
     }
     epCtx.CurrContId = operEpState.ContId
     epCtx.InterfaceId = operEpState.PortName
-
-	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err = cfgNetState.Read(cfgEpState.NetId)
-	if err != nil {
-		return &epCtx, nil
-    }
-    epCtx.DefaultGw = cfgNetState.DefaultGw
-    epCtx.SubnetMask = cfgNetState.SubnetMask
 
 	return &epCtx, err
 }

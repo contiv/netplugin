@@ -140,9 +140,16 @@ func (d *DockerDriver)cleanupNetns (contId string) error {
 
 func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 
-    log.Printf("configure ip: addr -%s- \n", ctx.IpAddress)
+    /*
+    log.Printf("configuring ip: addr -%s/%s- on interface %s for container %s\n", 
+        ctx.IpAddress, ctx.SubnetMask, ctx.InterfaceId, ctx.NewContId)
+    */
+
     if ctx.IpAddress == "" {
         return nil
+    }
+    if ctx.SubnetMask == "" {
+        errors.New("Subnet mask unspecified \n")
     }
 
     contPid, err := d.getContPid(ctx.NewContId)
@@ -150,7 +157,6 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
         return err
     }
 
-    // ip netns exec $NSPID ip addr add $IPADDR dev $CONTAINER_IFNAME
     out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "addr",
         "add", ctx.IpAddress + "/" + ctx.SubnetMask, "dev", ctx.InterfaceId).Output()
     if err != nil {
@@ -159,7 +165,6 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
         return err
     }
 
-    // ip netns exec $NSPID ip link set $CONTAINER_IFNAME up
     out, err = exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "link",
         "set", ctx.InterfaceId, "up").Output()
     if err != nil {
