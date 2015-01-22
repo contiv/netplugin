@@ -56,11 +56,11 @@ Acquire another terminal to execute netdcli commands to ensrue the logs from net
 
 The oepration state of network can be read using 
 
-`netdcli -oper get -construct network tenant1-net1`
+`netdcli -oper get -construct network -tag 12 tenant1-net1`
 
 ####Create an endpoint (an endpoint is an interface to be associated with container)
 
-`netdcli -oper create -construct endpoint -net-id tenant1-net1 -tag 12 -ip-address="11.1.1.1" tenant1-net1-ep1`
+`netdcli -oper create -construct endpoint -net-id tenant1-net1 -ip-address="11.1.1.1" tenant1-net1-ep1`
 
 Reading back the endpoint operation state can be done using
 

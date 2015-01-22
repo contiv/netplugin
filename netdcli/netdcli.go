@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+    "strconv"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
@@ -107,10 +108,12 @@ func main() {
 	flagSet.StringVar(&etcdUrl, "etcd-url", "http://127.0.0.1:4001", "Etcd cluster url")
 	netId := ""
 	flagSet.StringVar(&netId, "net-id", "", "Network id of the endpoint")
-	vlanTag := 0
-	flagSet.IntVar(&vlanTag, "tag", 0, "Vlan tag of the endpoint")
-	ipAddr := ""
-	flagSet.StringVar(&ipAddr, "ip-address", "", 
+	pktTag := "auto"
+	flagSet.StringVar(&pktTag, "tag", "", "Vlan/Vxlan tag of the network")
+	pktTagType := ""
+	flagSet.StringVar(&pktTagType, "tag-type", "vlan", "Vlan/Vxlan tag of the network")
+	ipAddr := "auto"
+	flagSet.StringVar(&ipAddr, "ip-address", "auto", 
                       "IP address associated with the endpoint")
 	contId := ""
 	flagSet.StringVar(&contId, "container-id", "", 
@@ -134,11 +137,22 @@ func main() {
 		os.Exit(1)
 	}
 
+    // TODO: move all validation to a separate function
+	// network create argument validation 
+	if oper.Get() == CLI_OPER_CREATE && construct.Get() == CLI_CONSTRUCT_NW && 
+        (pktTag == "auto" || pktTagType != "vlan") {
+		log.Printf("vxlan tunneling and auto allocation of vlan/vxlan is coming soon...")
+		os.Exit(1)
+	}
+
 	/* make sure all arguments are specified for endpoint create */
 	if oper.Get() == CLI_OPER_CREATE && construct.Get() == CLI_CONSTRUCT_EP && 
-        (netId == "" || vlanTag == 0 || ipAddr == "") {
-		log.Printf("Endpoint creation requires a valid net-id, vlan tag, and ip address")
-		log.Printf("Specified ip addr %s \n", ipAddr)
+        (netId == "" || ipAddr == "" || ipAddr == "auto") {
+            if ipAddr == "auto" {
+                log.Printf("auto ip address assignemt is coming soon... for now please specify an IP address associated with an endpoint\n")
+            } else {
+		        log.Printf("Endpoint creation requires a valid net-id, vlan tag, and ip address")
+            }
 		os.Exit(1)
 	}
 
@@ -195,7 +209,6 @@ func main() {
             epCfg := &drivers.OvsCfgEndpointState{StateDriver: etcdDriver}
             epCfg.Id = idStr
             epCfg.NetId = netId
-            epCfg.VlanTag = vlanTag
             epCfg.IpAddress = ipAddr
             epCfg.ContId = contId
             state = epCfg
@@ -206,6 +219,8 @@ func main() {
 			state = nwOper
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
+            nwCfg.PktTag, _ = strconv.Atoi(pktTag)
+            nwCfg.PktTagType = pktTagType
 			nwCfg.Id = idStr
 			state = nwCfg
 		}
