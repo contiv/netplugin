@@ -362,7 +362,8 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver, 
         Id: cfgNetState.Id, PktTagType : cfgNetState.PktTagType,
-        PktTag: cfgNetState.PktTag}
+        PktTag: cfgNetState.PktTag, DefaultGw: cfgNetState.DefaultGw,
+        SubnetMask: cfgNetState.SubnetMask}
 	err = operNwState.Write()
 	if err != nil {
 		return err
@@ -382,14 +383,14 @@ func (d *OvsDriver) DeleteNetwork(id string) error {
 	return nil
 }
 
+// fetches various parameters in ep context to allow container to be
+// associated to an ep
 func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpContext, error) {
-	// return the ep context associated with the container
-    // to be used by container attach/detach routines
     var epCtx core.ContainerEpContext
+    var err error
 
-    // read the new desired state from config
 	cfgEpState := OvsCfgEndpointState{StateDriver: d.stateDriver}
-	err := cfgEpState.Read(epId)
+	err = cfgEpState.Read(epId)
 	if err != nil {
 		return &epCtx, nil
 	}
@@ -401,10 +402,16 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
     if err != nil {
         return &epCtx, nil
     }
-
-    // and current state from oper params
     epCtx.CurrContId = operEpState.ContId
     epCtx.InterfaceId = operEpState.PortName
+
+	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err = cfgNetState.Read(cfgEpState.NetId)
+	if err != nil {
+		return &epCtx, nil
+    }
+    epCtx.DefaultGw = cfgNetState.DefaultGw
+    epCtx.SubnetMask = cfgNetState.SubnetMask
 
 	return &epCtx, err
 }

@@ -111,6 +111,8 @@ type ContainerEpContext struct {
     CurrContId  string 
     InterfaceId string
     IpAddress   string
+    SubnetMask  string
+    DefaultGw   string
 }
 
 type ContainerDriver interface {

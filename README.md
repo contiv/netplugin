@@ -51,12 +51,15 @@ Ensure that $GOBIN is included in $PATH, then start the daemon as:
 
 ####Create a network
 
-Acquire another terminal to execute netdcli commands to ensrue the logs from netplugin does not mix with netdcli output. 
-`netdcli -oper create -construct network tenant1-net1`
+Acquire another terminal to execute netdcli commands to ensure that the logs from netplugin does not mix with netdcli output. 
+
+First we start with defining a network (could be json input), for now let's use cli and specify the tag (default tag type is 'vlan') to use and subnet mask of '/24'. Let's call it tenant1-net1
+
+`netdcli -oper create -construct network -tag 12 -gw 0/24 tenant1-net1`
 
 The oepration state of network can be read using 
 
-`netdcli -oper get -construct network -tag 12 tenant1-net1`
+`netdcli -oper get -construct network tenant1-net1`
 
 ####Create an endpoint (an endpoint is an interface to be associated with container)
 
@@ -68,7 +71,7 @@ Reading back the endpoint operation state can be done using
 
 `netdcli -oper get -construct endpoint tenant1-net1-ep1`
 
-####Associate an endpoint to a container (this can also be done during endpoint create)
+####Associate an endpoint to a running container (this can also be done during endpoint create)
 
 In order to associate a container to, create a container first
 `docker run -it --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash`
@@ -91,9 +94,24 @@ Ensure that a port got added to the ovs bridge named vlanBr
 
 `ip link show`
 
+####Add more containers and make sure they can talk to each other
+Let's start another container
+`docker run -it --name=myContainer2 --hostname=myContainer2 ubuntu /bin/bash`
+
+Add the newly added container to the same tenant's network and attach it to a container
+`netdcli -oper create -construct endpoint -net-id tenant1-net1 -ip-address="11.1.1.2" -net1-ep2`
+`netdcli -oper attach -construct endpoint -container-id myContainer2 tenant1-net1-ep2`
+
+Now go to any one of the running containers, you'll see that their inerfaces and IPs have been configured. Issue a ping from myContainer1 to myContainer2 - it should work.
+
 ####Delete the endpoint
 
 `netdcli -oper delete -construct endpoint tenant1-net1-ep1`
 
 Read the network and endpoint state to verify that they are updated
+
+
+### How to Contribute
+We welcome patches and contributions, please hit the github page to open an issue or to submit patches send pull rquests. 
+Happy hacking!
 

@@ -150,7 +150,7 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 
     // ip netns exec $NSPID ip addr add $IPADDR dev $CONTAINER_IFNAME
     out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "addr",
-        "add", ctx.IpAddress, "dev", ctx.InterfaceId).Output()
+        "add", ctx.IpAddress + "/" + ctx.SubnetMask, "dev", ctx.InterfaceId).Output()
     if err != nil {
         log.Printf("error configuring ip address for interface %s " +
             "%s 'out = %s', err = %s\n", ctx.InterfaceId, out, err)

@@ -74,7 +74,7 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
                 log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
                 continue
             }
-            // log.Printf("read endpoint context: %v \n", contEpContext)
+            log.Printf("read endpoint context: %v \n", contEpContext)
 
 			if isDelete {
 				err = netPlugin.DeleteEndpoint(epId)

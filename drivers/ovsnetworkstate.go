@@ -42,6 +42,8 @@ type OvsCfgNetworkState struct {
 	StateDriver core.StateDriver `json:"-"`
     PktTagType  string           `json:"pktTagType"`
     PktTag      int              `json:"pktTag"`
+    DefaultGw   string           `json:"defaultGw"`
+    SubnetMask  string           `json:"subnetMask"`
 	Id          string           `json:"id"`
 }
 
@@ -65,6 +67,8 @@ type OvsOperNetworkState struct {
 	Id          string           `json:"id"`
     PktTagType  string           `json:"pktTagType"`
     PktTag      int              `json:"pktTag"`
+    DefaultGw   string           `json:"defaultGw"`
+    SubnetMask  string           `json:"subnetMask"`
 	EpCount     int              `json:"epCount"`
 }
 
