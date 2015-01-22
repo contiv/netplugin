@@ -351,9 +351,19 @@ func (d *OvsDriver) Deinit() {
 }
 
 func (d *OvsDriver) CreateNetwork(id string) error {
+    var err error
+
 	// no-op for a vlan based network, just create oper state
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver, Id: id}
-	err := operNwState.Write()
+	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err = cfgNetState.Read(id)
+	if err != nil {
+		return err
+	}
+
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver, 
+        Id: cfgNetState.Id, PktTagType : cfgNetState.PktTagType,
+        PktTag: cfgNetState.PktTag}
+	err = operNwState.Write()
 	if err != nil {
 		return err
 	}
@@ -400,17 +410,25 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
 }
 
 func (d *OvsDriver) CreateEndpoint(id string) error {
+    var err error
+
 	// add an internal ovs port with vlan-tag information from the state
 	portName := d.getPortName()
-	cfgEpState := OvsCfgEndpointState{StateDriver: d.stateDriver}
 
-	err := cfgEpState.Read(id)
+	cfgEpState := OvsCfgEndpointState{StateDriver: d.stateDriver}
+	err = cfgEpState.Read(id)
+	if err != nil {
+		return err
+	}
+
+	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err = cfgNetState.Read(cfgEpState.NetId)
 	if err != nil {
 		return err
 	}
 
     // TODO: some updates may mean implicit delete of the previous state
-	err = d.createDeletePort(portName, cfgEpState.Id, cfgEpState.VlanTag,
+	err = d.createDeletePort(portName, cfgEpState.Id, cfgNetState.PktTag,
 		CREATE_PORT)
 	if err != nil {
 		return err

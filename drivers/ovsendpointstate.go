@@ -29,7 +29,6 @@ type OvsCfgEndpointState struct {
 	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
-	VlanTag     int              `json:"vlanTag"`
     ContId      string           `json:"contId"`
     IpAddress   string           `json:"ipAddress"`
 }

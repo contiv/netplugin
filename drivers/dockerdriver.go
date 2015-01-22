@@ -171,8 +171,8 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
     return err
 }
 
-// this function installs acl/qos and policy associated with the 
-// container to be done upon attach
+// performs funtion to configure the network access and policies
+// before the container becomes active
 func (d *DockerDriver)AttachEndpoint(ctx *core.ContainerEpContext) error {
     
     err := d.moveIfToContainer(ctx.InterfaceId, ctx.NewContId)
@@ -180,7 +180,6 @@ func (d *DockerDriver)AttachEndpoint(ctx *core.ContainerEpContext) error {
         return err
     }
 
-    // configure ip address
     err = d.configureIfAddress(ctx)
     if err != nil {
         return err
@@ -194,13 +193,12 @@ func (d *DockerDriver)AttachEndpoint(ctx *core.ContainerEpContext) error {
     return err
 }
 
-// this function un-installs the previously installed policy associated with
-// the container to be done upon attach
+// uninstall the policies and configuration during container attach
 func (d *DockerDriver)DetachEndpoint(ctx *core.ContainerEpContext) error {
     var err error
 
     // log.Printf("Detached called for container %s with %s interface\n", 
-                ctx.CurrContId, ctx.InterfaceId)
+    //            ctx.CurrContId, ctx.InterfaceId)
 
     // no need to move the interface out of containre, etc.
     // usually deletion of ep takes care of that

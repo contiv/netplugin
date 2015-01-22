@@ -28,7 +28,7 @@ const (
 	createEpId  = "testCreateEp"
 	deleteEpId  = "testDeleteEp"
 	testOvsNwId = "testNetId"
-	testVlanTag = 100
+	testPktTag  = 100
 )
 
 var ovsStateDriver = &testOvsStateDriver{}
@@ -63,6 +63,7 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, value core.State) 
 
 	if operNw, ok := value.(*OvsOperNetworkState); ok {
 		operNw.Id = testOvsNwId
+		operNw.PktTag = testPktTag
 		return nil
 	}
 
@@ -72,7 +73,6 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, value core.State) 
 			cfgEp.Id = deleteEpId
 		}
 		cfgEp.NetId = testOvsNwId
-		cfgEp.VlanTag = testVlanTag
 		return nil
 	}
 

@@ -40,6 +40,8 @@ const (
 
 type OvsCfgNetworkState struct {
 	StateDriver core.StateDriver `json:"-"`
+    PktTagType  string           `json:"pktTagType"`
+    PktTag      int              `json:"pktTag"`
 	Id          string           `json:"id"`
 }
 
@@ -61,6 +63,8 @@ func (s *OvsCfgNetworkState) Clear() error {
 type OvsOperNetworkState struct {
 	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
+    PktTagType  string           `json:"pktTagType"`
+    PktTag      int              `json:"pktTag"`
 	EpCount     int              `json:"epCount"`
 }
 
