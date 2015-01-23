@@ -458,10 +458,10 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}
 
     var ipAddrBit uint = 0
-    var ipAddress string
     var found bool
 
-    if cfgEpState.IpAddress == "auto" {
+    ipAddress := cfgEpState.IpAddress
+    if ipAddress == "auto" {
         if ipAddrBit, found = netutils.NextUnSet(&operNwState.IpAllocMap, 0); !found {
             log.Printf("auto allocation failed - address exhaustion in subnet %s/%d \n", 
                        operNwState.SubnetIp, operNwState.SubnetLen)
@@ -473,8 +473,9 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
             log.Printf("error acquiring subnet ip '%s' \n", err)
             return err
         }
+        operNwState.IpAllocMap.Set(ipAddrBit)
         log.Printf("Ep %s was allocated ip address %s \n", id, ipAddress) 
-    } else if ipAddress != "" {
+    } else if ipAddress != "" && operNwState.SubnetIp != "" {
         ipAddrBit, err = netutils.GetIpNumber(
             operNwState.SubnetIp, operNwState.SubnetLen, ipAddress)
         if err != nil {
@@ -482,8 +483,8 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
                 ipAddress, operNwState.SubnetIp, operNwState.SubnetLen, err)
             return err
         }
+        operNwState.IpAllocMap.Set(ipAddrBit)
     }
-    operNwState.IpAllocMap.Set(ipAddrBit)
 
     // deprecate - bitset.WordCount gives the following value
 	operNwState.EpCount += 1        

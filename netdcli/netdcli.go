@@ -255,7 +255,7 @@ func main() {
     if err != nil {
         os.Exit(1)
     }
-    log.Printf("parsed all valuees = %v \n", opts)
+    // log.Printf("parsed all valuees = %v \n", opts)
 
     // initialize drivers
 	etcdDriver := &drivers.EtcdStateDriver{}

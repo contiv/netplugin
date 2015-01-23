@@ -70,8 +70,8 @@ func TestGetIpNumber(t *testing.T) {
                 te.subnetIp, te.subnetLen, te.hostId)
         }
         if hostId != te.hostId {
-            // t.Fatalf("obtained ip %d doesn't match with expected ip %d \n",
-            //     hostId, te.hostId)
+            t.Fatalf("obtained ip %d doesn't match with expected ip %d \n",
+                hostId, te.hostId)
         }
     }
 }
