@@ -111,7 +111,7 @@ type ContainerEpContext struct {
     CurrContId  string 
     InterfaceId string
     IpAddress   string
-    SubnetMask  string
+    SubnetLen   uint
     DefaultGw   string
 }
 

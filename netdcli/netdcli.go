@@ -107,12 +107,13 @@ type cliOpts struct {
     netId       string
     pktTag      string
     pktTagType  string
-    gwAndMask   string
+    subnetCidr  string
     ipAddr      string
     contId      string
-    idStr       string
+    subnetIp    string
+    subnetLen   uint
     defaultGw   string
-    subnetMask  string
+    idStr       string
 }
 
 var opts cliOpts
@@ -142,10 +143,14 @@ func init() {
         "tag-type",
         "vlan",
         "Vlan/Vxlan tag of the network")
-	flagSet.StringVar(&opts.gwAndMask,
+	flagSet.StringVar(&opts.subnetCidr,
+        "subnet",
+        "",
+        "Network Subnet IP with mask e.g. 11.0.1.1/24, or 0/24 to specify only mask")
+	flagSet.StringVar(&opts.defaultGw,
         "gw",
         "",
-        "Default Gateway IP and mask e.g. 11.0.1.1/24")
+        "Default Gateway Address of the network e.g. 11.0.1.1")
 	flagSet.StringVar(&opts.ipAddr,
         "ip-address",
         "auto",
@@ -162,7 +167,7 @@ func usage() {
     flagSet.PrintDefaults()
 }
 
-func logFatalGwAndMaskFormatError() {
+func logFatalSubnetAndMaskFormatError() {
     log.Fatalf("gateway IP and mask must be specified e.g. 11.0.1.1/24 or " +
         "if gateway is not required to be specified then 0/24")
 }
@@ -186,42 +191,42 @@ func validateOpts() error {
     // network create params validation
 	if opts.oper.Get() == CLI_OPER_CREATE &&
        opts.construct.Get() == CLI_CONSTRUCT_NW &&
-       (opts.pktTag == "auto" || opts.pktTagType != "vlan" || opts.gwAndMask == "") {
+       (opts.pktTag == "auto" || opts.pktTagType != "vlan" || opts.subnetCidr == "") {
         if opts.pktTag == "auto" {
             log.Fatalf("vxlan tunneling and auto allocation of vlan/vxlan is coming soon...")
         } else if opts.pktTagType != "vlan" {
             log.Fatalf("vxlan and other packet tag support is coming soon...")
         } else {
-            logFatalGwAndMaskFormatError()
+            logFatalSubnetAndMaskFormatError()
         }
 	}
 
     // default gw and mask parsing
     if (opts.oper.Get() == CLI_OPER_CREATE &&
         opts.construct.Get() == CLI_CONSTRUCT_NW) {
-        strs := strings.Split(opts.gwAndMask, "/")
+        strs := strings.Split(opts.subnetCidr, "/")
         if len(strs) != 2 {
-            logFatalGwAndMaskFormatError()
+            logFatalSubnetAndMaskFormatError()
         }
 
-        // TODO: validate ipv4/v6 gateway IP
+        // TODO: use net.ParseIP to validate ipv4/v6 gateway IP
         if strs[0] != "0" {
-            opts.defaultGw = strs[0]
+            opts.subnetIp = strs[0]
         }
-        if intMask, _ := strconv.Atoi(strs[1]); intMask > 32 {
+        subnetLen, _ := strconv.Atoi(strs[1])
+        if subnetLen > 32 {
             log.Printf("invalid mask in gateway/mask specification ")
-            logFatalGwAndMaskFormatError()
+            logFatalSubnetAndMaskFormatError()
         }
-        opts.subnetMask = strs[1]
+        opts.subnetLen = uint(subnetLen)
     }
 
 	// endpoint parameters validation
 	if opts.oper.Get() == CLI_OPER_CREATE &&
        opts.construct.Get() == CLI_CONSTRUCT_EP &&
-       (opts.netId == "" || opts.ipAddr == "" || opts.ipAddr == "auto") {
+       (opts.netId == "" || opts.ipAddr == "") {
         if opts.ipAddr == "auto" {
-            log.Fatalf("auto ip address assignemt is coming soon... for now " +
-                "please specify an IP address associated with an endpoint\n")
+            log.Printf("doing auto ip address assignemt for the ep... \n")
         } else {
             log.Fatalf("Endpoint creation requires a valid net-id, vlan tag, " +
                 "and ip address")
@@ -300,8 +305,9 @@ func main() {
 			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
             nwCfg.PktTag, _ = strconv.Atoi(opts.pktTag)
             nwCfg.PktTagType = opts.pktTagType
+            nwCfg.SubnetIp = opts.subnetIp
+            nwCfg.SubnetLen = opts.subnetLen
             nwCfg.DefaultGw = opts.defaultGw
-            nwCfg.SubnetMask = opts.subnetMask
 			nwCfg.Id = opts.idStr
 			state = nwCfg
 		}

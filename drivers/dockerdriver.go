@@ -140,15 +140,13 @@ func (d *DockerDriver)cleanupNetns (contId string) error {
 
 func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 
-    /*
-    log.Printf("configuring ip: addr -%s/%s- on interface %s for container %s\n", 
-        ctx.IpAddress, ctx.SubnetMask, ctx.InterfaceId, ctx.NewContId)
-    */
+    log.Printf("configuring ip: addr -%s/%d- on interface %s for container %s\n", 
+        ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContId)
 
     if ctx.IpAddress == "" {
         return nil
     }
-    if ctx.SubnetMask == "" {
+    if ctx.SubnetLen == 0 {
         errors.New("Subnet mask unspecified \n")
     }
 
@@ -158,7 +156,8 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
     }
 
     out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "addr",
-        "add", ctx.IpAddress + "/" + ctx.SubnetMask, "dev", ctx.InterfaceId).Output()
+        "add", ctx.IpAddress + "/" + strconv.Itoa(int(ctx.SubnetLen)), "dev", 
+        ctx.InterfaceId).Output()
     if err != nil {
         log.Printf("error configuring ip address for interface %s " +
             "%s out = '%s', err = '%s'\n", ctx.InterfaceId, out, err)

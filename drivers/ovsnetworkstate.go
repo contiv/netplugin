@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+    "github.com/willf/bitset"
 	"github.com/contiv/netplugin/core"
 )
 
@@ -42,8 +43,9 @@ type OvsCfgNetworkState struct {
 	StateDriver core.StateDriver `json:"-"`
     PktTagType  string           `json:"pktTagType"`
     PktTag      int              `json:"pktTag"`
+    SubnetIp    string           `json:"subnetIp"`
+    SubnetLen   uint             `json:"subnetLen"`
     DefaultGw   string           `json:"defaultGw"`
-    SubnetMask  string           `json:"subnetMask"`
 	Id          string           `json:"id"`
 }
 
@@ -67,9 +69,11 @@ type OvsOperNetworkState struct {
 	Id          string           `json:"id"`
     PktTagType  string           `json:"pktTagType"`
     PktTag      int              `json:"pktTag"`
+    SubnetIp    string           `json:"subnetIp"`
+    SubnetLen   uint             `json:"subnetLen"`
     DefaultGw   string           `json:"defaultGw"`
-    SubnetMask  string           `json:"subnetMask"`
 	EpCount     int              `json:"epCount"`
+    IpAllocMap  bitset.BitSet    `json:"ipAllocMap"`
 }
 
 func (s *OvsOperNetworkState) Write() error {

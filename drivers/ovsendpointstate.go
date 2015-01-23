@@ -53,6 +53,7 @@ type OvsOperEndpointState struct {
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
 	ContId      string           `json:"contId"`
+    IpAddress   string           `json:"ipAddress"`
 	PortName    string           `json:"portName"`
 }
 

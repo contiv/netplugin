@@ -8,7 +8,9 @@ clean:
 	go clean -i -r -v ./...
 
 unit-test: build
-	go test -v github.com/contiv/netplugin/drivers \
-		github.com/contiv/netplugin/plugin
+	go test -v github.com/contiv/netplugin/drivers  \
+		github.com/contiv/netplugin/plugin          \
+		github.com/contiv/netplugin/netutils        \
+
 
 system-test:

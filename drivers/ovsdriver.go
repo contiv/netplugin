@@ -17,10 +17,12 @@ package drivers
 
 import (
 	"fmt"
-	"github.com/socketplane/libovsdb"
 	"reflect"
+    "log"
 
+	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/core"
+	"github.com/socketplane/libovsdb"
 )
 
 // implements the NetworkDriver and EndpointDriver interface for an vlan based
@@ -363,7 +365,8 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver, 
         Id: cfgNetState.Id, PktTagType : cfgNetState.PktTagType,
         PktTag: cfgNetState.PktTag, DefaultGw: cfgNetState.DefaultGw,
-        SubnetMask: cfgNetState.SubnetMask}
+        SubnetIp: cfgNetState.SubnetIp, SubnetLen: cfgNetState.SubnetLen}
+    netutils.InitBitset(&operNwState.IpAllocMap, cfgNetState.SubnetLen)
 	err = operNwState.Write()
 	if err != nil {
 		return err
@@ -395,7 +398,6 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
 		return &epCtx, nil
 	}
     epCtx.NewContId = cfgEpState.ContId
-    epCtx.IpAddress = cfgEpState.IpAddress
 
 	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
 	err = cfgNetState.Read(cfgEpState.NetId)
@@ -403,7 +405,7 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
 		return &epCtx, err
     }
     epCtx.DefaultGw = cfgNetState.DefaultGw
-    epCtx.SubnetMask = cfgNetState.SubnetMask
+    epCtx.SubnetLen = cfgNetState.SubnetLen
 
     operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
     err = operEpState.Read(epId)
@@ -412,6 +414,7 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
     }
     epCtx.CurrContId = operEpState.ContId
     epCtx.InterfaceId = operEpState.PortName
+    epCtx.IpAddress = operEpState.IpAddress
 
 	return &epCtx, err
 }
@@ -446,10 +449,54 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		}
 	}()
 
+    // TODO: uae etcd distributed lock to ensure atomicity of this operation
+    // this is valid for EpCount, defer the unlocking for intermediate returns
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
+	err = operNwState.Read(cfgEpState.NetId)
+	if err != nil {
+		return err
+	}
+
+    var ipAddrBit uint = 0
+    var ipAddress string
+    var found bool
+
+    if cfgEpState.IpAddress == "auto" {
+        if ipAddrBit, found = netutils.NextUnSet(&operNwState.IpAllocMap, 0); !found {
+            log.Printf("auto allocation failed - address exhaustion in subnet %s/%d \n", 
+                       operNwState.SubnetIp, operNwState.SubnetLen)
+            return err
+        }
+        ipAddress, err = netutils.GetSubnetIp(
+            operNwState.SubnetIp, operNwState.SubnetLen, ipAddrBit)
+        if err != nil {
+            log.Printf("error acquiring subnet ip '%s' \n", err)
+            return err
+        }
+        log.Printf("Ep %s was allocated ip address %s \n", id, ipAddress) 
+    } else if ipAddress != "" {
+        ipAddrBit, err = netutils.GetIpNumber(
+            operNwState.SubnetIp, operNwState.SubnetLen, ipAddress)
+        if err != nil {
+            log.Printf("error getting host id from hostIp %s Subnet %s/%d err '%s'\n", 
+                ipAddress, operNwState.SubnetIp, operNwState.SubnetLen, err)
+            return err
+        }
+    }
+    operNwState.IpAllocMap.Set(ipAddrBit)
+
+    // deprecate - bitset.WordCount gives the following value
+	operNwState.EpCount += 1        
+	err = operNwState.Write()
+	if err != nil {
+		return err
+	}
+
 	//all went well, update the runtime state of network and endpoint
 	operEpState := OvsOperEndpointState{
                         StateDriver: d.stateDriver, Id: id, PortName: portName, 
-                        NetId: cfgEpState.NetId, ContId: cfgEpState.ContId}
+                        NetId: cfgEpState.NetId, ContId: cfgEpState.ContId,
+                        IpAddress: ipAddress}
 	err = operEpState.Write()
 	if err != nil {
 		return err
@@ -459,21 +506,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			operEpState.Clear()
 		}
 	}()
-
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(cfgEpState.NetId)
-	if err != nil {
-		return err
-	}
-
-    // TODO: although EpCount is used for informational purposes
-    // it must use distributed lock from etcd to ensure concurrency
-    // for multi-host scenarios
-	operNwState.EpCount += 1
-	err = operNwState.Write()
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

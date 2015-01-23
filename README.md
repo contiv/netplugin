@@ -55,7 +55,7 @@ Acquire another terminal to execute netdcli commands to ensure that the logs fro
 
 First we start with defining a network (could be json input), for now let's use cli and specify the tag (default tag type is 'vlan') to use and subnet mask of '/24'. Let's call it tenant1-net1
 
-`netdcli -oper create -construct network -tag 12 -gw 0/24 tenant1-net1`
+`netdcli -oper create -construct network -tag 12 -subnet 0/24 tenant1-net1`
 
 The oepration state of network can be read using 
 
@@ -102,6 +102,12 @@ Add the newly added container to the same tenant's network and attach it to a co
 `netdcli -oper create -construct endpoint -net-id tenant1-net1 -ip-address="11.1.1.2" -container-id myContainer2 tenant1-net1-ep2`
 
 At this point both containers would have been configured with IP address in a dedicated network called 'tenant1-net1' with an IP address allocated from the subnet/mask associated with the network. Therefore, if a ping test is done from either myContainer1 or myContainer2, it would succeed. IP address can overlap in various networks as long as outbound rules are non overlapping.
+
+####Auto-allocaiton of IP addresses
+The plugin can automatically manage the IP address pools and assign an appropriate IP address based on the subnet that was associated with the network. However this doesn't take away the flexibility to keep a specific IP address of a container, which can always be specified as shown earlier. To automatically allocate the IP address, just avoid specifying the IP address during endpoint creation, for example in the previous example:
+`netdcli -oper create -construct endpoint -net-id tenant1-net1 -container-id myContainer2 tenant1-net1-ep2`
+
+This is as simple as associating containers with networks. Auto-allocation of vlans is independent of auto-allocation of IPs to the endpoints.
 
 ####Delete the endpoint
 

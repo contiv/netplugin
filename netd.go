@@ -74,7 +74,7 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
                 log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
                 continue
             }
-            // log.Printf("read endpoint context: %s \n", contEpContext)
+            log.Printf("read endpoint context: %s \n", contEpContext)
 
 			if isDelete {
 				err = netPlugin.DeleteEndpoint(epId)
@@ -103,15 +103,15 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
                 }
             } 
             if !isDelete && contEpContext.NewContId != "" {
-                if contEpContext.InterfaceId == "" {
-                    newContEpContext, err1 := netPlugin.GetEndpointContainerContext(epId)
-                    if err1 != nil {
-                        log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
-                        continue
-                    }
-                    contEpContext.InterfaceId = newContEpContext.InterfaceId
-                    contEpContext.InterfaceId = newContEpContext.InterfaceId
+                // re-read post ep updated state
+                newContEpContext, err1 := netPlugin.GetEndpointContainerContext(epId)
+                if err1 != nil {
+                    log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
+                    continue
                 }
+                contEpContext.InterfaceId = newContEpContext.InterfaceId
+                contEpContext.IpAddress = newContEpContext.IpAddress
+
                 err = netPlugin.AttachEndpoint(contEpContext)
                 if err != nil {
                     log.Printf("Endpoint attach container '%s' to ep '%s' failed . " +
