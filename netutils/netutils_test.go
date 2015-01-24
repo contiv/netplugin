@@ -75,3 +75,60 @@ func TestGetIpNumber(t *testing.T) {
         }
     }
 }
+
+func TestValidRange(t *testing.T) {
+    rangeStr := "5-100, 101-200"
+    _, err := ParseTagRanges(rangeStr, "vlan")
+    if err != nil {
+        t.Fatalf("error '%s' parsing valid vlan range '%s'\n", err, rangeStr)
+    }
+}
+
+func TestInvalidVlanRange(t *testing.T) {
+    rangeStr := "5--100, 101-200"
+    _, err := ParseTagRanges(rangeStr, "vlan")
+    if err == nil {
+        t.Fatalf("successfully parsed invalid vlan range '%s'\n", rangeStr)
+    }
+}
+
+func TestInvalidVlanValue(t *testing.T) {
+    rangeStr := "5-100, 101-5000"
+    _, err := ParseTagRanges(rangeStr, "vlan")
+    if err == nil {
+        t.Fatalf("successfully parsed invalid vlan id '%s'\n", rangeStr)
+    }
+}
+
+func TestInvalidMinMaxVlan(t *testing.T) {
+    rangeStr := "5-100, 200-101"
+    _, err := ParseTagRanges(rangeStr, "vlan")
+    if err == nil {
+        t.Fatalf("successfully parsed invalid min-max vlan values '%s'\n", rangeStr)
+    }
+}
+
+func TestInvalidRangeExtraSeperators (t *testing.T) {
+    rangeStr := "5-100,,101-200"
+    _, err := ParseTagRanges(rangeStr, "vlan")
+    if err == nil {
+        t.Fatalf("successfully parsed vlan range with extra seperators '%s'\n", rangeStr)
+    }
+}
+
+func TestInvalidVlanVxlanValue(t *testing.T) {
+    rangeStr := "5-100, 101-75535"
+    _, err := ParseTagRanges(rangeStr, "vxlan")
+    if err == nil {
+        t.Fatalf("successfully parsed invalid vxlan value '%s'\n", rangeStr)
+    }
+}
+
+func TestInvalidMinMaxVxlan(t *testing.T) {
+    rangeStr := "5-100, 8000-7999"
+    _, err := ParseTagRanges(rangeStr, "vxlan")
+    if err == nil {
+        t.Fatalf("successfully parsed invalid min-max vxlan values '%s'\n", rangeStr)
+    }
+}
+

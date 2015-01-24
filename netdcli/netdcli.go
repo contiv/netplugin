@@ -28,6 +28,7 @@ import (
 )
 
 const (
+	CLI_CONSTRUCT_GLOBAL = "global"
 	CLI_CONSTRUCT_NW = "network"
 	CLI_CONSTRUCT_EP = "endpoint"
 	CLI_OPER_GET     = "get"
@@ -188,6 +189,12 @@ func validateOpts() error {
 		log.Fatalf("A construct must be specified")
 	}
 
+    // global create params validation
+    if opts.oper.Get() == CLI_OPER_CREATE &&
+       opts.construct.Get() == CLI_CONSTRUCT_GLOBAL {
+        
+    }
+
     // network create params validation
 	if opts.oper.Get() == CLI_OPER_CREATE &&
        opts.construct.Get() == CLI_CONSTRUCT_NW &&
@@ -311,6 +318,10 @@ func main() {
 			nwCfg.Id = opts.idStr
 			state = nwCfg
 		}
+    case CLI_CONSTRUCT_GLOBAL:
+        if opts.oper.Get() == CLI_OPER_GET {
+        } else {
+        }
 	}
 
 	switch opts.oper.Get() {

@@ -11,6 +11,7 @@ unit-test: build
 	go test -v github.com/contiv/netplugin/drivers  \
 		github.com/contiv/netplugin/plugin          \
 		github.com/contiv/netplugin/netutils        \
+		github.com/contiv/netplugin/gstate          \
 
 
 system-test:

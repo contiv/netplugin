@@ -21,6 +21,8 @@ import (
     "net"
     "math"
     "unsafe"
+    "strings"
+    "strconv"
     "github.com/willf/bitset"
 )
 
@@ -37,6 +39,7 @@ func init() {
     }
 }
 
+// TODO: replace this with function in the native lib once PR is accepted
 func NextUnSet(b *bitset.BitSet, i uint) (uint, bool) {
     for ; i < b.Len() && b.Test(i); i++ { }
     if i == b.Len() {
@@ -136,4 +139,52 @@ func GetIpNumber(subnetIp string, subnetLen uint, hostIp string) (uint, error) {
     }
 
     return uint(hostId), nil
+}
+
+type TagRange struct {
+    min     int
+    max     int
+}
+
+func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
+    var err error
+
+    if tagType != "vlan" && tagType != "vxlan" {
+        return nil, errors.New(fmt.Sprintf("invalid tag type %s ", tagType))
+    }
+    rangesStr := strings.Split(ranges, ",")
+    tagRanges := make([]TagRange, len(rangesStr), len(rangesStr))
+    for idx, oneRangeStr := range rangesStr {
+        oneRangeStr = strings.Trim(oneRangeStr, " ")
+        tagNums := strings.Split(oneRangeStr, "-")
+        if len(tagNums) > 2 {
+            return nil, errors.New(fmt.Sprintf(
+                "invalid tags %s, correct '10-50,70-100'", oneRangeStr))
+        }
+        tagRanges[idx].min, err = strconv.Atoi(tagNums[0])
+        if err != nil {
+            return nil, errors.New(fmt.Sprintf(
+                "invalid integer %d conversion error '%s'", tagRanges[idx].min, err))
+        }
+        tagRanges[idx].max, err = strconv.Atoi(tagNums[1])
+        if err != nil {
+            return nil, errors.New(fmt.Sprintf(
+                "invalid integer %d conversion error '%s'", tagRanges[idx].max, err))
+        }
+
+        if tagRanges[idx].min > tagRanges[idx].max {
+            return nil, errors.New(fmt.Sprintf(
+                "invalid range %s, min is greater than max", oneRangeStr))
+        }
+        if tagType == "vlan" && tagRanges[idx].max > 4095 {
+            return nil, errors.New(fmt.Sprintf(
+                "invalid range %s, vlan values exceed 4095 max allowed", oneRangeStr))
+        }
+        if tagType == "vxlan" && tagRanges[idx].max > 65535 {
+            return nil, errors.New(fmt.Sprintf(
+                "invalid range %s, vlan values exceed 65535 max allowed", oneRangeStr))
+        }
+    }
+
+    return tagRanges, nil
 }
