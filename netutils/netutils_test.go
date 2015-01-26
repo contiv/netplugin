@@ -34,7 +34,7 @@ var testSubnets = []testSubnetInfo {
 
 func TestGetSubnetIp(t *testing.T) {
     for _, te := range testSubnets {
-        hostIp, err := GetSubnetIp(te.subnetIp, te.subnetLen, te.hostId)
+        hostIp, err := GetSubnetIp(te.subnetIp, te.subnetLen, 32, te.hostId)
         if err != nil {
             t.Fatalf("error getting host ip from subnet %s/%d for hostid %d - err '%s'",
                 te.subnetIp, te.subnetLen, te.hostId, err)
@@ -54,7 +54,7 @@ var testInvalidSubnets = []testSubnetInfo {
 
 func TestInvalidGetSubnetIp(t *testing.T) {
     for _, te := range testInvalidSubnets {
-        _, err := GetSubnetIp(te.subnetIp, te.subnetLen, te.hostId)
+        _, err := GetSubnetIp(te.subnetIp, te.subnetLen, 32, te.hostId)
         if err == nil {
             t.Fatalf("Expecting error on invalid config subnet %s/%d for hostid %d",
                 te.subnetIp, te.subnetLen, te.hostId)
@@ -64,7 +64,7 @@ func TestInvalidGetSubnetIp(t *testing.T) {
 
 func TestGetIpNumber(t *testing.T) {
     for _, te := range testSubnets {
-        hostId, err := GetIpNumber(te.subnetIp, te.subnetLen, te.hostIp)
+        hostId, err := GetIpNumber(te.subnetIp, te.subnetLen, 32, te.hostIp)
         if err != nil {
             t.Fatalf("error getting host ip from subnet %s/%d for hostid %d ",
                 te.subnetIp, te.subnetLen, te.hostId)
@@ -129,6 +129,55 @@ func TestInvalidMinMaxVxlan(t *testing.T) {
     _, err := ParseTagRanges(rangeStr, "vxlan")
     if err == nil {
         t.Fatalf("successfully parsed invalid min-max vxlan values '%s'\n", rangeStr)
+    }
+}
+
+type testSubnetAllocInfo struct {
+    subnetIp        string
+    subnetLen       uint
+    subnetAllocLen  uint
+    hostId          uint
+    hostIp          string
+}
+
+var testSubnetAllocs = []testSubnetAllocInfo {
+        {subnetIp:"11.1.0.0", subnetLen:16, subnetAllocLen:24, 
+         hostId:5, hostIp:"11.1.5.0",  },
+        {subnetIp:"10.0.0.0", subnetLen:8, subnetAllocLen:24, 
+         hostId:5, hostIp:"10.0.5.0",  },
+    }
+
+func TestGetSubnetAlloc(t *testing.T) {
+    for _, te := range testSubnetAllocs {
+        hostIp, err := GetSubnetIp(te.subnetIp, te.subnetLen, 
+            te.subnetAllocLen, te.hostId)
+        if err != nil {
+            t.Fatalf("error getting subnet ip from subnet-range %s/%d alloc-size %d "+
+                "for id %d - err '%s'",
+                te.subnetIp, te.subnetLen, te.subnetAllocLen, te.hostId, err)
+        }
+        if hostIp != te.hostIp {
+            t.Fatalf("obtained ip %s doesn't match expected ip %s for subnet %s/%d "+
+                "for AllocLen %d \n",
+                hostIp, te.hostIp, te.subnetIp, te.subnetLen, te.subnetAllocLen)
+        }
+    }
+}
+
+func TestGetSubnetNumber(t *testing.T) {
+    for _, te := range testSubnetAllocs {
+        hostId, err := GetIpNumber(te.subnetIp, te.subnetLen, 
+            te.subnetAllocLen, te.hostIp)
+        if err != nil {
+            t.Fatalf("error getting subnet ip from subnet %s/%d for hostid %d " +
+                "for subnet alloc size %d \n",
+                te.subnetIp, te.subnetLen, te.hostId, te.subnetAllocLen)
+        }
+        if hostId != te.hostId {
+            t.Fatalf("obtained subnet ip %d doesn't match with expected ip %d " +
+                "for subnet %s/%d alloc size %d \n",
+                hostId, te.hostId, te.subnetIp, te.subnetLen, te.subnetAllocLen)
+        }
     }
 }
 

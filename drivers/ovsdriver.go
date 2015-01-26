@@ -366,7 +366,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
         Id: cfgNetState.Id, PktTagType : cfgNetState.PktTagType,
         PktTag: cfgNetState.PktTag, DefaultGw: cfgNetState.DefaultGw,
         SubnetIp: cfgNetState.SubnetIp, SubnetLen: cfgNetState.SubnetLen}
-    netutils.InitBitset(&operNwState.IpAllocMap, cfgNetState.SubnetLen)
+    netutils.InitSubnetBitset(&operNwState.IpAllocMap, cfgNetState.SubnetLen)
 	err = operNwState.Write()
 	if err != nil {
 		return err
@@ -468,7 +468,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
             return err
         }
         ipAddress, err = netutils.GetSubnetIp(
-            operNwState.SubnetIp, operNwState.SubnetLen, ipAddrBit)
+            operNwState.SubnetIp, operNwState.SubnetLen, 32, ipAddrBit)
         if err != nil {
             log.Printf("error acquiring subnet ip '%s' \n", err)
             return err
@@ -477,7 +477,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
         log.Printf("Ep %s was allocated ip address %s \n", id, ipAddress) 
     } else if ipAddress != "" && operNwState.SubnetIp != "" {
         ipAddrBit, err = netutils.GetIpNumber(
-            operNwState.SubnetIp, operNwState.SubnetLen, ipAddress)
+            operNwState.SubnetIp, operNwState.SubnetLen, 32, ipAddress)
         if err != nil {
             log.Printf("error getting host id from hostIp %s Subnet %s/%d err '%s'\n", 
                 ipAddress, operNwState.SubnetIp, operNwState.SubnetLen, err)

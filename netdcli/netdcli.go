@@ -91,7 +91,7 @@ func (c *Construct) String() string {
 }
 
 func (c *Construct) Set(val string) error {
-	if val != CLI_CONSTRUCT_NW && val != CLI_CONSTRUCT_EP {
+	if val != CLI_CONSTRUCT_NW && val != CLI_CONSTRUCT_EP && val != CLI_CONSTRUCT_GLOBAL {
 		return &CliError{Desc: fmt.Sprintf("invalid value for construct (%s). Allowed values: %s",
 			val, c.String())}
 	}
@@ -104,22 +104,23 @@ func (c *Construct) Get() interface{} {
 }
 
 type cliOpts struct {
-    help        bool
-    oper        Operation
-    etcdUrl     string
-    construct   Construct
-    netId       string
-    pktTag      string
-    pktTagType  string
-    subnetCidr  string
-    ipAddr      string
-    contId      string
-    subnetIp    string
-    subnetLen   uint
-    defaultGw   string
-    idStr       string
-    vlans       string
-    vxlans      string
+    help            bool
+    oper            Operation
+    etcdUrl         string
+    construct       Construct
+    netId           string
+    pktTag          string
+    pktTagType      string
+    subnetCidr      string
+    ipAddr          string
+    contId          string
+    subnetIp        string
+    subnetLen       uint
+    allocSubnetLen  uint
+    defaultGw       string
+    idStr           string
+    vlans           string
+    vxlans          string
 }
 
 var opts cliOpts
@@ -169,6 +170,10 @@ func init() {
         "vlans",
         "",
         "Allowed vlan ranges for auto-allocating vlans e.g. '10-100, 150-200")
+	flagSet.UintVar(&opts.allocSubnetLen,
+        "alloc-subnet-len",
+        24,
+        "Subnet length of auto allocated subnets from the subnet pool")
 	flagSet.StringVar(&opts.vxlans,
         "vxlans",
         "",
@@ -211,17 +216,13 @@ func validateOpts() error {
             log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
         } 
 
-        if opts.vlans != "" {
-            _, err = netutils.ParseTagRanges(opts.vlans, "vlan")
-            if err != nil {
-                log.Fatalf("error '%s' parsing vlan range '%s' \n", err, opts.vlans)
-            }
+        _, err = netutils.ParseTagRanges(opts.vlans, "vlan")
+        if err != nil {
+            log.Fatalf("error '%s' parsing vlan range '%s' \n", err, opts.vlans)
         }
-        if opts.vxlans != "" {
-            _, err = netutils.ParseTagRanges(opts.vxlans, "vxlan")
-            if err != nil {
-                log.Fatalf("error '%s' parsing vxlan range '%s' \n", err, opts.vxlans)
-            }
+        _, err = netutils.ParseTagRanges(opts.vxlans, "vxlan")
+        if err != nil {
+            log.Fatalf("error '%s' parsing vxlan range '%s' \n", err, opts.vxlans)
         }
     }
 
@@ -239,8 +240,7 @@ func validateOpts() error {
 	}
 
     // default gw and mask parsing
-    if (opts.oper.Get() == CLI_OPER_CREATE &&
-        opts.construct.Get() == CLI_CONSTRUCT_NW) {
+    if opts.subnetCidr != "" {
         _, _, err = net.ParseCIDR(opts.subnetCidr)
         if err != nil {
             log.Fatalf("error '%s' parsing cidr ip %s \n", err, opts.subnetCidr)
@@ -353,18 +353,22 @@ func main() {
 			state = nwCfg
 		}
     case CLI_CONSTRUCT_GLOBAL:
-        var gcfg gstate.CfgGstate
+        var gcfg gstate.Cfg
         if opts.oper.Get() == CLI_OPER_GET {
-            gcfg.Read(etcdDriver)
+            err = gcfg.Read(etcdDriver)
             log.Printf("State: %v \n", gcfg)
         } else {
-            gcfg.Version = "0.1"
+            gcfg.Version = gstate.VersionBeta1
             gcfg.Deploy.DefaultNetType = opts.pktTagType
             gcfg.Auto.SubnetPool = opts.subnetIp
             gcfg.Auto.SubnetLen = opts.subnetLen
             gcfg.Auto.Vlans = opts.vlans
             gcfg.Auto.Vxlans = opts.vxlans
-            gcfg.Update(etcdDriver)
+            gcfg.Auto.AllocSubnetLen = opts.allocSubnetLen
+            err = gcfg.Update(etcdDriver)
+        }
+        if err != nil {
+            log.Fatalf("error '%s' \n", err)
         }
         os.Exit(0)
 	}

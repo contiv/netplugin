@@ -26,13 +26,14 @@ func TestGlobalConfig(t *testing.T) {
         {
             "Version" : "0.1",
             "Auto" : {
-                "SubnetPool" : "11.5.0.0",
-                "SubnetLen"  : 24,
-                "Vlans"      : "100-400,500-900",
-                "Vxlans"     : "10000-20000"
+                "SubnetPool"        : "11.5.0.0",
+                "SubnetLen"         : 16,
+                "AllocSubnetLen"    : 24,
+                "Vlans"             : "100-400,500-900",
+                "Vxlans"            : "10000-20000"
             },
             "Deploy" : {
-                "DefaultNetType" : "vlan"
+                "DefaultNetType"    : "vlan"
             }
         }`)
 
@@ -48,13 +49,14 @@ func TestInvalidGlobalConfig(t *testing.T) {
         {
             "Version" : "0.1",
             "Auto" : {
-                "SubnetPool" : "11..5.0.0",
-                "SubnetLen"  : 24,
-                "Vlans"      : "100-400,500-900",
-                "Vxlans"     : "10000-20000"
+                "SubnetPool"        : "11..5.0.0",
+                "SubnetLen"         : 16,
+                "AllocSubnetLen"    : 24,
+                "Vlans"             : "100-400,500-900",
+                "Vxlans"            : "10000-20000"
             },
             "Deploy" : {
-                "DefaultNetType" : "vlan"
+                "DefaultNetType"    : "vlan"
             }
         }`)
 
@@ -67,13 +69,34 @@ func TestInvalidGlobalConfig(t *testing.T) {
         {
             "Version" : "0.1",
             "Auto" : {
-                "SubnetPool" : "11..5.0.0",
-                "SubnetLen"  : 36,
-                "Vlans"      : "100-400,500-900",
-                "Vxlans"     : "10000-20000"
+                "SubnetPool"        : "11..5.0.0",
+                "SubnetLen"         : 16,
+                "AllocSubnetLen"    : 24,
+                "Vlans"             : "100-400,500-900",
+                "Vxlans"            : "10000-20000"
             },
             "Deploy" : {
-                "DefaultNetType" : "vlan"
+                "DefaultNetType"    : "vlan"
+            }
+        }`)
+
+    _, err = Parse(cfgData)
+    if err == nil {
+        t.Fatalf("parsed invalid data '%s' \n", cfgData)
+    }
+
+    cfgData = []byte(`
+        {
+            "Version" : "0.1",
+            "Auto" : {
+                "SubnetPool"        : "11..5.0.0",
+                "SubnetLen"         : 22,
+                "AllocSubnetLen"    : 20,
+                "Vlans"             : "100-400,500-900",
+                "Vxlans"            : "10000-20000"
+            },
+            "Deploy" : {
+                "DefaultNetType"    : "vlan"
             }
         }`)
 

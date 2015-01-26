@@ -24,6 +24,7 @@ import (
 
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/plugin"
+	"github.com/contiv/netplugin/gstate"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -50,6 +51,17 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 		var err error = nil
 		log.Printf("Received event for key: %s", node.Key)
 		switch key := node.Key; {
+		case strings.HasPrefix(key, gstate.CFG_GLOBAL):
+            var gOper *gstate.Oper
+
+            gCfg := &gstate.Cfg{}
+            gCfg.Read(netPlugin.StateDriver)
+            gOper, err = gCfg.Process()
+            if err != nil {
+                log.Printf("Error '%s' updating the config %v \n", err, gCfg)
+            }
+            log.Printf("Global oper state: %v \n", gOper)
+
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
 			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
 			if isDelete {
@@ -65,6 +77,7 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 			} else {
 				log.Printf("Network operation %s succeeded", operStr)
 			}
+
 		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
 			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
 

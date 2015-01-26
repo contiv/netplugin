@@ -179,7 +179,7 @@ func TestEtcdStateDriverReadState(t *testing.T) {
 	driver := setupDriver(t)
 	state := &testState{IgnoredField: driver, IntField: 1234,
 		StrField: "testString"}
-	key := "contiv.io/dir1/testKeyRead"
+	key := "/contiv/dir1/testKeyRead"
 
 	err := driver.WriteState(key, state, json.Marshal)
 	if err != nil {
