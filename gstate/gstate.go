@@ -25,8 +25,7 @@ import (
     "github.com/willf/bitset"
 
     "github.com/contiv/netplugin/netutils"
-    // "github.com/contiv/netplugin/core"
-    // "github.com/contiv/netplugin/drivers"
+    "github.com/contiv/netplugin/core"
 )
 
 const (
@@ -39,8 +38,8 @@ const (
 // this allows mostly hands-free allocation of networks, endpoints, attach/detach
 // operations without having to specify these each time an entity gets created
 type AutoParams struct {
-    IpSubnetPool    string
-    IpSubnetLen     uint
+    SubnetPool      string
+    SubnetLen       uint
     Vlans           string
     Vxlans          string
 }
@@ -62,18 +61,16 @@ type OperGstate struct {
     AllocedVxlans   map[int]string
 }
 
-func UnMarshal(data string) (*CfgGstate, error) {
-    var gstate CfgGstate
-
+func (gstate *CfgGstate)UnMarshal (data string) (error) {
     err := json.Unmarshal([]byte(data), &gstate)
     if err != nil {
-        return nil, err
+        return err
     }
 
-    return &gstate, nil
+    return nil
 }
 
-func Marshal(gstate *CfgGstate) (string, error) {
+func (gstate *CfgGstate)Marshal() (string, error) {
     b, err := json.Marshal(gstate)
     return string(b[:]), err
 }
@@ -86,9 +83,9 @@ func (gstate *CfgGstate) Dump() error {
 func (gstate *CfgGstate) checkErrors() error {
     var err error
 
-    if net.ParseIP(gstate.Auto.IpSubnetPool) == nil {
+    if net.ParseIP(gstate.Auto.SubnetPool) == nil {
         return errors.New(fmt.Sprintf("invalid ip address pool %s", 
-            gstate.Auto.IpSubnetPool))
+            gstate.Auto.SubnetPool))
     }
     
     _, err = netutils.ParseTagRanges(gstate.Auto.Vlans, "vlan")
@@ -128,16 +125,24 @@ func Parse(configBytes []byte) (*CfgGstate, error) {
     return &gstate, err
 }
 
-/*
-func (gstate *CfgGstate) Update(d *drivers.StateDriver) error {
-    return d.WriteState(CFG_GLOBAL, gstate, json.Marshal)
+func (gstate *CfgGstate) Update(d core.StateDriver) error {
+    value, err := json.Marshal(gstate)
+    if err != nil {
+        return err
+    }
+
+    return d.Write(CFG_GLOBAL, value)
 }
 
-func (gstate *CfgGstate) Delete(d *StateDriver) error {
-    return s.StateDriver.ClearState(CFG_GLOBAL)
-}
+func (gstate *CfgGstate) Read(d core.StateDriver) error {
+    value, err := d.Read(CFG_GLOBAL)
+    if err != nil {
+        return err
+    }
+    err = json.Unmarshal(value, &gstate)
+    if err != nil {
+        return err
+    }
 
-func (gstate *CfgGstate) Read(d *StateDriver) error {
-    return s.StateDriver.ReadState(CFG_GLOBAL, gstate, json.Unmarshal)
+    return nil
 }
-*/

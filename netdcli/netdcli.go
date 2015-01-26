@@ -22,9 +22,12 @@ import (
 	"os"
     "strings"
     "strconv"
+    "net"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/netutils"
+	"github.com/contiv/netplugin/gstate"
 )
 
 const (
@@ -115,6 +118,8 @@ type cliOpts struct {
     subnetLen   uint
     defaultGw   string
     idStr       string
+    vlans       string
+    vxlans      string
 }
 
 var opts cliOpts
@@ -160,6 +165,14 @@ func init() {
         "container-id",
         "",
         "Container Id to identify a runningcontainer")
+	flagSet.StringVar(&opts.vlans,
+        "vlans",
+        "",
+        "Allowed vlan ranges for auto-allocating vlans e.g. '10-100, 150-200")
+	flagSet.StringVar(&opts.vxlans,
+        "vxlans",
+        "",
+        "Allowed vlan ranges for auto-allocating vxlans e.g. '10000-20000, 30000-35000")
     flagSet.BoolVar(&opts.help, "help", false, "prints this message")
 }
 
@@ -192,17 +205,34 @@ func validateOpts() error {
     // global create params validation
     if opts.oper.Get() == CLI_OPER_CREATE &&
        opts.construct.Get() == CLI_CONSTRUCT_GLOBAL {
-        
+        if opts.pktTag == "vxlan" {
+            log.Fatalf("default vxlan tunneling support is coming soon...")
+        } else if opts.pktTagType != "vlan" {
+            log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
+        } 
+
+        if opts.vlans != "" {
+            _, err = netutils.ParseTagRanges(opts.vlans, "vlan")
+            if err != nil {
+                log.Fatalf("error '%s' parsing vlan range '%s' \n", err, opts.vlans)
+            }
+        }
+        if opts.vxlans != "" {
+            _, err = netutils.ParseTagRanges(opts.vxlans, "vxlan")
+            if err != nil {
+                log.Fatalf("error '%s' parsing vxlan range '%s' \n", err, opts.vxlans)
+            }
+        }
     }
 
     // network create params validation
 	if opts.oper.Get() == CLI_OPER_CREATE &&
        opts.construct.Get() == CLI_CONSTRUCT_NW &&
        (opts.pktTag == "auto" || opts.pktTagType != "vlan" || opts.subnetCidr == "") {
-        if opts.pktTag == "auto" {
+        if opts.pktTag == "vxlan" {
             log.Fatalf("vxlan tunneling and auto allocation of vlan/vxlan is coming soon...")
         } else if opts.pktTagType != "vlan" {
-            log.Fatalf("vxlan and other packet tag support is coming soon...")
+            log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
         } else {
             logFatalSubnetAndMaskFormatError()
         }
@@ -211,12 +241,16 @@ func validateOpts() error {
     // default gw and mask parsing
     if (opts.oper.Get() == CLI_OPER_CREATE &&
         opts.construct.Get() == CLI_CONSTRUCT_NW) {
+        _, _, err = net.ParseCIDR(opts.subnetCidr)
+        if err != nil {
+            log.Fatalf("error '%s' parsing cidr ip %s \n", err, opts.subnetCidr)
+        }
+
         strs := strings.Split(opts.subnetCidr, "/")
         if len(strs) != 2 {
             logFatalSubnetAndMaskFormatError()
         }
 
-        // TODO: use net.ParseIP to validate ipv4/v6 gateway IP
         if strs[0] != "0" {
             opts.subnetIp = strs[0]
         }
@@ -319,9 +353,20 @@ func main() {
 			state = nwCfg
 		}
     case CLI_CONSTRUCT_GLOBAL:
+        var gcfg gstate.CfgGstate
         if opts.oper.Get() == CLI_OPER_GET {
+            gcfg.Read(etcdDriver)
+            log.Printf("State: %v \n", gcfg)
         } else {
+            gcfg.Version = "0.1"
+            gcfg.Deploy.DefaultNetType = opts.pktTagType
+            gcfg.Auto.SubnetPool = opts.subnetIp
+            gcfg.Auto.SubnetLen = opts.subnetLen
+            gcfg.Auto.Vlans = opts.vlans
+            gcfg.Auto.Vxlans = opts.vxlans
+            gcfg.Update(etcdDriver)
         }
+        os.Exit(0)
 	}
 
 	switch opts.oper.Get() {
@@ -330,7 +375,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to read %s. Error: %s", opts.construct.Get(), err)
 		} else {
-			log.Fatalf("%s State: %v", opts.construct.Get(), state)
+			log.Printf("%s State: %v", opts.construct.Get(), state)
 		}
     case CLI_OPER_ATTACH, CLI_OPER_DETACH, CLI_OPER_CREATE:
 		err = state.Write()

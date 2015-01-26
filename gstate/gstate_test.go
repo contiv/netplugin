@@ -26,10 +26,10 @@ func TestGlobalConfig(t *testing.T) {
         {
             "Version" : "0.1",
             "Auto" : {
-                "IpSubnetPool" : "11.5.0.0",
-                "IpSubnetLen"  : 24,
-                "Vlans"        : "100-400,500-900",
-                "Vxlans"       : "10000-20000"
+                "SubnetPool" : "11.5.0.0",
+                "SubnetLen"  : 24,
+                "Vlans"      : "100-400,500-900",
+                "Vxlans"     : "10000-20000"
             },
             "Deploy" : {
                 "DefaultNetType" : "vlan"
@@ -48,10 +48,10 @@ func TestInvalidGlobalConfig(t *testing.T) {
         {
             "Version" : "0.1",
             "Auto" : {
-                "IpSubnetPool" : "11..5.0.0",
-                "IpSubnetLen"  : 24,
-                "Vlans"        : "100-400,500-900",
-                "Vxlans"       : "10000-20000"
+                "SubnetPool" : "11..5.0.0",
+                "SubnetLen"  : 24,
+                "Vlans"      : "100-400,500-900",
+                "Vxlans"     : "10000-20000"
             },
             "Deploy" : {
                 "DefaultNetType" : "vlan"
@@ -67,10 +67,10 @@ func TestInvalidGlobalConfig(t *testing.T) {
         {
             "Version" : "0.1",
             "Auto" : {
-                "IpSubnetPool" : "11..5.0.0",
-                "IpSubnetLen"  : 36,
-                "Vlans"        : "100-400,500-900",
-                "Vxlans"       : "10000-20000"
+                "SubnetPool" : "11..5.0.0",
+                "SubnetLen"  : 36,
+                "Vlans"      : "100-400,500-900",
+                "Vxlans"     : "10000-20000"
             },
             "Deploy" : {
                 "DefaultNetType" : "vlan"
