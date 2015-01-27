@@ -62,12 +62,12 @@ type Cfg struct {
 }
 
 type Oper struct {
+    DefaultNetType      string
     SubnetPool          string
     SubnetLen           uint
     AllocSubnetLen      uint
     AllocedSubnets      bitset.BitSet
     FreeVlans           bitset.BitSet
-    AllocedVxlans       map[int]string
 }
 
 var gCfg *Cfg
@@ -164,6 +164,28 @@ func (gc *Cfg) Read(d core.StateDriver) error {
     return nil
 }
 
+func (g *Oper) Update(d core.StateDriver) error {
+    value, err := json.Marshal(g)
+    if err != nil {
+        return err
+    }
+
+    return d.Write(OPER_GLOBAL, value)
+}
+
+func (g *Oper) Read(d core.StateDriver) error {
+    value, err := d.Read(OPER_GLOBAL)
+    if err != nil {
+        return err
+    }
+    err = json.Unmarshal(value, &g)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
 func (g *Oper)initVlanBitset(vlans string) error {
     vlanRanges, err := netutils.ParseTagRanges(vlans, "vlan")
     if err != nil {
@@ -203,12 +225,13 @@ func (g *Oper)AllocSubnet ()(string, error) {
 
     subnetId, found := netutils.NextUnSet(&g.AllocedSubnets, 0)
     if !found {
+        log.Printf("Bitmap: %s \n", g.AllocedSubnets.DumpAsBits())
         return "", errors.New("subnet exhaustion")
     }
 
     g.AllocedSubnets.Set(subnetId)
     subnetIp, err := netutils.GetSubnetIp(g.SubnetPool, g.SubnetLen,
-        subnetId, g.AllocSubnetLen)
+        g.AllocSubnetLen, subnetId)
     if err != nil {
         return "", err
     }
@@ -241,13 +264,15 @@ func (gc *Cfg) Process() (*Oper, error) {
 
     if gOper == nil {
         gOper = &Oper{ SubnetLen : gc.Auto.SubnetLen, 
+            DefaultNetType : gc.Deploy.DefaultNetType,
             AllocSubnetLen : gc.Auto.AllocSubnetLen,
             SubnetPool : gc.Auto.SubnetPool}
         
         allocSubnetSize := gc.Auto.AllocSubnetLen - gc.Auto.SubnetLen 
 
         gOper.AllocedSubnets.Copy(netutils.CreateBitset(allocSubnetSize))
-        
+        gOper.AllocedSubnets.Set( 1 + (1 << allocSubnetSize))
+
         err = gOper.initVlanBitset(gc.Auto.Vlans)
         if err != nil {
             log.Printf("Error '%s' initializing vlans \n", err)

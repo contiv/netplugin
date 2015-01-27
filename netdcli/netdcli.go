@@ -226,21 +226,31 @@ func validateOpts() error {
         }
     }
 
+    if opts.pktTag == "auto" {
+        log.Printf("Doing auto allocation of network subnet from global pool")
+    } else if opts.pktTag != "" {
+        _, err = strconv.Atoi(opts.pktTag)
+        if err != nil {
+            log.Fatalf("Error convertinng tag %s to integer \n", opts.pktTag)
+        }
+    }
+
+    if opts.pktTagType == "vxlan" {
+        log.Fatalf("vxlan tunneling support is coming soon...")
+    } else if opts.pktTagType != "vlan" {
+        log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
+    } 
+
     // network create params validation
 	if opts.oper.Get() == CLI_OPER_CREATE &&
-       opts.construct.Get() == CLI_CONSTRUCT_NW &&
-       (opts.pktTag == "auto" || opts.pktTagType != "vlan" || opts.subnetCidr == "") {
-        if opts.pktTag == "vxlan" {
-            log.Fatalf("vxlan tunneling and auto allocation of vlan/vxlan is coming soon...")
-        } else if opts.pktTagType != "vlan" {
-            log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
-        } else {
-            logFatalSubnetAndMaskFormatError()
-        }
+       opts.construct.Get() == CLI_CONSTRUCT_NW {
 	}
 
     // default gw and mask parsing
-    if opts.subnetCidr != "" {
+    if opts.subnetCidr == "" {
+        opts.subnetLen = 0
+        opts.subnetIp = "auto"
+    } else {
         _, _, err = net.ParseCIDR(opts.subnetCidr)
         if err != nil {
             log.Fatalf("error '%s' parsing cidr ip %s \n", err, opts.subnetCidr)
@@ -344,7 +354,7 @@ func main() {
 			state = nwOper
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
-            nwCfg.PktTag, _ = strconv.Atoi(opts.pktTag)
+            nwCfg.PktTag = opts.pktTag
             nwCfg.PktTagType = opts.pktTagType
             nwCfg.SubnetIp = opts.subnetIp
             nwCfg.SubnetLen = opts.subnetLen

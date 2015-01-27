@@ -59,8 +59,16 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
             gOper, err = gCfg.Process()
             if err != nil {
                 log.Printf("Error '%s' updating the config %v \n", err, gCfg)
+            } else {
+                err = gOper.Update(netPlugin.StateDriver)
+                if err != nil {
+                    log.Printf("error '%s' updating goper state %v \n", 
+                        err, gOper)
+                } else {
+                    log.Printf("Successfully updated global oper state: %v \n",
+                        gOper)
+                }
             }
-            log.Printf("Global oper state: %v \n", gOper)
 
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
 			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
@@ -124,6 +132,7 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
                 }
                 contEpContext.InterfaceId = newContEpContext.InterfaceId
                 contEpContext.IpAddress = newContEpContext.IpAddress
+                contEpContext.SubnetLen = newContEpContext.SubnetLen
 
                 err = netPlugin.AttachEndpoint(contEpContext)
                 if err != nil {

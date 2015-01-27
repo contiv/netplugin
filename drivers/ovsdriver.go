@@ -19,9 +19,11 @@ import (
 	"fmt"
 	"reflect"
     "log"
+    "strconv"
 
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/gstate"
 	"github.com/socketplane/libovsdb"
 )
 
@@ -354,6 +356,10 @@ func (d *OvsDriver) Deinit() {
 
 func (d *OvsDriver) CreateNetwork(id string) error {
     var err error
+    var pktTag uint
+    var subnetLen uint
+    var subnetIp string
+    var gOper gstate.Oper
 
 	// no-op for a vlan based network, just create oper state
 	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
@@ -362,11 +368,59 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		return err
 	}
 
+    err = gOper.Read(d.stateDriver)
+    if err != nil {
+        return err
+    }
+
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver, 
         Id: cfgNetState.Id, PktTagType : cfgNetState.PktTagType,
-        PktTag: cfgNetState.PktTag, DefaultGw: cfgNetState.DefaultGw,
-        SubnetIp: cfgNetState.SubnetIp, SubnetLen: cfgNetState.SubnetLen}
-    netutils.InitSubnetBitset(&operNwState.IpAllocMap, cfgNetState.SubnetLen)
+        DefaultGw: cfgNetState.DefaultGw}
+
+    if cfgNetState.PktTag == "auto" {
+        operNwState.PktTagType = gOper.DefaultNetType
+        if gOper.DefaultNetType == "vlan" {
+            pktTag, err = gOper.AllocVlan()
+            if err != nil {
+                return err
+            }
+        }
+
+        err = gOper.Update(d.stateDriver)
+        if err != nil {
+            return err
+        }
+
+        log.Printf("allocated vlan %d \n", pktTag)
+        operNwState.PktTag = int(pktTag)
+    } else {
+        operNwState.PktTag, err = strconv.Atoi(cfgNetState.PktTag)
+        if err != nil {
+            return err
+        }
+    }
+
+    if cfgNetState.SubnetIp == "auto" {
+        subnetLen = gOper.AllocSubnetLen
+        subnetIp, err = gOper.AllocSubnet()
+        if err != nil {
+            return err
+        }
+
+        err = gOper.Update(d.stateDriver)
+        if err != nil {
+            return err
+        }
+        log.Printf("allocated subnet %s/%d \n", subnetIp, subnetLen)
+    } else {
+        subnetLen = cfgNetState.SubnetLen
+        subnetIp = cfgNetState.SubnetIp
+    }
+    operNwState.SubnetIp = subnetIp
+    operNwState.SubnetLen = subnetLen
+
+
+    netutils.InitSubnetBitset(&operNwState.IpAllocMap, subnetLen)
 	err = operNwState.Write()
 	if err != nil {
 		return err
@@ -399,13 +453,13 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
 	}
     epCtx.NewContId = cfgEpState.ContId
 
-	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err = cfgNetState.Read(cfgEpState.NetId)
+	operNetState := OvsOperNetworkState{StateDriver: d.stateDriver}
+	err = operNetState.Read(cfgEpState.NetId)
 	if err != nil {
 		return &epCtx, err
     }
-    epCtx.DefaultGw = cfgNetState.DefaultGw
-    epCtx.SubnetLen = cfgNetState.SubnetLen
+    epCtx.DefaultGw = operNetState.DefaultGw
+    epCtx.SubnetLen = operNetState.SubnetLen
 
     operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
     err = operEpState.Read(epId)
@@ -421,6 +475,8 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
 
 func (d *OvsDriver) CreateEndpoint(id string) error {
     var err error
+    var ipAddrBit uint = 0
+    var found bool
 
 	// add an internal ovs port with vlan-tag information from the state
 	portName := d.getPortName()
@@ -437,8 +493,16 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 
+    // TODO: use etcd distributed lock to ensure atomicity of this operation
+    // this is valid for EpCount, defer the unlocking for intermediate returns
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
+	err = operNwState.Read(cfgEpState.NetId)
+	if err != nil {
+		return err
+	}
+
     // TODO: some updates may mean implicit delete of the previous state
-	err = d.createDeletePort(portName, cfgEpState.Id, cfgNetState.PktTag,
+	err = d.createDeletePort(portName, cfgEpState.Id, operNwState.PktTag,
 		CREATE_PORT)
 	if err != nil {
 		return err
@@ -448,17 +512,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			d.createDeletePort(portName, "", 0, DELETE_PORT)
 		}
 	}()
-
-    // TODO: uae etcd distributed lock to ensure atomicity of this operation
-    // this is valid for EpCount, defer the unlocking for intermediate returns
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(cfgEpState.NetId)
-	if err != nil {
-		return err
-	}
-
-    var ipAddrBit uint = 0
-    var found bool
 
     ipAddress := cfgEpState.IpAddress
     if ipAddress == "auto" {

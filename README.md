@@ -8,7 +8,7 @@ Generic network plugin (experimental) is designed to handle networking use cases
 - Multicast or multi-destination dependent applications
 - Integration with existing IPAM tools for migrating customers
 
-The overall design is not assumed to be complete, because of ongoing work in the docker community with regards to the suitable APIs to interface with network extensions like this. Regardless, flexibility in the design has been taken into consideration to allow using a different state driver for key-value synchronization, or a different flavor of a soft-switch i.e. linux-bridge, macvlan, or openvswitch
+The overall design is _not_ assumed to be complete, because of ongoing work in the docker community with regards to the suitable APIs to interface with network extensions like this. Regardless, flexibility in the design has been taken into consideration to allow using a different state driver for key-value synchronization, or a different flavor of a soft-switch i.e. linux-bridge, macvlan, or openvswitch
 
 The ability to specify the intent succintly is the primary goal of the design and thus some of the specificed user interface will change, and in some cases functionality will be enhanced to accomodate the same. Design details and future work to be captured in a separate document.
 
@@ -32,6 +32,48 @@ Note: make sure virtualbox is installed
 ###Trying it out 
 
 The netplugin produces two binaries, a netplugin daemon and a netdcli tool to interact with it.
+
+####A quick example
+
+1. Start netplugin
+`netplugin`
+2. Specificy global pool of resources (can be executed on any host) Details later on using vxlans instead of vlans, 
+`netdcli -oper=create -construct=global -subnet=11.1.0.0/16 -vlans "11-20" global`
+3. Create a `orange` network
+`netdcli -oper create -construct network orange`
+4. Attach containers `myContainer1` and `myContainer2` to the `orange` network
+netdcli -oper create -construct endpoint -net-id=orange -container-id=myContainer1 orange-endpoint1
+netdcli -oper create -construct endpoint -net-id=orange -container-id=myContainer2 orange-endpoint2
+5. `myContainer1` and `myContainer2` are interconnected
+
+There are many variations to the above configuration, like creating multiple networks,
+across multiple hosts, use of vlans, use of vxlan, custom overrides for 
+ip/subnet/vlan/vxlan allocation on per network/endpoint basis
+
+####Auto-allocaiton of IP addresses
+The plugin can automatically manage the IP address pools and assign an appropriate IP address based on the subnet that was associated with the network. However this doesn't take away the flexibility to keep a specific IP address of a container, which can always be specified as shown earlier. To automatically allocate the IP address, just avoid specifying the IP address during endpoint creation, for example in the previous example:
+`netdcli -oper create -construct endpoint -net-id tenant1-net1 -container-id myContainer2 tenant1-net1-ep2`
+
+With this, associating containers with networks will ensure a unique IP address is assigned to the container
+
+While auto-allocation is allowed, per endpoint override to use a specific IP address 
+is avialable.
+
+####Auto-allocaiton of Subnets
+The plugin can automatically manage the assignment of IP subnets to be used for various networks that are created. This would require configuring the global pool of ip-subnets to pick the subnet allocation from. The implementation will allow distributed atomicity to avoid conflicts
+
+While auto-allocation is allowed, per network override to use a specific subnet 
+is avialable.
+
+####Auto-allocation of vlans and vxlan ids
+Allocation of vlan-ids is specifically useful to allow interacting containers with 
+non containerized applications. In many cases the default deployment choice of 
+vlan/vxlan can be specified once as part of global configuration along with the 
+allowed range (to avoid possiblee conflict), etc.
+
+Auto allocation of vlan-ids and vxlan-id will be done if the network is not specified with the vlan/vxlan id, and a global pool is available.
+
+While auto-allocation is allowed, per network override to use a specific vlan or vxlan-id is avialable to handle specific cases
 
 ####Bring up the netplugin daemon
 
@@ -103,18 +145,11 @@ Add the newly added container to the same tenant's network and attach it to a co
 
 At this point both containers would have been configured with IP address in a dedicated network called 'tenant1-net1' with an IP address allocated from the subnet/mask associated with the network. Therefore, if a ping test is done from either myContainer1 or myContainer2, it would succeed. IP address can overlap in various networks as long as outbound rules are non overlapping.
 
-####Auto-allocaiton of IP addresses
-The plugin can automatically manage the IP address pools and assign an appropriate IP address based on the subnet that was associated with the network. However this doesn't take away the flexibility to keep a specific IP address of a container, which can always be specified as shown earlier. To automatically allocate the IP address, just avoid specifying the IP address during endpoint creation, for example in the previous example:
-`netdcli -oper create -construct endpoint -net-id tenant1-net1 -container-id myContainer2 tenant1-net1-ep2`
-
-This is as simple as associating containers with networks. Auto-allocation of vlans is independent of auto-allocation of IPs to the endpoints.
-
 ####Delete the endpoint
 
 `netdcli -oper delete -construct endpoint tenant1-net1-ep1`
 
 Read the network and endpoint state to verify that they are updated
-
 
 ### How to Contribute
 We welcome patches and contributions, please hit the github page to open an issue or to submit patches send pull rquests. 

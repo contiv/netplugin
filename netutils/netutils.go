@@ -48,16 +48,16 @@ func NextUnSet(b *bitset.BitSet, i uint) (uint, bool) {
     }
 }
 
-// initialize a bit set with 2^numBitsWide bits
-func InitSubnetBitset(b *bitset.BitSet, numBitsWide uint) {
-    maxSize := 2 << (32 - numBitsWide)
+// initialize a bit set with 2^(32 - subnetLen) bits
+func InitSubnetBitset(b *bitset.BitSet, subnetLen uint) {
+    maxSize := 1 << (32 - subnetLen)
     b.Set(uint(maxSize))
     b.Set(uint(0))
 }
 
 // initialize a bit set with 2^numBitsWide bits
 func CreateBitset(numBitsWide uint) *bitset.BitSet {
-    maxSize := 2 << (32 - numBitsWide)
+    maxSize := 1 << numBitsWide
     return bitset.New(uint(maxSize))
 }
 
