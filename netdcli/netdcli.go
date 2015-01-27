@@ -113,7 +113,7 @@ type cliOpts struct {
     pktTagType      string
     subnetCidr      string
     ipAddr          string
-    contId          string
+    contName        string
     subnetIp        string
     subnetLen       uint
     allocSubnetLen  uint
@@ -162,7 +162,7 @@ func init() {
         "ip-address",
         "auto",
         "IP address associated with the endpoint")
-	flagSet.StringVar(&opts.contId,
+	flagSet.StringVar(&opts.contName,
         "container-id",
         "",
         "Container Id to identify a runningcontainer")
@@ -227,7 +227,10 @@ func validateOpts() error {
     }
 
     if opts.pktTag == "auto" {
-        log.Printf("Doing auto allocation of network subnet from global pool")
+        if opts.oper.Get() == CLI_OPER_CREATE && 
+           opts.construct.Get() == CLI_CONSTRUCT_NW {
+            log.Printf("Doing auto allocation of network subnet from global pool")
+        }
     } else if opts.pktTag != "" {
         _, err = strconv.Atoi(opts.pktTag)
         if err != nil {
@@ -286,7 +289,7 @@ func validateOpts() error {
 
     // attach detach parameters validation
 	if (opts.oper.Get() == CLI_OPER_ATTACH || opts.oper.Get() == CLI_OPER_DETACH) &&
-        opts.construct.Get() == CLI_CONSTRUCT_EP && opts.contId == "" {
+        opts.construct.Get() == CLI_CONSTRUCT_EP && opts.contName == "" {
 		log.Fatalf("A valid container-id is needed to attach/detach a container to an ep")
 	}
 
@@ -329,15 +332,15 @@ func main() {
             if err != nil {
                 log.Fatalf("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
             }
-            log.Printf("read ep state as %v for container %s \n", epCfg, opts.contId)
+            log.Printf("read ep state as %v for container %s \n", epCfg, opts.contName)
             if (opts.oper.Get() == CLI_OPER_ATTACH) {
-                epCfg.ContId = opts.contId
+                epCfg.ContName = opts.contName
             } else {
-                if epCfg.ContId != opts.contId {
+                if epCfg.ContName != opts.contName {
                     log.Fatalf("Can not detach container '%s' from endpoint '%s' - " +
-                               "container not attached \n", opts.contId, opts.idStr)
+                               "container not attached \n", opts.contName, opts.idStr)
                 }
-                epCfg.ContId = ""
+                epCfg.ContName = ""
             }
             state = epCfg
         } else {
@@ -345,7 +348,7 @@ func main() {
             epCfg.Id = opts.idStr
             epCfg.NetId = opts.netId
             epCfg.IpAddress = opts.ipAddr
-            epCfg.ContId = opts.contId
+            epCfg.ContName = opts.contName
             state = epCfg
 		}
 	case CLI_CONSTRUCT_NW:

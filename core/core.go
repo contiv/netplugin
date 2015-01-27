@@ -86,6 +86,7 @@ type EndpointDriver interface {
 	DeleteEndpoint(id string) error
 	MakeEndpointAddress() (*Address, error)
 	GetEndpointContainerContext(id string) (*ContainerEpContext, error)
+    UpdateContainerId(id string, contId string) error
 }
 
 type StateDriver interface {
@@ -107,12 +108,12 @@ type StateDriver interface {
 }
 
 type ContainerEpContext struct {
-    NewContId   string 
-    CurrContId  string 
-    InterfaceId string
-    IpAddress   string
-    SubnetLen   uint
-    DefaultGw   string
+    NewContName     string 
+    CurrContName    string 
+    InterfaceId     string
+    IpAddress       string
+    SubnetLen       uint
+    DefaultGw       string
 }
 
 type ContainerDriver interface {
@@ -123,5 +124,6 @@ type ContainerDriver interface {
     Deinit()
     AttachEndpoint(ctx *ContainerEpContext) error
     DetachEndpoint(ctx *ContainerEpContext) error
+    GetContainerId(contName string) string
 }
 

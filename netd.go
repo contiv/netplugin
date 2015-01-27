@@ -113,17 +113,17 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 
             // attach or detach an endpoint to a container
             if isDelete || 
-               (contEpContext.NewContId == "" && contEpContext.CurrContId != "") {
+               (contEpContext.NewContName == "" && contEpContext.CurrContName != "") {
                 err = netPlugin.DetachEndpoint(contEpContext)
                 if err != nil {
                     log.Printf("Endpoint detach container '%s' from ep '%s' failed . " +
-                               "Error: %s", contEpContext.CurrContId, epId, err)
+                               "Error: %s", contEpContext.CurrContName, epId, err)
                 } else {
                     log.Printf("Endpoint detach container '%s' from ep '%s' succeeded",
-                               contEpContext.CurrContId, epId)
+                               contEpContext.CurrContName, epId)
                 }
             } 
-            if !isDelete && contEpContext.NewContId != "" {
+            if !isDelete && contEpContext.NewContName != "" {
                 // re-read post ep updated state
                 newContEpContext, err1 := netPlugin.GetEndpointContainerContext(epId)
                 if err1 != nil {
@@ -137,11 +137,19 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
                 err = netPlugin.AttachEndpoint(contEpContext)
                 if err != nil {
                     log.Printf("Endpoint attach container '%s' to ep '%s' failed . " +
-                               "Error: %s", contEpContext.NewContId, epId, err)
+                               "Error: %s", contEpContext.NewContName, epId, err)
                 } else {
                     log.Printf("Endpoint attach container '%s' to ep '%s' succeeded",
-                               contEpContext.NewContId, epId)
+                               contEpContext.NewContName, epId)
                 }
+                contId := netPlugin.GetContainerId(contEpContext.NewContName)
+                if contId != "" {
+                    err = netPlugin.UpdateContainerId(epId, contId)
+                    if err != nil {
+                        log.Printf("Cont id update err '%s' to ep '%s' - contid %s\n",
+                            contEpContext.NewContName, epId, contId)
+                    }
+                } 
             }
 		}
 	}

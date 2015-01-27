@@ -219,6 +219,10 @@ func (p *NetPlugin) GetEndpointContainerContext(id string) (*core.ContainerEpCon
 	return p.EndpointDriver.GetEndpointContainerContext(id)
 }
 
+func (p *NetPlugin) UpdateContainerId(id string, contId string) error {
+	return p.EndpointDriver.UpdateContainerId(id, contId)
+}
+
 func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 	return nil, &core.Error{Desc: "Not implemented"}
 }
@@ -229,5 +233,9 @@ func (p *NetPlugin) AttachEndpoint(contEpContext *core.ContainerEpContext) error
 
 func (p *NetPlugin) DetachEndpoint(contEpContext *core.ContainerEpContext) error {
     return p.ContainerDriver.DetachEndpoint(contEpContext)
+}
+
+func (p *NetPlugin) GetContainerId(contName string) string {
+	return p.ContainerDriver.GetContainerId(contName)
 }
 

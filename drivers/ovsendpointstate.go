@@ -29,7 +29,7 @@ type OvsCfgEndpointState struct {
 	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
-    ContId      string           `json:"contId"`
+    ContName    string           `json:"contName"`
     IpAddress   string           `json:"ipAddress"`
 }
 
@@ -52,6 +52,7 @@ type OvsOperEndpointState struct {
 	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
+    ContName    string           `json:"contName"`
 	ContId      string           `json:"contId"`
     IpAddress   string           `json:"ipAddress"`
 	PortName    string           `json:"portName"`

@@ -451,7 +451,7 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
 	if err != nil {
 		return &epCtx, nil
 	}
-    epCtx.NewContId = cfgEpState.ContId
+    epCtx.NewContName = cfgEpState.ContName
 
 	operNetState := OvsOperNetworkState{StateDriver: d.stateDriver}
 	err = operNetState.Read(cfgEpState.NetId)
@@ -466,7 +466,7 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
     if err != nil {
         return &epCtx, nil
     }
-    epCtx.CurrContId = operEpState.ContId
+    epCtx.CurrContName = operEpState.ContName
     epCtx.InterfaceId = operEpState.PortName
     epCtx.IpAddress = operEpState.IpAddress
 
@@ -548,8 +548,10 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 	//all went well, update the runtime state of network and endpoint
 	operEpState := OvsOperEndpointState{
-                        StateDriver: d.stateDriver, Id: id, PortName: portName, 
-                        NetId: cfgEpState.NetId, ContId: cfgEpState.ContId,
+                        StateDriver: d.stateDriver, Id: id, 
+                        PortName: portName, 
+                        NetId: cfgEpState.NetId, 
+                        ContName: cfgEpState.ContName,
                         IpAddress: ipAddress}
 	err = operEpState.Write()
 	if err != nil {
@@ -598,6 +600,25 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	}
 
 	return nil
+}
+
+func (d *OvsDriver) UpdateContainerId(id string, contId string) error {
+    var err error
+
+	operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
+	err = operEpState.Read(id)
+	if err != nil {
+		return err
+	}
+    operEpState.ContId = contId
+    err = operEpState.Write()
+	if err != nil {
+		return err
+	}
+
+    log.Printf("updating ep %s with container id %s, contName was %s \n",
+               id, contId, operEpState.ContName)
+    return nil
 }
 
 func (d *OvsDriver) MakeEndpointAddress() (*core.Address, error) {

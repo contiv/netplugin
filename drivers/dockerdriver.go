@@ -61,8 +61,8 @@ func (d *DockerDriver) Init(config *core.Config) error {
 func (d *DockerDriver) Deinit() {
 }
 
-func (d *DockerDriver)getContPid(contId string) (string, error) {
-    contInfo, err := d.Client.InspectContainer(contId)
+func (d *DockerDriver)getContPid(contName string) (string, error) {
+    contInfo, err := d.Client.InspectContainer(contName)
     if err != nil {
         return "", errors.New("couldn't obtain container info")
     }
@@ -78,11 +78,11 @@ func (d *DockerDriver)getContPid(contId string) (string, error) {
 // Note: most of the work in this function is a temporary workaround for 
 // what docker daemon would eventually do; the logic within is borrowed 
 // from pipework utility
-func (d *DockerDriver)moveIfToContainer(ifId string, contId string) error {
+func (d *DockerDriver)moveIfToContainer(ifId string, contName string) error {
 
-    // log.Printf("Moving interface '%s' into container '%s' \n", ifId, contId)
+    // log.Printf("Moving interface '%s' into container '%s' \n", ifId, contName)
 
-    contPid, err := d.getContPid(contId)
+    contPid, err := d.getContPid(contName)
     if err != nil {
         return err
     }
@@ -123,8 +123,8 @@ func (d *DockerDriver)moveIfToContainer(ifId string, contId string) error {
     return err
 }
 
-func (d *DockerDriver)cleanupNetns (contId string) error {
-    contPid, err := d.getContPid(contId)
+func (d *DockerDriver)cleanupNetns (contName string) error {
+    contPid, err := d.getContPid(contName)
     if err != nil {
         return err
     }
@@ -138,10 +138,11 @@ func (d *DockerDriver)cleanupNetns (contId string) error {
     return nil
 }
 
+// use netlink apis instead
 func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 
     log.Printf("configuring ip: addr -%s/%d- on interface %s for container %s\n", 
-        ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContId)
+        ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
 
     if ctx.IpAddress == "" {
         return nil
@@ -150,7 +151,7 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
         errors.New("Subnet mask unspecified \n")
     }
 
-    contPid, err := d.getContPid(ctx.NewContId)
+    contPid, err := d.getContPid(ctx.NewContName)
     if err != nil {
         return err
     }
@@ -180,7 +181,7 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 // before the container becomes active
 func (d *DockerDriver)AttachEndpoint(ctx *core.ContainerEpContext) error {
     
-    err := d.moveIfToContainer(ctx.InterfaceId, ctx.NewContId)
+    err := d.moveIfToContainer(ctx.InterfaceId, ctx.NewContName)
     if err != nil {
         return err
     }
@@ -193,7 +194,7 @@ func (d *DockerDriver)AttachEndpoint(ctx *core.ContainerEpContext) error {
     // configure policies: acl/qos for the container on the host
 
     // cleanup intermediate things (overdoing it?)
-    d.cleanupNetns(ctx.NewContId)
+    d.cleanupNetns(ctx.NewContName)
 
     return err
 }
@@ -203,7 +204,7 @@ func (d *DockerDriver)DetachEndpoint(ctx *core.ContainerEpContext) error {
     var err error
 
     // log.Printf("Detached called for container %s with %s interface\n", 
-    //            ctx.CurrContId, ctx.InterfaceId)
+    //            ctx.CurrContName, ctx.InterfaceId)
 
     // no need to move the interface out of containre, etc.
     // usually deletion of ep takes care of that
@@ -212,3 +213,20 @@ func (d *DockerDriver)DetachEndpoint(ctx *core.ContainerEpContext) error {
 
     return err
 }
+
+func (d *DockerDriver)GetContainerId(contName string) string {
+    contInfo, err := d.Client.InspectContainer(contName)
+    if err != nil {
+        log.Printf("could not get contId for container %s, err '%s' \n",
+            contName, err)
+        return ""
+    }
+
+    // the hack below works only for running containers
+    if ! contInfo.State.Running {
+        return ""
+    }
+    
+    return contInfo.Id
+}
+
