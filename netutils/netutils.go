@@ -22,7 +22,7 @@ import (
     "unsafe"
     "strings"
     "strconv"
-    "github.com/willf/bitset"
+    "github.com/jainvipin/bitset"
 )
 
 var endianNess string
@@ -35,16 +35,6 @@ func init() {
         endianNess = "big"
     } else {
         endianNess = "little"
-    }
-}
-
-// TODO: replace this with function in the native lib once PR is accepted
-func NextUnSet(b *bitset.BitSet, i uint) (uint, bool) {
-    for ; i < b.Len() && b.Test(i); i++ { }
-    if i == b.Len() {
-        return 0, false
-    } else {
-        return i, true
     }
 }
 

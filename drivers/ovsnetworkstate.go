@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-    "github.com/willf/bitset"
+    "github.com/jainvipin/bitset"
 	"github.com/contiv/netplugin/core"
 )
 

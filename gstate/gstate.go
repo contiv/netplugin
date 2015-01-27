@@ -22,7 +22,7 @@ import (
     "net"
     "fmt"
 
-    "github.com/willf/bitset"
+    "github.com/jainvipin/bitset"
 
     "github.com/contiv/netplugin/netutils"
     "github.com/contiv/netplugin/core"
@@ -223,7 +223,7 @@ func (g *Oper)FreeVlan (vlan uint) error {
 
 func (g *Oper)AllocSubnet ()(string, error) {
 
-    subnetId, found := netutils.NextUnSet(&g.AllocedSubnets, 0)
+    subnetId, found := g.AllocedSubnets.NextClear(0)
     if !found {
         log.Printf("Bitmap: %s \n", g.AllocedSubnets.DumpAsBits())
         return "", errors.New("subnet exhaustion")

@@ -515,7 +515,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
     ipAddress := cfgEpState.IpAddress
     if ipAddress == "auto" {
-        if ipAddrBit, found = netutils.NextUnSet(&operNwState.IpAllocMap, 0); !found {
+        if ipAddrBit, found = operNwState.IpAllocMap.NextClear(0); !found {
             log.Printf("auto allocation failed - address exhaustion in subnet %s/%d \n", 
                        operNwState.SubnetIp, operNwState.SubnetLen)
             return err
