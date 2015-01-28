@@ -16,7 +16,6 @@ limitations under the License.
 package drivers
 
 import (
-	"encoding/base64"
 	"fmt"
 	"github.com/coreos/go-etcd/etcd"
 
@@ -56,10 +55,7 @@ func (d *EtcdStateDriver) Deinit() {
 }
 
 func (d *EtcdStateDriver) Write(key string, value []byte) error {
-	// XXX: etcd go client right now accepts only string values, so
-	// encode the received byte array as base64 string before storing it.
-	encodedStr := base64.URLEncoding.EncodeToString(value)
-	_, err := d.Client.Set(key, encodedStr, 0)
+	_, err := d.Client.Set(key, string(value[:]), 0)
 
 	return err
 }
@@ -85,15 +81,7 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	// XXX: etcd go client right now accepts only string values, so
-	// decode the received data as base64 string.
-	decodedStr := []byte{}
-	decodedStr, err = base64.URLEncoding.DecodeString(resp.Node.Value)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	return decodedStr, err
+	return []byte(resp.Node.Value), err
 }
 
 func (d *EtcdStateDriver) ClearState(key string) error {
