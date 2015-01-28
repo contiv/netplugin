@@ -18,6 +18,7 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
+    "log"
 
 	"github.com/contiv/netplugin/core"
 )
@@ -42,6 +43,27 @@ func (s *OvsCfgEndpointState) Read(id string) error {
 	key := fmt.Sprintf(EP_CFG_PATH, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
+
+func ReadAllEpsCfg(sd core.StateDriver) (epState []OvsCfgEndpointState, err error) {
+
+    keys, err := sd.ReadRecursive(EP_CFG_PATH_PREFIX)
+    if err != nil {
+        return 
+    }
+
+    epState = make([]OvsCfgEndpointState, len(keys))
+    for idx, key := range keys {
+	    err =  sd.ReadState(key, &epState[idx], json.Unmarshal)
+        if err != nil {
+            log.Printf("error '%s' reading oper state of key %s \n",
+                err, key)
+            return 
+        }
+    }
+
+    return 
+}
+
 
 func (s *OvsCfgEndpointState) Clear() error {
 	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
@@ -68,7 +90,29 @@ func (s *OvsOperEndpointState) Read(id string) error {
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+func ReadAllEpsOper(sd core.StateDriver) (epState []OvsOperEndpointState, err error) {
+
+    keys, err := sd.ReadRecursive(EP_OPER_PATH_PREFIX)
+    if err != nil {
+        return 
+    }
+
+    epState = make([]OvsOperEndpointState, len(keys))
+    for idx, key := range keys {
+	    err =  sd.ReadState(key, &epState[idx], json.Unmarshal)
+        if err != nil {
+            log.Printf("error '%s' reading oper state of key %s \n",
+                err, key)
+            return 
+        }
+    }
+
+    return 
+}
+
+
 func (s *OvsOperEndpointState) Clear() error {
 	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
 	return s.StateDriver.ClearState(key)
 }
+

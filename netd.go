@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/netplugin/gstate"
@@ -158,6 +159,35 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 	retErr <- nil
 }
 
+func handleContainerStart(netPlugin *plugin.NetPlugin, contId string) error {
+    var err error
+    var epContexts []core.ContainerEpContext
+
+    contName, err := netPlugin.GetContainerName(contId)
+    if err != nil {
+        log.Printf("Could not find container name from container id %s \n", contId)
+        return err
+    }
+
+    epContexts, err = netPlugin.GetContainerEpContextByContName(contName)
+    if err != nil {
+        log.Printf("Error '%s' getting Ep context for container %s \n",
+                   err, contName)
+        return err
+    }
+
+    for _, epCtx := range epContexts {
+        log.Printf("## trying attach on epctx %v \n", epCtx)
+        err = netPlugin.AttachEndpoint(&epCtx)
+        if err != nil {
+            log.Printf("Error '%s' attaching container to the network \n", err)
+            return err
+        }
+    }
+
+    return nil
+}
+
 func handleDockerEvents(event *dockerclient.Event, args ...interface{}) {
     var err error
 
@@ -172,6 +202,25 @@ func handleDockerEvents(event *dockerclient.Event, args ...interface{}) {
     }
 
     log.Printf("Received event: %#v, for netPlugin %v \n", *event, netPlugin)
+
+    // XXX: with plugin (in a lib) this code will handle these events
+    // this cod will need to go away then
+    switch event.Status {
+		case "start":
+            err = handleContainerStart(netPlugin, event.Id)
+            if err != nil {
+                log.Printf("error '%s' handling container %s \n", err, event.Id)
+            }
+
+        case "die":
+            log.Printf("received die event for container \n")
+            // decide if we should remove the container network policy or leave
+            // it until ep configuration is removed
+            // ep configuration as instantiated can be applied to another container
+            // or reincarnation of the same container
+
+    }
+
     if err != nil {
         retErr <- err
     }

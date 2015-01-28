@@ -219,6 +219,10 @@ func (p *NetPlugin) GetEndpointContainerContext(id string) (*core.ContainerEpCon
 	return p.EndpointDriver.GetEndpointContainerContext(id)
 }
 
+func (p *NetPlugin) GetContainerEpContextByContName(contId string) ([]core.ContainerEpContext, error) {
+	return p.EndpointDriver.GetContainerEpContextByContName(contId)
+}
+
 func (p *NetPlugin) UpdateContainerId(id string, contId string) error {
 	return p.EndpointDriver.UpdateContainerId(id, contId)
 }
@@ -237,5 +241,9 @@ func (p *NetPlugin) DetachEndpoint(contEpContext *core.ContainerEpContext) error
 
 func (p *NetPlugin) GetContainerId(contName string) string {
 	return p.ContainerDriver.GetContainerId(contName)
+}
+
+func (p *NetPlugin) GetContainerName(contId string) (string, error) {
+	return p.ContainerDriver.GetContainerName(contId)
 }
 

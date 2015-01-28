@@ -51,6 +51,10 @@ func (d *testOvsStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
+func (d *testOvsStateDriver) ReadRecursive(baseKey string) ([]string, error) {
+	return []string{}, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testOvsStateDriver) ClearState(key string) error {
 	return nil
 }

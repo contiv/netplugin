@@ -230,3 +230,19 @@ func (d *DockerDriver)GetContainerId(contName string) string {
     return contInfo.Id
 }
 
+func (d *DockerDriver)GetContainerName(contId string) (string, error) {
+    contInfo, err := d.Client.InspectContainer(contId)
+    if err != nil {
+        log.Printf("could not get contName for container %s, err '%s' \n",
+            contId, err)
+        return "", err
+    }
+
+    // the hack below works only for running containers
+    if ! contInfo.State.Running {
+        return "", errors.New(fmt.Sprintf(
+            "container id %s not running", contId))
+    }
+    
+    return contInfo.Name, nil
+}

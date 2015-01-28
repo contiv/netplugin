@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
     "log"
+    "strings"
     "strconv"
 
 	"github.com/contiv/netplugin/netutils"
@@ -438,6 +439,35 @@ func (d *OvsDriver) DeleteNetwork(id string) error {
 	}
 
 	return nil
+}
+
+func (d *OvsDriver) GetContainerEpContextByContName(contName string) (epCtxs []core.ContainerEpContext, err error) {
+    var epCtx *core.ContainerEpContext
+
+    contName = strings.TrimPrefix(contName, "/")
+    epCfgs, err := ReadAllEpsCfg(d.stateDriver)
+    if err != nil {
+        return 
+    }
+
+    epCtxs = make([]core.ContainerEpContext, len(epCfgs))
+    idx := 0
+    for _, epCfg := range epCfgs {
+        if epCfg.ContName != contName {
+            continue
+        }
+
+        epCtx, err = d.GetEndpointContainerContext(epCfg.Id)
+        if err != nil {
+            log.Printf("error '%s' getting epCfgState for ep %s \n", 
+                err, epCfg.Id)
+            return epCtxs[:idx], nil
+        }
+        epCtxs[idx] = *epCtx
+        idx = idx + 1
+    }
+
+    return epCtxs[:idx], nil
 }
 
 // fetches various parameters in ep context to allow container to be

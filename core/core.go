@@ -86,6 +86,7 @@ type EndpointDriver interface {
 	DeleteEndpoint(id string) error
 	MakeEndpointAddress() (*Address, error)
 	GetEndpointContainerContext(id string) (*ContainerEpContext, error)
+	GetContainerEpContextByContName(contName string) ([]ContainerEpContext, error)
     UpdateContainerId(id string, contId string) error
 }
 
@@ -100,6 +101,7 @@ type StateDriver interface {
 	Deinit()
 	Write(key string, value []byte) error
 	Read(key string) ([]byte, error)
+    ReadRecursive(baseKey string) ([]string, error)
 	WriteState(key string, value State,
 		marshal func(interface{}) ([]byte, error)) error
 	ReadState(key string, value State,
@@ -125,5 +127,6 @@ type ContainerDriver interface {
     AttachEndpoint(ctx *ContainerEpContext) error
     DetachEndpoint(ctx *ContainerEpContext) error
     GetContainerId(contName string) string
+    GetContainerName(contName string) (string, error)
 }
 

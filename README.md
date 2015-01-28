@@ -42,8 +42,11 @@ The netplugin produces two binaries, a netplugin daemon and a netdcli tool to in
 3. Create a `orange` network
 `netdcli -oper create -construct network orange`
 4. Attach containers `myContainer1` and `myContainer2` to the `orange` network
-netdcli -oper create -construct endpoint -net-id=orange -container-id=myContainer1 orange-endpoint1
-netdcli -oper create -construct endpoint -net-id=orange -container-id=myContainer2 orange-endpoint2
+
+`netdcli -oper create -construct endpoint -net-id=orange -container-id=myContainer1 orange-endpoint1`
+
+`netdcli -oper create -construct endpoint -net-id=orange -container-id=myContainer2 orange-endpoint2`
+
 5. `myContainer1` and `myContainer2` are interconnected
 
 There are many variations to the above configuration, like creating multiple networks,

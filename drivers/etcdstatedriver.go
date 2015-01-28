@@ -64,6 +64,21 @@ func (d *EtcdStateDriver) Write(key string, value []byte) error {
 	return err
 }
 
+func (d *EtcdStateDriver) ReadRecursive(baseKey string) ([]string, error) {
+	resp, err := d.Client.Get(baseKey, true, false)
+	if err != nil {
+		return []string{}, err
+	}
+
+    keys := make([]string, len(resp.Node.Nodes))
+
+    for idx, respNode := range resp.Node.Nodes {
+        keys[idx] = respNode.Key
+    }
+
+	return keys, err
+}
+
 func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 	resp, err := d.Client.Get(key, false, false)
 	if err != nil {
