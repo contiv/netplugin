@@ -16,6 +16,8 @@ limitations under the License.
 package main
 
 import (
+	"flag"
+	"fmt"
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/samalba/dockerclient"
 	"log"
@@ -201,15 +203,11 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, contId string) error {
 	return nil
 }
 
-func handleDockerEvents(event *dockerclient.Event, args ...interface{}) {
+func handleDockerEvents(event *dockerclient.Event, retErr chan error,
+	args ...interface{}) {
 	var err error
 
 	netPlugin, ok := args[0].(*plugin.NetPlugin)
-	if !ok {
-		log.Printf("error decoding netplugin in handleDocker \n")
-	}
-
-	retErr, ok := args[1].(chan error)
 	if !ok {
 		log.Printf("error decoding netplugin in handleDocker \n")
 	}
@@ -252,7 +250,7 @@ func run(netPlugin *plugin.NetPlugin) error {
 	// start docker client and handle docker events
 	// wait on error chan for problems handling the docker events
 	dockerDriver := netPlugin.ContainerDriver.(*drivers.DockerDriver)
-	dockerDriver.Client.StartMonitorEvents(handleDockerEvents, netPlugin, recvErr)
+	dockerDriver.Client.StartMonitorEvents(handleDockerEvents, recvErr, netPlugin)
 
 	// XXX: todo, restore any config that might have been created till this
 	// point
