@@ -121,6 +121,7 @@ type cliOpts struct {
     idStr           string
     vlans           string
     vxlans          string
+    homingHost      string
 }
 
 var opts cliOpts
@@ -174,6 +175,10 @@ func init() {
         "alloc-subnet-len",
         24,
         "Subnet length of auto allocated subnets from the subnet pool")
+	flagSet.StringVar(&opts.homingHost,
+        "host",
+        "",
+        "Host name/label on which an ep needs to be created. Default is the local host ")
 	flagSet.StringVar(&opts.vxlans,
         "vxlans",
         "",
@@ -248,6 +253,13 @@ func validateOpts() error {
 	if opts.oper.Get() == CLI_OPER_CREATE &&
        opts.construct.Get() == CLI_CONSTRUCT_NW {
 	}
+
+    if opts.homingHost == "" {
+        opts.homingHost, err = os.Hostname()
+        if err != nil {
+            log.Fatalf("error obtaining the hostname, error %s \n", err)
+        }
+    }
 
     // default gw and mask parsing
     if opts.subnetCidr == "" {
@@ -349,6 +361,7 @@ func main() {
             epCfg.NetId = opts.netId
             epCfg.IpAddress = opts.ipAddr
             epCfg.ContName = opts.contName
+            epCfg.HomingHost = opts.homingHost
             state = epCfg
 		}
 	case CLI_CONSTRUCT_NW:
