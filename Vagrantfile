@@ -3,7 +3,7 @@
 
 $provision = <<SCRIPT
 ## install packages
-apt-get update -qq && apt-get install -y vim curl python-software-properties git openvswitch-switch || exit 1
+(apt-get update -qq && apt-get install -y vim curl python-software-properties git openvswitch-switch) || exit 1
 
 ## setup enviorment. XXX: remove http-proxy stuff
 cat > /etc/profile.d/envvar.sh <<'EOF'
@@ -34,7 +34,7 @@ ln -s /tmp/etcd-v0.4.6-linux-amd64/etcdctl && \
 etcd &) || exit 1
 
 ## install and start docker
-curl -sSL https://get.docker.com/ubuntu/ | sudo sh
+curl -sSL https://get.docker.com/ubuntu/ | sh
 
 ## link the netplugin repo, for quick test-fix-test turnaround
 (mkdir -p $GOSRC/github.com/contiv && \

@@ -18,7 +18,7 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
-    "log"
+	"log"
 
 	"github.com/contiv/netplugin/core"
 )
@@ -30,8 +30,9 @@ type OvsCfgEndpointState struct {
 	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
-    ContName    string           `json:"contName"`
-    IpAddress   string           `json:"ipAddress"`
+	ContName    string           `json:"contName"`
+	IpAddress   string           `json:"ipAddress"`
+	HomingHost  string           `json:"homingHost"`
 }
 
 func (s *OvsCfgEndpointState) Write() error {
@@ -46,24 +47,23 @@ func (s *OvsCfgEndpointState) Read(id string) error {
 
 func ReadAllEpsCfg(sd core.StateDriver) (epState []OvsCfgEndpointState, err error) {
 
-    keys, err := sd.ReadRecursive(EP_CFG_PATH_PREFIX)
-    if err != nil {
-        return 
-    }
+	keys, err := sd.ReadRecursive(EP_CFG_PATH_PREFIX)
+	if err != nil {
+		return
+	}
 
-    epState = make([]OvsCfgEndpointState, len(keys))
-    for idx, key := range keys {
-	    err =  sd.ReadState(key, &epState[idx], json.Unmarshal)
-        if err != nil {
-            log.Printf("error '%s' reading oper state of key %s \n",
-                err, key)
-            return 
-        }
-    }
+	epState = make([]OvsCfgEndpointState, len(keys))
+	for idx, key := range keys {
+		err = sd.ReadState(key, &epState[idx], json.Unmarshal)
+		if err != nil {
+			log.Printf("error '%s' reading oper state of key %s \n",
+				err, key)
+			return
+		}
+	}
 
-    return 
+	return
 }
-
 
 func (s *OvsCfgEndpointState) Clear() error {
 	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
@@ -74,9 +74,9 @@ type OvsOperEndpointState struct {
 	StateDriver core.StateDriver `json:"-"`
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
-    ContName    string           `json:"contName"`
+	ContName    string           `json:"contName"`
 	ContId      string           `json:"contId"`
-    IpAddress   string           `json:"ipAddress"`
+	IpAddress   string           `json:"ipAddress"`
 	PortName    string           `json:"portName"`
 }
 
@@ -92,27 +92,25 @@ func (s *OvsOperEndpointState) Read(id string) error {
 
 func ReadAllEpsOper(sd core.StateDriver) (epState []OvsOperEndpointState, err error) {
 
-    keys, err := sd.ReadRecursive(EP_OPER_PATH_PREFIX)
-    if err != nil {
-        return 
-    }
+	keys, err := sd.ReadRecursive(EP_OPER_PATH_PREFIX)
+	if err != nil {
+		return
+	}
 
-    epState = make([]OvsOperEndpointState, len(keys))
-    for idx, key := range keys {
-	    err =  sd.ReadState(key, &epState[idx], json.Unmarshal)
-        if err != nil {
-            log.Printf("error '%s' reading oper state of key %s \n",
-                err, key)
-            return 
-        }
-    }
+	epState = make([]OvsOperEndpointState, len(keys))
+	for idx, key := range keys {
+		err = sd.ReadState(key, &epState[idx], json.Unmarshal)
+		if err != nil {
+			log.Printf("error '%s' reading oper state of key %s \n",
+				err, key)
+			return
+		}
+	}
 
-    return 
+	return
 }
-
 
 func (s *OvsOperEndpointState) Clear() error {
 	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
 	return s.StateDriver.ClearState(key)
 }
-
