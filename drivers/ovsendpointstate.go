@@ -33,6 +33,7 @@ type OvsCfgEndpointState struct {
 	ContName    string           `json:"contName"`
 	IpAddress   string           `json:"ipAddress"`
 	HomingHost  string           `json:"homingHost"`
+	IntfName    string           `json:"intfName"`
 }
 
 func (s *OvsCfgEndpointState) Write() error {

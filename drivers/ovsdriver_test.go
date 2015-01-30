@@ -25,10 +25,17 @@ import (
 )
 
 const (
-	createEpId  = "testCreateEp"
-	deleteEpId  = "testDeleteEp"
-	testOvsNwId = "testNetId"
-	testPktTag  = 100
+	createEpId         = "testCreateEp"
+	deleteEpId         = "testDeleteEp"
+	createEpWithIntfId = "testCreateEpWithIntf"
+	deleteEpWithIntfId = "testDeleteEpWithIntf"
+	testOvsNwId        = "testNetId"
+	testPktTag         = 100
+	testIntfName       = "testIntf"
+
+	READ_EP int = iota
+	READ_EP_WITH_INTF
+	READ_NW
 )
 
 var ovsStateDriver = &testOvsStateDriver{}
@@ -59,7 +66,8 @@ func (d *testOvsStateDriver) ClearState(key string) error {
 	return nil
 }
 
-func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, value core.State) error {
+func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
+	value core.State) error {
 	if cfgNw, ok := value.(*OvsCfgNetworkState); ok {
 		cfgNw.Id = testOvsNwId
 		return nil
@@ -73,8 +81,17 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, value core.State) 
 
 	if cfgEp, ok := value.(*OvsCfgEndpointState); ok {
 		cfgEp.Id = createEpId
+		cfgEp.IntfName = ""
+		if oper == READ_EP_WITH_INTF {
+			cfgEp.Id = createEpWithIntfId
+			cfgEp.IntfName = testIntfName
+		}
+
 		if !isCreateEp {
 			cfgEp.Id = deleteEpId
+			if oper == READ_EP_WITH_INTF {
+				cfgEp.Id = deleteEpWithIntfId
+			}
 		}
 		cfgEp.NetId = testOvsNwId
 		return nil
@@ -82,11 +99,14 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, value core.State) 
 
 	if operEp, ok := value.(*OvsOperEndpointState); ok {
 		operEp.Id = createEpId
-		operEp.PortName = ""
+		if oper == READ_EP_WITH_INTF {
+			operEp.Id = createEpWithIntfId
+		}
 		if !isCreateEp {
 			operEp.Id = deleteEpId
-			//XXX: assuming only one port in db
-			operEp.PortName = fmt.Sprintf(PORT_NAME_FMT, 1)
+			if oper == READ_EP_WITH_INTF {
+				operEp.Id = deleteEpWithIntfId
+			}
 		}
 		operEp.NetId = testOvsNwId
 		return nil
@@ -97,14 +117,20 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, value core.State) 
 
 func (d *testOvsStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
+	if strings.Contains(key, createEpWithIntfId) {
+		return d.readStateHelper(true, READ_EP_WITH_INTF, value)
+	}
 	if strings.Contains(key, createEpId) {
-		return d.readStateHelper(true, value)
+		return d.readStateHelper(true, READ_EP, value)
+	}
+	if strings.Contains(key, deleteEpWithIntfId) {
+		return d.readStateHelper(false, READ_EP_WITH_INTF, value)
 	}
 	if strings.Contains(key, deleteEpId) {
-		return d.readStateHelper(false, value)
+		return d.readStateHelper(false, READ_EP, value)
 	}
 	if strings.Contains(key, testOvsNwId) {
-		return d.readStateHelper(false, value)
+		return d.readStateHelper(false, READ_NW, value)
 	}
 
 	return &core.Error{Desc: fmt.Sprintf("unknown key! %s", key)}
@@ -200,6 +226,30 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 	}
 }
 
+func TestOvsDriverCreateEndpointWithIntfName(t *testing.T) {
+	driver := initOvsDriver(t)
+	defer func() { driver.Deinit() }()
+	id := createEpWithIntfId
+
+	err := driver.CreateEndpoint(id)
+	if err != nil {
+		t.Fatalf("endpoint creation failed. Error: %s", err)
+	}
+
+	output, err := exec.Command("ovs-vsctl", "list", "Port").Output()
+	expectedPortName := fmt.Sprintf("port%d", driver.currPortNum)
+	if err != nil || !strings.Contains(string(output), expectedPortName) {
+		t.Fatalf("port lookup failed. Error: %s expected port: %s Output: %s",
+			err, expectedPortName, output)
+	}
+
+	output, err = exec.Command("ovs-vsctl", "list", "Interface").Output()
+	if err != nil || !strings.Contains(string(output), testIntfName) {
+		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
+			err, expectedPortName, output)
+	}
+}
+
 func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	driver := initOvsDriver(t)
 	defer func() { driver.Deinit() }()
@@ -222,7 +272,34 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	}
 
 	output, err = exec.Command("ovs-vsctl", "list", "Interface").Output()
+	if err != nil || strings.Contains(string(output), testIntfName) {
+		t.Fatalf("interface lookup succeeded after delete. Error: %s Output: %s", err, output)
+	}
+}
+
+func TestOvsDriverDeleteEndpointiWithIntfName(t *testing.T) {
+	driver := initOvsDriver(t)
+	defer func() { driver.Deinit() }()
+	id := deleteEpWithIntfId
+
+	err := driver.CreateEndpoint(id)
+	if err != nil {
+		t.Fatalf("endpoint Creation failed. Error: %s", err)
+	}
+
+	err = driver.DeleteEndpoint(id)
+	if err != nil {
+		t.Fatalf("endpoint Deletion failed. Error: %s", err)
+	}
+
+	output, err := exec.Command("ovs-vsctl", "list", "Port").Output()
+	expectedPortName := fmt.Sprintf(PORT_NAME_FMT, driver.currPortNum+1)
 	if err != nil || strings.Contains(string(output), expectedPortName) {
+		t.Fatalf("port lookup succeeded after delete. Error: %s Output: %s", err, output)
+	}
+
+	output, err = exec.Command("ovs-vsctl", "list", "Interface").Output()
+	if err != nil || strings.Contains(string(output), testIntfName) {
 		t.Fatalf("interface lookup succeeded after delete. Error: %s Output: %s", err, output)
 	}
 }
