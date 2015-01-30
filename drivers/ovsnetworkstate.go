@@ -71,6 +71,7 @@ type OvsOperNetworkState struct {
 	Id          string           `json:"id"`
 	PktTagType  string           `json:"pktTagType"`
 	PktTag      int              `json:"pktTag"`
+    ExtPktTag   int              `json:"extPktTag"`
 	SubnetIp    string           `json:"subnetIp"`
 	SubnetLen   uint             `json:"subnetLen"`
 	DefaultGw   string           `json:"defaultGw"`

@@ -116,8 +116,24 @@ func TestInvalidRangeExtraSeperators (t *testing.T) {
     }
 }
 
-func TestInvalidVlanVxlanValue(t *testing.T) {
-    rangeStr := "5-100, 101-75535"
+func TestValidVxlanRange(t *testing.T) {
+    rangeStr := "10000-16000"
+    _, err := ParseTagRanges(rangeStr, "vxlan")
+    if err != nil {
+        t.Fatalf("error '%s' parsing valid vxlan range '%s'\n", err, rangeStr)
+    }
+}
+
+func TestInvalidVxlanMultipleRanges(t *testing.T) {
+    rangeStr := "101-400, 10000-15000"
+    _, err := ParseTagRanges(rangeStr, "vxlan")
+    if err == nil {
+        t.Fatalf("successfully parsed invalid vxlan value '%s'\n", rangeStr)
+    }
+}
+
+func TestInvalidVxlanValue(t *testing.T) {
+    rangeStr := "101-75535"
     _, err := ParseTagRanges(rangeStr, "vxlan")
     if err == nil {
         t.Fatalf("successfully parsed invalid vxlan value '%s'\n", rangeStr)
@@ -125,7 +141,7 @@ func TestInvalidVlanVxlanValue(t *testing.T) {
 }
 
 func TestInvalidMinMaxVxlan(t *testing.T) {
-    rangeStr := "5-100, 8000-7999"
+    rangeStr := "8000-7999"
     _, err := ParseTagRanges(rangeStr, "vxlan")
     if err == nil {
         t.Fatalf("successfully parsed invalid min-max vxlan values '%s'\n", rangeStr)
@@ -180,4 +196,3 @@ func TestGetSubnetNumber(t *testing.T) {
         }
     }
 }
-

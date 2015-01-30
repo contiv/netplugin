@@ -212,22 +212,25 @@ func validateOpts() error {
 		log.Fatalf("A construct must be specified")
 	}
 
+    if opts.pktTagType != "vxlan" && opts.pktTagType != "vlan" {
+        log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
+    }
+
     // global create params validation
     if opts.oper.Get() == CLI_OPER_CREATE &&
        opts.construct.Get() == CLI_CONSTRUCT_GLOBAL {
-        if opts.pktTag == "vxlan" {
-            log.Fatalf("default vxlan tunneling support is coming soon...")
-        } else if opts.pktTagType != "vlan" {
-            log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
-        } 
-
-        _, err = netutils.ParseTagRanges(opts.vlans, "vlan")
-        if err != nil {
-            log.Fatalf("error '%s' parsing vlan range '%s' \n", err, opts.vlans)
+        if opts.vlans != "" {
+            _, err = netutils.ParseTagRanges(opts.vlans, "vlan")
+            if err != nil {
+                log.Fatalf("error '%s' parsing vlan range '%s' \n", err, opts.vlans)
+            }
         }
-        _, err = netutils.ParseTagRanges(opts.vxlans, "vxlan")
-        if err != nil {
-            log.Fatalf("error '%s' parsing vxlan range '%s' \n", err, opts.vxlans)
+
+        if opts.vxlans != "" {
+            _, err = netutils.ParseTagRanges(opts.vxlans, "vxlan")
+            if err != nil {
+                log.Fatalf("error '%s' parsing vxlan range '%s' \n", err, opts.vxlans)
+            }
         }
     }
 
@@ -242,12 +245,6 @@ func validateOpts() error {
             log.Fatalf("Error convertinng tag %s to integer \n", opts.pktTag)
         }
     }
-
-    if opts.pktTagType == "vxlan" {
-        log.Fatalf("vxlan tunneling support is coming soon...")
-    } else if opts.pktTagType != "vlan" {
-        log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
-    } 
 
     // network create params validation
 	if opts.oper.Get() == CLI_OPER_CREATE &&

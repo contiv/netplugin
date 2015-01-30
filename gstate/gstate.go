@@ -68,6 +68,9 @@ type Oper struct {
     AllocSubnetLen      uint
     AllocedSubnets      bitset.BitSet
     FreeVlans           bitset.BitSet
+    FreeLocalVlans      bitset.BitSet
+    FreeVxlansStart     uint
+    FreeVxlans          bitset.BitSet
 }
 
 var gCfg *Cfg
@@ -110,10 +113,8 @@ func (gc *Cfg) checkErrors() error {
         return err
     }
 
-    if gc.Deploy.DefaultNetType == "vxlan" {
-        return errors.New("vxlan support is coming soon... \n")
-    }
-    if gc.Deploy.DefaultNetType != "vlan" {
+    if gc.Deploy.DefaultNetType != "vlan" && 
+        gc.Deploy.DefaultNetType != "vxlan" {
         return errors.New(fmt.Sprintf("unsupported net type %s", 
             gc.Deploy.DefaultNetType))
     }
@@ -186,13 +187,111 @@ func (g *Oper) Read(d core.StateDriver) error {
     return nil
 }
 
+func (g *Oper)initVxlanBitset(vxlans string, vlans string,
+    defPktType string) error {
+    var vxlanRange netutils.TagRange
+
+    g.FreeVxlans = *netutils.CreateBitset(14)
+
+    if defPktType == "vxlan" && vlans == "" {
+        g.FreeLocalVlans = g.FreeVlans
+        g.FreeVlans = *g.FreeVlans.Complement()
+        clearReservedVlans(&g.FreeVlans)
+    } else {
+        g.FreeLocalVlans = *g.FreeVlans.Complement()
+        clearReservedVlans(&g.FreeLocalVlans)
+    }
+
+    if vxlans == "" {
+        vxlanRange.Min = 10000
+        vxlanRange.Max = 26000
+    } else {
+        vxlanRanges, err := netutils.ParseTagRanges(vxlans, "vxlan")
+        if err != nil {
+            return err
+        }
+        vxlanRange = vxlanRanges[0]
+    }
+
+    g.FreeVxlansStart = uint(vxlanRange.Min)
+    for vxlan := vxlanRange.Min; vxlan <= vxlanRange.Max; vxlan++ {
+        g.FreeVxlans.Set(uint(vxlan - vxlanRange.Min))
+    }
+
+    return nil
+}
+
+func (g *Oper)AllocVxlan ()(vxlan uint, localVlan uint, err error) {
+    var ok bool
+
+    vxlan, ok = g.FreeVxlans.NextSet(0)
+    if !ok {
+        err = errors.New("no Vxlans available ")
+        return 
+    }
+
+    localVlan, ok = g.FreeLocalVlans.NextSet(0)
+    if !ok {
+        err = errors.New("no local vlans available ")
+        return 
+    }
+
+    g.FreeVxlans.Set(vxlan)
+    vxlan = vxlan + g.FreeVxlansStart
+
+    return 
+}
+
+func (g *Oper)FreeVxlan (vxlan uint, localVlan uint) error {
+    if !g.FreeLocalVlans.Test(localVlan) {
+        g.FreeLocalVlans.Clear(localVlan)
+    }
+
+    vxlan = vxlan - g.FreeVxlansStart
+    if !g.FreeVxlans.Test(vxlan) {
+        g.FreeVxlans.Clear(vxlan)
+    }
+
+    return nil
+}
+
+func (g *Oper)AllocLocalVlan ()(uint, error) {
+    vlan, ok := g.FreeLocalVlans.NextSet(0)
+    if !ok {
+        return 0, errors.New("no vlans available ")
+    }
+
+    g.FreeLocalVlans.Set(vlan)
+
+    return vlan, nil
+}
+
+// be idempotent, don't complain if vlan is already freed
+func (g *Oper)FreeLocalVlan (vlan uint) error {
+    if !g.FreeLocalVlans.Test(vlan) {
+        g.FreeLocalVlans.Clear(vlan)
+    }
+    return nil
+}
+
+func clearReservedVlans(vlanBitset *bitset.BitSet) {
+    vlanBitset.Clear(0)
+    vlanBitset.Clear(4095)
+}
+
 func (g *Oper)initVlanBitset(vlans string) error {
+
+    g.FreeVlans = *netutils.CreateBitset(12)
+
+    if vlans == "" {
+        vlans = "1-4094"
+    } 
+
     vlanRanges, err := netutils.ParseTagRanges(vlans, "vlan")
     if err != nil {
         return err
     }
 
-    g.FreeVlans.Copy(netutils.CreateBitset(12))
     for _, vlanRange := range vlanRanges {
         for vlan := vlanRange.Min; vlan <= vlanRange.Max; vlan++ {
             g.FreeVlans.Set(uint(vlan))
@@ -244,6 +343,13 @@ func (g *Oper)FreeSubnet(subnetIp string) error {
     return nil
 }
 
+func clearState() (error) {
+    gOper = nil
+    gCfg = nil
+
+    return nil
+}
+
 // process config state and spew out new oper state
 func (gc *Cfg) Process() (*Oper, error) {
     var err error
@@ -270,7 +376,7 @@ func (gc *Cfg) Process() (*Oper, error) {
         
         allocSubnetSize := gc.Auto.AllocSubnetLen - gc.Auto.SubnetLen 
 
-        gOper.AllocedSubnets.Copy(netutils.CreateBitset(allocSubnetSize))
+        gOper.AllocedSubnets = *netutils.CreateBitset(allocSubnetSize)
         gOper.AllocedSubnets.Set( 1 + (1 << allocSubnetSize))
 
         err = gOper.initVlanBitset(gc.Auto.Vlans)
@@ -279,10 +385,15 @@ func (gc *Cfg) Process() (*Oper, error) {
             return nil, err
         }
 
-        log.Printf("created oper state %v \n", gOper)
+        err = gOper.initVxlanBitset(gc.Auto.Vxlans, gc.Auto.Vlans, 
+            gc.Deploy.DefaultNetType)
+        if err != nil {
+            log.Printf("Error '%s' initializing vlans \n", err)
+            return nil, err
+        }
     }
 
-    log.Printf("updating the global config to new state %v \n", gc)
+    // log.Printf("updating the global config to new state %v \n", gc)
     gCfg = gc
 
     return gOper, nil

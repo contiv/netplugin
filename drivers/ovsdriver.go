@@ -357,12 +357,11 @@ func (d *OvsDriver) Deinit() {
 
 func (d *OvsDriver) CreateNetwork(id string) error {
     var err error
-    var pktTag uint
+    var extPktTag, pktTag uint
     var subnetLen uint
     var subnetIp string
     var gOper gstate.Oper
 
-	// no-op for a vlan based network, just create oper state
 	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
 	err = cfgNetState.Read(id)
 	if err != nil {
@@ -385,6 +384,11 @@ func (d *OvsDriver) CreateNetwork(id string) error {
             if err != nil {
                 return err
             }
+        } else if gOper.DefaultNetType == "vxlan" {
+            extPktTag, pktTag, err = gOper.AllocVxlan()
+            if err != nil {
+                return err
+            }
         }
 
         err = gOper.Update(d.stateDriver)
@@ -392,12 +396,29 @@ func (d *OvsDriver) CreateNetwork(id string) error {
             return err
         }
 
-        log.Printf("allocated vlan %d \n", pktTag)
+        log.Printf("allocated vlan %d vxlan %d \n", pktTag, extPktTag)
+        operNwState.ExtPktTag = int(extPktTag)
         operNwState.PktTag = int(pktTag)
     } else {
-        operNwState.PktTag, err = strconv.Atoi(cfgNetState.PktTag)
-        if err != nil {
-            return err
+        if cfgNetState.PktTagType == "vxlan" {
+            pktTag, err = gOper.AllocLocalVlan()
+            if err != nil {
+                return err
+            }
+
+            err = gOper.Update(d.stateDriver)
+            if err != nil {
+                log.Printf("error updating the global state - %s \n", err)
+                return err
+            }
+
+            operNwState.PktTag = int(pktTag)
+            operNwState.ExtPktTag, err = strconv.Atoi(cfgNetState.PktTag)
+        } else if cfgNetState.PktTagType == "vlan" {
+            operNwState.PktTag, err = strconv.Atoi(cfgNetState.PktTag)
+            if err != nil {
+                return err
+            }
         }
     }
 
@@ -431,9 +452,61 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 }
 
 func (d *OvsDriver) DeleteNetwork(id string) error {
-	// no-op for a vlan based network, just delete oper state
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver, Id: id}
-	err := operNwState.Clear()
+    var err error
+    var gOper gstate.Oper
+
+    cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
+    err = cfgNetState.Read(id)
+    if err != nil {
+        return err
+    }
+    
+    err = gOper.Read(d.stateDriver)
+    if err != nil {
+        return err
+    }
+
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
+    err = operNwState.Read(id)
+    if err != nil {
+        return err
+    }
+
+    if cfgNetState.PktTag == "auto" {
+        if gOper.DefaultNetType == "vlan" {
+            err = gOper.FreeVlan(uint(operNwState.PktTag))
+            if err != nil {
+                return err
+            }
+        } else if gOper.DefaultNetType == "vxlan" {
+            err = gOper.FreeVxlan(uint(operNwState.ExtPktTag),
+                uint(operNwState.PktTag))
+            if err != nil {
+                return err
+            }
+        }
+
+        err = gOper.Update(d.stateDriver)
+        if err != nil {
+            log.Printf("error updating the global state - %s \n", err)
+            return err
+        }
+    } else {
+        if cfgNetState.PktTagType == "vxlan" {
+            err = gOper.FreeLocalVlan(uint(operNwState.PktTag))
+            if err != nil {
+                return err
+            }
+
+            err = gOper.Update(d.stateDriver)
+            if err != nil {
+                log.Printf("error updating the global state - %s \n", err)
+                return err
+            }
+        } 
+    }
+
+	err = operNwState.Clear()
 	if err != nil {
 		return err
 	}

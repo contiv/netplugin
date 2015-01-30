@@ -163,6 +163,11 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
         return nil, errors.New(fmt.Sprintf("invalid tag type %s ", tagType))
     }
     rangesStr := strings.Split(ranges, ",")
+
+    if len(rangesStr) > 1 && tagType == "vxlan" {
+        return nil, errors.New("do not support more than 2 vxlan tag ranges")
+    }
+
     tagRanges := make([]TagRange, len(rangesStr), len(rangesStr))
     for idx, oneRangeStr := range rangesStr {
         oneRangeStr = strings.Trim(oneRangeStr, " ")
@@ -193,6 +198,12 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
         if tagType == "vxlan" && tagRanges[idx].Max > 65535 {
             return nil, errors.New(fmt.Sprintf(
                 "invalid range %s, vlan values exceed 65535 max allowed", oneRangeStr))
+        }
+        if tagType == "vxlan" && 
+            (tagRanges[idx].Max - tagRanges[idx].Min > 16000) {
+            return nil, errors.New(fmt.Sprintf(
+                "does not allow vxlan range to exceed 16000 range %s", 
+                oneRangeStr))
         }
     }
 
