@@ -61,10 +61,10 @@ var ContainerDriverRegistry = map[string]DriverConfigTypes{
 
 type PluginConfig struct {
 	Drivers struct {
-		Network     string
-		Endpoint    string
-		State       string
-		Container   string
+		Network   string
+		Endpoint  string
+		State     string
+		Container string
 	}
 }
 
@@ -73,7 +73,7 @@ type NetPlugin struct {
 	NetworkDriver   core.NetworkDriver
 	EndpointDriver  core.EndpointDriver
 	StateDriver     core.StateDriver
-    ContainerDriver core.ContainerDriver
+	ContainerDriver core.ContainerDriver
 }
 
 func (p *NetPlugin) InitHelper(driverRegistry map[string]DriverConfigTypes,
@@ -163,9 +163,9 @@ func (p *NetPlugin) Init(configStr string) error {
 		}
 	}()
 
-    // initialize container driver
-    driver, drvConfig, err = p.InitHelper(ContainerDriverRegistry,
-        pluginConfig.Drivers.Container, configStr)
+	// initialize container driver
+	driver, drvConfig, err = p.InitHelper(ContainerDriverRegistry,
+		pluginConfig.Drivers.Container, configStr)
 	if err != nil {
 		return err
 	}
@@ -232,11 +232,11 @@ func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 }
 
 func (p *NetPlugin) AttachEndpoint(contEpContext *core.ContainerEpContext) error {
-    return p.ContainerDriver.AttachEndpoint(contEpContext)
+	return p.ContainerDriver.AttachEndpoint(contEpContext)
 }
 
 func (p *NetPlugin) DetachEndpoint(contEpContext *core.ContainerEpContext) error {
-    return p.ContainerDriver.DetachEndpoint(contEpContext)
+	return p.ContainerDriver.DetachEndpoint(contEpContext)
 }
 
 func (p *NetPlugin) GetContainerId(contName string) string {
@@ -246,4 +246,3 @@ func (p *NetPlugin) GetContainerId(contName string) string {
 func (p *NetPlugin) GetContainerName(contId string) (string, error) {
 	return p.ContainerDriver.GetContainerName(contId)
 }
-

@@ -66,11 +66,11 @@ func (d *EtcdStateDriver) ReadRecursive(baseKey string) ([]string, error) {
 		return []string{}, err
 	}
 
-    keys := make([]string, len(resp.Node.Nodes))
+	keys := make([]string, len(resp.Node.Nodes))
 
-    for idx, respNode := range resp.Node.Nodes {
-        keys[idx] = respNode.Key
-    }
+	for idx, respNode := range resp.Node.Nodes {
+		keys[idx] = respNode.Key
+	}
 
 	return keys, err
 }

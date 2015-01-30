@@ -87,7 +87,7 @@ type EndpointDriver interface {
 	MakeEndpointAddress() (*Address, error)
 	GetEndpointContainerContext(id string) (*ContainerEpContext, error)
 	GetContainerEpContextByContName(contName string) ([]ContainerEpContext, error)
-    UpdateContainerId(id string, contId string) error
+	UpdateContainerId(id string, contId string) error
 }
 
 type StateDriver interface {
@@ -101,7 +101,7 @@ type StateDriver interface {
 	Deinit()
 	Write(key string, value []byte) error
 	Read(key string) ([]byte, error)
-    ReadRecursive(baseKey string) ([]string, error)
+	ReadRecursive(baseKey string) ([]string, error)
 	WriteState(key string, value State,
 		marshal func(interface{}) ([]byte, error)) error
 	ReadState(key string, value State,
@@ -110,23 +110,22 @@ type StateDriver interface {
 }
 
 type ContainerEpContext struct {
-    NewContName     string 
-    CurrContName    string 
-    InterfaceId     string
-    IpAddress       string
-    SubnetLen       uint
-    DefaultGw       string
+	NewContName  string
+	CurrContName string
+	InterfaceId  string
+	IpAddress    string
+	SubnetLen    uint
+	DefaultGw    string
 }
 
 type ContainerDriver interface {
-    // Container driver provides a mechanism to interface with container
-    // runtime to handle events create, start, die, stop, pause, etc.
-    Driver
-    Init(config *Config) error
-    Deinit()
-    AttachEndpoint(ctx *ContainerEpContext) error
-    DetachEndpoint(ctx *ContainerEpContext) error
-    GetContainerId(contName string) string
-    GetContainerName(contName string) (string, error)
+	// Container driver provides a mechanism to interface with container
+	// runtime to handle events create, start, die, stop, pause, etc.
+	Driver
+	Init(config *Config) error
+	Deinit()
+	AttachEndpoint(ctx *ContainerEpContext) error
+	DetachEndpoint(ctx *ContainerEpContext) error
+	GetContainerId(contName string) string
+	GetContainerName(contName string) (string, error)
 }
-

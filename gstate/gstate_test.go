@@ -16,11 +16,11 @@ limitations under the License.
 package gstate
 
 import (
-    "testing"
+	"testing"
 )
 
 func TestGlobalConfigAutoVlans(t *testing.T) {
-    cfgData := []byte(`
+	cfgData := []byte(`
         {
             "Version" : "0.01",
             "Auto" : {
@@ -34,36 +34,36 @@ func TestGlobalConfigAutoVlans(t *testing.T) {
                 "DefaultNetType"    : "vlan"
             }
         }`)
-    var vlan uint
-    var g *Oper
-    defer func() { clearState() }()
+	var vlan uint
+	var g *Oper
+	defer func() { clearState() }()
 
-    gc, err := Parse(cfgData)
-    if err != nil {
-        t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
-    }
+	gc, err := Parse(cfgData)
+	if err != nil {
+		t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
+	}
 
-    g, err = gc.Process()
-    if err != nil {
-        t.Fatalf("error '%s' processing config %v \n", err, gc)
-    }
+	g, err = gc.Process()
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v \n", err, gc)
+	}
 
-    vlan, err = g.AllocVlan()
-    if err != nil {
-        t.Fatalf("error - allocating vlan - %s \n", err)
-    }
-    if vlan == 0 {
-        t.Fatalf("error - invalid vlan id allocated %d \n", vlan)
-    }
+	vlan, err = g.AllocVlan()
+	if err != nil {
+		t.Fatalf("error - allocating vlan - %s \n", err)
+	}
+	if vlan == 0 {
+		t.Fatalf("error - invalid vlan id allocated %d \n", vlan)
+	}
 
-    err = g.FreeVlan(vlan)
-    if err != nil {
-        t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan ,err)
-    }
+	err = g.FreeVlan(vlan)
+	if err != nil {
+		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
+	}
 }
 
 func TestGlobalConfigSpecificVlans(t *testing.T) {
-    cfgData := []byte(`
+	cfgData := []byte(`
         {
             "Version" : "0.01",
             "Auto" : {
@@ -77,36 +77,36 @@ func TestGlobalConfigSpecificVlans(t *testing.T) {
                 "DefaultNetType"    : "vlan"
             }
         }`)
-    var vlan uint
-    var g *Oper
-    defer func() { clearState() }()
+	var vlan uint
+	var g *Oper
+	defer func() { clearState() }()
 
-    gc, err := Parse(cfgData)
-    if err != nil {
-        t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
-    }
+	gc, err := Parse(cfgData)
+	if err != nil {
+		t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
+	}
 
-    g, err = gc.Process()
-    if err != nil {
-        t.Fatalf("error '%s' processing config %v \n", err, gc)
-    }
+	g, err = gc.Process()
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v \n", err, gc)
+	}
 
-    vlan, err = g.AllocVlan()
-    if err != nil {
-        t.Fatalf("error - allocating vlan - %s \n", err)
-    }
-    if vlan != 200 {
-        t.Fatalf("error - expecting vlan %d but allocated %d \n", 200, vlan)
-    }
+	vlan, err = g.AllocVlan()
+	if err != nil {
+		t.Fatalf("error - allocating vlan - %s \n", err)
+	}
+	if vlan != 200 {
+		t.Fatalf("error - expecting vlan %d but allocated %d \n", 200, vlan)
+	}
 
-    err = g.FreeVlan(vlan)
-    if err != nil {
-        t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan ,err)
-    }
+	err = g.FreeVlan(vlan)
+	if err != nil {
+		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
+	}
 }
 
 func TestGlobalConfigAutoVxlan(t *testing.T) {
-    cfgData := []byte(`
+	cfgData := []byte(`
         {
             "Version" : "0.01",
             "Auto" : {
@@ -120,45 +120,45 @@ func TestGlobalConfigAutoVxlan(t *testing.T) {
                 "DefaultNetType"    : "vxlan"
             }
         }`)
-    var vxlan, localVlan uint
-    var g *Oper
-    defer func() { clearState() }()
+	var vxlan, localVlan uint
+	var g *Oper
+	defer func() { clearState() }()
 
-    gc, err := Parse(cfgData)
-    if err != nil {
-        t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
-    }
+	gc, err := Parse(cfgData)
+	if err != nil {
+		t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
+	}
 
-    g, err = gc.Process()
-    if err != nil {
-        t.Fatalf("error '%s' processing config %v \n", err, gc)
-    }
+	g, err = gc.Process()
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v \n", err, gc)
+	}
 
-    vxlan, localVlan, err = g.AllocVxlan()
-    if err != nil {
-        t.Fatalf("error - allocating vxlan - %s \n", err)
-    }
-    if vxlan == 0 {
-        t.Fatalf("error - invalid vxlan allocated %d \n", vxlan)
-    }
-    if localVlan == 0 {
-        t.Fatalf("error - invalid vlan allocated d \n", localVlan)
-    }
+	vxlan, localVlan, err = g.AllocVxlan()
+	if err != nil {
+		t.Fatalf("error - allocating vxlan - %s \n", err)
+	}
+	if vxlan == 0 {
+		t.Fatalf("error - invalid vxlan allocated %d \n", vxlan)
+	}
+	if localVlan == 0 {
+		t.Fatalf("error - invalid vlan allocated d \n", localVlan)
+	}
 
-    _, err = g.AllocVlan()
-    if err == nil {
-        t.Fatalf("error - was expecting vlan allocation to fail \n")
-    }
+	_, err = g.AllocVlan()
+	if err == nil {
+		t.Fatalf("error - was expecting vlan allocation to fail \n")
+	}
 
-    err = g.FreeVxlan(vxlan, localVlan)
-    if err != nil {
-        t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n", 
-            vxlan, localVlan ,err)
-    }
+	err = g.FreeVxlan(vxlan, localVlan)
+	if err != nil {
+		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
+			vxlan, localVlan, err)
+	}
 }
 
 func TestGlobalConfigSpecificVxlans(t *testing.T) {
-    cfgData := []byte(`
+	cfgData := []byte(`
         {
             "Version" : "0.01",
             "Auto" : {
@@ -172,45 +172,45 @@ func TestGlobalConfigSpecificVxlans(t *testing.T) {
                 "DefaultNetType"    : "vxlan"
             }
         }`)
-    var vxlan, localVlan uint
-    var g *Oper
-    defer func() { clearState() }()
+	var vxlan, localVlan uint
+	var g *Oper
+	defer func() { clearState() }()
 
-    gc, err := Parse(cfgData)
-    if err != nil {
-        t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
-    }
+	gc, err := Parse(cfgData)
+	if err != nil {
+		t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
+	}
 
-    g, err = gc.Process()
-    if err != nil {
-        t.Fatalf("error '%s' processing config %v \n", err, gc)
-    }
+	g, err = gc.Process()
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v \n", err, gc)
+	}
 
-    vxlan, localVlan, err = g.AllocVxlan()
-    if err != nil {
-        t.Fatalf("error - allocating vxlan - %s \n", err)
-    }
-    if vxlan != 11111 {
-        t.Fatalf("error - invalid vxlan allocated %d expecting %d\n", vxlan, 11111)
-    }
-    if localVlan == 0 {
-        t.Fatalf("error - invalid vlan allocated d \n", localVlan)
-    }
+	vxlan, localVlan, err = g.AllocVxlan()
+	if err != nil {
+		t.Fatalf("error - allocating vxlan - %s \n", err)
+	}
+	if vxlan != 11111 {
+		t.Fatalf("error - invalid vxlan allocated %d expecting %d\n", vxlan, 11111)
+	}
+	if localVlan == 0 {
+		t.Fatalf("error - invalid vlan allocated d \n", localVlan)
+	}
 
-    _, err = g.AllocVlan()
-    if err == nil {
-        t.Fatalf("error - was expecting vlan allocation to fail \n")
-    }
+	_, err = g.AllocVlan()
+	if err == nil {
+		t.Fatalf("error - was expecting vlan allocation to fail \n")
+	}
 
-    err = g.FreeVxlan(vxlan, localVlan)
-    if err != nil {
-        t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n", 
-            vxlan, localVlan ,err)
-    }
+	err = g.FreeVxlan(vxlan, localVlan)
+	if err != nil {
+		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
+			vxlan, localVlan, err)
+	}
 }
 
 func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
-    cfgData := []byte(`
+	cfgData := []byte(`
         {
             "Version" : "0.01",
             "Auto" : {
@@ -224,53 +224,53 @@ func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
                 "DefaultNetType"    : "vxlan"
             }
         }`)
-    var vlan, localVlan, vxlan uint
-    var g *Oper
-    defer func() { clearState() }()
+	var vlan, localVlan, vxlan uint
+	var g *Oper
+	defer func() { clearState() }()
 
-    gc, err := Parse(cfgData)
-    if err != nil {
-        t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
-    }
+	gc, err := Parse(cfgData)
+	if err != nil {
+		t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
+	}
 
-    g, err = gc.Process()
-    if err != nil {
-        t.Fatalf("error '%s' processing config %v \n", err, gc)
-    }
+	g, err = gc.Process()
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v \n", err, gc)
+	}
 
-    vlan, err = g.AllocVlan()
-    if err != nil {
-        t.Fatalf("error - allocating vlan - %s \n", err)
-    }
-    if vlan != 100 {
-        t.Fatalf("error - expecting vlan %d but allocated %d \n", 100, vlan)
-    }
+	vlan, err = g.AllocVlan()
+	if err != nil {
+		t.Fatalf("error - allocating vlan - %s \n", err)
+	}
+	if vlan != 100 {
+		t.Fatalf("error - expecting vlan %d but allocated %d \n", 100, vlan)
+	}
 
-    vxlan, localVlan, err = g.AllocVxlan()
-    if err != nil {
-        t.Fatalf("error - allocating vxlan - %s \n", err)
-    }
-    if vxlan != 10000 {
-        t.Fatalf("error - expecting vlan %d but allocated %d \n", 10000, vxlan)
-    }
-    if localVlan == 0 {
-        t.Fatalf("error - invalid vlan allocated %d \n", localVlan)
-    }
+	vxlan, localVlan, err = g.AllocVxlan()
+	if err != nil {
+		t.Fatalf("error - allocating vxlan - %s \n", err)
+	}
+	if vxlan != 10000 {
+		t.Fatalf("error - expecting vlan %d but allocated %d \n", 10000, vxlan)
+	}
+	if localVlan == 0 {
+		t.Fatalf("error - invalid vlan allocated %d \n", localVlan)
+	}
 
-    err = g.FreeVlan(vlan)
-    if err != nil {
-        t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan ,err)
-    }
+	err = g.FreeVlan(vlan)
+	if err != nil {
+		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
+	}
 
-    err = g.FreeVxlan(vxlan, localVlan)
-    if err != nil {
-        t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n", 
-            vxlan, localVlan ,err)
-    }
+	err = g.FreeVxlan(vxlan, localVlan)
+	if err != nil {
+		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
+			vxlan, localVlan, err)
+	}
 }
 
 func TestInvalidGlobalConfig(t *testing.T) {
-    cfgData := []byte(`
+	cfgData := []byte(`
         {
             "Version" : "0.01",
             "Auto" : {
@@ -285,12 +285,12 @@ func TestInvalidGlobalConfig(t *testing.T) {
             }
         }`)
 
-    _, err := Parse(cfgData)
-    if err == nil {
-        t.Fatalf("Error: was able to parse invalid subnet pool '%s' \n", err, cfgData)
-    }
+	_, err := Parse(cfgData)
+	if err == nil {
+		t.Fatalf("Error: was able to parse invalid subnet pool '%s' \n", err, cfgData)
+	}
 
-    cfgData = []byte(`
+	cfgData = []byte(`
         {
             "Version" : "0.01",
             "Auto" : {
@@ -305,12 +305,12 @@ func TestInvalidGlobalConfig(t *testing.T) {
             }
         }`)
 
-    _, err = Parse(cfgData)
-    if err == nil {
-        t.Fatalf("Error: was able to parse invalid vlan range '%s' \n", err, cfgData)
-    }
+	_, err = Parse(cfgData)
+	if err == nil {
+		t.Fatalf("Error: was able to parse invalid vlan range '%s' \n", err, cfgData)
+	}
 
-    cfgData = []byte(`
+	cfgData = []byte(`
         {
             "Version" : "0.01",
             "Auto" : {
@@ -325,10 +325,10 @@ func TestInvalidGlobalConfig(t *testing.T) {
             }
         }`)
 
-    _, err = Parse(cfgData)
-    if err == nil {
-        t.Fatalf("Error: was able to parse invalid subnetlen/allcocsubnetlen %s'\n", 
-            err, cfgData)
-    }
+	_, err = Parse(cfgData)
+	if err == nil {
+		t.Fatalf("Error: was able to parse invalid subnetlen/allcocsubnetlen %s'\n",
+			err, cfgData)
+	}
 
 }

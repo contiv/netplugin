@@ -67,7 +67,7 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 				if err != nil {
 					log.Printf("error '%s' updating goper state %v \n",
 						err, gOper)
-				} 
+				}
 			}
 
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
