@@ -39,8 +39,9 @@ const (
 	BRIDGE_TABLE        = "Bridge"
 	PORT_TABLE          = "Port"
 	INTERFACE_TABLE     = "Interface"
-	DEFAULT_BRIDGE_NAME = "vlanBr"
+	DEFAULT_BRIDGE_NAME = "contivBridge"
 	PORT_NAME_FMT       = "port%d"
+	VXLAN_IFNAME_FMT    = "vxlanif%s"
 
 	CREATE_BRIDGE oper = iota
 	DELETE_BRIDGE
@@ -211,7 +212,7 @@ func (d *OvsDriver) getPortOrIntfNameFromId(id string, isPort bool) (string, err
 }
 
 func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
-	tag int, op oper) error {
+	intfOptions map[string]interface{}, tag int, op oper) error {
 	// portName is assumed to be unique enough to become uuid
 	portUuidStr := portName
 	intfUuidStr := fmt.Sprintf("Intf%s", portName)
@@ -234,6 +235,15 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 		intf["external_ids"], err = libovsdb.NewOvsMap(idMap)
 		if err != nil {
 			return err
+		}
+
+		if intfOptions != nil {
+			log.Printf("using options %v \n", intfOptions)
+			intf["options"], err = libovsdb.NewOvsMap(intfOptions)
+			if err != nil {
+				log.Printf("error '%s' creating options from %v \n", err, intfOptions)
+				return err
+			}
 		}
 		intfOp = libovsdb.Operation{
 			Op:       opStr,
@@ -626,13 +636,13 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 	// TODO: some updates may mean implicit delete of the previous state
 	err = d.createDeletePort(portName, intfName, intfType, cfgEpState.Id,
-		operNwState.PktTag, CREATE_PORT)
+		nil, operNwState.PktTag, CREATE_PORT)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			d.createDeletePort(portName, intfName, intfType, "", 0, DELETE_PORT)
+			d.createDeletePort(portName, intfName, intfType, "", nil, 0, DELETE_PORT)
 		}
 	}()
 
@@ -702,7 +712,7 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 		return err
 	}
 
-	err = d.createDeletePort(portName, intfName, "", "", 0, DELETE_PORT)
+	err = d.createDeletePort(portName, intfName, "", "", nil, 0, DELETE_PORT)
 	if err != nil {
 		return err
 	}
@@ -725,6 +735,54 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	operNwState.EpCount -= 1
 	err = operNwState.Write()
 	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func vxlanIfName(peerIp string) string {
+	return fmt.Sprintf(VXLAN_IFNAME_FMT, strings.Replace(peerIp, ".", "", -1))
+}
+
+func (d *OvsDriver) CreateVxlanPeer(netId, peerIp string) error {
+
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
+	err := operNwState.Read(netId)
+	if err != nil {
+		return err
+	}
+
+	intfOptions := make(map[string]interface{})
+	intfOptions["remote_ip"] = peerIp
+	intfOptions["key"] = strconv.Itoa(operNwState.ExtPktTag)
+
+	intfName := vxlanIfName(peerIp)
+	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
+		intfOptions, operNwState.PktTag, CREATE_PORT)
+	if err != nil {
+		log.Printf("error '%s' creating vxlan peer intfName %s, options %s, tag %d \n",
+			err, intfName, intfOptions, operNwState.PktTag)
+		return err
+	}
+
+	return nil
+}
+
+func (d *OvsDriver) DeleteVxlanPeer(netId, peerIp string) error {
+
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
+	err := operNwState.Read(netId)
+	if err != nil {
+		return err
+	}
+
+	intfName := vxlanIfName(peerIp)
+	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
+		nil, operNwState.PktTag, DELETE_PORT)
+	if err != nil {
+		log.Printf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
+			err, intfName, operNwState.PktTag)
 		return err
 	}
 

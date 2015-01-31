@@ -29,8 +29,11 @@ const (
 	deleteEpId         = "testDeleteEp"
 	createEpWithIntfId = "testCreateEpWithIntf"
 	deleteEpWithIntfId = "testDeleteEpWithIntf"
+	vxlanIntfId        = "testCreateEpWithIntf"
+	vxlanPeerIp        = "12.1.1.1"
 	testOvsNwId        = "testNetId"
 	testPktTag         = 100
+	testExtPktTag      = 10000
 	testIntfName       = "testIntf"
 
 	READ_EP int = iota
@@ -76,6 +79,7 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 	if operNw, ok := value.(*OvsOperNetworkState); ok {
 		operNw.Id = testOvsNwId
 		operNw.PktTag = testPktTag
+		operNw.ExtPktTag = testExtPktTag
 		return nil
 	}
 
@@ -311,5 +315,56 @@ func TestOvsDriverMakeEndpointAddress(t *testing.T) {
 	_, err := driver.MakeEndpointAddress()
 	if err == nil {
 		t.Fatalf("make endpoint address succeeded. Should have failed!!")
+	}
+}
+
+func TestOvsDriverCreateVxlanPeer(t *testing.T) {
+	driver := initOvsDriver(t)
+	defer func() { driver.Deinit() }()
+	id := vxlanIntfId
+
+	err := driver.CreateVxlanPeer(id, vxlanPeerIp)
+	if err != nil {
+		t.Fatalf("vxlan peer creation failed. Error: %s", err)
+	}
+
+	expectedPortName := vxlanIfName(vxlanPeerIp)
+	output, err := exec.Command("ovs-vsctl", "list", "Port").Output()
+	if err != nil || !strings.Contains(string(output), expectedPortName) {
+		t.Fatalf("port lookup failed. Error: %s expected port: %s Output: %s",
+			err, expectedPortName, output)
+	}
+
+	output, err = exec.Command("ovs-vsctl", "list", "Interface").Output()
+	if err != nil || !strings.Contains(string(output), expectedPortName) {
+		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
+			err, expectedPortName, output)
+	}
+}
+
+func TestOvsDriverDeleteVxlanPeer(t *testing.T) {
+	driver := initOvsDriver(t)
+	defer func() { driver.Deinit() }()
+
+	err := driver.CreateVxlanPeer(vxlanIntfId, vxlanPeerIp)
+	if err != nil {
+		t.Fatalf("endpoint Creation failed. Error: %s", err)
+	}
+
+	err = driver.DeleteVxlanPeer(vxlanIntfId, vxlanPeerIp)
+	if err != nil {
+		t.Fatalf("endpoint Deletion failed. Error: %s", err)
+	}
+
+	expectedPortName := vxlanIfName(vxlanPeerIp)
+	output, err := exec.Command("ovs-vsctl", "list", "Port").Output()
+	if err != nil || strings.Contains(string(output), expectedPortName) {
+		t.Fatalf("port lookup succeeded after delete. Error: %s Output: %s",
+			err, output)
+	}
+
+	output, err = exec.Command("ovs-vsctl", "list", "Interface").Output()
+	if err != nil || strings.Contains(string(output), expectedPortName) {
+		t.Fatalf("interface lookup succeeded after delete. Error: %s Output: %s", err, output)
 	}
 }

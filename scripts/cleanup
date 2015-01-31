@@ -19,6 +19,6 @@ then
 fi
 
 etcdctl rm -recursive /contiv > /dev/null 2>&1
-ovs-vsctl del-br vlanBr > /dev/null 2>&1
+ovs-vsctl del-br contivBridge > /dev/null 2>&1
 
 # ip link delete portx
