@@ -321,6 +321,53 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 	return d.performOvsdbOps(operations)
 }
 
+func vxlanIfName(vtepIp string) string {
+	return fmt.Sprintf(VXLAN_IFNAME_FMT, strings.Replace(vtepIp, ".", "", -1))
+}
+
+func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
+	err := operNwState.Read(epCfg.NetId)
+	if err != nil {
+		return err
+	}
+
+	intfOptions := make(map[string]interface{})
+	intfOptions["remote_ip"] = epCfg.VtepIp
+	intfOptions["key"] = strconv.Itoa(operNwState.ExtPktTag)
+
+	intfName := vxlanIfName(epCfg.VtepIp)
+	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
+		intfOptions, operNwState.PktTag, CREATE_PORT)
+	if err != nil {
+		log.Printf("error '%s' creating vxlan peer intfName %s, options %s, tag %d \n",
+			err, intfName, intfOptions, operNwState.PktTag)
+		return err
+	}
+
+	return nil
+}
+
+func (d *OvsDriver) deleteVtep(epCfg *OvsCfgEndpointState) error {
+
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
+	err := operNwState.Read(epCfg.NetId)
+	if err != nil {
+		return err
+	}
+
+	intfName := vxlanIfName(epCfg.VtepIp)
+	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
+		nil, operNwState.PktTag, DELETE_PORT)
+	if err != nil {
+		log.Printf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
+			err, intfName, operNwState.PktTag)
+		return err
+	}
+
+	return nil
+}
+
 func (d *OvsDriver) Init(config *core.Config, stateDriver core.StateDriver) error {
 
 	if config == nil || stateDriver == nil {
@@ -566,15 +613,15 @@ func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpC
 	var epCtx core.ContainerEpContext
 	var err error
 
-	cfgEpState := OvsCfgEndpointState{StateDriver: d.stateDriver}
-	err = cfgEpState.Read(epId)
+	epCfg := OvsCfgEndpointState{StateDriver: d.stateDriver}
+	err = epCfg.Read(epId)
 	if err != nil {
 		return &epCtx, nil
 	}
-	epCtx.NewContName = cfgEpState.ContName
+	epCtx.NewContName = epCfg.ContName
 
 	operNetState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNetState.Read(cfgEpState.NetId)
+	err = operNetState.Read(epCfg.NetId)
 	if err != nil {
 		return &epCtx, err
 	}
@@ -603,9 +650,18 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	intfName := portName
 	intfType := "internal"
 
-	cfgEpState := OvsCfgEndpointState{StateDriver: d.stateDriver}
-	err = cfgEpState.Read(id)
+	epCfg := OvsCfgEndpointState{StateDriver: d.stateDriver}
+	err = epCfg.Read(id)
 	if err != nil {
+		return err
+	}
+
+	if epCfg.VtepIp != "" {
+		err = d.createVtep(&epCfg)
+		if err != nil {
+			log.Printf("error '%s' creating vtep interface(s) for "+
+				"remote endpoint %s\n", err, epCfg.VtepIp)
+		}
 		return err
 	}
 
@@ -615,13 +671,13 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	// containers like SRIOV, that need to be bridged using ovs
 	// Also, if the interface name is provided by user then we don't create
 	// ovs-internal interface
-	if cfgEpState.IntfName != "" {
-		intfName = cfgEpState.IntfName
+	if epCfg.IntfName != "" {
+		intfName = epCfg.IntfName
 		intfType = ""
 	}
 
 	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err = cfgNetState.Read(cfgEpState.NetId)
+	err = cfgNetState.Read(epCfg.NetId)
 	if err != nil {
 		return err
 	}
@@ -629,13 +685,13 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	// TODO: use etcd distributed lock to ensure atomicity of this operation
 	// this is valid for EpCount, defer the unlocking for intermediate returns
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(cfgEpState.NetId)
+	err = operNwState.Read(epCfg.NetId)
 	if err != nil {
 		return err
 	}
 
 	// TODO: some updates may mean implicit delete of the previous state
-	err = d.createDeletePort(portName, intfName, intfType, cfgEpState.Id,
+	err = d.createDeletePort(portName, intfName, intfType, epCfg.Id,
 		nil, operNwState.PktTag, CREATE_PORT)
 	if err != nil {
 		return err
@@ -646,7 +702,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		}
 	}()
 
-	ipAddress := cfgEpState.IpAddress
+	ipAddress := epCfg.IpAddress
 	if ipAddress == "auto" {
 		if ipAddrBit, found = operNwState.IpAllocMap.NextClear(0); !found {
 			log.Printf("auto allocation failed - address exhaustion in subnet %s/%d \n",
@@ -683,8 +739,8 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	operEpState := OvsOperEndpointState{
 		StateDriver: d.stateDriver, Id: id,
 		PortName:  portName,
-		NetId:     cfgEpState.NetId,
-		ContName:  cfgEpState.ContName,
+		NetId:     epCfg.NetId,
+		ContName:  epCfg.ContName,
 		IpAddress: ipAddress}
 	err = operEpState.Write()
 	if err != nil {
@@ -700,6 +756,22 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 }
 
 func (d *OvsDriver) DeleteEndpoint(id string) error {
+
+	epCfg := OvsCfgEndpointState{StateDriver: d.stateDriver}
+	err := epCfg.Read(id)
+	if err != nil {
+		return err
+	}
+
+	if epCfg.VtepIp != "" {
+		err = d.deleteVtep(&epCfg)
+		if err != nil {
+			log.Printf("error '%s' creating vtep interface(s) for "+
+				"remote endpoint %s\n", err, epCfg.VtepIp)
+		}
+		return err
+	}
+
 	// delete the internal ovs port corresponding to the endpoint
 	portName, err := d.getPortOrIntfNameFromId(id, GET_PORT_NAME)
 	if err != nil {
@@ -735,54 +807,6 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	operNwState.EpCount -= 1
 	err = operNwState.Write()
 	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func vxlanIfName(peerIp string) string {
-	return fmt.Sprintf(VXLAN_IFNAME_FMT, strings.Replace(peerIp, ".", "", -1))
-}
-
-func (d *OvsDriver) CreateVxlanPeer(netId, peerIp string) error {
-
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err := operNwState.Read(netId)
-	if err != nil {
-		return err
-	}
-
-	intfOptions := make(map[string]interface{})
-	intfOptions["remote_ip"] = peerIp
-	intfOptions["key"] = strconv.Itoa(operNwState.ExtPktTag)
-
-	intfName := vxlanIfName(peerIp)
-	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
-		intfOptions, operNwState.PktTag, CREATE_PORT)
-	if err != nil {
-		log.Printf("error '%s' creating vxlan peer intfName %s, options %s, tag %d \n",
-			err, intfName, intfOptions, operNwState.PktTag)
-		return err
-	}
-
-	return nil
-}
-
-func (d *OvsDriver) DeleteVxlanPeer(netId, peerIp string) error {
-
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err := operNwState.Read(netId)
-	if err != nil {
-		return err
-	}
-
-	intfName := vxlanIfName(peerIp)
-	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
-		nil, operNwState.PktTag, DELETE_PORT)
-	if err != nil {
-		log.Printf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
-			err, intfName, operNwState.PktTag)
 		return err
 	}
 

@@ -122,6 +122,7 @@ type cliOpts struct {
 	vlans          string
 	vxlans         string
 	homingHost     string
+	vtepIp         string
 }
 
 var opts cliOpts
@@ -183,6 +184,11 @@ func init() {
 		"vxlans",
 		"",
 		"Allowed vlan ranges for auto-allocating vxlans e.g. '10000-20000, 30000-35000")
+	flagSet.StringVar(&opts.vtepIp,
+		"vtep-ip",
+		"",
+		"Endpoint's Vtep IP address if the endpoint is of vtep type")
+
 	flagSet.BoolVar(&opts.help, "help", false, "prints this message")
 }
 
@@ -284,9 +290,14 @@ func validateOpts() error {
 		opts.subnetLen = uint(subnetLen)
 	}
 
+	if opts.vtepIp != "" && net.ParseIP(opts.vtepIp) == nil {
+		log.Fatalf("error '%s' parsing vtep ip %s \n", err, opts.vtepIp)
+	}
+
 	// endpoint parameters validation
 	if opts.oper.Get() == CLI_OPER_CREATE &&
 		opts.construct.Get() == CLI_CONSTRUCT_EP &&
+		opts.vtepIp != "" &&
 		(opts.netId == "" || opts.ipAddr == "") {
 		if opts.ipAddr == "auto" {
 			log.Printf("doing auto ip address assignemt for the ep... \n")
@@ -359,6 +370,7 @@ func main() {
 			epCfg.IpAddress = opts.ipAddr
 			epCfg.ContName = opts.contName
 			epCfg.HomingHost = opts.homingHost
+			epCfg.VtepIp = opts.vtepIp
 			state = epCfg
 		}
 	case CLI_CONSTRUCT_NW:

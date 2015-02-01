@@ -29,7 +29,8 @@ const (
 	deleteEpId         = "testDeleteEp"
 	createEpWithIntfId = "testCreateEpWithIntf"
 	deleteEpWithIntfId = "testDeleteEpWithIntf"
-	vxlanIntfId        = "testCreateEpWithIntf"
+	createVxlanEpId    = "testCreateVxlanEp"
+	deleteVxlanEpId    = "testDeleteVxlanEp"
 	vxlanPeerIp        = "12.1.1.1"
 	testOvsNwId        = "testNetId"
 	testPktTag         = 100
@@ -38,6 +39,7 @@ const (
 
 	READ_EP int = iota
 	READ_EP_WITH_INTF
+	READ_VXLAN_EP
 	READ_NW
 )
 
@@ -84,17 +86,25 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 	}
 
 	if cfgEp, ok := value.(*OvsCfgEndpointState); ok {
-		cfgEp.Id = createEpId
-		cfgEp.IntfName = ""
-		if oper == READ_EP_WITH_INTF {
-			cfgEp.Id = createEpWithIntfId
-			cfgEp.IntfName = testIntfName
-		}
-
-		if !isCreateEp {
-			cfgEp.Id = deleteEpId
-			if oper == READ_EP_WITH_INTF {
+		if isCreateEp {
+			if oper == READ_VXLAN_EP {
+				cfgEp.Id = createVxlanEpId
+				cfgEp.IntfName = testIntfName
+				cfgEp.VtepIp = vxlanPeerIp
+			} else if oper == READ_EP_WITH_INTF {
+				cfgEp.Id = createEpWithIntfId
+				cfgEp.IntfName = testIntfName
+			} else {
+				cfgEp.Id = createEpId
+				cfgEp.IntfName = ""
+			}
+		} else {
+			if oper == READ_VXLAN_EP {
+				cfgEp.Id = deleteVxlanEpId
+			} else if oper == READ_EP_WITH_INTF {
 				cfgEp.Id = deleteEpWithIntfId
+			} else {
+				cfgEp.Id = deleteEpId
 			}
 		}
 		cfgEp.NetId = testOvsNwId
@@ -102,14 +112,21 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 	}
 
 	if operEp, ok := value.(*OvsOperEndpointState); ok {
-		operEp.Id = createEpId
-		if oper == READ_EP_WITH_INTF {
-			operEp.Id = createEpWithIntfId
-		}
-		if !isCreateEp {
-			operEp.Id = deleteEpId
-			if oper == READ_EP_WITH_INTF {
+		if isCreateEp {
+			if oper == READ_VXLAN_EP {
+				operEp.Id = createVxlanEpId
+			} else if oper == READ_EP_WITH_INTF {
+				operEp.Id = createEpWithIntfId
+			} else {
+				operEp.Id = createEpId
+			}
+		} else if !isCreateEp {
+			if oper == READ_VXLAN_EP {
+				operEp.Id = deleteVxlanEpId
+			} else if oper == READ_EP_WITH_INTF {
 				operEp.Id = deleteEpWithIntfId
+			} else {
+				operEp.Id = deleteEpId
 			}
 		}
 		operEp.NetId = testOvsNwId
@@ -121,11 +138,18 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 
 func (d *testOvsStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
+	if strings.Contains(key, createVxlanEpId) {
+		return d.readStateHelper(true, READ_VXLAN_EP, value)
+	}
 	if strings.Contains(key, createEpWithIntfId) {
 		return d.readStateHelper(true, READ_EP_WITH_INTF, value)
 	}
 	if strings.Contains(key, createEpId) {
 		return d.readStateHelper(true, READ_EP, value)
+	}
+
+	if strings.Contains(key, deleteVxlanEpId) {
+		return d.readStateHelper(false, READ_VXLAN_EP, value)
 	}
 	if strings.Contains(key, deleteEpWithIntfId) {
 		return d.readStateHelper(false, READ_EP_WITH_INTF, value)
@@ -321,9 +345,8 @@ func TestOvsDriverMakeEndpointAddress(t *testing.T) {
 func TestOvsDriverCreateVxlanPeer(t *testing.T) {
 	driver := initOvsDriver(t)
 	defer func() { driver.Deinit() }()
-	id := vxlanIntfId
 
-	err := driver.CreateVxlanPeer(id, vxlanPeerIp)
+	err := driver.CreateEndpoint(createVxlanEpId)
 	if err != nil {
 		t.Fatalf("vxlan peer creation failed. Error: %s", err)
 	}
@@ -346,12 +369,12 @@ func TestOvsDriverDeleteVxlanPeer(t *testing.T) {
 	driver := initOvsDriver(t)
 	defer func() { driver.Deinit() }()
 
-	err := driver.CreateVxlanPeer(vxlanIntfId, vxlanPeerIp)
+	err := driver.CreateEndpoint(deleteVxlanEpId)
 	if err != nil {
 		t.Fatalf("endpoint Creation failed. Error: %s", err)
 	}
 
-	err = driver.DeleteVxlanPeer(vxlanIntfId, vxlanPeerIp)
+	err = driver.DeleteEndpoint(deleteVxlanEpId)
 	if err != nil {
 		t.Fatalf("endpoint Deletion failed. Error: %s", err)
 	}
