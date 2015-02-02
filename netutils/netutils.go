@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jainvipin/bitset"
+	"github.com/vishvananda/netlink"
 	"net"
 	"strconv"
 	"strings"
@@ -208,4 +209,28 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 	}
 
 	return tagRanges, nil
+}
+
+func GetLocalIp() (string, error) {
+	var addrs []netlink.Addr
+
+	for idx := 0; idx < 3; idx++ {
+		linkName := "eth" + strconv.Itoa(idx)
+		link, err := netlink.LinkByName(linkName)
+		if err == errors.New("Link not found") {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		addrs, err = netlink.AddrList(link, netlink.FAMILY_V4)
+		if err != nil {
+			return "", err
+		}
+		if len(addrs) > 0 {
+			return addrs[0].IP.String(), nil
+		}
+	}
+
+	return "", errors.New("local ip not found")
 }

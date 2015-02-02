@@ -27,6 +27,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
+	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
 )
 
@@ -36,6 +37,39 @@ import (
 const (
 	RECURSIVE = true
 )
+
+func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool) error {
+	var err error
+
+	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
+
+	epCfg.Id = opts.hostLabel
+	if isDelete {
+		err = epCfg.Clear()
+		if err != nil {
+			log.Printf("error '%s' deleting ep %s \n", err, epCfg.Id)
+		}
+	} else {
+		epCfg.HomingHost = opts.hostLabel
+		epCfg.VtepIp, err = netutils.GetLocalIp()
+		if err != nil {
+			log.Printf("error '%s' getting local IP \n", err)
+		} else {
+			epCfg.NetId = netId
+			err = epCfg.Write()
+			if err != nil {
+				log.Printf("error '%s' adding epCfg %v \n", epCfg)
+			}
+		}
+	}
+
+	return nil
+}
+
+func skipHost(epCfg *drivers.OvsCfgEndpointState, hostLabel string) bool {
+	return (epCfg.VtepIp == "" && epCfg.HomingHost != hostLabel ||
+		epCfg.VtepIp != "" && epCfg.HomingHost == hostLabel)
+}
 
 func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 	stop chan bool, retErr chan error) {
@@ -85,6 +119,9 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 			} else {
 				log.Printf("Network operation %s succeeded", operStr)
 			}
+			if opts.publishVtep {
+				createDeleteVtep(netPlugin, netId, isDelete)
+			}
 
 		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
 			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
@@ -96,9 +133,9 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 				log.Printf("Failed to read config for ep '%s' \n", epId)
 				continue
 			}
-			if epCfg.HomingHost != hostLabel {
-				log.Printf("Skipping ep %s with a non-matching host-label %s (my label: %s)",
-					epId, epCfg.HomingHost, hostLabel)
+			if skipHost(epCfg, opts.hostLabel) {
+				log.Printf("Skipping ep %s that is not expected to be configured on the host ep %s host-label %s (my label: %s)",
+					epId, epCfg.HomingHost, opts.hostLabel)
 				continue
 			}
 
@@ -271,7 +308,12 @@ func usage() {
 	flagSet.PrintDefaults()
 }
 
-var hostLabel string
+type cliOpts struct {
+	hostLabel   string
+	publishVtep bool
+}
+
+var opts cliOpts
 var flagSet *flag.FlagSet
 
 func main() {
@@ -282,10 +324,14 @@ func main() {
 	}
 
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
-	flagSet.StringVar(&hostLabel,
+	flagSet.StringVar(&opts.hostLabel,
 		"host-label",
 		defHostLabel,
 		"label used to identify endpoints homed for this host, default is host name")
+	flagSet.BoolVar(&opts.publishVtep,
+		"do-not-publish-vtep",
+		true,
+		"publish the vtep when allowed by global policy")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
@@ -293,7 +339,7 @@ func main() {
 	}
 
 	if flagSet.NArg() < 1 {
-		log.Printf("host-label not specified, using default (%s)", hostLabel)
+		log.Printf("host-label not specified, using default (%s)", opts.hostLabel)
 	}
 
 	configStr := `{
