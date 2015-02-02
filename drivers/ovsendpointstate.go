@@ -47,6 +47,11 @@ func (s *OvsCfgEndpointState) Read(id string) error {
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+func (s *OvsCfgEndpointState) Clear() error {
+	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
+	return s.StateDriver.ClearState(key)
+}
+
 func ReadAllEpsCfg(sd core.StateDriver) (epState []OvsCfgEndpointState, err error) {
 
 	keys, err := sd.ReadRecursive(EP_CFG_PATH_PREFIX)
@@ -65,11 +70,6 @@ func ReadAllEpsCfg(sd core.StateDriver) (epState []OvsCfgEndpointState, err erro
 	}
 
 	return
-}
-
-func (s *OvsCfgEndpointState) Clear() error {
-	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
-	return s.StateDriver.ClearState(key)
 }
 
 type OvsOperEndpointState struct {
