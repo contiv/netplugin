@@ -16,87 +16,87 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
-    "encoding/json"
-    "log"
+	"log"
 )
 
 type ConfigEpJson struct {
-    Container       string
-    Host            string
+	Container string
+	Host      string
 }
 
 type ConfigNetworkJson struct {
-    Name            string
-    Endpoints       []ConfigEpJson
+	Name      string
+	Endpoints []ConfigEpJson
 }
 
 type ConfigJson struct {
-    DefaultNetType  string
-    SubnetPool      string
-    AllocSubnetLen  uint
-    Vlans           string
-    Vxlans          string
+	DefaultNetType string
+	SubnetPool     string
+	AllocSubnetLen uint
+	Vlans          string
+	Vxlans         string
 
-    Networks        []ConfigNetworkJson
+	Networks []ConfigNetworkJson
 }
 
 func executeJsonCfg(defOpts *cliOpts) error {
-    data, err := ioutil.ReadFile(opts.idStr)
-    if err != nil {
-        return err
-    }
+	data, err := ioutil.ReadFile(opts.idStr)
+	if err != nil {
+		return err
+	}
 
-    cfg := &ConfigJson{}
-    err = json.Unmarshal(data, cfg)
-    if err != nil {
-        log.Printf("unmarshal error '%s', cfg %v \n", err, cfg)
-        return err
-    }
-    log.Printf("parsed config %v \n", cfg)
+	cfg := &ConfigJson{}
+	err = json.Unmarshal(data, cfg)
+	if err != nil {
+		log.Printf("unmarshal error '%s', cfg %v \n", err, cfg)
+		return err
+	}
+	log.Printf("parsed config %v \n", cfg)
 
-    opts := *defOpts
-    opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
-    opts.oper.Set(CLI_OPER_CREATE)
-    opts.pktTagType = cfg.DefaultNetType
-    opts.subnetCidr = cfg.SubnetPool
-    opts.allocSubnetLen = cfg.AllocSubnetLen
-    opts.vlans = cfg.Vlans
-    opts.vxlans = cfg.Vxlans
+	opts := *defOpts
+	opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
+	opts.oper.Set(CLI_OPER_CREATE)
+	opts.pktTagType = cfg.DefaultNetType
+	opts.subnetCidr = cfg.SubnetPool
+	opts.allocSubnetLen = cfg.AllocSubnetLen
+	opts.vlans = cfg.Vlans
+	opts.vxlans = cfg.Vxlans
 
-    err = executeOpts(&opts)
-    if err != nil {
-        log.Printf("error pushing global config state: %s \n", err)
-        return err
-    }
+	err = executeOpts(&opts)
+	if err != nil {
+		log.Printf("error pushing global config state: %s \n", err)
+		return err
+	}
 
-    for _, net := range cfg.Networks {
-        opts = *defOpts
+	for _, net := range cfg.Networks {
+		opts = *defOpts
 
-        opts.construct.Set(CLI_CONSTRUCT_NW)
-        opts.oper.Set(CLI_OPER_CREATE)
-        opts.idStr = net.Name
-        err = executeOpts(&opts)
-        if err != nil {
-            log.Printf("error pushing network config state: %s \n", err)
-            return err
-        }
+		opts.construct.Set(CLI_CONSTRUCT_NW)
+		opts.oper.Set(CLI_OPER_CREATE)
+		opts.idStr = net.Name
+		err = executeOpts(&opts)
+		if err != nil {
+			log.Printf("error pushing network config state: %s \n", err)
+			return err
+		}
 
-        for _, ep := range net.Endpoints {
-            opts = *defOpts
-            opts.construct.Set(CLI_CONSTRUCT_EP)
-            opts.oper.Set(CLI_OPER_CREATE)
-            opts.idStr = net.Name + "-" + ep.Container
-            opts.netId = net.Name
-            opts.contName = ep.Container
-            opts.homingHost = ep.Host
-            err = executeOpts(&opts)
-            if err != nil {
-                log.Printf("error pushing ep config state: %s \n", err)
-                return err
-            }
-        }
-    }
+		for _, ep := range net.Endpoints {
+			opts = *defOpts
+			opts.construct.Set(CLI_CONSTRUCT_EP)
+			opts.oper.Set(CLI_OPER_CREATE)
+			opts.idStr = net.Name + "-" + ep.Container
+			opts.netId = net.Name
+			opts.contName = ep.Container
+			opts.homingHost = ep.Host
+			err = executeOpts(&opts)
+			if err != nil {
+				log.Printf("error pushing ep config state: %s \n", err)
+				return err
+			}
+		}
+	}
 
-    return err
+	return err
 }

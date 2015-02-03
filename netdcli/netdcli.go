@@ -105,7 +105,7 @@ func (c *Construct) Get() interface{} {
 
 type cliOpts struct {
 	help           bool
-    cfgFile         bool
+	cfgFile        bool
 	oper           Operation
 	etcdUrl        string
 	construct      Construct
@@ -138,8 +138,8 @@ func init() {
 		"construct",
 		"Construct to operate on i.e network or endpoint")
 	flagSet.BoolVar(&opts.cfgFile,
-        "cfg", 
-        false, 
+		"cfg",
+		false,
 		"Json file describing the global and network intent")
 	flagSet.StringVar(&opts.etcdUrl,
 		"etcd-url",
@@ -212,7 +212,7 @@ func validateOpts(opts *cliOpts) error {
 
 	if flagSet.NArg() != 1 || opts.help {
 		usage()
-        return nil
+		return nil
 	}
 
 	if opts.oper.Get() == "" {
@@ -326,7 +326,7 @@ func executeOpts(opts *cliOpts) error {
 
 	err := validateOpts(opts)
 	if err != nil {
-        log.Fatalf("error %s validating opts \n", opts)
+		log.Fatalf("error %s validating opts \n", opts)
 		return err
 	}
 
@@ -428,7 +428,7 @@ func executeOpts(opts *cliOpts) error {
 		}
 	}
 
-    return err
+	return err
 }
 
 func main() {
@@ -438,15 +438,15 @@ func main() {
 	}
 	opts.idStr = flagSet.Arg(0)
 
-    if opts.cfgFile {
-        err = executeJsonCfg(&opts)
-    } else {
-        err = executeOpts(&opts)
-    }
-    if err != nil {
-        log.Fatalf("error %s executing the config opts %v \n", err, opts)
-        os.Exit(1)
-    }
+	if opts.cfgFile {
+		err = executeJsonCfg(&opts)
+	} else {
+		err = executeOpts(&opts)
+	}
+	if err != nil {
+		log.Fatalf("error %s executing the config opts %v \n", err, opts)
+		os.Exit(1)
+	}
 
 	os.Exit(0)
 }
