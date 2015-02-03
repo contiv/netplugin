@@ -134,7 +134,7 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 				continue
 			}
 			if skipHost(epCfg, opts.hostLabel) {
-				log.Printf("Skipping ep %s that is not expected to be configured on the host ep %s host-label %s (my label: %s)",
+				log.Printf("Skipping ep %s as it is not expected to be configured on this host. EP's host-label %s (my label: %s)",
 					epId, epCfg.HomingHost, opts.hostLabel)
 				continue
 			}
@@ -338,7 +338,7 @@ func main() {
 		log.Fatalf("Failed to parse command. Error: %s", err)
 	}
 
-	if flagSet.NArg() < 1 {
+	if flagSet.NFlag() < 1 {
 		log.Printf("host-label not specified, using default (%s)", opts.hostLabel)
 	}
 
