@@ -26,11 +26,11 @@ tar -xzf go1.4.linux-amd64.tar.gz) || exit 1
 
 ## install and start etcd
 (cd /tmp && \
-curl -L  https://github.com/coreos/etcd/releases/download/v0.4.6/etcd-v0.4.6-linux-amd64.tar.gz -o etcd-v0.4.6-linux-amd64.tar.gz && \
-tar -xzf etcd-v0.4.6-linux-amd64.tar.gz && \
+curl -L  https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o etcd-v2.0.0-linux-amd64.tar.gz && \
+tar xzvf etcd-v2.0.0-linux-amd64.tar.gz && \
 cd /usr/bin && \
-ln -s /tmp/etcd-v0.4.6-linux-amd64/etcd && \
-ln -s /tmp/etcd-v0.4.6-linux-amd64/etcdctl && \
+ln -s /tmp/etcd-v2.0.0-linux-amd64/etcd && \
+ln -s /tmp/etcd-v2.0.0-linux-amd64/etcdctl && \
 etcd > /dev/null &) || exit 1
 
 ## install and start docker
