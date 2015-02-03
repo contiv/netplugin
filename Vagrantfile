@@ -1,8 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-$vagrant_env = ENV['VAGRANT_ENV']
-$provision = <<SCRIPT
+provision_common = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
 echo 'export GOPATH=/opt/golang' > /etc/profile.d/envvar.sh
@@ -24,7 +23,7 @@ fi
 curl -L https://storage.googleapis.com/golang/go1.4.linux-amd64.tar.gz -o go1.4.linux-amd64.tar.gz && \
 tar -xzf go1.4.linux-amd64.tar.gz) || exit 1
 
-## install and start etcd
+## install etcd
 (cd /tmp && \
 curl -L  https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o etcd-v2.0.0-linux-amd64.tar.gz && \
 tar xzvf etcd-v2.0.0-linux-amd64.tar.gz && \
@@ -44,19 +43,47 @@ ln -s /vagrant $GOSRC/github.com/contiv/netplugin) || exit 1
 (apt-get install -y openvswitch-switch > /dev/null && \
 ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
 ovs-vsctl set-manager ptcp:6640) || exit 1
-
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-config.vm.box = "ubuntu/trusty64"
-config.vm.hostname = "netplugin"
-config.vm.network :private_network, ip: "10.0.2.88"
-config.vm.provider "virtualbox" do |v|
-v.customize ['modifyvm', :id, '--nicpromisc1', 'allow-all']
-end
-config.vm.provision "shell" do |s|
-    s.inline = $provision
-    s.args = $vagrant_env
-end
+    config.vm.box = "ubuntu/trusty64"
+    num_nodes = ( ENV['CONTIV_NODES'] || 1).to_i
+    base_ip = "192.168.2."
+    node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
+    num_nodes.times do |n|
+        node_name = "netplugin-node#{n+1}"
+        node_addr = node_ips[n]
+        # Form node's etcd peers. If it's the first or only node we let it's peer list to be empty for it to bootstrap the cluster
+        node_peers = ""
+        node_ips.each { |ip| if ip != node_addr  && n != 0 then node_peers += "\"#{ip}:7001\" "  end}
+        node_peers = node_peers.strip().gsub(' ', ',')
+        config.vm.define node_name do |node|
+            node.vm.hostname = node_name
+            node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true"
+            node.vm.provider "virtualbox" do |v|
+                v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
+            end
+            node.vm.provision "shell" do |s|
+                s.inline = provision_common
+                s.args = ENV['CONTIV_ENV']
+            end
+provision_node = <<SCRIPT
+## prepare node's etcd config
+echo 'addr = "#{node_addr}:4001"' > /etc/profile.d/etcd.conf
+echo 'bind_addr = "0.0.0.0:4001"' >> /etc/profile.d/etcd.conf
+echo 'peers = [#{node_peers}]' >> /etc/profile.d/etcd.conf
+echo 'name = "#{node_name}"' >> /etc/profile.d/etcd.conf
+echo 'verbose = false' >> /etc/profile.d/etcd.conf
+echo '[peer]' >> /etc/profile.d/etcd.conf
+echo 'addr = "#{node_addr}:7001"' >> /etc/profile.d/etcd.conf
+
+## start etcd with generated config
+(etcd -config=/etc/profile.d/etcd.conf &) || exit 1
+SCRIPT
+            node.vm.provision "shell" do |s|
+                s.inline = provision_node
+            end
+        end
+    end
 end

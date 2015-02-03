@@ -124,6 +124,7 @@ type cliOpts struct {
 	vxlans         string
 	homingHost     string
 	vtepIp         string
+	intfName       string
 }
 
 var opts cliOpts
@@ -193,6 +194,10 @@ func init() {
 		"vtep-ip",
 		"",
 		"Endpoint's Vtep IP address if the endpoint is of vtep type")
+	flagSet.StringVar(&opts.intfName,
+		"intf-name",
+		"",
+		"Name of an exisitng linux device to use as endpoint's interface. This can be used for adding the host interface to the bridge for vlan based networks.")
 
 	flagSet.BoolVar(&opts.help, "help", false, "prints this message")
 }
@@ -371,6 +376,7 @@ func executeOpts(opts *cliOpts) error {
 			epCfg.ContName = opts.contName
 			epCfg.HomingHost = opts.homingHost
 			epCfg.VtepIp = opts.vtepIp
+			epCfg.IntfName = opts.intfName
 			state = epCfg
 		}
 	case CLI_CONSTRUCT_NW:
