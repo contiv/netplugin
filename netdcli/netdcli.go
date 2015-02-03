@@ -105,6 +105,7 @@ func (c *Construct) Get() interface{} {
 
 type cliOpts struct {
 	help           bool
+    cfgFile         bool
 	oper           Operation
 	etcdUrl        string
 	construct      Construct
@@ -136,6 +137,10 @@ func init() {
 	flagSet.Var(&opts.construct,
 		"construct",
 		"Construct to operate on i.e network or endpoint")
+	flagSet.BoolVar(&opts.cfgFile,
+        "cfg", 
+        false, 
+		"Json file describing the global and network intent")
 	flagSet.StringVar(&opts.etcdUrl,
 		"etcd-url",
 		"http://127.0.0.1:4001",
@@ -202,12 +207,12 @@ func logFatalSubnetAndMaskFormatError() {
 		"if gateway is not required to be specified then 0/24")
 }
 
-func validateOpts() error {
+func validateOpts(opts *cliOpts) error {
 	var err error
 
 	if flagSet.NArg() != 1 || opts.help {
 		usage()
-		os.Exit(0)
+        return nil
 	}
 
 	if opts.oper.Get() == "" {
@@ -316,22 +321,17 @@ func validateOpts() error {
 	return err
 }
 
-func main() {
-	var err error
+func executeOpts(opts *cliOpts) error {
 	var state core.State = nil
 
-	err = flagSet.Parse(os.Args[1:])
+	err := validateOpts(opts)
 	if err != nil {
-		log.Fatalf("Failed to parse command. Error: %s", err)
+        log.Fatalf("error %s validating opts \n", opts)
+		return err
 	}
-	opts.idStr = flagSet.Arg(0)
-	err = validateOpts()
-	if err != nil {
-		os.Exit(1)
-	}
+
 	// log.Printf("parsed all valuees = %v \n", opts)
 
-	// initialize drivers
 	etcdDriver := &drivers.EtcdStateDriver{}
 	driverConfig := &drivers.EtcdStateDriverConfig{}
 	driverConfig.Etcd.Machines = []string{opts.etcdUrl}
@@ -405,7 +405,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error '%s' \n", err)
 		}
-		os.Exit(0)
+		return err
 	}
 
 	switch opts.oper.Get() {
@@ -427,6 +427,26 @@ func main() {
 			log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
 		}
 	}
+
+    return err
+}
+
+func main() {
+	err := flagSet.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatalf("Failed to parse command. Error: %s", err)
+	}
+	opts.idStr = flagSet.Arg(0)
+
+    if opts.cfgFile {
+        err = executeJsonCfg(&opts)
+    } else {
+        err = executeOpts(&opts)
+    }
+    if err != nil {
+        log.Fatalf("error %s executing the config opts %v \n", err, opts)
+        os.Exit(1)
+    }
 
 	os.Exit(0)
 }

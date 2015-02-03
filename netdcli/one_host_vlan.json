@@ -1,0 +1,20 @@
+
+{
+    "DefaultNetType"            : "vlan",
+    "SubnetPool"                : "11.1.0.0/16",
+    "AllocSubnetLen"            : 24,
+    "Vlans"                     : "11-28",
+    "Networks"  : [
+    {
+        "Name"                  : "orange",
+        "Endpoints" : [
+        {
+            "Container"         : "myContainer1"
+        },
+        {
+            "Container"         : "myContainer2"
+        }
+        ]
+    }
+    ]
+}
