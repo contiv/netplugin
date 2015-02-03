@@ -1,0 +1,35 @@
+
+{
+    "DefaultNetType"            : "vxlan",
+    "SubnetPool"                : "11.1.0.0/16",
+    "AllocSubnetLen"            : 24,
+    "Vxlans"                    : "10001-20000",
+    "Networks"  : [
+    {
+        "Name"                  : "orange",
+        "Endpoints" : [
+        {
+            "Container"         : "myContainer1",
+            "Host"              : "swvm174"
+        },
+        {
+            "Container"         : "myContainer3",
+            "Host"              : "swvm175"
+        }
+        ]
+    },
+    {
+        "Name"                  : "purple",
+        "Endpoints" : [
+        {
+            "Container"         : "myContainer2",
+            "Host"              : "swvm174"
+        },
+        {
+            "Container"         : "myContainer4",
+            "Host"              : "swvm175"
+        }
+        ]
+    }
+    ]
+}
