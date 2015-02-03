@@ -66,7 +66,7 @@ type Oper struct {
 	SubnetPool      string
 	SubnetLen       uint
 	AllocSubnetLen  uint
-	AllocedSubnets  bitset.BitSet
+	FreeSubnets     bitset.BitSet
 	FreeVlans       bitset.BitSet
 	FreeLocalVlans  bitset.BitSet
 	FreeVxlansStart uint
@@ -322,13 +322,13 @@ func (g *Oper) FreeVlan(vlan uint) error {
 
 func (g *Oper) AllocSubnet() (string, error) {
 
-	subnetId, found := g.AllocedSubnets.NextClear(0)
+	subnetId, found := g.FreeSubnets.NextSet(0)
 	if !found {
-		log.Printf("Bitmap: %s \n", g.AllocedSubnets.DumpAsBits())
+		log.Printf("Bitmap: %s \n", g.FreeSubnets.DumpAsBits())
 		return "", errors.New("subnet exhaustion")
 	}
 
-	g.AllocedSubnets.Set(subnetId)
+	g.FreeSubnets.Clear(subnetId)
 	subnetIp, err := netutils.GetSubnetIp(g.SubnetPool, g.SubnetLen,
 		g.AllocSubnetLen, subnetId)
 	if err != nil {
@@ -376,8 +376,7 @@ func (gc *Cfg) Process() (*Oper, error) {
 
 		allocSubnetSize := gc.Auto.AllocSubnetLen - gc.Auto.SubnetLen
 
-		gOper.AllocedSubnets = *netutils.CreateBitset(allocSubnetSize)
-		gOper.AllocedSubnets.Set(1 + (1 << allocSubnetSize))
+		gOper.FreeSubnets = *netutils.CreateBitset(allocSubnetSize).Complement()
 
 		err = gOper.initVlanBitset(gc.Auto.Vlans)
 		if err != nil {
