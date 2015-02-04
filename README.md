@@ -21,11 +21,11 @@ The ability to specify the intent succinctly is the primary goal of the design a
 Note:
 - Make sure VirtualBox is installed
 - The guest VM provisioning requires downloading packages from the Internet, so a http-proxy needs to be set in the VM. If you are behind one else the VM setup will fail. It can be specified by setting the VAGRANT_ENV variable to a string of a space separated `<env-var>=<value>` pairs.
-`VAGRANT_ENV="http_proxy=http://my.proxy.url https_proxy=http://my.proxy.url"`
- 
+`CONTIV_ENV="http_proxy=http://my.proxy.url https_proxy=http://my.proxy.url" vagrant up`
+
 `vagrant up`
 
-`vagrant ssh default`
+`vagrant ssh netplugin-node1`
 
 `sudo -s`
 
