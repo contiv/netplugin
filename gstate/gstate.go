@@ -236,6 +236,7 @@ func (g *Oper) AllocVxlan() (vxlan uint, localVlan uint, err error) {
 		return
 	}
 
+	g.FreeLocalVlans.Clear(localVlan)
 	g.FreeVxlans.Clear(vxlan)
 	vxlan = vxlan + g.FreeVxlansStart
 

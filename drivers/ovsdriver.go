@@ -41,7 +41,7 @@ const (
 	INTERFACE_TABLE     = "Interface"
 	DEFAULT_BRIDGE_NAME = "contivBridge"
 	PORT_NAME_FMT       = "port%d"
-	VXLAN_IFNAME_FMT    = "vxlanif%s"
+	VXLAN_IFNAME_FMT    = "vxif%s%s"
 
 	CREATE_BRIDGE oper = iota
 	DELETE_BRIDGE
@@ -321,8 +321,9 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 	return d.performOvsdbOps(operations)
 }
 
-func vxlanIfName(vtepIp string) string {
-	return fmt.Sprintf(VXLAN_IFNAME_FMT, strings.Replace(vtepIp, ".", "", -1))
+func vxlanIfName(netId, vtepIp string) string {
+	return fmt.Sprintf(VXLAN_IFNAME_FMT, 
+		netId, strings.Replace(vtepIp, ".", "", -1))
 }
 
 func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
@@ -336,7 +337,7 @@ func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
 	intfOptions["remote_ip"] = epCfg.VtepIp
 	intfOptions["key"] = strconv.Itoa(operNwState.ExtPktTag)
 
-	intfName := vxlanIfName(epCfg.VtepIp)
+	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
 	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
 		intfOptions, operNwState.PktTag, CREATE_PORT)
 	if err != nil {
@@ -356,7 +357,7 @@ func (d *OvsDriver) deleteVtep(epCfg *OvsCfgEndpointState) error {
 		return err
 	}
 
-	intfName := vxlanIfName(epCfg.VtepIp)
+	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
 	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
 		nil, operNwState.PktTag, DELETE_PORT)
 	if err != nil {

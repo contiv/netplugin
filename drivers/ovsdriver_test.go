@@ -91,6 +91,7 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 				cfgEp.Id = createVxlanEpId
 				cfgEp.IntfName = testIntfName
 				cfgEp.VtepIp = vxlanPeerIp
+				cfgEp.NetId = testOvsNwId
 			} else if oper == READ_EP_WITH_INTF {
 				cfgEp.Id = createEpWithIntfId
 				cfgEp.IntfName = testIntfName
@@ -101,6 +102,8 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 		} else {
 			if oper == READ_VXLAN_EP {
 				cfgEp.Id = deleteVxlanEpId
+				cfgEp.VtepIp = vxlanPeerIp
+				cfgEp.NetId = testOvsNwId
 			} else if oper == READ_EP_WITH_INTF {
 				cfgEp.Id = deleteEpWithIntfId
 			} else {
@@ -351,7 +354,7 @@ func TestOvsDriverCreateVxlanPeer(t *testing.T) {
 		t.Fatalf("vxlan peer creation failed. Error: %s", err)
 	}
 
-	expectedPortName := vxlanIfName(vxlanPeerIp)
+	expectedPortName := vxlanIfName(testOvsNwId, vxlanPeerIp)
 	output, err := exec.Command("ovs-vsctl", "list", "Port").Output()
 	if err != nil || !strings.Contains(string(output), expectedPortName) {
 		t.Fatalf("port lookup failed. Error: %s expected port: %s Output: %s",
@@ -379,7 +382,7 @@ func TestOvsDriverDeleteVxlanPeer(t *testing.T) {
 		t.Fatalf("endpoint Deletion failed. Error: %s", err)
 	}
 
-	expectedPortName := vxlanIfName(vxlanPeerIp)
+	expectedPortName := vxlanIfName(testOvsNwId, vxlanPeerIp)
 	output, err := exec.Command("ovs-vsctl", "list", "Port").Output()
 	if err != nil || strings.Contains(string(output), expectedPortName) {
 		t.Fatalf("port lookup succeeded after delete. Error: %s Output: %s",
