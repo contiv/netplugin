@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"time"
 )
 
 type ConfigEpJson struct {
@@ -81,6 +82,7 @@ func executeJsonCfg(defOpts *cliOpts) error {
 			log.Printf("error pushing network config state: %s \n", err)
 			return err
 		}
+		time.Sleep(1*time.Second)
 
 		for _, ep := range net.Endpoints {
 			opts = *defOpts
@@ -95,6 +97,7 @@ func executeJsonCfg(defOpts *cliOpts) error {
 				log.Printf("error pushing ep config state: %s \n", err)
 				return err
 			}
+			time.Sleep(1*time.Second)
 		}
 	}
 
