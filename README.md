@@ -59,22 +59,22 @@ The netplugin produces two binaries, a netplugin daemon and a netdcli tool to in
 
     ```json
     {
-        "DefaultNetType"            : "vlan",
-        "SubnetPool"                : "11.1.0.0/16",
-        "AllocSubnetLen"            : 24,
-        "Vlans"                     : "11-28",
-        "Networks"  : [
-        {
-            "Name"                  : "orange",
-            "Endpoints" : [
+        "AllocSubnetLen": 24,
+        "DefaultNetType": "vlan",
+        "SubnetPool": "11.1.0.0/16",
+        "Vlans": "11-28",
+        "Networks": [
             {
-                "Container"         : "myContainer1"
-            },
-            {
-                "Container"         : "myContainer2"
+                "Name": "orange",
+                "Endpoints": [
+                    {
+                        "Container": "myContainer1"
+                    },
+                    {
+                        "Container": "myContainer2"
+                    }
+                ]
             }
-            ]
-        }
         ]
     }
     ```
