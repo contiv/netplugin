@@ -92,10 +92,11 @@ at [examples](examples/) directory to explore more details
 
 Look at [examples/two_host_vlan.json](examples/two_host_vlan.json) that depicts the following network 
 
-![alt tag](https://raw.github.com/contiv/netplugin/docs/VlanNetwork.jpg)
+![VlanNetwork](./docs/VlanNetwork.jpg)
 
 [examples/two_host_vxlan.json](examples/two_host_vxlan.json) attempts to achieve following connectivity
-![alt tag](https://raw.github.com/contiv/netplugin/docs/VxlanNetwork.jpg)
+![VxlanNetwork](./docs/VxlanNetwork.jpg)
+
 
 ####Multi-tenant network
 
@@ -104,9 +105,7 @@ In the examples directory [one_host_multiple_nets.json](examples/one_host_multip
 (disjoint, overlapping) networks within a cluster.
 
 ####Auto-allocation of IP addresses
-The plugin can automatically manage the IP address pools and assign an appropriate IP address based on the subnet that was associated with the network. However this doesn't take away the flexibility to keep a specific IP address of a container, which can always be specified as shown earlier. To automatically allocate the IP address, just avoid specifying the IP address during endpoint creation, for example in the previous example:
-
-`netdcli -oper create -construct endpoint -net-id tenant1-net1 -container-id myContainer2 tenant1-net1-ep2`
+The plugin can automatically manage the IP address pools and assign an appropriate IP address based on the subnet that was associated with the network. However this doesn't take away the flexibility to keep a specific IP address of a container, which can always be specified as shown earlier. To automatically allocate the IP address, just avoid specifying the IP address during endpoint creation or endpoint description
 
 With this, associating containers with networks will ensure a unique IP address is assigned to the container
 
