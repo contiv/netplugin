@@ -66,9 +66,9 @@ func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool) 
 	return nil
 }
 
-func skipHost(epCfg *drivers.OvsCfgEndpointState, hostLabel string) bool {
-	return (epCfg.VtepIp == "" && epCfg.HomingHost != hostLabel ||
-		epCfg.VtepIp != "" && epCfg.HomingHost == hostLabel)
+func skipHost(vtepIp, homingHost, myHostLabel string) bool {
+	return (vtepIp == "" && homingHost != myHostLabel ||
+		vtepIp != "" && homingHost == myHostLabel)
 }
 
 func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
@@ -127,15 +127,30 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
 
 			// act on the endpoint only if we are the homing host
-			epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
-			err = epCfg.Read(epId)
-			if err != nil {
-				log.Printf("Failed to read config for ep '%s' \n", epId)
-				continue
+			homingHost := ""
+			vtepIp := ""
+			if !isDelete {
+				epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
+				err = epCfg.Read(epId)
+				if err != nil {
+					log.Printf("Failed to read config for ep '%s' \n", epId)
+					continue
+				}
+				homingHost = epCfg.HomingHost
+				vtepIp = epCfg.VtepIp
+			} else {
+				epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
+				err = epOper.Read(epId)
+				if err != nil {
+					log.Printf("Failed to read oper state for ep '%s' \n", epId)
+					continue
+				}
+				homingHost = epOper.HomingHost
+				vtepIp = epOper.VtepIp
 			}
-			if skipHost(epCfg, opts.hostLabel) {
+			if skipHost(vtepIp, homingHost, opts.hostLabel) {
 				log.Printf("Skipping ep %s as it is not expected to be configured on this host. EP's host-label %s (my label: %s)",
-					epId, epCfg.HomingHost, opts.hostLabel)
+					epId, homingHost, opts.hostLabel)
 				continue
 			}
 

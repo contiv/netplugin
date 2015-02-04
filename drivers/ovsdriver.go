@@ -737,11 +737,15 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 	//all went well, update the runtime state of network and endpoint
 	operEpState := OvsOperEndpointState{
-		StateDriver: d.stateDriver, Id: id,
-		PortName:  portName,
-		NetId:     epCfg.NetId,
-		ContName:  epCfg.ContName,
-		IpAddress: ipAddress}
+		StateDriver: d.stateDriver,
+		Id:          id,
+		PortName:    portName,
+		NetId:       epCfg.NetId,
+		ContName:    epCfg.ContName,
+		IpAddress:   ipAddress,
+		IntfName:    intfName,
+		HomingHost:  epCfg.HomingHost,
+		VtepIp:      epCfg.VtepIp}
 	err = operEpState.Write()
 	if err != nil {
 		return err

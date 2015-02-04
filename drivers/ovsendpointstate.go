@@ -80,6 +80,9 @@ type OvsOperEndpointState struct {
 	ContId      string           `json:"contId"`
 	IpAddress   string           `json:"ipAddress"`
 	PortName    string           `json:"portName"`
+	HomingHost  string           `json:"homingHost"`
+	IntfName    string           `json:"intfName"`
+	VtepIp      string           `json:'vtepIP"`
 }
 
 func (s *OvsOperEndpointState) Write() error {
