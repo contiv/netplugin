@@ -90,9 +90,12 @@ at [examples](examples/) directory to explore more details
 
 ####Trying it out on a multi-host VLAN/VXLAN network
 
-<Diagrams and Vagrant files to be added for this and configuration below>
-However feel free to look at [examples/two_host_vlan.json](examples/two_host_vlan.json) and
-[examples/two_host_vxlan.json](examples/two_host_vxlan.json) as a starting point for cluster of two hosts.
+Look at [examples/two_host_vlan.json](examples/two_host_vlan.json) that depicts the following network 
+
+![alt tag](https://raw.github.com/contiv/netplugin/docs/VlanNetwork.jpg)
+
+[examples/two_host_vxlan.json](examples/two_host_vxlan.json) attempts to achieve following connectivity
+![alt tag](https://raw.github.com/contiv/netplugin/docs/VxlanNetwork.jpg)
 
 ####Multi-tenant network
 

@@ -10,19 +10,19 @@
         "Endpoints" : [
         {
             "Container"         : "myContainer1",
-            "Host"         	: "swvm174"
+            "Host"         	: "host1"
         },
         {
             "Container"         : "myContainer2",
-            "Host"         	: "swvm174"
+            "Host"         	: "host1"
         },
         {
             "Container"         : "myContainer3",
-            "Host"         	: "swvm175"
+            "Host"         	: "host2"
         },
         {
             "Container"         : "myContainer4",
-            "Host"         	: "swvm175"
+            "Host"         	: "host2"
         }
         ]
     }
