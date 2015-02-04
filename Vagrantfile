@@ -26,11 +26,10 @@ tar -xzf go1.4.linux-amd64.tar.gz) || exit 1
 ## install etcd
 (cd /tmp && \
 curl -L  https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o etcd-v2.0.0-linux-amd64.tar.gz && \
-tar xzvf etcd-v2.0.0-linux-amd64.tar.gz && \
+tar -xzf etcd-v2.0.0-linux-amd64.tar.gz && \
 cd /usr/bin && \
 ln -s /tmp/etcd-v2.0.0-linux-amd64/etcd && \
-ln -s /tmp/etcd-v2.0.0-linux-amd64/etcdctl && \
-etcd > /dev/null &) || exit 1
+ln -s /tmp/etcd-v2.0.0-linux-amd64/etcdctl) || exit 1
 
 ## install and start docker
 (curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null) || exit 1
@@ -51,12 +50,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     num_nodes = ( ENV['CONTIV_NODES'] || 1).to_i
     base_ip = "192.168.2."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
+    node_names = num_nodes.times.collect { |n| "netplugin-node#{n+1}" } 
     num_nodes.times do |n|
-        node_name = "netplugin-node#{n+1}"
+        node_name = node_names[n]
         node_addr = node_ips[n]
-        # Form node's etcd peers. If it's the first or only node we let it's peer list to be empty for it to bootstrap the cluster
         node_peers = ""
-        node_ips.each { |ip| if ip != node_addr  && n != 0 then node_peers += "\"#{ip}:7001\" "  end}
+        node_ips.length.times { |i| node_peers += "#{node_names[i]}=http://#{node_ips[i]}:7001 "}
         node_peers = node_peers.strip().gsub(' ', ',')
         config.vm.define node_name do |node|
             node.vm.hostname = node_name
@@ -69,17 +68,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 s.args = ENV['CONTIV_ENV']
             end
 provision_node = <<SCRIPT
-## prepare node's etcd config
-echo 'addr = "#{node_addr}:4001"' > /etc/profile.d/etcd.conf
-echo 'bind_addr = "0.0.0.0:4001"' >> /etc/profile.d/etcd.conf
-echo 'peers = [#{node_peers}]' >> /etc/profile.d/etcd.conf
-echo 'name = "#{node_name}"' >> /etc/profile.d/etcd.conf
-echo 'verbose = false' >> /etc/profile.d/etcd.conf
-echo '[peer]' >> /etc/profile.d/etcd.conf
-echo 'addr = "#{node_addr}:7001"' >> /etc/profile.d/etcd.conf
-
 ## start etcd with generated config
-(etcd -config=/etc/profile.d/etcd.conf &) || exit 1
+echo etcd -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 -listen-peer-urls http://#{node_addr}:7001 -initial-cluster #{node_peers} -initial-cluster-state new
+( nohup etcd -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
+ -listen-peer-urls http://#{node_addr}:7001 \
+ -initial-cluster #{node_peers} \
+ -initial-cluster-state new 0<&- &>/dev/null & ) || exit 1
 SCRIPT
             node.vm.provision "shell" do |s|
                 s.inline = provision_node
