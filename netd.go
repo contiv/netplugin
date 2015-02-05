@@ -41,6 +41,15 @@ const (
 func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool) error {
 	var err error
 
+    gOper := &gstate.Oper{}
+    err = gOper.Read(netPlugin.StateDriver)
+    if err != nil {
+        return err
+    }
+    if gOper.DefaultNetType != "vxlan" {
+        return nil
+    }
+
 	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
 
 	epCfg.Id = opts.hostLabel
