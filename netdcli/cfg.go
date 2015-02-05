@@ -25,10 +25,19 @@ import (
 type ConfigEpJson struct {
 	Container string
 	Host      string
+	// XXX: need to think more, if interface name really belongs to logical
+	// config. One usecase for having interface name in logical config might be
+	// the SRIOV case, where the virtual interfaces could be pre-exist.
+	Intf string
 }
 
 type ConfigNetworkJson struct {
-	Name      string
+	Name string
+	// XXX: need to think more, if the pkt-tag really belongs to logical
+	// config. One usecase for having tag in logical config might be
+	// the case of environment where tags are managed outside the realm of
+	// allocator. Eg. ACI kind of deployments wjere APIC allocates the tags.
+	PktTag    string
 	Endpoints []ConfigEpJson
 }
 
@@ -77,6 +86,9 @@ func executeJsonCfg(defOpts *cliOpts) error {
 		opts.construct.Set(CLI_CONSTRUCT_NW)
 		opts.oper.Set(CLI_OPER_CREATE)
 		opts.idStr = net.Name
+		if net.PktTag != "" {
+			opts.pktTag = net.PktTag
+		}
 		err = executeOpts(&opts)
 		if err != nil {
 			log.Printf("error pushing network config state: %s \n", err)
@@ -88,10 +100,15 @@ func executeJsonCfg(defOpts *cliOpts) error {
 			opts = *defOpts
 			opts.construct.Set(CLI_CONSTRUCT_EP)
 			opts.oper.Set(CLI_OPER_CREATE)
-			opts.idStr = net.Name + "-" + ep.Container
+			if ep.Container != "" {
+				opts.idStr = net.Name + "-" + ep.Container
+			} else {
+				opts.idStr = ep.Host + "-native-intf"
+			}
 			opts.netId = net.Name
 			opts.contName = ep.Container
 			opts.homingHost = ep.Host
+			opts.intfName = ep.Intf
 			err = executeOpts(&opts)
 			if err != nil {
 				log.Printf("error pushing ep config state: %s \n", err)

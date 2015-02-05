@@ -59,7 +59,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node_peers = node_peers.strip().gsub(' ', ',')
         config.vm.define node_name do |node|
             node.vm.hostname = node_name
+            # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true"
+            node.vm.provider "virtualbox" do |v|
+                v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
+            end
+            # create an interface for bridged network
+            node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true"
             node.vm.provider "virtualbox" do |v|
                 v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
             end
@@ -69,11 +75,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config
-echo etcd -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 -listen-peer-urls http://#{node_addr}:7001 -initial-cluster #{node_peers} -initial-cluster-state new
-( nohup etcd -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
+(echo etcd -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
  -listen-peer-urls http://#{node_addr}:7001 \
  -initial-cluster #{node_peers} \
- -initial-cluster-state new 0<&- &>/dev/null & ) || exit 1
+ -initial-cluster-state new)
+(nohup etcd -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
+ -listen-peer-urls http://#{node_addr}:7001 \
+ -initial-cluster #{node_peers} \
+ -initial-cluster-state new 0<&- &>/dev/null &) || exit 1
 SCRIPT
             node.vm.provision "shell" do |s|
                 s.inline = provision_node

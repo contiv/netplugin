@@ -273,8 +273,12 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 	if op == CREATE_PORT {
 		port := make(map[string]interface{})
 		port["name"] = portName
-		port["vlan_mode"] = "access"
-		port["tag"] = tag
+		if tag != 0 {
+			port["vlan_mode"] = "access"
+			port["tag"] = tag
+		} else {
+			port["vlan_mode"] = "trunk"
+		}
 		port["interfaces"], err = libovsdb.NewOvsSet(intfUuid)
 		if err != nil {
 			return err
@@ -735,6 +739,13 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			//XXX: need to return allocated ip back to the pool in case of failure
+			operNwState.EpCount -= 1
+			operNwState.Write()
+		}
+	}()
 
 	//all went well, update the runtime state of network and endpoint
 	operEpState := OvsOperEndpointState{
