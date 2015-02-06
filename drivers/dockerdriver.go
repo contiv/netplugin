@@ -21,12 +21,13 @@ import (
 	"github.com/samalba/dockerclient"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"strconv"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
+	// "github.com/vishvananda/netns"
 )
 
 // implements the StateDriver interface for an etcd based distributed
@@ -154,6 +155,7 @@ func (d *DockerDriver) cleanupNetns(contName string) error {
 	return nil
 }
 
+/*
 func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 
 	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
@@ -225,6 +227,44 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 		log.Printf("## netlink set link up failed '%s' \n", err)
 		return err
 	}
+
+	return err
+}
+*/
+func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
+
+	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
+		ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
+
+	if ctx.IpAddress == "" {
+		return nil
+	}
+	if ctx.SubnetLen == 0 {
+		errors.New("Subnet mask unspecified \n")
+	}
+
+	contPid, err := d.getContPid(ctx.NewContName)
+	if err != nil {
+		return err
+	}
+
+	out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "ip",
+		"addr", "add", ctx.IpAddress+"/"+strconv.Itoa(int(ctx.SubnetLen)),
+		"dev", ctx.InterfaceId).Output()
+	if err != nil {
+		log.Printf("error configuring ip address for interface %s "+
+			"%s out = '%s', err = '%s'\n", ctx.InterfaceId, out, err)
+		return err
+	}
+
+	out, err = exec.Command("/sbin/ip", "netns", "exec", contPid, "ip",
+		"link", "set", ctx.InterfaceId, "up").Output()
+	if err != nil {
+		log.Printf("error bringing interface %s up 'out = %s', err = %s\n",
+			ctx.InterfaceId, out, err)
+		return err
+	}
+	log.Printf("successfully configured ip and brought up the interface \n")
 
 	return err
 }
