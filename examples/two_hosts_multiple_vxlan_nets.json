@@ -1,7 +1,7 @@
 
 {
     "Tenants" : [ {
-        "Name"                      : "tenant-one"
+        "Name"                      : "tenant-one",
         "DefaultNetType"            : "vxlan",
         "SubnetPool"                : "11.1.0.0/16",
         "AllocSubnetLen"            : 24,
