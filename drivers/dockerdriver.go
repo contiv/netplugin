@@ -21,11 +21,12 @@ import (
 	"github.com/samalba/dockerclient"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 // implements the StateDriver interface for an etcd based distributed
@@ -75,9 +76,25 @@ func (d *DockerDriver) getContPid(contName string) (string, error) {
 	return strconv.Itoa(contInfo.State.Pid), nil
 }
 
+func setIfNs(ifname string, pid int) error {
+	link, err := netlink.LinkByName(ifname)
+	if err != nil {
+		log.Printf("unable to find link '%s' error \n", ifname, err)
+		return err
+	}
+
+	err = netlink.LinkSetNsPid(link, pid)
+	if err != nil {
+		log.Printf("unable to move interface '%s' to pid %d \n",
+			ifname, pid)
+	}
+
+	return err
+}
+
 // Note: most of the work in this function is a temporary workaround for
-// what docker daemon would eventually do; the logic within is borrowed
-// from pipework utility
+// what docker daemon would eventually do; in the meanwhile
+// the essense of the logic is borrowed from pipework
 func (d *DockerDriver) moveIfToContainer(ifId string, contName string) error {
 
 	// log.Printf("Moving interface '%s' into container '%s' \n", ifId, contName)
@@ -111,11 +128,11 @@ func (d *DockerDriver) moveIfToContainer(ifId string, contName string) error {
 		return err
 	}
 
-	out, err := exec.Command("/sbin/ip", "link", "set", ifId,
-		"netns", contPid).Output()
+	intPid, _ := strconv.Atoi(contPid)
+	err = setIfNs(ifId, intPid)
 	if err != nil {
-		log.Printf("error moving interface into container's namespace "+
-			"out = '%s', err = '%s'\n", out, err)
+		log.Printf("err '%s' moving if '%s' into container '%s' namespace\n",
+			err, ifId, contName)
 		return err
 	}
 
@@ -137,10 +154,9 @@ func (d *DockerDriver) cleanupNetns(contName string) error {
 	return nil
 }
 
-// use netlink apis instead
 func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 
-	log.Printf("configuring ip: addr -%s/%d- on interface %s for container %s\n",
+	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
 		ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
 
 	if ctx.IpAddress == "" {
@@ -155,23 +171,60 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 		return err
 	}
 
-	out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "addr",
-		"add", ctx.IpAddress+"/"+strconv.Itoa(int(ctx.SubnetLen)), "dev",
-		ctx.InterfaceId).Output()
+	intPid, err := strconv.Atoi(contPid)
 	if err != nil {
-		log.Printf("error configuring ip address for interface %s "+
-			"%s out = '%s', err = '%s'\n", ctx.InterfaceId, out, err)
 		return err
 	}
 
-	out, err = exec.Command("/sbin/ip", "netns", "exec", contPid, "ip", "link",
-		"set", ctx.InterfaceId, "up").Output()
+	contNs, err := netns.GetFromPid(intPid)
 	if err != nil {
-		log.Printf("error bringing interface %s up 'out = %s', err = %s\n",
-			ctx.InterfaceId, out, err)
+		log.Printf("error '%s' getting namespace for pid %s \n",
+			err, contPid)
 		return err
 	}
-	log.Printf("successfully configured ip and brought up the interface \n")
+	defer contNs.Close()
+
+	origNs, err := netns.Get()
+	if err != nil {
+		log.Printf("error '%s' getting orig namespace\n", err)
+		return err
+	}
+
+	defer origNs.Close()
+
+	err = netns.Set(contNs)
+	if err != nil {
+		log.Printf("error '%s' setting netns \n", err)
+		return err
+	}
+	defer netns.Set(origNs)
+
+	link, err := netlink.LinkByName(ctx.InterfaceId)
+	if err != nil {
+		log.Printf("error '%s' getting if '%s' information \n", err,
+			ctx.InterfaceId)
+		return err
+	}
+
+	addr, err := netlink.ParseAddr(ctx.IpAddress + "/" +
+		strconv.Itoa((int)(ctx.SubnetLen)))
+	if err != nil {
+		log.Printf("error '%s' parsing ip %s/%d \n", err,
+			ctx.IpAddress, ctx.SubnetLen)
+		return err
+	}
+
+	err = netlink.AddrAdd(link, addr)
+	if err != nil {
+		log.Printf("## netlink add addr failed '%s' \n", err)
+		return err
+	}
+
+	err = netlink.LinkSetUp(link)
+	if err != nil {
+		log.Printf("## netlink set link up failed '%s' \n", err)
+		return err
+	}
 
 	return err
 }
