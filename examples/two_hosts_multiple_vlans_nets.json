@@ -11,11 +11,11 @@
         "Endpoints" : [
         {
             "Host"              : "host1",
-            "Intf"              : "eth1"
+            "Intf"              : "eth2"
         },
         {
             "Host"              : "host2",
-            "Intf"              : "eth1"
+            "Intf"              : "eth2"
         }
         ]
     },

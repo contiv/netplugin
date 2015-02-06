@@ -61,13 +61,17 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             node.vm.hostname = node_name
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true"
-            node.vm.provider "virtualbox" do |v|
-                v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
-            end
             # create an interface for bridged network
             node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true"
             node.vm.provider "virtualbox" do |v|
+                # make all nics 'virtio' to take benefit of builtin vlan tag
+                # support, which otherwise needs to be enabled in Intel drivers,
+                # which are used by default by virtualbox
+                v.customize ['modifyvm', :id, '--nictype1', 'virtio']
+                v.customize ['modifyvm', :id, '--nictype2', 'virtio']
+                v.customize ['modifyvm', :id, '--nictype3', 'virtio']
                 v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
+                v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
