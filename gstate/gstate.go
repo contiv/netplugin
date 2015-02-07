@@ -29,9 +29,11 @@ import (
 )
 
 const (
-	BASE_GLOBAL = "/contiv/"
-	CFG_GLOBAL  = BASE_GLOBAL + "config/global"
-	OPER_GLOBAL = BASE_GLOBAL + "oper/global"
+	BASE_GLOBAL        = "/contiv/"
+	CFG_GLOBAL_PREFIX  = BASE_GLOBAL + "config/global/"
+	CFG_GLOBAL_PATH    = CFG_GLOBAL_PREFIX + "%s"
+	OPER_GLOBAL_PREFIX = BASE_GLOBAL + "oper/global/"
+	OPER_GLOBAL_PATH   = OPER_GLOBAL_PREFIX + "%s"
 )
 
 const (
@@ -57,11 +59,13 @@ type DeployParams struct {
 // global state of the network plugin
 type Cfg struct {
 	Version string
+	Tenant  string
 	Auto    AutoParams
 	Deploy  DeployParams
 }
 
 type Oper struct {
+	Tenant          string
 	DefaultNetType  string
 	SubnetPool      string
 	SubnetLen       uint
@@ -72,9 +76,6 @@ type Oper struct {
 	FreeVxlansStart uint
 	FreeVxlans      bitset.BitSet
 }
-
-var gCfg *Cfg
-var gOper *Oper
 
 func (gc *Cfg) UnMarshal(data string) error {
 	err := json.Unmarshal([]byte(data), &gc)
@@ -144,16 +145,18 @@ func Parse(configBytes []byte) (*Cfg, error) {
 }
 
 func (gc *Cfg) Update(d core.StateDriver) error {
+	key := fmt.Sprintf(CFG_GLOBAL_PATH, gc.Tenant)
 	value, err := json.Marshal(gc)
 	if err != nil {
 		return err
 	}
 
-	return d.Write(CFG_GLOBAL, value)
+	return d.Write(key, value)
 }
 
-func (gc *Cfg) Read(d core.StateDriver) error {
-	value, err := d.Read(CFG_GLOBAL)
+func (gc *Cfg) Read(d core.StateDriver, tenant string) error {
+	key := fmt.Sprintf(CFG_GLOBAL_PATH, tenant)
+	value, err := d.Read(key)
 	if err != nil {
 		return err
 	}
@@ -165,17 +168,24 @@ func (gc *Cfg) Read(d core.StateDriver) error {
 	return nil
 }
 
+func operExists(tenant string) bool {
+	_, ok := gOper[tenant]
+	return ok
+}
+
 func (g *Oper) Update(d core.StateDriver) error {
+	key := fmt.Sprintf(OPER_GLOBAL_PATH, g.Tenant)
 	value, err := json.Marshal(g)
 	if err != nil {
 		return err
 	}
 
-	return d.Write(OPER_GLOBAL, value)
+	return d.Write(key, value)
 }
 
-func (g *Oper) Read(d core.StateDriver) error {
-	value, err := d.Read(OPER_GLOBAL)
+func (g *Oper) Read(d core.StateDriver, tenant string) error {
+	key := fmt.Sprintf(OPER_GLOBAL_PATH, tenant)
+	value, err := d.Read(key)
 	if err != nil {
 		return err
 	}
@@ -344,11 +354,19 @@ func (g *Oper) FreeSubnet(subnetIp string) error {
 	return nil
 }
 
-func clearState() error {
-	gOper = nil
+var gCfg map[string]*Cfg
+var gOper map[string]*Oper
+
+func clearState(tenant string) error {
 	gCfg = nil
+	gOper = nil
 
 	return nil
+}
+
+func cfgExists(tenant string) bool {
+	_, ok := gCfg[tenant]
+	return ok
 }
 
 // process config state and spew out new oper state
@@ -365,36 +383,51 @@ func (gc *Cfg) Process() (*Oper, error) {
 		return nil, errors.New(fmt.Sprintf(
 			"process failed on error checks %s \n", err))
 	}
-	if gCfg != nil || gOper != nil {
-		return nil, errors.New("updates on global config not supported yet")
+
+	tenant := gc.Tenant
+	if tenant == "" {
+		return nil, errors.New("null tenant")
 	}
 
-	if gOper == nil {
-		gOper = &Oper{SubnetLen: gc.Auto.SubnetLen,
-			DefaultNetType: gc.Deploy.DefaultNetType,
-			AllocSubnetLen: gc.Auto.AllocSubnetLen,
-			SubnetPool:     gc.Auto.SubnetPool}
+	if cfgExists(tenant) {
+		return nil, errors.New("tenant cfg updates not supported yet")
+	} else {
+		gCfg = make(map[string]*Cfg)
+	}
 
-		allocSubnetSize := gc.Auto.AllocSubnetLen - gc.Auto.SubnetLen
+	if operExists(tenant) {
+		return nil, errors.New("tenant cfg updates not supported yet")
+	} else {
+		gOper = make(map[string]*Oper)
+	}
 
-		gOper.FreeSubnets = *netutils.CreateBitset(allocSubnetSize).Complement()
+	g := &Oper{
+		Tenant:         gc.Tenant,
+		SubnetLen:      gc.Auto.SubnetLen,
+		DefaultNetType: gc.Deploy.DefaultNetType,
+		AllocSubnetLen: gc.Auto.AllocSubnetLen,
+		SubnetPool:     gc.Auto.SubnetPool}
 
-		err = gOper.initVlanBitset(gc.Auto.Vlans)
-		if err != nil {
-			log.Printf("Error '%s' initializing vlans \n", err)
-			return nil, err
-		}
+	allocSubnetSize := gc.Auto.AllocSubnetLen - gc.Auto.SubnetLen
 
-		err = gOper.initVxlanBitset(gc.Auto.Vxlans, gc.Auto.Vlans,
-			gc.Deploy.DefaultNetType)
-		if err != nil {
-			log.Printf("Error '%s' initializing vlans \n", err)
-			return nil, err
-		}
+	g.FreeSubnets = *netutils.CreateBitset(allocSubnetSize).Complement()
+
+	err = g.initVlanBitset(gc.Auto.Vlans)
+	if err != nil {
+		log.Printf("Error '%s' initializing vlans \n", err)
+		return nil, err
+	}
+
+	err = g.initVxlanBitset(gc.Auto.Vxlans, gc.Auto.Vlans,
+		gc.Deploy.DefaultNetType)
+	if err != nil {
+		log.Printf("Error '%s' initializing vlans \n", err)
+		return nil, err
 	}
 
 	// log.Printf("updating the global config to new state %v \n", gc)
-	gCfg = gc
+	gCfg[tenant] = gc
+	gOper[tenant] = g
 
-	return gOper, nil
+	return g, nil
 }

@@ -41,14 +41,20 @@ const (
 func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool) error {
 	var err error
 
-    gOper := &gstate.Oper{}
-    err = gOper.Read(netPlugin.StateDriver)
-    if err != nil {
-        return err
-    }
-    if gOper.DefaultNetType != "vxlan" {
-        return nil
-    }
+	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: netPlugin.StateDriver}
+	err = cfgNet.Read(netId)
+	if err != nil {
+		return err
+	}
+
+	gOper := &gstate.Oper{}
+	err = gOper.Read(netPlugin.StateDriver, cfgNet.Tenant)
+	if err != nil {
+		return err
+	}
+	if gOper.DefaultNetType != "vxlan" {
+		return nil
+	}
 
 	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
 
@@ -97,20 +103,26 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 		var err error = nil
 		log.Printf("Received event for key: %s", node.Key)
 		switch key := node.Key; {
-		case strings.HasPrefix(key, gstate.CFG_GLOBAL):
+		case strings.HasPrefix(key, gstate.CFG_GLOBAL_PREFIX):
 			var gOper *gstate.Oper
 
+			tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
 			gCfg := &gstate.Cfg{}
-			gCfg.Read(netPlugin.StateDriver)
+			err = gCfg.Read(netPlugin.StateDriver, tenant)
+			if err != nil {
+				log.Printf("Error '%s' reading tenant %s \n", err, tenant)
+				continue
+			}
+
 			gOper, err = gCfg.Process()
 			if err != nil {
 				log.Printf("Error '%s' updating the config %v \n", err, gCfg)
-			} else {
-				err = gOper.Update(netPlugin.StateDriver)
-				if err != nil {
-					log.Printf("error '%s' updating goper state %v \n",
-						err, gOper)
-				}
+				continue
+			}
+
+			err = gOper.Update(netPlugin.StateDriver)
+			if err != nil {
+				log.Printf("error '%s' updating goper state %v \n", err, gOper)
 			}
 
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):

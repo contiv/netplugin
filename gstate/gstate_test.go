@@ -23,6 +23,7 @@ func TestGlobalConfigAutoVlans(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
+            "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
@@ -36,7 +37,7 @@ func TestGlobalConfigAutoVlans(t *testing.T) {
         }`)
 	var vlan uint
 	var g *Oper
-	defer func() { clearState() }()
+	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -66,6 +67,7 @@ func TestGlobalConfigSpecificVlans(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
+            "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
@@ -79,7 +81,7 @@ func TestGlobalConfigSpecificVlans(t *testing.T) {
         }`)
 	var vlan uint
 	var g *Oper
-	defer func() { clearState() }()
+	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -109,6 +111,7 @@ func TestGlobalConfigAutoVxlan(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
+            "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
@@ -122,7 +125,7 @@ func TestGlobalConfigAutoVxlan(t *testing.T) {
         }`)
 	var vxlan, localVlan uint
 	var g *Oper
-	defer func() { clearState() }()
+	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -161,6 +164,7 @@ func TestGlobalConfigSpecificVxlans(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
+            "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
@@ -174,7 +178,7 @@ func TestGlobalConfigSpecificVxlans(t *testing.T) {
         }`)
 	var vxlan, localVlan uint
 	var g *Oper
-	defer func() { clearState() }()
+	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -213,6 +217,7 @@ func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
+            "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
@@ -226,7 +231,7 @@ func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
         }`)
 	var vlan, localVlan, vxlan uint
 	var g *Oper
-	defer func() { clearState() }()
+	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -273,6 +278,7 @@ func TestInvalidGlobalConfig(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
+            "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11..5.0.0",
                 "SubnetLen"         : 16,
@@ -293,6 +299,7 @@ func TestInvalidGlobalConfig(t *testing.T) {
 	cfgData = []byte(`
         {
             "Version" : "0.01",
+            "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
@@ -313,6 +320,7 @@ func TestInvalidGlobalConfig(t *testing.T) {
 	cfgData = []byte(`
         {
             "Version" : "0.01",
+            "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 22,

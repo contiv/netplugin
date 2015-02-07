@@ -326,7 +326,7 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 }
 
 func vxlanIfName(netId, vtepIp string) string {
-	return fmt.Sprintf(VXLAN_IFNAME_FMT, 
+	return fmt.Sprintf(VXLAN_IFNAME_FMT,
 		netId, strings.Replace(vtepIp, ".", "", -1))
 }
 
@@ -438,7 +438,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		return err
 	}
 
-	err = gOper.Read(d.stateDriver)
+	err = gOper.Read(d.stateDriver, cfgNetState.Tenant)
 	if err != nil {
 		return err
 	}
@@ -530,7 +530,7 @@ func (d *OvsDriver) DeleteNetwork(id string) error {
 		return err
 	}
 
-	err = gOper.Read(d.stateDriver)
+	err = gOper.Read(d.stateDriver, cfgNetState.Tenant)
 	if err != nil {
 		return err
 	}

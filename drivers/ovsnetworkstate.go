@@ -41,6 +41,7 @@ const (
 
 type OvsCfgNetworkState struct {
 	StateDriver core.StateDriver `json:"-"`
+	Tenant      string           `json:"tenant"`
 	PktTagType  string           `json:"pktTagType"`
 	PktTag      string           `json:"pktTag"`
 	SubnetIp    string           `json:"subnetIp"`

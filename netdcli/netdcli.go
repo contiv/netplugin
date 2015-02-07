@@ -107,8 +107,9 @@ type cliOpts struct {
 	help           bool
 	cfgFile        bool
 	oper           Operation
-	etcdUrl        string
 	construct      Construct
+	etcdUrl        string
+	tenant         string
 	netId          string
 	pktTag         string
 	pktTagType     string
@@ -146,6 +147,10 @@ func init() {
 		"etcd-url",
 		"http://127.0.0.1:4001",
 		"Etcd cluster url")
+	flagSet.StringVar(&opts.tenant,
+		"tenant",
+		"default",
+		"tenant id associated with the construct (global/network/ep)")
 	flagSet.StringVar(&opts.netId,
 		"net-id",
 		"",
@@ -386,6 +391,7 @@ func executeOpts(opts *cliOpts) error {
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
 			nwCfg.PktTag = opts.pktTag
+			nwCfg.Tenant = opts.tenant
 			nwCfg.PktTagType = opts.pktTagType
 			nwCfg.SubnetIp = opts.subnetIp
 			nwCfg.SubnetLen = opts.subnetLen
@@ -396,10 +402,11 @@ func executeOpts(opts *cliOpts) error {
 	case CLI_CONSTRUCT_GLOBAL:
 		var gcfg gstate.Cfg
 		if opts.oper.Get() == CLI_OPER_GET {
-			err = gcfg.Read(etcdDriver)
+			err = gcfg.Read(etcdDriver, opts.tenant)
 			log.Printf("State: %v \n", gcfg)
 		} else {
 			gcfg.Version = gstate.VersionBeta1
+			gcfg.Tenant = opts.tenant
 			gcfg.Deploy.DefaultNetType = opts.pktTagType
 			gcfg.Auto.SubnetPool = opts.subnetIp
 			gcfg.Auto.SubnetLen = opts.subnetLen

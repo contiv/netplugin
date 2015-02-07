@@ -1,49 +1,52 @@
 
 {
-    "DefaultNetType"            : "vlan",
-    "SubnetPool"                : "11.1.0.0/16",
-    "AllocSubnetLen"            : 24,
-    "Vlans"                     : "11-48",
-    "Networks"  : [
-    {
-        "Name"                  : "infra",
-        "PktTag"                : "0",
-        "Endpoints" : [
+    "Tenants" : [ {
+        "Name"                      : "tenant-one"
+        "DefaultNetType"            : "vlan",
+        "SubnetPool"                : "11.1.0.0/16",
+        "AllocSubnetLen"            : 24,
+        "Vlans"                     : "11-48",
+        "Networks"  : [
         {
-            "Host"              : "host1",
-            "Intf"              : "eth2"
+            "Name"                  : "infra",
+            "PktTag"                : "0",
+            "Endpoints" : [
+            {
+                "Host"              : "host1",
+                "Intf"              : "eth2"
+            },
+            {
+                "Host"              : "host2",
+                "Intf"              : "eth2"
+            }
+            ]
         },
         {
-            "Host"              : "host2",
-            "Intf"              : "eth2"
-        }
-        ]
-    },
-    {
-        "Name"                  : "orange",
-        "Endpoints" : [
-        {
-            "Container"         : "myContainer1",
-            "Host"              : "host1"
+            "Name"                  : "orange",
+            "Endpoints" : [
+            {
+                "Container"         : "myContainer1",
+                "Host"              : "host1"
+            },
+            {
+                "Container"         : "myContainer3",
+                "Host"              : "host2"
+            }
+            ]
         },
         {
-            "Container"         : "myContainer3",
-            "Host"              : "host2"
+            "Name"                  : "purple",
+            "Endpoints" : [
+            {
+                "Container"         : "myContainer2",
+                "Host"              : "host1"
+            },
+            {
+                "Container"         : "myContainer4",
+                "Host"              : "host2"
+            }
+            ]
         }
         ]
-    },
-    {
-        "Name"                  : "purple",
-        "Endpoints" : [
-        {
-            "Container"         : "myContainer2",
-            "Host"              : "host1"
-        },
-        {
-            "Container"         : "myContainer4",
-            "Host"              : "host2"
-        }
-        ]
-    }
-    ]
+    } ]
 }
