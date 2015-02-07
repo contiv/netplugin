@@ -17,7 +17,7 @@ package drivers
 
 import (
 	"fmt"
-	"github.com/coreos/go-etcd/etcd"
+	"github.com/contiv/go-etcd/etcd"
 
 	"github.com/contiv/netplugin/core"
 )

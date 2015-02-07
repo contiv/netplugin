@@ -25,7 +25,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
-	"github.com/socketplane/libovsdb"
+	"github.com/contiv/libovsdb"
 )
 
 // implements the NetworkDriver and EndpointDriver interface for an vlan based

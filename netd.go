@@ -18,7 +18,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/coreos/go-etcd/etcd"
+	"github.com/contiv/go-etcd/etcd"
 	"github.com/samalba/dockerclient"
 	"log"
 	"os"
