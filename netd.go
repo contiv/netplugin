@@ -17,7 +17,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/contiv/go-etcd/etcd"
 	"github.com/samalba/dockerclient"
 	"log"
@@ -38,7 +37,13 @@ const (
 	RECURSIVE = true
 )
 
-func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool) error {
+type cliOpts struct {
+	hostLabel   string
+	publishVtep bool
+}
+
+func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool,
+    opts cliOpts) error {
 	var err error
 
 	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: netPlugin.StateDriver}
@@ -86,157 +91,207 @@ func skipHost(vtepIp, homingHost, myHostLabel string) bool {
 		vtepIp != "" && homingHost == myHostLabel)
 }
 
+func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
+	keys, err := netPlugin.StateDriver.ReadRecursive(gstate.CFG_GLOBAL_PREFIX)
+	if err != nil {
+		return err
+	}
+	for idx, key := range keys {
+        log.Printf("read global key[%d] %s, populating state \n", idx, key)
+        processGlobalEvent(netPlugin, key, false)
+	}
+
+	keys, err = netPlugin.StateDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
+	if err != nil {
+		return err
+	}
+	for idx, key := range keys {
+        log.Printf("read net key[%d] %s, populating state \n", idx, key)
+        processNetEvent(netPlugin, key, false, opts)
+	}
+
+	keys, err = netPlugin.StateDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
+	if err != nil {
+		return err
+	}
+	for idx, key := range keys {
+        log.Printf("read ep key[%d] %s, populating state \n", idx, key)
+        processEpEvent(netPlugin, key, false, opts) 
+	}
+
+    return nil
+}
+
+func processGlobalEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool) (err error) {
+    var gOper *gstate.Oper
+
+	tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
+	gCfg := &gstate.Cfg{}
+	err = gCfg.Read(netPlugin.StateDriver, tenant)
+	if err != nil {
+		log.Printf("Error '%s' reading tenant %s \n", err, tenant)
+		return
+	}
+
+	gOper, err = gCfg.Process()
+	if err != nil {
+		log.Printf("Error '%s' updating the config %v \n", err, gCfg)
+		return
+	}
+
+	err = gOper.Update(netPlugin.StateDriver)
+	if err != nil {
+		log.Printf("error '%s' updating goper state %v \n", err, gOper)
+	}
+
+    return 
+}
+
+func processNetEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool, 
+    opts cliOpts) (err error) {
+
+    netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
+
+    operStr := ""
+	if isDelete {
+		err = netPlugin.DeleteNetwork(netId)
+		operStr = "delete"
+	} else {
+		err = netPlugin.CreateNetwork(netId)
+		operStr = "create"
+	}
+	if err != nil {
+		log.Printf("Network operation %s failed. Error: %s", operStr, err)
+	} else {
+		log.Printf("Network operation %s succeeded", operStr)
+	}
+	if opts.publishVtep {
+		createDeleteVtep(netPlugin, netId, isDelete, opts)
+	}
+
+    return 
+}
+
+func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool, 
+    opts cliOpts) (err error) {
+	epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
+
+	homingHost := ""
+	vtepIp := ""
+	if !isDelete {
+		epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
+		err = epCfg.Read(epId)
+		if err != nil {
+			log.Printf("Failed to read config for ep '%s' \n", epId)
+			return
+		}
+		homingHost = epCfg.HomingHost
+		vtepIp = epCfg.VtepIp
+	} else {
+		epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
+		err = epOper.Read(epId)
+		if err != nil {
+			log.Printf("Failed to read oper state for ep '%s' \n", epId)
+			return
+		}
+		homingHost = epOper.HomingHost
+		vtepIp = epOper.VtepIp
+	}
+	if skipHost(vtepIp, homingHost, opts.hostLabel) {
+		log.Printf("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
+			epId, homingHost, opts.hostLabel)
+		return
+	}
+
+	// read the context before to be compared with what changed after
+	contEpContext, err := netPlugin.GetEndpointContainerContext(epId)
+	if err != nil {
+		log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
+		return
+	}
+	log.Printf("read endpoint context: %s \n", contEpContext)
+
+    operStr := ""
+	if isDelete {
+		err = netPlugin.DeleteEndpoint(epId)
+		operStr = "delete"
+	} else {
+		err = netPlugin.CreateEndpoint(epId)
+		operStr = "create"
+	}
+	if err != nil {
+		log.Printf("Endpoint operation %s failed. Error: %s",
+			operStr, err)
+        return
+	}
+	log.Printf("Endpoint operation %s succeeded", operStr)
+
+	// attach or detach an endpoint to a container
+	if isDelete ||
+		(contEpContext.NewContName == "" && contEpContext.CurrContName != "") {
+		err = netPlugin.DetachEndpoint(contEpContext)
+		if err != nil {
+			log.Printf("Endpoint detach container '%s' from ep '%s' failed . "+
+				"Error: %s", contEpContext.CurrContName, epId, err)
+		} else {
+			log.Printf("Endpoint detach container '%s' from ep '%s' succeeded",
+				contEpContext.CurrContName, epId)
+		}
+	}
+	if !isDelete && contEpContext.NewContName != "" {
+		// re-read post ep updated state
+		newContEpContext, err1 := netPlugin.GetEndpointContainerContext(epId)
+		if err1 != nil {
+			log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
+			return
+		}
+		contEpContext.InterfaceId = newContEpContext.InterfaceId
+		contEpContext.IpAddress = newContEpContext.IpAddress
+		contEpContext.SubnetLen = newContEpContext.SubnetLen
+
+		err = netPlugin.AttachEndpoint(contEpContext)
+		if err != nil {
+			log.Printf("Endpoint attach container '%s' to ep '%s' failed . "+
+				"Error: %s", contEpContext.NewContName, epId, err)
+		} else {
+			log.Printf("Endpoint attach container '%s' to ep '%s' succeeded",
+				contEpContext.NewContName, epId)
+		}
+		contId := netPlugin.GetContainerId(contEpContext.NewContName)
+		if contId != "" {
+			err = netPlugin.UpdateContainerId(epId, contId)
+			if err != nil {
+				log.Printf("Cont id update err '%s' to ep '%s' - contid %s\n",
+					contEpContext.NewContName, epId, contId)
+			}
+		}
+	}
+
+    return
+}
+
 func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
-	stop chan bool, retErr chan error) {
+	stop chan bool, retErr chan error, opts cliOpts) {
 	for {
 		// block on change notifications
 		rsp := <-rsps
 
-		// determine if the Node is interesting
-		// XXX: how does etcd notifies deletes.
 		isDelete := false
-		operStr := ""
 		node := rsp.Node
 		if rsp.Node.Value == "" {
 			isDelete = true
 		}
-		var err error = nil
+
 		log.Printf("Received event for key: %s", node.Key)
 		switch key := node.Key; {
 		case strings.HasPrefix(key, gstate.CFG_GLOBAL_PREFIX):
-			var gOper *gstate.Oper
-
-			tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
-			gCfg := &gstate.Cfg{}
-			err = gCfg.Read(netPlugin.StateDriver, tenant)
-			if err != nil {
-				log.Printf("Error '%s' reading tenant %s \n", err, tenant)
-				continue
-			}
-
-			gOper, err = gCfg.Process()
-			if err != nil {
-				log.Printf("Error '%s' updating the config %v \n", err, gCfg)
-				continue
-			}
-
-			err = gOper.Update(netPlugin.StateDriver)
-			if err != nil {
-				log.Printf("error '%s' updating goper state %v \n", err, gOper)
-			}
+            processGlobalEvent(netPlugin, key, isDelete)
 
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
-			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
-			if isDelete {
-				err = netPlugin.DeleteNetwork(netId)
-				operStr = "delete"
-			} else {
-				err = netPlugin.CreateNetwork(netId)
-				operStr = "create"
-			}
-			if err != nil {
-				log.Printf("Network operation %s failed. Error: %s",
-					operStr, err)
-			} else {
-				log.Printf("Network operation %s succeeded", operStr)
-			}
-			if opts.publishVtep {
-				createDeleteVtep(netPlugin, netId, isDelete)
-			}
+            processNetEvent(netPlugin, key, isDelete, opts)
 
 		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
-			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
-
-			// act on the endpoint only if we are the homing host
-			homingHost := ""
-			vtepIp := ""
-			if !isDelete {
-				epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
-				err = epCfg.Read(epId)
-				if err != nil {
-					log.Printf("Failed to read config for ep '%s' \n", epId)
-					continue
-				}
-				homingHost = epCfg.HomingHost
-				vtepIp = epCfg.VtepIp
-			} else {
-				epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
-				err = epOper.Read(epId)
-				if err != nil {
-					log.Printf("Failed to read oper state for ep '%s' \n", epId)
-					continue
-				}
-				homingHost = epOper.HomingHost
-				vtepIp = epOper.VtepIp
-			}
-			if skipHost(vtepIp, homingHost, opts.hostLabel) {
-				log.Printf("Skipping ep %s as it is not expected to be configured on this host. EP's host-label %s (my label: %s)",
-					epId, homingHost, opts.hostLabel)
-				continue
-			}
-
-			// read the context before to be compared with what changed after
-			contEpContext, err := netPlugin.GetEndpointContainerContext(epId)
-			if err != nil {
-				log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
-				continue
-			}
-			log.Printf("read endpoint context: %s \n", contEpContext)
-
-			if isDelete {
-				err = netPlugin.DeleteEndpoint(epId)
-				operStr = "delete"
-			} else {
-				err = netPlugin.CreateEndpoint(epId)
-				operStr = "create"
-			}
-			if err != nil {
-				log.Printf("Endpoint operation %s failed. Error: %s",
-					operStr, err)
-				continue
-			}
-			log.Printf("Endpoint operation %s succeeded", operStr)
-
-			// attach or detach an endpoint to a container
-			if isDelete ||
-				(contEpContext.NewContName == "" && contEpContext.CurrContName != "") {
-				err = netPlugin.DetachEndpoint(contEpContext)
-				if err != nil {
-					log.Printf("Endpoint detach container '%s' from ep '%s' failed . "+
-						"Error: %s", contEpContext.CurrContName, epId, err)
-				} else {
-					log.Printf("Endpoint detach container '%s' from ep '%s' succeeded",
-						contEpContext.CurrContName, epId)
-				}
-			}
-			if !isDelete && contEpContext.NewContName != "" {
-				// re-read post ep updated state
-				newContEpContext, err1 := netPlugin.GetEndpointContainerContext(epId)
-				if err1 != nil {
-					log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
-					continue
-				}
-				contEpContext.InterfaceId = newContEpContext.InterfaceId
-				contEpContext.IpAddress = newContEpContext.IpAddress
-				contEpContext.SubnetLen = newContEpContext.SubnetLen
-
-				err = netPlugin.AttachEndpoint(contEpContext)
-				if err != nil {
-					log.Printf("Endpoint attach container '%s' to ep '%s' failed . "+
-						"Error: %s", contEpContext.NewContName, epId, err)
-				} else {
-					log.Printf("Endpoint attach container '%s' to ep '%s' succeeded",
-						contEpContext.NewContName, epId)
-				}
-				contId := netPlugin.GetContainerId(contEpContext.NewContName)
-				if contId != "" {
-					err = netPlugin.UpdateContainerId(epId, contId)
-					if err != nil {
-						log.Printf("Cont id update err '%s' to ep '%s' - contid %s\n",
-							contEpContext.NewContName, epId, contId)
-					}
-				}
-			}
+            processEpEvent(netPlugin, key, isDelete, opts) 
 		}
 	}
 
@@ -307,7 +362,7 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 	}
 }
 
-func run(netPlugin *plugin.NetPlugin) error {
+func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 	// watch the etcd changes and call the respective plugin APIs
 	rsps := make(chan *etcd.Response)
 	recvErr := make(chan error, 1)
@@ -315,7 +370,7 @@ func run(netPlugin *plugin.NetPlugin) error {
 	etcdDriver := netPlugin.StateDriver.(*drivers.EtcdStateDriver)
 	etcdClient := etcdDriver.Client
 
-	go handleEtcdEvents(netPlugin, rsps, stop, recvErr)
+	go handleEtcdEvents(netPlugin, rsps, stop, recvErr, opts)
 
 	// start docker client and handle docker events
 	// wait on error chan for problems handling the docker events
@@ -339,20 +394,10 @@ func run(netPlugin *plugin.NetPlugin) error {
 	return nil
 }
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
-	flagSet.PrintDefaults()
-}
-
-type cliOpts struct {
-	hostLabel   string
-	publishVtep bool
-}
-
-var opts cliOpts
-var flagSet *flag.FlagSet
-
 func main() {
+    var opts cliOpts
+    var flagSet *flag.FlagSet
+
 	defHostLabel, err := os.Hostname()
 	if err != nil {
 		log.Printf("Failed to fetch hostname. Error: %s", err)
@@ -404,10 +449,12 @@ func main() {
 		os.Exit(1)
 	}
 
+    processCurrentState(netPlugin, opts)
+
 	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
 	//etcd.SetLogger(logger)
 
-	err = run(netPlugin)
+	err = handleEvents(netPlugin, opts)
 	if err != nil {
 		os.Exit(1)
 	} else {

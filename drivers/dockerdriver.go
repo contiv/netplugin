@@ -30,9 +30,6 @@ import (
 	// "github.com/vishvananda/netns"
 )
 
-// implements the StateDriver interface for an etcd based distributed
-// key-value store used to store config and runtime state for the netplugin.
-
 type DockerDriverConfig struct {
 	Docker struct {
 		Socket string
