@@ -6,6 +6,14 @@
 # allow easy experimentation on failure runs or crashes that leaves
 # system in invalid state 
 
+# Note: issuing ovs-vsctl needs 'root' permission otherwise
+# cleanup will silently fail. Make sure the caller invokes this script
+# as 'root' or 'sudo'.
+if [ "$(id -u)" != "0" ]; then
+    echo "Please run as root:$(id -u):"
+    exit 1
+fi
+
 if ! $(which etcdctl > /dev/null 2>&1)
 then
     echo "etcdctl not found !\n"
@@ -21,4 +29,5 @@ fi
 etcdctl rm -recursive /contiv > /dev/null 2>&1
 ovs-vsctl del-br contivBridge > /dev/null 2>&1
 
-# ip link delete portx
+echo "cleanup complete!"
+exit 0

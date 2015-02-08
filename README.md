@@ -16,40 +16,43 @@ The ability to specify the intent succinctly is the primary goal of the design a
 
 ###Building and Testing
 
-`vagrant up`
+- Build:
 
-Note:
-- Make sure VirtualBox is installed
-- The guest VM provisioning requires downloading packages from the Internet, so a http-proxy needs to be set in the VM. If you are behind one else the VM setup will fail. It can be specified by setting the VAGRANT_ENV variable to a string of a space separated `<env-var>=<value>` pairs.
-`CONTIV_ENV="http_proxy=http://my.proxy.url https_proxy=http://my.proxy.url" vagrant up`
+  `make build`
 
-`vagrant up`
+   Note:
+   - building the project requires Go1.4. Instructions to install Go can be found at: https://golang.org/doc/install
 
-`vagrant ssh netplugin-node1`
+- Run unit-tests:
 
-`sudo -s`
+  `make unit-test`
 
-`source /etc/profile.d/envvar.sh`
+- Run system-tests:
 
-`cd $GOSRC/github.com/contiv/netplugin`
-
-`make unit-test`
+  `make system-test`
 
 ###Trying it out 
 
-The netplugin produces two binaries, a netplugin daemon and a netdcli tool to interact with it.
+The netplugin produces two binaries, a netplugin daemon and a netdcli tool to interact with it. The binaries can tried out in a vagrant environment, which can be setup as follows.
+
+`make demo`
+
+Note:
+- Make sure VirtualBox is installed
+
+`vagrant ssh netplugin-node1`
 
 ####A quick example
 
 1. Start netplugin
 
-    `netplugin`
+    `sudo netplugin`
 
 2. Create two containers `myContainer1` and `myContainer2`
 
-    `docker run -it --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash`
+    `sudo docker run -it --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash`
 
-    `docker run -it --name=myContainer2 --hostname=myContainer2 ubuntu /bin/bash`
+    `sudo docker run -it --name=myContainer2 --hostname=myContainer2 ubuntu /bin/bash`
 
 3. Launch a desired configuration for the two containers
 
