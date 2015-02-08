@@ -43,7 +43,7 @@ type cliOpts struct {
 }
 
 func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool,
-    opts cliOpts) error {
+	opts cliOpts) error {
 	var err error
 
 	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: netPlugin.StateDriver}
@@ -97,8 +97,8 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 		return err
 	}
 	for idx, key := range keys {
-        log.Printf("read global key[%d] %s, populating state \n", idx, key)
-        processGlobalEvent(netPlugin, key, false)
+		log.Printf("read global key[%d] %s, populating state \n", idx, key)
+		processGlobalEvent(netPlugin, key, false)
 	}
 
 	keys, err = netPlugin.StateDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
@@ -106,8 +106,8 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 		return err
 	}
 	for idx, key := range keys {
-        log.Printf("read net key[%d] %s, populating state \n", idx, key)
-        processNetEvent(netPlugin, key, false, opts)
+		log.Printf("read net key[%d] %s, populating state \n", idx, key)
+		processNetEvent(netPlugin, key, false, opts)
 	}
 
 	keys, err = netPlugin.StateDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
@@ -115,15 +115,15 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 		return err
 	}
 	for idx, key := range keys {
-        log.Printf("read ep key[%d] %s, populating state \n", idx, key)
-        processEpEvent(netPlugin, key, false, opts) 
+		log.Printf("read ep key[%d] %s, populating state \n", idx, key)
+		processEpEvent(netPlugin, key, false, opts)
 	}
 
-    return nil
+	return nil
 }
 
 func processGlobalEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool) (err error) {
-    var gOper *gstate.Oper
+	var gOper *gstate.Oper
 
 	tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
 	gCfg := &gstate.Cfg{}
@@ -144,15 +144,15 @@ func processGlobalEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool) 
 		log.Printf("error '%s' updating goper state %v \n", err, gOper)
 	}
 
-    return 
+	return
 }
 
-func processNetEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool, 
-    opts cliOpts) (err error) {
+func processNetEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
+	opts cliOpts) (err error) {
 
-    netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
+	netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
 
-    operStr := ""
+	operStr := ""
 	if isDelete {
 		err = netPlugin.DeleteNetwork(netId)
 		operStr = "delete"
@@ -169,11 +169,11 @@ func processNetEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 		createDeleteVtep(netPlugin, netId, isDelete, opts)
 	}
 
-    return 
+	return
 }
 
-func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool, 
-    opts cliOpts) (err error) {
+func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
+	opts cliOpts) (err error) {
 	epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
 
 	homingHost := ""
@@ -211,7 +211,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 	}
 	log.Printf("read endpoint context: %s \n", contEpContext)
 
-    operStr := ""
+	operStr := ""
 	if isDelete {
 		err = netPlugin.DeleteEndpoint(epId)
 		operStr = "delete"
@@ -222,7 +222,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 	if err != nil {
 		log.Printf("Endpoint operation %s failed. Error: %s",
 			operStr, err)
-        return
+		return
 	}
 	log.Printf("Endpoint operation %s succeeded", operStr)
 
@@ -267,7 +267,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 		}
 	}
 
-    return
+	return
 }
 
 func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
@@ -285,13 +285,13 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 		log.Printf("Received event for key: %s", node.Key)
 		switch key := node.Key; {
 		case strings.HasPrefix(key, gstate.CFG_GLOBAL_PREFIX):
-            processGlobalEvent(netPlugin, key, isDelete)
+			processGlobalEvent(netPlugin, key, isDelete)
 
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
-            processNetEvent(netPlugin, key, isDelete, opts)
+			processNetEvent(netPlugin, key, isDelete, opts)
 
 		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
-            processEpEvent(netPlugin, key, isDelete, opts) 
+			processEpEvent(netPlugin, key, isDelete, opts)
 		}
 	}
 
@@ -395,8 +395,8 @@ func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 }
 
 func main() {
-    var opts cliOpts
-    var flagSet *flag.FlagSet
+	var opts cliOpts
+	var flagSet *flag.FlagSet
 
 	defHostLabel, err := os.Hostname()
 	if err != nil {
@@ -449,7 +449,7 @@ func main() {
 		os.Exit(1)
 	}
 
-    processCurrentState(netPlugin, opts)
+	processCurrentState(netPlugin, opts)
 
 	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
 	//etcd.SetLogger(logger)

@@ -22,10 +22,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
-	"github.com/contiv/libovsdb"
 )
 
 // implements the NetworkDriver and EndpointDriver interface for an vlan based
@@ -432,6 +432,12 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 	var subnetIp string
 	var gOper gstate.Oper
 
+	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
+	err = operNwState.Read(id)
+	if err == nil {
+		return err
+	}
+
 	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
 	err = cfgNetState.Read(id)
 	if err != nil {
@@ -443,7 +449,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		return err
 	}
 
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver,
+	operNwState = OvsOperNetworkState{StateDriver: d.stateDriver,
 		Id: cfgNetState.Id, PktTagType: cfgNetState.PktTagType,
 		DefaultGw: cfgNetState.DefaultGw}
 
