@@ -105,8 +105,8 @@ Look at [examples/two_host_vlan.json](examples/two_host_vlan.json) that depicts 
 
 ####Multi-tenant network
 
-In the examples directory [one_host_multiple_nets.json](examples/one_host_multiple_nets.json) and 
-[two_hosts_multiple_vxlan_nets.json](examples/two_hosts_multiple_vxlan_nets.json) shows the creation of a multi-tenant
+In the examples directory [two_hosts_multiple_tenants.json](examples/two_hosts_multiple_tenants.json) and 
+[two_hosts_multiple_tenants_mix_vlan_vxlan.json](examples/two_hosts_multiple_tenants_mix_vlan_vxlan.json) shows the creation of a multi-tenant
 (disjoint, overlapping) networks within a cluster.
 
 ####Auto-allocation of IP addresses
