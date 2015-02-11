@@ -5,7 +5,7 @@
         "DefaultNetType"            : "vlan",
         "SubnetPool"                : "11.1.0.0/16",
         "AllocSubnetLen"            : 24,
-        "Vxlans"                    : "200-300",
+        "Vlans"                     : "200-300",
         "Networks"  : [
         {
             "Name"                  : "infra",
