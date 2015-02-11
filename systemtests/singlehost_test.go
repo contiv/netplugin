@@ -42,7 +42,7 @@ func TestSingleHostSingleVlanFromFile(t *testing.T) {
 	}()
 
 	//start the netplugin
-	output, err := node.RunCommandWithOutput("sudo nohup netplugin -host-label host1 0<&- &>/tmp/netplugin.log &")
+	output, err := node.RunCommandWithOutput("sudo PATH=$PATH nohup netplugin -host-label host1 0<&- &>/tmp/netplugin.log &")
 	if err != nil {
 		t.Fatalf("Failed to launch netplugin. Error: %s, Output: \n%s\n",
 			err, output)
@@ -55,22 +55,25 @@ func TestSingleHostSingleVlanFromFile(t *testing.T) {
 	//create a single vlan network, with two endpoints and static IPs
 	jsonCfg :=
 		`{
-        "DefaultNetType"            : "vlan",
-        "SubnetPool"                : "11.1.0.0/16",
-        "AllocSubnetLen"            : 24,
-        "Vlans"                     : "11-48",
-        "Networks"  : [ {
-            "Name"                  : "orange",
-            "Endpoints" : [
-            {
-                "Container"         : "myContainer1",
-                "Host"              : "host1"
-            },
-            {
-                "Container"         : "myContainer2",
-                "Host"              : "host1"
-            }
-            ]
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "Vlans"                     : "11-48",
+            "Networks"  : [ {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host1"
+                }
+                ]
+            } ]
         } ]
         }`
 

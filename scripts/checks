@@ -2,12 +2,6 @@
 
 #performs basic dev and build environment checks
 
-echo "Checking GOBIN is set..."
-if [ $GOBIN == "" ]; then
-    echo "GOBIN needs to be set to proceed. Usually it's GOPATH/bin"
-    exit 1
-fi
-
 echo "Checking Go version..."
 ver=$(go version | awk '{print $3}')
 if [[ $ver < "go1.4" ]]; then

@@ -15,17 +15,13 @@ clean:
 	go clean -i -v ./...
 
 demo: build
-	CONTIV_ENV=$(CONTIV_ENV) CONTIV_NODES=$(CONTIV_NODES) vagrant up
+	CONTIV_ENV="$(CONTIV_ENV)" CONTIV_NODES=$(CONTIV_NODES) vagrant up
 
 clean-demo:
 	CONTIV_NODES=$(CONTIV_NODES) vagrant destroy -f
 
 unit-test: build
-	go test -v github.com/contiv/netplugin/drivers  \
-		github.com/contiv/netplugin/plugin          \
-		github.com/contiv/netplugin/netutils        \
-		github.com/contiv/netplugin/gstate          \
-
+	./scripts/unittests -vagrant
 
 system-test: build
 	go test -v github.com/contiv/netplugin/systemtests

@@ -1,12 +1,12 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-netplugin_synced_bindir="/netplugin-bin"
+netplugin_synced_gopath="/opt/golang"
 
 provision_common = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
-echo 'export GOPATH=/opt/golang' > /etc/profile.d/envvar.sh
+echo 'export GOPATH=#{netplugin_synced_gopath}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
@@ -16,12 +16,9 @@ fi
 
 ## set the mounted host filesystems to be read-only
 (mount -o remount,ro,exec /vagrant) || exit 1
-if [ -e #{netplugin_synced_bindir} ]; then
-    (mount -o remount,ro,exec #{netplugin_synced_bindir}) || exit 1
+if [ -e #{netplugin_synced_gopath} ]; then
+    (mount -o remount,ro,exec #{netplugin_synced_gopath}) || exit 1
 fi
-
-## source the environment
-. /etc/profile.d/envvar.sh || exit 1
 
 ### install basic packages
 #(apt-get update -qq > /dev/null && apt-get install -y vim curl python-software-properties git > /dev/null) || exit 1
@@ -49,19 +46,10 @@ if [ $# -gt 0 ]; then
      service docker restart) || exit 1
 fi
 
-## link the netplugin repo, for read access to examples and scripts
-(mkdir -p $GOSRC/github.com/contiv && \
-ln -s /vagrant $GOSRC/github.com/contiv/netplugin) || exit 1
-
-## link the netplugin binary, so that they are in $PATH
-(cd /usr/local/bin/ && \
- ln -s #{netplugin_synced_bindir}/netplugin && \
- ln -s #{netplugin_synced_bindir}/netdcli) || exit 1
-
 ## install openvswitch and enable ovsdb-server to listen for incoming requests
 #(apt-get install -y openvswitch-switch > /dev/null) || exit 1
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
-ovs-vsctl set-manager ptcp:6640) || exit 1
+ ovs-vsctl set-manager ptcp:6640) || exit 1
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
@@ -104,14 +92,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             # so will remount the parition as part of provisioning later and
             # change options
             #node.vm.synced_folder ".", "/vagrant", mount_options: ["ro", "exec"]
+            #node.vm.synced_folder ENV['GOPATH'], netplugin_synced_gopath, mount_options: ["ro", "exec"]
             node.vm.synced_folder ".", "/vagrant"
-            if ENV['GOBIN'] then
-                #node.vm.synced_folder ENV['GOBIN'],
-                #    netplugin_synced_bindir,
-                #    mount_options: ["ro", "exec"]
-                node.vm.synced_folder ENV['GOBIN'],
-                    netplugin_synced_bindir
-            end
+            node.vm.synced_folder ENV['GOPATH'], netplugin_synced_gopath
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
                 s.args = ENV['CONTIV_ENV']

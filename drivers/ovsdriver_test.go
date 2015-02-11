@@ -123,7 +123,7 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 			} else {
 				operEp.Id = createEpId
 			}
-		} else if !isCreateEp {
+		} else {
 			if oper == READ_VXLAN_EP {
 				operEp.Id = deleteVxlanEpId
 			} else if oper == READ_EP_WITH_INTF {

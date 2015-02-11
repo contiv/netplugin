@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# a wrapper script to run the unit-tests. On the host it shall setup a one node
+# vagrant environment and trigger the unit tests in the sandbox vm. This is
+# needed since some unit-tests depend on the external daemon like ovs, etcd
+# etc to be setup.
+
+USAGE="${0} -vagrant"
+
+run_in_vagrant=false
+test_packages="github.com/contiv/netplugin/drivers \
+    github.com/contiv/netplugin/plugin \
+    github.com/contiv/netplugin/netutils \
+    github.com/contiv/netplugin/gstate"
+
+while [ "${#}" -gt 0 ]
+do
+    case "${1}" in
+        -vagrant)
+            run_in_vagrant=true
+            break;;
+        *)
+            echo "${USAGE}" 1>&2
+            exit 1;;
+    esac
+    shift
+done
+
+# running on host
+if ${run_in_vagrant}; then
+    (CONTIV_NODES=1 CONTIV_ENV=$CONTIV_ENV vagrant up)
+    ret=$?
+    if [ ${ret} -ne 0 ]; then
+        (CONTIV_NODES=1 vagrant destroy -f)
+        exit 1
+    fi
+
+    # XXX: running unit-tests require root permission due to dependence on ovs
+    # utilities. Need to find a way without 'sudo'.
+    (CONTIV_NODES=1 vagrant ssh netplugin-node1 -c 'sudo -E PATH=$PATH $GOSRC/github.com/contiv/netplugin/'${0})
+    ret=$?
+    if [ ${ret} -ne 0 ]; then
+        (CONTIV_NODES=1 vagrant destroy -f)
+        exit 1
+    fi
+
+    (CONTIV_NODES=1 vagrant destroy -f)
+    echo "Host: Tests succeeded!"
+    exit 0
+fi
+
+# running in the sand box
+(cd $GOSRC/github.com/contiv/netplugin && \
+ go test -v $test_packages) || exit 1
+echo "Sandbox: Tests succeeded!"
+exit 0
