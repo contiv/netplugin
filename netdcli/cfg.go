@@ -19,7 +19,12 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"strings"
 	"time"
+
+	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/gstate"
 )
 
 type ConfigEpJson struct {
@@ -56,6 +61,127 @@ type ConfigJson struct {
 	Tenants []ConfigTenantJson
 }
 
+func getEpName(net *ConfigNetworkJson, ep *ConfigEpJson) string {
+	if ep.Container != "" {
+		return net.Name + "-" + ep.Container
+	} else {
+		return ep.Host + "-native-intf"
+	}
+}
+
+func tenantPresent(allCfg *ConfigJson, tenantId string) bool {
+	for _, tenant := range allCfg.Tenants {
+		if tenantId == tenant.Name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func netPresent(allCfg *ConfigJson, netId string) bool {
+	for _, tenant := range allCfg.Tenants {
+		for _, net := range tenant.Networks {
+			if netId == net.Name {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func epPresent(allCfg *ConfigJson, epId string) bool {
+	for _, tenant := range allCfg.Tenants {
+		for _, net := range tenant.Networks {
+			for _, ep := range net.Endpoints {
+				if epId == getEpName(&net, &ep) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func deleteDelta(allCfg *ConfigJson, defOpts *cliOpts) error {
+
+	etcdDriver := &drivers.EtcdStateDriver{}
+	driverConfig := &drivers.EtcdStateDriverConfig{}
+	driverConfig.Etcd.Machines = []string{defOpts.etcdUrl}
+	config := &core.Config{V: driverConfig}
+	err := etcdDriver.Init(config)
+	if err != nil {
+		log.Fatalf("Failed to init etcd driver. Error: %s", err)
+	}
+
+	keys, err := etcdDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
+		if !epPresent(allCfg, epId) {
+			opts := *defOpts
+			opts.construct.Set(CLI_CONSTRUCT_EP)
+			opts.oper.Set(CLI_OPER_DELETE)
+			opts.idStr = epId
+			log.Printf("deleting ep %s \n", epId)
+
+			err = executeOpts(&opts)
+			if err != nil {
+				log.Printf("error '%s' deleting ep %s \n", err, epId)
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	keys, err = etcdDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
+		if !netPresent(allCfg, netId) {
+			opts := *defOpts
+			opts.construct.Set(CLI_CONSTRUCT_NW)
+			opts.oper.Set(CLI_OPER_DELETE)
+			opts.idStr = netId
+			log.Printf("deleting net %s\n", netId)
+
+			err = executeOpts(&opts)
+			if err != nil {
+				log.Printf("error '%s' deleting net %s \n", err, netId)
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	keys, err = etcdDriver.ReadRecursive(gstate.CFG_GLOBAL_PREFIX)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		tenantId := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
+		if !tenantPresent(allCfg, tenantId) {
+			opts := *defOpts
+			opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
+			opts.oper.Set(CLI_OPER_DELETE)
+			opts.tenant = tenantId
+			log.Printf("deleting tenant %s\n", tenantId)
+
+			err = executeOpts(&opts)
+			if err != nil {
+				log.Printf("error '%s' deleting tenant %s \n", err, tenantId)
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	return nil
+}
+
 func executeJsonCfg(defOpts *cliOpts) error {
 	data, err := ioutil.ReadFile(opts.idStr)
 	if err != nil {
@@ -68,7 +194,9 @@ func executeJsonCfg(defOpts *cliOpts) error {
 		log.Printf("unmarshal error '%s', tenants %v \n", err, allCfg)
 		return err
 	}
-	log.Printf("parsed config %v \n", allCfg)
+	// log.Printf("parsed config %v \n", allCfg)
+
+	deleteDelta(allCfg, defOpts)
 
 	for _, tenant := range allCfg.Tenants {
 		opts := *defOpts
@@ -108,11 +236,7 @@ func executeJsonCfg(defOpts *cliOpts) error {
 				opts = *defOpts
 				opts.construct.Set(CLI_CONSTRUCT_EP)
 				opts.oper.Set(CLI_OPER_CREATE)
-				if ep.Container != "" {
-					opts.idStr = net.Name + "-" + ep.Container
-				} else {
-					opts.idStr = ep.Host + "-native-intf"
-				}
+				opts.idStr = getEpName(&net, &ep)
 				opts.netId = net.Name
 				opts.contName = ep.Container
 				opts.homingHost = ep.Host

@@ -168,9 +168,10 @@ func (gc *Cfg) Read(d core.StateDriver, tenant string) error {
 	return nil
 }
 
-func operExists(tenant string) bool {
-	_, ok := gOper[tenant]
-	return ok
+func (gc *Cfg) Clear(d core.StateDriver) error {
+	key := fmt.Sprintf(CFG_GLOBAL_PATH, gc.Tenant)
+
+	return d.ClearState(key)
 }
 
 func (g *Oper) Update(d core.StateDriver) error {
@@ -195,6 +196,12 @@ func (g *Oper) Read(d core.StateDriver, tenant string) error {
 	}
 
 	return nil
+}
+
+func (g *Oper) Clear(d core.StateDriver) error {
+	key := fmt.Sprintf(OPER_GLOBAL_PATH, g.Tenant)
+
+	return d.ClearState(key)
 }
 
 func (g *Oper) initVxlanBitset(vxlans string, vlans string,
@@ -354,22 +361,6 @@ func (g *Oper) FreeSubnet(subnetIp string) error {
 	return nil
 }
 
-var gCfg map[string]*Cfg
-var gOper map[string]*Oper
-
-func clearState(tenant string) error {
-	gCfg = nil
-	gOper = nil
-
-	return nil
-}
-
-func cfgExists(tenant string) bool {
-	_, ok := gCfg[tenant]
-	return ok
-}
-
-// process config state and spew out new oper state
 func (gc *Cfg) Process() (*Oper, error) {
 	var err error
 
@@ -387,18 +378,6 @@ func (gc *Cfg) Process() (*Oper, error) {
 	tenant := gc.Tenant
 	if tenant == "" {
 		return nil, errors.New("null tenant")
-	}
-
-	if cfgExists(tenant) {
-		return nil, errors.New("tenant cfg updates not supported yet")
-	} else {
-		gCfg = make(map[string]*Cfg)
-	}
-
-	if operExists(tenant) {
-		return nil, errors.New("tenant cfg updates not supported yet")
-	} else {
-		gOper = make(map[string]*Oper)
 	}
 
 	g := &Oper{
@@ -426,8 +405,5 @@ func (gc *Cfg) Process() (*Oper, error) {
 	}
 
 	// log.Printf("updating the global config to new state %v \n", gc)
-	gCfg[tenant] = gc
-	gOper[tenant] = g
-
 	return g, nil
 }

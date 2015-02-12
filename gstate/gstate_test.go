@@ -37,7 +37,6 @@ func TestGlobalConfigAutoVlans(t *testing.T) {
         }`)
 	var vlan uint
 	var g *Oper
-	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -81,7 +80,6 @@ func TestGlobalConfigSpecificVlans(t *testing.T) {
         }`)
 	var vlan uint
 	var g *Oper
-	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -125,7 +123,6 @@ func TestGlobalConfigAutoVxlan(t *testing.T) {
         }`)
 	var vxlan, localVlan uint
 	var g *Oper
-	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -178,7 +175,6 @@ func TestGlobalConfigSpecificVxlans(t *testing.T) {
         }`)
 	var vxlan, localVlan uint
 	var g *Oper
-	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -231,7 +227,6 @@ func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
         }`)
 	var vlan, localVlan, vxlan uint
 	var g *Oper
-	defer func() { clearState("default") }()
 
 	gc, err := Parse(cfgData)
 	if err != nil {

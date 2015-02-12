@@ -404,6 +404,13 @@ func executeOpts(opts *cliOpts) error {
 		if opts.oper.Get() == CLI_OPER_GET {
 			err = gcfg.Read(etcdDriver, opts.tenant)
 			log.Printf("State: %v \n", gcfg)
+		} else if opts.oper.Get() == CLI_OPER_DELETE {
+			gcfg.Version = gstate.VersionBeta1
+			gcfg.Tenant = opts.tenant
+			err = gcfg.Clear(etcdDriver)
+			if err != nil {
+				log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
+			}
 		} else {
 			gcfg.Version = gstate.VersionBeta1
 			gcfg.Tenant = opts.tenant

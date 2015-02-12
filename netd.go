@@ -126,6 +126,18 @@ func processGlobalEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool) 
 	var gOper *gstate.Oper
 
 	tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
+	if isDelete {
+		gOper := &gstate.Oper{}
+		err = gOper.Read(netPlugin.StateDriver, tenant)
+		if err != nil {
+			log.Printf("Error '%s' finding the global oper state \n", err)
+		} else {
+			gOper.Clear(netPlugin.StateDriver)
+		}
+
+		return
+	}
+
 	gCfg := &gstate.Cfg{}
 	err = gCfg.Read(netPlugin.StateDriver, tenant)
 	if err != nil {

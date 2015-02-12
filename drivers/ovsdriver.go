@@ -353,15 +353,15 @@ func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
 	return nil
 }
 
-func (d *OvsDriver) deleteVtep(epCfg *OvsCfgEndpointState) error {
+func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
 
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err := operNwState.Read(epCfg.NetId)
+	err := operNwState.Read(epOper.NetId)
 	if err != nil {
 		return err
 	}
 
-	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
+	intfName := vxlanIfName(epOper.NetId, epOper.VtepIp)
 	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
 		nil, operNwState.PktTag, DELETE_PORT)
 	if err != nil {
@@ -450,8 +450,9 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 	}
 
 	operNwState = OvsOperNetworkState{StateDriver: d.stateDriver,
-		Id: cfgNetState.Id, PktTagType: cfgNetState.PktTagType,
-		DefaultGw: cfgNetState.DefaultGw}
+		Id: cfgNetState.Id, Tenant: cfgNetState.Tenant,
+		PktTagType: cfgNetState.PktTagType,
+		DefaultGw:  cfgNetState.DefaultGw}
 
 	if cfgNetState.PktTag == "auto" {
 		operNwState.PktTagType = gOper.DefaultNetType
@@ -530,55 +531,34 @@ func (d *OvsDriver) DeleteNetwork(id string) error {
 	var err error
 	var gOper gstate.Oper
 
-	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err = cfgNetState.Read(id)
-	if err != nil {
-		return err
-	}
-
-	err = gOper.Read(d.stateDriver, cfgNetState.Tenant)
-	if err != nil {
-		return err
-	}
-
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
 	err = operNwState.Read(id)
 	if err != nil {
 		return err
 	}
 
-	if cfgNetState.PktTag == "auto" {
-		if gOper.DefaultNetType == "vlan" {
-			err = gOper.FreeVlan(uint(operNwState.PktTag))
-			if err != nil {
-				return err
-			}
-		} else if gOper.DefaultNetType == "vxlan" {
-			err = gOper.FreeVxlan(uint(operNwState.ExtPktTag),
-				uint(operNwState.PktTag))
-			if err != nil {
-				return err
-			}
-		}
+	err = gOper.Read(d.stateDriver, operNwState.Tenant)
+	if err != nil {
+		return err
+	}
 
-		err = gOper.Update(d.stateDriver)
+	if operNwState.PktTagType == "vlan" {
+		err = gOper.FreeVlan(uint(operNwState.PktTag))
 		if err != nil {
-			log.Printf("error updating the global state - %s \n", err)
 			return err
 		}
-	} else {
-		if cfgNetState.PktTagType == "vxlan" {
-			err = gOper.FreeLocalVlan(uint(operNwState.PktTag))
-			if err != nil {
-				return err
-			}
-
-			err = gOper.Update(d.stateDriver)
-			if err != nil {
-				log.Printf("error updating the global state - %s \n", err)
-				return err
-			}
+	} else if operNwState.PktTagType == "vxlan" {
+		err = gOper.FreeVxlan(uint(operNwState.ExtPktTag),
+			uint(operNwState.PktTag))
+		if err != nil {
+			return err
 		}
+	}
+
+	err = gOper.Update(d.stateDriver)
+	if err != nil {
+		log.Printf("error updating the global state - %s \n", err)
+		return err
 	}
 
 	err = operNwState.Clear()
@@ -779,17 +759,20 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 func (d *OvsDriver) DeleteEndpoint(id string) error {
 
-	epCfg := OvsCfgEndpointState{StateDriver: d.stateDriver}
-	err := epCfg.Read(id)
+	epOper := OvsOperEndpointState{StateDriver: d.stateDriver}
+	err := epOper.Read(id)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		epOper.Clear()
+	}()
 
-	if epCfg.VtepIp != "" {
-		err = d.deleteVtep(&epCfg)
+	if epOper.VtepIp != "" {
+		err = d.deleteVtep(&epOper)
 		if err != nil {
 			log.Printf("error '%s' creating vtep interface(s) for "+
-				"remote endpoint %s\n", err, epCfg.VtepIp)
+				"remote endpoint %s\n", err, epOper.VtepIp)
 		}
 		return err
 	}
@@ -811,17 +794,8 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 		return err
 	}
 
-	operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
-	err = operEpState.Read(id)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		operEpState.Clear()
-	}()
-
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(operEpState.NetId)
+	err = operNwState.Read(epOper.NetId)
 	if err != nil {
 		return err
 	}
