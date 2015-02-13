@@ -209,6 +209,7 @@ func executeJsonCfg(defOpts *cliOpts) error {
 		opts.vlans = tenant.Vlans
 		opts.vxlans = tenant.Vxlans
 
+		log.Printf("creating tenant %s \n", opts.tenant)
 		err = executeOpts(&opts)
 		if err != nil {
 			log.Printf("error pushing global config state: %s \n", err)
@@ -225,6 +226,7 @@ func executeJsonCfg(defOpts *cliOpts) error {
 			if net.PktTag != "" {
 				opts.pktTag = net.PktTag
 			}
+			log.Printf("  creating network %s \n", opts.idStr)
 			err = executeOpts(&opts)
 			if err != nil {
 				log.Printf("error pushing network config state: %s \n", err)
@@ -241,6 +243,7 @@ func executeJsonCfg(defOpts *cliOpts) error {
 				opts.contName = ep.Container
 				opts.homingHost = ep.Host
 				opts.intfName = ep.Intf
+				log.Printf("    creating ep %s \n", opts.idStr)
 				err = executeOpts(&opts)
 				if err != nil {
 					log.Printf("error pushing ep config state: %s \n", err)

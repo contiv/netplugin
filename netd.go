@@ -42,7 +42,11 @@ type cliOpts struct {
 	publishVtep bool
 }
 
-func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool,
+func getVtepName(netId, hostLabel string) string {
+	return netId + "-" + hostLabel
+}
+
+func createDeleteVtep(netPlugin *plugin.NetPlugin, netId, preValue string,
 	opts cliOpts) error {
 	var err error
 
@@ -63,8 +67,8 @@ func createDeleteVtep(netPlugin *plugin.NetPlugin, netId string, isDelete bool,
 
 	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
 
-	epCfg.Id = opts.hostLabel
-	if isDelete {
+	epCfg.Id = getVtepName(netId, opts.hostLabel)
+	if preValue != "" {
 		err = epCfg.Clear()
 		if err != nil {
 			log.Printf("error '%s' deleting ep %s \n", err, epCfg.Id)
@@ -98,7 +102,7 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 	}
 	for idx, key := range keys {
 		log.Printf("read global key[%d] %s, populating state \n", idx, key)
-		processGlobalEvent(netPlugin, key, false)
+		processGlobalEvent(netPlugin, key, "")
 	}
 
 	keys, err = netPlugin.StateDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
@@ -107,7 +111,7 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 	}
 	for idx, key := range keys {
 		log.Printf("read net key[%d] %s, populating state \n", idx, key)
-		processNetEvent(netPlugin, key, false, opts)
+		processNetEvent(netPlugin, key, "", opts)
 	}
 
 	keys, err = netPlugin.StateDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
@@ -116,17 +120,17 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 	}
 	for idx, key := range keys {
 		log.Printf("read ep key[%d] %s, populating state \n", idx, key)
-		processEpEvent(netPlugin, key, false, opts)
+		processEpEvent(netPlugin, key, "", opts)
 	}
 
 	return nil
 }
 
-func processGlobalEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool) (err error) {
+func processGlobalEvent(netPlugin *plugin.NetPlugin, key, preValue string) (err error) {
 	var gOper *gstate.Oper
 
 	tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
-	if isDelete {
+	if preValue != "" {
 		gOper := &gstate.Oper{}
 		err = gOper.Read(netPlugin.StateDriver, tenant)
 		if err != nil {
@@ -159,13 +163,13 @@ func processGlobalEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool) 
 	return
 }
 
-func processNetEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
+func processNetEvent(netPlugin *plugin.NetPlugin, key, preValue string,
 	opts cliOpts) (err error) {
 
 	netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
 
 	operStr := ""
-	if isDelete {
+	if preValue != "" {
 		err = netPlugin.DeleteNetwork(netId)
 		operStr = "delete"
 	} else {
@@ -178,20 +182,20 @@ func processNetEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 		log.Printf("Network operation %s succeeded", operStr)
 	}
 	if opts.publishVtep {
-		createDeleteVtep(netPlugin, netId, isDelete, opts)
+		createDeleteVtep(netPlugin, netId, preValue, opts)
 	}
 
 	return
 }
 
-func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
+func processEpEvent(netPlugin *plugin.NetPlugin, key string, preValue string,
 	opts cliOpts) (err error) {
 	epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
 
 	homingHost := ""
 	vtepIp := ""
-	if !isDelete {
-		epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
+	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
+	if preValue == "" {
 		err = epCfg.Read(epId)
 		if err != nil {
 			log.Printf("Failed to read config for ep '%s' \n", epId)
@@ -200,14 +204,13 @@ func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 		homingHost = epCfg.HomingHost
 		vtepIp = epCfg.VtepIp
 	} else {
-		epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
-		err = epOper.Read(epId)
+		err = epCfg.Unmarshal(preValue)
 		if err != nil {
-			log.Printf("Failed to read oper state for ep '%s' \n", epId)
+			log.Printf("Failed to unmarshal epcfg, err '%s' \n", err)
 			return
 		}
-		homingHost = epOper.HomingHost
-		vtepIp = epOper.VtepIp
+		homingHost = epCfg.HomingHost
+		vtepIp = epCfg.VtepIp
 	}
 	if skipHost(vtepIp, homingHost, opts.hostLabel) {
 		log.Printf("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
@@ -221,11 +224,11 @@ func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 		log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
 		return
 	}
-	log.Printf("read endpoint context: %s \n", contEpContext)
+	// log.Printf("read endpoint context: %s \n", contEpContext)
 
 	operStr := ""
-	if isDelete {
-		err = netPlugin.DeleteEndpoint(epId)
+	if preValue != "" {
+		err = netPlugin.DeleteEndpoint(preValue)
 		operStr = "delete"
 	} else {
 		err = netPlugin.CreateEndpoint(epId)
@@ -239,7 +242,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 	log.Printf("Endpoint operation %s succeeded", operStr)
 
 	// attach or detach an endpoint to a container
-	if isDelete ||
+	if preValue != "" ||
 		(contEpContext.NewContName == "" && contEpContext.CurrContName != "") {
 		err = netPlugin.DetachEndpoint(contEpContext)
 		if err != nil {
@@ -250,7 +253,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, key string, isDelete bool,
 				contEpContext.CurrContName, epId)
 		}
 	}
-	if !isDelete && contEpContext.NewContName != "" {
+	if preValue == "" && contEpContext.NewContName != "" {
 		// re-read post ep updated state
 		newContEpContext, err1 := netPlugin.GetEndpointContainerContext(epId)
 		if err1 != nil {
@@ -288,22 +291,22 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, rsps chan *etcd.Response,
 		// block on change notifications
 		rsp := <-rsps
 
-		isDelete := false
 		node := rsp.Node
+		preValue := ""
 		if rsp.Node.Value == "" {
-			isDelete = true
+			preValue = rsp.PrevNode.Value
 		}
 
 		log.Printf("Received event for key: %s", node.Key)
 		switch key := node.Key; {
 		case strings.HasPrefix(key, gstate.CFG_GLOBAL_PREFIX):
-			processGlobalEvent(netPlugin, key, isDelete)
+			processGlobalEvent(netPlugin, key, preValue)
 
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
-			processNetEvent(netPlugin, key, isDelete, opts)
+			processNetEvent(netPlugin, key, preValue, opts)
 
 		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
-			processEpEvent(netPlugin, key, isDelete, opts)
+			processEpEvent(netPlugin, key, preValue, opts)
 		}
 	}
 

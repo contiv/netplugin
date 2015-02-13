@@ -199,8 +199,8 @@ func (p *NetPlugin) CreateNetwork(id string) error {
 	return p.NetworkDriver.CreateNetwork(id)
 }
 
-func (p *NetPlugin) DeleteNetwork(id string) error {
-	return p.NetworkDriver.DeleteNetwork(id)
+func (p *NetPlugin) DeleteNetwork(value string) error {
+	return p.NetworkDriver.DeleteNetwork(value)
 }
 
 func (p *NetPlugin) FetchNetwork(id string) (core.State, error) {
@@ -211,8 +211,8 @@ func (p *NetPlugin) CreateEndpoint(id string) error {
 	return p.EndpointDriver.CreateEndpoint(id)
 }
 
-func (p *NetPlugin) DeleteEndpoint(id string) error {
-	return p.EndpointDriver.DeleteEndpoint(id)
+func (p *NetPlugin) DeleteEndpoint(value string) error {
+	return p.EndpointDriver.DeleteEndpoint(value)
 }
 
 func (p *NetPlugin) GetEndpointContainerContext(id string) (*core.ContainerEpContext, error) {

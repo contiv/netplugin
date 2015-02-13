@@ -293,7 +293,16 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 		t.Fatalf("endpoint Creation failed. Error: %s", err)
 	}
 
-	err = driver.DeleteEndpoint(id)
+	cfgEp := &OvsCfgEndpointState{}
+	err = driver.stateDriver.ReadState(id, cfgEp, nil)
+	if err != nil {
+		t.Fatalf("error '%s' reading state for id %s \n", err, id)
+	}
+	value, err := cfgEp.Marshal()
+	if err != nil {
+		t.Fatalf("error marshaling config '%s' \n", err)
+	}
+	err = driver.DeleteEndpoint(value)
 	if err != nil {
 		t.Fatalf("endpoint Deletion failed. Error: %s", err)
 	}
@@ -320,7 +329,16 @@ func TestOvsDriverDeleteEndpointiWithIntfName(t *testing.T) {
 		t.Fatalf("endpoint Creation failed. Error: %s", err)
 	}
 
-	err = driver.DeleteEndpoint(id)
+	cfgEp := &OvsCfgEndpointState{}
+	err = driver.stateDriver.ReadState(id, cfgEp, nil)
+	if err != nil {
+		t.Fatalf("error '%s' reading state for id %s \n", err, id)
+	}
+	value, err := cfgEp.Marshal()
+	if err != nil {
+		t.Fatalf("error marshaling config '%s' \n", err)
+	}
+	err = driver.DeleteEndpoint(value)
 	if err != nil {
 		t.Fatalf("endpoint Deletion failed. Error: %s", err)
 	}
@@ -379,7 +397,17 @@ func TestOvsDriverDeleteVxlanPeer(t *testing.T) {
 		t.Fatalf("endpoint Creation failed. Error: %s", err)
 	}
 
-	err = driver.DeleteEndpoint(deleteVxlanEpId)
+	cfgEp := &OvsCfgEndpointState{}
+	err = driver.stateDriver.ReadState(deleteVxlanEpId, cfgEp, nil)
+	if err != nil {
+		t.Fatalf("error '%s' reading state for id %s \n", err,
+			deleteVxlanEpId)
+	}
+	value, err := cfgEp.Marshal()
+	if err != nil {
+		t.Fatalf("error marshaling config '%s' \n", err)
+	}
+	err = driver.DeleteEndpoint(value)
 	if err != nil {
 		t.Fatalf("endpoint Deletion failed. Error: %s", err)
 	}

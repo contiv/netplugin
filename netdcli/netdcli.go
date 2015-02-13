@@ -258,7 +258,7 @@ func validateOpts(opts *cliOpts) error {
 	if opts.pktTag == "auto" {
 		if opts.oper.Get() == CLI_OPER_CREATE &&
 			opts.construct.Get() == CLI_CONSTRUCT_NW {
-			log.Printf("Doing auto allocation of network subnet from global pool")
+			log.Printf("  auto allocating network subnet from global pool")
 		}
 	} else if opts.pktTag != "" {
 		_, err = strconv.Atoi(opts.pktTag)
