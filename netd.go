@@ -170,7 +170,7 @@ func processNetEvent(netPlugin *plugin.NetPlugin, key, preValue string,
 
 	operStr := ""
 	if preValue != "" {
-		err = netPlugin.DeleteNetwork(netId)
+		err = netPlugin.DeleteNetwork(preValue)
 		operStr = "delete"
 	} else {
 		err = netPlugin.CreateNetwork(netId)

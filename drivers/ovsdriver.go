@@ -527,21 +527,29 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 	return nil
 }
 
+func errIfKeyExists(err error) error {
+	if strings.Contains(err.Error(), "Key not found") {
+		return nil
+	} else {
+		return err
+	}
+}
+
 func (d *OvsDriver) DeleteNetwork(value string) error {
 	var err error
 	var gOper gstate.Oper
 
-	cfgNetSttae := OvsCfgNetworkState{}
-	err = cfgNetSttae.Unmarshal(value)
+	cfgNetState := OvsCfgNetworkState{}
+	err = cfgNetState.Unmarshal(value)
 	if err != nil {
 		log.Printf("Failed to unmarshal network config, err '%s' \n", err)
 		return err
 	}
 
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(cfgNetSttae.Id)
+	err = operNwState.Read(cfgNetState.Id)
 	if err != nil {
-		return err
+		return errIfKeyExists(err)
 	}
 
 	err = gOper.Read(d.stateDriver, operNwState.Tenant)
@@ -570,7 +578,7 @@ func (d *OvsDriver) DeleteNetwork(value string) error {
 
 	err = operNwState.Clear()
 	if err != nil {
-		return err
+		return errIfKeyExists(err)
 	}
 
 	return nil
