@@ -69,6 +69,10 @@ func getEpName(net *ConfigNetworkJson, ep *ConfigEpJson) string {
 	}
 }
 
+func postProcessing() {
+	time.Sleep(1 * time.Second)
+}
+
 func tenantPresent(allCfg *ConfigJson, tenantId string) bool {
 	for _, tenant := range allCfg.Tenants {
 		if tenantId == tenant.Name {
@@ -105,20 +109,25 @@ func epPresent(allCfg *ConfigJson, epId string) bool {
 	return false
 }
 
-func deleteDelta(allCfg *ConfigJson, defOpts *cliOpts) error {
-
+func initEtcd(defOpts *cliOpts) (*drivers.EtcdStateDriver, error) {
 	etcdDriver := &drivers.EtcdStateDriver{}
 	driverConfig := &drivers.EtcdStateDriverConfig{}
 	driverConfig.Etcd.Machines = []string{defOpts.etcdUrl}
 	config := &core.Config{V: driverConfig}
 	err := etcdDriver.Init(config)
+	return etcdDriver, err
+}
+
+func deleteDelta(allCfg *ConfigJson, defOpts *cliOpts) error {
+
+	etcdDriver, err := initEtcd(defOpts)
 	if err != nil {
 		log.Fatalf("Failed to init etcd driver. Error: %s", err)
 	}
 
 	keys, err := etcdDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
 	if err != nil {
-		return err
+		return core.ErrIfKeyExists(err)
 	}
 	for _, key := range keys {
 		epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
@@ -133,7 +142,7 @@ func deleteDelta(allCfg *ConfigJson, defOpts *cliOpts) error {
 			if err != nil {
 				log.Printf("error '%s' deleting ep %s \n", err, epId)
 			}
-			time.Sleep(1 * time.Second)
+			postProcessing()
 		}
 	}
 
@@ -154,7 +163,7 @@ func deleteDelta(allCfg *ConfigJson, defOpts *cliOpts) error {
 			if err != nil {
 				log.Printf("error '%s' deleting net %s \n", err, netId)
 			}
-			time.Sleep(1 * time.Second)
+			postProcessing()
 		}
 	}
 
@@ -175,64 +184,84 @@ func deleteDelta(allCfg *ConfigJson, defOpts *cliOpts) error {
 			if err != nil {
 				log.Printf("error '%s' deleting tenant %s \n", err, tenantId)
 			}
-			time.Sleep(1 * time.Second)
+			postProcessing()
 		}
 	}
 
 	return nil
 }
 
-func executeJsonCfg(defOpts *cliOpts) error {
-	data, err := ioutil.ReadFile(opts.idStr)
+func processAdditions(allCfg *ConfigJson, defOpts *cliOpts) (err error) {
+	etcdDriver, err := initEtcd(defOpts)
 	if err != nil {
-		return err
+		log.Fatalf("Failed to init etcd driver. Error: %s", err)
 	}
-
-	allCfg := &ConfigJson{}
-	err = json.Unmarshal(data, allCfg)
-	if err != nil {
-		log.Printf("unmarshal error '%s', tenants %v \n", err, allCfg)
-		return err
-	}
-	// log.Printf("parsed config %v \n", allCfg)
-
-	deleteDelta(allCfg, defOpts)
 
 	for _, tenant := range allCfg.Tenants {
-		opts := *defOpts
-		opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
-		opts.oper.Set(CLI_OPER_CREATE)
-		opts.tenant = tenant.Name
-		opts.pktTagType = tenant.DefaultNetType
-		opts.subnetCidr = tenant.SubnetPool
-		opts.allocSubnetLen = tenant.AllocSubnetLen
-		opts.vlans = tenant.Vlans
-		opts.vxlans = tenant.Vxlans
+		addTenant := true
+		if defOpts.cfgAdditions && len(tenant.Networks) != 0 {
+			gcfg := gstate.Cfg{}
+			err = gcfg.Read(etcdDriver, tenant.Name)
+			if core.ErrIfKeyExists(err) != nil {
+				log.Fatalf("error reading the tenant %s , err '%s'\n",
+					tenant, err)
+			}
+			if err == nil {
+				addTenant = false
+			}
+		}
 
-		log.Printf("creating tenant %s \n", opts.tenant)
-		err = executeOpts(&opts)
-		if err != nil {
-			log.Printf("error pushing global config state: %s \n", err)
-			return err
+		if addTenant {
+			opts := *defOpts
+			opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
+			opts.oper.Set(CLI_OPER_CREATE)
+			opts.tenant = tenant.Name
+			opts.pktTagType = tenant.DefaultNetType
+			opts.subnetCidr = tenant.SubnetPool
+			opts.allocSubnetLen = tenant.AllocSubnetLen
+			opts.vlans = tenant.Vlans
+			opts.vxlans = tenant.Vxlans
+
+			log.Printf("creating tenant %s \n", opts.tenant)
+			err = executeOpts(&opts)
+			if err != nil {
+				log.Printf("error pushing global config state: %s \n", err)
+				return
+			}
 		}
 
 		for _, net := range tenant.Networks {
-			opts = *defOpts
 
-			opts.construct.Set(CLI_CONSTRUCT_NW)
-			opts.oper.Set(CLI_OPER_CREATE)
-			opts.tenant = tenant.Name
-			opts.idStr = net.Name
-			if net.PktTag != "" {
-				opts.pktTag = net.PktTag
+			addNetwork := true
+			if defOpts.cfgAdditions && len(tenant.Networks) != 0 {
+				nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
+				err = nwCfg.Read(net.Name)
+				if core.ErrIfKeyExists(err) != nil {
+					log.Fatalf("error reading the net %s , err '%s'\n",
+						net, err)
+				}
+				if err == nil {
+					addNetwork = false
+				}
 			}
-			log.Printf("  creating network %s \n", opts.idStr)
-			err = executeOpts(&opts)
-			if err != nil {
-				log.Printf("error pushing network config state: %s \n", err)
-				return err
+
+			if addNetwork {
+				opts = *defOpts
+				opts.construct.Set(CLI_CONSTRUCT_NW)
+				opts.oper.Set(CLI_OPER_CREATE)
+				opts.tenant = tenant.Name
+				opts.idStr = net.Name
+				if net.PktTag != "" {
+					opts.pktTag = net.PktTag
+				}
+				log.Printf("  creating network %s \n", opts.idStr)
+				err = executeOpts(&opts)
+				if err != nil {
+					log.Printf("error pushing network config state: %s \n", err)
+					return
+				}
+				postProcessing()
 			}
-			time.Sleep(1 * time.Second)
 
 			for _, ep := range net.Endpoints {
 				opts = *defOpts
@@ -247,12 +276,101 @@ func executeJsonCfg(defOpts *cliOpts) error {
 				err = executeOpts(&opts)
 				if err != nil {
 					log.Printf("error pushing ep config state: %s \n", err)
-					return err
+					return
 				}
-				time.Sleep(1 * time.Second)
+				postProcessing()
 			}
 		}
 	}
 
-	return err
+	return
+}
+
+func processDeletions(allCfg *ConfigJson, defOpts *cliOpts) (err error) {
+	for _, tenant := range allCfg.Tenants {
+		for _, net := range tenant.Networks {
+			for _, ep := range net.Endpoints {
+				opts = *defOpts
+				opts.construct.Set(CLI_CONSTRUCT_EP)
+				opts.oper.Set(CLI_OPER_DELETE)
+				opts.idStr = getEpName(&net, &ep)
+				opts.netId = net.Name
+				opts.contName = ep.Container
+				opts.homingHost = ep.Host
+				opts.intfName = ep.Intf
+				log.Printf("deleting ep %s \n", opts.idStr)
+				err = executeOpts(&opts)
+				if err != nil {
+					log.Printf("error pushing ep config state: %s \n", err)
+					return
+				}
+				postProcessing()
+			}
+
+			if len(net.Endpoints) == 0 {
+				opts = *defOpts
+				opts.construct.Set(CLI_CONSTRUCT_NW)
+				opts.oper.Set(CLI_OPER_DELETE)
+				opts.tenant = tenant.Name
+				opts.idStr = net.Name
+				log.Printf("deleting network %s \n", opts.idStr)
+				err = executeOpts(&opts)
+				if err != nil {
+					log.Printf("error pushing network config state: %s \n", err)
+					return
+				}
+				postProcessing()
+			}
+		}
+
+		if len(tenant.Networks) == 0 {
+			opts := *defOpts
+			opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
+			opts.oper.Set(CLI_OPER_DELETE)
+			opts.tenant = tenant.Name
+
+			log.Printf("deleting tenant %s \n", opts.tenant)
+			err = executeOpts(&opts)
+			if err != nil {
+				log.Printf("error pushing global config state: %s \n", err)
+				return
+			}
+		}
+	}
+	return
+}
+
+func executeJsonCfg(defOpts *cliOpts) (err error) {
+	data, err := ioutil.ReadFile(opts.idStr)
+	if err != nil {
+		return err
+	}
+
+	allCfg := &ConfigJson{}
+	err = json.Unmarshal(data, allCfg)
+	if err != nil {
+		log.Printf("unmarshal error '%s', tenants %v \n", err, allCfg)
+		return
+	}
+	// log.Printf("parsed config %v \n", allCfg)
+
+	if defOpts.cfgDesired {
+		err = deleteDelta(allCfg, defOpts)
+	}
+	if err != nil {
+		log.Printf("error deleting delta '%s' \n", err)
+		return
+	}
+
+	if defOpts.cfgDeletions {
+		err = processDeletions(allCfg, defOpts)
+	} else {
+		err = processAdditions(allCfg, defOpts)
+	}
+	if err != nil {
+		log.Printf("error processing cfg '%s' \n", err)
+		return
+	}
+
+	return
 }

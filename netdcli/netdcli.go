@@ -105,7 +105,9 @@ func (c *Construct) Get() interface{} {
 
 type cliOpts struct {
 	help           bool
-	cfgFile        bool
+	cfgDesired     bool
+	cfgAdditions   bool
+	cfgDeletions   bool
 	oper           Operation
 	construct      Construct
 	etcdUrl        string
@@ -139,7 +141,15 @@ func init() {
 	flagSet.Var(&opts.construct,
 		"construct",
 		"Construct to operate on i.e network or endpoint")
-	flagSet.BoolVar(&opts.cfgFile,
+	flagSet.BoolVar(&opts.cfgAdditions,
+		"add-cfg",
+		false,
+		"Json file describing addition to global and network intent")
+	flagSet.BoolVar(&opts.cfgDeletions,
+		"del-cfg",
+		false,
+		"Json file describing deletion from global and network intent")
+	flagSet.BoolVar(&opts.cfgDesired,
 		"cfg",
 		false,
 		"Json file describing the global and network intent")
@@ -458,7 +468,7 @@ func main() {
 	}
 	opts.idStr = flagSet.Arg(0)
 
-	if opts.cfgFile {
+	if opts.cfgDesired || opts.cfgDeletions || opts.cfgAdditions {
 		err = executeJsonCfg(&opts)
 	} else {
 		err = executeOpts(&opts)

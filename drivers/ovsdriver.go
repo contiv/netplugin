@@ -527,14 +527,6 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 	return nil
 }
 
-func errIfKeyExists(err error) error {
-	if strings.Contains(err.Error(), "Key not found") {
-		return nil
-	} else {
-		return err
-	}
-}
-
 func (d *OvsDriver) DeleteNetwork(value string) error {
 	var err error
 	var gOper gstate.Oper
@@ -549,7 +541,7 @@ func (d *OvsDriver) DeleteNetwork(value string) error {
 	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
 	err = operNwState.Read(cfgNetState.Id)
 	if err != nil {
-		return errIfKeyExists(err)
+		return core.ErrIfKeyExists(err)
 	}
 
 	err = gOper.Read(d.stateDriver, operNwState.Tenant)
@@ -578,7 +570,7 @@ func (d *OvsDriver) DeleteNetwork(value string) error {
 
 	err = operNwState.Clear()
 	if err != nil {
-		return errIfKeyExists(err)
+		return core.ErrIfKeyExists(err)
 	}
 
 	return nil

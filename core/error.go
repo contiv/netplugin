@@ -15,10 +15,20 @@ limitations under the License.
 
 package core
 
+import "strings"
+
 type Error struct {
 	Desc string
 }
 
 func (e *Error) Error() string {
 	return e.Desc
+}
+
+func ErrIfKeyExists(err error) error {
+	if err == nil || strings.Contains(err.Error(), "Key not found") {
+		return nil
+	} else {
+		return err
+	}
 }

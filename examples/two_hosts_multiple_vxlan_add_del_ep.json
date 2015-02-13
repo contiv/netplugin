@@ -1,0 +1,17 @@
+
+{
+    "Tenants" : [ {
+        "Name"                      : "tenant-one",
+        "Networks"  : [
+        {
+            "Name"                  : "orange",
+            "Endpoints" : [
+            {
+                "Container"         : "myContainer2",
+                "Host"              : "host1"
+            }
+            ]
+        }
+        ]
+    } ]
+}
