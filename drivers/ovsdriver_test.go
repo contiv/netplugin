@@ -36,6 +36,9 @@ const (
 	testPktTag         = 100
 	testExtPktTag      = 10000
 	testIntfName       = "testIntf"
+	testSubnetIp       = "10.1.1.0"
+	testSubnetLen      = 24
+	testEpAddress      = "10.1.1.1"
 
 	READ_EP int = iota
 	READ_EP_WITH_INTF
@@ -82,6 +85,8 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 		operNw.Id = testOvsNwId
 		operNw.PktTag = testPktTag
 		operNw.ExtPktTag = testExtPktTag
+		operNw.SubnetIp = testSubnetIp
+		operNw.SubnetLen = testSubnetLen
 		return nil
 	}
 
@@ -128,10 +133,13 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 				operEp.Id = deleteVxlanEpId
 				operEp.NetId = testOvsNwId
 				operEp.VtepIp = vxlanPeerIp
+				operEp.IpAddress = testEpAddress
 			} else if oper == READ_EP_WITH_INTF {
 				operEp.Id = deleteEpWithIntfId
+				operEp.IpAddress = testEpAddress
 			} else {
 				operEp.Id = deleteEpId
+				operEp.IpAddress = testEpAddress
 			}
 		}
 		operEp.NetId = testOvsNwId

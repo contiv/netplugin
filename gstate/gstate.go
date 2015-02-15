@@ -357,8 +357,15 @@ func (g *Oper) AllocSubnet() (string, error) {
 }
 
 func (g *Oper) FreeSubnet(subnetIp string) error {
+	subnetId, err := netutils.GetIpNumber(g.SubnetPool, g.SubnetLen,
+		g.AllocSubnetLen, subnetIp)
+	if err != nil {
+		log.Printf("error '%s' getting subnetid for subnet %s/%d \n",
+			err, subnetIp, g.SubnetLen)
+	}
+	g.FreeSubnets.Set(subnetId)
 
-	return nil
+	return err
 }
 
 func (gc *Cfg) Process() (*Oper, error) {

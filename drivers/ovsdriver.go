@@ -562,6 +562,15 @@ func (d *OvsDriver) DeleteNetwork(value string) error {
 		}
 	}
 
+	if cfgNetState.SubnetIp == "auto" {
+		log.Printf("freeing subnet %s/%d \n",
+			operNwState.SubnetIp, operNwState.SubnetLen)
+		err = gOper.FreeSubnet(operNwState.SubnetIp)
+		if err != nil {
+			log.Printf("error '%s' freeing the subnet \n", err)
+		}
+	}
+
 	err = gOper.Update(d.stateDriver)
 	if err != nil {
 		log.Printf("error updating the global state - %s \n", err)
@@ -713,7 +722,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			log.Printf("error acquiring subnet ip '%s' \n", err)
 			return err
 		}
-		operNwState.IpAllocMap.Set(ipAddrBit)
 		log.Printf("Ep %s was allocated ip address %s \n", id, ipAddress)
 	} else if ipAddress != "" && operNwState.SubnetIp != "" {
 		ipAddrBit, err = netutils.GetIpNumber(
@@ -723,8 +731,8 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 				ipAddress, operNwState.SubnetIp, operNwState.SubnetLen, err)
 			return err
 		}
-		operNwState.IpAllocMap.Set(ipAddrBit)
 	}
+	operNwState.IpAllocMap.Set(ipAddrBit)
 
 	// deprecate - bitset.WordCount gives the following value
 	operNwState.EpCount += 1
@@ -740,7 +748,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		}
 	}()
 
-	//all went well, update the runtime state of network and endpoint
 	operEpState := OvsOperEndpointState{
 		StateDriver: d.stateDriver,
 		Id:          id,
@@ -791,7 +798,6 @@ func (d *OvsDriver) DeleteEndpoint(value string) (err error) {
 		epOper.Clear()
 	}()
 
-	// delete the internal ovs port corresponding to the endpoint
 	portName, err := d.getPortOrIntfNameFromId(epCfg.Id, GET_PORT_NAME)
 	if err != nil {
 		return err
@@ -812,6 +818,15 @@ func (d *OvsDriver) DeleteEndpoint(value string) (err error) {
 	err = operNwState.Read(epOper.NetId)
 	if err != nil {
 		return err
+	}
+
+	ipAddrBit, err := netutils.GetIpNumber(
+		operNwState.SubnetIp, operNwState.SubnetLen, 32, epOper.IpAddress)
+	if err != nil {
+		log.Printf("error getting host id from %s subnet %s/%d err '%s'\n",
+			epOper.IpAddress, operNwState.SubnetIp, operNwState.SubnetLen, err)
+	} else {
+		operNwState.IpAllocMap.Clear(ipAddrBit)
 	}
 
 	operNwState.EpCount -= 1
