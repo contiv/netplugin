@@ -56,7 +56,7 @@ Note:
 
 3. Launch a desired configuration for the two containers
 
-    `netdcli -cfg json_examples/one_host_vlan.json`
+    `netdcli -cfg examples/one_host_vlan.json`
 
 4. According to the desired network state `myContainer1` and `myContainer2` now belongs to `orange` network
 
@@ -94,17 +94,15 @@ Note:
 There are many variations to the above configuration, like creating multiple 
 networks, across multiple hosts, use of VLANs, use of VXLAN, custom overrides
 for IP/subnet/VLAN/VXLAN allocation on per network/endpoint basis. Please look
-at [examples](examples/) directory to explore more details
+at [examples](examples/) directory to explore more sample configurations.
 
-####Trying it out on a multi-host VLAN/VXLAN network
+####Trying it out in a multi-host VLAN/VXLAN network
 
-Look at [examples/two_host_vlan.json](examples/two_host_vlan.json) that depicts the following network 
-
+The [docs/TwoHostMultiVlanDemo.md](docs/TwoHostMultiVlanDemo.md) walks through setting up a multi host demo network and deploy the following Vlan based network:
 ![VlanNetwork](./docs/VlanNetwork.jpg)
 
-[examples/two_host_vxlan.json](examples/two_host_vxlan.json) attempts to achieve following connectivity
+One can deploy the following Vxlan network by following the steps in the above demo and using [two_hosts_multiple_vxlan_nets.json](two_hosts_multiple_vxlan_nets.json) configuration file instead. Trying out the configuration is left as an exercise to the reader.
 ![VxlanNetwork](./docs/VxlanNetwork.jpg)
-
 
 ####Multi-tenant network
 

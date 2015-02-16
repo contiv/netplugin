@@ -101,14 +101,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config
-(echo etcd -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
+(echo etcd -vv -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
  -listen-peer-urls http://#{node_addr}:7001 \
  -initial-cluster #{node_peers} \
  -initial-cluster-state new)
-(nohup etcd -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
+(nohup etcd -vv -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
  -listen-peer-urls http://#{node_addr}:7001 \
  -initial-cluster #{node_peers} \
- -initial-cluster-state new 0<&- &>/dev/null &) || exit 1
+ -initial-cluster-state new 0<&- &>/tmp/etcd.log &) || exit 1
 SCRIPT
             node.vm.provision "shell" do |s|
                 s.inline = provision_node
