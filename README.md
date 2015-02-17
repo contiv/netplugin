@@ -101,7 +101,7 @@ at [examples](examples/) directory to explore more sample configurations.
 The [docs/TwoHostMultiVlanDemo.md](docs/TwoHostMultiVlanDemo.md) walks through setting up a multi host demo network and deploy the following Vlan based network:
 ![VlanNetwork](./docs/VlanNetwork.jpg)
 
-One can deploy the following Vxlan network by following the steps in the above demo and using [two_hosts_multiple_vxlan_nets.json](two_hosts_multiple_vxlan_nets.json) configuration file instead. Trying out the configuration is left as an exercise to the reader.
+One can deploy the following Vxlan network by following the steps in the above demo and using [examples/two_hosts_multiple_vxlan_nets.json](examples/two_hosts_multiple_vxlan_nets.json) configuration file instead. Trying out the configuration is left as an exercise to the reader.
 ![VxlanNetwork](./docs/VxlanNetwork.jpg)
 
 ####Multi-tenant network
