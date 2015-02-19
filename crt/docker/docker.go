@@ -42,13 +42,17 @@ type Docker struct {
 
 func (d *Docker) Init(config *core.Config) error {
 	if config == nil {
-		return &core.Error{Desc: fmt.Sprintf("Invalid arguments. cfg: %v", config)}
+		return errors.New("null config!")
 	}
 
 	cfg, ok := config.V.(*DockerConfig)
 
 	if !ok {
 		return &core.Error{Desc: "Invalid config type passed!"}
+	}
+
+	if cfg.Docker.Socket == "" {
+		return errors.New(fmt.Sprintf("Invalid arguments. cfg: %v", config))
 	}
 
 	// TODO: ADD TLS support

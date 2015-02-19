@@ -18,7 +18,6 @@ package crt
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"reflect"
 
 	"github.com/contiv/netplugin/core"
@@ -72,6 +71,10 @@ func (c *Crt) GetContainerName(contId string) (string, error) {
 	return c.ContainerIf.GetContainerName(contId)
 }
 
+func (c *Crt) Deinit() {
+	c.ContainerIf.Deinit()
+}
+
 func (c *Crt) Init(configStr string) error {
 
 	cfg := &CrtConfig{}
@@ -79,8 +82,6 @@ func (c *Crt) Init(configStr string) error {
 	if err != nil {
 		return err
 	}
-
-	log.Printf("container runtime %s \n", cfg.Crt.Type)
 
 	if _, ok := ContainerIfRegistry[cfg.Crt.Type]; !ok {
 		return errors.New("unregistered container run time")
@@ -92,7 +93,6 @@ func (c *Crt) Init(configStr string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("got crt config %v \n", crtConfig)
 
 	config := &core.Config{V: crtConfig}
 	crtType := ContainerIfRegistry[cfg.Crt.Type].CrtType
