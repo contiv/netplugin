@@ -85,8 +85,6 @@ type EndpointDriver interface {
 	CreateEndpoint(id string) error
 	DeleteEndpoint(value string) error
 	MakeEndpointAddress() (*Address, error)
-	GetEndpointContainerContext(id string) (*ContainerEpContext, error)
-	GetContainerEpContextByContName(contName string) ([]ContainerEpContext, error)
 	UpdateContainerId(id string, contId string) error
 }
 
@@ -118,7 +116,7 @@ type ContainerEpContext struct {
 	DefaultGw    string
 }
 
-type ContainerDriver interface {
+type ContainerIf interface {
 	// Container driver provides a mechanism to interface with container
 	// runtime to handle events create, start, die, stop, pause, etc.
 	Driver

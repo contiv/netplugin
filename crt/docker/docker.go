@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package docker
 
 import (
 	"errors"
@@ -30,22 +30,22 @@ import (
 	// "github.com/vishvananda/netns"
 )
 
-type DockerDriverConfig struct {
+type DockerConfig struct {
 	Docker struct {
 		Socket string
 	}
 }
 
-type DockerDriver struct {
+type Docker struct {
 	Client *dockerclient.DockerClient
 }
 
-func (d *DockerDriver) Init(config *core.Config) error {
+func (d *Docker) Init(config *core.Config) error {
 	if config == nil {
 		return &core.Error{Desc: fmt.Sprintf("Invalid arguments. cfg: %v", config)}
 	}
 
-	cfg, ok := config.V.(*DockerDriverConfig)
+	cfg, ok := config.V.(*DockerConfig)
 
 	if !ok {
 		return &core.Error{Desc: "Invalid config type passed!"}
@@ -57,10 +57,10 @@ func (d *DockerDriver) Init(config *core.Config) error {
 	return nil
 }
 
-func (d *DockerDriver) Deinit() {
+func (d *Docker) Deinit() {
 }
 
-func (d *DockerDriver) getContPid(contName string) (string, error) {
+func (d *Docker) getContPid(contName string) (string, error) {
 	contInfo, err := d.Client.InspectContainer(contName)
 	if err != nil {
 		return "", errors.New("couldn't obtain container info")
@@ -93,7 +93,7 @@ func setIfNs(ifname string, pid int) error {
 // Note: most of the work in this function is a temporary workaround for
 // what docker daemon would eventually do; in the meanwhile
 // the essense of the logic is borrowed from pipework
-func (d *DockerDriver) moveIfToContainer(ifId string, contName string) error {
+func (d *Docker) moveIfToContainer(ifId string, contName string) error {
 
 	// log.Printf("Moving interface '%s' into container '%s' \n", ifId, contName)
 
@@ -137,7 +137,7 @@ func (d *DockerDriver) moveIfToContainer(ifId string, contName string) error {
 	return err
 }
 
-func (d *DockerDriver) cleanupNetns(contName string) error {
+func (d *Docker) cleanupNetns(contName string) error {
 	contPid, err := d.getContPid(contName)
 	if err != nil {
 		return err
@@ -153,7 +153,7 @@ func (d *DockerDriver) cleanupNetns(contName string) error {
 }
 
 /*
-func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
+func (d *Docker) configureIfAddress(ctx *core.ContainerEpContext) error {
 
 	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
 		ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
@@ -228,7 +228,7 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 	return err
 }
 */
-func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
+func (d *Docker) configureIfAddress(ctx *core.ContainerEpContext) error {
 
 	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
 		ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
@@ -268,7 +268,7 @@ func (d *DockerDriver) configureIfAddress(ctx *core.ContainerEpContext) error {
 
 // performs funtion to configure the network access and policies
 // before the container becomes active
-func (d *DockerDriver) AttachEndpoint(ctx *core.ContainerEpContext) error {
+func (d *Docker) AttachEndpoint(ctx *core.ContainerEpContext) error {
 
 	err := d.moveIfToContainer(ctx.InterfaceId, ctx.NewContName)
 	if err != nil {
@@ -289,7 +289,7 @@ func (d *DockerDriver) AttachEndpoint(ctx *core.ContainerEpContext) error {
 }
 
 // uninstall the policies and configuration during container attach
-func (d *DockerDriver) DetachEndpoint(ctx *core.ContainerEpContext) error {
+func (d *Docker) DetachEndpoint(ctx *core.ContainerEpContext) error {
 	var err error
 
 	// log.Printf("Detached called for container %s with %s interface\n",
@@ -303,7 +303,7 @@ func (d *DockerDriver) DetachEndpoint(ctx *core.ContainerEpContext) error {
 	return err
 }
 
-func (d *DockerDriver) GetContainerId(contName string) string {
+func (d *Docker) GetContainerId(contName string) string {
 	contInfo, err := d.Client.InspectContainer(contName)
 	if err != nil {
 		log.Printf("could not get contId for container %s, err '%s' \n",
@@ -319,7 +319,7 @@ func (d *DockerDriver) GetContainerId(contName string) string {
 	return contInfo.Id
 }
 
-func (d *DockerDriver) GetContainerName(contId string) (string, error) {
+func (d *Docker) GetContainerName(contId string) (string, error) {
 	contInfo, err := d.Client.InspectContainer(contId)
 	if err != nil {
 		log.Printf("could not get contName for container %s, err '%s' \n",
