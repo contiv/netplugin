@@ -52,28 +52,19 @@ var StateDriverRegistry = map[string]DriverConfigTypes{
 	},
 }
 
-var ContainerDriverRegistry = map[string]DriverConfigTypes{
-	"docker": DriverConfigTypes{
-		DriverType: reflect.TypeOf(drivers.DockerDriver{}),
-		ConfigType: reflect.TypeOf(drivers.DockerDriverConfig{}),
-	},
-}
-
 type PluginConfig struct {
 	Drivers struct {
-		Network   string
-		Endpoint  string
-		State     string
-		Container string
+		Network  string
+		Endpoint string
+		State    string
 	}
 }
 
 type NetPlugin struct {
-	ConfigFile      string
-	NetworkDriver   core.NetworkDriver
-	EndpointDriver  core.EndpointDriver
-	StateDriver     core.StateDriver
-	ContainerDriver core.ContainerDriver
+	ConfigFile     string
+	NetworkDriver  core.NetworkDriver
+	EndpointDriver core.EndpointDriver
+	StateDriver    core.StateDriver
 }
 
 func (p *NetPlugin) InitHelper(driverRegistry map[string]DriverConfigTypes,
@@ -163,23 +154,6 @@ func (p *NetPlugin) Init(configStr string) error {
 		}
 	}()
 
-	// initialize container driver
-	driver, drvConfig, err = p.InitHelper(ContainerDriverRegistry,
-		pluginConfig.Drivers.Container, configStr)
-	if err != nil {
-		return err
-	}
-	p.ContainerDriver = driver.(core.ContainerDriver)
-	err = p.ContainerDriver.Init(drvConfig)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			p.ContainerDriver.Deinit()
-		}
-	}()
-
 	return nil
 }
 
@@ -215,34 +189,10 @@ func (p *NetPlugin) DeleteEndpoint(value string) error {
 	return p.EndpointDriver.DeleteEndpoint(value)
 }
 
-func (p *NetPlugin) GetEndpointContainerContext(id string) (*core.ContainerEpContext, error) {
-	return p.EndpointDriver.GetEndpointContainerContext(id)
-}
-
-func (p *NetPlugin) GetContainerEpContextByContName(contId string) ([]core.ContainerEpContext, error) {
-	return p.EndpointDriver.GetContainerEpContextByContName(contId)
-}
-
 func (p *NetPlugin) UpdateContainerId(id string, contId string) error {
 	return p.EndpointDriver.UpdateContainerId(id, contId)
 }
 
 func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 	return nil, &core.Error{Desc: "Not implemented"}
-}
-
-func (p *NetPlugin) AttachEndpoint(contEpContext *core.ContainerEpContext) error {
-	return p.ContainerDriver.AttachEndpoint(contEpContext)
-}
-
-func (p *NetPlugin) DetachEndpoint(contEpContext *core.ContainerEpContext) error {
-	return p.ContainerDriver.DetachEndpoint(contEpContext)
-}
-
-func (p *NetPlugin) GetContainerId(contName string) string {
-	return p.ContainerDriver.GetContainerId(contName)
-}
-
-func (p *NetPlugin) GetContainerName(contId string) (string, error) {
-	return p.ContainerDriver.GetContainerName(contId)
 }
