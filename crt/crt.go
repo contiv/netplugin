@@ -20,12 +20,12 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/crt/docker"
+	"github.com/contiv/netplugin/crtclient"
+	"github.com/contiv/netplugin/crtclient/docker"
 )
 
 type Crt struct {
-	ContainerIf core.ContainerIf
+	ContainerIf crtclient.ContainerIf
 }
 
 type CrtConfig struct {
@@ -46,20 +46,12 @@ var ContainerIfRegistry = map[string]ContainerIfTypes{
 	},
 }
 
-type ContainerEpContext struct {
-	NewContName  string
-	CurrContName string
-	InterfaceId  string
-	IpAddress    string
-	SubnetLen    uint
-	DefaultGw    string
-}
-
-func (c *Crt) AttachEndpoint(contEpContext *core.ContainerEpContext) error {
+func (c *Crt) AttachEndpoint(
+	contEpContext *crtclient.ContainerEpContext) error {
 	return c.ContainerIf.AttachEndpoint(contEpContext)
 }
 
-func (c *Crt) DetachEndpoint(contEpContext *core.ContainerEpContext) error {
+func (c *Crt) DetachEndpoint(contEpContext *crtclient.ContainerEpContext) error {
 	return c.ContainerIf.DetachEndpoint(contEpContext)
 }
 
@@ -94,10 +86,10 @@ func (c *Crt) Init(configStr string) error {
 		return err
 	}
 
-	config := &core.Config{V: crtConfig}
+	config := &crtclient.Config{V: crtConfig}
 	crtType := ContainerIfRegistry[cfg.Crt.Type].CrtType
 	crtif := reflect.New(crtType).Interface()
-	c.ContainerIf = crtif.(core.ContainerIf)
+	c.ContainerIf = crtif.(crtclient.ContainerIf)
 	err = c.ContainerIf.Init(config)
 	if err != nil {
 		return err

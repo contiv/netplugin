@@ -106,24 +106,3 @@ type StateDriver interface {
 		unmarshal func([]byte, interface{}) error) error
 	ClearState(key string) error
 }
-
-type ContainerEpContext struct {
-	NewContName  string
-	CurrContName string
-	InterfaceId  string
-	IpAddress    string
-	SubnetLen    uint
-	DefaultGw    string
-}
-
-type ContainerIf interface {
-	// Container driver provides a mechanism to interface with container
-	// runtime to handle events create, start, die, stop, pause, etc.
-	Driver
-	Init(config *Config) error
-	Deinit()
-	AttachEndpoint(ctx *ContainerEpContext) error
-	DetachEndpoint(ctx *ContainerEpContext) error
-	GetContainerId(contName string) string
-	GetContainerName(contName string) (string, error)
-}

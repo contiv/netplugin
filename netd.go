@@ -25,7 +25,8 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/crt"
-	"github.com/contiv/netplugin/crt/docker"
+	"github.com/contiv/netplugin/crtclient"
+	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
@@ -192,8 +193,8 @@ func processNetEvent(netPlugin *plugin.NetPlugin, key, preValue string,
 }
 
 func getEndpointContainerContext(state *core.StateDriver, epId string) (
-	*core.ContainerEpContext, error) {
-	var epCtx core.ContainerEpContext
+	*crtclient.ContainerEpContext, error) {
+	var epCtx crtclient.ContainerEpContext
 	var err error
 
 	epCfg := &drivers.OvsCfgEndpointState{StateDriver: *state}
@@ -224,8 +225,8 @@ func getEndpointContainerContext(state *core.StateDriver, epId string) (
 }
 
 func getContainerEpContextByContName(state *core.StateDriver, contName string) (
-	epCtxs []core.ContainerEpContext, err error) {
-	var epCtx *core.ContainerEpContext
+	epCtxs []crtclient.ContainerEpContext, err error) {
+	var epCtx *crtclient.ContainerEpContext
 
 	contName = strings.TrimPrefix(contName, "/")
 	epCfgs, err := drivers.ReadAllEpsCfg(state)
@@ -233,7 +234,7 @@ func getContainerEpContextByContName(state *core.StateDriver, contName string) (
 		return
 	}
 
-	epCtxs = make([]core.ContainerEpContext, len(epCfgs))
+	epCtxs = make([]crtclient.ContainerEpContext, len(epCfgs))
 	idx := 0
 	for _, epCfg := range epCfgs {
 		if epCfg.ContName != contName {
@@ -386,7 +387,7 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	contId string) error {
 	var err error
-	var epContexts []core.ContainerEpContext
+	var epContexts []crtclient.ContainerEpContext
 
 	contName, err := crt.GetContainerName(contId)
 	if err != nil {

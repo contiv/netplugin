@@ -25,7 +25,7 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/crtclient"
 	"github.com/vishvananda/netlink"
 	// "github.com/vishvananda/netns"
 )
@@ -40,7 +40,7 @@ type Docker struct {
 	Client *dockerclient.DockerClient
 }
 
-func (d *Docker) Init(config *core.Config) error {
+func (d *Docker) Init(config *crtclient.Config) error {
 	if config == nil {
 		return errors.New("null config!")
 	}
@@ -48,7 +48,7 @@ func (d *Docker) Init(config *core.Config) error {
 	cfg, ok := config.V.(*DockerConfig)
 
 	if !ok {
-		return &core.Error{Desc: "Invalid config type passed!"}
+		return errors.New("Invalid config type passed!")
 	}
 
 	if cfg.Docker.Socket == "" {
@@ -157,7 +157,7 @@ func (d *Docker) cleanupNetns(contName string) error {
 }
 
 /*
-func (d *Docker) configureIfAddress(ctx *core.ContainerEpContext) error {
+func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 
 	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
 		ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
@@ -232,7 +232,7 @@ func (d *Docker) configureIfAddress(ctx *core.ContainerEpContext) error {
 	return err
 }
 */
-func (d *Docker) configureIfAddress(ctx *core.ContainerEpContext) error {
+func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 
 	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
 		ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
@@ -272,7 +272,7 @@ func (d *Docker) configureIfAddress(ctx *core.ContainerEpContext) error {
 
 // performs funtion to configure the network access and policies
 // before the container becomes active
-func (d *Docker) AttachEndpoint(ctx *core.ContainerEpContext) error {
+func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEpContext) error {
 
 	err := d.moveIfToContainer(ctx.InterfaceId, ctx.NewContName)
 	if err != nil {
@@ -293,7 +293,7 @@ func (d *Docker) AttachEndpoint(ctx *core.ContainerEpContext) error {
 }
 
 // uninstall the policies and configuration during container attach
-func (d *Docker) DetachEndpoint(ctx *core.ContainerEpContext) error {
+func (d *Docker) DetachEndpoint(ctx *crtclient.ContainerEpContext) error {
 	var err error
 
 	// log.Printf("Detached called for container %s with %s interface\n",
