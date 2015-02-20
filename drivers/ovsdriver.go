@@ -585,68 +585,6 @@ func (d *OvsDriver) DeleteNetwork(value string) error {
 	return nil
 }
 
-func (d *OvsDriver) GetContainerEpContextByContName(contName string) (epCtxs []core.ContainerEpContext, err error) {
-	var epCtx *core.ContainerEpContext
-
-	contName = strings.TrimPrefix(contName, "/")
-	epCfgs, err := ReadAllEpsCfg(d.stateDriver)
-	if err != nil {
-		return
-	}
-
-	epCtxs = make([]core.ContainerEpContext, len(epCfgs))
-	idx := 0
-	for _, epCfg := range epCfgs {
-		if epCfg.ContName != contName {
-			continue
-		}
-
-		epCtx, err = d.GetEndpointContainerContext(epCfg.Id)
-		if err != nil {
-			log.Printf("error '%s' getting epCfgState for ep %s \n",
-				err, epCfg.Id)
-			return epCtxs[:idx], nil
-		}
-		epCtxs[idx] = *epCtx
-		idx = idx + 1
-	}
-
-	return epCtxs[:idx], nil
-}
-
-// fetches various parameters in ep context to allow container to be
-// associated to an ep
-func (d *OvsDriver) GetEndpointContainerContext(epId string) (*core.ContainerEpContext, error) {
-	var epCtx core.ContainerEpContext
-	var err error
-
-	epCfg := OvsCfgEndpointState{StateDriver: d.stateDriver}
-	err = epCfg.Read(epId)
-	if err != nil {
-		return &epCtx, nil
-	}
-	epCtx.NewContName = epCfg.ContName
-
-	operNetState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNetState.Read(epCfg.NetId)
-	if err != nil {
-		return &epCtx, err
-	}
-	epCtx.DefaultGw = operNetState.DefaultGw
-	epCtx.SubnetLen = operNetState.SubnetLen
-
-	operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
-	err = operEpState.Read(epId)
-	if err != nil {
-		return &epCtx, nil
-	}
-	epCtx.CurrContName = operEpState.ContName
-	epCtx.InterfaceId = operEpState.PortName
-	epCtx.IpAddress = operEpState.IpAddress
-
-	return &epCtx, err
-}
-
 func (d *OvsDriver) CreateEndpoint(id string) error {
 	var err error
 	var ipAddrBit uint = 0
@@ -835,25 +773,6 @@ func (d *OvsDriver) DeleteEndpoint(value string) (err error) {
 		return err
 	}
 
-	return nil
-}
-
-func (d *OvsDriver) UpdateContainerId(id string, contId string) error {
-	var err error
-
-	operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
-	err = operEpState.Read(id)
-	if err != nil {
-		return err
-	}
-	operEpState.ContId = contId
-	err = operEpState.Write()
-	if err != nil {
-		return err
-	}
-
-	log.Printf("updating ep %s with container id %s, contName was %s \n",
-		id, contId, operEpState.ContName)
 	return nil
 }
 

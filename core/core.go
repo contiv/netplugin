@@ -85,9 +85,6 @@ type EndpointDriver interface {
 	CreateEndpoint(id string) error
 	DeleteEndpoint(value string) error
 	MakeEndpointAddress() (*Address, error)
-	GetEndpointContainerContext(id string) (*ContainerEpContext, error)
-	GetContainerEpContextByContName(contName string) ([]ContainerEpContext, error)
-	UpdateContainerId(id string, contId string) error
 }
 
 type StateDriver interface {
@@ -107,25 +104,4 @@ type StateDriver interface {
 	ReadState(key string, value State,
 		unmarshal func([]byte, interface{}) error) error
 	ClearState(key string) error
-}
-
-type ContainerEpContext struct {
-	NewContName  string
-	CurrContName string
-	InterfaceId  string
-	IpAddress    string
-	SubnetLen    uint
-	DefaultGw    string
-}
-
-type ContainerDriver interface {
-	// Container driver provides a mechanism to interface with container
-	// runtime to handle events create, start, die, stop, pause, etc.
-	Driver
-	Init(config *Config) error
-	Deinit()
-	AttachEndpoint(ctx *ContainerEpContext) error
-	DetachEndpoint(ctx *ContainerEpContext) error
-	GetContainerId(contName string) string
-	GetContainerName(contName string) (string, error)
 }

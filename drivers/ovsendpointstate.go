@@ -61,16 +61,16 @@ func (s *OvsCfgEndpointState) Marshal() (string, error) {
 	return string(bytes[:]), err
 }
 
-func ReadAllEpsCfg(sd core.StateDriver) (epState []OvsCfgEndpointState, err error) {
+func ReadAllEpsCfg(sd *core.StateDriver) (epState []OvsCfgEndpointState, err error) {
 
-	keys, err := sd.ReadRecursive(EP_CFG_PATH_PREFIX)
+	keys, err := (*sd).ReadRecursive(EP_CFG_PATH_PREFIX)
 	if err != nil {
 		return
 	}
 
 	epState = make([]OvsCfgEndpointState, len(keys))
 	for idx, key := range keys {
-		err = sd.ReadState(key, &epState[idx], json.Unmarshal)
+		err = (*sd).ReadState(key, &epState[idx], json.Unmarshal)
 		if err != nil {
 			log.Printf("error '%s' reading oper state of key %s \n",
 				err, key)
@@ -86,7 +86,6 @@ type OvsOperEndpointState struct {
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
 	ContName    string           `json:"contName"`
-	ContId      string           `json:"contId"`
 	IpAddress   string           `json:"ipAddress"`
 	PortName    string           `json:"portName"`
 	HomingHost  string           `json:"homingHost"`
