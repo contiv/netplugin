@@ -776,25 +776,6 @@ func (d *OvsDriver) DeleteEndpoint(value string) (err error) {
 	return nil
 }
 
-func (d *OvsDriver) UpdateContainerId(id string, contId string) error {
-	var err error
-
-	operEpState := OvsOperEndpointState{StateDriver: d.stateDriver}
-	err = operEpState.Read(id)
-	if err != nil {
-		return err
-	}
-	operEpState.ContId = contId
-	err = operEpState.Write()
-	if err != nil {
-		return err
-	}
-
-	log.Printf("updating ep %s with container id %s, contName was %s \n",
-		id, contId, operEpState.ContName)
-	return nil
-}
-
 func (d *OvsDriver) MakeEndpointAddress() (*core.Address, error) {
 	return nil, &core.Error{Desc: "Not supported"}
 }

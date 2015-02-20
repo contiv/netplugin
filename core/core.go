@@ -85,7 +85,6 @@ type EndpointDriver interface {
 	CreateEndpoint(id string) error
 	DeleteEndpoint(value string) error
 	MakeEndpointAddress() (*Address, error)
-	UpdateContainerId(id string, contId string) error
 }
 
 type StateDriver interface {

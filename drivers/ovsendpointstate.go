@@ -86,7 +86,6 @@ type OvsOperEndpointState struct {
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
 	ContName    string           `json:"contName"`
-	ContId      string           `json:"contId"`
 	IpAddress   string           `json:"ipAddress"`
 	PortName    string           `json:"portName"`
 	HomingHost  string           `json:"homingHost"`

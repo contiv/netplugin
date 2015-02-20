@@ -343,11 +343,6 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 		}
 		contId := crt.ContainerIf.GetContainerId(contEpContext.NewContName)
 		if contId != "" {
-			err = netPlugin.UpdateContainerId(epId, contId)
-			if err != nil {
-				log.Printf("Cont id update err '%s' to ep '%s' - contid %s\n",
-					contEpContext.NewContName, epId, contId)
-			}
 		}
 	}
 

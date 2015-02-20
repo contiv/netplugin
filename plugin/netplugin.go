@@ -189,10 +189,6 @@ func (p *NetPlugin) DeleteEndpoint(value string) error {
 	return p.EndpointDriver.DeleteEndpoint(value)
 }
 
-func (p *NetPlugin) UpdateContainerId(id string, contId string) error {
-	return p.EndpointDriver.UpdateContainerId(id, contId)
-}
-
 func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 	return nil, &core.Error{Desc: "Not implemented"}
 }
