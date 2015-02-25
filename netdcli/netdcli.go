@@ -444,7 +444,10 @@ func executeOpts(opts *cliOpts) error {
 		if err != nil {
 			log.Fatalf("Failed to read %s. Error: %s", opts.construct.Get(), err)
 		} else {
-			log.Printf("%s State: %v", opts.construct.Get(), state)
+			//XXX: poor man's pretty print for struct to keep output greppable
+			//on individual structure fields
+			log.Printf("%s State: \n%s\n", opts.construct.Get(),
+				strings.Replace(fmt.Sprintf("%+v", state), " ", ",\n\t", -1))
 		}
 	case CLI_OPER_ATTACH, CLI_OPER_DETACH, CLI_OPER_CREATE:
 		err = state.Write()

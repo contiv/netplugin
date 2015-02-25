@@ -24,4 +24,5 @@ unit-test: build
 	./scripts/unittests -vagrant
 
 system-test: build
-	go test -v github.com/contiv/netplugin/systemtests
+	go test -v github.com/contiv/netplugin/systemtests/singlehost 
+	go test -v github.com/contiv/netplugin/systemtests/twohosts

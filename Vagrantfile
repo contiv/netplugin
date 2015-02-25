@@ -68,7 +68,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node_name = node_names[n]
         node_addr = node_ips[n]
         node_peers = ""
-        node_ips.length.times { |i| node_peers += "#{node_names[i]}=http://#{node_ips[i]}:7001 "}
+        node_ips.length.times { |i| node_peers += "#{node_names[i]}=http://#{node_ips[i]}:2380 "}
         node_peers = node_peers.strip().gsub(' ', ',')
         config.vm.define node_name do |node|
             node.vm.hostname = node_name
@@ -101,12 +101,18 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config
-(echo etcd -vv -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
- -listen-peer-urls http://#{node_addr}:7001 \
+(echo etcd -name #{node_name} -data-dir /opt/etcd \
+ -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+ -advertise-client-urls http://#{node_addr}:2379,http://#{node_addr}:4001 \
+ -initial-advertise-peer-urls http://#{node_addr}:2380 \
+ -listen-peer-urls http://#{node_addr}:2380 \
  -initial-cluster #{node_peers} \
  -initial-cluster-state new)
-(nohup etcd -vv -name #{node_name} -initial-advertise-peer-urls http://#{node_addr}:7001 \
- -listen-peer-urls http://#{node_addr}:7001 \
+(nohup etcd -name #{node_name} -data-dir /opt/etcd \
+ -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+ -advertise-client-urls http://#{node_addr}:2379,http://#{node_addr}:4001 \
+ -initial-advertise-peer-urls http://#{node_addr}:2380 \
+ -listen-peer-urls http://#{node_addr}:2380 \
  -initial-cluster #{node_peers} \
  -initial-cluster-state new 0<&- &>/tmp/etcd.log &) || exit 1
 SCRIPT
