@@ -5,4 +5,7 @@ go:
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get install -y vagrant virtualbox
+  - wget https://dl.bintray.com/mitchellh/vagrant/vagrant_1.7.2_x86_64.deb
+  - sudo dpkg -i vagrant_*.deb
+  - sudo apt-get -f install
+  - sudo apt-get install -y virtualbox
