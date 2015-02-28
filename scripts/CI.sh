@@ -10,8 +10,6 @@ export GOPATH=$WORKSPACE
 export GOBIN=$GOPATH/bin
 export GOSRC=$GOPATH/src
 export PATH=$PATH:/usr/local/go/bin:$GOBIN
-export http_proxy=http://proxy.esl.cisco.com:8080
-export https_proxy=$http_proxy
 
 cd $GOSRC/github.com/contiv/netplugin
 make
