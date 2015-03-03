@@ -99,6 +99,21 @@ func TestGlobalConfigSpecificVlans(t *testing.T) {
 		t.Fatalf("error - expecting vlan %d but allocated %d \n", 200, vlan)
 	}
 
+	err = g.CheckVlanInUse(vlan)
+	if err == nil {
+		t.Fatalf("error - vlan %d should have returned in use \n", vlan)
+	}
+
+	err = g.SetVlan(vlan + 1)
+	if err != nil {
+		t.Fatalf("error - vlan %d should be allowed for allocation \n", vlan+1)
+	}
+
+	err = g.FreeVlan(vlan + 1)
+	if err != nil {
+		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
+	}
+
 	err = g.FreeVlan(vlan)
 	if err != nil {
 		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
@@ -255,6 +270,21 @@ func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
 	}
 	if localVlan == 0 {
 		t.Fatalf("error - invalid vlan allocated %d \n", localVlan)
+	}
+
+	err = g.CheckVlanInUse(vlan)
+	if err == nil {
+		t.Fatalf("error - vlan %d should have returned in use \n", vlan)
+	}
+
+	err = g.SetVlan(vlan + 1)
+	if err != nil {
+		t.Fatalf("error - vlan %d should be allowed for allocation \n", vlan+1)
+	}
+
+	err = g.FreeVlan(vlan + 1)
+	if err != nil {
+		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
 	}
 
 	err = g.FreeVlan(vlan)

@@ -138,11 +138,20 @@ func processGlobalEvent(netPlugin *plugin.NetPlugin, key, preValue string) (err 
 		gOper := &gstate.Oper{}
 		err = gOper.Read(netPlugin.StateDriver, tenant)
 		if err != nil {
-			log.Printf("Error '%s' finding the global oper state \n", err)
+			// already deleted
+			log.Printf("Tenant '%s' already deleted \n", tenant)
+			err = nil
 		} else {
-			gOper.Clear(netPlugin.StateDriver)
+			err = gOper.Clear(netPlugin.StateDriver)
 		}
 
+		return
+	}
+
+	gOper = &gstate.Oper{}
+	err = gOper.Read(netPlugin.StateDriver, tenant)
+	if err == nil {
+		// already created
 		return
 	}
 

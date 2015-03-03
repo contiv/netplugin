@@ -262,12 +262,12 @@ func (g *Oper) AllocVxlan() (vxlan uint, localVlan uint, err error) {
 
 func (g *Oper) FreeVxlan(vxlan uint, localVlan uint) error {
 	if !g.FreeLocalVlans.Test(localVlan) {
-		g.FreeLocalVlans.Clear(localVlan)
+		g.FreeLocalVlans.Set(localVlan)
 	}
 
 	vxlan = vxlan - g.FreeVxlansStart
 	if !g.FreeVxlans.Test(vxlan) {
-		g.FreeVxlans.Clear(vxlan)
+		g.FreeVxlans.Set(vxlan)
 	}
 
 	return nil
@@ -279,7 +279,7 @@ func (g *Oper) AllocLocalVlan() (uint, error) {
 		return 0, errors.New("no vlans available ")
 	}
 
-	g.FreeLocalVlans.Set(vlan)
+	g.FreeLocalVlans.Clear(vlan)
 
 	return vlan, nil
 }
@@ -287,7 +287,7 @@ func (g *Oper) AllocLocalVlan() (uint, error) {
 // be idempotent, don't complain if vlan is already freed
 func (g *Oper) FreeLocalVlan(vlan uint) error {
 	if !g.FreeLocalVlans.Test(vlan) {
-		g.FreeLocalVlans.Clear(vlan)
+		g.FreeLocalVlans.Set(vlan)
 	}
 	return nil
 }
@@ -333,9 +333,26 @@ func (g *Oper) AllocVlan() (uint, error) {
 // be idempotent, don't complain if vlan is already freed
 func (g *Oper) FreeVlan(vlan uint) error {
 	if !g.FreeVlans.Test(vlan) {
-		g.FreeVlans.Clear(vlan)
+		g.FreeVlans.Set(vlan)
 	}
 	return nil
+}
+
+func (g *Oper) CheckVlanInUse(vlan uint) error {
+	if !g.FreeVlans.Test(vlan) {
+		return errors.New("specified vlan not available")
+	}
+
+	return nil
+}
+
+func (g *Oper) SetVlan(vlan uint) (err error) {
+	err = g.CheckVlanInUse(vlan)
+	if err == nil {
+		g.FreeVlans.Clear(vlan)
+	}
+
+	return
 }
 
 func (g *Oper) AllocSubnet() (string, error) {

@@ -25,43 +25,10 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
+	"github.com/contiv/netplugin/netmaster"
 )
 
-type ConfigEpJson struct {
-	Container string
-	Host      string
-	// XXX: need to think more, if interface name really belongs to logical
-	// config. One usecase for having interface name in logical config might be
-	// the SRIOV case, where the virtual interfaces could be pre-exist.
-	Intf string
-}
-
-type ConfigNetworkJson struct {
-	Name string
-	// XXX: need to think more, if the pkt-tag really belongs to logical
-	// config. One usecase for having tag in logical config might be
-	// the case of environment where tags are managed outside the realm of
-	// allocator. Eg. ACI kind of deployments wjere APIC allocates the tags.
-	PktTag    string
-	Endpoints []ConfigEpJson
-}
-
-type ConfigTenantJson struct {
-	Name           string
-	DefaultNetType string
-	SubnetPool     string
-	AllocSubnetLen uint
-	Vlans          string
-	Vxlans         string
-
-	Networks []ConfigNetworkJson
-}
-
-type ConfigJson struct {
-	Tenants []ConfigTenantJson
-}
-
-func getEpName(net *ConfigNetworkJson, ep *ConfigEpJson) string {
+func getEpName(net *netmaster.ConfigNetwork, ep *netmaster.ConfigEp) string {
 	if ep.Container != "" {
 		return net.Name + "-" + ep.Container
 	} else {
@@ -73,7 +40,7 @@ func postProcessing() {
 	time.Sleep(1 * time.Second)
 }
 
-func tenantPresent(allCfg *ConfigJson, tenantId string) bool {
+func tenantPresent(allCfg *netmaster.Config, tenantId string) bool {
 	for _, tenant := range allCfg.Tenants {
 		if tenantId == tenant.Name {
 			return true
@@ -83,7 +50,7 @@ func tenantPresent(allCfg *ConfigJson, tenantId string) bool {
 	return false
 }
 
-func netPresent(allCfg *ConfigJson, netId string) bool {
+func netPresent(allCfg *netmaster.Config, netId string) bool {
 	for _, tenant := range allCfg.Tenants {
 		for _, net := range tenant.Networks {
 			if netId == net.Name {
@@ -95,7 +62,7 @@ func netPresent(allCfg *ConfigJson, netId string) bool {
 	return false
 }
 
-func epPresent(allCfg *ConfigJson, epId string) bool {
+func epPresent(allCfg *netmaster.Config, epId string) bool {
 	for _, tenant := range allCfg.Tenants {
 		for _, net := range tenant.Networks {
 			for _, ep := range net.Endpoints {
@@ -109,235 +76,116 @@ func epPresent(allCfg *ConfigJson, epId string) bool {
 	return false
 }
 
-func initEtcd(defOpts *cliOpts) (*drivers.EtcdStateDriver, error) {
-	etcdDriver := &drivers.EtcdStateDriver{}
-	driverConfig := &drivers.EtcdStateDriverConfig{}
-	driverConfig.Etcd.Machines = []string{defOpts.etcdUrl}
-	config := &core.Config{V: driverConfig}
-	err := etcdDriver.Init(config)
-	return etcdDriver, err
-}
+func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 
-func deleteDelta(allCfg *ConfigJson, defOpts *cliOpts) error {
-
-	etcdDriver, err := initEtcd(defOpts)
-	if err != nil {
-		log.Fatalf("Failed to init etcd driver. Error: %s", err)
-	}
-
-	keys, err := etcdDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
+	keys, err := stateDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
 	if err != nil {
 		return core.ErrIfKeyExists(err)
 	}
 	for _, key := range keys {
 		epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
 		if !epPresent(allCfg, epId) {
-			opts := *defOpts
-			opts.construct.Set(CLI_CONSTRUCT_EP)
-			opts.oper.Set(CLI_OPER_DELETE)
-			opts.idStr = epId
-			log.Printf("deleting ep %s \n", epId)
-
-			err = executeOpts(&opts)
+			err = netmaster.DeleteEndpointId(stateDriver, epId)
 			if err != nil {
-				log.Printf("error '%s' deleting ep %s \n", err, epId)
+				log.Printf("error '%s' deleting epid %s \n", err, epId)
+				continue
 			}
-			postProcessing()
 		}
 	}
 
-	keys, err = etcdDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
+	keys, err = stateDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
 	if err != nil {
 		return err
 	}
 	for _, key := range keys {
 		netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
 		if !netPresent(allCfg, netId) {
-			opts := *defOpts
-			opts.construct.Set(CLI_CONSTRUCT_NW)
-			opts.oper.Set(CLI_OPER_DELETE)
-			opts.idStr = netId
-			log.Printf("deleting net %s\n", netId)
-
-			err = executeOpts(&opts)
+			err = netmaster.DeleteNetworkId(stateDriver, netId)
 			if err != nil {
 				log.Printf("error '%s' deleting net %s \n", err, netId)
+				continue
 			}
-			postProcessing()
 		}
 	}
 
-	keys, err = etcdDriver.ReadRecursive(gstate.CFG_GLOBAL_PREFIX)
+	keys, err = stateDriver.ReadRecursive(gstate.CFG_GLOBAL_PREFIX)
 	if err != nil {
 		return err
 	}
 	for _, key := range keys {
 		tenantId := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
 		if !tenantPresent(allCfg, tenantId) {
-			opts := *defOpts
-			opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
-			opts.oper.Set(CLI_OPER_DELETE)
-			opts.tenant = tenantId
-			log.Printf("deleting tenant %s\n", tenantId)
-
-			err = executeOpts(&opts)
+			err = netmaster.DeleteTenantId(stateDriver, tenantId)
 			if err != nil {
 				log.Printf("error '%s' deleting tenant %s \n", err, tenantId)
+				continue
 			}
-			postProcessing()
 		}
 	}
 
 	return nil
 }
 
-func processAdditions(allCfg *ConfigJson, defOpts *cliOpts) (err error) {
-	etcdDriver, err := initEtcd(defOpts)
-	if err != nil {
-		log.Fatalf("Failed to init etcd driver. Error: %s", err)
-	}
-
+func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
 	for _, tenant := range allCfg.Tenants {
-		addTenant := true
-		if defOpts.cfgAdditions && len(tenant.Networks) != 0 {
-			gcfg := gstate.Cfg{}
-			err = gcfg.Read(etcdDriver, tenant.Name)
-			if core.ErrIfKeyExists(err) != nil {
-				log.Fatalf("error reading the tenant %s , err '%s'\n",
-					tenant, err)
-			}
-			if err == nil {
-				addTenant = false
-			}
+		err := netmaster.CreateTenant(stateDriver, &tenant)
+		if err != nil {
+			log.Printf("error adding tenant '%s' \n", err)
+			continue
 		}
 
-		if addTenant {
-			opts := *defOpts
-			opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
-			opts.oper.Set(CLI_OPER_CREATE)
-			opts.tenant = tenant.Name
-			opts.pktTagType = tenant.DefaultNetType
-			opts.subnetCidr = tenant.SubnetPool
-			opts.allocSubnetLen = tenant.AllocSubnetLen
-			opts.vlans = tenant.Vlans
-			opts.vxlans = tenant.Vxlans
-
-			log.Printf("creating tenant %s \n", opts.tenant)
-			err = executeOpts(&opts)
-			if err != nil {
-				log.Printf("error pushing global config state: %s \n", err)
-				return
-			}
+		err = netmaster.CreateNetworks(stateDriver, &tenant)
+		if err != nil {
+			log.Printf("error adding networks '%s' \n", err)
+			continue
 		}
 
-		for _, net := range tenant.Networks {
-
-			addNetwork := true
-			if defOpts.cfgAdditions && len(tenant.Networks) != 0 {
-				nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
-				err = nwCfg.Read(net.Name)
-				if core.ErrIfKeyExists(err) != nil {
-					log.Fatalf("error reading the net %s , err '%s'\n",
-						net, err)
-				}
-				if err == nil {
-					addNetwork = false
-				}
-			}
-
-			if addNetwork {
-				opts = *defOpts
-				opts.construct.Set(CLI_CONSTRUCT_NW)
-				opts.oper.Set(CLI_OPER_CREATE)
-				opts.tenant = tenant.Name
-				opts.idStr = net.Name
-				if net.PktTag != "" {
-					opts.pktTag = net.PktTag
-				}
-				log.Printf("  creating network %s \n", opts.idStr)
-				err = executeOpts(&opts)
-				if err != nil {
-					log.Printf("error pushing network config state: %s \n", err)
-					return
-				}
-				postProcessing()
-			}
-
-			for _, ep := range net.Endpoints {
-				opts = *defOpts
-				opts.construct.Set(CLI_CONSTRUCT_EP)
-				opts.oper.Set(CLI_OPER_CREATE)
-				opts.idStr = getEpName(&net, &ep)
-				opts.netId = net.Name
-				opts.contName = ep.Container
-				opts.homingHost = ep.Host
-				opts.intfName = ep.Intf
-				log.Printf("    creating ep %s \n", opts.idStr)
-				err = executeOpts(&opts)
-				if err != nil {
-					log.Printf("error pushing ep config state: %s \n", err)
-					return
-				}
-				postProcessing()
-			}
+		err = netmaster.CreateEndpoints(stateDriver, &tenant)
+		if err != nil {
+			log.Printf("error adding endpoints '%s' \n", err)
+			continue
 		}
 	}
 
 	return
 }
 
-func processDeletions(allCfg *ConfigJson, defOpts *cliOpts) (err error) {
+func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
 	for _, tenant := range allCfg.Tenants {
-		for _, net := range tenant.Networks {
-			for _, ep := range net.Endpoints {
-				opts = *defOpts
-				opts.construct.Set(CLI_CONSTRUCT_EP)
-				opts.oper.Set(CLI_OPER_DELETE)
-				opts.idStr = getEpName(&net, &ep)
-				opts.netId = net.Name
-				opts.contName = ep.Container
-				opts.homingHost = ep.Host
-				opts.intfName = ep.Intf
-				log.Printf("deleting ep %s \n", opts.idStr)
-				err = executeOpts(&opts)
-				if err != nil {
-					log.Printf("error pushing ep config state: %s \n", err)
-					return
-				}
-				postProcessing()
-			}
-
-			if len(net.Endpoints) == 0 {
-				opts = *defOpts
-				opts.construct.Set(CLI_CONSTRUCT_NW)
-				opts.oper.Set(CLI_OPER_DELETE)
-				opts.tenant = tenant.Name
-				opts.idStr = net.Name
-				log.Printf("deleting network %s \n", opts.idStr)
-				err = executeOpts(&opts)
-				if err != nil {
-					log.Printf("error pushing network config state: %s \n", err)
-					return
-				}
-				postProcessing()
-			}
+		err = netmaster.DeleteTenant(stateDriver, &tenant)
+		if err != nil {
+			log.Printf("error deleting tenant '%s' \n", err)
+			continue
 		}
 
-		if len(tenant.Networks) == 0 {
-			opts := *defOpts
-			opts.construct.Set(CLI_CONSTRUCT_GLOBAL)
-			opts.oper.Set(CLI_OPER_DELETE)
-			opts.tenant = tenant.Name
+		err = netmaster.DeleteNetworks(stateDriver, &tenant)
+		if err != nil {
+			log.Printf("error deleting networks '%s' \n", err)
+			continue
+		}
 
-			log.Printf("deleting tenant %s \n", opts.tenant)
-			err = executeOpts(&opts)
-			if err != nil {
-				log.Printf("error pushing global config state: %s \n", err)
-				return
-			}
+		err = netmaster.DeleteEndpoints(stateDriver, &tenant)
+		if err != nil {
+			log.Printf("error deleting endpoints '%s' \n", err)
+			continue
 		}
 	}
+
 	return
+}
+
+func initEtcd(defOpts *cliOpts) (core.StateDriver, error) {
+	driverConfig := &drivers.EtcdStateDriverConfig{}
+	driverConfig.Etcd.Machines = []string{defOpts.etcdUrl}
+	config := &core.Config{V: driverConfig}
+
+	etcdDriver := &drivers.EtcdStateDriver{}
+	err := etcdDriver.Init(config)
+	if err != nil {
+		log.Printf("error '%s' initializing etcd \n", err)
+	}
+
+	return etcdDriver, err
 }
 
 func executeJsonCfg(defOpts *cliOpts) (err error) {
@@ -346,7 +194,7 @@ func executeJsonCfg(defOpts *cliOpts) (err error) {
 		return err
 	}
 
-	allCfg := &ConfigJson{}
+	allCfg := &netmaster.Config{}
 	err = json.Unmarshal(data, allCfg)
 	if err != nil {
 		log.Printf("unmarshal error '%s', tenants %v \n", err, allCfg)
@@ -354,8 +202,13 @@ func executeJsonCfg(defOpts *cliOpts) (err error) {
 	}
 	// log.Printf("parsed config %v \n", allCfg)
 
+	stateDriver, err := initEtcd(defOpts)
+	if err != nil {
+		log.Fatalf("Failed to init etcd driver. Error: %s", err)
+	}
+
 	if defOpts.cfgDesired {
-		err = deleteDelta(allCfg, defOpts)
+		err = deleteDelta(stateDriver, allCfg)
 	}
 	if err != nil {
 		log.Printf("error deleting delta '%s' \n", err)
@@ -363,9 +216,9 @@ func executeJsonCfg(defOpts *cliOpts) (err error) {
 	}
 
 	if defOpts.cfgDeletions {
-		err = processDeletions(allCfg, defOpts)
+		err = processDeletions(stateDriver, allCfg)
 	} else {
-		err = processAdditions(allCfg, defOpts)
+		err = processAdditions(stateDriver, allCfg)
 	}
 	if err != nil {
 		log.Printf("error processing cfg '%s' \n", err)

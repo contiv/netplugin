@@ -234,3 +234,18 @@ func GetLocalIp() (string, error) {
 
 	return "", errors.New("local ip not found")
 }
+
+func ParseCIDR(cidrStr string) (string, uint, error) {
+	strs := strings.Split(cidrStr, "/")
+	if len(strs) != 2 {
+		return "", 0, errors.New("invalid cidr format")
+	}
+
+	subnetStr := strs[0]
+	subnetLen, _ := strconv.Atoi(strs[1])
+	if subnetLen > 32 {
+		return "", 0, errors.New("invalid mask in gateway/mask specification ")
+	}
+
+	return subnetStr, uint(subnetLen), nil
+}

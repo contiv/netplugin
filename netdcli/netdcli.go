@@ -299,20 +299,10 @@ func validateOpts(opts *cliOpts) error {
 			log.Fatalf("error '%s' parsing cidr ip %s \n", err, opts.subnetCidr)
 		}
 
-		strs := strings.Split(opts.subnetCidr, "/")
-		if len(strs) != 2 {
+		opts.subnetIp, opts.subnetLen, err = netutils.ParseCIDR(opts.subnetCidr)
+		if err != nil {
 			logFatalSubnetAndMaskFormatError()
 		}
-
-		if strs[0] != "0" {
-			opts.subnetIp = strs[0]
-		}
-		subnetLen, _ := strconv.Atoi(strs[1])
-		if subnetLen > 32 {
-			log.Printf("invalid mask in gateway/mask specification ")
-			logFatalSubnetAndMaskFormatError()
-		}
-		opts.subnetLen = uint(subnetLen)
 	}
 
 	if opts.vtepIp != "" && net.ParseIP(opts.vtepIp) == nil {
