@@ -1,3 +1,5 @@
+[![Build Status](http://23b03152.ngrok.com/job/NetpluginPushSanity/badge/icon)](http://23b03152.ngrok.com/job/NetpluginPushSanity/)
+
 ## Netplugin
 
 Generic network plugin (experimental) is designed to handle networking use cases in clustered multi-host systems, beyond what is offered by the docker default plugin. Specifically it is designed to handle:
