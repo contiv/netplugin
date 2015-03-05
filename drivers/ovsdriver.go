@@ -236,7 +236,6 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 		}
 
 		if intfOptions != nil {
-			// log.Printf("using options %v \n", intfOptions)
 			intf["options"], err = libovsdb.NewOvsMap(intfOptions)
 			if err != nil {
 				log.Printf("error '%s' creating options from %v \n", err, intfOptions)
@@ -329,22 +328,22 @@ func vxlanIfName(netId, vtepIp string) string {
 }
 
 func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err := operNwState.Read(epCfg.NetId)
+	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err := cfgNw.Read(epCfg.NetId)
 	if err != nil {
 		return err
 	}
 
 	intfOptions := make(map[string]interface{})
 	intfOptions["remote_ip"] = epCfg.VtepIp
-	intfOptions["key"] = strconv.Itoa(operNwState.ExtPktTag)
+	intfOptions["key"] = strconv.Itoa(cfgNw.ExtPktTag)
 
 	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
-	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
-		intfOptions, operNwState.PktTag, CREATE_PORT)
+	err = d.createDeletePort(intfName, intfName, "vxlan", cfgNw.Id,
+		intfOptions, cfgNw.PktTag, CREATE_PORT)
 	if err != nil {
 		log.Printf("error '%s' creating vxlan peer intfName %s, options %s, tag %d \n",
-			err, intfName, intfOptions, operNwState.PktTag)
+			err, intfName, intfOptions, cfgNw.PktTag)
 		return err
 	}
 
@@ -353,18 +352,18 @@ func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
 
 func (d *OvsDriver) deleteVtep(epCfg *OvsCfgEndpointState) error {
 
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err := operNwState.Read(epCfg.NetId)
+	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err := cfgNw.Read(epCfg.NetId)
 	if err != nil {
 		return err
 	}
 
 	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
-	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
-		nil, operNwState.PktTag, DELETE_PORT)
+	err = d.createDeletePort(intfName, intfName, "vxlan", cfgNw.Id,
+		nil, cfgNw.PktTag, DELETE_PORT)
 	if err != nil {
 		log.Printf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
-			err, intfName, operNwState.PktTag)
+			err, intfName, cfgNw.PktTag)
 		return err
 	}
 
@@ -424,13 +423,13 @@ func (d *OvsDriver) Deinit() {
 }
 
 func (d *OvsDriver) CreateNetwork(id string) error {
-	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err := cfgNetState.Read(id)
+	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err := cfgNw.Read(id)
 	if err != nil {
-		log.Printf("Failed to read net %s \n", cfgNetState.Id)
+		log.Printf("Failed to read net %s \n", cfgNw.Id)
 		return err
 	}
-	log.Printf("create net %s \n", cfgNetState.Id)
+	log.Printf("create net %s \n", cfgNw.Id)
 
 	return nil
 }
@@ -440,13 +439,13 @@ func (d *OvsDriver) DeleteNetwork(value string) error {
 	// no driver operation for network delete
 	var err error
 
-	cfgNetState := OvsCfgNetworkState{}
-	err = cfgNetState.Unmarshal(value)
+	cfgNw := OvsCfgNetworkState{}
+	err = cfgNw.Unmarshal(value)
 	if err != nil {
 		log.Printf("Failed to unmarshal network config, err '%s' \n", err)
 		return err
 	}
-	log.Printf("delete net %s \n", cfgNetState.Id)
+	log.Printf("delete net %s \n", cfgNw.Id)
 
 	return nil
 }
@@ -485,15 +484,15 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		intfType = ""
 	}
 
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(epCfg.NetId)
+	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err = cfgNw.Read(epCfg.NetId)
 	if err != nil {
 		return err
 	}
 
 	// TODO: some updates may mean implicit delete of the previous state
 	err = d.createDeletePort(portName, intfName, intfType, epCfg.Id,
-		nil, operNwState.PktTag, CREATE_PORT)
+		nil, cfgNw.PktTag, CREATE_PORT)
 	if err != nil {
 		return err
 	}
@@ -503,7 +502,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		}
 	}()
 
-	operEpState := OvsOperEndpointState{
+	operEp := OvsOperEndpointState{
 		StateDriver: d.stateDriver,
 		Id:          id,
 		PortName:    portName,
@@ -513,13 +512,13 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		IntfName:    intfName,
 		HomingHost:  epCfg.HomingHost,
 		VtepIp:      epCfg.VtepIp}
-	err = operEpState.Write()
+	err = operEp.Write()
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			operEpState.Clear()
+			operEp.Clear()
 		}
 	}()
 

@@ -386,11 +386,11 @@ func executeOpts(opts *cliOpts) error {
 		}
 	case CLI_CONSTRUCT_NW:
 		if opts.oper.Get() == CLI_OPER_GET {
-			nwOper := &drivers.OvsOperNetworkState{StateDriver: etcdDriver}
-			state = nwOper
+			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
+			state = nwCfg
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
-			nwCfg.PktTag = opts.pktTag
+			nwCfg.PktTag, _ = strconv.Atoi(opts.pktTag)
 			nwCfg.Tenant = opts.tenant
 			nwCfg.PktTagType = opts.pktTagType
 			nwCfg.SubnetIp = opts.subnetIp
