@@ -69,7 +69,6 @@ func createDeleteVtep(netPlugin *plugin.NetPlugin, netId, preValue string,
 	}
 
 	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
-
 	epCfg.Id = getVtepName(netId, opts.hostLabel)
 	if preValue != "" {
 		err = epCfg.Clear()
@@ -77,15 +76,18 @@ func createDeleteVtep(netPlugin *plugin.NetPlugin, netId, preValue string,
 			log.Printf("error '%s' deleting ep %s \n", err, epCfg.Id)
 		}
 	} else {
-		epCfg.HomingHost = opts.hostLabel
-		epCfg.VtepIp, err = netutils.GetLocalIp()
+		err = epCfg.Read(epCfg.Id)
 		if err != nil {
-			log.Printf("error '%s' getting local IP \n", err)
-		} else {
-			epCfg.NetId = netId
-			err = epCfg.Write()
+			epCfg.HomingHost = opts.hostLabel
+			epCfg.VtepIp, err = netutils.GetLocalIp()
 			if err != nil {
-				log.Printf("error '%s' adding epCfg %v \n", epCfg)
+				log.Printf("error '%s' getting local IP \n", err)
+			} else {
+				epCfg.NetId = netId
+				err = epCfg.Write()
+				if err != nil {
+					log.Printf("error '%s' adding epCfg %v \n", epCfg)
+				}
 			}
 		}
 	}
@@ -138,11 +140,20 @@ func processGlobalEvent(netPlugin *plugin.NetPlugin, key, preValue string) (err 
 		gOper := &gstate.Oper{}
 		err = gOper.Read(netPlugin.StateDriver, tenant)
 		if err != nil {
-			log.Printf("Error '%s' finding the global oper state \n", err)
+			// already deleted
+			log.Printf("Tenant '%s' already deleted \n", tenant)
+			err = nil
 		} else {
-			gOper.Clear(netPlugin.StateDriver)
+			err = gOper.Clear(netPlugin.StateDriver)
 		}
 
+		return
+	}
+
+	gOper = &gstate.Oper{}
+	err = gOper.Read(netPlugin.StateDriver, tenant)
+	if err == nil {
+		// already created
 		return
 	}
 
@@ -204,22 +215,22 @@ func getEndpointContainerContext(state *core.StateDriver, epId string) (
 	}
 	epCtx.NewContName = epCfg.ContName
 
-	operNetState := &drivers.OvsOperNetworkState{StateDriver: *state}
-	err = operNetState.Read(epCfg.NetId)
+	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: *state}
+	err = cfgNet.Read(epCfg.NetId)
 	if err != nil {
 		return &epCtx, err
 	}
-	epCtx.DefaultGw = operNetState.DefaultGw
-	epCtx.SubnetLen = operNetState.SubnetLen
+	epCtx.DefaultGw = cfgNet.DefaultGw
+	epCtx.SubnetLen = cfgNet.SubnetLen
 
-	operEpState := &drivers.OvsOperEndpointState{StateDriver: *state}
-	err = operEpState.Read(epId)
+	operEp := &drivers.OvsOperEndpointState{StateDriver: *state}
+	err = operEp.Read(epId)
 	if err != nil {
 		return &epCtx, nil
 	}
-	epCtx.CurrContName = operEpState.ContName
-	epCtx.InterfaceId = operEpState.PortName
-	epCtx.IpAddress = operEpState.IpAddress
+	epCtx.CurrContName = operEp.ContName
+	epCtx.InterfaceId = operEp.PortName
+	epCtx.IpAddress = operEp.IpAddress
 
 	return &epCtx, err
 }

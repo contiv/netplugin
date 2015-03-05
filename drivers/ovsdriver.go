@@ -24,8 +24,6 @@ import (
 
 	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/gstate"
-	"github.com/contiv/netplugin/netutils"
 )
 
 // implements the NetworkDriver and EndpointDriver interface for an vlan based
@@ -238,7 +236,6 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 		}
 
 		if intfOptions != nil {
-			log.Printf("using options %v \n", intfOptions)
 			intf["options"], err = libovsdb.NewOvsMap(intfOptions)
 			if err != nil {
 				log.Printf("error '%s' creating options from %v \n", err, intfOptions)
@@ -331,22 +328,22 @@ func vxlanIfName(netId, vtepIp string) string {
 }
 
 func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err := operNwState.Read(epCfg.NetId)
+	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err := cfgNw.Read(epCfg.NetId)
 	if err != nil {
 		return err
 	}
 
 	intfOptions := make(map[string]interface{})
 	intfOptions["remote_ip"] = epCfg.VtepIp
-	intfOptions["key"] = strconv.Itoa(operNwState.ExtPktTag)
+	intfOptions["key"] = strconv.Itoa(cfgNw.ExtPktTag)
 
 	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
-	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
-		intfOptions, operNwState.PktTag, CREATE_PORT)
+	err = d.createDeletePort(intfName, intfName, "vxlan", cfgNw.Id,
+		intfOptions, cfgNw.PktTag, CREATE_PORT)
 	if err != nil {
 		log.Printf("error '%s' creating vxlan peer intfName %s, options %s, tag %d \n",
-			err, intfName, intfOptions, operNwState.PktTag)
+			err, intfName, intfOptions, cfgNw.PktTag)
 		return err
 	}
 
@@ -355,18 +352,18 @@ func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
 
 func (d *OvsDriver) deleteVtep(epCfg *OvsCfgEndpointState) error {
 
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err := operNwState.Read(epCfg.NetId)
+	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err := cfgNw.Read(epCfg.NetId)
 	if err != nil {
 		return err
 	}
 
 	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
-	err = d.createDeletePort(intfName, intfName, "vxlan", operNwState.Id,
-		nil, operNwState.PktTag, DELETE_PORT)
+	err = d.createDeletePort(intfName, intfName, "vxlan", cfgNw.Id,
+		nil, cfgNw.PktTag, DELETE_PORT)
 	if err != nil {
 		log.Printf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
-			err, intfName, operNwState.PktTag)
+			err, intfName, cfgNw.PktTag)
 		return err
 	}
 
@@ -426,169 +423,35 @@ func (d *OvsDriver) Deinit() {
 }
 
 func (d *OvsDriver) CreateNetwork(id string) error {
-	var err error
-	var extPktTag, pktTag uint
-	var subnetLen uint
-	var subnetIp string
-	var gOper gstate.Oper
-
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(id)
-	if err == nil {
-		return err
-	}
-
-	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err = cfgNetState.Read(id)
+	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err := cfgNw.Read(id)
 	if err != nil {
+		log.Printf("Failed to read net %s \n", cfgNw.Id)
 		return err
 	}
-
-	err = gOper.Read(d.stateDriver, cfgNetState.Tenant)
-	if err != nil {
-		return err
-	}
-
-	operNwState = OvsOperNetworkState{StateDriver: d.stateDriver,
-		Id: cfgNetState.Id, Tenant: cfgNetState.Tenant,
-		PktTagType: cfgNetState.PktTagType,
-		DefaultGw:  cfgNetState.DefaultGw}
-
-	if cfgNetState.PktTag == "auto" {
-		operNwState.PktTagType = gOper.DefaultNetType
-		if gOper.DefaultNetType == "vlan" {
-			pktTag, err = gOper.AllocVlan()
-			if err != nil {
-				return err
-			}
-		} else if gOper.DefaultNetType == "vxlan" {
-			extPktTag, pktTag, err = gOper.AllocVxlan()
-			if err != nil {
-				return err
-			}
-		}
-
-		err = gOper.Update(d.stateDriver)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("allocated vlan %d vxlan %d \n", pktTag, extPktTag)
-		operNwState.ExtPktTag = int(extPktTag)
-		operNwState.PktTag = int(pktTag)
-	} else {
-		if cfgNetState.PktTagType == "vxlan" {
-			pktTag, err = gOper.AllocLocalVlan()
-			if err != nil {
-				return err
-			}
-
-			err = gOper.Update(d.stateDriver)
-			if err != nil {
-				log.Printf("error updating the global state - %s \n", err)
-				return err
-			}
-
-			operNwState.PktTag = int(pktTag)
-			operNwState.ExtPktTag, err = strconv.Atoi(cfgNetState.PktTag)
-		} else if cfgNetState.PktTagType == "vlan" {
-			operNwState.PktTag, err = strconv.Atoi(cfgNetState.PktTag)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if cfgNetState.SubnetIp == "auto" {
-		subnetLen = gOper.AllocSubnetLen
-		subnetIp, err = gOper.AllocSubnet()
-		if err != nil {
-			return err
-		}
-
-		err = gOper.Update(d.stateDriver)
-		if err != nil {
-			return err
-		}
-		log.Printf("allocated subnet %s/%d \n", subnetIp, subnetLen)
-	} else {
-		subnetLen = cfgNetState.SubnetLen
-		subnetIp = cfgNetState.SubnetIp
-	}
-	operNwState.SubnetIp = subnetIp
-	operNwState.SubnetLen = subnetLen
-
-	netutils.InitSubnetBitset(&operNwState.IpAllocMap, subnetLen)
-	err = operNwState.Write()
-	if err != nil {
-		return err
-	}
+	log.Printf("create net %s \n", cfgNw.Id)
 
 	return nil
 }
 
 func (d *OvsDriver) DeleteNetwork(value string) error {
-	var err error
-	var gOper gstate.Oper
 
-	cfgNetState := OvsCfgNetworkState{}
-	err = cfgNetState.Unmarshal(value)
+	// no driver operation for network delete
+	var err error
+
+	cfgNw := OvsCfgNetworkState{}
+	err = cfgNw.Unmarshal(value)
 	if err != nil {
 		log.Printf("Failed to unmarshal network config, err '%s' \n", err)
 		return err
 	}
-
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(cfgNetState.Id)
-	if err != nil {
-		return core.ErrIfKeyExists(err)
-	}
-
-	err = gOper.Read(d.stateDriver, operNwState.Tenant)
-	if err != nil {
-		return err
-	}
-
-	if operNwState.PktTagType == "vlan" {
-		err = gOper.FreeVlan(uint(operNwState.PktTag))
-		if err != nil {
-			return err
-		}
-	} else if operNwState.PktTagType == "vxlan" {
-		err = gOper.FreeVxlan(uint(operNwState.ExtPktTag),
-			uint(operNwState.PktTag))
-		if err != nil {
-			return err
-		}
-	}
-
-	if cfgNetState.SubnetIp == "auto" {
-		log.Printf("freeing subnet %s/%d \n",
-			operNwState.SubnetIp, operNwState.SubnetLen)
-		err = gOper.FreeSubnet(operNwState.SubnetIp)
-		if err != nil {
-			log.Printf("error '%s' freeing the subnet \n", err)
-		}
-	}
-
-	err = gOper.Update(d.stateDriver)
-	if err != nil {
-		log.Printf("error updating the global state - %s \n", err)
-		return err
-	}
-
-	err = operNwState.Clear()
-	if err != nil {
-		return core.ErrIfKeyExists(err)
-	}
+	log.Printf("delete net %s \n", cfgNw.Id)
 
 	return nil
 }
 
 func (d *OvsDriver) CreateEndpoint(id string) error {
 	var err error
-	var ipAddrBit uint = 0
-	var found bool
 
 	// add an internal ovs port with vlan-tag information from the state
 	portName := d.getPortName()
@@ -621,23 +484,15 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		intfType = ""
 	}
 
-	cfgNetState := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err = cfgNetState.Read(epCfg.NetId)
-	if err != nil {
-		return err
-	}
-
-	// TODO: use etcd distributed lock to ensure atomicity of this operation
-	// this is valid for EpCount, defer the unlocking for intermediate returns
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(epCfg.NetId)
+	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	err = cfgNw.Read(epCfg.NetId)
 	if err != nil {
 		return err
 	}
 
 	// TODO: some updates may mean implicit delete of the previous state
 	err = d.createDeletePort(portName, intfName, intfType, epCfg.Id,
-		nil, operNwState.PktTag, CREATE_PORT)
+		nil, cfgNw.PktTag, CREATE_PORT)
 	if err != nil {
 		return err
 	}
@@ -647,62 +502,23 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		}
 	}()
 
-	ipAddress := epCfg.IpAddress
-	if ipAddress == "auto" {
-		if ipAddrBit, found = operNwState.IpAllocMap.NextClear(0); !found {
-			log.Printf("auto allocation failed - address exhaustion in subnet %s/%d \n",
-				operNwState.SubnetIp, operNwState.SubnetLen)
-			return err
-		}
-		ipAddress, err = netutils.GetSubnetIp(
-			operNwState.SubnetIp, operNwState.SubnetLen, 32, ipAddrBit)
-		if err != nil {
-			log.Printf("error acquiring subnet ip '%s' \n", err)
-			return err
-		}
-		log.Printf("Ep %s was allocated ip address %s \n", id, ipAddress)
-	} else if ipAddress != "" && operNwState.SubnetIp != "" {
-		ipAddrBit, err = netutils.GetIpNumber(
-			operNwState.SubnetIp, operNwState.SubnetLen, 32, ipAddress)
-		if err != nil {
-			log.Printf("error getting host id from hostIp %s Subnet %s/%d err '%s'\n",
-				ipAddress, operNwState.SubnetIp, operNwState.SubnetLen, err)
-			return err
-		}
-	}
-	operNwState.IpAllocMap.Set(ipAddrBit)
-
-	// deprecate - bitset.WordCount gives the following value
-	operNwState.EpCount += 1
-	err = operNwState.Write()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			//XXX: need to return allocated ip back to the pool in case of failure
-			operNwState.EpCount -= 1
-			operNwState.Write()
-		}
-	}()
-
-	operEpState := OvsOperEndpointState{
+	operEp := OvsOperEndpointState{
 		StateDriver: d.stateDriver,
 		Id:          id,
 		PortName:    portName,
 		NetId:       epCfg.NetId,
 		ContName:    epCfg.ContName,
-		IpAddress:   ipAddress,
+		IpAddress:   epCfg.IpAddress,
 		IntfName:    intfName,
 		HomingHost:  epCfg.HomingHost,
 		VtepIp:      epCfg.VtepIp}
-	err = operEpState.Write()
+	err = operEp.Write()
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			operEpState.Clear()
+			operEp.Clear()
 		}
 	}()
 
@@ -748,27 +564,6 @@ func (d *OvsDriver) DeleteEndpoint(value string) (err error) {
 	}
 
 	err = d.createDeletePort(portName, intfName, "", "", nil, 0, DELETE_PORT)
-	if err != nil {
-		return err
-	}
-
-	operNwState := OvsOperNetworkState{StateDriver: d.stateDriver}
-	err = operNwState.Read(epOper.NetId)
-	if err != nil {
-		return err
-	}
-
-	ipAddrBit, err := netutils.GetIpNumber(
-		operNwState.SubnetIp, operNwState.SubnetLen, 32, epOper.IpAddress)
-	if err != nil {
-		log.Printf("error getting host id from %s subnet %s/%d err '%s'\n",
-			epOper.IpAddress, operNwState.SubnetIp, operNwState.SubnetLen, err)
-	} else {
-		operNwState.IpAllocMap.Clear(ipAddrBit)
-	}
-
-	operNwState.EpCount -= 1
-	err = operNwState.Write()
 	if err != nil {
 		return err
 	}

@@ -78,15 +78,10 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 	value core.State) error {
 	if cfgNw, ok := value.(*OvsCfgNetworkState); ok {
 		cfgNw.Id = testOvsNwId
-		return nil
-	}
-
-	if operNw, ok := value.(*OvsOperNetworkState); ok {
-		operNw.Id = testOvsNwId
-		operNw.PktTag = testPktTag
-		operNw.ExtPktTag = testExtPktTag
-		operNw.SubnetIp = testSubnetIp
-		operNw.SubnetLen = testSubnetLen
+		cfgNw.PktTag = testPktTag
+		cfgNw.ExtPktTag = testExtPktTag
+		cfgNw.SubnetIp = testSubnetIp
+		cfgNw.SubnetLen = testSubnetLen
 		return nil
 	}
 

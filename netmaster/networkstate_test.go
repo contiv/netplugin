@@ -13,7 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+// netmaster  - implements the network intent translation to plugin
+// events; uses state distribution to achieve intent realization
+// netmaster runs as a logically centralized unit on in the cluster
+
+package netmaster
 
 import (
 	"fmt"
@@ -53,8 +57,8 @@ func (d *testNwStateDriver) ReadRecursive(baseKey string) ([]string, error) {
 
 func (d *testNwStateDriver) validateKey(key string) error {
 	if key != nwCfgKey {
-		return &core.Error{Desc: fmt.Sprintf("Unexpected key. "+
-			"recvd: %s expected: %s ", key, nwCfgKey)}
+		return &core.Error{Desc: fmt.Sprintf("Unexpected key. recvd: %s "+
+			"expected: %s or %s ", key, nwCfgKey)}
 	} else {
 		return nil
 	}
@@ -74,28 +78,28 @@ func (d *testNwStateDriver) WriteState(key string, value core.State,
 	return d.validateKey(key)
 }
 
-func TestOvsCfgNetworkStateRead(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver}
+func TestMasterNwConfigRead(t *testing.T) {
+	nwCfg := &MasterNwConfig{StateDriver: nwStateDriver}
 
-	err := epCfg.Read(testNwId)
+	err := nwCfg.Read(testNwId)
 	if err != nil {
 		t.Fatalf("read config state failed. Error: %s", err)
 	}
 }
 
-func TestOvsCfgNetworkStateWrite(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver, Id: testNwId}
+func TestMasterNwConfigWrite(t *testing.T) {
+	nwCfg := &MasterNwConfig{StateDriver: nwStateDriver, Id: testNwId}
 
-	err := epCfg.Write()
+	err := nwCfg.Write()
 	if err != nil {
 		t.Fatalf("write config state failed. Error: %s", err)
 	}
 }
 
-func TestOvsCfgNetworkStateClear(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver, Id: testNwId}
+func TestMasterNwConfigClear(t *testing.T) {
+	nwCfg := &MasterNwConfig{StateDriver: nwStateDriver, Id: testNwId}
 
-	err := epCfg.Clear()
+	err := nwCfg.Clear()
 	if err != nil {
 		t.Fatalf("clear config state failed. Error: %s", err)
 	}
