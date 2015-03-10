@@ -213,6 +213,7 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 
 func GetLocalIp() (string, error) {
 	var addrs []netlink.Addr
+	localIpAddr := ""
 
 	for idx := 0; idx < 3; idx++ {
 		linkName := "eth" + strconv.Itoa(idx)
@@ -228,11 +229,16 @@ func GetLocalIp() (string, error) {
 			return "", err
 		}
 		if len(addrs) > 0 {
-			return addrs[0].IP.String(), nil
+			localIpAddr = addrs[0].IP.String()
 		}
 	}
 
-	return "", errors.New("local ip not found")
+	err := errors.New("local ip not found")
+	if localIpAddr != "" {
+		err = nil
+	}
+
+	return localIpAddr, err
 }
 
 func ParseCIDR(cidrStr string) (string, uint, error) {
