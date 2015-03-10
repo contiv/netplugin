@@ -152,9 +152,9 @@ func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 
 func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
 	for _, tenant := range allCfg.Tenants {
-		err = netmaster.DeleteTenant(stateDriver, &tenant)
+		err = netmaster.DeleteEndpoints(stateDriver, &tenant)
 		if err != nil {
-			log.Printf("error deleting tenant '%s' \n", err)
+			log.Printf("error deleting endpoints '%s' \n", err)
 			continue
 		}
 
@@ -164,9 +164,9 @@ func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 			continue
 		}
 
-		err = netmaster.DeleteEndpoints(stateDriver, &tenant)
+		err = netmaster.DeleteTenant(stateDriver, &tenant)
 		if err != nil {
-			log.Printf("error deleting endpoints '%s' \n", err)
+			log.Printf("error deleting tenant '%s' \n", err)
 			continue
 		}
 	}

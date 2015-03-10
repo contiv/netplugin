@@ -1,10 +1,8 @@
 package twohosts
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/contiv/netplugin/systemtests/utils"
@@ -13,7 +11,7 @@ import (
 var vagrant *utils.Vagrant
 
 func TestMain(m *testing.M) {
-	// setup a single node vagrant testbed
+
 	vagrant = &utils.Vagrant{}
 	log.Printf("Starting vagrant up...")
 	err := vagrant.Setup(os.Getenv("CONTIV_ENV"), 2)
@@ -31,15 +29,11 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-// Testcase:
-// - Create a single vlan network with two endpoints, one on each host
-// - Verify that the endpoints are able to ping
 func TestTwoHostsSingleVlanPingSuccess(t *testing.T) {
 	defer func() {
 		//utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
 
-	//create a single vlan network, with two endpoints
 	jsonCfg :=
 		`{
         "Tenants" : [ {
@@ -80,60 +74,24 @@ func TestTwoHostsSingleVlanPingSuccess(t *testing.T) {
 
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
-	//start container 1, running a simple wait loop
-	cmdStr := "sudo docker run -d --name=myContainer1 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err := node1.RunCommandWithOutput(cmdStr)
+
+	utils.StartAndWait(t, node1, "myContainer1")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer1"
-		node1.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer1"
-		node1.RunCommand(cmdStr)
+		utils.DockerCleanup(node1, "myContainer1")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint orange-myContainer1 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node2.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	ipAddress := string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer2 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node2.RunCommandWithOutput(cmdStr)
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer2"
-		node2.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer2"
-		node2.RunCommand(cmdStr)
+		utils.DockerCleanup(node2, "myContainer2")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	//verify that the output indicates <100% loss (some loss is expected due to
-	// timing of interface creation and starting ping)
-	if strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping test failed. Output: \n%s\n", output)
-	}
 }
 
-// Testcase:
-// - Create a network with two vlans with two endpoints each (one endpoint per host)
-// - Verify that the endpoints in same vlan are able to ping
 func TestTwoHostsMultiVlanPingSuccess(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
 
-	//create a single vlan network, with two endpoints
 	jsonCfg :=
 		`{
         "Tenants" : [ {
@@ -186,104 +144,35 @@ func TestTwoHostsMultiVlanPingSuccess(t *testing.T) {
 
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
-	//start container 1, running a simple wait loop
-	cmdStr := "sudo docker run -d --name=myContainer1 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err := node1.RunCommandWithOutput(cmdStr)
+
+	utils.StartAndWait(t, node1, "myContainer1")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer1"
-		node1.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer1"
-		node1.RunCommand(cmdStr)
+		utils.DockerCleanup(node1, "myContainer1")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint orange-myContainer1 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node2.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	ipAddress := string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer2 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node2.RunCommandWithOutput(cmdStr)
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer2"
-		node2.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer2"
-		node2.RunCommand(cmdStr)
+		utils.DockerCleanup(node2, "myContainer2")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//verify that the output indicates <100% loss (some loss is expected due to
-	// timing of interface creation and starting ping)
-	if strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping test failed. Output: \n%s\n", output)
-	}
-
-	//start container 4, running a simple wait loop
-	cmdStr = "sudo docker run -d --name=myContainer4 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err = node2.RunCommandWithOutput(cmdStr)
+	utils.StartAndWait(t, node2, "myContainer4")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer4"
-		node1.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer4"
-		node1.RunCommand(cmdStr)
+		utils.DockerCleanup(node2, "myContainer4")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 3 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint purple-myContainer4 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node1.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	ipAddress = string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer3 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node1.RunCommandWithOutput(cmdStr)
+	ipAddress = utils.GetIpAddress(t, node1, "purple-myContainer4")
+	utils.StartAndPing(t, node1, "myContainer3", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer3"
-		node2.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer3"
-		node2.RunCommand(cmdStr)
+		utils.DockerCleanup(node1, "myContainer3")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	//verify that the output indicates <100% loss (some loss is expected due to
-	// timing of interface creation and starting ping)
-	if strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping test failed. Output: \n%s\n", output)
-	}
 }
 
-// Testcase:
-// - Create a network with two vlans with one endpoints each
-// - Verify that the endpoints in different vlans are not able to ping
 func TestTwoHostsMultiVlanPingFailure(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
 
-	//create a single vlan network, with two endpoints
 	jsonCfg :=
 		`{
         "Tenants" : [ {
@@ -328,55 +217,24 @@ func TestTwoHostsMultiVlanPingFailure(t *testing.T) {
 
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
-	//start container 1, running a simple wait loop
-	cmdStr := "sudo docker run -d --name=myContainer1 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err := node1.RunCommandWithOutput(cmdStr)
+
+	utils.StartAndWait(t, node1, "myContainer1")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer1"
-		node1.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer1"
-		node1.RunCommand(cmdStr)
+		utils.DockerCleanup(node1, "myContainer1")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint orange-myContainer1 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node2.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	//verify that the output indicates 100% loss
-	ipAddress := string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer2 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node2.RunCommandWithOutput(cmdStr)
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartAndEnsurePingFailure(t, node2, "myContainer2", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer2"
-		node2.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer2"
-		node2.RunCommand(cmdStr)
+		utils.DockerCleanup(node2, "myContainer2")
 	}()
-	if err == nil || !strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping succeeded, expected it to fail. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 }
 
-// Testcase:
-// - Create two vxlan networks with two endpoints each (one endpoint per host)
-// - Verify that the endpoints in same vxlan are able to ping
 func TestTwoHostsMultiVxlanPingSuccess(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
 
-	//create a single vlan network, with two endpoints
 	jsonCfg :=
 		`{
         "Tenants" : [ {
@@ -417,106 +275,30 @@ func TestTwoHostsMultiVxlanPingSuccess(t *testing.T) {
 
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
-	//start container 1, running a simple wait loop
-	cmdStr := "sudo docker run -d --name=myContainer1 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err := node1.RunCommandWithOutput(cmdStr)
+
+	utils.StartAndWait(t, node1, "myContainer1")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer1"
-		node1.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer1"
-		node1.RunCommand(cmdStr)
+		utils.DockerCleanup(node1, "myContainer1")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint orange-myContainer1 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node2.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	cmdStr = "sudo ovs-vsctl show"
-	output, _ = node1.RunCommandWithOutput(cmdStr)
-	log.Printf("node1: ovs-vsctl %s \n", output)
-
-	output, _ = node2.RunCommandWithOutput(cmdStr)
-	log.Printf("node2: ovs-vsctl %s \n", output)
-
-	ipAddress := string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer2 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node2.RunCommandWithOutput(cmdStr)
+	utils.StartAndWait(t, node1, "myContainer3")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer2"
-		node2.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer2"
-		node2.RunCommand(cmdStr)
+		utils.DockerCleanup(node1, "myContainer3")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//verify that the output indicates <100% loss (some loss is expected due to
-	// timing of interface creation and starting ping)
-	if strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping test failed. Output: \n%s\n", output)
-	}
-
-	//start container 2, running a simple wait loop
-	cmdStr = "sudo docker run -d --name=myContainer3 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err = node1.RunCommandWithOutput(cmdStr)
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer3"
-		node1.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer3"
-		node1.RunCommand(cmdStr)
+		utils.DockerCleanup(node2, "myContainer2")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint purple-myContainer3 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node2.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	ipAddress = string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer4 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node2.RunCommandWithOutput(cmdStr)
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
+	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer4"
-		node2.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer4"
-		node2.RunCommand(cmdStr)
+		utils.DockerCleanup(node2, "myContainer4")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	//verify that the output indicates <100% loss (some loss is expected due to
-	// timing of interface creation and starting ping)
-	if strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping test failed. Output: \n%s\n", output)
-	}
 }
 
-// Testcase:
-// - Create two vxlan networks with two endpoints each (one endpoint per host)
-// - Verify that the endpoints in same vxlan are able to ping
-// - Verify that the endpoints in different vxlans are not able to ping
 func TestTwoHostsMultiVxlanPingFailure(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
@@ -563,57 +345,400 @@ func TestTwoHostsMultiVxlanPingFailure(t *testing.T) {
 
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
-	//start container 1, running a simple wait loop
-	cmdStr := "sudo docker run -d --name=myContainer1 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err := node1.RunCommandWithOutput(cmdStr)
+
+	utils.StartAndWait(t, node1, "myContainer1")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer1"
-		node1.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer1"
-		node1.RunCommand(cmdStr)
+		utils.DockerCleanup(node1, "myContainer1")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint orange-myContainer1 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node2.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	//verify that the output indicates 100% loss
-	ipAddress := string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer4 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node2.RunCommandWithOutput(cmdStr)
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartAndEnsurePingFailure(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer4"
-		node2.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer4"
-		node2.RunCommand(cmdStr)
+		utils.DockerCleanup(node2, "myContainer4")
 	}()
-	if err == nil || !strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping succeeded, expected it to fail. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//verify that the output indicates 100% loss from container3 (same host)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer3 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node1.RunCommandWithOutput(cmdStr)
+	utils.StartAndEnsurePingFailure(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer3"
-		node2.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer3"
-		node2.RunCommand(cmdStr)
+		utils.DockerCleanup(node2, "myContainer3")
 	}()
-	if err == nil || !strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping succeeded, expected it to fail. Error: %s, Output: \n%s\n",
-			err, output)
+}
+
+func TestTwoHostsVxlanDeltaConfig(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+	}()
+
+	jsonCfg :=
+		`{
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vxlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "VXlans"                    : "10001-20000",
+            "Networks"  : [ 
+            {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer3",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer4",
+                    "Host"              : "host2"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+
+	node1 := vagrant.GetNodes()[0]
+	node2 := vagrant.GetNodes()[1]
+
+	utils.StartAndWait(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer1")
+	}()
+
+	utils.StartAndWait(t, node1, "myContainer3")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer3")
+	}()
+
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer2")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
+	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer4")
+	}()
+
+	jsonCfg =
+		`{
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vxlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "VXlans"                    : "10001-20000",
+            "Networks"  : [ 
+            {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer3",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                },
+                {
+                    "Container"         : "myContainer4",
+                    "Host"              : "host2"
+                } ]
+            } ]
+        } ]
+        }`
+	utils.ApplyDesiredConfig(t, jsonCfg, vagrant.GetNodes()[0])
+
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
+	utils.DockerCleanup(node2, "myContainer2")
+	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer2")
+	}()
+}
+
+func TestTwoHostsVxlanAddDelEp(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+	}()
+
+	jsonCfg :=
+		`{
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vxlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "VXlans"                    : "10001-20000",
+            "Networks"  : [ 
+            {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer3",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer4",
+                    "Host"              : "host2"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+
+	node1 := vagrant.GetNodes()[0]
+	node2 := vagrant.GetNodes()[1]
+
+	utils.StartAndWait(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer1")
+	}()
+
+	utils.StartAndWait(t, node1, "myContainer3")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer3")
+	}()
+
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer2")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
+	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer4")
+	}()
+
+	jsonCfg = `
+	{
+	"Tenants" : [ {
+		"Name"                      : "tenant-one",
+		"Networks"  : [
+		{
+			"Name"                  : "orange",
+			"Endpoints" : [
+			{
+				"Container"         : "myContainer5",
+				"Host"              : "host1"
+			}
+			]
+		}
+		]
+	} ]
+	}`
+	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
+
+	utils.StartAndWait(t, node1, "myContainer5")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer5")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node2, "orange-myContainer5")
+	utils.DockerCleanup(node2, "myContainer2")
+	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer2")
+	}()
+
+	utils.DelConfig(t, jsonCfg, vagrant.GetNodes()[0])
+
+	utils.DockerCleanup(node2, "myContainer2")
+	utils.StartAndEnsurePingFailure(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer2")
+	}()
+
+	jsonCfg = `
+	{
+	"Tenants" : [ {
+		"Name"                      : "tenant-one",
+		"Networks"  : [
+		{
+			"Name"                  : "purple",
+			"Endpoints" : [
+			{
+				"Container"         : "myContainer5",
+				"Host"              : "host1"
+			}
+			]
+		}
+		]
+	} ]
+	}`
+
+	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer5")
+	utils.DockerCleanup(node2, "myContainer4")
+	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer4")
+	}()
+}
+
+func TestTwoHostsVxlanAddDelNetwork(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+	}()
+
+	jsonCfg :=
+		`{
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vxlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "VXlans"                    : "10001-20000",
+            "Networks"  : [ 
+            {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer3",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer4",
+                    "Host"              : "host2"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+
+	node1 := vagrant.GetNodes()[0]
+	node2 := vagrant.GetNodes()[1]
+
+	utils.StartAndWait(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer1")
+	}()
+
+	utils.StartAndWait(t, node1, "myContainer3")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer3")
+	}()
+
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer2")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
+	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer4")
+	}()
+
+	jsonCfg = `
+	{
+	"Tenants" : [ {
+		"Name"                      : "tenant-one",
+		"Networks"  : [
+		{
+			"Name"                  : "green",
+			"Endpoints" : [
+			{
+				"Container"         : "myContainer5",
+				"Host"              : "host1"
+			},
+			{
+				"Container"         : "myContainer6",
+				"Host"              : "host2"
+			}
+			]
+		}
+		]
+	} ]
+	}`
+	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
+
+	utils.StartAndWait(t, node1, "myContainer5")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer5")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node2, "green-myContainer5")
+	utils.StartAndPing(t, node2, "myContainer6", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer6")
+	}()
+
+	utils.DelConfig(t, jsonCfg, vagrant.GetNodes()[0])
+
+	utils.DockerCleanup(node2, "myContainer6")
+	utils.StartAndEnsurePingFailure(t, node2, "myContainer6", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer6")
+	}()
+
+	jsonCfg = `
+	{
+	"Tenants" : [ {
+		"Name"                      : "tenant-one",
+		"Networks"  : [
+		{
+			"Name"                  : "green"
+		}
+		]
+	} ]
+	}`
+
+	utils.DelConfig(t, jsonCfg, vagrant.GetNodes()[0])
+
+	if utils.NetworkStateExists(node2, "green") == nil {
+		t.Fatalf("Error - network %s doesn't seem to be deleted \n", "green")
 	}
 }

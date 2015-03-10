@@ -205,7 +205,11 @@ func DeleteTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		return err
 	}
 
-	return DeleteTenantId(stateDriver, tenant.Name)
+	if len(tenant.Networks) == 0 {
+		return DeleteTenantId(stateDriver, tenant.Name)
+	}
+
+	return nil
 }
 
 func validateNetworkConfig(tenant *ConfigTenant) error {
@@ -455,6 +459,9 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	}
 
 	for _, network := range tenant.Networks {
+		if len(network.Endpoints) > 0 {
+			continue
+		}
 		nwMasterCfg := &MasterNwConfig{StateDriver: stateDriver}
 		err = nwMasterCfg.Read(network.Name)
 		if err != nil {

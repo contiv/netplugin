@@ -25,4 +25,4 @@ unit-test: build
 
 system-test: build
 	go test -v github.com/contiv/netplugin/systemtests/singlehost 
-	go test -v github.com/contiv/netplugin/systemtests/twohosts
+	go test --timeout 20m -v github.com/contiv/netplugin/systemtests/twohosts
