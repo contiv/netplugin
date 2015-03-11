@@ -127,12 +127,3 @@ func (s *OvsOperEndpointState) Clear() error {
 	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
 	return s.StateDriver.ClearState(key)
 }
-
-func (s *OvsOperEndpointState) Unmarshal(value string) error {
-	return json.Unmarshal([]byte(value), s)
-}
-
-func (s *OvsOperEndpointState) Marshal() (string, error) {
-	bytes, err := json.Marshal(s)
-	return string(bytes[:]), err
-}
