@@ -52,15 +52,6 @@ func (s *OvsCfgEndpointState) Clear() error {
 	return s.StateDriver.ClearState(key)
 }
 
-func (s *OvsCfgEndpointState) Unmarshal(value string) error {
-	return json.Unmarshal([]byte(value), s)
-}
-
-func (s *OvsCfgEndpointState) Marshal() (string, error) {
-	bytes, err := json.Marshal(s)
-	return string(bytes[:]), err
-}
-
 func ReadAllEpsCfg(sd *core.StateDriver) (epState []OvsCfgEndpointState, err error) {
 
 	keys, err := (*sd).ReadRecursive(EP_CFG_PATH_PREFIX)

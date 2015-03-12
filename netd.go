@@ -271,8 +271,8 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 
 	homingHost := ""
 	vtepIp := ""
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
 	if preValue == "" {
+		epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
 		err = epCfg.Read(epId)
 		if err != nil {
 			log.Printf("Failed to read config for ep '%s' \n", epId)
@@ -281,13 +281,14 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 		homingHost = epCfg.HomingHost
 		vtepIp = epCfg.VtepIp
 	} else {
-		err = epCfg.Unmarshal(preValue)
+		epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
+		err = epOper.Read(epId)
 		if err != nil {
-			log.Printf("Failed to unmarshal epcfg, err '%s' \n", err)
+			log.Printf("Failed to read oper for ep %s, err '%s' \n", epId, err)
 			return
 		}
-		homingHost = epCfg.HomingHost
-		vtepIp = epCfg.VtepIp
+		homingHost = epOper.HomingHost
+		vtepIp = epOper.VtepIp
 	}
 	if skipHost(vtepIp, homingHost, opts.hostLabel) {
 		log.Printf("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
