@@ -42,7 +42,7 @@ type Network interface {
 	// A network identifies a group of (addressable) endpoints that can
 	// comunicate.
 	CreateNetwork(id string) error
-	DeleteNetwork(value string) error
+	DeleteNetwork(id string) error
 	FetchNetwork(id string) (State, error)
 }
 
@@ -50,7 +50,7 @@ type Endpoint interface {
 	// An endpoint identifies an addressable entity in a network. An endpoint
 	// belongs to a single network.
 	CreateEndpoint(id string) error
-	DeleteEndpoint(value string) error
+	DeleteEndpoint(id string) error
 	FetchEndpoint(id string) (State, error)
 }
 
@@ -74,7 +74,7 @@ type NetworkDriver interface {
 	Init(config *Config, stateDriver StateDriver) error
 	Deinit()
 	CreateNetwork(id string) error
-	DeleteNetwork(value string) error
+	DeleteNetwork(id string) error
 }
 
 type EndpointDriver interface {
@@ -83,7 +83,7 @@ type EndpointDriver interface {
 	Init(config *Config, stateDriver StateDriver) error
 	Deinit()
 	CreateEndpoint(id string) error
-	DeleteEndpoint(value string) error
+	DeleteEndpoint(id string) error
 	MakeEndpointAddress() (*Address, error)
 }
 

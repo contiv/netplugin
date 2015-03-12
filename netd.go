@@ -185,7 +185,7 @@ func processNetEvent(netPlugin *plugin.NetPlugin, key, preValue string,
 
 	operStr := ""
 	if preValue != "" {
-		err = netPlugin.DeleteNetwork(preValue)
+		err = netPlugin.DeleteNetwork(netId)
 		operStr = "delete"
 	} else {
 		err = netPlugin.CreateNetwork(netId)
@@ -307,7 +307,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 
 	operStr := ""
 	if preValue != "" {
-		err = netPlugin.DeleteEndpoint(preValue)
+		err = netPlugin.DeleteEndpoint(epId)
 		operStr = "delete"
 	} else {
 		err = netPlugin.CreateEndpoint(epId)

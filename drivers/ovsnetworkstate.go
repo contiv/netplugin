@@ -67,12 +67,3 @@ func (s *OvsCfgNetworkState) Clear() error {
 	key := fmt.Sprintf(NW_CFG_PATH, s.Id)
 	return s.StateDriver.ClearState(key)
 }
-
-func (s *OvsCfgNetworkState) Unmarshal(value string) error {
-	return json.Unmarshal([]byte(value), s)
-}
-
-func (s *OvsCfgNetworkState) Marshal() (string, error) {
-	bytes, err := json.Marshal(s)
-	return string(bytes[:]), err
-}
