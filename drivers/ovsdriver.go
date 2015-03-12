@@ -452,6 +452,7 @@ func (d *OvsDriver) DeleteNetwork(value string) error {
 
 func (d *OvsDriver) CreateEndpoint(id string) error {
 	var err error
+	var pktTag int
 
 	// add an internal ovs port with vlan-tag information from the state
 	portName := d.getPortName()
@@ -474,25 +475,27 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}
 
 	// use the user provided interface name. The primary usecase for such
-	// endpoints is for adding the host-interfaces to the ovs bridge. But other
-	// usecases might involve user created linux interface devices for
-	// containers like SRIOV, that need to be bridged using ovs
+	// endpoints is for adding the host-interfaces to the ovs bridge.
+	// But other usecases might involve user created linux interface
+	// devices for containers like SRIOV, that need to be bridged using ovs
 	// Also, if the interface name is provided by user then we don't create
 	// ovs-internal interface
 	if epCfg.IntfName != "" {
 		intfName = epCfg.IntfName
 		intfType = ""
-	}
-
-	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err = cfgNw.Read(epCfg.NetId)
-	if err != nil {
-		return err
+		pktTag = 0
+	} else {
+		cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+		err = cfgNw.Read(epCfg.NetId)
+		if err != nil {
+			return err
+		}
+		pktTag = cfgNw.PktTag
 	}
 
 	// TODO: some updates may mean implicit delete of the previous state
 	err = d.createDeletePort(portName, intfName, intfType, epCfg.Id,
-		nil, cfgNw.PktTag, CREATE_PORT)
+		nil, pktTag, CREATE_PORT)
 	if err != nil {
 		return err
 	}

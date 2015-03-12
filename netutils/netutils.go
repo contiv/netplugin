@@ -218,14 +218,17 @@ func GetLocalIp() (string, error) {
 	for idx := 0; idx < 3; idx++ {
 		linkName := "eth" + strconv.Itoa(idx)
 		link, err := netlink.LinkByName(linkName)
-		if err == errors.New("Link not found") {
-			continue
-		}
 		if err != nil {
+			if strings.Contains(err.Error(), "Link not found") {
+				continue
+			}
 			return "", err
 		}
 		addrs, err = netlink.AddrList(link, netlink.FAMILY_V4)
 		if err != nil {
+			if strings.Contains(err.Error(), "Link not found") {
+				continue
+			}
 			return "", err
 		}
 		if len(addrs) > 0 {
