@@ -59,8 +59,8 @@ func createDeleteVtep(netPlugin *plugin.NetPlugin, netId, preValue string,
 		return err
 	}
 
-	gOper := &gstate.Oper{}
-	err = gOper.Read(netPlugin.StateDriver, cfgNet.Tenant)
+	gOper := &gstate.Oper{StateDriver: netPlugin.StateDriver}
+	err = gOper.Read(cfgNet.Tenant)
 	if err != nil {
 		return err
 	}
@@ -102,63 +102,64 @@ func skipHost(vtepIp, homingHost, myHostLabel string) bool {
 
 func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	opts cliOpts) error {
-	keys, err := netPlugin.StateDriver.ReadRecursive(gstate.CFG_GLOBAL_PREFIX)
+	gCfgs, err := gstate.ReadAllGlobalCfg(netPlugin.StateDriver)
 	if err != nil {
 		return err
 	}
-	for idx, key := range keys {
-		log.Printf("read global key[%d] %s, populating state \n", idx, key)
-		processGlobalEvent(netPlugin, key, "")
+	for idx, gCfg := range gCfgs {
+		log.Printf("read global key[%d] %s, populating state \n", idx, gCfg.Tenant)
+		processGlobalEvent(netPlugin, gCfg.Tenant, "")
 	}
 
-	keys, err = netPlugin.StateDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
+	var netCfgs []*drivers.OvsCfgNetworkState
+	netCfgs, err = drivers.ReadAllOvsCfgNetworks(netPlugin.StateDriver)
 	if err != nil {
 		return err
 	}
-	for idx, key := range keys {
-		log.Printf("read net key[%d] %s, populating state \n", idx, key)
-		processNetEvent(netPlugin, key, "", opts)
+	for idx, netCfg := range netCfgs {
+		log.Printf("read net key[%d] %s, populating state \n", idx, netCfg.Id)
+		processNetEvent(netPlugin, netCfg.Id, "", opts)
 	}
 
-	keys, err = netPlugin.StateDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
+	var epCfgs []*drivers.OvsCfgEndpointState
+	epCfgs, err = drivers.ReadAllOvsCfgEndpoints(netPlugin.StateDriver)
 	if err != nil {
 		return err
 	}
-	for idx, key := range keys {
-		log.Printf("read ep key[%d] %s, populating state \n", idx, key)
-		processEpEvent(netPlugin, crt, key, "", opts)
+	for idx, epCfg := range epCfgs {
+		log.Printf("read ep key[%d] %s, populating state \n", idx, epCfg.Id)
+		processEpEvent(netPlugin, crt, epCfg.Id, "", opts)
 	}
 
 	return nil
 }
 
-func processGlobalEvent(netPlugin *plugin.NetPlugin, key, preValue string) (err error) {
+func processGlobalEvent(netPlugin *plugin.NetPlugin, tenant, preValue string) (err error) {
 	var gOper *gstate.Oper
 
-	tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
 	if preValue != "" {
-		gOper := &gstate.Oper{}
-		err = gOper.Read(netPlugin.StateDriver, tenant)
+		gOper := &gstate.Oper{StateDriver: netPlugin.StateDriver}
+		err = gOper.Read(tenant)
 		if err != nil {
 			// already deleted
 			log.Printf("Tenant '%s' already deleted \n", tenant)
 			err = nil
 		} else {
-			err = gOper.Clear(netPlugin.StateDriver)
+			err = gOper.Clear()
 		}
 
 		return
 	}
 
-	gOper = &gstate.Oper{}
-	err = gOper.Read(netPlugin.StateDriver, tenant)
+	gOper = &gstate.Oper{StateDriver: netPlugin.StateDriver}
+	err = gOper.Read(tenant)
 	if err == nil {
 		// already created
 		return
 	}
 
-	gCfg := &gstate.Cfg{}
-	err = gCfg.Read(netPlugin.StateDriver, tenant)
+	gCfg := &gstate.Cfg{StateDriver: netPlugin.StateDriver}
+	err = gCfg.Read(tenant)
 	if err != nil {
 		log.Printf("Error '%s' reading tenant %s \n", err, tenant)
 		return
@@ -170,7 +171,7 @@ func processGlobalEvent(netPlugin *plugin.NetPlugin, key, preValue string) (err 
 		return
 	}
 
-	err = gOper.Update(netPlugin.StateDriver)
+	err = gOper.Write()
 	if err != nil {
 		log.Printf("error '%s' updating goper state %v \n", err, gOper)
 	}
@@ -178,10 +179,8 @@ func processGlobalEvent(netPlugin *plugin.NetPlugin, key, preValue string) (err 
 	return
 }
 
-func processNetEvent(netPlugin *plugin.NetPlugin, key, preValue string,
+func processNetEvent(netPlugin *plugin.NetPlugin, netId, preValue string,
 	opts cliOpts) (err error) {
-
-	netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
 
 	operStr := ""
 	if preValue != "" {
@@ -203,19 +202,19 @@ func processNetEvent(netPlugin *plugin.NetPlugin, key, preValue string,
 	return
 }
 
-func getEndpointContainerContext(state *core.StateDriver, epId string) (
+func getEndpointContainerContext(state core.StateDriver, epId string) (
 	*crtclient.ContainerEpContext, error) {
 	var epCtx crtclient.ContainerEpContext
 	var err error
 
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: *state}
+	epCfg := &drivers.OvsCfgEndpointState{StateDriver: state}
 	err = epCfg.Read(epId)
 	if err != nil {
 		return &epCtx, nil
 	}
 	epCtx.NewContName = epCfg.ContName
 
-	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: *state}
+	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: state}
 	err = cfgNet.Read(epCfg.NetId)
 	if err != nil {
 		return &epCtx, err
@@ -223,7 +222,7 @@ func getEndpointContainerContext(state *core.StateDriver, epId string) (
 	epCtx.DefaultGw = cfgNet.DefaultGw
 	epCtx.SubnetLen = cfgNet.SubnetLen
 
-	operEp := &drivers.OvsOperEndpointState{StateDriver: *state}
+	operEp := &drivers.OvsOperEndpointState{StateDriver: state}
 	err = operEp.Read(epId)
 	if err != nil {
 		return &epCtx, nil
@@ -235,12 +234,12 @@ func getEndpointContainerContext(state *core.StateDriver, epId string) (
 	return &epCtx, err
 }
 
-func getContainerEpContextByContName(state *core.StateDriver, contName string) (
+func getContainerEpContextByContName(state core.StateDriver, contName string) (
 	epCtxs []crtclient.ContainerEpContext, err error) {
 	var epCtx *crtclient.ContainerEpContext
 
 	contName = strings.TrimPrefix(contName, "/")
-	epCfgs, err := drivers.ReadAllEpsCfg(state)
+	epCfgs, err := drivers.ReadAllOvsCfgEndpoints(state)
 	if err != nil {
 		return
 	}
@@ -266,13 +265,12 @@ func getContainerEpContextByContName(state *core.StateDriver, contName string) (
 }
 
 func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
-	key string, preValue string, opts cliOpts) (err error) {
-	epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
+	epId string, preValue string, opts cliOpts) (err error) {
 
 	homingHost := ""
 	vtepIp := ""
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
 	if preValue == "" {
+		epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
 		err = epCfg.Read(epId)
 		if err != nil {
 			log.Printf("Failed to read config for ep '%s' \n", epId)
@@ -281,13 +279,14 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 		homingHost = epCfg.HomingHost
 		vtepIp = epCfg.VtepIp
 	} else {
-		err = epCfg.Unmarshal(preValue)
+		epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
+		err = epOper.Read(epId)
 		if err != nil {
-			log.Printf("Failed to unmarshal epcfg, err '%s' \n", err)
+			log.Printf("Failed to read oper for ep %s, err '%s' \n", epId, err)
 			return
 		}
-		homingHost = epCfg.HomingHost
-		vtepIp = epCfg.VtepIp
+		homingHost = epOper.HomingHost
+		vtepIp = epOper.VtepIp
 	}
 	if skipHost(vtepIp, homingHost, opts.hostLabel) {
 		log.Printf("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
@@ -297,7 +296,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 
 	// read the context before to be compared with what changed after
 	contEpContext, err := getEndpointContainerContext(
-		&netPlugin.StateDriver, epId)
+		netPlugin.StateDriver, epId)
 	if err != nil {
 		log.Printf("Failed to obtain the container context for ep '%s' \n",
 			epId)
@@ -335,7 +334,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	if preValue == "" && contEpContext.NewContName != "" {
 		// re-read post ep updated state
 		newContEpContext, err1 := getEndpointContainerContext(
-			&netPlugin.StateDriver, epId)
+			netPlugin.StateDriver, epId)
 		if err1 != nil {
 			log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
 			return
@@ -376,13 +375,16 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 		log.Printf("Received event for key: %s", node.Key)
 		switch key := node.Key; {
 		case strings.HasPrefix(key, gstate.CFG_GLOBAL_PREFIX):
-			processGlobalEvent(netPlugin, key, preValue)
+			tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
+			processGlobalEvent(netPlugin, tenant, preValue)
 
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
-			processNetEvent(netPlugin, key, preValue, opts)
+			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
+			processNetEvent(netPlugin, netId, preValue, opts)
 
 		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
-			processEpEvent(netPlugin, crt, key, preValue, opts)
+			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
+			processEpEvent(netPlugin, crt, epId, preValue, opts)
 		}
 	}
 
@@ -401,7 +403,7 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 		return err
 	}
 
-	epContexts, err = getContainerEpContextByContName(&netPlugin.StateDriver,
+	epContexts, err = getContainerEpContextByContName(netPlugin.StateDriver,
 		contName)
 	if err != nil {
 		log.Printf("Error '%s' getting Ep context for container %s \n",

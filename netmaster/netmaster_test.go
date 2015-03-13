@@ -62,10 +62,6 @@ func (d *fakeStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, errors.New("key not found!")
 }
 
-func (d *fakeStateDriver) ReadRecursive(baseKey string) ([]string, error) {
-	return []string{}, errors.New("Shouldn't be called!")
-}
-
 func (d *fakeStateDriver) ClearState(key string) error {
 	if _, ok := testState[key]; ok {
 		delete(testState, key)
