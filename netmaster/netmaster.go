@@ -137,8 +137,8 @@ func validateTenantConfig(tenant *ConfigTenant) error {
 
 func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
-	gOper := &gstate.Oper{}
-	err := gOper.Read(stateDriver, tenant.Name)
+	gOper := &gstate.Oper{StateDriver: stateDriver}
+	err := gOper.Read(tenant.Name)
 	if err == nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		return err
 	}
 
-	var gCfg gstate.Cfg
+	gCfg := gstate.Cfg{StateDriver: stateDriver}
 	gCfg.Version = gstate.VersionBeta1
 	gCfg.Tenant = tenant.Name
 	gCfg.Deploy.DefaultNetType = tenant.DefaultNetType
@@ -156,7 +156,7 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	gCfg.Auto.Vlans = tenant.Vlans
 	gCfg.Auto.Vxlans = tenant.Vxlans
 	gCfg.Auto.AllocSubnetLen = tenant.AllocSubnetLen
-	err = gCfg.Update(stateDriver)
+	err = gCfg.Write()
 	if err != nil {
 		log.Printf("error '%s' updating tenant '%s' \n", err, tenant.Name)
 	}
@@ -167,7 +167,7 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		return err
 	}
 
-	err = gOper.Update(stateDriver)
+	err = gOper.Write()
 	if err != nil {
 		log.Printf("error '%s' updating goper state %v \n", err, gOper)
 	}
@@ -176,22 +176,22 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 }
 
 func DeleteTenantId(stateDriver core.StateDriver, tenantId string) error {
-	gOper := gstate.Oper{}
-	err := gOper.Read(stateDriver, tenantId)
+	gOper := gstate.Oper{StateDriver: stateDriver}
+	err := gOper.Read(tenantId)
 	if err != nil {
 		log.Printf("error '%s' reading tenant info '%s' \n", err, tenantId)
 		return err
 	}
 
-	gCfg := gstate.Cfg{}
+	gCfg := gstate.Cfg{StateDriver: stateDriver}
 	gCfg.Version = gstate.VersionBeta1
 	gCfg.Tenant = tenantId
-	err = gCfg.Clear(stateDriver)
+	err = gCfg.Clear()
 	if err != nil {
 		log.Printf("error '%s' deleting cfg for tenant '%s' \n", err, tenantId)
 	}
 
-	err = gOper.Clear(stateDriver)
+	err = gOper.Clear()
 	if err != nil {
 		log.Printf("error '%s' deleting oper for tenant '%s' \n", err, tenantId)
 	}
@@ -256,16 +256,16 @@ func validateNetworkConfig(tenant *ConfigTenant) error {
 func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	var extPktTag, pktTag uint
 
-	gCfg := gstate.Cfg{}
-	err := gCfg.Read(stateDriver, tenant.Name)
+	gCfg := gstate.Cfg{StateDriver: stateDriver}
+	err := gCfg.Read(tenant.Name)
 	if err != nil {
 		log.Printf("error '%s' reading tenant cfg state \n", err)
 		return err
 	}
 
 	// TODO: acquire distributed lock before updating gOper update
-	gOper := gstate.Oper{}
-	err = gOper.Read(stateDriver, tenant.Name)
+	gOper := gstate.Oper{StateDriver: stateDriver}
+	err = gOper.Read(tenant.Name)
 	if err != nil {
 		log.Printf("error '%s' reading tenant oper state \n", err)
 		return err
@@ -355,7 +355,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		}
 	}
 
-	err = gOper.Update(stateDriver)
+	err = gOper.Write()
 	if err != nil {
 		log.Printf("error updating the global state - %s \n", err)
 		return err
@@ -407,15 +407,15 @@ func DeleteNetworkId(stateDriver core.StateDriver, netId string) error {
 		return err
 	}
 
-	gCfg := gstate.Cfg{}
-	err = gCfg.Read(stateDriver, nwMasterCfg.Tenant)
+	gCfg := gstate.Cfg{StateDriver: stateDriver}
+	err = gCfg.Read(nwMasterCfg.Tenant)
 	if err != nil {
 		log.Printf("error reading tenant info \n")
 		return err
 	}
 
-	gOper := gstate.Oper{}
-	err = gOper.Read(stateDriver, nwMasterCfg.Tenant)
+	gOper := gstate.Oper{StateDriver: stateDriver}
+	err = gOper.Read(nwMasterCfg.Tenant)
 	if err != nil {
 		log.Printf("error reading tenant info \n")
 		return err
@@ -436,17 +436,17 @@ func DeleteNetworkId(stateDriver core.StateDriver, netId string) error {
 }
 
 func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
-	var gCfg gstate.Cfg
-	var gOper gstate.Oper
+	gCfg := gstate.Cfg{StateDriver: stateDriver}
+	gOper := gstate.Oper{StateDriver: stateDriver}
 
-	err := gCfg.Read(stateDriver, tenant.Name)
+	err := gCfg.Read(tenant.Name)
 	if err != nil {
 		log.Printf("error '%s' reading tenant state \n", err)
 		return err
 	}
 
 	// TODO: acquire distributed lock before updating gOper update
-	err = gOper.Read(stateDriver, tenant.Name)
+	err = gOper.Read(tenant.Name)
 	if err != nil {
 		log.Printf("error '%s' reading tenant state \n", err)
 		return err
@@ -488,7 +488,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		}
 	}
 
-	err = gOper.Update(stateDriver)
+	err = gOper.Write()
 	if err != nil {
 		log.Printf("error updating the global state - %s \n", err)
 		return err

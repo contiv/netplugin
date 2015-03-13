@@ -400,14 +400,14 @@ func executeOpts(opts *cliOpts) error {
 			state = nwCfg
 		}
 	case CLI_CONSTRUCT_GLOBAL:
-		var gcfg gstate.Cfg
+		gcfg := gstate.Cfg{StateDriver: etcdDriver}
 		if opts.oper.Get() == CLI_OPER_GET {
-			err = gcfg.Read(etcdDriver, opts.tenant)
+			err = gcfg.Read(opts.tenant)
 			log.Printf("State: %v \n", gcfg)
 		} else if opts.oper.Get() == CLI_OPER_DELETE {
 			gcfg.Version = gstate.VersionBeta1
 			gcfg.Tenant = opts.tenant
-			err = gcfg.Clear(etcdDriver)
+			err = gcfg.Clear()
 			if err != nil {
 				log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
 			}
@@ -420,7 +420,7 @@ func executeOpts(opts *cliOpts) error {
 			gcfg.Auto.Vlans = opts.vlans
 			gcfg.Auto.Vxlans = opts.vxlans
 			gcfg.Auto.AllocSubnetLen = opts.allocSubnetLen
-			err = gcfg.Update(etcdDriver)
+			err = gcfg.Write()
 		}
 		if err != nil {
 			log.Fatalf("error '%s' \n", err)

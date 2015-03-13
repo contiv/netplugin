@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/contiv/netplugin/core"
@@ -78,46 +77,45 @@ func epPresent(allCfg *netmaster.Config, epId string) bool {
 
 func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 
-	keys, err := stateDriver.ReadRecursive(drivers.EP_CFG_PATH_PREFIX)
+	epCfgs, err := drivers.ReadAllOvsCfgEndpoints(stateDriver)
 	if err != nil {
 		return core.ErrIfKeyExists(err)
 	}
-	for _, key := range keys {
-		epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
-		if !epPresent(allCfg, epId) {
-			err = netmaster.DeleteEndpointId(stateDriver, epId)
+	for _, epCfg := range epCfgs {
+		if !epPresent(allCfg, epCfg.Id) {
+			err = netmaster.DeleteEndpointId(stateDriver, epCfg.Id)
 			if err != nil {
-				log.Printf("error '%s' deleting epid %s \n", err, epId)
+				log.Printf("error '%s' deleting epid %s \n", err, epCfg.Id)
 				continue
 			}
 		}
 	}
 
-	keys, err = stateDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
+	nwCfgs := []*drivers.OvsCfgNetworkState{}
+	nwCfgs, err = drivers.ReadAllOvsCfgNetworks(stateDriver)
 	if err != nil {
-		return err
+		return nil
 	}
-	for _, key := range keys {
-		netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
-		if !netPresent(allCfg, netId) {
-			err = netmaster.DeleteNetworkId(stateDriver, netId)
+	for _, nwCfg := range nwCfgs {
+		if !netPresent(allCfg, nwCfg.Id) {
+			err = netmaster.DeleteNetworkId(stateDriver, nwCfg.Id)
 			if err != nil {
-				log.Printf("error '%s' deleting net %s \n", err, netId)
+				log.Printf("error '%s' deleting net %s \n", err, nwCfg.Id)
 				continue
 			}
 		}
 	}
 
-	keys, err = stateDriver.ReadRecursive(gstate.CFG_GLOBAL_PREFIX)
+	gCfgs := []*gstate.Cfg{}
+	gCfgs, err = gstate.ReadAllGlobalCfg(stateDriver)
 	if err != nil {
-		return err
+		return nil
 	}
-	for _, key := range keys {
-		tenantId := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
-		if !tenantPresent(allCfg, tenantId) {
-			err = netmaster.DeleteTenantId(stateDriver, tenantId)
+	for _, gCfg := range gCfgs {
+		if !tenantPresent(allCfg, gCfg.Tenant) {
+			err = netmaster.DeleteTenantId(stateDriver, gCfg.Tenant)
 			if err != nil {
-				log.Printf("error '%s' deleting tenant %s \n", err, tenantId)
+				log.Printf("error '%s' deleting tenant %s \n", err, gCfg.Tenant)
 				continue
 			}
 		}

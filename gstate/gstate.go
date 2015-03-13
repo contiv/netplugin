@@ -25,6 +25,7 @@ import (
 	"github.com/jainvipin/bitset"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netutils"
 )
 
@@ -58,13 +59,15 @@ type DeployParams struct {
 
 // global state of the network plugin
 type Cfg struct {
-	Version string
-	Tenant  string
-	Auto    AutoParams
-	Deploy  DeployParams
+	StateDriver core.StateDriver
+	Version     string
+	Tenant      string
+	Auto        AutoParams
+	Deploy      DeployParams
 }
 
 type Oper struct {
+	StateDriver     core.StateDriver
 	Tenant          string
 	DefaultNetType  string
 	SubnetPool      string
@@ -75,20 +78,6 @@ type Oper struct {
 	FreeLocalVlans  bitset.BitSet
 	FreeVxlansStart uint
 	FreeVxlans      bitset.BitSet
-}
-
-func (gc *Cfg) UnMarshal(data string) error {
-	err := json.Unmarshal([]byte(data), &gc)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (gc *Cfg) Marshal() (string, error) {
-	b, err := json.Marshal(gc)
-	return string(b[:]), err
 }
 
 func (gc *Cfg) Dump() error {
@@ -144,64 +133,51 @@ func Parse(configBytes []byte) (*Cfg, error) {
 	return &gc, err
 }
 
-func (gc *Cfg) Update(d core.StateDriver) error {
+func (gc *Cfg) Write() error {
 	key := fmt.Sprintf(CFG_GLOBAL_PATH, gc.Tenant)
-	value, err := json.Marshal(gc)
-	if err != nil {
-		return err
-	}
-
-	return d.Write(key, value)
+	return gc.StateDriver.WriteState(key, gc, json.Marshal)
 }
 
-func (gc *Cfg) Read(d core.StateDriver, tenant string) error {
+func (gc *Cfg) Read(tenant string) error {
 	key := fmt.Sprintf(CFG_GLOBAL_PATH, tenant)
-	value, err := d.Read(key)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(value, &gc)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return gc.StateDriver.ReadState(key, gc, json.Unmarshal)
 }
 
-func (gc *Cfg) Clear(d core.StateDriver) error {
+func ReadAllGlobalCfg(d core.StateDriver) ([]*Cfg, error) {
+	values := []*Cfg{}
+	byteValues, err := drivers.ReadAll(d, CFG_GLOBAL_PREFIX)
+	if err != nil {
+		return nil, err
+	}
+	for _, byteValue := range byteValues {
+		value := &Cfg{StateDriver: d}
+		err = json.Unmarshal(byteValue, value)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	return values, nil
+}
+
+func (gc *Cfg) Clear() error {
 	key := fmt.Sprintf(CFG_GLOBAL_PATH, gc.Tenant)
-
-	return d.ClearState(key)
+	return gc.StateDriver.ClearState(key)
 }
 
-func (g *Oper) Update(d core.StateDriver) error {
+func (g *Oper) Write() error {
 	key := fmt.Sprintf(OPER_GLOBAL_PATH, g.Tenant)
-	value, err := json.Marshal(g)
-	if err != nil {
-		return err
-	}
-
-	return d.Write(key, value)
+	return g.StateDriver.WriteState(key, g, json.Marshal)
 }
 
-func (g *Oper) Read(d core.StateDriver, tenant string) error {
+func (g *Oper) Read(tenant string) error {
 	key := fmt.Sprintf(OPER_GLOBAL_PATH, tenant)
-	value, err := d.Read(key)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(value, &g)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return g.StateDriver.ReadState(key, g, json.Unmarshal)
 }
 
-func (g *Oper) Clear(d core.StateDriver) error {
+func (g *Oper) Clear() error {
 	key := fmt.Sprintf(OPER_GLOBAL_PATH, g.Tenant)
-
-	return d.ClearState(key)
+	return g.StateDriver.ClearState(key)
 }
 
 func (g *Oper) initVxlanBitset(vxlans string, vlans string,
@@ -405,6 +381,7 @@ func (gc *Cfg) Process() (*Oper, error) {
 	}
 
 	g := &Oper{
+		StateDriver:    gc.StateDriver,
 		Tenant:         gc.Tenant,
 		SubnetLen:      gc.Auto.SubnetLen,
 		DefaultNetType: gc.Deploy.DefaultNetType,
