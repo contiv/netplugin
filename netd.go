@@ -218,7 +218,7 @@ func getEndpointContainerContext(state *core.StateDriver, epId string) (
 	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: *state}
 	err = cfgNet.Read(epCfg.NetId)
 	if err != nil {
-		return &epCtx, nil
+		return &epCtx, err
 	}
 	epCtx.DefaultGw = cfgNet.DefaultGw
 	epCtx.SubnetLen = cfgNet.SubnetLen

@@ -13,10 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// netmaster  - implements the network intent translation to plugin
-// events; uses state distribution to achieve intent realization
-// netmaster runs as a logically centralized unit on in the cluster
-
 package netmaster
 
 import (
@@ -36,6 +32,7 @@ type MasterHostConfig struct {
 	Name        string           `json:"name"`
 	Intf        string           `json:"intf"`
 	VtepIp      string           `json:"vtepIp"`
+	NetId       string           `json:"netId"`
 }
 
 func (s *MasterHostConfig) Write() error {

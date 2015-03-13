@@ -32,47 +32,9 @@ import (
 	"github.com/contiv/netplugin/netutils"
 )
 
-type ConfigHost struct {
-	Name   string
-	Intf   string
-	VtepIp string
-}
-
-// Config structs define the config intent for various network entities
-type ConfigEp struct {
-	Container string
-	Host      string
-	IpAddress string
-}
-
-type ConfigNetwork struct {
-	Name string
-
-	// overrides for various functions when auto allocation is not desired
-	PktTagType string
-	PktTag     string
-	SubnetCIDR string
-	DefaultGw  string
-
-	// eps associated with the network
-	Endpoints []ConfigEp
-}
-
-type ConfigTenant struct {
-	Name           string
-	DefaultNetType string
-	SubnetPool     string
-	AllocSubnetLen uint
-	Vlans          string
-	Vxlans         string
-
-	Networks []ConfigNetwork
-}
-
-type Config struct {
-	Hosts   []ConfigHost
-	Tenants []ConfigTenant
-}
+const (
+	DEFAULT_INFRA_NET_NAME = "infra"
+)
 
 // interface that cluster manager implements; this is external interface to
 // the cluster manager
@@ -230,14 +192,38 @@ func getVtepName(netId, hostLabel string) string {
 	return netId + "-" + hostLabel
 }
 
-func createVtep(stateDriver core.StateDriver, netId string,
-	hostName, vtepIp string) (err error) {
+func createInfraNetwork(epCfg *drivers.OvsCfgEndpointState) error {
+	if epCfg.NetId != "" {
+		return nil
+	}
+
+	nwCfg := &drivers.OvsCfgNetworkState{StateDriver: epCfg.StateDriver}
+	if nwCfg.Read(epCfg.NetId) == nil {
+		return nil
+	}
+
+	nwCfg.Id = DEFAULT_INFRA_NET_NAME
+	err := nwCfg.Write()
+	if err != nil {
+		return err
+	}
+
+	epCfg.NetId = DEFAULT_INFRA_NET_NAME
+	return nil
+}
+
+func createVtep(stateDriver core.StateDriver, hostCfg *MasterHostConfig, tenantNet string) error {
 
 	epCfg := &drivers.OvsCfgEndpointState{StateDriver: stateDriver}
-	epCfg.Id = getVtepName(netId, hostName)
-	epCfg.HomingHost = hostName
-	epCfg.VtepIp = vtepIp
-	epCfg.NetId = netId
+	epCfg.Id = getVtepName(tenantNet, hostCfg.Name)
+	epCfg.HomingHost = hostCfg.Name
+	epCfg.VtepIp = hostCfg.VtepIp
+	epCfg.NetId = tenantNet
+	err := createInfraNetwork(epCfg)
+	if err != nil {
+		log.Printf("error '%s' creating infra vlan \n", err)
+		return err
+	}
 
 	err = epCfg.Write()
 	if err != nil {
@@ -268,13 +254,18 @@ func getVlanIfName(hostLabel string) string {
 	return hostLabel + "-native-intf"
 }
 
-func createVlanIf(stateDriver core.StateDriver, hostName,
-	intfName string) (err error) {
+func createVlanIf(stateDriver core.StateDriver, host *ConfigHost) error {
 
 	epCfg := &drivers.OvsCfgEndpointState{StateDriver: stateDriver}
-	epCfg.Id = getVlanIfName(hostName)
-	epCfg.HomingHost = hostName
-	epCfg.IntfName = intfName
+	epCfg.Id = getVlanIfName(host.Name)
+	epCfg.HomingHost = host.Name
+	epCfg.IntfName = host.Intf
+	epCfg.NetId = host.NetId
+	err := createInfraNetwork(epCfg)
+	if err != nil {
+		log.Printf("error '%s' creating infra vlan \n", err)
+		return err
+	}
 
 	err = epCfg.Write()
 	if err != nil {
@@ -308,10 +299,11 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 	}
 
 	// construct and update master host state
-	hostMasterCfg := &MasterHostConfig{StateDriver: stateDriver}
-	hostMasterCfg.Name = host.Name
-	hostMasterCfg.Intf = host.Intf
-	hostMasterCfg.VtepIp = host.VtepIp
+	hostCfg := &MasterHostConfig{StateDriver: stateDriver}
+	hostCfg.Name = host.Name
+	hostCfg.Intf = host.Intf
+	hostCfg.VtepIp = host.VtepIp
+	hostCfg.NetId = host.NetId
 
 	if host.VtepIp != "" {
 		// walk through all nets and create vtep eps as necessary
@@ -322,22 +314,22 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 			}
 		}
 		for _, key := range keys {
-			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
-			err = createVtep(stateDriver, netId, host.Name, host.VtepIp)
+			tenantNet := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
+			err = createVtep(stateDriver, hostCfg, tenantNet)
 			if err != nil {
 				log.Printf("error '%s' creating vtep \n", err)
 			}
 		}
 	}
 	if host.Intf != "" {
-		err = createVlanIf(stateDriver, host.Name, host.Intf)
+		err = createVlanIf(stateDriver, host)
 		if err != nil {
 			log.Printf("error '%s' creating infra if %s on host %s \n",
 				err, host.Name, host.Intf)
 		}
 	}
 
-	err = hostMasterCfg.Write()
+	err = hostCfg.Write()
 	if err != nil {
 		log.Printf("error '%s' when writing host config \n", err)
 		return err
@@ -347,17 +339,17 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 }
 
 func DeleteHostId(stateDriver core.StateDriver, hostName string) error {
-	hostMasterCfg := &MasterHostConfig{StateDriver: stateDriver}
-	hostMasterCfg.Name = hostName
+	hostCfg := &MasterHostConfig{StateDriver: stateDriver}
+	hostCfg.Name = hostName
 
-	err := hostMasterCfg.Read(hostName)
+	err := hostCfg.Read(hostName)
 	if err != nil {
 		log.Printf("error '%s' reading master host config name %s \n",
 			err, hostName)
 		return err
 	}
 
-	if hostMasterCfg.VtepIp != "" {
+	if hostCfg.VtepIp != "" {
 		// walk through all nets and delete vtep eps as necessary
 		keys, err := stateDriver.ReadRecursive(drivers.NW_CFG_PATH_PREFIX)
 		if err != nil {
@@ -373,7 +365,7 @@ func DeleteHostId(stateDriver core.StateDriver, hostName string) error {
 			}
 		}
 	}
-	if hostMasterCfg.Intf != "" {
+	if hostCfg.Intf != "" {
 		err = deleteVlanIf(stateDriver, hostName)
 		if err != nil {
 			log.Printf("error '%s' deleting infra if %s on host %s \n",
@@ -381,7 +373,7 @@ func DeleteHostId(stateDriver core.StateDriver, hostName string) error {
 		}
 	}
 
-	err = hostMasterCfg.Clear()
+	err = hostCfg.Clear()
 	if err != nil {
 		log.Printf("error '%s' when deleting host config \n", err)
 		return err
@@ -546,13 +538,12 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			for _, key := range keys {
 				hostName := strings.TrimPrefix(key, HOST_CFG_PATH_PREFIX)
 
-				host := MasterHostConfig{StateDriver: stateDriver}
-				err = host.Read(hostName)
+				hostCfg := &MasterHostConfig{StateDriver: stateDriver}
+				err = hostCfg.Read(hostName)
 				if err != nil {
 					log.Printf("error '%s' reading host '%s'\n", err, hostName)
 				} else {
-					err = createVtep(stateDriver, nwCfg.Id, hostName,
-						host.VtepIp)
+					err = createVtep(stateDriver, hostCfg, nwCfg.Id)
 					if err != nil {
 						log.Printf("error '%s' creating vtep \n", err)
 					}
