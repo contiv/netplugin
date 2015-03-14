@@ -63,16 +63,24 @@ func (s *OvsCfgNetworkState) Read(id string) error {
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+func ReadAllOvsCfgNetworks(d core.StateDriver) ([]*OvsCfgNetworkState, error) {
+	values := []*OvsCfgNetworkState{}
+	byteValues, err := d.ReadAll(NW_CFG_PATH_PREFIX)
+	if err != nil {
+		return nil, err
+	}
+	for _, byteValue := range byteValues {
+		value := &OvsCfgNetworkState{StateDriver: d}
+		err = json.Unmarshal(byteValue, value)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	return values, nil
+}
+
 func (s *OvsCfgNetworkState) Clear() error {
 	key := fmt.Sprintf(NW_CFG_PATH, s.Id)
 	return s.StateDriver.ClearState(key)
-}
-
-func (s *OvsCfgNetworkState) Unmarshal(value string) error {
-	return json.Unmarshal([]byte(value), s)
-}
-
-func (s *OvsCfgNetworkState) Marshal() (string, error) {
-	bytes, err := json.Marshal(s)
-	return string(bytes[:]), err
 }

@@ -48,8 +48,8 @@ func (d *testEpStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
-func (d *testEpStateDriver) ReadRecursive(baseKey string) ([]string, error) {
-	return []string{}, &core.Error{Desc: "Shouldn't be called!"}
+func (d *testEpStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
 func (d *testEpStateDriver) validateKey(key string) error {

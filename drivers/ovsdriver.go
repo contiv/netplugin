@@ -350,15 +350,15 @@ func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
 	return nil
 }
 
-func (d *OvsDriver) deleteVtep(epCfg *OvsCfgEndpointState) error {
+func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
 
 	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
-	err := cfgNw.Read(epCfg.NetId)
+	err := cfgNw.Read(epOper.NetId)
 	if err != nil {
 		return err
 	}
 
-	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
+	intfName := vxlanIfName(epOper.NetId, epOper.VtepIp)
 	err = d.createDeletePort(intfName, intfName, "vxlan", cfgNw.Id,
 		nil, cfgNw.PktTag, DELETE_PORT)
 	if err != nil {
@@ -434,18 +434,10 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 	return nil
 }
 
-func (d *OvsDriver) DeleteNetwork(value string) error {
+func (d *OvsDriver) DeleteNetwork(id string) error {
 
 	// no driver operation for network delete
-	var err error
-
-	cfgNw := OvsCfgNetworkState{}
-	err = cfgNw.Unmarshal(value)
-	if err != nil {
-		log.Printf("Failed to unmarshal network config, err '%s' \n", err)
-		return err
-	}
-	log.Printf("delete net %s \n", cfgNw.Id)
+	log.Printf("delete net %s \n", id)
 
 	return nil
 }
@@ -525,26 +517,10 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	return nil
 }
 
-func (d *OvsDriver) DeleteEndpoint(value string) (err error) {
-
-	epCfg := OvsCfgEndpointState{}
-	err = epCfg.Unmarshal(value)
-	if err != nil {
-		log.Printf("Failed to unmarshal epcfg, err '%s' \n", err)
-		return
-	}
-
-	if epCfg.VtepIp != "" {
-		err = d.deleteVtep(&epCfg)
-		if err != nil {
-			log.Printf("error '%s' creating vtep interface(s) for "+
-				"remote endpoint %s\n", err, epCfg.VtepIp)
-		}
-		return
-	}
+func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 
 	epOper := OvsOperEndpointState{StateDriver: d.stateDriver}
-	err = epOper.Read(epCfg.Id)
+	err = epOper.Read(id)
 	if err != nil {
 		return err
 	}
@@ -552,13 +528,22 @@ func (d *OvsDriver) DeleteEndpoint(value string) (err error) {
 		epOper.Clear()
 	}()
 
-	portName, err := d.getPortOrIntfNameFromId(epCfg.Id, GET_PORT_NAME)
+	if epOper.VtepIp != "" {
+		err = d.deleteVtep(&epOper)
+		if err != nil {
+			log.Printf("error '%s' deleting vtep interface(s) for "+
+				"remote endpoint %s\n", err, epOper.VtepIp)
+		}
+		return
+	}
+
+	portName, err := d.getPortOrIntfNameFromId(epOper.Id, GET_PORT_NAME)
 	if err != nil {
 		return err
 	}
 
 	intfName := ""
-	intfName, err = d.getPortOrIntfNameFromId(epCfg.Id, GET_INTF_NAME)
+	intfName, err = d.getPortOrIntfNameFromId(epOper.Id, GET_INTF_NAME)
 	if err != nil {
 		return err
 	}

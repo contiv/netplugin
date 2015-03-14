@@ -45,6 +45,23 @@ func (s *MasterHostConfig) Read(hostname string) error {
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+func ReadAllMasterHostCfg(d core.StateDriver) ([]*MasterHostConfig, error) {
+	values := []*MasterHostConfig{}
+	byteValues, err := d.ReadAll(HOST_CFG_PATH_PREFIX)
+	if err != nil {
+		return nil, err
+	}
+	for _, byteValue := range byteValues {
+		value := &MasterHostConfig{StateDriver: d}
+		err = json.Unmarshal(byteValue, value)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	return values, nil
+}
+
 func (s *MasterHostConfig) Clear() error {
 	key := fmt.Sprintf(HOST_CFG_PATH, s.Name)
 	return s.StateDriver.ClearState(key)

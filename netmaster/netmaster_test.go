@@ -62,14 +62,15 @@ func (d *fakeStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, errors.New("key not found!")
 }
 
-func (d *fakeStateDriver) ReadRecursive(baseKey string) ([]string, error) {
-	keys := make([]string, 0)
-	for key, _ := range testState {
+func (d *fakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	values := [][]byte{}
+
+	for key, val := range testState {
 		if strings.Contains(key, baseKey) {
-			keys = append(keys, key)
+			values = append(values, val.value)
 		}
 	}
-	return keys, nil
+	return values, nil
 }
 
 func (d *fakeStateDriver) ClearState(key string) error {

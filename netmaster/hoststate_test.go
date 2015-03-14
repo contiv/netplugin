@@ -48,8 +48,8 @@ func (d *testHostStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, errors.New("Shouldn't be called!")
 }
 
-func (d *testHostStateDriver) ReadRecursive(baseKey string) ([]string, error) {
-	return []string{}, errors.New("Shouldn't be called!")
+func (d *testHostStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
 func (d *testHostStateDriver) validateKey(key string) error {

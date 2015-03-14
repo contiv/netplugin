@@ -66,8 +66,8 @@ func (d *testOvsStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
-func (d *testOvsStateDriver) ReadRecursive(baseKey string) ([]string, error) {
-	return []string{}, &core.Error{Desc: "Shouldn't be called!"}
+func (d *testOvsStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
 func (d *testOvsStateDriver) ClearState(key string) error {
@@ -296,16 +296,7 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 		t.Fatalf("endpoint Creation failed. Error: %s", err)
 	}
 
-	cfgEp := &OvsCfgEndpointState{}
-	err = driver.stateDriver.ReadState(id, cfgEp, nil)
-	if err != nil {
-		t.Fatalf("error '%s' reading state for id %s \n", err, id)
-	}
-	value, err := cfgEp.Marshal()
-	if err != nil {
-		t.Fatalf("error marshaling config '%s' \n", err)
-	}
-	err = driver.DeleteEndpoint(value)
+	err = driver.DeleteEndpoint(id)
 	if err != nil {
 		t.Fatalf("endpoint Deletion failed. Error: %s", err)
 	}
@@ -332,16 +323,7 @@ func TestOvsDriverDeleteEndpointiWithIntfName(t *testing.T) {
 		t.Fatalf("endpoint Creation failed. Error: %s", err)
 	}
 
-	cfgEp := &OvsCfgEndpointState{}
-	err = driver.stateDriver.ReadState(id, cfgEp, nil)
-	if err != nil {
-		t.Fatalf("error '%s' reading state for id %s \n", err, id)
-	}
-	value, err := cfgEp.Marshal()
-	if err != nil {
-		t.Fatalf("error marshaling config '%s' \n", err)
-	}
-	err = driver.DeleteEndpoint(value)
+	err = driver.DeleteEndpoint(id)
 	if err != nil {
 		t.Fatalf("endpoint Deletion failed. Error: %s", err)
 	}
@@ -400,17 +382,7 @@ func TestOvsDriverDeleteVxlanPeer(t *testing.T) {
 		t.Fatalf("endpoint Creation failed. Error: %s", err)
 	}
 
-	cfgEp := &OvsCfgEndpointState{}
-	err = driver.stateDriver.ReadState(deleteVxlanEpId, cfgEp, nil)
-	if err != nil {
-		t.Fatalf("error '%s' reading state for id %s \n", err,
-			deleteVxlanEpId)
-	}
-	value, err := cfgEp.Marshal()
-	if err != nil {
-		t.Fatalf("error marshaling config '%s' \n", err)
-	}
-	err = driver.DeleteEndpoint(value)
+	err = driver.DeleteEndpoint(deleteVxlanEpId)
 	if err != nil {
 		t.Fatalf("endpoint Deletion failed. Error: %s", err)
 	}
