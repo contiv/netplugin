@@ -66,6 +66,10 @@ func (d *testOvsStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
+func (d *testOvsStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testOvsStateDriver) ClearState(key string) error {
 	return nil
 }

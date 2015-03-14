@@ -53,7 +53,7 @@ func (s *OvsCfgEndpointState) Clear() error {
 
 func ReadAllOvsCfgEndpoints(d core.StateDriver) ([]*OvsCfgEndpointState, error) {
 	values := []*OvsCfgEndpointState{}
-	byteValues, err := ReadAll(d, EP_CFG_PATH_PREFIX)
+	byteValues, err := d.ReadAll(EP_CFG_PATH_PREFIX)
 	if err != nil {
 		return nil, err
 	}

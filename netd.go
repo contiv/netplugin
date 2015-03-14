@@ -514,7 +514,7 @@ func main() {
 		"label used to identify endpoints homed for this host, default is host name")
 	flagSet.BoolVar(&opts.publishVtep,
 		"publish-vtep",
-		true,
+		false,
 		"publish the vtep when allowed by global policy")
 
 	err = flagSet.Parse(os.Args[1:])

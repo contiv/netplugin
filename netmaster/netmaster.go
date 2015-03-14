@@ -24,6 +24,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
@@ -31,45 +32,9 @@ import (
 	"github.com/contiv/netplugin/netutils"
 )
 
-// Config structs define the config intent for various network entities
-type ConfigEp struct {
-	Container string
-	Host      string
-	IpAddress string
-
-	// XXX: need to think more, if interface name really belongs to logical
-	// config. One usecase for having interface name in logical config might be
-	// the SRIOV case, where the virtual interfaces could be pre-exist.
-	Intf string
-}
-
-type ConfigNetwork struct {
-	Name string
-
-	// overrides for various functions when auto allocation is not desired
-	PktTagType string
-	PktTag     string
-	SubnetCIDR string
-	DefaultGw  string
-
-	// eps associated with the network
-	Endpoints []ConfigEp
-}
-
-type ConfigTenant struct {
-	Name           string
-	DefaultNetType string
-	SubnetPool     string
-	AllocSubnetLen uint
-	Vlans          string
-	Vxlans         string
-
-	Networks []ConfigNetwork
-}
-
-type Config struct {
-	Tenants []ConfigTenant
-}
+const (
+	DEFAULT_INFRA_NET_NAME = "infra"
+)
 
 // interface that cluster manager implements; this is external interface to
 // the cluster manager
@@ -212,11 +177,218 @@ func DeleteTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	return nil
 }
 
+func validateHostConfig(host *ConfigHost) error {
+	if host.Name == "" {
+		return errors.New("null host name")
+	}
+	if host.VtepIp == "" && host.Intf == "" {
+		return errors.New("either vtep or intf needed for the host")
+	}
+
+	return nil
+}
+
+func getVtepName(netId, hostLabel string) string {
+	return netId + "-" + hostLabel
+}
+
+func createInfraNetwork(epCfg *drivers.OvsCfgEndpointState) error {
+	if epCfg.NetId != "" {
+		return nil
+	}
+
+	nwCfg := &drivers.OvsCfgNetworkState{StateDriver: epCfg.StateDriver}
+	if nwCfg.Read(epCfg.NetId) == nil {
+		return nil
+	}
+
+	nwCfg.Id = DEFAULT_INFRA_NET_NAME
+	err := nwCfg.Write()
+	if err != nil {
+		return err
+	}
+
+	epCfg.NetId = DEFAULT_INFRA_NET_NAME
+	return nil
+}
+
+func createVtep(stateDriver core.StateDriver, hostCfg *MasterHostConfig, tenantNet string) error {
+
+	epCfg := &drivers.OvsCfgEndpointState{StateDriver: stateDriver}
+	epCfg.Id = getVtepName(tenantNet, hostCfg.Name)
+	epCfg.HomingHost = hostCfg.Name
+	epCfg.VtepIp = hostCfg.VtepIp
+	epCfg.NetId = tenantNet
+	err := createInfraNetwork(epCfg)
+	if err != nil {
+		log.Printf("error '%s' creating infra vlan \n", err)
+		return err
+	}
+
+	err = epCfg.Write()
+	if err != nil {
+		log.Printf("error '%s' adding vtep ep \n", err)
+		return err
+	}
+
+	return nil
+}
+
+func deleteVtep(stateDriver core.StateDriver, netId, hostName string) error {
+
+	epCfg := &drivers.OvsCfgEndpointState{StateDriver: stateDriver}
+	epCfg.Id = getVtepName(netId, hostName)
+	epCfg.HomingHost = hostName
+	epCfg.NetId = netId
+
+	err := epCfg.Clear()
+	if err != nil {
+		log.Printf("error '%s' deleting vtep ep \n", err)
+		return err
+	}
+
+	return nil
+}
+
+func getVlanIfName(hostLabel string) string {
+	return hostLabel + "-native-intf"
+}
+
+func createVlanIf(stateDriver core.StateDriver, host *ConfigHost) error {
+
+	epCfg := &drivers.OvsCfgEndpointState{StateDriver: stateDriver}
+	epCfg.Id = getVlanIfName(host.Name)
+	epCfg.HomingHost = host.Name
+	epCfg.IntfName = host.Intf
+	epCfg.NetId = host.NetId
+	err := createInfraNetwork(epCfg)
+	if err != nil {
+		log.Printf("error '%s' creating infra vlan \n", err)
+		return err
+	}
+
+	err = epCfg.Write()
+	if err != nil {
+		log.Printf("error '%s' adding vtep ep \n", err)
+		return err
+	}
+
+	return nil
+}
+
+func deleteVlanIf(stateDriver core.StateDriver, hostName string) error {
+
+	epCfg := &drivers.OvsCfgEndpointState{StateDriver: stateDriver}
+	epCfg.Id = getVlanIfName(hostName)
+	epCfg.HomingHost = hostName
+
+	err := epCfg.Clear()
+	if err != nil {
+		log.Printf("error '%s' deleting vtep ep \n", err)
+		return err
+	}
+
+	return nil
+}
+
+func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
+	err := validateHostConfig(host)
+	if err != nil {
+		log.Printf("error '%s' validating host config \n", err)
+		return err
+	}
+
+	// construct and update master host state
+	hostCfg := &MasterHostConfig{StateDriver: stateDriver}
+	hostCfg.Name = host.Name
+	hostCfg.Intf = host.Intf
+	hostCfg.VtepIp = host.VtepIp
+	hostCfg.NetId = host.NetId
+
+	if host.VtepIp != "" {
+		// walk through all nets and create vtep eps as necessary
+		tenantNets, err := drivers.ReadAllOvsCfgNetworks(stateDriver)
+		if err != nil {
+			if !strings.Contains(err.Error(), "Key not found") {
+				log.Printf("error '%s' eading keys during host create\n", err)
+			}
+		}
+		for _, tenantNet := range tenantNets {
+			err = createVtep(stateDriver, hostCfg, tenantNet.Id)
+			if err != nil {
+				log.Printf("error '%s' creating vtep \n", err)
+			}
+		}
+	}
+	if host.Intf != "" {
+		err = createVlanIf(stateDriver, host)
+		if err != nil {
+			log.Printf("error '%s' creating infra if %s on host %s \n",
+				err, host.Name, host.Intf)
+		}
+	}
+
+	err = hostCfg.Write()
+	if err != nil {
+		log.Printf("error '%s' when writing host config \n", err)
+		return err
+	}
+
+	return nil
+}
+
+func DeleteHostId(stateDriver core.StateDriver, hostName string) error {
+	hostCfg := &MasterHostConfig{StateDriver: stateDriver}
+	hostCfg.Name = hostName
+
+	err := hostCfg.Read(hostName)
+	if err != nil {
+		log.Printf("error '%s' reading master host config name %s \n",
+			err, hostName)
+		return err
+	}
+
+	if hostCfg.VtepIp != "" {
+		// walk through all nets and delete vtep eps as necessary
+		tenantNets, err := drivers.ReadAllOvsCfgNetworks(stateDriver)
+		if err != nil {
+			if !strings.Contains(err.Error(), "Key not found") {
+				log.Printf("error '%s' eading keys during host create\n", err)
+			}
+		}
+		for _, tenantNet := range tenantNets {
+			err = deleteVtep(stateDriver, tenantNet.Id, hostName)
+			if err != nil {
+				log.Printf("error '%s' deleting vtep \n", err)
+			}
+		}
+	}
+	if hostCfg.Intf != "" {
+		err = deleteVlanIf(stateDriver, hostName)
+		if err != nil {
+			log.Printf("error '%s' deleting infra if %s on host %s \n",
+				err, hostName)
+		}
+	}
+
+	err = hostCfg.Clear()
+	if err != nil {
+		log.Printf("error '%s' when deleting host config \n", err)
+		return err
+	}
+
+	return err
+}
+
+func DeleteHost(stateDriver core.StateDriver, host *ConfigHost) error {
+	return DeleteHostId(stateDriver, host.Name)
+}
+
 func validateNetworkConfig(tenant *ConfigTenant) error {
 	var err error
 
 	if tenant.Name == "" {
-		errors.New("null tenant name")
+		return errors.New("null tenant name")
 	}
 
 	for _, network := range tenant.Networks {
@@ -314,7 +486,6 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 				}
 			}
 
-			log.Printf("allocated vlan %d vxlan %d \n", pktTag, extPktTag)
 			nwCfg.ExtPktTag = int(extPktTag)
 			nwCfg.PktTag = int(pktTag)
 		} else if nwCfg.PktTagType == "vxlan" {
@@ -352,6 +523,22 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		if err != nil {
 			log.Printf("error '%s' when writing nw config \n", err)
 			return err
+		}
+
+		if nwCfg.PktTagType == "vxlan" {
+
+			hostCfgs, err := ReadAllMasterHostCfg(stateDriver)
+			if err != nil {
+				if !strings.Contains(err.Error(), "Key not found") {
+					log.Printf("error '%s' reading hosts during net add\n", err)
+				}
+			}
+			for _, hostCfg := range hostCfgs {
+				err = createVtep(stateDriver, hostCfg, nwCfg.Id)
+				if err != nil {
+					log.Printf("error '%s' creating vtep \n", err)
+				}
+			}
 		}
 	}
 
@@ -501,7 +688,7 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *ConfigTenant) 
 	var err error
 
 	if tenant.Name == "" {
-		errors.New("null tenant name")
+		return errors.New("null tenant name")
 	}
 
 	for _, network := range tenant.Networks {
@@ -540,11 +727,43 @@ func getEpName(net *ConfigNetwork, ep *ConfigEp) string {
 		return ep.Host + "-native-intf"
 	}
 }
+func allocSetEpIp(ep *ConfigEp, epCfg *drivers.OvsCfgEndpointState,
+	nwCfg *drivers.OvsCfgNetworkState) (err error) {
 
-func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	var ipAddrValue uint = 0
 	var found bool
 
+	ipAddress := ep.IpAddress
+	if ipAddress == "" {
+		if ipAddrValue, found = nwCfg.IpAllocMap.NextClear(0); !found {
+			log.Printf("auto allocation failed - address exhaustion "+
+				"in subnet %s/%d \n", nwCfg.SubnetIp, nwCfg.SubnetLen)
+			return
+		}
+		ipAddress, err = netutils.GetSubnetIp(
+			nwCfg.SubnetIp, nwCfg.SubnetLen, 32, ipAddrValue)
+		if err != nil {
+			log.Printf("create eps: error acquiring subnet ip '%s' \n",
+				err)
+			return
+		}
+	} else if ipAddress != "" && nwCfg.SubnetIp != "" {
+		ipAddrValue, err = netutils.GetIpNumber(
+			nwCfg.SubnetIp, nwCfg.SubnetLen, 32, ipAddress)
+		if err != nil {
+			log.Printf("create eps: error getting host id from hostIp "+
+				"%s Subnet %s/%d err '%s'\n",
+				ipAddress, nwCfg.SubnetIp, nwCfg.SubnetLen, err)
+			return
+		}
+	}
+	epCfg.IpAddress = ipAddress
+	nwCfg.IpAllocMap.Set(ipAddrValue)
+
+	return
+}
+
+func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	err := validateEndpointConfig(stateDriver, tenant)
 	if err != nil {
 		log.Printf("error '%s' validating network config \n", err)
@@ -580,37 +799,12 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			epCfg.NetId = network.Name
 			epCfg.ContName = ep.Container
 			epCfg.HomingHost = ep.Host
-			epCfg.IntfName = ep.Intf
-			// epCfg.VtepIp = ep.vtepIp
 
-			ipAddress := ep.IpAddress
-			if ipAddress == "" {
-				if ipAddrValue, found = nwCfg.IpAllocMap.NextClear(0); !found {
-					log.Printf("auto allocation failed - address exhaustion "+
-						"in subnet %s/%d \n", nwCfg.SubnetIp, nwCfg.SubnetLen)
-					return err
-				}
-				ipAddress, err = netutils.GetSubnetIp(
-					nwCfg.SubnetIp, nwCfg.SubnetLen, 32, ipAddrValue)
-				if err != nil {
-					log.Printf("create eps: error acquiring subnet ip '%s' \n",
-						err)
-					return err
-				}
-				log.Printf("ep %s was allocated ip address %s \n",
-					epCfg.Id, ipAddress)
-			} else if ipAddress != "" && nwCfg.SubnetIp != "" {
-				ipAddrValue, err = netutils.GetIpNumber(
-					nwCfg.SubnetIp, nwCfg.SubnetLen, 32, ipAddress)
-				if err != nil {
-					log.Printf("create eps: error getting host id from hostIp "+
-						"%s Subnet %s/%d err '%s'\n",
-						ipAddress, nwCfg.SubnetIp, nwCfg.SubnetLen, err)
-					return err
-				}
+			err = allocSetEpIp(&ep, epCfg, nwCfg)
+			if err != nil {
+				log.Printf("error '%s' allocating and/or reserving IP\n", err)
+				return err
 			}
-			epCfg.IpAddress = ipAddress
-			nwCfg.IpAllocMap.Set(ipAddrValue)
 
 			err = epCfg.Write()
 			if err != nil {

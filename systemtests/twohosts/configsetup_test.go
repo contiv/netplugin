@@ -36,6 +36,14 @@ func TestTwoHostsSingleVlanPingSuccess(t *testing.T) {
 
 	jsonCfg :=
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "Intf"                      : "eth2"
+        },
+        {
+            "Name"                      : "host2",
+            "Intf"                      : "eth2"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vlan",
@@ -43,19 +51,6 @@ func TestTwoHostsSingleVlanPingSuccess(t *testing.T) {
             "AllocSubnetLen"            : 24,
             "Vlans"                     : "11-48",
             "Networks"  : [ {
-                "Name"                  : "infra",
-                "PktTag"                : "0",
-                "Endpoints" : [
-                {
-                    "Intf"              : "eth2",
-                    "Host"              : "host1"
-                },
-                {
-                    "Intf"              : "eth2",
-                    "Host"              : "host2"
-                } ]
-            },
-            {
                 "Name"                  : "orange",
                 "Endpoints" : [
                 {
@@ -94,6 +89,14 @@ func TestTwoHostsMultiVlanPingSuccess(t *testing.T) {
 
 	jsonCfg :=
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "Intf"                      : "eth2"
+        },
+        {
+            "Name"                      : "host2",
+            "Intf"                      : "eth2"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vlan",
@@ -101,19 +104,6 @@ func TestTwoHostsMultiVlanPingSuccess(t *testing.T) {
             "AllocSubnetLen"            : 24,
             "Vlans"                     : "11-48",
             "Networks"  : [ {
-                "Name"                  : "infra",
-                "PktTag"                : "0",
-                "Endpoints" : [
-                {
-                    "Intf"              : "eth2",
-                    "Host"              : "host1"
-                },
-                {
-                    "Intf"              : "eth2",
-                    "Host"              : "host2"
-                } ]
-            },
-            {
                 "Name"                  : "orange",
                 "Endpoints" : [
                 {
@@ -175,6 +165,14 @@ func TestTwoHostsMultiVlanPingFailure(t *testing.T) {
 
 	jsonCfg :=
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "Intf"                      : "eth2"
+        },
+        {
+            "Name"                      : "host2",
+            "Intf"                      : "eth2"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vlan",
@@ -182,19 +180,6 @@ func TestTwoHostsMultiVlanPingFailure(t *testing.T) {
             "AllocSubnetLen"            : 24,
             "Vlans"                     : "11-48",
             "Networks"  : [ {
-                "Name"                  : "infra",
-                "PktTag"                : "0",
-                "Endpoints" : [
-                {
-                    "Intf"              : "eth2",
-                    "Host"              : "host1"
-                },
-                {
-                    "Intf"              : "eth2",
-                    "Host"              : "host2"
-                } ]
-            },
-            {
                 "Name"                  : "orange",
                 "Endpoints" : [
                 {
@@ -237,6 +222,14 @@ func TestTwoHostsMultiVxlanPingSuccess(t *testing.T) {
 
 	jsonCfg :=
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vxlan",
@@ -307,6 +300,14 @@ func TestTwoHostsMultiVxlanPingFailure(t *testing.T) {
 	//create a single vlan network, with two endpoints
 	jsonCfg :=
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vxlan",
@@ -370,6 +371,14 @@ func TestTwoHostsVxlanDeltaConfig(t *testing.T) {
 
 	jsonCfg :=
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vxlan",
@@ -433,6 +442,14 @@ func TestTwoHostsVxlanDeltaConfig(t *testing.T) {
 
 	jsonCfg =
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vxlan",
@@ -487,6 +504,14 @@ func TestTwoHostsVxlanAddDelEp(t *testing.T) {
 
 	jsonCfg :=
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vxlan",
@@ -621,6 +646,14 @@ func TestTwoHostsVxlanAddDelNetwork(t *testing.T) {
 
 	jsonCfg :=
 		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vxlan",

@@ -47,6 +47,10 @@ func (d *testNwStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
+func (d *testNwStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testNwStateDriver) validateKey(key string) error {
 	if key != nwCfgKey {
 		return &core.Error{Desc: fmt.Sprintf("Unexpected key. "+

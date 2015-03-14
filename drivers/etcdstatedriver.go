@@ -69,9 +69,8 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 	return []byte(resp.Node.Value), err
 }
 
-func ReadAll(d core.StateDriver, baseKey string) ([][]byte, error) {
-	etcdDriver := d.(*EtcdStateDriver)
-	resp, err := etcdDriver.Client.Get(baseKey, true, false)
+func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	resp, err := d.Client.Get(baseKey, true, false)
 	if err != nil {
 		return nil, err
 	}

@@ -39,6 +39,16 @@ func postProcessing() {
 	time.Sleep(1 * time.Second)
 }
 
+func hostPresent(allCfg *netmaster.Config, hostName string) bool {
+	for _, host := range allCfg.Hosts {
+		if hostName == host.Name {
+			return true
+		}
+	}
+
+	return false
+}
+
 func tenantPresent(allCfg *netmaster.Config, tenantId string) bool {
 	for _, tenant := range allCfg.Tenants {
 		if tenantId == tenant.Name {
@@ -121,10 +131,33 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		}
 	}
 
+	hostCfgs, err := netmaster.ReadAllMasterHostCfg(stateDriver)
+	if err != nil {
+		return err
+	}
+	for _, hostCfg := range hostCfgs {
+		hostName := hostCfg.Name
+		if !hostPresent(allCfg, hostName) {
+			err = netmaster.DeleteHostId(stateDriver, hostName)
+			if err != nil {
+				log.Printf("error '%s' deleting host %s \n", err, hostName)
+				continue
+			}
+		}
+	}
+
 	return nil
 }
 
 func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
+	for _, host := range allCfg.Hosts {
+		err := netmaster.CreateHost(stateDriver, &host)
+		if err != nil {
+			log.Printf("error '%s' adding host %s \n", err, host.Name)
+			continue
+		}
+	}
+
 	for _, tenant := range allCfg.Tenants {
 		err := netmaster.CreateTenant(stateDriver, &tenant)
 		if err != nil {
@@ -149,6 +182,14 @@ func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 }
 
 func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
+	for _, host := range allCfg.Hosts {
+		err := netmaster.DeleteHost(stateDriver, &host)
+		if err != nil {
+			log.Printf("error '%s' deleting host %s \n", err, host.Name)
+			continue
+		}
+	}
+
 	for _, tenant := range allCfg.Tenants {
 		err = netmaster.DeleteEndpoints(stateDriver, &tenant)
 		if err != nil {

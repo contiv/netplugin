@@ -98,6 +98,7 @@ type StateDriver interface {
 	Deinit()
 	Write(key string, value []byte) error
 	Read(key string) ([]byte, error)
+	ReadAll(baseKey string) ([][]byte, error)
 	WriteState(key string, value State,
 		marshal func(interface{}) ([]byte, error)) error
 	ReadState(key string, value State,

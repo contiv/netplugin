@@ -13,10 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// netmaster  - implements the network intent translation to plugin
-// events; uses state distribution to achieve intent realization
-// netmaster runs as a logically centralized unit on in the cluster
-
 package netmaster
 
 import (
@@ -49,6 +45,10 @@ func (d *testNwStateDriver) Write(key string, value []byte) error {
 
 func (d *testNwStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
+}
+
+func (d *testNwStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
 func (d *testNwStateDriver) validateKey(key string) error {

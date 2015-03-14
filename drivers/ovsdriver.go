@@ -466,9 +466,9 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}
 
 	// use the user provided interface name. The primary usecase for such
-	// endpoints is for adding the host-interfaces to the ovs bridge. But other
-	// usecases might involve user created linux interface devices for
-	// containers like SRIOV, that need to be bridged using ovs
+	// endpoints is for adding the host-interfaces to the ovs bridge.
+	// But other usecases might involve user created linux interface
+	// devices for containers like SRIOV, that need to be bridged using ovs
 	// Also, if the interface name is provided by user then we don't create
 	// ovs-internal interface
 	if epCfg.IntfName != "" {

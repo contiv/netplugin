@@ -1,13 +1,20 @@
 
 {
+    "Hosts" : [{
+        "Name"                      : "host1",
+        "VtepIp"                    : "192.168.2.10"
+    },
+    {
+        "Name"                      : "host2",
+        "VtepIp"                    : "192.168.2.11"
+    }],
     "Tenants" : [ {
         "Name"                      : "tenant-one",
         "DefaultNetType"            : "vxlan",
         "SubnetPool"                : "11.1.0.0/16",
         "AllocSubnetLen"            : 24,
         "Vxlans"                    : "10001-20000",
-        "Networks"  : [
-        {
+        "Networks"  : [ {
             "Name"                  : "orange",
             "Endpoints" : [
             {
@@ -17,10 +24,8 @@
             {
                 "Container"         : "myContainer3",
                 "Host"              : "host2"
-            }
-            ]
-        }
-        ]
+            } ]
+        } ]
     }, 
     {
         "Name"                      : "tenant-two",
@@ -28,8 +33,7 @@
         "SubnetPool"                : "11.1.0.0/16",
         "AllocSubnetLen"            : 24,
         "Vxlans"                    : "10001-20000",
-        "Networks"  : [
-        {
+        "Networks"  : [ {
             "Name"                  : "purple",
             "Endpoints" : [
             {
@@ -39,9 +43,7 @@
             {
                 "Container"         : "myContainer4",
                 "Host"              : "host2"
-            }
-            ]
-        }
-        ]
+            } ]
+        } ]
     } ]
 }

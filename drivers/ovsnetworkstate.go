@@ -65,7 +65,7 @@ func (s *OvsCfgNetworkState) Read(id string) error {
 
 func ReadAllOvsCfgNetworks(d core.StateDriver) ([]*OvsCfgNetworkState, error) {
 	values := []*OvsCfgNetworkState{}
-	byteValues, err := ReadAll(d, NW_CFG_PATH_PREFIX)
+	byteValues, err := d.ReadAll(NW_CFG_PATH_PREFIX)
 	if err != nil {
 		return nil, err
 	}

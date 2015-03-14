@@ -25,7 +25,6 @@ import (
 	"github.com/jainvipin/bitset"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netutils"
 )
 
@@ -145,7 +144,7 @@ func (gc *Cfg) Read(tenant string) error {
 
 func ReadAllGlobalCfg(d core.StateDriver) ([]*Cfg, error) {
 	values := []*Cfg{}
-	byteValues, err := drivers.ReadAll(d, CFG_GLOBAL_PREFIX)
+	byteValues, err := d.ReadAll(CFG_GLOBAL_PREFIX)
 	if err != nil {
 		return nil, err
 	}
