@@ -13,10 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// netmaster  - implements the network intent translation to plugin
-// events; uses state distribution to achieve intent realization
-// netmaster runs as a logically centralized unit on in the cluster
-
 package netmaster
 
 import (
@@ -697,6 +693,9 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *ConfigTenant) 
 		}
 
 		for _, ep := range network.Endpoints {
+			if ep.Container == "" {
+				return errors.New("invalid container name for the endpoint")
+			}
 			if ep.IpAddress != "" {
 				nwMasterCfg := &MasterNwConfig{StateDriver: stateDriver}
 				err = nwMasterCfg.Read(network.Name)
@@ -926,4 +925,50 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	}
 
 	return err
+}
+
+func validateEpBindings(epBindings *[]ConfigEp) error {
+	for _, ep := range *epBindings {
+		if ep.Host == "" {
+			return errors.New("invalid host name for the endpoint")
+		}
+		if ep.Container == "" {
+			return errors.New("invalid container name for the endpoint")
+		}
+	}
+
+	return nil
+}
+
+func CreateEpBindings(stateDriver core.StateDriver, epBindings *[]ConfigEp) error {
+
+	err := validateEpBindings(epBindings)
+	if err != nil {
+		log.Printf("error '%s' validating the ep bindings \n", err)
+		return err
+	}
+
+	epCfgs, err := drivers.ReadAllOvsCfgEndpoints(stateDriver)
+	if err != nil {
+		log.Printf("error '%s' fetching eps \n", err)
+		return err
+	}
+	for _, ep := range *epBindings {
+		log.Printf("creating binding between container '%s' and host '%s' \n",
+			ep.Container, ep.Host)
+
+		for _, epCfg := range epCfgs {
+			if epCfg.ContName != ep.Container {
+				continue
+			}
+			epCfg.HomingHost = ep.Host
+			err = epCfg.Write()
+			if err != nil {
+				log.Printf("error '%s' updating epCfg \n", err)
+				return err
+			}
+		}
+	}
+
+	return nil
 }

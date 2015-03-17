@@ -104,30 +104,31 @@ func (c *Construct) Get() interface{} {
 }
 
 type cliOpts struct {
-	help           bool
-	cfgDesired     bool
-	cfgAdditions   bool
-	cfgDeletions   bool
-	oper           Operation
-	construct      Construct
-	etcdUrl        string
-	tenant         string
-	netId          string
-	pktTag         string
-	pktTagType     string
-	subnetCidr     string
-	ipAddr         string
-	contName       string
-	subnetIp       string
-	subnetLen      uint
-	allocSubnetLen uint
-	defaultGw      string
-	idStr          string
-	vlans          string
-	vxlans         string
-	homingHost     string
-	vtepIp         string
-	intfName       string
+	help            bool
+	cfgDesired      bool
+	cfgAdditions    bool
+	cfgDeletions    bool
+	cfgHostBindings bool
+	oper            Operation
+	construct       Construct
+	etcdUrl         string
+	tenant          string
+	netId           string
+	pktTag          string
+	pktTagType      string
+	subnetCidr      string
+	ipAddr          string
+	contName        string
+	subnetIp        string
+	subnetLen       uint
+	allocSubnetLen  uint
+	defaultGw       string
+	idStr           string
+	vlans           string
+	vxlans          string
+	homingHost      string
+	vtepIp          string
+	intfName        string
 }
 
 var opts cliOpts
@@ -141,6 +142,10 @@ func init() {
 	flagSet.Var(&opts.construct,
 		"construct",
 		"Construct to operate on i.e network or endpoint")
+	flagSet.BoolVar(&opts.cfgHostBindings,
+		"host-bindings-cfg",
+		false,
+		"Json file describing container to host bindings")
 	flagSet.BoolVar(&opts.cfgAdditions,
 		"add-cfg",
 		false,
@@ -461,7 +466,7 @@ func main() {
 	}
 	opts.idStr = flagSet.Arg(0)
 
-	if opts.cfgDesired || opts.cfgDeletions || opts.cfgAdditions {
+	if opts.cfgDesired || opts.cfgDeletions || opts.cfgAdditions || opts.cfgHostBindings {
 		err = executeJsonCfg(&opts)
 	} else {
 		err = executeOpts(&opts)

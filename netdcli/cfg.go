@@ -233,18 +233,34 @@ func executeJsonCfg(defOpts *cliOpts) (err error) {
 		return err
 	}
 
-	allCfg := &netmaster.Config{}
-	err = json.Unmarshal(data, allCfg)
-	if err != nil {
-		log.Printf("unmarshal error '%s', tenants %v \n", err, allCfg)
-		return
-	}
-	// log.Printf("parsed config %v \n", allCfg)
-
 	stateDriver, err := initEtcd(defOpts)
 	if err != nil {
 		log.Fatalf("Failed to init etcd driver. Error: %s", err)
 	}
+
+	if opts.cfgHostBindings {
+		epBindings := []netmaster.ConfigEp{}
+		err = json.Unmarshal(data, &epBindings)
+		if err != nil {
+			log.Printf("error '%s' unmarshing host bindings, data %s \n",
+				err, data)
+			return
+		}
+
+		err = netmaster.CreateEpBindings(stateDriver, &epBindings)
+		if err != nil {
+			log.Printf("error '%s' creating host bindings \n", err)
+		}
+		return
+	}
+
+	allCfg := &netmaster.Config{}
+	err = json.Unmarshal(data, allCfg)
+	if err != nil {
+		log.Printf("error '%s' unmarshaling tenant cfg, data %s \n", err, data)
+		return
+	}
+	// log.Printf("parsed config %v \n", allCfg)
 
 	if defOpts.cfgDesired {
 		err = deleteDelta(stateDriver, allCfg)
@@ -256,8 +272,11 @@ func executeJsonCfg(defOpts *cliOpts) (err error) {
 
 	if defOpts.cfgDeletions {
 		err = processDeletions(stateDriver, allCfg)
-	} else {
+	} else if defOpts.cfgAdditions || defOpts.cfgDesired {
 		err = processAdditions(stateDriver, allCfg)
+	} else {
+		log.Fatalf("invalid json config file type\n")
+		return
 	}
 	if err != nil {
 		log.Printf("error processing cfg '%s' \n", err)

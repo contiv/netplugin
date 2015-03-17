@@ -32,7 +32,7 @@ type ValueData struct {
 var testState map[string]ValueData
 
 // fake implementation of state driver for the tests
-var d = &fakeStateDriver{}
+var fakeDriver = &fakeStateDriver{}
 
 type fakeStateDriver struct {
 }
@@ -123,32 +123,32 @@ func applyConfig(t *testing.T, cfgBytes []byte) {
 		t.Fatalf("error '%s' parsing config '%s'\n", err, cfgBytes)
 	}
 
-	d.Init(nil)
+	fakeDriver.Init(nil)
 	for _, host := range cfg.Hosts {
-		err = CreateHost(d, &host)
+		err = CreateHost(fakeDriver, &host)
 		if err != nil {
 			t.Fatalf("error '%s' creating host\n", err)
 		}
 	}
 
 	for _, tenant := range cfg.Tenants {
-		err = CreateTenant(d, &tenant)
+		err = CreateTenant(fakeDriver, &tenant)
 		if err != nil {
 			t.Fatalf("error '%s' creating tenant\n", err)
 		}
 
-		err = CreateNetworks(d, &tenant)
+		err = CreateNetworks(fakeDriver, &tenant)
 		if err != nil {
 			t.Fatalf("error '%s' creating networks\n", err)
 		}
 
-		err = CreateEndpoints(d, &tenant)
+		err = CreateEndpoints(fakeDriver, &tenant)
 		if err != nil {
 			t.Fatalf("error '%s' creating endpoints\n", err)
 		}
 	}
 
-	d.DumpState()
+	fakeDriver.DumpState()
 }
 
 func verifyKeys(t *testing.T, keys []string) {
@@ -301,6 +301,83 @@ func TestVxlanConfig(t *testing.T) {
 		"myContainer3", "myContainer4",
 		"orange-host1", "purple-host1",
 		"purple-host2", "orange-host2"}
+
+	verifyKeys(t, keys)
+}
+
+func TestVxlanConfigWithLateHostBindings(t *testing.T) {
+	cfgBytes := []byte(`{
+        "Hosts" : [{
+        "Name"                  : "host1",
+        "VtepIp"                : "192.168.2.11"
+    },
+    {
+        "Name"                  : "host2",
+        "VtepIp"                : "192.168.2.12"
+    }],
+    "Tenants" : [{
+        "Name"                  : "tenant-one",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vxlans"                : "10001-20000",
+        "Networks"  : [{
+            "Name"              : "orange",
+            "Endpoints" : [
+            {
+                "Container"     : "myContainer1"
+            },
+            {
+                "Container"     : "myContainer3"
+            }
+            ]
+        },
+        {
+            "Name"              : "purple",
+            "Endpoints" : [{
+                "Container"     : "myContainer2"
+            },
+            {
+                "Container"     : "myContainer4"
+            }]
+        }]
+    }]}`)
+
+	applyConfig(t, cfgBytes)
+	fakeDriver.DumpState()
+
+	keys := []string{"tenant-one", "nets/orange", "nets/purple",
+		"orange-host1", "purple-host1",
+		"purple-host2", "orange-host2"}
+
+	verifyKeys(t, keys)
+
+	epBindings := []ConfigEp{{
+		Container: "myContainer1",
+		Host:      "host1",
+	}, {
+		Container: "myContainer2",
+		Host:      "host1",
+	}, {
+		Container: "myContainer3",
+		Host:      "host2",
+	}, {
+		Container: "myContainer4",
+		Host:      "host2",
+	}}
+
+	err := CreateEpBindings(fakeDriver, &epBindings)
+	if err != nil {
+		t.Fatalf("error '%s' creating tenant\n", err)
+	}
+
+	keys = []string{"tenant-one", "nets/orange", "nets/purple",
+		"myContainer1", "myContainer2",
+		"myContainer3", "myContainer4",
+		"orange-host1", "purple-host1",
+		"purple-host2", "orange-host2"}
+
+	fakeDriver.DumpState()
 
 	verifyKeys(t, keys)
 }

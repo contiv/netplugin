@@ -331,3 +331,49 @@ func TestTwoHostsMultipleVxlansNets_regress(t *testing.T) {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
 }
+
+func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+	}()
+
+	cfgFile := utils.GetCfgFile("late_bindings/multiple_vxlan_nets")
+	jsonCfg, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to read config file %s \n", err)
+	}
+	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	node1 := vagrant.GetNodes()[0]
+	node2 := vagrant.GetNodes()[1]
+
+	cfgFile = utils.GetCfgFile("late_bindings/multiple_vxlan_nets_host_bindings")
+	jsonCfg, err = ioutil.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to read config file %s \n", err)
+	}
+	utils.ApplyHostBindingsConfig(t, string(jsonCfg), node1)
+
+	// Container1 and Container3 are on orange network
+	utils.StartServer(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer1")
+	}()
+
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartClient(t, node2, "myContainer3", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer3")
+	}()
+
+	// Container2 and Container4 are on purple network
+	utils.StartServer(t, node1, "myContainer2")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer2")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer4")
+	}()
+}
