@@ -105,3 +105,33 @@ type StateDriver interface {
 		unmarshal func([]byte, interface{}) error) error
 	ClearState(key string) error
 }
+
+type Resource interface {
+	// Resource defines a allocatable unit. A resource is uniquely identified
+	// by 'Id'. A resource description identifies the nature of the resource.
+	State
+	// XXX move following four APIs to State
+	ReadAll() ([]State, error)
+	SetId(id string)
+	Id() string
+	SetStateDriver(stateDriver StateDriver)
+	StateDriver() StateDriver
+
+	Init(rsrcCfg interface{}) error
+	Deinit()
+	Description() string
+	Allocate() (interface{}, error)
+	Deallocate(interface{}) error
+}
+
+type ResourceAllocator interface {
+	// A resource allocator provides mechanism to manage (define/undefine,
+	// allocate/deallocate) resources, in logically centralized manner, in
+	// a distributed system
+	Init() error
+	Deinit()
+	DefineResource(id, desc string, rsrcCfg interface{}) error
+	UndefineResource(id, desc string) error
+	AllocateResourceVal(id, desc string) (interface{}, error)
+	DeallocateResourceVal(id, desc string, value interface{}) error
+}
