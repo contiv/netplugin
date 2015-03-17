@@ -89,6 +89,10 @@ func ApplyDesiredConfig(t *testing.T, jsonCfg string, node VagrantNode) {
 	applyConfig(t, "cfg", jsonCfg, node)
 }
 
+func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node VagrantNode) {
+	applyConfig(t, "host-bindings-cfg", jsonCfg, node)
+}
+
 func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []VagrantNode) {
 	startNetPlugin(t, nodes)
 
