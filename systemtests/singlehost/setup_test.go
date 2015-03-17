@@ -13,25 +13,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package singlehost
 
-type TestbedNode interface {
-	RunCommand(cmd string) (err error)
-	RunCommandWithOutput(cmd string) (output string, err error)
-}
+import (
+	"log"
+	"os"
+	"testing"
 
-type VagrantNode struct {
-	Name    string
-	NodeNum int
-}
+	"github.com/contiv/netplugin/systemtests/utils"
+)
 
-func (n *VagrantNode) RunCommand(cmd string) error {
-	vCmd := &VagrantCommand{ContivNodes: n.NodeNum}
-	return vCmd.Run("ssh", n.Name, "-c", cmd)
-}
+var vagrant *utils.Vagrant
 
-func (n *VagrantNode) RunCommandWithOutput(cmd string) (string, error) {
-	vCmd := &VagrantCommand{ContivNodes: n.NodeNum}
-	output, err := vCmd.RunWithOutput("ssh", n.Name, "-c", cmd)
-	return string(output), err
+func TestMain(m *testing.M) {
+	// setup a single node vagrant testbed
+	vagrant = &utils.Vagrant{}
+	log.Printf("Starting vagrant up...")
+	err := vagrant.Setup(os.Getenv("CONTIV_ENV"), 1)
+	log.Printf("Done with vagrant up...")
+	if err != nil {
+		log.Printf("Vagrant setup failed. Error: %s", err)
+		vagrant.Teardown()
+		os.Exit(1)
+	}
+
+	exitCode := m.Run()
+
+	vagrant.Teardown()
+
+	os.Exit(exitCode)
 }

@@ -27,21 +27,23 @@ func DockerCleanup(node VagrantNode, contName string) {
 	node.RunCommand(cmdStr)
 }
 
-func StartAndWait(t *testing.T, node VagrantNode, contName string) {
+func StartServer(t *testing.T, node VagrantNode, contName string) {
 	cmdStr := "sudo docker run -d --name=" + contName +
 		" ubuntu /bin/bash -c 'mkfifo foo && < foo'"
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
+		OvsDumpInfo(node)
 		t.Fatalf("Error '%s' launching container '%s', Output: \n%s\n",
 			err, contName, output)
 	}
 }
 
-func StartAndPing(t *testing.T, node VagrantNode, contName, ipAddress string) {
+func StartClient(t *testing.T, node VagrantNode, contName, ipAddress string) {
 	cmdStr := "sudo docker run --name=" + contName +
 		" ubuntu /bin/bash -c 'ping -c5 " + ipAddress + "'"
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
+		OvsDumpInfo(node)
 		t.Fatalf("Error '%s' launching container '%s', Output: \n%s\n",
 			err, contName, output)
 	}
@@ -49,12 +51,13 @@ func StartAndPing(t *testing.T, node VagrantNode, contName, ipAddress string) {
 	//verify that the output indicates <100% loss (some loss is expected due to
 	// timing of interface creation and starting ping)
 	if strings.Contains(string(output), ", 100% packet loss,") {
+		OvsDumpInfo(node)
 		t.Fatalf("Ping test failed for container '%s', Output: \n%s\n",
 			contName, output)
 	}
 }
 
-func StartAndEnsurePingFailure(t *testing.T, node VagrantNode, contName, ipAddress string) {
+func StartClientFailure(t *testing.T, node VagrantNode, contName, ipAddress string) {
 	cmdStr := "sudo docker run --name=" + contName +
 		" ubuntu /bin/bash -c 'ping -c5 " + ipAddress + "'"
 	output, err := node.RunCommandWithOutput(cmdStr)
