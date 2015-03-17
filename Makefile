@@ -1,6 +1,8 @@
 .PHONY: all build clean default system-test unit-test
 
 TO_BUILD := ./ ./netdcli/ 
+HOST_GOBIN := `which go | xargs dirname`
+HOST_GOROOT := `go env GOROOT`
 
 all: build unit-test system-test
 
@@ -14,14 +16,16 @@ build:
 clean:
 	go clean -i -v ./...
 
+# setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
+# up a cluster of <number> nodes. By default <number> = 1
 demo: build
-	CONTIV_ENV="$(CONTIV_ENV)" CONTIV_NODES=$(CONTIV_NODES) vagrant up
+	CONTIV_HOST_GOBIN=$(HOST_GOBIN) CONTIV_HOST_GOROOT=$(HOST_GOROOT) vagrant up
 
 clean-demo:
-	CONTIV_NODES=$(CONTIV_NODES) vagrant destroy -f
+	vagrant destroy -f
 
 unit-test: build
-	./scripts/unittests -vagrant
+	CONTIV_HOST_GOBIN=$(HOST_GOBIN) CONTIV_HOST_GOROOT=$(HOST_GOROOT) ./scripts/unittests -vagrant
 
 system-test: build
 	go test -v -run "sanity" github.com/contiv/netplugin/systemtests/singlehost 

@@ -4,9 +4,9 @@
 
 echo "Checking Go version..."
 ver=$(go version | awk '{print $3}')
-expVer="go1.4"
-if [[ ${ver} != ${expVer} ]]; then
-    echo "Go version check failed. Expected ${expVer} but found ${ver}"
+minVer="go1.4"
+if [[ ${ver} < ${minVer} ]]; then
+    echo "Go version check failed. Expected >=${minVer} but found ${ver}"
     exit 1
 fi
 
