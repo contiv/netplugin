@@ -24,5 +24,9 @@ unit-test: build
 	./scripts/unittests -vagrant
 
 system-test: build
-	go test -v github.com/contiv/netplugin/systemtests/singlehost 
-	go test --timeout 20m -v github.com/contiv/netplugin/systemtests/twohosts
+	go test -v -run "sanity" github.com/contiv/netplugin/systemtests/singlehost 
+	go test --timeout 20m -v -run "sanity" github.com/contiv/netplugin/systemtests/twohosts
+
+regress-test: build
+	go test -v -run "regress" github.com/contiv/netplugin/systemtests/singlehost 
+	go test --timeout 60m -v -run "regress" github.com/contiv/netplugin/systemtests/twohosts

@@ -1,35 +1,27 @@
+/***
+Copyright 2014 Cisco Systems Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package twohosts
 
 import (
-	"log"
-	"os"
 	"testing"
 
 	"github.com/contiv/netplugin/systemtests/utils"
 )
 
-var vagrant *utils.Vagrant
-
-func TestMain(m *testing.M) {
-
-	vagrant = &utils.Vagrant{}
-	log.Printf("Starting vagrant up...")
-	err := vagrant.Setup(os.Getenv("CONTIV_ENV"), 2)
-	log.Printf("Done with vagrant up...")
-	if err != nil {
-		log.Printf("Vagrant setup failed. Error: %s", err)
-		vagrant.Teardown()
-		os.Exit(1)
-	}
-
-	exitCode := m.Run()
-
-	vagrant.Teardown()
-
-	os.Exit(exitCode)
-}
-
-func TestTwoHostsSingleVlanPingSuccess(t *testing.T) {
+func TestTwoHostsSingleVlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
 		//utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
@@ -70,19 +62,19 @@ func TestTwoHostsSingleVlanPingSuccess(t *testing.T) {
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
 
-	utils.StartAndWait(t, node1, "myContainer1")
+	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
 }
 
-func TestTwoHostsMultiVlanPingSuccess(t *testing.T) {
+func TestTwoHostsMultiVlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
@@ -135,30 +127,30 @@ func TestTwoHostsMultiVlanPingSuccess(t *testing.T) {
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
 
-	utils.StartAndWait(t, node1, "myContainer1")
+	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
 
-	utils.StartAndWait(t, node2, "myContainer4")
+	utils.StartServer(t, node2, "myContainer4")
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node1, "purple-myContainer4")
-	utils.StartAndPing(t, node1, "myContainer3", ipAddress)
+	utils.StartClient(t, node1, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer3")
 	}()
 }
 
-func TestTwoHostsMultiVlanPingFailure(t *testing.T) {
+func TestTwoHostsMultiVlanPingFailure_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
@@ -203,19 +195,19 @@ func TestTwoHostsMultiVlanPingFailure(t *testing.T) {
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
 
-	utils.StartAndWait(t, node1, "myContainer1")
+	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.StartAndEnsurePingFailure(t, node2, "myContainer2", ipAddress)
+	utils.StartClientFailure(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
 }
 
-func TestTwoHostsMultiVxlanPingSuccess(t *testing.T) {
+func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
@@ -269,30 +261,30 @@ func TestTwoHostsMultiVxlanPingSuccess(t *testing.T) {
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
 
-	utils.StartAndWait(t, node1, "myContainer1")
+	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer1")
 	}()
 
-	utils.StartAndWait(t, node1, "myContainer3")
+	utils.StartServer(t, node1, "myContainer3")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer3")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
-	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
 }
 
-func TestTwoHostsMultiVxlanPingFailure(t *testing.T) {
+func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
@@ -347,24 +339,24 @@ func TestTwoHostsMultiVxlanPingFailure(t *testing.T) {
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
 
-	utils.StartAndWait(t, node1, "myContainer1")
+	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.StartAndEnsurePingFailure(t, node2, "myContainer4", ipAddress)
+	utils.StartClientFailure(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
 
-	utils.StartAndEnsurePingFailure(t, node2, "myContainer3", ipAddress)
+	utils.StartClientFailure(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer3")
 	}()
 }
 
-func TestTwoHostsVxlanDeltaConfig(t *testing.T) {
+func TestTwoHostsVxlanDeltaConfig_sanity_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
@@ -418,24 +410,24 @@ func TestTwoHostsVxlanDeltaConfig(t *testing.T) {
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
 
-	utils.StartAndWait(t, node1, "myContainer1")
+	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer1")
 	}()
 
-	utils.StartAndWait(t, node1, "myContainer3")
+	utils.StartServer(t, node1, "myContainer3")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer3")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
-	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
@@ -491,13 +483,13 @@ func TestTwoHostsVxlanDeltaConfig(t *testing.T) {
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
 	utils.DockerCleanup(node2, "myContainer2")
-	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
 }
 
-func TestTwoHostsVxlanAddDelEp(t *testing.T) {
+func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
@@ -551,24 +543,24 @@ func TestTwoHostsVxlanAddDelEp(t *testing.T) {
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
 
-	utils.StartAndWait(t, node1, "myContainer1")
+	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer1")
 	}()
 
-	utils.StartAndWait(t, node1, "myContainer3")
+	utils.StartServer(t, node1, "myContainer3")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer3")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
-	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
@@ -592,14 +584,14 @@ func TestTwoHostsVxlanAddDelEp(t *testing.T) {
 	}`
 	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
 
-	utils.StartAndWait(t, node1, "myContainer5")
+	utils.StartServer(t, node1, "myContainer5")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer5")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "orange-myContainer5")
 	utils.DockerCleanup(node2, "myContainer2")
-	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
@@ -607,7 +599,7 @@ func TestTwoHostsVxlanAddDelEp(t *testing.T) {
 	utils.DelConfig(t, jsonCfg, vagrant.GetNodes()[0])
 
 	utils.DockerCleanup(node2, "myContainer2")
-	utils.StartAndEnsurePingFailure(t, node2, "myContainer2", ipAddress)
+	utils.StartClientFailure(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
@@ -633,13 +625,13 @@ func TestTwoHostsVxlanAddDelEp(t *testing.T) {
 	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer5")
 	utils.DockerCleanup(node2, "myContainer4")
-	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
 }
 
-func TestTwoHostsVxlanAddDelNetwork(t *testing.T) {
+func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
 	}()
@@ -693,24 +685,24 @@ func TestTwoHostsVxlanAddDelNetwork(t *testing.T) {
 	node1 := vagrant.GetNodes()[0]
 	node2 := vagrant.GetNodes()[1]
 
-	utils.StartAndWait(t, node1, "myContainer1")
+	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer1")
 	}()
 
-	utils.StartAndWait(t, node1, "myContainer3")
+	utils.StartServer(t, node1, "myContainer3")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer3")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.StartAndPing(t, node2, "myContainer2", ipAddress)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
-	utils.StartAndPing(t, node2, "myContainer4", ipAddress)
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
@@ -738,13 +730,13 @@ func TestTwoHostsVxlanAddDelNetwork(t *testing.T) {
 	}`
 	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
 
-	utils.StartAndWait(t, node1, "myContainer5")
+	utils.StartServer(t, node1, "myContainer5")
 	defer func() {
 		utils.DockerCleanup(node1, "myContainer5")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "green-myContainer5")
-	utils.StartAndPing(t, node2, "myContainer6", ipAddress)
+	utils.StartClient(t, node2, "myContainer6", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer6")
 	}()
@@ -752,7 +744,7 @@ func TestTwoHostsVxlanAddDelNetwork(t *testing.T) {
 	utils.DelConfig(t, jsonCfg, vagrant.GetNodes()[0])
 
 	utils.DockerCleanup(node2, "myContainer6")
-	utils.StartAndEnsurePingFailure(t, node2, "myContainer6", ipAddress)
+	utils.StartClientFailure(t, node2, "myContainer6", ipAddress)
 	defer func() {
 		utils.DockerCleanup(node2, "myContainer6")
 	}()

@@ -1,11 +1,31 @@
+/***
+Copyright 2014 Cisco Systems Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package utils
 
 import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"testing"
+)
+
+const (
+	EXAMPLES_DIR = "/src/github.com/contiv/netplugin/examples/"
 )
 
 func ConfigCleanupCommon(t *testing.T, nodes []VagrantNode) {
@@ -106,4 +126,10 @@ func DumpNetpluginLogs(node VagrantNode) {
 	if err == nil {
 		log.Printf("logs on node %s: \n%s\n", node.Name, output)
 	}
+}
+
+func GetCfgFile(fileName string) string {
+	cfgDir := os.Getenv("GOPATH")
+	cfgDir = cfgDir + EXAMPLES_DIR
+	return cfgDir + fileName + ".json"
 }
