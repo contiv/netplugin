@@ -31,7 +31,7 @@ done
 
 # running on host
 if ${run_in_vagrant}; then
-    (CONTIV_NODES=1 CONTIV_ENV=$CONTIV_ENV vagrant up)
+    (CONTIV_NODES=1 vagrant up)
     ret=$?
     if [ ${ret} -ne 0 ]; then
         (CONTIV_NODES=1 vagrant destroy -f)
