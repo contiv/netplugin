@@ -68,7 +68,7 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 		node.RunCommand(cmdStr)
 	}()
 	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
+		t.Fatalf("Failed to launch the container. Error: %v, Output: \n%s\n",
 			err, output)
 	}
 
@@ -77,7 +77,7 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 	output, err = node.RunCommandWithOutput(cmdStr)
 
 	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
+		t.Fatalf("Failed to get ip address of the container. Error: %v, Output: \n%s\n",
 			err, output)
 	}
 
