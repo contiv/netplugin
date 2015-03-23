@@ -66,3 +66,12 @@ func StartClientFailure(t *testing.T, node VagrantNode, contName, ipAddress stri
 			"Output: \n%s\n", err, contName, output)
 	}
 }
+
+func getUUID(node VagrantNode, contName string) (string, error) {
+	cmdStr := "sudo docker inspect --format='{{.Id}}' " + contName
+	output, err := node.RunCommandWithOutput(cmdStr)
+	if err != nil {
+		output = ""
+	}
+	return strings.TrimSpace(output), err
+}

@@ -34,9 +34,10 @@ type ConfigInfraNetwork struct {
 
 // An endpoint is a leg into a network
 type ConfigEp struct {
-	Container string
-	Host      string
-	IpAddress string
+	Container  string
+	Host       string
+	AttachUUID string
+	IpAddress  string
 }
 
 // network is a multi-destination isolated containment of endpoints

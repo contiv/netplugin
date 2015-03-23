@@ -499,6 +499,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		Id:          id,
 		PortName:    portName,
 		NetId:       epCfg.NetId,
+		AttachUUID:  epCfg.AttachUUID,
 		ContName:    epCfg.ContName,
 		IpAddress:   epCfg.IpAddress,
 		IntfName:    intfName,

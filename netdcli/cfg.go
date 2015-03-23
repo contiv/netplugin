@@ -242,8 +242,7 @@ func executeJsonCfg(defOpts *cliOpts) (err error) {
 		epBindings := []netmaster.ConfigEp{}
 		err = json.Unmarshal(data, &epBindings)
 		if err != nil {
-			log.Printf("error '%s' unmarshing host bindings, data %s \n",
-				err, data)
+			log.Printf("error '%s' unmarshing host bindings, data ============\n%s\n=============\n", err, data)
 			return
 		}
 

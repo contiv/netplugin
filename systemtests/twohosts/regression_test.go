@@ -377,3 +377,104 @@ func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
 		utils.DockerCleanup(node2, "myContainer4")
 	}()
 }
+
+func TestTwoHostsMultipleVxlansNetsLateContainerBindings_regress(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+	}()
+
+	cfgFile := utils.GetCfgFile("late_bindings/multiple_vxlan_nets")
+	jsonCfg, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to read config file %s \n", err)
+	}
+	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	node1 := vagrant.GetNodes()[0]
+	node2 := vagrant.GetNodes()[1]
+
+	// Start server containers: Container1 and Container2
+	utils.StartServer(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer1")
+	}()
+	// Container2 and Container4 are on purple network
+	utils.StartServer(t, node1, "myContainer2")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer2")
+	}()
+
+	// apply uuid base config on started containers
+	cfgFile = utils.GetCfgFile("late_bindings/multiple_vxlan_nets_host_bindings")
+	jsonCfg, err = ioutil.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to read config file %s \n", err)
+	}
+	jsonCfgStr, _ := utils.FixUpContainerUUIDs(t, vagrant.GetNodes(), string(jsonCfg))
+	utils.ApplyHostBindingsConfig(t, jsonCfgStr, node1)
+
+	// start client containers and test ping: myContainer1 and myContainer4
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartClient(t, node2, "myContainer3", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer3")
+	}()
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer4")
+	}()
+}
+
+func TestTwoHostsMultipleVxlansNetsInfraContainerBindings_regress(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+	}()
+
+	cfgFile := utils.GetCfgFile("container_bindings/multiple_vxlan_nets")
+	jsonCfg, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to read config file %s \n", err)
+	}
+	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	node1 := vagrant.GetNodes()[0]
+	node2 := vagrant.GetNodes()[1]
+
+	// Start server containers: Container1 and Container2
+	utils.StartServer(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer1")
+	}()
+	// Container2 and Container4 are on purple network
+	utils.StartServer(t, node1, "myContainer2")
+	defer func() {
+		utils.DockerCleanup(node1, "myContainer2")
+	}()
+
+	// read host bindings and infra container mappings
+	cfgFile = utils.GetCfgFile("container_bindings/multiple_vxlan_nets_host_bindings")
+	jsonCfg, err = ioutil.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to read config file %s \n", err)
+	}
+
+	cfgFile = utils.GetCfgFile("container_bindings/multiple_vxlan_nets_infra_container_bindings")
+	infraContMappings, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to read config file %s \n", err)
+	}
+
+	jsonCfgStr, _ := utils.FixUpInfraContainerUUIDs(t, vagrant.GetNodes(), string(jsonCfg), string(infraContMappings))
+	utils.ApplyHostBindingsConfig(t, jsonCfgStr, node1)
+
+	// start client containers and test ping: myContainer1 and myContainer4
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myPod1")
+	utils.StartClient(t, node2, "myContainer3", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer3")
+	}()
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myPod2")
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(node2, "myContainer4")
+	}()
+}

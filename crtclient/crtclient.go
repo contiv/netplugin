@@ -23,12 +23,14 @@ type Config struct {
 }
 
 type ContainerEpContext struct {
-	NewContName  string
-	CurrContName string
-	InterfaceId  string
-	IpAddress    string
-	SubnetLen    uint
-	DefaultGw    string
+	NewContName    string
+	NewAttachUUID  string
+	CurrContName   string
+	CurrAttachUUID string
+	InterfaceId    string
+	IpAddress      string
+	SubnetLen      uint
+	DefaultGw      string
 }
 
 type ContainerIf interface {
