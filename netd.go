@@ -42,6 +42,7 @@ const (
 
 type cliOpts struct {
 	hostLabel   string
+	nativeInteg bool
 	publishVtep bool
 }
 
@@ -213,6 +214,7 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 		return &epCtx, nil
 	}
 	epCtx.NewContName = epCfg.ContName
+	epCtx.NewAttachUUID = epCfg.AttachUUID
 
 	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: state}
 	err = cfgNet.Read(epCfg.NetId)
@@ -230,6 +232,7 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	epCtx.CurrContName = operEp.ContName
 	epCtx.InterfaceId = operEp.PortName
 	epCtx.IpAddress = operEp.IpAddress
+	epCtx.CurrAttachUUID = operEp.AttachUUID
 
 	return &epCtx, err
 }
@@ -264,21 +267,47 @@ func getContainerEpContextByContName(state core.StateDriver, contName string) (
 	return epCtxs[:idx], nil
 }
 
+func contAttachPointAdded(epCtx *crtclient.ContainerEpContext) bool {
+	if epCtx.CurrAttachUUID == "" && epCtx.NewAttachUUID != "" {
+		return true
+	}
+	if epCtx.CurrContName == "" && epCtx.NewContName != "" {
+		return true
+	}
+	return false
+}
+
+func contAttachPointDeleted(epCtx *crtclient.ContainerEpContext) bool {
+	if epCtx.CurrAttachUUID != "" && epCtx.NewAttachUUID == "" {
+		return true
+	}
+	if epCtx.CurrContName != "" && epCtx.NewContName == "" {
+		return true
+	}
+	return false
+}
+
 func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	epId string, preValue string, opts cliOpts) (err error) {
 
+	deleteOp := false
 	homingHost := ""
 	vtepIp := ""
+
+	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
+	err = epCfg.Read(epId)
 	if preValue == "" {
-		epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
-		err = epCfg.Read(epId)
 		if err != nil {
 			log.Printf("Failed to read config for ep '%s' \n", epId)
 			return
 		}
+
 		homingHost = epCfg.HomingHost
 		vtepIp = epCfg.VtepIp
 	} else {
+		if err != nil {
+			deleteOp = true
+		}
 		epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
 		err = epOper.Read(epId)
 		if err != nil {
@@ -305,7 +334,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	// log.Printf("read endpoint context: %s \n", contEpContext)
 
 	operStr := ""
-	if preValue != "" {
+	if deleteOp {
 		err = netPlugin.DeleteEndpoint(epId)
 		operStr = "delete"
 	} else {
@@ -320,8 +349,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	log.Printf("Endpoint operation %s succeeded", operStr)
 
 	// attach or detach an endpoint to a container
-	if preValue != "" ||
-		(contEpContext.NewContName == "" && contEpContext.CurrContName != "") {
+	if deleteOp || contAttachPointDeleted(contEpContext) {
 		err = crt.ContainerIf.DetachEndpoint(contEpContext)
 		if err != nil {
 			log.Printf("Endpoint detach container '%s' from ep '%s' failed . "+
@@ -331,7 +359,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 				contEpContext.CurrContName, epId)
 		}
 	}
-	if preValue == "" && contEpContext.NewContName != "" {
+	if !deleteOp && contAttachPointAdded(contEpContext) {
 		// re-read post ep updated state
 		newContEpContext, err1 := getEndpointContainerContext(
 			netPlugin.StateDriver, epId)
@@ -392,19 +420,9 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	retErr <- nil
 }
 
-func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
-	contId string) error {
-	var err error
-	var epContexts []crtclient.ContainerEpContext
+func attachContainer(stateDriver core.StateDriver, crt *crt.Crt, contName string) error {
 
-	contName, err := crt.GetContainerName(contId)
-	if err != nil {
-		log.Printf("Could not find container name from container id %s \n", contId)
-		return err
-	}
-
-	epContexts, err = getContainerEpContextByContName(netPlugin.StateDriver,
-		contName)
+	epContexts, err := getContainerEpContextByContName(stateDriver, contName)
 	if err != nil {
 		log.Printf("Error '%s' getting Ep context for container %s \n",
 			err, contName)
@@ -412,7 +430,12 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	}
 
 	for _, epCtx := range epContexts {
-		log.Printf("## trying attach on epctx %v \n", epCtx)
+		if epCtx.NewAttachUUID != "" || epCtx.InterfaceId == "" {
+			log.Printf("## skipping attach on epctx %v \n", epCtx)
+			continue
+		} else {
+			log.Printf("## trying attach on epctx %v \n", epCtx)
+		}
 		err = crt.AttachEndpoint(&epCtx)
 		if err != nil {
 			log.Printf("Error '%s' attaching container to the network \n", err)
@@ -421,6 +444,24 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	}
 
 	return nil
+}
+
+func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+	contId string) error {
+	// var epContexts []crtclient.ContainerEpContext
+
+	contName, err := crt.GetContainerName(contId)
+	if err != nil {
+		log.Printf("Could not find container name from container id %s \n", contId)
+		return err
+	}
+
+	err = attachContainer(netPlugin.StateDriver, crt, contName)
+	if err != nil {
+		log.Printf("error attaching container err \n", err)
+	}
+
+	return err
 }
 
 func handleDockerEvents(event *dockerclient.Event, retErr chan error,
@@ -474,11 +515,13 @@ func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 
 	go handleEtcdEvents(netPlugin, crt, rsps, stop, recvErr, opts)
 
-	// start docker client and handle docker events
-	// wait on error chan for problems handling the docker events
-	dockerCrt := crt.ContainerIf.(*docker.Docker)
-	dockerCrt.Client.StartMonitorEvents(handleDockerEvents, recvErr,
-		netPlugin, crt)
+	if !opts.nativeInteg {
+		// start docker client and handle docker events
+		// wait on error chan for problems handling the docker events
+		dockerCrt := crt.ContainerIf.(*docker.Docker)
+		dockerCrt.Client.StartMonitorEvents(handleDockerEvents, recvErr,
+			netPlugin, crt)
+	}
 
 	// XXX: todo, restore any config that might have been created till this
 	// point
@@ -512,6 +555,10 @@ func main() {
 		"host-label",
 		defHostLabel,
 		"label used to identify endpoints homed for this host, default is host name")
+	flagSet.BoolVar(&opts.nativeInteg,
+		"native-integration",
+		false,
+		"do not listen to container runtime events, because the events are natively integrated into their call sequence and external integration is not required")
 	flagSet.BoolVar(&opts.publishVtep,
 		"publish-vtep",
 		false,

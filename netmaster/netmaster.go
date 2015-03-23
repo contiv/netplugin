@@ -797,6 +797,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 			epCfg.NetId = network.Name
 			epCfg.ContName = ep.Container
+			epCfg.AttachUUID = ep.AttachUUID
 			epCfg.HomingHost = ep.Host
 
 			err = allocSetEpIp(&ep, epCfg, nwCfg)
@@ -962,6 +963,7 @@ func CreateEpBindings(stateDriver core.StateDriver, epBindings *[]ConfigEp) erro
 				continue
 			}
 			epCfg.HomingHost = ep.Host
+			epCfg.AttachUUID = ep.AttachUUID
 			err = epCfg.Write()
 			if err != nil {
 				log.Printf("error '%s' updating epCfg \n", err)

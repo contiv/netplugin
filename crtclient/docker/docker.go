@@ -64,9 +64,17 @@ func (d *Docker) Init(config *crtclient.Config) error {
 func (d *Docker) Deinit() {
 }
 
-func (d *Docker) getContPid(contName string) (string, error) {
-	contInfo, err := d.Client.InspectContainer(contName)
+func (d *Docker) getContPid(ctx *crtclient.ContainerEpContext) (string, error) {
+
+	contNameOrId := ctx.NewContName
+	if ctx.NewAttachUUID != "" {
+		contNameOrId = ctx.NewAttachUUID
+	}
+
+	contInfo, err := d.Client.InspectContainer(contNameOrId)
 	if err != nil {
+		log.Printf("unable to get container info for '%s' \n",
+			contNameOrId)
 		return "", errors.New("couldn't obtain container info")
 	}
 
@@ -97,12 +105,14 @@ func setIfNs(ifname string, pid int) error {
 // Note: most of the work in this function is a temporary workaround for
 // what docker daemon would eventually do; in the meanwhile
 // the essense of the logic is borrowed from pipework
-func (d *Docker) moveIfToContainer(ifId string, contName string) error {
+func (d *Docker) moveIfToContainer(ctx *crtclient.ContainerEpContext) error {
 
 	// log.Printf("Moving interface '%s' into container '%s' \n", ifId, contName)
 
-	contPid, err := d.getContPid(contName)
+	contPid, err := d.getContPid(ctx)
 	if err != nil {
+		log.Printf("error '%s' querying container name %s, uuid %s\n",
+			err, ctx.NewContName, ctx.NewAttachUUID)
 		return err
 	}
 
@@ -131,18 +141,19 @@ func (d *Docker) moveIfToContainer(ifId string, contName string) error {
 	}
 
 	intPid, _ := strconv.Atoi(contPid)
-	err = setIfNs(ifId, intPid)
+	err = setIfNs(ctx.InterfaceId, intPid)
 	if err != nil {
 		log.Printf("err '%s' moving if '%s' into container '%s' namespace\n",
-			err, ifId, contName)
+			err, ctx.InterfaceId, ctx.NewContName)
 		return err
 	}
 
 	return err
 }
 
-func (d *Docker) cleanupNetns(contName string) error {
-	contPid, err := d.getContPid(contName)
+func (d *Docker) cleanupNetns(ctx *crtclient.ContainerEpContext) error {
+
+	contPid, err := d.getContPid(ctx)
 	if err != nil {
 		return err
 	}
@@ -169,7 +180,7 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 		errors.New("Subnet mask unspecified \n")
 	}
 
-	contPid, err := d.getContPid(ctx.NewContName)
+	contPid, err := d.getContPid(ctx)
 	if err != nil {
 		return err
 	}
@@ -244,7 +255,7 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 		errors.New("Subnet mask unspecified \n")
 	}
 
-	contPid, err := d.getContPid(ctx.NewContName)
+	contPid, err := d.getContPid(ctx)
 	if err != nil {
 		return err
 	}
@@ -274,7 +285,7 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 // before the container becomes active
 func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEpContext) error {
 
-	err := d.moveIfToContainer(ctx.InterfaceId, ctx.NewContName)
+	err := d.moveIfToContainer(ctx)
 	if err != nil {
 		return err
 	}
@@ -287,7 +298,7 @@ func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEpContext) error {
 	// configure policies: acl/qos for the container on the host
 
 	// cleanup intermediate things (overdoing it?)
-	d.cleanupNetns(ctx.NewContName)
+	d.cleanupNetns(ctx)
 
 	return err
 }

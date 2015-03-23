@@ -119,6 +119,7 @@ type cliOpts struct {
 	subnetCidr      string
 	ipAddr          string
 	contName        string
+	attachUUID      string
 	subnetIp        string
 	subnetLen       uint
 	allocSubnetLen  uint
@@ -194,6 +195,10 @@ func init() {
 		"container-id",
 		"",
 		"Container Id to identify a runningcontainer")
+	flagSet.StringVar(&opts.attachUUID,
+		"attach-uuid",
+		"",
+		"Container UUID to attach to if different from contName")
 	flagSet.StringVar(&opts.vlans,
 		"vlans",
 		"",
@@ -370,6 +375,7 @@ func executeOpts(opts *cliOpts) error {
 			log.Printf("read ep state as %v for container %s \n", epCfg, opts.contName)
 			if opts.oper.Get() == CLI_OPER_ATTACH {
 				epCfg.ContName = opts.contName
+				epCfg.AttachUUID = opts.attachUUID
 			} else {
 				if epCfg.ContName != opts.contName {
 					log.Fatalf("Can not detach container '%s' from endpoint '%s' - "+
@@ -384,6 +390,7 @@ func executeOpts(opts *cliOpts) error {
 			epCfg.NetId = opts.netId
 			epCfg.IpAddress = opts.ipAddr
 			epCfg.ContName = opts.contName
+			epCfg.AttachUUID = opts.attachUUID
 			epCfg.HomingHost = opts.homingHost
 			epCfg.VtepIp = opts.vtepIp
 			epCfg.IntfName = opts.intfName

@@ -16,12 +16,15 @@ limitations under the License.
 package utils
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/contiv/netplugin/netmaster"
 )
 
 const (
@@ -42,10 +45,15 @@ func ConfigCleanupCommon(t *testing.T, nodes []VagrantNode) {
 	}
 }
 
-func startNetPlugin(t *testing.T, nodes []VagrantNode) {
+func startNetPlugin(t *testing.T, nodes []VagrantNode, nativeInteg bool) {
+	nativeIntegStr := ""
+	if nativeInteg {
+		nativeIntegStr = "-native-integration"
+	}
+
 	for i, node := range nodes {
 		//start the netplugin
-		cmdStr := fmt.Sprintf("sudo PATH=$PATH nohup netplugin -host-label host%d 0<&- &>/tmp/netplugin.log &",
+		cmdStr := fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s -host-label host%d 0<&- &>/tmp/netplugin.log &", nativeIntegStr,
 			i+1)
 		output, err := node.RunCommandWithOutput(cmdStr)
 		if err != nil {
@@ -62,7 +70,7 @@ func applyConfig(t *testing.T, cfgType, jsonCfg string, node VagrantNode) {
 	jsonCfg = strings.Replace(
 		strings.Replace(jsonCfg, "\n", " ", -1),
 		"\"", "\\\"", -1)
-	cmdStr := fmt.Sprintf("echo %s > /tmp/netdcli.cfg", jsonCfg)
+	cmdStr := fmt.Sprintf("echo \"%s\" > /tmp/netdcli.cfg", jsonCfg)
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
 		t.Fatalf("Error '%s' creating config file\nCmd: %q\nOutput:\n%s\n",
@@ -93,8 +101,95 @@ func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node VagrantNode) {
 	applyConfig(t, "host-bindings-cfg", jsonCfg, node)
 }
 
+func FixUpContainerUUIDs(t *testing.T, nodes []VagrantNode, jsonCfg string) (string, error) {
+	epBindings := []netmaster.ConfigEp{}
+	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
+	if err != nil {
+		t.Fatalf("error '%s' unmarshing host bindings, data %s \n", err,
+			jsonCfg)
+		return "", err
+	}
+
+	// fill in as much as possible for this host; assume that the
+	// container name is unique across hosts
+	for _, node := range nodes {
+		for idx, _ := range epBindings {
+			ep := &epBindings[idx]
+			if ep.AttachUUID != "" {
+				continue
+			}
+			attachUUID, _ := getUUID(node, ep.Container)
+			if attachUUID != "" {
+				ep.AttachUUID = attachUUID
+			}
+		}
+	}
+
+	bytes, err := json.Marshal(epBindings)
+	if err != nil {
+		t.Fatalf("error '%s' marshaling host bindings, data %v \n",
+			err, epBindings)
+		return "", err
+	}
+
+	return string(bytes[:]), err
+}
+
+func FixUpInfraContainerUUIDs(t *testing.T, nodes []VagrantNode, jsonCfg, infraContCfg string) (string, error) {
+
+	epBindings := []netmaster.ConfigEp{}
+	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
+	if err != nil {
+		t.Fatalf("error '%s' unmarshing host bindings, data %s \n", err,
+			jsonCfg)
+		return "", err
+	}
+
+	infraContMap := make(map[string]string)
+	infraContCfg = strings.TrimSpace(infraContCfg)
+	infraContRecords := strings.Split(infraContCfg, "\n")
+	for _, infraContRecord := range infraContRecords {
+		fields := strings.Split(infraContRecord, ":")
+		if len(fields) != 2 {
+			t.Fatalf("error parsing the container mappings cfg '%s' rec '%s'\n",
+				infraContCfg, infraContRecord)
+		}
+		infraContMap[fields[0]] = fields[1]
+	}
+
+	// fill in as much as possible for this host; assume that the
+	// container name is unique across hosts
+	for _, node := range nodes {
+		for idx, _ := range epBindings {
+			ep := &epBindings[idx]
+			if ep.AttachUUID != "" {
+				continue
+			}
+
+			infraContName, ok := infraContMap[ep.Container]
+			if !ok {
+				continue
+			}
+
+			attachUUID, _ := getUUID(node, infraContName)
+			if attachUUID != "" {
+				ep.AttachUUID = attachUUID
+			}
+		}
+	}
+
+	bytes, err := json.Marshal(epBindings)
+	if err != nil {
+		t.Fatalf("error '%s' marshaling host bindings, data %v \n",
+			err, epBindings)
+		return "", err
+	}
+
+	return string(bytes[:]), err
+}
+
 func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []VagrantNode) {
-	startNetPlugin(t, nodes)
+	startNetPlugin(t, nodes, false)
 
 	ApplyDesiredConfig(t, jsonCfg, nodes[0])
 }

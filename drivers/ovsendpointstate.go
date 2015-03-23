@@ -30,6 +30,7 @@ type OvsCfgEndpointState struct {
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
 	ContName    string           `json:"contName"`
+	AttachUUID  string           `json:"attachUUID"`
 	IpAddress   string           `json:"ipAddress"`
 	HomingHost  string           `json:"homingHost"`
 	IntfName    string           `json:"intfName"`
@@ -73,6 +74,7 @@ type OvsOperEndpointState struct {
 	Id          string           `json:"id"`
 	NetId       string           `json:"netId"`
 	ContName    string           `json:"contName"`
+	AttachUUID  string           `json:"attachUUID"`
 	IpAddress   string           `json:"ipAddress"`
 	PortName    string           `json:"portName"`
 	HomingHost  string           `json:"homingHost"`
