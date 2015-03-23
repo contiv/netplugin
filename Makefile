@@ -1,8 +1,10 @@
 .PHONY: all build clean default system-test unit-test
 
-TO_BUILD := ./ ./netdcli/ 
+TO_BUILD := ./netmaster/ ./netdcli/
+ifeq ($(uname -s),Linux)
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
+endif
 
 all: build unit-test system-test
 
@@ -27,10 +29,10 @@ clean-demo:
 unit-test: build
 	CONTIV_HOST_GOBIN=$(HOST_GOBIN) CONTIV_HOST_GOROOT=$(HOST_GOROOT) ./scripts/unittests -vagrant
 
-system-test: build
+system-test: 
 	go test -v -run "sanity" github.com/contiv/netplugin/systemtests/singlehost 
 	go test --timeout 20m -v -run "sanity" github.com/contiv/netplugin/systemtests/twohosts
 
-regress-test: build
+regress-test:
 	go test -v -run "regress" github.com/contiv/netplugin/systemtests/singlehost 
 	go test --timeout 60m -v -run "regress" github.com/contiv/netplugin/systemtests/twohosts
