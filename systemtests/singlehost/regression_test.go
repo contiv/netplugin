@@ -25,6 +25,7 @@ import (
 func TestOneHostMultipleNets_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("one_host_multiple_nets")
@@ -38,28 +39,29 @@ func TestOneHostMultipleNets_regress(t *testing.T) {
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 	ipAddress := utils.GetIpAddress(t, node1, "orange-myContainer1")
 	utils.StartClient(t, node1, "myContainer2", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	utils.StartServer(t, node1, "myContainer4")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer4")
+		utils.DockerCleanup(t, node1, "myContainer4")
 	}()
 	ipAddress = utils.GetIpAddress(t, node1, "purple-myContainer4")
 	utils.StartClient(t, node1, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer3")
+		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 }
 
 func TestOneHostVlan_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("one_host_vlan")
@@ -73,12 +75,12 @@ func TestOneHostVlan_regress(t *testing.T) {
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node1, "orange-myContainer1")
 	utils.StartClient(t, node1, "myContainer2", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 }

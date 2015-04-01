@@ -20,7 +20,10 @@ import (
 	"testing"
 )
 
-func DockerCleanup(node VagrantNode, contName string) {
+func DockerCleanup(t *testing.T, node VagrantNode, contName string) {
+	if !OkToCleanup(t.Failed()) {
+		return
+	}
 	cmdStr := "sudo docker kill " + contName
 	node.RunCommand(cmdStr)
 	cmdStr = "sudo docker rm " + contName

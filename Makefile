@@ -27,10 +27,16 @@ clean-demo:
 unit-test: build
 	CONTIV_HOST_GOBIN=$(HOST_GOBIN) CONTIV_HOST_GOROOT=$(HOST_GOROOT) ./scripts/unittests -vagrant
 
+# setting CONTIV_SOE=1 while calling 'make system-test' will stop the test
+# on first failure and leave setup in that state. This can be useful for debugging
+# as part of development.
 system-test: build
 	go test -v -run "sanity" github.com/contiv/netplugin/systemtests/singlehost 
 	go test --timeout 20m -v -run "sanity" github.com/contiv/netplugin/systemtests/twohosts
 
+# setting CONTIV_SOE=1 while calling 'make regress-test' will stop the test
+# on first failure and leave setup in that state. This can be useful for debugging
+# as part of development.
 regress-test: build
 	go test -v -run "regress" github.com/contiv/netplugin/systemtests/singlehost 
 	go test --timeout 60m -v -run "regress" github.com/contiv/netplugin/systemtests/twohosts

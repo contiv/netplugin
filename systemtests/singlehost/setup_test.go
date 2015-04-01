@@ -39,7 +39,9 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
-	vagrant.Teardown()
+	if utils.OkToCleanup(exitCode != 0) {
+		vagrant.Teardown()
+	}
 
 	os.Exit(exitCode)
 }

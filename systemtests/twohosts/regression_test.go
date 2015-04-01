@@ -25,6 +25,7 @@ import (
 func TestMultipleEpsInContainer_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("multiple_eps_in_container")
@@ -40,42 +41,43 @@ func TestMultipleEpsInContainer_regress(t *testing.T) {
 	// Container2 is reachable on both orange and purple networks
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node1, "orange-myContainer2")
 	utils.StartClient(t, node1, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer3")
+		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 
 	// Container1 is reachable on only on orange network
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "orange-myContainer1")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
-	utils.DockerCleanup(node2, "myContainer4")
+	utils.DockerCleanup(t, node2, "myContainer4")
 	utils.StartClientFailure(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }
 
 func TestTwoHostVlan_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("two_host_vlan")
@@ -91,33 +93,33 @@ func TestTwoHostVlan_regress(t *testing.T) {
 	// all four containers can talk to each other
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 	utils.StartServer(t, node2, "myContainer4")
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer2")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 	utils.StartClient(t, node1, "myContainer1", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "orange-myContainer4")
-	utils.DockerCleanup(node2, "myContainer3")
+	utils.DockerCleanup(t, node2, "myContainer3")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
-	utils.DockerCleanup(node1, "myContainer1")
+	utils.DockerCleanup(t, node1, "myContainer1")
 	utils.StartClient(t, node1, "myContainer1", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 }
@@ -125,6 +127,7 @@ func TestTwoHostVlan_regress(t *testing.T) {
 func TestTwoHostVxlan_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("two_host_vxlan")
@@ -140,33 +143,33 @@ func TestTwoHostVxlan_regress(t *testing.T) {
 	// all four containers can talk to each other
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 	utils.StartServer(t, node2, "myContainer4")
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer2")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 	utils.StartClient(t, node1, "myContainer1", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "orange-myContainer4")
-	utils.DockerCleanup(node2, "myContainer3")
+	utils.DockerCleanup(t, node2, "myContainer3")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
-	utils.DockerCleanup(node1, "myContainer1")
+	utils.DockerCleanup(t, node1, "myContainer1")
 	utils.StartClient(t, node1, "myContainer1", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 }
@@ -174,6 +177,7 @@ func TestTwoHostVxlan_regress(t *testing.T) {
 func TestTwoHostsMultipleTenants_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("two_hosts_multiple_tenants")
@@ -189,31 +193,32 @@ func TestTwoHostsMultipleTenants_regress(t *testing.T) {
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 
 	// Container2 and Container4 are on purple network
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }
 
 func TestTwoHostsMultipleTenantsMixVlanVxlan_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("two_hosts_multiple_tenants_mix_vlan_vxlan")
@@ -229,31 +234,32 @@ func TestTwoHostsMultipleTenantsMixVlanVxlan_regress(t *testing.T) {
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 
 	// Container2 and Container4 are on purple network
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }
 
 func TestTwoHostsMultipleVlansNets_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("two_hosts_multiple_vlans_nets")
@@ -269,32 +275,33 @@ func TestTwoHostsMultipleVlansNets_regress(t *testing.T) {
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
-	utils.DockerCleanup(node2, "myContainer3")
+	utils.DockerCleanup(t, node2, "myContainer3")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 
 	// Container2 and Container4 are on purple network
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }
 
 func TestTwoHostsMultipleVxlansNets_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("two_hosts_multiple_vxlan_nets")
@@ -310,31 +317,32 @@ func TestTwoHostsMultipleVxlansNets_regress(t *testing.T) {
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 
 	// Container2 and Container4 are on purple network
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }
 
 func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
 	cfgFile := utils.GetCfgFile("late_bindings/multiple_vxlan_nets")
@@ -356,25 +364,25 @@ func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 
 	// Container2 and Container4 are on purple network
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }
 
