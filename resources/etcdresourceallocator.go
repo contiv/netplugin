@@ -17,10 +17,10 @@ package resources
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 )
 
 // Etcd resource allocator implements the core.ResourceAllocator interface.
@@ -34,7 +34,10 @@ var ResourceRegistry = map[string]reflect.Type{
 }
 
 type EtcdResourceAllocator struct {
-	Etcd *drivers.EtcdStateDriver
+	//XXX: should be '*drivers.EtcdStateDriver', but leaving is
+	//core.StateDriver to get tests going and until the netmaster
+	//is changed to pickup the resource-allocator from config
+	Etcd core.StateDriver
 }
 
 func (ra *EtcdResourceAllocator) Init() error {
@@ -59,9 +62,14 @@ func (ra *EtcdResourceAllocator) findResource(id, desc string) (core.Resource, b
 	rsrc.SetStateDriver(core.StateDriver(ra.Etcd))
 
 	rsrcs, err := rsrc.ReadAll()
-	if err != nil {
+	if core.ErrIfKeyExists(err) != nil {
+		log.Printf("ReadAll failed: %q", err)
 		return nil, alreadyExists, err
+	} else if err != nil {
+		// set the slice as empty in case of 'key not found' error
+		rsrcs = []core.State{}
 	}
+
 	for _, s := range rsrcs {
 		r := s.(core.Resource)
 		if r.Id() == id {

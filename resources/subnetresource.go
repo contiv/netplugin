@@ -43,7 +43,7 @@ const (
 
 type AutoSubnetCfgResource struct {
 	stateDriver    core.StateDriver `json:"-"`
-	id             string           `json:"id"`
+	ResId          string           `json:"id"`
 	SubnetPool     net.IP           `json:"subnetPool"`
 	SubnetPoolLen  uint             `json:"subnetPoolLen"`
 	AllocSubnetLen uint             `json:"allocSubnetLen"`
@@ -93,11 +93,11 @@ func (r *AutoSubnetCfgResource) ReadAll() ([]core.State, error) {
 }
 
 func (r *AutoSubnetCfgResource) Id() string {
-	return r.id
+	return r.ResId
 }
 
 func (r *AutoSubnetCfgResource) SetId(id string) {
-	r.id = id
+	r.ResId = id
 }
 
 func (r *AutoSubnetCfgResource) StateDriver() core.StateDriver {
@@ -109,7 +109,7 @@ func (r *AutoSubnetCfgResource) SetStateDriver(stateDriver core.StateDriver) {
 }
 
 func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
-	cfg, ok := rsrcCfg.(AutoSubnetCfgResource)
+	cfg, ok := rsrcCfg.(*AutoSubnetCfgResource)
 	if !ok {
 		return &core.Error{Desc: "Invalid type for subnet resource config"}
 	}
@@ -117,8 +117,8 @@ func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
 	r.SubnetPoolLen = cfg.SubnetPoolLen
 	r.AllocSubnetLen = cfg.AllocSubnetLen
 
-	if cfg.AllocSubnetLen > cfg.SubnetPoolLen {
-		return &core.Error{Desc: "AllocSubnetLen should be less than or equal to SubnetPoolLen"}
+	if cfg.AllocSubnetLen < cfg.SubnetPoolLen {
+		return &core.Error{Desc: "AllocSubnetLen should be greater than or equal to SubnetPoolLen"}
 	}
 
 	err := r.Write()

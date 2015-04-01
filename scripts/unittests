@@ -14,6 +14,7 @@ test_packages="github.com/contiv/netplugin/drivers \
     github.com/contiv/netplugin/crt \
     github.com/contiv/netplugin/gstate \
     github.com/contiv/netplugin/netmaster \
+    github.com/contiv/netplugin/resources \
     "
 
 while [ "${#}" -gt 0 ]

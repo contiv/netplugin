@@ -126,8 +126,8 @@ type Resource interface {
 
 type ResourceAllocator interface {
 	// A resource allocator provides mechanism to manage (define/undefine,
-	// allocate/deallocate) resources, in logically centralized manner, in
-	// a distributed system
+	// allocate/deallocate) resources. Example, it may provide management in
+	// logically centralized manner in a distributed system
 	Init() error
 	Deinit()
 	DefineResource(id, desc string, rsrcCfg interface{}) error

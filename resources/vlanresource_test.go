@@ -123,7 +123,7 @@ var vlanRsrcValidationStateMap map[string]*vlanRsrcValidator = map[string]*vlanR
 	VlanRsrcValidInitId: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				id:    VlanRsrcValidInitId,
+				ResId: VlanRsrcValidInitId,
 				Vlans: bitset.New(1).Set(1),
 			},
 		},
@@ -137,7 +137,7 @@ var vlanRsrcValidationStateMap map[string]*vlanRsrcValidator = map[string]*vlanR
 	VlanRsrcValidDeinitId: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				id:    VlanRsrcValidDeinitId,
+				ResId: VlanRsrcValidDeinitId,
 				Vlans: bitset.New(1).Set(0),
 			},
 		},
@@ -155,7 +155,7 @@ var vlanRsrcValidationStateMap map[string]*vlanRsrcValidator = map[string]*vlanR
 	VlanRsrcAllocateId: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				id:    VlanRsrcAllocateId,
+				ResId: VlanRsrcAllocateId,
 				Vlans: bitset.New(1).Set(0),
 			},
 		},
@@ -177,7 +177,7 @@ var vlanRsrcValidationStateMap map[string]*vlanRsrcValidator = map[string]*vlanR
 	VlanRsrcAllocateExhaustId: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				id:    VlanRsrcAllocateExhaustId,
+				ResId: VlanRsrcAllocateExhaustId,
 				Vlans: bitset.New(1).Clear(0),
 			},
 		},
@@ -195,7 +195,7 @@ var vlanRsrcValidationStateMap map[string]*vlanRsrcValidator = map[string]*vlanR
 	VlanRsrcDeallocateId: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				id:    VlanRsrcDeallocateId,
+				ResId: VlanRsrcDeallocateId,
 				Vlans: bitset.New(1).Set(0),
 			},
 		},

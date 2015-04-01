@@ -128,7 +128,7 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcValidInitId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				id:         VxlanRsrcValidInitId,
+				ResId:      VxlanRsrcValidInitId,
 				Vxlans:     bitset.New(1).Set(0),
 				LocalVlans: bitset.New(1).Set(0),
 			},
@@ -144,7 +144,7 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcValidDeinitId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				id:         VxlanRsrcValidDeinitId,
+				ResId:      VxlanRsrcValidDeinitId,
 				Vxlans:     bitset.New(1).Set(0),
 				LocalVlans: bitset.New(1).Set(0),
 			},
@@ -165,7 +165,7 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcAllocateId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				id:         VxlanRsrcAllocateId,
+				ResId:      VxlanRsrcAllocateId,
 				Vxlans:     bitset.New(1).Set(0),
 				LocalVlans: bitset.New(1).Set(0),
 			},
@@ -191,7 +191,7 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcAllocateExhaustVxlanId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				id:         VxlanRsrcAllocateExhaustVxlanId,
+				ResId:      VxlanRsrcAllocateExhaustVxlanId,
 				Vxlans:     bitset.New(1).Clear(0),
 				LocalVlans: bitset.New(1).Clear(0),
 			},
@@ -212,7 +212,7 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcAllocateExhaustVlanId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				id:         VxlanRsrcAllocateExhaustVlanId,
+				ResId:      VxlanRsrcAllocateExhaustVlanId,
 				Vxlans:     bitset.New(1).Set(0),
 				LocalVlans: bitset.New(1).Clear(0),
 			},
@@ -233,7 +233,7 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcDeallocateId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				id:         VxlanRsrcDeallocateId,
+				ResId:      VxlanRsrcDeallocateId,
 				Vxlans:     bitset.New(1).Set(0),
 				LocalVlans: bitset.New(1).Set(0),
 			},

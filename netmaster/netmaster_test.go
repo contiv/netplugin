@@ -17,7 +17,6 @@ package netmaster
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"strings"
 	"testing"
@@ -29,43 +28,39 @@ type ValueData struct {
 	value []byte
 }
 
-var testState map[string]ValueData
-
-// fake implementation of state driver for the tests
-var fakeDriver = &fakeStateDriver{}
-
-type fakeStateDriver struct {
+type FakeStateDriver struct {
+	TestState map[string]ValueData
 }
 
-func (d *fakeStateDriver) Init(config *core.Config) error {
-	testState = make(map[string]ValueData)
+func (d *FakeStateDriver) Init(config *core.Config) error {
+	d.TestState = make(map[string]ValueData)
 
 	return nil
 }
 
-func (d *fakeStateDriver) Deinit() {
-	testState = make(map[string]ValueData)
+func (d *FakeStateDriver) Deinit() {
+	d.TestState = nil
 }
 
-func (d *fakeStateDriver) Write(key string, value []byte) error {
+func (d *FakeStateDriver) Write(key string, value []byte) error {
 	val := ValueData{value: value}
-	testState[key] = val
+	d.TestState[key] = val
 
 	return nil
 }
 
-func (d *fakeStateDriver) Read(key string) ([]byte, error) {
-	if val, ok := testState[key]; ok {
+func (d *FakeStateDriver) Read(key string) ([]byte, error) {
+	if val, ok := d.TestState[key]; ok {
 		return val.value, nil
 	}
 
-	return []byte{}, errors.New("key not found!")
+	return []byte{}, &core.Error{Desc: "Key not found!"}
 }
 
-func (d *fakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+func (d *FakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	values := [][]byte{}
 
-	for key, val := range testState {
+	for key, val := range d.TestState {
 		if strings.Contains(key, baseKey) {
 			values = append(values, val.value)
 		}
@@ -73,14 +68,14 @@ func (d *fakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return values, nil
 }
 
-func (d *fakeStateDriver) ClearState(key string) error {
-	if _, ok := testState[key]; ok {
-		delete(testState, key)
+func (d *FakeStateDriver) ClearState(key string) error {
+	if _, ok := d.TestState[key]; ok {
+		delete(d.TestState, key)
 	}
 	return nil
 }
 
-func (d *fakeStateDriver) ReadState(key string, value core.State,
+func (d *FakeStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
 	encodedState, err := d.Read(key)
 	if err != nil {
@@ -95,7 +90,7 @@ func (d *fakeStateDriver) ReadState(key string, value core.State,
 	return nil
 }
 
-func (d *fakeStateDriver) WriteState(key string, value core.State,
+func (d *FakeStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	encodedState, err := marshal(value)
 	if err != nil {
@@ -110,11 +105,15 @@ func (d *fakeStateDriver) WriteState(key string, value core.State,
 	return nil
 }
 
-func (d *fakeStateDriver) DumpState() {
-	for key, _ := range testState {
-		log.Printf("key: %s\n", key)
+func (d *FakeStateDriver) DumpState() {
+	for key, v := range d.TestState {
+		log.Printf("key: %q value: %q\n", key, string(v.value))
 	}
 }
+
+// fake implementation of state driver for the tests
+//XXX: This is same implementation as the one in gstate (may be move to netutils??)
+var fakeDriver = &FakeStateDriver{}
 
 func applyConfig(t *testing.T, cfgBytes []byte) {
 	cfg := &Config{}
@@ -155,7 +154,7 @@ func verifyKeys(t *testing.T, keys []string) {
 
 	for _, key := range keys {
 		found := false
-		for stateKey, _ := range testState {
+		for stateKey, _ := range fakeDriver.TestState {
 			if found = strings.Contains(stateKey, key); found {
 				break
 			}
@@ -267,7 +266,7 @@ func TestVxlanConfig(t *testing.T) {
         "DefaultNetType"        : "vxlan",
         "SubnetPool"            : "11.1.0.0/16",
         "AllocSubnetLen"        : 24,
-        "Vxlans"                : "10001-20000",
+        "Vxlans"                : "10001-14000",
         "Networks"  : [{
             "Name"              : "orange",
             "Endpoints" : [
@@ -320,7 +319,7 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
         "DefaultNetType"        : "vxlan",
         "SubnetPool"            : "11.1.0.0/16",
         "AllocSubnetLen"        : 24,
-        "Vxlans"                : "10001-20000",
+        "Vxlans"                : "10001-14000",
         "Networks"  : [{
             "Name"              : "orange",
             "Endpoints" : [

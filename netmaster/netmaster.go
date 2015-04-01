@@ -26,6 +26,7 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
+	"github.com/contiv/netplugin/resources"
 )
 
 const (
@@ -122,15 +123,19 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		log.Printf("error '%s' updating tenant '%s' \n", err, tenant.Name)
 	}
 
-	gOper, err = gCfg.Process()
+	// XXX: instead of initing resource-manager always, just init and
+	// store it once. Also the type of resource-allocator should be picked up
+	// based on configuration.
+	ra := &resources.EtcdResourceAllocator{Etcd: stateDriver}
+	err = ra.Init()
 	if err != nil {
-		log.Printf("Error '%s' updating the config %v \n", err, gCfg)
 		return err
 	}
 
-	err = gOper.Write()
+	err = gCfg.Process(core.ResourceAllocator(ra))
 	if err != nil {
-		log.Printf("error '%s' updating goper state %v \n", err, gOper)
+		log.Printf("Error '%s' updating the config %v \n", err, gCfg)
+		return err
 	}
 
 	return err
@@ -431,13 +436,15 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		return err
 	}
 
-	// TODO: acquire distributed lock before updating gOper update
-	gOper := gstate.Oper{StateDriver: stateDriver}
-	err = gOper.Read(tenant.Name)
+	// XXX: instead of initing resource-manager always, just init and
+	// store it once. Also the type of resource-allocator should be picked up
+	// based on configuration.
+	tempRa := &resources.EtcdResourceAllocator{Etcd: stateDriver}
+	err = tempRa.Init()
 	if err != nil {
-		log.Printf("error '%s' reading tenant oper state \n", err)
 		return err
 	}
+	ra := core.ResourceAllocator(tempRa)
 
 	err = validateNetworkConfig(tenant)
 	if err != nil {
@@ -467,16 +474,16 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			SubnetIp:   nwMasterCfg.SubnetIp, SubnetLen: nwMasterCfg.SubnetLen}
 
 		if nwMasterCfg.PktTagType == "" {
-			nwCfg.PktTagType = gOper.DefaultNetType
+			nwCfg.PktTagType = gCfg.Deploy.DefaultNetType
 		}
 		if nwMasterCfg.PktTag == "" {
 			if nwCfg.PktTagType == "vlan" {
-				pktTag, err = gOper.AllocVlan()
+				pktTag, err = gCfg.AllocVlan(ra)
 				if err != nil {
 					return err
 				}
-			} else if gOper.DefaultNetType == "vxlan" {
-				extPktTag, pktTag, err = gOper.AllocVxlan()
+			} else if nwCfg.PktTagType == "vxlan" {
+				extPktTag, pktTag, err = gCfg.AllocVxlan(ra)
 				if err != nil {
 					return err
 				}
@@ -484,21 +491,20 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 			nwCfg.ExtPktTag = int(extPktTag)
 			nwCfg.PktTag = int(pktTag)
-		} else if nwCfg.PktTagType == "vxlan" {
-			pktTag, err = gOper.AllocLocalVlan()
-			if err != nil {
-				return err
-			}
+		} else if nwMasterCfg.PktTagType == "vxlan" {
+			// XXX: take local vlan as config, instead of allocating it
+			// independently. Return erro for now, if user tries this config
+			return &core.Error{Desc: "Not handled. Need to introduce local-vlan config"}
 			nwCfg.PktTag = int(pktTag)
 			nwCfg.ExtPktTag, _ = strconv.Atoi(nwMasterCfg.PktTag)
 		} else if nwMasterCfg.PktTagType == "vlan" {
 			nwCfg.PktTag, _ = strconv.Atoi(nwMasterCfg.PktTag)
-			gOper.SetVlan(uint(nwCfg.PktTag))
+			// XXX: do configuration check, to make sure it is allowed
 		}
 
 		if nwCfg.SubnetIp == "" {
 			nwCfg.SubnetLen = gCfg.Auto.AllocSubnetLen
-			nwCfg.SubnetIp, err = gOper.AllocSubnet()
+			nwCfg.SubnetIp, err = gCfg.AllocSubnet(ra)
 			if err != nil {
 				return err
 			}
@@ -538,26 +544,31 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		}
 	}
 
-	err = gOper.Write()
-	if err != nil {
-		log.Printf("error updating the global state - %s \n", err)
-		return err
-	}
-
 	return err
 }
 
-func freeNetworkResources(nwMasterCfg *MasterNwConfig,
-	nwCfg *drivers.OvsCfgNetworkState, gOper *gstate.Oper) (err error) {
+func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwConfig,
+	nwCfg *drivers.OvsCfgNetworkState, gCfg *gstate.Cfg) (err error) {
+
+	// XXX: instead of initing resource-manager always, just init and
+	// store it once. Also the type of resource-allocator should be picked up
+	// based on configuration.
+	tempRa := &resources.EtcdResourceAllocator{Etcd: stateDriver}
+	err = tempRa.Init()
+	if err != nil {
+		return err
+	}
+	ra := core.ResourceAllocator(tempRa)
+
 	if nwCfg.PktTagType == "vlan" {
-		err = gOper.FreeVlan(uint(nwCfg.PktTag))
+		err = gCfg.FreeVlan(ra, uint(nwCfg.PktTag))
 		if err != nil {
 			return err
 		}
-	} else if gOper.DefaultNetType == "vxlan" {
+	} else if nwCfg.PktTagType == "vxlan" {
 		log.Printf("freeing vlan %d vxlan %d \n", nwCfg.PktTag,
 			nwCfg.ExtPktTag)
-		err = gOper.FreeVxlan(uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
+		err = gCfg.FreeVxlan(ra, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
 		if err != nil {
 			return err
 		}
@@ -566,7 +577,7 @@ func freeNetworkResources(nwMasterCfg *MasterNwConfig,
 	if nwMasterCfg.SubnetIp == "" {
 		log.Printf("freeing subnet %s/%s \n", nwCfg.SubnetIp,
 			nwCfg.SubnetLen)
-		err = gOper.FreeSubnet(nwCfg.SubnetIp)
+		err = gCfg.FreeSubnet(ra, nwCfg.SubnetIp)
 		if err != nil {
 			return err
 		}
@@ -597,14 +608,7 @@ func DeleteNetworkId(stateDriver core.StateDriver, netId string) error {
 		return err
 	}
 
-	gOper := gstate.Oper{StateDriver: stateDriver}
-	err = gOper.Read(nwMasterCfg.Tenant)
-	if err != nil {
-		log.Printf("error reading tenant info \n")
-		return err
-	}
-
-	err = freeNetworkResources(nwMasterCfg, nwCfg, &gOper)
+	err = freeNetworkResources(stateDriver, nwMasterCfg, nwCfg, &gCfg)
 	if err != nil {
 		return err
 	}
@@ -620,16 +624,8 @@ func DeleteNetworkId(stateDriver core.StateDriver, netId string) error {
 
 func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	gCfg := gstate.Cfg{StateDriver: stateDriver}
-	gOper := gstate.Oper{StateDriver: stateDriver}
 
 	err := gCfg.Read(tenant.Name)
-	if err != nil {
-		log.Printf("error '%s' reading tenant state \n", err)
-		return err
-	}
-
-	// TODO: acquire distributed lock before updating gOper update
-	err = gOper.Read(tenant.Name)
 	if err != nil {
 		log.Printf("error '%s' reading tenant state \n", err)
 		return err
@@ -659,7 +655,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			continue
 		}
 
-		err = freeNetworkResources(nwMasterCfg, nwCfg, &gOper)
+		err = freeNetworkResources(stateDriver, nwMasterCfg, nwCfg, &gCfg)
 		if err != nil {
 			return err
 		}
@@ -669,12 +665,6 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			log.Printf("error '%s' when writing nw config \n", err)
 			return err
 		}
-	}
-
-	err = gOper.Write()
-	if err != nil {
-		log.Printf("error updating the global state - %s \n", err)
-		return err
 	}
 
 	return err

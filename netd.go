@@ -28,8 +28,6 @@ import (
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
-	"github.com/contiv/netplugin/gstate"
-	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
 )
 
@@ -46,56 +44,6 @@ type cliOpts struct {
 	publishVtep bool
 }
 
-func getVtepName(netId, hostLabel string) string {
-	return netId + "-" + hostLabel
-}
-
-func createDeleteVtep(netPlugin *plugin.NetPlugin, netId, preValue string,
-	opts cliOpts) error {
-	var err error
-
-	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: netPlugin.StateDriver}
-	err = cfgNet.Read(netId)
-	if err != nil {
-		return err
-	}
-
-	gOper := &gstate.Oper{StateDriver: netPlugin.StateDriver}
-	err = gOper.Read(cfgNet.Tenant)
-	if err != nil {
-		return err
-	}
-	if gOper.DefaultNetType != "vxlan" {
-		return nil
-	}
-
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
-	epCfg.Id = getVtepName(netId, opts.hostLabel)
-	if preValue != "" {
-		err = epCfg.Clear()
-		if err != nil {
-			log.Printf("error '%s' deleting ep %s \n", err, epCfg.Id)
-		}
-	} else {
-		err = epCfg.Read(epCfg.Id)
-		if err != nil {
-			epCfg.HomingHost = opts.hostLabel
-			epCfg.VtepIp, err = netutils.GetLocalIp()
-			if err != nil {
-				log.Printf("error '%s' getting local IP \n", err)
-			} else {
-				epCfg.NetId = netId
-				err = epCfg.Write()
-				if err != nil {
-					log.Printf("error '%s' adding epCfg %v \n", epCfg)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 func skipHost(vtepIp, homingHost, myHostLabel string) bool {
 	return (vtepIp == "" && homingHost != myHostLabel ||
 		vtepIp != "" && homingHost == myHostLabel)
@@ -103,16 +51,11 @@ func skipHost(vtepIp, homingHost, myHostLabel string) bool {
 
 func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	opts cliOpts) error {
-	gCfgs, err := gstate.ReadAllGlobalCfg(netPlugin.StateDriver)
-	if err != nil {
-		return err
-	}
-	for idx, gCfg := range gCfgs {
-		log.Printf("read global key[%d] %s, populating state \n", idx, gCfg.Tenant)
-		processGlobalEvent(netPlugin, gCfg.Tenant, "")
-	}
-
-	var netCfgs []*drivers.OvsCfgNetworkState
+	var (
+		netCfgs []*drivers.OvsCfgNetworkState
+		epCfgs  []*drivers.OvsCfgEndpointState
+		err     error
+	)
 	netCfgs, err = drivers.ReadAllOvsCfgNetworks(netPlugin.StateDriver)
 	if err != nil {
 		return err
@@ -122,7 +65,6 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 		processNetEvent(netPlugin, netCfg.Id, "", opts)
 	}
 
-	var epCfgs []*drivers.OvsCfgEndpointState
 	epCfgs, err = drivers.ReadAllOvsCfgEndpoints(netPlugin.StateDriver)
 	if err != nil {
 		return err
@@ -133,51 +75,6 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	}
 
 	return nil
-}
-
-func processGlobalEvent(netPlugin *plugin.NetPlugin, tenant, preValue string) (err error) {
-	var gOper *gstate.Oper
-
-	if preValue != "" {
-		gOper := &gstate.Oper{StateDriver: netPlugin.StateDriver}
-		err = gOper.Read(tenant)
-		if err != nil {
-			// already deleted
-			log.Printf("Tenant '%s' already deleted \n", tenant)
-			err = nil
-		} else {
-			err = gOper.Clear()
-		}
-
-		return
-	}
-
-	gOper = &gstate.Oper{StateDriver: netPlugin.StateDriver}
-	err = gOper.Read(tenant)
-	if err == nil {
-		// already created
-		return
-	}
-
-	gCfg := &gstate.Cfg{StateDriver: netPlugin.StateDriver}
-	err = gCfg.Read(tenant)
-	if err != nil {
-		log.Printf("Error '%s' reading tenant %s \n", err, tenant)
-		return
-	}
-
-	gOper, err = gCfg.Process()
-	if err != nil {
-		log.Printf("Error '%s' updating the config %v \n", err, gCfg)
-		return
-	}
-
-	err = gOper.Write()
-	if err != nil {
-		log.Printf("error '%s' updating goper state %v \n", err, gOper)
-	}
-
-	return
 }
 
 func processNetEvent(netPlugin *plugin.NetPlugin, netId, preValue string,
@@ -195,9 +92,6 @@ func processNetEvent(netPlugin *plugin.NetPlugin, netId, preValue string,
 		log.Printf("Network operation %s failed. Error: %s", operStr, err)
 	} else {
 		log.Printf("Network operation %s succeeded", operStr)
-	}
-	if opts.publishVtep {
-		createDeleteVtep(netPlugin, netId, preValue, opts)
 	}
 
 	return
@@ -402,10 +296,6 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 
 		log.Printf("Received event for key: %s", node.Key)
 		switch key := node.Key; {
-		case strings.HasPrefix(key, gstate.CFG_GLOBAL_PREFIX):
-			tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
-			processGlobalEvent(netPlugin, tenant, preValue)
-
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
 			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
 			processNetEvent(netPlugin, netId, preValue, opts)

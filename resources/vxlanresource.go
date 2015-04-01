@@ -41,7 +41,7 @@ const (
 
 type AutoVxlanCfgResource struct {
 	stateDriver core.StateDriver `json:"-"`
-	id          string           `json:"id"`
+	ResId       string           `json:"id"`
 	Vxlans      *bitset.BitSet   `json:"vxlans"`
 	LocalVlans  *bitset.BitSet   `json:"LocalVlans"`
 }
@@ -90,11 +90,11 @@ func (r *AutoVxlanCfgResource) ReadAll() ([]core.State, error) {
 }
 
 func (r *AutoVxlanCfgResource) Id() string {
-	return r.id
+	return r.ResId
 }
 
 func (r *AutoVxlanCfgResource) SetId(id string) {
-	r.id = id
+	r.ResId = id
 }
 
 func (r *AutoVxlanCfgResource) StateDriver() core.StateDriver {
