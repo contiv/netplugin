@@ -403,12 +403,12 @@ func TestTwoHostsMultipleVxlansNetsLateContainerBindings_regress(t *testing.T) {
 	// Start server containers: Container1 and Container2
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 	// Container2 and Container4 are on purple network
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	// apply uuid base config on started containers
@@ -424,12 +424,12 @@ func TestTwoHostsMultipleVxlansNetsLateContainerBindings_regress(t *testing.T) {
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer2")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }
 
@@ -450,12 +450,12 @@ func TestTwoHostsMultipleVxlansNetsInfraContainerBindings_regress(t *testing.T) 
 	// Start server containers: Container1 and Container2
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer1")
+		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 	// Container2 and Container4 are on purple network
 	utils.StartServer(t, node1, "myContainer2")
 	defer func() {
-		utils.DockerCleanup(node1, "myContainer2")
+		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
 	// read host bindings and infra container mappings
@@ -478,11 +478,11 @@ func TestTwoHostsMultipleVxlansNetsInfraContainerBindings_regress(t *testing.T) 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myPod1")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer3")
+		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myPod2")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
-		utils.DockerCleanup(node2, "myContainer4")
+		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }

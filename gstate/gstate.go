@@ -218,7 +218,7 @@ func (gc *Cfg) initVxlanBitset(vxlans string) (*resources.AutoVxlanCfgResource,
 	return vxlanRsrcCfg, freeVxlansStart, nil
 }
 
-func (gc *Cfg) AllocVxlan(ra core.ResourceAllocator) (vxlan uint,
+func (gc *Cfg) AllocVxlan(ra core.ResourceManager) (vxlan uint,
 	localVlan uint, err error) {
 
 	pair, err1 := ra.AllocateResourceVal(gc.Tenant, resources.AUTO_VXLAN_RSRC)
@@ -238,7 +238,7 @@ func (gc *Cfg) AllocVxlan(ra core.ResourceAllocator) (vxlan uint,
 	return
 }
 
-func (gc *Cfg) FreeVxlan(ra core.ResourceAllocator, vxlan uint, localVlan uint) error {
+func (gc *Cfg) FreeVxlan(ra core.ResourceManager, vxlan uint, localVlan uint) error {
 	g := Oper{StateDriver: gc.StateDriver}
 	err := g.Read(gc.Tenant)
 	if err != nil {
@@ -275,7 +275,7 @@ func (gc *Cfg) initVlanBitset(vlans string) (*bitset.BitSet, error) {
 	return vlanBitset, nil
 }
 
-func (gc *Cfg) AllocVlan(ra core.ResourceAllocator) (uint, error) {
+func (gc *Cfg) AllocVlan(ra core.ResourceManager) (uint, error) {
 	vlan, err := ra.AllocateResourceVal(gc.Tenant, resources.AUTO_VLAN_RSRC)
 	if err != nil {
 		log.Printf("alloc vlan failed: %q", err)
@@ -285,11 +285,11 @@ func (gc *Cfg) AllocVlan(ra core.ResourceAllocator) (uint, error) {
 	return vlan.(uint), err
 }
 
-func (gc *Cfg) FreeVlan(ra core.ResourceAllocator, vlan uint) error {
+func (gc *Cfg) FreeVlan(ra core.ResourceManager, vlan uint) error {
 	return ra.DeallocateResourceVal(gc.Tenant, resources.AUTO_VLAN_RSRC, vlan)
 }
 
-func (gc *Cfg) AllocSubnet(ra core.ResourceAllocator) (string, error) {
+func (gc *Cfg) AllocSubnet(ra core.ResourceManager) (string, error) {
 	pair, err := ra.AllocateResourceVal(gc.Tenant, resources.AUTO_SUBNET_RSRC)
 	if err != nil {
 		return "", err
@@ -298,14 +298,14 @@ func (gc *Cfg) AllocSubnet(ra core.ResourceAllocator) (string, error) {
 	return pair.(resources.SubnetIpLenPair).Ip.String(), err
 }
 
-func (gc *Cfg) FreeSubnet(ra core.ResourceAllocator, subnetIp string) error {
+func (gc *Cfg) FreeSubnet(ra core.ResourceManager, subnetIp string) error {
 	return ra.DeallocateResourceVal(gc.Tenant, resources.AUTO_SUBNET_RSRC,
 		resources.SubnetIpLenPair{
 			Ip:  net.ParseIP(subnetIp),
 			Len: gc.Auto.AllocSubnetLen})
 }
 
-func (gc *Cfg) Process(ra core.ResourceAllocator) error {
+func (gc *Cfg) Process(ra core.ResourceManager) error {
 	var err error
 
 	if gc.Version != VersionBeta1 {

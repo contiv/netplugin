@@ -23,7 +23,7 @@ import (
 	"github.com/contiv/netplugin/core"
 )
 
-// Etcd resource allocator implements the core.ResourceAllocator interface.
+// Etcd resource manager implements the core.ResourceManager interface.
 // It manages the resource in a logically centralized manner using serialized
 // writes to a etcd based datastore.
 
@@ -33,22 +33,22 @@ var ResourceRegistry = map[string]reflect.Type{
 	AUTO_SUBNET_RSRC: reflect.TypeOf(AutoSubnetCfgResource{}),
 }
 
-type EtcdResourceAllocator struct {
+type EtcdResourceManager struct {
 	//XXX: should be '*drivers.EtcdStateDriver', but leaving is
 	//core.StateDriver to get tests going and until the netmaster
-	//is changed to pickup the resource-allocator from config
+	//is changed to pickup the resource-manager from config
 	Etcd core.StateDriver
 }
 
-func (ra *EtcdResourceAllocator) Init() error {
+func (ra *EtcdResourceManager) Init() error {
 	return nil
 }
 
-func (ra *EtcdResourceAllocator) Deinit() {
+func (ra *EtcdResourceManager) Deinit() {
 }
 
 // XXX: It might be better to keep cache of resources and avoid frequent etcd reads
-func (ra *EtcdResourceAllocator) findResource(id, desc string) (core.Resource, bool, error) {
+func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, bool, error) {
 	alreadyExists := false
 	rsrcType, ok := ResourceRegistry[desc]
 	if !ok {
@@ -80,7 +80,7 @@ func (ra *EtcdResourceAllocator) findResource(id, desc string) (core.Resource, b
 	return rsrc, alreadyExists, nil
 }
 
-func (ra *EtcdResourceAllocator) DefineResource(id, desc string,
+func (ra *EtcdResourceManager) DefineResource(id, desc string,
 	rsrcCfg interface{}) error {
 	// XXX: need to take care of distibuted updates, locks etc here
 	rsrc, alreadyExists, err := ra.findResource(id, desc)
@@ -101,7 +101,7 @@ func (ra *EtcdResourceAllocator) DefineResource(id, desc string,
 	return nil
 }
 
-func (ra *EtcdResourceAllocator) UndefineResource(id, desc string) error {
+func (ra *EtcdResourceManager) UndefineResource(id, desc string) error {
 	// XXX: need to take care of distibuted updates, locks etc here
 	rsrc, alreadyExists, err := ra.findResource(id, desc)
 	if err != nil {
@@ -118,7 +118,7 @@ func (ra *EtcdResourceAllocator) UndefineResource(id, desc string) error {
 
 }
 
-func (ra *EtcdResourceAllocator) AllocateResourceVal(id, desc string) (interface{},
+func (ra *EtcdResourceManager) AllocateResourceVal(id, desc string) (interface{},
 	error) {
 	// XXX: need to take care of distibuted updates, locks etc here
 	rsrc, alreadyExists, err := ra.findResource(id, desc)
@@ -134,7 +134,7 @@ func (ra *EtcdResourceAllocator) AllocateResourceVal(id, desc string) (interface
 	return rsrc.Allocate()
 }
 
-func (ra *EtcdResourceAllocator) DeallocateResourceVal(id, desc string,
+func (ra *EtcdResourceManager) DeallocateResourceVal(id, desc string,
 	value interface{}) error {
 	// XXX: need to take care of distibuted updates, locks etc here
 	rsrc, alreadyExists, err := ra.findResource(id, desc)

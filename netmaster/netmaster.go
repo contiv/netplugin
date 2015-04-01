@@ -124,15 +124,15 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	}
 
 	// XXX: instead of initing resource-manager always, just init and
-	// store it once. Also the type of resource-allocator should be picked up
+	// store it once. Also the type of resource-manager should be picked up
 	// based on configuration.
-	ra := &resources.EtcdResourceAllocator{Etcd: stateDriver}
+	ra := &resources.EtcdResourceManager{Etcd: stateDriver}
 	err = ra.Init()
 	if err != nil {
 		return err
 	}
 
-	err = gCfg.Process(core.ResourceAllocator(ra))
+	err = gCfg.Process(core.ResourceManager(ra))
 	if err != nil {
 		log.Printf("Error '%s' updating the config %v \n", err, gCfg)
 		return err
@@ -437,14 +437,14 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	}
 
 	// XXX: instead of initing resource-manager always, just init and
-	// store it once. Also the type of resource-allocator should be picked up
+	// store it once. Also the type of resource-manager should be picked up
 	// based on configuration.
-	tempRa := &resources.EtcdResourceAllocator{Etcd: stateDriver}
+	tempRa := &resources.EtcdResourceManager{Etcd: stateDriver}
 	err = tempRa.Init()
 	if err != nil {
 		return err
 	}
-	ra := core.ResourceAllocator(tempRa)
+	ra := core.ResourceManager(tempRa)
 
 	err = validateNetworkConfig(tenant)
 	if err != nil {
@@ -551,14 +551,14 @@ func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwCon
 	nwCfg *drivers.OvsCfgNetworkState, gCfg *gstate.Cfg) (err error) {
 
 	// XXX: instead of initing resource-manager always, just init and
-	// store it once. Also the type of resource-allocator should be picked up
+	// store it once. Also the type of resource-manager should be picked up
 	// based on configuration.
-	tempRa := &resources.EtcdResourceAllocator{Etcd: stateDriver}
+	tempRa := &resources.EtcdResourceManager{Etcd: stateDriver}
 	err = tempRa.Init()
 	if err != nil {
 		return err
 	}
-	ra := core.ResourceAllocator(tempRa)
+	ra := core.ResourceManager(tempRa)
 
 	if nwCfg.PktTagType == "vlan" {
 		err = gCfg.FreeVlan(ra, uint(nwCfg.PktTag))

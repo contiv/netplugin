@@ -24,7 +24,7 @@ import (
 	"github.com/contiv/netplugin/resources"
 )
 
-var gstateTestRA = &resources.EtcdResourceAllocator{Etcd: gstateSD}
+var gstateTestRA = &resources.EtcdResourceManager{Etcd: gstateSD}
 
 type ValueData struct {
 	value []byte

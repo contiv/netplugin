@@ -94,8 +94,8 @@ func (r *TestResource) Deallocate(value interface{}) error {
 	return nil
 }
 
-func TestEtcdResourceAllocatorDefineResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerDefineResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -106,8 +106,8 @@ func TestEtcdResourceAllocatorDefineResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorDefineInvalidResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerDefineInvalidResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 
 	gReadCtr = 0
 	err := ra.DefineResource(testResourceId, testResourceDesc, &TestResource{})
@@ -120,8 +120,8 @@ func TestEtcdResourceAllocatorDefineInvalidResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorUndefineResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerUndefineResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -137,8 +137,8 @@ func TestEtcdResourceAllocatorUndefineResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorUndefineInvalidResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerUndefineInvalidResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 
 	gReadCtr = 0
 	err := ra.UndefineResource(testResourceId, testResourceDesc)
@@ -151,8 +151,8 @@ func TestEtcdResourceAllocatorUndefineInvalidResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorUndefineNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerUndefineNonexistentResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -167,8 +167,8 @@ func TestEtcdResourceAllocatorUndefineNonexistentResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorAllocateResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerAllocateResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -184,8 +184,8 @@ func TestEtcdResourceAllocatorAllocateResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorAllocateInvalidResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerAllocateInvalidResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 
 	gReadCtr = 0
 	_, err := ra.AllocateResourceVal(testResourceId, testResourceDesc)
@@ -198,8 +198,8 @@ func TestEtcdResourceAllocatorAllocateInvalidResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorAllocateiNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerAllocateiNonexistentResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -214,8 +214,8 @@ func TestEtcdResourceAllocatorAllocateiNonexistentResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorDeallocateResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerDeallocateResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -236,8 +236,8 @@ func TestEtcdResourceAllocatorDeallocateResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorDeallocateInvalidResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerDeallocateInvalidResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 
 	gReadCtr = 0
 	err := ra.DeallocateResourceVal(testResourceId, testResourceDesc, 0)
@@ -250,8 +250,8 @@ func TestEtcdResourceAllocatorDeallocateInvalidResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceAllocatorDeallocateiNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceAllocator{Etcd: nil}
+func TestEtcdResourceManagerDeallocateiNonexistentResource(t *testing.T) {
+	ra := &EtcdResourceManager{Etcd: nil}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 

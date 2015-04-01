@@ -124,8 +124,8 @@ type Resource interface {
 	Deallocate(interface{}) error
 }
 
-type ResourceAllocator interface {
-	// A resource allocator provides mechanism to manage (define/undefine,
+type ResourceManager interface {
+	// A resource manager provides mechanism to manage (define/undefine,
 	// allocate/deallocate) resources. Example, it may provide management in
 	// logically centralized manner in a distributed system
 	Init() error
