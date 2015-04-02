@@ -16,104 +16,16 @@ limitations under the License.
 package gstate
 
 import (
-	"log"
-	"strings"
 	"testing"
 
-	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/resources"
 )
 
-var gstateTestRA = &resources.EtcdResourceManager{Etcd: gstateSD}
-
-type ValueData struct {
-	value []byte
-}
-
-type FakeStateDriver struct {
-	TestState map[string]ValueData
-}
-
-func (d *FakeStateDriver) Init(config *core.Config) error {
-	d.TestState = make(map[string]ValueData)
-
-	return nil
-}
-
-func (d *FakeStateDriver) Deinit() {
-	d.TestState = nil
-}
-
-func (d *FakeStateDriver) Write(key string, value []byte) error {
-	val := ValueData{value: value}
-	d.TestState[key] = val
-
-	return nil
-}
-
-func (d *FakeStateDriver) Read(key string) ([]byte, error) {
-	if val, ok := d.TestState[key]; ok {
-		return val.value, nil
-	}
-
-	return []byte{}, &core.Error{Desc: "Key not found!"}
-}
-
-func (d *FakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	values := [][]byte{}
-
-	for key, val := range d.TestState {
-		if strings.Contains(key, baseKey) {
-			values = append(values, val.value)
-		}
-	}
-	return values, nil
-}
-
-func (d *FakeStateDriver) ClearState(key string) error {
-	if _, ok := d.TestState[key]; ok {
-		delete(d.TestState, key)
-	}
-	return nil
-}
-
-func (d *FakeStateDriver) ReadState(key string, value core.State,
-	unmarshal func([]byte, interface{}) error) error {
-	encodedState, err := d.Read(key)
-	if err != nil {
-		return err
-	}
-
-	err = unmarshal(encodedState, value)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *FakeStateDriver) WriteState(key string, value core.State,
-	marshal func(interface{}) ([]byte, error)) error {
-	encodedState, err := marshal(value)
-	if err != nil {
-		return err
-	}
-
-	err = d.Write(key, encodedState)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *FakeStateDriver) DumpState() {
-	for key, v := range d.TestState {
-		log.Printf("key: %q value: %q\n", key, string(v.value))
-	}
-}
-
-var gstateSD = &FakeStateDriver{}
+var (
+	gstateTestRA = &resources.EtcdResourceManager{Etcd: gstateSD}
+	gstateSD     = &drivers.FakeStateDriver{}
+)
 
 func TestGlobalConfigAutoVlans(t *testing.T) {
 	cfgData := []byte(`
