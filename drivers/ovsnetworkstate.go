@@ -40,17 +40,16 @@ const (
 )
 
 type OvsCfgNetworkState struct {
-	StateDriver core.StateDriver `json:"-"`
-	Id          string           `json:"id"`
-	Tenant      string           `json:"tenant"`
-	PktTagType  string           `json:"pktTagType"`
-	PktTag      int              `json:"pktTag"`
-	ExtPktTag   int              `json:"extPktTag"`
-	SubnetIp    string           `json:"subnetIp"`
-	SubnetLen   uint             `json:"subnetLen"`
-	DefaultGw   string           `json:"defaultGw"`
-	EpCount     int              `json:"epCount"`
-	IpAllocMap  bitset.BitSet    `json:"ipAllocMap"`
+	core.CommonState
+	Tenant     string        `json:"tenant"`
+	PktTagType string        `json:"pktTagType"`
+	PktTag     int           `json:"pktTag"`
+	ExtPktTag  int           `json:"extPktTag"`
+	SubnetIp   string        `json:"subnetIp"`
+	SubnetLen  uint          `json:"subnetLen"`
+	DefaultGw  string        `json:"defaultGw"`
+	EpCount    int           `json:"epCount"`
+	IpAllocMap bitset.BitSet `json:"ipAllocMap"`
 }
 
 func (s *OvsCfgNetworkState) Write() error {
@@ -63,21 +62,8 @@ func (s *OvsCfgNetworkState) Read(id string) error {
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
-func ReadAllOvsCfgNetworks(d core.StateDriver) ([]*OvsCfgNetworkState, error) {
-	values := []*OvsCfgNetworkState{}
-	byteValues, err := d.ReadAll(NW_CFG_PATH_PREFIX)
-	if err != nil {
-		return nil, err
-	}
-	for _, byteValue := range byteValues {
-		value := &OvsCfgNetworkState{StateDriver: d}
-		err = json.Unmarshal(byteValue, value)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, value)
-	}
-	return values, nil
+func (s *OvsCfgNetworkState) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(NW_CFG_PATH_PREFIX, s, json.Unmarshal)
 }
 
 func (s *OvsCfgNetworkState) Clear() error {

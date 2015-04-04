@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 )
 
 const (
@@ -33,9 +34,8 @@ var (
 )
 
 type TestResource struct {
-	stateDriver core.StateDriver
-	id          string
-	readCtr     int
+	core.CommonState
+	readCtr int
 }
 
 func (r *TestResource) Write() error {
@@ -59,22 +59,6 @@ func (r *TestResource) ReadAll() ([]core.State, error) {
 	}
 }
 
-func (r *TestResource) SetId(id string) {
-	r.id = id
-}
-
-func (r *TestResource) Id() string {
-	return r.id
-}
-
-func (r *TestResource) SetStateDriver(stateDriver core.StateDriver) {
-	r.stateDriver = stateDriver
-}
-
-func (r *TestResource) StateDriver() core.StateDriver {
-	return r.stateDriver
-}
-
 func (r *TestResource) Init(rsrcCfg interface{}) error {
 	return nil
 }
@@ -94,8 +78,10 @@ func (r *TestResource) Deallocate(value interface{}) error {
 	return nil
 }
 
+var fakeDriver = &drivers.FakeStateDriver{}
+
 func TestEtcdResourceManagerDefineResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -107,7 +93,7 @@ func TestEtcdResourceManagerDefineResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerDefineInvalidResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 
 	gReadCtr = 0
 	err := ra.DefineResource(testResourceId, testResourceDesc, &TestResource{})
@@ -121,7 +107,7 @@ func TestEtcdResourceManagerDefineInvalidResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerUndefineResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -138,7 +124,7 @@ func TestEtcdResourceManagerUndefineResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerUndefineInvalidResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 
 	gReadCtr = 0
 	err := ra.UndefineResource(testResourceId, testResourceDesc)
@@ -152,7 +138,7 @@ func TestEtcdResourceManagerUndefineInvalidResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerUndefineNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -168,7 +154,7 @@ func TestEtcdResourceManagerUndefineNonexistentResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerAllocateResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -185,7 +171,7 @@ func TestEtcdResourceManagerAllocateResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerAllocateInvalidResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 
 	gReadCtr = 0
 	_, err := ra.AllocateResourceVal(testResourceId, testResourceDesc)
@@ -199,7 +185,7 @@ func TestEtcdResourceManagerAllocateInvalidResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerAllocateiNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -215,7 +201,7 @@ func TestEtcdResourceManagerAllocateiNonexistentResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerDeallocateResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 
@@ -237,7 +223,7 @@ func TestEtcdResourceManagerDeallocateResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerDeallocateInvalidResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 
 	gReadCtr = 0
 	err := ra.DeallocateResourceVal(testResourceId, testResourceDesc, 0)
@@ -251,7 +237,7 @@ func TestEtcdResourceManagerDeallocateInvalidResource(t *testing.T) {
 }
 
 func TestEtcdResourceManagerDeallocateiNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: nil}
+	ra := &EtcdResourceManager{Etcd: fakeDriver}
 	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(ResourceRegistry, testResourceDesc) }()
 

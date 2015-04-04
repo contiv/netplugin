@@ -28,11 +28,11 @@ const (
 )
 
 type MasterHostConfig struct {
-	StateDriver core.StateDriver `json:"-"`
-	Name        string           `json:"name"`
-	Intf        string           `json:"intf"`
-	VtepIp      string           `json:"vtepIp"`
-	NetId       string           `json:"netId"`
+	core.CommonState
+	Name   string `json:"name"`
+	Intf   string `json:"intf"`
+	VtepIp string `json:"vtepIp"`
+	NetId  string `json:"netId"`
 }
 
 func (s *MasterHostConfig) Write() error {
@@ -45,33 +45,11 @@ func (s *MasterHostConfig) Read(hostname string) error {
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
-func ReadAllMasterHostCfg(d core.StateDriver) ([]*MasterHostConfig, error) {
-	values := []*MasterHostConfig{}
-	byteValues, err := d.ReadAll(HOST_CFG_PATH_PREFIX)
-	if err != nil {
-		return nil, err
-	}
-	for _, byteValue := range byteValues {
-		value := &MasterHostConfig{StateDriver: d}
-		err = json.Unmarshal(byteValue, value)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, value)
-	}
-	return values, nil
+func (s *MasterHostConfig) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(HOST_CFG_PATH_PREFIX, s, json.Unmarshal)
 }
 
 func (s *MasterHostConfig) Clear() error {
 	key := fmt.Sprintf(HOST_CFG_PATH, s.Name)
 	return s.StateDriver.ClearState(key)
-}
-
-func (s *MasterHostConfig) Unmarshal(value string) error {
-	return json.Unmarshal([]byte(value), s)
-}
-
-func (s *MasterHostConfig) Marshal() (string, error) {
-	bytes, err := json.Marshal(s)
-	return string(bytes[:]), err
 }

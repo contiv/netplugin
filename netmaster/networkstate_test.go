@@ -69,13 +69,19 @@ func (d *testNwStateDriver) ReadState(key string, value core.State,
 	return d.validateKey(key)
 }
 
+func (d *testNwStateDriver) ReadAllState(key string, value core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testNwStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validateKey(key)
 }
 
 func TestMasterNwConfigRead(t *testing.T) {
-	nwCfg := &MasterNwConfig{StateDriver: nwStateDriver}
+	nwCfg := &MasterNwConfig{}
+	nwCfg.StateDriver = nwStateDriver
 
 	err := nwCfg.Read(testNwId)
 	if err != nil {
@@ -84,7 +90,9 @@ func TestMasterNwConfigRead(t *testing.T) {
 }
 
 func TestMasterNwConfigWrite(t *testing.T) {
-	nwCfg := &MasterNwConfig{StateDriver: nwStateDriver, Id: testNwId}
+	nwCfg := &MasterNwConfig{}
+	nwCfg.StateDriver = nwStateDriver
+	nwCfg.Id = testNwId
 
 	err := nwCfg.Write()
 	if err != nil {
@@ -93,7 +101,9 @@ func TestMasterNwConfigWrite(t *testing.T) {
 }
 
 func TestMasterNwConfigClear(t *testing.T) {
-	nwCfg := &MasterNwConfig{StateDriver: nwStateDriver, Id: testNwId}
+	nwCfg := &MasterNwConfig{}
+	nwCfg.StateDriver = nwStateDriver
+	nwCfg.Id = testNwId
 
 	err := nwCfg.Clear()
 	if err != nil {

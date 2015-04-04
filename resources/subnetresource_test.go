@@ -58,7 +58,7 @@ func (vt *subnetRsrcValidator) ValidateState(state core.State) error {
 	rcvdCfg, okCfg := state.(*AutoSubnetCfgResource)
 	if okCfg {
 		log.Printf("cfg length: %d", len(vt.expCfg))
-		if rcvdCfg.Id() != vt.expCfg[0].Id() ||
+		if rcvdCfg.Id != vt.expCfg[0].Id ||
 			!rcvdCfg.SubnetPool.Equal(vt.expCfg[0].SubnetPool) ||
 			rcvdCfg.SubnetPoolLen != vt.expCfg[0].SubnetPoolLen ||
 			rcvdCfg.AllocSubnetLen != vt.expCfg[0].AllocSubnetLen {
@@ -91,7 +91,7 @@ func (vt *subnetRsrcValidator) ValidateState(state core.State) error {
 func (vt *subnetRsrcValidator) CopyState(state core.State) error {
 	rcvdCfg, okCfg := state.(*AutoSubnetCfgResource)
 	if okCfg {
-		rcvdCfg.SetId(vt.expCfg[0].Id())
+		rcvdCfg.Id = vt.expCfg[0].Id
 		rcvdCfg.SubnetPool = vt.expCfg[0].SubnetPool
 		rcvdCfg.SubnetPoolLen = vt.expCfg[0].SubnetPoolLen
 		rcvdCfg.AllocSubnetLen = vt.expCfg[0].AllocSubnetLen
@@ -128,7 +128,7 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 	SubnetRsrcValidInitId: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				ResId:          SubnetRsrcValidInitId,
+				CommonState:    core.CommonState{nil, SubnetRsrcValidInitId},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -136,7 +136,7 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				Id:          SubnetRsrcValidInitId,
+				CommonState: core.CommonState{nil, SubnetRsrcValidInitId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 		},
@@ -144,7 +144,7 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 	SubnetRsrcValidDeinitId: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				ResId:          SubnetRsrcValidDeinitId,
+				CommonState:    core.CommonState{nil, SubnetRsrcValidDeinitId},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -152,11 +152,11 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				Id:          SubnetRsrcValidDeinitId,
+				CommonState: core.CommonState{nil, SubnetRsrcValidDeinitId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				Id:          SubnetRsrcValidDeinitId,
+				CommonState: core.CommonState{nil, SubnetRsrcValidDeinitId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 		},
@@ -164,7 +164,7 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 	SubnetRsrcAllocateId: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				ResId:          SubnetRsrcAllocateId,
+				CommonState:    core.CommonState{nil, SubnetRsrcAllocateId},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -172,15 +172,15 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				Id:          SubnetRsrcAllocateId,
+				CommonState: core.CommonState{nil, SubnetRsrcAllocateId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				Id:          SubnetRsrcAllocateId,
+				CommonState: core.CommonState{nil, SubnetRsrcAllocateId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				Id:          SubnetRsrcAllocateId,
+				CommonState: core.CommonState{nil, SubnetRsrcAllocateId},
 				FreeSubnets: bitset.New(1).Clear(0),
 			},
 		},
@@ -188,7 +188,7 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 	SubnetRsrcAllocateExhaustId: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				ResId:          SubnetRsrcAllocateExhaustId,
+				CommonState:    core.CommonState{nil, SubnetRsrcAllocateExhaustId},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -196,19 +196,19 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				Id:          SubnetRsrcAllocateExhaustId,
+				CommonState: core.CommonState{nil, SubnetRsrcAllocateExhaustId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				Id:          SubnetRsrcAllocateExhaustId,
+				CommonState: core.CommonState{nil, SubnetRsrcAllocateExhaustId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				Id:          SubnetRsrcAllocateExhaustId,
+				CommonState: core.CommonState{nil, SubnetRsrcAllocateExhaustId},
 				FreeSubnets: bitset.New(1).Clear(0),
 			},
 			{
-				Id:          SubnetRsrcAllocateExhaustId,
+				CommonState: core.CommonState{nil, SubnetRsrcAllocateExhaustId},
 				FreeSubnets: bitset.New(1).Clear(0),
 			},
 		},
@@ -216,7 +216,7 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 	SubnetRsrcDeallocateId: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				ResId:          SubnetRsrcDeallocateId,
+				CommonState:    core.CommonState{nil, SubnetRsrcDeallocateId},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -224,23 +224,23 @@ var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*s
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				Id:          SubnetRsrcDeallocateId,
+				CommonState: core.CommonState{nil, SubnetRsrcDeallocateId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				Id:          SubnetRsrcDeallocateId,
+				CommonState: core.CommonState{nil, SubnetRsrcDeallocateId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				Id:          SubnetRsrcDeallocateId,
+				CommonState: core.CommonState{nil, SubnetRsrcDeallocateId},
 				FreeSubnets: bitset.New(1).Clear(0),
 			},
 			{
-				Id:          SubnetRsrcDeallocateId,
+				CommonState: core.CommonState{nil, SubnetRsrcDeallocateId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				Id:          SubnetRsrcDeallocateId,
+				CommonState: core.CommonState{nil, SubnetRsrcDeallocateId},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 		},
@@ -305,6 +305,11 @@ func (d *testSubnetRsrcStateDriver) ReadState(key string, value core.State,
 	return d.validate(key, value, SUBNET_RSRC_OP_READ)
 }
 
+func (d *testSubnetRsrcStateDriver) ReadAllState(key string, value core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testSubnetRsrcStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validate(key, value, SUBNET_RSRC_OP_WRITE)
@@ -312,9 +317,9 @@ func (d *testSubnetRsrcStateDriver) WriteState(key string, value core.State,
 
 func TestAutoSubnetCfgResourceInit(t *testing.T) {
 	rsrc := &AutoSubnetCfgResource{}
-	rsrc.SetStateDriver(subnetRsrcStateDriver)
-	rsrc.SetId(SubnetRsrcValidInitId)
-	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = subnetRsrcStateDriver
+	rsrc.Id = SubnetRsrcValidInitId
+	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Subnet resource init failed. Error: %s", err)
 	}
@@ -322,9 +327,9 @@ func TestAutoSubnetCfgResourceInit(t *testing.T) {
 
 func TestAutoSubnetCfgResourceDeInit(t *testing.T) {
 	rsrc := &AutoSubnetCfgResource{}
-	rsrc.SetStateDriver(subnetRsrcStateDriver)
-	rsrc.SetId(SubnetRsrcValidDeinitId)
-	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = subnetRsrcStateDriver
+	rsrc.Id = SubnetRsrcValidDeinitId
+	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Subnet resource init failed. Error: %s", err)
 	}
@@ -334,9 +339,9 @@ func TestAutoSubnetCfgResourceDeInit(t *testing.T) {
 
 func TestAutoSubnetCfgResourceAllocate(t *testing.T) {
 	rsrc := &AutoSubnetCfgResource{}
-	rsrc.SetStateDriver(subnetRsrcStateDriver)
-	rsrc.SetId(SubnetRsrcAllocateId)
-	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = subnetRsrcStateDriver
+	rsrc.Id = SubnetRsrcAllocateId
+	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Subnet resource init failed. Error: %s", err)
 	}
@@ -354,9 +359,9 @@ func TestAutoSubnetCfgResourceAllocate(t *testing.T) {
 
 func TestAutoSubnetCfgResourceAllocateExhaustion(t *testing.T) {
 	rsrc := &AutoSubnetCfgResource{}
-	rsrc.SetStateDriver(subnetRsrcStateDriver)
-	rsrc.SetId(SubnetRsrcAllocateExhaustId)
-	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = subnetRsrcStateDriver
+	rsrc.Id = SubnetRsrcAllocateExhaustId
+	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Subnet resource init failed. Error: %s", err)
 	}
@@ -377,9 +382,9 @@ func TestAutoSubnetCfgResourceAllocateExhaustion(t *testing.T) {
 
 func TestAutoSubnetCfgResourceDeAllocate(t *testing.T) {
 	rsrc := &AutoSubnetCfgResource{}
-	rsrc.SetStateDriver(subnetRsrcStateDriver)
-	rsrc.SetId(SubnetRsrcDeallocateId)
-	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = subnetRsrcStateDriver
+	rsrc.Id = SubnetRsrcDeallocateId
+	err := rsrc.Init(&subnetRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Subnet resource init failed. Error: %s", err)
 	}

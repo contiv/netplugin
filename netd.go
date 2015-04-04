@@ -51,27 +51,28 @@ func skipHost(vtepIp, homingHost, myHostLabel string) bool {
 
 func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	opts cliOpts) error {
-	var (
-		netCfgs []*drivers.OvsCfgNetworkState
-		epCfgs  []*drivers.OvsCfgEndpointState
-		err     error
-	)
-	netCfgs, err = drivers.ReadAllOvsCfgNetworks(netPlugin.StateDriver)
+	readNet := &drivers.OvsCfgEndpointState{}
+	readNet.StateDriver = netPlugin.StateDriver
+	netCfgs, err := readNet.ReadAll()
 	if err != nil {
 		return err
 	}
 	for idx, netCfg := range netCfgs {
-		log.Printf("read net key[%d] %s, populating state \n", idx, netCfg.Id)
-		processNetEvent(netPlugin, netCfg.Id, "", opts)
+		net := netCfg.(*drivers.OvsCfgNetworkState)
+		log.Printf("read net key[%d] %s, populating state \n", idx, net.Id)
+		processNetEvent(netPlugin, net.Id, "", opts)
 	}
 
-	epCfgs, err = drivers.ReadAllOvsCfgEndpoints(netPlugin.StateDriver)
+	readEp := &drivers.OvsCfgEndpointState{}
+	readEp.StateDriver = netPlugin.StateDriver
+	epCfgs, err := readEp.ReadAll()
 	if err != nil {
 		return err
 	}
 	for idx, epCfg := range epCfgs {
-		log.Printf("read ep key[%d] %s, populating state \n", idx, epCfg.Id)
-		processEpEvent(netPlugin, crt, epCfg.Id, "", opts)
+		ep := epCfg.(*drivers.OvsCfgEndpointState)
+		log.Printf("read ep key[%d] %s, populating state \n", idx, ep.Id)
+		processEpEvent(netPlugin, crt, ep.Id, "", opts)
 	}
 
 	return nil
@@ -102,7 +103,8 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	var epCtx crtclient.ContainerEpContext
 	var err error
 
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: state}
+	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg.StateDriver = state
 	err = epCfg.Read(epId)
 	if err != nil {
 		return &epCtx, nil
@@ -110,7 +112,8 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	epCtx.NewContName = epCfg.ContName
 	epCtx.NewAttachUUID = epCfg.AttachUUID
 
-	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: state}
+	cfgNet := &drivers.OvsCfgNetworkState{}
+	cfgNet.StateDriver = state
 	err = cfgNet.Read(epCfg.NetId)
 	if err != nil {
 		return &epCtx, err
@@ -118,7 +121,8 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	epCtx.DefaultGw = cfgNet.DefaultGw
 	epCtx.SubnetLen = cfgNet.SubnetLen
 
-	operEp := &drivers.OvsOperEndpointState{StateDriver: state}
+	operEp := &drivers.OvsOperEndpointState{}
+	operEp.StateDriver = state
 	err = operEp.Read(epId)
 	if err != nil {
 		return &epCtx, nil
@@ -136,7 +140,9 @@ func getContainerEpContextByContName(state core.StateDriver, contName string) (
 	var epCtx *crtclient.ContainerEpContext
 
 	contName = strings.TrimPrefix(contName, "/")
-	epCfgs, err := drivers.ReadAllOvsCfgEndpoints(state)
+	readEp := &drivers.OvsCfgEndpointState{}
+	readEp.StateDriver = state
+	epCfgs, err := readEp.ReadAll()
 	if err != nil {
 		return
 	}
@@ -144,14 +150,15 @@ func getContainerEpContextByContName(state core.StateDriver, contName string) (
 	epCtxs = make([]crtclient.ContainerEpContext, len(epCfgs))
 	idx := 0
 	for _, epCfg := range epCfgs {
-		if epCfg.ContName != contName {
+		cfg := epCfg.(*drivers.OvsCfgEndpointState)
+		if cfg.ContName != contName {
 			continue
 		}
 
-		epCtx, err = getEndpointContainerContext(state, epCfg.Id)
+		epCtx, err = getEndpointContainerContext(state, cfg.Id)
 		if err != nil {
 			log.Printf("error '%s' getting epCfgState for ep %s \n",
-				err, epCfg.Id)
+				err, cfg.Id)
 			return epCtxs[:idx], nil
 		}
 		epCtxs[idx] = *epCtx
@@ -188,7 +195,8 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	homingHost := ""
 	vtepIp := ""
 
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
+	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg.StateDriver = netPlugin.StateDriver
 	err = epCfg.Read(epId)
 	if preValue == "" {
 		if err != nil {
@@ -202,7 +210,8 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 		if err != nil {
 			deleteOp = true
 		}
-		epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
+		epOper := &drivers.OvsOperEndpointState{}
+		epOper.StateDriver = netPlugin.StateDriver
 		err = epOper.Read(epId)
 		if err != nil {
 			log.Printf("Failed to read oper for ep %s, err '%s' \n", epId, err)

@@ -35,14 +35,13 @@ const (
 )
 
 type MasterNwConfig struct {
-	StateDriver core.StateDriver `json:"-"`
-	Tenant      string           `json:"tenant"`
-	PktTagType  string           `json:"pktTagType"`
-	PktTag      string           `json:"pktTag"`
-	SubnetIp    string           `json:"subnetIp"`
-	SubnetLen   uint             `json:"subnetLen"`
-	DefaultGw   string           `json:"defaultGw"`
-	Id          string           `json:"id"`
+	core.CommonState
+	Tenant     string `json:"tenant"`
+	PktTagType string `json:"pktTagType"`
+	PktTag     string `json:"pktTag"`
+	SubnetIp   string `json:"subnetIp"`
+	SubnetLen  uint   `json:"subnetLen"`
+	DefaultGw  string `json:"defaultGw"`
 }
 
 func (s *MasterNwConfig) Write() error {
@@ -55,16 +54,11 @@ func (s *MasterNwConfig) Read(id string) error {
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+func (s *MasterNwConfig) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(NW_CFG_PATH_PREFIX, s, json.Unmarshal)
+}
+
 func (s *MasterNwConfig) Clear() error {
 	key := fmt.Sprintf(NW_CFG_PATH, s.Id)
 	return s.StateDriver.ClearState(key)
-}
-
-func (s *MasterNwConfig) Unmarshal(value string) error {
-	return json.Unmarshal([]byte(value), s)
-}
-
-func (s *MasterNwConfig) Marshal() (string, error) {
-	bytes, err := json.Marshal(s)
-	return string(bytes[:]), err
 }

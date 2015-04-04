@@ -26,15 +26,14 @@ import (
 // vlans with ovs. The state is stored as Json objects.
 
 type OvsCfgEndpointState struct {
-	StateDriver core.StateDriver `json:"-"`
-	Id          string           `json:"id"`
-	NetId       string           `json:"netId"`
-	ContName    string           `json:"contName"`
-	AttachUUID  string           `json:"attachUUID"`
-	IpAddress   string           `json:"ipAddress"`
-	HomingHost  string           `json:"homingHost"`
-	IntfName    string           `json:"intfName"`
-	VtepIp      string           `json:'vtepIP"`
+	core.CommonState
+	NetId      string `json:"netId"`
+	ContName   string `json:"contName"`
+	AttachUUID string `json:"attachUUID"`
+	IpAddress  string `json:"ipAddress"`
+	HomingHost string `json:"homingHost"`
+	IntfName   string `json:"intfName"`
+	VtepIp     string `json:'vtepIP"`
 }
 
 func (s *OvsCfgEndpointState) Write() error {
@@ -47,39 +46,25 @@ func (s *OvsCfgEndpointState) Read(id string) error {
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+func (s *OvsCfgEndpointState) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(EP_CFG_PATH_PREFIX, s, json.Unmarshal)
+}
+
 func (s *OvsCfgEndpointState) Clear() error {
 	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
 	return s.StateDriver.ClearState(key)
 }
 
-func ReadAllOvsCfgEndpoints(d core.StateDriver) ([]*OvsCfgEndpointState, error) {
-	values := []*OvsCfgEndpointState{}
-	byteValues, err := d.ReadAll(EP_CFG_PATH_PREFIX)
-	if err != nil {
-		return nil, err
-	}
-	for _, byteValue := range byteValues {
-		value := &OvsCfgEndpointState{StateDriver: d}
-		err = json.Unmarshal(byteValue, value)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, value)
-	}
-	return values, nil
-}
-
 type OvsOperEndpointState struct {
-	StateDriver core.StateDriver `json:"-"`
-	Id          string           `json:"id"`
-	NetId       string           `json:"netId"`
-	ContName    string           `json:"contName"`
-	AttachUUID  string           `json:"attachUUID"`
-	IpAddress   string           `json:"ipAddress"`
-	PortName    string           `json:"portName"`
-	HomingHost  string           `json:"homingHost"`
-	IntfName    string           `json:"intfName"`
-	VtepIp      string           `json:'vtepIP"`
+	core.CommonState
+	NetId      string `json:"netId"`
+	ContName   string `json:"contName"`
+	AttachUUID string `json:"attachUUID"`
+	IpAddress  string `json:"ipAddress"`
+	PortName   string `json:"portName"`
+	HomingHost string `json:"homingHost"`
+	IntfName   string `json:"intfName"`
+	VtepIp     string `json:'vtepIP"`
 }
 
 func (s *OvsOperEndpointState) Write() error {
@@ -90,6 +75,10 @@ func (s *OvsOperEndpointState) Write() error {
 func (s *OvsOperEndpointState) Read(id string) error {
 	key := fmt.Sprintf(EP_OPER_PATH, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
+}
+
+func (s *OvsOperEndpointState) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(EP_OPER_PATH_PREFIX, s, json.Unmarshal)
 }
 
 func (s *OvsOperEndpointState) Clear() error {

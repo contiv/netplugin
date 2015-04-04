@@ -69,33 +69,43 @@ func (d *testNwStateDriver) ReadState(key string, value core.State,
 	return d.validateKey(key)
 }
 
+func (d *testNwStateDriver) ReadAllState(key string, value core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testNwStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validateKey(key)
 }
 
 func TestOvsCfgNetworkStateRead(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver}
+	nwCfg := &OvsCfgNetworkState{}
+	nwCfg.StateDriver = nwStateDriver
 
-	err := epCfg.Read(testNwId)
+	err := nwCfg.Read(testNwId)
 	if err != nil {
 		t.Fatalf("read config state failed. Error: %s", err)
 	}
 }
 
 func TestOvsCfgNetworkStateWrite(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver, Id: testNwId}
+	nwCfg := &OvsCfgNetworkState{}
+	nwCfg.StateDriver = nwStateDriver
+	nwCfg.Id = testNwId
 
-	err := epCfg.Write()
+	err := nwCfg.Write()
 	if err != nil {
 		t.Fatalf("write config state failed. Error: %s", err)
 	}
 }
 
 func TestOvsCfgNetworkStateClear(t *testing.T) {
-	epCfg := &OvsCfgNetworkState{StateDriver: nwStateDriver, Id: testNwId}
+	nwCfg := &OvsCfgNetworkState{}
+	nwCfg.StateDriver = nwStateDriver
+	nwCfg.Id = testNwId
 
-	err := epCfg.Clear()
+	err := nwCfg.Clear()
 	if err != nil {
 		t.Fatalf("clear config state failed. Error: %s", err)
 	}

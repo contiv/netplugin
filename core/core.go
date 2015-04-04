@@ -27,12 +27,6 @@ type Address struct {
 	addr string
 }
 
-type State interface {
-	Write() error
-	Read(id string) error
-	Clear() error
-}
-
 type Config struct {
 	// Config object parsed from a json styled config
 	V interface{}
@@ -103,6 +97,8 @@ type StateDriver interface {
 		marshal func(interface{}) ([]byte, error)) error
 	ReadState(key string, value State,
 		unmarshal func([]byte, interface{}) error) error
+	ReadAllState(baseKey string, stateType State,
+		unmarshal func([]byte, interface{}) error) ([]State, error)
 	ClearState(key string) error
 }
 
@@ -110,13 +106,6 @@ type Resource interface {
 	// Resource defines a allocatable unit. A resource is uniquely identified
 	// by 'Id'. A resource description identifies the nature of the resource.
 	State
-	// XXX move following four APIs to State
-	ReadAll() ([]State, error)
-	SetId(id string)
-	Id() string
-	SetStateDriver(stateDriver StateDriver)
-	StateDriver() StateDriver
-
 	Init(rsrcCfg interface{}) error
 	Deinit()
 	Description() string

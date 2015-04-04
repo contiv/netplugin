@@ -87,69 +87,81 @@ func epPresent(allCfg *netmaster.Config, epId string) bool {
 
 func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 
-	epCfgs, err := drivers.ReadAllOvsCfgEndpoints(stateDriver)
+	readEp := &drivers.OvsCfgEndpointState{}
+	readEp.StateDriver = stateDriver
+	epCfgs, err := readEp.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
 		return err
 	} else if err != nil {
 		err = nil
-		epCfgs = []*drivers.OvsCfgEndpointState{}
+		epCfgs = []core.State{}
 	}
 	for _, epCfg := range epCfgs {
-		if !epPresent(allCfg, epCfg.Id) {
-			err1 := netmaster.DeleteEndpointId(stateDriver, epCfg.Id)
+		cfg := epCfg.(*drivers.OvsCfgEndpointState)
+		if !epPresent(allCfg, cfg.Id) {
+			err1 := netmaster.DeleteEndpointId(stateDriver, cfg.Id)
 			if err1 != nil {
-				log.Printf("error '%s' deleting epid %s \n", err1, epCfg.Id)
+				log.Printf("error '%s' deleting epid %s \n", err1, cfg.Id)
 				err = err1
 				continue
 			}
 		}
 	}
 
-	nwCfgs, err := drivers.ReadAllOvsCfgNetworks(stateDriver)
+	readNet := &drivers.OvsCfgNetworkState{}
+	readNet.StateDriver = stateDriver
+	nwCfgs, err := readNet.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
 		return err
 	} else if err != nil {
 		err = nil
-		nwCfgs = []*drivers.OvsCfgNetworkState{}
+		nwCfgs = []core.State{}
 	}
 	for _, nwCfg := range nwCfgs {
-		if !netPresent(allCfg, nwCfg.Id) {
-			err1 := netmaster.DeleteNetworkId(stateDriver, nwCfg.Id)
+		cfg := nwCfg.(*drivers.OvsCfgNetworkState)
+		if !netPresent(allCfg, cfg.Id) {
+			err1 := netmaster.DeleteNetworkId(stateDriver, cfg.Id)
 			if err1 != nil {
-				log.Printf("error '%s' deleting net %s \n", err1, nwCfg.Id)
+				log.Printf("error '%s' deleting net %s \n", err1, cfg.Id)
 				err = err1
 				continue
 			}
 		}
 	}
 
-	gCfgs, err := gstate.ReadAllGlobalCfg(stateDriver)
+	readGlbl := &gstate.Cfg{}
+	readGlbl.StateDriver = stateDriver
+	gCfgs, err := readGlbl.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
 		return err
 	} else if err != nil {
 		err = nil
-		gCfgs = []*gstate.Cfg{}
+		gCfgs = []core.State{}
 	}
 	for _, gCfg := range gCfgs {
-		if !tenantPresent(allCfg, gCfg.Tenant) {
-			err1 := netmaster.DeleteTenantId(stateDriver, gCfg.Tenant)
+		cfg := gCfg.(*gstate.Cfg)
+		if !tenantPresent(allCfg, cfg.Tenant) {
+			err1 := netmaster.DeleteTenantId(stateDriver, cfg.Tenant)
 			if err1 != nil {
-				log.Printf("error '%s' deleting tenant %s \n", err1, gCfg.Tenant)
+				log.Printf("error '%s' deleting tenant %s \n", err1, cfg.Tenant)
 				err = err1
 				continue
 			}
 		}
 	}
 
-	hostCfgs, err := netmaster.ReadAllMasterHostCfg(stateDriver)
+	readHost := &netmaster.MasterHostConfig{}
+	readHost.StateDriver = stateDriver
+	hostCfgs, err := readHost.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
 		return err
 	} else if err != nil {
 		err = nil
-		hostCfgs = []*netmaster.MasterHostConfig{}
+		hostCfgs = []core.State{}
 	}
 	for _, hostCfg := range hostCfgs {
-		hostName := hostCfg.Name
+		cfg := hostCfg.(*netmaster.MasterHostConfig)
+		hostName := cfg.Name
 		if !hostPresent(allCfg, hostName) {
 			err1 := netmaster.DeleteHostId(stateDriver, hostName)
 			if err1 != nil {

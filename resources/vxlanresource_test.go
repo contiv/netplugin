@@ -57,7 +57,7 @@ func (vt *vxlanRsrcValidator) ValidateState(state core.State) error {
 	rcvdCfg, okCfg := state.(*AutoVxlanCfgResource)
 	if okCfg {
 		log.Printf("cfg length: %d", len(vt.expCfg))
-		if rcvdCfg.Id() != vt.expCfg[0].Id() ||
+		if rcvdCfg.Id != vt.expCfg[0].Id ||
 			!rcvdCfg.Vxlans.Equal(vt.expCfg[0].Vxlans) ||
 			!rcvdCfg.LocalVlans.Equal(vt.expCfg[0].LocalVlans) {
 			errStr := fmt.Sprintf("cfg mismatch. Expctd: %+v, Rcvd: %+v",
@@ -90,7 +90,7 @@ func (vt *vxlanRsrcValidator) ValidateState(state core.State) error {
 func (vt *vxlanRsrcValidator) CopyState(state core.State) error {
 	rcvdCfg, okCfg := state.(*AutoVxlanCfgResource)
 	if okCfg {
-		rcvdCfg.SetId(vt.expCfg[0].Id())
+		rcvdCfg.Id = vt.expCfg[0].Id
 		rcvdCfg.Vxlans = vt.expCfg[0].Vxlans.Clone()
 		rcvdCfg.LocalVlans = vt.expCfg[0].LocalVlans.Clone()
 		vt.nextCfgState()
@@ -128,14 +128,14 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcValidInitId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				ResId:      VxlanRsrcValidInitId,
-				Vxlans:     bitset.New(1).Set(0),
-				LocalVlans: bitset.New(1).Set(0),
+				CommonState: core.CommonState{nil, VxlanRsrcValidInitId},
+				Vxlans:      bitset.New(1).Set(0),
+				LocalVlans:  bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVxlanOperResource{
 			{
-				Id:             VxlanRsrcValidInitId,
+				CommonState:    core.CommonState{nil, VxlanRsrcValidInitId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Set(0),
 			},
@@ -144,19 +144,19 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcValidDeinitId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				ResId:      VxlanRsrcValidDeinitId,
-				Vxlans:     bitset.New(1).Set(0),
-				LocalVlans: bitset.New(1).Set(0),
+				CommonState: core.CommonState{nil, VxlanRsrcValidDeinitId},
+				Vxlans:      bitset.New(1).Set(0),
+				LocalVlans:  bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVxlanOperResource{
 			{
-				Id:             VxlanRsrcValidDeinitId,
+				CommonState:    core.CommonState{nil, VxlanRsrcValidDeinitId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Set(0),
 			},
 			{
-				Id:             VxlanRsrcValidDeinitId,
+				CommonState:    core.CommonState{nil, VxlanRsrcValidDeinitId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Set(0),
 			},
@@ -165,24 +165,24 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcAllocateId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				ResId:      VxlanRsrcAllocateId,
-				Vxlans:     bitset.New(1).Set(0),
-				LocalVlans: bitset.New(1).Set(0),
+				CommonState: core.CommonState{nil, VxlanRsrcAllocateId},
+				Vxlans:      bitset.New(1).Set(0),
+				LocalVlans:  bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVxlanOperResource{
 			{
-				Id:             VxlanRsrcAllocateId,
+				CommonState:    core.CommonState{nil, VxlanRsrcAllocateId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Set(0),
 			},
 			{
-				Id:             VxlanRsrcAllocateId,
+				CommonState:    core.CommonState{nil, VxlanRsrcAllocateId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Set(0),
 			},
 			{
-				Id:             VxlanRsrcAllocateId,
+				CommonState:    core.CommonState{nil, VxlanRsrcAllocateId},
 				FreeVxlans:     bitset.New(1).Clear(0),
 				FreeLocalVlans: bitset.New(1).Clear(0),
 			},
@@ -191,19 +191,19 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcAllocateExhaustVxlanId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				ResId:      VxlanRsrcAllocateExhaustVxlanId,
-				Vxlans:     bitset.New(1).Clear(0),
-				LocalVlans: bitset.New(1).Clear(0),
+				CommonState: core.CommonState{nil, VxlanRsrcAllocateExhaustVxlanId},
+				Vxlans:      bitset.New(1).Clear(0),
+				LocalVlans:  bitset.New(1).Clear(0),
 			},
 		},
 		expOper: []AutoVxlanOperResource{
 			{
-				Id:             VxlanRsrcAllocateExhaustVxlanId,
+				CommonState:    core.CommonState{nil, VxlanRsrcAllocateExhaustVxlanId},
 				FreeVxlans:     bitset.New(1).Clear(0),
 				FreeLocalVlans: bitset.New(1).Clear(0),
 			},
 			{
-				Id:             VxlanRsrcAllocateExhaustVxlanId,
+				CommonState:    core.CommonState{nil, VxlanRsrcAllocateExhaustVxlanId},
 				FreeVxlans:     bitset.New(1).Clear(0),
 				FreeLocalVlans: bitset.New(1).Clear(0),
 			},
@@ -212,19 +212,19 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcAllocateExhaustVlanId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				ResId:      VxlanRsrcAllocateExhaustVlanId,
-				Vxlans:     bitset.New(1).Set(0),
-				LocalVlans: bitset.New(1).Clear(0),
+				CommonState: core.CommonState{nil, VxlanRsrcAllocateExhaustVlanId},
+				Vxlans:      bitset.New(1).Set(0),
+				LocalVlans:  bitset.New(1).Clear(0),
 			},
 		},
 		expOper: []AutoVxlanOperResource{
 			{
-				Id:             VxlanRsrcAllocateExhaustVlanId,
+				CommonState:    core.CommonState{nil, VxlanRsrcAllocateExhaustVlanId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Clear(0),
 			},
 			{
-				Id:             VxlanRsrcAllocateExhaustVlanId,
+				CommonState:    core.CommonState{nil, VxlanRsrcAllocateExhaustVlanId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Clear(0),
 			},
@@ -233,34 +233,34 @@ var vxlanRsrcValidationStateMap map[string]*vxlanRsrcValidator = map[string]*vxl
 	VxlanRsrcDeallocateId: &vxlanRsrcValidator{
 		expCfg: []AutoVxlanCfgResource{
 			{
-				ResId:      VxlanRsrcDeallocateId,
-				Vxlans:     bitset.New(1).Set(0),
-				LocalVlans: bitset.New(1).Set(0),
+				CommonState: core.CommonState{nil, VxlanRsrcDeallocateId},
+				Vxlans:      bitset.New(1).Set(0),
+				LocalVlans:  bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVxlanOperResource{
 			{
-				Id:             VxlanRsrcDeallocateId,
+				CommonState:    core.CommonState{nil, VxlanRsrcDeallocateId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Set(0),
 			},
 			{
-				Id:             VxlanRsrcDeallocateId,
+				CommonState:    core.CommonState{nil, VxlanRsrcDeallocateId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Set(0),
 			},
 			{
-				Id:             VxlanRsrcDeallocateId,
+				CommonState:    core.CommonState{nil, VxlanRsrcDeallocateId},
 				FreeVxlans:     bitset.New(1).Clear(0),
 				FreeLocalVlans: bitset.New(1).Clear(0),
 			},
 			{
-				Id:             VxlanRsrcDeallocateId,
+				CommonState:    core.CommonState{nil, VxlanRsrcDeallocateId},
 				FreeVxlans:     bitset.New(1).Clear(0),
 				FreeLocalVlans: bitset.New(1).Clear(0),
 			},
 			{
-				Id:             VxlanRsrcDeallocateId,
+				CommonState:    core.CommonState{nil, VxlanRsrcDeallocateId},
 				FreeVxlans:     bitset.New(1).Set(0),
 				FreeLocalVlans: bitset.New(1).Set(0),
 			},
@@ -326,6 +326,11 @@ func (d *testVxlanRsrcStateDriver) ReadState(key string, value core.State,
 	return d.validate(key, value, VXLAN_RSRC_OP_READ)
 }
 
+func (d *testVxlanRsrcStateDriver) ReadAllState(key string, value core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testVxlanRsrcStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validate(key, value, VXLAN_RSRC_OP_WRITE)
@@ -333,9 +338,9 @@ func (d *testVxlanRsrcStateDriver) WriteState(key string, value core.State,
 
 func TestAutoVxlanCfgResourceInit(t *testing.T) {
 	rsrc := &AutoVxlanCfgResource{}
-	rsrc.SetStateDriver(vxlanRsrcStateDriver)
-	rsrc.SetId(VxlanRsrcValidInitId)
-	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = vxlanRsrcStateDriver
+	rsrc.Id = VxlanRsrcValidInitId
+	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Vxlan resource init failed. Error: %s", err)
 	}
@@ -343,9 +348,9 @@ func TestAutoVxlanCfgResourceInit(t *testing.T) {
 
 func TestAutoVxlanCfgResourceDeInit(t *testing.T) {
 	rsrc := &AutoVxlanCfgResource{}
-	rsrc.SetStateDriver(vxlanRsrcStateDriver)
-	rsrc.SetId(VxlanRsrcValidDeinitId)
-	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = vxlanRsrcStateDriver
+	rsrc.Id = VxlanRsrcValidDeinitId
+	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Vxlan resource init failed. Error: %s", err)
 	}
@@ -355,9 +360,9 @@ func TestAutoVxlanCfgResourceDeInit(t *testing.T) {
 
 func TestAutoVxlanCfgResourceAllocate(t *testing.T) {
 	rsrc := &AutoVxlanCfgResource{}
-	rsrc.SetStateDriver(vxlanRsrcStateDriver)
-	rsrc.SetId(VxlanRsrcAllocateId)
-	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = vxlanRsrcStateDriver
+	rsrc.Id = VxlanRsrcAllocateId
+	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Vxlan resource init failed. Error: %s", err)
 	}
@@ -374,9 +379,9 @@ func TestAutoVxlanCfgResourceAllocate(t *testing.T) {
 
 func TestAutoVxlanCfgResourceAllocateVxlanExhaustion(t *testing.T) {
 	rsrc := &AutoVxlanCfgResource{}
-	rsrc.SetStateDriver(vxlanRsrcStateDriver)
-	rsrc.SetId(VxlanRsrcAllocateExhaustVxlanId)
-	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = vxlanRsrcStateDriver
+	rsrc.Id = VxlanRsrcAllocateExhaustVxlanId
+	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Vxlan resource init failed. Error: %s", err)
 	}
@@ -393,9 +398,9 @@ func TestAutoVxlanCfgResourceAllocateVxlanExhaustion(t *testing.T) {
 
 func TestAutoVxlanCfgResourceAllocateVlanExhaustion(t *testing.T) {
 	rsrc := &AutoVxlanCfgResource{}
-	rsrc.SetStateDriver(vxlanRsrcStateDriver)
-	rsrc.SetId(VxlanRsrcAllocateExhaustVlanId)
-	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = vxlanRsrcStateDriver
+	rsrc.Id = VxlanRsrcAllocateExhaustVlanId
+	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Vxlan resource init failed. Error: %s", err)
 	}
@@ -412,9 +417,9 @@ func TestAutoVxlanCfgResourceAllocateVlanExhaustion(t *testing.T) {
 
 func TestAutoVxlanCfgResourceDeAllocate(t *testing.T) {
 	rsrc := &AutoVxlanCfgResource{}
-	rsrc.SetStateDriver(vxlanRsrcStateDriver)
-	rsrc.SetId(VxlanRsrcDeallocateId)
-	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id()].expCfg[0])
+	rsrc.StateDriver = vxlanRsrcStateDriver
+	rsrc.Id = VxlanRsrcDeallocateId
+	err := rsrc.Init(&vxlanRsrcValidationStateMap[rsrc.Id].expCfg[0])
 	if err != nil {
 		t.Fatalf("Vxlan resource init failed. Error: %s", err)
 	}

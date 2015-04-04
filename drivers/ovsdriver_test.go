@@ -172,6 +172,11 @@ func (d *testOvsStateDriver) ReadState(key string, value core.State,
 	return &core.Error{Desc: fmt.Sprintf("unknown key! %s", key)}
 }
 
+func (d *testOvsStateDriver) ReadAllState(key string, value core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return nil, &core.Error{Desc: "shouldn't be called!"}
+}
+
 func (d *testOvsStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return nil

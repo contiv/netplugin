@@ -17,8 +17,9 @@ package drivers
 
 import (
 	"fmt"
-	"github.com/contiv/go-etcd/etcd"
+	"reflect"
 
+	"github.com/contiv/go-etcd/etcd"
 	"github.com/contiv/netplugin/core"
 )
 
@@ -101,6 +102,48 @@ func (d *EtcdStateDriver) ReadState(key string, value core.State,
 	}
 
 	return nil
+}
+
+// XXX: move this to some common file
+func ReadAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	stateType := reflect.TypeOf(sType)
+	sliceType := reflect.SliceOf(stateType)
+	values := reflect.MakeSlice(sliceType, 0, 1)
+
+	byteValues, err := d.ReadAll(baseKey)
+	if err != nil {
+		return nil, err
+	}
+	for _, byteValue := range byteValues {
+		value := reflect.New(stateType)
+		err = unmarshal(byteValue, value.Interface())
+		if err != nil {
+			return nil, err
+		}
+		values = reflect.Append(values, value.Elem())
+	}
+
+	stateValues := []core.State{}
+	for i := 0; i < values.Len(); i++ {
+		// sanity checks
+		if !values.Index(i).Elem().FieldByName("CommonState").IsValid() {
+			panic(fmt.Sprintf("The state structure %v is missing core.CommonState",
+				stateType))
+			return nil, &core.Error{Desc: fmt.Sprintf("The state structure %v is missing core.CommonState",
+				stateType)}
+		}
+		//the following works as every core.State is expected to embed core.CommonState struct
+		values.Index(i).Elem().FieldByName("CommonState").FieldByName("StateDriver").Set(reflect.ValueOf(d))
+		stateValue := values.Index(i).Interface().(core.State)
+		stateValues = append(stateValues, stateValue)
+	}
+	return stateValues, nil
+}
+
+func (d *EtcdStateDriver) ReadAllState(baseKey string, sType core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return ReadAllStateCommon(d, baseKey, sType, unmarshal)
 }
 
 func (d *EtcdStateDriver) WriteState(key string, value core.State,

@@ -59,17 +59,17 @@ type DeployParams struct {
 
 // global state of the network plugin
 type Cfg struct {
-	StateDriver core.StateDriver `json:"-"`
-	Version     string           `json:"version"`
-	Tenant      string           `json:"tenant"`
-	Auto        AutoParams       `json:auto"`
-	Deploy      DeployParams     `json:"deploy"`
+	core.CommonState
+	Version string       `json:"version"`
+	Tenant  string       `json:"tenant"`
+	Auto    AutoParams   `json:auto"`
+	Deploy  DeployParams `json:"deploy"`
 }
 
 type Oper struct {
-	StateDriver     core.StateDriver `json:"-"`
-	Tenant          string           `json:"tenant"`
-	FreeVxlansStart uint             `json:"freeVxlansStart"`
+	core.CommonState
+	Tenant          string `json:"tenant"`
+	FreeVxlansStart uint   `json:"freeVxlansStart"`
 }
 
 func (gc *Cfg) Dump() error {
@@ -135,21 +135,8 @@ func (gc *Cfg) Read(tenant string) error {
 	return gc.StateDriver.ReadState(key, gc, json.Unmarshal)
 }
 
-func ReadAllGlobalCfg(d core.StateDriver) ([]*Cfg, error) {
-	values := []*Cfg{}
-	byteValues, err := d.ReadAll(CFG_GLOBAL_PREFIX)
-	if err != nil {
-		return nil, err
-	}
-	for _, byteValue := range byteValues {
-		value := &Cfg{StateDriver: d}
-		err = json.Unmarshal(byteValue, value)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, value)
-	}
-	return values, nil
+func (gc *Cfg) ReadAll() ([]core.State, error) {
+	return gc.StateDriver.ReadAllState(CFG_GLOBAL_PREFIX, gc, json.Unmarshal)
 }
 
 func (gc *Cfg) Clear() error {
@@ -165,6 +152,10 @@ func (g *Oper) Write() error {
 func (g *Oper) Read(tenant string) error {
 	key := fmt.Sprintf(OPER_GLOBAL_PATH, tenant)
 	return g.StateDriver.ReadState(key, g, json.Unmarshal)
+}
+
+func (g *Oper) ReadAll() ([]core.State, error) {
+	return g.StateDriver.ReadAllState(OPER_GLOBAL_PREFIX, g, json.Unmarshal)
 }
 
 func (g *Oper) Clear() error {
@@ -194,7 +185,7 @@ func (gc *Cfg) initVxlanBitset(vxlans string) (*resources.AutoVxlanCfgResource,
 	// XXX: we should derive free-vlans by looking at all tenants,
 	// instead of just one.
 	vlanRsrcCfg := &resources.AutoVlanCfgResource{}
-	vlanRsrcCfg.SetStateDriver(gc.StateDriver)
+	vlanRsrcCfg.StateDriver = gc.StateDriver
 	err = vlanRsrcCfg.Read(gc.Tenant)
 	if core.ErrIfKeyExists(err) != nil {
 		return nil, 0, err
@@ -226,7 +217,8 @@ func (gc *Cfg) AllocVxlan(ra core.ResourceManager) (vxlan uint,
 		return 0, 0, err1
 	}
 
-	g := Oper{StateDriver: gc.StateDriver}
+	g := &Oper{}
+	g.StateDriver = gc.StateDriver
 	err = g.Read(gc.Tenant)
 	if err != nil {
 		return 0, 0, err
@@ -239,7 +231,8 @@ func (gc *Cfg) AllocVxlan(ra core.ResourceManager) (vxlan uint,
 }
 
 func (gc *Cfg) FreeVxlan(ra core.ResourceManager, vxlan uint, localVlan uint) error {
-	g := Oper{StateDriver: gc.StateDriver}
+	g := &Oper{}
+	g.StateDriver = gc.StateDriver
 	err := g.Read(gc.Tenant)
 	if err != nil {
 		return nil
@@ -360,10 +353,9 @@ func (gc *Cfg) Process(ra core.ResourceManager) error {
 		}
 	}
 
-	g := &Oper{
-		StateDriver:     gc.StateDriver,
-		Tenant:          gc.Tenant,
+	g := &Oper{Tenant: gc.Tenant,
 		FreeVxlansStart: freeVxlansStart}
+	g.StateDriver = gc.StateDriver
 	err = g.Write()
 	if err != nil {
 		log.Printf("error '%s' updating goper state %v \n", err, g)

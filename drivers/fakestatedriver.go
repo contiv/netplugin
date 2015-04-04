@@ -76,6 +76,11 @@ func (d *FakeStateDriver) ReadState(key string, value core.State,
 	return nil
 }
 
+func (d *FakeStateDriver) ReadAllState(baseKey string, sType core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return ReadAllStateCommon(d, baseKey, sType, unmarshal)
+}
+
 func (d *FakeStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	encodedState, err := marshal(value)
@@ -92,7 +97,7 @@ func (d *FakeStateDriver) WriteState(key string, value core.State,
 }
 
 func (d *FakeStateDriver) DumpState() {
-	for key, v := range d.TestState {
-		log.Printf("key: %q value: %q\n", key, string(v.value))
+	for key, _ := range d.TestState {
+		log.Printf("key: %q\n", key)
 	}
 }

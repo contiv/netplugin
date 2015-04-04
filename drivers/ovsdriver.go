@@ -328,7 +328,8 @@ func vxlanIfName(netId, vtepIp string) string {
 }
 
 func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
-	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	cfgNw := OvsCfgNetworkState{}
+	cfgNw.StateDriver = d.stateDriver
 	err := cfgNw.Read(epCfg.NetId)
 	if err != nil {
 		return err
@@ -352,7 +353,8 @@ func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
 
 func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
 
-	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	cfgNw := OvsCfgNetworkState{}
+	cfgNw.StateDriver = d.stateDriver
 	err := cfgNw.Read(epOper.NetId)
 	if err != nil {
 		return err
@@ -423,7 +425,8 @@ func (d *OvsDriver) Deinit() {
 }
 
 func (d *OvsDriver) CreateNetwork(id string) error {
-	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	cfgNw := OvsCfgNetworkState{}
+	cfgNw.StateDriver = d.stateDriver
 	err := cfgNw.Read(id)
 	if err != nil {
 		log.Printf("Failed to read net %s \n", cfgNw.Id)
@@ -450,7 +453,8 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	intfName := portName
 	intfType := "internal"
 
-	epCfg := OvsCfgEndpointState{StateDriver: d.stateDriver}
+	epCfg := OvsCfgEndpointState{}
+	epCfg.StateDriver = d.stateDriver
 	err = epCfg.Read(id)
 	if err != nil {
 		return err
@@ -476,7 +480,8 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		intfType = ""
 	}
 
-	cfgNw := OvsCfgNetworkState{StateDriver: d.stateDriver}
+	cfgNw := OvsCfgNetworkState{}
+	cfgNw.StateDriver = d.stateDriver
 	err = cfgNw.Read(epCfg.NetId)
 	if err != nil {
 		return err
@@ -495,16 +500,16 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}()
 
 	operEp := OvsOperEndpointState{
-		StateDriver: d.stateDriver,
-		Id:          id,
-		PortName:    portName,
-		NetId:       epCfg.NetId,
-		AttachUUID:  epCfg.AttachUUID,
-		ContName:    epCfg.ContName,
-		IpAddress:   epCfg.IpAddress,
-		IntfName:    intfName,
-		HomingHost:  epCfg.HomingHost,
-		VtepIp:      epCfg.VtepIp}
+		PortName:   portName,
+		NetId:      epCfg.NetId,
+		AttachUUID: epCfg.AttachUUID,
+		ContName:   epCfg.ContName,
+		IpAddress:  epCfg.IpAddress,
+		IntfName:   intfName,
+		HomingHost: epCfg.HomingHost,
+		VtepIp:     epCfg.VtepIp}
+	operEp.StateDriver = d.stateDriver
+	operEp.Id = id
 	err = operEp.Write()
 	if err != nil {
 		return err
@@ -520,7 +525,8 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 
-	epOper := OvsOperEndpointState{StateDriver: d.stateDriver}
+	epOper := OvsOperEndpointState{}
+	epOper.StateDriver = d.stateDriver
 	err = epOper.Read(id)
 	if err != nil {
 		return err

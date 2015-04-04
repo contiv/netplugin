@@ -40,10 +40,9 @@ const (
 )
 
 type AutoVxlanCfgResource struct {
-	stateDriver core.StateDriver `json:"-"`
-	ResId       string           `json:"id"`
-	Vxlans      *bitset.BitSet   `json:"vxlans"`
-	LocalVlans  *bitset.BitSet   `json:"LocalVlans"`
+	core.CommonState
+	Vxlans     *bitset.BitSet `json:"vxlans"`
+	LocalVlans *bitset.BitSet `json:"LocalVlans"`
 }
 
 type VxlanVlanPair struct {
@@ -52,57 +51,23 @@ type VxlanVlanPair struct {
 }
 
 func (r *AutoVxlanCfgResource) Write() error {
-	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.Id())
-	return r.stateDriver.WriteState(key, r, json.Marshal)
+	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.Id)
+	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
 func (r *AutoVxlanCfgResource) Read(id string) error {
 	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, id)
-	return r.stateDriver.ReadState(key, r, json.Unmarshal)
+	return r.StateDriver.ReadState(key, r, json.Unmarshal)
 }
 
 func (r *AutoVxlanCfgResource) Clear() error {
-	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.Id())
-	return r.stateDriver.ClearState(key)
+	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.Id)
+	return r.StateDriver.ClearState(key)
 }
 
 func (r *AutoVxlanCfgResource) ReadAll() ([]core.State, error) {
-	values := []*AutoVxlanCfgResource{}
-	byteValues, err := r.stateDriver.ReadAll(VXLAN_RSRC_CFG_PATH_PREFIX)
-	if err != nil {
-		return nil, err
-	}
-	for _, byteValue := range byteValues {
-		value := &AutoVxlanCfgResource{}
-		value.SetStateDriver(r.StateDriver())
-		err = json.Unmarshal(byteValue, value)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, value)
-	}
-
-	stateValues := []core.State{}
-	for _, val := range values {
-		stateValues = append(stateValues, core.State(val))
-	}
-	return stateValues, nil
-}
-
-func (r *AutoVxlanCfgResource) Id() string {
-	return r.ResId
-}
-
-func (r *AutoVxlanCfgResource) SetId(id string) {
-	r.ResId = id
-}
-
-func (r *AutoVxlanCfgResource) StateDriver() core.StateDriver {
-	return r.stateDriver
-}
-
-func (r *AutoVxlanCfgResource) SetStateDriver(stateDriver core.StateDriver) {
-	r.stateDriver = stateDriver
+	return r.StateDriver.ReadAllState(VXLAN_RSRC_CFG_PATH_PREFIX, r,
+		json.Unmarshal)
 }
 
 func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
@@ -122,8 +87,9 @@ func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
 		}
 	}()
 
-	oper := AutoVxlanOperResource{StateDriver: r.StateDriver(), Id: r.Id(),
-		FreeVxlans: r.Vxlans, FreeLocalVlans: r.LocalVlans}
+	oper := &AutoVxlanOperResource{FreeVxlans: r.Vxlans, FreeLocalVlans: r.LocalVlans}
+	oper.StateDriver = r.StateDriver
+	oper.Id = r.Id
 	err = oper.Write()
 	if err != nil {
 		return err
@@ -133,8 +99,9 @@ func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
 }
 
 func (r *AutoVxlanCfgResource) Deinit() {
-	oper := AutoVxlanOperResource{StateDriver: r.StateDriver()}
-	err := oper.Read(r.Id())
+	oper := &AutoVxlanOperResource{}
+	oper.StateDriver = r.StateDriver
+	err := oper.Read(r.Id)
 	if err != nil {
 		// continue cleanup
 	} else {
@@ -152,8 +119,9 @@ func (r *AutoVxlanCfgResource) Description() string {
 }
 
 func (r *AutoVxlanCfgResource) Allocate() (interface{}, error) {
-	oper := &AutoVxlanOperResource{StateDriver: r.StateDriver()}
-	err := oper.Read(r.Id())
+	oper := &AutoVxlanOperResource{}
+	oper.StateDriver = r.StateDriver
+	err := oper.Read(r.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -179,8 +147,9 @@ func (r *AutoVxlanCfgResource) Allocate() (interface{}, error) {
 }
 
 func (r *AutoVxlanCfgResource) Deallocate(value interface{}) error {
-	oper := &AutoVxlanOperResource{StateDriver: r.StateDriver()}
-	err := oper.Read(r.Id())
+	oper := &AutoVxlanOperResource{}
+	oper.StateDriver = r.StateDriver
+	err := oper.Read(r.Id)
 	if err != nil {
 		return err
 	}
@@ -202,10 +171,9 @@ func (r *AutoVxlanCfgResource) Deallocate(value interface{}) error {
 }
 
 type AutoVxlanOperResource struct {
-	StateDriver    core.StateDriver `json:"-"`
-	Id             string           `json:"id"`
-	FreeVxlans     *bitset.BitSet   `json:"freeVxlans"`
-	FreeLocalVlans *bitset.BitSet   `json:"freeLocalVlans"`
+	core.CommonState
+	FreeVxlans     *bitset.BitSet `json:"freeVxlans"`
+	FreeLocalVlans *bitset.BitSet `json:"freeLocalVlans"`
 }
 
 func (r *AutoVxlanOperResource) Write() error {
@@ -216,6 +184,11 @@ func (r *AutoVxlanOperResource) Write() error {
 func (r *AutoVxlanOperResource) Read(id string) error {
 	key := fmt.Sprintf(VXLAN_RSRC_OPER_PATH, id)
 	return r.StateDriver.ReadState(key, r, json.Unmarshal)
+}
+
+func (r *AutoVxlanOperResource) ReadAll() ([]core.State, error) {
+	return r.StateDriver.ReadAllState(VXLAN_RSRC_OPER_PATH_PREFIX, r,
+		json.Unmarshal)
 }
 
 func (r *AutoVxlanOperResource) Clear() error {

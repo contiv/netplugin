@@ -364,10 +364,12 @@ func executeOpts(opts *cliOpts) error {
 	switch opts.construct.Get() {
 	case CLI_CONSTRUCT_EP:
 		if opts.oper.Get() == CLI_OPER_GET {
-			epOper := &drivers.OvsOperEndpointState{StateDriver: etcdDriver}
+			epOper := &drivers.OvsOperEndpointState{}
+			epOper.StateDriver = etcdDriver
 			state = epOper
 		} else if opts.oper.Get() == CLI_OPER_ATTACH || opts.oper.Get() == CLI_OPER_DETACH {
-			epCfg := &drivers.OvsCfgEndpointState{StateDriver: etcdDriver}
+			epCfg := &drivers.OvsCfgEndpointState{}
+			epCfg.StateDriver = etcdDriver
 			err = epCfg.Read(opts.idStr)
 			if err != nil {
 				log.Fatalf("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
@@ -385,7 +387,8 @@ func executeOpts(opts *cliOpts) error {
 			}
 			state = epCfg
 		} else {
-			epCfg := &drivers.OvsCfgEndpointState{StateDriver: etcdDriver}
+			epCfg := &drivers.OvsCfgEndpointState{}
+			epCfg.StateDriver = etcdDriver
 			epCfg.Id = opts.idStr
 			epCfg.NetId = opts.netId
 			epCfg.IpAddress = opts.ipAddr
@@ -398,10 +401,12 @@ func executeOpts(opts *cliOpts) error {
 		}
 	case CLI_CONSTRUCT_NW:
 		if opts.oper.Get() == CLI_OPER_GET {
-			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
+			nwCfg := &drivers.OvsCfgNetworkState{}
+			nwCfg.StateDriver = etcdDriver
 			state = nwCfg
 		} else {
-			nwCfg := &drivers.OvsCfgNetworkState{StateDriver: etcdDriver}
+			nwCfg := &drivers.OvsCfgNetworkState{}
+			nwCfg.StateDriver = etcdDriver
 			nwCfg.PktTag, _ = strconv.Atoi(opts.pktTag)
 			nwCfg.Tenant = opts.tenant
 			nwCfg.PktTagType = opts.pktTagType
@@ -412,7 +417,8 @@ func executeOpts(opts *cliOpts) error {
 			state = nwCfg
 		}
 	case CLI_CONSTRUCT_GLOBAL:
-		gcfg := gstate.Cfg{StateDriver: etcdDriver}
+		gcfg := &gstate.Cfg{}
+		gcfg.StateDriver = etcdDriver
 		if opts.oper.Get() == CLI_OPER_GET {
 			err = gcfg.Read(opts.tenant)
 			log.Printf("State: %v \n", gcfg)

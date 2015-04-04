@@ -42,11 +42,10 @@ const (
 )
 
 type AutoSubnetCfgResource struct {
-	stateDriver    core.StateDriver `json:"-"`
-	ResId          string           `json:"id"`
-	SubnetPool     net.IP           `json:"subnetPool"`
-	SubnetPoolLen  uint             `json:"subnetPoolLen"`
-	AllocSubnetLen uint             `json:"allocSubnetLen"`
+	core.CommonState
+	SubnetPool     net.IP `json:"subnetPool"`
+	SubnetPoolLen  uint   `json:"subnetPoolLen"`
+	AllocSubnetLen uint   `json:"allocSubnetLen"`
 }
 
 type SubnetIpLenPair struct {
@@ -55,57 +54,23 @@ type SubnetIpLenPair struct {
 }
 
 func (r *AutoSubnetCfgResource) Write() error {
-	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.Id())
-	return r.stateDriver.WriteState(key, r, json.Marshal)
+	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.Id)
+	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
 func (r *AutoSubnetCfgResource) Read(id string) error {
 	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, id)
-	return r.stateDriver.ReadState(key, r, json.Unmarshal)
+	return r.StateDriver.ReadState(key, r, json.Unmarshal)
 }
 
 func (r *AutoSubnetCfgResource) Clear() error {
-	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.Id())
-	return r.stateDriver.ClearState(key)
+	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.Id)
+	return r.StateDriver.ClearState(key)
 }
 
 func (r *AutoSubnetCfgResource) ReadAll() ([]core.State, error) {
-	values := []*AutoSubnetCfgResource{}
-	byteValues, err := r.stateDriver.ReadAll(SUBNET_RSRC_CFG_PATH_PREFIX)
-	if err != nil {
-		return nil, err
-	}
-	for _, byteValue := range byteValues {
-		value := &AutoSubnetCfgResource{}
-		value.SetStateDriver(r.StateDriver())
-		err = json.Unmarshal(byteValue, value)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, value)
-	}
-
-	stateValues := []core.State{}
-	for _, val := range values {
-		stateValues = append(stateValues, core.State(val))
-	}
-	return stateValues, nil
-}
-
-func (r *AutoSubnetCfgResource) Id() string {
-	return r.ResId
-}
-
-func (r *AutoSubnetCfgResource) SetId(id string) {
-	r.ResId = id
-}
-
-func (r *AutoSubnetCfgResource) StateDriver() core.StateDriver {
-	return r.stateDriver
-}
-
-func (r *AutoSubnetCfgResource) SetStateDriver(stateDriver core.StateDriver) {
-	r.stateDriver = stateDriver
+	return r.StateDriver.ReadAllState(SUBNET_RSRC_CFG_PATH_PREFIX, r,
+		json.Unmarshal)
 }
 
 func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
@@ -132,8 +97,9 @@ func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
 	}()
 
 	allocSubnetSize := r.AllocSubnetLen - r.SubnetPoolLen
-	oper := AutoSubnetOperResource{StateDriver: r.StateDriver(), Id: r.Id(),
-		FreeSubnets: netutils.CreateBitset(allocSubnetSize).Complement()}
+	oper := &AutoSubnetOperResource{FreeSubnets: netutils.CreateBitset(allocSubnetSize).Complement()}
+	oper.StateDriver = r.StateDriver
+	oper.Id = r.Id
 	err = oper.Write()
 	if err != nil {
 		return err
@@ -143,8 +109,9 @@ func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
 }
 
 func (r *AutoSubnetCfgResource) Deinit() {
-	oper := AutoSubnetOperResource{StateDriver: r.StateDriver()}
-	err := oper.Read(r.Id())
+	oper := &AutoSubnetOperResource{}
+	oper.StateDriver = r.StateDriver
+	err := oper.Read(r.Id)
 	if err != nil {
 		// continue cleanup
 	} else {
@@ -162,8 +129,9 @@ func (r *AutoSubnetCfgResource) Description() string {
 }
 
 func (r *AutoSubnetCfgResource) Allocate() (interface{}, error) {
-	oper := &AutoSubnetOperResource{StateDriver: r.StateDriver()}
-	err := oper.Read(r.Id())
+	oper := &AutoSubnetOperResource{}
+	oper.StateDriver = r.StateDriver
+	err := oper.Read(r.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +159,9 @@ func (r *AutoSubnetCfgResource) Allocate() (interface{}, error) {
 }
 
 func (r *AutoSubnetCfgResource) Deallocate(value interface{}) error {
-	oper := &AutoSubnetOperResource{StateDriver: r.StateDriver()}
-	err := oper.Read(r.Id())
+	oper := &AutoSubnetOperResource{}
+	oper.StateDriver = r.StateDriver
+	err := oper.Read(r.Id)
 	if err != nil {
 		return err
 	}
@@ -227,9 +196,8 @@ func (r *AutoSubnetCfgResource) Deallocate(value interface{}) error {
 }
 
 type AutoSubnetOperResource struct {
-	StateDriver core.StateDriver `json:"-"`
-	Id          string           `json:"id"`
-	FreeSubnets *bitset.BitSet   `json:"freeSubnets"`
+	core.CommonState
+	FreeSubnets *bitset.BitSet `json:"freeSubnets"`
 }
 
 func (r *AutoSubnetOperResource) Write() error {
@@ -240,6 +208,11 @@ func (r *AutoSubnetOperResource) Write() error {
 func (r *AutoSubnetOperResource) Read(id string) error {
 	key := fmt.Sprintf(SUBNET_RSRC_OPER_PATH, id)
 	return r.StateDriver.ReadState(key, r, json.Unmarshal)
+}
+
+func (r *AutoSubnetOperResource) ReadAll() ([]core.State, error) {
+	return r.StateDriver.ReadAllState(SUBNET_RSRC_OPER_PATH_PREFIX, r,
+		json.Unmarshal)
 }
 
 func (r *AutoSubnetOperResource) Clear() error {

@@ -17,7 +17,6 @@ package resources
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 
 	"github.com/contiv/netplugin/core"
@@ -57,24 +56,31 @@ func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, boo
 				desc)}
 	}
 
-	rsrc := reflect.New(rsrcType).Interface().(core.Resource)
-	rsrc.SetId(id)
-	rsrc.SetStateDriver(core.StateDriver(ra.Etcd))
+	val := reflect.New(rsrcType)
+	// sanity checks
+	if !val.Elem().FieldByName("CommonState").IsValid() {
+		panic(fmt.Sprintf("The state structure %v is missing core.CommonState", rsrcType))
+		return nil, false, &core.Error{Desc: fmt.Sprintf("The state structure %v is missing core.CommonState", rsrcType)}
+	}
+	//the following works as every core.State is expected to embed core.CommonState struct
+	val.Elem().FieldByName("CommonState").FieldByName("StateDriver").Set(reflect.ValueOf(ra.Etcd))
+	val.Elem().FieldByName("CommonState").FieldByName("Id").Set(reflect.ValueOf(id))
 
+	rsrc := val.Interface().(core.Resource)
 	rsrcs, err := rsrc.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
-		log.Printf("ReadAll failed: %q", err)
 		return nil, alreadyExists, err
 	} else if err != nil {
 		// set the slice as empty in case of 'key not found' error
 		rsrcs = []core.State{}
 	}
 
-	for _, s := range rsrcs {
-		r := s.(core.Resource)
-		if r.Id() == id {
+	for _, r := range rsrcs {
+		//the following works as every core.State is expected to embed core.CommonState struct
+		cs := reflect.ValueOf(r).Elem().FieldByName("CommonState").Interface().(core.CommonState)
+		if cs.Id == id {
 			alreadyExists = true
-			return r, alreadyExists, nil
+			return r.(core.Resource), alreadyExists, nil
 		}
 	}
 	return rsrc, alreadyExists, nil
