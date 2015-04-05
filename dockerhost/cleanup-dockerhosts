@@ -1,0 +1,20 @@
+
+#!/bin/bash
+
+num_nodes=1
+if [ -z "$CONTIV_NODES" ];
+then 
+    num_nodes=1
+else
+    num_nodes=$CONTIV_NODES
+fi
+echo $num_nodes
+
+for i in `seq 1 $num_nodes`; 
+do
+    hostname="netplugin-node$i"
+    echo "Cleaning $hostname"
+    docker exec $hostname service docker stop
+    docker rm -f $hostname
+    ip link delete $i-ext
+done
