@@ -19,7 +19,8 @@ Now start a shell within any of the "host containers" using following convenient
 docker-sh netplugin-node<x>
 ```
 
-Launch containers inside the "host containers" and post the netplugin cfg the same way you do on VMs . 
+Start netplugin, post netplugin config and launch containers inside the "host containers" the same way you do on VMs. 
+Note : currently the demo is working only if config is posted before containers are started .. need to debug why the reverse is not working. 
 
 To cleanup all the docker hosts and the virtual interfaces created do 
   ```
@@ -34,27 +35,27 @@ Example for testing TwoHostMultiVlan you can do :
   export CONTIV_NODES=2
   start-dockerhosts
   ```
+
+2. Load the netplugin configuration
+  ```
+  docker-sh netplugin-node1
+  /netplugin/bin/netdcli -cfg /netplugin/examples/two_hosts_multiple_vlans_nets.json
+  ```
   
-2. Launch container1 on host1
+3. Launch container1 on host1
   
   ```
   docker-sh netplugin-node1
   docker run -it --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash
   ```
   
-3. Launch container3 on host2
+4. Launch container3 on host2
 
   ```
   docker-sh netplugin-node2
   docker run -it --name=myContainer3 --hostname=myContainer1 ubuntu /bin/bash
   ```
 
-4. Load the netplugin configuration
-  ```
-  docker-sh netplugin-node1
-  /netplugin/bin/netdcli -cfg /netplugin/examples/two_hosts_multiple_vlans_nets.json
-  ```
-  
 5. Test connectivity between the containers using ping. Go to the shell for container1
   ```
   root@myContainer1:/# ping -c3 11.1.2.2
