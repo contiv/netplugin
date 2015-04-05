@@ -26,7 +26,7 @@ for i in `seq 1 $num_nodes`;
 do
     hostname="netplugin-node$i"
     echo "Starting $hostname"
-    docker run -d -i -t --name $hostname --privileged -v /var/lib/docker -v $netplugin_path:/netplugin ubuntu_netplugin bash -c "/netplugin/dockerhost/start-service.sh & bash"
+    docker run -d -i -t --name $hostname --privileged -v /var/lib/docker -v $netplugin_path:/netplugin sachja/ubuntu_netplugin bash -c "/netplugin/dockerhost/start-service.sh & bash"
     nsenter -t $(docker-pid $hostname) -n hostname $hostname
     ip link add $i-int type veth peer name $i-ext
     brctl addif br-em1 $i-ext
