@@ -15,6 +15,7 @@ The steps to launch docker hosts are :
 This will start CONTIV_NODES number of containers with docker image called ubuntu_netplugin which is just ubuntu image with docker and ovs installed. 
 
 Now start a shell within any of the "host containers" using following convenient wrapper around nsenter : 
+
 docker-sh netplugin-node<x>
 
 Launch containers inside the "host containers" and post the netplugin cfg the same way you do on VMs 
