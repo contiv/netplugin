@@ -28,8 +28,6 @@ import (
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
-	"github.com/contiv/netplugin/gstate"
-	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
 )
 
@@ -46,56 +44,6 @@ type cliOpts struct {
 	publishVtep bool
 }
 
-func getVtepName(netId, hostLabel string) string {
-	return netId + "-" + hostLabel
-}
-
-func createDeleteVtep(netPlugin *plugin.NetPlugin, netId, preValue string,
-	opts cliOpts) error {
-	var err error
-
-	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: netPlugin.StateDriver}
-	err = cfgNet.Read(netId)
-	if err != nil {
-		return err
-	}
-
-	gOper := &gstate.Oper{StateDriver: netPlugin.StateDriver}
-	err = gOper.Read(cfgNet.Tenant)
-	if err != nil {
-		return err
-	}
-	if gOper.DefaultNetType != "vxlan" {
-		return nil
-	}
-
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
-	epCfg.Id = getVtepName(netId, opts.hostLabel)
-	if preValue != "" {
-		err = epCfg.Clear()
-		if err != nil {
-			log.Printf("error '%s' deleting ep %s \n", err, epCfg.Id)
-		}
-	} else {
-		err = epCfg.Read(epCfg.Id)
-		if err != nil {
-			epCfg.HomingHost = opts.hostLabel
-			epCfg.VtepIp, err = netutils.GetLocalIp()
-			if err != nil {
-				log.Printf("error '%s' getting local IP \n", err)
-			} else {
-				epCfg.NetId = netId
-				err = epCfg.Write()
-				if err != nil {
-					log.Printf("error '%s' adding epCfg %v \n", epCfg)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 func skipHost(vtepIp, homingHost, myHostLabel string) bool {
 	return (vtepIp == "" && homingHost != myHostLabel ||
 		vtepIp != "" && homingHost == myHostLabel)
@@ -103,81 +51,31 @@ func skipHost(vtepIp, homingHost, myHostLabel string) bool {
 
 func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	opts cliOpts) error {
-	gCfgs, err := gstate.ReadAllGlobalCfg(netPlugin.StateDriver)
-	if err != nil {
-		return err
-	}
-	for idx, gCfg := range gCfgs {
-		log.Printf("read global key[%d] %s, populating state \n", idx, gCfg.Tenant)
-		processGlobalEvent(netPlugin, gCfg.Tenant, "")
-	}
-
-	var netCfgs []*drivers.OvsCfgNetworkState
-	netCfgs, err = drivers.ReadAllOvsCfgNetworks(netPlugin.StateDriver)
+	readNet := &drivers.OvsCfgEndpointState{}
+	readNet.StateDriver = netPlugin.StateDriver
+	netCfgs, err := readNet.ReadAll()
 	if err != nil {
 		return err
 	}
 	for idx, netCfg := range netCfgs {
-		log.Printf("read net key[%d] %s, populating state \n", idx, netCfg.Id)
-		processNetEvent(netPlugin, netCfg.Id, "", opts)
+		net := netCfg.(*drivers.OvsCfgNetworkState)
+		log.Printf("read net key[%d] %s, populating state \n", idx, net.Id)
+		processNetEvent(netPlugin, net.Id, "", opts)
 	}
 
-	var epCfgs []*drivers.OvsCfgEndpointState
-	epCfgs, err = drivers.ReadAllOvsCfgEndpoints(netPlugin.StateDriver)
+	readEp := &drivers.OvsCfgEndpointState{}
+	readEp.StateDriver = netPlugin.StateDriver
+	epCfgs, err := readEp.ReadAll()
 	if err != nil {
 		return err
 	}
 	for idx, epCfg := range epCfgs {
-		log.Printf("read ep key[%d] %s, populating state \n", idx, epCfg.Id)
-		processEpEvent(netPlugin, crt, epCfg.Id, "", opts)
+		ep := epCfg.(*drivers.OvsCfgEndpointState)
+		log.Printf("read ep key[%d] %s, populating state \n", idx, ep.Id)
+		processEpEvent(netPlugin, crt, ep.Id, "", opts)
 	}
 
 	return nil
-}
-
-func processGlobalEvent(netPlugin *plugin.NetPlugin, tenant, preValue string) (err error) {
-	var gOper *gstate.Oper
-
-	if preValue != "" {
-		gOper := &gstate.Oper{StateDriver: netPlugin.StateDriver}
-		err = gOper.Read(tenant)
-		if err != nil {
-			// already deleted
-			log.Printf("Tenant '%s' already deleted \n", tenant)
-			err = nil
-		} else {
-			err = gOper.Clear()
-		}
-
-		return
-	}
-
-	gOper = &gstate.Oper{StateDriver: netPlugin.StateDriver}
-	err = gOper.Read(tenant)
-	if err == nil {
-		// already created
-		return
-	}
-
-	gCfg := &gstate.Cfg{StateDriver: netPlugin.StateDriver}
-	err = gCfg.Read(tenant)
-	if err != nil {
-		log.Printf("Error '%s' reading tenant %s \n", err, tenant)
-		return
-	}
-
-	gOper, err = gCfg.Process()
-	if err != nil {
-		log.Printf("Error '%s' updating the config %v \n", err, gCfg)
-		return
-	}
-
-	err = gOper.Write()
-	if err != nil {
-		log.Printf("error '%s' updating goper state %v \n", err, gOper)
-	}
-
-	return
 }
 
 func processNetEvent(netPlugin *plugin.NetPlugin, netId, preValue string,
@@ -196,9 +94,6 @@ func processNetEvent(netPlugin *plugin.NetPlugin, netId, preValue string,
 	} else {
 		log.Printf("Network operation %s succeeded", operStr)
 	}
-	if opts.publishVtep {
-		createDeleteVtep(netPlugin, netId, preValue, opts)
-	}
 
 	return
 }
@@ -208,7 +103,8 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	var epCtx crtclient.ContainerEpContext
 	var err error
 
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: state}
+	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg.StateDriver = state
 	err = epCfg.Read(epId)
 	if err != nil {
 		return &epCtx, nil
@@ -216,7 +112,8 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	epCtx.NewContName = epCfg.ContName
 	epCtx.NewAttachUUID = epCfg.AttachUUID
 
-	cfgNet := &drivers.OvsCfgNetworkState{StateDriver: state}
+	cfgNet := &drivers.OvsCfgNetworkState{}
+	cfgNet.StateDriver = state
 	err = cfgNet.Read(epCfg.NetId)
 	if err != nil {
 		return &epCtx, err
@@ -224,7 +121,8 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	epCtx.DefaultGw = cfgNet.DefaultGw
 	epCtx.SubnetLen = cfgNet.SubnetLen
 
-	operEp := &drivers.OvsOperEndpointState{StateDriver: state}
+	operEp := &drivers.OvsOperEndpointState{}
+	operEp.StateDriver = state
 	err = operEp.Read(epId)
 	if err != nil {
 		return &epCtx, nil
@@ -242,7 +140,9 @@ func getContainerEpContextByContName(state core.StateDriver, contName string) (
 	var epCtx *crtclient.ContainerEpContext
 
 	contName = strings.TrimPrefix(contName, "/")
-	epCfgs, err := drivers.ReadAllOvsCfgEndpoints(state)
+	readEp := &drivers.OvsCfgEndpointState{}
+	readEp.StateDriver = state
+	epCfgs, err := readEp.ReadAll()
 	if err != nil {
 		return
 	}
@@ -250,14 +150,15 @@ func getContainerEpContextByContName(state core.StateDriver, contName string) (
 	epCtxs = make([]crtclient.ContainerEpContext, len(epCfgs))
 	idx := 0
 	for _, epCfg := range epCfgs {
-		if epCfg.ContName != contName {
+		cfg := epCfg.(*drivers.OvsCfgEndpointState)
+		if cfg.ContName != contName {
 			continue
 		}
 
-		epCtx, err = getEndpointContainerContext(state, epCfg.Id)
+		epCtx, err = getEndpointContainerContext(state, cfg.Id)
 		if err != nil {
 			log.Printf("error '%s' getting epCfgState for ep %s \n",
-				err, epCfg.Id)
+				err, cfg.Id)
 			return epCtxs[:idx], nil
 		}
 		epCtxs[idx] = *epCtx
@@ -294,7 +195,8 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	homingHost := ""
 	vtepIp := ""
 
-	epCfg := &drivers.OvsCfgEndpointState{StateDriver: netPlugin.StateDriver}
+	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg.StateDriver = netPlugin.StateDriver
 	err = epCfg.Read(epId)
 	if preValue == "" {
 		if err != nil {
@@ -308,7 +210,8 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 		if err != nil {
 			deleteOp = true
 		}
-		epOper := &drivers.OvsOperEndpointState{StateDriver: netPlugin.StateDriver}
+		epOper := &drivers.OvsOperEndpointState{}
+		epOper.StateDriver = netPlugin.StateDriver
 		err = epOper.Read(epId)
 		if err != nil {
 			log.Printf("Failed to read oper for ep %s, err '%s' \n", epId, err)
@@ -402,10 +305,6 @@ func handleEtcdEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 
 		log.Printf("Received event for key: %s", node.Key)
 		switch key := node.Key; {
-		case strings.HasPrefix(key, gstate.CFG_GLOBAL_PREFIX):
-			tenant := strings.TrimPrefix(key, gstate.CFG_GLOBAL_PREFIX)
-			processGlobalEvent(netPlugin, tenant, preValue)
-
 		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
 			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
 			processNetEvent(netPlugin, netId, preValue, opts)

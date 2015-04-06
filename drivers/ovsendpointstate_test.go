@@ -70,13 +70,19 @@ func (d *testEpStateDriver) ReadState(key string, value core.State,
 	return d.validateKey(key)
 }
 
+func (d *testEpStateDriver) ReadAllState(key string, value core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testEpStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validateKey(key)
 }
 
 func TestOvsCfgEndpointStateRead(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{StateDriver: epStateDriver}
+	epCfg := &OvsCfgEndpointState{}
+	epCfg.StateDriver = epStateDriver
 
 	err := epCfg.Read(testEpId)
 	if err != nil {
@@ -85,7 +91,9 @@ func TestOvsCfgEndpointStateRead(t *testing.T) {
 }
 
 func TestOvsCfgEndpointStateWrite(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{StateDriver: epStateDriver, Id: testEpId}
+	epCfg := &OvsCfgEndpointState{}
+	epCfg.StateDriver = epStateDriver
+	epCfg.Id = testEpId
 
 	err := epCfg.Write()
 	if err != nil {
@@ -94,7 +102,9 @@ func TestOvsCfgEndpointStateWrite(t *testing.T) {
 }
 
 func TestOvsCfgEndpointStateClear(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{StateDriver: epStateDriver, Id: testEpId}
+	epCfg := &OvsCfgEndpointState{}
+	epCfg.StateDriver = epStateDriver
+	epCfg.Id = testEpId
 
 	err := epCfg.Clear()
 	if err != nil {
@@ -103,7 +113,8 @@ func TestOvsCfgEndpointStateClear(t *testing.T) {
 }
 
 func TestOvsOperEndpointStateRead(t *testing.T) {
-	epOper := &OvsOperEndpointState{StateDriver: epStateDriver}
+	epOper := &OvsOperEndpointState{}
+	epOper.StateDriver = epStateDriver
 
 	err := epOper.Read(testEpId)
 	if err != nil {
@@ -112,7 +123,9 @@ func TestOvsOperEndpointStateRead(t *testing.T) {
 }
 
 func TestOvsOperEndpointStateWrite(t *testing.T) {
-	epOper := &OvsOperEndpointState{StateDriver: epStateDriver, Id: testEpId}
+	epOper := &OvsOperEndpointState{}
+	epOper.StateDriver = epStateDriver
+	epOper.Id = testEpId
 
 	err := epOper.Write()
 	if err != nil {
@@ -121,7 +134,9 @@ func TestOvsOperEndpointStateWrite(t *testing.T) {
 }
 
 func TestOvsOperEndpointStateClear(t *testing.T) {
-	epOper := &OvsOperEndpointState{StateDriver: epStateDriver, Id: testEpId}
+	epOper := &OvsOperEndpointState{}
+	epOper.StateDriver = epStateDriver
+	epOper.Id = testEpId
 
 	err := epOper.Clear()
 	if err != nil {

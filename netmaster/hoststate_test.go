@@ -70,13 +70,19 @@ func (d *testHostStateDriver) ReadState(key string, value core.State,
 	return d.validateKey(key)
 }
 
+func (d *testHostStateDriver) ReadAllState(key string, value core.State,
+	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
 func (d *testHostStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validateKey(key)
 }
 
 func TestMasterHostConfigRead(t *testing.T) {
-	hostCfg := &MasterHostConfig{StateDriver: hostState}
+	hostCfg := &MasterHostConfig{}
+	hostCfg.StateDriver = hostState
 
 	err := hostCfg.Read(testHostId)
 	if err != nil {
@@ -85,7 +91,9 @@ func TestMasterHostConfigRead(t *testing.T) {
 }
 
 func TestMasterHostConfigWrite(t *testing.T) {
-	hostCfg := &MasterHostConfig{StateDriver: hostState, Name: testHostId}
+	hostCfg := &MasterHostConfig{}
+	hostCfg.StateDriver = hostState
+	hostCfg.Name = testHostId
 
 	err := hostCfg.Write()
 	if err != nil {
@@ -94,7 +102,9 @@ func TestMasterHostConfigWrite(t *testing.T) {
 }
 
 func TestMasterHostConfigClear(t *testing.T) {
-	hostCfg := &MasterHostConfig{StateDriver: hostState, Name: testHostId}
+	hostCfg := &MasterHostConfig{}
+	hostCfg.StateDriver = hostState
+	hostCfg.Name = testHostId
 
 	err := hostCfg.Clear()
 	if err != nil {

@@ -87,93 +87,123 @@ func epPresent(allCfg *netmaster.Config, epId string) bool {
 
 func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 
-	epCfgs, err := drivers.ReadAllOvsCfgEndpoints(stateDriver)
-	if err != nil {
-		return core.ErrIfKeyExists(err)
+	readEp := &drivers.OvsCfgEndpointState{}
+	readEp.StateDriver = stateDriver
+	epCfgs, err := readEp.ReadAll()
+	if core.ErrIfKeyExists(err) != nil {
+		return err
+	} else if err != nil {
+		err = nil
+		epCfgs = []core.State{}
 	}
 	for _, epCfg := range epCfgs {
-		if !epPresent(allCfg, epCfg.Id) {
-			err = netmaster.DeleteEndpointId(stateDriver, epCfg.Id)
-			if err != nil {
-				log.Printf("error '%s' deleting epid %s \n", err, epCfg.Id)
+		cfg := epCfg.(*drivers.OvsCfgEndpointState)
+		if !epPresent(allCfg, cfg.Id) {
+			err1 := netmaster.DeleteEndpointId(stateDriver, cfg.Id)
+			if err1 != nil {
+				log.Printf("error '%s' deleting epid %s \n", err1, cfg.Id)
+				err = err1
 				continue
 			}
 		}
 	}
 
-	nwCfgs := []*drivers.OvsCfgNetworkState{}
-	nwCfgs, err = drivers.ReadAllOvsCfgNetworks(stateDriver)
-	if err != nil {
-		return nil
+	readNet := &drivers.OvsCfgNetworkState{}
+	readNet.StateDriver = stateDriver
+	nwCfgs, err := readNet.ReadAll()
+	if core.ErrIfKeyExists(err) != nil {
+		return err
+	} else if err != nil {
+		err = nil
+		nwCfgs = []core.State{}
 	}
 	for _, nwCfg := range nwCfgs {
-		if !netPresent(allCfg, nwCfg.Id) {
-			err = netmaster.DeleteNetworkId(stateDriver, nwCfg.Id)
-			if err != nil {
-				log.Printf("error '%s' deleting net %s \n", err, nwCfg.Id)
+		cfg := nwCfg.(*drivers.OvsCfgNetworkState)
+		if !netPresent(allCfg, cfg.Id) {
+			err1 := netmaster.DeleteNetworkId(stateDriver, cfg.Id)
+			if err1 != nil {
+				log.Printf("error '%s' deleting net %s \n", err1, cfg.Id)
+				err = err1
 				continue
 			}
 		}
 	}
 
-	gCfgs := []*gstate.Cfg{}
-	gCfgs, err = gstate.ReadAllGlobalCfg(stateDriver)
-	if err != nil {
-		return nil
+	readGlbl := &gstate.Cfg{}
+	readGlbl.StateDriver = stateDriver
+	gCfgs, err := readGlbl.ReadAll()
+	if core.ErrIfKeyExists(err) != nil {
+		return err
+	} else if err != nil {
+		err = nil
+		gCfgs = []core.State{}
 	}
 	for _, gCfg := range gCfgs {
-		if !tenantPresent(allCfg, gCfg.Tenant) {
-			err = netmaster.DeleteTenantId(stateDriver, gCfg.Tenant)
-			if err != nil {
-				log.Printf("error '%s' deleting tenant %s \n", err, gCfg.Tenant)
+		cfg := gCfg.(*gstate.Cfg)
+		if !tenantPresent(allCfg, cfg.Tenant) {
+			err1 := netmaster.DeleteTenantId(stateDriver, cfg.Tenant)
+			if err1 != nil {
+				log.Printf("error '%s' deleting tenant %s \n", err1, cfg.Tenant)
+				err = err1
 				continue
 			}
 		}
 	}
 
-	hostCfgs, err := netmaster.ReadAllMasterHostCfg(stateDriver)
-	if err != nil {
+	readHost := &netmaster.MasterHostConfig{}
+	readHost.StateDriver = stateDriver
+	hostCfgs, err := readHost.ReadAll()
+	if core.ErrIfKeyExists(err) != nil {
 		return err
+	} else if err != nil {
+		err = nil
+		hostCfgs = []core.State{}
 	}
 	for _, hostCfg := range hostCfgs {
-		hostName := hostCfg.Name
+		cfg := hostCfg.(*netmaster.MasterHostConfig)
+		hostName := cfg.Name
 		if !hostPresent(allCfg, hostName) {
-			err = netmaster.DeleteHostId(stateDriver, hostName)
-			if err != nil {
-				log.Printf("error '%s' deleting host %s \n", err, hostName)
+			err1 := netmaster.DeleteHostId(stateDriver, hostName)
+			if err1 != nil {
+				log.Printf("error '%s' deleting host %s \n", err1, hostName)
+				err = err1
 				continue
 			}
 		}
 	}
 
-	return nil
+	return err
 }
 
 func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
 	for _, host := range allCfg.Hosts {
-		err := netmaster.CreateHost(stateDriver, &host)
-		if err != nil {
-			log.Printf("error '%s' adding host %s \n", err, host.Name)
+		err1 := netmaster.CreateHost(stateDriver, &host)
+		if err1 != nil {
+			log.Printf("error '%s' adding host %s \n", err1, host.Name)
+			err = err1
 			continue
 		}
 	}
 
 	for _, tenant := range allCfg.Tenants {
-		err := netmaster.CreateTenant(stateDriver, &tenant)
-		if err != nil {
-			log.Printf("error adding tenant '%s' \n", err)
+		err1 := netmaster.CreateTenant(stateDriver, &tenant)
+		if err1 != nil {
+			log.Printf("error adding tenant '%s' \n", err1)
+			err = err1
 			continue
 		}
 
-		err = netmaster.CreateNetworks(stateDriver, &tenant)
-		if err != nil {
-			log.Printf("error adding networks '%s' \n", err)
+		err1 = netmaster.CreateNetworks(stateDriver, &tenant)
+		if err1 != nil {
+			log.Printf("error adding networks '%s' \n", err1)
+			err = err1
 			continue
 		}
 
-		err = netmaster.CreateEndpoints(stateDriver, &tenant)
-		if err != nil {
-			log.Printf("error adding endpoints '%s' \n", err)
+		err1 = netmaster.CreateEndpoints(stateDriver, &tenant)
+		if err1 != nil {
+			log.Printf("error adding endpoints '%s' \n", err1)
+			err = err1
 			continue
 		}
 	}
@@ -183,29 +213,33 @@ func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 
 func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
 	for _, host := range allCfg.Hosts {
-		err := netmaster.DeleteHost(stateDriver, &host)
-		if err != nil {
-			log.Printf("error '%s' deleting host %s \n", err, host.Name)
+		err1 := netmaster.DeleteHost(stateDriver, &host)
+		if err1 != nil {
+			log.Printf("error '%s' deleting host %s \n", err1, host.Name)
+			err = err1
 			continue
 		}
 	}
 
 	for _, tenant := range allCfg.Tenants {
-		err = netmaster.DeleteEndpoints(stateDriver, &tenant)
-		if err != nil {
-			log.Printf("error deleting endpoints '%s' \n", err)
+		err1 := netmaster.DeleteEndpoints(stateDriver, &tenant)
+		if err1 != nil {
+			log.Printf("error deleting endpoints '%s' \n", err1)
+			err = err1
 			continue
 		}
 
-		err = netmaster.DeleteNetworks(stateDriver, &tenant)
-		if err != nil {
-			log.Printf("error deleting networks '%s' \n", err)
+		err1 = netmaster.DeleteNetworks(stateDriver, &tenant)
+		if err1 != nil {
+			log.Printf("error deleting networks '%s' \n", err1)
+			err = err1
 			continue
 		}
 
-		err = netmaster.DeleteTenant(stateDriver, &tenant)
-		if err != nil {
-			log.Printf("error deleting tenant '%s' \n", err)
+		err1 = netmaster.DeleteTenant(stateDriver, &tenant)
+		if err1 != nil {
+			log.Printf("error deleting tenant '%s' \n", err1)
+			err = err1
 			continue
 		}
 	}

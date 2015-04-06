@@ -16,8 +16,6 @@ limitations under the License.
 package singlehost
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/contiv/netplugin/systemtests/utils"
@@ -29,9 +27,9 @@ import (
 func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
-	node := vagrant.GetNodes()[0]
 	//create a single vlan network, with two endpoints
 	jsonCfg :=
 		`{
@@ -58,49 +56,18 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 
 	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
 
-	//start container 1, running a simple wait loop
-	cmdStr := "sudo docker run -d --name=myContainer1 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err := node.RunCommandWithOutput(cmdStr)
+	node := vagrant.GetNodes()[0]
+
+	utils.StartServer(t, node, "myContainer1")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer1"
-		node.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer1"
-		node.RunCommand(cmdStr)
+		utils.DockerCleanup(t, node, "myContainer1")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint orange-myContainer1 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	ipAddress := string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer2 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node.RunCommandWithOutput(cmdStr)
+	ipAddress := utils.GetIpAddress(t, node, "orange-myContainer1")
+	utils.StartClient(t, node, "myContainer2", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer2"
-		node.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer2"
-		node.RunCommand(cmdStr)
+		utils.DockerCleanup(t, node, "myContainer2")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	//verify that the output indicates <100% loss (some loss is expected due to
-	// timing of interface creation and starting ping)
-	if strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping test failed. Output: \n%s\n", output)
-	}
 }
 
 // Testcase:
@@ -109,9 +76,9 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
-	node := vagrant.GetNodes()[0]
 	//create a single vlan network, with two endpoints
 	jsonCfg :=
 		`{
@@ -150,49 +117,28 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 
 	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
 
-	//start container 1, running a simple wait loop
-	cmdStr := "sudo docker run -d --name=myContainer1 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err := node.RunCommandWithOutput(cmdStr)
+	node := vagrant.GetNodes()[0]
+	utils.StartServer(t, node, "myContainer1")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer1"
-		node.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer1"
-		node.RunCommand(cmdStr)
+		utils.DockerCleanup(t, node, "myContainer1")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint orange-myContainer1 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	ipAddress := string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer2 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node.RunCommandWithOutput(cmdStr)
+	ipAddress := utils.GetIpAddress(t, node, "orange-myContainer1")
+	utils.StartClient(t, node, "myContainer2", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer2"
-		node.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer2"
-		node.RunCommand(cmdStr)
+		utils.DockerCleanup(t, node, "myContainer2")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//verify that the output indicates <100% loss (some loss is expected due to
-	// timing of interface creation and starting ping)
-	if strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping test failed. Output: \n%s\n", output)
-	}
+	utils.StartServer(t, node, "myContainer4")
+	defer func() {
+		utils.DockerCleanup(t, node, "myContainer4")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node, "purple-myContainer4")
+	utils.StartClient(t, node, "myContainer3", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node, "myContainer3")
+	}()
 }
 
 // Testcase:
@@ -201,9 +147,9 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.StopOnError(t.Failed())
 	}()
 
-	node := vagrant.GetNodes()[0]
 	//create a single vlan network, with two endpoints
 	jsonCfg :=
 		`{
@@ -234,42 +180,16 @@ func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
 
 	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
 
-	//start container 1, running a simple wait loop
-	cmdStr := "sudo docker run -d --name=myContainer1 ubuntu /bin/bash -c 'mkfifo foo && < foo'"
-	output, err := node.RunCommandWithOutput(cmdStr)
+	node := vagrant.GetNodes()[0]
+
+	utils.StartServer(t, node, "myContainer1")
 	defer func() {
-		cmdStr = "sudo docker kill myContainer1"
-		node.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer1"
-		node.RunCommand(cmdStr)
+		utils.DockerCleanup(t, node, "myContainer1")
 	}()
-	if err != nil {
-		t.Fatalf("Failed to launch the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 
-	//start container 2 with ping for container 1
-	cmdStr = "netdcli -oper get -construct endpoint orange-myContainer1 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
-	output, err = node.RunCommandWithOutput(cmdStr)
-
-	if err != nil || string(output) == "" {
-		t.Fatalf("Failed to get ip address of the container. Error: %s, Output: \n%s\n",
-			err, output)
-	}
-
-	//verify that the output indicates 100% loss
-	ipAddress := string(output)
-	cmdStr = fmt.Sprintf("sudo docker run --name=myContainer2 ubuntu /bin/bash -c 'ping -c5 %s'",
-		ipAddress)
-	output, err = node.RunCommandWithOutput(cmdStr)
+	ipAddress := utils.GetIpAddress(t, node, "orange-myContainer1")
+	utils.StartClientFailure(t, node, "myContainer2", ipAddress)
 	defer func() {
-		cmdStr = "sudo docker kill myContainer2"
-		node.RunCommand(cmdStr)
-		cmdStr = "sudo docker rm myContainer2"
-		node.RunCommand(cmdStr)
+		utils.DockerCleanup(t, node, "myContainer2")
 	}()
-	if err == nil || !strings.Contains(string(output), ", 100% packet loss,") {
-		t.Fatalf("Ping succeeded, expected it to fail. Error: %s, Output: \n%s\n",
-			err, output)
-	}
 }

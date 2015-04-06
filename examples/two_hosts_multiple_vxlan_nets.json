@@ -13,7 +13,7 @@
         "DefaultNetType"            : "vxlan",
         "SubnetPool"                : "11.1.0.0/16",
         "AllocSubnetLen"            : 24,
-        "Vxlans"                    : "10001-20000",
+        "Vxlans"                    : "10001-14000",
         "Networks"  : [ {
             "Name"                  : "orange",
             "Endpoints" : [

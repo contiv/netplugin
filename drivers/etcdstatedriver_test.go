@@ -23,26 +23,6 @@ import (
 	"github.com/contiv/netplugin/core"
 )
 
-// setup a etcd cluster, run tests and then cleanup the cluster
-// XXX: enabled once I upgrade to golang 1.4
-//func TestMain(m *testing.M) {
-//
-//	// start etcd
-//	proc, err := os.StartProcess("etcd", []string{}, nil)
-//	if err != nil {
-//		log.Printf("failed to start etcd. Error: %s", err)
-//		os.Exit(-1)
-//	}
-//
-//	//run the tests
-//	exitC := m.Run()
-//
-//	// stop etcd
-//	proc.Kill()
-//
-//	os.Exit(exitC)
-//}
-
 func setupDriver(t *testing.T) *EtcdStateDriver {
 	etcdConfig := &EtcdStateDriverConfig{}
 	etcdConfig.Etcd.Machines = []string{"http://127.0.0.1:4001"}
@@ -123,6 +103,10 @@ func (s *testState) Write() error {
 
 func (s *testState) Read(id string) error {
 	return &core.Error{Desc: "Should not be called!!"}
+}
+
+func (s *testState) ReadAll() ([]core.State, error) {
+	return nil, &core.Error{Desc: "Should not be called!!"}
 }
 
 func (s *testState) Clear() error {

@@ -31,7 +31,26 @@ const (
 	EXAMPLES_DIR = "/src/github.com/contiv/netplugin/examples/"
 )
 
+func OkToCleanup(testFailed bool) bool {
+	// don't cleanup if stop-on-error is set
+	if os.Getenv("CONTIV_SOE") != "" && testFailed {
+		return false
+	}
+	return true
+}
+
+func StopOnError(testFailed bool) {
+	if os.Getenv("CONTIV_SOE") != "" && testFailed {
+		panic("Stopping tests as stop on error was set. Please check test logs to determine the actual failure. The system is left in same state for debugging.")
+	}
+}
+
 func ConfigCleanupCommon(t *testing.T, nodes []VagrantNode) {
+
+	if !OkToCleanup(t.Failed()) {
+		return
+	}
+
 	for _, node := range nodes {
 		cmdStr := "sudo $GOSRC/github.com/contiv/netplugin/scripts/cleanup"
 		output, err := node.RunCommandWithOutput(cmdStr)
