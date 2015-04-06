@@ -14,7 +14,7 @@ for i in `seq 1 $num_nodes`;
 do
     hostname="netplugin-node$i"
     echo "Cleaning $hostname"
-    docker exec $hostname service docker stop
-    docker rm -f $hostname
-    ip link delete $i-ext
+    sudo docker exec $hostname service docker stop
+    sudo docker rm -f $hostname
+    sudo ip link delete $i-ext
 done

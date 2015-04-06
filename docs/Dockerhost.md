@@ -3,16 +3,21 @@ https://blog.docker.com/2013/09/docker-can-now-run-within-docker/
 
 The outside docker containers act like physical hosts in our test and are connected using a standard linux bridge. Inside each "host container" we run a namespaced instance of docker, OVS , etcd and netplugin instance. One can now launch containers from within each "host containers" and use netplugin networking to connect them. 
 
-The steps to launch docker hosts are : 
+Prerequisites
+-------------
+The following needs to be installed on the host machine
+1. Docker
+2. nsenter
+3. Linux bridge
 
-1. Compile the netplugin code
-2. Change user to root
-3. Set GOPATH to root of the netplugin code 
-4. Add $GOPATH/dockerhost to PATH
-5. Set CONTIV_NODES to required number of nodes
-6. Run start-dockerhosts
+Step to launch docker hosts are : 
+--------------------------------
+```
+	cd $GOPATH/src/github.com/contiv/netplugin
+	CONTINV_NODES=2 make start-dockerdemo
+```
 
-This will start CONTIV_NODES number of containers with docker image called ubuntu_netplugin which is just ubuntu image with docker and ovs installed. 
+This will start CONTIV_NODES number of containers with docker image called ubuntu_netplugin which is just ubuntu image with docker, etcd and ovs installed. 
 
 Now start a shell within any of the "host containers" using following convenient wrapper around nsenter : 
 ```
@@ -24,7 +29,7 @@ Note : currently the demo is working only if config is posted before containers 
 
 To cleanup all the docker hosts and the virtual interfaces created do 
   ```
-  cleanup-dockerhosts
+  make cleanup-dockerdemo
   ```
   
 Example for testing TwoHostMultiVlan you can do : 
@@ -33,7 +38,7 @@ Example for testing TwoHostMultiVlan you can do :
 
   ```
   export CONTIV_NODES=2
-  start-dockerhosts
+  make start-dockerdemo
   ```
 
 2. Load the netplugin configuration

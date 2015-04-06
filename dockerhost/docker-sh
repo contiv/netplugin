@@ -1,2 +1,0 @@
-#!/bin/bash
-nsenter --target $(docker-pid $1) --mount --uts --ipc --net --pid

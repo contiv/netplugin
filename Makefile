@@ -24,6 +24,12 @@ demo: build
 clean-demo:
 	vagrant destroy -f
 
+start-dockerdemo:
+	scripts/dockerhost/start-dockerhosts
+
+clean-dockerdemo:
+	scripts/dockerhost/cleanup-dockerhosts
+
 unit-test: build
 	CONTIV_HOST_GOBIN=$(HOST_GOBIN) CONTIV_HOST_GOROOT=$(HOST_GOROOT) ./scripts/unittests -vagrant
 
