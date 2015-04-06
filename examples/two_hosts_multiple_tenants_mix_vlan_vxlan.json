@@ -2,12 +2,12 @@
 {
     "Hosts" : [{
         "Name"                      : "host1",
-        "Intf"                      : "eth1",
+        "Intf"                      : "eth2",
         "VtepIp"                    : "192.168.2.10"
     },
     {
         "Name"                      : "host2",
-        "Intf"                      : "eth1",
+        "Intf"                      : "eth2",
         "VtepIp"                    : "192.168.2.11"
     }],
     "Tenants" : [{
