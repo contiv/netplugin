@@ -13,15 +13,15 @@ The following needs to be installed on the host machine
 Step to launch docker hosts are : 
 --------------------------------
 ```
-	cd $GOPATH/src/github.com/contiv/netplugin
+	make build
 	CONTINV_NODES=2 make start-dockerdemo
 ```
 
 This will start CONTIV_NODES number of containers with docker image called ubuntu_netplugin which is just ubuntu image with docker, etcd and ovs installed. 
 
-Now start a shell within any of the "host containers" using following convenient wrapper around nsenter : 
+Now start a shell within any of the "host containers" using following convenience wrapper around nsenter : 
 ```
-docker-sh netplugin-node<x>
+scripts/dockerhost/docker-sh netplugin-node<x>
 ```
 
 Start netplugin, post netplugin config and launch containers inside the "host containers" the same way you do on VMs. 

@@ -8,13 +8,11 @@ brctl addbr br-em1
 ip link set br-em1 up
 
 num_nodes=1
-if [ -z "$CONTIV_NODES" ];
+if [ -n "$CONTIV_NODES" ];
 then 
-    num_nodes=1
-else
     num_nodes=$CONTIV_NODES
 fi
-echo $num_nodes
+echo "Num nodes = "$num_nodes
 
 netplugin_path=$(pwd)
 
