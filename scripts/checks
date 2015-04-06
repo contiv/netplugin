@@ -14,7 +14,7 @@ echo "Checking gofmt..."
 fmtRes=$(gofmt -l ./)
 if [ -n "${fmtRes}" ]; then
     echo -e "gofmt checking failed:\n${fmtRes}"
-#    exit 1
+    exit 1
 fi
 
 echo "All checks passed!!"
