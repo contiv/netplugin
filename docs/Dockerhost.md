@@ -1,4 +1,4 @@
-The multi node container networking can now be tested on a single VM by running docker inside docker. 
+The multi node container networking can be tested on a single VM by running docker inside docker. 
 https://blog.docker.com/2013/09/docker-can-now-run-within-docker/
 
 The outside docker containers act like physical hosts in our test and are connected using a standard linux bridge. Inside each "host container" we run a namespaced instance of docker, OVS , etcd and netplugin instance. One can now launch containers from within each "host containers" and use netplugin networking to connect them. 
@@ -7,8 +7,11 @@ Prerequisites
 -------------
 The following needs to be installed on the host machine
 1. Docker
-2. nsenter
-3. Linux bridge
+2. nsenter  (Pls see https://github.com/jpetazzo/nsenter)
+3. Bridge utils
+```
+	apt-get install bridge-utils
+````
 
 Step to launch docker hosts are : 
 --------------------------------
