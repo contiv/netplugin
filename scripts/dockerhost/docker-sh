@@ -1,0 +1,3 @@
+#!/bin/bash
+scriptdir=`dirname "$BASH_SOURCE"`
+sudo nsenter --target $($scriptdir/docker-pid $1) --mount --uts --ipc --net --pid

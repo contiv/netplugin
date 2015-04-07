@@ -1,0 +1,60 @@
+#!/bin/bash
+
+scriptdir=`dirname "$BASH_SOURCE"`
+echo $scriptdir
+
+# Create a linux bridge between containers
+brctl addbr br-em1
+ip link set br-em1 up
+
+num_nodes=1
+if [ -n "$CONTIV_NODES" ];
+then 
+    num_nodes=$CONTIV_NODES
+fi
+echo "Num nodes = "$num_nodes
+
+netplugin_path=$(pwd)
+
+# Create the docker image for hosts
+sudo docker build -t ubuntu_netplugin $scriptdir
+
+cluster=""
+first="true"
+for i in `seq 1 $num_nodes`; 
+do
+    hostname="netplugin-node$i"
+    echo "Starting $hostname"
+    sudo docker run -d -i -t --name $hostname --privileged -v /var/lib/docker -v $netplugin_path:/netplugin ubuntu_netplugin bash -c "/netplugin/scripts/dockerhost/start-service.sh & bash"
+    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n hostname $hostname
+    sudo ip link add $i-int type veth peer name $i-ext
+    sudo brctl addif br-em1 $i-ext
+    sudo ip link set netns $($scriptdir/docker-pid $hostname) dev $i-int
+    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip link set dev $i-int name eth2
+    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip link set eth2 up
+    if [ $i -gt "1" ]; then
+	cluster=$cluster",";
+    fi
+    sudo docker exec $hostname service docker start
+    addr=$($scriptdir/docker-ip $hostname)
+    cluster=$cluster$hostname"=http://"$addr":2380"
+    first="false"
+done
+
+echo $cluster
+
+for i in `seq 1 $num_nodes`; 
+do
+    hostname="netplugin-node$i"
+    echo "Starting etcd on $hostname"
+    addr=$($scriptdir/docker-ip $hostname)
+    sudo docker exec $hostname etcd -name $hostname -data-dir /opt/etcd -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 -advertise-client-urls http://$addr:2379,http://$addr:4001 -initial-advertise-peer-urls http://$addr:2380 -listen-peer-urls http://$addr:2380 -initial-cluster $cluster -initial-cluster-state new &
+done
+
+for i in `seq 1 $num_nodes`; 
+do
+    hostname="netplugin-node$i"
+    echo "Starting netplugin on $hostname"
+    sudo docker exec $hostname /netplugin/bin/netplugin -host-label host$i &
+done
+

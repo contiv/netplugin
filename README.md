@@ -112,6 +112,9 @@ In the examples directory [two_hosts_multiple_tenants.json](examples/two_hosts_m
 [two_hosts_multiple_tenants_mix_vlan_vxlan.json](examples/two_hosts_multiple_tenants_mix_vlan_vxlan.json) shows the creation of a multi-tenant
 (disjoint, overlapping) networks within a cluster.
 
+####Trying the multi-host tests on a single machine using docker as hosts
+If you cannot launch VM on your host, especially if your host is itself a VM, one can test the multi-host network by simulating hosts using docker containers. Please see [docs/Dockerhost.md](docs/Dockerhost.md) for instructions. 
+
 ####Auto-allocation of IP addresses
 The plugin can automatically manage the IP address pools and assign an appropriate IP address based on the subnet that was associated with the network. However this doesn't take away the flexibility to keep a specific IP address of a container, which can always be specified as shown earlier. To automatically allocate the IP address, just avoid specifying the IP address during endpoint creation or endpoint description
 
