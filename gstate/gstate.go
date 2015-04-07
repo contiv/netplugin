@@ -163,6 +163,48 @@ func (g *Oper) Clear() error {
 	return g.StateDriver.ClearState(key)
 }
 
+// The following function derives the number of available vlan tags.
+// XXX: Since it is run at netmaster, it is guaranteed to have a consistent view of
+// resource usage. Revisit if this assumption changes, as then it might need to
+// be moved to resource-manager
+func deriveAvailableVlans(stateDriver core.StateDriver) (*bitset.BitSet, error) {
+	// available vlans = vlan-space - For each tenant (vlans + local-vxlan-vlans)
+	availableVlans := netutils.CreateBitset(12)
+
+	// get all vlans
+	readVlanRsrc := &resources.AutoVlanCfgResource{}
+	readVlanRsrc.StateDriver = stateDriver
+	vlanRsrcs, err := readVlanRsrc.ReadAll()
+	if core.ErrIfKeyExists(err) != nil {
+		return nil, err
+	} else if err != nil {
+		vlanRsrcs = []core.State{}
+	}
+	for _, rsrc := range vlanRsrcs {
+		cfg := rsrc.(*resources.AutoVlanCfgResource)
+		availableVlans = availableVlans.Union(cfg.Vlans)
+	}
+
+	//get all vxlan-vlans
+	readVxlanRsrc := &resources.AutoVxlanCfgResource{}
+	readVxlanRsrc.StateDriver = stateDriver
+	vxlanRsrcs, err := readVxlanRsrc.ReadAll()
+	if core.ErrIfKeyExists(err) != nil {
+		return nil, err
+	} else if err != nil {
+		vxlanRsrcs = []core.State{}
+	}
+	for _, rsrc := range vxlanRsrcs {
+		cfg := rsrc.(*resources.AutoVxlanCfgResource)
+		availableVlans = availableVlans.Union(cfg.LocalVlans)
+	}
+
+	// subtract to get availableVlans
+	availableVlans = availableVlans.Complement()
+	clearReservedVlans(availableVlans)
+	return availableVlans, nil
+}
+
 func (gc *Cfg) initVxlanBitset(vxlans string) (*resources.AutoVxlanCfgResource,
 	uint, error) {
 
@@ -182,26 +224,30 @@ func (gc *Cfg) initVxlanBitset(vxlans string) (*resources.AutoVxlanCfgResource,
 		vxlanRsrcCfg.Vxlans.Set(uint(vxlan - vxlanRange.Min))
 	}
 
-	// XXX: we should derive free-vlans by looking at all tenants,
-	// instead of just one.
-	vlanRsrcCfg := &resources.AutoVlanCfgResource{}
-	vlanRsrcCfg.StateDriver = gc.StateDriver
-	err = vlanRsrcCfg.Read(gc.Tenant)
-	if core.ErrIfKeyExists(err) != nil {
+	availableVlans, err := deriveAvailableVlans(gc.StateDriver)
+	if err != nil {
 		return nil, 0, err
-	} else if err != nil {
-		// a vlan resource has not been defined, assume entire space available
-		// for vxlan.
-		vlanRsrcCfg.Vlans = netutils.CreateBitset(12)
-		vlanRsrcCfg.Vlans.ClearAll()
 	}
-	// available vlans are the ones that are configured to be not consumed by
-	// vlan networks
-	availableVlans := vlanRsrcCfg.Vlans.Complement()
-	clearReservedVlans(availableVlans)
-	if count := availableVlans.Count(); int(count) < vxlanRange.Max-vxlanRange.Min {
+
+	localVlansReqd := vxlanRange.Max - vxlanRange.Min + 1
+	if count := availableVlans.Count(); int(count) < localVlansReqd {
 		return nil, 0, &core.Error{Desc: fmt.Sprintf("Available free local vlans (%d) is less than possible vxlans (%d)",
 			count, vxlanRange.Max-vxlanRange.Min)}
+	} else if int(count) > localVlansReqd {
+		//only reserve the #vxlan amount of bits
+		var clearBitMarker uint = 0
+		for i := 0; i < localVlansReqd; i++ {
+			clearBitMarker, _ = availableVlans.NextSet(clearBitMarker)
+			clearBitMarker += 1
+		}
+		clearBitMarker += 1
+		for {
+			if bit, ok := availableVlans.NextSet(clearBitMarker); ok {
+				availableVlans.Clear(bit)
+			} else {
+				break
+			}
+		}
 	}
 
 	vxlanRsrcCfg.LocalVlans = availableVlans
