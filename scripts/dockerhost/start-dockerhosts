@@ -32,6 +32,11 @@ do
     sudo ip link set netns $($scriptdir/docker-pid $hostname) dev $i-int
     sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip link set dev $i-int name eth2
     sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip link set eth2 up
+    addr=$((10+$i-1))
+    ip_addr="192.168.2."$addr"/32"
+    echo "IP address = "$ip_addr
+    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip addr add $ip_addr dev eth2
+    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip route add "192.168.2.0/24" dev eth2
     if [ $i -gt "1" ]; then
 	cluster=$cluster",";
     fi
