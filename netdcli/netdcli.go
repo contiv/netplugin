@@ -28,18 +28,31 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
+	"github.com/contiv/netplugin/resources"
 )
 
 const (
-	CLI_CONSTRUCT_GLOBAL = "global"
-	CLI_CONSTRUCT_NW     = "network"
-	CLI_CONSTRUCT_EP     = "endpoint"
-	CLI_OPER_GET         = "get"
-	CLI_OPER_CREATE      = "create"
-	CLI_OPER_DELETE      = "delete"
-	CLI_OPER_ATTACH      = "attach"
-	CLI_OPER_DETACH      = "detach"
+	CLI_CONSTRUCT_GLOBAL      = "global"
+	CLI_CONSTRUCT_NW          = "network"
+	CLI_CONSTRUCT_EP          = "endpoint"
+	CLI_CONSTRUCT_VLAN_RSRC   = "vlan-rsrc"
+	CLI_CONSTRUCT_VXLAN_RSRC  = "vxlan-rsrc"
+	CLI_CONSTRUCT_SUBNET_RSRC = "subnet-rsrc"
+	CLI_OPER_GET              = "get"
+	CLI_OPER_CREATE           = "create"
+	CLI_OPER_DELETE           = "delete"
+	CLI_OPER_ATTACH           = "attach"
+	CLI_OPER_DETACH           = "detach"
 )
+
+var constructs = []string{
+	CLI_CONSTRUCT_GLOBAL,
+	CLI_CONSTRUCT_NW,
+	CLI_CONSTRUCT_EP,
+	CLI_CONSTRUCT_VLAN_RSRC,
+	CLI_CONSTRUCT_VXLAN_RSRC,
+	CLI_CONSTRUCT_SUBNET_RSRC,
+}
 
 var validOperList = []string{CLI_OPER_GET, CLI_OPER_CREATE, CLI_OPER_DELETE, CLI_OPER_ATTACH, CLI_OPER_DETACH}
 
@@ -87,16 +100,18 @@ type Construct struct {
 }
 
 func (c *Construct) String() string {
-	return fmt.Sprintf("%s or %s", CLI_CONSTRUCT_NW, CLI_CONSTRUCT_EP)
+	return fmt.Sprintf("%s", constructs)
 }
 
 func (c *Construct) Set(val string) error {
-	if val != CLI_CONSTRUCT_NW && val != CLI_CONSTRUCT_EP && val != CLI_CONSTRUCT_GLOBAL {
-		return &CliError{Desc: fmt.Sprintf("invalid value for construct (%s). Allowed values: %s",
-			val, c.String())}
+	for _, str := range constructs {
+		if str == val {
+			c.val = val
+			return nil
+		}
 	}
-	c.val = val
-	return nil
+	return &CliError{Desc: fmt.Sprintf("invalid value for construct (%s). Allowed values: %s",
+		val, c.String())}
 }
 
 func (c *Construct) Get() interface{} {
@@ -444,6 +459,30 @@ func executeOpts(opts *cliOpts) error {
 			log.Fatalf("error '%s' \n", err)
 		}
 		return err
+	case CLI_CONSTRUCT_VLAN_RSRC:
+		fallthrough
+	case CLI_CONSTRUCT_VXLAN_RSRC:
+		fallthrough
+	case CLI_CONSTRUCT_SUBNET_RSRC:
+		if opts.oper.Get() == CLI_OPER_GET {
+			if CLI_CONSTRUCT_VLAN_RSRC == opts.construct.Get() {
+				rsrc := &resources.AutoVlanCfgResource{}
+				rsrc.StateDriver = etcdDriver
+				state = rsrc
+			}
+			if CLI_CONSTRUCT_VXLAN_RSRC == opts.construct.Get() {
+				rsrc := &resources.AutoVxlanCfgResource{}
+				rsrc.StateDriver = etcdDriver
+				state = rsrc
+			}
+			if CLI_CONSTRUCT_SUBNET_RSRC == opts.construct.Get() {
+				rsrc := &resources.AutoSubnetCfgResource{}
+				rsrc.StateDriver = etcdDriver
+				state = rsrc
+			}
+		} else {
+			return fmt.Errorf("Only get operation is supported for resources")
+		}
 	}
 
 	switch opts.oper.Get() {
