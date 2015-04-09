@@ -6,8 +6,11 @@ The outside docker containers act like physical hosts in our test and are connec
 Prerequisites
 -------------
 The following needs to be installed on the host machine
+
 1. Docker
+
 2. nsenter  (Pls see https://github.com/jpetazzo/nsenter)
+
 3. Bridge utils
 ```
 	apt-get install bridge-utils
@@ -20,7 +23,7 @@ Step to launch docker hosts are :
 	CONTINV_NODES=2 make start-dockerdemo
 ```
 
-This will start CONTIV_NODES number of containers with docker image called ubuntu_netplugin which is just ubuntu image with docker, etcd and ovs installed. 
+This will start CONTIV_NODES number of containers with docker image called ubuntu_netplugin which is just ubuntu image with docker, etcd and ovs installed. The $GOPATH directory is mounted in the docker host at /gopath directory.
 
 Now start a shell within any of the "host containers" using following convenience wrapper around nsenter : 
 ```
@@ -47,7 +50,7 @@ Example for testing TwoHostMultiVlan you can do :
 2. Load the netplugin configuration
   ```
   docker-sh netplugin-node1
-  /netplugin/bin/netdcli -cfg /netplugin/examples/two_hosts_multiple_vlans_nets.json
+  /gopath/bin/netdcli -cfg /gopath/src/githib.com/contiv/netplugin/examples/two_hosts_multiple_vlans_nets.json
   ```
   
 3. Launch container1 on host1

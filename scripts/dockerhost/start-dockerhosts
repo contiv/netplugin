@@ -14,8 +14,6 @@ then
 fi
 echo "Num nodes = "$num_nodes
 
-netplugin_path=$(pwd)
-
 # Create the docker image for hosts
 sudo docker build -t ubuntu_netplugin $scriptdir
 
@@ -25,7 +23,7 @@ for i in `seq 1 $num_nodes`;
 do
     hostname="netplugin-node$i"
     echo "Starting $hostname"
-    sudo docker run -d -i -t --name $hostname --privileged -v /var/lib/docker -v $netplugin_path:/netplugin ubuntu_netplugin bash -c "/netplugin/scripts/dockerhost/start-service.sh & bash"
+    sudo docker run -d -i -t --name $hostname --privileged -v /var/lib/docker -v $GOPATH:/gopath ubuntu_netplugin bash -c "/gopath/src/github.com/contiv/netplugin/scripts/dockerhost/start-service.sh & bash"
     sudo nsenter -t $($scriptdir/docker-pid $hostname) -n hostname $hostname
     sudo ip link add $i-int type veth peer name $i-ext
     sudo brctl addif br-em1 $i-ext
@@ -60,6 +58,6 @@ for i in `seq 1 $num_nodes`;
 do
     hostname="netplugin-node$i"
     echo "Starting netplugin on $hostname"
-    sudo docker exec $hostname /netplugin/bin/netplugin -host-label host$i &
+    sudo docker exec $hostname /gopath/bin/netplugin -host-label host$i &
 done
 
