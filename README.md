@@ -2,19 +2,21 @@
 
 ## Netplugin
 
-Generic network plugin (experimental) is designed to handle networking use cases in clustered multi-host systems, beyond what is offered by the docker default plugin. Specifically it is designed to handle:
+Generic network plugin (experimental) is designed to handle networking use cases in clustered multi-host systems. It is specifically designed to handle:
 
-- Instantiating policies/ACL/QoS associated with containers
 - Multi-tenant environment where disjoint networks are offered to containers on the same host
-- SDN applications
-- Interoperability with non container environment
+- SDN applications and interoperability with SDN solutions
+- Interoperability with non container environment and hand-off to a physical network
+- Instantiating policies/ACL/QoS associated with containers
 - Multicast or multi-destination dependent applications
 - Integration with existing IPAM tools for migrating customers
+- Handle NIC's capabilities for acceleration (SRIOV/Offload/etc.)
 
 The overall design is _not_ assumed to be complete, because of ongoing work in the docker community with regards to the suitable APIs to interface with network extensions like this. Regardless, flexibility in the design has been taken into consideration to allow using a different state driver for key-value synchronization, or a different flavor of a soft-switch i.e. linux-bridge, MAC VLAN, or OpenvSwitch.
 
-The ability to specify the intent succinctly is the primary goal of the design and thus some of the specified user interface will change, and in some cases functionality will be enhanced to accommodate the same. Design details and future work to be captured in a separate document.
+The ability to specify the intent succinctly is the primary goal of the design and thus some of the specified user interface will change, and in some cases functionality will be enhanced to accommodate the same. Design details and future work is captured in a (docs/design.md)[https://github.com/contiv/netplugin/blob/master/docs/Design.md]
 
+Please do not use this code in production, until code goes through more testing and few critical open issues are resolved.
 
 ###Building and Testing
 
@@ -23,7 +25,7 @@ The ability to specify the intent succinctly is the primary goal of the design a
   `make build`
 
    Note:
-   - building the project requires Go1.4. Instructions to install Go can be found at: https://golang.org/doc/install
+   - building the project requires at least 1.4 Go Version. Instructions to install Go can be found at: https://golang.org/doc/install
 
 - Run unit-tests:
 
@@ -91,7 +93,7 @@ Note:
 
     If we examine the desired network state, it allows specifying the type of network as `vlan`, and subnet pools; those options are not mandatory but can be specified to override default values
 
-5. The configuration remains persistent, i.e. `myContainer1` and `myContainer2` can go and come back and the configuration is restored
+5. The configuration remains persistent, i.e. `myContainer1` and `myContainer2` can be created after applying the above configuration
 
 There are many variations to the above configuration, like creating multiple 
 networks, across multiple hosts, use of VLANs, use of VXLAN, custom overrides
@@ -115,36 +117,12 @@ In the examples directory [two_hosts_multiple_tenants.json](examples/two_hosts_m
 ####Trying the multi-host tests on a single machine using docker as hosts
 If you cannot launch VM on your host, especially if your host is itself a VM, one can test the multi-host network by simulating hosts using docker containers. Please see [docs/Dockerhost.md](docs/Dockerhost.md) for instructions. 
 
-####Auto-allocation of IP addresses
-The plugin can automatically manage the IP address pools and assign an appropriate IP address based on the subnet that was associated with the network. However this doesn't take away the flexibility to keep a specific IP address of a container, which can always be specified as shown earlier. To automatically allocate the IP address, just avoid specifying the IP address during endpoint creation or endpoint description
+#### Resource Allocation
+Various network resources like, IP-Subnets, VLAN/VXLAN-IDs, IP Addresses, can be automatically managed or they can be specified at network/endpoint granularity. To avoid any conflict with rest of the network, it is encouraged to specify the resource ranges, but when not specified, the resource-allocator can pick up the default values.
 
-With this, associating containers with networks will ensure a unique IP address is assigned to the container
-
-While auto-allocation is allowed, per endpoint override to use a specific IP address 
-is available.
-
-####Auto-allocation of Subnets
-The plugin can automatically manage the assignment of IP subnets to be used for various networks that are created. This would require configuring the global pool of IP-subnets to pick the subnet allocation from. The implementation will allow distributed atomicity to avoid conflicts.
-
-While auto-allocation is allowed, per network override to use a specific subnet 
-is available.
-
-####Auto-allocation of VLANs and VXLAN ids
-Allocation of VLAN-ids is specifically useful to allow interacting containers with
-non containerized applications. In many cases the default deployment choice of 
-VLAN/VXLAN can be specified once as part of global configuration along with the
-allowed range (to avoid possible conflict), etc.
-
-Auto allocation of VLAN-ids and VXLAN-id will be done if the network is not specified with the VLAN/VXLAN id, and a global pool is available.
-
-While auto-allocation is allowed, per network override to use a specific VLAN or VXLAN-id is available to handle specific cases.
-
-####Fine grained control
-The JSON interface is the simplest way to express the desired intent, however
-incremental configuration and changes can be done quite easily using the
-interface tools described in [Details](docs/ConfigDetails.md).
+#### Kubernetes Integration
+The plugin code contains the netplugin code that interfaces with kublet to allow network plumbing before a container is scheduled on one of the minions. Please see (Kubernetes Integration)[docs/Kubernetes.md) for details
 
 ### How to Contribute
-We welcome patches and contributions, please hit the GitHub page to open an issue or to submit patches send pull requests.
-Happy hacking!
+Patches and contributions are welcome, please hit the GitHub page to open an issue or to submit patches send pull requests. Please sign your commits, and read CONTRIBUTING.md
 
