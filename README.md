@@ -121,8 +121,8 @@ If you cannot launch VM on your host, especially if your host is itself a VM, on
 Various network resources like, IP-Subnets, VLAN/VXLAN-IDs, IP Addresses, can be automatically managed or they can be specified at network/endpoint granularity. To avoid any conflict with rest of the network, it is encouraged to specify the resource ranges, but when not specified, the resource-allocator can pick up the default values.
 
 #### Kubernetes Integration
-The plugin code contains the netplugin code that interfaces with kublet to allow network plumbing before a container is scheduled on one of the minions. Please see (Kubernetes Integration)[docs/Kubernetes.md) for details
+The plugin code contains the netplugin code that interfaces with kublet to allow network plumbing before a container is scheduled on one of the minions. Please see [Kubernetes Integration](docs/Kubernetes.md) for details
 
 ### How to Contribute
-Patches and contributions are welcome, please hit the GitHub page to open an issue or to submit patches send pull requests. Please sign your commits, and read CONTRIBUTING.md
+Patches and contributions are welcome, please hit the GitHub page to open an issue or to submit patches send pull requests. Please sign your commits, and read [CONTRIBUTING.md](docs/CONTRIBUTING.md)
 
