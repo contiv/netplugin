@@ -52,48 +52,45 @@ Note:
 
     `sudo netplugin`
 
-2. Create two containers `myContainer1` and `myContainer2`
-
-    `sudo docker run -it --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash`
-
-    `sudo docker run -it --name=myContainer2 --hostname=myContainer2 ubuntu /bin/bash`
-
-3. Launch a desired configuration for the two containers
+2. Launch a desired configuration for the two containers
 
     `netdcli -cfg examples/one_host_vlan.json`
 
-4. According to the desired network state `myContainer1` and `myContainer2` now belongs to `orange` network
+3. According to the desired network state `myContainer1` and `myContainer2` now belongs to `orange` network
 
     ```json
     {
-        "Tenants" : [ {
+        "Tenants" : [{
             "Name"                      : "tenant-one",
             "DefaultNetType"            : "vlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "Vlans"                     : "11-28",
-            "Networks"  : [
-            {
+            "Networks"  : [{
                 "Name"                  : "orange",
-                "Endpoints" : [
-                {
+                "Endpoints" : [{
                     "Host"              : "host1",
                     "Container"         : "myContainer1"
-                },
-                {
+                }, {
                     "Host"              : "host1",
                     "Container"         : "myContainer2"
-                }
-                ]
-            }
-            ]
-        } ]
+                }]
+            }]
+        }]
     }
     ```
 
     If we examine the desired network state, it allows specifying the type of network as `vlan`, and subnet pools; those options are not mandatory but can be specified to override default values
 
-5. The configuration remains persistent, i.e. `myContainer1` and `myContainer2` can be created after applying the above configuration
+4. Create the containers `myContainer1` and `myContainer2`
+
+    `sudo docker run -it --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash`
+
+    `sudo docker run -it --name=myContainer2 --hostname=myContainer2 ubuntu /bin/bash`
+
+The creation of containers would automatically apply the network configuration as specified indicated in the network earlier. The same works for multi-host environment. And when containers are scheduled dynamically in a multi-host environment, host information need not be specified explicitly.
+
+5. The configuration remains persistent, i.e. `myContainer1` and `myContainer2` can come and go
 
 There are many variations to the above configuration, like creating multiple 
 networks, across multiple hosts, use of VLANs, use of VXLAN, custom overrides
