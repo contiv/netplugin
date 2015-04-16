@@ -66,6 +66,11 @@ func (s *OvsCfgNetworkState) ReadAll() ([]core.State, error) {
 	return s.StateDriver.ReadAllState(NW_CFG_PATH_PREFIX, s, json.Unmarshal)
 }
 
+func (s *OvsCfgNetworkState) WatchAll(rsps chan core.WatchState) error {
+	return s.StateDriver.WatchAllState(NW_CFG_PATH_PREFIX, s, json.Unmarshal,
+		rsps)
+}
+
 func (s *OvsCfgNetworkState) Clear() error {
 	key := fmt.Sprintf(NW_CFG_PATH, s.Id)
 	return s.StateDriver.ClearState(key)

@@ -269,6 +269,10 @@ func (d *testSubnetRsrcStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return nil, &core.Error{Desc: "Shouldn't be called!"}
 }
 
+func (d *testSubnetRsrcStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
+	return &core.Error{Desc: "not supported"}
+}
+
 func (d *testSubnetRsrcStateDriver) validate(key string, state core.State,
 	op subnetRsrcValidateOp) error {
 	strs := strings.Split(key, "/")
@@ -308,6 +312,11 @@ func (d *testSubnetRsrcStateDriver) ReadState(key string, value core.State,
 func (d *testSubnetRsrcStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
+func (d *testSubnetRsrcStateDriver) WatchAllState(baseKey string, sType core.State,
+	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
+	return &core.Error{Desc: "not supported"}
 }
 
 func (d *testSubnetRsrcStateDriver) WriteState(key string, value core.State,

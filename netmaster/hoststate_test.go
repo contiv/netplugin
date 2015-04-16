@@ -52,6 +52,10 @@ func (d *testHostStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
+func (d *testHostStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
+	return &core.Error{Desc: "not supported"}
+}
+
 func (d *testHostStateDriver) validateKey(key string) error {
 	if key != hostCfgKey {
 		return errors.New(fmt.Sprintf("Unexpected key. recvd: %s "+
@@ -73,6 +77,11 @@ func (d *testHostStateDriver) ReadState(key string, value core.State,
 func (d *testHostStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
+func (d *testHostStateDriver) WatchAllState(baseKey string, sType core.State,
+	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
+	return &core.Error{Desc: "not supported"}
 }
 
 func (d *testHostStateDriver) WriteState(key string, value core.State,

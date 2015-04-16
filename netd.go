@@ -17,7 +17,6 @@ package main
 
 import (
 	"flag"
-	"github.com/contiv/go-etcd/etcd"
 	"github.com/samalba/dockerclient"
 	"log"
 	"os"
@@ -41,7 +40,6 @@ const (
 type cliOpts struct {
 	hostLabel   string
 	nativeInteg bool
-	publishVtep bool
 }
 
 func skipHost(vtepIp, homingHost, myHostLabel string) bool {
@@ -60,7 +58,7 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	for idx, netCfg := range netCfgs {
 		net := netCfg.(*drivers.OvsCfgNetworkState)
 		log.Printf("read net key[%d] %s, populating state \n", idx, net.Id)
-		processNetEvent(netPlugin, net.Id, "", opts)
+		processNetEvent(netPlugin, net.Id, false)
 	}
 
 	readEp := &drivers.OvsCfgEndpointState{}
@@ -72,17 +70,23 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	for idx, epCfg := range epCfgs {
 		ep := epCfg.(*drivers.OvsCfgEndpointState)
 		log.Printf("read ep key[%d] %s, populating state \n", idx, ep.Id)
-		processEpEvent(netPlugin, crt, ep.Id, "", opts)
+		processEpEvent(netPlugin, crt, opts, ep.Id, false)
 	}
 
 	return nil
 }
 
-func processNetEvent(netPlugin *plugin.NetPlugin, netId, preValue string,
-	opts cliOpts) (err error) {
+func processNetEvent(netPlugin *plugin.NetPlugin, netId string,
+	isDelete bool) (err error) {
+	// take a lock to ensure we are programming one event at a time.
+	// Also network create events need to be processed before endpoint creates
+	// and reverse shall happen for deletes. That order is ensured by netmaster,
+	// so we don't need to worry about that here
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
 
 	operStr := ""
-	if preValue != "" {
+	if isDelete {
 		err = netPlugin.DeleteNetwork(netId)
 		operStr = "delete"
 	} else {
@@ -188,28 +192,29 @@ func contAttachPointDeleted(epCtx *crtclient.ContainerEpContext) bool {
 	return false
 }
 
-func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
-	epId string, preValue string, opts cliOpts) (err error) {
+func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
+	epId string, isDelete bool) (err error) {
+	// take a lock to ensure we are programming one event at a time.
+	// Also network create events need to be processed before endpoint creates
+	// and reverse shall happen for deletes. That order is ensured by netmaster,
+	// so we don't need to worry about that here
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
 
-	deleteOp := false
 	homingHost := ""
 	vtepIp := ""
 
-	epCfg := &drivers.OvsCfgEndpointState{}
-	epCfg.StateDriver = netPlugin.StateDriver
-	err = epCfg.Read(epId)
-	if preValue == "" {
+	if !isDelete {
+		epCfg := &drivers.OvsCfgEndpointState{}
+		epCfg.StateDriver = netPlugin.StateDriver
+		err = epCfg.Read(epId)
 		if err != nil {
 			log.Printf("Failed to read config for ep '%s' \n", epId)
 			return
 		}
-
 		homingHost = epCfg.HomingHost
 		vtepIp = epCfg.VtepIp
 	} else {
-		if err != nil {
-			deleteOp = true
-		}
 		epOper := &drivers.OvsOperEndpointState{}
 		epOper.StateDriver = netPlugin.StateDriver
 		err = epOper.Read(epId)
@@ -237,7 +242,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	// log.Printf("read endpoint context: %s \n", contEpContext)
 
 	operStr := ""
-	if deleteOp {
+	if isDelete {
 		err = netPlugin.DeleteEndpoint(epId)
 		operStr = "delete"
 	} else {
@@ -252,7 +257,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	log.Printf("Endpoint operation %s succeeded", operStr)
 
 	// attach or detach an endpoint to a container
-	if deleteOp || contAttachPointDeleted(contEpContext) {
+	if isDelete || contAttachPointDeleted(contEpContext) {
 		err = crt.ContainerIf.DetachEndpoint(contEpContext)
 		if err != nil {
 			log.Printf("Endpoint detach container '%s' from ep '%s' failed . "+
@@ -262,7 +267,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 				contEpContext.CurrContName, epId)
 		}
 	}
-	if !deleteOp && contAttachPointAdded(contEpContext) {
+	if !isDelete && contAttachPointAdded(contEpContext) {
 		// re-read post ep updated state
 		newContEpContext, err1 := getEndpointContainerContext(
 			netPlugin.StateDriver, epId)
@@ -288,35 +293,6 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	}
 
 	return
-}
-
-func handleEtcdEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
-	rsps chan *etcd.Response, stop chan bool, retErr chan error,
-	opts cliOpts) {
-	for {
-		// block on change notifications
-		rsp := <-rsps
-
-		node := rsp.Node
-		preValue := ""
-		if rsp.Node.Value == "" {
-			preValue = rsp.PrevNode.Value
-		}
-
-		log.Printf("Received event for key: %s", node.Key)
-		switch key := node.Key; {
-		case strings.HasPrefix(key, drivers.NW_CFG_PATH_PREFIX):
-			netId := strings.TrimPrefix(key, drivers.NW_CFG_PATH_PREFIX)
-			processNetEvent(netPlugin, netId, preValue, opts)
-
-		case strings.HasPrefix(key, drivers.EP_CFG_PATH_PREFIX):
-			epId := strings.TrimPrefix(key, drivers.EP_CFG_PATH_PREFIX)
-			processEpEvent(netPlugin, crt, epId, preValue, opts)
-		}
-	}
-
-	// shall never come here
-	retErr <- nil
 }
 
 func attachContainer(stateDriver core.StateDriver, crt *crt.Crt, contName string) error {
@@ -402,17 +378,76 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 	}
 }
 
-func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
-	opts cliOpts) error {
+func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
+	rsps chan core.WatchState, retErr chan error) {
+	for {
+		// block on change notifications
+		rsp := <-rsps
 
-	// watch the etcd changes and call the respective plugin APIs
-	rsps := make(chan *etcd.Response)
+		// For now we deal with only create and delete events
+		state := rsp.Curr
+		isDelete := false
+		eventStr := "create"
+		if rsp.Curr == nil {
+			state = rsp.Prev
+			isDelete = true
+			eventStr = "delete"
+		} else if rsp.Prev != nil {
+			// XXX: late host binding modifies the ep-cfg state to update the host-label.
+			// Need to treat it as Create, revisit to see if we can prevent this
+			// by just triggering create once instead.
+			log.Printf("Received a modify event, treating it as a 'create'")
+		}
+
+		if nwCfg, ok := state.(*drivers.OvsCfgNetworkState); ok {
+			log.Printf("Received %q for network: %q", eventStr, nwCfg.Id)
+			processNetEvent(netPlugin, nwCfg.Id, isDelete)
+		}
+		if epCfg, ok := state.(*drivers.OvsCfgEndpointState); ok {
+			log.Printf("Received %q for endpoint: %q", eventStr, epCfg.Id)
+			processEpEvent(netPlugin, crt, opts, epCfg.Id, isDelete)
+		}
+	}
+
+	// shall never come here
+	retErr <- nil
+}
+
+func handleNetworkEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+	opts cliOpts, retErr chan error) {
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, crt, opts, rsps, retErr)
+	cfg := drivers.OvsCfgNetworkState{}
+	cfg.StateDriver = netPlugin.StateDriver
+	retErr <- cfg.WatchAll(rsps)
+	return
+}
+
+func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+	opts cliOpts, retErr chan error) {
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, crt, opts, rsps, retErr)
+	cfg := drivers.OvsCfgEndpointState{}
+	cfg.StateDriver = netPlugin.StateDriver
+	retErr <- cfg.WatchAll(rsps)
+	return
+}
+
+func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
+	retErr chan error) {
+	// monitor network events
+	go handleNetworkEvents(netPlugin, crt, opts, retErr)
+
+	// monitor endpoint events
+	go handleEndpointEvents(netPlugin, crt, opts, retErr)
+}
+
+func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts) error {
+
 	recvErr := make(chan error, 1)
-	stop := make(chan bool, 1)
-	etcdDriver := netPlugin.StateDriver.(*drivers.EtcdStateDriver)
-	etcdClient := etcdDriver.Client
 
-	go handleEtcdEvents(netPlugin, crt, rsps, stop, recvErr, opts)
+	//monitor and process state change events
+	go handleStateEvents(netPlugin, crt, opts, recvErr)
 
 	if !opts.nativeInteg {
 		// start docker client and handle docker events
@@ -422,15 +457,7 @@ func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 			netPlugin, crt)
 	}
 
-	// XXX: todo, restore any config that might have been created till this
-	// point
-	_, err := etcdClient.Watch(drivers.CFG_PATH, 0, RECURSIVE, rsps, stop)
-	if err != nil && err != etcd.ErrWatchStoppedByUser {
-		log.Printf("etcd watch failed. Error: %s", err)
-		return err
-	}
-
-	err = <-recvErr
+	err := <-recvErr
 	if err != nil {
 		log.Printf("Failure occured. Error: %s", err)
 		return err
@@ -458,10 +485,6 @@ func main() {
 		"native-integration",
 		false,
 		"do not listen to container runtime events, because the events are natively integrated into their call sequence and external integration is not required")
-	flagSet.BoolVar(&opts.publishVtep,
-		"publish-vtep",
-		false,
-		"publish the vtep when allowed by global policy")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {

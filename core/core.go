@@ -81,6 +81,11 @@ type EndpointDriver interface {
 	MakeEndpointAddress() (*Address, error)
 }
 
+type WatchState struct {
+	Curr State
+	Prev State
+}
+
 type StateDriver interface {
 	// A state driver provides mechanism for reading/writing state for networks,
 	// endpoints and meta-data managed by the core. The state is assumed to be
@@ -90,15 +95,22 @@ type StateDriver interface {
 	Driver
 	Init(config *Config) error
 	Deinit()
+
+	// XXX: the following raw versions of Read, Write, ReadAll and WatchAll
+	// can perhaps be removed from core API, as no one uses them directly.
 	Write(key string, value []byte) error
 	Read(key string) ([]byte, error)
 	ReadAll(baseKey string) ([][]byte, error)
+	WatchAll(baseKey string, rsps chan [2][]byte) error
+
 	WriteState(key string, value State,
 		marshal func(interface{}) ([]byte, error)) error
 	ReadState(key string, value State,
 		unmarshal func([]byte, interface{}) error) error
 	ReadAllState(baseKey string, stateType State,
 		unmarshal func([]byte, interface{}) error) ([]State, error)
+	WatchAllState(baseKey string, stateType State,
+		unmarshal func([]byte, interface{}) error, rsps chan WatchState) error
 	ClearState(key string) error
 }
 

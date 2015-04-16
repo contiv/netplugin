@@ -17,6 +17,7 @@ package drivers
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/contiv/go-etcd/etcd"
@@ -25,6 +26,10 @@ import (
 
 // implements the StateDriver interface for an etcd based distributed
 // key-value store used to store config and runtime state for the netplugin.
+
+const (
+	RECURSIVE = true
+)
 
 type EtcdStateDriverConfig struct {
 	Etcd struct {
@@ -82,6 +87,54 @@ func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	}
 
 	return values, nil
+}
+
+func (d *EtcdStateDriver) channelEtcdEvents(etcdRsps chan *etcd.Response,
+	rsps chan [2][]byte, retErr chan error) {
+	for {
+		// block on change notifications
+		etcdRsp := <-etcdRsps
+
+		node := etcdRsp.Node
+		log.Printf("Received event for key: %s", node.Key)
+
+		// XXX: The logic below assumes that the node returned is always a node
+		// of interest. Eg: If we set a watch on /a/b/c, then we are mostly
+		// interested in changes in that directory i.e. changes to /a/b/c/d1..d2
+		// This works for now as the constructs like network and endpoints that
+		// need to be watched are organized as above. Need to revisit when
+		// this assumption changes.
+		rsp := [2][]byte{nil, nil}
+		if etcdRsp.Node.Value != "" {
+			rsp[0] = []byte(etcdRsp.Node.Value)
+		}
+		if etcdRsp.PrevNode != nil && etcdRsp.PrevNode.Value != "" {
+			rsp[1] = []byte(etcdRsp.PrevNode.Value)
+		}
+
+		//channel the translated response
+		rsps <- rsp
+	}
+
+	// shall never come here
+	retErr <- nil
+}
+
+func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
+	etcdRsps := make(chan *etcd.Response)
+	stop := make(chan bool, 1)
+	recvErr := make(chan error, 1)
+
+	go d.channelEtcdEvents(etcdRsps, rsps, recvErr)
+
+	_, err := d.Client.Watch(baseKey, 0, RECURSIVE, etcdRsps, stop)
+	if err != nil && err != etcd.ErrWatchStoppedByUser {
+		log.Printf("etcd watch failed. Error: %s", err)
+		return err
+	}
+
+	err = <-recvErr
+	return err
 }
 
 func (d *EtcdStateDriver) ClearState(key string) error {
@@ -144,6 +197,67 @@ func ReadAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
 func (d *EtcdStateDriver) ReadAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return ReadAllStateCommon(d, baseKey, sType, unmarshal)
+}
+
+func (d *EtcdStateDriver) channelStateEvents(sType core.State,
+	unmarshal func([]byte, interface{}) error,
+	byteRsps chan [2][]byte, rsps chan core.WatchState, retErr chan error) {
+	for {
+		// block on change notifications
+		byteRsp := <-byteRsps
+
+		rsp := core.WatchState{nil, nil}
+		for i := 0; i < 2; i++ {
+			if byteRsp[i] == nil {
+				continue
+			}
+			stateType := reflect.TypeOf(sType)
+			value := reflect.New(stateType)
+			err := unmarshal(byteRsp[i], value.Interface())
+			if err != nil {
+				retErr <- err
+				return
+			}
+			if !value.Elem().Elem().FieldByName("CommonState").IsValid() {
+				panic(fmt.Sprintf("The state structure %v is missing core.CommonState",
+					stateType))
+				retErr <- &core.Error{Desc: fmt.Sprintf("The state structure %v is missing core.CommonState",
+					stateType)}
+				return
+			}
+			//the following works as every core.State is expected to embed core.CommonState struct
+			value.Elem().Elem().FieldByName("CommonState").FieldByName("StateDriver").Set(reflect.ValueOf(d))
+			switch i {
+			case 0:
+				rsp.Curr = value.Elem().Interface().(core.State)
+			case 1:
+				rsp.Prev = value.Elem().Interface().(core.State)
+			}
+		}
+
+		//channel the translated response
+		rsps <- rsp
+	}
+
+	// shall never come here
+	retErr <- nil
+}
+
+func (d *EtcdStateDriver) WatchAllState(baseKey string, sType core.State,
+	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
+	byteRsps := make(chan [2][]byte, 1)
+	recvErr := make(chan error, 1)
+
+	go d.channelStateEvents(sType, unmarshal, byteRsps, rsps, recvErr)
+
+	err := d.WatchAll(baseKey, byteRsps)
+	if err != nil {
+		return err
+	}
+
+	err = <-recvErr
+	return err
+
 }
 
 func (d *EtcdStateDriver) WriteState(key string, value core.State,

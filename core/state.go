@@ -7,6 +7,11 @@ type State interface {
 	Clear() error
 }
 
+type WatchableState interface {
+	State
+	WatchAll(rsps chan WatchState) error
+}
+
 // CommonState defines the fields common to all core.State implementations.
 // This struct shall be embedded as anonymous field in all structs that
 // implement core.State
