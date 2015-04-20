@@ -50,6 +50,11 @@ func (s *OvsCfgEndpointState) ReadAll() ([]core.State, error) {
 	return s.StateDriver.ReadAllState(EP_CFG_PATH_PREFIX, s, json.Unmarshal)
 }
 
+func (s *OvsCfgEndpointState) WatchAll(rsps chan core.WatchState) error {
+	return s.StateDriver.WatchAllState(EP_CFG_PATH_PREFIX, s, json.Unmarshal,
+		rsps)
+}
+
 func (s *OvsCfgEndpointState) Clear() error {
 	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
 	return s.StateDriver.ClearState(key)

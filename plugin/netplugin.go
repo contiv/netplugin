@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
@@ -61,6 +62,7 @@ type PluginConfig struct {
 }
 
 type NetPlugin struct {
+	sync.Mutex
 	ConfigFile     string
 	NetworkDriver  core.NetworkDriver
 	EndpointDriver core.EndpointDriver

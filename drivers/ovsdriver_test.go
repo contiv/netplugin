@@ -70,6 +70,10 @@ func (d *testOvsStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
 }
 
+func (d *testOvsStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
+	return &core.Error{Desc: "not supported"}
+}
+
 func (d *testOvsStateDriver) ClearState(key string) error {
 	return nil
 }
@@ -175,6 +179,11 @@ func (d *testOvsStateDriver) ReadState(key string, value core.State,
 func (d *testOvsStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return nil, &core.Error{Desc: "shouldn't be called!"}
+}
+
+func (d *testOvsStateDriver) WatchAllState(baseKey string, sType core.State,
+	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
+	return &core.Error{Desc: "not supported"}
 }
 
 func (d *testOvsStateDriver) WriteState(key string, value core.State,

@@ -246,6 +246,10 @@ func (d *testVlanRsrcStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return nil, &core.Error{Desc: "Shouldn't be called!"}
 }
 
+func (d *testVlanRsrcStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
+	return &core.Error{Desc: "not supported"}
+}
+
 func (d *testVlanRsrcStateDriver) validate(key string, state core.State,
 	op vlanRsrcValidateOp) error {
 	strs := strings.Split(key, "/")
@@ -285,6 +289,11 @@ func (d *testVlanRsrcStateDriver) ReadState(key string, value core.State,
 func (d *testVlanRsrcStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return nil, &core.Error{Desc: "Shouldn't be called!"}
+}
+
+func (d *testVlanRsrcStateDriver) WatchAllState(baseKey string, sType core.State,
+	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
+	return &core.Error{Desc: "not supported"}
 }
 
 func (d *testVlanRsrcStateDriver) WriteState(key string, value core.State,
