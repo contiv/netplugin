@@ -23,24 +23,27 @@ import (
 	"github.com/contiv/netplugin/systemtests/utils"
 )
 
-var vagrant *utils.Vagrant
+var testbed utils.Testbed
 
 func TestMain(m *testing.M) {
-
-	vagrant = &utils.Vagrant{}
-	log.Printf("Starting vagrant up...")
-	err := vagrant.Setup(os.Getenv("CONTIV_ENV"), 2)
-	log.Printf("Done with vagrant up...")
+	if os.Getenv("CONTIV_TESTBED") == "DIND" {
+		testbed = &utils.Dind{}
+	} else {
+		testbed = &utils.Vagrant{}
+	}
+	log.Printf("Starting testbed setup...")
+	err := testbed.Setup(os.Getenv("CONTIV_ENV"), 2)
+	log.Printf("Done with testbed setup...")
 	if err != nil {
-		log.Printf("Vagrant setup failed. Error: %s", err)
-		vagrant.Teardown()
+		log.Printf("Testbed setup failed. Error: %s", err)
+		testbed.Teardown()
 		os.Exit(1)
 	}
 
 	exitCode := m.Run()
 
 	if utils.OkToCleanup(exitCode != 0) {
-		vagrant.Teardown()
+		testbed.Teardown()
 	}
 
 	os.Exit(exitCode)

@@ -24,7 +24,7 @@ import (
 
 func TestMultipleEpsInContainer_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -33,10 +33,10 @@ func TestMultipleEpsInContainer_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// Container2 is reachable on both orange and purple networks
 	utils.StartServer(t, node1, "myContainer2")
@@ -76,7 +76,7 @@ func TestMultipleEpsInContainer_regress(t *testing.T) {
 
 func TestTwoHostVlan_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -85,10 +85,10 @@ func TestTwoHostVlan_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// all four containers can talk to each other
 	utils.StartServer(t, node1, "myContainer2")
@@ -126,7 +126,7 @@ func TestTwoHostVlan_regress(t *testing.T) {
 
 func TestTwoHostVxlan_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -135,10 +135,10 @@ func TestTwoHostVxlan_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// all four containers can talk to each other
 	utils.StartServer(t, node1, "myContainer2")
@@ -176,7 +176,7 @@ func TestTwoHostVxlan_regress(t *testing.T) {
 
 func TestTwoHostsMultipleTenants_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -185,10 +185,10 @@ func TestTwoHostsMultipleTenants_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
@@ -217,7 +217,7 @@ func TestTwoHostsMultipleTenants_regress(t *testing.T) {
 
 func TestTwoHostsMultipleTenantsMixVlanVxlan_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -226,10 +226,10 @@ func TestTwoHostsMultipleTenantsMixVlanVxlan_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
@@ -258,7 +258,7 @@ func TestTwoHostsMultipleTenantsMixVlanVxlan_regress(t *testing.T) {
 
 func TestTwoHostsMultipleVlansNets_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -267,10 +267,10 @@ func TestTwoHostsMultipleVlansNets_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
@@ -300,7 +300,7 @@ func TestTwoHostsMultipleVlansNets_regress(t *testing.T) {
 
 func TestTwoHostsMultipleVxlansNets_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -309,10 +309,10 @@ func TestTwoHostsMultipleVxlansNets_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// Container1 and Container3 are on orange network
 	utils.StartServer(t, node1, "myContainer1")
@@ -341,7 +341,7 @@ func TestTwoHostsMultipleVxlansNets_regress(t *testing.T) {
 
 func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -350,9 +350,9 @@ func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	cfgFile = utils.GetCfgFile("late_bindings/multiple_vxlan_nets_host_bindings")
 	jsonCfg, err = ioutil.ReadFile(cfgFile)
@@ -388,7 +388,7 @@ func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
 
 func TestTwoHostsMultipleVxlansNetsLateContainerBindings_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 	}()
 
 	cfgFile := utils.GetCfgFile("late_bindings/multiple_vxlan_nets")
@@ -396,9 +396,9 @@ func TestTwoHostsMultipleVxlansNetsLateContainerBindings_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// Start server containers: Container1 and Container2
 	utils.StartServer(t, node1, "myContainer1")
@@ -417,7 +417,7 @@ func TestTwoHostsMultipleVxlansNetsLateContainerBindings_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	jsonCfgStr, _ := utils.FixUpContainerUUIDs(t, vagrant.GetNodes(), string(jsonCfg))
+	jsonCfgStr, _ := utils.FixUpContainerUUIDs(t, testbed.GetNodes(), string(jsonCfg))
 	utils.ApplyHostBindingsConfig(t, jsonCfgStr, node1)
 
 	// start client containers and test ping: myContainer1 and myContainer4
@@ -435,7 +435,7 @@ func TestTwoHostsMultipleVxlansNetsLateContainerBindings_regress(t *testing.T) {
 
 func TestTwoHostsMultipleVxlansNetsInfraContainerBindings_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 	}()
 
 	cfgFile := utils.GetCfgFile("container_bindings/multiple_vxlan_nets")
@@ -443,9 +443,9 @@ func TestTwoHostsMultipleVxlansNetsInfraContainerBindings_regress(t *testing.T) 
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	// Start server containers: Container1 and Container2
 	utils.StartServer(t, node1, "myContainer1")
@@ -471,7 +471,7 @@ func TestTwoHostsMultipleVxlansNetsInfraContainerBindings_regress(t *testing.T) 
 		t.Fatalf("failed to read config file %s \n", err)
 	}
 
-	jsonCfgStr, _ := utils.FixUpInfraContainerUUIDs(t, vagrant.GetNodes(), string(jsonCfg), string(infraContMappings))
+	jsonCfgStr, _ := utils.FixUpInfraContainerUUIDs(t, testbed.GetNodes(), string(jsonCfg), string(infraContMappings))
 	utils.ApplyHostBindingsConfig(t, jsonCfgStr, node1)
 
 	// start client containers and test ping: myContainer1 and myContainer4

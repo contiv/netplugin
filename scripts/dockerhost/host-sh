@@ -1,0 +1,2 @@
+#!/bin/bash
+nsenter --mount=/host/proc/1/ns/mnt --net=/host/proc/1/ns/net "$@"

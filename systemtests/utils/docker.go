@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func DockerCleanup(t *testing.T, node VagrantNode, contName string) {
+func DockerCleanup(t *testing.T, node TestbedNode, contName string) {
 	if !OkToCleanup(t.Failed()) {
 		return
 	}
@@ -30,9 +30,10 @@ func DockerCleanup(t *testing.T, node VagrantNode, contName string) {
 	node.RunCommand(cmdStr)
 }
 
-func StartServer(t *testing.T, node VagrantNode, contName string) {
+func StartServer(t *testing.T, node TestbedNode, contName string) {
 	cmdStr := "sudo docker run -d --name=" + contName +
 		" ubuntu /bin/bash -c 'mkfifo foo && < foo'"
+
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
 		OvsDumpInfo(node)
@@ -41,7 +42,7 @@ func StartServer(t *testing.T, node VagrantNode, contName string) {
 	}
 }
 
-func StartClient(t *testing.T, node VagrantNode, contName, ipAddress string) {
+func StartClient(t *testing.T, node TestbedNode, contName, ipAddress string) {
 	cmdStr := "sudo docker run --name=" + contName +
 		" ubuntu /bin/bash -c 'ping -c5 " + ipAddress + "'"
 	output, err := node.RunCommandWithOutput(cmdStr)
@@ -60,7 +61,7 @@ func StartClient(t *testing.T, node VagrantNode, contName, ipAddress string) {
 	}
 }
 
-func StartClientFailure(t *testing.T, node VagrantNode, contName, ipAddress string) {
+func StartClientFailure(t *testing.T, node TestbedNode, contName, ipAddress string) {
 	cmdStr := "sudo docker run --name=" + contName +
 		" ubuntu /bin/bash -c 'ping -c5 " + ipAddress + "'"
 	output, err := node.RunCommandWithOutput(cmdStr)
@@ -70,7 +71,7 @@ func StartClientFailure(t *testing.T, node VagrantNode, contName, ipAddress stri
 	}
 }
 
-func getUUID(node VagrantNode, contName string) (string, error) {
+func getUUID(node TestbedNode, contName string) (string, error) {
 	cmdStr := "sudo docker inspect --format='{{.Id}}' " + contName
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {

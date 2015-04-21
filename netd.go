@@ -17,9 +17,9 @@ package main
 
 import (
 	"flag"
-	"github.com/samalba/dockerclient"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
@@ -28,6 +28,7 @@ import (
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/plugin"
+	"github.com/samalba/dockerclient"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -339,6 +340,25 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	return err
 }
 
+func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+	contId string) error {
+	// If CONTIV_DIND_HOST_GOPATH env variable is set we can assume we are in docker in docker testbed
+	// Here we need to set the network namespace of the ports created by netplugin back to NS of the docker host
+	hostGoPath := os.Getenv("CONTIV_DIND_HOST_GOPATH")
+	if hostGoPath != "" {
+		osCmd := exec.Command("github.com/contiv/netplugin/scripts/dockerhost/setlocalns.sh")
+		osCmd.Dir = os.Getenv("GOSRC")
+		output, err := osCmd.Output()
+		if err != nil {
+			log.Printf("setlocalns failed. Error: %s Output: \n%s\n",
+				err, output)
+			return err
+		}
+		return err
+	}
+	return nil
+}
+
 func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 	args ...interface{}) {
 	var err error
@@ -366,6 +386,10 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 
 	case "die":
 		log.Printf("received die event for container \n")
+		err = handleContainerStop(netPlugin, crt, event.Id)
+		if err != nil {
+			log.Printf("error '%s' handling container %s \n", err, event.Id)
+		}
 		// decide if we should remove the container network policy or leave
 		// it until ep configuration is removed
 		// ep configuration as instantiated can be applied to another container

@@ -17,13 +17,14 @@ package twohosts
 
 import (
 	"testing"
+	"time"
 
 	"github.com/contiv/netplugin/systemtests/utils"
 )
 
 func TestTwoHostsSingleVlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -58,10 +59,10 @@ func TestTwoHostsSingleVlanPingSuccess_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -77,7 +78,7 @@ func TestTwoHostsSingleVlanPingSuccess_sanity(t *testing.T) {
 
 func TestTwoHostsMultiVlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -124,10 +125,10 @@ func TestTwoHostsMultiVlanPingSuccess_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -154,7 +155,7 @@ func TestTwoHostsMultiVlanPingSuccess_sanity(t *testing.T) {
 
 func TestTwoHostsMultiVlanPingFailure_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -193,10 +194,10 @@ func TestTwoHostsMultiVlanPingFailure_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -212,7 +213,7 @@ func TestTwoHostsMultiVlanPingFailure_sanity(t *testing.T) {
 
 func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -260,10 +261,10 @@ func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -290,7 +291,7 @@ func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
 
 func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -339,10 +340,10 @@ func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -363,7 +364,7 @@ func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
 
 func TestTwoHostsVxlanDeltaConfig_sanity_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -411,10 +412,10 @@ func TestTwoHostsVxlanDeltaConfig_sanity_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -485,7 +486,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity_sanity(t *testing.T) {
             } ]
         } ]
         }`
-	utils.ApplyDesiredConfig(t, jsonCfg, vagrant.GetNodes()[0])
+	utils.ApplyDesiredConfig(t, jsonCfg, testbed.GetNodes()[0])
 
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
 	utils.DockerCleanup(t, node2, "myContainer2")
@@ -497,7 +498,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity_sanity(t *testing.T) {
 
 func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -545,10 +546,10 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -589,7 +590,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 		]
 	} ]
 	}`
-	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
+	utils.AddConfig(t, jsonCfg, testbed.GetNodes()[0])
 
 	utils.StartServer(t, node1, "myContainer5")
 	defer func() {
@@ -603,7 +604,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	utils.DelConfig(t, jsonCfg, vagrant.GetNodes()[0])
+	utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
 
 	utils.DockerCleanup(t, node2, "myContainer2")
 	utils.StartClientFailure(t, node2, "myContainer2", ipAddress)
@@ -629,7 +630,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 	} ]
 	}`
 
-	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
+	utils.AddConfig(t, jsonCfg, testbed.GetNodes()[0])
 	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer5")
 	utils.DockerCleanup(t, node2, "myContainer4")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
@@ -640,7 +641,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 
 func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -688,10 +689,10 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
-	node2 := vagrant.GetNodes()[1]
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -736,7 +737,7 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
 		]
 	} ]
 	}`
-	utils.AddConfig(t, jsonCfg, vagrant.GetNodes()[0])
+	utils.AddConfig(t, jsonCfg, testbed.GetNodes()[0])
 
 	utils.StartServer(t, node1, "myContainer5")
 	defer func() {
@@ -749,7 +750,7 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node2, "myContainer6")
 	}()
 
-	utils.DelConfig(t, jsonCfg, vagrant.GetNodes()[0])
+	utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
 
 	utils.DockerCleanup(t, node2, "myContainer6")
 	utils.StartClientFailure(t, node2, "myContainer6", ipAddress)
@@ -769,8 +770,8 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
 	} ]
 	}`
 
-	utils.DelConfig(t, jsonCfg, vagrant.GetNodes()[0])
-
+	utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
+	time.Sleep(1 * time.Second)
 	if utils.NetworkStateExists(node2, "green") == nil {
 		t.Fatalf("Error - network %s doesn't seem to be deleted \n", "green")
 	}

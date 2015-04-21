@@ -24,15 +24,9 @@ import (
 	"github.com/contiv/netplugin/core"
 )
 
-type Testbed interface {
-	Setup(env string, numNodes int) error
-	Teardown()
-	GetNodes() []TestbedNode
-}
-
 type Vagrant struct {
 	expectedNodes int
-	nodes         []VagrantNode
+	nodes         []TestbedNode
 }
 
 func (v *Vagrant) Setup(env string, numNodes int) error {
@@ -81,7 +75,7 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 	// got the names, now fill up the vagrant-nodes structure
 	for i, nodeName := range nodeNames {
 		log.Printf("Adding node: %q", nodeName)
-		node := VagrantNode{Name: nodeName, NodeNum: i + 1}
+		node := TestbedNode(VagrantNode{Name: nodeName, NodeNum: i + 1})
 		v.nodes = append(v.nodes, node)
 	}
 
@@ -96,10 +90,10 @@ func (v *Vagrant) Teardown() {
 			err, output)
 	}
 
-	v.nodes = []VagrantNode{}
+	v.nodes = []TestbedNode{}
 	v.expectedNodes = 0
 }
 
-func (v *Vagrant) GetNodes() []VagrantNode {
+func (v *Vagrant) GetNodes() []TestbedNode {
 	return v.nodes
 }

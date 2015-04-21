@@ -1,5 +1,5 @@
 /***
-Copyright 2014 Cisco Systems Inc. All rights reserved.
+Copyright 2015 Cisco Systems Inc. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,12 +15,8 @@ limitations under the License.
 
 package utils
 
-import (
-	"log"
-)
-
-func OvsDumpInfo(node TestbedNode) {
-	cmdStr := "sudo ovs-vsctl show"
-	output, _ := node.RunCommandWithOutput(cmdStr)
-	log.Printf("ovs-vsctl on node %s: \n%s\n", node.GetName(), output)
+type Testbed interface {
+	Setup(env string, numNodes int) error
+	Teardown()
+	GetNodes() []TestbedNode
 }

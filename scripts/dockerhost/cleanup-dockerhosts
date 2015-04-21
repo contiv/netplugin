@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 num_nodes=1
@@ -10,9 +9,9 @@ echo $num_nodes
 
 for i in `seq 1 $num_nodes`; 
 do
-    hostname="netplugin-node$i"
-    echo "Cleaning $hostname"
-    sudo docker exec $hostname service docker stop
-    sudo docker rm -f $hostname
+    host="netplugin-node$i"
+    echo "Cleaning $host"
+    sudo docker exec $host service docker stop
     sudo ip link delete $i-ext
+    sudo docker rm -f -v $host
 done
