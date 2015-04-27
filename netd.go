@@ -470,6 +470,8 @@ func main() {
 	var opts cliOpts
 	var flagSet *flag.FlagSet
 
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	defHostLabel, err := os.Hostname()
 	if err != nil {
 		log.Printf("Failed to fetch hostname. Error: %s", err)
