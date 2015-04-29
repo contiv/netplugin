@@ -16,9 +16,11 @@ limitations under the License.
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/contiv/netplugin/core"
@@ -262,9 +264,19 @@ func initEtcd(defOpts *cliOpts) (core.StateDriver, error) {
 }
 
 func executeJsonCfg(defOpts *cliOpts) (err error) {
-	data, err := ioutil.ReadFile(opts.idStr)
-	if err != nil {
-		return err
+	data := []byte{}
+	if opts.idStr == "-" {
+		reader := bufio.NewReader(os.Stdin)
+		data, err = ioutil.ReadAll(reader)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		data, err = ioutil.ReadFile(opts.idStr)
+		if err != nil {
+			return err
+		}
 	}
 
 	stateDriver, err := initEtcd(defOpts)
