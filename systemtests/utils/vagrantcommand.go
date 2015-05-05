@@ -45,5 +45,5 @@ func (c *VagrantCommand) Run(cmd string, args ...string) error {
 }
 
 func (c *VagrantCommand) RunWithOutput(cmd string, args ...string) ([]byte, error) {
-	return c.getCmd(cmd, args...).Output()
+	return c.getCmd(cmd, args...).CombinedOutput()
 }
