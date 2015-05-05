@@ -15,28 +15,28 @@ limitations under the License.
 
 package utils
 
-type VagrantNode struct {
+type DindNode struct {
 	Name    string
 	NodeNum int
 }
 
-func (n VagrantNode) RunCommand(cmd string) error {
-	vCmd := &VagrantCommand{ContivNodes: n.NodeNum}
-	return vCmd.Run("ssh", n.Name, "-c", cmd)
+func (n DindNode) RunCommand(cmd string) error {
+	tcmd := &TestCommand{ContivNodes: n.NodeNum}
+	return tcmd.Run("sh", "-c", "sudo docker exec "+n.Name+" "+cmd)
 }
 
-func (n VagrantNode) RunCommandWithOutput(cmd string) (string, error) {
-	vCmd := &VagrantCommand{ContivNodes: n.NodeNum}
-	output, err := vCmd.RunWithOutput("ssh", n.Name, "-c", cmd)
+func (n DindNode) RunCommandWithOutput(cmd string) (string, error) {
+	tcmd := &TestCommand{ContivNodes: n.NodeNum}
+	output, err := tcmd.RunWithOutput("sh", "-c", "sudo docker exec "+n.Name+" "+cmd)
 	return string(output), err
 }
 
-func (n VagrantNode) RunCommandBackground(cmd string) (string, error) {
-	vCmd := &VagrantCommand{ContivNodes: n.NodeNum}
-	output, err := vCmd.RunWithOutput("ssh", n.Name, "-c", cmd)
+func (n DindNode) RunCommandBackground(cmd string) (string, error) {
+	tcmd := &TestCommand{ContivNodes: n.NodeNum}
+	output, err := tcmd.RunWithOutput("sh", "-c", "sudo docker exec -d "+n.Name+" "+cmd)
 	return string(output), err
 }
 
-func (n VagrantNode) GetName() string {
+func (n DindNode) GetName() string {
 	return n.Name
 }

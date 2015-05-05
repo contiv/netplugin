@@ -24,7 +24,7 @@ import (
 
 func TestOneHostMultipleNets_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -33,9 +33,9 @@ func TestOneHostMultipleNets_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
+	node1 := testbed.GetNodes()[0]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {
@@ -60,7 +60,7 @@ func TestOneHostMultipleNets_regress(t *testing.T) {
 
 func TestOneHostVlan_regress(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -69,9 +69,9 @@ func TestOneHostVlan_regress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file %s \n", err)
 	}
-	utils.ConfigSetupCommon(t, string(jsonCfg), vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, string(jsonCfg), testbed.GetNodes())
 
-	node1 := vagrant.GetNodes()[0]
+	node1 := testbed.GetNodes()[0]
 
 	utils.StartServer(t, node1, "myContainer1")
 	defer func() {

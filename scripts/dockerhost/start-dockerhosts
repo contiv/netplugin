@@ -4,8 +4,8 @@ scriptdir=`dirname "$BASH_SOURCE"`
 echo $scriptdir
 
 # Create a linux bridge between containers
-brctl addbr br-em1
-ip link set br-em1 up
+sudo brctl addbr br-em1
+sudo ip link set br-em1 up
 
 num_nodes=1
 if [ -n "$CONTIV_NODES" ];
@@ -15,49 +15,53 @@ fi
 echo "Num nodes = "$num_nodes
 
 # Create the docker image for hosts
-sudo docker build -t ubuntu_netplugin $scriptdir
+# sudo docker build -t ubuntu_netplugin $scriptdir
+
+# Pull ubuntu image for use within the docker hosts
+sudo docker pull ubuntu
+
+mkdir /tmp/ubuntu_image
+
+sudo docker save -o /tmp/ubuntu_image/ubuntu-image.tar ubuntu
 
 cluster=""
 first="true"
 for i in `seq 1 $num_nodes`; 
 do
-    hostname="netplugin-node$i"
-    echo "Starting $hostname"
-    sudo docker run -d -i -t --name $hostname --privileged -v /var/lib/docker -v $GOPATH:/gopath ubuntu_netplugin bash -c "/gopath/src/github.com/contiv/netplugin/scripts/dockerhost/start-service.sh & bash"
-    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n hostname $hostname
+    host="netplugin-node$i"
+    echo "Starting $host"
+    sudo docker run -d -i -t --name $host --privileged -e CONTIV_DIND_HOST_GOPATH=$GOPATH -e GOSRC=/gopath/src/ -v /var/lib/docker -v $GOPATH:/gopath -v /proc:/host/proc -v /tmp/ubuntu_image:/ubuntu_image sachja/ubuntu_netplugin bash -c "/gopath/src/github.com/contiv/netplugin/scripts/dockerhost/start-service.sh & bash"
+    sudo docker exec $host hostname $host
+    sudo docker exec $host sh -c 'echo $(hostname -I | cut -d\  -f1) $(hostname) | tee -a /etc/hosts'
     sudo ip link add $i-int type veth peer name $i-ext
     sudo brctl addif br-em1 $i-ext
-    sudo ip link set netns $($scriptdir/docker-pid $hostname) dev $i-int
-    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip link set dev $i-int name eth2
-    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip link set eth2 up
+    sudo ip link set $i-ext up
+    sudo ip link set netns $($scriptdir/docker-pid $host) dev $i-int
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set dev $i-int name eth2
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set eth2 up
     addr=$((10+$i-1))
     ip_addr="192.168.2."$addr"/32"
     echo "IP address = "$ip_addr
-    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip addr add $ip_addr dev eth2
-    sudo nsenter -t $($scriptdir/docker-pid $hostname) -n ip route add "192.168.2.0/24" dev eth2
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip addr add $ip_addr dev eth2
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip route add "192.168.2.0/24" dev eth2
     if [ $i -gt "1" ]; then
 	cluster=$cluster",";
     fi
-    sudo docker exec $hostname service docker start
-    addr=$($scriptdir/docker-ip $hostname)
-    cluster=$cluster$hostname"=http://"$addr":2380"
+    sudo docker exec $host service docker start
+    sudo docker exec $host docker load -i /ubuntu_image/ubuntu-image.tar
+    addr=$($scriptdir/docker-ip $host)
+    cluster=$cluster$host"=http://"$addr":2380"
     first="false"
 done
 
-echo $cluster
+sudo rm -rf /tmp/ubuntu_image
 
 for i in `seq 1 $num_nodes`; 
 do
-    hostname="netplugin-node$i"
-    echo "Starting etcd on $hostname"
-    addr=$($scriptdir/docker-ip $hostname)
-    sudo docker exec $hostname etcd -name $hostname -data-dir /opt/etcd -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 -advertise-client-urls http://$addr:2379,http://$addr:4001 -initial-advertise-peer-urls http://$addr:2380 -listen-peer-urls http://$addr:2380 -initial-cluster $cluster -initial-cluster-state new &
+    host="netplugin-node$i"
+    echo "Starting etcd on $host"
+    addr=$($scriptdir/docker-ip $host)
+    sudo docker exec -d $host etcd -name $host -data-dir /opt/etcd -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 -advertise-client-urls http://$addr:2379,http://$addr:4001 -initial-advertise-peer-urls http://$addr:2380 -listen-peer-urls http://$addr:2380 -initial-cluster $cluster -initial-cluster-state new 
 done
 
-for i in `seq 1 $num_nodes`; 
-do
-    hostname="netplugin-node$i"
-    echo "Starting netplugin on $hostname"
-    sudo docker exec $hostname /gopath/bin/netplugin -host-label host$i &
-done
-
+sleep 5s

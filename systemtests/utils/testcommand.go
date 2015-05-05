@@ -1,5 +1,5 @@
 /***
-Copyright 2014 Cisco Systems Inc. All rights reserved.
+Copyright 2015 Cisco Systems Inc. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,33 +17,38 @@ package utils
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 )
 
-type VagrantCommand struct {
+type TestCommand struct {
 	ContivNodes int
 	ContivEnv   string
 }
 
-func (c *VagrantCommand) getCmd(cmd string, args ...string) *exec.Cmd {
-	newArgs := append([]string{cmd}, args...)
-	osCmd := exec.Command("vagrant", newArgs...)
+func (c *TestCommand) getCmd(cmd string, args ...string) *exec.Cmd {
+	err := os.Chdir(os.Getenv("GOPATH") + "/src/github.com/contiv/netplugin")
+	if err != nil {
+		log.Printf("chDir failed. Error: %s ",
+			err)
+	}
+	osCmd := exec.Command(cmd, args...)
 	osCmd.Env = os.Environ()
+
 	if c.ContivNodes != 0 {
 		osCmd.Env = append(osCmd.Env, fmt.Sprintf("CONTIV_NODES=%d", c.ContivNodes))
 	}
 	if c.ContivEnv != "" {
 		osCmd.Env = append(osCmd.Env, fmt.Sprintf("CONTIV_ENV=%s", c.ContivEnv))
 	}
-
 	return osCmd
 }
 
-func (c *VagrantCommand) Run(cmd string, args ...string) error {
+func (c *TestCommand) Run(cmd string, args ...string) error {
 	return c.getCmd(cmd, args...).Run()
 }
 
-func (c *VagrantCommand) RunWithOutput(cmd string, args ...string) ([]byte, error) {
-	return c.getCmd(cmd, args...).Output()
+func (c *TestCommand) RunWithOutput(cmd string, args ...string) ([]byte, error) {
+	return c.getCmd(cmd, args...).CombinedOutput()
 }

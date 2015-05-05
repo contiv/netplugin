@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/contiv/netplugin/netmaster"
 )
@@ -45,14 +46,14 @@ func StopOnError(testFailed bool) {
 	}
 }
 
-func ConfigCleanupCommon(t *testing.T, nodes []VagrantNode) {
+func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
 
 	if !OkToCleanup(t.Failed()) {
 		return
 	}
 
 	for _, node := range nodes {
-		cmdStr := "sudo $GOSRC/github.com/contiv/netplugin/scripts/cleanup"
+		cmdStr := "sh -c 'sudo $GOSRC/github.com/contiv/netplugin/scripts/cleanup'"
 		output, err := node.RunCommandWithOutput(cmdStr)
 		if err != nil {
 			t.Errorf("Failed to cleanup the left over test case state. Error: %s\nCmd: %q\nOutput:\n%s\n",
@@ -64,7 +65,7 @@ func ConfigCleanupCommon(t *testing.T, nodes []VagrantNode) {
 	}
 }
 
-func startNetPlugin(t *testing.T, nodes []VagrantNode, nativeInteg bool) {
+func startNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 	nativeIntegStr := ""
 	if nativeInteg {
 		nativeIntegStr = "-native-integration"
@@ -72,55 +73,59 @@ func startNetPlugin(t *testing.T, nodes []VagrantNode, nativeInteg bool) {
 
 	for i, node := range nodes {
 		//start the netplugin
-		cmdStr := fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s -host-label host%d 0<&- &>/tmp/netplugin.log &", nativeIntegStr,
-			i+1)
-		output, err := node.RunCommandWithOutput(cmdStr)
+		var cmdStr string
+		if os.Getenv("CONTIV_TESTBED") == "DIND" {
+			cmdStr = fmt.Sprintf("netplugin %s -host-label host%d 0<&- &>/tmp/netplugin-%d.log ", nativeIntegStr,
+				i+1, i+1)
+		} else {
+			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s -host-label host%d 0<&- &>/tmp/netplugin.log &", nativeIntegStr,
+				i+1)
+		}
+		output, err := node.RunCommandBackground(cmdStr)
 		if err != nil {
-			t.Fatalf("Failed to launch netplugin. Error: %s\nCmd:%q\nOutput:\n%s\n",
+			t.Fatalf("Failed to launch netplugin. Error: %s\nCmd:%q\n Output : %s\n",
 				err, cmdStr, output)
 		}
 	}
-
 }
 
-func applyConfig(t *testing.T, cfgType, jsonCfg string, node VagrantNode) {
+func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode) {
 	// replace newlines with space and "(quote) with \"(escaped quote) for
 	// echo to consume and produce desired json config
 	jsonCfg = strings.Replace(
 		strings.Replace(jsonCfg, "\n", " ", -1),
 		"\"", "\\\"", -1)
 	cmdStr := fmt.Sprintf("echo \"%s\" > /tmp/netdcli.cfg", jsonCfg)
-	output, err := node.RunCommandWithOutput(cmdStr)
+	output, err := node.RunCommandWithOutput("sh -c '" + cmdStr + "'")
 	if err != nil {
-		t.Fatalf("Error '%s' creating config file\nCmd: %q\nOutput:\n%s\n",
+		t.Fatalf("Error '%s' creating config file\nCmd: %q\n Output : %s \n",
 			err, cmdStr, output)
 	}
-
 	cmdStr = "netdcli -" + cfgType + " /tmp/netdcli.cfg 2>&1"
 	output, err = node.RunCommandWithOutput(cmdStr)
 	if err != nil {
-		t.Fatalf("Failed to apply config. Error: %s\nCmd: %q\nOutput:\n%s\n",
+		t.Fatalf("Failed to apply config. Error: %s\nCmd: %q\n Output : %s\n",
 			err, cmdStr, output)
 	}
 }
 
-func AddConfig(t *testing.T, jsonCfg string, node VagrantNode) {
+func AddConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 	applyConfig(t, "add-cfg", jsonCfg, node)
 }
 
-func DelConfig(t *testing.T, jsonCfg string, node VagrantNode) {
+func DelConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 	applyConfig(t, "del-cfg", jsonCfg, node)
 }
 
-func ApplyDesiredConfig(t *testing.T, jsonCfg string, node VagrantNode) {
+func ApplyDesiredConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 	applyConfig(t, "cfg", jsonCfg, node)
 }
 
-func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node VagrantNode) {
+func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 	applyConfig(t, "host-bindings-cfg", jsonCfg, node)
 }
 
-func FixUpContainerUUIDs(t *testing.T, nodes []VagrantNode, jsonCfg string) (string, error) {
+func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (string, error) {
 	epBindings := []netmaster.ConfigEp{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
 	if err != nil {
@@ -154,7 +159,7 @@ func FixUpContainerUUIDs(t *testing.T, nodes []VagrantNode, jsonCfg string) (str
 	return string(bytes[:]), err
 }
 
-func FixUpInfraContainerUUIDs(t *testing.T, nodes []VagrantNode, jsonCfg, infraContCfg string) (string, error) {
+func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraContCfg string) (string, error) {
 
 	epBindings := []netmaster.ConfigEp{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
@@ -207,16 +212,21 @@ func FixUpInfraContainerUUIDs(t *testing.T, nodes []VagrantNode, jsonCfg, infraC
 	return string(bytes[:]), err
 }
 
-func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []VagrantNode) {
+func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []TestbedNode) {
 	startNetPlugin(t, nodes, false)
 
 	ApplyDesiredConfig(t, jsonCfg, nodes[0])
 }
 
-func GetIpAddress(t *testing.T, node VagrantNode, ep string) string {
+func GetIpAddress(t *testing.T, node TestbedNode, ep string) string {
 	cmdStr := "netdcli -oper get -construct endpoint " + ep +
 		" 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
 	output, err := node.RunCommandWithOutput(cmdStr)
+
+	if err != nil || string(output) == "" {
+		time.Sleep(2 * time.Second)
+		output, err = node.RunCommandWithOutput(cmdStr)
+	}
 
 	if err != nil || string(output) == "" {
 		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%s\n",
@@ -225,7 +235,7 @@ func GetIpAddress(t *testing.T, node VagrantNode, ep string) string {
 	return string(output)
 }
 
-func NetworkStateExists(node VagrantNode, network string) error {
+func NetworkStateExists(node TestbedNode, network string) error {
 	cmdStr := "netdcli -oper get -construct network " + network + " 2>&1"
 	output, err := node.RunCommandWithOutput(cmdStr)
 
@@ -238,11 +248,11 @@ func NetworkStateExists(node VagrantNode, network string) error {
 	return nil
 }
 
-func DumpNetpluginLogs(node VagrantNode) {
+func DumpNetpluginLogs(node TestbedNode) {
 	cmdStr := fmt.Sprintf("sudo cat /tmp/netplugin.log")
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err == nil {
-		log.Printf("logs on node %s: \n%s\n", node.Name, output)
+		log.Printf("logs on node %s: \n%s\n", node.GetName(), output)
 	}
 }
 

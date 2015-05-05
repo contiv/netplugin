@@ -26,7 +26,7 @@ import (
 // - Verify that the endpoints are able to ping
 func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -54,9 +54,9 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node := vagrant.GetNodes()[0]
+	node := testbed.GetNodes()[0]
 
 	utils.StartServer(t, node, "myContainer1")
 	defer func() {
@@ -75,7 +75,7 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 // - Verify that the endpoints in same vlan are able to ping
 func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -115,9 +115,9 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node := vagrant.GetNodes()[0]
+	node := testbed.GetNodes()[0]
 	utils.StartServer(t, node, "myContainer1")
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer1")
@@ -146,7 +146,7 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 // - Verify that the endpoints in different vlans are not able to ping
 func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
 	defer func() {
-		utils.ConfigCleanupCommon(t, vagrant.GetNodes())
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
 	}()
 
@@ -178,9 +178,9 @@ func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
         } ]
         }`
 
-	utils.ConfigSetupCommon(t, jsonCfg, vagrant.GetNodes())
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
 
-	node := vagrant.GetNodes()[0]
+	node := testbed.GetNodes()[0]
 
 	utils.StartServer(t, node, "myContainer1")
 	defer func() {
