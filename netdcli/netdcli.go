@@ -161,19 +161,19 @@ func init() {
 	flagSet.BoolVar(&opts.cfgHostBindings,
 		"host-bindings-cfg",
 		false,
-		"Json file describing container to host bindings")
+		"Json file describing container to host bindings. Use '-' to read configuration from stdin")
 	flagSet.BoolVar(&opts.cfgAdditions,
 		"add-cfg",
 		false,
-		"Json file describing addition to global and network intent")
+		"Json file describing addition to global and network intent. Use '-' to read configuration from stdin")
 	flagSet.BoolVar(&opts.cfgDeletions,
 		"del-cfg",
 		false,
-		"Json file describing deletion from global and network intent")
+		"Json file describing deletion from global and network intent. Use '-' to read configuration from stdin")
 	flagSet.BoolVar(&opts.cfgDesired,
 		"cfg",
 		false,
-		"Json file describing the global and network intent")
+		"Json file describing the global and network intent. Use '-' to read configuration from stdin")
 	flagSet.StringVar(&opts.etcdUrl,
 		"etcd-url",
 		"http://127.0.0.1:4001",
@@ -237,7 +237,7 @@ func init() {
 	flagSet.StringVar(&opts.intfName,
 		"intf-name",
 		"",
-		"Name of an exisitng linux device to use as endpoint's interface. This can be used for adding the host interface to the bridge for vlan based networks.")
+		"Name of an existing linux device to use as endpoint's interface. This can be used for adding the host interface to the bridge for vlan based networks.")
 
 	flagSet.BoolVar(&opts.help, "help", false, "prints this message")
 }
@@ -512,6 +512,8 @@ func executeOpts(opts *cliOpts) error {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	err := flagSet.Parse(os.Args[1:])
 	if err != nil {
 		log.Fatalf("Failed to parse command. Error: %s", err)
