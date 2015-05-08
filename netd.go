@@ -16,7 +16,9 @@ limitations under the License.
 package main
 
 import (
+	"bufio"
 	"flag"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -41,6 +43,7 @@ const (
 type cliOpts struct {
 	hostLabel   string
 	nativeInteg bool
+	cfgFile     string
 }
 
 func skipHost(vtepIp, homingHost, myHostLabel string) bool {
@@ -50,7 +53,7 @@ func skipHost(vtepIp, homingHost, myHostLabel string) bool {
 
 func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	opts cliOpts) error {
-	readNet := &drivers.OvsCfgEndpointState{}
+	readNet := &drivers.OvsCfgNetworkState{}
 	readNet.StateDriver = netPlugin.StateDriver
 	netCfgs, err := readNet.ReadAll()
 	if err != nil {
@@ -502,26 +505,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
-	flagSet.StringVar(&opts.hostLabel,
-		"host-label",
-		defHostLabel,
-		"label used to identify endpoints homed for this host, default is host name")
-	flagSet.BoolVar(&opts.nativeInteg,
-		"native-integration",
-		false,
-		"do not listen to container runtime events, because the events are natively integrated into their call sequence and external integration is not required")
-
-	err = flagSet.Parse(os.Args[1:])
-	if err != nil {
-		log.Fatalf("Failed to parse command. Error: %s", err)
-	}
-
-	if flagSet.NFlag() < 1 {
-		log.Printf("host-label not specified, using default (%s)", opts.hostLabel)
-	}
-
-	configStr := `{
+	defConfigStr := `{
                     "drivers" : {
                        "network": "ovs",
                        "endpoint": "ovs",
@@ -541,16 +525,59 @@ func main() {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
+
+	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
+	flagSet.StringVar(&opts.hostLabel,
+		"host-label",
+		defHostLabel,
+		"label used to identify endpoints homed for this host, default is host name")
+	flagSet.BoolVar(&opts.nativeInteg,
+		"native-integration",
+		false,
+		"do not listen to container runtime events, because the events are natively integrated into their call sequence and external integration is not required")
+	flagSet.StringVar(&opts.cfgFile,
+		"config",
+		"",
+		"plugin configuration. Use '-' to read configuration from stdin")
+
+	err = flagSet.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatalf("Failed to parse command. Error: %s", err)
+	}
+
+	if flagSet.NFlag() < 1 {
+		log.Printf("host-label not specified, using default (%s)", opts.hostLabel)
+	}
+
 	netPlugin := &plugin.NetPlugin{}
 
-	err = netPlugin.Init(configStr)
+	config := []byte{}
+	if opts.cfgFile == "" {
+		log.Printf("config not specified, using default config")
+		config = []byte(defConfigStr)
+	} else if opts.cfgFile == "-" {
+		reader := bufio.NewReader(os.Stdin)
+		config, err = ioutil.ReadAll(reader)
+		if err != nil {
+			log.Printf("reading config from stdin failed. Error: %s", err)
+			os.Exit(1)
+		}
+	} else {
+		config, err = ioutil.ReadFile(opts.cfgFile)
+		if err != nil {
+			log.Printf("reading config from file failed. Error: %s", err)
+			os.Exit(1)
+		}
+	}
+
+	err = netPlugin.Init(string(config))
 	if err != nil {
 		log.Printf("Failed to initialize the plugin. Error: %s", err)
 		os.Exit(1)
 	}
 
 	crt := &crt.Crt{}
-	err = crt.Init(configStr)
+	err = crt.Init(string(config))
 	if err != nil {
 		log.Printf("Failed to initialize container run time, err %s \n", err)
 		os.Exit(1)

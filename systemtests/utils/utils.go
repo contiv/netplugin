@@ -65,7 +65,7 @@ func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
 	}
 }
 
-func startNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
+func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 	nativeIntegStr := ""
 	if nativeInteg {
 		nativeIntegStr = "-native-integration"
@@ -89,6 +89,63 @@ func startNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 	}
 }
 
+func StartPowerStripAdapter(t *testing.T, nodes []TestbedNode) {
+	for i, node := range nodes {
+		// hardcoding eth1 as it is the control interface in demo setup
+		cmdStr := `ip addr show eth1 | grep "\<inet\>" | \
+                 awk '{split($2,a, "/"); print a[1]}'`
+		output, err := node.RunCommandWithOutput(cmdStr)
+		if err != nil {
+			t.Fatalf("Error '%s' starting powerstrip adapter, Output: \n%s\n",
+				err, output)
+		}
+		nodeIpAddr := strings.Trim(string(output), " \n")
+
+		// host-label needs to match between netplugin and powerstrip adapter
+		cmdStr = `cd $GOSRC/github.com/contiv/netplugin && \
+              sudo docker build -t netplugin/pslibnet mgmtfn/pslibnet && \
+              sudo docker run -d --name pslibnet --expose 80 netplugin/pslibnet \
+                --host-label=host%d --etcd-url=http://%s:2379`
+		cmdStr = fmt.Sprintf(cmdStr, i+1, nodeIpAddr)
+		output, err = node.RunCommandWithOutput(cmdStr)
+		if err != nil {
+			t.Fatalf("Error '%s' starting powerstrip adapter, Output: \n%s\n",
+				err, output)
+		}
+
+		cmdStr = `cat > /tmp/adapters.yml <<EOF
+version: 1
+endpoints:
+  "POST /*/containers/create":
+    pre: [pslibnet]
+    post: [pslibnet]
+  "POST /*/containers/*/start":
+    pre: [pslibnet]
+    post: [pslibnet]
+  "POST /*/containers/*/stop":
+    pre: [pslibnet]
+  "POST /*/containers/*/delete":
+    pre: [pslibnet]
+adapters:
+  pslibnet: http://pslibnet/adapter/
+EOF`
+		output, err = node.RunCommandWithOutput(cmdStr)
+		if err != nil {
+			t.Fatalf("Error '%s' starting powerstrip adapter, Output: \n%s\n",
+				err, output)
+		}
+
+		cmdStr = `sudo docker run -d --name powerstrip \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                -v /tmp/adapters.yml:/etc/powerstrip/adapters.yml \
+                --link pslibnet:pslibnet -p 2375:2375 clusterhq/powerstrip:v0.0.1`
+		output, err = node.RunCommandWithOutput(cmdStr)
+		if err != nil {
+			t.Fatalf("Error '%s' starting powerstrip adapter, Output: \n%s\n",
+				err, output)
+		}
+	}
+}
 func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode) {
 	// replace newlines with space and "(quote) with \"(escaped quote) for
 	// echo to consume and produce desired json config
@@ -142,7 +199,7 @@ func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (str
 			if ep.AttachUUID != "" {
 				continue
 			}
-			attachUUID, _ := getUUID(node, ep.Container)
+			attachUUID, _ := getContainerUUID(node, ep.Container)
 			if attachUUID != "" {
 				ep.AttachUUID = attachUUID
 			}
@@ -195,7 +252,7 @@ func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraC
 				continue
 			}
 
-			attachUUID, _ := getUUID(node, infraContName)
+			attachUUID, _ := getContainerUUID(node, infraContName)
 			if attachUUID != "" {
 				ep.AttachUUID = attachUUID
 			}
@@ -213,7 +270,7 @@ func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraC
 }
 
 func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []TestbedNode) {
-	startNetPlugin(t, nodes, false)
+	StartNetPlugin(t, nodes, false)
 
 	ApplyDesiredConfig(t, jsonCfg, nodes[0])
 }
@@ -233,6 +290,19 @@ func GetIpAddress(t *testing.T, node TestbedNode, ep string) string {
 			err, ep, output)
 	}
 	return string(output)
+}
+
+// XXX: used for powerstrip/docker integration testing where ep-name is
+// derived by concatanating net-id to container-id
+func GetIpAddressFromNetworkAndContainerName(t *testing.T, node TestbedNode,
+	netId, contName string) string {
+	uuid, err := getContainerUUID(node, contName)
+	if err != nil {
+		t.Fatalf("failed to get container uuid for container %q on node %q",
+			contName, node.GetName())
+	}
+	epName := fmt.Sprintf("%s-%s", netId, uuid)
+	return GetIpAddress(t, node, epName)
 }
 
 func NetworkStateExists(node TestbedNode, network string) error {

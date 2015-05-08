@@ -1,7 +1,7 @@
 
 .PHONY: all build clean default system-test unit-test
 
-TO_BUILD := ./ ./netdcli/ ./mgmtfn/k8contivnet/
+TO_BUILD := ./ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/pslibnet/
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
 

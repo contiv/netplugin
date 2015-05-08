@@ -24,6 +24,8 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/vishvananda/netlink"
@@ -89,8 +91,18 @@ func (d *Docker) getContPid(ctx *crtclient.ContainerEpContext) (string, error) {
 func setIfNs(ifname string, pid int) error {
 	link, err := netlink.LinkByName(ifname)
 	if err != nil {
-		log.Printf("unable to find link '%s' error \n", ifname, err)
-		return err
+		if !strings.Contains(err.Error(), "Link not found") {
+			log.Printf("unable to find link %q error %q", ifname, err)
+			return err
+		}
+		// try once more as sometimes (somehow) link creation is taking
+		// sometime, causing link not found error
+		time.Sleep(1 * time.Second)
+		link, err = netlink.LinkByName(ifname)
+		if err != nil {
+			log.Printf("unable to find link %q error %q", ifname, err)
+			return err
+		}
 	}
 
 	err = netlink.LinkSetNsPid(link, pid)

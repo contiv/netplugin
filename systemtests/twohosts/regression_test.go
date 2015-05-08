@@ -486,3 +486,50 @@ func TestTwoHostsMultipleVxlansNetsInfraContainerBindings_regress(t *testing.T) 
 		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 }
+
+// XXX: don't run this until we upgrade docker to a recent version that supports
+// labels and build-time env
+func TestTwoHostVlanPowerstripDocker(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
+		utils.StopOnError(t.Failed())
+	}()
+
+	cfgFile := utils.GetCfgFile("late_bindings/powerstrip_demo_vlan_nets")
+	jsonCfg, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to read config file %s \n", err)
+	}
+
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
+
+	utils.StartNetPlugin(t, testbed.GetNodes(), true)
+
+	utils.StartPowerStripAdapter(t, testbed.GetNodes())
+
+	utils.ApplyDesiredConfig(t, string(jsonCfg), node1)
+
+	env := []string{"DOCKER_HOST=localhost:2375"}
+	utils.StartServerWithEnvAndArgs(t, node1, "server1", env,
+		[]string{"--label", "netid=orange", "--label", "tenantid=tenant-one"})
+	defer func() {
+		utils.DockerCleanupWithEnv(t, node1, "server1", env)
+	}()
+	ipAddress := utils.GetIpAddressFromNetworkAndContainerName(t, node1,
+		"orange", "server1")
+
+	// test ping success between containers in same network
+	utils.StartClientWithEnvAndArgs(t, node2, "client1", ipAddress, env,
+		[]string{"--label", "netid=orange", "--label", "tenantid=tenant-one"})
+	defer func() {
+		utils.DockerCleanupWithEnv(t, node2, "client1", env)
+	}()
+
+	// test ping failure between containers in different networks
+	utils.StartClientFailureWithEnvAndArgs(t, node2, "client2", ipAddress, env,
+		[]string{"--label", "netid=purple", "--label", "tenantid=tenant-one"})
+	defer func() {
+		utils.DockerCleanupWithEnv(t, node2, "client2", env)
+	}()
+}

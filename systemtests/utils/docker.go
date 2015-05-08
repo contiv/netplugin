@@ -16,24 +16,31 @@ limitations under the License.
 package utils
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
 
-func DockerCleanup(t *testing.T, node TestbedNode, contName string) {
+func DockerCleanupWithEnv(t *testing.T, node TestbedNode, contName string, env []string) {
 	if !OkToCleanup(t.Failed()) {
 		return
 	}
-	cmdStr := "sudo docker kill " + contName
+	cmdStr := fmt.Sprintf("sudo %s docker kill %s", strings.Join(env, " "), contName)
 	node.RunCommand(cmdStr)
-	cmdStr = "sudo docker rm " + contName
+	cmdStr = fmt.Sprintf("sudo %s docker rm %s", strings.Join(env, " "), contName)
 	node.RunCommand(cmdStr)
 }
 
-func StartServer(t *testing.T, node TestbedNode, contName string) {
-	cmdStr := "sudo docker run -d --name=" + contName +
-		" ubuntu /bin/bash -c 'mkfifo foo && < foo'"
+func DockerCleanup(t *testing.T, node TestbedNode, contName string) {
+	DockerCleanupWithEnv(t, node, contName, []string{})
+}
 
+func StartServerWithEnvAndArgs(t *testing.T, node TestbedNode, contName string,
+	env, dockerArgs []string) {
+	cmdStr := "sudo %s docker run -d %s --name=" + contName +
+		" ubuntu /bin/bash -c 'mkfifo foo && < foo'"
+	cmdStr = fmt.Sprintf(cmdStr, strings.Join(env, " "),
+		strings.Join(dockerArgs, " "))
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
 		OvsDumpInfo(node)
@@ -42,13 +49,27 @@ func StartServer(t *testing.T, node TestbedNode, contName string) {
 	}
 }
 
-func StartClient(t *testing.T, node TestbedNode, contName, ipAddress string) {
-	cmdStr := "sudo docker run --name=" + contName +
+func StartServer(t *testing.T, node TestbedNode, contName string) {
+	StartServerWithEnvAndArgs(t, node, contName, []string{}, []string{})
+}
+
+func StartClientWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddress string,
+	env, dockerArgs []string) {
+	cmdStr := "sudo %s docker run %s --name=" + contName +
 		" ubuntu /bin/bash -c 'ping -c5 " + ipAddress + "'"
+	cmdStr = fmt.Sprintf(cmdStr, strings.Join(env, " "),
+		strings.Join(dockerArgs, " "))
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
 		OvsDumpInfo(node)
 		t.Fatalf("Error '%s' launching container '%s', Output: \n%s\n",
+			err, contName, output)
+	}
+
+	cmdStr = fmt.Sprintf("sudo docker logs %s", contName)
+	output, err = node.RunCommandWithOutput(cmdStr)
+	if err != nil {
+		t.Fatalf("Error '%s' fetching container '%s' logs, Output: \n%s\n",
 			err, contName, output)
 	}
 
@@ -61,17 +82,35 @@ func StartClient(t *testing.T, node TestbedNode, contName, ipAddress string) {
 	}
 }
 
-func StartClientFailure(t *testing.T, node TestbedNode, contName, ipAddress string) {
-	cmdStr := "sudo docker run --name=" + contName +
+func StartClient(t *testing.T, node TestbedNode, contName, ipAddress string) {
+	StartClientWithEnvAndArgs(t, node, contName, ipAddress, []string{}, []string{})
+}
+
+func StartClientFailureWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddress string,
+	env, dockerArgs []string) {
+	cmdStr := "sudo %s docker run %s --name=" + contName +
 		" ubuntu /bin/bash -c 'ping -c5 " + ipAddress + "'"
+	cmdStr = fmt.Sprintf(cmdStr, strings.Join(env, " "),
+		strings.Join(dockerArgs, " "))
 	output, err := node.RunCommandWithOutput(cmdStr)
-	if err == nil || !strings.Contains(string(output), ", 100% packet loss,") {
+	if err == nil {
+		t.Fatalf("Ping did not fail as expected, err '%s' container '%s', "+
+			"Output: \n%s\n", err, contName, output)
+	}
+
+	cmdStr = fmt.Sprintf("sudo docker logs %s", contName)
+	output, err = node.RunCommandWithOutput(cmdStr)
+	if err != nil || !strings.Contains(string(output), ", 100% packet loss,") {
 		t.Fatalf("Ping did not fail as expected, err '%s' container '%s', "+
 			"Output: \n%s\n", err, contName, output)
 	}
 }
 
-func getUUID(node TestbedNode, contName string) (string, error) {
+func StartClientFailure(t *testing.T, node TestbedNode, contName, ipAddress string) {
+	StartClientFailureWithEnvAndArgs(t, node, contName, ipAddress, []string{}, []string{})
+}
+
+func getContainerUUID(node TestbedNode, contName string) (string, error) {
 	cmdStr := "sudo docker inspect --format='{{.Id}}' " + contName
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
