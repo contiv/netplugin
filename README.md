@@ -14,7 +14,7 @@ Generic network plugin (experimental) is designed to handle networking use cases
 
 The overall design is _not_ assumed to be complete, because of ongoing work in the docker community with regards to the suitable APIs to interface with network extensions like this. Regardless, flexibility in the design has been taken into consideration to allow using a different state driver for key-value synchronization, or a different flavor of a soft-switch i.e. linux-bridge, MAC VLAN, or OpenvSwitch.
 
-The ability to specify the intent succinctly is the primary goal of the design and thus some of the specified user interface will change, and in some cases functionality will be enhanced to accommodate the same. Design details and future work is captured in a (docs/design.md)[https://github.com/contiv/netplugin/blob/master/docs/Design.md]
+The ability to specify the intent succinctly is the primary goal of the design and thus some of the specified user interface will change, and in some cases functionality will be enhanced to accommodate the same. Design details and future work is captured in a [docs/design.md](https://github.com/contiv/netplugin/blob/master/docs/Design.md).
 
 Please do not use this code in production, until code goes through more testing and few critical open issues are resolved.
 
