@@ -7,14 +7,24 @@ Prerequisites
 -------------
 The following needs to be installed on the host machine
 
-1. Docker
+0. Host operating system should be Ubuntu 14.0 or later
+
+1. Docker 1.6 or later
+```
+    curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null
+```
 
 2. nsenter  (Pls see https://github.com/jpetazzo/nsenter)
 
 3. Bridge utils
 ```
 	apt-get install bridge-utils
-````
+```
+
+4. Open vSwitch
+```
+    apt-get install openvswitch-switch
+```
 
 Step to launch docker hosts are : 
 --------------------------------

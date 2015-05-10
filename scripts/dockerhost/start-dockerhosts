@@ -1,5 +1,56 @@
 #!/bin/bash
 
+# check if all prequisites are installed before proceeding with setup.
+# Pre-requisites:
+# - Ubuntu 14+
+# - Docker 1.6+
+# - nsenter
+# - bridge utils
+# - ovs
+
+errors=""
+testval=$(lsb_release -a 2> /dev/null | grep "Distributor ID" | awk '{print $3}')
+if [[ ${testval} != "Ubuntu" ]]; then
+    errors=${errors}"- Not running Ubuntu release."
+    errors=$errors"\n"
+fi
+
+testval=$(lsb_release -a 2> /dev/null | grep "Release" | awk '{print $2}')
+if [[ ${testval} < "14" ]]; then
+    errors=${errors}"- Ubuntu version is less than 14.0"
+    errors=$errors"\n"
+fi
+
+testval=$(sudo docker version 2> /dev/null | grep "Server version" | awk '{print $3}')
+if [[ ${testval} < "1.6" ]]; then
+    errors=${errors}"- Docker daemon is not installed or version is less than 1.6"
+    errors=$errors"\n"
+fi
+
+testval=$(which nsenter 2> /dev/null)
+if [ -z ${testval} ]; then
+    errors=${errors}"- nsenter is not installed"
+    errors=$errors"\n"
+fi
+
+testval=$(which ovs-vsctl 2> /dev/null)
+if [ -z ${testval} ]; then
+    errors=${errors}"- ovs is not installed"
+    errors=$errors"\n"
+fi
+
+testval=$(which brctl 2> /dev/null)
+if [ -z ${testval} ]; then
+    errors=${errors}"- bridge utils (brctl etc) are not installed"
+    errors=$errors"\n"
+fi
+
+if [ -n "${errors}" ]; then
+    echo "Following prerequisite checks failed:"
+    echo -e ${errors}
+    exit 1
+fi
+
 scriptdir=`dirname "$BASH_SOURCE"`
 echo $scriptdir
 
