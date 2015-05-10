@@ -36,6 +36,7 @@ func (v *Dind) Setup(env string, numNodes int) error {
 	}
 	cmd := &TestCommand{ContivNodes: numNodes, ContivEnv: env}
 	output, err := cmd.RunWithOutput("scripts/dockerhost/start-dockerhosts")
+	fmt.Println(string(output))
 	if err != nil {
 		log.Printf("start-dockerhosts failed. Error: %s Output: \n%s\n",
 			err, output)
