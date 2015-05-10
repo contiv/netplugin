@@ -1,16 +1,16 @@
 FROM      ubuntu
 MAINTAINER Sachin Jain <sachja@gmail.com>
 
-RUN apt-get update && apt-get install -y curl build-essential pkg-config python2.7-dev libpython2.7-dev
+RUN apt-get update && apt-get install -y curl build-essential pkg-config python2.7-dev libpython2.7-dev apparmor
 
-RUN curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null
+RUN curl -sSL https://get.docker.com/ubuntu/ | sh 1>/dev/null 2>&1
 
 RUN cd /tmp && \
 curl -L  https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o etcd-v2.0.0-linux-amd64.tar.gz && \
 tar -xzf etcd-v2.0.0-linux-amd64.tar.gz && \
 cd /usr/bin && \
-ln -s /tmp/etcd-v2.0.0-linux-amd64/etcd && \
-ln -s /tmp/etcd-v2.0.0-linux-amd64/etcdctl
+mv /tmp/etcd-v2.0.0-linux-amd64/etcd . && \
+mv /tmp/etcd-v2.0.0-linux-amd64/etcdctl .
 
 RUN apt-get install -y openvswitch-switch
 
