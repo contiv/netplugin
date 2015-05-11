@@ -9,7 +9,7 @@
 export GOPATH=$WORKSPACE
 export GOBIN=$GOPATH/bin
 export GOSRC=$GOPATH/src
-export PATH=$PATH:/usr/local/go/bin:$GOBIN
+export PATH=$PATH:/sbin/:/usr/local/go/bin:$GOBIN
 
 cd $GOSRC/github.com/contiv/netplugin
 make
