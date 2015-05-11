@@ -98,7 +98,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             # mount the host directories
             node.vm.synced_folder ".", "/vagrant"
-            node.vm.synced_folder ENV['GOPATH'], netplugin_synced_gopath
+            # godep modifies the host's GOPATH env variable, CONTIV_HOST_GOPATH
+            # contains the unmodified path passed from the Makefile, use that
+            # when it is defined.
+            if ENV['CONTIV_HOST_GOPATH'] != nil
+                node.vm.synced_folder ENV['CONTIV_HOST_GOPATH'], netplugin_synced_gopath
+            else
+                node.vm.synced_folder ENV['GOPATH'], netplugin_synced_gopath
+            end
             if ENV['CONTIV_HOST_GOBIN'] != nil
                 node.vm.synced_folder ENV['CONTIV_HOST_GOBIN'], host_gobin_path
             end

@@ -18,6 +18,7 @@ package utils
 import (
 	"fmt"
 	"log"
+	"os"
 )
 
 type Dind struct {
@@ -27,6 +28,11 @@ type Dind struct {
 
 func (v *Dind) Setup(env string, numNodes int) error {
 
+	err := os.Chdir(os.Getenv("CONTIV_HOST_GOPATH") + "/src/github.com/contiv/netplugin")
+	if err != nil {
+		log.Printf("chDir failed. Error: %s ",
+			err)
+	}
 	cmd := &TestCommand{ContivNodes: numNodes, ContivEnv: env}
 	output, err := cmd.RunWithOutput("scripts/dockerhost/start-dockerhosts")
 	if err != nil {
