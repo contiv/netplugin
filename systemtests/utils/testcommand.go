@@ -17,7 +17,6 @@ package utils
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 )
@@ -28,11 +27,6 @@ type TestCommand struct {
 }
 
 func (c *TestCommand) getCmd(cmd string, args ...string) *exec.Cmd {
-	err := os.Chdir(os.Getenv("GOPATH") + "/src/github.com/contiv/netplugin")
-	if err != nil {
-		log.Printf("chDir failed. Error: %s ",
-			err)
-	}
 	osCmd := exec.Command(cmd, args...)
 	osCmd.Env = os.Environ()
 

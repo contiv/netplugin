@@ -55,6 +55,6 @@ fi
 
 # running in the sand box
 (cd $GOSRC/github.com/contiv/netplugin && \
- go test -v $test_packages) || exit 1
+ godep go test -v $test_packages) || exit 1
 echo "Sandbox: Tests succeeded!"
 exit 0

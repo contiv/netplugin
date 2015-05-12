@@ -2,6 +2,15 @@
 
 #performs basic dev and build environment checks
 
+USAGE="Usage: $0 <build packages>"
+
+if [ $# -ne 1 ]; then
+    echo $USAGE
+    exit 1
+fi
+
+BUILD_PKGS=$1
+
 echo "Checking Go version..."
 ver=$(go version | awk '{print $3}')
 minVer="go1.4"
@@ -11,10 +20,11 @@ if [[ ${ver} < ${minVer} ]]; then
 fi
 
 echo "Checking gofmt..."
-fmtRes=$(gofmt -l ./)
+fmtRes=$(gofmt -l $BUILD_PKGS)
 if [ -n "${fmtRes}" ]; then
     echo -e "gofmt checking failed:\n${fmtRes}"
     exit 1
 fi
 
 echo "All checks passed!!"
+exit 0
