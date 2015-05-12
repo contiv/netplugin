@@ -13,11 +13,11 @@ func (d *LibNetDriver) Config(config interface{}) error {
 }
 
 func (d *LibNetDriver) CreateNetwork(nid driverapi.UUID, config interface{}) error {
-	return fmt.Errorf("Not implemented")
+	return core.Errorf("Not implemented")
 }
 
 func (d *LibNetDriver) DeleteNetwork(nid driverapi.UUID) error {
-	return fmt.Errorf("Not implemented")
+	return core.Errorf("Not implemented")
 }
 
 func (d *LibNetDriver) CreateEndpoint(nid, eid driverapi.UUID, key string,

@@ -18,6 +18,7 @@ package resources
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/contiv/netplugin/core"
@@ -39,15 +40,15 @@ type TestResource struct {
 }
 
 func (r *TestResource) Write() error {
-	return &core.Error{Desc: "Shouldn't be called"}
+	return core.Errorf("Shouldn't be called")
 }
 
 func (r *TestResource) Read(id string) error {
-	return &core.Error{Desc: "Shouldn't be called"}
+	return core.Errorf("Shouldn't be called")
 }
 
 func (r *TestResource) Clear() error {
-	return &core.Error{Desc: "Shouldn't be called"}
+	return core.Errorf("Shouldn't be called")
 }
 
 func (r *TestResource) ReadAll() ([]core.State, error) {
@@ -100,8 +101,8 @@ func TestEtcdResourceManagerDefineInvalidResource(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Resource definition succeeded, expected to fail!")
 	}
-	if err.Error() != fmt.Sprintf("No resource found for description: %q",
-		testResourceDesc) {
+	if !strings.Contains(err.Error(),
+		fmt.Sprintf("No resource found for description: %q", testResourceDesc)) {
 		t.Fatalf("Unexpected error. Error: %s", err)
 	}
 }
@@ -131,8 +132,8 @@ func TestEtcdResourceManagerUndefineInvalidResource(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Resource un-definition succeeded, expected to fail!")
 	}
-	if err.Error() != fmt.Sprintf("No resource found for description: %q",
-		testResourceDesc) {
+	if !strings.Contains(err.Error(),
+		fmt.Sprintf("No resource found for description: %q", testResourceDesc)) {
 		t.Fatalf("Unexpected error. Error: %s", err)
 	}
 }
@@ -147,8 +148,9 @@ func TestEtcdResourceManagerUndefineNonexistentResource(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Resource un-definition succeeded, expected to fail!")
 	}
-	if err.Error() != fmt.Sprintf("No resource found for description: %q and id: %q",
-		testResourceDesc, testResourceId) {
+	if !strings.Contains(err.Error(),
+		fmt.Sprintf("No resource found for description: %q and id: %q",
+			testResourceDesc, testResourceId)) {
 		t.Fatalf("Unexpected error. Error: %s", err)
 	}
 }
@@ -178,8 +180,8 @@ func TestEtcdResourceManagerAllocateInvalidResource(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}
-	if err.Error() != fmt.Sprintf("No resource found for description: %q",
-		testResourceDesc) {
+	if !strings.Contains(err.Error(),
+		fmt.Sprintf("No resource found for description: %q", testResourceDesc)) {
 		t.Fatalf("Unexpected error. Error: %s", err)
 	}
 }
@@ -194,8 +196,9 @@ func TestEtcdResourceManagerAllocateiNonexistentResource(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}
-	if err.Error() != fmt.Sprintf("No resource found for description: %q and id: %q",
-		testResourceDesc, testResourceId) {
+	if !strings.Contains(err.Error(),
+		fmt.Sprintf("No resource found for description: %q and id: %q",
+			testResourceDesc, testResourceId)) {
 		t.Fatalf("Unexpected error. Error: %s", err)
 	}
 }
@@ -230,8 +233,8 @@ func TestEtcdResourceManagerDeallocateInvalidResource(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Resource deallocation succeeded, expected to fail!")
 	}
-	if err.Error() != fmt.Sprintf("No resource found for description: %q",
-		testResourceDesc) {
+	if !strings.Contains(err.Error(),
+		fmt.Sprintf("No resource found for description: %q", testResourceDesc)) {
 		t.Fatalf("Unexpected error. Error: %s", err)
 	}
 }
@@ -246,8 +249,9 @@ func TestEtcdResourceManagerDeallocateiNonexistentResource(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}
-	if err.Error() != fmt.Sprintf("No resource found for description: %q and id: %q",
-		testResourceDesc, testResourceId) {
+	if !strings.Contains(err.Error(),
+		fmt.Sprintf("No resource found for description: %q and id: %q",
+			testResourceDesc, testResourceId)) {
 		t.Fatalf("Unexpected error. Error: %s", err)
 	}
 }

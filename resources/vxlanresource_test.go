@@ -84,7 +84,7 @@ func (vt *vxlanRsrcValidator) ValidateState(state core.State) error {
 		return nil
 	}
 
-	return &core.Error{Desc: "unknown state object type!"}
+	return core.Errorf("unknown state object type!")
 }
 
 func (vt *vxlanRsrcValidator) CopyState(state core.State) error {
@@ -106,7 +106,7 @@ func (vt *vxlanRsrcValidator) CopyState(state core.State) error {
 		return nil
 	}
 
-	return &core.Error{Desc: "unknown state object type!"}
+	return core.Errorf("unknown state object type!")
 }
 
 type vxlanRsrcValidateOp int
@@ -272,26 +272,26 @@ type testVxlanRsrcStateDriver struct {
 }
 
 func (d *testVxlanRsrcStateDriver) Init(config *core.Config) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVxlanRsrcStateDriver) Deinit() {
 }
 
 func (d *testVxlanRsrcStateDriver) Write(key string, value []byte) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVxlanRsrcStateDriver) Read(key string) ([]byte, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVxlanRsrcStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVxlanRsrcStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testVxlanRsrcStateDriver) validate(key string, state core.State,
@@ -302,7 +302,7 @@ func (d *testVxlanRsrcStateDriver) validate(key string, state core.State,
 	if !ok {
 		errStr := fmt.Sprintf("No matching validation entry for id: %s", id)
 		log.Printf("%s\n", errStr)
-		return &core.Error{Desc: errStr}
+		return core.Errorf(errStr)
 	}
 
 	switch op {
@@ -332,12 +332,12 @@ func (d *testVxlanRsrcStateDriver) ReadState(key string, value core.State,
 
 func (d *testVxlanRsrcStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVxlanRsrcStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testVxlanRsrcStateDriver) WriteState(key string, value core.State,
@@ -399,7 +399,7 @@ func TestAutoVxlanCfgResourceAllocateVxlanExhaustion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Vxlan resource allocation succeeded, expected to fail!")
 	}
-	if err.Error() != "no vxlans available." {
+	if !strings.Contains(err.Error(), "no vxlans available.") {
 		t.Fatalf("Vxlan resource allocation failure reason mismatch. Expected: %s, rcvd: %s",
 			"no vxlans available.", err)
 	}
@@ -418,7 +418,7 @@ func TestAutoVxlanCfgResourceAllocateVlanExhaustion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Vxlan resource allocation succeeded, expected to fail!")
 	}
-	if err.Error() != "no local vlans available." {
+	if !strings.Contains(err.Error(), "no local vlans available.") {
 		t.Fatalf("Vxlan resource allocation failure reason mismatch. Expected: %s, rcvd: %s",
 			"no local vlans available.", err)
 	}

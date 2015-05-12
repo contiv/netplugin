@@ -21,13 +21,13 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster"
 )
 
@@ -51,7 +51,7 @@ func getHostLabel() (string, error) {
 		}
 	}
 
-	return "", errors.New("couldn't find host label")
+	return "", core.Errorf("couldn't find host label")
 }
 
 func printUsage(arg0 string) {

@@ -73,7 +73,7 @@ func (r *AutoVxlanCfgResource) ReadAll() ([]core.State, error) {
 func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
 	cfg, ok := rsrcCfg.(*AutoVxlanCfgResource)
 	if !ok {
-		return &core.Error{Desc: "Invalid vxlan resource config."}
+		return core.Errorf("Invalid vxlan resource config.")
 	}
 	r.Vxlans = cfg.Vxlans
 	r.LocalVlans = cfg.LocalVlans
@@ -128,12 +128,12 @@ func (r *AutoVxlanCfgResource) Allocate() (interface{}, error) {
 
 	vxlan, ok := oper.FreeVxlans.NextSet(0)
 	if !ok {
-		return nil, &core.Error{Desc: "no vxlans available."}
+		return nil, core.Errorf("no vxlans available.")
 	}
 
 	vlan, ok := oper.FreeLocalVlans.NextSet(0)
 	if !ok {
-		return nil, &core.Error{Desc: "no local vlans available."}
+		return nil, core.Errorf("no local vlans available.")
 	}
 
 	oper.FreeVxlans.Clear(vxlan)
@@ -156,7 +156,7 @@ func (r *AutoVxlanCfgResource) Deallocate(value interface{}) error {
 
 	pair, ok := value.(VxlanVlanPair)
 	if !ok {
-		return &core.Error{Desc: "Invalid type for vxlan-vlan pair"}
+		return core.Errorf("Invalid type for vxlan-vlan pair")
 	}
 	vxlan := pair.Vxlan
 	oper.FreeVxlans.Set(vxlan)

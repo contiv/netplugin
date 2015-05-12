@@ -16,7 +16,6 @@ limitations under the License.
 package drivers
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/contiv/netplugin/core"
@@ -34,32 +33,32 @@ type testEpStateDriver struct {
 }
 
 func (d *testEpStateDriver) Init(config *core.Config) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testEpStateDriver) Deinit() {
 }
 
 func (d *testEpStateDriver) Write(key string, value []byte) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testEpStateDriver) Read(key string) ([]byte, error) {
-	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
+	return []byte{}, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testEpStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
+	return [][]byte{}, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testEpStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testEpStateDriver) validateKey(key string) error {
 	if key != epCfgKey && key != epOperKey {
-		return &core.Error{Desc: fmt.Sprintf("Unexpected key. recvd: %s expected: %s or %s ",
-			key, epCfgKey, epOperKey)}
+		return core.Errorf("Unexpected key. recvd: %s expected: %s or %s ",
+			key, epCfgKey, epOperKey)
 	} else {
 		return nil
 	}
@@ -76,12 +75,12 @@ func (d *testEpStateDriver) ReadState(key string, value core.State,
 
 func (d *testEpStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testEpStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testEpStateDriver) WriteState(key string, value core.State,

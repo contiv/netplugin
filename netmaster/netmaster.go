@@ -16,7 +16,6 @@ limitations under the License.
 package netmaster
 
 import (
-	"errors"
 	"log"
 	"net"
 	"strconv"
@@ -53,7 +52,7 @@ func Init(stateDriver *core.StateDriver, cfg *Config) error {
 
 func checkPktTagType(pktTagType string) error {
 	if pktTagType != "" && pktTagType != "vlan" && pktTagType != "vxlan" {
-		return errors.New("invalid pktTagType")
+		return core.Errorf("invalid pktTagType")
 	}
 
 	return nil
@@ -61,7 +60,7 @@ func checkPktTagType(pktTagType string) error {
 
 func validateTenantConfig(tenant *ConfigTenant) error {
 	if tenant.Name == "" {
-		return errors.New("invalid tenant name")
+		return core.Errorf("invalid tenant name")
 	}
 
 	err := checkPktTagType(tenant.DefaultNetType)
@@ -184,10 +183,10 @@ func DeleteTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 func validateHostConfig(host *ConfigHost) error {
 	if host.Name == "" {
-		return errors.New("null host name")
+		return core.Errorf("null host name")
 	}
 	if host.VtepIp == "" && host.Intf == "" {
-		return errors.New("either vtep or intf needed for the host")
+		return core.Errorf("either vtep or intf needed for the host")
 	}
 
 	return nil
@@ -407,12 +406,12 @@ func validateNetworkConfig(tenant *ConfigTenant) error {
 	var err error
 
 	if tenant.Name == "" {
-		return errors.New("null tenant name")
+		return core.Errorf("null tenant name")
 	}
 
 	for _, network := range tenant.Networks {
 		if network.Name == "" {
-			errors.New("null network name")
+			core.Errorf("null network name")
 		}
 
 		err = checkPktTagType(network.PktTagType)
@@ -436,7 +435,7 @@ func validateNetworkConfig(tenant *ConfigTenant) error {
 
 		if network.DefaultGw != "" {
 			if net.ParseIP(network.DefaultGw) == nil {
-				return errors.New("invalid IP")
+				return core.Errorf("invalid IP")
 			}
 		}
 	}
@@ -516,7 +515,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		} else if nwMasterCfg.PktTagType == "vxlan" {
 			// XXX: take local vlan as config, instead of allocating it
 			// independently. Return erro for now, if user tries this config
-			return &core.Error{Desc: "Not handled. Need to introduce local-vlan config"}
+			return core.Errorf("Not handled. Need to introduce local-vlan config")
 			nwCfg.PktTag = int(pktTag)
 			nwCfg.ExtPktTag, _ = strconv.Atoi(nwMasterCfg.PktTag)
 		} else if nwMasterCfg.PktTagType == "vlan" {
@@ -705,17 +704,17 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *ConfigTenant) 
 	var err error
 
 	if tenant.Name == "" {
-		return errors.New("null tenant name")
+		return core.Errorf("null tenant name")
 	}
 
 	for _, network := range tenant.Networks {
 		if network.Name == "" {
-			errors.New("null network name")
+			core.Errorf("null network name")
 		}
 
 		for _, ep := range network.Endpoints {
 			if ep.Container == "" {
-				return errors.New("invalid container name for the endpoint")
+				return core.Errorf("invalid container name for the endpoint")
 			}
 			if ep.IpAddress != "" {
 				nwMasterCfg := &MasterNwConfig{}
@@ -729,10 +728,10 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *ConfigTenant) 
 				if nwMasterCfg.SubnetIp != "" {
 					log.Printf("validate: found endpoint with ip for " +
 						"auto-allocated net \n")
-					return errors.New("found ep with ip for auto-allocated net")
+					return core.Errorf("found ep with ip for auto-allocated net")
 				}
 				if net.ParseIP(ep.IpAddress) == nil {
-					return errors.New("invalid ep IP")
+					return core.Errorf("invalid ep IP")
 				}
 			}
 		}
@@ -961,10 +960,10 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 func validateEpBindings(epBindings *[]ConfigEp) error {
 	for _, ep := range *epBindings {
 		if ep.Host == "" {
-			return errors.New("invalid host name for the endpoint")
+			return core.Errorf("invalid host name for the endpoint")
 		}
 		if ep.Container == "" {
-			return errors.New("invalid container name for the endpoint")
+			return core.Errorf("invalid container name for the endpoint")
 		}
 	}
 

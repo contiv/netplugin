@@ -17,9 +17,9 @@ package crt
 
 import (
 	"encoding/json"
-	"errors"
 	"reflect"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/contiv/netplugin/crtclient/docker"
 )
@@ -76,7 +76,7 @@ func (c *Crt) Init(configStr string) error {
 	}
 
 	if _, ok := ContainerIfRegistry[cfg.Crt.Type]; !ok {
-		return errors.New("unregistered container run time")
+		return core.Errorf("unregistered container run time")
 	}
 
 	crtConfigType := ContainerIfRegistry[cfg.Crt.Type].CrtConfigType

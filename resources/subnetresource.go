@@ -76,14 +76,14 @@ func (r *AutoSubnetCfgResource) ReadAll() ([]core.State, error) {
 func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
 	cfg, ok := rsrcCfg.(*AutoSubnetCfgResource)
 	if !ok {
-		return &core.Error{Desc: "Invalid type for subnet resource config"}
+		return core.Errorf("Invalid type for subnet resource config")
 	}
 	r.SubnetPool = cfg.SubnetPool
 	r.SubnetPoolLen = cfg.SubnetPoolLen
 	r.AllocSubnetLen = cfg.AllocSubnetLen
 
 	if cfg.AllocSubnetLen < cfg.SubnetPoolLen {
-		return &core.Error{Desc: "AllocSubnetLen should be greater than or equal to SubnetPoolLen"}
+		return core.Errorf("AllocSubnetLen should be greater than or equal to SubnetPoolLen")
 	}
 
 	err := r.Write()
@@ -138,7 +138,7 @@ func (r *AutoSubnetCfgResource) Allocate() (interface{}, error) {
 
 	subnet, ok := oper.FreeSubnets.NextSet(0)
 	if !ok {
-		return nil, &core.Error{Desc: "no subnets available."}
+		return nil, core.Errorf("no subnets available.")
 	}
 
 	oper.FreeSubnets.Clear(subnet)
@@ -168,12 +168,12 @@ func (r *AutoSubnetCfgResource) Deallocate(value interface{}) error {
 
 	pair, ok := value.(SubnetIpLenPair)
 	if !ok {
-		return &core.Error{Desc: "Invalid type for subnet value"}
+		return core.Errorf("Invalid type for subnet value")
 	}
 
 	if pair.Len != r.AllocSubnetLen {
-		return &core.Error{Desc: fmt.Sprintf("Invalid subnet length. Exp: %d Rcvd: %d",
-			r.AllocSubnetLen, pair.Len)}
+		return core.Errorf("Invalid subnet length. Exp: %d Rcvd: %d",
+			r.AllocSubnetLen, pair.Len)
 	}
 
 	var subnet uint

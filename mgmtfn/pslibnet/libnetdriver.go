@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os/exec"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster"
 	"github.com/mapuri/libnetwork/driverapi"
 )
@@ -30,11 +30,11 @@ func (d *LibNetDriver) Config(config interface{}) error {
 }
 
 func (d *LibNetDriver) CreateNetwork(nid driverapi.UUID, config interface{}) error {
-	return fmt.Errorf("Not implemented")
+	return core.Errorf("Not implemented")
 }
 
 func (d *LibNetDriver) DeleteNetwork(nid driverapi.UUID) error {
-	return fmt.Errorf("Not implemented")
+	return core.Errorf("Not implemented")
 }
 
 func invokeNetdcli(dc DriverConfig, isAdd bool) error {
@@ -68,7 +68,7 @@ func invokeNetdcli(dc DriverConfig, isAdd bool) error {
 	cmd.Stdin = bytes.NewReader(config)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("command failed. Error: %s, Output: %s", err, out)
+		return core.Errorf("command failed. Error: %s, Output: %s", err, out)
 	}
 	return nil
 }
@@ -77,7 +77,7 @@ func (d *LibNetDriver) CreateEndpoint(nid, eid driverapi.UUID, key string,
 	config interface{}) (*driverapi.SandboxInfo, error) {
 	dc, ok := config.(DriverConfig)
 	if !ok {
-		return nil, fmt.Errorf("Invalid config passed")
+		return nil, core.Errorf("Invalid config passed")
 	}
 
 	err := invokeNetdcli(dc, true)
@@ -96,7 +96,7 @@ func (d *LibNetDriver) CreateEndpoint(nid, eid driverapi.UUID, key string,
 func (d *LibNetDriver) DeleteEndpoint(nid, eid driverapi.UUID) error {
 	dc, ok := d.endpoints[eid]
 	if !ok {
-		return fmt.Errorf("endpoint info not found for epid: %q, netid: %q",
+		return core.Errorf("endpoint info not found for epid: %q, netid: %q",
 			eid, nid)
 	}
 	err := invokeNetdcli(dc, false)

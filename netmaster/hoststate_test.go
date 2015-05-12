@@ -16,8 +16,6 @@ limitations under the License.
 package netmaster
 
 import (
-	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/contiv/netplugin/core"
@@ -34,32 +32,32 @@ type testHostStateDriver struct {
 }
 
 func (d *testHostStateDriver) Init(config *core.Config) error {
-	return errors.New("Shouldn't be called!")
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testHostStateDriver) Deinit() {
 }
 
 func (d *testHostStateDriver) Write(key string, value []byte) error {
-	return errors.New("Shouldn't be called!")
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testHostStateDriver) Read(key string) ([]byte, error) {
-	return []byte{}, errors.New("Shouldn't be called!")
+	return []byte{}, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testHostStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
+	return [][]byte{}, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testHostStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testHostStateDriver) validateKey(key string) error {
 	if key != hostCfgKey {
-		return errors.New(fmt.Sprintf("Unexpected key. recvd: %s "+
-			"expected: %s", key, hostCfgKey))
+		return core.Errorf("Unexpected key. recvd: %s expected: %s",
+			key, hostCfgKey)
 	} else {
 		return nil
 	}
@@ -76,12 +74,12 @@ func (d *testHostStateDriver) ReadState(key string, value core.State,
 
 func (d *testHostStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testHostStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testHostStateDriver) WriteState(key string, value core.State,

@@ -98,19 +98,19 @@ type testState struct {
 }
 
 func (s *testState) Write() error {
-	return &core.Error{Desc: "Should not be called!!"}
+	return core.Errorf("Should not be called!!")
 }
 
 func (s *testState) Read(id string) error {
-	return &core.Error{Desc: "Should not be called!!"}
+	return core.Errorf("Should not be called!!")
 }
 
 func (s *testState) ReadAll() ([]core.State, error) {
-	return nil, &core.Error{Desc: "Should not be called!!"}
+	return nil, core.Errorf("Should not be called!!")
 }
 
 func (s *testState) Clear() error {
-	return &core.Error{Desc: "Should not be called!!"}
+	return core.Errorf("Should not be called!!")
 }
 
 func TestEtcdStateDriverWriteState(t *testing.T) {
