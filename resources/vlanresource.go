@@ -68,7 +68,7 @@ func (r *AutoVlanCfgResource) Init(rsrcCfg interface{}) error {
 	var ok bool
 	r.Vlans, ok = rsrcCfg.(*bitset.BitSet)
 	if !ok {
-		return &core.Error{Desc: "Invalid type for vlan resource config"}
+		return core.Errorf("Invalid type for vlan resource config")
 	}
 	err := r.Write()
 	if err != nil {
@@ -121,7 +121,7 @@ func (r *AutoVlanCfgResource) Allocate() (interface{}, error) {
 
 	vlan, ok := oper.FreeVlans.NextSet(0)
 	if !ok {
-		return nil, &core.Error{Desc: "no vlans available."}
+		return nil, core.Errorf("no vlans available.")
 	}
 
 	oper.FreeVlans.Clear(vlan)
@@ -143,7 +143,7 @@ func (r *AutoVlanCfgResource) Deallocate(value interface{}) error {
 
 	vlan, ok := value.(uint)
 	if !ok {
-		return &core.Error{Desc: "Invalid type for vlan value"}
+		return core.Errorf("Invalid type for vlan value")
 	}
 	if oper.FreeVlans.Test(vlan) {
 		return nil

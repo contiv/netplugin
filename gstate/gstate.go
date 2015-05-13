@@ -17,7 +17,6 @@ package gstate
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -81,8 +80,7 @@ func (gc *Cfg) checkErrors() error {
 	var err error
 
 	if net.ParseIP(gc.Auto.SubnetPool) == nil {
-		return errors.New(fmt.Sprintf("invalid ip address pool %s",
-			gc.Auto.SubnetPool))
+		return core.Errorf("invalid ip address pool %s", gc.Auto.SubnetPool)
 	}
 
 	_, err = netutils.ParseTagRanges(gc.Auto.Vlans, "vlan")
@@ -97,14 +95,12 @@ func (gc *Cfg) checkErrors() error {
 
 	if gc.Deploy.DefaultNetType != "vlan" &&
 		gc.Deploy.DefaultNetType != "vxlan" {
-		return errors.New(fmt.Sprintf("unsupported net type %s",
-			gc.Deploy.DefaultNetType))
+		return core.Errorf("unsupported net type %s", gc.Deploy.DefaultNetType)
 	}
 
 	if gc.Auto.SubnetLen > gc.Auto.AllocSubnetLen {
-		return errors.New(fmt.Sprintf(
-			"subnet size %d is smaller than subnets to be allocated from it",
-			gc.Auto.SubnetLen, gc.Auto.AllocSubnetLen))
+		return core.Errorf("subnet size %d is smaller than subnets to be allocated from it",
+			gc.Auto.SubnetLen, gc.Auto.AllocSubnetLen)
 	}
 	return err
 }
@@ -231,8 +227,8 @@ func (gc *Cfg) initVxlanBitset(vxlans string) (*resources.AutoVxlanCfgResource,
 
 	localVlansReqd := vxlanRange.Max - vxlanRange.Min + 1
 	if count := availableVlans.Count(); int(count) < localVlansReqd {
-		return nil, 0, &core.Error{Desc: fmt.Sprintf("Available free local vlans (%d) is less than possible vxlans (%d)",
-			count, vxlanRange.Max-vxlanRange.Min)}
+		return nil, 0, core.Errorf("Available free local vlans (%d) is less than possible vxlans (%d)",
+			count, vxlanRange.Max-vxlanRange.Min)
 	} else if int(count) > localVlansReqd {
 		//only reserve the #vxlan amount of bits
 		var clearBitMarker uint = 0
@@ -348,19 +344,17 @@ func (gc *Cfg) Process(ra core.ResourceManager) error {
 	var err error
 
 	if gc.Version != VersionBeta1 {
-		return &core.Error{Desc: fmt.Sprintf("unsupported verison %s",
-			gc.Version)}
+		return core.Errorf("unsupported verison %s", gc.Version)
 	}
 
 	err = gc.checkErrors()
 	if err != nil {
-		return &core.Error{Desc: fmt.Sprintf(
-			"process failed on error checks %s \n", err)}
+		return core.Errorf("process failed on error checks %s", err)
 	}
 
 	tenant := gc.Tenant
 	if tenant == "" {
-		return &core.Error{Desc: "null tenant"}
+		return core.Errorf("null tenant")
 	}
 
 	subnetRsrcCfg := &resources.AutoSubnetCfgResource{

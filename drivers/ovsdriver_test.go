@@ -52,26 +52,26 @@ type testOvsStateDriver struct {
 }
 
 func (d *testOvsStateDriver) Init(config *core.Config) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testOvsStateDriver) Deinit() {
 }
 
 func (d *testOvsStateDriver) Write(key string, value []byte) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testOvsStateDriver) Read(key string) ([]byte, error) {
-	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
+	return []byte{}, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testOvsStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
+	return [][]byte{}, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testOvsStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testOvsStateDriver) ClearState(key string) error {
@@ -145,7 +145,7 @@ func (d *testOvsStateDriver) readStateHelper(isCreateEp bool, oper int,
 		return nil
 	}
 
-	return &core.Error{Desc: "unknown value type"}
+	return core.Errorf("unknown value type")
 }
 
 func (d *testOvsStateDriver) ReadState(key string, value core.State,
@@ -173,17 +173,17 @@ func (d *testOvsStateDriver) ReadState(key string, value core.State,
 		return d.readStateHelper(false, READ_NW, value)
 	}
 
-	return &core.Error{Desc: fmt.Sprintf("unknown key! %s", key)}
+	return core.Errorf("unknown key! %s", key)
 }
 
 func (d *testOvsStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return nil, &core.Error{Desc: "shouldn't be called!"}
+	return nil, core.Errorf("shouldn't be called!")
 }
 
 func (d *testOvsStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testOvsStateDriver) WriteState(key string, value core.State,

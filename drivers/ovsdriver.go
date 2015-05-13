@@ -107,8 +107,8 @@ func (d *OvsDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 	reply, _ := d.ovs.Transact(DATABASE, ops...)
 
 	if len(reply) < len(ops) {
-		return &core.Error{Desc: fmt.Sprintf("Unexpected number of replies. Expected: %d, Recvd: %d",
-			len(ops), len(reply))}
+		return core.Errorf("Unexpected number of replies. Expected: %d, Recvd: %d",
+			len(ops), len(reply))
 	}
 	ok := true
 	errors := []string{}
@@ -124,8 +124,7 @@ func (d *OvsDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 	if ok {
 		return nil
 	} else {
-		return &core.Error{Desc: fmt.Sprintf("ovs operation failed. Error(s): %v",
-			errors)}
+		return core.Errorf("ovs operation failed. Error(s): %v", errors)
 	}
 }
 
@@ -206,7 +205,7 @@ func (d *OvsDriver) getPortOrIntfNameFromId(id string, isPort bool) (string, err
 			}
 		}
 	}
-	return "", &core.Error{Desc: fmt.Sprintf("Ovs port/intf not found for id: %s", id)}
+	return "", core.Errorf("Ovs port/intf not found for id: %s", id)
 }
 
 func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
@@ -375,12 +374,13 @@ func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
 func (d *OvsDriver) Init(config *core.Config, stateDriver core.StateDriver) error {
 
 	if config == nil || stateDriver == nil {
-		return &core.Error{Desc: fmt.Sprintf("Invalid arguments. cfg: %v, stateDriver: %v", config, stateDriver)}
+		return core.Errorf("Invalid arguments. cfg: %v, stateDriver: %v",
+			config, stateDriver)
 	}
 
 	cfg, ok := config.V.(*OvsDriverConfig)
 	if !ok {
-		return &core.Error{Desc: "Invalid type passed"}
+		return core.Errorf("Invalid type passed")
 	}
 
 	ovs, err := libovsdb.Connect(cfg.Ovs.DbIp, cfg.Ovs.DbPort)
@@ -564,5 +564,5 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 }
 
 func (d *OvsDriver) MakeEndpointAddress() (*core.Address, error) {
-	return nil, &core.Error{Desc: "Not supported"}
+	return nil, core.Errorf("Not supported")
 }

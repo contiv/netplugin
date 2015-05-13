@@ -15,14 +15,28 @@ limitations under the License.
 
 package core
 
-import "strings"
+import (
+	"fmt"
+	"runtime"
+	"strings"
+)
 
 type Error struct {
-	Desc string
+	desc string
+	file string
+	line int
 }
 
 func (e *Error) Error() string {
-	return e.Desc
+	return fmt.Sprintf("%s [%s %d]", e.desc, e.file, e.line)
+}
+
+func Errorf(f string, args ...interface{}) *Error {
+	e := &Error{}
+	e.desc = fmt.Sprintf(f, args...)
+	_, e.file, e.line, _ = runtime.Caller(1)
+	e.file = e.file[strings.LastIndex(e.file, "/")+1:]
+	return e
 }
 
 func ErrIfKeyExists(err error) error {

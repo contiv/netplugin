@@ -16,9 +16,6 @@ limitations under the License.
 package docker
 
 import (
-	"errors"
-	"fmt"
-	"github.com/samalba/dockerclient"
 	"log"
 	"os"
 	"os/exec"
@@ -27,9 +24,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/crtclient"
+	"github.com/samalba/dockerclient"
 	"github.com/vishvananda/netlink"
-	// "github.com/vishvananda/netns"
 )
 
 type DockerConfig struct {
@@ -44,17 +42,17 @@ type Docker struct {
 
 func (d *Docker) Init(config *crtclient.Config) error {
 	if config == nil {
-		return errors.New("null config!")
+		return core.Errorf("null config!")
 	}
 
 	cfg, ok := config.V.(*DockerConfig)
 
 	if !ok {
-		return errors.New("Invalid config type passed!")
+		return core.Errorf("Invalid config type passed!")
 	}
 
 	if cfg.Docker.Socket == "" {
-		return errors.New(fmt.Sprintf("Invalid arguments. cfg: %v", config))
+		return core.Errorf("Invalid arguments. cfg: %v", config)
 	}
 
 	// TODO: ADD TLS support
@@ -77,12 +75,12 @@ func (d *Docker) getContPid(ctx *crtclient.ContainerEpContext) (string, error) {
 	if err != nil {
 		log.Printf("unable to get container info for '%s' \n",
 			contNameOrId)
-		return "", errors.New("couldn't obtain container info")
+		return "", core.Errorf("couldn't obtain container info")
 	}
 
 	// the hack below works only for running containers
 	if !contInfo.State.Running {
-		return "", errors.New("container not running")
+		return "", core.Errorf("container not running")
 	}
 
 	return strconv.Itoa(contInfo.State.Pid), nil
@@ -189,7 +187,7 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 		return nil
 	}
 	if ctx.SubnetLen == 0 {
-		errors.New("Subnet mask unspecified \n")
+		core.Errorf("Subnet mask unspecified \n")
 	}
 
 	contPid, err := d.getContPid(ctx)
@@ -264,7 +262,7 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 		return nil
 	}
 	if ctx.SubnetLen == 0 {
-		errors.New("Subnet mask unspecified \n")
+		core.Errorf("Subnet mask unspecified \n")
 	}
 
 	contPid, err := d.getContPid(ctx)
@@ -356,8 +354,7 @@ func (d *Docker) GetContainerName(contId string) (string, error) {
 
 	// the hack below works only for running containers
 	if !contInfo.State.Running {
-		return "", errors.New(fmt.Sprintf(
-			"container id %s not running", contId))
+		return "", core.Errorf("container id %s not running", contId)
 	}
 
 	return contInfo.Name, nil

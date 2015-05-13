@@ -17,7 +17,6 @@ package plugin
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"sync"
 
@@ -86,15 +85,14 @@ func (p *NetPlugin) InitHelper(driverRegistry map[string]DriverConfigTypes,
 		return driver, config, nil
 	} else {
 		return nil, nil,
-			&core.Error{Desc: fmt.Sprintf("Failed to find a registered driver for: %s",
-				driverName)}
+			core.Errorf("Failed to find a registered driver for: %s", driverName)
 	}
 
 }
 
 func (p *NetPlugin) Init(configStr string) error {
 	if configStr == "" {
-		return &core.Error{Desc: "empty config passed"}
+		return core.Errorf("empty config passed")
 	}
 
 	var driver core.Driver = nil
@@ -180,7 +178,7 @@ func (p *NetPlugin) DeleteNetwork(id string) error {
 }
 
 func (p *NetPlugin) FetchNetwork(id string) (core.State, error) {
-	return nil, &core.Error{Desc: "Not implemented"}
+	return nil, core.Errorf("Not implemented")
 }
 
 func (p *NetPlugin) CreateEndpoint(id string) error {
@@ -192,5 +190,5 @@ func (p *NetPlugin) DeleteEndpoint(id string) error {
 }
 
 func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
-	return nil, &core.Error{Desc: "Not implemented"}
+	return nil, core.Errorf("Not implemented")
 }

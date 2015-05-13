@@ -481,7 +481,7 @@ func executeOpts(opts *cliOpts) error {
 				state = rsrc
 			}
 		} else {
-			return fmt.Errorf("Only get operation is supported for resources")
+			return core.Errorf("Only get operation is supported for resources")
 		}
 	}
 

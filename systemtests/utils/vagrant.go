@@ -16,7 +16,6 @@ limitations under the License.
 package utils
 
 import (
-	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -58,7 +57,8 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 	}
 	nodeNamesBytes := re.FindAll(output, -1)
 	if nodeNamesBytes == nil {
-		err = &core.Error{Desc: fmt.Sprintf("No running nodes found in vagrant status output: \n%s\n", output)}
+		err = core.Errorf("No running nodes found in vagrant status output: \n%s\n",
+			output)
 		return err
 	}
 	nodeNames := []string{}
@@ -67,8 +67,8 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 		nodeNames = append(nodeNames, nodeName)
 	}
 	if len(nodeNames) != numNodes {
-		err = &core.Error{Desc: fmt.Sprintf("Number of running node(s) (%d) is not equal to number of expected node(s) (%d) in vagrant status output: \n%s\n",
-			len(nodeNames), numNodes, output)}
+		err = core.Errorf("Number of running node(s) (%d) is not equal to number of expected node(s) (%d) in vagrant status output: \n%s\n",
+			len(nodeNames), numNodes, output)
 		return err
 	}
 

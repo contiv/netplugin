@@ -52,15 +52,14 @@ func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, boo
 	rsrcType, ok := ResourceRegistry[desc]
 	if !ok {
 		return nil, alreadyExists,
-			&core.Error{Desc: fmt.Sprintf("No resource found for description: %q",
-				desc)}
+			core.Errorf("No resource found for description: %q", desc)
 	}
 
 	val := reflect.New(rsrcType)
 	// sanity checks
 	if !val.Elem().FieldByName("CommonState").IsValid() {
 		panic(fmt.Sprintf("The state structure %v is missing core.CommonState", rsrcType))
-		return nil, false, &core.Error{Desc: fmt.Sprintf("The state structure %v is missing core.CommonState", rsrcType)}
+		return nil, false, core.Errorf("The state structure %v is missing core.CommonState", rsrcType)
 	}
 	//the following works as every core.State is expected to embed core.CommonState struct
 	val.Elem().FieldByName("CommonState").FieldByName("StateDriver").Set(reflect.ValueOf(ra.Etcd))
@@ -95,8 +94,7 @@ func (ra *EtcdResourceManager) DefineResource(id, desc string,
 	}
 
 	if alreadyExists {
-		return &core.Error{Desc: fmt.Sprintf("Resource with id: %q already exists",
-			id)}
+		return core.Errorf("Resource with id: %q already exists", id)
 	}
 
 	err = rsrc.Init(rsrcCfg)
@@ -115,8 +113,8 @@ func (ra *EtcdResourceManager) UndefineResource(id, desc string) error {
 	}
 
 	if !alreadyExists {
-		return &core.Error{Desc: fmt.Sprintf("No resource found for description: %q and id: %q",
-			desc, id)}
+		return core.Errorf("No resource found for description: %q and id: %q",
+			desc, id)
 	}
 
 	rsrc.Deinit()
@@ -133,8 +131,8 @@ func (ra *EtcdResourceManager) AllocateResourceVal(id, desc string) (interface{}
 	}
 
 	if !alreadyExists {
-		return nil, &core.Error{Desc: fmt.Sprintf("No resource found for description: %q and id: %q",
-			desc, id)}
+		return nil, core.Errorf("No resource found for description: %q and id: %q",
+			desc, id)
 	}
 
 	return rsrc.Allocate()
@@ -149,8 +147,8 @@ func (ra *EtcdResourceManager) DeallocateResourceVal(id, desc string,
 	}
 
 	if !alreadyExists {
-		return &core.Error{Desc: fmt.Sprintf("No resource found for description: %q and id: %q",
-			desc, id)}
+		return core.Errorf("No resource found for description: %q and id: %q",
+			desc, id)
 	}
 
 	return rsrc.Deallocate(value)

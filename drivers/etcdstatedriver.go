@@ -43,13 +43,13 @@ type EtcdStateDriver struct {
 
 func (d *EtcdStateDriver) Init(config *core.Config) error {
 	if config == nil {
-		return &core.Error{Desc: fmt.Sprintf("Invalid arguments. cfg: %v", config)}
+		return core.Errorf("Invalid arguments. cfg: %v", config)
 	}
 
 	cfg, ok := config.V.(*EtcdStateDriverConfig)
 
 	if !ok {
-		return &core.Error{Desc: "Invalid config type passed!"}
+		return core.Errorf("Invalid config type passed!")
 	}
 
 	d.Client = etcd.NewClient(cfg.Etcd.Machines)
@@ -183,8 +183,8 @@ func ReadAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
 		if !values.Index(i).Elem().FieldByName("CommonState").IsValid() {
 			panic(fmt.Sprintf("The state structure %v is missing core.CommonState",
 				stateType))
-			return nil, &core.Error{Desc: fmt.Sprintf("The state structure %v is missing core.CommonState",
-				stateType)}
+			return nil, core.Errorf("The state structure %v is missing core.CommonState",
+				stateType)
 		}
 		//the following works as every core.State is expected to embed core.CommonState struct
 		values.Index(i).Elem().FieldByName("CommonState").FieldByName("StateDriver").Set(reflect.ValueOf(d))
@@ -221,8 +221,8 @@ func (d *EtcdStateDriver) channelStateEvents(sType core.State,
 			if !value.Elem().Elem().FieldByName("CommonState").IsValid() {
 				panic(fmt.Sprintf("The state structure %v is missing core.CommonState",
 					stateType))
-				retErr <- &core.Error{Desc: fmt.Sprintf("The state structure %v is missing core.CommonState",
-					stateType)}
+				retErr <- core.Errorf("The state structure %v is missing core.CommonState",
+					stateType)
 				return
 			}
 			//the following works as every core.State is expected to embed core.CommonState struct

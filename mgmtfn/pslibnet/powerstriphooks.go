@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/mapuri/libnetwork/driverapi"
 )
 
@@ -167,10 +168,10 @@ func (adptr *PwrStrpAdptr) handlePreCreate(req *PowerStripRequest) (*PowerStripR
 	}
 
 	if netId, ok := dockerReq.Labels["netid"]; !ok || netId == "" {
-		return nil, fmt.Errorf("Container doesn't contain a valid 'netid' label. Labels: %+v Body: %q",
+		return nil, core.Errorf("Container doesn't contain a valid 'netid' label. Labels: %+v Body: %q",
 			dockerReq, req.ClientRequest.Body)
 	} else if tenantId, ok := dockerReq.Labels["tenantid"]; !ok || tenantId == "" {
-		return nil, fmt.Errorf("Container doesn't contain a valid 'tenantid' label. Labels: %+v Body: %q",
+		return nil, core.Errorf("Container doesn't contain a valid 'tenantid' label. Labels: %+v Body: %q",
 			dockerReq, req.ClientRequest.Body)
 	} else {
 		// XXX: record the outstanding network for which we are yet to receive a
@@ -194,7 +195,7 @@ func (adptr *PwrStrpAdptr) handlePostCreate(req *PowerStripRequest) (*PowerStrip
 
 	// should not happen
 	if adptr.outstandingNet.netId == "" {
-		return nil, fmt.Errorf("received a container create response, without corresponding create!")
+		return nil, core.Errorf("received a container create response, without corresponding create!")
 	}
 
 	//structure of interesting fields in the create response
@@ -266,7 +267,7 @@ func (adptr *PwrStrpAdptr) getFullContainerId(contIdOrName string) string {
 func (adptr *PwrStrpAdptr) handlePreStart(req *PowerStripRequest) (*PowerStripResponse, error) {
 	contIdOrName := extractContIdOrName(req.ClientRequest)
 	if _, ok := adptr.containerNets[adptr.getFullContainerId(contIdOrName)]; !ok {
-		return nil, fmt.Errorf("got a start request for non existent container. contIdOrName: %s Request: %+v",
+		return nil, core.Errorf("got a start request for non existent container. contIdOrName: %s Request: %+v",
 			contIdOrName, req)
 	} else {
 		adptr.outstandingContId = adptr.getFullContainerId(contIdOrName)
@@ -287,12 +288,12 @@ func (adptr *PwrStrpAdptr) handlePostStart(req *PowerStripRequest) (*PowerStripR
 
 	// should not happen
 	if adptr.outstandingContId == "" {
-		return nil, fmt.Errorf("received a container start response, without corresponding start request!")
+		return nil, core.Errorf("received a container start response, without corresponding start request!")
 	}
 
 	// should not happen
 	if _, ok := adptr.containerNets[adptr.outstandingContId]; !ok {
-		return nil, fmt.Errorf("received a container start response for unknown container %s",
+		return nil, core.Errorf("received a container start response for unknown container %s",
 			adptr.outstandingContId)
 	}
 
@@ -311,7 +312,7 @@ func (adptr *PwrStrpAdptr) handlePostStart(req *PowerStripRequest) (*PowerStripR
 			}
 		}(netUuid, epUuid)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create endpoint for net: %+v container: %q with net(s): %+v. Error: %s",
+			return nil, core.Errorf("Failed to create endpoint for net: %+v container: %q with net(s): %+v. Error: %s",
 				net, contId, adptr.containerNets[contId], err)
 		}
 	}

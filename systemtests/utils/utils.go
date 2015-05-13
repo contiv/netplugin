@@ -17,7 +17,6 @@ package utils
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -25,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster"
 )
 
@@ -313,7 +313,7 @@ func NetworkStateExists(node TestbedNode, network string) error {
 		return err
 	}
 	if string(output) == "" {
-		return errors.New("got null output")
+		return core.Errorf("got null output")
 	}
 	return nil
 }

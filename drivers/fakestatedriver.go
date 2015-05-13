@@ -40,7 +40,7 @@ func (d *FakeStateDriver) Read(key string) ([]byte, error) {
 		return val.value, nil
 	}
 
-	return []byte{}, &core.Error{Desc: "Key not found!"}
+	return []byte{}, core.Errorf("Key not found!")
 }
 
 func (d *FakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
@@ -55,7 +55,7 @@ func (d *FakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 }
 
 func (d *FakeStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *FakeStateDriver) ClearState(key string) error {
@@ -87,7 +87,7 @@ func (d *FakeStateDriver) ReadAllState(baseKey string, sType core.State,
 
 func (d *FakeStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *FakeStateDriver) WriteState(key string, value core.State,

@@ -29,7 +29,7 @@ type TempFileCtx struct {
 
 func (ctx *TempFileCtx) Create(fileContents string) (*os.File, error) {
 	if ctx.dir != "" && len(ctx.files) != 0 {
-		return nil, &core.Error{Desc: "Create context called for an already created context!"}
+		return nil, core.Errorf("Create context called for an already created context!")
 	}
 
 	dir, err := ioutil.TempDir("", "netp_tests")

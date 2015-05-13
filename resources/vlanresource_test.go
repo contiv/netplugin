@@ -82,7 +82,7 @@ func (vt *vlanRsrcValidator) ValidateState(state core.State) error {
 		return nil
 	}
 
-	return &core.Error{Desc: "unknown state object type!"}
+	return core.Errorf("unknown state object type!")
 }
 
 func (vt *vlanRsrcValidator) CopyState(state core.State) error {
@@ -102,7 +102,7 @@ func (vt *vlanRsrcValidator) CopyState(state core.State) error {
 		return nil
 	}
 
-	return &core.Error{Desc: "unknown state object type!"}
+	return core.Errorf("unknown state object type!")
 }
 
 type vlanRsrcValidateOp int
@@ -228,26 +228,26 @@ type testVlanRsrcStateDriver struct {
 }
 
 func (d *testVlanRsrcStateDriver) Init(config *core.Config) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVlanRsrcStateDriver) Deinit() {
 }
 
 func (d *testVlanRsrcStateDriver) Write(key string, value []byte) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVlanRsrcStateDriver) Read(key string) ([]byte, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVlanRsrcStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVlanRsrcStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testVlanRsrcStateDriver) validate(key string, state core.State,
@@ -258,7 +258,7 @@ func (d *testVlanRsrcStateDriver) validate(key string, state core.State,
 	if !ok {
 		errStr := fmt.Sprintf("No matching validation entry for id: %s", id)
 		log.Printf("%s\n", errStr)
-		return &core.Error{Desc: errStr}
+		return core.Errorf(errStr)
 	}
 
 	switch op {
@@ -288,12 +288,12 @@ func (d *testVlanRsrcStateDriver) ReadState(key string, value core.State,
 
 func (d *testVlanRsrcStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testVlanRsrcStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testVlanRsrcStateDriver) WriteState(key string, value core.State,
@@ -358,7 +358,7 @@ func TestAutoVlanCfgResourceAllocateExhaustion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Vlan resource allocation succeeded, expected to fail!")
 	}
-	if err.Error() != "no vlans available." {
+	if !strings.Contains(err.Error(), "no vlans available.") {
 		t.Fatalf("Vlan resource allocation failure reason mismatch. Expected: %s, rcvd: %s",
 			"no vlans available.", err)
 	}

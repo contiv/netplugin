@@ -16,7 +16,6 @@ limitations under the License.
 package drivers
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/contiv/netplugin/core"
@@ -33,32 +32,32 @@ type testNwStateDriver struct {
 }
 
 func (d *testNwStateDriver) Init(config *core.Config) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testNwStateDriver) Deinit() {
 }
 
 func (d *testNwStateDriver) Write(key string, value []byte) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testNwStateDriver) Read(key string) ([]byte, error) {
-	return []byte{}, &core.Error{Desc: "Shouldn't be called!"}
+	return []byte{}, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testNwStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	return [][]byte{}, &core.Error{Desc: "Shouldn't be called!"}
+	return [][]byte{}, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testNwStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testNwStateDriver) validateKey(key string) error {
 	if key != nwCfgKey {
-		return &core.Error{Desc: fmt.Sprintf("Unexpected key. "+
-			"recvd: %s expected: %s ", key, nwCfgKey)}
+		return core.Errorf("Unexpected key. recvd: %s expected: %s ",
+			key, nwCfgKey)
 	} else {
 		return nil
 	}
@@ -75,12 +74,12 @@ func (d *testNwStateDriver) ReadState(key string, value core.State,
 
 func (d *testNwStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testNwStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testNwStateDriver) WriteState(key string, value core.State,

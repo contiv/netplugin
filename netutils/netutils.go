@@ -16,7 +16,6 @@ limitations under the License.
 package netutils
 
 import (
-	"errors"
 	"fmt"
 	"github.com/jainvipin/bitset"
 	"github.com/vishvananda/netlink"
@@ -24,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/contiv/netplugin/core"
 )
 
 var endianNess string
@@ -57,7 +58,7 @@ func ipv4ToUint32(ipaddr string) (uint32, error) {
 
 	ip := net.ParseIP(ipaddr).To4()
 	if ip == nil {
-		return 0, errors.New("ipv4 to uint32 conversion: invalid ip format")
+		return 0, core.Errorf("ipv4 to uint32 conversion: invalid ip format")
 	}
 	if endianNess == "little" {
 		ipUint32 = (uint32(ip[3]) | (uint32(ip[2]) << 8) |
@@ -86,29 +87,26 @@ func ipv4Uint32ToString(ipUint32 uint32) (string, error) {
 
 func GetSubnetIp(subnetIp string, subnetLen uint, allocSubnetLen, hostId uint) (string, error) {
 	if subnetIp == "" {
-		return "", errors.New("null subnet")
+		return "", core.Errorf("null subnet")
 	}
 
 	if subnetLen > 32 || subnetLen < 8 {
-		return "", errors.New(
-			fmt.Sprintf("subnet length %d not supported \n", subnetLen))
+		return "", core.Errorf("subnet length %d not supported", subnetLen)
 	}
 	if subnetLen > allocSubnetLen {
-		return "", errors.New(fmt.Sprintf(
-			"subnet length %d is bigger than subnet alloc len %d",
-			subnetLen, allocSubnetLen))
+		return "", core.Errorf("subnet length %d is bigger than subnet alloc len %d",
+			subnetLen, allocSubnetLen)
 	}
 
 	maxHosts := uint(1 << (allocSubnetLen - subnetLen))
 	if hostId >= maxHosts {
-		return "", errors.New(
-			fmt.Sprintf("host id %d is beyond subnet's capacity %d", hostId, maxHosts))
+		return "", core.Errorf("host id %d is beyond subnet's capacity %d",
+			hostId, maxHosts)
 	}
 
 	hostIpUint32, err := ipv4ToUint32(subnetIp)
 	if err != nil {
-		return "", errors.New(
-			fmt.Sprintf("unable to convert subnet %s to uint32", subnetIp))
+		return "", core.Errorf("unable to convert subnet %s to uint32", subnetIp)
 	}
 	hostIpUint32 += uint32(hostId << (32 - allocSubnetLen))
 	return ipv4Uint32ToString(hostIpUint32)
@@ -116,33 +114,28 @@ func GetSubnetIp(subnetIp string, subnetLen uint, allocSubnetLen, hostId uint) (
 
 func GetIpNumber(subnetIp string, subnetLen uint, allocSubnetLen uint, hostIp string) (uint, error) {
 	if subnetLen > 32 || subnetLen < 8 {
-		return 0, errors.New(
-			fmt.Sprintf("subnet length %d not supported \n", subnetLen))
+		return 0, core.Errorf("subnet length %d not supported", subnetLen)
 	}
 	if subnetLen > allocSubnetLen {
-		return 0, errors.New(fmt.Sprintf(
-			"subnet length %d is bigger than subnet alloc len %d",
-			subnetLen, allocSubnetLen))
+		return 0, core.Errorf("subnet length %d is bigger than subnet alloc len %d",
+			subnetLen, allocSubnetLen)
 	}
 
 	hostIpUint32, err := ipv4ToUint32(hostIp)
 	if err != nil {
-		return 0, errors.New(
-			fmt.Sprintf("unable to convert hostIp %s to uint32", hostIp))
+		return 0, core.Errorf("unable to convert hostIp %s to uint32", hostIp)
 	}
 
 	subnetIpUint32, err := ipv4ToUint32(subnetIp)
 	if err != nil {
-		return 0, errors.New(
-			fmt.Sprintf("unable to convert subnetIp %s to uint32", subnetIp))
+		return 0, core.Errorf("unable to convert subnetIp %s to uint32", subnetIp)
 	}
 	hostId := uint((hostIpUint32 - subnetIpUint32) >> (32 - allocSubnetLen))
 
 	maxHosts := uint(1 << (allocSubnetLen - subnetLen))
 	if hostId >= maxHosts {
-		return 0, errors.New(
-			fmt.Sprintf("hostIp %s is exceeding beyond subnet %s/%d, hostId %d ",
-				hostIp, subnetIp, subnetLen, hostId))
+		return 0, core.Errorf("hostIp %s is exceeding beyond subnet %s/%d, hostId %d",
+			hostIp, subnetIp, subnetLen, hostId)
 	}
 
 	return uint(hostId), nil
@@ -161,12 +154,12 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 	}
 
 	if tagType != "vlan" && tagType != "vxlan" {
-		return nil, errors.New(fmt.Sprintf("invalid tag type %s ", tagType))
+		return nil, core.Errorf("invalid tag type %s", tagType)
 	}
 	rangesStr := strings.Split(ranges, ",")
 
 	if len(rangesStr) > 1 && tagType == "vxlan" {
-		return nil, errors.New("do not support more than 2 vxlan tag ranges")
+		return nil, core.Errorf("do not support more than 2 vxlan tag ranges")
 	}
 
 	tagRanges := make([]TagRange, len(rangesStr), len(rangesStr))
@@ -174,37 +167,36 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 		oneRangeStr = strings.Trim(oneRangeStr, " ")
 		tagNums := strings.Split(oneRangeStr, "-")
 		if len(tagNums) > 2 {
-			return nil, errors.New(fmt.Sprintf(
-				"invalid tags %s, correct '10-50,70-100'", oneRangeStr))
+			return nil, core.Errorf("invalid tags %s, correct '10-50,70-100'",
+				oneRangeStr)
 		}
 		tagRanges[idx].Min, err = strconv.Atoi(tagNums[0])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf(
-				"invalid integer %d conversion error '%s'", tagRanges[idx].Min, err))
+			return nil, core.Errorf("invalid integer %d conversion error '%s'",
+				tagRanges[idx].Min, err)
 		}
 		tagRanges[idx].Max, err = strconv.Atoi(tagNums[1])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf(
-				"invalid integer %d conversion error '%s'", tagRanges[idx].Max, err))
+			return nil, core.Errorf("invalid integer %d conversion error '%s'",
+				tagRanges[idx].Max, err)
 		}
 
 		if tagRanges[idx].Min > tagRanges[idx].Max {
-			return nil, errors.New(fmt.Sprintf(
-				"invalid range %s, min is greater than max", oneRangeStr))
+			return nil, core.Errorf("invalid range %s, min is greater than max",
+				oneRangeStr)
 		}
 		if tagType == "vlan" && tagRanges[idx].Max > 4095 {
-			return nil, errors.New(fmt.Sprintf(
-				"invalid range %s, vlan values exceed 4095 max allowed", oneRangeStr))
+			return nil, core.Errorf("invalid range %s, vlan values exceed 4095 max allowed",
+				oneRangeStr)
 		}
 		if tagType == "vxlan" && tagRanges[idx].Max > 65535 {
-			return nil, errors.New(fmt.Sprintf(
-				"invalid range %s, vlan values exceed 65535 max allowed", oneRangeStr))
+			return nil, core.Errorf("invalid range %s, vlan values exceed 65535 max allowed",
+				oneRangeStr)
 		}
 		if tagType == "vxlan" &&
 			(tagRanges[idx].Max-tagRanges[idx].Min > 16000) {
-			return nil, errors.New(fmt.Sprintf(
-				"does not allow vxlan range to exceed 16000 range %s",
-				oneRangeStr))
+			return nil, core.Errorf("does not allow vxlan range to exceed 16000 range %s",
+				oneRangeStr)
 		}
 	}
 
@@ -236,7 +228,7 @@ func GetLocalIp() (string, error) {
 		}
 	}
 
-	err := errors.New("local ip not found")
+	err := core.Errorf("local ip not found")
 	if localIpAddr != "" {
 		err = nil
 	}
@@ -247,13 +239,13 @@ func GetLocalIp() (string, error) {
 func ParseCIDR(cidrStr string) (string, uint, error) {
 	strs := strings.Split(cidrStr, "/")
 	if len(strs) != 2 {
-		return "", 0, errors.New("invalid cidr format")
+		return "", 0, core.Errorf("invalid cidr format")
 	}
 
 	subnetStr := strs[0]
 	subnetLen, _ := strconv.Atoi(strs[1])
 	if subnetLen > 32 {
-		return "", 0, errors.New("invalid mask in gateway/mask specification ")
+		return "", 0, core.Errorf("invalid mask in gateway/mask specification ")
 	}
 
 	return subnetStr, uint(subnetLen), nil

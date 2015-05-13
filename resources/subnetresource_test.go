@@ -85,7 +85,7 @@ func (vt *subnetRsrcValidator) ValidateState(state core.State) error {
 		return nil
 	}
 
-	return &core.Error{Desc: "unknown state object type!"}
+	return core.Errorf("unknown state object type!")
 }
 
 func (vt *subnetRsrcValidator) CopyState(state core.State) error {
@@ -107,7 +107,7 @@ func (vt *subnetRsrcValidator) CopyState(state core.State) error {
 		return nil
 	}
 
-	return &core.Error{Desc: "unknown state object type!"}
+	return core.Errorf("unknown state object type!")
 }
 
 type subnetRsrcValidateOp int
@@ -251,26 +251,26 @@ type testSubnetRsrcStateDriver struct {
 }
 
 func (d *testSubnetRsrcStateDriver) Init(config *core.Config) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testSubnetRsrcStateDriver) Deinit() {
 }
 
 func (d *testSubnetRsrcStateDriver) Write(key string, value []byte) error {
-	return &core.Error{Desc: "Shouldn't be called!"}
+	return core.Errorf("Shouldn't be called!")
 }
 
 func (d *testSubnetRsrcStateDriver) Read(key string) ([]byte, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testSubnetRsrcStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testSubnetRsrcStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testSubnetRsrcStateDriver) validate(key string, state core.State,
@@ -281,7 +281,7 @@ func (d *testSubnetRsrcStateDriver) validate(key string, state core.State,
 	if !ok {
 		errStr := fmt.Sprintf("No matching validation entry for id: %s", id)
 		log.Printf("%s\n", errStr)
-		return &core.Error{Desc: errStr}
+		return core.Errorf(errStr)
 	}
 
 	switch op {
@@ -311,12 +311,12 @@ func (d *testSubnetRsrcStateDriver) ReadState(key string, value core.State,
 
 func (d *testSubnetRsrcStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return nil, &core.Error{Desc: "Shouldn't be called!"}
+	return nil, core.Errorf("Shouldn't be called!")
 }
 
 func (d *testSubnetRsrcStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
-	return &core.Error{Desc: "not supported"}
+	return core.Errorf("not supported")
 }
 
 func (d *testSubnetRsrcStateDriver) WriteState(key string, value core.State,
@@ -383,7 +383,8 @@ func TestAutoSubnetCfgResourceAllocateExhaustion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Subnet resource allocation succeeded, expected to fail!")
 	}
-	if err.Error() != "no subnets available." {
+	if !strings.Contains(err.Error(),
+		"no subnets available.") {
 		t.Fatalf("Subnet resource allocation failure reason mismatch. Expected: %s, rcvd: %s",
 			"no subnets available.", err)
 	}
