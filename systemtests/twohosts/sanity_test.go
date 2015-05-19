@@ -289,6 +289,102 @@ func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
 	}()
 }
 
+func TestTwoHostsMultiVxlanPingSuccessStatefulStart_sanity(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
+		utils.StopOnError(t.Failed())
+	}()
+
+	jsonCfg :=
+		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vxlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "VXlans"                    : "10001-14000",
+            "Networks"  : [ 
+            {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer3",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer4",
+                    "Host"              : "host2"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
+
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
+
+	utils.StartServer(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(t, node1, "myContainer1")
+	}()
+
+	utils.StartServer(t, node1, "myContainer3")
+	defer func() {
+		utils.DockerCleanup(t, node1, "myContainer3")
+	}()
+
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer2")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer4")
+	}()
+
+	//restart the netplugin and retry the pings
+	utils.StopNetPlugin(t, testbed.GetNodes())
+	utils.StartNetPlugin(t, testbed.GetNodes(), false)
+	utils.DockerCleanup(t, node2, "myContainer2")
+	utils.DockerCleanup(t, node2, "myContainer4")
+
+	ipAddress = utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer2")
+	}()
+
+	ipAddress = utils.GetIpAddress(t, node2, "purple-myContainer3")
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer4")
+	}()
+}
+
 func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, testbed.GetNodes())
@@ -351,6 +447,96 @@ func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
 	}()
 
 	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartClientFailure(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer4")
+	}()
+
+	utils.StartClientFailure(t, node2, "myContainer3", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer3")
+	}()
+}
+
+func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
+		utils.StopOnError(t.Failed())
+	}()
+
+	//create a single vlan network, with two endpoints
+	jsonCfg :=
+		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vxlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "VXlans"                    : "10001-14000",
+            "Networks"  : [ 
+            {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer3",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer4",
+                    "Host"              : "host2"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
+
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
+
+	utils.StartServer(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(t, node1, "myContainer1")
+	}()
+
+	ipAddress := utils.GetIpAddress(t, node2, "orange-myContainer1")
+	utils.StartClientFailure(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer4")
+	}()
+
+	utils.StartClientFailure(t, node2, "myContainer3", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer3")
+	}()
+
+	//restart the netplugin and retry the pings
+	utils.StopNetPlugin(t, testbed.GetNodes())
+	utils.StartNetPlugin(t, testbed.GetNodes(), false)
+	utils.DockerCleanup(t, node2, "myContainer3")
+	utils.DockerCleanup(t, node2, "myContainer4")
+
+	ipAddress = utils.GetIpAddress(t, node2, "orange-myContainer1")
 	utils.StartClientFailure(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")

@@ -14,6 +14,9 @@ type ValueData struct {
 	value []byte
 }
 
+type FakeStateDriverConfig struct {
+}
+
 type FakeStateDriver struct {
 	TestState map[string]ValueData
 }

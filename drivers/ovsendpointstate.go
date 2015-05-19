@@ -72,6 +72,17 @@ type OvsOperEndpointState struct {
 	VtepIp     string `json:'vtepIP"`
 }
 
+func (s *OvsOperEndpointState) Matches(c *OvsCfgEndpointState) bool {
+	// match the fields updated from configuration state
+	return s.NetId == c.NetId &&
+		s.ContName == c.ContName &&
+		s.AttachUUID == c.AttachUUID &&
+		s.IpAddress == c.IpAddress &&
+		s.HomingHost == c.HomingHost &&
+		s.IntfName == c.IntfName &&
+		s.VtepIp == c.VtepIp
+}
+
 func (s *OvsOperEndpointState) Write() error {
 	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
 	return s.StateDriver.WriteState(key, s, json.Marshal)

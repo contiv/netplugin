@@ -16,6 +16,7 @@ limitations under the License.
 package drivers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"reflect"
@@ -48,6 +49,9 @@ const (
 
 	GET_PORT_NAME = true
 	GET_INTF_NAME = false
+
+	OVS_OPER_PATH_PREFIX = OPER_PATH + "ovs-driver/"
+	OVS_OPER_PATH        = OVS_OPER_PATH_PREFIX + "%s"
 )
 
 type OvsDriverConfig struct {
@@ -57,14 +61,38 @@ type OvsDriverConfig struct {
 	}
 }
 
+type OvsDriverOperState struct {
+	core.CommonState
+	// used to allocate port names. XXX: should it be user controlled?
+	CurrPortNum int `json:"currPortNum"`
+}
+
+func (s *OvsDriverOperState) Write() error {
+	key := fmt.Sprintf(OVS_OPER_PATH, s.Id)
+	return s.StateDriver.WriteState(key, s, json.Marshal)
+}
+
+func (s *OvsDriverOperState) Read(id string) error {
+	key := fmt.Sprintf(OVS_OPER_PATH, id)
+	return s.StateDriver.ReadState(key, s, json.Unmarshal)
+}
+
+func (s *OvsDriverOperState) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(OVS_OPER_PATH_PREFIX, s, json.Unmarshal)
+}
+
+func (s *OvsDriverOperState) Clear() error {
+	key := fmt.Sprintf(OVS_OPER_PATH, s.Id)
+	return s.StateDriver.ClearState(key)
+}
+
 // OvsDriver implements the Layer 2 Network and Endpoint Driver interfaces
 // specific to vlan based open-vswitch. It also implements the
 // libovsdb.Notifier interface to keep cache of ovs table state.
 type OvsDriver struct {
-	ovs         *libovsdb.OvsdbClient
-	cache       map[string]map[libovsdb.UUID]libovsdb.Row
-	stateDriver core.StateDriver
-	currPortNum int // used to allocate port names. XXX: should it be user controlled?
+	ovs   *libovsdb.OvsdbClient
+	cache map[string]map[libovsdb.UUID]libovsdb.Row
+	oper  OvsDriverOperState
 }
 
 func (d *OvsDriver) getRootUuid() libovsdb.UUID {
@@ -184,11 +212,7 @@ func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 }
 
 func (d *OvsDriver) getPortName() string {
-	// XXX: revisit, the port name might need to come from user. Also revisit
-	// the algorithm to take care of port being deleted and reuse unused port
-	// numbers
-	d.currPortNum += 1
-	return fmt.Sprintf(PORT_NAME_FMT, d.currPortNum)
+	return fmt.Sprintf(PORT_NAME_FMT, d.oper.CurrPortNum)
 }
 
 func (d *OvsDriver) getPortOrIntfNameFromId(id string, isPort bool) (string, error) {
@@ -326,12 +350,13 @@ func vxlanIfName(netId, vtepIp string) string {
 		netId, strings.Replace(vtepIp, ".", "", -1))
 }
 
-func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
+func (d *OvsDriver) getCreateVtepProps(epCfg *OvsCfgEndpointState) (map[string]interface{},
+	string, string, error) {
 	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.stateDriver
+	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(epCfg.NetId)
 	if err != nil {
-		return err
+		return nil, "", "", err
 	}
 
 	intfOptions := make(map[string]interface{})
@@ -339,21 +364,12 @@ func (d *OvsDriver) createVtep(epCfg *OvsCfgEndpointState) error {
 	intfOptions["key"] = strconv.Itoa(cfgNw.ExtPktTag)
 
 	intfName := vxlanIfName(epCfg.NetId, epCfg.VtepIp)
-	err = d.createDeletePort(intfName, intfName, "vxlan", cfgNw.Id,
-		intfOptions, cfgNw.PktTag, CREATE_PORT)
-	if err != nil {
-		log.Printf("error '%s' creating vxlan peer intfName %s, options %s, tag %d \n",
-			err, intfName, intfOptions, cfgNw.PktTag)
-		return err
-	}
-
-	return nil
+	return intfOptions, intfName, intfName, nil
 }
 
 func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
-
 	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.stateDriver
+	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(epOper.NetId)
 	if err != nil {
 		return err
@@ -371,11 +387,11 @@ func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
 	return nil
 }
 
-func (d *OvsDriver) Init(config *core.Config, stateDriver core.StateDriver) error {
+func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 
-	if config == nil || stateDriver == nil {
-		return core.Errorf("Invalid arguments. cfg: %v, stateDriver: %v",
-			config, stateDriver)
+	if config == nil || info == nil || info.StateDriver == nil {
+		return core.Errorf("Invalid arguments. cfg: %+v, instance-info: %+v",
+			config, info)
 	}
 
 	cfg, ok := config.V.(*OvsDriverConfig)
@@ -389,7 +405,23 @@ func (d *OvsDriver) Init(config *core.Config, stateDriver core.StateDriver) erro
 	}
 
 	d.ovs = ovs
-	d.stateDriver = stateDriver
+	d.oper.StateDriver = info.StateDriver
+	// restore the driver's runtime state if it exists
+	err = d.oper.Read(info.HostLabel)
+	if core.ErrIfKeyExists(err) != nil {
+		log.Printf("Failed to read driver oper state for key %q. Error: %s",
+			info.HostLabel, err)
+		return err
+	} else if err != nil {
+		// create the oper state as it is first time start up
+		d.oper.Id = info.HostLabel
+		d.oper.CurrPortNum = 0
+		err = d.oper.Write()
+		if err != nil {
+			return err
+		}
+	}
+
 	d.cache = make(map[string]map[libovsdb.UUID]libovsdb.Row)
 	d.ovs.Register(d)
 	initial, _ := d.ovs.MonitorAll(DATABASE, "")
@@ -426,7 +458,7 @@ func (d *OvsDriver) Deinit() {
 
 func (d *OvsDriver) CreateNetwork(id string) error {
 	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.stateDriver
+	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(id)
 	if err != nil {
 		log.Printf("Failed to read net %s \n", cfgNw.Id)
@@ -446,27 +478,61 @@ func (d *OvsDriver) DeleteNetwork(id string) error {
 }
 
 func (d *OvsDriver) CreateEndpoint(id string) error {
-	var err error
+	var (
+		err      error
+		intfOpts map[string]interface{}
+		portName string
+		intfName string
+		intfType string
+	)
 
-	// add an internal ovs port with vlan-tag information from the state
-	portName := d.getPortName()
-	intfName := portName
-	intfType := "internal"
-
-	epCfg := OvsCfgEndpointState{}
-	epCfg.StateDriver = d.stateDriver
-	err = epCfg.Read(id)
+	cfgEp := &OvsCfgEndpointState{}
+	cfgEp.StateDriver = d.oper.StateDriver
+	err = cfgEp.Read(id)
 	if err != nil {
 		return err
 	}
 
-	if epCfg.VtepIp != "" {
-		err = d.createVtep(&epCfg)
+	operEp := &OvsOperEndpointState{}
+	operEp.StateDriver = d.oper.StateDriver
+	err = operEp.Read(id)
+	if core.ErrIfKeyExists(err) != nil {
+		return err
+	} else if err == nil {
+		// check if oper state matches cfg state. In case of mismatch cleanup
+		// up the EP and continue add new one. In case of match just return.
+		if operEp.Matches(cfgEp) {
+			log.Printf("Found matching oper state for ep %s, noop", id)
+			return nil
+		}
+		log.Printf("Found mismatching oper state for Ep, cleaning it. Config: %+v, Oper: %+v",
+			cfgEp, operEp)
+		d.DeleteEndpoint(operEp.Id)
+	}
+
+	if cfgEp.VtepIp != "" {
+		intfOpts, portName, intfName, err = d.getCreateVtepProps(cfgEp)
 		if err != nil {
 			log.Printf("error '%s' creating vtep interface(s) for "+
-				"remote endpoint %s\n", err, epCfg.VtepIp)
+				"remote endpoint %s\n", err, cfgEp.VtepIp)
+			return err
 		}
-		return err
+		intfType = "vxlan"
+	} else {
+		// add an internal ovs port with vlan-tag information from the state
+
+		// XXX: revisit, the port name might need to come from user. Also revisit
+		// the algorithm to take care of port being deleted and reuse unused port
+		// numbers
+		d.oper.CurrPortNum += 1
+		err = d.oper.Write()
+		if err != nil {
+			return err
+		}
+		portName = d.getPortName()
+		intfName = portName
+		intfType = "internal"
+		intfOpts = nil
 	}
 
 	// use the user provided interface name. The primary usecase for such
@@ -475,40 +541,40 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	// devices for containers like SRIOV, that need to be bridged using ovs
 	// Also, if the interface name is provided by user then we don't create
 	// ovs-internal interface
-	if epCfg.IntfName != "" {
-		intfName = epCfg.IntfName
+	if cfgEp.IntfName != "" {
+		intfName = cfgEp.IntfName
 		intfType = ""
 	}
 
 	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.stateDriver
-	err = cfgNw.Read(epCfg.NetId)
+	cfgNw.StateDriver = d.oper.StateDriver
+	err = cfgNw.Read(cfgEp.NetId)
 	if err != nil {
 		return err
 	}
 
-	// TODO: some updates may mean implicit delete of the previous state
-	err = d.createDeletePort(portName, intfName, intfType, epCfg.Id,
-		nil, cfgNw.PktTag, CREATE_PORT)
+	err = d.createDeletePort(portName, intfName, intfType, cfgEp.Id,
+		intfOpts, cfgNw.PktTag, CREATE_PORT)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			d.createDeletePort(portName, intfName, intfType, "", nil, 0, DELETE_PORT)
+			d.createDeletePort(portName, intfName, intfType, "", nil, 0,
+				DELETE_PORT)
 		}
 	}()
 
-	operEp := OvsOperEndpointState{
+	operEp = &OvsOperEndpointState{
 		PortName:   portName,
-		NetId:      epCfg.NetId,
-		AttachUUID: epCfg.AttachUUID,
-		ContName:   epCfg.ContName,
-		IpAddress:  epCfg.IpAddress,
-		IntfName:   intfName,
-		HomingHost: epCfg.HomingHost,
-		VtepIp:     epCfg.VtepIp}
-	operEp.StateDriver = d.stateDriver
+		NetId:      cfgEp.NetId,
+		AttachUUID: cfgEp.AttachUUID,
+		ContName:   cfgEp.ContName,
+		IpAddress:  cfgEp.IpAddress,
+		IntfName:   cfgEp.IntfName,
+		HomingHost: cfgEp.HomingHost,
+		VtepIp:     cfgEp.VtepIp}
+	operEp.StateDriver = d.oper.StateDriver
 	operEp.Id = id
 	err = operEp.Write()
 	if err != nil {
@@ -526,7 +592,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 
 	epOper := OvsOperEndpointState{}
-	epOper.StateDriver = d.stateDriver
+	epOper.StateDriver = d.oper.StateDriver
 	err = epOper.Read(id)
 	if err != nil {
 		return err
