@@ -22,6 +22,7 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/state"
 )
 
 // implements the generic Plugin interface
@@ -47,8 +48,8 @@ var EndpointDriverRegistry = map[string]DriverConfigTypes{
 
 var StateDriverRegistry = map[string]DriverConfigTypes{
 	"etcd": DriverConfigTypes{
-		DriverType: reflect.TypeOf(drivers.EtcdStateDriver{}),
-		ConfigType: reflect.TypeOf(drivers.EtcdStateDriverConfig{}),
+		DriverType: reflect.TypeOf(state.EtcdStateDriver{}),
+		ConfigType: reflect.TypeOf(state.EtcdStateDriverConfig{}),
 	},
 }
 

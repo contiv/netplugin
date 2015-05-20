@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/state"
 )
 
 const (
@@ -79,7 +79,7 @@ func (r *TestResource) Deallocate(value interface{}) error {
 	return nil
 }
 
-var fakeDriver = &drivers.FakeStateDriver{}
+var fakeDriver = &state.FakeStateDriver{}
 
 func TestEtcdResourceManagerDefineResource(t *testing.T) {
 	ra := &EtcdResourceManager{Etcd: fakeDriver}

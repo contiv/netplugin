@@ -20,10 +20,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/state"
 )
 
-var fakeDriver = &drivers.FakeStateDriver{}
+var fakeDriver = &state.FakeStateDriver{}
 
 func applyConfig(t *testing.T, cfgBytes []byte) {
 	cfg := &Config{}

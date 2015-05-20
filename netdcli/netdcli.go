@@ -29,6 +29,7 @@ import (
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/state"
 )
 
 const (
@@ -357,7 +358,7 @@ func validateOpts(opts *cliOpts) error {
 }
 
 func executeOpts(opts *cliOpts) error {
-	var state core.State = nil
+	var coreState core.State = nil
 
 	err := validateOpts(opts)
 	if err != nil {
@@ -367,8 +368,8 @@ func executeOpts(opts *cliOpts) error {
 
 	// log.Printf("parsed all valuees = %v \n", opts)
 
-	etcdDriver := &drivers.EtcdStateDriver{}
-	driverConfig := &drivers.EtcdStateDriverConfig{}
+	etcdDriver := &state.EtcdStateDriver{}
+	driverConfig := &state.EtcdStateDriverConfig{}
 	driverConfig.Etcd.Machines = []string{opts.etcdUrl}
 	config := &core.Config{V: driverConfig}
 	err = etcdDriver.Init(config)
@@ -381,7 +382,7 @@ func executeOpts(opts *cliOpts) error {
 		if opts.oper.Get() == CLI_OPER_GET {
 			epOper := &drivers.OvsOperEndpointState{}
 			epOper.StateDriver = etcdDriver
-			state = epOper
+			coreState = epOper
 		} else if opts.oper.Get() == CLI_OPER_ATTACH || opts.oper.Get() == CLI_OPER_DETACH {
 			epCfg := &drivers.OvsCfgEndpointState{}
 			epCfg.StateDriver = etcdDriver
@@ -400,7 +401,7 @@ func executeOpts(opts *cliOpts) error {
 				}
 				epCfg.ContName = ""
 			}
-			state = epCfg
+			coreState = epCfg
 		} else {
 			epCfg := &drivers.OvsCfgEndpointState{}
 			epCfg.StateDriver = etcdDriver
@@ -412,13 +413,13 @@ func executeOpts(opts *cliOpts) error {
 			epCfg.HomingHost = opts.homingHost
 			epCfg.VtepIp = opts.vtepIp
 			epCfg.IntfName = opts.intfName
-			state = epCfg
+			coreState = epCfg
 		}
 	case CLI_CONSTRUCT_NW:
 		if opts.oper.Get() == CLI_OPER_GET {
 			nwCfg := &drivers.OvsCfgNetworkState{}
 			nwCfg.StateDriver = etcdDriver
-			state = nwCfg
+			coreState = nwCfg
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{}
 			nwCfg.StateDriver = etcdDriver
@@ -429,7 +430,7 @@ func executeOpts(opts *cliOpts) error {
 			nwCfg.SubnetLen = opts.subnetLen
 			nwCfg.DefaultGw = opts.defaultGw
 			nwCfg.Id = opts.idStr
-			state = nwCfg
+			coreState = nwCfg
 		}
 	case CLI_CONSTRUCT_GLOBAL:
 		gcfg := &gstate.Cfg{}
@@ -468,17 +469,17 @@ func executeOpts(opts *cliOpts) error {
 			if CLI_CONSTRUCT_VLAN_RSRC == opts.construct.Get() {
 				rsrc := &resources.AutoVlanCfgResource{}
 				rsrc.StateDriver = etcdDriver
-				state = rsrc
+				coreState = rsrc
 			}
 			if CLI_CONSTRUCT_VXLAN_RSRC == opts.construct.Get() {
 				rsrc := &resources.AutoVxlanCfgResource{}
 				rsrc.StateDriver = etcdDriver
-				state = rsrc
+				coreState = rsrc
 			}
 			if CLI_CONSTRUCT_SUBNET_RSRC == opts.construct.Get() {
 				rsrc := &resources.AutoSubnetCfgResource{}
 				rsrc.StateDriver = etcdDriver
-				state = rsrc
+				coreState = rsrc
 			}
 		} else {
 			return core.Errorf("Only get operation is supported for resources")
@@ -487,22 +488,22 @@ func executeOpts(opts *cliOpts) error {
 
 	switch opts.oper.Get() {
 	case CLI_OPER_GET:
-		err = state.Read(opts.idStr)
+		err = coreState.Read(opts.idStr)
 		if err != nil {
 			log.Fatalf("Failed to read %s. Error: %s", opts.construct.Get(), err)
 		} else {
 			//XXX: poor man's pretty print for struct to keep output greppable
 			//on individual structure fields
 			log.Printf("%s State: \n%s\n", opts.construct.Get(),
-				strings.Replace(fmt.Sprintf("%+v", state), " ", ",\n\t", -1))
+				strings.Replace(fmt.Sprintf("%+v", coreState), " ", ",\n\t", -1))
 		}
 	case CLI_OPER_ATTACH, CLI_OPER_DETACH, CLI_OPER_CREATE:
-		err = state.Write()
+		err = coreState.Write()
 		if err != nil {
 			log.Fatalf("Failed to create %s. Error: %s", opts.construct.Get(), err)
 		}
 	case CLI_OPER_DELETE:
-		err = state.Clear()
+		err = coreState.Clear()
 		if err != nil {
 			log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
 		}
