@@ -106,13 +106,13 @@ func processNetEvent(netPlugin *plugin.NetPlugin, netId string,
 	return
 }
 
-func getEndpointContainerContext(state core.StateDriver, epId string) (
+func getEndpointContainerContext(stateDriver core.StateDriver, epId string) (
 	*crtclient.ContainerEpContext, error) {
 	var epCtx crtclient.ContainerEpContext
 	var err error
 
 	epCfg := &drivers.OvsCfgEndpointState{}
-	epCfg.StateDriver = state
+	epCfg.StateDriver = stateDriver
 	err = epCfg.Read(epId)
 	if err != nil {
 		return &epCtx, nil
@@ -121,7 +121,7 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	epCtx.NewAttachUUID = epCfg.AttachUUID
 
 	cfgNet := &drivers.OvsCfgNetworkState{}
-	cfgNet.StateDriver = state
+	cfgNet.StateDriver = stateDriver
 	err = cfgNet.Read(epCfg.NetId)
 	if err != nil {
 		return &epCtx, err
@@ -130,7 +130,7 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	epCtx.SubnetLen = cfgNet.SubnetLen
 
 	operEp := &drivers.OvsOperEndpointState{}
-	operEp.StateDriver = state
+	operEp.StateDriver = stateDriver
 	err = operEp.Read(epId)
 	if err != nil {
 		return &epCtx, nil
@@ -143,13 +143,13 @@ func getEndpointContainerContext(state core.StateDriver, epId string) (
 	return &epCtx, err
 }
 
-func getContainerEpContextByContName(state core.StateDriver, contName string) (
+func getContainerEpContextByContName(stateDriver core.StateDriver, contName string) (
 	epCtxs []crtclient.ContainerEpContext, err error) {
 	var epCtx *crtclient.ContainerEpContext
 
 	contName = strings.TrimPrefix(contName, "/")
 	readEp := &drivers.OvsCfgEndpointState{}
-	readEp.StateDriver = state
+	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err != nil {
 		return
@@ -163,7 +163,7 @@ func getContainerEpContextByContName(state core.StateDriver, contName string) (
 			continue
 		}
 
-		epCtx, err = getEndpointContainerContext(state, cfg.Id)
+		epCtx, err = getEndpointContainerContext(stateDriver, cfg.Id)
 		if err != nil {
 			log.Printf("error '%s' getting epCfgState for ep %s \n",
 				err, cfg.Id)
@@ -412,11 +412,11 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 		rsp := <-rsps
 
 		// For now we deal with only create and delete events
-		state := rsp.Curr
+		currentState := rsp.Curr
 		isDelete := false
 		eventStr := "create"
 		if rsp.Curr == nil {
-			state = rsp.Prev
+			currentState = rsp.Prev
 			isDelete = true
 			eventStr = "delete"
 		} else if rsp.Prev != nil {
@@ -426,11 +426,11 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 			log.Printf("Received a modify event, treating it as a 'create'")
 		}
 
-		if nwCfg, ok := state.(*drivers.OvsCfgNetworkState); ok {
+		if nwCfg, ok := currentState.(*drivers.OvsCfgNetworkState); ok {
 			log.Printf("Received %q for network: %q", eventStr, nwCfg.Id)
 			processNetEvent(netPlugin, nwCfg.Id, isDelete)
 		}
-		if epCfg, ok := state.(*drivers.OvsCfgEndpointState); ok {
+		if epCfg, ok := currentState.(*drivers.OvsCfgEndpointState); ok {
 			log.Printf("Received %q for endpoint: %q", eventStr, epCfg.Id)
 			processEpEvent(netPlugin, crt, opts, epCfg.Id, isDelete)
 		}

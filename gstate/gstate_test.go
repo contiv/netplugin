@@ -18,13 +18,13 @@ package gstate
 import (
 	"testing"
 
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/state"
 )
 
 var (
 	gstateTestRA = &resources.EtcdResourceManager{Etcd: gstateSD}
-	gstateSD     = &drivers.FakeStateDriver{}
+	gstateSD     = &state.FakeStateDriver{}
 )
 
 func TestGlobalConfigAutoVlans(t *testing.T) {

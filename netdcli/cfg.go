@@ -27,6 +27,7 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster"
+	"github.com/contiv/netplugin/state"
 )
 
 func getEpName(net *netmaster.ConfigNetwork, ep *netmaster.ConfigEp) string {
@@ -250,11 +251,11 @@ func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 }
 
 func initEtcd(defOpts *cliOpts) (core.StateDriver, error) {
-	driverConfig := &drivers.EtcdStateDriverConfig{}
+	driverConfig := &state.EtcdStateDriverConfig{}
 	driverConfig.Etcd.Machines = []string{defOpts.etcdUrl}
 	config := &core.Config{V: driverConfig}
 
-	etcdDriver := &drivers.EtcdStateDriver{}
+	etcdDriver := &state.EtcdStateDriver{}
 	err := etcdDriver.Init(config)
 	if err != nil {
 		log.Printf("error '%s' initializing etcd \n", err)
