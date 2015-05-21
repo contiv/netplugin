@@ -1,0 +1,22 @@
+#!/bin/bash
+
+go get github.com/tools/godep
+
+if ! go get github.com/golang/lint/golint
+then
+  echo "!!! Could not install golint"
+  exit 1
+fi
+
+# this is necessary because presumably the `vet` tool needs to be installed in
+# $GOROOT. I have not investigated the reason fully yet.
+# the check right below this line is to avoid a sudo call on each invocation,
+# for those that use passworded sudo.
+if ! go vet -n ./netplugin &>/dev/null
+then
+  if ! sudo -E `which go` get golang.org/x/tools/cmd/vet
+  then
+    echo "!!! Could not install go vet"
+    exit 1
+  fi
+fi

@@ -10,7 +10,7 @@ all: build unit-test system-test system-test-dind
 default: build
 
 deps:
-	go get github.com/tools/godep
+	./scripts/deps
 
 build: deps
 	./scripts/checks "$(TO_BUILD)"
