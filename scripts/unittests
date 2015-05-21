@@ -54,8 +54,12 @@ if ${run_in_vagrant}; then
     exit 0
 fi
 
-# running in the sand box
-(cd $GOSRC/github.com/contiv/netplugin && \
- godep go test -v $test_packages) || exit 1
+for pkg in ${test_packages}
+do
+  # running in the sand box
+  (cd $GOSRC/github.com/contiv/netplugin && \
+  godep go test -v ${pkg}) || exit 1
+done
+
 echo "Sandbox: Tests succeeded!"
 exit 0
