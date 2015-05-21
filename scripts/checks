@@ -11,20 +11,51 @@ fi
 
 BUILD_PKGS=$1
 
-echo "Checking Go version..."
+echo "+++ Checking Go version..."
 ver=$(go version | awk '{print $3}')
 minVer="go1.4"
 if [[ ${ver} < ${minVer} ]]; then
-    echo "Go version check failed. Expected >=${minVer} but found ${ver}"
+    echo "!!! Go version check failed. Expected >=${minVer} but found ${ver}"
     exit 1
 fi
 
-echo "Checking gofmt..."
+echo "+++ Checking gofmt..."
 fmtRes=$(gofmt -l $BUILD_PKGS)
 if [ -n "${fmtRes}" ]; then
-    echo -e "gofmt checking failed:\n${fmtRes}"
+    echo -e "!!! gofmt checking failed:\n${fmtRes}"
     exit 1
 fi
 
-echo "All checks passed!!"
+if ! go get github.com/golang/lint/golint
+then
+  echo "!!! Could not install golint"
+  exit 1
+fi
+
+echo "+++ golint tree..."
+for i in $(find . -maxdepth 1 -type d -name '*' | grep -vE '/\..*$')
+do
+  golint "${i}"
+done
+
+# this is necessary because presumably the `vet` tool needs to be installed in
+# $GOROOT. I have not investigated the reason fully yet.
+# the check right below this line is to avoid a sudo call on each invocation,
+# for those that use passworded sudo.
+if ! go vet -n ./netplugin &>/dev/null
+then
+  if ! sudo -E `which go` get golang.org/x/tools/cmd/vet
+  then
+    echo "!!! Could not install go vet"
+    exit 1
+  fi
+fi
+
+echo "+++ go vet tree..."
+for i in ${BUILD_PKGS}
+do
+  go vet "${i}"
+done
+
+echo "+++ All checks passed!!"
 exit 0
