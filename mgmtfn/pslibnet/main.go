@@ -52,9 +52,10 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net/http"
 	"os"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type cliOpts struct {
@@ -67,7 +68,6 @@ var gcliOpts cliOpts
 func main() {
 	var flagSet *flag.FlagSet
 
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	gHostLabel, err := os.Hostname()
 	if err != nil {
 		log.Printf("Failed to fetch hostname. Error: %s", err)

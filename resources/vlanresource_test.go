@@ -17,12 +17,13 @@ package resources
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"testing"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/jainvipin/bitset"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var vlanRsrcStateDriver *testVlanRsrcStateDriver = &testVlanRsrcStateDriver{}

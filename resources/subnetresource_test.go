@@ -17,13 +17,14 @@ package resources
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"testing"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/jainvipin/bitset"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var subnetRsrcStateDriver *testSubnetRsrcStateDriver = &testSubnetRsrcStateDriver{}

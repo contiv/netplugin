@@ -1,10 +1,11 @@
 package state
 
 import (
-	"log"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // The FakeStateDriver implements core.StateDriver interface for use with

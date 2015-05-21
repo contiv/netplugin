@@ -22,13 +22,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (

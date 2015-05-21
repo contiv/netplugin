@@ -16,7 +16,7 @@ limitations under the License.
 package utils
 
 import (
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 func OvsDumpInfo(node TestbedNode) {

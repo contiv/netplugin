@@ -18,7 +18,6 @@ package gstate
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 
 	"github.com/jainvipin/bitset"
@@ -26,6 +25,8 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (

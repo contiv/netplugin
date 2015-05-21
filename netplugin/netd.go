@@ -19,7 +19,6 @@ import (
 	"bufio"
 	"flag"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -31,6 +30,8 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/samalba/dockerclient"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -496,8 +497,6 @@ func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts) error
 func main() {
 	var opts cliOpts
 	var flagSet *flag.FlagSet
-
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	defHostLabel, err := os.Hostname()
 	if err != nil {

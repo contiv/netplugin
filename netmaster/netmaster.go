@@ -16,7 +16,6 @@ limitations under the License.
 package netmaster
 
 import (
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -26,6 +25,8 @@ import (
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (

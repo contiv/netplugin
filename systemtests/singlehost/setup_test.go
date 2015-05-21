@@ -16,11 +16,12 @@ limitations under the License.
 package singlehost
 
 import (
-	"log"
 	"os"
 	"testing"
 
 	"github.com/contiv/netplugin/systemtests/utils"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var testbed utils.Testbed

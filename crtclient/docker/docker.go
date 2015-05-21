@@ -16,7 +16,6 @@ limitations under the License.
 package docker
 
 import (
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -28,6 +27,8 @@ import (
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/samalba/dockerclient"
 	"github.com/vishvananda/netlink"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type DockerConfig struct {
@@ -73,6 +74,7 @@ func (d *Docker) getContPid(ctx *crtclient.ContainerEpContext) (string, error) {
 
 	contInfo, err := d.Client.InspectContainer(contNameOrId)
 	if err != nil {
+
 		log.Printf("unable to get container info for '%s' \n",
 			contNameOrId)
 		return "", core.Errorf("couldn't obtain container info")

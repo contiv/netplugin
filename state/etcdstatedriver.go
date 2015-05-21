@@ -17,11 +17,12 @@ package state
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 
 	"github.com/contiv/go-etcd/etcd"
 	"github.com/contiv/netplugin/core"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // implements the StateDriver interface for an etcd based distributed

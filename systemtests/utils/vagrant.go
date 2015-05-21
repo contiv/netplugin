@@ -16,11 +16,12 @@ limitations under the License.
 package utils
 
 import (
-	"log"
 	"regexp"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type Vagrant struct {
