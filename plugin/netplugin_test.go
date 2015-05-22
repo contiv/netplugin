@@ -16,23 +16,36 @@ limitations under the License.
 package plugin
 
 import (
+	"reflect"
 	"testing"
+
+	"github.com/contiv/netplugin/state"
 )
 
+var fakeStateDriver *state.FakeStateDriver
+
 func TestNetPluginInit(t *testing.T) {
+	/* make a temporary entry for statedriver for unit-tests*/
+	StateDriverRegistry["fakedriver"] = DriverConfigTypes{
+		DriverType: reflect.TypeOf(state.FakeStateDriver{}),
+		ConfigType: reflect.TypeOf(state.FakeStateDriverConfig{}),
+	}
+
 	configStr := `{
                     "drivers" : {
                        "network": "ovs",
                        "endpoint": "ovs",
-                       "state": "etcd",
+                       "state": "fakedriver",
                        "container": "docker"
+                    },
+                    "plugin-instance": {
+                       "host-label": "testHost"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
                        "dbport": 6640
                     },
-                    "etcd" : {
-                        "machines": ["http://1.0.0.1:4001"]
+                    "fakedriver" : {
                     },
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
@@ -55,12 +68,68 @@ func TestNetPluginInitInvalidConfigEmptyString(t *testing.T) {
 	}
 }
 
+func TestNetPluginInitInvalidConfigMissingInstance(t *testing.T) {
+	configStr := `{
+                    "drivers" : {
+                       "network": "ovs",
+                       "endpoint": "ovs",
+                       "state": "fakedriver",
+                       "container": "docker",
+                    },
+                    "ovs" : {
+                       "dbip": "127.0.0.1",
+                       "dbport": 6640
+                    },
+                    "fakedriver" : {
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
+                    }
+                  }`
+	plugin := NetPlugin{}
+	err := plugin.Init(configStr)
+	if err == nil {
+		t.Fatalf("plugin init succeeded, should have failed!")
+	}
+}
+
+func TestNetPluginInitInvalidConfigEmptyHostLabel(t *testing.T) {
+	configStr := `{
+                    "drivers" : {
+                       "network": "ovs",
+                       "endpoint": "ovs",
+                       "state": "fakedriver",
+                       "container": "docker"
+                    },
+                    "plugin-instance": {
+                       "host-label": ""
+                    },
+                    "ovs" : {
+                       "dbip": "127.0.0.1",
+                       "dbport": 6640
+                    },
+                    "fakedriver" : {
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
+                    }
+                  }`
+	plugin := NetPlugin{}
+	err := plugin.Init(configStr)
+	if err == nil {
+		t.Fatalf("plugin init succeeded, should have failed!")
+	}
+}
+
 func TestNetPluginInitInvalidConfigMissingStateDriverName(t *testing.T) {
 	configStr := `{
                     "drivers" : {
                        "network": "ovs",
-                       "endpoint": "ovs"
+                       "endpoint": "ovs",
                        "container": "docker"
+                    },
+                    "plugin-instance": {
+                       "host-label": "testHost"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -89,6 +158,9 @@ func TestNetPluginInitInvalidConfigMissingStateDriver(t *testing.T) {
                        "state": "etcd",
                        "container": "docker"
                     },
+                    "plugin-instance": {
+                       "host-label": "testHost"
+                    },
                     "ovs" : {
                        "dbip": "127.0.0.1",
                        "dbport": 6640
@@ -109,15 +181,17 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriverName(t *testing.T) {
 	configStr := `{
                     "drivers" : {
                        "endpoint": "ovs",
-                       "state": "etcd",
+                       "state": "fakedriver",
                        "container": "docker"
+                    },
+                    "plugin-instance": {
+                       "host-label": "testHost"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
                        "dbport": 6640
                     },
-                    "etcd" : {
-                        "machines": ["http://1.0.0.1:4001"]
+                    "fakedriver" : {
                     },
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
@@ -134,15 +208,17 @@ func TestNetPluginInitInvalidConfigMissingEndpointDriverName(t *testing.T) {
 	configStr := `{
                     "drivers" : {
                        "network": "ovs",
-                       "state": "etcd",
+                       "state": "fakedriver",
                        "container": "docker"
+                    },
+                    "plugin-instance": {
+                       "host-label": "testHost"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
                        "dbport": 6640
                     },
-                    "etcd" : {
-                        "machines": ["http://1.0.0.1:4001"]
+                    "fakedriver" : {
                     },
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
@@ -160,11 +236,13 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriver(t *testing.T) {
                     "drivers" : {
                        "network": "ovs",
                        "endpoint": "ovs",
-                       "state": "etcd",
+                       "state": "fakedriver",
                        "container": "docker"
                     },
-                    "etcd" : {
-                        "machines": ["http://1.0.0.1:4001"]
+                    "plugin-instance": {
+                       "host-label": "testHost"
+                    },
+                    "fakedriver" : {
                     },
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"

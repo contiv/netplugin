@@ -58,6 +58,11 @@ type Plugin interface {
 	Endpoint
 }
 
+type InstanceInfo struct {
+	StateDriver StateDriver `json:"-"`
+	HostLabel   string      `json:"host-label"`
+}
+
 type Driver interface {
 	// A driver implements the programming logic
 }
@@ -65,7 +70,7 @@ type Driver interface {
 type NetworkDriver interface {
 	// A network driver implements the programming logic for network
 	Driver
-	Init(config *Config, stateDriver StateDriver) error
+	Init(config *Config, info *InstanceInfo) error
 	Deinit()
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
@@ -74,7 +79,7 @@ type NetworkDriver interface {
 type EndpointDriver interface {
 	// An endpoint driver implements the programming logic for endpoints
 	Driver
-	Init(config *Config, stateDriver StateDriver) error
+	Init(config *Config, info *InstanceInfo) error
 	Deinit()
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error

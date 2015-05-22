@@ -55,10 +55,11 @@ var StateDriverRegistry = map[string]DriverConfigTypes{
 
 type PluginConfig struct {
 	Drivers struct {
-		Network  string
-		Endpoint string
-		State    string
+		Network  string `json:"network"`
+		Endpoint string `json:"endpoint"`
+		State    string `json:"state"`
 	}
+	Instance core.InstanceInfo `json:"plugin-instance"`
 }
 
 type NetPlugin struct {
@@ -104,6 +105,10 @@ func (p *NetPlugin) Init(configStr string) error {
 		return err
 	}
 
+	if pluginConfig.Instance.HostLabel == "" {
+		return core.Errorf("empty host-label passed")
+	}
+
 	// initialize state driver
 	driver, drvConfig, err = p.InitHelper(StateDriverRegistry,
 		pluginConfig.Drivers.State, configStr)
@@ -121,6 +126,9 @@ func (p *NetPlugin) Init(configStr string) error {
 		}
 	}()
 
+	instanceInfo := &core.InstanceInfo{
+		HostLabel:   pluginConfig.Instance.HostLabel,
+		StateDriver: p.StateDriver}
 	// initialize network driver
 	driver, drvConfig, err = p.InitHelper(NetworkDriverRegistry,
 		pluginConfig.Drivers.Network, configStr)
@@ -128,7 +136,7 @@ func (p *NetPlugin) Init(configStr string) error {
 		return err
 	}
 	p.NetworkDriver = driver.(core.NetworkDriver)
-	err = p.NetworkDriver.Init(drvConfig, p.StateDriver)
+	err = p.NetworkDriver.Init(drvConfig, instanceInfo)
 	if err != nil {
 		return err
 	}
@@ -145,7 +153,7 @@ func (p *NetPlugin) Init(configStr string) error {
 		return err
 	}
 	p.EndpointDriver = driver.(core.EndpointDriver)
-	err = p.EndpointDriver.Init(drvConfig, p.StateDriver)
+	err = p.EndpointDriver.Init(drvConfig, instanceInfo)
 	if err != nil {
 		return err
 	}

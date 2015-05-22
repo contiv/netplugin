@@ -59,8 +59,14 @@ func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
 			t.Errorf("Failed to cleanup the left over test case state. Error: %s\nCmd: %q\nOutput:\n%s\n",
 				err, cmdStr, output)
 		}
-		//XXX: remove this once netplugin is capable of handling cleanup
-		cmdStr = "sudo pkill netplugin"
+	}
+	//XXX: remove this once netplugin is capable of handling cleanup
+	StopNetPlugin(t, nodes)
+}
+
+func StopNetPlugin(t *testing.T, nodes []TestbedNode) {
+	for _, node := range nodes {
+		cmdStr := "sudo pkill netplugin"
 		node.RunCommand(cmdStr)
 	}
 }

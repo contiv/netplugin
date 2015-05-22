@@ -18,6 +18,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -502,27 +503,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	defConfigStr := `{
-                    "drivers" : {
-                       "network": "ovs",
-                       "endpoint": "ovs",
-                       "state": "etcd"
-                    },
-                    "ovs" : {
-                       "dbip": "127.0.0.1",
-                       "dbport": 6640
-                    },
-                    "etcd" : {
-                        "machines": ["http://127.0.0.1:4001"]
-                    },
-                    "crt" : {
-                       "type": "docker"
-                    },
-                    "docker" : {
-                        "socket" : "unix:///var/run/docker.sock"
-                    }
-                  }`
-
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
 	flagSet.StringVar(&opts.hostLabel,
 		"host-label",
@@ -545,6 +525,30 @@ func main() {
 	if flagSet.NFlag() < 1 {
 		log.Printf("host-label not specified, using default (%s)", opts.hostLabel)
 	}
+
+	defConfigStr := fmt.Sprintf(`{
+                    "drivers" : {
+                       "network": "ovs",
+                       "endpoint": "ovs",
+                       "state": "etcd"
+                    },
+                    "plugin-instance": {
+                       "host-label": "%s"
+                    },
+                    "ovs" : {
+                       "dbip": "127.0.0.1",
+                       "dbport": 6640
+                    },
+                    "etcd" : {
+                        "machines": ["http://127.0.0.1:4001"]
+                    },
+                    "crt" : {
+                       "type": "docker"
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
+                    }
+                  }`, opts.hostLabel)
 
 	netPlugin := &plugin.NetPlugin{}
 
