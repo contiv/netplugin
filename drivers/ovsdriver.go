@@ -250,7 +250,7 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 		if intfOptions != nil {
 			intf["options"], err = libovsdb.NewOvsMap(intfOptions)
 			if err != nil {
-				log.Printf("error '%s' creating options from %v \n", err, intfOptions)
+				log.Errorf("error '%s' creating options from %v \n", err, intfOptions)
 				return err
 			}
 		}
@@ -368,7 +368,7 @@ func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
 	err = d.createDeletePort(intfName, intfName, "vxlan", cfgNw.ID,
 		nil, cfgNw.PktTag, operDeletePort)
 	if err != nil {
-		log.Printf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
+		log.Errorf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
 			err, intfName, cfgNw.PktTag)
 		return err
 	}
@@ -453,10 +453,10 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(id)
 	if err != nil {
-		log.Printf("Failed to read net %s \n", cfgNw.ID)
+		log.Errorf("Failed to read net %s \n", cfgNw.ID)
 		return err
 	}
-	log.Printf("create net %s \n", cfgNw.ID)
+	log.Infof("create net %s \n", cfgNw.ID)
 
 	return nil
 }
@@ -465,7 +465,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 func (d *OvsDriver) DeleteNetwork(id string) error {
 
 	// no driver operation for network delete
-	log.Printf("delete net %s \n", id)
+	log.Infof("delete net %s \n", id)
 
 	return nil
 }
@@ -507,7 +507,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	if cfgEp.VtepIP != "" {
 		intfOpts, portName, intfName, err = d.getCreateVtepProps(cfgEp)
 		if err != nil {
-			log.Printf("error '%s' creating vtep interface(s) for "+
+			log.Errorf("error '%s' creating vtep interface(s) for "+
 				"remote endpoint %s\n", err, cfgEp.VtepIP)
 			return err
 		}
@@ -599,7 +599,7 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 	if epOper.VtepIP != "" {
 		err = d.deleteVtep(&epOper)
 		if err != nil {
-			log.Printf("error '%s' deleting vtep interface(s) for "+
+			log.Errorf("error '%s' deleting vtep interface(s) for "+
 				"remote endpoint %s\n", err, epOper.VtepIP)
 		}
 		return

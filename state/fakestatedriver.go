@@ -123,6 +123,6 @@ func (d *FakeStateDriver) WriteState(key string, value core.State,
 // DumpState is a debugging tool.
 func (d *FakeStateDriver) DumpState() {
 	for key := range d.TestState {
-		log.Printf("key: %q\n", key)
+		log.Debugf("key: %q\n", key)
 	}
 }

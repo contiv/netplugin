@@ -77,7 +77,7 @@ type Oper struct {
 
 // Dump is a debugging utility.
 func (gc *Cfg) Dump() error {
-	log.Printf("Global State %v \n", gc)
+	log.Debugf("Global State %v \n", gc)
 	return nil
 }
 
@@ -330,7 +330,7 @@ func (gc *Cfg) initVLANBitset(vlans string) (*bitset.BitSet, error) {
 func (gc *Cfg) AllocVLAN(ra core.ResourceManager) (uint, error) {
 	vlan, err := ra.AllocateResourceVal(gc.Tenant, resources.AutoVLANResource)
 	if err != nil {
-		log.Printf("alloc vlan failed: %q", err)
+		log.Errorf("alloc vlan failed: %q", err)
 		return 0, err
 	}
 
@@ -419,10 +419,10 @@ func (gc *Cfg) Process(ra core.ResourceManager) error {
 	g.StateDriver = gc.StateDriver
 	err = g.Write()
 	if err != nil {
-		log.Printf("error '%s' updating goper state %v \n", err, g)
+		log.Errorf("error '%s' updating goper state %v \n", err, g)
 		return err
 	}
 
-	log.Printf("updating the global config to new state %v \n", gc)
+	log.Debugf("updating the global config to new state %v \n", gc)
 	return nil
 }

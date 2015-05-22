@@ -69,7 +69,7 @@ func printUsage(arg0 string) {
 }
 
 func initPlugin() error {
-	log.Printf("initializing the driver \n")
+	log.Infof("initializing the driver \n")
 	return nil
 }
 
@@ -85,7 +85,7 @@ func setUpPod(podNameSpace, podName, attachUUID string) error {
 
 	bytes, err := json.Marshal(epCfg)
 	if err != nil {
-		log.Printf("error '%s' marshaling endpoint information \n", err)
+		log.Errorf("error '%s' marshaling endpoint information \n", err)
 		return err
 	}
 
@@ -94,7 +94,7 @@ func setUpPod(podNameSpace, podName, attachUUID string) error {
 	cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonStr, tmpNetdcliFile)
 	output, err := exec.Command("/bin/bash", "-c", cmdStr).Output()
 	if err != nil {
-		log.Printf("error '%s' marshaling endpoint information output \n%s\n",
+		log.Errorf("error '%s' marshaling endpoint information output \n%s\n",
 			err, output)
 		return err
 	}
@@ -102,7 +102,7 @@ func setUpPod(podNameSpace, podName, attachUUID string) error {
 	cmdStr = netdcliBin + " -host-bindings-cfg " + tmpNetdcliFile + " 2>&1"
 	output, err = exec.Command("/bin/bash", "-c", cmdStr).Output()
 	if err != nil {
-		log.Printf("error '%s' executing host bindings, output \n%s\n",
+		log.Errorf("error '%s' executing host bindings, output \n%s\n",
 			err, output)
 		return err
 	}
@@ -122,7 +122,7 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 
 	bytes, err := json.Marshal(epCfg)
 	if err != nil {
-		log.Printf("error '%s' marshaling endpoint information \n", err)
+		log.Errorf("error '%s' marshaling endpoint information \n", err)
 		return err
 	}
 
@@ -131,7 +131,7 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 	cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonStr, tmpNetdcliFile)
 	output, err := exec.Command("/bin/bash", "-c", cmdStr).Output()
 	if err != nil {
-		log.Printf("error '%s' marshaling endpoint information output \n%s\n",
+		log.Errorf("error '%s' marshaling endpoint information output \n%s\n",
 			err, output)
 		return err
 	}
@@ -139,7 +139,7 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 	cmdStr = netdcliBin + " -host-bindings-cfg " + tmpNetdcliFile + " 2>&1"
 	output, err = exec.Command("/bin/bash", "-c", cmdStr).Output()
 	if err != nil {
-		log.Printf("error '%s' executing host bindings, output \n%s\n",
+		log.Errorf("error '%s' executing host bindings, output \n%s\n",
 			err, output)
 		return err
 	}
@@ -160,7 +160,7 @@ func main() {
 		printUsage(os.Args[0])
 	}
 
-	log.Printf("%s\n===============\n", os.Args)
+	log.Debugf("%s\n===============\n", os.Args)
 
 	switch os.Args[1] {
 	case "init":
@@ -183,7 +183,7 @@ func main() {
 	}
 
 	if err != nil {
-		log.Printf("error '%s' executing %s \n", err, os.Args)
+		log.Errorf("error '%s' executing %s \n", err, os.Args)
 		os.Exit(2)
 	}
 

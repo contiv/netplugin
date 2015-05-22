@@ -39,25 +39,25 @@ type vxlanRsrcValidator struct {
 func (vt *vxlanRsrcValidator) nextCfgState() {
 	vt.expCfg = vt.expCfg[1:]
 	if len(vt.expCfg) > 0 {
-		log.Printf("after pop cfg is: %+v\n", vt.expCfg[0])
+		log.Debugf("after pop cfg is: %+v\n", vt.expCfg[0])
 	} else {
-		log.Printf("cfg becomes empty.\n")
+		log.Debugf("cfg becomes empty.\n")
 	}
 }
 
 func (vt *vxlanRsrcValidator) nextOperState() {
 	vt.expOper = vt.expOper[1:]
 	if len(vt.expOper) > 0 {
-		log.Printf("after pop oper is: %+v\n", vt.expOper[0])
+		log.Debugf("after pop oper is: %+v\n", vt.expOper[0])
 	} else {
-		log.Printf("oper becomes empty.\n")
+		log.Debugf("oper becomes empty.\n")
 	}
 }
 
 func (vt *vxlanRsrcValidator) ValidateState(state core.State) error {
 	rcvdCfg, okCfg := state.(*AutoVXLANCfgResource)
 	if okCfg {
-		log.Printf("cfg length: %d", len(vt.expCfg))
+		log.Debugf("cfg length: %d", len(vt.expCfg))
 		if rcvdCfg.ID != vt.expCfg[0].ID ||
 			!rcvdCfg.VXLANs.Equal(vt.expCfg[0].VXLANs) ||
 			!rcvdCfg.LocalVLANs.Equal(vt.expCfg[0].LocalVLANs) {
@@ -72,7 +72,7 @@ func (vt *vxlanRsrcValidator) ValidateState(state core.State) error {
 
 	rcvdOper, okOper := state.(*AutoVXLANOperResource)
 	if okOper {
-		log.Printf("oper length: %d", len(vt.expOper))
+		log.Debugf("oper length: %d", len(vt.expOper))
 		if rcvdOper.ID != vt.expOper[0].ID ||
 			!rcvdOper.FreeVXLANs.Equal(vt.expOper[0].FreeVXLANs) ||
 			!rcvdOper.FreeLocalVLANs.Equal(vt.expOper[0].FreeLocalVLANs) {
@@ -302,7 +302,7 @@ func (d *testVXLANRsrcStateDriver) validate(key string, state core.State,
 	v, ok := vxlanRsrcValidationStateMap[id]
 	if !ok {
 		errStr := fmt.Sprintf("No matching validation entry for id: %s", id)
-		log.Printf("%s\n", errStr)
+		log.Errorf("%s\n", errStr)
 		return core.Errorf(errStr)
 	}
 

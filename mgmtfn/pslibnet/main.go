@@ -70,7 +70,7 @@ func main() {
 
 	gHostLabel, err := os.Hostname()
 	if err != nil {
-		log.Printf("Failed to fetch hostname. Error: %s", err)
+		log.Fatalf("Failed to fetch hostname. Error: %s", err)
 		os.Exit(1)
 	}
 
@@ -87,22 +87,23 @@ func main() {
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
 		log.Fatalf("Failed to parse command. Error: %s", err)
+		os.Exit(1)
 	}
 
 	if flagSet.NFlag() < 1 {
-		log.Printf("host-label not specified, using default (%s)", gcliOpts.hostLabel)
+		log.Infof("host-label not specified, using default (%s)", gcliOpts.hostLabel)
 	}
 
 	driver := &LibNetDriver{}
 	err = driver.Config(nil)
 	if err != nil {
-		log.Printf("libnet driver init failed. Error: %s", err)
+		log.Fatalf("libnet driver init failed. Error: %s", err)
 		os.Exit(1)
 	}
 	adapter := &PwrStrpAdptr{}
 	err = adapter.Init(driver)
 	if err != nil {
-		log.Printf("powerstrip adaper init failed. Error: %s", err)
+		log.Fatalf("powerstrip adaper init failed. Error: %s", err)
 		os.Exit(1)
 	}
 
@@ -110,7 +111,7 @@ func main() {
 	http.HandleFunc("/adapter/", adapter.CallHook)
 	err = http.ListenAndServe(":80", nil)
 	if err != nil {
-		log.Printf("Error listening for http requests. Error: %s", err)
+		log.Fatalf("Error listening for http requests. Error: %s", err)
 		os.Exit(1)
 	}
 

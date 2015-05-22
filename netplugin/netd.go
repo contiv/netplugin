@@ -31,6 +31,7 @@ import (
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/plugin"
+	"github.com/contiv/netplugin/utils"
 	"github.com/samalba/dockerclient"
 
 	log "github.com/Sirupsen/logrus"
@@ -60,7 +61,7 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	}
 	for idx, netCfg := range netCfgs {
 		net := netCfg.(*drivers.OvsCfgNetworkState)
-		log.Printf("read net key[%d] %s, populating state \n", idx, net.ID)
+		log.Debugf("read net key[%d] %s, populating state \n", idx, net.ID)
 		processNetEvent(netPlugin, net.ID, false)
 	}
 
@@ -72,7 +73,7 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	}
 	for idx, epCfg := range epCfgs {
 		ep := epCfg.(*drivers.OvsCfgEndpointState)
-		log.Printf("read ep key[%d] %s, populating state \n", idx, ep.ID)
+		log.Debugf("read ep key[%d] %s, populating state \n", idx, ep.ID)
 		processEpEvent(netPlugin, crt, opts, ep.ID, false)
 	}
 
@@ -97,9 +98,9 @@ func processNetEvent(netPlugin *plugin.NetPlugin, netID string,
 		operStr = "create"
 	}
 	if err != nil {
-		log.Printf("Network operation %s failed. Error: %s", operStr, err)
+		log.Errorf("Network operation %s failed. Error: %s", operStr, err)
 	} else {
-		log.Printf("Network operation %s succeeded", operStr)
+		log.Infof("Network operation %s succeeded", operStr)
 	}
 
 	return
@@ -164,7 +165,7 @@ func getContainerEPContextByContName(stateDriver core.StateDriver, contName stri
 
 		epCtx, err = getEndpointContainerContext(stateDriver, cfg.ID)
 		if err != nil {
-			log.Printf("error '%s' getting epCfgState for ep %s \n",
+			log.Errorf("error '%s' getting epCfgState for ep %s \n",
 				err, cfg.ID)
 			return epCtxs[:idx], nil
 		}
@@ -212,7 +213,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 		epCfg.StateDriver = netPlugin.StateDriver
 		err = epCfg.Read(epID)
 		if err != nil {
-			log.Printf("Failed to read config for ep '%s' \n", epID)
+			log.Errorf("Failed to read config for ep '%s' \n", epID)
 			return
 		}
 		homingHost = epCfg.HomingHost
@@ -222,14 +223,14 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 		epOper.StateDriver = netPlugin.StateDriver
 		err = epOper.Read(epID)
 		if err != nil {
-			log.Printf("Failed to read oper for ep %s, err '%s' \n", epID, err)
+			log.Errorf("Failed to read oper for ep %s, err '%s' \n", epID, err)
 			return
 		}
 		homingHost = epOper.HomingHost
 		vtepIP = epOper.VtepIP
 	}
 	if skipHost(vtepIP, homingHost, opts.hostLabel) {
-		log.Printf("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
+		log.Infof("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
 			epID, homingHost, opts.hostLabel)
 		return
 	}
@@ -238,11 +239,12 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	contEpContext, err := getEndpointContainerContext(
 		netPlugin.StateDriver, epID)
 	if err != nil {
-		log.Printf("Failed to obtain the container context for ep '%s' \n",
+		log.Errorf("Failed to obtain the container context for ep '%s' \n",
 			epID)
 		return
 	}
-	// log.Printf("read endpoint context: %s \n", contEpContext)
+
+	log.Debugf("read endpoint context: %s \n", contEpContext)
 
 	operStr := ""
 	if isDelete {
@@ -253,20 +255,21 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 		operStr = "create"
 	}
 	if err != nil {
-		log.Printf("Endpoint operation %s failed. Error: %s",
+		log.Errorf("Endpoint operation %s failed. Error: %s",
 			operStr, err)
 		return
 	}
-	log.Printf("Endpoint operation %s succeeded", operStr)
+
+	log.Infof("Endpoint operation %s succeeded", operStr)
 
 	// attach or detach an endpoint to a container
 	if isDelete || contAttachPointDeleted(contEpContext) {
 		err = crt.ContainerIf.DetachEndpoint(contEpContext)
 		if err != nil {
-			log.Printf("Endpoint detach container '%s' from ep '%s' failed . "+
+			log.Errorf("Endpoint detach container '%s' from ep '%s' failed . "+
 				"Error: %s", contEpContext.CurrContName, epID, err)
 		} else {
-			log.Printf("Endpoint detach container '%s' from ep '%s' succeeded",
+			log.Infof("Endpoint detach container '%s' from ep '%s' succeeded",
 				contEpContext.CurrContName, epID)
 		}
 	}
@@ -275,7 +278,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 		newContEpContext, err1 := getEndpointContainerContext(
 			netPlugin.StateDriver, epID)
 		if err1 != nil {
-			log.Printf("Failed to obtain the container context for ep '%s' \n", epID)
+			log.Errorf("Failed to obtain the container context for ep '%s' \n", epID)
 			return
 		}
 		contEpContext.InterfaceID = newContEpContext.InterfaceID
@@ -284,10 +287,10 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 
 		err = crt.ContainerIf.AttachEndpoint(contEpContext)
 		if err != nil {
-			log.Printf("Endpoint attach container '%s' to ep '%s' failed . "+
+			log.Errorf("Endpoint attach container '%s' to ep '%s' failed . "+
 				"Error: %s", contEpContext.NewContName, epID, err)
 		} else {
-			log.Printf("Endpoint attach container '%s' to ep '%s' succeeded",
+			log.Infof("Endpoint attach container '%s' to ep '%s' succeeded",
 				contEpContext.NewContName, epID)
 		}
 		contID := crt.ContainerIf.GetContainerID(contEpContext.NewContName)
@@ -302,21 +305,21 @@ func attachContainer(stateDriver core.StateDriver, crt *crt.CRT, contName string
 
 	epContexts, err := getContainerEPContextByContName(stateDriver, contName)
 	if err != nil {
-		log.Printf("Error '%s' getting Ep context for container %s \n",
+		log.Errorf("Error '%s' getting Ep context for container %s \n",
 			err, contName)
 		return err
 	}
 
 	for _, epCtx := range epContexts {
 		if epCtx.NewAttachUUID != "" || epCtx.InterfaceID == "" {
-			log.Printf("## skipping attach on epctx %v \n", epCtx)
+			log.Debugf("## skipping attach on epctx %v \n", epCtx)
 			continue
 		} else {
-			log.Printf("## trying attach on epctx %v \n", epCtx)
+			log.Debugf("## trying attach on epctx %v \n", epCtx)
 		}
 		err = crt.AttachEndpoint(&epCtx)
 		if err != nil {
-			log.Printf("Error '%s' attaching container to the network \n", err)
+			log.Errorf("Error '%s' attaching container to the network \n", err)
 			return err
 		}
 	}
@@ -330,13 +333,13 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 
 	contName, err := crt.GetContainerName(contID)
 	if err != nil {
-		log.Printf("Could not find container name from container id %s \n", contID)
+		log.Errorf("Could not find container name from container id %s \n", contID)
 		return err
 	}
 
 	err = attachContainer(netPlugin.StateDriver, crt, contName)
 	if err != nil {
-		log.Printf("error attaching container: %v\n", err)
+		log.Errorf("error attaching container: %v\n", err)
 	}
 
 	return err
@@ -352,7 +355,7 @@ func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 		osCmd.Dir = os.Getenv("GOSRC")
 		output, err := osCmd.Output()
 		if err != nil {
-			log.Printf("setlocalns failed. Error: %s Output: \n%s\n",
+			log.Errorf("setlocalns failed. Error: %s Output: \n%s\n",
 				err, output)
 			return err
 		}
@@ -367,15 +370,15 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 
 	netPlugin, ok := args[0].(*plugin.NetPlugin)
 	if !ok {
-		log.Printf("error decoding netplugin in handleDocker \n")
+		log.Errorf("error decoding netplugin in handleDocker \n")
 	}
 
 	crt, ok := args[1].(*crt.CRT)
 	if !ok {
-		log.Printf("error decoding netplugin in handleDocker \n")
+		log.Errorf("error decoding netplugin in handleDocker \n")
 	}
 
-	log.Printf("Received event: %#v, for netPlugin %v \n", *event, netPlugin)
+	log.Infof("Received event: %#v, for netPlugin %v \n", *event, netPlugin)
 
 	// XXX: with plugin (in a lib) this code will handle these events
 	// this cod will need to go away then
@@ -383,14 +386,14 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 	case "start":
 		err = handleContainerStart(netPlugin, crt, event.Id)
 		if err != nil {
-			log.Printf("error '%s' handling container %s \n", err, event.Id)
+			log.Errorf("error '%s' handling container %s \n", err, event.Id)
 		}
 
 	case "die":
-		log.Printf("received die event for container \n")
+		log.Debugf("received die event for container \n")
 		err = handleContainerStop(netPlugin, crt, event.Id)
 		if err != nil {
-			log.Printf("error '%s' handling container %s \n", err, event.Id)
+			log.Errorf("error '%s' handling container %s \n", err, event.Id)
 		}
 		// decide if we should remove the container network policy or leave
 		// it until ep configuration is removed
@@ -422,15 +425,15 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 			// XXX: late host binding modifies the ep-cfg state to update the host-label.
 			// Need to treat it as Create, revisit to see if we can prevent this
 			// by just triggering create once instead.
-			log.Printf("Received a modify event, treating it as a 'create'")
+			log.Debugf("Received a modify event, treating it as a 'create'")
 		}
 
 		if nwCfg, ok := currentState.(*drivers.OvsCfgNetworkState); ok {
-			log.Printf("Received %q for network: %q", eventStr, nwCfg.ID)
+			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
 			processNetEvent(netPlugin, nwCfg.ID, isDelete)
 		}
 		if epCfg, ok := currentState.(*drivers.OvsCfgEndpointState); ok {
-			log.Printf("Received %q for endpoint: %q", eventStr, epCfg.ID)
+			log.Infof("Received %q for endpoint: %q", eventStr, epCfg.ID)
 			processEpEvent(netPlugin, crt, opts, epCfg.ID, isDelete)
 		}
 	}
@@ -489,7 +492,7 @@ func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error
 
 	err := <-recvErr
 	if err != nil {
-		log.Printf("Failure occured. Error: %s", err)
+		log.Errorf("Failure occured. Error: %s", err)
 		return err
 	}
 
@@ -511,8 +514,7 @@ func main() {
 
 	defHostLabel, err := os.Hostname()
 	if err != nil {
-		log.Printf("Failed to fetch hostname. Error: %s", err)
-		os.Exit(1)
+		utils.LogExit("Failed to fetch hostname. Error: %s", err)
 	}
 
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
@@ -531,11 +533,11 @@ func main() {
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
-		log.Fatalf("Failed to parse command. Error: %s", err)
+		utils.LogExit("Failed to parse command. Error: %s", err)
 	}
 
 	if flagSet.NFlag() < 1 {
-		log.Printf("host-label not specified, using default (%s)", opts.hostLabel)
+		log.Infof("host-label not specified, using default (%s)", opts.hostLabel)
 	}
 
 	defConfigStr := fmt.Sprintf(`{
@@ -566,34 +568,30 @@ func main() {
 
 	config := []byte{}
 	if opts.cfgFile == "" {
-		log.Printf("config not specified, using default config")
+		log.Infof("config not specified, using default config")
 		config = []byte(defConfigStr)
 	} else if opts.cfgFile == "-" {
 		reader := bufio.NewReader(os.Stdin)
 		config, err = ioutil.ReadAll(reader)
 		if err != nil {
-			log.Printf("reading config from stdin failed. Error: %s", err)
-			os.Exit(1)
+			utils.LogExit("reading config from stdin failed. Error: %s", err)
 		}
 	} else {
 		config, err = ioutil.ReadFile(opts.cfgFile)
 		if err != nil {
-			log.Printf("reading config from file failed. Error: %s", err)
-			os.Exit(1)
+			utils.LogExit("reading config from file failed. Error: %s", err)
 		}
 	}
 
 	err = netPlugin.Init(string(config))
 	if err != nil {
-		log.Printf("Failed to initialize the plugin. Error: %s", err)
-		os.Exit(1)
+		utils.LogExit("Failed to initialize the plugin. Error: %s", err)
 	}
 
 	crt := &crt.CRT{}
 	err = crt.Init(string(config))
 	if err != nil {
-		log.Printf("Failed to initialize container run time, err %s \n", err)
-		os.Exit(1)
+		utils.LogExit("Failed to initialize container run time, err %s \n", err)
 	}
 
 	processCurrentState(netPlugin, crt, opts)

@@ -122,26 +122,27 @@ func extractHookStr(req *powerStripRequest) string {
 // CallHook handles the calls from powerstrip adapter. In absence of formal plugin hooks,
 // the netplugin hooks into post-create and pre-delete requests from power strip.
 func (adptr *PwrStrpAdptr) CallHook(w http.ResponseWriter, r *http.Request) {
-	log.Printf("handling new request")
+	log.Debugf("handling new request")
 	req := &powerStripRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(req)
 	if err != nil {
-		log.Printf("failed to parse powerstrip request. Error: %s", err)
+		log.Errorf("failed to parse powerstrip request. Error: %s", err)
 		return
 	}
-	log.Printf("powerstrip request: %+v", req)
+
+	log.Debugf("powerstrip request: %+v", req)
 
 	fn, ok := adptr.powerstripHooks[extractHookStr(req)]
 	if !ok {
-		log.Printf("No handler for hook %q, request: %+v", extractHookStr(req), req)
+		log.Errorf("No handler for hook %q, request: %+v", extractHookStr(req), req)
 		http.Error(w, "Unhandled request", http.StatusInternalServerError)
 		return
 	}
 
 	resp, err := fn(req)
 	if err != nil {
-		log.Printf("failed to handle request. Error: %s", err)
+		log.Errorf("failed to handle request. Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -149,7 +150,7 @@ func (adptr *PwrStrpAdptr) CallHook(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	err = encoder.Encode(resp)
 	if err != nil {
-		log.Printf("failed to write response. Error: %s", err)
+		log.Errorf("failed to write response. Error: %s", err)
 	}
 	return
 }
@@ -326,7 +327,7 @@ func (adptr *PwrStrpAdptr) handlePreStop(req *powerStripRequest) (*powerStripRes
 	contIDOrName := extractContIDOrName(req.ClientRequest)
 	fullContID := adptr.getFullContainerID(contIDOrName)
 	if _, ok := adptr.containerNets[fullContID]; !ok {
-		log.Printf("got a stop request for non existent container. contIDOrName: %s Request: %+v",
+		log.Errorf("got a stop request for non existent container. contIdOrName: %s Request: %+v",
 			contIDOrName, req)
 		// let the request be forwarded to docker
 	} else {
@@ -338,7 +339,7 @@ func (adptr *PwrStrpAdptr) handlePreStop(req *powerStripRequest) (*powerStripRes
 			epUUID := driverapi.UUID(fmt.Sprintf("%s-%s-%s", net.tenantID, net.netID, fullContID))
 			err := adptr.driver.DeleteEndpoint(netUUID, epUUID)
 			if err != nil {
-				log.Printf("Failed to delete endpoint for net: %+v container: %q with net(s): %+v. Error: %s",
+				log.Errorf("Failed to delete endpoint for net: %+v container: %q with net(s): %+v. Error: %s",
 					net, contIDOrName, adptr.containerNets[fullContID], err)
 				continue
 			}
@@ -353,7 +354,7 @@ func (adptr *PwrStrpAdptr) handlePreDelete(req *powerStripRequest) (*powerStripR
 	contIDOrName := extractContIDOrName(req.ClientRequest)
 	fullContID := adptr.getFullContainerID(contIDOrName)
 	if _, ok := adptr.containerNets[fullContID]; !ok {
-		log.Printf("got a delete request for non existent container. contIDOrName: %s Request: %+v",
+		log.Errorf("got a delete request for non existent container. contIdOrName: %s Request: %+v",
 			contIDOrName, req)
 		// let the request be forwarded to docker
 	} else {
