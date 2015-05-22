@@ -337,7 +337,7 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 
 	err = attachContainer(netPlugin.StateDriver, crt, contName)
 	if err != nil {
-		log.Printf("error attaching container err \n", err)
+		log.Printf("error attaching container: %v\n", err)
 	}
 
 	return err
@@ -406,7 +406,7 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 }
 
 func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
-	rsps chan core.WatchState, retErr chan error) {
+	rsps chan core.WatchState) {
 	for {
 		// block on change notifications
 		rsp := <-rsps
@@ -435,15 +435,12 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 			processEpEvent(netPlugin, crt, opts, epCfg.Id, isDelete)
 		}
 	}
-
-	// shall never come here
-	retErr <- nil
 }
 
 func handleNetworkEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
-	go processStateEvent(netPlugin, crt, opts, rsps, retErr)
+	go processStateEvent(netPlugin, crt, opts, rsps)
 	cfg := drivers.OvsCfgNetworkState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	retErr <- cfg.WatchAll(rsps)
@@ -453,7 +450,7 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
-	go processStateEvent(netPlugin, crt, opts, rsps, retErr)
+	go processStateEvent(netPlugin, crt, opts, rsps)
 	cfg := drivers.OvsCfgEndpointState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	retErr <- cfg.WatchAll(rsps)

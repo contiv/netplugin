@@ -35,7 +35,11 @@ done
 echo "+++ go vet tree..."
 for i in ${BUILD_PKGS}
 do
-  go vet "${i}"
+  if ! go vet "${i}"
+  then
+    echo "!!! go vet failed for the following package: ${i}"
+    exit 1
+  fi
 done
 
 echo "+++ All checks passed!!"

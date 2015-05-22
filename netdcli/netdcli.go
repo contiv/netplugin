@@ -362,7 +362,7 @@ func executeOpts(opts *cliOpts) error {
 
 	err := validateOpts(opts)
 	if err != nil {
-		log.Fatalf("error %s validating opts \n", opts)
+		log.Fatalf("error %v validating opts\n", err)
 		return err
 	}
 
