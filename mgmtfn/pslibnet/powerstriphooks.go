@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/mapuri/libnetwork/driverapi"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type ClientRequest struct {

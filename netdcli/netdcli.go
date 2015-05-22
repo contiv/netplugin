@@ -18,7 +18,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -30,6 +29,8 @@ import (
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -513,8 +514,6 @@ func executeOpts(opts *cliOpts) error {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
 	err := flagSet.Parse(os.Args[1:])
 	if err != nil {
 		log.Fatalf("Failed to parse command. Error: %s", err)

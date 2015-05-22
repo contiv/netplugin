@@ -18,7 +18,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -26,6 +25,8 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (

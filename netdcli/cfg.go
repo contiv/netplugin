@@ -19,7 +19,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
 	"time"
 
@@ -28,6 +27,8 @@ import (
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster"
 	"github.com/contiv/netplugin/state"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func getEpName(net *netmaster.ConfigNetwork, ep *netmaster.ConfigEp) string {

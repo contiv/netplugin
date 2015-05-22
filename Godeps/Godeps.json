@@ -2,12 +2,14 @@
 	"ImportPath": "github.com/contiv/netplugin",
 	"GoVersion": "go1.4.2",
 	"Packages": [
-		"./netplugin/",
-		"./netdcli/",
-		"./mgmtfn/k8contivnet/",
-		"./mgmtfn/pslibnet/"
+		"./..."
 	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.7.3-13-g81e2611",
+			"Rev": "81e2611f37acccd8cb5e4e1a5a4a5f6c9c7f4537"
+		},
 		{
 			"ImportPath": "github.com/cenkalti/hub",
 			"Comment": "v1.0.0-12-g7be60e1",

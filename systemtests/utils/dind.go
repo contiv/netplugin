@@ -17,8 +17,9 @@ package utils
 
 import (
 	"fmt"
-	"log"
 	"os"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type Dind struct {

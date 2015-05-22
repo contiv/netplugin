@@ -18,13 +18,14 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // implements the NetworkDriver and EndpointDriver interface for an vlan based
