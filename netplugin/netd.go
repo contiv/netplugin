@@ -20,6 +20,8 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log/syslog"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -35,6 +37,7 @@ import (
 	"github.com/samalba/dockerclient"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus/hooks/syslog"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -44,6 +47,8 @@ type cliOpts struct {
 	hostLabel   string
 	nativeInteg bool
 	cfgFile     string
+	syslog      string
+	jsonLog     bool
 }
 
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
@@ -508,6 +513,39 @@ func startDockerEventPoll(netPlugin *plugin.NetPlugin, crt *crt.CRT, recvErr cha
 	}
 }
 
+func configureSyslog(syslogParam string) {
+	var err error
+	var hook log.Hook
+
+	// disable colors if we're writing to syslog *and* we're the default text
+	// formatter, because the tty detection is useless here.
+	if tf, ok := log.StandardLogger().Formatter.(*log.TextFormatter); ok {
+		tf.DisableColors = true
+	}
+
+	if syslogParam == "kernel" {
+		hook, err = logrus_syslog.NewSyslogHook("", "", syslog.LOG_INFO, "netplugin")
+		if err != nil {
+			log.Fatalf("Could not connect to kernel syslog")
+			os.Exit(1)
+		}
+	} else {
+		u, err := url.Parse(syslogParam)
+		if err != nil {
+			log.Fatalf("Could not parse syslog spec: %v", err)
+			os.Exit(1)
+		}
+
+		hook, err = logrus_syslog.NewSyslogHook(u.Scheme, u.Host, syslog.LOG_INFO, "netplugin")
+		if err != nil {
+			log.Fatalf("Could not connect to syslog: %v", err)
+			os.Exit(1)
+		}
+	}
+
+	log.AddHook(hook)
+}
+
 func main() {
 	var opts cliOpts
 	var flagSet *flag.FlagSet
@@ -518,6 +556,14 @@ func main() {
 	}
 
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
+	flagSet.StringVar(&opts.syslog,
+		"syslog",
+		"",
+		"Log to syslog at proto://ip:port -- use 'kernel' to log via kernel syslog")
+	flagSet.BoolVar(&opts.jsonLog,
+		"json-log",
+		false,
+		"Format logs as JSON")
 	flagSet.StringVar(&opts.hostLabel,
 		"host-label",
 		defHostLabel,
@@ -534,6 +580,14 @@ func main() {
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
 		utils.LogExit("Failed to parse command. Error: %s", err)
+	}
+
+	if opts.jsonLog {
+		log.SetFormatter(&log.JSONFormatter{})
+	}
+
+	if opts.syslog != "" {
+		configureSyslog(opts.syslog)
 	}
 
 	if flagSet.NFlag() < 1 {
