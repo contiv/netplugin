@@ -23,55 +23,46 @@ import (
 	"github.com/jainvipin/bitset"
 )
 
-// implements the State interface for a network implemented using
+// OvsCfgNetworkState implements the State interface for a network implemented using
 // vlans with ovs. The state is stored as Json objects.
-const (
-	BASE_PATH           = "/contiv/"
-	CFG_PATH            = BASE_PATH + "config/"
-	NW_CFG_PATH_PREFIX  = CFG_PATH + "nets/"
-	NW_CFG_PATH         = NW_CFG_PATH_PREFIX + "%s"
-	EP_CFG_PATH_PREFIX  = CFG_PATH + "eps/"
-	EP_CFG_PATH         = EP_CFG_PATH_PREFIX + "%s"
-	OPER_PATH           = BASE_PATH + "oper/"
-	NW_OPER_PATH_PREFIX = OPER_PATH + "nets/"
-	NW_OPER_PATH        = NW_OPER_PATH_PREFIX + "%s"
-	EP_OPER_PATH_PREFIX = OPER_PATH + "eps/"
-	EP_OPER_PATH        = EP_OPER_PATH_PREFIX + "%s"
-)
-
 type OvsCfgNetworkState struct {
 	core.CommonState
 	Tenant     string        `json:"tenant"`
 	PktTagType string        `json:"pktTagType"`
 	PktTag     int           `json:"pktTag"`
 	ExtPktTag  int           `json:"extPktTag"`
-	SubnetIp   string        `json:"subnetIp"`
+	SubnetIP   string        `json:"subnetIP"`
 	SubnetLen  uint          `json:"subnetLen"`
 	DefaultGw  string        `json:"defaultGw"`
 	EpCount    int           `json:"epCount"`
-	IpAllocMap bitset.BitSet `json:"ipAllocMap"`
+	IPAllocMap bitset.BitSet `json:"ipAllocMap"`
 }
 
+// Write the state.
 func (s *OvsCfgNetworkState) Write() error {
-	key := fmt.Sprintf(NW_CFG_PATH, s.Id)
+	key := fmt.Sprintf(networkConfigPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
+// Read the state for a given identifier
 func (s *OvsCfgNetworkState) Read(id string) error {
-	key := fmt.Sprintf(NW_CFG_PATH, id)
+	key := fmt.Sprintf(networkConfigPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+// ReadAll state and return the collection.
 func (s *OvsCfgNetworkState) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(NW_CFG_PATH_PREFIX, s, json.Unmarshal)
+	return s.StateDriver.ReadAllState(networkConfigPathPrefix, s, json.Unmarshal)
 }
 
+// WatchAll state transitions and send them through the channel.
 func (s *OvsCfgNetworkState) WatchAll(rsps chan core.WatchState) error {
-	return s.StateDriver.WatchAllState(NW_CFG_PATH_PREFIX, s, json.Unmarshal,
+	return s.StateDriver.WatchAllState(networkConfigPathPrefix, s, json.Unmarshal,
 		rsps)
 }
 
+// Clear removes the state.
 func (s *OvsCfgNetworkState) Clear() error {
-	key := fmt.Sprintf(NW_CFG_PATH, s.Id)
+	key := fmt.Sprintf(networkConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }

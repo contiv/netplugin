@@ -22,11 +22,11 @@ import (
 )
 
 const (
-	testHostId = "testHost"
-	hostCfgKey = HOST_CFG_PATH_PREFIX + testHostId
+	testHostID = "testHost"
+	hostCfgKey = hostConfigPathPrefix + testHostID
 )
 
-var hostState *testHostStateDriver = &testHostStateDriver{}
+var hostState = &testHostStateDriver{}
 
 type testHostStateDriver struct {
 }
@@ -58,9 +58,9 @@ func (d *testHostStateDriver) validateKey(key string) error {
 	if key != hostCfgKey {
 		return core.Errorf("Unexpected key. recvd: %s expected: %s",
 			key, hostCfgKey)
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (d *testHostStateDriver) ClearState(key string) error {
@@ -91,7 +91,7 @@ func TestMasterHostConfigRead(t *testing.T) {
 	hostCfg := &MasterHostConfig{}
 	hostCfg.StateDriver = hostState
 
-	err := hostCfg.Read(testHostId)
+	err := hostCfg.Read(testHostID)
 	if err != nil {
 		t.Fatalf("read config state failed. Error: %s", err)
 	}
@@ -100,7 +100,7 @@ func TestMasterHostConfigRead(t *testing.T) {
 func TestMasterHostConfigWrite(t *testing.T) {
 	hostCfg := &MasterHostConfig{}
 	hostCfg.StateDriver = hostState
-	hostCfg.Name = testHostId
+	hostCfg.Name = testHostID
 
 	err := hostCfg.Write()
 	if err != nil {
@@ -111,7 +111,7 @@ func TestMasterHostConfigWrite(t *testing.T) {
 func TestMasterHostConfigClear(t *testing.T) {
 	hostCfg := &MasterHostConfig{}
 	hostCfg.StateDriver = hostState
-	hostCfg.Name = testHostId
+	hostCfg.Name = testHostID
 
 	err := hostCfg.Clear()
 	if err != nil {

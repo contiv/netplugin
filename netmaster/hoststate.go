@@ -23,33 +23,38 @@ import (
 )
 
 const (
-	HOST_CFG_PATH_PREFIX = CFG_PATH + "hosts/"
-	HOST_CFG_PATH        = HOST_CFG_PATH_PREFIX + "%s"
+	hostConfigPathPrefix = configPath + "hosts/"
+	hostConfigPath       = hostConfigPathPrefix + "%s"
 )
 
+// MasterHostConfig is the state carried for network + host maps.
 type MasterHostConfig struct {
 	core.CommonState
 	Name   string `json:"name"`
 	Intf   string `json:"intf"`
-	VtepIp string `json:"vtepIp"`
-	NetId  string `json:"netId"`
+	VtepIP string `json:"vtepIp"`
+	NetID  string `json:"netId"`
 }
 
+// Write the master host configuration to the state system.
 func (s *MasterHostConfig) Write() error {
-	key := fmt.Sprintf(HOST_CFG_PATH, s.Name)
+	key := fmt.Sprintf(hostConfigPath, s.Name)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
+// Read the host state from the state system, provided a hostname.
 func (s *MasterHostConfig) Read(hostname string) error {
-	key := fmt.Sprintf(HOST_CFG_PATH, hostname)
+	key := fmt.Sprintf(hostConfigPath, hostname)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+// ReadAll implements reading the state for all hosts.
 func (s *MasterHostConfig) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(HOST_CFG_PATH_PREFIX, s, json.Unmarshal)
+	return s.StateDriver.ReadAllState(hostConfigPathPrefix, s, json.Unmarshal)
 }
 
+// Clear purges the state for this host.
 func (s *MasterHostConfig) Clear() error {
-	key := fmt.Sprintf(HOST_CFG_PATH, s.Name)
+	key := fmt.Sprintf(hostConfigPath, s.Name)
 	return s.StateDriver.ClearState(key)
 }

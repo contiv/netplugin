@@ -33,9 +33,9 @@ const (
 )
 
 const (
-	VXLAN_RSRC_CFG_PATH_PREFIX  = drivers.CFG_PATH + AUTO_VXLAN_RSRC + "/"
+	VXLAN_RSRC_CFG_PATH_PREFIX  = drivers.StateConfigPath + AUTO_VXLAN_RSRC + "/"
 	VXLAN_RSRC_CFG_PATH         = VXLAN_RSRC_CFG_PATH_PREFIX + "%s"
-	VXLAN_RSRC_OPER_PATH_PREFIX = drivers.OPER_PATH + AUTO_VXLAN_RSRC + "/"
+	VXLAN_RSRC_OPER_PATH_PREFIX = drivers.StateOperPath + AUTO_VXLAN_RSRC + "/"
 	VXLAN_RSRC_OPER_PATH        = VXLAN_RSRC_OPER_PATH_PREFIX + "%s"
 )
 
@@ -51,7 +51,7 @@ type VxlanVlanPair struct {
 }
 
 func (r *AutoVxlanCfgResource) Write() error {
-	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.Id)
+	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.ID)
 	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
@@ -61,7 +61,7 @@ func (r *AutoVxlanCfgResource) Read(id string) error {
 }
 
 func (r *AutoVxlanCfgResource) Clear() error {
-	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.Id)
+	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.ID)
 	return r.StateDriver.ClearState(key)
 }
 
@@ -89,7 +89,7 @@ func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
 
 	oper := &AutoVxlanOperResource{FreeVxlans: r.Vxlans, FreeLocalVlans: r.LocalVlans}
 	oper.StateDriver = r.StateDriver
-	oper.Id = r.Id
+	oper.ID = r.ID
 	err = oper.Write()
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
 func (r *AutoVxlanCfgResource) Deinit() {
 	oper := &AutoVxlanOperResource{}
 	oper.StateDriver = r.StateDriver
-	err := oper.Read(r.Id)
+	err := oper.Read(r.ID)
 	if err != nil {
 		// continue cleanup
 	} else {
@@ -121,7 +121,7 @@ func (r *AutoVxlanCfgResource) Description() string {
 func (r *AutoVxlanCfgResource) Allocate() (interface{}, error) {
 	oper := &AutoVxlanOperResource{}
 	oper.StateDriver = r.StateDriver
-	err := oper.Read(r.Id)
+	err := oper.Read(r.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (r *AutoVxlanCfgResource) Allocate() (interface{}, error) {
 func (r *AutoVxlanCfgResource) Deallocate(value interface{}) error {
 	oper := &AutoVxlanOperResource{}
 	oper.StateDriver = r.StateDriver
-	err := oper.Read(r.Id)
+	err := oper.Read(r.ID)
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ type AutoVxlanOperResource struct {
 }
 
 func (r *AutoVxlanOperResource) Write() error {
-	key := fmt.Sprintf(VXLAN_RSRC_OPER_PATH, r.Id)
+	key := fmt.Sprintf(VXLAN_RSRC_OPER_PATH, r.ID)
 	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
@@ -192,6 +192,6 @@ func (r *AutoVxlanOperResource) ReadAll() ([]core.State, error) {
 }
 
 func (r *AutoVxlanOperResource) Clear() error {
-	key := fmt.Sprintf(VXLAN_RSRC_OPER_PATH, r.Id)
+	key := fmt.Sprintf(VXLAN_RSRC_OPER_PATH, r.ID)
 	return r.StateDriver.ClearState(key)
 }

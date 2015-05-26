@@ -64,7 +64,7 @@ func verifyKeys(t *testing.T, keys []string) {
 
 	for _, key := range keys {
 		found := false
-		for stateKey, _ := range fakeDriver.TestState {
+		for stateKey := range fakeDriver.TestState {
 			if found = strings.Contains(stateKey, key); found {
 				break
 			}
@@ -261,7 +261,7 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 
 	verifyKeys(t, keys)
 
-	epBindings := []ConfigEp{{
+	epBindings := []ConfigEP{{
 		Container: "myContainer1",
 		Host:      "host1",
 	}, {

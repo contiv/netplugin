@@ -47,20 +47,20 @@ var ContainerIfRegistry = map[string]ContainerIfTypes{
 }
 
 func (c *Crt) AttachEndpoint(
-	contEpContext *crtclient.ContainerEpContext) error {
+	contEpContext *crtclient.ContainerEPContext) error {
 	return c.ContainerIf.AttachEndpoint(contEpContext)
 }
 
-func (c *Crt) DetachEndpoint(contEpContext *crtclient.ContainerEpContext) error {
+func (c *Crt) DetachEndpoint(contEpContext *crtclient.ContainerEPContext) error {
 	return c.ContainerIf.DetachEndpoint(contEpContext)
 }
 
-func (c *Crt) GetContainerId(contName string) string {
-	return c.ContainerIf.GetContainerId(contName)
+func (c *Crt) GetContainerID(contName string) string {
+	return c.ContainerIf.GetContainerID(contName)
 }
 
-func (c *Crt) GetContainerName(contId string) (string, error) {
-	return c.ContainerIf.GetContainerName(contId)
+func (c *Crt) GetContainerName(contID string) (string, error) {
+	return c.ContainerIf.GetContainerName(contID)
 }
 
 func (c *Crt) Deinit() {
@@ -86,11 +86,10 @@ func (c *Crt) Init(configStr string) error {
 		return err
 	}
 
-	config := &crtclient.Config{V: crtConfig}
 	crtType := ContainerIfRegistry[cfg.Crt.Type].CrtType
 	crtif := reflect.New(crtType).Interface()
 	c.ContainerIf = crtif.(crtclient.ContainerIf)
-	err = c.ContainerIf.Init(config)
+	err = c.ContainerIf.Init(&crtclient.Config{V: crtConfig})
 	if err != nil {
 		return err
 	}

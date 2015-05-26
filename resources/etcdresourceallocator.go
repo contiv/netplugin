@@ -63,7 +63,7 @@ func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, boo
 	}
 	//the following works as every core.State is expected to embed core.CommonState struct
 	val.Elem().FieldByName("CommonState").FieldByName("StateDriver").Set(reflect.ValueOf(ra.Etcd))
-	val.Elem().FieldByName("CommonState").FieldByName("Id").Set(reflect.ValueOf(id))
+	val.Elem().FieldByName("CommonState").FieldByName("ID").Set(reflect.ValueOf(id))
 
 	rsrc := val.Interface().(core.Resource)
 	rsrcs, err := rsrc.ReadAll()
@@ -77,7 +77,7 @@ func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, boo
 	for _, r := range rsrcs {
 		//the following works as every core.State is expected to embed core.CommonState struct
 		cs := reflect.ValueOf(r).Elem().FieldByName("CommonState").Interface().(core.CommonState)
-		if cs.Id == id {
+		if cs.ID == id {
 			alreadyExists = true
 			return r.(core.Resource), alreadyExists, nil
 		}

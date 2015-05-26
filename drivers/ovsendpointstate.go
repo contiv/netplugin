@@ -22,82 +22,91 @@ import (
 	"github.com/contiv/netplugin/core"
 )
 
-// implements the State interface for an endpoint implemented using
+// OvsCfgEndpointState implements the State interface for an endpoint implemented using
 // vlans with ovs. The state is stored as Json objects.
-
 type OvsCfgEndpointState struct {
 	core.CommonState
-	NetId      string `json:"netId"`
+	NetID      string `json:"netID"`
 	ContName   string `json:"contName"`
 	AttachUUID string `json:"attachUUID"`
-	IpAddress  string `json:"ipAddress"`
+	IPAddress  string `json:"ipAddress"`
 	HomingHost string `json:"homingHost"`
 	IntfName   string `json:"intfName"`
-	VtepIp     string `json:'vtepIP"`
+	VtepIP     string `json:'vtepIP"`
 }
 
+// Write the state.
 func (s *OvsCfgEndpointState) Write() error {
-	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
+	key := fmt.Sprintf(endpointConfigPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
+// Read the state for a given identifier.
 func (s *OvsCfgEndpointState) Read(id string) error {
-	key := fmt.Sprintf(EP_CFG_PATH, id)
+	key := fmt.Sprintf(endpointConfigPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+// ReadAll reads all state objects for the endpoints.
 func (s *OvsCfgEndpointState) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(EP_CFG_PATH_PREFIX, s, json.Unmarshal)
+	return s.StateDriver.ReadAllState(endpointConfigPathPrefix, s, json.Unmarshal)
 }
 
+// WatchAll fills a channel on each state event related to endpoints.
 func (s *OvsCfgEndpointState) WatchAll(rsps chan core.WatchState) error {
-	return s.StateDriver.WatchAllState(EP_CFG_PATH_PREFIX, s, json.Unmarshal,
+	return s.StateDriver.WatchAllState(endpointConfigPathPrefix, s, json.Unmarshal,
 		rsps)
 }
 
+// Clear removes the state.
 func (s *OvsCfgEndpointState) Clear() error {
-	key := fmt.Sprintf(EP_CFG_PATH, s.Id)
+	key := fmt.Sprintf(endpointConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }
 
+// OvsOperEndpointState is the necessary data used to perform operations on endpoints.
 type OvsOperEndpointState struct {
 	core.CommonState
-	NetId      string `json:"netId"`
+	NetID      string `json:"netID"`
 	ContName   string `json:"contName"`
 	AttachUUID string `json:"attachUUID"`
-	IpAddress  string `json:"ipAddress"`
+	IPAddress  string `json:"ipAddress"`
 	PortName   string `json:"portName"`
 	HomingHost string `json:"homingHost"`
 	IntfName   string `json:"intfName"`
-	VtepIp     string `json:'vtepIP"`
+	VtepIP     string `json:'vtepIP"`
 }
 
+// Matches matches the fields updated from configuration state
 func (s *OvsOperEndpointState) Matches(c *OvsCfgEndpointState) bool {
-	// match the fields updated from configuration state
-	return s.NetId == c.NetId &&
+	return s.NetID == c.NetID &&
 		s.ContName == c.ContName &&
 		s.AttachUUID == c.AttachUUID &&
-		s.IpAddress == c.IpAddress &&
+		s.IPAddress == c.IPAddress &&
 		s.HomingHost == c.HomingHost &&
 		s.IntfName == c.IntfName &&
-		s.VtepIp == c.VtepIp
+		s.VtepIP == c.VtepIP
 }
 
+// Write the state.
 func (s *OvsOperEndpointState) Write() error {
-	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
+	key := fmt.Sprintf(endpointOperPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
+// Read the state for a given identifier.
 func (s *OvsOperEndpointState) Read(id string) error {
-	key := fmt.Sprintf(EP_OPER_PATH, id)
+	key := fmt.Sprintf(endpointOperPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+// ReadAll reads all state into separate objects.
 func (s *OvsOperEndpointState) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(EP_OPER_PATH_PREFIX, s, json.Unmarshal)
+	return s.StateDriver.ReadAllState(endpointOperPathPrefix, s, json.Unmarshal)
 }
 
+// Clear removes the state.
 func (s *OvsOperEndpointState) Clear() error {
-	key := fmt.Sprintf(EP_OPER_PATH, s.Id)
+	key := fmt.Sprintf(endpointOperPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }

@@ -130,14 +130,14 @@ type cliOpts struct {
 	construct       Construct
 	etcdUrl         string
 	tenant          string
-	netId           string
+	netID           string
 	pktTag          string
 	pktTagType      string
 	subnetCidr      string
 	ipAddr          string
 	contName        string
 	attachUUID      string
-	subnetIp        string
+	subnetIP        string
 	subnetLen       uint
 	allocSubnetLen  uint
 	defaultGw       string
@@ -145,7 +145,7 @@ type cliOpts struct {
 	vlans           string
 	vxlans          string
 	homingHost      string
-	vtepIp          string
+	vtepIP          string
 	intfName        string
 }
 
@@ -184,7 +184,7 @@ func init() {
 		"tenant",
 		"default",
 		"tenant id associated with the construct (global/network/ep)")
-	flagSet.StringVar(&opts.netId,
+	flagSet.StringVar(&opts.netID,
 		"net-id",
 		"",
 		"Network id of the endpoint")
@@ -211,7 +211,7 @@ func init() {
 	flagSet.StringVar(&opts.contName,
 		"container-id",
 		"",
-		"Container Id to identify a runningcontainer")
+		"Container ID to identify a runningcontainer")
 	flagSet.StringVar(&opts.attachUUID,
 		"attach-uuid",
 		"",
@@ -232,7 +232,7 @@ func init() {
 		"vxlans",
 		"",
 		"Allowed vlan ranges for auto-allocating vxlans e.g. '10000-20000, 30000-35000")
-	flagSet.StringVar(&opts.vtepIp,
+	flagSet.StringVar(&opts.vtepIP,
 		"vtep-ip",
 		"",
 		"Endpoint's Vtep IP address if the endpoint is of vtep type")
@@ -319,28 +319,28 @@ func validateOpts(opts *cliOpts) error {
 	// default gw and mask parsing
 	if opts.subnetCidr == "" {
 		opts.subnetLen = 0
-		opts.subnetIp = "auto"
+		opts.subnetIP = "auto"
 	} else {
 		_, _, err = net.ParseCIDR(opts.subnetCidr)
 		if err != nil {
 			log.Fatalf("error '%s' parsing cidr ip %s \n", err, opts.subnetCidr)
 		}
 
-		opts.subnetIp, opts.subnetLen, err = netutils.ParseCIDR(opts.subnetCidr)
+		opts.subnetIP, opts.subnetLen, err = netutils.ParseCIDR(opts.subnetCidr)
 		if err != nil {
 			logFatalSubnetAndMaskFormatError()
 		}
 	}
 
-	if opts.vtepIp != "" && net.ParseIP(opts.vtepIp) == nil {
-		log.Fatalf("error '%s' parsing vtep ip %s \n", err, opts.vtepIp)
+	if opts.vtepIP != "" && net.ParseIP(opts.vtepIP) == nil {
+		log.Fatalf("error '%s' parsing vtep ip %s \n", err, opts.vtepIP)
 	}
 
 	// endpoint parameters validation
 	if opts.oper.Get() == CLI_OPER_CREATE &&
 		opts.construct.Get() == CLI_CONSTRUCT_EP &&
-		opts.vtepIp != "" &&
-		(opts.netId == "" || opts.ipAddr == "") {
+		opts.vtepIP != "" &&
+		(opts.netID == "" || opts.ipAddr == "") {
 		if opts.ipAddr == "auto" {
 			log.Printf("doing auto ip address assignemt for the ep... \n")
 		} else {
@@ -406,13 +406,13 @@ func executeOpts(opts *cliOpts) error {
 		} else {
 			epCfg := &drivers.OvsCfgEndpointState{}
 			epCfg.StateDriver = etcdDriver
-			epCfg.Id = opts.idStr
-			epCfg.NetId = opts.netId
-			epCfg.IpAddress = opts.ipAddr
+			epCfg.ID = opts.idStr
+			epCfg.NetID = opts.netID
+			epCfg.IPAddress = opts.ipAddr
 			epCfg.ContName = opts.contName
 			epCfg.AttachUUID = opts.attachUUID
 			epCfg.HomingHost = opts.homingHost
-			epCfg.VtepIp = opts.vtepIp
+			epCfg.VtepIP = opts.vtepIP
 			epCfg.IntfName = opts.intfName
 			coreState = epCfg
 		}
@@ -427,10 +427,10 @@ func executeOpts(opts *cliOpts) error {
 			nwCfg.PktTag, _ = strconv.Atoi(opts.pktTag)
 			nwCfg.Tenant = opts.tenant
 			nwCfg.PktTagType = opts.pktTagType
-			nwCfg.SubnetIp = opts.subnetIp
+			nwCfg.SubnetIP = opts.subnetIP
 			nwCfg.SubnetLen = opts.subnetLen
 			nwCfg.DefaultGw = opts.defaultGw
-			nwCfg.Id = opts.idStr
+			nwCfg.ID = opts.idStr
 			coreState = nwCfg
 		}
 	case CLI_CONSTRUCT_GLOBAL:
@@ -450,7 +450,7 @@ func executeOpts(opts *cliOpts) error {
 			gcfg.Version = gstate.VersionBeta1
 			gcfg.Tenant = opts.tenant
 			gcfg.Deploy.DefaultNetType = opts.pktTagType
-			gcfg.Auto.SubnetPool = opts.subnetIp
+			gcfg.Auto.SubnetPool = opts.subnetIP
 			gcfg.Auto.SubnetLen = opts.subnetLen
 			gcfg.Auto.Vlans = opts.vlans
 			gcfg.Auto.Vxlans = opts.vxlans

@@ -63,8 +63,8 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	}
 	for idx, netCfg := range netCfgs {
 		net := netCfg.(*drivers.OvsCfgNetworkState)
-		log.Printf("read net key[%d] %s, populating state \n", idx, net.Id)
-		processNetEvent(netPlugin, net.Id, false)
+		log.Printf("read net key[%d] %s, populating state \n", idx, net.ID)
+		processNetEvent(netPlugin, net.ID, false)
 	}
 
 	readEp := &drivers.OvsCfgEndpointState{}
@@ -75,14 +75,14 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	}
 	for idx, epCfg := range epCfgs {
 		ep := epCfg.(*drivers.OvsCfgEndpointState)
-		log.Printf("read ep key[%d] %s, populating state \n", idx, ep.Id)
-		processEpEvent(netPlugin, crt, opts, ep.Id, false)
+		log.Printf("read ep key[%d] %s, populating state \n", idx, ep.ID)
+		processEpEvent(netPlugin, crt, opts, ep.ID, false)
 	}
 
 	return nil
 }
 
-func processNetEvent(netPlugin *plugin.NetPlugin, netId string,
+func processNetEvent(netPlugin *plugin.NetPlugin, netID string,
 	isDelete bool) (err error) {
 	// take a lock to ensure we are programming one event at a time.
 	// Also network create events need to be processed before endpoint creates
@@ -93,10 +93,10 @@ func processNetEvent(netPlugin *plugin.NetPlugin, netId string,
 
 	operStr := ""
 	if isDelete {
-		err = netPlugin.DeleteNetwork(netId)
+		err = netPlugin.DeleteNetwork(netID)
 		operStr = "delete"
 	} else {
-		err = netPlugin.CreateNetwork(netId)
+		err = netPlugin.CreateNetwork(netID)
 		operStr = "create"
 	}
 	if err != nil {
@@ -108,14 +108,14 @@ func processNetEvent(netPlugin *plugin.NetPlugin, netId string,
 	return
 }
 
-func getEndpointContainerContext(stateDriver core.StateDriver, epId string) (
-	*crtclient.ContainerEpContext, error) {
-	var epCtx crtclient.ContainerEpContext
+func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
+	*crtclient.ContainerEPContext, error) {
+	var epCtx crtclient.ContainerEPContext
 	var err error
 
 	epCfg := &drivers.OvsCfgEndpointState{}
 	epCfg.StateDriver = stateDriver
-	err = epCfg.Read(epId)
+	err = epCfg.Read(epID)
 	if err != nil {
 		return &epCtx, nil
 	}
@@ -124,7 +124,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epId string) (
 
 	cfgNet := &drivers.OvsCfgNetworkState{}
 	cfgNet.StateDriver = stateDriver
-	err = cfgNet.Read(epCfg.NetId)
+	err = cfgNet.Read(epCfg.NetID)
 	if err != nil {
 		return &epCtx, err
 	}
@@ -133,21 +133,21 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epId string) (
 
 	operEp := &drivers.OvsOperEndpointState{}
 	operEp.StateDriver = stateDriver
-	err = operEp.Read(epId)
+	err = operEp.Read(epID)
 	if err != nil {
 		return &epCtx, nil
 	}
 	epCtx.CurrContName = operEp.ContName
-	epCtx.InterfaceId = operEp.PortName
-	epCtx.IpAddress = operEp.IpAddress
+	epCtx.InterfaceID = operEp.PortName
+	epCtx.IPAddress = operEp.IPAddress
 	epCtx.CurrAttachUUID = operEp.AttachUUID
 
 	return &epCtx, err
 }
 
-func getContainerEpContextByContName(stateDriver core.StateDriver, contName string) (
-	epCtxs []crtclient.ContainerEpContext, err error) {
-	var epCtx *crtclient.ContainerEpContext
+func getContainerEPContextByContName(stateDriver core.StateDriver, contName string) (
+	epCtxs []crtclient.ContainerEPContext, err error) {
+	var epCtx *crtclient.ContainerEPContext
 
 	contName = strings.TrimPrefix(contName, "/")
 	readEp := &drivers.OvsCfgEndpointState{}
@@ -157,7 +157,7 @@ func getContainerEpContextByContName(stateDriver core.StateDriver, contName stri
 		return
 	}
 
-	epCtxs = make([]crtclient.ContainerEpContext, len(epCfgs))
+	epCtxs = make([]crtclient.ContainerEPContext, len(epCfgs))
 	idx := 0
 	for _, epCfg := range epCfgs {
 		cfg := epCfg.(*drivers.OvsCfgEndpointState)
@@ -165,10 +165,10 @@ func getContainerEpContextByContName(stateDriver core.StateDriver, contName stri
 			continue
 		}
 
-		epCtx, err = getEndpointContainerContext(stateDriver, cfg.Id)
+		epCtx, err = getEndpointContainerContext(stateDriver, cfg.ID)
 		if err != nil {
 			log.Printf("error '%s' getting epCfgState for ep %s \n",
-				err, cfg.Id)
+				err, cfg.ID)
 			return epCtxs[:idx], nil
 		}
 		epCtxs[idx] = *epCtx
@@ -178,7 +178,7 @@ func getContainerEpContextByContName(stateDriver core.StateDriver, contName stri
 	return epCtxs[:idx], nil
 }
 
-func contAttachPointAdded(epCtx *crtclient.ContainerEpContext) bool {
+func contAttachPointAdded(epCtx *crtclient.ContainerEPContext) bool {
 	if epCtx.CurrAttachUUID == "" && epCtx.NewAttachUUID != "" {
 		return true
 	}
@@ -188,7 +188,7 @@ func contAttachPointAdded(epCtx *crtclient.ContainerEpContext) bool {
 	return false
 }
 
-func contAttachPointDeleted(epCtx *crtclient.ContainerEpContext) bool {
+func contAttachPointDeleted(epCtx *crtclient.ContainerEPContext) bool {
 	if epCtx.CurrAttachUUID != "" && epCtx.NewAttachUUID == "" {
 		return true
 	}
@@ -199,7 +199,7 @@ func contAttachPointDeleted(epCtx *crtclient.ContainerEpContext) bool {
 }
 
 func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
-	epId string, isDelete bool) (err error) {
+	epID string, isDelete bool) (err error) {
 	// take a lock to ensure we are programming one event at a time.
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
@@ -213,46 +213,46 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 	if !isDelete {
 		epCfg := &drivers.OvsCfgEndpointState{}
 		epCfg.StateDriver = netPlugin.StateDriver
-		err = epCfg.Read(epId)
+		err = epCfg.Read(epID)
 		if err != nil {
-			log.Printf("Failed to read config for ep '%s' \n", epId)
+			log.Printf("Failed to read config for ep '%s' \n", epID)
 			return
 		}
 		homingHost = epCfg.HomingHost
-		vtepIp = epCfg.VtepIp
+		vtepIp = epCfg.VtepIP
 	} else {
 		epOper := &drivers.OvsOperEndpointState{}
 		epOper.StateDriver = netPlugin.StateDriver
-		err = epOper.Read(epId)
+		err = epOper.Read(epID)
 		if err != nil {
-			log.Printf("Failed to read oper for ep %s, err '%s' \n", epId, err)
+			log.Printf("Failed to read oper for ep %s, err '%s' \n", epID, err)
 			return
 		}
 		homingHost = epOper.HomingHost
-		vtepIp = epOper.VtepIp
+		vtepIp = epOper.VtepIP
 	}
 	if skipHost(vtepIp, homingHost, opts.hostLabel) {
 		log.Printf("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
-			epId, homingHost, opts.hostLabel)
+			epID, homingHost, opts.hostLabel)
 		return
 	}
 
 	// read the context before to be compared with what changed after
 	contEpContext, err := getEndpointContainerContext(
-		netPlugin.StateDriver, epId)
+		netPlugin.StateDriver, epID)
 	if err != nil {
 		log.Printf("Failed to obtain the container context for ep '%s' \n",
-			epId)
+			epID)
 		return
 	}
 	// log.Printf("read endpoint context: %s \n", contEpContext)
 
 	operStr := ""
 	if isDelete {
-		err = netPlugin.DeleteEndpoint(epId)
+		err = netPlugin.DeleteEndpoint(epID)
 		operStr = "delete"
 	} else {
-		err = netPlugin.CreateEndpoint(epId)
+		err = netPlugin.CreateEndpoint(epID)
 		operStr = "create"
 	}
 	if err != nil {
@@ -267,34 +267,34 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 		err = crt.ContainerIf.DetachEndpoint(contEpContext)
 		if err != nil {
 			log.Printf("Endpoint detach container '%s' from ep '%s' failed . "+
-				"Error: %s", contEpContext.CurrContName, epId, err)
+				"Error: %s", contEpContext.CurrContName, epID, err)
 		} else {
 			log.Printf("Endpoint detach container '%s' from ep '%s' succeeded",
-				contEpContext.CurrContName, epId)
+				contEpContext.CurrContName, epID)
 		}
 	}
 	if !isDelete && contAttachPointAdded(contEpContext) {
 		// re-read post ep updated state
 		newContEpContext, err1 := getEndpointContainerContext(
-			netPlugin.StateDriver, epId)
+			netPlugin.StateDriver, epID)
 		if err1 != nil {
-			log.Printf("Failed to obtain the container context for ep '%s' \n", epId)
+			log.Printf("Failed to obtain the container context for ep '%s' \n", epID)
 			return
 		}
-		contEpContext.InterfaceId = newContEpContext.InterfaceId
-		contEpContext.IpAddress = newContEpContext.IpAddress
+		contEpContext.InterfaceID = newContEpContext.InterfaceID
+		contEpContext.IPAddress = newContEpContext.IPAddress
 		contEpContext.SubnetLen = newContEpContext.SubnetLen
 
 		err = crt.ContainerIf.AttachEndpoint(contEpContext)
 		if err != nil {
 			log.Printf("Endpoint attach container '%s' to ep '%s' failed . "+
-				"Error: %s", contEpContext.NewContName, epId, err)
+				"Error: %s", contEpContext.NewContName, epID, err)
 		} else {
 			log.Printf("Endpoint attach container '%s' to ep '%s' succeeded",
-				contEpContext.NewContName, epId)
+				contEpContext.NewContName, epID)
 		}
-		contId := crt.ContainerIf.GetContainerId(contEpContext.NewContName)
-		if contId != "" {
+		contID := crt.ContainerIf.GetContainerID(contEpContext.NewContName)
+		if contID != "" {
 		}
 	}
 
@@ -303,7 +303,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 
 func attachContainer(stateDriver core.StateDriver, crt *crt.Crt, contName string) error {
 
-	epContexts, err := getContainerEpContextByContName(stateDriver, contName)
+	epContexts, err := getContainerEPContextByContName(stateDriver, contName)
 	if err != nil {
 		log.Printf("Error '%s' getting Ep context for container %s \n",
 			err, contName)
@@ -311,7 +311,7 @@ func attachContainer(stateDriver core.StateDriver, crt *crt.Crt, contName string
 	}
 
 	for _, epCtx := range epContexts {
-		if epCtx.NewAttachUUID != "" || epCtx.InterfaceId == "" {
+		if epCtx.NewAttachUUID != "" || epCtx.InterfaceID == "" {
 			log.Printf("## skipping attach on epctx %v \n", epCtx)
 			continue
 		} else {
@@ -328,12 +328,12 @@ func attachContainer(stateDriver core.StateDriver, crt *crt.Crt, contName string
 }
 
 func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
-	contId string) error {
-	// var epContexts []crtclient.ContainerEpContext
+	contID string) error {
+	// var epContexts []crtclient.ContainerEPContext
 
-	contName, err := crt.GetContainerName(contId)
+	contName, err := crt.GetContainerName(contID)
 	if err != nil {
-		log.Printf("Could not find container name from container id %s \n", contId)
+		log.Printf("Could not find container name from container id %s \n", contID)
 		return err
 	}
 
@@ -346,7 +346,7 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 }
 
 func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.Crt,
-	contId string) error {
+	contID string) error {
 	// If CONTIV_DIND_HOST_GOPATH env variable is set we can assume we are in docker in docker testbed
 	// Here we need to set the network namespace of the ports created by netplugin back to NS of the docker host
 	hostGoPath := os.Getenv("CONTIV_DIND_HOST_GOPATH")
@@ -429,12 +429,12 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 		}
 
 		if nwCfg, ok := currentState.(*drivers.OvsCfgNetworkState); ok {
-			log.Printf("Received %q for network: %q", eventStr, nwCfg.Id)
-			processNetEvent(netPlugin, nwCfg.Id, isDelete)
+			log.Printf("Received %q for network: %q", eventStr, nwCfg.ID)
+			processNetEvent(netPlugin, nwCfg.ID, isDelete)
 		}
 		if epCfg, ok := currentState.(*drivers.OvsCfgEndpointState); ok {
-			log.Printf("Received %q for endpoint: %q", eventStr, epCfg.Id)
-			processEpEvent(netPlugin, crt, opts, epCfg.Id, isDelete)
+			log.Printf("Received %q for endpoint: %q", eventStr, epCfg.ID)
+			processEpEvent(netPlugin, crt, opts, epCfg.ID, isDelete)
 		}
 	}
 }

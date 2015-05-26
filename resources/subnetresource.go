@@ -35,9 +35,9 @@ const (
 )
 
 const (
-	SUBNET_RSRC_CFG_PATH_PREFIX  = drivers.CFG_PATH + AUTO_SUBNET_RSRC + "/"
+	SUBNET_RSRC_CFG_PATH_PREFIX  = drivers.StateConfigPath + AUTO_SUBNET_RSRC + "/"
 	SUBNET_RSRC_CFG_PATH         = SUBNET_RSRC_CFG_PATH_PREFIX + "%s"
-	SUBNET_RSRC_OPER_PATH_PREFIX = drivers.OPER_PATH + AUTO_SUBNET_RSRC + "/"
+	SUBNET_RSRC_OPER_PATH_PREFIX = drivers.StateOperPath + AUTO_SUBNET_RSRC + "/"
 	SUBNET_RSRC_OPER_PATH        = SUBNET_RSRC_OPER_PATH_PREFIX + "%s"
 )
 
@@ -48,13 +48,13 @@ type AutoSubnetCfgResource struct {
 	AllocSubnetLen uint   `json:"allocSubnetLen"`
 }
 
-type SubnetIpLenPair struct {
-	Ip  net.IP
+type SubnetIPLenPair struct {
+	IP  net.IP
 	Len uint
 }
 
 func (r *AutoSubnetCfgResource) Write() error {
-	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.Id)
+	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.ID)
 	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
@@ -64,7 +64,7 @@ func (r *AutoSubnetCfgResource) Read(id string) error {
 }
 
 func (r *AutoSubnetCfgResource) Clear() error {
-	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.Id)
+	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.ID)
 	return r.StateDriver.ClearState(key)
 }
 
@@ -99,7 +99,7 @@ func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
 	allocSubnetSize := r.AllocSubnetLen - r.SubnetPoolLen
 	oper := &AutoSubnetOperResource{FreeSubnets: netutils.CreateBitset(allocSubnetSize).Complement()}
 	oper.StateDriver = r.StateDriver
-	oper.Id = r.Id
+	oper.ID = r.ID
 	err = oper.Write()
 	if err != nil {
 		return err
@@ -111,7 +111,7 @@ func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
 func (r *AutoSubnetCfgResource) Deinit() {
 	oper := &AutoSubnetOperResource{}
 	oper.StateDriver = r.StateDriver
-	err := oper.Read(r.Id)
+	err := oper.Read(r.ID)
 	if err != nil {
 		// continue cleanup
 	} else {
@@ -131,7 +131,7 @@ func (r *AutoSubnetCfgResource) Description() string {
 func (r *AutoSubnetCfgResource) Allocate() (interface{}, error) {
 	oper := &AutoSubnetOperResource{}
 	oper.StateDriver = r.StateDriver
-	err := oper.Read(r.Id)
+	err := oper.Read(r.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,14 +143,14 @@ func (r *AutoSubnetCfgResource) Allocate() (interface{}, error) {
 
 	oper.FreeSubnets.Clear(subnet)
 
-	var subnetIp string
-	subnetIp, err = netutils.GetSubnetIp(r.SubnetPool.String(), r.SubnetPoolLen,
+	var subnetIP string
+	subnetIP, err = netutils.GetSubnetIP(r.SubnetPool.String(), r.SubnetPoolLen,
 		r.AllocSubnetLen, subnet)
 	if err != nil {
 		return nil, err
 	}
 
-	pair := SubnetIpLenPair{Ip: net.ParseIP(subnetIp), Len: r.AllocSubnetLen}
+	pair := SubnetIPLenPair{IP: net.ParseIP(subnetIP), Len: r.AllocSubnetLen}
 	err = oper.Write()
 	if err != nil {
 		return nil, err
@@ -161,12 +161,12 @@ func (r *AutoSubnetCfgResource) Allocate() (interface{}, error) {
 func (r *AutoSubnetCfgResource) Deallocate(value interface{}) error {
 	oper := &AutoSubnetOperResource{}
 	oper.StateDriver = r.StateDriver
-	err := oper.Read(r.Id)
+	err := oper.Read(r.ID)
 	if err != nil {
 		return err
 	}
 
-	pair, ok := value.(SubnetIpLenPair)
+	pair, ok := value.(SubnetIPLenPair)
 	if !ok {
 		return core.Errorf("Invalid type for subnet value")
 	}
@@ -177,8 +177,8 @@ func (r *AutoSubnetCfgResource) Deallocate(value interface{}) error {
 	}
 
 	var subnet uint
-	subnet, err = netutils.GetIpNumber(r.SubnetPool.String(), r.SubnetPoolLen,
-		pair.Len, pair.Ip.String())
+	subnet, err = netutils.GetIPNumber(r.SubnetPool.String(), r.SubnetPoolLen,
+		pair.Len, pair.IP.String())
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ type AutoSubnetOperResource struct {
 }
 
 func (r *AutoSubnetOperResource) Write() error {
-	key := fmt.Sprintf(SUBNET_RSRC_OPER_PATH, r.Id)
+	key := fmt.Sprintf(SUBNET_RSRC_OPER_PATH, r.ID)
 	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
@@ -216,6 +216,6 @@ func (r *AutoSubnetOperResource) ReadAll() ([]core.State, error) {
 }
 
 func (r *AutoSubnetOperResource) Clear() error {
-	key := fmt.Sprintf(SUBNET_RSRC_OPER_PATH, r.Id)
+	key := fmt.Sprintf(SUBNET_RSRC_OPER_PATH, r.ID)
 	return r.StateDriver.ClearState(key)
 }

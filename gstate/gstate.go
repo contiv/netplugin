@@ -331,13 +331,13 @@ func (gc *Cfg) AllocSubnet(ra core.ResourceManager) (string, error) {
 		return "", err
 	}
 
-	return pair.(resources.SubnetIpLenPair).Ip.String(), err
+	return pair.(resources.SubnetIPLenPair).IP.String(), err
 }
 
-func (gc *Cfg) FreeSubnet(ra core.ResourceManager, subnetIp string) error {
+func (gc *Cfg) FreeSubnet(ra core.ResourceManager, subnetIP string) error {
 	return ra.DeallocateResourceVal(gc.Tenant, resources.AUTO_SUBNET_RSRC,
-		resources.SubnetIpLenPair{
-			Ip:  net.ParseIP(subnetIp),
+		resources.SubnetIPLenPair{
+			IP:  net.ParseIP(subnetIP),
 			Len: gc.Auto.AllocSubnetLen})
 }
 

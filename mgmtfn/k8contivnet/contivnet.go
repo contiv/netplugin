@@ -80,7 +80,7 @@ func setUpPod(podNameSpace, podName, attachUUID string) error {
 		os.Exit(1)
 	}
 
-	epCfg := []netmaster.ConfigEp{
+	epCfg := []netmaster.ConfigEP{
 		{Host: hostLabel, Container: podName, AttachUUID: attachUUID}}
 
 	bytes, err := json.Marshal(epCfg)
@@ -117,7 +117,7 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 		os.Exit(1)
 	}
 
-	epCfg := []netmaster.ConfigEp{
+	epCfg := []netmaster.ConfigEP{
 		{Host: hostLabel, Container: podName}}
 
 	bytes, err := json.Marshal(epCfg)

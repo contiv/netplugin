@@ -65,18 +65,18 @@ func (d *Docker) Init(config *crtclient.Config) error {
 func (d *Docker) Deinit() {
 }
 
-func (d *Docker) getContPid(ctx *crtclient.ContainerEpContext) (string, error) {
+func (d *Docker) getContPid(ctx *crtclient.ContainerEPContext) (string, error) {
 
-	contNameOrId := ctx.NewContName
+	contNameOrID := ctx.NewContName
 	if ctx.NewAttachUUID != "" {
-		contNameOrId = ctx.NewAttachUUID
+		contNameOrID = ctx.NewAttachUUID
 	}
 
-	contInfo, err := d.Client.InspectContainer(contNameOrId)
+	contInfo, err := d.Client.InspectContainer(contNameOrID)
 	if err != nil {
 
 		log.Printf("unable to get container info for '%s' \n",
-			contNameOrId)
+			contNameOrID)
 		return "", core.Errorf("couldn't obtain container info")
 	}
 
@@ -117,9 +117,9 @@ func setIfNs(ifname string, pid int) error {
 // Note: most of the work in this function is a temporary workaround for
 // what docker daemon would eventually do; in the meanwhile
 // the essense of the logic is borrowed from pipework
-func (d *Docker) moveIfToContainer(ctx *crtclient.ContainerEpContext) error {
+func (d *Docker) moveIfToContainer(ctx *crtclient.ContainerEPContext) error {
 
-	// log.Printf("Moving interface '%s' into container '%s' \n", ifId, contName)
+	// log.Printf("Moving interface '%s' into container '%s' \n", ifID, contName)
 
 	contPid, err := d.getContPid(ctx)
 	if err != nil {
@@ -153,17 +153,17 @@ func (d *Docker) moveIfToContainer(ctx *crtclient.ContainerEpContext) error {
 	}
 
 	intPid, _ := strconv.Atoi(contPid)
-	err = setIfNs(ctx.InterfaceId, intPid)
+	err = setIfNs(ctx.InterfaceID, intPid)
 	if err != nil {
 		log.Printf("err '%s' moving if '%s' into container '%s' namespace\n",
-			err, ctx.InterfaceId, ctx.NewContName)
+			err, ctx.InterfaceID, ctx.NewContName)
 		return err
 	}
 
 	return err
 }
 
-func (d *Docker) cleanupNetns(ctx *crtclient.ContainerEpContext) error {
+func (d *Docker) cleanupNetns(ctx *crtclient.ContainerEPContext) error {
 
 	contPid, err := d.getContPid(ctx)
 	if err != nil {
@@ -180,12 +180,12 @@ func (d *Docker) cleanupNetns(ctx *crtclient.ContainerEpContext) error {
 }
 
 /*
-func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
+func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEPContext) error {
 
 	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
-		ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
+		ctx.IPAddress, ctx.SubnetLen, ctx.InterfaceID, ctx.NewContName)
 
-	if ctx.IpAddress == "" {
+	if ctx.IPAddress == "" {
 		return nil
 	}
 	if ctx.SubnetLen == 0 {
@@ -225,18 +225,18 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 	}
 	defer netns.Set(origNs)
 
-	link, err := netlink.LinkByName(ctx.InterfaceId)
+	link, err := netlink.LinkByName(ctx.InterfaceID)
 	if err != nil {
 		log.Printf("error '%s' getting if '%s' information \n", err,
-			ctx.InterfaceId)
+			ctx.InterfaceID)
 		return err
 	}
 
-	addr, err := netlink.ParseAddr(ctx.IpAddress + "/" +
+	addr, err := netlink.ParseAddr(ctx.IPAddress + "/" +
 		strconv.Itoa((int)(ctx.SubnetLen)))
 	if err != nil {
 		log.Printf("error '%s' parsing ip %s/%d \n", err,
-			ctx.IpAddress, ctx.SubnetLen)
+			ctx.IPAddress, ctx.SubnetLen)
 		return err
 	}
 
@@ -255,12 +255,12 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 	return err
 }
 */
-func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
+func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEPContext) error {
 
 	log.Printf("configuring ip: addr -%s/%d- on if %s for container %s\n",
-		ctx.IpAddress, ctx.SubnetLen, ctx.InterfaceId, ctx.NewContName)
+		ctx.IPAddress, ctx.SubnetLen, ctx.InterfaceID, ctx.NewContName)
 
-	if ctx.IpAddress == "" {
+	if ctx.IPAddress == "" {
 		return nil
 	}
 	if ctx.SubnetLen == 0 {
@@ -273,19 +273,19 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 	}
 
 	out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "ip",
-		"addr", "add", ctx.IpAddress+"/"+strconv.Itoa(int(ctx.SubnetLen)),
-		"dev", ctx.InterfaceId).Output()
+		"addr", "add", ctx.IPAddress+"/"+strconv.Itoa(int(ctx.SubnetLen)),
+		"dev", ctx.InterfaceID).Output()
 	if err != nil {
 		log.Printf("error configuring ip address for interface %s "+
-			"%s out = '%s', err = '%s'\n", ctx.InterfaceId, out, err)
+			"%s out = '%s', err = '%s'\n", ctx.InterfaceID, out, err)
 		return err
 	}
 
 	out, err = exec.Command("/sbin/ip", "netns", "exec", contPid, "ip",
-		"link", "set", ctx.InterfaceId, "up").Output()
+		"link", "set", ctx.InterfaceID, "up").Output()
 	if err != nil {
 		log.Printf("error bringing interface %s up 'out = %s', err = %s\n",
-			ctx.InterfaceId, out, err)
+			ctx.InterfaceID, out, err)
 		return err
 	}
 	log.Printf("successfully configured ip and brought up the interface \n")
@@ -295,7 +295,7 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEpContext) error {
 
 // performs funtion to configure the network access and policies
 // before the container becomes active
-func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEpContext) error {
+func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEPContext) error {
 
 	err := d.moveIfToContainer(ctx)
 	if err != nil {
@@ -316,11 +316,11 @@ func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEpContext) error {
 }
 
 // uninstall the policies and configuration during container attach
-func (d *Docker) DetachEndpoint(ctx *crtclient.ContainerEpContext) error {
+func (d *Docker) DetachEndpoint(ctx *crtclient.ContainerEPContext) error {
 	var err error
 
 	// log.Printf("Detached called for container %s with %s interface\n",
-	//            ctx.CurrContName, ctx.InterfaceId)
+	//            ctx.CurrContName, ctx.InterfaceID)
 
 	// no need to move the interface out of containre, etc.
 	// usually deletion of ep takes care of that
@@ -330,10 +330,10 @@ func (d *Docker) DetachEndpoint(ctx *crtclient.ContainerEpContext) error {
 	return err
 }
 
-func (d *Docker) GetContainerId(contName string) string {
+func (d *Docker) GetContainerID(contName string) string {
 	contInfo, err := d.Client.InspectContainer(contName)
 	if err != nil {
-		log.Printf("could not get contId for container %s, err '%s' \n",
+		log.Printf("could not get contID for container %s, err '%s' \n",
 			contName, err)
 		return ""
 	}
@@ -346,17 +346,17 @@ func (d *Docker) GetContainerId(contName string) string {
 	return contInfo.Id
 }
 
-func (d *Docker) GetContainerName(contId string) (string, error) {
-	contInfo, err := d.Client.InspectContainer(contId)
+func (d *Docker) GetContainerName(contID string) (string, error) {
+	contInfo, err := d.Client.InspectContainer(contID)
 	if err != nil {
 		log.Printf("could not get contName for container %s, err '%s' \n",
-			contId, err)
+			contID, err)
 		return "", err
 	}
 
 	// the hack below works only for running containers
 	if !contInfo.State.Running {
-		return "", core.Errorf("container id %s not running", contId)
+		return "", core.Errorf("container id %s not running", contID)
 	}
 
 	return contInfo.Name, nil

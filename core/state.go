@@ -17,5 +17,5 @@ type WatchableState interface {
 // implement core.State
 type CommonState struct {
 	StateDriver StateDriver `json:"-"`
-	Id          string      `json:"id"`
+	ID          string      `json:"id"`
 }

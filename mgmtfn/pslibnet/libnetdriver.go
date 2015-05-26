@@ -45,8 +45,8 @@ func invokeNetdcli(dc DriverConfig, isAdd bool) error {
 				Networks: []netmaster.ConfigNetwork{
 					netmaster.ConfigNetwork{
 						Name: dc.netId,
-						Endpoints: []netmaster.ConfigEp{
-							netmaster.ConfigEp{
+						Endpoints: []netmaster.ConfigEP{
+							netmaster.ConfigEP{
 								AttachUUID: dc.contId,
 								Container:  dc.contId,
 								// XXX: host-label needs to come from config

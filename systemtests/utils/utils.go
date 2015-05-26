@@ -190,7 +190,7 @@ func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 }
 
 func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (string, error) {
-	epBindings := []netmaster.ConfigEp{}
+	epBindings := []netmaster.ConfigEP{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
 	if err != nil {
 		t.Fatalf("error '%s' unmarshing host bindings, data %s \n", err,
@@ -225,7 +225,7 @@ func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (str
 
 func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraContCfg string) (string, error) {
 
-	epBindings := []netmaster.ConfigEp{}
+	epBindings := []netmaster.ConfigEP{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
 	if err != nil {
 		t.Fatalf("error '%s' unmarshing host bindings, data %s \n", err,
@@ -297,7 +297,7 @@ func GetIpAddress(t *testing.T, node TestbedNode, ep string) string {
 	}
 
 	for _, str := range strings.Split(string(output), "\\n\\t") {
-		if strings.HasPrefix(str, "IpAddress") {
+		if strings.HasPrefix(str, "IPAddress") {
 			ret := strings.SplitN(str, ":", 2)
 			if len(ret) < 2 {
 				err = fmt.Errorf("Could not parse return value from netdcli")

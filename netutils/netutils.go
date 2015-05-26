@@ -17,12 +17,13 @@ package netutils
 
 import (
 	"fmt"
-	"github.com/jainvipin/bitset"
-	"github.com/vishvananda/netlink"
 	"net"
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/jainvipin/bitset"
+	"github.com/vishvananda/netlink"
 
 	"github.com/contiv/netplugin/core"
 )
@@ -85,8 +86,8 @@ func ipv4Uint32ToString(ipUint32 uint32) (string, error) {
 	return fmt.Sprintf("%d.%d.%d.%d", b1, b2, b3, b4), nil
 }
 
-func GetSubnetIp(subnetIp string, subnetLen uint, allocSubnetLen, hostId uint) (string, error) {
-	if subnetIp == "" {
+func GetSubnetIP(subnetIP string, subnetLen uint, allocSubnetLen, hostId uint) (string, error) {
+	if subnetIP == "" {
 		return "", core.Errorf("null subnet")
 	}
 
@@ -104,15 +105,15 @@ func GetSubnetIp(subnetIp string, subnetLen uint, allocSubnetLen, hostId uint) (
 			hostId, maxHosts)
 	}
 
-	hostIpUint32, err := ipv4ToUint32(subnetIp)
+	hostIPUint32, err := ipv4ToUint32(subnetIP)
 	if err != nil {
-		return "", core.Errorf("unable to convert subnet %s to uint32", subnetIp)
+		return "", core.Errorf("unable to convert subnet %s to uint32", subnetIP)
 	}
-	hostIpUint32 += uint32(hostId << (32 - allocSubnetLen))
-	return ipv4Uint32ToString(hostIpUint32)
+	hostIPUint32 += uint32(hostId << (32 - allocSubnetLen))
+	return ipv4Uint32ToString(hostIPUint32)
 }
 
-func GetIpNumber(subnetIp string, subnetLen uint, allocSubnetLen uint, hostIp string) (uint, error) {
+func GetIPNumber(subnetIP string, subnetLen uint, allocSubnetLen uint, hostIP string) (uint, error) {
 	if subnetLen > 32 || subnetLen < 8 {
 		return 0, core.Errorf("subnet length %d not supported", subnetLen)
 	}
@@ -121,21 +122,21 @@ func GetIpNumber(subnetIp string, subnetLen uint, allocSubnetLen uint, hostIp st
 			subnetLen, allocSubnetLen)
 	}
 
-	hostIpUint32, err := ipv4ToUint32(hostIp)
+	hostIPUint32, err := ipv4ToUint32(hostIP)
 	if err != nil {
-		return 0, core.Errorf("unable to convert hostIp %s to uint32", hostIp)
+		return 0, core.Errorf("unable to convert hostIP %s to uint32", hostIP)
 	}
 
-	subnetIpUint32, err := ipv4ToUint32(subnetIp)
+	subnetIPUint32, err := ipv4ToUint32(subnetIP)
 	if err != nil {
-		return 0, core.Errorf("unable to convert subnetIp %s to uint32", subnetIp)
+		return 0, core.Errorf("unable to convert subnetIP %s to uint32", subnetIP)
 	}
-	hostId := uint((hostIpUint32 - subnetIpUint32) >> (32 - allocSubnetLen))
+	hostId := uint((hostIPUint32 - subnetIPUint32) >> (32 - allocSubnetLen))
 
 	maxHosts := uint(1 << (allocSubnetLen - subnetLen))
 	if hostId >= maxHosts {
-		return 0, core.Errorf("hostIp %s is exceeding beyond subnet %s/%d, hostId %d",
-			hostIp, subnetIp, subnetLen, hostId)
+		return 0, core.Errorf("hostIP %s is exceeding beyond subnet %s/%d, hostId %d",
+			hostIP, subnetIP, subnetLen, hostId)
 	}
 
 	return uint(hostId), nil
@@ -203,9 +204,9 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 	return tagRanges, nil
 }
 
-func GetLocalIp() (string, error) {
+func GetLocalIP() (string, error) {
 	var addrs []netlink.Addr
-	localIpAddr := ""
+	localIPAddr := ""
 
 	for idx := 0; idx < 3; idx++ {
 		linkName := "eth" + strconv.Itoa(idx)
@@ -224,16 +225,16 @@ func GetLocalIp() (string, error) {
 			return "", err
 		}
 		if len(addrs) > 0 {
-			localIpAddr = addrs[0].IP.String()
+			localIPAddr = addrs[0].IP.String()
 		}
 	}
 
 	err := core.Errorf("local ip not found")
-	if localIpAddr != "" {
+	if localIPAddr != "" {
 		err = nil
 	}
 
-	return localIpAddr, err
+	return localIPAddr, err
 }
 
 func ParseCIDR(cidrStr string) (string, uint, error) {
