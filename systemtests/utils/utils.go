@@ -283,8 +283,7 @@ func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []TestbedNode) {
 }
 
 func GetIpAddress(t *testing.T, node TestbedNode, ep string) string {
-	cmdStr := "netdcli -oper get -construct endpoint " + ep +
-		" 2>&1 | grep IpAddress | awk -F : '{gsub(\"[,}{]\",\"\", $2); print $2}'"
+	cmdStr := "netdcli -oper get -construct endpoint " + ep + " 2>&1"
 	output, err := node.RunCommandWithOutput(cmdStr)
 
 	if err != nil || string(output) == "" {
@@ -296,7 +295,22 @@ func GetIpAddress(t *testing.T, node TestbedNode, ep string) string {
 		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%s\n",
 			err, ep, output)
 	}
-	return string(output)
+
+	for _, str := range strings.Split(string(output), "\\n\\t") {
+		if strings.HasPrefix(str, "IpAddress") {
+			ret := strings.SplitN(str, ":", 2)
+			if len(ret) < 2 {
+				err = fmt.Errorf("Could not parse return value from netdcli")
+				break
+			}
+
+			return strings.TrimRight(ret[1], ",")
+		}
+	}
+
+	t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%s\n",
+		err, ep, output)
+	return ""
 }
 
 // XXX: used for powerstrip/docker integration testing where ep-name is
