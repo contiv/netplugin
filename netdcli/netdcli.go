@@ -123,6 +123,7 @@ func (c *construct) Get() interface{} {
 
 type cliOpts struct {
 	help            bool
+	debug           bool
 	cfgDesired      bool
 	cfgAdditions    bool
 	cfgDeletions    bool
@@ -161,6 +162,11 @@ func init() {
 	flagSet.Var(&opts.construct,
 		"construct",
 		"Construct to operate on i.e network or endpoint")
+	flagSet.BoolVar(&opts.debug,
+		"debug",
+		false,
+		"Turn on debugging information",
+	)
 	flagSet.BoolVar(&opts.cfgHostBindings,
 		"host-bindings-cfg",
 		false,
@@ -261,6 +267,10 @@ func validateOpts(opts *cliOpts) error {
 	if flagSet.NArg() != 1 || opts.help {
 		usage()
 		return nil
+	}
+
+	if opts.debug {
+		log.SetLevel(log.DebugLevel)
 	}
 
 	if opts.oper.Get() == "" {
