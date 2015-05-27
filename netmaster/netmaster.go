@@ -851,6 +851,10 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 func freeEndpointResources(epCfg *drivers.OvsCfgEndpointState,
 	nwCfg *drivers.OvsCfgNetworkState) error {
+	if epCfg.IpAddress == "" {
+		return nil
+	}
+
 	ipAddrValue, err := netutils.GetIpNumber(
 		nwCfg.SubnetIp, nwCfg.SubnetLen, 32, epCfg.IpAddress)
 	if err != nil {
