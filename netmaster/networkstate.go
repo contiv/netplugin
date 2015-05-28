@@ -28,37 +28,42 @@ import (
 )
 
 const (
-	BASE_PATH          = drivers.BASE_PATH + "master/"
-	CFG_PATH           = BASE_PATH + "config/"
-	NW_CFG_PATH_PREFIX = CFG_PATH + "nets/"
-	NW_CFG_PATH        = NW_CFG_PATH_PREFIX + "%s"
+	basePath                = drivers.StateBasePath + "master/"
+	configPath              = basePath + "config/"
+	networkConfigPathPrefix = configPath + "nets/"
+	networkConfigPath       = networkConfigPathPrefix + "%s"
 )
 
+// MasterNwConfig is the network configuration for a given tenant+network
 type MasterNwConfig struct {
 	core.CommonState
 	Tenant     string `json:"tenant"`
 	PktTagType string `json:"pktTagType"`
 	PktTag     string `json:"pktTag"`
-	SubnetIp   string `json:"subnetIp"`
+	SubnetIP   string `json:"subnetIP"`
 	SubnetLen  uint   `json:"subnetLen"`
 	DefaultGw  string `json:"defaultGw"`
 }
 
+// Write the state
 func (s *MasterNwConfig) Write() error {
-	key := fmt.Sprintf(NW_CFG_PATH, s.Id)
+	key := fmt.Sprintf(networkConfigPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
+// Read the state in for a given ID.
 func (s *MasterNwConfig) Read(id string) error {
-	key := fmt.Sprintf(NW_CFG_PATH, id)
+	key := fmt.Sprintf(networkConfigPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
+// ReadAll reads all the state for master network configurations and returns it.
 func (s *MasterNwConfig) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(NW_CFG_PATH_PREFIX, s, json.Unmarshal)
+	return s.StateDriver.ReadAllState(networkConfigPathPrefix, s, json.Unmarshal)
 }
 
+// Clear removes the configuration from the state store.
 func (s *MasterNwConfig) Clear() error {
-	key := fmt.Sprintf(NW_CFG_PATH, s.Id)
+	key := fmt.Sprintf(networkConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }

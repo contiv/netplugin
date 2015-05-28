@@ -22,14 +22,13 @@ import (
 )
 
 const (
-	testNwId = "testNw"
-	nwCfgKey = NW_CFG_PATH_PREFIX + testNwId
+	testNwID = "testNw"
+	nwCfgKey = networkConfigPathPrefix + testNwID
 )
 
-var nwStateDriver *testNwStateDriver = &testNwStateDriver{}
+type testNwStateDriver struct{}
 
-type testNwStateDriver struct {
-}
+var nwStateDriver = &testNwStateDriver{}
 
 func (d *testNwStateDriver) Init(config *core.Config) error {
 	return core.Errorf("Shouldn't be called!")
@@ -58,9 +57,9 @@ func (d *testNwStateDriver) validateKey(key string) error {
 	if key != nwCfgKey {
 		return core.Errorf("Unexpected key. recvd: %s expected: %s ",
 			key, nwCfgKey)
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (d *testNwStateDriver) ClearState(key string) error {
@@ -91,7 +90,7 @@ func TestOvsCfgNetworkStateRead(t *testing.T) {
 	nwCfg := &OvsCfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
 
-	err := nwCfg.Read(testNwId)
+	err := nwCfg.Read(testNwID)
 	if err != nil {
 		t.Fatalf("read config state failed. Error: %s", err)
 	}
@@ -100,7 +99,7 @@ func TestOvsCfgNetworkStateRead(t *testing.T) {
 func TestOvsCfgNetworkStateWrite(t *testing.T) {
 	nwCfg := &OvsCfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
-	nwCfg.Id = testNwId
+	nwCfg.ID = testNwID
 
 	err := nwCfg.Write()
 	if err != nil {
@@ -111,7 +110,7 @@ func TestOvsCfgNetworkStateWrite(t *testing.T) {
 func TestOvsCfgNetworkStateClear(t *testing.T) {
 	nwCfg := &OvsCfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
-	nwCfg.Id = testNwId
+	nwCfg.ID = testNwID
 
 	err := nwCfg.Clear()
 	if err != nil {

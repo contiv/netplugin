@@ -121,7 +121,7 @@ type StateDriver interface {
 
 type Resource interface {
 	// Resource defines a allocatable unit. A resource is uniquely identified
-	// by 'Id'. A resource description identifies the nature of the resource.
+	// by 'ID'. A resource description identifies the nature of the resource.
 	State
 	Init(rsrcCfg interface{}) error
 	Deinit()

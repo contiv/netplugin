@@ -58,7 +58,7 @@ func (vt *vlanRsrcValidator) ValidateState(state core.State) error {
 	rcvdCfg, okCfg := state.(*AutoVlanCfgResource)
 	if okCfg {
 		log.Printf("cfg length: %d", len(vt.expCfg))
-		if rcvdCfg.Id != vt.expCfg[0].Id ||
+		if rcvdCfg.ID != vt.expCfg[0].ID ||
 			!rcvdCfg.Vlans.Equal(vt.expCfg[0].Vlans) {
 			errStr := fmt.Sprintf("cfg mismatch. Expctd: %+v, Rcvd: %+v",
 				vt.expCfg[0], rcvdCfg)
@@ -72,7 +72,7 @@ func (vt *vlanRsrcValidator) ValidateState(state core.State) error {
 	rcvdOper, okOper := state.(*AutoVlanOperResource)
 	if okOper {
 		log.Printf("oper length: %d", len(vt.expOper))
-		if rcvdOper.Id != vt.expOper[0].Id ||
+		if rcvdOper.ID != vt.expOper[0].ID ||
 			!rcvdOper.FreeVlans.Equal(vt.expOper[0].FreeVlans) {
 			errStr := fmt.Sprintf("oper mismatch. Expctd: %+v, Rcvd: %+v",
 				vt.expOper[0], rcvdOper)
@@ -89,7 +89,7 @@ func (vt *vlanRsrcValidator) ValidateState(state core.State) error {
 func (vt *vlanRsrcValidator) CopyState(state core.State) error {
 	rcvdCfg, okCfg := state.(*AutoVlanCfgResource)
 	if okCfg {
-		rcvdCfg.Id = vt.expCfg[0].Id
+		rcvdCfg.ID = vt.expCfg[0].ID
 		rcvdCfg.Vlans = vt.expCfg[0].Vlans.Clone()
 		vt.nextCfgState()
 		return nil
@@ -97,7 +97,7 @@ func (vt *vlanRsrcValidator) CopyState(state core.State) error {
 
 	rcvdOper, okOper := state.(*AutoVlanOperResource)
 	if okOper {
-		rcvdOper.Id = vt.expOper[0].Id
+		rcvdOper.ID = vt.expOper[0].ID
 		rcvdOper.FreeVlans = vt.expOper[0].FreeVlans.Clone()
 		vt.nextOperState()
 		return nil
@@ -109,11 +109,11 @@ func (vt *vlanRsrcValidator) CopyState(state core.State) error {
 type vlanRsrcValidateOp int
 
 const (
-	VlanRsrcValidInitId       = "VlanRsrcValidInitId"
-	VlanRsrcValidDeinitId     = "VlanRsrcValidDeinitId"
-	VlanRsrcAllocateId        = "VlanRsrcAllocateId"
-	VlanRsrcAllocateExhaustId = "VlanRsrcAllocateExhaustId"
-	VlanRsrcDeallocateId      = "VlanRsrcDeallocateId"
+	VlanRsrcValidInitID       = "VlanRsrcValidInitID"
+	VlanRsrcValidDeinitID     = "VlanRsrcValidDeinitID"
+	VlanRsrcAllocateID        = "VlanRsrcAllocateID"
+	VlanRsrcAllocateExhaustID = "VlanRsrcAllocateExhaustID"
+	VlanRsrcDeallocateID      = "VlanRsrcDeallocateID"
 
 	VLAN_RSRC_OP_WRITE = iota
 	VLAN_RSRC_OP_READ
@@ -121,104 +121,104 @@ const (
 )
 
 var vlanRsrcValidationStateMap map[string]*vlanRsrcValidator = map[string]*vlanRsrcValidator{
-	VlanRsrcValidInitId: &vlanRsrcValidator{
+	VlanRsrcValidInitID: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcValidInitId},
+				CommonState: core.CommonState{nil, VlanRsrcValidInitID},
 				Vlans:       bitset.New(1).Set(1),
 			},
 		},
 		expOper: []AutoVlanOperResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcValidInitId},
+				CommonState: core.CommonState{nil, VlanRsrcValidInitID},
 				FreeVlans:   bitset.New(1).Set(1),
 			},
 		},
 	},
-	VlanRsrcValidDeinitId: &vlanRsrcValidator{
+	VlanRsrcValidDeinitID: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcValidDeinitId},
+				CommonState: core.CommonState{nil, VlanRsrcValidDeinitID},
 				Vlans:       bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVlanOperResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcValidDeinitId},
+				CommonState: core.CommonState{nil, VlanRsrcValidDeinitID},
 				FreeVlans:   bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, VlanRsrcValidDeinitId},
+				CommonState: core.CommonState{nil, VlanRsrcValidDeinitID},
 				FreeVlans:   bitset.New(1).Set(0),
 			},
 		},
 	},
-	VlanRsrcAllocateId: &vlanRsrcValidator{
+	VlanRsrcAllocateID: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcAllocateId},
+				CommonState: core.CommonState{nil, VlanRsrcAllocateID},
 				Vlans:       bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVlanOperResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcAllocateId},
+				CommonState: core.CommonState{nil, VlanRsrcAllocateID},
 				FreeVlans:   bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, VlanRsrcAllocateId},
+				CommonState: core.CommonState{nil, VlanRsrcAllocateID},
 				FreeVlans:   bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, VlanRsrcAllocateId},
+				CommonState: core.CommonState{nil, VlanRsrcAllocateID},
 				FreeVlans:   bitset.New(1).Clear(0),
 			},
 		},
 	},
-	VlanRsrcAllocateExhaustId: &vlanRsrcValidator{
+	VlanRsrcAllocateExhaustID: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcAllocateExhaustId},
+				CommonState: core.CommonState{nil, VlanRsrcAllocateExhaustID},
 				Vlans:       bitset.New(1).Clear(0),
 			},
 		},
 		expOper: []AutoVlanOperResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcAllocateExhaustId},
+				CommonState: core.CommonState{nil, VlanRsrcAllocateExhaustID},
 				FreeVlans:   bitset.New(1).Clear(0),
 			},
 			{
-				CommonState: core.CommonState{nil, VlanRsrcAllocateExhaustId},
+				CommonState: core.CommonState{nil, VlanRsrcAllocateExhaustID},
 				FreeVlans:   bitset.New(1).Clear(0),
 			},
 		},
 	},
-	VlanRsrcDeallocateId: &vlanRsrcValidator{
+	VlanRsrcDeallocateID: &vlanRsrcValidator{
 		expCfg: []AutoVlanCfgResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcDeallocateId},
+				CommonState: core.CommonState{nil, VlanRsrcDeallocateID},
 				Vlans:       bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVlanOperResource{
 			{
-				CommonState: core.CommonState{nil, VlanRsrcDeallocateId},
+				CommonState: core.CommonState{nil, VlanRsrcDeallocateID},
 				FreeVlans:   bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, VlanRsrcDeallocateId},
+				CommonState: core.CommonState{nil, VlanRsrcDeallocateID},
 				FreeVlans:   bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, VlanRsrcDeallocateId},
+				CommonState: core.CommonState{nil, VlanRsrcDeallocateID},
 				FreeVlans:   bitset.New(1).Clear(0),
 			},
 			{
-				CommonState: core.CommonState{nil, VlanRsrcDeallocateId},
+				CommonState: core.CommonState{nil, VlanRsrcDeallocateID},
 				FreeVlans:   bitset.New(1).Clear(0),
 			},
 			{
-				CommonState: core.CommonState{nil, VlanRsrcDeallocateId},
+				CommonState: core.CommonState{nil, VlanRsrcDeallocateID},
 				FreeVlans:   bitset.New(1).Set(0),
 			},
 		},
@@ -305,8 +305,8 @@ func (d *testVlanRsrcStateDriver) WriteState(key string, value core.State,
 func TestAutoVlanCfgResourceInit(t *testing.T) {
 	rsrc := &AutoVlanCfgResource{}
 	rsrc.StateDriver = vlanRsrcStateDriver
-	rsrc.Id = VlanRsrcValidInitId
-	vlans := vlanRsrcValidationStateMap[rsrc.Id].expCfg[0].Vlans.Clone()
+	rsrc.ID = VlanRsrcValidInitID
+	vlans := vlanRsrcValidationStateMap[rsrc.ID].expCfg[0].Vlans.Clone()
 	err := rsrc.Init(vlans)
 	if err != nil {
 		t.Fatalf("Vlan resource init failed. Error: %s", err)
@@ -316,8 +316,8 @@ func TestAutoVlanCfgResourceInit(t *testing.T) {
 func TestAutoVlanCfgResourceDeInit(t *testing.T) {
 	rsrc := &AutoVlanCfgResource{}
 	rsrc.StateDriver = vlanRsrcStateDriver
-	rsrc.Id = VlanRsrcValidDeinitId
-	vlans := vlanRsrcValidationStateMap[rsrc.Id].expCfg[0].Vlans.Clone()
+	rsrc.ID = VlanRsrcValidDeinitID
+	vlans := vlanRsrcValidationStateMap[rsrc.ID].expCfg[0].Vlans.Clone()
 	err := rsrc.Init(vlans)
 	if err != nil {
 		t.Fatalf("Vlan resource init failed. Error: %s", err)
@@ -329,8 +329,8 @@ func TestAutoVlanCfgResourceDeInit(t *testing.T) {
 func TestAutoVlanCfgResourceAllocate(t *testing.T) {
 	rsrc := &AutoVlanCfgResource{}
 	rsrc.StateDriver = vlanRsrcStateDriver
-	rsrc.Id = VlanRsrcAllocateId
-	vlans := vlanRsrcValidationStateMap[rsrc.Id].expCfg[0].Vlans.Clone()
+	rsrc.ID = VlanRsrcAllocateID
+	vlans := vlanRsrcValidationStateMap[rsrc.ID].expCfg[0].Vlans.Clone()
 	err := rsrc.Init(vlans)
 	if err != nil {
 		t.Fatalf("Vlan resource init failed. Error: %s", err)
@@ -348,8 +348,8 @@ func TestAutoVlanCfgResourceAllocate(t *testing.T) {
 func TestAutoVlanCfgResourceAllocateExhaustion(t *testing.T) {
 	rsrc := &AutoVlanCfgResource{}
 	rsrc.StateDriver = vlanRsrcStateDriver
-	rsrc.Id = VlanRsrcAllocateExhaustId
-	vlans := vlanRsrcValidationStateMap[rsrc.Id].expCfg[0].Vlans.Clone()
+	rsrc.ID = VlanRsrcAllocateExhaustID
+	vlans := vlanRsrcValidationStateMap[rsrc.ID].expCfg[0].Vlans.Clone()
 	err := rsrc.Init(vlans)
 	if err != nil {
 		t.Fatalf("Vlan resource init failed. Error: %s", err)
@@ -368,8 +368,8 @@ func TestAutoVlanCfgResourceAllocateExhaustion(t *testing.T) {
 func TestAutoVlanCfgResourceDeAllocate(t *testing.T) {
 	rsrc := &AutoVlanCfgResource{}
 	rsrc.StateDriver = vlanRsrcStateDriver
-	rsrc.Id = VlanRsrcDeallocateId
-	vlans := vlanRsrcValidationStateMap[rsrc.Id].expCfg[0].Vlans.Clone()
+	rsrc.ID = VlanRsrcDeallocateID
+	vlans := vlanRsrcValidationStateMap[rsrc.ID].expCfg[0].Vlans.Clone()
 	err := rsrc.Init(vlans)
 	if err != nil {
 		t.Fatalf("Vlan resource init failed. Error: %s", err)

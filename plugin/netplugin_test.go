@@ -26,7 +26,7 @@ var fakeStateDriver *state.FakeStateDriver
 
 func TestNetPluginInit(t *testing.T) {
 	/* make a temporary entry for statedriver for unit-tests*/
-	StateDriverRegistry["fakedriver"] = DriverConfigTypes{
+	stateDriverRegistry["fakedriver"] = driverConfigTypes{
 		DriverType: reflect.TypeOf(state.FakeStateDriver{}),
 		ConfigType: reflect.TypeOf(state.FakeStateDriverConfig{}),
 	}

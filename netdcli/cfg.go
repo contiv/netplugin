@@ -31,7 +31,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func getEpName(net *netmaster.ConfigNetwork, ep *netmaster.ConfigEp) string {
+func getEpName(net *netmaster.ConfigNetwork, ep *netmaster.ConfigEP) string {
 	if ep.Container != "" {
 		return net.Name + "-" + ep.Container
 	} else {
@@ -53,9 +53,9 @@ func hostPresent(allCfg *netmaster.Config, hostName string) bool {
 	return false
 }
 
-func tenantPresent(allCfg *netmaster.Config, tenantId string) bool {
+func tenantPresent(allCfg *netmaster.Config, tenantID string) bool {
 	for _, tenant := range allCfg.Tenants {
-		if tenantId == tenant.Name {
+		if tenantID == tenant.Name {
 			return true
 		}
 	}
@@ -63,10 +63,10 @@ func tenantPresent(allCfg *netmaster.Config, tenantId string) bool {
 	return false
 }
 
-func netPresent(allCfg *netmaster.Config, netId string) bool {
+func netPresent(allCfg *netmaster.Config, netID string) bool {
 	for _, tenant := range allCfg.Tenants {
 		for _, net := range tenant.Networks {
-			if netId == net.Name {
+			if netID == net.Name {
 				return true
 			}
 		}
@@ -75,11 +75,11 @@ func netPresent(allCfg *netmaster.Config, netId string) bool {
 	return false
 }
 
-func epPresent(allCfg *netmaster.Config, epId string) bool {
+func epPresent(allCfg *netmaster.Config, epID string) bool {
 	for _, tenant := range allCfg.Tenants {
 		for _, net := range tenant.Networks {
 			for _, ep := range net.Endpoints {
-				if epId == getEpName(&net, &ep) {
+				if epID == getEpName(&net, &ep) {
 					return true
 				}
 			}
@@ -102,10 +102,10 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 	}
 	for _, epCfg := range epCfgs {
 		cfg := epCfg.(*drivers.OvsCfgEndpointState)
-		if !epPresent(allCfg, cfg.Id) {
-			err1 := netmaster.DeleteEndpointId(stateDriver, cfg.Id)
+		if !epPresent(allCfg, cfg.ID) {
+			err1 := netmaster.DeleteEndpointID(stateDriver, cfg.ID)
 			if err1 != nil {
-				log.Printf("error '%s' deleting epid %s \n", err1, cfg.Id)
+				log.Printf("error '%s' deleting epid %s \n", err1, cfg.ID)
 				err = err1
 				continue
 			}
@@ -123,10 +123,10 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 	}
 	for _, nwCfg := range nwCfgs {
 		cfg := nwCfg.(*drivers.OvsCfgNetworkState)
-		if !netPresent(allCfg, cfg.Id) {
-			err1 := netmaster.DeleteNetworkId(stateDriver, cfg.Id)
+		if !netPresent(allCfg, cfg.ID) {
+			err1 := netmaster.DeleteNetworkID(stateDriver, cfg.ID)
 			if err1 != nil {
-				log.Printf("error '%s' deleting net %s \n", err1, cfg.Id)
+				log.Printf("error '%s' deleting net %s \n", err1, cfg.ID)
 				err = err1
 				continue
 			}
@@ -145,7 +145,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 	for _, gCfg := range gCfgs {
 		cfg := gCfg.(*gstate.Cfg)
 		if !tenantPresent(allCfg, cfg.Tenant) {
-			err1 := netmaster.DeleteTenantId(stateDriver, cfg.Tenant)
+			err1 := netmaster.DeleteTenantID(stateDriver, cfg.Tenant)
 			if err1 != nil {
 				log.Printf("error '%s' deleting tenant %s \n", err1, cfg.Tenant)
 				err = err1
@@ -167,7 +167,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		cfg := hostCfg.(*netmaster.MasterHostConfig)
 		hostName := cfg.Name
 		if !hostPresent(allCfg, hostName) {
-			err1 := netmaster.DeleteHostId(stateDriver, hostName)
+			err1 := netmaster.DeleteHostID(stateDriver, hostName)
 			if err1 != nil {
 				log.Printf("error '%s' deleting host %s \n", err1, hostName)
 				err = err1
@@ -287,7 +287,7 @@ func executeJsonCfg(defOpts *cliOpts) (err error) {
 	}
 
 	if opts.cfgHostBindings {
-		epBindings := []netmaster.ConfigEp{}
+		epBindings := []netmaster.ConfigEP{}
 		err = json.Unmarshal(data, &epBindings)
 		if err != nil {
 			log.Printf("error '%s' unmarshing host bindings, data ============\n%s\n=============\n", err, data)

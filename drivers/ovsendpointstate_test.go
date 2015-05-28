@@ -22,15 +22,14 @@ import (
 )
 
 const (
-	testEpId  = "testEp"
-	epCfgKey  = EP_CFG_PATH_PREFIX + testEpId
-	epOperKey = EP_OPER_PATH_PREFIX + testEpId
+	testEpID  = "testEp"
+	epCfgKey  = endpointConfigPathPrefix + testEpID
+	epOperKey = endpointOperPathPrefix + testEpID
 )
 
-var epStateDriver *testEpStateDriver = &testEpStateDriver{}
+type testEpStateDriver struct{}
 
-type testEpStateDriver struct {
-}
+var epStateDriver = &testEpStateDriver{}
 
 func (d *testEpStateDriver) Init(config *core.Config) error {
 	return core.Errorf("Shouldn't be called!")
@@ -59,9 +58,9 @@ func (d *testEpStateDriver) validateKey(key string) error {
 	if key != epCfgKey && key != epOperKey {
 		return core.Errorf("Unexpected key. recvd: %s expected: %s or %s ",
 			key, epCfgKey, epOperKey)
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (d *testEpStateDriver) ClearState(key string) error {
@@ -92,7 +91,7 @@ func TestOvsCfgEndpointStateRead(t *testing.T) {
 	epCfg := &OvsCfgEndpointState{}
 	epCfg.StateDriver = epStateDriver
 
-	err := epCfg.Read(testEpId)
+	err := epCfg.Read(testEpID)
 	if err != nil {
 		t.Fatalf("read config state failed. Error: %s", err)
 	}
@@ -101,7 +100,7 @@ func TestOvsCfgEndpointStateRead(t *testing.T) {
 func TestOvsCfgEndpointStateWrite(t *testing.T) {
 	epCfg := &OvsCfgEndpointState{}
 	epCfg.StateDriver = epStateDriver
-	epCfg.Id = testEpId
+	epCfg.ID = testEpID
 
 	err := epCfg.Write()
 	if err != nil {
@@ -112,7 +111,7 @@ func TestOvsCfgEndpointStateWrite(t *testing.T) {
 func TestOvsCfgEndpointStateClear(t *testing.T) {
 	epCfg := &OvsCfgEndpointState{}
 	epCfg.StateDriver = epStateDriver
-	epCfg.Id = testEpId
+	epCfg.ID = testEpID
 
 	err := epCfg.Clear()
 	if err != nil {
@@ -124,7 +123,7 @@ func TestOvsOperEndpointStateRead(t *testing.T) {
 	epOper := &OvsOperEndpointState{}
 	epOper.StateDriver = epStateDriver
 
-	err := epOper.Read(testEpId)
+	err := epOper.Read(testEpID)
 	if err != nil {
 		t.Fatalf("read oper state failed. Error: %s", err)
 	}
@@ -133,7 +132,7 @@ func TestOvsOperEndpointStateRead(t *testing.T) {
 func TestOvsOperEndpointStateWrite(t *testing.T) {
 	epOper := &OvsOperEndpointState{}
 	epOper.StateDriver = epStateDriver
-	epOper.Id = testEpId
+	epOper.ID = testEpID
 
 	err := epOper.Write()
 	if err != nil {
@@ -144,7 +143,7 @@ func TestOvsOperEndpointStateWrite(t *testing.T) {
 func TestOvsOperEndpointStateClear(t *testing.T) {
 	epOper := &OvsOperEndpointState{}
 	epOper.StateDriver = epStateDriver
-	epOper.Id = testEpId
+	epOper.ID = testEpID
 
 	err := epOper.Clear()
 	if err != nil {

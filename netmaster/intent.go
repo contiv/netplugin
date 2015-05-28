@@ -17,30 +17,32 @@ limitations under the License.
 
 package netmaster
 
-// A host is a node where containers are deplyed
-// this structure keeps track of the host properties
+// ConfigHost keeps track of the host's properties; A host is a node where
+// containers are deployed
 type ConfigHost struct {
 	Name   string
 	Intf   string
-	VtepIp string
-	NetId  string
+	VtepIP string
+	NetID  string
 }
 
+// ConfigInfraNetwork holds information about the name and LAN tagging
+// configuration.
 type ConfigInfraNetwork struct {
 	Name       string
 	PktTagType string
 	PktTag     string
 }
 
-// An endpoint is a leg into a network
-type ConfigEp struct {
+// ConfigEP encapulsates an endpoint: a leg into a network
+type ConfigEP struct {
 	Container  string
 	Host       string
 	AttachUUID string
-	IpAddress  string
+	IPAddress  string
 }
 
-// network is a multi-destination isolated containment of endpoints
+// ConfigNetwork is a multi-destination isolated containment of endpoints
 // or it is an endpoint group
 type ConfigNetwork struct {
 	Name string
@@ -52,10 +54,10 @@ type ConfigNetwork struct {
 	DefaultGw  string
 
 	// eps associated with the network
-	Endpoints []ConfigEp
+	Endpoints []ConfigEP
 }
 
-// a tenant keeps the global tenant specific policy and networks within
+// ConfigTenant keeps the global tenant specific policy and networks within
 type ConfigTenant struct {
 	Name           string
 	DefaultNetType string
@@ -67,7 +69,7 @@ type ConfigTenant struct {
 	Networks []ConfigNetwork
 }
 
-// top level configuration
+// Config is the top level configuration
 type Config struct {
 	InfraNetworks []ConfigInfraNetwork
 	Hosts         []ConfigHost

@@ -27,33 +27,33 @@ import (
 
 // implements the generic Plugin interface
 
-type DriverConfigTypes struct {
+type driverConfigTypes struct {
 	DriverType reflect.Type
 	ConfigType reflect.Type
 }
 
-var NetworkDriverRegistry = map[string]DriverConfigTypes{
-	"ovs": DriverConfigTypes{
+var networkDriverRegistry = map[string]driverConfigTypes{
+	"ovs": driverConfigTypes{
 		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
 		ConfigType: reflect.TypeOf(drivers.OvsDriverConfig{}),
 	},
 }
 
-var EndpointDriverRegistry = map[string]DriverConfigTypes{
-	"ovs": DriverConfigTypes{
+var endpointDriverRegistry = map[string]driverConfigTypes{
+	"ovs": driverConfigTypes{
 		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
 		ConfigType: reflect.TypeOf(drivers.OvsDriverConfig{}),
 	},
 }
 
-var StateDriverRegistry = map[string]DriverConfigTypes{
-	"etcd": DriverConfigTypes{
+var stateDriverRegistry = map[string]driverConfigTypes{
+	"etcd": driverConfigTypes{
 		DriverType: reflect.TypeOf(state.EtcdStateDriver{}),
 		ConfigType: reflect.TypeOf(state.EtcdStateDriverConfig{}),
 	},
 }
 
-type PluginConfig struct {
+type config struct {
 	Drivers struct {
 		Network  string `json:"network"`
 		Endpoint string `json:"endpoint"`
@@ -62,6 +62,9 @@ type PluginConfig struct {
 	Instance core.InstanceInfo `json:"plugin-instance"`
 }
 
+// NetPlugin is the configuration struct for the plugin bus. Network and
+// Endpoint drivers are all present in `drivers/` and state drivers are present
+// in `state/`.
 type NetPlugin struct {
 	sync.Mutex
 	ConfigFile     string
@@ -70,7 +73,9 @@ type NetPlugin struct {
 	StateDriver    core.StateDriver
 }
 
-func (p *NetPlugin) InitHelper(driverRegistry map[string]DriverConfigTypes,
+// initHelper initializes the NetPlugin by mapping driver names to
+// configuration, then it imports the configuration.
+func (p *NetPlugin) initHelper(driverRegistry map[string]driverConfigTypes,
 	driverName string, configStr string) (core.Driver, *core.Config, error) {
 	if _, ok := driverRegistry[driverName]; ok {
 		configType := driverRegistry[driverName].ConfigType
@@ -85,21 +90,20 @@ func (p *NetPlugin) InitHelper(driverRegistry map[string]DriverConfigTypes,
 		config := &core.Config{V: driverConfig}
 		driver := reflect.New(driverType).Interface()
 		return driver, config, nil
-	} else {
-		return nil, nil,
-			core.Errorf("Failed to find a registered driver for: %s", driverName)
 	}
 
+	return nil, nil, core.Errorf("Failed to find a registered driver for: %s", driverName)
 }
 
+// Init initializes the NetPlugin instance via the configuration string passed.
 func (p *NetPlugin) Init(configStr string) error {
 	if configStr == "" {
 		return core.Errorf("empty config passed")
 	}
 
-	var driver core.Driver = nil
+	var driver core.Driver
 	drvConfig := &core.Config{}
-	pluginConfig := &PluginConfig{}
+	pluginConfig := &config{}
 	err := json.Unmarshal([]byte(configStr), pluginConfig)
 	if err != nil {
 		return err
@@ -110,7 +114,7 @@ func (p *NetPlugin) Init(configStr string) error {
 	}
 
 	// initialize state driver
-	driver, drvConfig, err = p.InitHelper(StateDriverRegistry,
+	driver, drvConfig, err = p.initHelper(stateDriverRegistry,
 		pluginConfig.Drivers.State, configStr)
 	if err != nil {
 		return err
@@ -130,7 +134,7 @@ func (p *NetPlugin) Init(configStr string) error {
 		HostLabel:   pluginConfig.Instance.HostLabel,
 		StateDriver: p.StateDriver}
 	// initialize network driver
-	driver, drvConfig, err = p.InitHelper(NetworkDriverRegistry,
+	driver, drvConfig, err = p.initHelper(networkDriverRegistry,
 		pluginConfig.Drivers.Network, configStr)
 	if err != nil {
 		return err
@@ -147,7 +151,7 @@ func (p *NetPlugin) Init(configStr string) error {
 	}()
 
 	// initialize endpoint driver
-	driver, drvConfig, err = p.InitHelper(EndpointDriverRegistry,
+	driver, drvConfig, err = p.initHelper(endpointDriverRegistry,
 		pluginConfig.Drivers.Endpoint, configStr)
 	if err != nil {
 		return err
@@ -166,6 +170,7 @@ func (p *NetPlugin) Init(configStr string) error {
 	return nil
 }
 
+// Deinit is a destructor for the NetPlugin configuration.
 func (p *NetPlugin) Deinit() {
 	if p.EndpointDriver != nil {
 		p.EndpointDriver.Deinit()
@@ -178,26 +183,32 @@ func (p *NetPlugin) Deinit() {
 	}
 }
 
+// CreateNetwork creates a network for a given ID.
 func (p *NetPlugin) CreateNetwork(id string) error {
 	return p.NetworkDriver.CreateNetwork(id)
 }
 
+// DeleteNetwork deletes a network provided by the ID.
 func (p *NetPlugin) DeleteNetwork(id string) error {
 	return p.NetworkDriver.DeleteNetwork(id)
 }
 
+// FetchNetwork retrieves a network's state given an ID.
 func (p *NetPlugin) FetchNetwork(id string) (core.State, error) {
 	return nil, core.Errorf("Not implemented")
 }
 
+// CreateEndpoint creates an endpoint for a given ID.
 func (p *NetPlugin) CreateEndpoint(id string) error {
 	return p.EndpointDriver.CreateEndpoint(id)
 }
 
+// DeleteEndpoint destroys an endpoint for an ID.
 func (p *NetPlugin) DeleteEndpoint(id string) error {
 	return p.EndpointDriver.DeleteEndpoint(id)
 }
 
+// FetchEndpoint retrieves an endpoint's state for a given ID
 func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 	return nil, core.Errorf("Not implemented")
 }

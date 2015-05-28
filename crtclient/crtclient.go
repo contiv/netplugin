@@ -15,29 +15,31 @@ limitations under the License.
 
 package crtclient
 
-// container runtime client interface implementations
-
-type Config struct {
-	// Config object parsed from a json styled config
-	V interface{}
-}
-
-type ContainerEpContext struct {
+// ContainerEPContext is used to manage the parameters for all
+// container+endpoint management operations.
+type ContainerEPContext struct {
 	NewContName    string
 	NewAttachUUID  string
 	CurrContName   string
 	CurrAttachUUID string
-	InterfaceId    string
-	IpAddress      string
+	InterfaceID    string
+	IPAddress      string
 	SubnetLen      uint
 	DefaultGw      string
 }
 
+// Config should be replaced by core.Config FIXME
+type Config struct {
+	V interface{}
+}
+
+// ContainerIf implementations are used to configure and manage container
+// interfaces.
 type ContainerIf interface {
 	Init(config *Config) error
 	Deinit()
-	AttachEndpoint(ctx *ContainerEpContext) error
-	DetachEndpoint(ctx *ContainerEpContext) error
-	GetContainerId(contName string) string
+	AttachEndpoint(ctx *ContainerEPContext) error
+	DetachEndpoint(ctx *ContainerEPContext) error
+	GetContainerID(contName string) string
 	GetContainerName(contName string) (string, error)
 }
