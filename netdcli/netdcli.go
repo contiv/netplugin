@@ -191,11 +191,11 @@ func init() {
 	flagSet.StringVar(&opts.pktTag,
 		"tag",
 		"auto",
-		"Vlan/Vxlan tag of the network")
+		"VLAN/VXLAN tag of the network")
 	flagSet.StringVar(&opts.pktTagType,
 		"tag-type",
 		"vlan",
-		"Vlan/Vxlan tag of the network")
+		"VLAN/VXLAN tag of the network")
 	flagSet.StringVar(&opts.subnetCidr,
 		"subnet",
 		"",
@@ -452,8 +452,8 @@ func executeOpts(opts *cliOpts) error {
 			gcfg.Deploy.DefaultNetType = opts.pktTagType
 			gcfg.Auto.SubnetPool = opts.subnetIP
 			gcfg.Auto.SubnetLen = opts.subnetLen
-			gcfg.Auto.Vlans = opts.vlans
-			gcfg.Auto.Vxlans = opts.vxlans
+			gcfg.Auto.VLANs = opts.vlans
+			gcfg.Auto.VXLANs = opts.vxlans
 			gcfg.Auto.AllocSubnetLen = opts.allocSubnetLen
 			err = gcfg.Write()
 		}
@@ -468,12 +468,12 @@ func executeOpts(opts *cliOpts) error {
 	case CLI_CONSTRUCT_SUBNET_RSRC:
 		if opts.oper.Get() == CLI_OPER_GET {
 			if CLI_CONSTRUCT_VLAN_RSRC == opts.construct.Get() {
-				rsrc := &resources.AutoVlanCfgResource{}
+				rsrc := &resources.AutoVLANCfgResource{}
 				rsrc.StateDriver = etcdDriver
 				coreState = rsrc
 			}
 			if CLI_CONSTRUCT_VXLAN_RSRC == opts.construct.Get() {
-				rsrc := &resources.AutoVxlanCfgResource{}
+				rsrc := &resources.AutoVXLANCfgResource{}
 				rsrc.StateDriver = etcdDriver
 				coreState = rsrc
 			}

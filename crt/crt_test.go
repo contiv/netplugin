@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestCrtInit(t *testing.T) {
+func TestCRTInit(t *testing.T) {
 	configStr := `{
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
@@ -28,7 +28,7 @@ func TestCrtInit(t *testing.T) {
                         "type": "docker"
                     }
                   }`
-	crt := Crt{}
+	crt := CRT{}
 	err := crt.Init(configStr)
 	if err != nil {
 		t.Fatalf("crt init failed: Error: %s", err)
@@ -36,39 +36,39 @@ func TestCrtInit(t *testing.T) {
 	defer func() { crt.Deinit() }()
 }
 
-func TestCrtInitInvalidConfigMissingCrt(t *testing.T) {
+func TestCRTInitInvalidConfigMissingCRT(t *testing.T) {
 	configStr := `{
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
-	crt := Crt{}
+	crt := CRT{}
 	err := crt.Init(configStr)
 	if err == nil {
 		t.Fatalf("crt init succeeded!")
 	}
 }
 
-func TestCrtInitInvalidConfigMissingCrtIf(t *testing.T) {
+func TestCRTInitInvalidConfigMissingCRTIf(t *testing.T) {
 	configStr := `{
                     "crt" : {
                         "type": "docker"
                     }
                   }`
-	crt := Crt{}
+	crt := CRT{}
 	err := crt.Init(configStr)
 	if err == nil {
 		t.Fatalf("crt init succeeded!")
 	}
 }
 
-func TestCrtInitInvalidConfigInvalidCrt(t *testing.T) {
+func TestCRTInitInvalidConfigInvalidCRT(t *testing.T) {
 	configStr := `{
                     "crt" : {
                         "type": "rocket"
                     }
                   }`
-	crt := Crt{}
+	crt := CRT{}
 	err := crt.Init(configStr)
 	if err == nil {
 		t.Fatalf("crt init succeeded!")

@@ -38,22 +38,18 @@ import (
 // a daemon based on etcd client's Watch interface to trigger plugin's
 // network provisioning interfaces
 
-const (
-	RECURSIVE = true
-)
-
 type cliOpts struct {
 	hostLabel   string
 	nativeInteg bool
 	cfgFile     string
 }
 
-func skipHost(vtepIp, homingHost, myHostLabel string) bool {
-	return (vtepIp == "" && homingHost != myHostLabel ||
-		vtepIp != "" && homingHost == myHostLabel)
+func skipHost(vtepIP, homingHost, myHostLabel string) bool {
+	return (vtepIP == "" && homingHost != myHostLabel ||
+		vtepIP != "" && homingHost == myHostLabel)
 }
 
-func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts) error {
 	readNet := &drivers.OvsCfgNetworkState{}
 	readNet.StateDriver = netPlugin.StateDriver
@@ -198,7 +194,7 @@ func contAttachPointDeleted(epCtx *crtclient.ContainerEPContext) bool {
 	return false
 }
 
-func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
+func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	epID string, isDelete bool) (err error) {
 	// take a lock to ensure we are programming one event at a time.
 	// Also network create events need to be processed before endpoint creates
@@ -208,7 +204,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 	defer func() { netPlugin.Unlock() }()
 
 	homingHost := ""
-	vtepIp := ""
+	vtepIP := ""
 
 	if !isDelete {
 		epCfg := &drivers.OvsCfgEndpointState{}
@@ -219,7 +215,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 			return
 		}
 		homingHost = epCfg.HomingHost
-		vtepIp = epCfg.VtepIP
+		vtepIP = epCfg.VtepIP
 	} else {
 		epOper := &drivers.OvsOperEndpointState{}
 		epOper.StateDriver = netPlugin.StateDriver
@@ -229,9 +225,9 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 			return
 		}
 		homingHost = epOper.HomingHost
-		vtepIp = epOper.VtepIP
+		vtepIP = epOper.VtepIP
 	}
-	if skipHost(vtepIp, homingHost, opts.hostLabel) {
+	if skipHost(vtepIP, homingHost, opts.hostLabel) {
 		log.Printf("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
 			epID, homingHost, opts.hostLabel)
 		return
@@ -301,7 +297,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 	return
 }
 
-func attachContainer(stateDriver core.StateDriver, crt *crt.Crt, contName string) error {
+func attachContainer(stateDriver core.StateDriver, crt *crt.CRT, contName string) error {
 
 	epContexts, err := getContainerEPContextByContName(stateDriver, contName)
 	if err != nil {
@@ -327,7 +323,7 @@ func attachContainer(stateDriver core.StateDriver, crt *crt.Crt, contName string
 	return nil
 }
 
-func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	contID string) error {
 	// var epContexts []crtclient.ContainerEPContext
 
@@ -345,7 +341,7 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	return err
 }
 
-func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	contID string) error {
 	// If CONTIV_DIND_HOST_GOPATH env variable is set we can assume we are in docker in docker testbed
 	// Here we need to set the network namespace of the ports created by netplugin back to NS of the docker host
@@ -373,7 +369,7 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 		log.Printf("error decoding netplugin in handleDocker \n")
 	}
 
-	crt, ok := args[1].(*crt.Crt)
+	crt, ok := args[1].(*crt.CRT)
 	if !ok {
 		log.Printf("error decoding netplugin in handleDocker \n")
 	}
@@ -407,7 +403,7 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 	}
 }
 
-func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
+func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	rsps chan core.WatchState) {
 	for {
 		// block on change notifications
@@ -439,7 +435,7 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 	}
 }
 
-func handleNetworkEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+func handleNetworkEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, crt, opts, rsps)
@@ -449,7 +445,7 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	return
 }
 
-func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
+func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, crt, opts, rsps)
@@ -459,7 +455,7 @@ func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt,
 	return
 }
 
-func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
+func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	retErr chan error) {
 	// monitor network events
 	go handleNetworkEvents(netPlugin, crt, opts, retErr)
@@ -468,7 +464,7 @@ func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts,
 	go handleEndpointEvents(netPlugin, crt, opts, retErr)
 }
 
-func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts) error {
+func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error {
 
 	recvErr := make(chan error, 1)
 
@@ -478,8 +474,8 @@ func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.Crt, opts cliOpts) error
 	if !opts.nativeInteg {
 		// start docker client and handle docker events
 		// wait on error chan for problems handling the docker events
-		dockerCrt := crt.ContainerIf.(*docker.Docker)
-		dockerCrt.Client.StartMonitorEvents(handleDockerEvents, recvErr,
+		dockerCRT := crt.ContainerIf.(*docker.Docker)
+		dockerCRT.Client.StartMonitorEvents(handleDockerEvents, recvErr,
 			netPlugin, crt)
 	}
 
@@ -576,7 +572,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	crt := &crt.Crt{}
+	crt := &crt.CRT{}
 	err = crt.Init(string(config))
 	if err != nil {
 		log.Printf("Failed to initialize container run time, err %s \n", err)

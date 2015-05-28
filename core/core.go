@@ -13,45 +13,44 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package core
-
 // The package 'core' provides definition for a generic interface that helps
 // provision networking for an endpoint (like a container,
 // a vm or a bare-metal host). The interface is invoked (north-bound) by the
 // 'daemon' or the extension-plugin (TBD) part of docker. The interface in
 // turn invokes (south-bound) a driver-interface that provides
 // hardware/kernel/device specific programming implementation, if any.
+package core
 
+// Address is a string represenation of a network address (mac, ip, dns-name, url etc)
 type Address struct {
-	// A string represenation of a network address (mac, ip, dns-name, url etc)
 	addr string
 }
 
+// Config object parsed from a json styled config
 type Config struct {
-	// Config object parsed from a json styled config
 	V interface{}
 }
 
+// Network identifies a group of (addressable) endpoints that can
+// comunicate.
 type Network interface {
-	// A network identifies a group of (addressable) endpoints that can
-	// comunicate.
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
 	FetchNetwork(id string) (State, error)
 }
 
+// Endpoint identifies an addressable entity in a network. An endpoint
+// belongs to a single network.
 type Endpoint interface {
-	// An endpoint identifies an addressable entity in a network. An endpoint
-	// belongs to a single network.
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
 	FetchEndpoint(id string) (State, error)
 }
 
+// Plugin brings together an implementation of a network, endpoint and
+// state drivers. Along with implementing north-bound interfaces for
+// network and endpoint operations
 type Plugin interface {
-	// A plugin brings together an implementation of a network, endpoint and
-	// state drivers. Along with implementing north-bound interfaces for
-	// network and endpoint operations
 	Init(configStr string) error
 	Deinit()
 	Network
@@ -63,12 +62,11 @@ type InstanceInfo struct {
 	HostLabel   string      `json:"host-label"`
 }
 
-type Driver interface {
-	// A driver implements the programming logic
-}
+// Driver implements the programming logic
+type Driver interface{}
 
+// NetworkDriver implements the programming logic for network
 type NetworkDriver interface {
-	// A network driver implements the programming logic for network
 	Driver
 	Init(config *Config, info *InstanceInfo) error
 	Deinit()
@@ -76,8 +74,8 @@ type NetworkDriver interface {
 	DeleteNetwork(id string) error
 }
 
+// EndpointDriver implements the programming logic for endpoints
 type EndpointDriver interface {
-	// An endpoint driver implements the programming logic for endpoints
 	Driver
 	Init(config *Config, info *InstanceInfo) error
 	Deinit()
@@ -91,12 +89,12 @@ type WatchState struct {
 	Prev State
 }
 
+// StateDriver provides the mechanism for reading/writing state for networks,
+// endpoints and meta-data managed by the core. The state is assumed to be
+// stored as key-value pairs with keys of type 'string' and value to be an
+// opaque binary string, encoded/decoded by the logic specific to the
+// high-level(consumer) interface.
 type StateDriver interface {
-	// A state driver provides mechanism for reading/writing state for networks,
-	// endpoints and meta-data managed by the core. The state is assumed to be
-	// stored as key-value pairs with keys of type 'string' and value to be an
-	// opaque binary string, encoded/decoded by the logic specific to the
-	// high-level(consumer) interface.
 	Driver
 	Init(config *Config) error
 	Deinit()
@@ -119,9 +117,9 @@ type StateDriver interface {
 	ClearState(key string) error
 }
 
+// Resource defines a allocatable unit. A resource is uniquely identified
+// by 'ID'. A resource description identifies the nature of the resource.
 type Resource interface {
-	// Resource defines a allocatable unit. A resource is uniquely identified
-	// by 'ID'. A resource description identifies the nature of the resource.
 	State
 	Init(rsrcCfg interface{}) error
 	Deinit()
@@ -130,10 +128,10 @@ type Resource interface {
 	Deallocate(interface{}) error
 }
 
+// ResourceManager provides mechanism to manage (define/undefine,
+// allocate/deallocate) resources. Example, it may provide management in
+// logically centralized manner in a distributed system
 type ResourceManager interface {
-	// A resource manager provides mechanism to manage (define/undefine,
-	// allocate/deallocate) resources. Example, it may provide management in
-	// logically centralized manner in a distributed system
 	Init() error
 	Deinit()
 	DefineResource(id, desc string, rsrcCfg interface{}) error

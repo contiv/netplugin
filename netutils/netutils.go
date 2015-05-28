@@ -41,14 +41,14 @@ func init() {
 	}
 }
 
-// initialize a bit set with 2^(32 - subnetLen) bits
+// InitSubnetBitset initializes a bit set with 2^(32 - subnetLen) bits
 func InitSubnetBitset(b *bitset.BitSet, subnetLen uint) {
 	maxSize := 1 << (32 - subnetLen)
 	b.Set(uint(maxSize))
 	b.Set(uint(0))
 }
 
-// initialize a bit set with 2^numBitsWide bits
+// CreateBitset initializes a bit set with 2^numBitsWide bits
 func CreateBitset(numBitsWide uint) *bitset.BitSet {
 	maxSize := 1 << numBitsWide
 	return bitset.New(uint(maxSize))
@@ -86,7 +86,9 @@ func ipv4Uint32ToString(ipUint32 uint32) (string, error) {
 	return fmt.Sprintf("%d.%d.%d.%d", b1, b2, b3, b4), nil
 }
 
-func GetSubnetIP(subnetIP string, subnetLen uint, allocSubnetLen, hostId uint) (string, error) {
+// GetSubnetIP given a subnet IP and host identifier, calculates an IP within
+// the subnet for use.
+func GetSubnetIP(subnetIP string, subnetLen uint, allocSubnetLen, hostID uint) (string, error) {
 	if subnetIP == "" {
 		return "", core.Errorf("null subnet")
 	}
@@ -100,19 +102,20 @@ func GetSubnetIP(subnetIP string, subnetLen uint, allocSubnetLen, hostId uint) (
 	}
 
 	maxHosts := uint(1 << (allocSubnetLen - subnetLen))
-	if hostId >= maxHosts {
+	if hostID >= maxHosts {
 		return "", core.Errorf("host id %d is beyond subnet's capacity %d",
-			hostId, maxHosts)
+			hostID, maxHosts)
 	}
 
 	hostIPUint32, err := ipv4ToUint32(subnetIP)
 	if err != nil {
 		return "", core.Errorf("unable to convert subnet %s to uint32", subnetIP)
 	}
-	hostIPUint32 += uint32(hostId << (32 - allocSubnetLen))
+	hostIPUint32 += uint32(hostID << (32 - allocSubnetLen))
 	return ipv4Uint32ToString(hostIPUint32)
 }
 
+// GetIPNumber obtains the host id from the host IP. SEe `GetSubnetIP` for more information.
 func GetIPNumber(subnetIP string, subnetLen uint, allocSubnetLen uint, hostIP string) (uint, error) {
 	if subnetLen > 32 || subnetLen < 8 {
 		return 0, core.Errorf("subnet length %d not supported", subnetLen)
@@ -131,22 +134,26 @@ func GetIPNumber(subnetIP string, subnetLen uint, allocSubnetLen uint, hostIP st
 	if err != nil {
 		return 0, core.Errorf("unable to convert subnetIP %s to uint32", subnetIP)
 	}
-	hostId := uint((hostIPUint32 - subnetIPUint32) >> (32 - allocSubnetLen))
+	hostID := uint((hostIPUint32 - subnetIPUint32) >> (32 - allocSubnetLen))
 
 	maxHosts := uint(1 << (allocSubnetLen - subnetLen))
-	if hostId >= maxHosts {
-		return 0, core.Errorf("hostIP %s is exceeding beyond subnet %s/%d, hostId %d",
-			hostIP, subnetIP, subnetLen, hostId)
+	if hostID >= maxHosts {
+		return 0, core.Errorf("hostIP %s is exceeding beyond subnet %s/%d, hostID %d",
+			hostIP, subnetIP, subnetLen, hostID)
 	}
 
-	return uint(hostId), nil
+	return uint(hostID), nil
 }
 
+// TagRange represents a range of integers, intended for VLAN and VXLAN
+// tagging.
 type TagRange struct {
 	Min int
 	Max int
 }
 
+// ParseTagRanges takes a string such as 12-24,48-64 and turns it into a series
+// of TagRange.
 func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 	var err error
 
@@ -204,6 +211,7 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 	return tagRanges, nil
 }
 
+// GetLocalIP obtains the first IP on a local interface on the host.
 func GetLocalIP() (string, error) {
 	var addrs []netlink.Addr
 	localIPAddr := ""
@@ -237,6 +245,7 @@ func GetLocalIP() (string, error) {
 	return localIPAddr, err
 }
 
+// ParseCIDR parses a CIDR string into a gateway IP and length.
 func ParseCIDR(cidrStr string) (string, uint, error) {
 	strs := strings.Split(cidrStr, "/")
 	if len(strs) != 2 {

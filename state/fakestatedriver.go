@@ -8,37 +8,41 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// The FakeStateDriver implements core.StateDriver interface for use with
-// unit-tests
-
-type ValueData struct {
+type valueData struct {
 	value []byte
 }
 
-type FakeStateDriverConfig struct {
-}
+// FakeStateDriverConfig represents the configuration of the fake statedriver,
+// which is an empty struct.
+type FakeStateDriverConfig struct{}
 
+// FakeStateDriver implements core.StateDriver interface for use with
+// unit-tests
 type FakeStateDriver struct {
-	TestState map[string]ValueData
+	TestState map[string]valueData
 }
 
+// Init the driver
 func (d *FakeStateDriver) Init(config *core.Config) error {
-	d.TestState = make(map[string]ValueData)
+	d.TestState = make(map[string]valueData)
 
 	return nil
 }
 
+// Deinit the driver
 func (d *FakeStateDriver) Deinit() {
 	d.TestState = nil
 }
 
+// Write value to key
 func (d *FakeStateDriver) Write(key string, value []byte) error {
-	val := ValueData{value: value}
+	val := valueData{value: value}
 	d.TestState[key] = val
 
 	return nil
 }
 
+// Read value from key
 func (d *FakeStateDriver) Read(key string) ([]byte, error) {
 	if val, ok := d.TestState[key]; ok {
 		return val.value, nil
@@ -47,6 +51,7 @@ func (d *FakeStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, core.Errorf("Key not found!")
 }
 
+// ReadAll values from baseKey
 func (d *FakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	values := [][]byte{}
 
@@ -58,10 +63,12 @@ func (d *FakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return values, nil
 }
 
+// WatchAll values from baseKey
 func (d *FakeStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 	return core.Errorf("not supported")
 }
 
+// ClearState clears key
 func (d *FakeStateDriver) ClearState(key string) error {
 	if _, ok := d.TestState[key]; ok {
 		delete(d.TestState, key)
@@ -69,6 +76,7 @@ func (d *FakeStateDriver) ClearState(key string) error {
 	return nil
 }
 
+// ReadState unmarshals state into a core.State
 func (d *FakeStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
 	encodedState, err := d.Read(key)
@@ -84,16 +92,19 @@ func (d *FakeStateDriver) ReadState(key string, value core.State,
 	return nil
 }
 
+// ReadAllState reads all state from baseKey of a given type
 func (d *FakeStateDriver) ReadAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return ReadAllStateCommon(d, baseKey, sType, unmarshal)
 }
 
+// WatchAllState reads all state from baseKey of a given type
 func (d *FakeStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
 	return core.Errorf("not supported")
 }
 
+// WriteState writes a core.State to key.
 func (d *FakeStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	encodedState, err := marshal(value)
@@ -109,8 +120,9 @@ func (d *FakeStateDriver) WriteState(key string, value core.State,
 	return nil
 }
 
+// DumpState is a debugging tool.
 func (d *FakeStateDriver) DumpState() {
-	for key, _ := range d.TestState {
+	for key := range d.TestState {
 		log.Printf("key: %q\n", key)
 	}
 }

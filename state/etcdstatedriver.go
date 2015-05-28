@@ -25,23 +25,25 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// implements the StateDriver interface for an etcd based distributed
-// key-value store used to store config and runtime state for the netplugin.
-
 const (
-	RECURSIVE = true
+	recursive = true
 )
 
+// EtcdStateDriverConfig encapsulates the etcd endpoints used to communicate
+// with it.
 type EtcdStateDriverConfig struct {
 	Etcd struct {
 		Machines []string
 	}
 }
 
+// EtcdStateDriver implements the StateDriver interface for an etcd based distributed
+// key-value store used to store config and runtime state for the netplugin.
 type EtcdStateDriver struct {
 	Client *etcd.Client
 }
 
+// Init the driver with a core.Config.
 func (d *EtcdStateDriver) Init(config *core.Config) error {
 	if config == nil {
 		return core.Errorf("Invalid arguments. cfg: %v", config)
@@ -58,15 +60,17 @@ func (d *EtcdStateDriver) Init(config *core.Config) error {
 	return nil
 }
 
-func (d *EtcdStateDriver) Deinit() {
-}
+// Deinit is currently a no-op.
+func (d *EtcdStateDriver) Deinit() {}
 
+// Write state to key with value.
 func (d *EtcdStateDriver) Write(key string, value []byte) error {
 	_, err := d.Client.Set(key, string(value[:]), 0)
 
 	return err
 }
 
+// Read state from key.
 func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 	resp, err := d.Client.Get(key, false, false)
 	if err != nil {
@@ -76,6 +80,7 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 	return []byte(resp.Node.Value), err
 }
 
+// ReadAll state from baseKey.
 func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	resp, err := d.Client.Get(baseKey, true, false)
 	if err != nil {
@@ -121,6 +126,7 @@ func (d *EtcdStateDriver) channelEtcdEvents(etcdRsps chan *etcd.Response,
 	retErr <- nil
 }
 
+// WatchAll state transitions from baseKey
 func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 	etcdRsps := make(chan *etcd.Response)
 	stop := make(chan bool, 1)
@@ -128,7 +134,7 @@ func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 
 	go d.channelEtcdEvents(etcdRsps, rsps, recvErr)
 
-	_, err := d.Client.Watch(baseKey, 0, RECURSIVE, etcdRsps, stop)
+	_, err := d.Client.Watch(baseKey, 0, recursive, etcdRsps, stop)
 	if err != nil && err != etcd.ErrWatchStoppedByUser {
 		log.Printf("etcd watch failed. Error: %s", err)
 		return err
@@ -138,11 +144,13 @@ func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 	return err
 }
 
+// ClearState removes key from etcd.
 func (d *EtcdStateDriver) ClearState(key string) error {
 	_, err := d.Client.Delete(key, false)
 	return err
 }
 
+// ReadState reads key into a core.State with the unmarshalling function.
 func (d *EtcdStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
 	encodedState, err := d.Read(key)
@@ -158,6 +166,8 @@ func (d *EtcdStateDriver) ReadState(key string, value core.State,
 	return nil
 }
 
+// ReadAllStateCommon reads and unmarshals (given a function) all state into a
+// list of core.State objects.
 // XXX: move this to some common file
 func ReadAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
@@ -195,6 +205,7 @@ func ReadAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
 	return stateValues, nil
 }
 
+// ReadAllState Reads all the state from baseKey and returns a list of core.State.
 func (d *EtcdStateDriver) ReadAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return ReadAllStateCommon(d, baseKey, sType, unmarshal)
@@ -244,6 +255,7 @@ func (d *EtcdStateDriver) channelStateEvents(sType core.State,
 	retErr <- nil
 }
 
+// WatchAllState watches all state from the baseKey.
 func (d *EtcdStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
 	byteRsps := make(chan [2][]byte, 1)
@@ -261,6 +273,7 @@ func (d *EtcdStateDriver) WatchAllState(baseKey string, sType core.State,
 
 }
 
+// WriteState writes a value of core.State into a key with a given marshalling function.
 func (d *EtcdStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	encodedState, err := marshal(value)
