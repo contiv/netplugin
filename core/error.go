@@ -21,16 +21,19 @@ import (
 	"strings"
 )
 
+// Error is our custom error with description, file, and line.
 type Error struct {
 	desc string
 	file string
 	line int
 }
 
+// Error() allows *core.Error to present the `error` interface.
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s [%s %d]", e.desc, e.file, e.line)
 }
 
+// Errorf returns an *Error based on the format specification provided.
 func Errorf(f string, args ...interface{}) *Error {
 	e := &Error{}
 	e.desc = fmt.Sprintf(f, args...)
@@ -39,10 +42,11 @@ func Errorf(f string, args ...interface{}) *Error {
 	return e
 }
 
+// ErrIfKeyExists checks if the error message contains "Key not found".
 func ErrIfKeyExists(err error) error {
 	if err == nil || strings.Contains(err.Error(), "Key not found") {
 		return nil
-	} else {
-		return err
 	}
+
+	return err
 }

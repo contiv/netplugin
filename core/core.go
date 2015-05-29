@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// The package 'core' provides definition for a generic interface that helps
+// Package core provides definition for a generic interface that helps
 // provision networking for an endpoint (like a container,
 // a vm or a bare-metal host). The interface is invoked (north-bound) by the
 // 'daemon' or the extension-plugin (TBD) part of docker. The interface in
@@ -57,6 +57,7 @@ type Plugin interface {
 	Endpoint
 }
 
+// InstanceInfo encapsulates data about the host.
 type InstanceInfo struct {
 	StateDriver StateDriver `json:"-"`
 	HostLabel   string      `json:"host-label"`
@@ -84,6 +85,8 @@ type EndpointDriver interface {
 	MakeEndpointAddress() (*Address, error)
 }
 
+// WatchState is used to provide a difference between core.State structs by
+// providing both the current and previous state.
 type WatchState struct {
 	Curr State
 	Prev State
