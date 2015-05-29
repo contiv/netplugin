@@ -29,7 +29,13 @@ fi
 echo "+++ golint tree..."
 for i in $(find . -maxdepth 1 -type d -name '*' | grep -vE '/\..*$')
 do
-  golint "${i}"
+  output=$(golint "${i}") # golint has no exit codes
+  if [ -n "${output}" ]
+  then
+    echo -e "!!! golint checking failed: "
+    echo -n "${output}"
+    exit 1
+  fi
 done
 
 echo "+++ go vet tree..."
