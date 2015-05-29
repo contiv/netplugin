@@ -75,20 +75,20 @@ func validateTenantConfig(tenant *ConfigTenant) error {
 		}
 	}
 
-	if tenant.Vlans != "" {
-		_, err = netutils.ParseTagRanges(tenant.Vlans, "vlan")
+	if tenant.VLANs != "" {
+		_, err = netutils.ParseTagRanges(tenant.VLANs, "vlan")
 		if err != nil {
 			log.Printf("error '%s' parsing vlan range '%s' \n",
-				err, tenant.Vlans)
+				err, tenant.VLANs)
 			return err
 		}
 	}
 
-	if tenant.Vxlans != "" {
-		_, err = netutils.ParseTagRanges(tenant.Vxlans, "vxlan")
+	if tenant.VXLANs != "" {
+		_, err = netutils.ParseTagRanges(tenant.VXLANs, "vxlan")
 		if err != nil {
 			log.Printf("error '%s' parsing vxlan range '%s' \n",
-				err, tenant.Vxlans)
+				err, tenant.VXLANs)
 			return err
 		}
 	}
@@ -116,8 +116,8 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	gCfg.Tenant = tenant.Name
 	gCfg.Deploy.DefaultNetType = tenant.DefaultNetType
 	gCfg.Auto.SubnetPool, gCfg.Auto.SubnetLen, _ = netutils.ParseCIDR(tenant.SubnetPool)
-	gCfg.Auto.Vlans = tenant.Vlans
-	gCfg.Auto.Vxlans = tenant.Vxlans
+	gCfg.Auto.VLANs = tenant.VLANs
+	gCfg.Auto.VXLANs = tenant.VXLANs
 	gCfg.Auto.AllocSubnetLen = tenant.AllocSubnetLen
 	err = gCfg.Write()
 	if err != nil {
@@ -259,15 +259,15 @@ func deleteVtep(stateDriver core.StateDriver, netID, hostName string) error {
 	return nil
 }
 
-func getVlanIfName(hostLabel string) string {
+func getVLANIfName(hostLabel string) string {
 	return hostLabel + "-native-intf"
 }
 
-func createVlanIf(stateDriver core.StateDriver, host *ConfigHost) error {
+func createVLANIf(stateDriver core.StateDriver, host *ConfigHost) error {
 
 	epCfg := &drivers.OvsCfgEndpointState{}
 	epCfg.StateDriver = stateDriver
-	epCfg.ID = getVlanIfName(host.Name)
+	epCfg.ID = getVLANIfName(host.Name)
 	epCfg.HomingHost = host.Name
 	epCfg.IntfName = host.Intf
 	epCfg.NetID = host.NetID
@@ -286,11 +286,11 @@ func createVlanIf(stateDriver core.StateDriver, host *ConfigHost) error {
 	return nil
 }
 
-func deleteVlanIf(stateDriver core.StateDriver, hostName string) error {
+func deleteVLANIf(stateDriver core.StateDriver, hostName string) error {
 
 	epCfg := &drivers.OvsCfgEndpointState{}
 	epCfg.StateDriver = stateDriver
-	epCfg.ID = getVlanIfName(hostName)
+	epCfg.ID = getVLANIfName(hostName)
 	epCfg.HomingHost = hostName
 
 	err := epCfg.Clear()
@@ -338,7 +338,7 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 		}
 	}
 	if host.Intf != "" {
-		err = createVlanIf(stateDriver, host)
+		err = createVLANIf(stateDriver, host)
 		if err != nil {
 			log.Printf("error '%s' creating infra if %s on host %s \n",
 				err, host.Name, host.Intf)
@@ -386,7 +386,7 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 		}
 	}
 	if hostCfg.Intf != "" {
-		err = deleteVlanIf(stateDriver, hostName)
+		err = deleteVLANIf(stateDriver, hostName)
 		if err != nil {
 			log.Printf("error '%s' deleting infra if %s on host %s \n",
 				err, hostName)
@@ -506,12 +506,12 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		}
 		if nwMasterCfg.PktTag == "" {
 			if nwCfg.PktTagType == "vlan" {
-				pktTag, err = gCfg.AllocVlan(ra)
+				pktTag, err = gCfg.AllocVLAN(ra)
 				if err != nil {
 					return err
 				}
 			} else if nwCfg.PktTagType == "vxlan" {
-				extPktTag, pktTag, err = gCfg.AllocVxlan(ra)
+				extPktTag, pktTag, err = gCfg.AllocVXLAN(ra)
 				if err != nil {
 					return err
 				}
@@ -592,14 +592,14 @@ func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwCon
 	ra := core.ResourceManager(tempRa)
 
 	if nwCfg.PktTagType == "vlan" {
-		err = gCfg.FreeVlan(ra, uint(nwCfg.PktTag))
+		err = gCfg.FreeVLAN(ra, uint(nwCfg.PktTag))
 		if err != nil {
 			return err
 		}
 	} else if nwCfg.PktTagType == "vxlan" {
 		log.Printf("freeing vlan %d vxlan %d \n", nwCfg.PktTag,
 			nwCfg.ExtPktTag)
-		err = gCfg.FreeVxlan(ra, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
+		err = gCfg.FreeVXLAN(ra, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
 		if err != nil {
 			return err
 		}

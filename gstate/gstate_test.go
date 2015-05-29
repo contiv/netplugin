@@ -27,7 +27,7 @@ var (
 	gstateSD     = &state.FakeStateDriver{}
 )
 
-func TestGlobalConfigAutoVlans(t *testing.T) {
+func TestGlobalConfigAutoVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
@@ -36,8 +36,8 @@ func TestGlobalConfigAutoVlans(t *testing.T) {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
                 "AllocSubnetLen"    : 24,
-                "Vlans"             : "1-10",
-                "Vxlans"            : "15000-17000"
+                "VLANs"             : "1-10",
+                "VXLANs"            : "15000-17000"
             },
             "Deploy" : {
                 "DefaultNetType"    : "vlan"
@@ -61,7 +61,7 @@ func TestGlobalConfigAutoVlans(t *testing.T) {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vlan, err = gc.AllocVlan(gstateTestRA)
+	vlan, err = gc.AllocVLAN(gstateTestRA)
 	if err != nil {
 		t.Fatalf("error - allocating vlan - %s \n", err)
 	}
@@ -72,13 +72,13 @@ func TestGlobalConfigAutoVlans(t *testing.T) {
 		t.Fatalf("error - expecting vlan %d but allocated %d \n", 1, vlan)
 	}
 
-	err = gc.FreeVlan(gstateTestRA, vlan)
+	err = gc.FreeVLAN(gstateTestRA, vlan)
 	if err != nil {
 		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
 	}
 }
 
-func TestGlobalConfigAutoVxlan(t *testing.T) {
+func TestGlobalConfigAutoVXLAN(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
@@ -87,14 +87,14 @@ func TestGlobalConfigAutoVxlan(t *testing.T) {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
                 "AllocSubnetLen"    : 24,
-                "Vlans"             : "1-10",
-                "Vxlans"            : "15000-17000"
+                "VLANs"             : "1-10",
+                "VXLANs"            : "15000-17000"
             },
             "Deploy" : {
                 "DefaultNetType"    : "vxlan"
             }
         }`)
-	var vxlan, localVlan uint
+	var vxlan, localVLAN uint
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -112,25 +112,25 @@ func TestGlobalConfigAutoVxlan(t *testing.T) {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vxlan, localVlan, err = gc.AllocVxlan(gstateTestRA)
+	vxlan, localVLAN, err = gc.AllocVXLAN(gstateTestRA)
 	if err != nil {
 		t.Fatalf("error - allocating vxlan - %s \n", err)
 	}
 	if vxlan == 0 {
 		t.Fatalf("error - invalid vxlan allocated %d \n", vxlan)
 	}
-	if localVlan == 0 {
-		t.Fatalf("error - invalid vlan allocated %d \n", localVlan)
+	if localVLAN == 0 {
+		t.Fatalf("error - invalid vlan allocated %d \n", localVLAN)
 	}
 
-	err = gc.FreeVxlan(gstateTestRA, vxlan, localVlan)
+	err = gc.FreeVXLAN(gstateTestRA, vxlan, localVLAN)
 	if err != nil {
 		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
-			vxlan, localVlan, err)
+			vxlan, localVLAN, err)
 	}
 }
 
-func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
+func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
@@ -139,14 +139,14 @@ func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
                 "AllocSubnetLen"    : 24,
-                "Vlans"             : "100-400,500-900",
-                "Vxlans"            : "10000-12000"
+                "VLANs"             : "100-400,500-900",
+                "VXLANs"            : "10000-12000"
             },
             "Deploy" : {
                 "DefaultNetType"    : "vxlan"
             }
         }`)
-	var vlan, localVlan, vxlan uint
+	var vlan, localVLAN, vxlan uint
 
 	gc, err := Parse(cfgData)
 	if err != nil {
@@ -164,7 +164,7 @@ func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vlan, err = gc.AllocVlan(gstateTestRA)
+	vlan, err = gc.AllocVLAN(gstateTestRA)
 	if err != nil {
 		t.Fatalf("error - allocating vlan - %s \n", err)
 	}
@@ -172,30 +172,30 @@ func TestGlobalConfigDefaultVxlanWithVlans(t *testing.T) {
 		t.Fatalf("error - expecting vlan %d but allocated %d \n", 100, vlan)
 	}
 
-	vxlan, localVlan, err = gc.AllocVxlan(gstateTestRA)
+	vxlan, localVLAN, err = gc.AllocVXLAN(gstateTestRA)
 	if err != nil {
 		t.Fatalf("error - allocating vxlan - %s \n", err)
 	}
 	if vxlan != 10000 {
 		t.Fatalf("error - expecting vlan %d but allocated %d \n", 10000, vxlan)
 	}
-	if localVlan == 0 {
-		t.Fatalf("error - invalid vlan allocated %d \n", localVlan)
+	if localVLAN == 0 {
+		t.Fatalf("error - invalid vlan allocated %d \n", localVLAN)
 	}
 
-	err = gc.FreeVlan(gstateTestRA, vlan)
+	err = gc.FreeVLAN(gstateTestRA, vlan)
 	if err != nil {
 		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
 	}
 
-	err = gc.FreeVxlan(gstateTestRA, vxlan, localVlan)
+	err = gc.FreeVXLAN(gstateTestRA, vxlan, localVLAN)
 	if err != nil {
 		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
-			vxlan, localVlan, err)
+			vxlan, localVLAN, err)
 	}
 }
 
-func TestInvalidGlobalConfigNoLocalVlans(t *testing.T) {
+func TestInvalidGlobalConfigNoLocalVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
@@ -204,8 +204,8 @@ func TestInvalidGlobalConfigNoLocalVlans(t *testing.T) {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
                 "AllocSubnetLen"    : 24,
-                "Vlans"             : "1-4095",
-                "Vxlans"            : "10000-10001"
+                "VLANs"             : "1-4095",
+                "VXLANs"            : "10000-10001"
             },
             "Deploy" : {
                 "DefaultNetType"    : "vlan"
@@ -229,7 +229,7 @@ func TestInvalidGlobalConfigNoLocalVlans(t *testing.T) {
 	}
 }
 
-func TestInvalidGlobalConfigMoreThan4KVlans(t *testing.T) {
+func TestInvalidGlobalConfigMoreThan4KVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
             "Version" : "0.01",
@@ -238,8 +238,8 @@ func TestInvalidGlobalConfigMoreThan4KVlans(t *testing.T) {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
                 "AllocSubnetLen"    : 24,
-                "Vlans"             : "1-5000",
-                "Vxlans"            : "10000-10001"
+                "VLANs"             : "1-5000",
+                "VXLANs"            : "10000-10001"
             },
             "Deploy" : {
                 "DefaultNetType"    : "vlan"
@@ -261,8 +261,8 @@ func TestInvalidGlobalConfig(t *testing.T) {
                 "SubnetPool"        : "11..5.0.0",
                 "SubnetLen"         : 16,
                 "AllocSubnetLen"    : 24,
-                "Vlans"             : "100-400,500-900",
-                "Vxlans"            : "10000-20000"
+                "VLANs"             : "100-400,500-900",
+                "VXLANs"            : "10000-20000"
             },
             "Deploy" : {
                 "DefaultNetType"    : "vlan"
@@ -282,8 +282,8 @@ func TestInvalidGlobalConfig(t *testing.T) {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
                 "AllocSubnetLen"    : 24,
-                "Vlans"             : "100-400,900-500",
-                "Vxlans"            : "10000-20000"
+                "VLANs"             : "100-400,900-500",
+                "VXLANs"            : "10000-20000"
             },
             "Deploy" : {
                 "DefaultNetType"    : "vlan"
@@ -303,8 +303,8 @@ func TestInvalidGlobalConfig(t *testing.T) {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 22,
                 "AllocSubnetLen"    : 20,
-                "Vlans"             : "100-400,500-900",
-                "Vxlans"            : "10000-20000"
+                "VLANs"             : "100-400,500-900",
+                "VXLANs"            : "10000-20000"
             },
             "Deploy" : {
                 "DefaultNetType"    : "vlan"

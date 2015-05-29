@@ -27,7 +27,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-var subnetRsrcStateDriver *testSubnetRsrcStateDriver = &testSubnetRsrcStateDriver{}
+var subnetRsrcStateDriver = &testSubnetRsrcStateDriver{}
 
 type subnetRsrcValidator struct {
 	// slice (stack) of expected config and oper states.
@@ -120,12 +120,12 @@ const (
 	SubnetRsrcAllocateExhaustID = "SubnetRsrcAllocateExhaustID"
 	SubnetRsrcDeallocateID      = "SubnetRsrcDeallocateID"
 
-	SUBNET_RSRC_OP_WRITE = iota
-	SUBNET_RSRC_OP_READ
-	SUBNET_RSRC_OP_CLEAR
+	subnetResourceOpWrite = iota
+	subnetResourceOpRead
+	subnetResourceOpClear
 )
 
-var subnetRsrcValidationStateMap map[string]*subnetRsrcValidator = map[string]*subnetRsrcValidator{
+var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 	SubnetRsrcValidInitID: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
@@ -286,15 +286,15 @@ func (d *testSubnetRsrcStateDriver) validate(key string, state core.State,
 	}
 
 	switch op {
-	case SUBNET_RSRC_OP_WRITE:
+	case subnetResourceOpWrite:
 		err := v.ValidateState(state)
 		if err != nil {
 			return err
 		}
 		return nil
-	case SUBNET_RSRC_OP_READ:
+	case subnetResourceOpRead:
 		return v.CopyState(state)
-	case SUBNET_RSRC_OP_CLEAR:
+	case subnetResourceOpClear:
 		fallthrough
 	default:
 		return nil
@@ -302,12 +302,12 @@ func (d *testSubnetRsrcStateDriver) validate(key string, state core.State,
 }
 
 func (d *testSubnetRsrcStateDriver) ClearState(key string) error {
-	return d.validate(key, nil, SUBNET_RSRC_OP_CLEAR)
+	return d.validate(key, nil, subnetResourceOpClear)
 }
 
 func (d *testSubnetRsrcStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
-	return d.validate(key, value, SUBNET_RSRC_OP_READ)
+	return d.validate(key, value, subnetResourceOpRead)
 }
 
 func (d *testSubnetRsrcStateDriver) ReadAllState(key string, value core.State,
@@ -322,7 +322,7 @@ func (d *testSubnetRsrcStateDriver) WatchAllState(baseKey string, sType core.Sta
 
 func (d *testSubnetRsrcStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
-	return d.validate(key, value, SUBNET_RSRC_OP_WRITE)
+	return d.validate(key, value, subnetResourceOpWrite)
 }
 
 func TestAutoSubnetCfgResourceInit(t *testing.T) {

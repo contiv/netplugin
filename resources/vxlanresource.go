@@ -24,59 +24,65 @@ import (
 	"github.com/jainvipin/bitset"
 )
 
-// implements the Resource interface for an 'auto-vxlan' resource.
+const (
+	// AutoVXLANResource is a string description of the type of resource.
+	AutoVXLANResource = "auto-vxlan"
+)
+
+const (
+	vXLANResourceConfigPathPrefix = drivers.StateConfigPath + AutoVXLANResource + "/"
+	vXLANResourceConfigPath       = vXLANResourceConfigPathPrefix + "%s"
+	vXLANResourceOperPathPrefix   = drivers.StateOperPath + AutoVXLANResource + "/"
+	vXLANResourceOperPath         = vXLANResourceOperPathPrefix + "%s"
+)
+
+// AutoVXLANCfgResource implements the Resource interface for an 'auto-vxlan' resource.
 // 'auto-vxlan' resource allocates a vxlan from a range of vxlan encaps specified
 // at time of resource instantiation
-
-const (
-	AUTO_VXLAN_RSRC = "auto-vxlan"
-)
-
-const (
-	VXLAN_RSRC_CFG_PATH_PREFIX  = drivers.StateConfigPath + AUTO_VXLAN_RSRC + "/"
-	VXLAN_RSRC_CFG_PATH         = VXLAN_RSRC_CFG_PATH_PREFIX + "%s"
-	VXLAN_RSRC_OPER_PATH_PREFIX = drivers.StateOperPath + AUTO_VXLAN_RSRC + "/"
-	VXLAN_RSRC_OPER_PATH        = VXLAN_RSRC_OPER_PATH_PREFIX + "%s"
-)
-
-type AutoVxlanCfgResource struct {
+type AutoVXLANCfgResource struct {
 	core.CommonState
-	Vxlans     *bitset.BitSet `json:"vxlans"`
-	LocalVlans *bitset.BitSet `json:"LocalVlans"`
+	VXLANs     *bitset.BitSet `json:"vxlans"`
+	LocalVLANs *bitset.BitSet `json:"LocalVLANs"`
 }
 
-type VxlanVlanPair struct {
-	Vxlan uint
-	Vlan  uint
+// VXLANVLANPair Pairs a VXLAN tag with a VLAN tag.
+type VXLANVLANPair struct {
+	VXLAN uint
+	VLAN  uint
 }
 
-func (r *AutoVxlanCfgResource) Write() error {
-	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.ID)
+// Write the state.
+func (r *AutoVXLANCfgResource) Write() error {
+	key := fmt.Sprintf(vXLANResourceConfigPath, r.ID)
 	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
-func (r *AutoVxlanCfgResource) Read(id string) error {
-	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, id)
+// Read the state.
+func (r *AutoVXLANCfgResource) Read(id string) error {
+	key := fmt.Sprintf(vXLANResourceConfigPath, id)
 	return r.StateDriver.ReadState(key, r, json.Unmarshal)
 }
 
-func (r *AutoVxlanCfgResource) Clear() error {
-	key := fmt.Sprintf(VXLAN_RSRC_CFG_PATH, r.ID)
+// Clear the state.
+func (r *AutoVXLANCfgResource) Clear() error {
+	key := fmt.Sprintf(vXLANResourceConfigPath, r.ID)
 	return r.StateDriver.ClearState(key)
 }
 
-func (r *AutoVxlanCfgResource) ReadAll() ([]core.State, error) {
-	return r.StateDriver.ReadAllState(VXLAN_RSRC_CFG_PATH_PREFIX, r,
+// ReadAll reads all the state from the resource.
+func (r *AutoVXLANCfgResource) ReadAll() ([]core.State, error) {
+	return r.StateDriver.ReadAllState(vXLANResourceConfigPathPrefix, r,
 		json.Unmarshal)
 }
 
-func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
-	cfg, ok := rsrcCfg.(*AutoVxlanCfgResource)
+// Init the resource.
+func (r *AutoVXLANCfgResource) Init(rsrcCfg interface{}) error {
+	cfg, ok := rsrcCfg.(*AutoVXLANCfgResource)
 	if !ok {
 		return core.Errorf("Invalid vxlan resource config.")
 	}
-	r.Vxlans = cfg.Vxlans
-	r.LocalVlans = cfg.LocalVlans
+	r.VXLANs = cfg.VXLANs
+	r.LocalVLANs = cfg.LocalVLANs
 	err := r.Write()
 	if err != nil {
 		return err
@@ -87,7 +93,7 @@ func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
 		}
 	}()
 
-	oper := &AutoVxlanOperResource{FreeVxlans: r.Vxlans, FreeLocalVlans: r.LocalVlans}
+	oper := &AutoVXLANOperResource{FreeVXLANs: r.VXLANs, FreeLocalVLANs: r.LocalVLANs}
 	oper.StateDriver = r.StateDriver
 	oper.ID = r.ID
 	err = oper.Write()
@@ -98,8 +104,9 @@ func (r *AutoVxlanCfgResource) Init(rsrcCfg interface{}) error {
 	return nil
 }
 
-func (r *AutoVxlanCfgResource) Deinit() {
-	oper := &AutoVxlanOperResource{}
+// Deinit the resource.
+func (r *AutoVXLANCfgResource) Deinit() {
+	oper := &AutoVXLANOperResource{}
 	oper.StateDriver = r.StateDriver
 	err := oper.Read(r.ID)
 	if err != nil {
@@ -114,54 +121,57 @@ func (r *AutoVxlanCfgResource) Deinit() {
 	r.Clear()
 }
 
-func (r *AutoVxlanCfgResource) Description() string {
-	return AUTO_VXLAN_RSRC
+// Description is a string description of the resource. Returns AutoVXLANResource.
+func (r *AutoVXLANCfgResource) Description() string {
+	return AutoVXLANResource
 }
 
-func (r *AutoVxlanCfgResource) Allocate() (interface{}, error) {
-	oper := &AutoVxlanOperResource{}
+// Allocate allocates a new resource.
+func (r *AutoVXLANCfgResource) Allocate() (interface{}, error) {
+	oper := &AutoVXLANOperResource{}
 	oper.StateDriver = r.StateDriver
 	err := oper.Read(r.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	vxlan, ok := oper.FreeVxlans.NextSet(0)
+	vxlan, ok := oper.FreeVXLANs.NextSet(0)
 	if !ok {
 		return nil, core.Errorf("no vxlans available.")
 	}
 
-	vlan, ok := oper.FreeLocalVlans.NextSet(0)
+	vlan, ok := oper.FreeLocalVLANs.NextSet(0)
 	if !ok {
 		return nil, core.Errorf("no local vlans available.")
 	}
 
-	oper.FreeVxlans.Clear(vxlan)
-	oper.FreeLocalVlans.Clear(vlan)
+	oper.FreeVXLANs.Clear(vxlan)
+	oper.FreeLocalVLANs.Clear(vlan)
 
 	err = oper.Write()
 	if err != nil {
 		return nil, err
 	}
-	return VxlanVlanPair{Vxlan: vxlan, Vlan: vlan}, nil
+	return VXLANVLANPair{VXLAN: vxlan, VLAN: vlan}, nil
 }
 
-func (r *AutoVxlanCfgResource) Deallocate(value interface{}) error {
-	oper := &AutoVxlanOperResource{}
+// Deallocate removes and cleans up a resource.
+func (r *AutoVXLANCfgResource) Deallocate(value interface{}) error {
+	oper := &AutoVXLANOperResource{}
 	oper.StateDriver = r.StateDriver
 	err := oper.Read(r.ID)
 	if err != nil {
 		return err
 	}
 
-	pair, ok := value.(VxlanVlanPair)
+	pair, ok := value.(VXLANVLANPair)
 	if !ok {
 		return core.Errorf("Invalid type for vxlan-vlan pair")
 	}
-	vxlan := pair.Vxlan
-	oper.FreeVxlans.Set(vxlan)
-	vlan := pair.Vlan
-	oper.FreeLocalVlans.Set(vlan)
+	vxlan := pair.VXLAN
+	oper.FreeVXLANs.Set(vxlan)
+	vlan := pair.VLAN
+	oper.FreeLocalVLANs.Set(vlan)
 
 	err = oper.Write()
 	if err != nil {
@@ -170,28 +180,33 @@ func (r *AutoVxlanCfgResource) Deallocate(value interface{}) error {
 	return nil
 }
 
-type AutoVxlanOperResource struct {
+// AutoVXLANOperResource is an implementation of core.State
+type AutoVXLANOperResource struct {
 	core.CommonState
-	FreeVxlans     *bitset.BitSet `json:"freeVxlans"`
-	FreeLocalVlans *bitset.BitSet `json:"freeLocalVlans"`
+	FreeVXLANs     *bitset.BitSet `json:"freeVXLANs"`
+	FreeLocalVLANs *bitset.BitSet `json:"freeLocalVLANs"`
 }
 
-func (r *AutoVxlanOperResource) Write() error {
-	key := fmt.Sprintf(VXLAN_RSRC_OPER_PATH, r.ID)
+// Write the state.
+func (r *AutoVXLANOperResource) Write() error {
+	key := fmt.Sprintf(vXLANResourceOperPath, r.ID)
 	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
-func (r *AutoVxlanOperResource) Read(id string) error {
-	key := fmt.Sprintf(VXLAN_RSRC_OPER_PATH, id)
+// Read the state.
+func (r *AutoVXLANOperResource) Read(id string) error {
+	key := fmt.Sprintf(vXLANResourceOperPath, id)
 	return r.StateDriver.ReadState(key, r, json.Unmarshal)
 }
 
-func (r *AutoVxlanOperResource) ReadAll() ([]core.State, error) {
-	return r.StateDriver.ReadAllState(VXLAN_RSRC_OPER_PATH_PREFIX, r,
+// ReadAll the state for the given type.
+func (r *AutoVXLANOperResource) ReadAll() ([]core.State, error) {
+	return r.StateDriver.ReadAllState(vXLANResourceOperPathPrefix, r,
 		json.Unmarshal)
 }
 
-func (r *AutoVxlanOperResource) Clear() error {
-	key := fmt.Sprintf(VXLAN_RSRC_OPER_PATH, r.ID)
+// Clear the state.
+func (r *AutoVXLANOperResource) Clear() error {
+	key := fmt.Sprintf(vXLANResourceOperPath, r.ID)
 	return r.StateDriver.ClearState(key)
 }

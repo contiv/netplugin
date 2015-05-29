@@ -63,8 +63,8 @@ type ConfigTenant struct {
 	DefaultNetType string
 	SubnetPool     string
 	AllocSubnetLen uint
-	Vlans          string
-	Vxlans         string
+	VLANs          string
+	VXLANs         string
 
 	Networks []ConfigNetwork
 }

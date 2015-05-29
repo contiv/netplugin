@@ -24,69 +24,78 @@ import (
 	"github.com/contiv/netplugin/crtclient/docker"
 )
 
-type Crt struct {
+// CRT is an abstraction for Container Runtimes.
+type CRT struct {
 	ContainerIf crtclient.ContainerIf
 }
 
-type CrtConfig struct {
-	Crt struct {
+// Config is the configuration for the container runtype. The type is
+// polymorphic to allow for multiple runtimes to be supported.
+type Config struct {
+	CRT struct {
 		Type string
 	}
 }
 
-type ContainerIfTypes struct {
-	CrtType       reflect.Type
-	CrtConfigType reflect.Type
+type containerIfTypes struct {
+	CRTType    reflect.Type
+	ConfigType reflect.Type
 }
 
-var ContainerIfRegistry = map[string]ContainerIfTypes{
-	"docker": ContainerIfTypes{
-		CrtType:       reflect.TypeOf(docker.Docker{}),
-		CrtConfigType: reflect.TypeOf(docker.DockerConfig{}),
+var containerIfRegistry = map[string]containerIfTypes{
+	"docker": containerIfTypes{
+		CRTType:    reflect.TypeOf(docker.Docker{}),
+		ConfigType: reflect.TypeOf(docker.DockerConfig{}),
 	},
 }
 
-func (c *Crt) AttachEndpoint(
+// AttachEndpoint attaches an endpoint to a container.
+func (c *CRT) AttachEndpoint(
 	contEpContext *crtclient.ContainerEPContext) error {
 	return c.ContainerIf.AttachEndpoint(contEpContext)
 }
 
-func (c *Crt) DetachEndpoint(contEpContext *crtclient.ContainerEPContext) error {
+// DetachEndpoint detaches an endpoint from a container.
+func (c *CRT) DetachEndpoint(contEpContext *crtclient.ContainerEPContext) error {
 	return c.ContainerIf.DetachEndpoint(contEpContext)
 }
 
-func (c *Crt) GetContainerID(contName string) string {
+// GetContainerID obtains the container identifier for the given name.
+func (c *CRT) GetContainerID(contName string) string {
 	return c.ContainerIf.GetContainerID(contName)
 }
 
-func (c *Crt) GetContainerName(contID string) (string, error) {
+// GetContainerName obtains the container name from the identifier.
+func (c *CRT) GetContainerName(contID string) (string, error) {
 	return c.ContainerIf.GetContainerName(contID)
 }
 
-func (c *Crt) Deinit() {
+// Deinit deinitializes the container interface.
+func (c *CRT) Deinit() {
 	c.ContainerIf.Deinit()
 }
 
-func (c *Crt) Init(configStr string) error {
-
-	cfg := &CrtConfig{}
+// Init initializes the container runtime given a JSON configuration that
+// conforms to the Config set type.
+func (c *CRT) Init(configStr string) error {
+	cfg := &Config{}
 	err := json.Unmarshal([]byte(configStr), cfg)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := ContainerIfRegistry[cfg.Crt.Type]; !ok {
+	if _, ok := containerIfRegistry[cfg.CRT.Type]; !ok {
 		return core.Errorf("unregistered container run time")
 	}
 
-	crtConfigType := ContainerIfRegistry[cfg.Crt.Type].CrtConfigType
+	crtConfigType := containerIfRegistry[cfg.CRT.Type].ConfigType
 	crtConfig := reflect.New(crtConfigType).Interface()
 	err = json.Unmarshal([]byte(configStr), crtConfig)
 	if err != nil {
 		return err
 	}
 
-	crtType := ContainerIfRegistry[cfg.Crt.Type].CrtType
+	crtType := containerIfRegistry[cfg.CRT.Type].CRTType
 	crtif := reflect.New(crtType).Interface()
 	c.ContainerIf = crtif.(crtclient.ContainerIf)
 	err = c.ContainerIf.Init(&crtclient.Config{V: crtConfig})

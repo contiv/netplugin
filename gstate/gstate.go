@@ -30,48 +30,52 @@ import (
 )
 
 const (
-	BASE_GLOBAL        = "/contiv/"
-	CFG_GLOBAL_PREFIX  = BASE_GLOBAL + "config/global/"
-	CFG_GLOBAL_PATH    = CFG_GLOBAL_PREFIX + "%s"
-	OPER_GLOBAL_PREFIX = BASE_GLOBAL + "oper/global/"
-	OPER_GLOBAL_PATH   = OPER_GLOBAL_PREFIX + "%s"
+	baseGlobal       = "/contiv/"
+	cfgGlobalPrefix  = baseGlobal + "config/global/"
+	cfgGlobalPath    = cfgGlobalPrefix + "%s"
+	operGlobalPrefix = baseGlobal + "oper/global/"
+	operGlobalPath   = operGlobalPrefix + "%s"
 )
 
+// Version constants. Used in managing state variance.
 const (
 	VersionBeta1 = "0.01"
 )
 
-// specifies various parameters to choose the auto allocation values to pick from
-// this allows mostly hands-free allocation of networks, endpoints, attach/detach
-// operations without having to specify these each time an entity gets created
+// AutoParams specifies various parameters for the auto allocation and resource
+// management for networks and endpoints.  This allows for hands-free
+// allocation of resources without having to specify these each time these
+// constructs gets created.
 type AutoParams struct {
 	SubnetPool     string `json:"subnetPool"`
 	SubnetLen      uint   `json:"subnetLen"`
 	AllocSubnetLen uint   `json:"AllocSubnetLen"`
-	Vlans          string `json:"Vlans"`
-	Vxlans         string `json:"Vxlans"`
+	VLANs          string `json:"VLANs"`
+	VXLANs         string `json:"VXLANs"`
 }
 
-// specifies parameters that decides the deployment choices
+// DeployParams specifies parameters that decides the deployment choices
 type DeployParams struct {
 	DefaultNetType string `json:"defaultNetType"`
 }
 
-// global state of the network plugin
+// Cfg is the configuration of a tenant.
 type Cfg struct {
 	core.CommonState
 	Version string       `json:"version"`
 	Tenant  string       `json:"tenant"`
-	Auto    AutoParams   `json:auto"`
+	Auto    AutoParams   `json:"auto"`
 	Deploy  DeployParams `json:"deploy"`
 }
 
+// Oper encapsulates operations on a tenant.
 type Oper struct {
 	core.CommonState
 	Tenant          string `json:"tenant"`
-	FreeVxlansStart uint   `json:"freeVxlansStart"`
+	FreeVXLANsStart uint   `json:"freeVXLANsStart"`
 }
 
+// Dump is a debugging utility.
 func (gc *Cfg) Dump() error {
 	log.Printf("Global State %v \n", gc)
 	return nil
@@ -84,12 +88,12 @@ func (gc *Cfg) checkErrors() error {
 		return core.Errorf("invalid ip address pool %s", gc.Auto.SubnetPool)
 	}
 
-	_, err = netutils.ParseTagRanges(gc.Auto.Vlans, "vlan")
+	_, err = netutils.ParseTagRanges(gc.Auto.VLANs, "vlan")
 	if err != nil {
 		return err
 	}
 
-	_, err = netutils.ParseTagRanges(gc.Auto.Vxlans, "vxlan")
+	_, err = netutils.ParseTagRanges(gc.Auto.VXLANs, "vxlan")
 	if err != nil {
 		return err
 	}
@@ -106,6 +110,7 @@ func (gc *Cfg) checkErrors() error {
 	return err
 }
 
+// Parse parses a JSON config into a *gstate.Cfg.
 func Parse(configBytes []byte) (*Cfg, error) {
 	var gc Cfg
 
@@ -122,41 +127,49 @@ func Parse(configBytes []byte) (*Cfg, error) {
 	return &gc, err
 }
 
+// Write the state
 func (gc *Cfg) Write() error {
-	key := fmt.Sprintf(CFG_GLOBAL_PATH, gc.Tenant)
+	key := fmt.Sprintf(cfgGlobalPath, gc.Tenant)
 	return gc.StateDriver.WriteState(key, gc, json.Marshal)
 }
 
+// Read the state
 func (gc *Cfg) Read(tenant string) error {
-	key := fmt.Sprintf(CFG_GLOBAL_PATH, tenant)
+	key := fmt.Sprintf(cfgGlobalPath, tenant)
 	return gc.StateDriver.ReadState(key, gc, json.Unmarshal)
 }
 
+// ReadAll global config state
 func (gc *Cfg) ReadAll() ([]core.State, error) {
-	return gc.StateDriver.ReadAllState(CFG_GLOBAL_PREFIX, gc, json.Unmarshal)
+	return gc.StateDriver.ReadAllState(cfgGlobalPrefix, gc, json.Unmarshal)
 }
 
+// Clear the state
 func (gc *Cfg) Clear() error {
-	key := fmt.Sprintf(CFG_GLOBAL_PATH, gc.Tenant)
+	key := fmt.Sprintf(cfgGlobalPath, gc.Tenant)
 	return gc.StateDriver.ClearState(key)
 }
 
+// Write the state
 func (g *Oper) Write() error {
-	key := fmt.Sprintf(OPER_GLOBAL_PATH, g.Tenant)
+	key := fmt.Sprintf(operGlobalPath, g.Tenant)
 	return g.StateDriver.WriteState(key, g, json.Marshal)
 }
 
+// Read the state
 func (g *Oper) Read(tenant string) error {
-	key := fmt.Sprintf(OPER_GLOBAL_PATH, tenant)
+	key := fmt.Sprintf(operGlobalPath, tenant)
 	return g.StateDriver.ReadState(key, g, json.Unmarshal)
 }
 
+// ReadAll the global oper state
 func (g *Oper) ReadAll() ([]core.State, error) {
-	return g.StateDriver.ReadAllState(OPER_GLOBAL_PREFIX, g, json.Unmarshal)
+	return g.StateDriver.ReadAllState(operGlobalPrefix, g, json.Unmarshal)
 }
 
+// Clear the state.
 func (g *Oper) Clear() error {
-	key := fmt.Sprintf(OPER_GLOBAL_PATH, g.Tenant)
+	key := fmt.Sprintf(operGlobalPath, g.Tenant)
 	return g.StateDriver.ClearState(key)
 }
 
@@ -164,49 +177,49 @@ func (g *Oper) Clear() error {
 // XXX: Since it is run at netmaster, it is guaranteed to have a consistent view of
 // resource usage. Revisit if this assumption changes, as then it might need to
 // be moved to resource-manager
-func deriveAvailableVlans(stateDriver core.StateDriver) (*bitset.BitSet, error) {
+func deriveAvailableVLANs(stateDriver core.StateDriver) (*bitset.BitSet, error) {
 	// available vlans = vlan-space - For each tenant (vlans + local-vxlan-vlans)
-	availableVlans := netutils.CreateBitset(12)
+	availableVLANs := netutils.CreateBitset(12)
 
 	// get all vlans
-	readVlanRsrc := &resources.AutoVlanCfgResource{}
-	readVlanRsrc.StateDriver = stateDriver
-	vlanRsrcs, err := readVlanRsrc.ReadAll()
+	readVLANRsrc := &resources.AutoVLANCfgResource{}
+	readVLANRsrc.StateDriver = stateDriver
+	vlanRsrcs, err := readVLANRsrc.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
 		return nil, err
 	} else if err != nil {
 		vlanRsrcs = []core.State{}
 	}
 	for _, rsrc := range vlanRsrcs {
-		cfg := rsrc.(*resources.AutoVlanCfgResource)
-		availableVlans = availableVlans.Union(cfg.Vlans)
+		cfg := rsrc.(*resources.AutoVLANCfgResource)
+		availableVLANs = availableVLANs.Union(cfg.VLANs)
 	}
 
 	//get all vxlan-vlans
-	readVxlanRsrc := &resources.AutoVxlanCfgResource{}
-	readVxlanRsrc.StateDriver = stateDriver
-	vxlanRsrcs, err := readVxlanRsrc.ReadAll()
+	readVXLANRsrc := &resources.AutoVXLANCfgResource{}
+	readVXLANRsrc.StateDriver = stateDriver
+	vxlanRsrcs, err := readVXLANRsrc.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
 		return nil, err
 	} else if err != nil {
 		vxlanRsrcs = []core.State{}
 	}
 	for _, rsrc := range vxlanRsrcs {
-		cfg := rsrc.(*resources.AutoVxlanCfgResource)
-		availableVlans = availableVlans.Union(cfg.LocalVlans)
+		cfg := rsrc.(*resources.AutoVXLANCfgResource)
+		availableVLANs = availableVLANs.Union(cfg.LocalVLANs)
 	}
 
-	// subtract to get availableVlans
-	availableVlans = availableVlans.Complement()
-	clearReservedVlans(availableVlans)
-	return availableVlans, nil
+	// subtract to get availableVLANs
+	availableVLANs = availableVLANs.Complement()
+	clearReservedVLANs(availableVLANs)
+	return availableVLANs, nil
 }
 
-func (gc *Cfg) initVxlanBitset(vxlans string) (*resources.AutoVxlanCfgResource,
+func (gc *Cfg) initVXLANBitset(vxlans string) (*resources.AutoVXLANCfgResource,
 	uint, error) {
 
-	vxlanRsrcCfg := &resources.AutoVxlanCfgResource{}
-	vxlanRsrcCfg.Vxlans = netutils.CreateBitset(14)
+	vxlanRsrcCfg := &resources.AutoVXLANCfgResource{}
+	vxlanRsrcCfg.VXLANs = netutils.CreateBitset(14)
 
 	vxlanRange := netutils.TagRange{}
 	vxlanRanges, err := netutils.ParseTagRanges(vxlans, "vxlan")
@@ -216,46 +229,47 @@ func (gc *Cfg) initVxlanBitset(vxlans string) (*resources.AutoVxlanCfgResource,
 	// XXX: REVISIT, we seem to accept one contiguous vxlan range
 	vxlanRange = vxlanRanges[0]
 
-	freeVxlansStart := uint(vxlanRange.Min)
+	freeVXLANsStart := uint(vxlanRange.Min)
 	for vxlan := vxlanRange.Min; vxlan <= vxlanRange.Max; vxlan++ {
-		vxlanRsrcCfg.Vxlans.Set(uint(vxlan - vxlanRange.Min))
+		vxlanRsrcCfg.VXLANs.Set(uint(vxlan - vxlanRange.Min))
 	}
 
-	availableVlans, err := deriveAvailableVlans(gc.StateDriver)
+	availableVLANs, err := deriveAvailableVLANs(gc.StateDriver)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	localVlansReqd := vxlanRange.Max - vxlanRange.Min + 1
-	if count := availableVlans.Count(); int(count) < localVlansReqd {
+	localVLANsReqd := vxlanRange.Max - vxlanRange.Min + 1
+	if count := availableVLANs.Count(); int(count) < localVLANsReqd {
 		return nil, 0, core.Errorf("Available free local vlans (%d) is less than possible vxlans (%d)",
 			count, vxlanRange.Max-vxlanRange.Min)
-	} else if int(count) > localVlansReqd {
+	} else if int(count) > localVLANsReqd {
 		//only reserve the #vxlan amount of bits
-		var clearBitMarker uint = 0
-		for i := 0; i < localVlansReqd; i++ {
-			clearBitMarker, _ = availableVlans.NextSet(clearBitMarker)
-			clearBitMarker += 1
+		var clearBitMarker uint
+		for i := 0; i < localVLANsReqd; i++ {
+			clearBitMarker, _ = availableVLANs.NextSet(clearBitMarker)
+			clearBitMarker++
 		}
-		clearBitMarker += 1
+		clearBitMarker++
 		for {
-			if bit, ok := availableVlans.NextSet(clearBitMarker); ok {
-				availableVlans.Clear(bit)
+			if bit, ok := availableVLANs.NextSet(clearBitMarker); ok {
+				availableVLANs.Clear(bit)
 			} else {
 				break
 			}
 		}
 	}
 
-	vxlanRsrcCfg.LocalVlans = availableVlans
+	vxlanRsrcCfg.LocalVLANs = availableVLANs
 
-	return vxlanRsrcCfg, freeVxlansStart, nil
+	return vxlanRsrcCfg, freeVXLANsStart, nil
 }
 
-func (gc *Cfg) AllocVxlan(ra core.ResourceManager) (vxlan uint,
-	localVlan uint, err error) {
+// AllocVXLAN allocates a new vxlan; ids for both the vxlan and vlan are returned.
+func (gc *Cfg) AllocVXLAN(ra core.ResourceManager) (vxlan uint,
+	localVLAN uint, err error) {
 
-	pair, err1 := ra.AllocateResourceVal(gc.Tenant, resources.AUTO_VXLAN_RSRC)
+	pair, err1 := ra.AllocateResourceVal(gc.Tenant, resources.AutoVXLANResource)
 	if err1 != nil {
 		return 0, 0, err1
 	}
@@ -267,13 +281,14 @@ func (gc *Cfg) AllocVxlan(ra core.ResourceManager) (vxlan uint,
 		return 0, 0, err
 	}
 
-	vxlan = pair.(resources.VxlanVlanPair).Vxlan + g.FreeVxlansStart
-	localVlan = pair.(resources.VxlanVlanPair).Vlan
+	vxlan = pair.(resources.VXLANVLANPair).VXLAN + g.FreeVXLANsStart
+	localVLAN = pair.(resources.VXLANVLANPair).VLAN
 
 	return
 }
 
-func (gc *Cfg) FreeVxlan(ra core.ResourceManager, vxlan uint, localVlan uint) error {
+// FreeVXLAN returns a VXLAN id to the pool.
+func (gc *Cfg) FreeVXLAN(ra core.ResourceManager, vxlan uint, localVLAN uint) error {
 	g := &Oper{}
 	g.StateDriver = gc.StateDriver
 	err := g.Read(gc.Tenant)
@@ -281,18 +296,18 @@ func (gc *Cfg) FreeVxlan(ra core.ResourceManager, vxlan uint, localVlan uint) er
 		return nil
 	}
 
-	return ra.DeallocateResourceVal(gc.Tenant, resources.AUTO_VXLAN_RSRC,
-		resources.VxlanVlanPair{
-			Vxlan: vxlan - g.FreeVxlansStart,
-			Vlan:  localVlan})
+	return ra.DeallocateResourceVal(gc.Tenant, resources.AutoVXLANResource,
+		resources.VXLANVLANPair{
+			VXLAN: vxlan - g.FreeVXLANsStart,
+			VLAN:  localVLAN})
 }
 
-func clearReservedVlans(vlanBitset *bitset.BitSet) {
+func clearReservedVLANs(vlanBitset *bitset.BitSet) {
 	vlanBitset.Clear(0)
 	vlanBitset.Clear(4095)
 }
 
-func (gc *Cfg) initVlanBitset(vlans string) (*bitset.BitSet, error) {
+func (gc *Cfg) initVLANBitset(vlans string) (*bitset.BitSet, error) {
 
 	vlanBitset := netutils.CreateBitset(12)
 
@@ -306,13 +321,14 @@ func (gc *Cfg) initVlanBitset(vlans string) (*bitset.BitSet, error) {
 			vlanBitset.Set(uint(vlan))
 		}
 	}
-	clearReservedVlans(vlanBitset)
+	clearReservedVLANs(vlanBitset)
 
 	return vlanBitset, nil
 }
 
-func (gc *Cfg) AllocVlan(ra core.ResourceManager) (uint, error) {
-	vlan, err := ra.AllocateResourceVal(gc.Tenant, resources.AUTO_VLAN_RSRC)
+// AllocVLAN allocates a new VLAN resource. Returns an ID.
+func (gc *Cfg) AllocVLAN(ra core.ResourceManager) (uint, error) {
+	vlan, err := ra.AllocateResourceVal(gc.Tenant, resources.AutoVLANResource)
 	if err != nil {
 		log.Printf("alloc vlan failed: %q", err)
 		return 0, err
@@ -321,12 +337,14 @@ func (gc *Cfg) AllocVlan(ra core.ResourceManager) (uint, error) {
 	return vlan.(uint), err
 }
 
-func (gc *Cfg) FreeVlan(ra core.ResourceManager, vlan uint) error {
-	return ra.DeallocateResourceVal(gc.Tenant, resources.AUTO_VLAN_RSRC, vlan)
+// FreeVLAN releases a VLAN for a given ID.
+func (gc *Cfg) FreeVLAN(ra core.ResourceManager, vlan uint) error {
+	return ra.DeallocateResourceVal(gc.Tenant, resources.AutoVLANResource, vlan)
 }
 
+// AllocSubnet allocates a new subnet. Returns a CIDR.
 func (gc *Cfg) AllocSubnet(ra core.ResourceManager) (string, error) {
-	pair, err := ra.AllocateResourceVal(gc.Tenant, resources.AUTO_SUBNET_RSRC)
+	pair, err := ra.AllocateResourceVal(gc.Tenant, resources.AutoSubnetResource)
 	if err != nil {
 		return "", err
 	}
@@ -334,18 +352,20 @@ func (gc *Cfg) AllocSubnet(ra core.ResourceManager) (string, error) {
 	return pair.(resources.SubnetIPLenPair).IP.String(), err
 }
 
+// FreeSubnet releases a subnet derived from it's CIDR.
 func (gc *Cfg) FreeSubnet(ra core.ResourceManager, subnetIP string) error {
-	return ra.DeallocateResourceVal(gc.Tenant, resources.AUTO_SUBNET_RSRC,
+	return ra.DeallocateResourceVal(gc.Tenant, resources.AutoSubnetResource,
 		resources.SubnetIPLenPair{
 			IP:  net.ParseIP(subnetIP),
 			Len: gc.Auto.AllocSubnetLen})
 }
 
+// Process validates, implements, and writes the state.
 func (gc *Cfg) Process(ra core.ResourceManager) error {
 	var err error
 
 	if gc.Version != VersionBeta1 {
-		return core.Errorf("unsupported verison %s", gc.Version)
+		return core.Errorf("unsupported version %s", gc.Version)
 	}
 
 	err = gc.checkErrors()
@@ -362,40 +382,40 @@ func (gc *Cfg) Process(ra core.ResourceManager) error {
 		SubnetPool:     net.ParseIP(gc.Auto.SubnetPool),
 		SubnetPoolLen:  gc.Auto.SubnetLen,
 		AllocSubnetLen: gc.Auto.AllocSubnetLen}
-	err = ra.DefineResource(tenant, resources.AUTO_SUBNET_RSRC, subnetRsrcCfg)
+	err = ra.DefineResource(tenant, resources.AutoSubnetResource, subnetRsrcCfg)
 	if err != nil {
 		return err
 	}
 
 	// Only define a vlan resource if a valid range was specified
-	if gc.Auto.Vlans != "" {
+	if gc.Auto.VLANs != "" {
 		var vlanRsrcCfg *bitset.BitSet
-		vlanRsrcCfg, err = gc.initVlanBitset(gc.Auto.Vlans)
+		vlanRsrcCfg, err = gc.initVLANBitset(gc.Auto.VLANs)
 		if err != nil {
 			return err
 		}
-		err = ra.DefineResource(tenant, resources.AUTO_VLAN_RSRC, vlanRsrcCfg)
+		err = ra.DefineResource(tenant, resources.AutoVLANResource, vlanRsrcCfg)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Only define a vxlan resource if a valid range was specified
-	var freeVxlansStart uint = 0
-	if gc.Auto.Vxlans != "" {
-		var vxlanRsrcCfg *resources.AutoVxlanCfgResource
-		vxlanRsrcCfg, freeVxlansStart, err = gc.initVxlanBitset(gc.Auto.Vxlans)
+	var freeVXLANsStart uint
+	if gc.Auto.VXLANs != "" {
+		var vxlanRsrcCfg *resources.AutoVXLANCfgResource
+		vxlanRsrcCfg, freeVXLANsStart, err = gc.initVXLANBitset(gc.Auto.VXLANs)
 		if err != nil {
 			return err
 		}
-		err = ra.DefineResource(tenant, resources.AUTO_VXLAN_RSRC, vxlanRsrcCfg)
+		err = ra.DefineResource(tenant, resources.AutoVXLANResource, vxlanRsrcCfg)
 		if err != nil {
 			return err
 		}
 	}
 
 	g := &Oper{Tenant: gc.Tenant,
-		FreeVxlansStart: freeVxlansStart}
+		FreeVXLANsStart: freeVXLANsStart}
 	g.StateDriver = gc.StateDriver
 	err = g.Write()
 	if err != nil {

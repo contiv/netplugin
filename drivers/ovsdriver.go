@@ -101,6 +101,7 @@ func (d *OvsDriver) populateCache(updates libovsdb.TableUpdates) {
 	}
 }
 
+// Update updates the ovsdb with the libovsdb.TableUpdates.
 func (d *OvsDriver) Update(context interface{}, tableUpdates libovsdb.TableUpdates) {
 	d.populateCache(tableUpdates)
 }

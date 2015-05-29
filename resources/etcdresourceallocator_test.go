@@ -55,9 +55,9 @@ func (r *TestResource) ReadAll() ([]core.State, error) {
 	if gReadCtr == 0 {
 		gReadCtr = 1
 		return []core.State{}, nil
-	} else {
-		return []core.State{core.State(r)}, nil
 	}
+
+	return []core.State{core.State(r)}, nil
 }
 
 func (r *TestResource) Init(rsrcCfg interface{}) error {
@@ -83,8 +83,8 @@ var fakeDriver = &state.FakeStateDriver{}
 
 func TestEtcdResourceManagerDefineResource(t *testing.T) {
 	ra := &EtcdResourceManager{Etcd: fakeDriver}
-	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
-	defer func() { delete(ResourceRegistry, testResourceDesc) }()
+	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
+	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
 	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
@@ -109,8 +109,8 @@ func TestEtcdResourceManagerDefineInvalidResource(t *testing.T) {
 
 func TestEtcdResourceManagerUndefineResource(t *testing.T) {
 	ra := &EtcdResourceManager{Etcd: fakeDriver}
-	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
-	defer func() { delete(ResourceRegistry, testResourceDesc) }()
+	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
+	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
 	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
@@ -140,8 +140,8 @@ func TestEtcdResourceManagerUndefineInvalidResource(t *testing.T) {
 
 func TestEtcdResourceManagerUndefineNonexistentResource(t *testing.T) {
 	ra := &EtcdResourceManager{Etcd: fakeDriver}
-	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
-	defer func() { delete(ResourceRegistry, testResourceDesc) }()
+	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
+	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
 	err := ra.UndefineResource(testResourceID, testResourceDesc)
@@ -157,8 +157,8 @@ func TestEtcdResourceManagerUndefineNonexistentResource(t *testing.T) {
 
 func TestEtcdResourceManagerAllocateResource(t *testing.T) {
 	ra := &EtcdResourceManager{Etcd: fakeDriver}
-	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
-	defer func() { delete(ResourceRegistry, testResourceDesc) }()
+	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
+	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
 	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
@@ -188,8 +188,8 @@ func TestEtcdResourceManagerAllocateInvalidResource(t *testing.T) {
 
 func TestEtcdResourceManagerAllocateiNonexistentResource(t *testing.T) {
 	ra := &EtcdResourceManager{Etcd: fakeDriver}
-	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
-	defer func() { delete(ResourceRegistry, testResourceDesc) }()
+	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
+	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
 	_, err := ra.AllocateResourceVal(testResourceID, testResourceDesc)
@@ -205,8 +205,8 @@ func TestEtcdResourceManagerAllocateiNonexistentResource(t *testing.T) {
 
 func TestEtcdResourceManagerDeallocateResource(t *testing.T) {
 	ra := &EtcdResourceManager{Etcd: fakeDriver}
-	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
-	defer func() { delete(ResourceRegistry, testResourceDesc) }()
+	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
+	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
 	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
@@ -241,8 +241,8 @@ func TestEtcdResourceManagerDeallocateInvalidResource(t *testing.T) {
 
 func TestEtcdResourceManagerDeallocateiNonexistentResource(t *testing.T) {
 	ra := &EtcdResourceManager{Etcd: fakeDriver}
-	ResourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
-	defer func() { delete(ResourceRegistry, testResourceDesc) }()
+	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
+	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
 	err := ra.DeallocateResourceVal(testResourceID, testResourceDesc, 0)

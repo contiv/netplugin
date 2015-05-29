@@ -31,16 +31,19 @@ import (
 // specified at time of resource instantiation
 
 const (
-	AUTO_SUBNET_RSRC = "auto-subnet"
+	// AutoSubnetResource is the name of the resource, for storing state.
+	AutoSubnetResource = "auto-subnet"
 )
 
 const (
-	SUBNET_RSRC_CFG_PATH_PREFIX  = drivers.StateConfigPath + AUTO_SUBNET_RSRC + "/"
-	SUBNET_RSRC_CFG_PATH         = SUBNET_RSRC_CFG_PATH_PREFIX + "%s"
-	SUBNET_RSRC_OPER_PATH_PREFIX = drivers.StateOperPath + AUTO_SUBNET_RSRC + "/"
-	SUBNET_RSRC_OPER_PATH        = SUBNET_RSRC_OPER_PATH_PREFIX + "%s"
+	subnetResourceConfigPathPrefix = drivers.StateConfigPath + AutoSubnetResource + "/"
+	subnetResourceConfigPath       = subnetResourceConfigPathPrefix + "%s"
+	subnetResourceOperPathPrefix   = drivers.StateOperPath + AutoSubnetResource + "/"
+	subnetResourceOperPath         = subnetResourceOperPathPrefix + "%s"
 )
 
+// AutoSubnetCfgResource is an implementation of core.State and core.Resource
+// for configuration of the subnet.
 type AutoSubnetCfgResource struct {
 	core.CommonState
 	SubnetPool     net.IP `json:"subnetPool"`
@@ -48,31 +51,37 @@ type AutoSubnetCfgResource struct {
 	AllocSubnetLen uint   `json:"allocSubnetLen"`
 }
 
+// SubnetIPLenPair structurally represents a CIDR notated address.
 type SubnetIPLenPair struct {
 	IP  net.IP
 	Len uint
 }
 
+// Write the state
 func (r *AutoSubnetCfgResource) Write() error {
-	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.ID)
+	key := fmt.Sprintf(subnetResourceConfigPath, r.ID)
 	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
+// Read the state
 func (r *AutoSubnetCfgResource) Read(id string) error {
-	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, id)
+	key := fmt.Sprintf(subnetResourceConfigPath, id)
 	return r.StateDriver.ReadState(key, r, json.Unmarshal)
 }
 
+// Clear the state
 func (r *AutoSubnetCfgResource) Clear() error {
-	key := fmt.Sprintf(SUBNET_RSRC_CFG_PATH, r.ID)
+	key := fmt.Sprintf(subnetResourceConfigPath, r.ID)
 	return r.StateDriver.ClearState(key)
 }
 
+// ReadAll state from the resource prefix.
 func (r *AutoSubnetCfgResource) ReadAll() ([]core.State, error) {
-	return r.StateDriver.ReadAllState(SUBNET_RSRC_CFG_PATH_PREFIX, r,
+	return r.StateDriver.ReadAllState(subnetResourceConfigPathPrefix, r,
 		json.Unmarshal)
 }
 
+// Init the state from configuration.
 func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
 	cfg, ok := rsrcCfg.(*AutoSubnetCfgResource)
 	if !ok {
@@ -108,6 +117,7 @@ func (r *AutoSubnetCfgResource) Init(rsrcCfg interface{}) error {
 	return nil
 }
 
+// Deinit the state
 func (r *AutoSubnetCfgResource) Deinit() {
 	oper := &AutoSubnetOperResource{}
 	oper.StateDriver = r.StateDriver
@@ -124,10 +134,13 @@ func (r *AutoSubnetCfgResource) Deinit() {
 	r.Clear()
 }
 
+// Description returns a string that describe the type of state.
 func (r *AutoSubnetCfgResource) Description() string {
-	return AUTO_SUBNET_RSRC
+	return AutoSubnetResource
 }
 
+// Allocate a new subnet. Returns an interface{} which for this method is always
+// SubnetIPLenPair.
 func (r *AutoSubnetCfgResource) Allocate() (interface{}, error) {
 	oper := &AutoSubnetOperResource{}
 	oper.StateDriver = r.StateDriver
@@ -158,6 +171,7 @@ func (r *AutoSubnetCfgResource) Allocate() (interface{}, error) {
 	return pair, nil
 }
 
+// Deallocate the resource. Must be passed a SubnetIPLenPair.
 func (r *AutoSubnetCfgResource) Deallocate(value interface{}) error {
 	oper := &AutoSubnetOperResource{}
 	oper.StateDriver = r.StateDriver
@@ -195,27 +209,32 @@ func (r *AutoSubnetCfgResource) Deallocate(value interface{}) error {
 	return nil
 }
 
+// AutoSubnetOperResource is an implementation of core.State relating to subnets.
 type AutoSubnetOperResource struct {
 	core.CommonState
 	FreeSubnets *bitset.BitSet `json:"freeSubnets"`
 }
 
+// Write the state.
 func (r *AutoSubnetOperResource) Write() error {
-	key := fmt.Sprintf(SUBNET_RSRC_OPER_PATH, r.ID)
+	key := fmt.Sprintf(subnetResourceOperPath, r.ID)
 	return r.StateDriver.WriteState(key, r, json.Marshal)
 }
 
+// Read the state.
 func (r *AutoSubnetOperResource) Read(id string) error {
-	key := fmt.Sprintf(SUBNET_RSRC_OPER_PATH, id)
+	key := fmt.Sprintf(subnetResourceOperPath, id)
 	return r.StateDriver.ReadState(key, r, json.Unmarshal)
 }
 
+// ReadAll state under the prefix.
 func (r *AutoSubnetOperResource) ReadAll() ([]core.State, error) {
-	return r.StateDriver.ReadAllState(SUBNET_RSRC_OPER_PATH_PREFIX, r,
+	return r.StateDriver.ReadAllState(subnetResourceOperPathPrefix, r,
 		json.Unmarshal)
 }
 
+// Clear the state.
 func (r *AutoSubnetOperResource) Clear() error {
-	key := fmt.Sprintf(SUBNET_RSRC_OPER_PATH, r.ID)
+	key := fmt.Sprintf(subnetResourceOperPath, r.ID)
 	return r.StateDriver.ClearState(key)
 }
