@@ -1,6 +1,7 @@
 package core
 
-// State interface encapsulates all state within the netplugin system.
+// State identifies data uniquely identifiable by 'id' and stored in a
+// (distributed) key-value store implemented by core.StateDriver.
 type State interface {
 	Read(id string) error
 	ReadAll() ([]State, error)

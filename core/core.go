@@ -57,7 +57,8 @@ type Plugin interface {
 	Endpoint
 }
 
-// InstanceInfo encapsulates data about the host.
+// InstanceInfo encapsulates data that is specific to a running instance of
+// netplugin like label of host on which it is started.
 type InstanceInfo struct {
 	StateDriver StateDriver `json:"-"`
 	HostLabel   string      `json:"host-label"`
