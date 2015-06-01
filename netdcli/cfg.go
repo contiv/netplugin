@@ -34,9 +34,9 @@ import (
 func getEpName(net *netmaster.ConfigNetwork, ep *netmaster.ConfigEP) string {
 	if ep.Container != "" {
 		return net.Name + "-" + ep.Container
-	} else {
-		return ep.Host + "-native-intf"
 	}
+
+	return ep.Host + "-native-intf"
 }
 
 func postProcessing() {
@@ -253,7 +253,7 @@ func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 
 func initEtcd(defOpts *cliOpts) (core.StateDriver, error) {
 	driverConfig := &state.EtcdStateDriverConfig{}
-	driverConfig.Etcd.Machines = []string{defOpts.etcdUrl}
+	driverConfig.Etcd.Machines = []string{defOpts.etcdURL}
 	config := &core.Config{V: driverConfig}
 
 	etcdDriver := &state.EtcdStateDriver{}
@@ -265,7 +265,7 @@ func initEtcd(defOpts *cliOpts) (core.StateDriver, error) {
 	return etcdDriver, err
 }
 
-func executeJsonCfg(defOpts *cliOpts) (err error) {
+func executeJSONCfg(defOpts *cliOpts) (err error) {
 	data := []byte{}
 	if opts.idStr == "-" {
 		reader := bufio.NewReader(os.Stdin)

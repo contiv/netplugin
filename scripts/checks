@@ -29,8 +29,15 @@ fi
 echo "+++ golint tree..."
 for i in $(find . -maxdepth 1 -type d -name '*' | grep -vE '/\..*$')
 do
-  golint "${i}"
+  output="${output}$(golint ${i})" # golint has no exit codes
 done
+
+if [ -n "${output}" ]
+then
+  echo -e "!!! golint checking failed: "
+  echo -n "${output}"
+  exit 1
+fi
 
 echo "+++ go vet tree..."
 for i in ${BUILD_PKGS}
