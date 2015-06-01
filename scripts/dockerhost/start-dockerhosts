@@ -51,12 +51,28 @@ if [ -n "${errors}" ]; then
     exit 1
 fi
 
+set -e
+
 scriptdir=`dirname "$BASH_SOURCE"`
 echo $scriptdir
 
+if ! sudo ip link | grep -q docker0
+then
+  echo "Docker bridge is dead; restart docker"
+  if [ "x$CONTIV_NOWARN" == "x" ]
+  then
+    echo "Please press enter to allow this. Set \$CONTIV_NOWARN to disable this warning."
+    read
+    echo "Restarting docker."
+  fi
+  sudo service docker restart 2>/dev/null || :
+fi
+
 # Create a linux bridge between containers
-sudo brctl addbr br-em1
-sudo ip link set br-em1 up
+if sudo brctl addbr br-em1 2>/dev/null
+then
+  sudo ip link set br-em1 up
+fi
 
 num_nodes=1
 if [ -n "$CONTIV_NODES" ];
@@ -66,21 +82,24 @@ fi
 echo "Num nodes = "$num_nodes
 
 # Create the docker image for hosts
-# sudo docker build -t ubuntu_netplugin $scriptdir
+sudo docker build -t ubuntu_netplugin $scriptdir
 
 # Pull ubuntu image for use within the docker hosts
 sudo docker pull ubuntu
 
-mkdir /tmp/ubuntu_image
+mkdir -p /tmp/ubuntu_image
 
-sudo docker save -o /tmp/ubuntu_image/ubuntu-image.tar ubuntu
+if [ ! -f /tmp/ubuntu_image/ubuntu-image.tar ]
+then
+  sudo docker save -o /tmp/ubuntu_image/ubuntu-image.tar ubuntu
+fi
 
 cluster=""
 first="true"
 for i in `seq 1 $num_nodes`; 
 do
     host="netplugin-node$i"
-    echo "Starting $host"
+    echo "Starting $host, removing any old ones if necessary"
     # godep modifies the host's GOPATH env variable, CONTIV_HOST_GOPATH
     # contains the unmodified path passed from the Makefile, use that
     # when it is defined.
@@ -89,16 +108,30 @@ do
     else
         gopath=$GOPATH
     fi
-    sudo docker run -d -i -t --name $host --privileged -e CONTIV_DIND_HOST_GOPATH=$gopath \
-        -e GOSRC=/gopath/src/ -v /var/lib/docker -v $gopath:/gopath -v /proc:/host/proc \
-        -v /tmp/ubuntu_image:/ubuntu_image sachja/ubuntu_netplugin bash \
-        -c "/gopath/src/github.com/contiv/netplugin/scripts/dockerhost/start-service.sh & bash"
+
+    sudo docker rm -f $host 2>/dev/null || :
+    sudo docker run -d -i -t --name $host \
+      --privileged \
+      -e CONTIV_DIND_HOST_GOPATH=$gopath \
+      -e GOSRC=/gopath/src/ -v /var/lib/docker \
+      -v ${gopath}:/gopath \
+      -v /proc:/host/proc \
+      -v /tmp/ubuntu_image:/ubuntu_image \
+      ubuntu_netplugin \
+      bash -c "/gopath/src/github.com/contiv/netplugin/scripts/dockerhost/start-service.sh && bash"
     sudo docker exec $host hostname $host
     sudo docker exec $host sh -c 'echo $(hostname -I | cut -d\  -f1) $(hostname) | tee -a /etc/hosts'
+
+    if sudo ip link | grep -q $i-int
+    then
+      sudo ip link delete $i-int
+    fi
+
     sudo ip link add $i-int type veth peer name $i-ext
     sudo brctl addif br-em1 $i-ext
     sudo ip link set $i-ext up
     sudo ip link set netns $($scriptdir/docker-pid $host) dev $i-int
+
     sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set dev $i-int name eth2
     sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set eth2 up
     addr=$((10+$i-1))
@@ -107,23 +140,40 @@ do
     sudo nsenter -t $($scriptdir/docker-pid $host) -n ip addr add $ip_addr dev eth2
     sudo nsenter -t $($scriptdir/docker-pid $host) -n ip route add "192.168.2.0/24" dev eth2
     if [ $i -gt "1" ]; then
-	cluster=$cluster",";
+      cluster=$cluster",";
     fi
-    sudo docker exec $host service docker start
+
+    echo "Starting docker in $host"
+    sudo docker exec -d $host /bin/bash -c '/bin/bash /gopath/src/github.com/contiv/netplugin/scripts/dockerhost/dind docker -d -D &>/tmp/docker.log'
+
+    echo "Waiting for docker to start"
+    times=0
+    if ! sudo docker exec $host test -f /var/run/docker.sock >/dev/null
+    then
+      sudo docker exec $host ps aux
+      sleep 1
+      times=$((1 + $times))
+      if [ $times -gt 10 ]
+      then
+        echo "!!! could not boot dind"
+        exit 1
+      fi
+    fi
+
     sudo docker exec $host docker load -i /ubuntu_image/ubuntu-image.tar
+
     addr=$($scriptdir/docker-ip $host)
     cluster=$cluster$host"=http://"$addr":2380"
     first="false"
 done
-
-sudo rm -rf /tmp/ubuntu_image
 
 for i in `seq 1 $num_nodes`; 
 do
     host="netplugin-node$i"
     echo "Starting etcd on $host"
     addr=$($scriptdir/docker-ip $host)
-    sudo docker exec -d $host etcd -name $host -data-dir /opt/etcd -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 -advertise-client-urls http://$addr:2379,http://$addr:4001 -initial-advertise-peer-urls http://$addr:2380 -listen-peer-urls http://$addr:2380 -initial-cluster $cluster -initial-cluster-state new 
+    # FIXME we should probably add this to the docker image
+    sudo docker exec -d $host /gopath/bin/etcd -name $host -data-dir /opt/etcd -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 -advertise-client-urls http://$addr:2379,http://$addr:4001 -initial-advertise-peer-urls http://$addr:2380 -listen-peer-urls http://$addr:2380 -initial-cluster $cluster -initial-cluster-state new
 done
 
 sleep 5s

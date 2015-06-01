@@ -34,43 +34,43 @@ import (
 )
 
 const (
-	CLI_CONSTRUCT_GLOBAL      = "global"
-	CLI_CONSTRUCT_NW          = "network"
-	CLI_CONSTRUCT_EP          = "endpoint"
-	CLI_CONSTRUCT_VLAN_RSRC   = "vlan-rsrc"
-	CLI_CONSTRUCT_VXLAN_RSRC  = "vxlan-rsrc"
-	CLI_CONSTRUCT_SUBNET_RSRC = "subnet-rsrc"
-	CLI_OPER_GET              = "get"
-	CLI_OPER_CREATE           = "create"
-	CLI_OPER_DELETE           = "delete"
-	CLI_OPER_ATTACH           = "attach"
-	CLI_OPER_DETACH           = "detach"
+	cliConstructGlobal         = "global"
+	cliConstructNetwork        = "network"
+	cliConstructEndpoint       = "endpoint"
+	cliConstructVLANResource   = "vlan-rsrc"
+	cliConstructVXLANResource  = "vxlan-rsrc"
+	cliConstructSubnetResource = "subnet-rsrc"
+	cliOperGet                 = "get"
+	cliOperCreate              = "create"
+	cliOperDelete              = "delete"
+	cliOperAttach              = "attach"
+	cliOperDetach              = "detach"
 )
 
 var constructs = []string{
-	CLI_CONSTRUCT_GLOBAL,
-	CLI_CONSTRUCT_NW,
-	CLI_CONSTRUCT_EP,
-	CLI_CONSTRUCT_VLAN_RSRC,
-	CLI_CONSTRUCT_VXLAN_RSRC,
-	CLI_CONSTRUCT_SUBNET_RSRC,
+	cliConstructGlobal,
+	cliConstructNetwork,
+	cliConstructEndpoint,
+	cliConstructVLANResource,
+	cliConstructVXLANResource,
+	cliConstructSubnetResource,
 }
 
-var validOperList = []string{CLI_OPER_GET, CLI_OPER_CREATE, CLI_OPER_DELETE, CLI_OPER_ATTACH, CLI_OPER_DETACH}
+var validOperList = []string{cliOperGet, cliOperCreate, cliOperDelete, cliOperAttach, cliOperDetach}
 
-type CliError struct {
+type cliError struct {
 	Desc string
 }
 
-func (e *CliError) Error() string {
+func (e *cliError) Error() string {
 	return e.Desc
 }
 
-type Operation struct {
+type operation struct {
 	val string
 }
 
-func (o *Operation) isValid(val string) bool {
+func (o *operation) isValid(val string) bool {
 	for _, str := range validOperList {
 		if str == val {
 			return true
@@ -79,13 +79,13 @@ func (o *Operation) isValid(val string) bool {
 	return false
 }
 
-func (o *Operation) String() string {
+func (o *operation) String() string {
 	return fmt.Sprintf("%s ", validOperList)
 }
 
-func (o *Operation) Set(val string) error {
+func (o *operation) Set(val string) error {
 	if !o.isValid(val) {
-		return &CliError{
+		return &cliError{
 			Desc: fmt.Sprintf("invalid value for construct (%s). Allowed values: %s",
 				val, o.String())}
 	}
@@ -93,30 +93,30 @@ func (o *Operation) Set(val string) error {
 	return nil
 }
 
-func (o *Operation) Get() interface{} {
+func (o *operation) Get() interface{} {
 	return o.val
 }
 
-type Construct struct {
+type construct struct {
 	val string
 }
 
-func (c *Construct) String() string {
+func (c *construct) String() string {
 	return fmt.Sprintf("%s", constructs)
 }
 
-func (c *Construct) Set(val string) error {
+func (c *construct) Set(val string) error {
 	for _, str := range constructs {
 		if str == val {
 			c.val = val
 			return nil
 		}
 	}
-	return &CliError{Desc: fmt.Sprintf("invalid value for construct (%s). Allowed values: %s",
+	return &cliError{Desc: fmt.Sprintf("invalid value for construct (%s). Allowed values: %s",
 		val, c.String())}
 }
 
-func (c *Construct) Get() interface{} {
+func (c *construct) Get() interface{} {
 	return c.val
 }
 
@@ -126,9 +126,9 @@ type cliOpts struct {
 	cfgAdditions    bool
 	cfgDeletions    bool
 	cfgHostBindings bool
-	oper            Operation
-	construct       Construct
-	etcdUrl         string
+	oper            operation
+	construct       construct
+	etcdURL         string
 	tenant          string
 	netID           string
 	pktTag          string
@@ -163,20 +163,20 @@ func init() {
 	flagSet.BoolVar(&opts.cfgHostBindings,
 		"host-bindings-cfg",
 		false,
-		"Json file describing container to host bindings. Use '-' to read configuration from stdin")
+		"JSON file describing container to host bindings. Use '-' to read configuration from stdin")
 	flagSet.BoolVar(&opts.cfgAdditions,
 		"add-cfg",
 		false,
-		"Json file describing addition to global and network intent. Use '-' to read configuration from stdin")
+		"JSON file describing addition to global and network intent. Use '-' to read configuration from stdin")
 	flagSet.BoolVar(&opts.cfgDeletions,
 		"del-cfg",
 		false,
-		"Json file describing deletion from global and network intent. Use '-' to read configuration from stdin")
+		"JSON file describing deletion from global and network intent. Use '-' to read configuration from stdin")
 	flagSet.BoolVar(&opts.cfgDesired,
 		"cfg",
 		false,
-		"Json file describing the global and network intent. Use '-' to read configuration from stdin")
-	flagSet.StringVar(&opts.etcdUrl,
+		"JSON file describing the global and network intent. Use '-' to read configuration from stdin")
+	flagSet.StringVar(&opts.etcdURL,
 		"etcd-url",
 		"http://127.0.0.1:4001",
 		"Etcd cluster url")
@@ -275,8 +275,8 @@ func validateOpts(opts *cliOpts) error {
 	}
 
 	// global create params validation
-	if opts.oper.Get() == CLI_OPER_CREATE &&
-		opts.construct.Get() == CLI_CONSTRUCT_GLOBAL {
+	if opts.oper.Get() == cliOperCreate &&
+		opts.construct.Get() == cliConstructGlobal {
 		if opts.vlans != "" {
 			_, err = netutils.ParseTagRanges(opts.vlans, "vlan")
 			if err != nil {
@@ -293,8 +293,8 @@ func validateOpts(opts *cliOpts) error {
 	}
 
 	if opts.pktTag == "auto" {
-		if opts.oper.Get() == CLI_OPER_CREATE &&
-			opts.construct.Get() == CLI_CONSTRUCT_NW {
+		if opts.oper.Get() == cliOperCreate &&
+			opts.construct.Get() == cliConstructNetwork {
 			log.Printf("  auto allocating network subnet from global pool")
 		}
 	} else if opts.pktTag != "" {
@@ -305,8 +305,8 @@ func validateOpts(opts *cliOpts) error {
 	}
 
 	// network create params validation
-	if opts.oper.Get() == CLI_OPER_CREATE &&
-		opts.construct.Get() == CLI_CONSTRUCT_NW {
+	if opts.oper.Get() == cliOperCreate &&
+		opts.construct.Get() == cliConstructNetwork {
 	}
 
 	if opts.homingHost == "" {
@@ -337,8 +337,8 @@ func validateOpts(opts *cliOpts) error {
 	}
 
 	// endpoint parameters validation
-	if opts.oper.Get() == CLI_OPER_CREATE &&
-		opts.construct.Get() == CLI_CONSTRUCT_EP &&
+	if opts.oper.Get() == cliOperCreate &&
+		opts.construct.Get() == cliConstructEndpoint &&
 		opts.vtepIP != "" &&
 		(opts.netID == "" || opts.ipAddr == "") {
 		if opts.ipAddr == "auto" {
@@ -350,8 +350,8 @@ func validateOpts(opts *cliOpts) error {
 	}
 
 	// attach detach parameters validation
-	if (opts.oper.Get() == CLI_OPER_ATTACH || opts.oper.Get() == CLI_OPER_DETACH) &&
-		opts.construct.Get() == CLI_CONSTRUCT_EP && opts.contName == "" {
+	if (opts.oper.Get() == cliOperAttach || opts.oper.Get() == cliOperDetach) &&
+		opts.construct.Get() == cliConstructEndpoint && opts.contName == "" {
 		log.Fatalf("A valid container-id is needed to attach/detach a container to an ep")
 	}
 
@@ -359,7 +359,7 @@ func validateOpts(opts *cliOpts) error {
 }
 
 func executeOpts(opts *cliOpts) error {
-	var coreState core.State = nil
+	var coreState core.State
 
 	err := validateOpts(opts)
 	if err != nil {
@@ -371,7 +371,7 @@ func executeOpts(opts *cliOpts) error {
 
 	etcdDriver := &state.EtcdStateDriver{}
 	driverConfig := &state.EtcdStateDriverConfig{}
-	driverConfig.Etcd.Machines = []string{opts.etcdUrl}
+	driverConfig.Etcd.Machines = []string{opts.etcdURL}
 	config := &core.Config{V: driverConfig}
 	err = etcdDriver.Init(config)
 	if err != nil {
@@ -379,12 +379,12 @@ func executeOpts(opts *cliOpts) error {
 	}
 
 	switch opts.construct.Get() {
-	case CLI_CONSTRUCT_EP:
-		if opts.oper.Get() == CLI_OPER_GET {
+	case cliConstructEndpoint:
+		if opts.oper.Get() == cliOperGet {
 			epOper := &drivers.OvsOperEndpointState{}
 			epOper.StateDriver = etcdDriver
 			coreState = epOper
-		} else if opts.oper.Get() == CLI_OPER_ATTACH || opts.oper.Get() == CLI_OPER_DETACH {
+		} else if opts.oper.Get() == cliOperAttach || opts.oper.Get() == cliOperDetach {
 			epCfg := &drivers.OvsCfgEndpointState{}
 			epCfg.StateDriver = etcdDriver
 			err = epCfg.Read(opts.idStr)
@@ -392,7 +392,7 @@ func executeOpts(opts *cliOpts) error {
 				log.Fatalf("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
 			}
 			log.Printf("read ep state as %v for container %s \n", epCfg, opts.contName)
-			if opts.oper.Get() == CLI_OPER_ATTACH {
+			if opts.oper.Get() == cliOperAttach {
 				epCfg.ContName = opts.contName
 				epCfg.AttachUUID = opts.attachUUID
 			} else {
@@ -416,8 +416,8 @@ func executeOpts(opts *cliOpts) error {
 			epCfg.IntfName = opts.intfName
 			coreState = epCfg
 		}
-	case CLI_CONSTRUCT_NW:
-		if opts.oper.Get() == CLI_OPER_GET {
+	case cliConstructNetwork:
+		if opts.oper.Get() == cliOperGet {
 			nwCfg := &drivers.OvsCfgNetworkState{}
 			nwCfg.StateDriver = etcdDriver
 			coreState = nwCfg
@@ -433,13 +433,13 @@ func executeOpts(opts *cliOpts) error {
 			nwCfg.ID = opts.idStr
 			coreState = nwCfg
 		}
-	case CLI_CONSTRUCT_GLOBAL:
+	case cliConstructGlobal:
 		gcfg := &gstate.Cfg{}
 		gcfg.StateDriver = etcdDriver
-		if opts.oper.Get() == CLI_OPER_GET {
+		if opts.oper.Get() == cliOperGet {
 			err = gcfg.Read(opts.tenant)
 			log.Printf("State: %v \n", gcfg)
-		} else if opts.oper.Get() == CLI_OPER_DELETE {
+		} else if opts.oper.Get() == cliOperDelete {
 			gcfg.Version = gstate.VersionBeta1
 			gcfg.Tenant = opts.tenant
 			err = gcfg.Clear()
@@ -461,23 +461,23 @@ func executeOpts(opts *cliOpts) error {
 			log.Fatalf("error '%s' \n", err)
 		}
 		return err
-	case CLI_CONSTRUCT_VLAN_RSRC:
+	case cliConstructVLANResource:
 		fallthrough
-	case CLI_CONSTRUCT_VXLAN_RSRC:
+	case cliConstructVXLANResource:
 		fallthrough
-	case CLI_CONSTRUCT_SUBNET_RSRC:
-		if opts.oper.Get() == CLI_OPER_GET {
-			if CLI_CONSTRUCT_VLAN_RSRC == opts.construct.Get() {
+	case cliConstructSubnetResource:
+		if opts.oper.Get() == cliOperGet {
+			if cliConstructVLANResource == opts.construct.Get() {
 				rsrc := &resources.AutoVLANCfgResource{}
 				rsrc.StateDriver = etcdDriver
 				coreState = rsrc
 			}
-			if CLI_CONSTRUCT_VXLAN_RSRC == opts.construct.Get() {
+			if cliConstructVXLANResource == opts.construct.Get() {
 				rsrc := &resources.AutoVXLANCfgResource{}
 				rsrc.StateDriver = etcdDriver
 				coreState = rsrc
 			}
-			if CLI_CONSTRUCT_SUBNET_RSRC == opts.construct.Get() {
+			if cliConstructSubnetResource == opts.construct.Get() {
 				rsrc := &resources.AutoSubnetCfgResource{}
 				rsrc.StateDriver = etcdDriver
 				coreState = rsrc
@@ -488,7 +488,7 @@ func executeOpts(opts *cliOpts) error {
 	}
 
 	switch opts.oper.Get() {
-	case CLI_OPER_GET:
+	case cliOperGet:
 		err = coreState.Read(opts.idStr)
 		if err != nil {
 			log.Fatalf("Failed to read %s. Error: %s", opts.construct.Get(), err)
@@ -498,12 +498,12 @@ func executeOpts(opts *cliOpts) error {
 			log.Printf("%s State: \n%s\n", opts.construct.Get(),
 				strings.Replace(fmt.Sprintf("%+v", coreState), " ", ",\n\t", -1))
 		}
-	case CLI_OPER_ATTACH, CLI_OPER_DETACH, CLI_OPER_CREATE:
+	case cliOperAttach, cliOperDetach, cliOperCreate:
 		err = coreState.Write()
 		if err != nil {
 			log.Fatalf("Failed to create %s. Error: %s", opts.construct.Get(), err)
 		}
-	case CLI_OPER_DELETE:
+	case cliOperDelete:
 		err = coreState.Clear()
 		if err != nil {
 			log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
@@ -521,7 +521,7 @@ func main() {
 	opts.idStr = flagSet.Arg(0)
 
 	if opts.cfgDesired || opts.cfgDeletions || opts.cfgAdditions || opts.cfgHostBindings {
-		err = executeJsonCfg(&opts)
+		err = executeJSONCfg(&opts)
 	} else {
 		err = executeOpts(&opts)
 	}
