@@ -116,6 +116,12 @@ type StateDriver interface {
 		unmarshal func([]byte, interface{}) error) error
 	ReadAllState(baseKey string, stateType State,
 		unmarshal func([]byte, interface{}) error) ([]State, error)
+	// WatchAllState returns changes to a state from the point watch is started.
+	// It's a blocking call.
+	// XXX: This specification introduces a small time window where a few
+	// updates might be missed that occurred just before watch was started.
+	// May be watch shall return all existing state first and then subsequent
+	// updates. Revisit if this enhancement is needed.
 	WatchAllState(baseKey string, stateType State,
 		unmarshal func([]byte, interface{}) error, rsps chan WatchState) error
 	ClearState(key string) error
