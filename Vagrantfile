@@ -55,11 +55,11 @@ if [ $# -gt 0 ]; then
     (echo "export $@" >> /etc/default/docker && \
      service docker restart) || exit 1
 fi
-
 ## install openvswitch and enable ovsdb-server to listen for incoming requests
 #(apt-get install -y openvswitch-switch > /dev/null) || exit 1
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
+
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
@@ -132,6 +132,13 @@ provision_node = <<SCRIPT
  -listen-peer-urls http://#{node_addr}:2380 \
  -initial-cluster #{node_peers} \
  -initial-cluster-state new 0<&- &>/tmp/etcd.log &) || exit 1
+
+if [ -f "#{netplugin_synced_gopath}/bin/docker" ]
+then
+  service docker stop
+  cp -v "#{netplugin_synced_gopath}/bin/docker" /usr/bin/docker
+  service docker restart
+fi
 SCRIPT
             node.vm.provision "shell" do |s|
                 s.inline = provision_node
