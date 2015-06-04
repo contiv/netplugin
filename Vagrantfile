@@ -17,6 +17,8 @@ if [ $# -gt 0 ]; then
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
+source /etc/profile.d/envvar.sh
+
 ## set the mounted host filesystems to be read-only.Just a safety check
 ## to prevent inadvertent modifications from vm.
 (mount -o remount,ro,exec /vagrant) || exit 1
@@ -42,9 +44,8 @@ fi
 #(cd /tmp && \
 #curl -L  https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o etcd-v2.0.0-linux-amd64.tar.gz && \
 #tar -xzf etcd-v2.0.0-linux-amd64.tar.gz && \
-#cd /usr/bin && \
-#ln -s /tmp/etcd-v2.0.0-linux-amd64/etcd && \
-#ln -s /tmp/etcd-v2.0.0-linux-amd64/etcdctl) || exit 1
+#mv /tmp/etcd-v2.0.0-linux-amd64/etcd /usr/bin/ && \
+#mv /tmp/etcd-v2.0.0-linux-amd64/etcdctl /usr/bin/ ) || exit 1
 #
 ### install and start docker
 #(curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null) || exit 1
@@ -60,12 +61,17 @@ fi
 #(apt-get install -y openvswitch-switch > /dev/null) || exit 1
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
+
+### install consul
+#(apt-get install -y unzip && cd /tmp && \
+# wget https://dl.bintray.com/mitchellh/consul/0.5.2_linux_amd64.zip && \
+# unzip 0.5.2_linux_amd64.zip && \
+# mv /tmp/consul /usr/bin) || exit 1
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-    config.vm.box = "contiv/ubuntu/v2"
-    # XXX: need a public url
+    config.vm.box = "contiv/ubuntu/v3"
     config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
     num_nodes = 1
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
@@ -132,6 +138,10 @@ provision_node = <<SCRIPT
  -listen-peer-urls http://#{node_addr}:2380 \
  -initial-cluster #{node_peers} \
  -initial-cluster-state new 0<&- &>/tmp/etcd.log &) || exit 1
+
+## start consul
+(echo && echo consul agent -server -bootstrap-expect 1 -data-dir /tmp/consul)
+(nohup consul agent -server -bootstrap-expect 1 -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
 SCRIPT
             node.vm.provision "shell" do |s|
                 s.inline = provision_node
