@@ -234,7 +234,7 @@ func (d *ConsulStateDriver) ReadState(key string, value core.State,
 // ReadAllState Reads all the state from baseKey and returns a list of core.State.
 func (d *ConsulStateDriver) ReadAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return ReadAllStateCommon(d, baseKey, sType, unmarshal)
+	return readAllStateCommon(d, baseKey, sType, unmarshal)
 }
 
 // WatchAllState watches all state from the baseKey.
@@ -243,7 +243,7 @@ func (d *ConsulStateDriver) WatchAllState(baseKey string, sType core.State,
 	byteRsps := make(chan [2][]byte, 1)
 	recvErr := make(chan error, 1)
 
-	go ChannelStateEvents(d, sType, unmarshal, byteRsps, rsps, recvErr)
+	go channelStateEvents(d, sType, unmarshal, byteRsps, rsps, recvErr)
 
 	err := d.WatchAll(baseKey, byteRsps)
 	if err != nil {

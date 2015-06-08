@@ -170,10 +170,10 @@ func (d *EtcdStateDriver) ReadState(key string, value core.State,
 	return nil
 }
 
-// ReadAllStateCommon reads and unmarshals (given a function) all state into a
+// readAllStateCommon reads and unmarshals (given a function) all state into a
 // list of core.State objects.
 // XXX: move this to some common file
-func ReadAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
+func readAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	stateType := reflect.TypeOf(sType)
 	sliceType := reflect.SliceOf(stateType)
@@ -212,14 +212,14 @@ func ReadAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
 // ReadAllState Reads all the state from baseKey and returns a list of core.State.
 func (d *EtcdStateDriver) ReadAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return ReadAllStateCommon(d, baseKey, sType, unmarshal)
+	return readAllStateCommon(d, baseKey, sType, unmarshal)
 }
 
-// ChannelStateEvents watches for updates(created, modify, delete) to a state of
+// channelStateEvents watches for updates(created, modify, delete) to a state of
 // specified type and unmarshals (given a function) all changes and puts then on
 // channel of core.WatchState objects.
 // XXX: move this to some common file
-func ChannelStateEvents(d core.StateDriver, sType core.State,
+func channelStateEvents(d core.StateDriver, sType core.State,
 	unmarshal func([]byte, interface{}) error,
 	byteRsps chan [2][]byte, rsps chan core.WatchState, retErr chan error) {
 	for {
@@ -269,7 +269,7 @@ func (d *EtcdStateDriver) WatchAllState(baseKey string, sType core.State,
 	byteRsps := make(chan [2][]byte, 1)
 	recvErr := make(chan error, 1)
 
-	go ChannelStateEvents(d, sType, unmarshal, byteRsps, rsps, recvErr)
+	go channelStateEvents(d, sType, unmarshal, byteRsps, rsps, recvErr)
 
 	err := d.WatchAll(baseKey, byteRsps)
 	if err != nil {
