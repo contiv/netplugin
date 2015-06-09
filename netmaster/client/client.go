@@ -77,6 +77,7 @@ func (c *Client) doGet(rsrc string) ([]byte, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		fmt.Println(rsrc)
 		return nil, core.Errorf("Response status: %q. Response Body: %+v", resp.Status, resp.Body)
 	}
 

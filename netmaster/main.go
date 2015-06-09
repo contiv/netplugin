@@ -271,13 +271,18 @@ func (d *daemon) endpoints(id string) ([]core.State, error) {
 		return nil, err
 	}
 
+	println(id)
+
 	if id == "all" {
 		return ep.ReadAll()
-	} else if err := ep.Read(id); err == nil {
+	}
+
+	err = ep.Read(id)
+	if err == nil {
 		return []core.State{core.State(ep)}, nil
 	}
 
-	return nil, core.Errorf("Unexpected code path")
+	return nil, core.Errorf("Unexpected code path. Recieved error during read: %v", err)
 }
 
 // XXX: This function should be returning logical state instead of driver state
