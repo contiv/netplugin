@@ -27,27 +27,28 @@ if [ -n "${fmtRes}" ]; then
 fi
 
 echo "+++ golint tree..."
-for i in $(find . -maxdepth 1 -type d -name '*' | grep -vE '/\..*$')
+for i in ${BUILD_PKGS}
 do
-  output="${output}$(golint ${i})" # golint has no exit codes
+    output="${output}$(golint ${i})" # golint has no exit codes
 done
 
 if [ -n "${output}" ]
 then
-  echo -e "!!! golint checking failed: "
-  echo -n "${output}"
-  exit 1
+    echo -e "!!! golint checking failed:\n${output}"
+    #exit 1
 fi
 
 echo "+++ go vet tree..."
 for i in ${BUILD_PKGS}
 do
-  if ! go vet "${i}"
-  then
-    echo "!!! go vet failed for the following package: ${i}"
-    exit 1
-  fi
+    vetOutput="${vetOutput}$(go vet ${i} 2>&1)"
 done
+
+if [ -n "${vetOutput}" ]
+then
+    echo -e "!!! go vet checking failed:\n${vetOutput}"
+    #exit 1
+fi
 
 echo "+++ All checks passed!!"
 exit 0
