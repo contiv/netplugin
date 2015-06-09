@@ -95,7 +95,7 @@ func (d *FakeStateDriver) ReadState(key string, value core.State,
 // ReadAllState reads all state from baseKey of a given type
 func (d *FakeStateDriver) ReadAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
-	return ReadAllStateCommon(d, baseKey, sType, unmarshal)
+	return readAllStateCommon(d, baseKey, sType, unmarshal)
 }
 
 // WatchAllState reads all state from baseKey of a given type

@@ -45,6 +45,11 @@
 			"Rev": "23abd51ef15b2c0138e272708845750be5eb0b03"
 		},
 		{
+			"ImportPath": "github.com/hashicorp/consul/api",
+			"Comment": "v0.5.2-30-g26d15e6",
+			"Rev": "26d15e6f07af180e35bdd694d40ecf71d4929656"
+		},
+		{
 			"ImportPath": "github.com/jainvipin/bitset",
 			"Comment": "v1.0.0-12-g1f0c6de",
 			"Rev": "1f0c6de81a62732e75f6c97f1e28e5a009b5df68"
