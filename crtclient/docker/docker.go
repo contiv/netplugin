@@ -31,22 +31,25 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-type DockerConfig struct {
+// Config contains configuration for docker client
+type Config struct {
 	Docker struct {
 		Socket string
 	}
 }
 
+// Docker implements crt-client interface for docker
 type Docker struct {
 	Client *dockerclient.DockerClient
 }
 
+// Init initializes the docker client
 func (d *Docker) Init(config *crtclient.Config) error {
 	if config == nil {
 		return core.Errorf("null config!")
 	}
 
-	cfg, ok := config.V.(*DockerConfig)
+	cfg, ok := config.V.(*Config)
 
 	if !ok {
 		return core.Errorf("Invalid config type passed!")
@@ -62,6 +65,7 @@ func (d *Docker) Init(config *crtclient.Config) error {
 	return nil
 }
 
+// Deinit is a no-op
 func (d *Docker) Deinit() {
 }
 
@@ -139,9 +143,8 @@ func (d *Docker) moveIfToContainer(ctx *crtclient.ContainerEPContext) error {
 	if err != nil && !os.IsNotExist(err) {
 		log.Errorf("error removing file '%s'. Error: %s", netnsPidFile, err)
 		return err
-	} else {
-		err = nil
 	}
+	err = nil
 
 	procNetNs := path.Join("/proc", contPid, "ns/net")
 	err = os.Symlink(procNetNs, netnsPidFile)
@@ -292,7 +295,7 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEPContext) error {
 	return err
 }
 
-// performs funtion to configure the network access and policies
+// AttachEndpoint configures the network access and policies
 // before the container becomes active
 func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEPContext) error {
 
@@ -314,7 +317,7 @@ func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEPContext) error {
 	return err
 }
 
-// uninstall the policies and configuration during container attach
+// DetachEndpoint uninstalls the policies and configuration during container stop/remove
 func (d *Docker) DetachEndpoint(ctx *crtclient.ContainerEPContext) error {
 	var err error
 
@@ -329,6 +332,7 @@ func (d *Docker) DetachEndpoint(ctx *crtclient.ContainerEPContext) error {
 	return err
 }
 
+// GetContainerID returns the uuid corresponding to the container name
 func (d *Docker) GetContainerID(contName string) string {
 	contInfo, err := d.Client.InspectContainer(contName)
 	if err != nil {
@@ -345,6 +349,7 @@ func (d *Docker) GetContainerID(contName string) string {
 	return contInfo.Id
 }
 
+// GetContainerName returns the name corresponding to the container uuid
 func (d *Docker) GetContainerName(contID string) (string, error) {
 	contInfo, err := d.Client.InspectContainer(contID)
 	if err != nil {

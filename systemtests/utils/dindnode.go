@@ -15,28 +15,34 @@ limitations under the License.
 
 package utils
 
+// DindNode implements a node in docker-in-docker (dind) testbed
 type DindNode struct {
 	Name    string
 	NodeNum int
 }
 
+// RunCommand runs a shell command in a dind node and returns it's exit status
 func (n DindNode) RunCommand(cmd string) error {
 	tcmd := &TestCommand{ContivNodes: n.NodeNum}
 	return tcmd.Run("sh", "-c", "sudo docker exec "+n.Name+" "+cmd)
 }
 
+// RunCommandWithOutput runs a shell command in a dind node and returns it's
+// exit status and output
 func (n DindNode) RunCommandWithOutput(cmd string) (string, error) {
 	tcmd := &TestCommand{ContivNodes: n.NodeNum}
 	output, err := tcmd.RunWithOutput("sh", "-c", "sudo docker exec "+n.Name+" "+cmd)
 	return string(output), err
 }
 
+// RunCommandBackground runs a background command in a dind node
 func (n DindNode) RunCommandBackground(cmd string) (string, error) {
 	tcmd := &TestCommand{ContivNodes: n.NodeNum}
 	output, err := tcmd.RunWithOutput("sh", "-c", "sudo docker exec -d "+n.Name+" "+cmd)
 	return string(output), err
 }
 
+// GetName returns dind node's name
 func (n DindNode) GetName() string {
 	return n.Name
 }

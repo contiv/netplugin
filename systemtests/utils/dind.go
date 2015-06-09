@@ -22,11 +22,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// Dind implements docker-in-docker(dind) based testbed
 type Dind struct {
 	expectedNodes int
 	nodes         []TestbedNode
 }
 
+// Setup brings up a dind testbed
 func (v *Dind) Setup(env string, numNodes int) error {
 
 	err := os.Chdir(os.Getenv("CONTIV_HOST_GOPATH") + "/src/github.com/contiv/netplugin")
@@ -61,6 +63,7 @@ func (v *Dind) Setup(env string, numNodes int) error {
 	return nil
 }
 
+// Teardown cleans up a dind testbed
 func (v *Dind) Teardown() {
 	cmd := &TestCommand{ContivNodes: v.expectedNodes}
 	output, err := cmd.RunWithOutput("scripts/dockerhost/cleanup-dockerhosts")
@@ -73,6 +76,7 @@ func (v *Dind) Teardown() {
 	v.expectedNodes = 0
 }
 
+// GetNodes returns the nodes in a dind setup
 func (v *Dind) GetNodes() []TestbedNode {
 	return v.nodes
 }

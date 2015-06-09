@@ -60,7 +60,7 @@ import (
 
 type cliOpts struct {
 	hostLabel string
-	etcdUrl   string
+	etcdURL   string
 }
 
 var gcliOpts cliOpts
@@ -79,7 +79,7 @@ func main() {
 		"host-label",
 		gHostLabel,
 		"label used to identify endpoints homed for this host, default is host name")
-	flagSet.StringVar(&gcliOpts.etcdUrl,
+	flagSet.StringVar(&gcliOpts.etcdURL,
 		"etcd-url",
 		"http://127.0.0.1:4001",
 		"Etcd cluster url")

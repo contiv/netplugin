@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	EXAMPLES_DIR = "/src/github.com/contiv/netplugin/examples/"
+	examplesDir = "/src/github.com/contiv/netplugin/examples/"
 )
 
+// OkToCleanup tests if a testbed cleanup should be performed.
 func OkToCleanup(testFailed bool) bool {
 	// don't cleanup if stop-on-error is set
 	if os.Getenv("CONTIV_SOE") != "" && testFailed {
@@ -41,12 +42,14 @@ func OkToCleanup(testFailed bool) bool {
 	return true
 }
 
+// StopOnError stops the test and panics if CONTIV_SOE env-variable is set and test has failed
 func StopOnError(testFailed bool) {
 	if os.Getenv("CONTIV_SOE") != "" && testFailed {
 		panic("Stopping tests as stop on error was set. Please check test logs to determine the actual failure. The system is left in same state for debugging.")
 	}
 }
 
+// ConfigCleanupCommon performs common cleanup after each test
 func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
 
 	if !OkToCleanup(t.Failed()) {
@@ -65,6 +68,7 @@ func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
 	StopNetPlugin(t, nodes)
 }
 
+// StopNetPlugin stops the netplugin on specified testbed nodes
 func StopNetPlugin(t *testing.T, nodes []TestbedNode) {
 	for _, node := range nodes {
 		cmdStr := "sudo pkill netplugin"
@@ -72,6 +76,7 @@ func StopNetPlugin(t *testing.T, nodes []TestbedNode) {
 	}
 }
 
+// StartNetPlugin statrs netplugin on  specified testbed nodes
 func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 	nativeIntegStr := ""
 	if nativeInteg {
@@ -96,6 +101,7 @@ func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 	}
 }
 
+// StartPowerStripAdapter starts the powerstrip adapter on specified testbed nodes
 func StartPowerStripAdapter(t *testing.T, nodes []TestbedNode) {
 	for i, node := range nodes {
 		// hardcoding eth1 as it is the control interface in demo setup
@@ -106,14 +112,14 @@ func StartPowerStripAdapter(t *testing.T, nodes []TestbedNode) {
 			t.Fatalf("Error '%s' starting powerstrip adapter, Output: \n%s\n",
 				err, output)
 		}
-		nodeIpAddr := strings.Trim(string(output), " \n")
+		nodeIPAddr := strings.Trim(string(output), " \n")
 
 		// host-label needs to match between netplugin and powerstrip adapter
 		cmdStr = `cd $GOSRC/github.com/contiv/netplugin && \
               sudo docker build -t netplugin/pslibnet mgmtfn/pslibnet && \
               sudo docker run -d --name pslibnet --expose 80 netplugin/pslibnet \
                 --host-label=host%d --etcd-url=http://%s:2379`
-		cmdStr = fmt.Sprintf(cmdStr, i+1, nodeIpAddr)
+		cmdStr = fmt.Sprintf(cmdStr, i+1, nodeIPAddr)
 		output, err = node.RunCommandWithOutput(cmdStr)
 		if err != nil {
 			t.Fatalf("Error '%s' starting powerstrip adapter, Output: \n%s\n",
@@ -173,22 +179,27 @@ func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode) {
 	}
 }
 
+// AddConfig issues netdcli with -add-cfg flag
 func AddConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 	applyConfig(t, "add-cfg", jsonCfg, node)
 }
 
+// DelConfig issues netdcli with -del-cfg flag
 func DelConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 	applyConfig(t, "del-cfg", jsonCfg, node)
 }
 
+// ApplyDesiredConfig issues netdcli with -cfg flag
 func ApplyDesiredConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 	applyConfig(t, "cfg", jsonCfg, node)
 }
 
+// ApplyHostBindingsConfig issues netdcli with -host-bindings-cfg flag
 func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 	applyConfig(t, "host-bindings-cfg", jsonCfg, node)
 }
 
+// FixUpContainerUUIDs fills up UUID information in passed jsonCfg and returns host-binding configuration
 func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (string, error) {
 	epBindings := []netmaster.ConfigEP{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
@@ -201,7 +212,7 @@ func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (str
 	// fill in as much as possible for this host; assume that the
 	// container name is unique across hosts
 	for _, node := range nodes {
-		for idx, _ := range epBindings {
+		for idx := range epBindings {
 			ep := &epBindings[idx]
 			if ep.AttachUUID != "" {
 				continue
@@ -223,6 +234,7 @@ func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (str
 	return string(bytes[:]), err
 }
 
+// FixUpInfraContainerUUIDs fills up UUID information in passed jsonCfg and returns host-binding configuration
 func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraContCfg string) (string, error) {
 
 	epBindings := []netmaster.ConfigEP{}
@@ -248,7 +260,7 @@ func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraC
 	// fill in as much as possible for this host; assume that the
 	// container name is unique across hosts
 	for _, node := range nodes {
-		for idx, _ := range epBindings {
+		for idx := range epBindings {
 			ep := &epBindings[idx]
 			if ep.AttachUUID != "" {
 				continue
@@ -276,13 +288,15 @@ func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraC
 	return string(bytes[:]), err
 }
 
+// ConfigSetupCommon performs common configuration setup on specified testbed nodes
 func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []TestbedNode) {
 	StartNetPlugin(t, nodes, false)
 
 	ApplyDesiredConfig(t, jsonCfg, nodes[0])
 }
 
-func GetIpAddress(t *testing.T, node TestbedNode, ep string) string {
+// GetIPAddress returns IP-address information for specified endpoint
+func GetIPAddress(t *testing.T, node TestbedNode, ep string) string {
 	cmdStr := "netdcli -oper get -construct endpoint " + ep + " 2>&1"
 	output, err := node.RunCommandWithOutput(cmdStr)
 
@@ -313,19 +327,22 @@ func GetIpAddress(t *testing.T, node TestbedNode, ep string) string {
 	return ""
 }
 
+// GetIPAddressFromNetworkAndContainerName return IP address when network id and
+// container name are known
 // XXX: used for powerstrip/docker integration testing where ep-name is
 // derived by concatanating net-id to container-id
-func GetIpAddressFromNetworkAndContainerName(t *testing.T, node TestbedNode,
-	netId, contName string) string {
+func GetIPAddressFromNetworkAndContainerName(t *testing.T, node TestbedNode,
+	netID, contName string) string {
 	uuid, err := getContainerUUID(node, contName)
 	if err != nil {
 		t.Fatalf("failed to get container uuid for container %q on node %q",
 			contName, node.GetName())
 	}
-	epName := fmt.Sprintf("%s-%s", netId, uuid)
-	return GetIpAddress(t, node, epName)
+	epName := fmt.Sprintf("%s-%s", netID, uuid)
+	return GetIPAddress(t, node, epName)
 }
 
+// NetworkStateExists tests if state for specified network exists
 func NetworkStateExists(node TestbedNode, network string) error {
 	cmdStr := "netdcli -oper get -construct network " + network + " 2>&1"
 	output, err := node.RunCommandWithOutput(cmdStr)
@@ -339,6 +356,7 @@ func NetworkStateExists(node TestbedNode, network string) error {
 	return nil
 }
 
+// DumpNetpluginLogs prints netplugin logs from the specified testbed node
 func DumpNetpluginLogs(node TestbedNode) {
 	cmdStr := fmt.Sprintf("sudo cat /tmp/netplugin.log")
 	output, err := node.RunCommandWithOutput(cmdStr)
@@ -347,8 +365,9 @@ func DumpNetpluginLogs(node TestbedNode) {
 	}
 }
 
+// GetCfgFile returns the path string for specified file name in examples directory
 func GetCfgFile(fileName string) string {
 	cfgDir := os.Getenv("GOPATH")
-	cfgDir = cfgDir + EXAMPLES_DIR
+	cfgDir = cfgDir + examplesDir
 	return cfgDir + fileName + ".json"
 }

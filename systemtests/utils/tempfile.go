@@ -22,11 +22,13 @@ import (
 	"github.com/contiv/netplugin/core"
 )
 
+// TempFileCtx allows managing temporary file contexts
 type TempFileCtx struct {
 	dir   string
 	files []*os.File
 }
 
+// Create creates a context with specified file-contents
 func (ctx *TempFileCtx) Create(fileContents string) (*os.File, error) {
 	if ctx.dir != "" && len(ctx.files) != 0 {
 		return nil, core.Errorf("Create context called for an already created context!")
@@ -43,7 +45,7 @@ func (ctx *TempFileCtx) Create(fileContents string) (*os.File, error) {
 		}
 	}()
 
-	var file *os.File = nil
+	var file *os.File
 	file, err = ioutil.TempFile(dir, "netp_tests")
 	if err != nil {
 		return nil, err
@@ -58,6 +60,7 @@ func (ctx *TempFileCtx) Create(fileContents string) (*os.File, error) {
 	return file, nil
 }
 
+// AddFile adds a file to the context with specified file-contents
 func (ctx *TempFileCtx) AddFile(fileContents string) (*os.File, error) {
 	file, err := ioutil.TempFile(ctx.dir, "netp_tests")
 	if err != nil {
@@ -80,6 +83,7 @@ func (ctx *TempFileCtx) AddFile(fileContents string) (*os.File, error) {
 	return file, nil
 }
 
+// Destroy cleans up the context
 func (ctx *TempFileCtx) Destroy() {
 	if ctx.dir == "" {
 		return
