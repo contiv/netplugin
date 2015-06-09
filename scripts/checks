@@ -39,7 +39,7 @@ done
 if [ -n "${lintOutput}" ]
 then
     echo -e "!!! golint checking failed:\n${lintOutput}\n"
-    #exit 1
+    exit 1
 fi
 
 echo "+++ go vet tree..."
@@ -55,7 +55,7 @@ done
 if [ -n "${vetOutput}" ]
 then
     echo -e "!!! go vet checking failed:\n${vetOutput}\n"
-    #exit 1
+    exit 1
 fi
 
 echo "+++ All checks passed!!"
