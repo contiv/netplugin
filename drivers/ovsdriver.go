@@ -93,9 +93,9 @@ func (d *OvsDriver) populateCache(updates libovsdb.TableUpdates) {
 		for uuid, row := range tableUpdate.Rows {
 			empty := libovsdb.Row{}
 			if !reflect.DeepEqual(row.New, empty) {
-				d.cache[table][libovsdb.UUID{uuid}] = row.New
+				d.cache[table][libovsdb.UUID{GoUuid: uuid}] = row.New
 			} else {
-				delete(d.cache[table], libovsdb.UUID{uuid})
+				delete(d.cache[table], libovsdb.UUID{GoUuid: uuid})
 			}
 		}
 	}
@@ -146,7 +146,7 @@ func (d *OvsDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 
 func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 	namedUUIDStr := "netplugin"
-	brUUID := []libovsdb.UUID{libovsdb.UUID{namedUUIDStr}}
+	brUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: namedUUIDStr}}
 	opStr := "insert"
 	if op != operCreateBridge {
 		opStr = "delete"
@@ -225,8 +225,8 @@ func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
 	// portName is assumed to be unique enough to become uuid
 	portUUIDStr := portName
 	intfUUIDStr := fmt.Sprintf("Intf%s", portName)
-	portUUID := []libovsdb.UUID{libovsdb.UUID{portUUIDStr}}
-	intfUUID := []libovsdb.UUID{libovsdb.UUID{intfUUIDStr}}
+	portUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: portUUIDStr}}
+	intfUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: intfUUIDStr}}
 	opStr := "insert"
 	if op != operCreatePort {
 		opStr = "delete"

@@ -78,8 +78,7 @@ func validateTenantConfig(tenant *ConfigTenant) error {
 	if tenant.VLANs != "" {
 		_, err = netutils.ParseTagRanges(tenant.VLANs, "vlan")
 		if err != nil {
-			log.Printf("error '%s' parsing vlan range '%s' \n",
-				err, tenant.VLANs)
+			log.Errorf("error parsing vlan range '%s'. Error: %s", tenant.VLANs, err)
 			return err
 		}
 	}
@@ -87,8 +86,7 @@ func validateTenantConfig(tenant *ConfigTenant) error {
 	if tenant.VXLANs != "" {
 		_, err = netutils.ParseTagRanges(tenant.VXLANs, "vxlan")
 		if err != nil {
-			log.Printf("error '%s' parsing vxlan range '%s' \n",
-				err, tenant.VXLANs)
+			log.Errorf("error parsing vxlan range '%s'.Error: %s", tenant.VXLANs, err)
 			return err
 		}
 	}
@@ -121,7 +119,8 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	gCfg.Auto.AllocSubnetLen = tenant.AllocSubnetLen
 	err = gCfg.Write()
 	if err != nil {
-		log.Printf("error '%s' updating tenant '%s' \n", err, tenant.Name)
+		log.Errorf("error updating tenant '%s'.Error: %s", tenant.Name, err)
+		return err
 	}
 
 	// XXX: instead of initing resource-manager always, just init and
@@ -135,7 +134,7 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 	err = gCfg.Process(core.ResourceManager(ra))
 	if err != nil {
-		log.Printf("Error '%s' updating the config %v \n", err, gCfg)
+		log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
 		return err
 	}
 
@@ -148,7 +147,7 @@ func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
 	gOper.StateDriver = stateDriver
 	err := gOper.Read(tenantID)
 	if err != nil {
-		log.Printf("error '%s' reading tenant info '%s' \n", err, tenantID)
+		log.Errorf("error reading tenant info '%s'. Error: %s", tenantID, err)
 		return err
 	}
 
@@ -158,12 +157,12 @@ func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
 	gCfg.Tenant = tenantID
 	err = gCfg.Clear()
 	if err != nil {
-		log.Printf("error '%s' deleting cfg for tenant '%s' \n", err, tenantID)
+		log.Errorf("error deleting cfg for tenant %q: Error: %s", tenantID, err)
 	}
 
 	err = gOper.Clear()
 	if err != nil {
-		log.Printf("error '%s' deleting oper for tenant '%s' \n", err, tenantID)
+		log.Errorf("error deleting oper for tenant %q: Error: %s", tenantID, err)
 	}
 
 	return err
@@ -229,13 +228,13 @@ func createVtep(stateDriver core.StateDriver, hostCfg *MasterHostConfig, tenantN
 	epCfg.NetID = tenantNet
 	err := createInfraNetwork(epCfg)
 	if err != nil {
-		log.Printf("error '%s' creating infra vlan \n", err)
+		log.Errorf("error creating infra vlan. Error: %s", err)
 		return err
 	}
 
 	err = epCfg.Write()
 	if err != nil {
-		log.Printf("error '%s' adding vtep ep \n", err)
+		log.Errorf("error adding vtep ep. Error: %s", err)
 		return err
 	}
 
@@ -252,7 +251,7 @@ func deleteVtep(stateDriver core.StateDriver, netID, hostName string) error {
 
 	err := epCfg.Clear()
 	if err != nil {
-		log.Printf("error '%s' deleting vtep ep \n", err)
+		log.Errorf("error deleting vtep ep. Error: %s", err)
 		return err
 	}
 
@@ -273,13 +272,13 @@ func createVLANIf(stateDriver core.StateDriver, host *ConfigHost) error {
 	epCfg.NetID = host.NetID
 	err := createInfraNetwork(epCfg)
 	if err != nil {
-		log.Printf("error '%s' creating infra vlan \n", err)
+		log.Errorf("error creating infra vlan. Error: %s", err)
 		return err
 	}
 
 	err = epCfg.Write()
 	if err != nil {
-		log.Printf("error '%s' adding vtep ep \n", err)
+		log.Errorf("error adding vtep ep. Error: %s", err)
 		return err
 	}
 
@@ -295,7 +294,7 @@ func deleteVLANIf(stateDriver core.StateDriver, hostName string) error {
 
 	err := epCfg.Clear()
 	if err != nil {
-		log.Printf("error '%s' deleting vtep ep \n", err)
+		log.Errorf("error deleting vtep ep. Error: %s", err)
 		return err
 	}
 
@@ -306,7 +305,7 @@ func deleteVLANIf(stateDriver core.StateDriver, hostName string) error {
 func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 	err := validateHostConfig(host)
 	if err != nil {
-		log.Printf("error '%s' validating host config \n", err)
+		log.Errorf("error validating host config. Error: %s", err)
 		return err
 	}
 
@@ -326,28 +325,28 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 		tenantNets, err := readNet.ReadAll()
 		if err != nil {
 			if !strings.Contains(err.Error(), "Key not found") {
-				log.Printf("error '%s' eading keys during host create\n", err)
+				log.Errorf("error reading keys during host create. Error: %s", err)
 			}
 		}
 		for _, tenantNet := range tenantNets {
 			nw := tenantNet.(*drivers.OvsCfgNetworkState)
 			err = createVtep(stateDriver, hostCfg, nw.ID)
 			if err != nil {
-				log.Printf("error '%s' creating vtep \n", err)
+				log.Errorf("error creating vtep. Error: %s", err)
 			}
 		}
 	}
 	if host.Intf != "" {
 		err = createVLANIf(stateDriver, host)
 		if err != nil {
-			log.Printf("error '%s' creating infra if %s on host %s \n",
-				err, host.Name, host.Intf)
+			log.Errorf("error creating infra if %s on host %s, Error: %s",
+				host.Name, host.Intf, err)
 		}
 	}
 
 	err = hostCfg.Write()
 	if err != nil {
-		log.Printf("error '%s' when writing host config \n", err)
+		log.Errorf("error writing host config. Error: %s", err)
 		return err
 	}
 
@@ -362,8 +361,8 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 
 	err := hostCfg.Read(hostName)
 	if err != nil {
-		log.Printf("error '%s' reading master host config name %s \n",
-			err, hostName)
+		log.Errorf("error reading master host config name %s. Error: %s",
+			hostName, err)
 		return err
 	}
 
@@ -374,28 +373,28 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 		tenantNets, err := readNet.ReadAll()
 		if err != nil {
 			if !strings.Contains(err.Error(), "Key not found") {
-				log.Printf("error '%s' eading keys during host create\n", err)
+				log.Errorf("error reading keys during host create. Error: %s", err)
 			}
 		}
 		for _, tenantNet := range tenantNets {
 			nw := tenantNet.(*drivers.OvsCfgNetworkState)
 			err = deleteVtep(stateDriver, nw.ID, hostName)
 			if err != nil {
-				log.Printf("error '%s' deleting vtep \n", err)
+				log.Errorf("error deleting vtep. Error: %s", err)
 			}
 		}
 	}
 	if hostCfg.Intf != "" {
 		err = deleteVLANIf(stateDriver, hostName)
 		if err != nil {
-			log.Printf("error '%s' deleting infra if %s on host %s \n",
-				err, hostName)
+			log.Errorf("error deleting infra if %s on host %s. Error: %s",
+				hostCfg.Intf, hostName, err)
 		}
 	}
 
 	err = hostCfg.Clear()
 	if err != nil {
-		log.Printf("error '%s' when deleting host config \n", err)
+		log.Errorf("error deleting host config. Error: %s", err)
 		return err
 	}
 
@@ -457,7 +456,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	gCfg.StateDriver = stateDriver
 	err := gCfg.Read(tenant.Name)
 	if err != nil {
-		log.Printf("error '%s' reading tenant cfg state \n", err)
+		log.Errorf("error reading tenant cfg state. Error: %s", err)
 		return err
 	}
 
@@ -473,7 +472,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 	err = validateNetworkConfig(tenant)
 	if err != nil {
-		log.Printf("error '%s' validating network config \n", err)
+		log.Errorf("error validating network config. Error: %s", err)
 		return err
 	}
 
@@ -523,8 +522,6 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			// XXX: take local vlan as config, instead of allocating it
 			// independently. Return erro for now, if user tries this config
 			return core.Errorf("Not handled. Need to introduce local-vlan config")
-			nwCfg.PktTag = int(pktTag)
-			nwCfg.ExtPktTag, _ = strconv.Atoi(nwMasterCfg.PktTag)
 		} else if nwMasterCfg.PktTagType == "vlan" {
 			nwCfg.PktTag, _ = strconv.Atoi(nwMasterCfg.PktTag)
 			// XXX: do configuration check, to make sure it is allowed
@@ -551,7 +548,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 		err = nwMasterCfg.Write()
 		if err != nil {
-			log.Printf("error '%s' when writing nw config \n", err)
+			log.Errorf("error writing nw config. Error: %s", err)
 			return err
 		}
 
@@ -562,14 +559,14 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			hostCfgs, err := readHost.ReadAll()
 			if err != nil {
 				if !strings.Contains(err.Error(), "Key not found") {
-					log.Printf("error '%s' reading hosts during net add\n", err)
+					log.Errorf("error reading hosts during net add. Error: %s", err)
 				}
 			}
 			for _, hostCfg := range hostCfgs {
 				host := hostCfg.(*MasterHostConfig)
 				err = createVtep(stateDriver, host, nwCfg.ID)
 				if err != nil {
-					log.Printf("error '%s' creating vtep \n", err)
+					log.Errorf("error creating vtep. Error: %s", err)
 				}
 			}
 		}
@@ -597,8 +594,7 @@ func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwCon
 			return err
 		}
 	} else if nwCfg.PktTagType == "vxlan" {
-		log.Printf("freeing vlan %d vxlan %d \n", nwCfg.PktTag,
-			nwCfg.ExtPktTag)
+		log.Infof("freeing vlan %d vxlan %d", nwCfg.PktTag, nwCfg.ExtPktTag)
 		err = gCfg.FreeVXLAN(ra, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
 		if err != nil {
 			return err
@@ -606,8 +602,7 @@ func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwCon
 	}
 
 	if nwMasterCfg.SubnetIP == "" {
-		log.Printf("freeing subnet %s/%s \n", nwCfg.SubnetIP,
-			nwCfg.SubnetLen)
+		log.Infof("freeing subnet %s/%s", nwCfg.SubnetIP, nwCfg.SubnetLen)
 		err = gCfg.FreeSubnet(ra, nwCfg.SubnetIP)
 		if err != nil {
 			return err
@@ -623,7 +618,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	nwMasterCfg.StateDriver = stateDriver
 	err := nwMasterCfg.Read(netID)
 	if err != nil {
-		log.Printf("network not configured \n")
+		log.Errorf("network %q is not configured", netID)
 		return err
 	}
 
@@ -631,7 +626,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	nwCfg.StateDriver = stateDriver
 	err = nwCfg.Read(netID)
 	if err != nil {
-		log.Printf("network not operational \n")
+		log.Errorf("network %s is not operational", netID)
 		return err
 	}
 
@@ -639,7 +634,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	gCfg.StateDriver = stateDriver
 	err = gCfg.Read(nwMasterCfg.Tenant)
 	if err != nil {
-		log.Printf("error reading tenant info \n")
+		log.Errorf("error reading tenant info for %q. Error: %s", nwMasterCfg.Tenant, err)
 		return err
 	}
 
@@ -650,7 +645,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 
 	err = nwCfg.Clear()
 	if err != nil {
-		log.Printf("error '%s' when writing nw config \n", err)
+		log.Errorf("error writing nw config. Error: %s", err)
 		return err
 	}
 
@@ -664,13 +659,13 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 	err := gCfg.Read(tenant.Name)
 	if err != nil {
-		log.Printf("error '%s' reading tenant state \n", err)
+		log.Errorf("error reading tenant state. Error: %s", err)
 		return err
 	}
 
 	err = validateNetworkConfig(tenant)
 	if err != nil {
-		log.Printf("error '%s' validating network config \n", err)
+		log.Errorf("error validating network config. Error: %s", err)
 		return err
 	}
 
@@ -682,7 +677,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		nwMasterCfg.StateDriver = stateDriver
 		err = nwMasterCfg.Read(network.Name)
 		if err != nil {
-			log.Printf("network not configured \n")
+			log.Infof("network %q is not configured", network.Name)
 			continue
 		}
 
@@ -690,7 +685,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		nwCfg.StateDriver = stateDriver
 		err = nwCfg.Read(network.Name)
 		if err != nil {
-			log.Printf("network not operational \n")
+			log.Infof("network %q is not operational", network.Name)
 			continue
 		}
 
@@ -701,7 +696,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 		err = nwCfg.Clear()
 		if err != nil {
-			log.Printf("error '%s' when writing nw config \n", err)
+			log.Errorf("error when writing nw config. Error: %s", err)
 			return err
 		}
 	}
@@ -730,13 +725,11 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *ConfigTenant) 
 				nwMasterCfg.StateDriver = stateDriver
 				err = nwMasterCfg.Read(network.Name)
 				if err != nil {
-					log.Printf("validate: error '%s' reading network state \n",
-						err)
+					log.Errorf("error reading network state. Error: %s", err)
 					return err
 				}
 				if nwMasterCfg.SubnetIP != "" {
-					log.Printf("validate: found endpoint with ip for " +
-						"auto-allocated net \n")
+					log.Errorf("found ep with ip for auto-allocated net")
 					return core.Errorf("found ep with ip for auto-allocated net")
 				}
 				if net.ParseIP(ep.IPAddress) == nil {
@@ -765,23 +758,23 @@ func allocSetEpIP(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	ipAddress := ep.IPAddress
 	if ipAddress == "" {
 		if ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0); !found {
-			log.Printf("auto allocation failed - address exhaustion "+
-				"in subnet %s/%d \n", nwCfg.SubnetIP, nwCfg.SubnetLen)
+			log.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
+				nwCfg.SubnetIP, nwCfg.SubnetLen)
+			err = core.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
+				nwCfg.SubnetIP, nwCfg.SubnetLen)
 			return
 		}
 		ipAddress, err = netutils.GetSubnetIP(
 			nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
 		if err != nil {
-			log.Printf("create eps: error acquiring subnet ip '%s' \n",
-				err)
+			log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
 			return
 		}
 	} else if ipAddress != "" && nwCfg.SubnetIP != "" {
 		ipAddrValue, err = netutils.GetIPNumber(
 			nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddress)
 		if err != nil {
-			log.Printf("create eps: error getting host id from hostIP "+
-				"%s Subnet %s/%d err '%s'\n",
+			log.Errorf("create eps: error getting host id from hostIP %s Subnet %s/%d. Error: %s",
 				ipAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
 			return
 		}
@@ -796,7 +789,7 @@ func allocSetEpIP(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	err := validateEndpointConfig(stateDriver, tenant)
 	if err != nil {
-		log.Printf("error '%s' validating network config \n", err)
+		log.Errorf("error validating endpoint config. Error: %s", err)
 		return err
 	}
 
@@ -805,8 +798,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		nwMasterCfg.StateDriver = stateDriver
 		err = nwMasterCfg.Read(network.Name)
 		if err != nil {
-			log.Printf("create eps: error '%s' reading cfg network %s \n",
-				err, network.Name)
+			log.Errorf("error reading cfg network %s. Error: %s", network.Name, err)
 			return err
 		}
 
@@ -814,8 +806,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		nwCfg.StateDriver = stateDriver
 		err = nwCfg.Read(network.Name)
 		if err != nil {
-			log.Printf("create eps: error '%s' reading oper network %s \n",
-				err, network.Name)
+			log.Errorf("error reading oper network %s. Error: %s", network.Name, err)
 			return err
 		}
 
@@ -836,13 +827,13 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 			err = allocSetEpIP(&ep, epCfg, nwCfg)
 			if err != nil {
-				log.Printf("error '%s' allocating and/or reserving IP\n", err)
+				log.Errorf("error allocating and/or reserving IP. Error: %s", err)
 				return err
 			}
 
 			err = epCfg.Write()
 			if err != nil {
-				log.Printf("error '%s' when writing nw config \n", err)
+				log.Errorf("error writing nw config. Error: %s", err)
 				return err
 			}
 			nwCfg.EpCount++
@@ -850,7 +841,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 		err = nwCfg.Write()
 		if err != nil {
-			log.Printf("error '%s' when writing nw config \n", err)
+			log.Errorf("error writing nw config. Error: %s", err)
 			return err
 		}
 	}
@@ -867,8 +858,7 @@ func freeEndpointResources(epCfg *drivers.OvsCfgEndpointState,
 	ipAddrValue, err := netutils.GetIPNumber(
 		nwCfg.SubnetIP, nwCfg.SubnetLen, 32, epCfg.IPAddress)
 	if err != nil {
-		log.Printf("error getting host id from hostIP %s "+
-			"Subnet %s/%d err '%s'\n",
+		log.Errorf("error getting host id from hostIP %s Subnet %s/%d. Error: %s",
 			epCfg.IPAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
 		return err
 	}
@@ -901,13 +891,13 @@ func DeleteEndpointID(stateDriver core.StateDriver, epID string) error {
 
 	err = epCfg.Clear()
 	if err != nil {
-		log.Printf("error '%s' when writing nw config \n", err)
+		log.Errorf("error writing nw config. Error: %s", err)
 		return err
 	}
 
 	err = nwCfg.Write()
 	if err != nil {
-		log.Printf("error '%s' when writing nw config \n", err)
+		log.Errorf("error writing nw config. Error: %s", err)
 		return err
 	}
 
@@ -919,7 +909,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 	err := validateEndpointConfig(stateDriver, tenant)
 	if err != nil {
-		log.Printf("error '%s' validating network config \n", err)
+		log.Errorf("error validating endpoint config: Error: %s", err)
 		return err
 	}
 
@@ -928,7 +918,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		nwMasterCfg.StateDriver = stateDriver
 		err = nwMasterCfg.Read(network.Name)
 		if err != nil {
-			log.Printf("error '%s' reading network state \n", err)
+			log.Errorf("error reading network state. Error: %s", err)
 			return err
 		}
 
@@ -936,7 +926,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		nwCfg.StateDriver = stateDriver
 		err = nwCfg.Read(network.Name)
 		if err != nil {
-			log.Printf("error '%s' reading tenant state \n", err)
+			log.Errorf("error reading network state. Error: %s", err)
 			return err
 		}
 
@@ -946,8 +936,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			epCfg.ID = getEpName(&network, &ep)
 			err = epCfg.Read(epCfg.ID)
 			if err != nil {
-				log.Printf("error '%s' getting cfg state of ep %s \n",
-					err, epCfg.ID)
+				log.Errorf("error getting cfg state of ep %s, Error: %s", epCfg.ID, err)
 				continue
 			}
 
@@ -958,14 +947,14 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 			err = epCfg.Clear()
 			if err != nil {
-				log.Printf("error '%s' when writing nw config \n", err)
+				log.Errorf("error writing ep config. Error: %s", err)
 				return err
 			}
 		}
 
 		err = nwCfg.Write()
 		if err != nil {
-			log.Printf("error '%s' when writing nw config \n", err)
+			log.Errorf("error writing nw config. Error: %s", err)
 			return err
 		}
 	}
@@ -992,7 +981,7 @@ func CreateEpBindings(stateDriver core.StateDriver, epBindings *[]ConfigEP) erro
 
 	err := validateEpBindings(epBindings)
 	if err != nil {
-		log.Printf("error '%s' validating the ep bindings \n", err)
+		log.Errorf("error validating the ep bindings. Error: %s", err)
 		return err
 	}
 
@@ -1000,11 +989,11 @@ func CreateEpBindings(stateDriver core.StateDriver, epBindings *[]ConfigEP) erro
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err != nil {
-		log.Printf("error '%s' fetching eps \n", err)
+		log.Errorf("error fetching eps. Error: %s", err)
 		return err
 	}
 	for _, ep := range *epBindings {
-		log.Printf("creating binding between container '%s' and host '%s' \n",
+		log.Infof("creating binding between container '%s' and host '%s'",
 			ep.Container, ep.Host)
 
 		for _, epCfg := range epCfgs {
@@ -1016,7 +1005,7 @@ func CreateEpBindings(stateDriver core.StateDriver, epBindings *[]ConfigEP) erro
 			cfg.AttachUUID = ep.AttachUUID
 			err = cfg.Write()
 			if err != nil {
-				log.Printf("error '%s' updating epCfg \n", err)
+				log.Errorf("error updating epCfg. Error: %s", err)
 				return err
 			}
 		}

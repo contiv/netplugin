@@ -55,8 +55,7 @@ func (d *testNwStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error 
 
 func (d *testNwStateDriver) validateKey(key string) error {
 	if key != nwCfgKey {
-		return core.Errorf("Unexpected key. recvd: %s expected: %s or %s ",
-			key, nwCfgKey)
+		return core.Errorf("Unexpected key. recvd: %s expected: %s", key, nwCfgKey)
 	}
 
 	return nil

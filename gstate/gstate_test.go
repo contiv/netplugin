@@ -248,7 +248,7 @@ func TestInvalidGlobalConfigMoreThan4KVLANs(t *testing.T) {
 
 	_, err := Parse(cfgData)
 	if err == nil {
-		t.Fatalf("Error: was able to parse invalid vlan pool '%s' \n", err, cfgData)
+		t.Fatalf("Error: was able to parse invalid vlan pool '%s'", cfgData)
 	}
 }
 
@@ -271,7 +271,7 @@ func TestInvalidGlobalConfig(t *testing.T) {
 
 	_, err := Parse(cfgData)
 	if err == nil {
-		t.Fatalf("Error: was able to parse invalid subnet pool '%s' \n", err, cfgData)
+		t.Fatalf("Error: was able to parse invalid subnet pool '%s'", cfgData)
 	}
 
 	cfgData = []byte(`
@@ -292,7 +292,7 @@ func TestInvalidGlobalConfig(t *testing.T) {
 
 	_, err = Parse(cfgData)
 	if err == nil {
-		t.Fatalf("Error: was able to parse invalid vlan range '%s' \n", err, cfgData)
+		t.Fatalf("Error: was able to parse invalid vlan range '%s'", cfgData)
 	}
 
 	cfgData = []byte(`
@@ -313,7 +313,7 @@ func TestInvalidGlobalConfig(t *testing.T) {
 
 	_, err = Parse(cfgData)
 	if err == nil {
-		t.Fatalf("Error: was able to parse invalid subnetlen/allcocsubnetlen %s'\n",
-			err, cfgData)
+		t.Fatalf("Error: was able to parse invalid subnetlen/allcocsubnetlen %s'",
+			cfgData)
 	}
 }

@@ -16,7 +16,6 @@ limitations under the License.
 package resources
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/contiv/netplugin/core"
@@ -56,7 +55,6 @@ func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, boo
 	val := reflect.New(rsrcType)
 	// sanity checks
 	if !val.Elem().FieldByName("CommonState").IsValid() {
-		panic(fmt.Sprintf("The state structure %v is missing core.CommonState", rsrcType))
 		return nil, false, core.Errorf("The state structure %v is missing core.CommonState", rsrcType)
 	}
 	//the following works as every core.State is expected to embed core.CommonState struct

@@ -16,7 +16,6 @@ limitations under the License.
 package state
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/contiv/go-etcd/etcd"
@@ -96,7 +95,7 @@ func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 }
 
 func (d *EtcdStateDriver) channelEtcdEvents(etcdRsps chan *etcd.Response,
-	rsps chan [2][]byte, retErr chan error) {
+	rsps chan [2][]byte) {
 	for {
 		// block on change notifications
 		etcdRsp := <-etcdRsps
@@ -125,9 +124,6 @@ func (d *EtcdStateDriver) channelEtcdEvents(etcdRsps chan *etcd.Response,
 		//channel the translated response
 		rsps <- rsp
 	}
-
-	// shall never come here
-	retErr <- nil
 }
 
 // WatchAll state transitions from baseKey
@@ -136,7 +132,7 @@ func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 	stop := make(chan bool, 1)
 	recvErr := make(chan error, 1)
 
-	go d.channelEtcdEvents(etcdRsps, rsps, recvErr)
+	go d.channelEtcdEvents(etcdRsps, rsps)
 
 	_, err := d.Client.Watch(baseKey, 0, recursive, etcdRsps, stop)
 	if err != nil && err != etcd.ErrWatchStoppedByUser {
@@ -196,8 +192,6 @@ func readAllStateCommon(d core.StateDriver, baseKey string, sType core.State,
 	for i := 0; i < values.Len(); i++ {
 		// sanity checks
 		if !values.Index(i).Elem().FieldByName("CommonState").IsValid() {
-			panic(fmt.Sprintf("The state structure %v is missing core.CommonState",
-				stateType))
 			return nil, core.Errorf("The state structure %v is missing core.CommonState",
 				stateType)
 		}
@@ -226,7 +220,7 @@ func channelStateEvents(d core.StateDriver, sType core.State,
 		// block on change notifications
 		byteRsp := <-byteRsps
 
-		rsp := core.WatchState{nil, nil}
+		rsp := core.WatchState{Curr: nil, Prev: nil}
 		for i := 0; i < 2; i++ {
 			if byteRsp[i] == nil {
 				continue
@@ -239,8 +233,6 @@ func channelStateEvents(d core.StateDriver, sType core.State,
 				return
 			}
 			if !value.Elem().Elem().FieldByName("CommonState").IsValid() {
-				panic(fmt.Sprintf("The state structure %v is missing core.CommonState",
-					stateType))
 				retErr <- core.Errorf("The state structure %v is missing core.CommonState",
 					stateType)
 				return
@@ -258,9 +250,6 @@ func channelStateEvents(d core.StateDriver, sType core.State,
 		//channel the translated response
 		rsps <- rsp
 	}
-
-	// shall never come here
-	retErr <- nil
 }
 
 // WatchAllState watches all state from the baseKey.
