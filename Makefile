@@ -1,6 +1,10 @@
 
 .PHONY: all build clean default system-test unit-test
 
+# find all verifiable packages.
+# XXX: explore a better way that doesn't need multiple 'find'
+PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|systemtests'`
+PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts'`
 TO_BUILD := ./netplugin/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/pslibnet/
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
@@ -12,8 +16,10 @@ default: build
 deps:
 	./scripts/deps
 
-build: deps
-	./scripts/checks "$(TO_BUILD)"
+checks:
+	./scripts/checks "$(PKGS)"
+
+build: deps checks
 	godep go install -v $(TO_BUILD)
 
 clean: deps
