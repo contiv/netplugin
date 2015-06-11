@@ -65,8 +65,9 @@ then
 fi
 echo "Num nodes = "$num_nodes
 
-# Create the docker image for hosts
-# sudo docker build -t ubuntu_netplugin $scriptdir
+# Pull the docker image for hosts from docker-hub
+# sudo docker build -t contiv/ubuntu $scriptdir
+sudo docker pull contiv/ubuntu
 
 # Pull ubuntu image for use within the docker hosts
 sudo docker pull ubuntu
@@ -76,7 +77,7 @@ mkdir /tmp/ubuntu_image
 sudo docker save -o /tmp/ubuntu_image/ubuntu-image.tar ubuntu
 
 cluster=""
-first="true"
+first_node_ip=""
 for i in `seq 1 $num_nodes`; 
 do
     host="netplugin-node$i"
@@ -84,14 +85,13 @@ do
     # godep modifies the host's GOPATH env variable, CONTIV_HOST_GOPATH
     # contains the unmodified path passed from the Makefile, use that
     # when it is defined.
-    if [ -n $CONTIV_HOST_GOPATH ]; then
+    gopath=$GOPATH
+    if [ -n "$CONTIV_HOST_GOPATH" ]; then
         gopath=$CONTIV_HOST_GOPATH
-    else
-        gopath=$GOPATH
     fi
     sudo docker run -d -i -t --name $host --privileged -e CONTIV_DIND_HOST_GOPATH=$gopath \
         -e GOSRC=/gopath/src/ -v /var/lib/docker -v $gopath:/gopath -v /proc:/host/proc \
-        -v /tmp/ubuntu_image:/ubuntu_image sachja/ubuntu_netplugin bash \
+        -v /tmp/ubuntu_image:/ubuntu_image contiv/ubuntu bash \
         -c "/gopath/src/github.com/contiv/netplugin/scripts/dockerhost/start-service.sh & bash"
     sudo docker exec $host hostname $host
     sudo docker exec $host sh -c 'echo $(hostname -I | cut -d\  -f1) $(hostname) | tee -a /etc/hosts'
@@ -113,7 +113,9 @@ do
     sudo docker exec $host docker load -i /ubuntu_image/ubuntu-image.tar
     addr=$($scriptdir/docker-ip $host)
     cluster=$cluster$host"=http://"$addr":2380"
-    first="false"
+    if [ $i -eq 1 ]; then
+        first_node_ip=$addr
+    fi
 done
 
 sudo rm -rf /tmp/ubuntu_image
@@ -123,7 +125,27 @@ do
     host="netplugin-node$i"
     echo "Starting etcd on $host"
     addr=$($scriptdir/docker-ip $host)
-    sudo docker exec -d $host etcd -name $host -data-dir /opt/etcd -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 -advertise-client-urls http://$addr:2379,http://$addr:4001 -initial-advertise-peer-urls http://$addr:2380 -listen-peer-urls http://$addr:2380 -initial-cluster $cluster -initial-cluster-state new 
+    sudo docker exec -d $host etcd -name $host -data-dir /opt/etcd \
+        -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+        -advertise-client-urls http://$addr:2379,http://$addr:4001 \
+        -initial-advertise-peer-urls http://$addr:2380 \
+        -listen-peer-urls http://$addr:2380 -initial-cluster $cluster \
+        -initial-cluster-state new
+    echo "Starting consul on $host"
+    consul_join_flag=""
+    if [ $i -gt 1 ]; then
+        consul_join_flag="-join $first_node_ip"
+    fi
+    consul_bootstrap_flag="-bootstrap-expect=3"
+    if [ $num_nodes -lt 3 ]; then
+        if [ $i -eq 1 ]; then
+            consul_bootstrap_flag="-bootstrap"
+        else
+            consul_bootstrap_flag=""
+        fi
+    fi
+   sudo docker exec -d $host consul agent -server $consul_join_flag $consul_bootstrap_flag \
+       -bind=$addr -data-dir /opt/consul
 done
 
 sleep 5s
