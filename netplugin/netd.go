@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/crt"
@@ -465,19 +466,26 @@ func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 }
 
 func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error {
-
 	recvErr := make(chan error, 1)
+	recvEventErr := make(chan error)
 
 	//monitor and process state change events
 	go handleStateEvents(netPlugin, crt, opts, recvErr)
+	startDockerEventPoll(netPlugin, crt, recvEventErr, opts)
 
-	if !opts.nativeInteg {
-		// start docker client and handle docker events
-		// wait on error chan for problems handling the docker events
-		dockerCRT := crt.ContainerIf.(*docker.Docker)
-		dockerCRT.Client.StartMonitorEvents(handleDockerEvents, recvErr,
-			netPlugin, crt)
-	}
+	go func() {
+		for {
+			err := <-recvEventErr
+			if err != nil {
+				log.Warnf("Failure occured talking to docker events. Sleeping for a second and retrying. Error: %s", err)
+			}
+
+			time.Sleep(1 * time.Second)
+			// FIXME note that we are assuming this goroutine crashed, which if not
+			// might generate double events. Synchronize this with a channel.
+			startDockerEventPoll(netPlugin, crt, recvEventErr, opts)
+		}
+	}()
 
 	err := <-recvErr
 	if err != nil {
@@ -486,6 +494,15 @@ func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error
 	}
 
 	return nil
+}
+
+func startDockerEventPoll(netPlugin *plugin.NetPlugin, crt *crt.CRT, recvErr chan error, opts cliOpts) {
+	if !opts.nativeInteg {
+		// start docker client and handle docker events
+		// wait on error chan for problems handling the docker events
+		dockerCRT := crt.ContainerIf.(*docker.Docker)
+		dockerCRT.Client.StartMonitorEvents(handleDockerEvents, recvErr, netPlugin, crt)
+	}
 }
 
 func main() {
@@ -584,10 +601,7 @@ func main() {
 	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
 	//etcd.SetLogger(logger)
 
-	err = handleEvents(netPlugin, crt, opts)
-	if err != nil {
+	if err := handleEvents(netPlugin, crt, opts); err != nil {
 		os.Exit(1)
-	} else {
-		os.Exit(0)
 	}
 }
