@@ -12,59 +12,59 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-type ClientRequest struct {
+type clientRequest struct {
 	Method  string `json:"Method"`
 	Request string `json:"Request"`
 	Body    string `json:"Body"`
 }
 
-type ServerResponse struct {
+type serverResponse struct {
 	ContentType string `json:"ContentType"`
 	Body        string `json:"Body"`
 	Code        int    `json:"Code"`
 }
 
-type PowerStripRequest struct {
+type powerStripRequest struct {
 	PowerstripProtocolVersion int            `json:"PowerstripProtocolVersion"`
 	Type                      string         `json:"Type"`
-	ClientRequest             ClientRequest  `json:"ClientRequest"`
-	ServerResponse            ServerResponse `json:"ServerResponse"`
+	ClientRequest             clientRequest  `json:"ClientRequest"`
+	ServerResponse            serverResponse `json:"ServerResponse"`
 }
 
-type PowerStripResponse struct {
+type powerStripResponse struct {
 	PowerstripProtocolVersion int            `json:"PowerstripProtocolVersion"`
-	ModifiedClientRequest     ClientRequest  `json:"ModifiedClientRequest"`
-	ModifiedServerResponse    ServerResponse `json:"ModifiedServerResponse"`
+	ModifiedClientRequest     clientRequest  `json:"ModifiedClientRequest"`
+	ModifiedServerResponse    serverResponse `json:"ModifiedServerResponse"`
 }
 
-type ContainerNet struct {
-	tenantId string
-	netId    string
+type containerNet struct {
+	tenantID string
+	netID    string
 }
 
-type handlerFunc func(*PowerStripRequest) (*PowerStripResponse, error)
+type handlerFunc func(*powerStripRequest) (*powerStripResponse, error)
 
-//structure to keep state based on requests and responses as seen by the adapter
+// PwrStrpAdptr keeps state based on requests and responses as seen by the adapter
 type PwrStrpAdptr struct {
 	driver driverapi.Driver
 	//track the network that a container belongs to
-	containerNets map[string][]ContainerNet
+	containerNets map[string][]containerNet
 	// tracks the network received in last container create. Set on
 	// getting contianer pre-create and cleared on getting post-create.
-	outstandingNet ContainerNet
+	outstandingNet containerNet
 	// tracks the container-id/name received in last container start. Set on
 	// getting contianer pre-start and cleared on getting post-start.
-	outstandingContId string
-	// track name to Id mapping when a conatiner name was specified
-	nameIdMap map[string]string
+	outstandingContID string
+	// track name to ID mapping when a conatiner name was specified
+	nameIDMap map[string]string
 	// hooks implememted by this adapter
 	powerstripHooks map[string]handlerFunc
 }
 
-func makeClientRequest(req *PowerStripRequest) *PowerStripResponse {
-	return &PowerStripResponse{
+func makeClientRequest(req *powerStripRequest) *powerStripResponse {
+	return &powerStripResponse{
 		PowerstripProtocolVersion: req.PowerstripProtocolVersion,
-		ModifiedClientRequest: ClientRequest{
+		ModifiedClientRequest: clientRequest{
 			Method:  req.ClientRequest.Method,
 			Request: req.ClientRequest.Request,
 			Body:    req.ClientRequest.Body,
@@ -72,10 +72,10 @@ func makeClientRequest(req *PowerStripRequest) *PowerStripResponse {
 	}
 }
 
-func makeServerResponse(req *PowerStripRequest) *PowerStripResponse {
-	return &PowerStripResponse{
+func makeServerResponse(req *powerStripRequest) *powerStripResponse {
+	return &powerStripResponse{
 		PowerstripProtocolVersion: req.PowerstripProtocolVersion,
-		ModifiedServerResponse: ServerResponse{
+		ModifiedServerResponse: serverResponse{
 			ContentType: req.ServerResponse.ContentType,
 			Body:        req.ServerResponse.Body,
 			Code:        req.ServerResponse.Code,
@@ -83,12 +83,13 @@ func makeServerResponse(req *PowerStripRequest) *PowerStripResponse {
 	}
 }
 
+// Init initializes an instance of PwrStrpAdptr
 func (adptr *PwrStrpAdptr) Init(d driverapi.Driver) error {
 	adptr.driver = d
-	adptr.containerNets = make(map[string][]ContainerNet)
-	adptr.outstandingNet = ContainerNet{"", ""}
-	adptr.outstandingContId = ""
-	adptr.nameIdMap = make(map[string]string)
+	adptr.containerNets = make(map[string][]containerNet)
+	adptr.outstandingNet = containerNet{"", ""}
+	adptr.outstandingContID = ""
+	adptr.nameIDMap = make(map[string]string)
 	adptr.powerstripHooks = map[string]handlerFunc{
 		"pre-hook:create":  adptr.handlePreCreate,
 		"post-hook:create": adptr.handlePostCreate,
@@ -101,7 +102,7 @@ func (adptr *PwrStrpAdptr) Init(d driverapi.Driver) error {
 	return nil
 }
 
-func extractHookStr(req *PowerStripRequest) string {
+func extractHookStr(req *powerStripRequest) string {
 
 	str := ""
 	if req.ClientRequest.Method == "DELETE" {
@@ -118,11 +119,11 @@ func extractHookStr(req *PowerStripRequest) string {
 	return str
 }
 
-// handle the calls from powerstrip adapter. In absence of formal plugin hooks,
+// CallHook handles the calls from powerstrip adapter. In absence of formal plugin hooks,
 // the netplugin hooks into post-create and pre-delete requests from power strip.
 func (adptr *PwrStrpAdptr) CallHook(w http.ResponseWriter, r *http.Request) {
 	log.Printf("handling new request")
-	req := &PowerStripRequest{}
+	req := &powerStripRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(req)
 	if err != nil {
@@ -156,7 +157,7 @@ func (adptr *PwrStrpAdptr) CallHook(w http.ResponseWriter, r *http.Request) {
 // Check that container is created with a 'netid' label. This helps us map the
 // container to a network. This label could be put by one of docker clients (cli,
 // compose etc)
-func (adptr *PwrStrpAdptr) handlePreCreate(req *PowerStripRequest) (*PowerStripResponse, error) {
+func (adptr *PwrStrpAdptr) handlePreCreate(req *powerStripRequest) (*powerStripResponse, error) {
 	//structure of interesting fields in the create request
 	type DockerCreateRequest struct {
 		Labels map[string]string `json:"Labels"`
@@ -168,10 +169,10 @@ func (adptr *PwrStrpAdptr) handlePreCreate(req *PowerStripRequest) (*PowerStripR
 		return nil, err
 	}
 
-	if netId, ok := dockerReq.Labels["netid"]; !ok || netId == "" {
+	if netID, ok := dockerReq.Labels["netid"]; !ok || netID == "" {
 		return nil, core.Errorf("Container doesn't contain a valid 'netid' label. Labels: %+v Body: %q",
 			dockerReq, req.ClientRequest.Body)
-	} else if tenantId, ok := dockerReq.Labels["tenantid"]; !ok || tenantId == "" {
+	} else if tenantID, ok := dockerReq.Labels["tenantid"]; !ok || tenantID == "" {
 		return nil, core.Errorf("Container doesn't contain a valid 'tenantid' label. Labels: %+v Body: %q",
 			dockerReq, req.ClientRequest.Body)
 	} else {
@@ -179,15 +180,15 @@ func (adptr *PwrStrpAdptr) handlePreCreate(req *PowerStripRequest) (*PowerStripR
 		// corresponding container-id (in server response). This simplifies things
 		// by assuming that there can't be two outstanding request. Need to revisit
 		// and handle this correctly.
-		adptr.outstandingNet = ContainerNet{tenantId: tenantId, netId: netId}
+		adptr.outstandingNet = containerNet{tenantID: tenantID, netID: netID}
 	}
 
 	return makeClientRequest(req), nil
 }
 
 // Map the 'netid' received in create request to the container-id
-func (adptr *PwrStrpAdptr) handlePostCreate(req *PowerStripRequest) (*PowerStripResponse, error) {
-	defer func() { adptr.outstandingNet = ContainerNet{"", ""} }()
+func (adptr *PwrStrpAdptr) handlePostCreate(req *powerStripRequest) (*powerStripResponse, error) {
+	defer func() { adptr.outstandingNet = containerNet{"", ""} }()
 
 	// ignore the response if container create failed
 	if req.ServerResponse.Code != 201 {
@@ -195,13 +196,13 @@ func (adptr *PwrStrpAdptr) handlePostCreate(req *PowerStripRequest) (*PowerStrip
 	}
 
 	// should not happen
-	if adptr.outstandingNet.netId == "" {
+	if adptr.outstandingNet.netID == "" {
 		return nil, core.Errorf("received a container create response, without corresponding create!")
 	}
 
 	//structure of interesting fields in the create response
 	type DockerCreateResponse struct {
-		ContId string `json:"Id"`
+		ContID string `json:"Id"`
 	}
 	dockerResp := &DockerCreateResponse{}
 	err := json.Unmarshal([]byte(req.ServerResponse.Body), dockerResp)
@@ -210,77 +211,75 @@ func (adptr *PwrStrpAdptr) handlePostCreate(req *PowerStripRequest) (*PowerStrip
 	}
 
 	//update the adptr to remember the netid to container-id mapping
-	if _, ok := adptr.containerNets[dockerResp.ContId]; !ok {
-		adptr.containerNets[dockerResp.ContId] = make([]ContainerNet, 0)
+	if _, ok := adptr.containerNets[dockerResp.ContID]; !ok {
+		adptr.containerNets[dockerResp.ContID] = make([]containerNet, 0)
 	}
-	adptr.containerNets[dockerResp.ContId] = append(adptr.containerNets[dockerResp.ContId],
+	adptr.containerNets[dockerResp.ContID] = append(adptr.containerNets[dockerResp.ContID],
 		adptr.outstandingNet)
 	// if a container name was specified update that mapping as well
 	if strings.Index(req.ClientRequest.Request, "?") != -1 {
 		queryParam := string(req.ClientRequest.Request[strings.Index(req.ClientRequest.Request, "?")+1:])
 		// right now create API just takes name as query parameter
 		name := strings.Split(queryParam, "=")[1]
-		adptr.nameIdMap[name] = dockerResp.ContId
+		adptr.nameIDMap[name] = dockerResp.ContID
 	}
 
 	return makeServerResponse(req), nil
 }
 
-func extractContIdOrName(req ClientRequest) string {
+func extractContIDOrName(req clientRequest) string {
 	reqParts := strings.Split(req.Request, "/")
 	if req.Method == "POST" {
 		// container-id is at last but one position in the request string for
 		// POST requests (i.e. start and stop)
 		return reqParts[len(reqParts)-2]
-	} else {
-		// container-id is at last position in the request string for DELETE
-		// requests
-		return reqParts[len(reqParts)-1]
 	}
+	// container-id is at last position in the request string for DELETE
+	// requests
+	return reqParts[len(reqParts)-1]
 }
 
-// take conatiner Id (complete or short hash) or name and return full container
-// Id if container exists, else return empty string
-func (adptr *PwrStrpAdptr) getFullContainerId(contIdOrName string) string {
-	// see if caller passed a full Id
-	if _, ok := adptr.containerNets[contIdOrName]; ok {
-		return contIdOrName
+// take conatiner ID (complete or short hash) or name and return full container
+// ID if container exists, else return empty string
+func (adptr *PwrStrpAdptr) getFullContainerID(contIDOrName string) string {
+	// see if caller passed a full ID
+	if _, ok := adptr.containerNets[contIDOrName]; ok {
+		return contIDOrName
 	}
 	// see if caller passed a name
-	if id, ok := adptr.nameIdMap[contIdOrName]; ok {
+	if id, ok := adptr.nameIDMap[contIDOrName]; ok {
 		return id
 	}
-	//see if caller passed a short conatiner Id
-	retId := ""
-	for id, _ := range adptr.containerNets {
-		if strings.HasPrefix(id, contIdOrName) && retId == "" {
-			retId = id
-		} else if retId != "" {
+	//see if caller passed a short conatiner ID
+	retID := ""
+	for id := range adptr.containerNets {
+		if strings.HasPrefix(id, contIDOrName) && retID == "" {
+			retID = id
+		} else if retID != "" {
 			// found overlapping containers with the passed prefix
 			return ""
 		}
 	}
-	return retId
+	return retID
 }
 
 // Record the container-id, so that we can create endpoints for the container
 // once it is started (and we get post-start) trigger
-func (adptr *PwrStrpAdptr) handlePreStart(req *PowerStripRequest) (*PowerStripResponse, error) {
-	contIdOrName := extractContIdOrName(req.ClientRequest)
-	if _, ok := adptr.containerNets[adptr.getFullContainerId(contIdOrName)]; !ok {
-		return nil, core.Errorf("got a start request for non existent container. contIdOrName: %s Request: %+v",
-			contIdOrName, req)
-	} else {
-		adptr.outstandingContId = adptr.getFullContainerId(contIdOrName)
+func (adptr *PwrStrpAdptr) handlePreStart(req *powerStripRequest) (*powerStripResponse, error) {
+	contIDOrName := extractContIDOrName(req.ClientRequest)
+	if _, ok := adptr.containerNets[adptr.getFullContainerID(contIDOrName)]; !ok {
+		return nil, core.Errorf("got a start request for non existent container. contIDOrName: %s Request: %+v",
+			contIDOrName, req)
 	}
+	adptr.outstandingContID = adptr.getFullContainerID(contIDOrName)
 
 	return makeClientRequest(req), nil
 }
 
 // Call the network driver's CreateEndpoint API for all networks that the
 // container belongs to.
-func (adptr *PwrStrpAdptr) handlePostStart(req *PowerStripRequest) (*PowerStripResponse, error) {
-	defer func() { adptr.outstandingContId = "" }()
+func (adptr *PwrStrpAdptr) handlePostStart(req *powerStripRequest) (*powerStripResponse, error) {
+	defer func() { adptr.outstandingContID = "" }()
 
 	// ignore the response if container start failed
 	if req.ServerResponse.Code != 204 {
@@ -288,33 +287,33 @@ func (adptr *PwrStrpAdptr) handlePostStart(req *PowerStripRequest) (*PowerStripR
 	}
 
 	// should not happen
-	if adptr.outstandingContId == "" {
+	if adptr.outstandingContID == "" {
 		return nil, core.Errorf("received a container start response, without corresponding start request!")
 	}
 
 	// should not happen
-	if _, ok := adptr.containerNets[adptr.outstandingContId]; !ok {
+	if _, ok := adptr.containerNets[adptr.outstandingContID]; !ok {
 		return nil, core.Errorf("received a container start response for unknown container %s",
-			adptr.outstandingContId)
+			adptr.outstandingContID)
 	}
 
 	// Now create an endpoint for every network this container is part of
-	contId := adptr.outstandingContId
-	for _, net := range adptr.containerNets[contId] {
+	contID := adptr.outstandingContID
+	for _, net := range adptr.containerNets[contID] {
 		// in libnetwork netUUID and epUUID are derived by the libnetwork,
 		// just deriving a unique string for now.
-		netUuid := driverapi.UUID(fmt.Sprintf("%s-%s", net.tenantId, net.netId))
-		epUuid := driverapi.UUID(fmt.Sprintf("%s-%s-%s", net.tenantId, net.netId, contId))
-		_, err := adptr.driver.CreateEndpoint(netUuid, epUuid, "",
-			DriverConfig{net.tenantId, net.netId, contId})
-		defer func(netUuid, epUuid driverapi.UUID) {
+		netUUID := driverapi.UUID(fmt.Sprintf("%s-%s", net.tenantID, net.netID))
+		epUUID := driverapi.UUID(fmt.Sprintf("%s-%s-%s", net.tenantID, net.netID, contID))
+		_, err := adptr.driver.CreateEndpoint(netUUID, epUUID, "",
+			DriverConfig{net.tenantID, net.netID, contID})
+		defer func(netUUID, epUUID driverapi.UUID) {
 			if err != nil {
-				adptr.driver.DeleteEndpoint(netUuid, epUuid)
+				adptr.driver.DeleteEndpoint(netUUID, epUUID)
 			}
-		}(netUuid, epUuid)
+		}(netUUID, epUUID)
 		if err != nil {
 			return nil, core.Errorf("Failed to create endpoint for net: %+v container: %q with net(s): %+v. Error: %s",
-				net, contId, adptr.containerNets[contId], err)
+				net, contID, adptr.containerNets[contID], err)
 		}
 	}
 
@@ -323,24 +322,24 @@ func (adptr *PwrStrpAdptr) handlePostStart(req *PowerStripRequest) (*PowerStripR
 
 // Call the network driver's DeleteEndpoint API for all the networks that the
 // container belongs to.
-func (adptr *PwrStrpAdptr) handlePreStop(req *PowerStripRequest) (*PowerStripResponse, error) {
-	contIdOrName := extractContIdOrName(req.ClientRequest)
-	fullContId := adptr.getFullContainerId(contIdOrName)
-	if _, ok := adptr.containerNets[fullContId]; !ok {
-		log.Printf("got a stop request for non existent container. contIdOrName: %s Request: %+v",
-			contIdOrName, req)
+func (adptr *PwrStrpAdptr) handlePreStop(req *powerStripRequest) (*powerStripResponse, error) {
+	contIDOrName := extractContIDOrName(req.ClientRequest)
+	fullContID := adptr.getFullContainerID(contIDOrName)
+	if _, ok := adptr.containerNets[fullContID]; !ok {
+		log.Printf("got a stop request for non existent container. contIDOrName: %s Request: %+v",
+			contIDOrName, req)
 		// let the request be forwarded to docker
 	} else {
 		// delete the endpoint for every network this container is part of
-		for _, net := range adptr.containerNets[fullContId] {
+		for _, net := range adptr.containerNets[fullContID] {
 			// in libnetwork netUUID and epUUID are derived by the libnetwork,
 			// just deriving a unique string for now.
-			netUuid := driverapi.UUID(fmt.Sprintf("%s-%s", net.tenantId, net.netId))
-			epUuid := driverapi.UUID(fmt.Sprintf("%s-%s-%s", net.tenantId, net.netId, fullContId))
-			err := adptr.driver.DeleteEndpoint(netUuid, epUuid)
+			netUUID := driverapi.UUID(fmt.Sprintf("%s-%s", net.tenantID, net.netID))
+			epUUID := driverapi.UUID(fmt.Sprintf("%s-%s-%s", net.tenantID, net.netID, fullContID))
+			err := adptr.driver.DeleteEndpoint(netUUID, epUUID)
 			if err != nil {
 				log.Printf("Failed to delete endpoint for net: %+v container: %q with net(s): %+v. Error: %s",
-					net, contIdOrName, adptr.containerNets[fullContId], err)
+					net, contIDOrName, adptr.containerNets[fullContID], err)
 				continue
 			}
 		}
@@ -350,19 +349,19 @@ func (adptr *PwrStrpAdptr) handlePreStop(req *PowerStripRequest) (*PowerStripRes
 }
 
 // Clear the mapping of container's uuid to all networks
-func (adptr *PwrStrpAdptr) handlePreDelete(req *PowerStripRequest) (*PowerStripResponse, error) {
-	contIdOrName := extractContIdOrName(req.ClientRequest)
-	fullContId := adptr.getFullContainerId(contIdOrName)
-	if _, ok := adptr.containerNets[fullContId]; !ok {
-		log.Printf("got a delete request for non existent container. contIdOrName: %s Request: %+v",
-			contIdOrName, req)
+func (adptr *PwrStrpAdptr) handlePreDelete(req *powerStripRequest) (*powerStripResponse, error) {
+	contIDOrName := extractContIDOrName(req.ClientRequest)
+	fullContID := adptr.getFullContainerID(contIDOrName)
+	if _, ok := adptr.containerNets[fullContID]; !ok {
+		log.Printf("got a delete request for non existent container. contIDOrName: %s Request: %+v",
+			contIDOrName, req)
 		// let the request be forwarded to docker
 	} else {
 		// XXX: with powerstrip there is no way to stimulate a stop request
 		// if a container exits, so perform the stop related cleanup on delete as well
 		adptr.handlePreStop(req)
-		delete(adptr.containerNets, fullContId)
-		delete(adptr.nameIdMap, contIdOrName)
+		delete(adptr.containerNets, fullContID)
+		delete(adptr.nameIDMap, contIDOrName)
 	}
 
 	return makeClientRequest(req), nil

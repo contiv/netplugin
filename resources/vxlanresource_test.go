@@ -129,14 +129,14 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 	VXLANRsrcValidInitID: &vxlanRsrcValidator{
 		expCfg: []AutoVXLANCfgResource{
 			{
-				CommonState: core.CommonState{nil, VXLANRsrcValidInitID},
+				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcValidInitID},
 				VXLANs:      bitset.New(1).Set(0),
 				LocalVLANs:  bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVXLANOperResource{
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcValidInitID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcValidInitID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Set(0),
 			},
@@ -145,19 +145,19 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 	VXLANRsrcValidDeinitID: &vxlanRsrcValidator{
 		expCfg: []AutoVXLANCfgResource{
 			{
-				CommonState: core.CommonState{nil, VXLANRsrcValidDeinitID},
+				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcValidDeinitID},
 				VXLANs:      bitset.New(1).Set(0),
 				LocalVLANs:  bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVXLANOperResource{
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcValidDeinitID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcValidDeinitID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Set(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcValidDeinitID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcValidDeinitID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Set(0),
 			},
@@ -166,24 +166,24 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 	VXLANRsrcAllocateID: &vxlanRsrcValidator{
 		expCfg: []AutoVXLANCfgResource{
 			{
-				CommonState: core.CommonState{nil, VXLANRsrcAllocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateID},
 				VXLANs:      bitset.New(1).Set(0),
 				LocalVLANs:  bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVXLANOperResource{
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcAllocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Set(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcAllocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Set(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcAllocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateID},
 				FreeVXLANs:     bitset.New(1).Clear(0),
 				FreeLocalVLANs: bitset.New(1).Clear(0),
 			},
@@ -192,19 +192,19 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 	VXLANRsrcAllocateExhaustVXLANID: &vxlanRsrcValidator{
 		expCfg: []AutoVXLANCfgResource{
 			{
-				CommonState: core.CommonState{nil, VXLANRsrcAllocateExhaustVXLANID},
+				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateExhaustVXLANID},
 				VXLANs:      bitset.New(1).Clear(0),
 				LocalVLANs:  bitset.New(1).Clear(0),
 			},
 		},
 		expOper: []AutoVXLANOperResource{
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcAllocateExhaustVXLANID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateExhaustVXLANID},
 				FreeVXLANs:     bitset.New(1).Clear(0),
 				FreeLocalVLANs: bitset.New(1).Clear(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcAllocateExhaustVXLANID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateExhaustVXLANID},
 				FreeVXLANs:     bitset.New(1).Clear(0),
 				FreeLocalVLANs: bitset.New(1).Clear(0),
 			},
@@ -213,19 +213,19 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 	VXLANRsrcAllocateExhaustVLANID: &vxlanRsrcValidator{
 		expCfg: []AutoVXLANCfgResource{
 			{
-				CommonState: core.CommonState{nil, VXLANRsrcAllocateExhaustVLANID},
+				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateExhaustVLANID},
 				VXLANs:      bitset.New(1).Set(0),
 				LocalVLANs:  bitset.New(1).Clear(0),
 			},
 		},
 		expOper: []AutoVXLANOperResource{
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcAllocateExhaustVLANID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateExhaustVLANID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Clear(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcAllocateExhaustVLANID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateExhaustVLANID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Clear(0),
 			},
@@ -234,34 +234,34 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 	VXLANRsrcDeallocateID: &vxlanRsrcValidator{
 		expCfg: []AutoVXLANCfgResource{
 			{
-				CommonState: core.CommonState{nil, VXLANRsrcDeallocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcDeallocateID},
 				VXLANs:      bitset.New(1).Set(0),
 				LocalVLANs:  bitset.New(1).Set(0),
 			},
 		},
 		expOper: []AutoVXLANOperResource{
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcDeallocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcDeallocateID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Set(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcDeallocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcDeallocateID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Set(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcDeallocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcDeallocateID},
 				FreeVXLANs:     bitset.New(1).Clear(0),
 				FreeLocalVLANs: bitset.New(1).Clear(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcDeallocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcDeallocateID},
 				FreeVXLANs:     bitset.New(1).Clear(0),
 				FreeLocalVLANs: bitset.New(1).Clear(0),
 			},
 			{
-				CommonState:    core.CommonState{nil, VXLANRsrcDeallocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: VXLANRsrcDeallocateID},
 				FreeVXLANs:     bitset.New(1).Set(0),
 				FreeLocalVLANs: bitset.New(1).Set(0),
 			},

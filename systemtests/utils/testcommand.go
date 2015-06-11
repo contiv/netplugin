@@ -21,6 +21,7 @@ import (
 	"os/exec"
 )
 
+// TestCommand is a command that is run on a test node
 type TestCommand struct {
 	ContivNodes int
 	ContivEnv   string
@@ -39,10 +40,12 @@ func (c *TestCommand) getCmd(cmd string, args ...string) *exec.Cmd {
 	return osCmd
 }
 
+// Run runs a command and return it's exit status
 func (c *TestCommand) Run(cmd string, args ...string) error {
 	return c.getCmd(cmd, args...).Run()
 }
 
+// RunWithOutput runs a command and return it's exit status and output
 func (c *TestCommand) RunWithOutput(cmd string, args ...string) ([]byte, error) {
 	return c.getCmd(cmd, args...).CombinedOutput()
 }

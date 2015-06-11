@@ -41,7 +41,7 @@ func TestOneHostMultipleNets_regress(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
-	ipAddress := utils.GetIpAddress(t, node1, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1")
 	utils.StartClient(t, node1, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer2")
@@ -51,7 +51,7 @@ func TestOneHostMultipleNets_regress(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer4")
 	}()
-	ipAddress = utils.GetIpAddress(t, node1, "purple-myContainer4")
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer4")
 	utils.StartClient(t, node1, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer3")
@@ -78,7 +78,7 @@ func TestOneHostVlan_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIpAddress(t, node1, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1")
 	utils.StartClient(t, node1, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer2")
@@ -113,7 +113,7 @@ func TestOneHostVlanPowerstripDocker(t *testing.T) {
 	defer func() {
 		utils.DockerCleanupWithEnv(t, node1, "server1", env)
 	}()
-	ipAddress := utils.GetIpAddressFromNetworkAndContainerName(t, node1,
+	ipAddress := utils.GetIPAddressFromNetworkAndContainerName(t, node1,
 		"orange", "server1")
 
 	// test ping success between containers in same network

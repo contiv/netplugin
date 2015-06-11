@@ -21,6 +21,7 @@ import (
 	"os/exec"
 )
 
+// VagrantCommand is a command that is run on a vagrant node
 type VagrantCommand struct {
 	ContivNodes int
 	ContivEnv   string
@@ -40,10 +41,12 @@ func (c *VagrantCommand) getCmd(cmd string, args ...string) *exec.Cmd {
 	return osCmd
 }
 
+// Run runs a command and return it's exit status
 func (c *VagrantCommand) Run(cmd string, args ...string) error {
 	return c.getCmd(cmd, args...).Run()
 }
 
+// RunWithOutput runs a command and return it's exit status and output
 func (c *VagrantCommand) RunWithOutput(cmd string, args ...string) ([]byte, error) {
 	return c.getCmd(cmd, args...).CombinedOutput()
 }

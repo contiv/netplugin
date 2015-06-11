@@ -24,11 +24,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// Vagrant implements a vagrant based testbed
 type Vagrant struct {
 	expectedNodes int
 	nodes         []TestbedNode
 }
 
+// Setup brings up a vagrant testbed
 func (v *Vagrant) Setup(env string, numNodes int) error {
 	vCmd := &VagrantCommand{ContivNodes: numNodes, ContivEnv: env}
 	output, err := vCmd.RunWithOutput("up")
@@ -83,6 +85,7 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 	return nil
 }
 
+// Teardown cleans up a vagrant testbed
 func (v *Vagrant) Teardown() {
 	vCmd := &VagrantCommand{ContivNodes: v.expectedNodes}
 	output, err := vCmd.RunWithOutput("destroy", "-f")
@@ -95,6 +98,7 @@ func (v *Vagrant) Teardown() {
 	v.expectedNodes = 0
 }
 
+// GetNodes returns the nodes in a vagrant setup
 func (v *Vagrant) GetNodes() []TestbedNode {
 	return v.nodes
 }

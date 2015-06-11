@@ -10,29 +10,34 @@ import (
 	"github.com/mapuri/libnetwork/driverapi"
 )
 
+// DriverConfig contains the driver specific configuration values passed
+// to the driver by libnetwork
 // XXX: Replace with the actual structure once it is defined by libnetwork
 type DriverConfig struct {
-	tenantId string
-	netId    string
-	contId   string
+	tenantID string
+	netID    string
+	contID   string
 }
 
-// implement the driverapi
+// LibNetDriver implements the libnetwork.driverapi
 // XXX: extract this into separate package so that it can be used once
 // libnetwork is integrated with docker and powerstrip is not needed
 type LibNetDriver struct {
 	endpoints map[driverapi.UUID]DriverConfig
 }
 
+// Config configures the driver
 func (d *LibNetDriver) Config(config interface{}) error {
 	d.endpoints = make(map[driverapi.UUID]DriverConfig)
 	return nil
 }
 
+// CreateNetwork is not implemented
 func (d *LibNetDriver) CreateNetwork(nid driverapi.UUID, config interface{}) error {
 	return core.Errorf("Not implemented")
 }
 
+// DeleteNetwork is not implemented
 func (d *LibNetDriver) DeleteNetwork(nid driverapi.UUID) error {
 	return core.Errorf("Not implemented")
 }
@@ -41,14 +46,14 @@ func invokeNetdcli(dc DriverConfig, isAdd bool) error {
 	EpCfg := &netmaster.Config{
 		Tenants: []netmaster.ConfigTenant{
 			netmaster.ConfigTenant{
-				Name: dc.tenantId,
+				Name: dc.tenantID,
 				Networks: []netmaster.ConfigNetwork{
 					netmaster.ConfigNetwork{
-						Name: dc.netId,
+						Name: dc.netID,
 						Endpoints: []netmaster.ConfigEP{
 							netmaster.ConfigEP{
-								AttachUUID: dc.contId,
-								Container:  dc.contId,
+								AttachUUID: dc.contID,
+								Container:  dc.contID,
 								// XXX: host-label needs to come from config
 								Host: gcliOpts.hostLabel,
 							},
@@ -60,7 +65,7 @@ func invokeNetdcli(dc DriverConfig, isAdd bool) error {
 	if !isAdd {
 		cfgArg = "-del-cfg"
 	}
-	cmd := exec.Command("netdcli", "-etcd-url", gcliOpts.etcdUrl, cfgArg, "-")
+	cmd := exec.Command("netdcli", "-etcd-url", gcliOpts.etcdURL, cfgArg, "-")
 	config, err := json.Marshal(EpCfg)
 	if err != nil {
 		return err
@@ -73,6 +78,7 @@ func invokeNetdcli(dc DriverConfig, isAdd bool) error {
 	return nil
 }
 
+// CreateEndpoint creates endpoint state
 func (d *LibNetDriver) CreateEndpoint(nid, eid driverapi.UUID, key string,
 	config interface{}) (*driverapi.SandboxInfo, error) {
 	dc, ok := config.(DriverConfig)
@@ -93,6 +99,7 @@ func (d *LibNetDriver) CreateEndpoint(nid, eid driverapi.UUID, key string,
 	return nil, nil
 }
 
+// DeleteEndpoint deletes endpoint state
 func (d *LibNetDriver) DeleteEndpoint(nid, eid driverapi.UUID) error {
 	dc, ok := d.endpoints[eid]
 	if !ok {

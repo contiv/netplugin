@@ -129,7 +129,7 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 	SubnetRsrcValidInitID: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				CommonState:    core.CommonState{nil, SubnetRsrcValidInitID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: SubnetRsrcValidInitID},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -137,7 +137,7 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcValidInitID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcValidInitID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 		},
@@ -145,7 +145,7 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 	SubnetRsrcValidDeinitID: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				CommonState:    core.CommonState{nil, SubnetRsrcValidDeinitID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: SubnetRsrcValidDeinitID},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -153,11 +153,11 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcValidDeinitID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcValidDeinitID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcValidDeinitID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcValidDeinitID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 		},
@@ -165,7 +165,7 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 	SubnetRsrcAllocateID: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				CommonState:    core.CommonState{nil, SubnetRsrcAllocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateID},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -173,15 +173,15 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcAllocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcAllocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcAllocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateID},
 				FreeSubnets: bitset.New(1).Clear(0),
 			},
 		},
@@ -189,7 +189,7 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 	SubnetRsrcAllocateExhaustID: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				CommonState:    core.CommonState{nil, SubnetRsrcAllocateExhaustID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateExhaustID},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -197,19 +197,19 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcAllocateExhaustID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateExhaustID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcAllocateExhaustID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateExhaustID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcAllocateExhaustID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateExhaustID},
 				FreeSubnets: bitset.New(1).Clear(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcAllocateExhaustID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcAllocateExhaustID},
 				FreeSubnets: bitset.New(1).Clear(0),
 			},
 		},
@@ -217,7 +217,7 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 	SubnetRsrcDeallocateID: &subnetRsrcValidator{
 		expCfg: []AutoSubnetCfgResource{
 			{
-				CommonState:    core.CommonState{nil, SubnetRsrcDeallocateID},
+				CommonState:    core.CommonState{StateDriver: nil, ID: SubnetRsrcDeallocateID},
 				SubnetPool:     net.ParseIP("1.2.3.4"),
 				SubnetPoolLen:  24,
 				AllocSubnetLen: 24,
@@ -225,23 +225,23 @@ var subnetRsrcValidationStateMap = map[string]*subnetRsrcValidator{
 		},
 		expOper: []AutoSubnetOperResource{
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcDeallocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcDeallocateID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcDeallocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcDeallocateID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcDeallocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcDeallocateID},
 				FreeSubnets: bitset.New(1).Clear(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcDeallocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcDeallocateID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 			{
-				CommonState: core.CommonState{nil, SubnetRsrcDeallocateID},
+				CommonState: core.CommonState{StateDriver: nil, ID: SubnetRsrcDeallocateID},
 				FreeSubnets: bitset.New(1).Set(0),
 			},
 		},

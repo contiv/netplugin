@@ -32,7 +32,7 @@ type OvsCfgEndpointState struct {
 	IPAddress  string `json:"ipAddress"`
 	HomingHost string `json:"homingHost"`
 	IntfName   string `json:"intfName"`
-	VtepIP     string `json:'vtepIP"`
+	VtepIP     string `json:"vtepIP"`
 }
 
 // Write the state.
@@ -74,7 +74,7 @@ type OvsOperEndpointState struct {
 	PortName   string `json:"portName"`
 	HomingHost string `json:"homingHost"`
 	IntfName   string `json:"intfName"`
-	VtepIP     string `json:'vtepIP"`
+	VtepIP     string `json:"vtepIP"`
 }
 
 // Matches matches the fields updated from configuration state

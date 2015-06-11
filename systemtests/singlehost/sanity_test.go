@@ -63,7 +63,7 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIpAddress(t, node, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1")
 	utils.StartClient(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
@@ -123,7 +123,7 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIpAddress(t, node, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1")
 	utils.StartClient(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
@@ -134,7 +134,7 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer4")
 	}()
 
-	ipAddress = utils.GetIpAddress(t, node, "purple-myContainer4")
+	ipAddress = utils.GetIPAddress(t, node, "purple-myContainer4")
 	utils.StartClient(t, node, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer3")
@@ -187,7 +187,7 @@ func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIpAddress(t, node, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1")
 	utils.StartClientFailure(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")

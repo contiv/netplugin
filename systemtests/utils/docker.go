@@ -21,6 +21,8 @@ import (
 	"testing"
 )
 
+// DockerCleanupWithEnv kills and removes a container on a specified testbed node
+// and with specified env-variables
 func DockerCleanupWithEnv(t *testing.T, node TestbedNode, contName string, env []string) {
 	if !OkToCleanup(t.Failed()) {
 		return
@@ -31,10 +33,12 @@ func DockerCleanupWithEnv(t *testing.T, node TestbedNode, contName string, env [
 	node.RunCommand(cmdStr)
 }
 
+// DockerCleanup kills and removes a container on a specified testbed node
 func DockerCleanup(t *testing.T, node TestbedNode, contName string) {
 	DockerCleanupWithEnv(t, node, contName, []string{})
 }
 
+// StartServerWithEnvAndArgs starts a server container with specified env-variables
 func StartServerWithEnvAndArgs(t *testing.T, node TestbedNode, contName string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run -d %s --name=" + contName +
@@ -49,10 +53,13 @@ func StartServerWithEnvAndArgs(t *testing.T, node TestbedNode, contName string,
 	}
 }
 
+// StartServer starts a server container
 func StartServer(t *testing.T, node TestbedNode, contName string) {
 	StartServerWithEnvAndArgs(t, node, contName, []string{}, []string{})
 }
 
+// StartClientWithEnvAndArgs starts a client container with specified env-variables.
+// It expects ping to server container to succeed
 func StartClientWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddress string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run %s --name=" + contName +
@@ -82,10 +89,13 @@ func StartClientWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddre
 	}
 }
 
+// StartClient starts a client container. It expects ping to server container to succeed
 func StartClient(t *testing.T, node TestbedNode, contName, ipAddress string) {
 	StartClientWithEnvAndArgs(t, node, contName, ipAddress, []string{}, []string{})
 }
 
+// StartClientFailureWithEnvAndArgs starts a client container with specified env-variables.
+// It expects ping to server container to failure
 func StartClientFailureWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddress string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run %s --name=" + contName +
@@ -106,6 +116,7 @@ func StartClientFailureWithEnvAndArgs(t *testing.T, node TestbedNode, contName, 
 	}
 }
 
+// StartClientFailure starts a client container. It expects ping to server container to fail
 func StartClientFailure(t *testing.T, node TestbedNode, contName, ipAddress string) {
 	StartClientFailureWithEnvAndArgs(t, node, contName, ipAddress, []string{}, []string{})
 }

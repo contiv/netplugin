@@ -33,9 +33,9 @@ import (
 )
 
 const (
-	LOG_FILE         = "/tmp/xx"
-	TMP_NETDCLI_FILE = "/tmp/netdcli.cfg"
-	NETDCLI_BIN      = "/root/go/bin/netdcli"
+	logFile        = "/tmp/xx"
+	tmpNetdcliFile = "/tmp/netdcli.cfg"
+	netdcliBin     = "/root/go/bin/netdcli"
 )
 
 func getHostLabel() (string, error) {
@@ -91,7 +91,7 @@ func setUpPod(podNameSpace, podName, attachUUID string) error {
 
 	jsonStr := string(bytes)
 	jsonStr = strings.Replace(jsonStr, "\"", "\\\"", -1)
-	cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonStr, TMP_NETDCLI_FILE)
+	cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonStr, tmpNetdcliFile)
 	output, err := exec.Command("/bin/bash", "-c", cmdStr).Output()
 	if err != nil {
 		log.Printf("error '%s' marshaling endpoint information output \n%s\n",
@@ -99,7 +99,7 @@ func setUpPod(podNameSpace, podName, attachUUID string) error {
 		return err
 	}
 
-	cmdStr = NETDCLI_BIN + " -host-bindings-cfg " + TMP_NETDCLI_FILE + " 2>&1"
+	cmdStr = netdcliBin + " -host-bindings-cfg " + tmpNetdcliFile + " 2>&1"
 	output, err = exec.Command("/bin/bash", "-c", cmdStr).Output()
 	if err != nil {
 		log.Printf("error '%s' executing host bindings, output \n%s\n",
@@ -128,7 +128,7 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 
 	jsonStr := string(bytes)
 	jsonStr = strings.Replace(jsonStr, "\"", "\\\"", -1)
-	cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonStr, TMP_NETDCLI_FILE)
+	cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonStr, tmpNetdcliFile)
 	output, err := exec.Command("/bin/bash", "-c", cmdStr).Output()
 	if err != nil {
 		log.Printf("error '%s' marshaling endpoint information output \n%s\n",
@@ -136,7 +136,7 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 		return err
 	}
 
-	cmdStr = NETDCLI_BIN + " -host-bindings-cfg " + TMP_NETDCLI_FILE + " 2>&1"
+	cmdStr = netdcliBin + " -host-bindings-cfg " + tmpNetdcliFile + " 2>&1"
 	output, err = exec.Command("/bin/bash", "-c", cmdStr).Output()
 	if err != nil {
 		log.Printf("error '%s' executing host bindings, output \n%s\n",
@@ -150,7 +150,7 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 func main() {
 	var err error
 
-	of, err := os.OpenFile(LOG_FILE, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	of, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err == nil {
 		log.SetOutput(of)
 	}

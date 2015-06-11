@@ -15,6 +15,7 @@ limitations under the License.
 
 package utils
 
+// Testbed is a collection of test nodes
 type Testbed interface {
 	Setup(env string, numNodes int) error
 	Teardown()

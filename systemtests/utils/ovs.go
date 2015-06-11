@@ -19,6 +19,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// OvsDumpInfo dumps the ovs state on the specified testbed node
 func OvsDumpInfo(node TestbedNode) {
 	cmdStr := "sudo ovs-vsctl show"
 	output, _ := node.RunCommandWithOutput(cmdStr)

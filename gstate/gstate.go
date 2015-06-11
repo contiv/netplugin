@@ -104,7 +104,7 @@ func (gc *Cfg) checkErrors() error {
 	}
 
 	if gc.Auto.SubnetLen > gc.Auto.AllocSubnetLen {
-		return core.Errorf("subnet size %d is smaller than subnets to be allocated from it",
+		return core.Errorf("subnet size %d is smaller than subnets (%d) to be allocated from it",
 			gc.Auto.SubnetLen, gc.Auto.AllocSubnetLen)
 	}
 	return err

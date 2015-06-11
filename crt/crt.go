@@ -45,7 +45,7 @@ type containerIfTypes struct {
 var containerIfRegistry = map[string]containerIfTypes{
 	"docker": containerIfTypes{
 		CRTType:    reflect.TypeOf(docker.Docker{}),
-		ConfigType: reflect.TypeOf(docker.DockerConfig{}),
+		ConfigType: reflect.TypeOf(docker.Config{}),
 	},
 }
 

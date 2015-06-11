@@ -15,6 +15,7 @@ limitations under the License.
 
 package utils
 
+// TestbedNode is a node under test
 type TestbedNode interface {
 	RunCommand(cmd string) (err error)
 	RunCommandWithOutput(cmd string) (output string, err error)
