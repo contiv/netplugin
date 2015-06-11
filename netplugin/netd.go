@@ -33,7 +33,6 @@ import (
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/plugin"
-	"github.com/contiv/netplugin/utils"
 	"github.com/samalba/dockerclient"
 
 	log "github.com/Sirupsen/logrus"
@@ -528,19 +527,16 @@ func configureSyslog(syslogParam string) {
 		hook, err = logrus_syslog.NewSyslogHook("", "", syslog.LOG_INFO, "netplugin")
 		if err != nil {
 			log.Fatalf("Could not connect to kernel syslog")
-			os.Exit(1)
 		}
 	} else {
 		u, err := url.Parse(syslogParam)
 		if err != nil {
 			log.Fatalf("Could not parse syslog spec: %v", err)
-			os.Exit(1)
 		}
 
 		hook, err = logrus_syslog.NewSyslogHook(u.Scheme, u.Host, syslog.LOG_INFO, "netplugin")
 		if err != nil {
 			log.Fatalf("Could not connect to syslog: %v", err)
-			os.Exit(1)
 		}
 	}
 
@@ -553,7 +549,7 @@ func main() {
 
 	defHostLabel, err := os.Hostname()
 	if err != nil {
-		utils.LogExit("Failed to fetch hostname. Error: %s", err)
+		log.Fatalf("Failed to fetch hostname. Error: %s", err)
 	}
 
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
@@ -584,7 +580,7 @@ func main() {
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
-		utils.LogExit("Failed to parse command. Error: %s", err)
+		log.Fatalf("Failed to parse command. Error: %s", err)
 	}
 
 	if opts.debug {
@@ -637,24 +633,24 @@ func main() {
 		reader := bufio.NewReader(os.Stdin)
 		config, err = ioutil.ReadAll(reader)
 		if err != nil {
-			utils.LogExit("reading config from stdin failed. Error: %s", err)
+			log.Fatalf("reading config from stdin failed. Error: %s", err)
 		}
 	} else {
 		config, err = ioutil.ReadFile(opts.cfgFile)
 		if err != nil {
-			utils.LogExit("reading config from file failed. Error: %s", err)
+			log.Fatalf("reading config from file failed. Error: %s", err)
 		}
 	}
 
 	err = netPlugin.Init(string(config))
 	if err != nil {
-		utils.LogExit("Failed to initialize the plugin. Error: %s", err)
+		log.Fatalf("Failed to initialize the plugin. Error: %s", err)
 	}
 
 	crt := &crt.CRT{}
 	err = crt.Init(string(config))
 	if err != nil {
-		utils.LogExit("Failed to initialize container run time, err %s \n", err)
+		log.Fatalf("Failed to initialize container run time, err %s \n", err)
 	}
 
 	processCurrentState(netPlugin, crt, opts)

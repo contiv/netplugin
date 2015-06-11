@@ -65,7 +65,6 @@ func printUsage(arg0 string) {
 		arg0 + " help" + "\n"
 
 	log.Fatalf("Usage: \n%s\n", usageString)
-	os.Exit(1)
 }
 
 func initPlugin() error {
@@ -77,7 +76,6 @@ func setUpPod(podNameSpace, podName, attachUUID string) error {
 	hostLabel, err := getHostLabel()
 	if err != nil {
 		log.Fatalf("error %s getting host label \n", err)
-		os.Exit(1)
 	}
 
 	epCfg := []netmaster.ConfigEP{
@@ -114,7 +112,6 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 	hostLabel, err := getHostLabel()
 	if err != nil {
 		log.Fatalf("error %s getting host label \n", err)
-		os.Exit(1)
 	}
 
 	epCfg := []netmaster.ConfigEP{

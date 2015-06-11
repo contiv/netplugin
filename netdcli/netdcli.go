@@ -29,7 +29,6 @@ import (
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
-	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -257,7 +256,7 @@ func usage() {
 }
 
 func logFatalSubnetAndMaskFormatError() {
-	utils.LogExit("gateway IP and mask must be specified e.g. 11.0.1.1/24 or " +
+	log.Fatalf("gateway IP and mask must be specified e.g. 11.0.1.1/24 or " +
 		"if gateway is not required to be specified then 0/24")
 }
 
@@ -274,15 +273,15 @@ func validateOpts(opts *cliOpts) error {
 	}
 
 	if opts.oper.Get() == "" {
-		utils.LogExit("An operation must be specified")
+		log.Fatalf("An operation must be specified")
 	}
 
 	if opts.construct.Get() == "" {
-		utils.LogExit("A construct must be specified")
+		log.Fatalf("A construct must be specified")
 	}
 
 	if opts.pktTagType != "vxlan" && opts.pktTagType != "vlan" {
-		utils.LogExit("error '%s' packet tag type not supported", opts.pktTagType)
+		log.Fatalf("error '%s' packet tag type not supported", opts.pktTagType)
 	}
 
 	// global create params validation
@@ -291,14 +290,14 @@ func validateOpts(opts *cliOpts) error {
 		if opts.vlans != "" {
 			_, err = netutils.ParseTagRanges(opts.vlans, "vlan")
 			if err != nil {
-				utils.LogExit("error '%s' parsing vlan range '%s' \n", err, opts.vlans)
+				log.Fatalf("error '%s' parsing vlan range '%s' \n", err, opts.vlans)
 			}
 		}
 
 		if opts.vxlans != "" {
 			_, err = netutils.ParseTagRanges(opts.vxlans, "vxlan")
 			if err != nil {
-				utils.LogExit("error '%s' parsing vxlan range '%s' \n", err, opts.vxlans)
+				log.Fatalf("error '%s' parsing vxlan range '%s' \n", err, opts.vxlans)
 			}
 		}
 	}
@@ -311,7 +310,7 @@ func validateOpts(opts *cliOpts) error {
 	} else if opts.pktTag != "" {
 		_, err = strconv.Atoi(opts.pktTag)
 		if err != nil {
-			utils.LogExit("Error convertinng tag %s to integer \n", opts.pktTag)
+			log.Fatalf("Error convertinng tag %s to integer \n", opts.pktTag)
 		}
 	}
 
@@ -323,7 +322,7 @@ func validateOpts(opts *cliOpts) error {
 	if opts.homingHost == "" {
 		opts.homingHost, err = os.Hostname()
 		if err != nil {
-			utils.LogExit("error obtaining the hostname, error %s \n", err)
+			log.Fatalf("error obtaining the hostname, error %s \n", err)
 		}
 	}
 
@@ -334,7 +333,7 @@ func validateOpts(opts *cliOpts) error {
 	} else {
 		_, _, err = net.ParseCIDR(opts.subnetCidr)
 		if err != nil {
-			utils.LogExit("error '%s' parsing cidr ip %s \n", err, opts.subnetCidr)
+			log.Fatalf("error '%s' parsing cidr ip %s \n", err, opts.subnetCidr)
 		}
 
 		opts.subnetIP, opts.subnetLen, err = netutils.ParseCIDR(opts.subnetCidr)
@@ -344,7 +343,7 @@ func validateOpts(opts *cliOpts) error {
 	}
 
 	if opts.vtepIP != "" && net.ParseIP(opts.vtepIP) == nil {
-		utils.LogExit("error '%s' parsing vtep ip %s \n", err, opts.vtepIP)
+		log.Fatalf("error '%s' parsing vtep ip %s \n", err, opts.vtepIP)
 	}
 
 	// endpoint parameters validation
@@ -355,7 +354,7 @@ func validateOpts(opts *cliOpts) error {
 		if opts.ipAddr == "auto" {
 			log.Debugf("doing auto ip address assignemt for the ep... \n")
 		} else {
-			utils.LogExit("Endpoint creation requires a valid net-id, vlan tag, " +
+			log.Fatalf("Endpoint creation requires a valid net-id, vlan tag, " +
 				"and ip address")
 		}
 	}
@@ -375,7 +374,6 @@ func executeOpts(opts *cliOpts) error {
 	err := validateOpts(opts)
 	if err != nil {
 		log.Fatalf("error %v validating opts\n", err)
-		return err
 	}
 
 	etcdDriver := &state.EtcdStateDriver{}
@@ -384,7 +382,7 @@ func executeOpts(opts *cliOpts) error {
 	config := &core.Config{V: driverConfig}
 	err = etcdDriver.Init(config)
 	if err != nil {
-		utils.LogExit("Failed to init etcd driver. Error: %s", err)
+		log.Fatalf("Failed to init etcd driver. Error: %s", err)
 	}
 
 	switch opts.construct.Get() {
@@ -398,7 +396,7 @@ func executeOpts(opts *cliOpts) error {
 			epCfg.StateDriver = etcdDriver
 			err = epCfg.Read(opts.idStr)
 			if err != nil {
-				utils.LogExit("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
+				log.Fatalf("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
 			}
 			log.Debugf("read ep state as %v for container %s \n", epCfg, opts.contName)
 			if opts.oper.Get() == cliOperAttach {
@@ -406,7 +404,7 @@ func executeOpts(opts *cliOpts) error {
 				epCfg.AttachUUID = opts.attachUUID
 			} else {
 				if epCfg.ContName != opts.contName {
-					utils.LogExit("Can not detach container '%s' from endpoint '%s' - "+
+					log.Fatalf("Can not detach container '%s' from endpoint '%s' - "+
 						"container not attached \n", opts.contName, opts.idStr)
 				}
 				epCfg.ContName = ""
@@ -453,7 +451,7 @@ func executeOpts(opts *cliOpts) error {
 			gcfg.Tenant = opts.tenant
 			err = gcfg.Clear()
 			if err != nil {
-				utils.LogExit("Failed to delete %s. Error: %s", opts.construct.Get(), err)
+				log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
 			}
 		} else {
 			gcfg.Version = gstate.VersionBeta1
@@ -467,7 +465,7 @@ func executeOpts(opts *cliOpts) error {
 			err = gcfg.Write()
 		}
 		if err != nil {
-			utils.LogExit("error '%s' \n", err)
+			log.Fatalf("error '%s' \n", err)
 		}
 		return err
 	case cliConstructVLANResource:
@@ -500,7 +498,7 @@ func executeOpts(opts *cliOpts) error {
 	case cliOperGet:
 		err = coreState.Read(opts.idStr)
 		if err != nil {
-			utils.LogExit("Failed to read %s. Error: %s", opts.construct.Get(), err)
+			log.Fatalf("Failed to read %s. Error: %s", opts.construct.Get(), err)
 		} else {
 			//XXX: poor man's pretty print for struct to keep output greppable
 			//on individual structure fields
@@ -510,12 +508,12 @@ func executeOpts(opts *cliOpts) error {
 	case cliOperAttach, cliOperDetach, cliOperCreate:
 		err = coreState.Write()
 		if err != nil {
-			utils.LogExit("Failed to create %s. Error: %s", opts.construct.Get(), err)
+			log.Fatalf("Failed to create %s. Error: %s", opts.construct.Get(), err)
 		}
 	case cliOperDelete:
 		err = coreState.Clear()
 		if err != nil {
-			utils.LogExit("Failed to delete %s. Error: %s", opts.construct.Get(), err)
+			log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
 		}
 	}
 
@@ -525,7 +523,7 @@ func executeOpts(opts *cliOpts) error {
 func main() {
 	err := flagSet.Parse(os.Args[1:])
 	if err != nil {
-		utils.LogExit("Failed to parse command. Error: %s", err)
+		log.Fatalf("Failed to parse command. Error: %s", err)
 	}
 	opts.idStr = flagSet.Arg(0)
 
@@ -535,7 +533,7 @@ func main() {
 		err = executeOpts(&opts)
 	}
 	if err != nil {
-		utils.LogExit("error %s executing the config opts %v \n", err, opts)
+		log.Fatalf("error %s executing the config opts %v \n", err, opts)
 	}
 
 	os.Exit(0)

@@ -324,11 +324,9 @@ func executeJSONCfg(defOpts *cliOpts) (err error) {
 		err = processAdditions(stateDriver, allCfg)
 	} else {
 		log.Fatalf("invalid json config file type\n")
-		return
 	}
 	if err != nil {
 		log.Fatalf("error processing cfg '%s' \n", err)
-		return
 	}
 
 	return

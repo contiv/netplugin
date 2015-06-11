@@ -21,8 +21,6 @@ import (
 
 	"github.com/contiv/netplugin/systemtests/utils"
 
-	nputils "github.com/contiv/netplugin/utils"
-
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -39,7 +37,7 @@ func TestMain(m *testing.M) {
 	log.Printf("Done with testbed setup...")
 	if err != nil {
 		testbed.Teardown()
-		nputils.LogExit("Testbed setup failed. Error: %s", err)
+		log.Fatalf("Testbed setup failed. Error: %s", err)
 	}
 
 	exitCode := m.Run()
