@@ -585,6 +585,7 @@ func main() {
 
 	if opts.debug {
 		log.SetLevel(log.DebugLevel)
+		os.Setenv("CONTIV_TRACE", "1")
 	}
 
 	if opts.jsonLog {
