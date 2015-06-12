@@ -17,28 +17,69 @@ package core
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"runtime"
 	"strings"
 )
 
-// Error is our custom error with description, file, and line.
-type Error struct {
-	desc string
+type errorStack struct {
 	file string
 	line int
+	fun  string
+}
+
+// Error is our custom error with description, file, and line.
+type Error struct {
+	desc  string
+	stack []errorStack
 }
 
 // Error() allows *core.Error to present the `error` interface.
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s [%s %d]", e.desc, e.file, e.line)
+	var ret string
+
+	if os.Getenv("CONTIV_TRACE") != "" {
+		ret = e.desc + "\n"
+
+		for _, stack := range e.stack {
+			ret += fmt.Sprintf("%s [%s %d]\n", stack.fun, stack.file, stack.line)
+		}
+	} else {
+		ret = fmt.Sprintf("%s [%s %s %d]", e.desc, e.stack[0].fun, e.stack[0].file, e.stack[0].line)
+	}
+
+	return ret
 }
 
 // Errorf returns an *Error based on the format specification provided.
 func Errorf(f string, args ...interface{}) *Error {
-	e := &Error{}
-	e.desc = fmt.Sprintf(f, args...)
-	_, e.file, e.line, _ = runtime.Caller(1)
-	e.file = e.file[strings.LastIndex(e.file, "/")+1:]
+	e := &Error{
+		stack: []errorStack{},
+		desc:  fmt.Sprintf(f, args...),
+	}
+
+	i := 1
+
+	for {
+		stack := errorStack{}
+		pc, file, line, ok := runtime.Caller(i)
+		if !ok {
+			break
+		}
+
+		fun := runtime.FuncForPC(pc)
+		if fun != nil {
+			stack.fun = fun.Name()
+		}
+
+		stack.file = path.Base(file)
+		stack.line = line
+		e.stack = append(e.stack, stack)
+
+		i++
+	}
+
 	return e
 }
 
