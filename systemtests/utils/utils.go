@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster"
 
 	log "github.com/Sirupsen/logrus"
@@ -305,26 +306,19 @@ func GetIPAddress(t *testing.T, node TestbedNode, ep string) string {
 		output, err = node.RunCommandWithOutput(cmdStr)
 	}
 
-	if err != nil || string(output) == "" {
+	epStruct := drivers.OvsOperEndpointState{}
+
+	if err != nil || output == "" {
 		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%q\n",
 			err, ep, output)
 	}
 
-	for _, str := range strings.Split(string(output), "\\n\\t") {
-		if strings.HasPrefix(str, "IPAddress") {
-			ret := strings.SplitN(str, ":", 2)
-			if len(ret) < 2 {
-				err = fmt.Errorf("Could not parse return value from netdcli")
-				break
-			}
-
-			return strings.TrimRight(ret[1], ",")
-		}
+	if err := json.Unmarshal([]byte(output), &epStruct); err != nil {
+		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%s\n",
+			err, ep, output)
 	}
 
-	t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%s\n",
-		err, ep, output)
-	return ""
+	return epStruct.IPAddress
 }
 
 // GetIPAddressFromNetworkAndContainerName return IP address when network id and
