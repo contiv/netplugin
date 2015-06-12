@@ -122,6 +122,7 @@ func (c *construct) Get() interface{} {
 
 type cliOpts struct {
 	help            bool
+	debug           bool
 	cfgDesired      bool
 	cfgAdditions    bool
 	cfgDeletions    bool
@@ -160,6 +161,11 @@ func init() {
 	flagSet.Var(&opts.construct,
 		"construct",
 		"Construct to operate on i.e network or endpoint")
+	flagSet.BoolVar(&opts.debug,
+		"debug",
+		false,
+		"Turn on debugging information",
+	)
 	flagSet.BoolVar(&opts.cfgHostBindings,
 		"host-bindings-cfg",
 		false,
@@ -262,6 +268,10 @@ func validateOpts(opts *cliOpts) error {
 		return nil
 	}
 
+	if opts.debug {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	if opts.oper.Get() == "" {
 		log.Fatalf("An operation must be specified")
 	}
@@ -295,7 +305,7 @@ func validateOpts(opts *cliOpts) error {
 	if opts.pktTag == "auto" {
 		if opts.oper.Get() == cliOperCreate &&
 			opts.construct.Get() == cliConstructNetwork {
-			log.Printf("  auto allocating network subnet from global pool")
+			log.Infof("  auto allocating network subnet from global pool")
 		}
 	} else if opts.pktTag != "" {
 		_, err = strconv.Atoi(opts.pktTag)
@@ -342,7 +352,7 @@ func validateOpts(opts *cliOpts) error {
 		opts.vtepIP != "" &&
 		(opts.netID == "" || opts.ipAddr == "") {
 		if opts.ipAddr == "auto" {
-			log.Printf("doing auto ip address assignemt for the ep... \n")
+			log.Debugf("doing auto ip address assignemt for the ep... \n")
 		} else {
 			log.Fatalf("Endpoint creation requires a valid net-id, vlan tag, " +
 				"and ip address")
@@ -364,10 +374,7 @@ func executeOpts(opts *cliOpts) error {
 	err := validateOpts(opts)
 	if err != nil {
 		log.Fatalf("error %v validating opts\n", err)
-		return err
 	}
-
-	// log.Printf("parsed all valuees = %v \n", opts)
 
 	etcdDriver := &state.EtcdStateDriver{}
 	driverConfig := &state.EtcdStateDriverConfig{}
@@ -391,7 +398,7 @@ func executeOpts(opts *cliOpts) error {
 			if err != nil {
 				log.Fatalf("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
 			}
-			log.Printf("read ep state as %v for container %s \n", epCfg, opts.contName)
+			log.Debugf("read ep state as %v for container %s \n", epCfg, opts.contName)
 			if opts.oper.Get() == cliOperAttach {
 				epCfg.ContName = opts.contName
 				epCfg.AttachUUID = opts.attachUUID
@@ -438,7 +445,7 @@ func executeOpts(opts *cliOpts) error {
 		gcfg.StateDriver = etcdDriver
 		if opts.oper.Get() == cliOperGet {
 			err = gcfg.Read(opts.tenant)
-			log.Printf("State: %v \n", gcfg)
+			log.Debugf("State: %v \n", gcfg)
 		} else if opts.oper.Get() == cliOperDelete {
 			gcfg.Version = gstate.VersionBeta1
 			gcfg.Tenant = opts.tenant
@@ -495,7 +502,7 @@ func executeOpts(opts *cliOpts) error {
 		} else {
 			//XXX: poor man's pretty print for struct to keep output greppable
 			//on individual structure fields
-			log.Printf("%s State: \n%s\n", opts.construct.Get(),
+			log.Infof("%s State: \n%s\n", opts.construct.Get(),
 				strings.Replace(fmt.Sprintf("%+v", coreState), " ", ",\n\t", -1))
 		}
 	case cliOperAttach, cliOperDetach, cliOperCreate:
@@ -527,7 +534,6 @@ func main() {
 	}
 	if err != nil {
 		log.Fatalf("error %s executing the config opts %v \n", err, opts)
-		os.Exit(1)
 	}
 
 	os.Exit(0)

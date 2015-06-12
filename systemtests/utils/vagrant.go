@@ -35,7 +35,7 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 	vCmd := &VagrantCommand{ContivNodes: numNodes, ContivEnv: env}
 	output, err := vCmd.RunWithOutput("up")
 	if err != nil {
-		log.Printf("Vagrant up failed. Error: %s Output: \n%s\n",
+		log.Errorf("Vagrant up failed. Error: %s Output: \n%s\n",
 			err, output)
 		return err
 	}
@@ -48,7 +48,7 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 
 	output, err = vCmd.RunWithOutput("status")
 	if err != nil {
-		log.Printf("Vagrant status failed. Error: %s Output: \n%s\n",
+		log.Errorf("Vagrant status failed. Error: %s Output: \n%s\n",
 			err, output)
 		return err
 	}
@@ -77,7 +77,7 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 
 	// got the names, now fill up the vagrant-nodes structure
 	for i, nodeName := range nodeNames {
-		log.Printf("Adding node: %q", nodeName)
+		log.Infof("Adding node: %q", nodeName)
 		node := TestbedNode(VagrantNode{Name: nodeName, NodeNum: i + 1})
 		v.nodes = append(v.nodes, node)
 	}
@@ -90,7 +90,7 @@ func (v *Vagrant) Teardown() {
 	vCmd := &VagrantCommand{ContivNodes: v.expectedNodes}
 	output, err := vCmd.RunWithOutput("destroy", "-f")
 	if err != nil {
-		log.Printf("Vagrant destroy failed. Error: %s Output: \n%s\n",
+		log.Errorf("Vagrant destroy failed. Error: %s Output: \n%s\n",
 			err, output)
 	}
 

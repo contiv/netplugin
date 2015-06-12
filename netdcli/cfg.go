@@ -105,7 +105,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		if !epPresent(allCfg, cfg.ID) {
 			err1 := netmaster.DeleteEndpointID(stateDriver, cfg.ID)
 			if err1 != nil {
-				log.Printf("error '%s' deleting epid %s \n", err1, cfg.ID)
+				log.Errorf("error '%s' deleting epid %s \n", err1, cfg.ID)
 				err = err1
 				continue
 			}
@@ -126,7 +126,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		if !netPresent(allCfg, cfg.ID) {
 			err1 := netmaster.DeleteNetworkID(stateDriver, cfg.ID)
 			if err1 != nil {
-				log.Printf("error '%s' deleting net %s \n", err1, cfg.ID)
+				log.Errorf("error '%s' deleting net %s \n", err1, cfg.ID)
 				err = err1
 				continue
 			}
@@ -147,7 +147,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		if !tenantPresent(allCfg, cfg.Tenant) {
 			err1 := netmaster.DeleteTenantID(stateDriver, cfg.Tenant)
 			if err1 != nil {
-				log.Printf("error '%s' deleting tenant %s \n", err1, cfg.Tenant)
+				log.Errorf("error '%s' deleting tenant %s \n", err1, cfg.Tenant)
 				err = err1
 				continue
 			}
@@ -169,7 +169,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		if !hostPresent(allCfg, hostName) {
 			err1 := netmaster.DeleteHostID(stateDriver, hostName)
 			if err1 != nil {
-				log.Printf("error '%s' deleting host %s \n", err1, hostName)
+				log.Errorf("error '%s' deleting host %s \n", err1, hostName)
 				err = err1
 				continue
 			}
@@ -183,7 +183,7 @@ func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 	for _, host := range allCfg.Hosts {
 		err1 := netmaster.CreateHost(stateDriver, &host)
 		if err1 != nil {
-			log.Printf("error '%s' adding host %s \n", err1, host.Name)
+			log.Errorf("error '%s' adding host %s \n", err1, host.Name)
 			err = err1
 			continue
 		}
@@ -192,21 +192,21 @@ func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 	for _, tenant := range allCfg.Tenants {
 		err1 := netmaster.CreateTenant(stateDriver, &tenant)
 		if err1 != nil {
-			log.Printf("error adding tenant '%s' \n", err1)
+			log.Errorf("error adding tenant '%s' \n", err1)
 			err = err1
 			continue
 		}
 
 		err1 = netmaster.CreateNetworks(stateDriver, &tenant)
 		if err1 != nil {
-			log.Printf("error adding networks '%s' \n", err1)
+			log.Errorf("error adding networks '%s' \n", err1)
 			err = err1
 			continue
 		}
 
 		err1 = netmaster.CreateEndpoints(stateDriver, &tenant)
 		if err1 != nil {
-			log.Printf("error adding endpoints '%s' \n", err1)
+			log.Errorf("error adding endpoints '%s' \n", err1)
 			err = err1
 			continue
 		}
@@ -219,7 +219,7 @@ func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 	for _, host := range allCfg.Hosts {
 		err1 := netmaster.DeleteHost(stateDriver, &host)
 		if err1 != nil {
-			log.Printf("error '%s' deleting host %s \n", err1, host.Name)
+			log.Errorf("error '%s' deleting host %s \n", err1, host.Name)
 			err = err1
 			continue
 		}
@@ -228,21 +228,21 @@ func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 	for _, tenant := range allCfg.Tenants {
 		err1 := netmaster.DeleteEndpoints(stateDriver, &tenant)
 		if err1 != nil {
-			log.Printf("error deleting endpoints '%s' \n", err1)
+			log.Errorf("error deleting endpoints '%s' \n", err1)
 			err = err1
 			continue
 		}
 
 		err1 = netmaster.DeleteNetworks(stateDriver, &tenant)
 		if err1 != nil {
-			log.Printf("error deleting networks '%s' \n", err1)
+			log.Errorf("error deleting networks '%s' \n", err1)
 			err = err1
 			continue
 		}
 
 		err1 = netmaster.DeleteTenant(stateDriver, &tenant)
 		if err1 != nil {
-			log.Printf("error deleting tenant '%s' \n", err1)
+			log.Errorf("error deleting tenant '%s' \n", err1)
 			err = err1
 			continue
 		}
@@ -259,7 +259,7 @@ func initEtcd(defOpts *cliOpts) (core.StateDriver, error) {
 	etcdDriver := &state.EtcdStateDriver{}
 	err := etcdDriver.Init(config)
 	if err != nil {
-		log.Printf("error '%s' initializing etcd \n", err)
+		log.Errorf("error '%s' initializing etcd \n", err)
 	}
 
 	return etcdDriver, err
@@ -290,13 +290,13 @@ func executeJSONCfg(defOpts *cliOpts) (err error) {
 		epBindings := []netmaster.ConfigEP{}
 		err = json.Unmarshal(data, &epBindings)
 		if err != nil {
-			log.Printf("error '%s' unmarshing host bindings, data ============\n%s\n=============\n", err, data)
+			log.Errorf("error '%s' unmarshing host bindings, data ============\n%s\n=============\n", err, data)
 			return
 		}
 
 		err = netmaster.CreateEpBindings(stateDriver, &epBindings)
 		if err != nil {
-			log.Printf("error '%s' creating host bindings \n", err)
+			log.Errorf("error '%s' creating host bindings \n", err)
 		}
 		return
 	}
@@ -304,16 +304,17 @@ func executeJSONCfg(defOpts *cliOpts) (err error) {
 	allCfg := &netmaster.Config{}
 	err = json.Unmarshal(data, allCfg)
 	if err != nil {
-		log.Printf("error '%s' unmarshaling tenant cfg, data %s \n", err, data)
+		log.Errorf("error '%s' unmarshaling tenant cfg, data %s \n", err, data)
 		return
 	}
-	// log.Printf("parsed config %v \n", allCfg)
+
+	log.Debugf("parsed config %v \n", allCfg)
 
 	if defOpts.cfgDesired {
 		err = deleteDelta(stateDriver, allCfg)
 	}
 	if err != nil {
-		log.Printf("error deleting delta '%s' \n", err)
+		log.Errorf("error deleting delta '%s' \n", err)
 		return
 	}
 
@@ -323,11 +324,9 @@ func executeJSONCfg(defOpts *cliOpts) (err error) {
 		err = processAdditions(stateDriver, allCfg)
 	} else {
 		log.Fatalf("invalid json config file type\n")
-		return
 	}
 	if err != nil {
-		log.Printf("error processing cfg '%s' \n", err)
-		return
+		log.Fatalf("error processing cfg '%s' \n", err)
 	}
 
 	return

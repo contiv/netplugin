@@ -306,7 +306,7 @@ func GetIPAddress(t *testing.T, node TestbedNode, ep string) string {
 	}
 
 	if err != nil || string(output) == "" {
-		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%s\n",
+		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%q\n",
 			err, ep, output)
 	}
 
@@ -361,7 +361,7 @@ func DumpNetpluginLogs(node TestbedNode) {
 	cmdStr := fmt.Sprintf("sudo cat /tmp/netplugin.log")
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err == nil {
-		log.Printf("logs on node %s: \n%s\n", node.GetName(), output)
+		log.Debugf("logs on node %s: \n%s\n", node.GetName(), output)
 	}
 }
 

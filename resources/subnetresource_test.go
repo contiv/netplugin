@@ -40,25 +40,25 @@ type subnetRsrcValidator struct {
 func (vt *subnetRsrcValidator) nextCfgState() {
 	vt.expCfg = vt.expCfg[1:]
 	if len(vt.expCfg) > 0 {
-		log.Printf("after pop cfg is: %+v\n", vt.expCfg[0])
+		log.Debugf("after pop cfg is: %+v\n", vt.expCfg[0])
 	} else {
-		log.Printf("cfg becomes empty.\n")
+		log.Debugf("cfg becomes empty.\n")
 	}
 }
 
 func (vt *subnetRsrcValidator) nextOperState() {
 	vt.expOper = vt.expOper[1:]
 	if len(vt.expOper) > 0 {
-		log.Printf("after pop oper is: %+v\n", vt.expOper[0])
+		log.Debugf("after pop oper is: %+v\n", vt.expOper[0])
 	} else {
-		log.Printf("oper becomes empty.\n")
+		log.Debugf("oper becomes empty.\n")
 	}
 }
 
 func (vt *subnetRsrcValidator) ValidateState(state core.State) error {
 	rcvdCfg, okCfg := state.(*AutoSubnetCfgResource)
 	if okCfg {
-		log.Printf("cfg length: %d", len(vt.expCfg))
+		log.Debugf("cfg length: %d", len(vt.expCfg))
 		if rcvdCfg.ID != vt.expCfg[0].ID ||
 			!rcvdCfg.SubnetPool.Equal(vt.expCfg[0].SubnetPool) ||
 			rcvdCfg.SubnetPoolLen != vt.expCfg[0].SubnetPoolLen ||
@@ -74,7 +74,7 @@ func (vt *subnetRsrcValidator) ValidateState(state core.State) error {
 
 	rcvdOper, okOper := state.(*AutoSubnetOperResource)
 	if okOper {
-		log.Printf("oper length: %d", len(vt.expOper))
+		log.Debugf("oper length: %d", len(vt.expOper))
 		if rcvdOper.ID != vt.expOper[0].ID ||
 			!rcvdOper.FreeSubnets.Equal(vt.expOper[0].FreeSubnets) {
 			errStr := fmt.Sprintf("oper mismatch. Expctd: %+v, Rcvd: %+v",
@@ -281,7 +281,7 @@ func (d *testSubnetRsrcStateDriver) validate(key string, state core.State,
 	v, ok := subnetRsrcValidationStateMap[id]
 	if !ok {
 		errStr := fmt.Sprintf("No matching validation entry for id: %s", id)
-		log.Printf("%s\n", errStr)
+		log.Errorf("%s\n", errStr)
 		return core.Errorf(errStr)
 	}
 

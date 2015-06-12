@@ -120,9 +120,6 @@ func setIfNs(ifname string, pid int) error {
 // what docker daemon would eventually do; in the meanwhile
 // the essense of the logic is borrowed from pipework
 func (d *Docker) moveIfToContainer(ctx *crtclient.ContainerEPContext) error {
-
-	// log.Printf("Moving interface '%s' into container '%s' \n", ifID, contName)
-
 	contPid, err := d.getContPid(ctx)
 	if err != nil {
 		log.Errorf("error querying container name %s, uuid %s, Error: %s",
@@ -321,8 +318,8 @@ func (d *Docker) AttachEndpoint(ctx *crtclient.ContainerEPContext) error {
 func (d *Docker) DetachEndpoint(ctx *crtclient.ContainerEPContext) error {
 	var err error
 
-	// log.Printf("Detached called for container %s with %s interface\n",
-	//            ctx.CurrContName, ctx.InterfaceID)
+	log.Debugf("Detached called for container %s with %s interface\n",
+		ctx.CurrContName, ctx.InterfaceID)
 
 	// no need to move the interface out of containre, etc.
 	// usually deletion of ep takes care of that

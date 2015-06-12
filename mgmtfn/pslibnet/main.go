@@ -70,8 +70,7 @@ func main() {
 
 	gHostLabel, err := os.Hostname()
 	if err != nil {
-		log.Printf("Failed to fetch hostname. Error: %s", err)
-		os.Exit(1)
+		log.Fatalf("Failed to fetch hostname. Error: %s", err)
 	}
 
 	flagSet = flag.NewFlagSet("pslibnet", flag.ExitOnError)
@@ -90,28 +89,25 @@ func main() {
 	}
 
 	if flagSet.NFlag() < 1 {
-		log.Printf("host-label not specified, using default (%s)", gcliOpts.hostLabel)
+		log.Infof("host-label not specified, using default (%s)", gcliOpts.hostLabel)
 	}
 
 	driver := &LibNetDriver{}
 	err = driver.Config(nil)
 	if err != nil {
-		log.Printf("libnet driver init failed. Error: %s", err)
-		os.Exit(1)
+		log.Fatalf("libnet driver init failed. Error: %s", err)
 	}
 	adapter := &PwrStrpAdptr{}
 	err = adapter.Init(driver)
 	if err != nil {
-		log.Printf("powerstrip adaper init failed. Error: %s", err)
-		os.Exit(1)
+		log.Fatalf("powerstrip adaper init failed. Error: %s", err)
 	}
 
 	// start serving the API requests
 	http.HandleFunc("/adapter/", adapter.CallHook)
 	err = http.ListenAndServe(":80", nil)
 	if err != nil {
-		log.Printf("Error listening for http requests. Error: %s", err)
-		os.Exit(1)
+		log.Fatalf("Error listening for http requests. Error: %s", err)
 	}
 
 	os.Exit(0)

@@ -23,5 +23,5 @@ import (
 func OvsDumpInfo(node TestbedNode) {
 	cmdStr := "sudo ovs-vsctl show"
 	output, _ := node.RunCommandWithOutput(cmdStr)
-	log.Printf("ovs-vsctl on node %s: \n%s\n", node.GetName(), output)
+	log.Debugf("ovs-vsctl on node %s: \n%s\n", node.GetName(), output)
 }

@@ -33,13 +33,13 @@ func (v *Dind) Setup(env string, numNodes int) error {
 
 	err := os.Chdir(os.Getenv("CONTIV_HOST_GOPATH") + "/src/github.com/contiv/netplugin")
 	if err != nil {
-		log.Printf("chDir failed. Error: %s ",
+		log.Errorf("chDir failed. Error: %s ",
 			err)
 	}
 	cmd := &TestCommand{ContivNodes: numNodes, ContivEnv: env}
 	output, err := cmd.RunWithOutput("scripts/dockerhost/start-dockerhosts")
 	if err != nil {
-		log.Printf("start-dockerhosts failed. Error: %s Output: \n%s\n",
+		log.Errorf("start-dockerhosts failed. Error: %s Output: \n%s\n",
 			err, output)
 		return err
 	}
@@ -55,7 +55,7 @@ func (v *Dind) Setup(env string, numNodes int) error {
 	// For now assume the node names
 	for i := 0; i < numNodes; i++ {
 		nodeName := fmt.Sprintf("%s%d", "netplugin-node", i+1)
-		log.Printf("Adding node: %q", nodeName)
+		log.Infof("Adding node: %q", nodeName)
 		node := TestbedNode(DindNode{Name: nodeName, NodeNum: i + 1})
 		v.nodes = append(v.nodes, node)
 	}
@@ -68,7 +68,7 @@ func (v *Dind) Teardown() {
 	cmd := &TestCommand{ContivNodes: v.expectedNodes}
 	output, err := cmd.RunWithOutput("scripts/dockerhost/cleanup-dockerhosts")
 	if err != nil {
-		log.Printf("cleanup-dockerhosts failed. Error: %s Output:\n%s\n",
+		log.Errorf("cleanup-dockerhosts failed. Error: %s Output:\n%s\n",
 			err, output)
 	}
 
