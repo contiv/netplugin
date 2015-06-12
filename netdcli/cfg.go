@@ -26,7 +26,7 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster"
-	"github.com/contiv/netplugin/state"
+	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -251,20 +251,6 @@ func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 	return
 }
 
-func initEtcd(defOpts *cliOpts) (core.StateDriver, error) {
-	driverConfig := &state.EtcdStateDriverConfig{}
-	driverConfig.Etcd.Machines = []string{defOpts.etcdURL}
-	config := &core.Config{V: driverConfig}
-
-	etcdDriver := &state.EtcdStateDriver{}
-	err := etcdDriver.Init(config)
-	if err != nil {
-		log.Errorf("error '%s' initializing etcd \n", err)
-	}
-
-	return etcdDriver, err
-}
-
 func executeJSONCfg(defOpts *cliOpts) (err error) {
 	data := []byte{}
 	if opts.idStr == "-" {
@@ -281,9 +267,9 @@ func executeJSONCfg(defOpts *cliOpts) (err error) {
 		}
 	}
 
-	stateDriver, err := initEtcd(defOpts)
+	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
-		log.Fatalf("Failed to init etcd driver. Error: %s", err)
+		return err
 	}
 
 	if opts.cfgHostBindings {
@@ -323,10 +309,10 @@ func executeJSONCfg(defOpts *cliOpts) (err error) {
 	} else if defOpts.cfgAdditions || defOpts.cfgDesired {
 		err = processAdditions(stateDriver, allCfg)
 	} else {
-		log.Fatalf("invalid json config file type\n")
+		return core.Errorf("invalid json config file type")
 	}
 	if err != nil {
-		log.Fatalf("error processing cfg '%s' \n", err)
+		return core.Errorf("error processing cfg. Error: %s", err)
 	}
 
 	return

@@ -16,7 +16,6 @@ limitations under the License.
 package plugin
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/contiv/netplugin/state"
@@ -25,12 +24,6 @@ import (
 var fakeStateDriver *state.FakeStateDriver
 
 func TestNetPluginInit(t *testing.T) {
-	/* make a temporary entry for statedriver for unit-tests*/
-	stateDriverRegistry["fakedriver"] = driverConfigTypes{
-		DriverType: reflect.TypeOf(state.FakeStateDriver{}),
-		ConfigType: reflect.TypeOf(state.FakeStateDriverConfig{}),
-	}
-
 	configStr := `{
                     "drivers" : {
                        "network": "ovs",
