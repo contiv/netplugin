@@ -16,12 +16,12 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
@@ -500,10 +500,11 @@ func executeOpts(opts *cliOpts) error {
 		if err != nil {
 			log.Fatalf("Failed to read %s. Error: %s", opts.construct.Get(), err)
 		} else {
-			//XXX: poor man's pretty print for struct to keep output greppable
-			//on individual structure fields
-			log.Infof("%s State: \n%s\n", opts.construct.Get(),
-				strings.Replace(fmt.Sprintf("%+v", coreState), " ", ",\n\t", -1))
+			content, err := json.MarshalIndent(coreState, "", "  ")
+			if err != nil {
+				log.Fatalf("Failed to marshal corestate %+v", coreState)
+			}
+			fmt.Println(string(content))
 		}
 	case cliOperAttach, cliOperDetach, cliOperCreate:
 		err = coreState.Write()
