@@ -86,6 +86,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node_peers = ""
         node_ips.length.times { |i| node_peers += "#{node_names[i]}=http://#{node_ips[i]}:2380 "}
         node_peers = node_peers.strip().gsub(' ', ',')
+        consul_join_flag = if n > 0 then "-join #{node_ips[0]}" else "" end
+        consul_bootstrap_flag = "-bootstrap-expect=3"
+        if num_nodes < 3 then
+            if n == 0 then
+                consul_bootstrap_flag = "-bootstrap"
+            else
+                consul_bootstrap_flag = ""
+            end
+        end
         config.vm.define node_name do |node|
             node.vm.hostname = node_name
             # create an interface for etcd cluster
@@ -140,8 +149,10 @@ provision_node = <<SCRIPT
  -initial-cluster-state new 0<&- &>/tmp/etcd.log &) || exit 1
 
 ## start consul
-(echo && echo consul agent -server -bootstrap-expect 1 -data-dir /tmp/consul)
-(nohup consul agent -server -bootstrap-expect 1 -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
+(echo && echo consul agent -server #{consul_join_flag} #{consul_bootstrap_flag} \
+ -bind=#{node_addr} -data-dir /opt/consul)
+(nohup consul agent -server #{consul_join_flag} #{consul_bootstrap_flag} \
+ -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
 SCRIPT
             node.vm.provision "shell" do |s|
                 s.inline = provision_node
