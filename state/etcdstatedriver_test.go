@@ -291,7 +291,8 @@ func commonTestStateDriverWatchAllStateCreate(t *testing.T, d core.StateDriver) 
 		}
 	}(stateCh, recvErr)
 
-	// trigger create
+	// trigger create after a slight pause to ensure that events are not missed
+	time.Sleep(time.Second)
 	err := d.WriteState(key, state, json.Marshal)
 	if err != nil {
 		t.Fatalf("failed to write state. Error: %s", err)
