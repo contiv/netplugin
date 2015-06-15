@@ -33,6 +33,7 @@ import (
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/plugin"
+	"github.com/contiv/netplugin/utils"
 	"github.com/samalba/dockerclient"
 
 	log "github.com/Sirupsen/logrus"
@@ -602,14 +603,14 @@ func main() {
 
 	defConfigStr := fmt.Sprintf(`{
                     "drivers" : {
-                       "network": "ovs",
-                       "endpoint": "ovs",
+                       "network": %q,
+                       "endpoint": %q,
                        "state": "etcd"
                     },
                     "plugin-instance": {
-                       "host-label": "%s"
+                       "host-label": %q
                     },
-                    "ovs" : {
+                    %q : {
                        "dbip": "127.0.0.1",
                        "dbport": 6640
                     },
@@ -622,7 +623,7 @@ func main() {
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
                     }
-                  }`, opts.hostLabel)
+                  }`, utils.OvsNameStr, utils.OvsNameStr, utils.OvsNameStr, opts.hostLabel)
 
 	netPlugin := &plugin.NetPlugin{}
 

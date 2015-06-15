@@ -17,41 +17,13 @@ package plugin
 
 import (
 	"encoding/json"
-	"reflect"
 	"sync"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
-	"github.com/contiv/netplugin/state"
+	"github.com/contiv/netplugin/utils"
 )
 
 // implements the generic Plugin interface
-
-type driverConfigTypes struct {
-	DriverType reflect.Type
-	ConfigType reflect.Type
-}
-
-var networkDriverRegistry = map[string]driverConfigTypes{
-	"ovs": driverConfigTypes{
-		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
-		ConfigType: reflect.TypeOf(drivers.OvsDriverConfig{}),
-	},
-}
-
-var endpointDriverRegistry = map[string]driverConfigTypes{
-	"ovs": driverConfigTypes{
-		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
-		ConfigType: reflect.TypeOf(drivers.OvsDriverConfig{}),
-	},
-}
-
-var stateDriverRegistry = map[string]driverConfigTypes{
-	"etcd": driverConfigTypes{
-		DriverType: reflect.TypeOf(state.EtcdStateDriver{}),
-		ConfigType: reflect.TypeOf(state.EtcdStateDriverConfig{}),
-	},
-}
 
 type config struct {
 	Drivers struct {
@@ -73,36 +45,12 @@ type NetPlugin struct {
 	StateDriver    core.StateDriver
 }
 
-// initHelper initializes the NetPlugin by mapping driver names to
-// configuration, then it imports the configuration.
-func (p *NetPlugin) initHelper(driverRegistry map[string]driverConfigTypes,
-	driverName string, configStr string) (core.Driver, *core.Config, error) {
-	if _, ok := driverRegistry[driverName]; ok {
-		configType := driverRegistry[driverName].ConfigType
-		driverType := driverRegistry[driverName].DriverType
-
-		driverConfig := reflect.New(configType).Interface()
-		err := json.Unmarshal([]byte(configStr), driverConfig)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		config := &core.Config{V: driverConfig}
-		driver := reflect.New(driverType).Interface()
-		return driver, config, nil
-	}
-
-	return nil, nil, core.Errorf("Failed to find a registered driver for: %s", driverName)
-}
-
 // Init initializes the NetPlugin instance via the configuration string passed.
 func (p *NetPlugin) Init(configStr string) error {
 	if configStr == "" {
 		return core.Errorf("empty config passed")
 	}
 
-	var driver core.Driver
-	drvConfig := &core.Config{}
 	pluginConfig := &config{}
 	err := json.Unmarshal([]byte(configStr), pluginConfig)
 	if err != nil {
@@ -114,33 +62,23 @@ func (p *NetPlugin) Init(configStr string) error {
 	}
 
 	// initialize state driver
-	driver, drvConfig, err = p.initHelper(stateDriverRegistry,
-		pluginConfig.Drivers.State, configStr)
-	if err != nil {
-		return err
-	}
-	p.StateDriver = driver.(core.StateDriver)
-	err = p.StateDriver.Init(drvConfig)
+	p.StateDriver, err = utils.NewStateDriver(pluginConfig.Drivers.State, configStr)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			p.StateDriver.Deinit()
+			utils.ReleaseStateDriver()
 		}
 	}()
 
 	instanceInfo := &core.InstanceInfo{
 		HostLabel:   pluginConfig.Instance.HostLabel,
 		StateDriver: p.StateDriver}
+
 	// initialize network driver
-	driver, drvConfig, err = p.initHelper(networkDriverRegistry,
-		pluginConfig.Drivers.Network, configStr)
-	if err != nil {
-		return err
-	}
-	p.NetworkDriver = driver.(core.NetworkDriver)
-	err = p.NetworkDriver.Init(drvConfig, instanceInfo)
+	p.NetworkDriver, err = utils.NewNetworkDriver(pluginConfig.Drivers.Network,
+		configStr, instanceInfo)
 	if err != nil {
 		return err
 	}
@@ -151,13 +89,8 @@ func (p *NetPlugin) Init(configStr string) error {
 	}()
 
 	// initialize endpoint driver
-	driver, drvConfig, err = p.initHelper(endpointDriverRegistry,
-		pluginConfig.Drivers.Endpoint, configStr)
-	if err != nil {
-		return err
-	}
-	p.EndpointDriver = driver.(core.EndpointDriver)
-	err = p.EndpointDriver.Init(drvConfig, instanceInfo)
+	p.EndpointDriver, err = utils.NewEndpointDriver(pluginConfig.Drivers.Endpoint,
+		configStr, instanceInfo)
 	if err != nil {
 		return err
 	}
@@ -174,12 +107,15 @@ func (p *NetPlugin) Init(configStr string) error {
 func (p *NetPlugin) Deinit() {
 	if p.EndpointDriver != nil {
 		p.EndpointDriver.Deinit()
+		p.EndpointDriver = nil
 	}
 	if p.NetworkDriver != nil {
 		p.NetworkDriver.Deinit()
+		p.NetworkDriver = nil
 	}
 	if p.StateDriver != nil {
-		p.StateDriver.Deinit()
+		utils.ReleaseStateDriver()
+		p.StateDriver = nil
 	}
 }
 

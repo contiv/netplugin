@@ -29,6 +29,8 @@ import (
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
+	"github.com/contiv/netplugin/utils"
+	"github.com/hashicorp/consul/api"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -129,7 +131,8 @@ type cliOpts struct {
 	cfgHostBindings bool
 	oper            operation
 	construct       construct
-	etcdURL         string
+	stateStore      string
+	storeURL        string
 	tenant          string
 	netID           string
 	pktTag          string
@@ -182,10 +185,14 @@ func init() {
 		"cfg",
 		false,
 		"JSON file describing the global and network intent. Use '-' to read configuration from stdin")
-	flagSet.StringVar(&opts.etcdURL,
-		"etcd-url",
-		"http://127.0.0.1:4001",
-		"Etcd cluster url")
+	flagSet.StringVar(&opts.stateStore,
+		"state-store",
+		utils.EtcdNameStr,
+		"State store to use")
+	flagSet.StringVar(&opts.storeURL,
+		"store-url",
+		"",
+		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
 	flagSet.StringVar(&opts.tenant,
 		"tenant",
 		"default",
@@ -373,46 +380,43 @@ func executeOpts(opts *cliOpts) error {
 
 	err := validateOpts(opts)
 	if err != nil {
-		log.Fatalf("error %v validating opts\n", err)
+		return err
 	}
 
-	etcdDriver := &state.EtcdStateDriver{}
-	driverConfig := &state.EtcdStateDriverConfig{}
-	driverConfig.Etcd.Machines = []string{opts.etcdURL}
-	config := &core.Config{V: driverConfig}
-	err = etcdDriver.Init(config)
+	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
-		log.Fatalf("Failed to init etcd driver. Error: %s", err)
+		return err
 	}
 
 	switch opts.construct.Get() {
 	case cliConstructEndpoint:
 		if opts.oper.Get() == cliOperGet {
 			epOper := &drivers.OvsOperEndpointState{}
-			epOper.StateDriver = etcdDriver
+			epOper.StateDriver = stateDriver
 			coreState = epOper
 		} else if opts.oper.Get() == cliOperAttach || opts.oper.Get() == cliOperDetach {
 			epCfg := &drivers.OvsCfgEndpointState{}
-			epCfg.StateDriver = etcdDriver
+			epCfg.StateDriver = stateDriver
 			err = epCfg.Read(opts.idStr)
 			if err != nil {
-				log.Fatalf("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
+				log.Errorf("Failed to read ep %s. Error: %s", opts.construct.Get(), err)
+				return err
 			}
-			log.Debugf("read ep state as %v for container %s \n", epCfg, opts.contName)
+			log.Debugf("read ep state as %v for container %s", epCfg, opts.contName)
 			if opts.oper.Get() == cliOperAttach {
 				epCfg.ContName = opts.contName
 				epCfg.AttachUUID = opts.attachUUID
 			} else {
 				if epCfg.ContName != opts.contName {
-					log.Fatalf("Can not detach container '%s' from endpoint '%s' - "+
-						"container not attached \n", opts.contName, opts.idStr)
+					return core.Errorf("Can not detach container '%s' from endpoint '%s' - "+
+						"container not attached", opts.contName, opts.idStr)
 				}
 				epCfg.ContName = ""
 			}
 			coreState = epCfg
 		} else {
 			epCfg := &drivers.OvsCfgEndpointState{}
-			epCfg.StateDriver = etcdDriver
+			epCfg.StateDriver = stateDriver
 			epCfg.ID = opts.idStr
 			epCfg.NetID = opts.netID
 			epCfg.IPAddress = opts.ipAddr
@@ -426,11 +430,11 @@ func executeOpts(opts *cliOpts) error {
 	case cliConstructNetwork:
 		if opts.oper.Get() == cliOperGet {
 			nwCfg := &drivers.OvsCfgNetworkState{}
-			nwCfg.StateDriver = etcdDriver
+			nwCfg.StateDriver = stateDriver
 			coreState = nwCfg
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{}
-			nwCfg.StateDriver = etcdDriver
+			nwCfg.StateDriver = stateDriver
 			nwCfg.PktTag, _ = strconv.Atoi(opts.pktTag)
 			nwCfg.Tenant = opts.tenant
 			nwCfg.PktTagType = opts.pktTagType
@@ -442,7 +446,7 @@ func executeOpts(opts *cliOpts) error {
 		}
 	case cliConstructGlobal:
 		gcfg := &gstate.Cfg{}
-		gcfg.StateDriver = etcdDriver
+		gcfg.StateDriver = stateDriver
 		if opts.oper.Get() == cliOperGet {
 			err = gcfg.Read(opts.tenant)
 			log.Debugf("State: %v \n", gcfg)
@@ -451,7 +455,8 @@ func executeOpts(opts *cliOpts) error {
 			gcfg.Tenant = opts.tenant
 			err = gcfg.Clear()
 			if err != nil {
-				log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
+				log.Errorf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
+				return err
 			}
 		} else {
 			gcfg.Version = gstate.VersionBeta1
@@ -465,7 +470,7 @@ func executeOpts(opts *cliOpts) error {
 			err = gcfg.Write()
 		}
 		if err != nil {
-			log.Fatalf("error '%s' \n", err)
+			return err
 		}
 		return err
 	case cliConstructVLANResource:
@@ -476,17 +481,17 @@ func executeOpts(opts *cliOpts) error {
 		if opts.oper.Get() == cliOperGet {
 			if cliConstructVLANResource == opts.construct.Get() {
 				rsrc := &resources.AutoVLANCfgResource{}
-				rsrc.StateDriver = etcdDriver
+				rsrc.StateDriver = stateDriver
 				coreState = rsrc
 			}
 			if cliConstructVXLANResource == opts.construct.Get() {
 				rsrc := &resources.AutoVXLANCfgResource{}
-				rsrc.StateDriver = etcdDriver
+				rsrc.StateDriver = stateDriver
 				coreState = rsrc
 			}
 			if cliConstructSubnetResource == opts.construct.Get() {
 				rsrc := &resources.AutoSubnetCfgResource{}
-				rsrc.StateDriver = etcdDriver
+				rsrc.StateDriver = stateDriver
 				coreState = rsrc
 			}
 		} else {
@@ -498,26 +503,61 @@ func executeOpts(opts *cliOpts) error {
 	case cliOperGet:
 		err = coreState.Read(opts.idStr)
 		if err != nil {
-			log.Fatalf("Failed to read %s. Error: %s", opts.construct.Get(), err)
-		} else {
-			content, err := json.MarshalIndent(coreState, "", "  ")
-			if err != nil {
-				log.Fatalf("Failed to marshal corestate %+v", coreState)
-			}
-			fmt.Println(string(content))
+			log.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
+			return err
 		}
+		content, err := json.MarshalIndent(coreState, "", "  ")
+		if err != nil {
+			log.Fatalf("Failed to marshal corestate %+v", coreState)
+		}
+		fmt.Println(string(content))
 	case cliOperAttach, cliOperDetach, cliOperCreate:
 		err = coreState.Write()
 		if err != nil {
-			log.Fatalf("Failed to create %s. Error: %s", opts.construct.Get(), err)
+			log.Errorf("Failed to create %s. Error: %s", opts.construct.Get(), err)
+			return err
 		}
 	case cliOperDelete:
 		err = coreState.Clear()
 		if err != nil {
-			log.Fatalf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
+			log.Errorf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
+			return err
 		}
 	}
 
+	return nil
+}
+
+func initStateDriver(opts *cliOpts) error {
+	var cfg *core.Config
+
+	switch opts.stateStore {
+	case utils.EtcdNameStr:
+		url := "http://127.0.0.1:4001"
+		if opts.storeURL != "" {
+			url = opts.storeURL
+		}
+		etcdCfg := &state.EtcdStateDriverConfig{}
+		etcdCfg.Etcd.Machines = []string{url}
+		cfg = &core.Config{V: etcdCfg}
+	case utils.ConsulNameStr:
+		url := "http://127.0.0.1:8500"
+		if opts.storeURL != "" {
+			url = opts.storeURL
+		}
+		consulCfg := &state.ConsulStateDriverConfig{}
+		consulCfg.Consul = api.Config{Address: url}
+		cfg = &core.Config{V: consulCfg}
+	default:
+		return core.Errorf("Unsupported state-store %q", opts.stateStore)
+	}
+
+	cfgBytes, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+
+	_, err = utils.NewStateDriver(opts.stateStore, string(cfgBytes))
 	return err
 }
 
@@ -527,6 +567,11 @@ func main() {
 		log.Fatalf("Failed to parse command. Error: %s", err)
 	}
 	opts.idStr = flagSet.Arg(0)
+
+	err = initStateDriver(&opts)
+	if err != nil {
+		log.Fatalf("state store initialization failed. Error: %s", err)
+	}
 
 	if opts.cfgDesired || opts.cfgDeletions || opts.cfgAdditions || opts.cfgHostBindings {
 		err = executeJSONCfg(&opts)
