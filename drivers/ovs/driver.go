@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovs
 
 import (
 	"encoding/json"
@@ -30,62 +30,62 @@ import (
 
 type oper int
 
-// OvsDriverConfig defines the configuration required to initialize the
-// OvsDriver.
-type OvsDriverConfig struct {
+// DriverConfig defines the configuration required to initialize the
+// Driver.
+type DriverConfig struct {
 	Ovs struct {
 		DbIP   string
 		DbPort int
 	}
 }
 
-// OvsDriverOperState carries operational state of the OvsDriver.
-type OvsDriverOperState struct {
+// DriverOperState carries operational state of the Driver.
+type DriverOperState struct {
 	core.CommonState
 	// used to allocate port names. XXX: should it be user controlled?
 	CurrPortNum int `json:"currPortNum"`
 }
 
 // Write the state
-func (s *OvsDriverOperState) Write() error {
+func (s *DriverOperState) Write() error {
 	key := fmt.Sprintf(ovsOperPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the state given an ID.
-func (s *OvsDriverOperState) Read(id string) error {
+func (s *DriverOperState) Read(id string) error {
 	key := fmt.Sprintf(ovsOperPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll reads all the state
-func (s *OvsDriverOperState) ReadAll() ([]core.State, error) {
+func (s *DriverOperState) ReadAll() ([]core.State, error) {
 	return s.StateDriver.ReadAllState(ovsOperPathPrefix, s, json.Unmarshal)
 }
 
 // Clear removes the state.
-func (s *OvsDriverOperState) Clear() error {
+func (s *DriverOperState) Clear() error {
 	key := fmt.Sprintf(ovsOperPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }
 
-// OvsDriver implements the Layer 2 Network and Endpoint Driver interfaces
+// Driver implements the Layer 2 Network and Endpoint Driver interfaces
 // specific to vlan based open-vswitch. It also implements the
 // libovsdb.Notifier interface to keep cache of ovs table state.
-type OvsDriver struct {
+type Driver struct {
 	ovs   *libovsdb.OvsdbClient
 	cache map[string]map[libovsdb.UUID]libovsdb.Row
-	oper  OvsDriverOperState
+	oper  DriverOperState
 }
 
-func (d *OvsDriver) getRootUUID() libovsdb.UUID {
+func (d *Driver) getRootUUID() libovsdb.UUID {
 	for uuid := range d.cache[rootTable] {
 		return uuid
 	}
 	return libovsdb.UUID{}
 }
 
-func (d *OvsDriver) populateCache(updates libovsdb.TableUpdates) {
+func (d *Driver) populateCache(updates libovsdb.TableUpdates) {
 	for table, tableUpdate := range updates.Updates {
 		if _, ok := d.cache[table]; !ok {
 			d.cache[table] = make(map[libovsdb.UUID]libovsdb.Row)
@@ -102,23 +102,23 @@ func (d *OvsDriver) populateCache(updates libovsdb.TableUpdates) {
 }
 
 // Update updates the ovsdb with the libovsdb.TableUpdates.
-func (d *OvsDriver) Update(context interface{}, tableUpdates libovsdb.TableUpdates) {
+func (d *Driver) Update(context interface{}, tableUpdates libovsdb.TableUpdates) {
 	d.populateCache(tableUpdates)
 }
 
 // Locked satisfies a libovsdb interface dependency.
-func (d *OvsDriver) Locked([]interface{}) {
+func (d *Driver) Locked([]interface{}) {
 }
 
 // Stolen satisfies a libovsdb interface dependency.
-func (d *OvsDriver) Stolen([]interface{}) {
+func (d *Driver) Stolen([]interface{}) {
 }
 
 // Echo satisfies a libovsdb interface dependency.
-func (d *OvsDriver) Echo([]interface{}) {
+func (d *Driver) Echo([]interface{}) {
 }
 
-func (d *OvsDriver) performOvsdbOps(ops []libovsdb.Operation) error {
+func (d *Driver) performOvsdbOps(ops []libovsdb.Operation) error {
 	reply, _ := d.ovs.Transact(ovsDataBase, ops...)
 
 	if len(reply) < len(ops) {
@@ -144,7 +144,7 @@ func (d *OvsDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 	return core.Errorf("ovs operation failed. Error(s): %v", errors)
 }
 
-func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
+func (d *Driver) createDeleteBridge(bridgeName string, op oper) error {
 	namedUUIDStr := "netplugin"
 	brUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: namedUUIDStr}}
 	opStr := "insert"
@@ -199,11 +199,11 @@ func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 	return d.performOvsdbOps(operations)
 }
 
-func (d *OvsDriver) getPortName() string {
+func (d *Driver) getPortName() string {
 	return fmt.Sprintf(portNameFmt, d.oper.CurrPortNum)
 }
 
-func (d *OvsDriver) getPortOrIntfNameFromID(id string, isPort bool) (string, error) {
+func (d *Driver) getPortOrIntfNameFromID(id string, isPort bool) (string, error) {
 	table := portTable
 	if !isPort {
 		table = interfaceTable
@@ -220,7 +220,7 @@ func (d *OvsDriver) getPortOrIntfNameFromID(id string, isPort bool) (string, err
 	return "", core.Errorf("Ovs port/intf not found for id: %s", id)
 }
 
-func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
+func (d *Driver) createDeletePort(portName, intfName, intfType, id string,
 	intfOptions map[string]interface{}, tag int, op oper) error {
 	// portName is assumed to be unique enough to become uuid
 	portUUIDStr := portName
@@ -339,9 +339,9 @@ func vxlanIfName(netID, vtepIP string) string {
 		netID, strings.Replace(vtepIP, ".", "", -1))
 }
 
-func (d *OvsDriver) getCreateVtepProps(epCfg *OvsCfgEndpointState) (map[string]interface{},
+func (d *Driver) getCreateVtepProps(epCfg *CfgEndpointState) (map[string]interface{},
 	string, string, error) {
-	cfgNw := OvsCfgNetworkState{}
+	cfgNw := CfgNetworkState{}
 	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(epCfg.NetID)
 	if err != nil {
@@ -356,8 +356,8 @@ func (d *OvsDriver) getCreateVtepProps(epCfg *OvsCfgEndpointState) (map[string]i
 	return intfOptions, intfName, intfName, nil
 }
 
-func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
-	cfgNw := OvsCfgNetworkState{}
+func (d *Driver) deleteVtep(epOper *OperEndpointState) error {
+	cfgNw := CfgNetworkState{}
 	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(epOper.NetID)
 	if err != nil {
@@ -377,14 +377,14 @@ func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
 }
 
 // Init initializes the OVS driver.
-func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
+func (d *Driver) Init(config *core.Config, info *core.InstanceInfo) error {
 
 	if config == nil || info == nil || info.StateDriver == nil {
 		return core.Errorf("Invalid arguments. cfg: %+v, instance-info: %+v",
 			config, info)
 	}
 
-	cfg, ok := config.V.(*OvsDriverConfig)
+	cfg, ok := config.V.(*DriverConfig)
 	if !ok {
 		return core.Errorf("Invalid type passed")
 	}
@@ -439,8 +439,8 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	return nil
 }
 
-// Deinit performs cleanup prior to destruction of the OvsDriver
-func (d *OvsDriver) Deinit() {
+// Deinit performs cleanup prior to destruction of the Driver
+func (d *Driver) Deinit() {
 	if d.ovs != nil {
 		d.createDeleteBridge(defaultBridgeName, operDeleteBridge)
 		(*d.ovs).Disconnect()
@@ -448,8 +448,8 @@ func (d *OvsDriver) Deinit() {
 }
 
 // CreateNetwork creates a network by named identifier
-func (d *OvsDriver) CreateNetwork(id string) error {
-	cfgNw := OvsCfgNetworkState{}
+func (d *Driver) CreateNetwork(id string) error {
+	cfgNw := CfgNetworkState{}
 	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(id)
 	if err != nil {
@@ -462,7 +462,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork deletes a network by named identifier
-func (d *OvsDriver) DeleteNetwork(id string) error {
+func (d *Driver) DeleteNetwork(id string) error {
 
 	// no driver operation for network delete
 	log.Infof("delete net %s \n", id)
@@ -471,7 +471,7 @@ func (d *OvsDriver) DeleteNetwork(id string) error {
 }
 
 // CreateEndpoint creates an endpoint by named identifier
-func (d *OvsDriver) CreateEndpoint(id string) error {
+func (d *Driver) CreateEndpoint(id string) error {
 	var (
 		err      error
 		intfOpts map[string]interface{}
@@ -480,14 +480,14 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		intfType string
 	)
 
-	cfgEp := &OvsCfgEndpointState{}
+	cfgEp := &CfgEndpointState{}
 	cfgEp.StateDriver = d.oper.StateDriver
 	err = cfgEp.Read(id)
 	if err != nil {
 		return err
 	}
 
-	operEp := &OvsOperEndpointState{}
+	operEp := &OperEndpointState{}
 	operEp.StateDriver = d.oper.StateDriver
 	err = operEp.Read(id)
 	if core.ErrIfKeyExists(err) != nil {
@@ -540,7 +540,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		intfType = ""
 	}
 
-	cfgNw := OvsCfgNetworkState{}
+	cfgNw := CfgNetworkState{}
 	cfgNw.StateDriver = d.oper.StateDriver
 	err = cfgNw.Read(cfgEp.NetID)
 	if err != nil {
@@ -559,7 +559,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		}
 	}()
 
-	operEp = &OvsOperEndpointState{
+	operEp = &OperEndpointState{
 		PortName:   portName,
 		NetID:      cfgEp.NetID,
 		AttachUUID: cfgEp.AttachUUID,
@@ -584,9 +584,8 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 }
 
 // DeleteEndpoint deletes an endpoint by named identifier.
-func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
-
-	epOper := OvsOperEndpointState{}
+func (d *Driver) DeleteEndpoint(id string) (err error) {
+	epOper := OperEndpointState{}
 	epOper.StateDriver = d.oper.StateDriver
 	err = epOper.Read(id)
 	if err != nil {
@@ -625,6 +624,6 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 }
 
 // MakeEndpointAddress is currently unsupported.
-func (d *OvsDriver) MakeEndpointAddress() (*core.Address, error) {
+func (d *Driver) MakeEndpointAddress() (*core.Address, error) {
 	return nil, core.Errorf("Not supported")
 }

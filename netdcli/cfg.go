@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/drivers/ovs"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster"
 	"github.com/contiv/netplugin/utils"
@@ -91,7 +91,7 @@ func epPresent(allCfg *netmaster.Config, epID string) bool {
 
 func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 
-	readEp := &drivers.OvsCfgEndpointState{}
+	readEp := &ovs.CfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
@@ -101,7 +101,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		epCfgs = []core.State{}
 	}
 	for _, epCfg := range epCfgs {
-		cfg := epCfg.(*drivers.OvsCfgEndpointState)
+		cfg := epCfg.(*ovs.CfgEndpointState)
 		if !epPresent(allCfg, cfg.ID) {
 			err1 := netmaster.DeleteEndpointID(stateDriver, cfg.ID)
 			if err1 != nil {
@@ -112,7 +112,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		}
 	}
 
-	readNet := &drivers.OvsCfgNetworkState{}
+	readNet := &ovs.CfgNetworkState{}
 	readNet.StateDriver = stateDriver
 	nwCfgs, err := readNet.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
@@ -122,7 +122,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		nwCfgs = []core.State{}
 	}
 	for _, nwCfg := range nwCfgs {
-		cfg := nwCfg.(*drivers.OvsCfgNetworkState)
+		cfg := nwCfg.(*ovs.CfgNetworkState)
 		if !netPresent(allCfg, cfg.ID) {
 			err1 := netmaster.DeleteNetworkID(stateDriver, cfg.ID)
 			if err1 != nil {

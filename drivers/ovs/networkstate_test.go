@@ -13,17 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovs
 
 import (
 	"testing"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 )
 
 const (
 	testNwID = "testNw"
-	nwCfgKey = networkConfigPathPrefix + testNwID
+	nwCfgKey = drivers.NetworkConfigPathPrefix + testNwID
 )
 
 type testNwStateDriver struct{}
@@ -86,8 +87,8 @@ func (d *testNwStateDriver) WriteState(key string, value core.State,
 	return d.validateKey(key)
 }
 
-func TestOvsCfgNetworkStateRead(t *testing.T) {
-	nwCfg := &OvsCfgNetworkState{}
+func TestCfgNetworkStateRead(t *testing.T) {
+	nwCfg := &CfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
 
 	err := nwCfg.Read(testNwID)
@@ -96,8 +97,8 @@ func TestOvsCfgNetworkStateRead(t *testing.T) {
 	}
 }
 
-func TestOvsCfgNetworkStateWrite(t *testing.T) {
-	nwCfg := &OvsCfgNetworkState{}
+func TestCfgNetworkStateWrite(t *testing.T) {
+	nwCfg := &CfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
 	nwCfg.ID = testNwID
 
@@ -107,8 +108,8 @@ func TestOvsCfgNetworkStateWrite(t *testing.T) {
 	}
 }
 
-func TestOvsCfgNetworkStateClear(t *testing.T) {
-	nwCfg := &OvsCfgNetworkState{}
+func TestCfgNetworkStateClear(t *testing.T) {
+	nwCfg := &CfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
 	nwCfg.ID = testNwID
 

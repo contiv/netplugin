@@ -13,19 +13,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovs
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/jainvipin/bitset"
 )
 
-// OvsCfgNetworkState implements the State interface for a network implemented using
+// CfgNetworkState implements the State interface for a network implemented using
 // vlans with ovs. The state is stored as Json objects.
-type OvsCfgNetworkState struct {
+type CfgNetworkState struct {
 	core.CommonState
 	Tenant     string        `json:"tenant"`
 	PktTagType string        `json:"pktTagType"`
@@ -39,30 +40,30 @@ type OvsCfgNetworkState struct {
 }
 
 // Write the state.
-func (s *OvsCfgNetworkState) Write() error {
-	key := fmt.Sprintf(networkConfigPath, s.ID)
+func (s *CfgNetworkState) Write() error {
+	key := fmt.Sprintf(drivers.NetworkConfigPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the state for a given identifier
-func (s *OvsCfgNetworkState) Read(id string) error {
-	key := fmt.Sprintf(networkConfigPath, id)
+func (s *CfgNetworkState) Read(id string) error {
+	key := fmt.Sprintf(drivers.NetworkConfigPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll state and return the collection.
-func (s *OvsCfgNetworkState) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(networkConfigPathPrefix, s, json.Unmarshal)
+func (s *CfgNetworkState) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(drivers.NetworkConfigPathPrefix, s, json.Unmarshal)
 }
 
 // WatchAll state transitions and send them through the channel.
-func (s *OvsCfgNetworkState) WatchAll(rsps chan core.WatchState) error {
-	return s.StateDriver.WatchAllState(networkConfigPathPrefix, s, json.Unmarshal,
+func (s *CfgNetworkState) WatchAll(rsps chan core.WatchState) error {
+	return s.StateDriver.WatchAllState(drivers.NetworkConfigPathPrefix, s, json.Unmarshal,
 		rsps)
 }
 
 // Clear removes the state.
-func (s *OvsCfgNetworkState) Clear() error {
-	key := fmt.Sprintf(networkConfigPath, s.ID)
+func (s *CfgNetworkState) Clear() error {
+	key := fmt.Sprintf(drivers.NetworkConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }

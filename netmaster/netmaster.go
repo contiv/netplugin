@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/drivers/ovs"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
@@ -197,12 +197,12 @@ func getVtepName(netID, hostLabel string) string {
 	return netID + "-" + hostLabel
 }
 
-func createInfraNetwork(epCfg *drivers.OvsCfgEndpointState) error {
+func createInfraNetwork(epCfg *ovs.CfgEndpointState) error {
 	if epCfg.NetID != "" {
 		return nil
 	}
 
-	nwCfg := &drivers.OvsCfgNetworkState{}
+	nwCfg := &ovs.CfgNetworkState{}
 	nwCfg.StateDriver = epCfg.StateDriver
 	if nwCfg.Read(epCfg.NetID) == nil {
 		return nil
@@ -220,7 +220,7 @@ func createInfraNetwork(epCfg *drivers.OvsCfgEndpointState) error {
 
 func createVtep(stateDriver core.StateDriver, hostCfg *MasterHostConfig, tenantNet string) error {
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &ovs.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getVtepName(tenantNet, hostCfg.Name)
 	epCfg.HomingHost = hostCfg.Name
@@ -243,7 +243,7 @@ func createVtep(stateDriver core.StateDriver, hostCfg *MasterHostConfig, tenantN
 
 func deleteVtep(stateDriver core.StateDriver, netID, hostName string) error {
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &ovs.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getVtepName(netID, hostName)
 	epCfg.HomingHost = hostName
@@ -264,7 +264,7 @@ func getVLANIfName(hostLabel string) string {
 
 func createVLANIf(stateDriver core.StateDriver, host *ConfigHost) error {
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &ovs.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getVLANIfName(host.Name)
 	epCfg.HomingHost = host.Name
@@ -287,7 +287,7 @@ func createVLANIf(stateDriver core.StateDriver, host *ConfigHost) error {
 
 func deleteVLANIf(stateDriver core.StateDriver, hostName string) error {
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &ovs.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getVLANIfName(hostName)
 	epCfg.HomingHost = hostName
@@ -320,7 +320,7 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 	if host.VtepIP != "" {
 		// walk through all nets and create vtep eps as necessary
 
-		readNet := &drivers.OvsCfgNetworkState{}
+		readNet := &ovs.CfgNetworkState{}
 		readNet.StateDriver = stateDriver
 		tenantNets, err := readNet.ReadAll()
 		if err != nil {
@@ -329,7 +329,7 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 			}
 		}
 		for _, tenantNet := range tenantNets {
-			nw := tenantNet.(*drivers.OvsCfgNetworkState)
+			nw := tenantNet.(*ovs.CfgNetworkState)
 			err = createVtep(stateDriver, hostCfg, nw.ID)
 			if err != nil {
 				log.Errorf("error creating vtep. Error: %s", err)
@@ -368,7 +368,7 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 
 	if hostCfg.VtepIP != "" {
 		// walk through all nets and delete vtep eps as necessary
-		readNet := &drivers.OvsCfgNetworkState{}
+		readNet := &ovs.CfgNetworkState{}
 		readNet.StateDriver = stateDriver
 		tenantNets, err := readNet.ReadAll()
 		if err != nil {
@@ -377,7 +377,7 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 			}
 		}
 		for _, tenantNet := range tenantNets {
-			nw := tenantNet.(*drivers.OvsCfgNetworkState)
+			nw := tenantNet.(*ovs.CfgNetworkState)
 			err = deleteVtep(stateDriver, nw.ID, hostName)
 			if err != nil {
 				log.Errorf("error deleting vtep. Error: %s", err)
@@ -477,7 +477,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	}
 
 	for _, network := range tenant.Networks {
-		nwCfg := &drivers.OvsCfgNetworkState{}
+		nwCfg := &ovs.CfgNetworkState{}
 		nwCfg.StateDriver = stateDriver
 		if nwCfg.Read(network.Name) == nil {
 			// TODO: check if parameters changed and apply an update if needed
@@ -494,7 +494,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		nwMasterCfg.SubnetIP, nwMasterCfg.SubnetLen, _ = netutils.ParseCIDR(network.SubnetCIDR)
 		nwMasterCfg.DefaultGw = network.DefaultGw
 
-		nwCfg = &drivers.OvsCfgNetworkState{Tenant: nwMasterCfg.Tenant,
+		nwCfg = &ovs.CfgNetworkState{Tenant: nwMasterCfg.Tenant,
 			PktTagType: nwMasterCfg.PktTagType,
 			SubnetIP:   nwMasterCfg.SubnetIP, SubnetLen: nwMasterCfg.SubnetLen}
 		nwCfg.StateDriver = stateDriver
@@ -576,7 +576,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 }
 
 func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwConfig,
-	nwCfg *drivers.OvsCfgNetworkState, gCfg *gstate.Cfg) (err error) {
+	nwCfg *ovs.CfgNetworkState, gCfg *gstate.Cfg) (err error) {
 
 	// XXX: instead of initing resource-manager always, just init and
 	// store it once. Also the type of resource-manager should be picked up
@@ -622,7 +622,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
-	nwCfg := &drivers.OvsCfgNetworkState{}
+	nwCfg := &ovs.CfgNetworkState{}
 	nwCfg.StateDriver = stateDriver
 	err = nwCfg.Read(netID)
 	if err != nil {
@@ -681,7 +681,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			continue
 		}
 
-		nwCfg := &drivers.OvsCfgNetworkState{}
+		nwCfg := &ovs.CfgNetworkState{}
 		nwCfg.StateDriver = stateDriver
 		err = nwCfg.Read(network.Name)
 		if err != nil {
@@ -749,8 +749,8 @@ func getEpName(net *ConfigNetwork, ep *ConfigEP) string {
 
 	return ep.Host + "-native-intf"
 }
-func allocSetEpIP(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
-	nwCfg *drivers.OvsCfgNetworkState) (err error) {
+func allocSetEpIP(ep *ConfigEP, epCfg *ovs.CfgEndpointState,
+	nwCfg *ovs.CfgNetworkState) (err error) {
 
 	var ipAddrValue uint
 	var found bool
@@ -802,7 +802,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			return err
 		}
 
-		nwCfg := &drivers.OvsCfgNetworkState{}
+		nwCfg := &ovs.CfgNetworkState{}
 		nwCfg.StateDriver = stateDriver
 		err = nwCfg.Read(network.Name)
 		if err != nil {
@@ -811,7 +811,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		}
 
 		for _, ep := range network.Endpoints {
-			epCfg := &drivers.OvsCfgEndpointState{}
+			epCfg := &ovs.CfgEndpointState{}
 			epCfg.StateDriver = stateDriver
 			epCfg.ID = getEpName(&network, &ep)
 			err = epCfg.Read(epCfg.ID)
@@ -849,8 +849,8 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	return err
 }
 
-func freeEndpointResources(epCfg *drivers.OvsCfgEndpointState,
-	nwCfg *drivers.OvsCfgNetworkState) error {
+func freeEndpointResources(epCfg *ovs.CfgEndpointState,
+	nwCfg *ovs.CfgNetworkState) error {
 	if epCfg.IPAddress == "" {
 		return nil
 	}
@@ -870,14 +870,14 @@ func freeEndpointResources(epCfg *drivers.OvsCfgEndpointState,
 
 // DeleteEndpointID deletes an endpoint by ID.
 func DeleteEndpointID(stateDriver core.StateDriver, epID string) error {
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &ovs.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	err := epCfg.Read(epID)
 	if err != nil {
 		return err
 	}
 
-	nwCfg := &drivers.OvsCfgNetworkState{}
+	nwCfg := &ovs.CfgNetworkState{}
 	nwCfg.StateDriver = stateDriver
 	err = nwCfg.Read(epCfg.NetID)
 	if err != nil {
@@ -922,7 +922,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			return err
 		}
 
-		nwCfg := &drivers.OvsCfgNetworkState{}
+		nwCfg := &ovs.CfgNetworkState{}
 		nwCfg.StateDriver = stateDriver
 		err = nwCfg.Read(network.Name)
 		if err != nil {
@@ -931,7 +931,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		}
 
 		for _, ep := range network.Endpoints {
-			epCfg := &drivers.OvsCfgEndpointState{}
+			epCfg := &ovs.CfgEndpointState{}
 			epCfg.StateDriver = stateDriver
 			epCfg.ID = getEpName(&network, &ep)
 			err = epCfg.Read(epCfg.ID)
@@ -985,7 +985,7 @@ func CreateEpBindings(stateDriver core.StateDriver, epBindings *[]ConfigEP) erro
 		return err
 	}
 
-	readEp := &drivers.OvsCfgEndpointState{}
+	readEp := &ovs.CfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err != nil {
@@ -997,7 +997,7 @@ func CreateEpBindings(stateDriver core.StateDriver, epBindings *[]ConfigEP) erro
 			ep.Container, ep.Host)
 
 		for _, epCfg := range epCfgs {
-			cfg := epCfg.(*drivers.OvsCfgEndpointState)
+			cfg := epCfg.(*ovs.CfgEndpointState)
 			if cfg.ContName != ep.Container {
 				continue
 			}
