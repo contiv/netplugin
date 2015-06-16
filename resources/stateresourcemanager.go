@@ -27,24 +27,57 @@ var resourceRegistry = map[string]reflect.Type{
 	AutoSubnetResource: reflect.TypeOf(AutoSubnetCfgResource{}),
 }
 
-// EtcdResourceManager implements the core.ResourceManager interface.
-// It manages the resource in a logically centralized manner using serialized
-// writes to a etcd based datastore.
-type EtcdResourceManager struct {
-	//XXX: should be '*drivers.EtcdStateDriver', but leaving is
-	//core.StateDriver to get tests going and until the netmaster
-	//is changed to pickup the resource-manager from config
-	Etcd core.StateDriver
+// StateResourceManager implements the core.ResourceManager interface.
+// It manages the resources in a logically centralized manner using serialized
+// writes to underlying state store.
+type StateResourceManager struct {
+	stateDriver core.StateDriver
+}
+
+var gStateResourceManager *StateResourceManager
+
+// NewStateResourceManager instantiates a state based resource manager
+func NewStateResourceManager(sd core.StateDriver) (*StateResourceManager, error) {
+	if gStateResourceManager != nil {
+		return nil, core.Errorf("state-based resource manager instance already exists.")
+	}
+
+	gStateResourceManager = &StateResourceManager{stateDriver: sd}
+	err := gStateResourceManager.Init()
+	if err != nil {
+		return nil, err
+	}
+
+	return gStateResourceManager, nil
+}
+
+// GetStateResourceManager returns the singleton instance of the state based
+// resource manager
+func GetStateResourceManager() (*StateResourceManager, error) {
+	if gStateResourceManager == nil {
+		return nil, core.Errorf("state-based resource manager has not been not created.")
+	}
+
+	return gStateResourceManager, nil
+}
+
+// ReleaseStateResourceManager releases the singleton instance of the state
+// based resource manager
+func ReleaseStateResourceManager() {
+	if gStateResourceManager != nil {
+		gStateResourceManager.Deinit()
+	}
+	gStateResourceManager = nil
 }
 
 // Init initializes the resource manager
-func (ra *EtcdResourceManager) Init() error { return nil }
+func (rm *StateResourceManager) Init() error { return nil }
 
 // Deinit cleans up the resource manager
-func (ra *EtcdResourceManager) Deinit() {}
+func (rm *StateResourceManager) Deinit() {}
 
 // XXX: It might be better to keep cache of resources and avoid frequent etcd reads
-func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, bool, error) {
+func (rm *StateResourceManager) findResource(id, desc string) (core.Resource, bool, error) {
 	alreadyExists := false
 	rsrcType, ok := resourceRegistry[desc]
 	if !ok {
@@ -58,7 +91,7 @@ func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, boo
 		return nil, false, core.Errorf("The state structure %v is missing core.CommonState", rsrcType)
 	}
 	//the following works as every core.State is expected to embed core.CommonState struct
-	val.Elem().FieldByName("CommonState").FieldByName("StateDriver").Set(reflect.ValueOf(ra.Etcd))
+	val.Elem().FieldByName("CommonState").FieldByName("StateDriver").Set(reflect.ValueOf(rm.stateDriver))
 	val.Elem().FieldByName("CommonState").FieldByName("ID").Set(reflect.ValueOf(id))
 
 	rsrc := val.Interface().(core.Resource)
@@ -82,10 +115,10 @@ func (ra *EtcdResourceManager) findResource(id, desc string) (core.Resource, boo
 }
 
 // DefineResource initializes a new resource.
-func (ra *EtcdResourceManager) DefineResource(id, desc string,
+func (rm *StateResourceManager) DefineResource(id, desc string,
 	rsrcCfg interface{}) error {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, alreadyExists, err := ra.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.findResource(id, desc)
 	if err != nil {
 		return err
 	}
@@ -103,9 +136,9 @@ func (ra *EtcdResourceManager) DefineResource(id, desc string,
 }
 
 // UndefineResource deinitializes a resource.
-func (ra *EtcdResourceManager) UndefineResource(id, desc string) error {
+func (rm *StateResourceManager) UndefineResource(id, desc string) error {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, alreadyExists, err := ra.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.findResource(id, desc)
 	if err != nil {
 		return err
 	}
@@ -121,10 +154,10 @@ func (ra *EtcdResourceManager) UndefineResource(id, desc string) error {
 }
 
 // AllocateResourceVal yields the core.Resource for the id and description.
-func (ra *EtcdResourceManager) AllocateResourceVal(id, desc string) (interface{},
+func (rm *StateResourceManager) AllocateResourceVal(id, desc string) (interface{},
 	error) {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, alreadyExists, err := ra.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.findResource(id, desc)
 	if err != nil {
 		return nil, err
 	}
@@ -138,10 +171,10 @@ func (ra *EtcdResourceManager) AllocateResourceVal(id, desc string) (interface{}
 }
 
 // DeallocateResourceVal removes a value from the resource.
-func (ra *EtcdResourceManager) DeallocateResourceVal(id, desc string,
+func (rm *StateResourceManager) DeallocateResourceVal(id, desc string,
 	value interface{}) error {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, alreadyExists, err := ra.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.findResource(id, desc)
 	if err != nil {
 		return err
 	}
