@@ -528,7 +528,7 @@ func executeOpts(opts *cliOpts) error {
 	return nil
 }
 
-func initStateDriver(opts *cliOpts) error {
+func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
 	var cfg *core.Config
 
 	switch opts.stateStore {
@@ -549,16 +549,15 @@ func initStateDriver(opts *cliOpts) error {
 		consulCfg.Consul = api.Config{Address: url}
 		cfg = &core.Config{V: consulCfg}
 	default:
-		return core.Errorf("Unsupported state-store %q", opts.stateStore)
+		return nil, core.Errorf("Unsupported state-store %q", opts.stateStore)
 	}
 
 	cfgBytes, err := json.Marshal(cfg)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = utils.NewStateDriver(opts.stateStore, string(cfgBytes))
-	return err
+	return utils.NewStateDriver(opts.stateStore, string(cfgBytes))
 }
 
 func main() {
@@ -568,7 +567,12 @@ func main() {
 	}
 	opts.idStr = flagSet.Arg(0)
 
-	err = initStateDriver(&opts)
+	sd, err := initStateDriver(&opts)
+	if err != nil {
+		log.Fatalf("state store initialization failed. Error: %s", err)
+	}
+
+	_, err = resources.NewStateResourceManager(sd)
 	if err != nil {
 		log.Fatalf("state store initialization failed. Error: %s", err)
 	}

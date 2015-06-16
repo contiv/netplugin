@@ -81,23 +81,57 @@ func (r *TestResource) Deallocate(value interface{}) error {
 
 var fakeDriver = &state.FakeStateDriver{}
 
-func TestEtcdResourceManagerDefineResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerNewSuccess(t *testing.T) {
+	rm, err := NewStateResourceManager(fakeDriver)
+	defer func() { ReleaseStateResourceManager() }()
+
+	if err != nil {
+		t.Fatalf("Resource manager instantiation failed. Error: %s", err)
+	}
+
+	if rm == nil {
+		t.Fatalf("Resource manager instance is nil")
+	}
+}
+
+func TestStateResourceManagerDuplicateNewFailure(t *testing.T) {
+	_, err := NewStateResourceManager(fakeDriver)
+	defer func() { ReleaseStateResourceManager() }()
+
+	if err != nil {
+		t.Fatalf("Resource manager instantiation failed. Error: %s", err)
+	}
+
+	_, err = NewStateResourceManager(fakeDriver)
+	if err == nil {
+		t.Fatalf("Resource manager double instantiation succeeded, expected to fail")
+	}
+}
+
+func TestStateResourceManagerNonExistentGetFailure(t *testing.T) {
+	_, err := GetStateResourceManager()
+	if err == nil {
+		t.Fatalf("Resource manager Get succeeded, expected to fail")
+	}
+}
+
+func TestStateResourceManagerDefineResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
+	err := rm.DefineResource(testResourceID, testResourceDesc, &TestResource{})
 	if err != nil {
 		t.Fatalf("Resource definition failed. Error: %s", err)
 	}
 }
 
-func TestEtcdResourceManagerDefineInvalidResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerDefineInvalidResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 
 	gReadCtr = 0
-	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
+	err := rm.DefineResource(testResourceID, testResourceDesc, &TestResource{})
 	if err == nil {
 		t.Fatalf("Resource definition succeeded, expected to fail!")
 	}
@@ -107,28 +141,28 @@ func TestEtcdResourceManagerDefineInvalidResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceManagerUndefineResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerUndefineResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
+	err := rm.DefineResource(testResourceID, testResourceDesc, &TestResource{})
 	if err != nil {
 		t.Fatalf("Resource definition failed. Error: %s", err)
 	}
 
-	err = ra.UndefineResource(testResourceID, testResourceDesc)
+	err = rm.UndefineResource(testResourceID, testResourceDesc)
 	if err != nil {
 		t.Fatalf("Resource un-definition failed. Error: %s", err)
 	}
 }
 
-func TestEtcdResourceManagerUndefineInvalidResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerUndefineInvalidResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 
 	gReadCtr = 0
-	err := ra.UndefineResource(testResourceID, testResourceDesc)
+	err := rm.UndefineResource(testResourceID, testResourceDesc)
 	if err == nil {
 		t.Fatalf("Resource un-definition succeeded, expected to fail!")
 	}
@@ -138,13 +172,13 @@ func TestEtcdResourceManagerUndefineInvalidResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceManagerUndefineNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerUndefineNonexistentResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	err := ra.UndefineResource(testResourceID, testResourceDesc)
+	err := rm.UndefineResource(testResourceID, testResourceDesc)
 	if err == nil {
 		t.Fatalf("Resource un-definition succeeded, expected to fail!")
 	}
@@ -155,28 +189,28 @@ func TestEtcdResourceManagerUndefineNonexistentResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceManagerAllocateResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerAllocateResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
+	err := rm.DefineResource(testResourceID, testResourceDesc, &TestResource{})
 	if err != nil {
 		t.Fatalf("Resource definition failed. Error: %s", err)
 	}
 
-	_, err = ra.AllocateResourceVal(testResourceID, testResourceDesc)
+	_, err = rm.AllocateResourceVal(testResourceID, testResourceDesc)
 	if err != nil {
 		t.Fatalf("Resource allocation failed. Error: %s", err)
 	}
 }
 
-func TestEtcdResourceManagerAllocateInvalidResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerAllocateInvalidResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 
 	gReadCtr = 0
-	_, err := ra.AllocateResourceVal(testResourceID, testResourceDesc)
+	_, err := rm.AllocateResourceVal(testResourceID, testResourceDesc)
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}
@@ -186,13 +220,13 @@ func TestEtcdResourceManagerAllocateInvalidResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceManagerAllocateiNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerAllocateiNonexistentResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	_, err := ra.AllocateResourceVal(testResourceID, testResourceDesc)
+	_, err := rm.AllocateResourceVal(testResourceID, testResourceDesc)
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}
@@ -203,33 +237,33 @@ func TestEtcdResourceManagerAllocateiNonexistentResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceManagerDeallocateResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerDeallocateResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	err := ra.DefineResource(testResourceID, testResourceDesc, &TestResource{})
+	err := rm.DefineResource(testResourceID, testResourceDesc, &TestResource{})
 	if err != nil {
 		t.Fatalf("Resource definition failed. Error: %s", err)
 	}
 
-	_, err = ra.AllocateResourceVal(testResourceID, testResourceDesc)
+	_, err = rm.AllocateResourceVal(testResourceID, testResourceDesc)
 	if err != nil {
 		t.Fatalf("Resource allocation failed. Error: %s", err)
 	}
 
-	err = ra.DeallocateResourceVal(testResourceID, testResourceDesc, 0)
+	err = rm.DeallocateResourceVal(testResourceID, testResourceDesc, 0)
 	if err != nil {
 		t.Fatalf("Resource deallocation failed. Error: %s", err)
 	}
 }
 
-func TestEtcdResourceManagerDeallocateInvalidResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerDeallocateInvalidResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 
 	gReadCtr = 0
-	err := ra.DeallocateResourceVal(testResourceID, testResourceDesc, 0)
+	err := rm.DeallocateResourceVal(testResourceID, testResourceDesc, 0)
 	if err == nil {
 		t.Fatalf("Resource deallocation succeeded, expected to fail!")
 	}
@@ -239,13 +273,13 @@ func TestEtcdResourceManagerDeallocateInvalidResource(t *testing.T) {
 	}
 }
 
-func TestEtcdResourceManagerDeallocateiNonexistentResource(t *testing.T) {
-	ra := &EtcdResourceManager{Etcd: fakeDriver}
+func TestStateResourceManagerDeallocateiNonexistentResource(t *testing.T) {
+	rm := &StateResourceManager{stateDriver: fakeDriver}
 	resourceRegistry[testResourceDesc] = reflect.TypeOf(TestResource{})
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	err := ra.DeallocateResourceVal(testResourceID, testResourceDesc, 0)
+	err := rm.DeallocateResourceVal(testResourceID, testResourceDesc, 0)
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}

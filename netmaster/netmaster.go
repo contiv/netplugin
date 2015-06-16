@@ -124,16 +124,12 @@ func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		return err
 	}
 
-	// XXX: instead of initing resource-manager always, just init and
-	// store it once. Also the type of resource-manager should be picked up
-	// based on configuration.
-	ra := &resources.EtcdResourceManager{Etcd: stateDriver}
-	err = ra.Init()
+	tempRm, err := resources.GetStateResourceManager()
 	if err != nil {
 		return err
 	}
 
-	err = gCfg.Process(core.ResourceManager(ra))
+	err = gCfg.Process(core.ResourceManager(tempRm))
 	if err != nil {
 		log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
 		return err
@@ -461,15 +457,11 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		return err
 	}
 
-	// XXX: instead of initing resource-manager always, just init and
-	// store it once. Also the type of resource-manager should be picked up
-	// based on configuration.
-	tempRa := &resources.EtcdResourceManager{Etcd: stateDriver}
-	err = tempRa.Init()
+	tempRm, err := resources.GetStateResourceManager()
 	if err != nil {
 		return err
 	}
-	ra := core.ResourceManager(tempRa)
+	rm := core.ResourceManager(tempRm)
 
 	err = validateNetworkConfig(tenant)
 	if err != nil {
@@ -506,12 +498,12 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		}
 		if nwMasterCfg.PktTag == "" {
 			if nwCfg.PktTagType == "vlan" {
-				pktTag, err = gCfg.AllocVLAN(ra)
+				pktTag, err = gCfg.AllocVLAN(rm)
 				if err != nil {
 					return err
 				}
 			} else if nwCfg.PktTagType == "vxlan" {
-				extPktTag, pktTag, err = gCfg.AllocVXLAN(ra)
+				extPktTag, pktTag, err = gCfg.AllocVXLAN(rm)
 				if err != nil {
 					return err
 				}
@@ -530,7 +522,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 		if nwCfg.SubnetIP == "" {
 			nwCfg.SubnetLen = gCfg.Auto.AllocSubnetLen
-			nwCfg.SubnetIP, err = gCfg.AllocSubnet(ra)
+			nwCfg.SubnetIP, err = gCfg.AllocSubnet(rm)
 			if err != nil {
 				return err
 			}
@@ -579,24 +571,20 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwConfig,
 	nwCfg *drivers.OvsCfgNetworkState, gCfg *gstate.Cfg) (err error) {
 
-	// XXX: instead of initing resource-manager always, just init and
-	// store it once. Also the type of resource-manager should be picked up
-	// based on configuration.
-	tempRa := &resources.EtcdResourceManager{Etcd: stateDriver}
-	err = tempRa.Init()
+	tempRm, err := resources.GetStateResourceManager()
 	if err != nil {
 		return err
 	}
-	ra := core.ResourceManager(tempRa)
+	rm := core.ResourceManager(tempRm)
 
 	if nwCfg.PktTagType == "vlan" {
-		err = gCfg.FreeVLAN(ra, uint(nwCfg.PktTag))
+		err = gCfg.FreeVLAN(rm, uint(nwCfg.PktTag))
 		if err != nil {
 			return err
 		}
 	} else if nwCfg.PktTagType == "vxlan" {
 		log.Infof("freeing vlan %d vxlan %d", nwCfg.PktTag, nwCfg.ExtPktTag)
-		err = gCfg.FreeVXLAN(ra, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
+		err = gCfg.FreeVXLAN(rm, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
 		if err != nil {
 			return err
 		}
@@ -604,7 +592,7 @@ func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwCon
 
 	if nwMasterCfg.SubnetIP == "" {
 		log.Infof("freeing subnet %s/%s", nwCfg.SubnetIP, nwCfg.SubnetLen)
-		err = gCfg.FreeSubnet(ra, nwCfg.SubnetIP)
+		err = gCfg.FreeSubnet(rm, nwCfg.SubnetIP)
 		if err != nil {
 			return err
 		}
