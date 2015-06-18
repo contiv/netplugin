@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/contiv/netplugin/systemtests/utils"
+	u "github.com/contiv/netplugin/utils"
 )
 
 func TestOneHostMultipleNets_regress(t *testing.T) {
@@ -41,7 +42,7 @@ func TestOneHostMultipleNets_regress(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
-	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node1, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer2")
@@ -51,7 +52,7 @@ func TestOneHostMultipleNets_regress(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer4")
 	}()
-	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer4")
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer4", u.EtcdNameStr)
 	utils.StartClient(t, node1, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer3")
@@ -78,7 +79,7 @@ func TestOneHostVlan_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node1, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer2")

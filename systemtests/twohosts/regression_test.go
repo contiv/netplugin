@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/contiv/netplugin/systemtests/utils"
+	u "github.com/contiv/netplugin/utils"
 )
 
 func TestMultipleEpsInContainer_regress(t *testing.T) {
@@ -44,13 +45,13 @@ func TestMultipleEpsInContainer_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer2")
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node1, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2")
+	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -62,7 +63,7 @@ func TestMultipleEpsInContainer_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer1")
+	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
@@ -100,7 +101,7 @@ func TestTwoHostVlan_regress(t *testing.T) {
 		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer2")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
@@ -110,7 +111,7 @@ func TestTwoHostVlan_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer4")
+	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer4", u.EtcdNameStr)
 	utils.DockerCleanup(t, node2, "myContainer3")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
@@ -150,7 +151,7 @@ func TestTwoHostVxlan_regress(t *testing.T) {
 		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer2")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
@@ -160,7 +161,7 @@ func TestTwoHostVxlan_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer4")
+	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer4", u.EtcdNameStr)
 	utils.DockerCleanup(t, node2, "myContainer3")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
@@ -196,7 +197,7 @@ func TestTwoHostsMultipleTenants_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
@@ -208,7 +209,7 @@ func TestTwoHostsMultipleTenants_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2")
+	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -237,7 +238,7 @@ func TestTwoHostsMultipleTenantsMixVlanVxlan_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
@@ -249,7 +250,7 @@ func TestTwoHostsMultipleTenantsMixVlanVxlan_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2")
+	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -278,7 +279,7 @@ func TestTwoHostsMultipleVlansNets_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
 	utils.DockerCleanup(t, node2, "myContainer3")
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
@@ -291,7 +292,7 @@ func TestTwoHostsMultipleVlansNets_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2")
+	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -320,7 +321,7 @@ func TestTwoHostsMultipleVxlansNets_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
@@ -332,7 +333,7 @@ func TestTwoHostsMultipleVxlansNets_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2")
+	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -367,7 +368,7 @@ func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
@@ -379,7 +380,7 @@ func TestTwoHostsMultipleVxlansNetsLateHostBindings_regress(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2")
+	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -421,12 +422,12 @@ func TestTwoHostsMultipleVxlansNetsLateContainerBindings_regress(t *testing.T) {
 	utils.ApplyHostBindingsConfig(t, jsonCfgStr, node1)
 
 	// start client containers and test ping: myContainer1 and myContainer4
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2")
+	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -475,12 +476,12 @@ func TestTwoHostsMultipleVxlansNetsInfraContainerBindings_regress(t *testing.T) 
 	utils.ApplyHostBindingsConfig(t, jsonCfgStr, node1)
 
 	// start client containers and test ping: myContainer1 and myContainer4
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myPod1")
+	ipAddress := utils.GetIPAddress(t, node2, "orange-myPod1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myPod2")
+	ipAddress = utils.GetIPAddress(t, node2, "purple-myPod2", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
