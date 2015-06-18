@@ -23,8 +23,7 @@ import (
 )
 
 var (
-	gstateTestRA = &resources.EtcdResourceManager{Etcd: gstateSD}
-	gstateSD     = &state.FakeStateDriver{}
+	gstateSD = &state.FakeStateDriver{}
 )
 
 func TestGlobalConfigAutoVLANs(t *testing.T) {
@@ -53,15 +52,18 @@ func TestGlobalConfigAutoVLANs(t *testing.T) {
 	gstateSD.Init(nil)
 	defer func() { gstateSD.Deinit() }()
 	gc.StateDriver = gstateSD
-	gstateTestRA.Init()
-	defer func() { gstateTestRA.Deinit() }()
+	rm, err := resources.NewStateResourceManager(gstateSD)
+	if err != nil {
+		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process(gstateTestRA)
+	err = gc.Process(rm)
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vlan, err = gc.AllocVLAN(gstateTestRA)
+	vlan, err = gc.AllocVLAN(rm)
 	if err != nil {
 		t.Fatalf("error - allocating vlan - %s \n", err)
 	}
@@ -72,7 +74,7 @@ func TestGlobalConfigAutoVLANs(t *testing.T) {
 		t.Fatalf("error - expecting vlan %d but allocated %d \n", 1, vlan)
 	}
 
-	err = gc.FreeVLAN(gstateTestRA, vlan)
+	err = gc.FreeVLAN(rm, vlan)
 	if err != nil {
 		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
 	}
@@ -104,15 +106,18 @@ func TestGlobalConfigAutoVXLAN(t *testing.T) {
 	gstateSD.Init(nil)
 	defer func() { gstateSD.Deinit() }()
 	gc.StateDriver = gstateSD
-	gstateTestRA.Init()
-	defer func() { gstateTestRA.Deinit() }()
+	rm, err := resources.NewStateResourceManager(gstateSD)
+	if err != nil {
+		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process(gstateTestRA)
+	err = gc.Process(rm)
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vxlan, localVLAN, err = gc.AllocVXLAN(gstateTestRA)
+	vxlan, localVLAN, err = gc.AllocVXLAN(rm)
 	if err != nil {
 		t.Fatalf("error - allocating vxlan - %s \n", err)
 	}
@@ -123,7 +128,7 @@ func TestGlobalConfigAutoVXLAN(t *testing.T) {
 		t.Fatalf("error - invalid vlan allocated %d \n", localVLAN)
 	}
 
-	err = gc.FreeVXLAN(gstateTestRA, vxlan, localVLAN)
+	err = gc.FreeVXLAN(rm, vxlan, localVLAN)
 	if err != nil {
 		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
 			vxlan, localVLAN, err)
@@ -156,15 +161,18 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 	gstateSD.Init(nil)
 	defer func() { gstateSD.Deinit() }()
 	gc.StateDriver = gstateSD
-	gstateTestRA.Init()
-	defer func() { gstateTestRA.Deinit() }()
+	rm, err := resources.NewStateResourceManager(gstateSD)
+	if err != nil {
+		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process(gstateTestRA)
+	err = gc.Process(rm)
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vlan, err = gc.AllocVLAN(gstateTestRA)
+	vlan, err = gc.AllocVLAN(rm)
 	if err != nil {
 		t.Fatalf("error - allocating vlan - %s \n", err)
 	}
@@ -172,7 +180,7 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 		t.Fatalf("error - expecting vlan %d but allocated %d \n", 100, vlan)
 	}
 
-	vxlan, localVLAN, err = gc.AllocVXLAN(gstateTestRA)
+	vxlan, localVLAN, err = gc.AllocVXLAN(rm)
 	if err != nil {
 		t.Fatalf("error - allocating vxlan - %s \n", err)
 	}
@@ -183,12 +191,12 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 		t.Fatalf("error - invalid vlan allocated %d \n", localVLAN)
 	}
 
-	err = gc.FreeVLAN(gstateTestRA, vlan)
+	err = gc.FreeVLAN(rm, vlan)
 	if err != nil {
 		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
 	}
 
-	err = gc.FreeVXLAN(gstateTestRA, vxlan, localVLAN)
+	err = gc.FreeVXLAN(rm, vxlan, localVLAN)
 	if err != nil {
 		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
 			vxlan, localVLAN, err)
@@ -220,10 +228,13 @@ func TestInvalidGlobalConfigNoLocalVLANs(t *testing.T) {
 	gstateSD.Init(nil)
 	defer func() { gstateSD.Deinit() }()
 	gc.StateDriver = gstateSD
-	gstateTestRA.Init()
-	defer func() { gstateTestRA.Deinit() }()
+	rm, err := resources.NewStateResourceManager(gstateSD)
+	if err != nil {
+		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process(gstateTestRA)
+	err = gc.Process(rm)
 	if err == nil {
 		t.Fatalf("Was able to process the config, expected to fail!")
 	}

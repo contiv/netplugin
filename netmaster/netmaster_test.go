@@ -17,9 +17,11 @@ package netmaster
 
 import (
 	"encoding/json"
+	"log"
 	"strings"
 	"testing"
 
+	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
 )
 
@@ -33,6 +35,12 @@ func applyConfig(t *testing.T, cfgBytes []byte) {
 	}
 
 	fakeDriver.Init(nil)
+	_, err = resources.NewStateResourceManager(fakeDriver)
+	if err != nil {
+		log.Fatalf("state store initialization failed. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
+
 	for _, host := range cfg.Hosts {
 		err = CreateHost(fakeDriver, &host)
 		if err != nil {
