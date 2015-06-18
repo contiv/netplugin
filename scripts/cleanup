@@ -27,6 +27,7 @@ then
 fi
 
 etcdctl rm -recursive /contiv > /dev/null 2>&1
+curl -X DELETE http://localhost:8500/v1/kv/contiv?recurse > /dev/null 2>&1
 ovs-vsctl del-br contivBridge > /dev/null 2>&1
 
 echo "cleanup complete!"

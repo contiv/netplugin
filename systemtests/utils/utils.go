@@ -26,6 +26,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster"
+	u "github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -77,8 +78,9 @@ func StopNetPlugin(t *testing.T, nodes []TestbedNode) {
 	}
 }
 
-// StartNetPlugin statrs netplugin on  specified testbed nodes
-func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
+// StartNetPluginWithConfig starts netplugin on specified testbed nodes with specified config
+func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg bool,
+	configStr string) {
 	nativeIntegStr := ""
 	if nativeInteg {
 		nativeIntegStr = "-native-integration"
@@ -86,13 +88,30 @@ func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 
 	for i, node := range nodes {
 		//start the netplugin
-		var cmdStr string
-		if os.Getenv("CONTIV_TESTBED") == "DIND" {
-			cmdStr = fmt.Sprintf("netplugin %s -host-label host%d 0<&- &>/tmp/netplugin-%d.log ", nativeIntegStr,
-				i+1, i+1)
+		var (
+			cmdStr   string
+			flagsStr string
+		)
+		if configStr != "" {
+			cfgFile := fmt.Sprintf("/tmp/plugin-%d.cfg", i+1)
+			//fill up the host-label in the passed config string format
+			jsonCfg := fmt.Sprintf(configStr, i+1)
+			jsonCfg = getEchoCompatibleStr(jsonCfg)
+			cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonCfg, cfgFile)
+			output, err := node.RunCommandWithOutput("sh -c '" + cmdStr + "'")
+			if err != nil {
+				t.Fatalf("Error '%s' creating config file\nCmd: %q\n Output : %s \n",
+					err, cmdStr, output)
+			}
+			flagsStr = fmt.Sprintf("-config %s %s", cfgFile, nativeIntegStr)
 		} else {
-			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s -host-label host%d 0<&- &>/tmp/netplugin.log &", nativeIntegStr,
-				i+1)
+			flagsStr = fmt.Sprintf("-host-label host%d %s", i+1, nativeIntegStr)
+		}
+
+		if os.Getenv("CONTIV_TESTBED") == "DIND" {
+			cmdStr = fmt.Sprintf("netplugin %s 0<&- &>/tmp/netplugin-%d.log ", flagsStr, i+1)
+		} else {
+			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s 0<&- &>/tmp/netplugin.log &", flagsStr)
 		}
 		output, err := node.RunCommandBackground(cmdStr)
 		if err != nil {
@@ -100,6 +119,11 @@ func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 				err, cmdStr, output)
 		}
 	}
+}
+
+// StartNetPlugin starts netplugin on  specified testbed nodes
+func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
+	StartNetPluginWithConfig(t, nodes, nativeInteg, "")
 }
 
 // StartPowerStripAdapter starts the powerstrip adapter on specified testbed nodes
@@ -160,12 +184,17 @@ EOF`
 		}
 	}
 }
-func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode) {
+
+func getEchoCompatibleStr(inStr string) string {
 	// replace newlines with space and "(quote) with \"(escaped quote) for
 	// echo to consume and produce desired json config
-	jsonCfg = strings.Replace(
-		strings.Replace(jsonCfg, "\n", " ", -1),
-		"\"", "\\\"", -1)
+	return strings.Replace(strings.Replace(inStr, "\n", " ", -1), "\"", "\\\"", -1)
+}
+
+func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode, stateStore string) {
+	// replace newlines with space and "(quote) with \"(escaped quote) for
+	// echo to consume and produce desired json config
+	jsonCfg = getEchoCompatibleStr(jsonCfg)
 	cmdStr := fmt.Sprintf("echo \"%s\" > /tmp/netdcli.cfg", jsonCfg)
 	output, err := node.RunCommandWithOutput("sh -c '" + cmdStr + "'")
 	if err != nil {
@@ -173,6 +202,9 @@ func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode) {
 			err, cmdStr, output)
 	}
 	cmdStr = "netdcli -" + cfgType + " /tmp/netdcli.cfg 2>&1"
+	if stateStore != "" {
+		cmdStr = "netdcli -state-store " + stateStore + " -" + cfgType + " /tmp/netdcli.cfg 2>&1"
+	}
 	output, err = node.RunCommandWithOutput(cmdStr)
 	if err != nil {
 		t.Fatalf("Failed to apply config. Error: %s\nCmd: %q\n Output : %s\n",
@@ -182,22 +214,37 @@ func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode) {
 
 // AddConfig issues netdcli with -add-cfg flag
 func AddConfig(t *testing.T, jsonCfg string, node TestbedNode) {
-	applyConfig(t, "add-cfg", jsonCfg, node)
+	applyConfig(t, "add-cfg", jsonCfg, node, "")
+}
+
+// AddConfigConsul issues netdcli with -add-cfg flag and uses consul state-store
+func AddConfigConsul(t *testing.T, jsonCfg string, node TestbedNode) {
+	applyConfig(t, "add-cfg", jsonCfg, node, u.ConsulNameStr)
 }
 
 // DelConfig issues netdcli with -del-cfg flag
 func DelConfig(t *testing.T, jsonCfg string, node TestbedNode) {
-	applyConfig(t, "del-cfg", jsonCfg, node)
+	applyConfig(t, "del-cfg", jsonCfg, node, "")
+}
+
+// DelConfigConsul issues netdcli with -del-cfg flag and uses consul state-store
+func DelConfigConsul(t *testing.T, jsonCfg string, node TestbedNode) {
+	applyConfig(t, "del-cfg", jsonCfg, node, u.ConsulNameStr)
 }
 
 // ApplyDesiredConfig issues netdcli with -cfg flag
 func ApplyDesiredConfig(t *testing.T, jsonCfg string, node TestbedNode) {
-	applyConfig(t, "cfg", jsonCfg, node)
+	applyConfig(t, "cfg", jsonCfg, node, "")
+}
+
+// ApplyDesiredConfigConsul issues netdcli with -cfg flag and uses consul state-store
+func ApplyDesiredConfigConsul(t *testing.T, jsonCfg string, node TestbedNode) {
+	applyConfig(t, "cfg", jsonCfg, node, u.ConsulNameStr)
 }
 
 // ApplyHostBindingsConfig issues netdcli with -host-bindings-cfg flag
 func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node TestbedNode) {
-	applyConfig(t, "host-bindings-cfg", jsonCfg, node)
+	applyConfig(t, "host-bindings-cfg", jsonCfg, node, "")
 }
 
 // FixUpContainerUUIDs fills up UUID information in passed jsonCfg and returns host-binding configuration
@@ -296,9 +343,47 @@ func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []TestbedNode) {
 	ApplyDesiredConfig(t, jsonCfg, nodes[0])
 }
 
+// GetNetpluginConfigWithConsul returns netplugin config that uses consul state store
+func GetNetpluginConfigWithConsul() string {
+	return `{
+                    "drivers" : {
+                       "network": "ovs",
+                       "endpoint": "ovs",
+                       "state": "consul"
+                    },
+                    "plugin-instance": {
+                       "host-label": "host%d"
+                    },
+	                "ovs" : {
+                       "dbip": "127.0.0.1",
+                       "dbport": 6640
+                    },
+                    "consul" : {
+                        "address": "127.0.0.1:8500"
+                    },
+                    "crt" : {
+                       "type": "docker"
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
+                    }
+			}`
+}
+
+// ConfigSetupCommonWithConsul performs common configuration setup on specified testbed nodes
+func ConfigSetupCommonWithConsul(t *testing.T, jsonCfg string, nodes []TestbedNode) {
+
+	StartNetPluginWithConfig(t, nodes, false, GetNetpluginConfigWithConsul())
+
+	ApplyDesiredConfigConsul(t, jsonCfg, nodes[0])
+}
+
 // GetIPAddress returns IP-address information for specified endpoint
-func GetIPAddress(t *testing.T, node TestbedNode, ep string) string {
+func GetIPAddress(t *testing.T, node TestbedNode, ep, stateStore string) string {
 	cmdStr := "netdcli -oper get -construct endpoint " + ep + " 2>&1"
+	if stateStore != "" {
+		cmdStr = "netdcli -oper get -state-store " + stateStore + " -construct endpoint " + ep + " 2>&1"
+	}
 	output, err := node.RunCommandWithOutput(cmdStr)
 
 	if err != nil || string(output) == "" {
@@ -333,12 +418,15 @@ func GetIPAddressFromNetworkAndContainerName(t *testing.T, node TestbedNode,
 			contName, node.GetName())
 	}
 	epName := fmt.Sprintf("%s-%s", netID, uuid)
-	return GetIPAddress(t, node, epName)
+	return GetIPAddress(t, node, epName, "")
 }
 
 // NetworkStateExists tests if state for specified network exists
-func NetworkStateExists(node TestbedNode, network string) error {
+func NetworkStateExists(node TestbedNode, network, stateStore string) error {
 	cmdStr := "netdcli -oper get -construct network " + network + " 2>&1"
+	if stateStore != "" {
+		cmdStr = "netdcli -state-store " + stateStore + "-oper get -construct network " + network + " 2>&1"
+	}
 	output, err := node.RunCommandWithOutput(cmdStr)
 
 	if err != nil {

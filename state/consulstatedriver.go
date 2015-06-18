@@ -16,6 +16,8 @@ limitations under the License.
 package state
 
 import (
+	"strings"
+
 	"github.com/contiv/netplugin/core"
 	"github.com/hashicorp/consul/api"
 
@@ -60,8 +62,14 @@ func (d *ConsulStateDriver) Init(config *core.Config) error {
 func (d *ConsulStateDriver) Deinit() {
 }
 
+func processKey(inKey string) string {
+	//consul doesn't accepts keys starting with a '/', so trim the leading slash
+	return strings.TrimPrefix(inKey, "/")
+}
+
 // Write state to key with value.
 func (d *ConsulStateDriver) Write(key string, value []byte) error {
+	key = processKey(key)
 	_, err := d.Client.KV().Put(&api.KVPair{Key: key, Value: value}, nil)
 
 	return err
@@ -69,6 +77,7 @@ func (d *ConsulStateDriver) Write(key string, value []byte) error {
 
 // Read state from key.
 func (d *ConsulStateDriver) Read(key string) ([]byte, error) {
+	key = processKey(key)
 	kv, _, err := d.Client.KV().Get(key, nil)
 	if err != nil {
 		return []byte{}, err
@@ -84,6 +93,7 @@ func (d *ConsulStateDriver) Read(key string) ([]byte, error) {
 
 // ReadAll state from baseKey.
 func (d *ConsulStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+	baseKey = processKey(baseKey)
 	kvs, _, err := d.Client.KV().List(baseKey, nil)
 	if err != nil {
 		return nil, err
@@ -156,6 +166,7 @@ func (d *ConsulStateDriver) channelConsulEvents(baseKey string, kvCache map[stri
 
 // WatchAll state transitions from baseKey
 func (d *ConsulStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
+	baseKey = processKey(baseKey)
 	consulRsps := make(chan api.KVPairs, 1)
 	stop := make(chan bool, 1)
 	recvErr := make(chan error, 2)
@@ -211,6 +222,7 @@ func (d *ConsulStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error 
 
 // ClearState removes key from etcd.
 func (d *ConsulStateDriver) ClearState(key string) error {
+	key = processKey(key)
 	_, err := d.Client.KV().Delete(key, nil)
 	return err
 }
@@ -218,6 +230,7 @@ func (d *ConsulStateDriver) ClearState(key string) error {
 // ReadState reads key into a core.State with the unmarshalling function.
 func (d *ConsulStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
+	key = processKey(key)
 	encodedState, err := d.Read(key)
 	if err != nil {
 		return err
@@ -234,12 +247,14 @@ func (d *ConsulStateDriver) ReadState(key string, value core.State,
 // ReadAllState Reads all the state from baseKey and returns a list of core.State.
 func (d *ConsulStateDriver) ReadAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
+	baseKey = processKey(baseKey)
 	return readAllStateCommon(d, baseKey, sType, unmarshal)
 }
 
 // WatchAllState watches all state from the baseKey.
 func (d *ConsulStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
+	baseKey = processKey(baseKey)
 	byteRsps := make(chan [2][]byte, 1)
 	recvErr := make(chan error, 1)
 
@@ -258,6 +273,7 @@ func (d *ConsulStateDriver) WatchAllState(baseKey string, sType core.State,
 // WriteState writes a value of core.State into a key with a given marshalling function.
 func (d *ConsulStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
+	key = processKey(key)
 	encodedState, err := marshal(value)
 	if err != nil {
 		return err

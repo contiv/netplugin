@@ -49,7 +49,7 @@ unit-test: build
 system-test: build
 	CONTIV_HOST_GOPATH=$(GOPATH) godep go test -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/singlehost 
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -v -run "sanity" \
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 50m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/twohosts
 
 # setting CONTIV_SOE=1 while calling 'make regress-test' will stop the test
