@@ -260,3 +260,16 @@ func ParseCIDR(cidrStr string) (string, uint, error) {
 
 	return subnetStr, uint(subnetLen), nil
 }
+
+// SetInterfaceMac : Set mac address of an interface
+func SetInterfaceMac(name string, macaddr string) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	hwaddr, err := net.ParseMAC(macaddr)
+	if err != nil {
+		return err
+	}
+	return netlink.LinkSetHardwareAddr(iface, hwaddr)
+}

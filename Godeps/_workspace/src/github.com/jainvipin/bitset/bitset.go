@@ -159,7 +159,7 @@ func (b *BitSet) NextClear(i uint) (uint, bool) {
 	}
 	w := b.set[x]
 	w = w >> (i & (wordSize - 1))
-	wA := allBits >> (i & (wordSize -1))
+	wA := allBits >> (i & (wordSize - 1))
 	if w != wA {
 		return i + trailingZeroes64(^w), true
 	}

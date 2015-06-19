@@ -6,7 +6,7 @@ import "github.com/contiv/netplugin/core"
 // which is an empty struct.
 type FakeNetEpDriverConfig struct{}
 
-// FakeNetEpDriver implements core.NetworkDriver and core.EndpointDriver interface
+// FakeNetEpDriver implements core.NetworkDriver interface
 // for use with unit-tests
 type FakeNetEpDriver struct {
 }

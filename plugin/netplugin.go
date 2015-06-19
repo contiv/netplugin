@@ -39,10 +39,9 @@ type config struct {
 // in `state/`.
 type NetPlugin struct {
 	sync.Mutex
-	ConfigFile     string
-	NetworkDriver  core.NetworkDriver
-	EndpointDriver core.EndpointDriver
-	StateDriver    core.StateDriver
+	ConfigFile    string
+	NetworkDriver core.NetworkDriver
+	StateDriver   core.StateDriver
 }
 
 // Init initializes the NetPlugin instance via the configuration string passed.
@@ -88,27 +87,11 @@ func (p *NetPlugin) Init(configStr string) error {
 		}
 	}()
 
-	// initialize endpoint driver
-	p.EndpointDriver, err = utils.NewEndpointDriver(pluginConfig.Drivers.Endpoint,
-		configStr, instanceInfo)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			p.EndpointDriver.Deinit()
-		}
-	}()
-
 	return nil
 }
 
 // Deinit is a destructor for the NetPlugin configuration.
 func (p *NetPlugin) Deinit() {
-	if p.EndpointDriver != nil {
-		p.EndpointDriver.Deinit()
-		p.EndpointDriver = nil
-	}
 	if p.NetworkDriver != nil {
 		p.NetworkDriver.Deinit()
 		p.NetworkDriver = nil
@@ -136,12 +119,12 @@ func (p *NetPlugin) FetchNetwork(id string) (core.State, error) {
 
 // CreateEndpoint creates an endpoint for a given ID.
 func (p *NetPlugin) CreateEndpoint(id string) error {
-	return p.EndpointDriver.CreateEndpoint(id)
+	return p.NetworkDriver.CreateEndpoint(id)
 }
 
 // DeleteEndpoint destroys an endpoint for an ID.
 func (p *NetPlugin) DeleteEndpoint(id string) error {
-	return p.EndpointDriver.DeleteEndpoint(id)
+	return p.NetworkDriver.DeleteEndpoint(id)
 }
 
 // FetchEndpoint retrieves an endpoint's state for a given ID

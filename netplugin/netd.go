@@ -605,7 +605,6 @@ func main() {
 	defConfigStr := fmt.Sprintf(`{
                     "drivers" : {
                        "network": %q,
-                       "endpoint": %q,
                        "state": "etcd"
                     },
                     "plugin-instance": {
@@ -624,7 +623,7 @@ func main() {
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
                     }
-                  }`, utils.OvsNameStr, utils.OvsNameStr, opts.hostLabel, utils.OvsNameStr)
+                  }`, utils.OvsNameStr, opts.hostLabel, utils.OvsNameStr)
 
 	netPlugin := &plugin.NetPlugin{}
 

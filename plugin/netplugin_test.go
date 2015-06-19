@@ -197,33 +197,6 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriverName(t *testing.T) {
 	}
 }
 
-func TestNetPluginInitInvalidConfigMissingEndpointDriverName(t *testing.T) {
-	configStr := `{
-                    "drivers" : {
-                       "network": "ovs",
-                       "state": "fakedriver",
-                       "container": "docker"
-                    },
-                    "plugin-instance": {
-                       "host-label": "testHost"
-                    },
-                    "ovs" : {
-                       "dbip": "127.0.0.1",
-                       "dbport": 6640
-                    },
-                    "fakedriver" : {
-                    },
-                    "docker" : {
-                        "socket" : "unix:///var/run/docker.sock"
-                    }
-                  }`
-	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
-	if err == nil {
-		t.Fatalf("plugin init succeeded, should have failed!")
-	}
-}
-
 func TestNetPluginInitInvalidConfigMissingNetworkDriver(t *testing.T) {
 	configStr := `{
                     "drivers" : {

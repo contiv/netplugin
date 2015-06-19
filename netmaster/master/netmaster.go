@@ -16,6 +16,7 @@ limitations under the License.
 package master
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -715,7 +716,14 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *intent.ConfigT
 	return err
 }
 
-func allocSetEpIP(ep *intent.ConfigEP, epCfg *drivers.OvsCfgEndpointState,
+func getEpName(net *ConfigNetwork, ep *ConfigEP) string {
+	if ep.Container != "" {
+		return net.Name + "-" + ep.Container
+	}
+
+	return ep.Host + "-native-intf"
+}
+func allocSetEpAddress(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	nwCfg *drivers.OvsCfgNetworkState) (err error) {
 
 	var ipAddrValue uint
@@ -747,6 +755,11 @@ func allocSetEpIP(ep *intent.ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	}
 	epCfg.IPAddress = ipAddress
 	nwCfg.IPAllocMap.Set(ipAddrValue)
+
+	// Set mac address which is derived from IP address
+	ipAddr := net.ParseIP(ipAddress)
+	macAddr := fmt.Sprintf("02:02:%02x:%02x:%02x:%02x", ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15])
+	epCfg.MacAddress = macAddr
 
 	return
 }
@@ -791,7 +804,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 			epCfg.AttachUUID = ep.AttachUUID
 			epCfg.HomingHost = ep.Host
 
-			err = allocSetEpIP(&ep, epCfg, nwCfg)
+			err = allocSetEpAddress(&ep, epCfg, nwCfg)
 			if err != nil {
 				log.Errorf("error allocating and/or reserving IP. Error: %s", err)
 				return err
