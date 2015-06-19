@@ -83,6 +83,7 @@ type OvsDriver struct {
 	cache         map[string]map[libovsdb.UUID]libovsdb.Row
 	oper          OvsDriverOperState
 	agent         *ofnet.OfnetAgent
+	ofnetMaster   *ofnet.OfnetMaster
 }
 
 func (d *OvsDriver) getRootUUID() libovsdb.UUID {
@@ -446,9 +447,15 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 		}
 	}
 
+	log.Errorf("Initializing ovsdriver")
+
 	// Create an ofnet agent
-	// FIXME: hard code local IP address for now
-	d.agent, err = ofnet.NewOfnetAgent(defaultBridgeName, "vxlan", net.ParseIP("10.10.10.10"))
+	// FIXME: hard code local interface for now
+	localIP, err := netutils.GetInterfaceIP("eth1")
+	if err != nil {
+		log.Fatalf("Error getting local IP addr")
+	}
+	d.agent, err = ofnet.NewOfnetAgent(defaultBridgeName, "vxlan", net.ParseIP(localIP))
 	if err != nil {
 		log.Fatalf("Error initializing ofnet")
 		return err
@@ -464,6 +471,14 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 			log.Fatalf("Error adding controller to OVS. Err: %v", err)
 			return err
 		}
+	}
+
+	// FIXME: We need to elect just few nodes as masters
+	var resp bool
+	masterIP := "192.168.2.10"
+	err = d.agent.AddMaster(&masterIP, &resp)
+	if err != nil {
+		log.Errorf("Error adding %s as ofnet master. Err: %v", masterIP, err)
 	}
 
 	return nil

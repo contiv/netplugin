@@ -261,6 +261,31 @@ func ParseCIDR(cidrStr string) (string, uint, error) {
 	return subnetStr, uint(subnetLen), nil
 }
 
+// GetInterfaceIP obtains the ip addr of a local interface on the host.
+func GetInterfaceIP(linkName string) (string, error) {
+	var addrs []netlink.Addr
+	localIPAddr := ""
+
+	link, err := netlink.LinkByName(linkName)
+	if err != nil {
+		return "", err
+	}
+	addrs, err = netlink.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return "", err
+	}
+	if len(addrs) > 0 {
+		localIPAddr = addrs[0].IP.String()
+	}
+
+	err = core.Errorf("local ip not found")
+	if localIPAddr != "" {
+		err = nil
+	}
+
+	return localIPAddr, err
+}
+
 // SetInterfaceMac : Set mac address of an interface
 func SetInterfaceMac(name string, macaddr string) error {
 	iface, err := netlink.LinkByName(name)
