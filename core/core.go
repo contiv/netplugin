@@ -37,11 +37,9 @@ type Network interface {
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
 	FetchNetwork(id string) (State, error)
-}
 
-// Endpoint identifies an addressable entity in a network. An endpoint
-// belongs to a single network.
-type Endpoint interface {
+	// Endpoint identifies an addressable entity in a network. An endpoint
+	// belongs to a single network.
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
 	FetchEndpoint(id string) (State, error)
@@ -54,7 +52,6 @@ type Plugin interface {
 	Init(configStr string) error
 	Deinit()
 	Network
-	Endpoint
 }
 
 // InstanceInfo encapsulates data that is specific to a running instance of
@@ -67,23 +64,15 @@ type InstanceInfo struct {
 // Driver implements the programming logic
 type Driver interface{}
 
-// NetworkDriver implements the programming logic for network
+// NetworkDriver implements the programming logic for network and endpoints
 type NetworkDriver interface {
 	Driver
 	Init(config *Config, info *InstanceInfo) error
 	Deinit()
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
-}
-
-// EndpointDriver implements the programming logic for endpoints
-type EndpointDriver interface {
-	Driver
-	Init(config *Config, info *InstanceInfo) error
-	Deinit()
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
-	MakeEndpointAddress() (*Address, error)
 }
 
 // WatchState is used to provide a difference between core.State structs by

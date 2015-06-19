@@ -16,6 +16,7 @@ limitations under the License.
 package netmaster
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -749,7 +750,7 @@ func getEpName(net *ConfigNetwork, ep *ConfigEP) string {
 
 	return ep.Host + "-native-intf"
 }
-func allocSetEpIP(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
+func allocSetEpAddress(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	nwCfg *drivers.OvsCfgNetworkState) (err error) {
 
 	var ipAddrValue uint
@@ -781,6 +782,11 @@ func allocSetEpIP(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	}
 	epCfg.IPAddress = ipAddress
 	nwCfg.IPAllocMap.Set(ipAddrValue)
+
+	// Set mac address which is derived from IP address
+	ipAddr := net.ParseIP(ipAddress)
+	macAddr := fmt.Sprintf("02:02:%02x:%02x:%02x:%02x", ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15])
+	epCfg.MacAddress = macAddr
 
 	return
 }
@@ -825,7 +831,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			epCfg.AttachUUID = ep.AttachUUID
 			epCfg.HomingHost = ep.Host
 
-			err = allocSetEpIP(&ep, epCfg, nwCfg)
+			err = allocSetEpAddress(&ep, epCfg, nwCfg)
 			if err != nil {
 				log.Errorf("error allocating and/or reserving IP. Error: %s", err)
 				return err

@@ -17,13 +17,18 @@ package drivers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netutils"
+	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -73,9 +78,11 @@ func (s *OvsDriverOperState) Clear() error {
 // specific to vlan based open-vswitch. It also implements the
 // libovsdb.Notifier interface to keep cache of ovs table state.
 type OvsDriver struct {
-	ovs   *libovsdb.OvsdbClient
-	cache map[string]map[libovsdb.UUID]libovsdb.Row
-	oper  OvsDriverOperState
+	OvsBridgeName string // Name of the bridge we are operating on
+	ovs           *libovsdb.OvsdbClient
+	cache         map[string]map[libovsdb.UUID]libovsdb.Row
+	oper          OvsDriverOperState
+	agent         *ofnet.OfnetAgent
 }
 
 func (d *OvsDriver) getRootUUID() libovsdb.UUID {
@@ -147,6 +154,7 @@ func (d *OvsDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 	namedUUIDStr := "netplugin"
 	brUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: namedUUIDStr}}
+	protocols := []string{"OpenFlow10", "OpenFlow11", "OpenFlow12", "OpenFlow13"}
 	opStr := "insert"
 	if op != operCreateBridge {
 		opStr = "delete"
@@ -157,6 +165,7 @@ func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
 	if op == operCreateBridge {
 		bridge := make(map[string]interface{})
 		bridge["name"] = bridgeName
+		bridge["protocols"], _ = libovsdb.NewOvsSet(protocols)
 		brOp = libovsdb.Operation{
 			Op:       opStr,
 			Table:    bridgeTable,
@@ -395,6 +404,7 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	}
 
 	d.ovs = ovs
+	d.OvsBridgeName = defaultBridgeName
 	d.oper.StateDriver = info.StateDriver
 	// restore the driver's runtime state if it exists
 	err = d.oper.Read(info.HostLabel)
@@ -436,6 +446,26 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 		}
 	}
 
+	// Create an ofnet agent
+	// FIXME: hard code local IP address for now
+	d.agent, err = ofnet.NewOfnetAgent(defaultBridgeName, "vxlan", net.ParseIP("10.10.10.10"))
+	if err != nil {
+		log.Fatalf("Error initializing ofnet")
+		return err
+	}
+
+	// Add controller to the OVS
+	ctrlerIP := "127.0.0.1"
+	ctrlerPort := uint16(6633)
+	target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, ctrlerPort)
+	if !d.IsControllerPresent(target) {
+		err = d.AddController(ctrlerIP, ctrlerPort)
+		if err != nil {
+			log.Fatalf("Error adding controller to OVS. Err: %v", err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -457,6 +487,13 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		return err
 	}
 	log.Infof("create net %s \n", cfgNw.ID)
+
+	// Add the vlan/vni to ofnet
+	err = d.agent.AddVlan(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag))
+	if err != nil {
+		log.Errorf("Error adding vlan/vni %d/%d. Err: %v", cfgNw.PktTag, cfgNw.ExtPktTag, err)
+		return err
+	}
 
 	return nil
 }
@@ -559,6 +596,51 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		}
 	}()
 
+	// Wait a little for OVS to create the interface
+	time.Sleep(300 * time.Millisecond)
+
+	// Set the interface mac address
+	if intfType == "internal" {
+		err = netutils.SetInterfaceMac(portName, cfgEp.MacAddress)
+		if err != nil {
+			log.Errorf("Error setting interface Mac %s on port %s", cfgEp.MacAddress, portName)
+			return err
+		}
+	}
+
+	// Get the openflow port number for the interface
+	ofpPort, err := d.GetOfpPortNo(portName)
+	if err != nil {
+		log.Errorf("Could not find the OVS port %s. Err: %v", portName, err)
+		return err
+	}
+
+	// Add the VTEP/endpoint to ofnet
+	if intfType == "vxlan" {
+		err = d.agent.AddVtepPort(ofpPort, net.ParseIP(cfgEp.VtepIP))
+		if err != nil {
+			log.Errorf("Error adding VTEP port %s to ofnet. Err: %v", portName, err)
+			return err
+		}
+	} else if intfType == "internal" {
+		macAddr, _ := net.ParseMAC(cfgEp.MacAddress)
+		// Build the endpoint info
+		endpoint := ofnet.EndpointInfo{
+			PortNo:  ofpPort,
+			MacAddr: macAddr,
+			Vlan:    uint16(cfgNw.PktTag),
+			IpAddr:  net.ParseIP(cfgEp.IPAddress),
+		}
+
+		// Add the local port to ofnet
+		err = d.agent.AddLocalEndpoint(endpoint)
+		if err != nil {
+			log.Errorf("Error adding local port %s to ofnet. Err: %v", portName, err)
+			return err
+		}
+	}
+
+	// Save the oper state
 	operEp = &OvsOperEndpointState{
 		PortName:   portName,
 		NetID:      cfgEp.NetID,
@@ -627,4 +709,96 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 // MakeEndpointAddress is currently unsupported.
 func (d *OvsDriver) MakeEndpointAddress() (*core.Address, error) {
 	return nil, core.Errorf("Not supported")
+}
+
+// AddController : Add controller configuration to OVS
+func (d *OvsDriver) AddController(ipAddr string, portNo uint16) error {
+	// Format target string
+	target := fmt.Sprintf("tcp:%s:%d", ipAddr, portNo)
+	ctrlerUUIDStr := fmt.Sprintf("local")
+	ctrlerUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: ctrlerUUIDStr}}
+
+	// If controller already exists, nothing to do
+	if d.IsControllerPresent(target) {
+		return nil
+	}
+
+	// insert a row in Controller table
+	controller := make(map[string]interface{})
+	controller["target"] = target
+
+	// Add an entry in Controller table
+	ctrlerOp := libovsdb.Operation{
+		Op:       "insert",
+		Table:    "Controller",
+		Row:      controller,
+		UUIDName: ctrlerUUIDStr,
+	}
+
+	// mutate the Controller column of the row in the Bridge table
+	mutateSet, _ := libovsdb.NewOvsSet(ctrlerUUID)
+	mutation := libovsdb.NewMutation("controller", "insert", mutateSet)
+	condition := libovsdb.NewCondition("name", "==", d.OvsBridgeName)
+	mutateOp := libovsdb.Operation{
+		Op:        "mutate",
+		Table:     "Bridge",
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+
+	// Perform OVS transaction
+	operations := []libovsdb.Operation{ctrlerOp, mutateOp}
+	return d.performOvsdbOps(operations)
+}
+
+// RemoveController : Remove controller configuration
+func (d *OvsDriver) RemoveController(target string) error {
+	// FIXME:
+	return nil
+}
+
+// IsControllerPresent : Check if Controller already exists
+func (d *OvsDriver) IsControllerPresent(target string) bool {
+	for tName, table := range d.cache {
+		if tName == "Controller" {
+			for _, row := range table {
+				for fieldName, value := range row.Fields {
+					if fieldName == "target" {
+						if value == target {
+							// Controller exists.
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// We could not find the controller
+	return false
+}
+
+// GetOfpPortNo : Return OFP port number for an interface
+func (d *OvsDriver) GetOfpPortNo(intfName string) (uint32, error) {
+	for tName, table := range d.cache {
+		if tName == "Interface" {
+			for _, row := range table {
+				if row.Fields["name"] == intfName {
+					value := row.Fields["ofport"]
+					switch t := value.(type) {
+					case uint32:
+						return t, nil
+					case float64:
+						ofpPort := uint32(t)
+						return ofpPort, nil
+					default:
+						return 0, errors.New("Unknown field type")
+					}
+				}
+			}
+		}
+	}
+
+	// We could not find the interface name
+	return 0, errors.New("Interface not found")
 }
