@@ -17,6 +17,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -569,7 +570,7 @@ func main() {
 	flagSet.StringVar(&opts.hostLabel,
 		"host-label",
 		defHostLabel,
-		"label used to identify endpoints homed for this host, default is host name")
+		"label used to identify endpoints homed for this host, default is host name. If -config flag is used then host-label must be specified in the the configuration passed.")
 	flagSet.BoolVar(&opts.nativeInteg,
 		"native-integration",
 		false,
@@ -623,7 +624,7 @@ func main() {
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
                     }
-                  }`, utils.OvsNameStr, utils.OvsNameStr, utils.OvsNameStr, opts.hostLabel)
+                  }`, utils.OvsNameStr, utils.OvsNameStr, opts.hostLabel, utils.OvsNameStr)
 
 	netPlugin := &plugin.NetPlugin{}
 
@@ -643,6 +644,19 @@ func main() {
 			log.Fatalf("reading config from file failed. Error: %s", err)
 		}
 	}
+
+	// extract host-label from the configuration
+	tmpInstInfo := &struct {
+		Instance core.InstanceInfo `json:"plugin-instance"`
+	}{}
+	err = json.Unmarshal(config, tmpInstInfo)
+	if err != nil {
+		log.Fatalf("Failed to parse configuration. Error: %s", err)
+	}
+	if tmpInstInfo.Instance.HostLabel == "" {
+		log.Fatalf("Empty host-label passed in configuration")
+	}
+	opts.hostLabel = tmpInstInfo.Instance.HostLabel
 
 	err = netPlugin.Init(string(config))
 	if err != nil {

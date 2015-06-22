@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/contiv/netplugin/systemtests/utils"
+	u "github.com/contiv/netplugin/utils"
 )
 
 // Testcase:
@@ -63,7 +64,7 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
@@ -123,7 +124,7 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
@@ -134,7 +135,7 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer4")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node, "purple-myContainer4")
+	ipAddress = utils.GetIPAddress(t, node, "purple-myContainer4", u.EtcdNameStr)
 	utils.StartClient(t, node, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer3")
@@ -187,7 +188,7 @@ func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1")
+	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClientFailure(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
