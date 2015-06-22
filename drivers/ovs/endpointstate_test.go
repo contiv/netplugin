@@ -13,18 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovs
 
 import (
 	"testing"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 )
 
 const (
 	testEpID  = "testEp"
-	epCfgKey  = endpointConfigPathPrefix + testEpID
-	epOperKey = endpointOperPathPrefix + testEpID
+	epCfgKey  = drivers.EndpointConfigPathPrefix + testEpID
+	epOperKey = drivers.EndpointOperPathPrefix + testEpID
 )
 
 type testEpStateDriver struct{}
@@ -87,8 +88,8 @@ func (d *testEpStateDriver) WriteState(key string, value core.State,
 	return d.validateKey(key)
 }
 
-func TestOvsCfgEndpointStateRead(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
+func TestCfgEndpointStateRead(t *testing.T) {
+	epCfg := &CfgEndpointState{}
 	epCfg.StateDriver = epStateDriver
 
 	err := epCfg.Read(testEpID)
@@ -97,8 +98,8 @@ func TestOvsCfgEndpointStateRead(t *testing.T) {
 	}
 }
 
-func TestOvsCfgEndpointStateWrite(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
+func TestCfgEndpointStateWrite(t *testing.T) {
+	epCfg := &CfgEndpointState{}
 	epCfg.StateDriver = epStateDriver
 	epCfg.ID = testEpID
 
@@ -108,8 +109,8 @@ func TestOvsCfgEndpointStateWrite(t *testing.T) {
 	}
 }
 
-func TestOvsCfgEndpointStateClear(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
+func TestCfgEndpointStateClear(t *testing.T) {
+	epCfg := &CfgEndpointState{}
 	epCfg.StateDriver = epStateDriver
 	epCfg.ID = testEpID
 
@@ -119,8 +120,8 @@ func TestOvsCfgEndpointStateClear(t *testing.T) {
 	}
 }
 
-func TestOvsOperEndpointStateRead(t *testing.T) {
-	epOper := &OvsOperEndpointState{}
+func TestOperEndpointStateRead(t *testing.T) {
+	epOper := &OperEndpointState{}
 	epOper.StateDriver = epStateDriver
 
 	err := epOper.Read(testEpID)
@@ -129,8 +130,8 @@ func TestOvsOperEndpointStateRead(t *testing.T) {
 	}
 }
 
-func TestOvsOperEndpointStateWrite(t *testing.T) {
-	epOper := &OvsOperEndpointState{}
+func TestOperEndpointStateWrite(t *testing.T) {
+	epOper := &OperEndpointState{}
 	epOper.StateDriver = epStateDriver
 	epOper.ID = testEpID
 
@@ -140,8 +141,8 @@ func TestOvsOperEndpointStateWrite(t *testing.T) {
 	}
 }
 
-func TestOvsOperEndpointStateClear(t *testing.T) {
-	epOper := &OvsOperEndpointState{}
+func TestOperEndpointStateClear(t *testing.T) {
+	epOper := &OperEndpointState{}
 	epOper.StateDriver = epStateDriver
 	epOper.ID = testEpID
 

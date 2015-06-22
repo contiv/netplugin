@@ -13,18 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovs
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 )
 
-// OvsCfgEndpointState implements the State interface for an endpoint implemented using
+// CfgEndpointState implements the State interface for an endpoint implemented using
 // vlans with ovs. The state is stored as Json objects.
-type OvsCfgEndpointState struct {
+type CfgEndpointState struct {
 	core.CommonState
 	NetID      string `json:"netID"`
 	ContName   string `json:"contName"`
@@ -36,36 +37,35 @@ type OvsCfgEndpointState struct {
 }
 
 // Write the state.
-func (s *OvsCfgEndpointState) Write() error {
-	key := fmt.Sprintf(endpointConfigPath, s.ID)
+func (s *CfgEndpointState) Write() error {
+	key := fmt.Sprintf(drivers.EndpointConfigPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the state for a given identifier.
-func (s *OvsCfgEndpointState) Read(id string) error {
-	key := fmt.Sprintf(endpointConfigPath, id)
+func (s *CfgEndpointState) Read(id string) error {
+	key := fmt.Sprintf(drivers.EndpointConfigPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll reads all state objects for the endpoints.
-func (s *OvsCfgEndpointState) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(endpointConfigPathPrefix, s, json.Unmarshal)
+func (s *CfgEndpointState) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(drivers.EndpointConfigPathPrefix, s, json.Unmarshal)
 }
 
 // WatchAll fills a channel on each state event related to endpoints.
-func (s *OvsCfgEndpointState) WatchAll(rsps chan core.WatchState) error {
-	return s.StateDriver.WatchAllState(endpointConfigPathPrefix, s, json.Unmarshal,
-		rsps)
+func (s *CfgEndpointState) WatchAll(rsps chan core.WatchState) error {
+	return s.StateDriver.WatchAllState(drivers.EndpointConfigPathPrefix, s, json.Unmarshal, rsps)
 }
 
 // Clear removes the state.
-func (s *OvsCfgEndpointState) Clear() error {
-	key := fmt.Sprintf(endpointConfigPath, s.ID)
+func (s *CfgEndpointState) Clear() error {
+	key := fmt.Sprintf(drivers.EndpointConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }
 
-// OvsOperEndpointState is the necessary data used to perform operations on endpoints.
-type OvsOperEndpointState struct {
+// OperEndpointState is the necessary data used to perform operations on endpoints.
+type OperEndpointState struct {
 	core.CommonState
 	NetID      string `json:"netID"`
 	ContName   string `json:"contName"`
@@ -78,7 +78,7 @@ type OvsOperEndpointState struct {
 }
 
 // Matches matches the fields updated from configuration state
-func (s *OvsOperEndpointState) Matches(c *OvsCfgEndpointState) bool {
+func (s *OperEndpointState) Matches(c *CfgEndpointState) bool {
 	return s.NetID == c.NetID &&
 		s.ContName == c.ContName &&
 		s.AttachUUID == c.AttachUUID &&
@@ -89,24 +89,24 @@ func (s *OvsOperEndpointState) Matches(c *OvsCfgEndpointState) bool {
 }
 
 // Write the state.
-func (s *OvsOperEndpointState) Write() error {
-	key := fmt.Sprintf(endpointOperPath, s.ID)
+func (s *OperEndpointState) Write() error {
+	key := fmt.Sprintf(drivers.EndpointOperPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the state for a given identifier.
-func (s *OvsOperEndpointState) Read(id string) error {
-	key := fmt.Sprintf(endpointOperPath, id)
+func (s *OperEndpointState) Read(id string) error {
+	key := fmt.Sprintf(drivers.EndpointOperPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll reads all state into separate objects.
-func (s *OvsOperEndpointState) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(endpointOperPathPrefix, s, json.Unmarshal)
+func (s *OperEndpointState) ReadAll() ([]core.State, error) {
+	return s.StateDriver.ReadAllState(drivers.EndpointOperPathPrefix, s, json.Unmarshal)
 }
 
 // Clear removes the state.
-func (s *OvsOperEndpointState) Clear() error {
-	key := fmt.Sprintf(endpointOperPath, s.ID)
+func (s *OperEndpointState) Clear() error {
+	key := fmt.Sprintf(drivers.EndpointOperPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }

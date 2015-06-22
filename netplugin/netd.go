@@ -32,7 +32,7 @@ import (
 	"github.com/contiv/netplugin/crt"
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/contiv/netplugin/crtclient/docker"
-	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/drivers/ovs"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/netplugin/utils"
 	"github.com/samalba/dockerclient"
@@ -60,26 +60,26 @@ func skipHost(vtepIP, homingHost, myHostLabel string) bool {
 
 func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts) error {
-	readNet := &drivers.OvsCfgNetworkState{}
+	readNet := &ovs.CfgNetworkState{}
 	readNet.StateDriver = netPlugin.StateDriver
 	netCfgs, err := readNet.ReadAll()
 	if err != nil {
 		return err
 	}
 	for idx, netCfg := range netCfgs {
-		net := netCfg.(*drivers.OvsCfgNetworkState)
+		net := netCfg.(*ovs.CfgNetworkState)
 		log.Debugf("read net key[%d] %s, populating state \n", idx, net.ID)
 		processNetEvent(netPlugin, net.ID, false)
 	}
 
-	readEp := &drivers.OvsCfgEndpointState{}
+	readEp := &ovs.CfgEndpointState{}
 	readEp.StateDriver = netPlugin.StateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err != nil {
 		return err
 	}
 	for idx, epCfg := range epCfgs {
-		ep := epCfg.(*drivers.OvsCfgEndpointState)
+		ep := epCfg.(*ovs.CfgEndpointState)
 		log.Debugf("read ep key[%d] %s, populating state \n", idx, ep.ID)
 		processEpEvent(netPlugin, crt, opts, ep.ID, false)
 	}
@@ -118,7 +118,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 	var epCtx crtclient.ContainerEPContext
 	var err error
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &ovs.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	err = epCfg.Read(epID)
 	if err != nil {
@@ -127,7 +127,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 	epCtx.NewContName = epCfg.ContName
 	epCtx.NewAttachUUID = epCfg.AttachUUID
 
-	cfgNet := &drivers.OvsCfgNetworkState{}
+	cfgNet := &ovs.CfgNetworkState{}
 	cfgNet.StateDriver = stateDriver
 	err = cfgNet.Read(epCfg.NetID)
 	if err != nil {
@@ -136,7 +136,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 	epCtx.DefaultGw = cfgNet.DefaultGw
 	epCtx.SubnetLen = cfgNet.SubnetLen
 
-	operEp := &drivers.OvsOperEndpointState{}
+	operEp := &ovs.OperEndpointState{}
 	operEp.StateDriver = stateDriver
 	err = operEp.Read(epID)
 	if err != nil {
@@ -155,7 +155,7 @@ func getContainerEPContextByContName(stateDriver core.StateDriver, contName stri
 	var epCtx *crtclient.ContainerEPContext
 
 	contName = strings.TrimPrefix(contName, "/")
-	readEp := &drivers.OvsCfgEndpointState{}
+	readEp := &ovs.CfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err != nil {
@@ -165,7 +165,7 @@ func getContainerEPContextByContName(stateDriver core.StateDriver, contName stri
 	epCtxs = make([]crtclient.ContainerEPContext, len(epCfgs))
 	idx := 0
 	for _, epCfg := range epCfgs {
-		cfg := epCfg.(*drivers.OvsCfgEndpointState)
+		cfg := epCfg.(*ovs.CfgEndpointState)
 		if cfg.ContName != contName {
 			continue
 		}
@@ -216,7 +216,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	vtepIP := ""
 
 	if !isDelete {
-		epCfg := &drivers.OvsCfgEndpointState{}
+		epCfg := &ovs.CfgEndpointState{}
 		epCfg.StateDriver = netPlugin.StateDriver
 		err = epCfg.Read(epID)
 		if err != nil {
@@ -226,7 +226,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 		homingHost = epCfg.HomingHost
 		vtepIP = epCfg.VtepIP
 	} else {
-		epOper := &drivers.OvsOperEndpointState{}
+		epOper := &ovs.OperEndpointState{}
 		epOper.StateDriver = netPlugin.StateDriver
 		err = epOper.Read(epID)
 		if err != nil {
@@ -435,11 +435,11 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 			log.Debugf("Received a modify event, treating it as a 'create'")
 		}
 
-		if nwCfg, ok := currentState.(*drivers.OvsCfgNetworkState); ok {
+		if nwCfg, ok := currentState.(*ovs.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
 			processNetEvent(netPlugin, nwCfg.ID, isDelete)
 		}
-		if epCfg, ok := currentState.(*drivers.OvsCfgEndpointState); ok {
+		if epCfg, ok := currentState.(*ovs.CfgEndpointState); ok {
 			log.Infof("Received %q for endpoint: %q", eventStr, epCfg.ID)
 			processEpEvent(netPlugin, crt, opts, epCfg.ID, isDelete)
 		}
@@ -450,7 +450,7 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, crt, opts, rsps)
-	cfg := drivers.OvsCfgNetworkState{}
+	cfg := ovs.CfgNetworkState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	retErr <- cfg.WatchAll(rsps)
 	return
@@ -460,7 +460,7 @@ func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, crt, opts, rsps)
-	cfg := drivers.OvsCfgEndpointState{}
+	cfg := ovs.CfgEndpointState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	retErr <- cfg.WatchAll(rsps)
 	return

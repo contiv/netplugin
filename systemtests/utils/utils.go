@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/drivers/ovs"
 	"github.com/contiv/netplugin/netmaster"
 	u "github.com/contiv/netplugin/utils"
 
@@ -391,7 +391,7 @@ func GetIPAddress(t *testing.T, node TestbedNode, ep, stateStore string) string 
 		output, err = node.RunCommandWithOutput(cmdStr)
 	}
 
-	epStruct := drivers.OvsOperEndpointState{}
+	epStruct := ovs.OperEndpointState{}
 
 	if err != nil || output == "" {
 		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%q\n",

@@ -9,6 +9,7 @@ USAGE="${0} -vagrant"
 
 run_in_vagrant=false
 test_packages="github.com/contiv/netplugin/drivers \
+    github.com/contiv/netplugin/drivers/ovs \
     github.com/contiv/netplugin/state \
     github.com/contiv/netplugin/plugin \
     github.com/contiv/netplugin/netutils \

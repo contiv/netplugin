@@ -6,6 +6,7 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/drivers/ovs"
 	"github.com/contiv/netplugin/state"
 )
 
@@ -19,8 +20,8 @@ type driverConfigTypes struct {
 
 var networkDriverRegistry = map[string]driverConfigTypes{
 	OvsNameStr: driverConfigTypes{
-		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
-		ConfigType: reflect.TypeOf(drivers.OvsDriverConfig{}),
+		DriverType: reflect.TypeOf(ovs.Driver{}),
+		ConfigType: reflect.TypeOf(ovs.DriverConfig{}),
 	},
 	// fakedriver is used for tests, so not exposing a public name for it.
 	"fakedriver": driverConfigTypes{
@@ -31,8 +32,8 @@ var networkDriverRegistry = map[string]driverConfigTypes{
 
 var endpointDriverRegistry = map[string]driverConfigTypes{
 	OvsNameStr: driverConfigTypes{
-		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
-		ConfigType: reflect.TypeOf(drivers.OvsDriverConfig{}),
+		DriverType: reflect.TypeOf(ovs.Driver{}),
+		ConfigType: reflect.TypeOf(ovs.DriverConfig{}),
 	},
 	// fakedriver is used for tests, so not exposing a public name for it.
 	"fakedriver": driverConfigTypes{

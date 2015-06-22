@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovs
 
 import (
 	"fmt"
@@ -57,7 +57,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	//create all the common config state required by the tests
 
 	{
-		cfgNw := &OvsCfgNetworkState{}
+		cfgNw := &CfgNetworkState{}
 		cfgNw.ID = testOvsNwID
 		cfgNw.PktTag = testPktTag
 		cfgNw.ExtPktTag = testExtPktTag
@@ -70,7 +70,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgNw := &OvsCfgNetworkState{}
+		cfgNw := &CfgNetworkState{}
 		cfgNw.ID = testOvsNwIDStateful
 		cfgNw.PktTag = testPktTagStateful
 		cfgNw.ExtPktTag = testExtPktTag
@@ -83,7 +83,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = createVxlanEpID
 		cfgEp.NetID = testOvsNwID
 		cfgEp.VtepIP = vxlanPeerIP
@@ -96,7 +96,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = createVxlanEpIDStateful
 		cfgEp.NetID = testOvsNwID
 		cfgEp.VtepIP = vxlanPeerIP
@@ -109,7 +109,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = createVxlanEpIDStatefulMismatch
 		cfgEp.NetID = testOvsNwID
 		cfgEp.VtepIP = vxlanPeerIP
@@ -121,7 +121,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 		}
 	}
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = createEpWithIntfID
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = testIntfName
@@ -133,7 +133,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = createEpWithIntfIDStateful
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = testIntfName
@@ -145,7 +145,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = createEpID
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = ""
@@ -157,7 +157,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = createEpIDStateful
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = ""
@@ -169,7 +169,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = createEpIDStatefulMismatch
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = ""
@@ -181,7 +181,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = deleteVxlanEpID
 		cfgEp.NetID = testOvsNwID
 		cfgEp.VtepIP = vxlanPeerIP
@@ -194,7 +194,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = deleteEpWithIntfID
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = testIntfName
@@ -206,7 +206,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &CfgEndpointState{}
 		cfgEp.ID = deleteEpID
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IPAddress = testEpAddress
@@ -219,9 +219,9 @@ func createCommonState(stateDriver core.StateDriver) error {
 	return nil
 }
 
-func initOvsDriver(t *testing.T) *OvsDriver {
-	driver := &OvsDriver{}
-	ovsConfig := &OvsDriverConfig{}
+func initDriver(t *testing.T) *Driver {
+	driver := &Driver{}
+	ovsConfig := &DriverConfig{}
 	ovsConfig.Ovs.DbIP = ""
 	ovsConfig.Ovs.DbPort = 0
 	config := &core.Config{V: ovsConfig}
@@ -243,14 +243,14 @@ func initOvsDriver(t *testing.T) *OvsDriver {
 	return driver
 }
 
-func TestOvsDriverInit(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverInit(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 }
 
-func TestOvsDriverInitStatefulStart(t *testing.T) {
-	driver := &OvsDriver{}
-	ovsConfig := &OvsDriverConfig{}
+func TestDriverInitStatefulStart(t *testing.T) {
+	driver := &Driver{}
+	ovsConfig := &DriverConfig{}
 	ovsConfig.Ovs.DbIP = ""
 	ovsConfig.Ovs.DbPort = 0
 	config := &core.Config{V: ovsConfig}
@@ -259,7 +259,7 @@ func TestOvsDriverInitStatefulStart(t *testing.T) {
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabelStateful,
 		StateDriver: stateDriver}
 
-	operOvs := &OvsDriverOperState{CurrPortNum: 10}
+	operOvs := &DriverOperState{CurrPortNum: 10}
 	operOvs.StateDriver = stateDriver
 	operOvs.ID = testHostLabelStateful
 	err := operOvs.Write()
@@ -280,8 +280,8 @@ func TestOvsDriverInitStatefulStart(t *testing.T) {
 	defer func() { driver.Deinit() }()
 }
 
-func TestOvsDriverInitInvalidConfig(t *testing.T) {
-	driver := &OvsDriver{}
+func TestDriverInitInvalidConfig(t *testing.T) {
+	driver := &Driver{}
 	config := &core.Config{V: nil}
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
@@ -299,9 +299,9 @@ func TestOvsDriverInitInvalidConfig(t *testing.T) {
 	}
 }
 
-func TestOvsDriverInitInvalidState(t *testing.T) {
-	driver := &OvsDriver{}
-	ovsConfig := &OvsDriverConfig{}
+func TestDriverInitInvalidState(t *testing.T) {
+	driver := &Driver{}
+	ovsConfig := &DriverConfig{}
 	ovsConfig.Ovs.DbIP = ""
 	ovsConfig.Ovs.DbPort = 0
 	config := &core.Config{V: ovsConfig}
@@ -313,9 +313,9 @@ func TestOvsDriverInitInvalidState(t *testing.T) {
 	}
 }
 
-func TestOvsDriverInitInvalidInstanceInfo(t *testing.T) {
-	driver := &OvsDriver{}
-	ovsConfig := &OvsDriverConfig{}
+func TestDriverInitInvalidInstanceInfo(t *testing.T) {
+	driver := &Driver{}
+	ovsConfig := &DriverConfig{}
 	ovsConfig.Ovs.DbIP = ""
 	ovsConfig.Ovs.DbPort = 0
 	config := &core.Config{V: ovsConfig}
@@ -326,8 +326,8 @@ func TestOvsDriverInitInvalidInstanceInfo(t *testing.T) {
 	}
 }
 
-func TestOvsDriverDeinit(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverDeinit(t *testing.T) {
+	driver := initDriver(t)
 
 	driver.Deinit()
 
@@ -338,8 +338,8 @@ func TestOvsDriverDeinit(t *testing.T) {
 
 }
 
-func TestOvsDriverCreateEndpoint(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverCreateEndpoint(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 	id := createEpID
 
@@ -362,8 +362,8 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 	}
 }
 
-func TestOvsDriverCreateEndpointStateful(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverCreateEndpointStateful(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 	id := createEpIDStateful
 
@@ -391,8 +391,8 @@ func TestOvsDriverCreateEndpointStateful(t *testing.T) {
 	}
 }
 
-func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 	id := createEpIDStatefulMismatch
 
@@ -401,7 +401,7 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 		t.Fatalf("endpoint creation failed. Error: %s", err)
 	}
 
-	cfgEp := OvsCfgEndpointState{}
+	cfgEp := CfgEndpointState{}
 	cfgEp.StateDriver = driver.oper.StateDriver
 	err = cfgEp.Read(id)
 	if err != nil {
@@ -433,8 +433,8 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 	}
 }
 
-func TestOvsDriverCreateEndpointWithIntfName(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverCreateEndpointWithIntfName(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 	id := createEpWithIntfID
 
@@ -457,8 +457,8 @@ func TestOvsDriverCreateEndpointWithIntfName(t *testing.T) {
 	}
 }
 
-func TestOvsDriverCreateEndpointWithIntfNameStateful(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverCreateEndpointWithIntfNameStateful(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 	id := createEpWithIntfIDStateful
 
@@ -486,8 +486,8 @@ func TestOvsDriverCreateEndpointWithIntfNameStateful(t *testing.T) {
 	}
 }
 
-func TestOvsDriverDeleteEndpoint(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverDeleteEndpoint(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 	id := deleteEpID
 
@@ -520,8 +520,8 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	}
 }
 
-func TestOvsDriverDeleteEndpointiWithIntfName(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverDeleteEndpointiWithIntfName(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 	id := deleteEpWithIntfID
 
@@ -554,8 +554,8 @@ func TestOvsDriverDeleteEndpointiWithIntfName(t *testing.T) {
 	}
 }
 
-func TestOvsDriverMakeEndpointAddress(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverMakeEndpointAddress(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 
 	_, err := driver.MakeEndpointAddress()
@@ -564,8 +564,8 @@ func TestOvsDriverMakeEndpointAddress(t *testing.T) {
 	}
 }
 
-func TestOvsDriverCreateVxlanPeer(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverCreateVxlanPeer(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 
 	err := driver.CreateEndpoint(createVxlanEpID)
@@ -587,8 +587,8 @@ func TestOvsDriverCreateVxlanPeer(t *testing.T) {
 	}
 }
 
-func TestOvsDriverCreateVxlanPeerStateful(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverCreateVxlanPeerStateful(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 
 	err := driver.CreateEndpoint(createVxlanEpIDStateful)
@@ -615,8 +615,8 @@ func TestOvsDriverCreateVxlanPeerStateful(t *testing.T) {
 	}
 }
 
-func TestOvsDriverCreateVxlanPeerStatefulMismatch(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverCreateVxlanPeerStatefulMismatch(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 	id := createVxlanEpIDStatefulMismatch
 
@@ -625,7 +625,7 @@ func TestOvsDriverCreateVxlanPeerStatefulMismatch(t *testing.T) {
 		t.Fatalf("vxlan peer creation failed. Error: %s", err)
 	}
 
-	cfgEp := OvsCfgEndpointState{}
+	cfgEp := CfgEndpointState{}
 	cfgEp.StateDriver = driver.oper.StateDriver
 	err = cfgEp.Read(id)
 	if err != nil {
@@ -657,8 +657,8 @@ func TestOvsDriverCreateVxlanPeerStatefulMismatch(t *testing.T) {
 	}
 }
 
-func TestOvsDriverDeleteVxlanPeer(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestDriverDeleteVxlanPeer(t *testing.T) {
+	driver := initDriver(t)
 	defer func() { driver.Deinit() }()
 
 	err := driver.CreateEndpoint(deleteVxlanEpID)

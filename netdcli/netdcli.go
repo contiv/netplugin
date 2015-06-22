@@ -24,7 +24,7 @@ import (
 	"strconv"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/drivers/ovs"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
@@ -391,11 +391,11 @@ func executeOpts(opts *cliOpts) error {
 	switch opts.construct.Get() {
 	case cliConstructEndpoint:
 		if opts.oper.Get() == cliOperGet {
-			epOper := &drivers.OvsOperEndpointState{}
+			epOper := &ovs.OperEndpointState{}
 			epOper.StateDriver = stateDriver
 			coreState = epOper
 		} else if opts.oper.Get() == cliOperAttach || opts.oper.Get() == cliOperDetach {
-			epCfg := &drivers.OvsCfgEndpointState{}
+			epCfg := &ovs.CfgEndpointState{}
 			epCfg.StateDriver = stateDriver
 			err = epCfg.Read(opts.idStr)
 			if err != nil {
@@ -415,7 +415,7 @@ func executeOpts(opts *cliOpts) error {
 			}
 			coreState = epCfg
 		} else {
-			epCfg := &drivers.OvsCfgEndpointState{}
+			epCfg := &ovs.CfgEndpointState{}
 			epCfg.StateDriver = stateDriver
 			epCfg.ID = opts.idStr
 			epCfg.NetID = opts.netID
@@ -429,11 +429,11 @@ func executeOpts(opts *cliOpts) error {
 		}
 	case cliConstructNetwork:
 		if opts.oper.Get() == cliOperGet {
-			nwCfg := &drivers.OvsCfgNetworkState{}
+			nwCfg := &ovs.CfgNetworkState{}
 			nwCfg.StateDriver = stateDriver
 			coreState = nwCfg
 		} else {
-			nwCfg := &drivers.OvsCfgNetworkState{}
+			nwCfg := &ovs.CfgNetworkState{}
 			nwCfg.StateDriver = stateDriver
 			nwCfg.PktTag, _ = strconv.Atoi(opts.pktTag)
 			nwCfg.Tenant = opts.tenant
