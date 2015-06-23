@@ -39,8 +39,3 @@ func (d *FakeNetEpDriver) CreateEndpoint(id string) error {
 func (d *FakeNetEpDriver) DeleteEndpoint(id string) (err error) {
 	return core.Errorf("Not implemented")
 }
-
-// MakeEndpointAddress is not implemented.
-func (d *FakeNetEpDriver) MakeEndpointAddress() (*core.Address, error) {
-	return nil, core.Errorf("Not implemented")
-}

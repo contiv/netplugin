@@ -554,16 +554,6 @@ func TestOvsDriverDeleteEndpointiWithIntfName(t *testing.T) {
 	}
 }
 
-func TestOvsDriverMakeEndpointAddress(t *testing.T) {
-	driver := initOvsDriver(t)
-	defer func() { driver.Deinit() }()
-
-	_, err := driver.MakeEndpointAddress()
-	if err == nil {
-		t.Fatalf("make endpoint address succeeded. Should have failed!!")
-	}
-}
-
 func TestOvsDriverCreateVxlanPeer(t *testing.T) {
 	driver := initOvsDriver(t)
 	defer func() { driver.Deinit() }()
