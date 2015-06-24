@@ -36,13 +36,13 @@ type OvsdbDriver struct {
 
 // NewOvsdbDriver creates a new OVSDB driver instance.
 // Create one ovsdb driver instance per OVS bridge that needs to be managed
-func NewOvsdbDriver(bridgeName string, ipAddr string, port int) (*OvsdbDriver, error) {
+func NewOvsdbDriver(bridgeName string) (*OvsdbDriver, error) {
 	// Create a new driver instance
 	d := new(OvsdbDriver)
 	d.bridgeName = bridgeName
 
 	// Connect to OVS
-	ovs, err := libovsdb.Connect(ipAddr, port)
+	ovs, err := libovsdb.ConnectUnix()
 	if err != nil {
 		log.Fatalf("Error connecting to OVS. Err: %v", err)
 		return nil, err
