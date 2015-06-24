@@ -85,12 +85,12 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 		}
 	}
 
-	peer := &PeerHostState{}
+	peer := &drivers.PeerHostState{}
 	peer.StateDriver = netPlugin.StateDriver
 	peerList, err := peer.ReadAll()
 	if err == nil {
 		for idx, peerState := range peerList {
-			peerInfo := peerState.(*PeerHostState)
+			peerInfo := peerState.(*drivers.PeerHostState)
 			log.Debugf("read peer key[%d] %s, populating state \n", idx, peerInfo.ID)
 			processPeerEvent(netPlugin, opts, peerInfo.ID, false)
 		}
@@ -482,7 +482,7 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 			log.Infof("Received %q for endpoint: %q", eventStr, epCfg.ID)
 			processEpEvent(netPlugin, crt, opts, epCfg.ID, isDelete)
 		}
-		if peerInfo, ok := currentState.(*PeerHostState); ok {
+		if peerInfo, ok := currentState.(*drivers.PeerHostState); ok {
 			log.Infof("Received %q for peer host: %q", eventStr, peerInfo.ID)
 			processPeerEvent(netPlugin, opts, peerInfo.ID, isDelete)
 		}
@@ -513,7 +513,7 @@ func handlePeerEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, crt, opts, rsps)
-	peer := PeerHostState{}
+	peer := drivers.PeerHostState{}
 	peer.StateDriver = netPlugin.StateDriver
 	retErr <- peer.WatchAll(rsps)
 	return
@@ -675,7 +675,9 @@ func main() {
                        "state": "etcd"
                     },
                     "plugin-instance": {
-                       "host-label": %q
+                       "host-label": %q,
+						"vtep-ip": %q,
+						"vlan-if": %q
                     },
                     %q : {
                        "dbip": "127.0.0.1",
@@ -690,7 +692,8 @@ func main() {
                     "docker" : {
                         "socket" : "unix:///var/run/docker.sock"
                     }
-                  }`, utils.OvsNameStr, opts.hostLabel, utils.OvsNameStr)
+                  }`, utils.OvsNameStr, opts.hostLabel, opts.vtepIP,
+					opts.vlanIntf, utils.OvsNameStr)
 
 	netPlugin := &plugin.NetPlugin{}
 
@@ -734,9 +737,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize container run time, err %s \n", err)
 	}
-
-	// Publish the host into registry
-	publishHostInfo(netPlugin, opts)
 
 	// Process all current state
 	processCurrentState(netPlugin, crt, opts)

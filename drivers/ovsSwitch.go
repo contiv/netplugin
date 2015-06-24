@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"time"
+	"strings"
 
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/ofnet"
@@ -36,7 +37,7 @@ type OvsSwitch struct {
 }
 
 // Create a new OVS switch instance
-func NewOvsSwitch(bridgeName, netType string) (*OvsSwitch, error) {
+func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 	var err error
 
 	sw := new(OvsSwitch)
@@ -59,13 +60,8 @@ func NewOvsSwitch(bridgeName, netType string) (*OvsSwitch, error) {
 		}
 
 		// Create an ofnet agent
-		// FIXME: hard code local interface for now
-		localIP, err := netutils.GetInterfaceIP("eth1")
-		if err != nil {
-			log.Fatalf("Error getting local IP addr")
-		}
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent(defaultBridgeName, "vxlan",
-			net.ParseIP(localIP), ofnet.OFNET_AGENT_PORT, 6633)
+							net.ParseIP(localIP), ofnet.OFNET_AGENT_PORT, 6633)
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err
@@ -96,6 +92,18 @@ func NewOvsSwitch(bridgeName, netType string) (*OvsSwitch, error) {
 		if err != nil {
 			log.Errorf("Error adding %s as ofnet master. Err: %v", localIP, err)
 		}
+
+		log.Infof("Waiting for OVS switch to connect..")
+
+		// Wait for a while for OVS switch to connect to ofnet agent
+		for i := 0; i < 10; i++ {
+			time.Sleep(300 * time.Millisecond)
+			if sw.ofnetAgent.IsSwitchConnected() {
+				break
+			}
+		}
+
+		log.Infof("Switch connected.")
 	}
 
 	return sw, nil
@@ -136,15 +144,14 @@ func (sw *OvsSwitch) CreatePort(portName, intfName, intfType string,
 	cfgEp *OvsCfgEndpointState, cfgNw *OvsCfgNetworkState,
 	intfOptions map[string]interface{}) error {
 	// Ask OVSDB driver to add/delete the port
-	err := sw.ovsdbDriver.CreateDeletePort(portName, intfName, intfType, cfgEp.ID,
-		intfOptions, cfgNw.PktTag, operCreatePort)
+	err := sw.ovsdbDriver.CreatePort(portName, intfName, intfType, cfgEp.ID,
+									intfOptions, cfgNw.PktTag)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			sw.ovsdbDriver.CreateDeletePort(portName, intfName, intfType, "", nil, 0,
-				operDeletePort)
+			sw.ovsdbDriver.DeletePort(intfName)
 		}
 	}()
 
@@ -167,25 +174,9 @@ func (sw *OvsSwitch) CreatePort(portName, intfName, intfType string,
 		return err
 	}
 
-	// Add the VTEP/endpoint to ofnet
+	// Add the endpoint to ofnet
 	if intfType == "vxlan" {
-		err = sw.ofnetAgent.AddVtepPort(ofpPort, net.ParseIP(cfgEp.VtepIP))
-		if err != nil {
-			log.Errorf("Error adding VTEP port %s to ofnet. Err: %v", portName, err)
-			return err
-		}
-
-		// Add each of the peers as ofnet masters
-		// FIXME: Move ofnet master to netmaster.
-		var resp bool
-		masterInfo := ofnet.OfnetNode{
-			HostAddr: cfgEp.VtepIP,
-			HostPort: ofnet.OFNET_MASTER_PORT,
-		}
-		err = sw.ofnetAgent.AddMaster(&masterInfo, &resp)
-		if err != nil {
-			log.Errorf("Error adding %s as ofnet master. Err: %v", cfgEp.VtepIP, err)
-		}
+		log.Fatalf("Not expecting vxlan interfaces here..")
 	} else if intfType == "internal" && sw.netType == "vxlan" {
 		macAddr, _ := net.ParseMAC(cfgEp.MacAddress)
 		// Build the endpoint info
@@ -209,26 +200,31 @@ func (sw *OvsSwitch) CreatePort(portName, intfName, intfType string,
 
 func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 	if epOper.VtepIP != "" {
-		err := sw.deleteVtep(epOper)
+		return nil
+	}
+
+	intfName, err := sw.ovsdbDriver.GetPortOrIntfNameFromID(epOper.ID, getIntfName)
+	if err != nil {
+		return err
+	}
+
+	// Remove info from ofnet
+	if sw.netType == "vxlan" {
+		// Get the openflow port number for the interface
+		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
 		if err != nil {
-			log.Errorf("error '%s' deleting vtep interface(s) for "+
-				"remote endpoint %s\n", err, epOper.VtepIP)
+			log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+			return err
 		}
-		return err
+
+		err = sw.ofnetAgent.RemoveLocalEndpoint(ofpPort)
+		if err != nil {
+			log.Errorf("Error removing port %s from ofnet. Err: %v", intfName, err)
+		}
 	}
 
-	portName, err := sw.ovsdbDriver.GetPortOrIntfNameFromID(epOper.ID, getPortName)
-	if err != nil {
-		return err
-	}
-
-	intfName := ""
-	intfName, err = sw.ovsdbDriver.GetPortOrIntfNameFromID(epOper.ID, getIntfName)
-	if err != nil {
-		return err
-	}
-
-	err = sw.ovsdbDriver.CreateDeletePort(portName, intfName, "", "", nil, 0, operDeletePort)
+	// Delete it from ovsdb
+	err = sw.ovsdbDriver.DeletePort(intfName)
 	if err != nil {
 		return err
 	}
@@ -236,22 +232,75 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 	return nil
 }
 
-func (sw *OvsSwitch) deleteVtep(epOper *OvsOperEndpointState) error {
-	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = epOper.StateDriver
-	err := cfgNw.Read(epOper.NetID)
+func (sw *OvsSwitch) CreateVtep(vtepIP string) error {
+	// Create interface name for VTEP
+	intfName := fmt.Sprintf(vxlanIfNameFmt, strings.Replace(vtepIP, ".", "", -1))
+
+	log.Infof("Creating VTEP intf %s for IP %s", intfName, vtepIP)
+
+	// Check if it already exists
+	isPresent, vsifName := sw.ovsdbDriver.IsVtepPresent(vtepIP)
+	if !isPresent || (vsifName != intfName) {
+		// Ask ovsdb to create it
+		err := sw.ovsdbDriver.CreateVtep(intfName, vtepIP)
+		if err != nil {
+			log.Errorf("Error creating VTEP port %s. Err: %v", intfName, err)
+		}
+	}
+
+	// Wait a little for OVS to create the interface
+	time.Sleep(300 * time.Millisecond)
+
+	// Get the openflow port number for the interface
+	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
 	if err != nil {
+		log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
 		return err
 	}
 
-	intfName := vxlanIfName(epOper.NetID, epOper.VtepIP)
-	err = sw.ovsdbDriver.CreateDeletePort(intfName, intfName, "vxlan", cfgNw.ID,
-		nil, cfgNw.PktTag, operDeletePort)
+	// Add info about VTEP port to ofnet
+	err = sw.ofnetAgent.AddVtepPort(ofpPort, net.ParseIP(vtepIP))
 	if err != nil {
-		log.Errorf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
-			err, intfName, cfgNw.PktTag)
+		log.Errorf("Error adding VTEP port %s to ofnet. Err: %v", intfName, err)
+		return err
+	}
+
+	// Add each of the peers as ofnet masters
+	// FIXME: Move ofnet master to netmaster.
+	var resp bool
+	masterInfo := ofnet.OfnetNode{
+		HostAddr: vtepIP,
+		HostPort: ofnet.OFNET_MASTER_PORT,
+	}
+	err = sw.ofnetAgent.AddMaster(&masterInfo, &resp)
+	if err != nil {
+		log.Errorf("Error adding %s as ofnet master. Err: %v", vtepIP, err)
 		return err
 	}
 
 	return nil
+}
+
+func (sw *OvsSwitch) DeleteVtep(vtepIP string) error {
+	// Build vtep interface name
+	intfName := fmt.Sprintf(vxlanIfNameFmt, strings.Replace(vtepIP, ".", "", -1))
+
+	log.Infof("Deleting VTEP intf %s for IP %s", intfName, vtepIP)
+
+	// Get the openflow port number for the interface
+	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
+	if err != nil {
+		log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+		return err
+	}
+
+	// Add info about VTEP port to ofnet
+	err = sw.ofnetAgent.RemoveVtepPort(ofpPort, net.ParseIP(vtepIP))
+	if err != nil {
+		log.Errorf("Error deleting VTEP port %s to ofnet. Err: %v", intfName, err)
+		return err
+	}
+
+	// ask ovsdb to delete the VTEP
+	return sw.ovsdbDriver.DeleteVtep(intfName)
 }

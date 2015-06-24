@@ -62,6 +62,8 @@ type Plugin interface {
 type InstanceInfo struct {
 	StateDriver StateDriver `json:"-"`
 	HostLabel   string      `json:"host-label"`
+	VtepIP   	string      `json:"vtep-ip"`
+	VlanIntf    string      `json:"vlan-if"`
 }
 
 // Driver implements the programming logic
