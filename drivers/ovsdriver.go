@@ -18,8 +18,6 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/contiv/netplugin/core"
 
@@ -78,28 +76,6 @@ func (d *OvsDriver) getPortName() string {
 	return fmt.Sprintf(portNameFmt, d.oper.CurrPortNum)
 }
 
-func vxlanIfName(netID, vtepIP string) string {
-	return fmt.Sprintf(vxlanIfNameFmt,
-		netID, strings.Replace(vtepIP, ".", "", -1))
-}
-
-func (d *OvsDriver) getCreateVtepProps(epCfg *OvsCfgEndpointState) (map[string]interface{},
-	string, string, error) {
-	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.oper.StateDriver
-	err := cfgNw.Read(epCfg.NetID)
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	intfOptions := make(map[string]interface{})
-	intfOptions["remote_ip"] = epCfg.VtepIP
-	intfOptions["key"] = strconv.Itoa(cfgNw.ExtPktTag)
-
-	intfName := vxlanIfName(epCfg.NetID, epCfg.VtepIP)
-	return intfOptions, intfName, intfName, nil
-}
-
 // Init initializes the OVS driver.
 func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 
@@ -125,19 +101,25 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 		}
 	}
 
+	// Publish peer host info to registry
+	err = publishHostInfo(info)
+	if err != nil {
+		log.Fatalf("Error publiching my host info. Err: %v", err)
+	}
+
 	log.Infof("Initializing ovsdriver")
 
 	// Init switch DB
 	d.switchDb = make(map[string]*OvsSwitch)
 
 	// Create Vlan switch
-	d.switchDb["vlan"], err = NewOvsSwitch("contivVlanBridge", "vlan")
+	d.switchDb["vlan"], err = NewOvsSwitch("contivVlanBridge", "vlan", info.VtepIP)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
 
 	// Create Vxlan switch
-	d.switchDb["vxlan"], err = NewOvsSwitch("contivVxlanBridge", "vxlan")
+	d.switchDb["vxlan"], err = NewOvsSwitch("contivVxlanBridge", "vxlan", info.VtepIP)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
@@ -232,13 +214,8 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}
 
 	if cfgEp.VtepIP != "" {
-		intfOpts, portName, intfName, err = d.getCreateVtepProps(cfgEp)
-		if err != nil {
-			log.Errorf("error '%s' creating vtep interface(s) for "+
-				"remote endpoint %s\n", err, cfgEp.VtepIP)
-			return err
-		}
-		intfType = "vxlan"
+		// FIXME: stop handling VTEP interface here..
+		return nil
 	} else {
 		// add an internal ovs port with vlan-tag information from the state
 
@@ -353,11 +330,42 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 
 func (d *OvsDriver) CreatePeerHost(id string) error {
 	log.Infof("CreatePeerHost for %s", id)
+
+	// Read the peer information
+	peer := PeerHostState{}
+	peer.StateDriver = d.oper.StateDriver
+	err := peer.Read(id)
+	if err != nil {
+		return err
+	}
+
+	// Add the VTEP for the peer in vxlan switch.
+	err = d.switchDb["vxlan"].CreateVtep(peer.VtepIpAddr)
+	if err != nil {
+		log.Errorf("Error adding the VTEP %s. Err: %s", peer.VtepIpAddr, err)
+		return err
+	}
+
 	return nil
 }
 
 func (d *OvsDriver) DeletePeerHost(id string) error {
 	log.Infof("DeletePeerHost for %s", id)
+
+	// Read the peer information
+	peer := PeerHostState{}
+	peer.StateDriver = d.oper.StateDriver
+	err := peer.Read(id)
+	if err != nil {
+		return err
+	}
+
+	// Add the VTEP for the peer in vxlan switch.
+	err = d.switchDb["vxlan"].DeleteVtep(peer.VtepIpAddr)
+	if err != nil {
+		log.Errorf("Error deleting the VTEP %s. Err: %s", peer.VtepIpAddr, err)
+		return err
+	}
 
 	return nil
 }

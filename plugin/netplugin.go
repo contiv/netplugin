@@ -73,7 +73,10 @@ func (p *NetPlugin) Init(configStr string) error {
 
 	instanceInfo := &core.InstanceInfo{
 		HostLabel:   pluginConfig.Instance.HostLabel,
-		StateDriver: p.StateDriver}
+		VtepIP: 	 pluginConfig.Instance.VtepIP,
+		VlanIntf: 	 pluginConfig.Instance.VlanIntf,
+		StateDriver: p.StateDriver,
+	}
 
 	// initialize network driver
 	p.NetworkDriver, err = utils.NewNetworkDriver(pluginConfig.Drivers.Network,

@@ -13,14 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package drivers
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/plugin"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -67,18 +66,21 @@ func (s *PeerHostState) Clear() error {
 }
 
 // Run peer discovery
-func publishHostInfo(netPlugin *plugin.NetPlugin, opts cliOpts) {
+func publishHostInfo(info *core.InstanceInfo) error {
 	// first publish ourselves
 	myHostInfo := new(PeerHostState)
-	myHostInfo.ID = opts.hostLabel
-	myHostInfo.StateDriver = netPlugin.StateDriver
-	myHostInfo.Hostname = opts.hostLabel
-	myHostInfo.HostAddr = opts.vtepIP
-	myHostInfo.VtepIpAddr = opts.vtepIP
+	myHostInfo.ID = info.HostLabel
+	myHostInfo.StateDriver = info.StateDriver
+	myHostInfo.Hostname = info.HostLabel
+	myHostInfo.HostAddr = info.VtepIP
+	myHostInfo.VtepIpAddr = info.VtepIP
 
 	// Write it to state store.
 	err := myHostInfo.Write()
 	if err != nil {
 		log.Errorf("Failed to publish host info. Err: %v", err)
+		return err
 	}
+
+	return nil
 }

@@ -26,8 +26,8 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",
-			"Comment": "v0.1-1-g49d499e",
-			"Rev": "49d499e670493116d607cf59274e6c378479c3b8"
+			"Comment": "v0.1-4-g7035d89",
+			"Rev": "7035d89e7d762b7dcb476a404c9e68ffa8e8af67"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",

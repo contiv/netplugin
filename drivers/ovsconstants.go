@@ -33,7 +33,7 @@ const (
 	interfaceTable    = "Interface"
 	defaultBridgeName = "contivBridge"
 	portNameFmt       = "port%d"
-	vxlanIfNameFmt    = "vxif%s%s"
+	vxlanIfNameFmt    = "vxif%s"
 
 	getPortName = true
 	getIntfName = false

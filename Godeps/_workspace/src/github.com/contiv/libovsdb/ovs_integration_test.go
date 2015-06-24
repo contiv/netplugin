@@ -4,15 +4,60 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"testing"
 	"time"
 )
 
+func TestConnectUnix(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	f, err := os.Open(DEFAULT_SOCK)
+	if err != nil {
+		t.Skip("Missing OVSDB unix socket")
+	}
+	f.Close()
+
+	timeoutChan := make(chan bool)
+	connected := make(chan bool)
+	go func() {
+		time.Sleep(10 * time.Second)
+		timeoutChan <- true
+	}()
+
+	go func() {
+		ovs, err := ConnectUnix("")
+		if err != nil {
+			connected <- false
+		} else {
+			connected <- true
+			ovs.Disconnect()
+		}
+	}()
+
+	select {
+	case <-timeoutChan:
+		t.Error("Connection Timed Out")
+	case b := <-connected:
+		if !b {
+			t.Error("Couldnt connect to OVSDB Server")
+		}
+	}
+}
+
 func TestConnect(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
+	c, err := net.Dial("tcp", os.Getenv("DOCKER_IP")+":6640")
+	if err != nil {
+		t.Skip("No OVSDB connection over TCP")
+	}
+	c.Close()
 
 	timeoutChan := make(chan bool)
 	connected := make(chan bool)
@@ -25,7 +70,7 @@ func TestConnect(t *testing.T) {
 		// Use Convenience params. Ignore failure even if any
 		_, err := Connect("", 0)
 		if err != nil {
-			log.Println("Couldnt establish OVSDB connection with Defult params. No big deal")
+			log.Println("Couldnt establish OVSDB connection with Default params. No big deal")
 		}
 	}()
 
@@ -49,15 +94,24 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+func getOvsClient() (*OvsdbClient, error) {
+	ovs, err := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	if err != nil {
+		ovs, err = ConnectUnix("")
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return ovs, err
+}
+
 func TestListDbs(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
 
-	ovs, err := Connect(os.Getenv("DOCKER_IP"), int(6640))
-	if err != nil {
-		panic(err)
-	}
+	ovs, err := getOvsClient()
 	reply, err := ovs.ListDbs()
 
 	if err != nil {
@@ -77,7 +131,7 @@ func TestGetSchemas(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, err := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, err := getOvsClient()
 	if err != nil {
 		panic(err)
 	}
@@ -105,7 +159,7 @@ func TestInsertTransact(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, err := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, err := getOvsClient()
 	if err != nil {
 		log.Fatal("Failed to Connect. error:", err)
 		panic(err)
@@ -179,7 +233,7 @@ func TestDeleteTransact(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, err := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, err := getOvsClient()
 	if err != nil {
 		log.Fatal("Failed to Connect. error:", err)
 		panic(err)
@@ -236,7 +290,7 @@ func TestMonitor(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, err := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, err := getOvsClient()
 	if err != nil {
 		log.Fatal("Failed to Connect. error:", err)
 		panic(err)
@@ -255,7 +309,7 @@ func TestNotify(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, err := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, err := getOvsClient()
 	if err != nil {
 		log.Fatal("Failed to Connect. error:", err)
 		panic(err)
@@ -301,7 +355,7 @@ func TestDBSchemaValidation(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, e := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, e := getOvsClient()
 	if e != nil {
 		log.Fatal("Failed to Connect. error:", e)
 		panic(e)
@@ -330,7 +384,7 @@ func TestTableSchemaValidation(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, e := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, e := getOvsClient()
 	if e != nil {
 		log.Fatal("Failed to Connect. error:", e)
 		panic(e)
@@ -359,7 +413,7 @@ func TestColumnSchemaInRowValidation(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, e := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, e := getOvsClient()
 	if e != nil {
 		log.Fatal("Failed to Connect. error:", e)
 		panic(e)
@@ -390,7 +444,7 @@ func TestColumnSchemaInMultipleRowsValidation(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, e := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, e := getOvsClient()
 	if e != nil {
 		log.Fatal("Failed to Connect. error:", e)
 		panic(e)
@@ -426,7 +480,7 @@ func TestColumnSchemaValidation(t *testing.T) {
 		t.Skip()
 	}
 
-	ovs, e := Connect(os.Getenv("DOCKER_IP"), int(6640))
+	ovs, e := getOvsClient()
 	if e != nil {
 		log.Fatal("Failed to Connect. error:", e)
 		panic(e)
