@@ -43,6 +43,9 @@ type Network interface {
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
 	FetchEndpoint(id string) (State, error)
+
+	CreatePeerHost(id string) error
+	DeletePeerHost(id string) error
 }
 
 // Plugin brings together an implementation of a network, endpoint and
@@ -73,6 +76,8 @@ type NetworkDriver interface {
 	DeleteNetwork(id string) error
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
+	CreatePeerHost(id string) error
+	DeletePeerHost(id string) error
 }
 
 // WatchState is used to provide a difference between core.State structs by

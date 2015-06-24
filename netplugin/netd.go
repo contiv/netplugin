@@ -33,6 +33,7 @@ import (
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/netplugin/utils"
 	"github.com/samalba/dockerclient"
@@ -51,6 +52,8 @@ type cliOpts struct {
 	debug       bool
 	syslog      string
 	jsonLog     bool
+	vtepIP      string
+	vlanIntf    string
 }
 
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
@@ -63,25 +66,34 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	readNet := &drivers.OvsCfgNetworkState{}
 	readNet.StateDriver = netPlugin.StateDriver
 	netCfgs, err := readNet.ReadAll()
-	if err != nil {
-		return err
-	}
-	for idx, netCfg := range netCfgs {
-		net := netCfg.(*drivers.OvsCfgNetworkState)
-		log.Debugf("read net key[%d] %s, populating state \n", idx, net.ID)
-		processNetEvent(netPlugin, net.ID, false)
+	if err == nil {
+		for idx, netCfg := range netCfgs {
+			net := netCfg.(*drivers.OvsCfgNetworkState)
+			log.Debugf("read net key[%d] %s, populating state \n", idx, net.ID)
+			processNetEvent(netPlugin, net.ID, false)
+		}
 	}
 
 	readEp := &drivers.OvsCfgEndpointState{}
 	readEp.StateDriver = netPlugin.StateDriver
 	epCfgs, err := readEp.ReadAll()
-	if err != nil {
-		return err
+	if err == nil {
+		for idx, epCfg := range epCfgs {
+			ep := epCfg.(*drivers.OvsCfgEndpointState)
+			log.Debugf("read ep key[%d] %s, populating state \n", idx, ep.ID)
+			processEpEvent(netPlugin, crt, opts, ep.ID, false)
+		}
 	}
-	for idx, epCfg := range epCfgs {
-		ep := epCfg.(*drivers.OvsCfgEndpointState)
-		log.Debugf("read ep key[%d] %s, populating state \n", idx, ep.ID)
-		processEpEvent(netPlugin, crt, opts, ep.ID, false)
+
+	peer := &PeerHostState{}
+	peer.StateDriver = netPlugin.StateDriver
+	peerList, err := peer.ReadAll()
+	if err == nil {
+		for idx, peerState := range peerList {
+			peerInfo := peerState.(*PeerHostState)
+			log.Debugf("read peer key[%d] %s, populating state \n", idx, peerInfo.ID)
+			processPeerEvent(netPlugin, opts, peerInfo.ID, false)
+		}
 	}
 
 	return nil
@@ -108,6 +120,33 @@ func processNetEvent(netPlugin *plugin.NetPlugin, netID string,
 		log.Errorf("Network operation %s failed. Error: %s", operStr, err)
 	} else {
 		log.Infof("Network operation %s succeeded", operStr)
+	}
+
+	return
+}
+
+func processPeerEvent(netPlugin *plugin.NetPlugin, opts cliOpts, peerID string, isDelete bool) (err error) {
+	// if this is our own peer info coming back to us, ignore it
+	if peerID == opts.hostLabel {
+		return nil
+	}
+
+	// take a lock to ensure we are programming one event at a time.
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+
+	operStr := ""
+	if isDelete {
+		err = netPlugin.DeletePeerHost(peerID)
+		operStr = "delete"
+	} else {
+		err = netPlugin.CreatePeerHost(peerID)
+		operStr = "create"
+	}
+	if err != nil {
+		log.Errorf("PeerHost operation %s failed. Error: %s", operStr, err)
+	} else {
+		log.Infof("PeerHost operation %s succeeded", operStr)
 	}
 
 	return
@@ -443,6 +482,10 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 			log.Infof("Received %q for endpoint: %q", eventStr, epCfg.ID)
 			processEpEvent(netPlugin, crt, opts, epCfg.ID, isDelete)
 		}
+		if peerInfo, ok := currentState.(*PeerHostState); ok {
+			log.Infof("Received %q for peer host: %q", eventStr, peerInfo.ID)
+			processPeerEvent(netPlugin, opts, peerInfo.ID, isDelete)
+		}
 	}
 }
 
@@ -466,6 +509,16 @@ func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	return
 }
 
+func handlePeerEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
+	opts cliOpts, retErr chan error) {
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, crt, opts, rsps)
+	peer := PeerHostState{}
+	peer.StateDriver = netPlugin.StateDriver
+	retErr <- peer.WatchAll(rsps)
+	return
+}
+
 func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	retErr chan error) {
 	// monitor network events
@@ -473,6 +526,9 @@ func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 
 	// monitor endpoint events
 	go handleEndpointEvents(netPlugin, crt, opts, retErr)
+
+	// monitor peer host events
+	go handlePeerEvents(netPlugin, crt, opts, retErr)
 }
 
 func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error {
@@ -553,6 +609,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to fetch hostname. Error: %s", err)
 	}
+	// default to using eth1's IP addr
+	defVtepIp, _ := netutils.GetInterfaceIP("eth1")
+	defVlanIntf := "eth2"
 
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
 	flagSet.StringVar(&opts.syslog,
@@ -579,6 +638,14 @@ func main() {
 		"config",
 		"",
 		"plugin configuration. Use '-' to read configuration from stdin")
+	flagSet.StringVar(&opts.vtepIP,
+		"vtep-ip",
+		defVtepIp,
+		"My VTEP ip address")
+	flagSet.StringVar(&opts.vlanIntf,
+		"vlan-if",
+		defVlanIntf,
+		"My VTEP ip address")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
@@ -668,6 +735,10 @@ func main() {
 		log.Fatalf("Failed to initialize container run time, err %s \n", err)
 	}
 
+	// Publish the host into registry
+	publishHostInfo(netPlugin, opts)
+
+	// Process all current state
 	processCurrentState(netPlugin, crt, opts)
 
 	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
