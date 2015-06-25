@@ -36,7 +36,7 @@ type OvsdbDriver struct {
 
 // NewOvsdbDriver creates a new OVSDB driver instance.
 // Create one ovsdb driver instance per OVS bridge that needs to be managed
-func NewOvsdbDriver(bridgeName string) (*OvsdbDriver, error) {
+func NewOvsdbDriver(bridgeName string, failMode string) (*OvsdbDriver, error) {
 	// Create a new driver instance
 	d := new(OvsdbDriver)
 	d.bridgeName = bridgeName
@@ -69,7 +69,7 @@ func NewOvsdbDriver(bridgeName string) (*OvsdbDriver, error) {
 	}
 
 	if !brCreated {
-		err = d.createDeleteBridge(bridgeName, operCreateBridge)
+		err = d.createDeleteBridge(bridgeName, failMode, operCreateBridge)
 		if err != nil {
 			log.Fatalf("Error creating bridge %s. Err: %v", bridgeName, err)
 			return nil, err
@@ -82,7 +82,7 @@ func NewOvsdbDriver(bridgeName string) (*OvsdbDriver, error) {
 // Delete : Cleanup the ovsdb driver. delete the bridge we created.
 func (d *OvsdbDriver) Delete() error {
 	if d.ovs != nil {
-		d.createDeleteBridge(d.bridgeName, operDeleteBridge)
+		d.createDeleteBridge(d.bridgeName, "", operDeleteBridge)
 		(*d.ovs).Disconnect()
 	}
 
@@ -158,7 +158,7 @@ func (d *OvsdbDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 }
 
 // Create or delete an OVS bridge instance
-func (d *OvsdbDriver) createDeleteBridge(bridgeName string, op oper) error {
+func (d *OvsdbDriver) createDeleteBridge(bridgeName, failMode string, op oper) error {
 	namedUUIDStr := "netplugin"
 	brUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: namedUUIDStr}}
 	protocols := []string{"OpenFlow10", "OpenFlow11", "OpenFlow12", "OpenFlow13"}
@@ -172,8 +172,15 @@ func (d *OvsdbDriver) createDeleteBridge(bridgeName string, op oper) error {
 	if op == operCreateBridge {
 		bridge := make(map[string]interface{})
 		bridge["name"] = bridgeName
+
+		// Enable Openflow1.3
 		bridge["protocols"], _ = libovsdb.NewOvsSet(protocols)
-		bridge["fail_mode"] = "secure"
+
+		// set fail-mode if required
+		if failMode != "" {
+			bridge["fail_mode"] = "secure"
+		}
+
 		brOp = libovsdb.Operation{
 			Op:       opStr,
 			Table:    bridgeTable,
