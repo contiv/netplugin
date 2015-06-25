@@ -39,3 +39,13 @@ func (d *FakeNetEpDriver) CreateEndpoint(id string) error {
 func (d *FakeNetEpDriver) DeleteEndpoint(id string) (err error) {
 	return core.Errorf("Not implemented")
 }
+
+// CreatePeerHost is not implemented.
+func (d *FakeNetEpDriver) CreatePeerHost(id string) error {
+	return core.Errorf("Not implemented")
+}
+
+// DeletePeerHost is not implemented.
+func (d *FakeNetEpDriver) DeletePeerHost(id string) error {
+	return core.Errorf("Not implemented")
+}

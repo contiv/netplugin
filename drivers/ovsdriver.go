@@ -282,6 +282,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		IPAddress:  cfgEp.IPAddress,
 		MacAddress: cfgEp.MacAddress,
 		IntfName:   cfgEp.IntfName,
+		PortName:   intfName,
 		HomingHost: cfgEp.HomingHost,
 		VtepIP:     cfgEp.VtepIP}
 	operEp.StateDriver = d.oper.StateDriver

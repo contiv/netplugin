@@ -73,6 +73,10 @@ fi
 # wget https://dl.bintray.com/mitchellh/consul/0.5.2_linux_amd64.zip && \
 # unzip 0.5.2_linux_amd64.zip && \
 # mv /tmp/consul /usr/bin) || exit 1
+
+# add vagrant user to docker group
+(usermod -a -G docker vagrant)
+
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
