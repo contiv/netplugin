@@ -21,6 +21,7 @@ import (
     "net/rpc"
     "net/rpc/jsonrpc"
     "strings"
+    "time"
 
     log "github.com/Sirupsen/logrus"
 )
@@ -63,18 +64,31 @@ var clientDb map[string]*rpc.Client = make(map[string]*rpc.Client)
 
 // Create a new client
 func NewRpcClient(servAddr string, portNo uint16) *rpc.Client {
+    var client *rpc.Client
     log.Infof("Connecting to RPC server: %s:%d", servAddr, portNo)
 
-    // Connect to the server
-    conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
-    if err != nil {
-        panic(err)
+    // Retry connecting for 10sec
+    for i := 0; i < 10; i++ {
+        // Connect to the server
+        conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
+        if err == nil {
+            log.Infof("Connected to RPC server: %s:%d", servAddr, portNo)
+
+            // Create an RPC client
+            client = jsonrpc.NewClient(conn)
+
+            break
+        }
+
+        log.Warnf("Error %v connecting to %s:%s. Retrying..", err, servAddr, portNo)
+        // Sleep for a second and retry again
+        time.Sleep(1 * time.Second)
     }
 
-    log.Infof("Connected to RPC server: %s:%d", servAddr, portNo)
-
-    // Create an RPC client
-    client := jsonrpc.NewClient(conn)
+    // If we failed to connect, report error
+    if client == nil {
+        log.Fatalf("Failed to connect to Rpc server %s:%d", servAddr, portNo)
+    }
 
     // FIXME: handle disconnects
 
