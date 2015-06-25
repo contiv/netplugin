@@ -18,8 +18,8 @@ package drivers
 import (
 	"fmt"
 	"net"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/ofnet"
@@ -36,7 +36,7 @@ type OvsSwitch struct {
 	ofnetMaster *ofnet.OfnetMaster
 }
 
-// Create a new OVS switch instance
+// NewOvsSwitch Creates a new OVS switch instance
 func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 	var err error
 
@@ -61,7 +61,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
-		 									ofnet.OFNET_AGENT_PORT, 6633)
+			ofnet.OFNET_AGENT_PORT, 6633)
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err
@@ -122,6 +122,7 @@ func (sw *OvsSwitch) Delete() {
 	}
 }
 
+// CreateNetwork creates a new network/vlan
 func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32) error {
 	if sw.netType == "vxlan" {
 		// Add the vlan/vni to ofnet
@@ -135,6 +136,7 @@ func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32) error {
 	return nil
 }
 
+// DeleteNetwork deletes a network/vlan
 func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32) error {
 	if sw.netType == "vxlan" {
 		// Delete vlan/vni mapping
@@ -148,12 +150,11 @@ func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32) error {
 	return nil
 }
 
-func (sw *OvsSwitch) CreatePort(portName, intfName, intfType string,
-	cfgEp *OvsCfgEndpointState, cfgNw *OvsCfgNetworkState,
-	intfOptions map[string]interface{}) error {
+// CreatePort creates a port in ovs switch
+func (sw *OvsSwitch) CreatePort(intfName, intfType string, cfgEp *OvsCfgEndpointState,
+	pktTag int) error {
 	// Ask OVSDB driver to add/delete the port
-	err := sw.ovsdbDriver.CreatePort(portName, intfName, intfType, cfgEp.ID,
-									intfOptions, cfgNw.PktTag)
+	err := sw.ovsdbDriver.CreatePort(intfName, intfType, cfgEp.ID, pktTag)
 	if err != nil {
 		return err
 	}
@@ -168,9 +169,9 @@ func (sw *OvsSwitch) CreatePort(portName, intfName, intfType string,
 
 	// Set the interface mac address
 	if intfType == "internal" {
-		err = netutils.SetInterfaceMac(portName, cfgEp.MacAddress)
+		err = netutils.SetInterfaceMac(intfName, cfgEp.MacAddress)
 		if err != nil {
-			log.Errorf("Error setting interface Mac %s on port %s", cfgEp.MacAddress, portName)
+			log.Errorf("Error setting interface Mac %s on port %s", cfgEp.MacAddress, intfName)
 			return err
 		}
 	}
@@ -180,9 +181,9 @@ func (sw *OvsSwitch) CreatePort(portName, intfName, intfType string,
 		log.Fatalf("Not expecting vxlan interfaces here..")
 	} else if intfType == "internal" && sw.netType == "vxlan" {
 		// Get the openflow port number for the interface
-		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(portName)
+		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
 		if err != nil {
-			log.Errorf("Could not find the OVS port %s. Err: %v", portName, err)
+			log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
 			return err
 		}
 
@@ -192,14 +193,14 @@ func (sw *OvsSwitch) CreatePort(portName, intfName, intfType string,
 		endpoint := ofnet.EndpointInfo{
 			PortNo:  ofpPort,
 			MacAddr: macAddr,
-			Vlan:    uint16(cfgNw.PktTag),
+			Vlan:    uint16(pktTag),
 			IpAddr:  net.ParseIP(cfgEp.IPAddress),
 		}
 
 		// Add the local port to ofnet
 		err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
 		if err != nil {
-			log.Errorf("Error adding local port %s to ofnet. Err: %v", portName, err)
+			log.Errorf("Error adding local port %s to ofnet. Err: %v", intfName, err)
 			return err
 		}
 	}
@@ -207,6 +208,7 @@ func (sw *OvsSwitch) CreatePort(portName, intfName, intfType string,
 	return nil
 }
 
+// DeletePort removes a port from OVS
 func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 	if epOper.VtepIP != "" {
 		return nil
@@ -241,10 +243,12 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 	return nil
 }
 
+// vxlanIfName returns formatted vxlan interface name
 func vxlanIfName(vtepIP string) string {
 	return fmt.Sprintf(vxlanIfNameFmt, strings.Replace(vtepIP, ".", "", -1))
 }
 
+// CreateVtep creates a VTEP interface
 func (sw *OvsSwitch) CreateVtep(vtepIP string) error {
 	// Create interface name for VTEP
 	intfName := vxlanIfName(vtepIP)
@@ -295,6 +299,7 @@ func (sw *OvsSwitch) CreateVtep(vtepIP string) error {
 	return nil
 }
 
+// DeleteVtep deletes a VTEP
 func (sw *OvsSwitch) DeleteVtep(vtepIP string) error {
 	// Build vtep interface name
 	intfName := vxlanIfName(vtepIP)
@@ -317,4 +322,27 @@ func (sw *OvsSwitch) DeleteVtep(vtepIP string) error {
 
 	// ask ovsdb to delete the VTEP
 	return sw.ovsdbDriver.DeleteVtep(intfName)
+}
+
+// AddUplinkPort adds uplink port to the OVS
+func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
+	// some error checking
+	if sw.netType != "vlan" {
+		log.Fatalf("Can not add uplink to OVS type %s.", sw.netType)
+	}
+
+	uplinkID := "uplink" + intfName
+
+	// Ask OVSDB driver to add the port as a trunk port
+	err := sw.ovsdbDriver.CreatePort(intfName, "", uplinkID, 0)
+
+	log.Infof("Added uplink %s to OVS switch %s. Err: %v", intfName, sw.bridgeName, err)
+
+	defer func() {
+		if err != nil {
+			sw.ovsdbDriver.DeletePort(intfName)
+		}
+	}()
+
+	return err
 }

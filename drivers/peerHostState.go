@@ -28,12 +28,12 @@ import (
 
 const peerHostPath = "/contiv/oper/peer/"
 
-// Information about the peer host
+// PeerHostState : Information about the peer host
 type PeerHostState struct {
 	core.CommonState
 	Hostname   string // Name of this host
 	HostAddr   string // control plane IP address of the host
-	VtepIpAddr string // VTEP IP address to use
+	VtepIPAddr string // VTEP IP address to use
 }
 
 // Write the state.
@@ -73,7 +73,7 @@ func publishHostInfo(info *core.InstanceInfo) error {
 	myHostInfo.StateDriver = info.StateDriver
 	myHostInfo.Hostname = info.HostLabel
 	myHostInfo.HostAddr = info.VtepIP
-	myHostInfo.VtepIpAddr = info.VtepIP
+	myHostInfo.VtepIPAddr = info.VtepIP
 
 	// Write it to state store.
 	err := myHostInfo.Write()

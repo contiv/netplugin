@@ -73,8 +73,8 @@ func (p *NetPlugin) Init(configStr string) error {
 
 	instanceInfo := &core.InstanceInfo{
 		HostLabel:   pluginConfig.Instance.HostLabel,
-		VtepIP: 	 pluginConfig.Instance.VtepIP,
-		VlanIntf: 	 pluginConfig.Instance.VlanIntf,
+		VtepIP:      pluginConfig.Instance.VtepIP,
+		VlanIntf:    pluginConfig.Instance.VlanIntf,
 		StateDriver: p.StateDriver,
 	}
 
