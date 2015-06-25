@@ -723,6 +723,7 @@ func getEpName(net *ConfigNetwork, ep *ConfigEP) string {
 
 	return ep.Host + "-native-intf"
 }
+
 func allocSetEpAddress(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	nwCfg *drivers.OvsCfgNetworkState) (err error) {
 
