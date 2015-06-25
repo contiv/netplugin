@@ -137,11 +137,13 @@ func (self *Vxlan) MasterAdded(master *OfnetNode) error {
 func (self *Vxlan) SwitchConnected(sw *ofctrl.OFSwitch) {
     // Keep a reference to the switch
     self.ofSwitch = sw
+
     // Init the Fgraph
     self.initFgraph()
 
     log.Infof("Switch connected(vxlan)")
 }
+
 // Handle switch disconnected notification
 func (self *Vxlan) SwitchDisconnected(sw *ofctrl.OFSwitch) {
     // FIXME: ??

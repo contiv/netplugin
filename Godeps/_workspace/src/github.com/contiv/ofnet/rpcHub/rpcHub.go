@@ -60,6 +60,7 @@ func NewRpcServer(portNo uint16) (*rpc.Server, net.Listener) {
     return server, l
 }
 
+<<<<<<< HEAD
 // Create a new client
 func dialRpcClient(servAddr string, portNo uint16) (*rpc.Client, net.Conn) {
     var client *rpc.Client
@@ -111,10 +112,42 @@ func Client(servAddr string, portNo uint16) *RpcClient {
 
     // Return the client if it already exists
     if (clientDb[clientKey] != nil) && (clientDb[clientKey].conn.RemoteAddr() != nil) {
+=======
+// DB of all existing clients
+var clientDb map[string]*rpc.Client = make(map[string]*rpc.Client)
+
+// Create a new client
+func NewRpcClient(servAddr string, portNo uint16) *rpc.Client {
+    log.Infof("Connecting to RPC server: %s:%d", servAddr, portNo)
+
+    // Connect to the server
+    conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
+    if err != nil {
+        panic(err)
+    }
+
+    log.Infof("Connected to RPC server: %s:%d", servAddr, portNo)
+
+    // Create an RPC client
+    client := jsonrpc.NewClient(conn)
+
+    // FIXME: handle disconnects
+
+    return client
+}
+
+// Get a client to the rpc server
+func Client(servAddr string, portNo uint16) *rpc.Client {
+    clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
+
+    // Return the client if it already exists
+    if (clientDb[clientKey] != nil) {
+>>>>>>> Godep changes
         return clientDb[clientKey]
     }
 
     // Create a new client and add it to the DB
+<<<<<<< HEAD
     client, conn := dialRpcClient(servAddr, portNo)
     rpcClient := RpcClient{
         servAddr: servAddr,
@@ -152,4 +185,10 @@ func (self *RpcClient) Call(serviceMethod string, args interface{}, reply interf
     }
 
     return err
+=======
+    client := NewRpcClient(servAddr, portNo)
+    clientDb[clientKey] = client
+
+    return client
+>>>>>>> Godep changes
 }
