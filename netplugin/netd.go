@@ -181,7 +181,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 		return &epCtx, nil
 	}
 	epCtx.CurrContName = operEp.ContName
-	epCtx.InterfaceID = operEp.IntfName
+	epCtx.InterfaceID = operEp.PortName
 	epCtx.IPAddress = operEp.IPAddress
 	epCtx.CurrAttachUUID = operEp.AttachUUID
 
@@ -357,7 +357,7 @@ func attachContainer(stateDriver core.StateDriver, crt *crt.CRT, contName string
 
 	for _, epCtx := range epContexts {
 		if epCtx.NewAttachUUID != "" || epCtx.InterfaceID == "" {
-			log.Debugf("## skipping attach on epctx %v \n", epCtx)
+			log.Errorf("## skipping attach on epctx %v \n", epCtx)
 			continue
 		} else {
 			log.Debugf("## trying attach on epctx %v \n", epCtx)

@@ -75,6 +75,7 @@ type OvsOperEndpointState struct {
 	MacAddress string `json:"macAddress"`
 	HomingHost string `json:"homingHost"`
 	IntfName   string `json:"intfName"`
+	PortName   string `json:"portName"`
 	VtepIP     string `json:"vtepIP"`
 }
 
