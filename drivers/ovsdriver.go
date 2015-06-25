@@ -134,7 +134,7 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 		err = d.switchDb["vlan"].AddUplinkPort(info.VlanIntf)
 		if err != nil {
 			log.Errorf("Could not add uplink %s to vlan OVS. Err: %v", info.VlanIntf, err)
-		}	
+		}
 	}
 
 	return nil
