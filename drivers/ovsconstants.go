@@ -31,7 +31,8 @@ const (
 	bridgeTable       = "Bridge"
 	portTable         = "Port"
 	interfaceTable    = "Interface"
-	defaultBridgeName = "contivBridge"
+	vlanBridgeName 	  = "contivVlanBridge"
+	vxlanBridgeName   = "contivVxlanBridge"
 	portNameFmt       = "port%d"
 	vxlanIfNameFmt    = "vxif%s"
 

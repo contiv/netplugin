@@ -152,6 +152,8 @@ func (d *OvsdbDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 		return nil
 	}
 
+	log.Errorf("OVS operation failed for op: %+v", ops)
+
 	return core.Errorf("ovs operation failed. Error(s): %v", errors)
 }
 

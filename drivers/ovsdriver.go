@@ -84,6 +84,11 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 			config, info)
 	}
 
+	_, ok := config.V.(*OvsDriverConfig)
+	if !ok {
+		return core.Errorf("Invalid type passed")
+	}
+
 	d.oper.StateDriver = info.StateDriver
 	// restore the driver's runtime state if it exists
 	err := d.oper.Read(info.HostLabel)
@@ -113,13 +118,13 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	d.switchDb = make(map[string]*OvsSwitch)
 
 	// Create Vlan switch
-	d.switchDb["vlan"], err = NewOvsSwitch("contivVlanBridge", "vlan", info.VtepIP)
+	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
 
 	// Create Vxlan switch
-	d.switchDb["vxlan"], err = NewOvsSwitch("contivVxlanBridge", "vxlan", info.VtepIP)
+	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
@@ -129,9 +134,15 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 
 // Deinit performs cleanup prior to destruction of the OvsDriver
 func (d *OvsDriver) Deinit() {
+	log.Infof("Cleaning up ovsdriver")
+
 	// cleanup both vlan and vxlan OVS instances
-	d.switchDb["vlan"].Delete()
-	d.switchDb["vxlan"].Delete()
+	if d.switchDb["vlan"] != nil {
+		d.switchDb["vlan"].Delete()
+	}
+	if d.switchDb["vlan"] != nil {
+		d.switchDb["vxlan"].Delete()
+	}
 }
 
 // CreateNetwork creates a network by named identifier
@@ -241,6 +252,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	// ovs-internal interface
 	if cfgEp.IntfName != "" {
 		intfName = cfgEp.IntfName
+		portName = intfName
 		intfType = ""
 	}
 
@@ -273,6 +285,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		AttachUUID: cfgEp.AttachUUID,
 		ContName:   cfgEp.ContName,
 		IPAddress:  cfgEp.IPAddress,
+		MacAddress: cfgEp.MacAddress,
 		IntfName:   cfgEp.IntfName,
 		HomingHost: cfgEp.HomingHost,
 		VtepIP:     cfgEp.VtepIP}
