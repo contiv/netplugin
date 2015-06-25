@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package netmaster
+package master
 
 import (
 	"encoding/json"
@@ -27,8 +27,8 @@ const (
 	hostConfigPath       = hostConfigPathPrefix + "%s"
 )
 
-// MasterHostConfig is the state carried for network + host maps.
-type MasterHostConfig struct {
+// HostConfig is the state carried for network + host maps.
+type HostConfig struct {
 	core.CommonState
 	Name   string `json:"name"`
 	Intf   string `json:"intf"`
@@ -37,24 +37,24 @@ type MasterHostConfig struct {
 }
 
 // Write the master host configuration to the state system.
-func (s *MasterHostConfig) Write() error {
+func (s *HostConfig) Write() error {
 	key := fmt.Sprintf(hostConfigPath, s.Name)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the host state from the state system, provided a hostname.
-func (s *MasterHostConfig) Read(hostname string) error {
+func (s *HostConfig) Read(hostname string) error {
 	key := fmt.Sprintf(hostConfigPath, hostname)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll implements reading the state for all hosts.
-func (s *MasterHostConfig) ReadAll() ([]core.State, error) {
+func (s *HostConfig) ReadAll() ([]core.State, error) {
 	return s.StateDriver.ReadAllState(hostConfigPathPrefix, s, json.Unmarshal)
 }
 
 // Clear purges the state for this host.
-func (s *MasterHostConfig) Clear() error {
+func (s *HostConfig) Clear() error {
 	key := fmt.Sprintf(hostConfigPath, s.Name)
 	return s.StateDriver.ClearState(key)
 }

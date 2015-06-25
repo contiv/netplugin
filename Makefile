@@ -5,7 +5,7 @@
 # XXX: explore a better way that doesn't need multiple 'find'
 PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|systemtests'`
 PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts'`
-TO_BUILD := ./netplugin/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/pslibnet/
+TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/pslibnet/
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
 

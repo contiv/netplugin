@@ -15,7 +15,7 @@ limitations under the License.
 
 // netmaster intent specification
 
-package netmaster
+package intent
 
 // ConfigHost keeps track of the host's properties; A host is a node where
 // containers are deployed
@@ -74,4 +74,6 @@ type Config struct {
 	InfraNetworks []ConfigInfraNetwork
 	Hosts         []ConfigHost
 	Tenants       []ConfigTenant
+	// (optional) host bindings
+	HostBindings []ConfigEP
 }

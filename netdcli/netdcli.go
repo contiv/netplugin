@@ -16,9 +16,11 @@ limitations under the License.
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -26,6 +28,9 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
+	"github.com/contiv/netplugin/netmaster/client"
+	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
@@ -133,6 +138,7 @@ type cliOpts struct {
 	construct       construct
 	stateStore      string
 	storeURL        string
+	netmasterURL    string
 	tenant          string
 	netID           string
 	pktTag          string
@@ -193,6 +199,10 @@ func init() {
 		"store-url",
 		"",
 		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
+	flagSet.StringVar(&opts.netmasterURL,
+		"netmaster-url",
+		master.DaemonURL,
+		"Netmaster's url.")
 	flagSet.StringVar(&opts.tenant,
 		"tenant",
 		"default",
@@ -523,6 +533,50 @@ func executeOpts(opts *cliOpts) error {
 			log.Errorf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func executeJSONCfg(opts *cliOpts) error {
+	var (
+		err  error
+		data []byte
+	)
+
+	if opts.idStr == "-" {
+		reader := bufio.NewReader(os.Stdin)
+		if data, err = ioutil.ReadAll(reader); err != nil {
+			return err
+		}
+
+	} else {
+		if data, err = ioutil.ReadFile(opts.idStr); err != nil {
+			return err
+		}
+	}
+
+	allCfg := &intent.Config{}
+	if err = json.Unmarshal(data, allCfg); err != nil {
+		log.Errorf("error '%s' unmarshaling tenant cfg, data %s \n", err, data)
+		return err
+	}
+	log.Debugf("parsed config %v \n", allCfg)
+
+	nmc := client.New(opts.netmasterURL)
+	switch {
+	case opts.cfgDesired:
+		err = nmc.PostDesiredConfig(allCfg)
+	case opts.cfgAdditions:
+		err = nmc.PostAddConfig(allCfg)
+	case opts.cfgDeletions:
+		err = nmc.PostDeleteConfig(allCfg)
+	case opts.cfgHostBindings:
+		err = nmc.PostHostBindings(allCfg)
+	}
+
+	if err != nil {
+		return core.Errorf("error processing cfg. Error: %s", err)
 	}
 
 	return nil

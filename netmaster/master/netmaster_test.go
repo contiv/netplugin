@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package netmaster
+package master
 
 import (
 	"encoding/json"
@@ -21,20 +21,22 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
+	"github.com/contiv/netplugin/utils"
 )
 
-var fakeDriver = &state.FakeStateDriver{}
+var fakeDriver *state.FakeStateDriver
 
 func applyConfig(t *testing.T, cfgBytes []byte) {
-	cfg := &Config{}
+	cfg := &intent.Config{}
 	err := json.Unmarshal(cfgBytes, cfg)
 	if err != nil {
 		t.Fatalf("error '%s' parsing config '%s'\n", err, cfgBytes)
 	}
 
-	fakeDriver.Init(nil)
 	_, err = resources.NewStateResourceManager(fakeDriver)
 	if err != nil {
 		log.Fatalf("state store initialization failed. Error: %s", err)
@@ -83,6 +85,25 @@ func verifyKeys(t *testing.T, keys []string) {
 	}
 }
 
+func initFakeStateDriver(t *testing.T) {
+	config := &core.Config{V: &state.FakeStateDriverConfig{}}
+	cfgBytes, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("marshalling configuration failed. Error: %s", err)
+	}
+
+	d, err := utils.NewStateDriver("fakedriver", string(cfgBytes))
+	if err != nil {
+		t.Fatalf("failed to init statedriver. Error: %s", err)
+	}
+
+	fakeDriver = d.(*state.FakeStateDriver)
+}
+
+func deinitFakeStateDriver() {
+	utils.ReleaseStateDriver()
+}
+
 func TestVlanConfig(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
@@ -110,6 +131,9 @@ func TestVlanConfig(t *testing.T) {
             }]
         }]
     }]}`)
+
+	initFakeStateDriver(t)
+	defer deinitFakeStateDriver()
 
 	applyConfig(t, cfgBytes)
 
@@ -159,6 +183,9 @@ func TestVlanWithUnderlayConfig(t *testing.T) {
         }
         ]
     }]}`)
+
+	initFakeStateDriver(t)
+	defer deinitFakeStateDriver()
 
 	applyConfig(t, cfgBytes)
 
@@ -211,6 +238,9 @@ func TestVxlanConfig(t *testing.T) {
         }]
     }]}`)
 
+	initFakeStateDriver(t)
+	defer deinitFakeStateDriver()
+
 	applyConfig(t, cfgBytes)
 
 	keys := []string{"tenant-one", "nets/orange", "nets/purple",
@@ -260,6 +290,9 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
         }]
     }]}`)
 
+	initFakeStateDriver(t)
+	defer deinitFakeStateDriver()
+
 	applyConfig(t, cfgBytes)
 	fakeDriver.DumpState()
 
@@ -269,7 +302,7 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 
 	verifyKeys(t, keys)
 
-	epBindings := []ConfigEP{{
+	epBindings := []intent.ConfigEP{{
 		Container: "myContainer1",
 		Host:      "host1",
 	}, {
@@ -283,7 +316,7 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 		Host:      "host2",
 	}}
 
-	err := CreateEpBindings(fakeDriver, &epBindings)
+	err := CreateEpBindings(&epBindings)
 	if err != nil {
 		t.Fatalf("error '%s' creating tenant\n", err)
 	}

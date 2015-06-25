@@ -6,7 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/netmaster"
+	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/mapuri/libnetwork/driverapi"
 )
 
@@ -43,15 +43,15 @@ func (d *LibNetDriver) DeleteNetwork(nid driverapi.UUID) error {
 }
 
 func invokeNetdcli(dc DriverConfig, isAdd bool) error {
-	EpCfg := &netmaster.Config{
-		Tenants: []netmaster.ConfigTenant{
-			netmaster.ConfigTenant{
+	EpCfg := &intent.Config{
+		Tenants: []intent.ConfigTenant{
+			intent.ConfigTenant{
 				Name: dc.tenantID,
-				Networks: []netmaster.ConfigNetwork{
-					netmaster.ConfigNetwork{
+				Networks: []intent.ConfigNetwork{
+					intent.ConfigNetwork{
 						Name: dc.netID,
-						Endpoints: []netmaster.ConfigEP{
-							netmaster.ConfigEP{
+						Endpoints: []intent.ConfigEP{
+							intent.ConfigEP{
 								AttachUUID: dc.contID,
 								Container:  dc.contID,
 								// XXX: host-label needs to come from config
