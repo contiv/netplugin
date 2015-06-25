@@ -44,8 +44,14 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 	sw.bridgeName = bridgeName
 	sw.netType = netType
 
+	// Determine the failure mode
+	failMode := ""
+	if netType == "vxlan" {
+		failMode = "secure"
+	}
+
 	// Create OVS db driver
-	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName)
+	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, failMode)
 	if err != nil {
 		log.Fatalf("Error creating ovsdb driver. Err: %v", err)
 	}
