@@ -26,15 +26,15 @@ const (
 )
 
 const (
-	ovsDataBase       = "Open_vSwitch"
-	rootTable         = "Open_vSwitch"
-	bridgeTable       = "Bridge"
-	portTable         = "Port"
-	interfaceTable    = "Interface"
-	vlanBridgeName 	  = "contivVlanBridge"
-	vxlanBridgeName   = "contivVxlanBridge"
-	portNameFmt       = "port%d"
-	vxlanIfNameFmt    = "vxif%s"
+	ovsDataBase     = "Open_vSwitch"
+	rootTable       = "Open_vSwitch"
+	bridgeTable     = "Bridge"
+	portTable       = "Port"
+	interfaceTable  = "Interface"
+	vlanBridgeName  = "contivVlanBridge"
+	vxlanBridgeName = "contivVxlanBridge"
+	portNameFmt     = "port%d"
+	vxlanIfNameFmt  = "vxif%s"
 
 	getPortName = true
 	getIntfName = false

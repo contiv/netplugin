@@ -27,27 +27,24 @@ import (
 )
 
 const (
-	createEpID                      = "testCreateEp"
-	createEpIDStateful              = "testCreateEpStateful"
-	createEpIDStatefulMismatch      = "testCreateEpStatefulMismatch"
-	deleteEpID                      = "testDeleteEp"
-	createEpWithIntfID              = "testCreateEpWithIntf"
-	createEpWithIntfIDStateful      = "testCreateEpWithIntfStateful"
-	deleteEpWithIntfID              = "testDeleteEpWithIntf"
-	vxlanPeerIP                     = "12.1.1.1"
-	testOvsNwID                     = "testNetID"
-	testOvsNwIDStateful             = "testNetIDStateful"
-	testPktTag                      = 100
-	testPktTagStateful              = 200
-	testExtPktTag                   = 10000
-	testIntfName                    = "testIntf"
-	testSubnetIP                    = "10.1.1.0"
-	testSubnetLen                   = 24
-	testEpAddress                   = "10.1.1.1"
-	testEpMacAddress                = "02:02:0A:01:01:01"
-	testHostLabel                   = "testHost"
-	testHostLabelStateful           = "testHostStateful"
-	testCurrPortNum                 = 10
+	createEpID                 = "testCreateEp"
+	createEpIDStateful         = "testCreateEpStateful"
+	createEpIDStatefulMismatch = "testCreateEpStatefulMismatch"
+	deleteEpID                 = "testDeleteEp"
+	vxlanPeerIP                = "12.1.1.1"
+	testOvsNwID                = "testNetID"
+	testOvsNwIDStateful        = "testNetIDStateful"
+	testPktTag                 = 100
+	testPktTagStateful         = 200
+	testExtPktTag              = 10000
+	testIntfName               = "testIntf"
+	testSubnetIP               = "10.1.1.0"
+	testSubnetLen              = 24
+	testEpAddress              = "10.1.1.1"
+	testEpMacAddress           = "02:02:0A:01:01:01"
+	testHostLabel              = "testHost"
+	testHostLabelStateful      = "testHostStateful"
+	testCurrPortNum            = 10
 )
 
 func createCommonState(stateDriver core.StateDriver) error {
@@ -75,32 +72,6 @@ func createCommonState(stateDriver core.StateDriver) error {
 		cfgNw.SubnetLen = testSubnetLen
 		cfgNw.StateDriver = stateDriver
 		if err := cfgNw.Write(); err != nil {
-			return err
-		}
-	}
-
-	{
-		cfgEp := &OvsCfgEndpointState{}
-		cfgEp.ID = createEpWithIntfID
-		cfgEp.NetID = testOvsNwID
-		cfgEp.IntfName = testIntfName
-		cfgEp.IPAddress = testEpAddress
-		cfgEp.MacAddress = testEpMacAddress
-		cfgEp.StateDriver = stateDriver
-		if err := cfgEp.Write(); err != nil {
-			return err
-		}
-	}
-
-	{
-		cfgEp := &OvsCfgEndpointState{}
-		cfgEp.ID = createEpWithIntfIDStateful
-		cfgEp.NetID = testOvsNwID
-		cfgEp.IntfName = testIntfName
-		cfgEp.IPAddress = testEpAddress
-		cfgEp.MacAddress = testEpMacAddress
-		cfgEp.StateDriver = stateDriver
-		if err := cfgEp.Write(); err != nil {
 			return err
 		}
 	}
@@ -136,19 +107,6 @@ func createCommonState(stateDriver core.StateDriver) error {
 		cfgEp.ID = createEpIDStatefulMismatch
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = ""
-		cfgEp.IPAddress = testEpAddress
-		cfgEp.MacAddress = testEpMacAddress
-		cfgEp.StateDriver = stateDriver
-		if err := cfgEp.Write(); err != nil {
-			return err
-		}
-	}
-
-	{
-		cfgEp := &OvsCfgEndpointState{}
-		cfgEp.ID = deleteEpWithIntfID
-		cfgEp.NetID = testOvsNwID
-		cfgEp.IntfName = testIntfName
 		cfgEp.IPAddress = testEpAddress
 		cfgEp.MacAddress = testEpMacAddress
 		cfgEp.StateDriver = stateDriver
@@ -290,7 +248,7 @@ func TestOvsDriverDeinit(t *testing.T) {
 
 	output, err := exec.Command("ovs-vsctl", "list", "Bridge").CombinedOutput()
 	if err != nil || strings.Contains(string(output), vlanBridgeName) ||
-					 strings.Contains(string(output), vxlanBridgeName) {
+		strings.Contains(string(output), vxlanBridgeName) {
 		t.Fatalf("deinit failed. Error: %s Output: %s", err, output)
 	}
 
@@ -391,95 +349,10 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 	}
 }
 
-func TestOvsDriverCreateEndpointWithIntfName(t *testing.T) {
-	driver := initOvsDriver(t)
-	defer func() { driver.Deinit() }()
-	id := createEpWithIntfID
-
-	err := driver.CreateEndpoint(id)
-	if err != nil {
-		t.Fatalf("endpoint creation failed. Error: %s", err)
-	}
-
-	output, err := exec.Command("ovs-vsctl", "list", "Port").CombinedOutput()
-	if err != nil || !strings.Contains(string(output), testIntfName) {
-		t.Fatalf("port lookup failed. Error: %s expected port: %s Output: %s",
-			err, testIntfName, output)
-	}
-
-	output, err = exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
-	if err != nil || !strings.Contains(string(output), testIntfName) {
-		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
-			err, testIntfName, output)
-	}
-}
-
-func TestOvsDriverCreateEndpointWithIntfNameStateful(t *testing.T) {
-	driver := initOvsDriver(t)
-	defer func() { driver.Deinit() }()
-	id := createEpWithIntfIDStateful
-
-	err := driver.CreateEndpoint(id)
-	if err != nil {
-		t.Fatalf("endpoint creation failed. Error: %s", err)
-	}
-
-	err = driver.CreateEndpoint(id)
-	if err != nil {
-		t.Fatalf("stateful endpoint creation failed. Error: %s", err)
-	}
-
-	output, err := exec.Command("ovs-vsctl", "list", "Port").CombinedOutput()
-	if err != nil || !strings.Contains(string(output), testIntfName) {
-		t.Fatalf("port lookup failed. Error: %s expected port: %s Output: %s",
-			err, testIntfName, output)
-	}
-
-	output, err = exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
-	if err != nil || !strings.Contains(string(output), testIntfName) {
-		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
-			err, testIntfName, output)
-	}
-}
-
 func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	driver := initOvsDriver(t)
 	defer func() { driver.Deinit() }()
 	id := deleteEpID
-
-	err := driver.CreateEndpoint(id)
-	if err != nil {
-		t.Fatalf("endpoint Creation failed. Error: %s", err)
-	}
-
-	// XXX: DeleteEndpoint() depends on the ovsdb cache to have been updated
-	// once the port is created. The cache update happens asynchronously through
-	// a libovsdb callback. So there is a timing window where cache might not yet
-	// have been updated. Adding a delay to workaround.
-	// Also see contiv/netplugin/issues/78
-	time.Sleep(1 * time.Second)
-
-	err = driver.DeleteEndpoint(id)
-	if err != nil {
-		t.Fatalf("endpoint Deletion failed. Error: %s", err)
-	}
-
-	output, err := exec.Command("ovs-vsctl", "list", "Port").CombinedOutput()
-	expectedPortName := fmt.Sprintf(portNameFmt, driver.oper.CurrPortNum+1)
-	if err != nil || strings.Contains(string(output), expectedPortName) {
-		t.Fatalf("port lookup succeeded after delete. Error: %s Output: %s", err, output)
-	}
-
-	output, err = exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
-	if err != nil || strings.Contains(string(output), testIntfName) {
-		t.Fatalf("interface lookup succeeded after delete. Error: %s Output: %s", err, output)
-	}
-}
-
-func TestOvsDriverDeleteEndpointiWithIntfName(t *testing.T) {
-	driver := initOvsDriver(t)
-	defer func() { driver.Deinit() }()
-	id := deleteEpWithIntfID
 
 	err := driver.CreateEndpoint(id)
 	if err != nil {

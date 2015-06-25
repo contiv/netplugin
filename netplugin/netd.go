@@ -182,7 +182,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 		return &epCtx, nil
 	}
 	epCtx.CurrContName = operEp.ContName
-	epCtx.InterfaceID = operEp.PortName
+	epCtx.InterfaceID = operEp.IntfName
 	epCtx.IPAddress = operEp.IPAddress
 	epCtx.CurrAttachUUID = operEp.AttachUUID
 
@@ -610,7 +610,7 @@ func main() {
 		log.Fatalf("Failed to fetch hostname. Error: %s", err)
 	}
 	// default to using eth1's IP addr
-	defVtepIp, _ := netutils.GetInterfaceIP("eth1")
+	defVtepIP, _ := netutils.GetInterfaceIP("eth1")
 	defVlanIntf := "eth2"
 
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
@@ -640,7 +640,7 @@ func main() {
 		"plugin configuration. Use '-' to read configuration from stdin")
 	flagSet.StringVar(&opts.vtepIP,
 		"vtep-ip",
-		defVtepIp,
+		defVtepIP,
 		"My VTEP ip address")
 	flagSet.StringVar(&opts.vlanIntf,
 		"vlan-if",
@@ -693,7 +693,7 @@ func main() {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`, utils.OvsNameStr, opts.hostLabel, opts.vtepIP,
-					opts.vlanIntf, utils.OvsNameStr)
+		opts.vlanIntf, utils.OvsNameStr)
 
 	netPlugin := &plugin.NetPlugin{}
 
