@@ -7,8 +7,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/socketplane/libovsdb/Godeps/_workspace/src/github.com/cenkalti/rpc2"
-	"github.com/socketplane/libovsdb/Godeps/_workspace/src/github.com/cenkalti/rpc2/jsonrpc"
+	"github.com/cenkalti/rpc2"
+	"github.com/cenkalti/rpc2/jsonrpc"
 )
 
 type OvsdbClient struct {

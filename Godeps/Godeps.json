@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/contiv/netplugin",
-	"GoVersion": "go1.4.2",
+	"GoVersion": "go1.4",
 	"Packages": [
 		"./netplugin/",
 		"./netmaster/",
@@ -32,6 +32,10 @@
 			"ImportPath": "github.com/contiv/libovsdb",
 			"Comment": "v0.1-4-g7035d89",
 			"Rev": "7035d89e7d762b7dcb476a404c9e68ffa8e8af67"
+		},
+		{
+			"ImportPath": "github.com/contiv/ofnet",
+			"Rev": "014bd60eefbedb09874725c2dc4f72706cb840ea"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
@@ -67,13 +71,24 @@
 			"Rev": "1f0c6de81a62732e75f6c97f1e28e5a009b5df68"
 		},
 		{
-			"ImportPath": "github.com/mapuri/libnetwork/driverapi",
-			"Comment": "v0.1-34-gbf9450e",
-			"Rev": "bf9450eec0646abd7e71dc3eaff47a55f7a1f1df"
-		},
-		{
 			"ImportPath": "github.com/samalba/dockerclient",
 			"Rev": "4e6f4a21c07510dd6446d28053351a275591f08d"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/common",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/util",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
