@@ -173,6 +173,7 @@ func (d *OvsdbDriver) createDeleteBridge(bridgeName string, op oper) error {
 		bridge := make(map[string]interface{})
 		bridge["name"] = bridgeName
 		bridge["protocols"], _ = libovsdb.NewOvsSet(protocols)
+		bridge["fail_mode"] = "secure"
 		brOp = libovsdb.Operation{
 			Op:       opStr,
 			Table:    bridgeTable,
