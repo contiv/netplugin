@@ -66,8 +66,9 @@ type Flow struct {
 // string key for the flow
 // FIXME: simple json conversion for now. This needs to be smarter
 func (self *Flow) flowKey() string {
-    jsonVal, err := json.Marshal(self)
+    jsonVal, err := json.Marshal(self.Match)
     if (err != nil) {
+        log.Errorf("Error forming flowkey for %+v. Err: %v", err)
         return ""
     }
 
@@ -457,6 +458,7 @@ func (self *Flow) Delete() error {
         flowMod.TableId = self.Table.TableId
         flowMod.Priority = self.Match.Priority
         flowMod.Cookie = self.flowId
+        flowMod.CookieMask = 0xffffffffffffffff
         flowMod.OutPort = openflow13.P_ANY
         flowMod.OutGroup = openflow13.OFPG_ANY
 
@@ -468,7 +470,7 @@ func (self *Flow) Delete() error {
 
     // Delete it from the table
     flowKey := self.flowKey()
-    delete(self.Table.flowDb, flowKey)
+    self.Table.DeleteFlow(flowKey)
 
     return nil
 }
