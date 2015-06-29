@@ -173,19 +173,51 @@ func (sw *OvsSwitch) CreatePort(intfName, intfType string, cfgEp *OvsCfgEndpoint
 	// Wait a little for OVS to create the interface
 	time.Sleep(300 * time.Millisecond)
 
+	if intfType != "internal" {
+		log.Fatalf("Not expecting interface type :%s.", intfType)
+	}
+
 	// Set the interface mac address
-	if intfType == "internal" {
-		err = netutils.SetInterfaceMac(intfName, cfgEp.MacAddress)
+	err = netutils.SetInterfaceMac(intfName, cfgEp.MacAddress)
+	if err != nil {
+		log.Errorf("Error setting interface Mac %s on port %s", cfgEp.MacAddress, intfName)
+		return err
+	}
+
+	// Add the endpoint to ofnet
+	if sw.netType == "vxlan" {
+		// Get the openflow port number for the interface
+		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
 		if err != nil {
-			log.Errorf("Error setting interface Mac %s on port %s", cfgEp.MacAddress, intfName)
+			log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+			return err
+		}
+
+		macAddr, _ := net.ParseMAC(cfgEp.MacAddress)
+
+		// Build the endpoint info
+		endpoint := ofnet.EndpointInfo{
+			PortNo:  ofpPort,
+			MacAddr: macAddr,
+			Vlan:    uint16(pktTag),
+			IpAddr:  net.ParseIP(cfgEp.IPAddress),
+		}
+
+		// Add the local port to ofnet
+		err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
+		if err != nil {
+			log.Errorf("Error adding local port %s to ofnet. Err: %v", intfName, err)
 			return err
 		}
 	}
 
+	return nil
+}
+
+// UpdatePort updates an OVS port without creating it
+func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
 	// Add the endpoint to ofnet
-	if intfType == "vxlan" {
-		log.Fatalf("Not expecting vxlan interfaces here..")
-	} else if intfType == "internal" && sw.netType == "vxlan" {
+	if sw.netType == "vxlan" {
 		// Get the openflow port number for the interface
 		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
 		if err != nil {
