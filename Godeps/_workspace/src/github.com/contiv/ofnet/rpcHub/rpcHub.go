@@ -59,18 +59,17 @@ func NewRpcServer(portNo uint16) (*rpc.Server, net.Listener) {
     return server, l
 }
 
-// DB of all existing clients
-var clientDb map[string]*rpc.Client = make(map[string]*rpc.Client)
-
 // Create a new client
-func NewRpcClient(servAddr string, portNo uint16) *rpc.Client {
+func dialRpcClient(servAddr string, portNo uint16) (*rpc.Client, net.Conn) {
     var client *rpc.Client
+    var conn net.Conn
+    var err error
     log.Infof("Connecting to RPC server: %s:%d", servAddr, portNo)
 
     // Retry connecting for 10sec
     for i := 0; i < 10; i++ {
         // Connect to the server
-        conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
+        conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
         if err == nil {
             log.Infof("Connected to RPC server: %s:%d", servAddr, portNo)
 
@@ -92,21 +91,58 @@ func NewRpcClient(servAddr string, portNo uint16) *rpc.Client {
 
     // FIXME: handle disconnects
 
-    return client
+    return client, conn
 }
 
+// Info for eahc client
+type RpcClient struct {
+    servAddr    string
+    portNo      uint16
+    client      *rpc.Client
+    conn        net.Conn
+}
+
+// DB of all existing clients
+var clientDb map[string]*RpcClient = make(map[string]*RpcClient)
+
 // Get a client to the rpc server
-func Client(servAddr string, portNo uint16) *rpc.Client {
+func Client(servAddr string, portNo uint16) *RpcClient {
     clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
 
     // Return the client if it already exists
-    if (clientDb[clientKey] != nil) {
+    if (clientDb[clientKey] != nil) && (clientDb[clientKey].conn.RemoteAddr() != nil) {
         return clientDb[clientKey]
     }
 
     // Create a new client and add it to the DB
-    client := NewRpcClient(servAddr, portNo)
-    clientDb[clientKey] = client
+    client, conn := dialRpcClient(servAddr, portNo)
+    rpcClient := RpcClient{
+        servAddr: servAddr,
+        portNo: portNo,
+        client: client,
+        conn: conn,
+    }
 
-    return client
+    clientDb[clientKey] = &rpcClient
+    return &rpcClient
+}
+
+// Make an rpc call
+func (self *RpcClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+    err := self.client.Call(serviceMethod, args, reply)
+    if err == nil {
+        return nil
+    }
+
+    // Check if we need to reconnect
+    if err == rpc.ErrShutdown {
+        client, conn := dialRpcClient(self.servAddr, self.portNo)
+        self.client = client
+        self.conn = conn
+
+        // Retry making the call
+        return self.client.Call(serviceMethod, args, reply)
+    }
+
+    return err
 }

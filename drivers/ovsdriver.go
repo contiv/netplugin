@@ -213,23 +213,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 
-	operEp := &OvsOperEndpointState{}
-	operEp.StateDriver = d.oper.StateDriver
-	err = operEp.Read(id)
-	if core.ErrIfKeyExists(err) != nil {
-		return err
-	} else if err == nil {
-		// check if oper state matches cfg state. In case of mismatch cleanup
-		// up the EP and continue add new one. In case of match just return.
-		if operEp.Matches(cfgEp) {
-			log.Printf("Found matching oper state for ep %s, noop", id)
-			return nil
-		}
-		log.Printf("Found mismatching oper state for Ep, cleaning it. Config: %+v, Oper: %+v",
-			cfgEp, operEp)
-		d.DeleteEndpoint(operEp.ID)
-	}
-
 	// Ignore VTEP endpoints and uplink endpoints
 	// FIXME: we need to stop publiching these from netmaster
 	if cfgEp.VtepIP != "" {
@@ -238,19 +221,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	if cfgEp.IntfName != "" {
 		return nil
 	}
-
-	// add an internal ovs port with vlan-tag information from the state
-
-	// XXX: revisit, the port name might need to come from user. Also revisit
-	// the algorithm to take care of port being deleted and reuse unused port
-	// numbers
-	d.oper.CurrPortNum++
-	err = d.oper.Write()
-	if err != nil {
-		return err
-	}
-	intfName = d.getIntfName()
-	intfType = "internal"
 
 	cfgNw := OvsCfgNetworkState{}
 	cfgNw.StateDriver = d.oper.StateDriver
@@ -267,7 +237,45 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		sw = d.switchDb["vlan"]
 	}
 
-	// As the switch to create the port
+	operEp := &OvsOperEndpointState{}
+	operEp.StateDriver = d.oper.StateDriver
+	err = operEp.Read(id)
+	if core.ErrIfKeyExists(err) != nil {
+		return err
+	} else if err == nil {
+		// check if oper state matches cfg state. In case of mismatch cleanup
+		// up the EP and continue add new one. In case of match just return.
+		if operEp.Matches(cfgEp) {
+			log.Printf("Found matching oper state for ep %s, noop", id)
+
+			// Ask the switch to update the port
+			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgNw.PktTag)
+			if err != nil {
+				log.Errorf("Error creating port %s. Err: %v", intfName, err)
+				return err
+			}
+
+			return nil
+		}
+		log.Printf("Found mismatching oper state for Ep, cleaning it. Config: %+v, Oper: %+v",
+			cfgEp, operEp)
+		d.DeleteEndpoint(operEp.ID)
+	}
+
+	// add an internal ovs port with vlan-tag information from the state
+
+	// XXX: revisit, the port name might need to come from user. Also revisit
+	// the algorithm to take care of port being deleted and reuse unused port
+	// numbers
+	d.oper.CurrPortNum++
+	err = d.oper.Write()
+	if err != nil {
+		return err
+	}
+	intfName = d.getIntfName()
+	intfType = "internal"
+
+	// Ask the switch to create the port
 	err = sw.CreatePort(intfName, intfType, cfgEp, cfgNw.PktTag)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
