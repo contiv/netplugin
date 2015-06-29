@@ -273,7 +273,7 @@ func (d *daemon) endpoints(id string) ([]core.State, error) {
 
 	if id == "all" {
 		return ep.ReadAll()
-	} else if err := ep.Read(id); err != nil {
+	} else if err := ep.Read(id); err == nil {
 		return []core.State{core.State(ep)}, nil
 	}
 
@@ -294,7 +294,7 @@ func (d *daemon) networks(id string) ([]core.State, error) {
 
 	if id == "all" {
 		return nw.ReadAll()
-	} else if err := nw.Read(id); err != nil {
+	} else if err := nw.Read(id); err == nil {
 		return []core.State{core.State(nw)}, nil
 	}
 

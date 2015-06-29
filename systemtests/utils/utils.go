@@ -429,18 +429,19 @@ func GetIPAddress(t *testing.T, node TestbedNode, ep, stateStore string) string 
 	if err != nil || string(output) == "" {
 		time.Sleep(2 * time.Second)
 		output, err = node.RunCommandWithOutput(cmdStr)
+		if err != nil || output == "" {
+			t.Fatalf("Error getting ip for ep %s. Error: %s, Cmdstr: %s, Output: \n%s\n",
+				err, ep, cmdStr, output)
+		}
 	}
+
+	output = strings.Trim(string(output), "[]")
 
 	epStruct := drivers.OvsOperEndpointState{}
 
-	if err != nil || output == "" {
-		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%q\n",
-			err, ep, output)
-	}
-
 	if err := json.Unmarshal([]byte(output), &epStruct); err != nil {
-		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%s\n",
-			err, ep, output)
+		t.Fatalf("Error getting ip for ep %s. Error: %s, Cmdstr: %s, Output: \n%s\n",
+			err, ep, cmdStr, output)
 	}
 
 	return epStruct.IPAddress
