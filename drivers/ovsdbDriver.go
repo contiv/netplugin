@@ -499,6 +499,27 @@ func (d *OvsdbDriver) IsControllerPresent(target string) bool {
 	return false
 }
 
+// IsPortNamePresent checks if port already exists in OVS bridge
+func (self *OvsdbDriver) IsPortNamePresent(intfName string) bool {
+	for tName, table := range self.cache {
+		if tName == "Port" {
+			for _, row := range table {
+				for fieldName, value := range row.Fields {
+					if fieldName == "name" {
+						if value == intfName {
+							// Interface name exists.
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// We could not find the interface name
+	return false
+}
+
 // GetOfpPortNo : Return OFP port number for an interface
 func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
 	for tName, table := range d.cache {

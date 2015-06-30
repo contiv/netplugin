@@ -22,6 +22,7 @@ import (
     "net/rpc/jsonrpc"
     "strings"
     "time"
+    "errors"
 
     log "github.com/Sirupsen/logrus"
 )
@@ -67,7 +68,7 @@ func dialRpcClient(servAddr string, portNo uint16) (*rpc.Client, net.Conn) {
     log.Infof("Connecting to RPC server: %s:%d", servAddr, portNo)
 
     // Retry connecting for 10sec
-    for i := 0; i < 10; i++ {
+    for i := 0; i < 3; i++ {
         // Connect to the server
         conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
         if err == nil {
@@ -86,10 +87,9 @@ func dialRpcClient(servAddr string, portNo uint16) (*rpc.Client, net.Conn) {
 
     // If we failed to connect, report error
     if client == nil {
-        log.Fatalf("Failed to connect to Rpc server %s:%d", servAddr, portNo)
+        log.Errorf("Failed to connect to Rpc server %s:%d", servAddr, portNo)
+        return nil, nil
     }
-
-    // FIXME: handle disconnects
 
     return client, conn
 }
@@ -129,6 +129,13 @@ func Client(servAddr string, portNo uint16) *RpcClient {
 
 // Make an rpc call
 func (self *RpcClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+    // Check if connectin failed
+    if self.client == nil {
+        log.Errorf("Error calling RPC: %s. Could not connect to server", serviceMethod)
+        return errors.New("Could not connect to server")
+    }
+
+    // Perform RPC call.
     err := self.client.Call(serviceMethod, args, reply)
     if err == nil {
         return nil
