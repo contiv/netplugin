@@ -31,7 +31,9 @@ const (
 	createEpIDStateful         = "testCreateEpStateful"
 	createEpIDStatefulMismatch = "testCreateEpStatefulMismatch"
 	deleteEpID                 = "testDeleteEp"
-	vxlanPeerIP                = "12.1.1.1"
+	peerHostId				   = "testPeerHost"
+	peerHostName			   = "peerHost1"
+	peerHostIp                 = "127.0.0.1"
 	testOvsNwID                = "testNetID"
 	testOvsNwIDStateful        = "testNetIDStateful"
 	testPktTag                 = 100
@@ -45,6 +47,7 @@ const (
 	testHostLabel              = "testHost"
 	testHostLabelStateful      = "testHostStateful"
 	testCurrPortNum            = 10
+	testVlanUplinkPort		   = "eth2"
 )
 
 func createCommonState(stateDriver core.StateDriver) error {
@@ -123,6 +126,18 @@ func createCommonState(stateDriver core.StateDriver) error {
 		cfgEp.MacAddress = testEpMacAddress
 		cfgEp.StateDriver = stateDriver
 		if err := cfgEp.Write(); err != nil {
+			return err
+		}
+	}
+
+	{
+		cfgPeer := &PeerHostState{}
+		cfgPeer.ID = peerHostId
+		cfgPeer.Hostname = peerHostName
+		cfgPeer.HostAddr = peerHostIp
+		cfgPeer.VtepIPAddr = peerHostIp
+		cfgPeer.StateDriver = stateDriver
+		if err := cfgPeer.Write(); err != nil {
 			return err
 		}
 	}
@@ -380,5 +395,61 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	output, err = exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
 	if err != nil || strings.Contains(string(output), testIntfName) {
 		t.Fatalf("interface lookup succeeded after delete. Error: %s Output: %s", err, output)
+	}
+}
+
+func TestOvsDriverAddDeletePeer(t *testing.T) {
+	driver := initOvsDriver(t)
+	defer func() { driver.Deinit() }()
+
+	// create peer host
+	err := driver.CreatePeerHost(peerHostId)
+	if err != nil {
+		t.Fatalf("Error creating peer host. Err: %v", err)
+	}
+
+	time.Sleep(300 * time.Millisecond)
+
+	// verify VTEP exists
+	expVtepName := vxlanIfName(peerHostIp)
+	output, err := exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
+	if err != nil || !strings.Contains(string(output), expVtepName) {
+		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
+			err, expVtepName, output)
+	}
+
+	// delete peer host
+	err = driver.DeletePeerHost(peerHostId)
+	if err != nil {
+		t.Fatalf("Error deleting peer host. Err: %v", err)
+	}
+
+	time.Sleep(300 * time.Millisecond)
+
+	// verify VTEP is gone.
+	output, err = exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
+	if err != nil || strings.Contains(string(output), expVtepName) {
+		t.Fatalf("interface still exists. Error: %s expected port: %s Output: %s",
+			err, expVtepName, output)
+	}
+}
+
+func TestOvsDriverAddUplink(t *testing.T) {
+	driver := initOvsDriver(t)
+	defer func() { driver.Deinit() }()
+
+	// Add uplink
+	err := driver.switchDb["vlan"].AddUplinkPort(testVlanUplinkPort)
+	if err != nil {
+		t.Fatalf("Could not add uplink %s to vlan OVS. Err: %v", testVlanUplinkPort, err)
+	}
+
+	time.Sleep(300 * time.Millisecond)
+
+	// verify uplink port
+	output, err := exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
+	if err != nil || !strings.Contains(string(output), testVlanUplinkPort) {
+		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
+			err, testVlanUplinkPort, output)
 	}
 }

@@ -364,6 +364,8 @@ func (sw *OvsSwitch) DeleteVtep(vtepIP string) error {
 
 // AddUplinkPort adds uplink port to the OVS
 func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
+	var err error
+
 	// some error checking
 	if sw.netType != "vlan" {
 		log.Fatalf("Can not add uplink to OVS type %s.", sw.netType)
@@ -371,10 +373,17 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 
 	uplinkID := "uplink" + intfName
 
-	// Ask OVSDB driver to add the port as a trunk port
-	err := sw.ovsdbDriver.CreatePort(intfName, "", uplinkID, 0)
+	// Check if port is already part of the OVS and add it
+	if !sw.ovsdbDriver.IsPortNamePresent(intfName) {
+		// Ask OVSDB driver to add the port as a trunk port
+		err = sw.ovsdbDriver.CreatePort(intfName, "", uplinkID, 0)
+		if err != nil {
+			log.Errorf("Error adding uplink %s to OVS. Err: %v", intfName, err)
+			return err
+		}
+	}
 
-	log.Infof("Added uplink %s to OVS switch %s. Err: %v", intfName, sw.bridgeName, err)
+	log.Infof("Added uplink %s to OVS switch %s.", intfName, sw.bridgeName)
 
 	defer func() {
 		if err != nil {
@@ -382,5 +391,5 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 		}
 	}()
 
-	return err
+	return nil
 }
