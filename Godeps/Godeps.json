@@ -75,6 +75,11 @@
 			"Rev": "4e6f4a21c07510dd6446d28053351a275591f08d"
 		},
 		{
+			"ImportPath": "github.com/mapuri/libnetwork/driverapi",
+			"Comment": "v0.1-34-gbf9450e",
+			"Rev": "bf9450eec0646abd7e71dc3eaff47a55f7a1f1df"
+		},
+		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
 			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
 		},
