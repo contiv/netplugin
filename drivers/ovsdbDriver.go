@@ -500,8 +500,8 @@ func (d *OvsdbDriver) IsControllerPresent(target string) bool {
 }
 
 // IsPortNamePresent checks if port already exists in OVS bridge
-func (self *OvsdbDriver) IsPortNamePresent(intfName string) bool {
-	for tName, table := range self.cache {
+func (d *OvsdbDriver) IsPortNamePresent(intfName string) bool {
+	for tName, table := range d.cache {
 		if tName == "Port" {
 			for _, row := range table {
 				for fieldName, value := range row.Fields {

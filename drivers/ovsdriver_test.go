@@ -31,9 +31,9 @@ const (
 	createEpIDStateful         = "testCreateEpStateful"
 	createEpIDStatefulMismatch = "testCreateEpStatefulMismatch"
 	deleteEpID                 = "testDeleteEp"
-	peerHostId				   = "testPeerHost"
-	peerHostName			   = "peerHost1"
-	peerHostIp                 = "127.0.0.1"
+	peerHostID                 = "testPeerHost"
+	peerHostName               = "peerHost1"
+	peerHostIP                 = "127.0.0.1"
 	testOvsNwID                = "testNetID"
 	testOvsNwIDStateful        = "testNetIDStateful"
 	testPktTag                 = 100
@@ -47,7 +47,7 @@ const (
 	testHostLabel              = "testHost"
 	testHostLabelStateful      = "testHostStateful"
 	testCurrPortNum            = 10
-	testVlanUplinkPort		   = "eth2"
+	testVlanUplinkPort         = "eth2"
 )
 
 func createCommonState(stateDriver core.StateDriver) error {
@@ -132,10 +132,10 @@ func createCommonState(stateDriver core.StateDriver) error {
 
 	{
 		cfgPeer := &PeerHostState{}
-		cfgPeer.ID = peerHostId
+		cfgPeer.ID = peerHostID
 		cfgPeer.Hostname = peerHostName
-		cfgPeer.HostAddr = peerHostIp
-		cfgPeer.VtepIPAddr = peerHostIp
+		cfgPeer.HostAddr = peerHostIP
+		cfgPeer.VtepIPAddr = peerHostIP
 		cfgPeer.StateDriver = stateDriver
 		if err := cfgPeer.Write(); err != nil {
 			return err
@@ -403,7 +403,7 @@ func TestOvsDriverAddDeletePeer(t *testing.T) {
 	defer func() { driver.Deinit() }()
 
 	// create peer host
-	err := driver.CreatePeerHost(peerHostId)
+	err := driver.CreatePeerHost(peerHostID)
 	if err != nil {
 		t.Fatalf("Error creating peer host. Err: %v", err)
 	}
@@ -411,7 +411,7 @@ func TestOvsDriverAddDeletePeer(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 
 	// verify VTEP exists
-	expVtepName := vxlanIfName(peerHostIp)
+	expVtepName := vxlanIfName(peerHostIP)
 	output, err := exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
 	if err != nil || !strings.Contains(string(output), expVtepName) {
 		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
@@ -419,7 +419,7 @@ func TestOvsDriverAddDeletePeer(t *testing.T) {
 	}
 
 	// delete peer host
-	err = driver.DeletePeerHost(peerHostId)
+	err = driver.DeletePeerHost(peerHostID)
 	if err != nil {
 		t.Fatalf("Error deleting peer host. Err: %v", err)
 	}
