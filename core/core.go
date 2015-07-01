@@ -37,13 +37,20 @@ type Network interface {
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
 	FetchNetwork(id string) (State, error)
+}
 
-	// Endpoint identifies an addressable entity in a network. An endpoint
-	// belongs to a single network.
+// Endpoint identifies an addressable entity in a network. An endpoint
+// belongs to a single network.
+type Endpoint interface {
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
 	FetchEndpoint(id string) (State, error)
+}
 
+// PeerHost identifies a peer which this node can communicate to
+// Generally this info is used for network wide operations like setting up
+// VTEP tunnels, synchronizing routes etc.
+type PeerHost interface {
 	CreatePeerHost(id string) error
 	DeletePeerHost(id string) error
 }
@@ -55,6 +62,8 @@ type Plugin interface {
 	Init(configStr string) error
 	Deinit()
 	Network
+	Endpoint
+	PeerHost
 }
 
 // InstanceInfo encapsulates data that is specific to a running instance of
