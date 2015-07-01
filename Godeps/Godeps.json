@@ -2,11 +2,7 @@
 	"ImportPath": "github.com/contiv/netplugin",
 	"GoVersion": "go1.4",
 	"Packages": [
-		"./netplugin/",
-		"./netmaster/",
-		"./netdcli/",
-		"./mgmtfn/k8contivnet/",
-		"./mgmtfn/pslibnet/"
+		"./..."
 	],
 	"Deps": [
 		{
@@ -71,13 +67,13 @@
 			"Rev": "1f0c6de81a62732e75f6c97f1e28e5a009b5df68"
 		},
 		{
-			"ImportPath": "github.com/samalba/dockerclient",
-			"Rev": "4e6f4a21c07510dd6446d28053351a275591f08d"
-		},
-		{
 			"ImportPath": "github.com/mapuri/libnetwork/driverapi",
 			"Comment": "v0.1-34-gbf9450e",
 			"Rev": "bf9450eec0646abd7e71dc3eaff47a55f7a1f1df"
+		},
+		{
+			"ImportPath": "github.com/samalba/dockerclient",
+			"Rev": "4e6f4a21c07510dd6446d28053351a275591f08d"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
