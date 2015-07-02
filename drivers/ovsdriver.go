@@ -148,7 +148,7 @@ func (d *OvsDriver) Deinit() {
 	if d.switchDb["vlan"] != nil {
 		d.switchDb["vlan"].Delete()
 	}
-	if d.switchDb["vlan"] != nil {
+	if d.switchDb["vxlan"] != nil {
 		d.switchDb["vxlan"].Delete()
 	}
 }
