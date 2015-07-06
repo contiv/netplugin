@@ -2,7 +2,11 @@
 	"ImportPath": "github.com/contiv/netplugin",
 	"GoVersion": "go1.4.2",
 	"Packages": [
-		"./..."
+		"./netplugin/",
+		"./netmaster/",
+		"./netdcli/",
+		"./mgmtfn/k8contivnet/",
+		"./mgmtfn/pslibnet/"
 	],
 	"Deps": [
 		{
@@ -43,6 +47,14 @@
 			"ImportPath": "github.com/docker/docker/pkg/units",
 			"Comment": "v1.4.1-3331-g23abd51",
 			"Rev": "23abd51ef15b2c0138e272708845750be5eb0b03"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "47e8f450ef38c857cdd922ec08862ca9d65a1c6d"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",

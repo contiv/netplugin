@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/netmaster"
+	"github.com/contiv/netplugin/netmaster/intent"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -78,7 +78,7 @@ func setUpPod(podNameSpace, podName, attachUUID string) error {
 		log.Fatalf("error %s getting host label \n", err)
 	}
 
-	epCfg := []netmaster.ConfigEP{
+	epCfg := []intent.ConfigEP{
 		{Host: hostLabel, Container: podName, AttachUUID: attachUUID}}
 
 	bytes, err := json.Marshal(epCfg)
@@ -114,7 +114,7 @@ func tearDownPod(podNameSpace, podName, attachUUID string) error {
 		log.Fatalf("error %s getting host label \n", err)
 	}
 
-	epCfg := []netmaster.ConfigEP{
+	epCfg := []intent.ConfigEP{
 		{Host: hostLabel, Container: podName}}
 
 	bytes, err := json.Marshal(epCfg)

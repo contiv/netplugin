@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package netmaster
+package master
 
 import (
 	"testing"
@@ -22,96 +22,98 @@ import (
 )
 
 const (
-	testNwID = "testNw"
-	nwCfgKey = networkConfigPathPrefix + testNwID
+	testHostID = "testHost"
+	hostCfgKey = hostConfigPathPrefix + testHostID
 )
 
-type testNwStateDriver struct{}
+var hostState = &testHostStateDriver{}
 
-var nwStateDriver = &testNwStateDriver{}
+type testHostStateDriver struct {
+}
 
-func (d *testNwStateDriver) Init(config *core.Config) error {
+func (d *testHostStateDriver) Init(config *core.Config) error {
 	return core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) Deinit() {
+func (d *testHostStateDriver) Deinit() {
 }
 
-func (d *testNwStateDriver) Write(key string, value []byte) error {
+func (d *testHostStateDriver) Write(key string, value []byte) error {
 	return core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) Read(key string) ([]byte, error) {
+func (d *testHostStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+func (d *testHostStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return [][]byte{}, core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
+func (d *testHostStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 	return core.Errorf("not supported")
 }
 
-func (d *testNwStateDriver) validateKey(key string) error {
-	if key != nwCfgKey {
-		return core.Errorf("Unexpected key. recvd: %s expected: %s", key, nwCfgKey)
+func (d *testHostStateDriver) validateKey(key string) error {
+	if key != hostCfgKey {
+		return core.Errorf("Unexpected key. recvd: %s expected: %s",
+			key, hostCfgKey)
 	}
 
 	return nil
 }
 
-func (d *testNwStateDriver) ClearState(key string) error {
+func (d *testHostStateDriver) ClearState(key string) error {
 	return d.validateKey(key)
 }
 
-func (d *testNwStateDriver) ReadState(key string, value core.State,
+func (d *testHostStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
 	return d.validateKey(key)
 }
 
-func (d *testNwStateDriver) ReadAllState(key string, value core.State,
+func (d *testHostStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return nil, core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) WatchAllState(baseKey string, sType core.State,
+func (d *testHostStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
 	return core.Errorf("not supported")
 }
 
-func (d *testNwStateDriver) WriteState(key string, value core.State,
+func (d *testHostStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validateKey(key)
 }
 
-func TestMasterNwConfigRead(t *testing.T) {
-	nwCfg := &MasterNwConfig{}
-	nwCfg.StateDriver = nwStateDriver
+func TestHostConfigRead(t *testing.T) {
+	hostCfg := &HostConfig{}
+	hostCfg.StateDriver = hostState
 
-	err := nwCfg.Read(testNwID)
+	err := hostCfg.Read(testHostID)
 	if err != nil {
 		t.Fatalf("read config state failed. Error: %s", err)
 	}
 }
 
-func TestMasterNwConfigWrite(t *testing.T) {
-	nwCfg := &MasterNwConfig{}
-	nwCfg.StateDriver = nwStateDriver
-	nwCfg.ID = testNwID
+func TestHostConfigWrite(t *testing.T) {
+	hostCfg := &HostConfig{}
+	hostCfg.StateDriver = hostState
+	hostCfg.Name = testHostID
 
-	err := nwCfg.Write()
+	err := hostCfg.Write()
 	if err != nil {
 		t.Fatalf("write config state failed. Error: %s", err)
 	}
 }
 
-func TestMasterNwConfigClear(t *testing.T) {
-	nwCfg := &MasterNwConfig{}
-	nwCfg.StateDriver = nwStateDriver
-	nwCfg.ID = testNwID
+func TestHostConfigClear(t *testing.T) {
+	hostCfg := &HostConfig{}
+	hostCfg.StateDriver = hostState
+	hostCfg.Name = testHostID
 
-	err := nwCfg.Clear()
+	err := hostCfg.Clear()
 	if err != nil {
 		t.Fatalf("clear config state failed. Error: %s", err)
 	}
