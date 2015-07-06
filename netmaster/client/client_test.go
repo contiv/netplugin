@@ -170,7 +170,7 @@ func TestGetSuccess(t *testing.T) {
 	nmc = &Client{url: srvr.URL, httpC: httpC}
 	if resp, err := nmc.doGet("test-endpoint"); err != nil {
 		t.Fatalf("get failed. Error: %s", err)
-	} else if resp != getSuccessRespStr {
+	} else if string(resp) != getSuccessRespStr {
 		t.Fatalf("unexpected response. Exptd: %s, Rcvd: %s", getSuccessRespStr, resp)
 	}
 }

@@ -58,14 +58,14 @@ func (c *Client) doPost(rsrc string, cfg *intent.Config) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return core.Errorf("Response status: %q. Response body: %q", resp.Status, resp.Body)
+		return core.Errorf("Response status: %q. Response body: %+v", resp.Status, resp.Body)
 	}
 
 	return nil
 }
 
 // XXX: we should have a well defined structure for the info that is resturned
-func (c *Client) doGet(rsrc string) (string, error) {
+func (c *Client) doGet(rsrc string) ([]byte, error) {
 	var (
 		body []byte
 		err  error
@@ -73,18 +73,18 @@ func (c *Client) doGet(rsrc string) (string, error) {
 	)
 
 	if resp, err = c.httpC.Get(c.formURL(rsrc)); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", core.Errorf("Response status: %q. Response Body: %q", resp.Status, resp.Body)
+		return nil, core.Errorf("Response status: %q. Response Body: %+v", resp.Status, resp.Body)
 	}
 
 	if body, err = ioutil.ReadAll(resp.Body); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(body), nil
+	return body, nil
 }
 
 // PostDesiredConfig posts the net desired configuration to netmaster
@@ -108,22 +108,21 @@ func (c *Client) PostHostBindings(cfg *intent.Config) error {
 }
 
 // GetEndpoint requests info of a specified endpoint from netmaster
-func (c *Client) GetEndpoint(id string) (string, error) {
+func (c *Client) GetEndpoint(id string) ([]byte, error) {
 	return c.doGet(fmt.Sprintf("/%s/%s", master.GetEndpointRESTEndpoint, id))
-
 }
 
 // GetAllEndpoints requests info of all endpoints from netmaster
-func (c *Client) GetAllEndpoints() (string, error) {
+func (c *Client) GetAllEndpoints() ([]byte, error) {
 	return c.doGet(master.GetEndpointsRESTEndpoint)
 }
 
 // GetNetwork requests info of a specified network from netmaster
-func (c *Client) GetNetwork(id string) (string, error) {
+func (c *Client) GetNetwork(id string) ([]byte, error) {
 	return c.doGet(fmt.Sprintf("/%s/%s", master.GetNetworkRESTEndpoint, id))
 }
 
 // GetAllNetworks requests info of all networks from netmaster
-func (c *Client) GetAllNetworks() (string, error) {
+func (c *Client) GetAllNetworks() ([]byte, error) {
 	return c.doGet(master.GetNetworksRESTEndpoint)
 }

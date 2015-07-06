@@ -70,7 +70,7 @@ func TestTwoHostsSingleVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
@@ -136,7 +136,7 @@ func TestTwoHostsMultiVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
@@ -213,7 +213,7 @@ func TestTwoHostsMultiVlanPingSuccessConsul_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.ConsulNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
@@ -282,7 +282,7 @@ func TestTwoHostsMultiVlanPingFailure_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClientFailure(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
@@ -354,13 +354,13 @@ func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -432,13 +432,13 @@ func TestTwoHostsMultiVxlanPingSuccessConsul_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.ConsulNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.ConsulNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -510,13 +510,13 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStart_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -528,13 +528,13 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStart_sanity(t *testing.T) {
 	utils.DockerCleanup(t, node2, "myContainer2")
 	utils.DockerCleanup(t, node2, "myContainer4")
 
-	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -606,13 +606,13 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStartConsul_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.ConsulNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.ConsulNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -624,13 +624,13 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStartConsul_sanity(t *testing.T) {
 	utils.DockerCleanup(t, node2, "myContainer2")
 	utils.DockerCleanup(t, node2, "myContainer4")
 
-	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer1", u.ConsulNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "orange-myContainer1", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.ConsulNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -698,7 +698,7 @@ func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClientFailure(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -771,7 +771,7 @@ func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClientFailure(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -788,7 +788,7 @@ func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
 	utils.DockerCleanup(t, node2, "myContainer3")
 	utils.DockerCleanup(t, node2, "myContainer4")
 
-	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClientFailure(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -865,13 +865,13 @@ func TestTwoHostsVxlanDeltaConfig_sanity_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -926,7 +926,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity_sanity(t *testing.T) {
         }`
 	utils.ApplyDesiredConfig(t, jsonCfg, testbed.GetNodes()[0])
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 	utils.DockerCleanup(t, node2, "myContainer2")
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
@@ -999,13 +999,13 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -1035,7 +1035,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer5")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "orange-myContainer5", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "orange-myContainer5", u.EtcdNameStr)
 	utils.DockerCleanup(t, node2, "myContainer2")
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
@@ -1069,7 +1069,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
 	}`
 
 	utils.AddConfig(t, jsonCfg, testbed.GetNodes()[0])
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer5", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer5", u.EtcdNameStr)
 	utils.DockerCleanup(t, node2, "myContainer4")
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
@@ -1142,13 +1142,13 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -1182,7 +1182,7 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer5")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "green-myContainer5", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "green-myContainer5", u.EtcdNameStr)
 	utils.StartClient(t, node2, "myContainer6", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer6")
@@ -1280,13 +1280,13 @@ func TestTwoHostsVxlanAddDelNetworkConsul_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer3")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node2, "orange-myContainer1", u.ConsulNameStr)
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "purple-myContainer3", u.ConsulNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer4", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
@@ -1320,7 +1320,7 @@ func TestTwoHostsVxlanAddDelNetworkConsul_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node1, "myContainer5")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node2, "green-myContainer5", u.ConsulNameStr)
+	ipAddress = utils.GetIPAddress(t, node1, "green-myContainer5", u.ConsulNameStr)
 	utils.StartClient(t, node2, "myContainer6", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer6")

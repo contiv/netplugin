@@ -17,6 +17,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -401,9 +402,7 @@ func executeOpts(opts *cliOpts) error {
 	switch opts.construct.Get() {
 	case cliConstructEndpoint:
 		if opts.oper.Get() == cliOperGet {
-			epOper := &drivers.OvsOperEndpointState{}
-			epOper.StateDriver = stateDriver
-			coreState = epOper
+			// noop
 		} else if opts.oper.Get() == cliOperAttach || opts.oper.Get() == cliOperDetach {
 			epCfg := &drivers.OvsCfgEndpointState{}
 			epCfg.StateDriver = stateDriver
@@ -439,9 +438,7 @@ func executeOpts(opts *cliOpts) error {
 		}
 	case cliConstructNetwork:
 		if opts.oper.Get() == cliOperGet {
-			nwCfg := &drivers.OvsCfgNetworkState{}
-			nwCfg.StateDriver = stateDriver
-			coreState = nwCfg
+			// noop
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{}
 			nwCfg.StateDriver = stateDriver
@@ -511,16 +508,38 @@ func executeOpts(opts *cliOpts) error {
 
 	switch opts.oper.Get() {
 	case cliOperGet:
-		err = coreState.Read(opts.idStr)
-		if err != nil {
-			log.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
-			return err
+		var (
+			resp    []byte
+			content bytes.Buffer
+		)
+		nmc := client.New(opts.netmasterURL)
+		switch opts.construct.Get() {
+		case cliConstructNetwork:
+			if resp, err = nmc.GetNetwork(opts.idStr); err != nil {
+				return core.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
+			}
+		case cliConstructEndpoint:
+			if resp, err = nmc.GetEndpoint(opts.idStr); err != nil {
+				return core.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
+			}
+		case cliConstructVLANResource:
+			fallthrough
+		case cliConstructVXLANResource:
+			fallthrough
+		case cliConstructSubnetResource:
+			if err = coreState.Read(opts.idStr); err != nil {
+				return core.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
+			}
+			if resp, err = json.Marshal(coreState); err != nil {
+				return core.Errorf("Failed to marshal state for %s . Error: %s", opts.construct.Get(), err)
+			}
 		}
-		content, err := json.MarshalIndent(coreState, "", "  ")
+
+		err := json.Indent(&content, resp, "", "  ")
 		if err != nil {
-			log.Fatalf("Failed to marshal corestate %+v", coreState)
+			log.Fatalf("Failed to marshal state %s", resp)
 		}
-		fmt.Println(string(content))
+		content.WriteTo(os.Stdout)
 	case cliOperAttach, cliOperDetach, cliOperCreate:
 		err = coreState.Write()
 		if err != nil {
@@ -637,7 +656,7 @@ func main() {
 		err = executeOpts(&opts)
 	}
 	if err != nil {
-		log.Fatalf("error %s executing the config opts %v \n", err, opts)
+		log.Fatalf("error executing the command. Opts: %+v. Error: %s", opts, err)
 	}
 
 	os.Exit(0)
