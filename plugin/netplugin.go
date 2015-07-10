@@ -16,7 +16,6 @@ limitations under the License.
 package plugin
 
 import (
-	"encoding/json"
 	"sync"
 
 	"github.com/contiv/netplugin/core"
@@ -25,7 +24,8 @@ import (
 
 // implements the generic Plugin interface
 
-type config struct {
+// Config has the configuration for the plugin
+type Config struct {
 	Drivers struct {
 		Network  string `json:"network"`
 		Endpoint string `json:"endpoint"`
@@ -45,17 +45,8 @@ type NetPlugin struct {
 }
 
 // Init initializes the NetPlugin instance via the configuration string passed.
-func (p *NetPlugin) Init(configStr string) error {
-	if configStr == "" {
-		return core.Errorf("empty config passed")
-	}
-
-	pluginConfig := &config{}
-	err := json.Unmarshal([]byte(configStr), pluginConfig)
-	if err != nil {
-		return err
-	}
-
+func (p *NetPlugin) Init(pluginConfig Config, configStr string) error {
+	var err error
 	if pluginConfig.Instance.HostLabel == "" {
 		return core.Errorf("empty host-label passed")
 	}

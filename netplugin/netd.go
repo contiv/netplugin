@@ -714,20 +714,28 @@ func main() {
 		}
 	}
 
-	// extract host-label from the configuration
-	tmpInstInfo := &struct {
-		Instance core.InstanceInfo `json:"plugin-instance"`
-	}{}
-	err = json.Unmarshal(config, tmpInstInfo)
+	// Parse the config
+	pluginConfig := plugin.Config{}
+	err = json.Unmarshal([]byte(config), &pluginConfig)
 	if err != nil {
-		log.Fatalf("Failed to parse configuration. Error: %s", err)
+		log.Fatalf("Error parsing config. Err: %v", err)
 	}
-	if tmpInstInfo.Instance.HostLabel == "" {
+
+	// extract host-label from the configuration
+	if pluginConfig.Instance.HostLabel == "" {
 		log.Fatalf("Empty host-label passed in configuration")
 	}
-	opts.hostLabel = tmpInstInfo.Instance.HostLabel
+	opts.hostLabel = pluginConfig.Instance.HostLabel
 
-	err = netPlugin.Init(string(config))
+	// Use default values when config options are not specified
+	if pluginConfig.Instance.VtepIP == "" {
+		pluginConfig.Instance.VtepIP = opts.vtepIP
+	}
+	if pluginConfig.Instance.VlanIntf == "" {
+		pluginConfig.Instance.VlanIntf = opts.vlanIntf
+	}
+
+	err = netPlugin.Init(pluginConfig, string(config))
 	if err != nil {
 		log.Fatalf("Failed to initialize the plugin. Error: %s", err)
 	}

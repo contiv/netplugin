@@ -68,7 +68,7 @@ func dialRpcClient(servAddr string, portNo uint16) (*rpc.Client, net.Conn) {
     log.Infof("Connecting to RPC server: %s:%d", servAddr, portNo)
 
     // Retry connecting for 10sec
-    for i := 0; i < 3; i++ {
+    for i := 0; i < 10; i++ {
         // Connect to the server
         conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
         if err == nil {

@@ -99,7 +99,6 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
             err := client.Call("Vrouter.RouteAdd", route, &resp)
             if (err != nil) {
                 log.Errorf("Error adding route to %s. Err: %v", node.HostAddr, err)
-                return err
             }
         }
     }
@@ -115,7 +114,6 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
             err := client.Call("Vxlan.MacRouteAdd", macRoute, &resp)
             if (err != nil) {
                 log.Errorf("Error adding route to %s. Err: %v", node.HostAddr, err)
-                return err
             }
         }
     }

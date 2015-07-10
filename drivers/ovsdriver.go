@@ -109,7 +109,7 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	// Publish peer host info to registry
 	err = publishHostInfo(info)
 	if err != nil {
-		log.Fatalf("Error publiching my host info. Err: %v", err)
+		log.Fatalf("Error publishing my host info. Err: %v", err)
 	}
 
 	log.Infof("Initializing ovsdriver")

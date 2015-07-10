@@ -26,7 +26,7 @@ import (
 
 // This file deals with peer host discovery
 
-const peerHostPath = "/contiv/oper/peer/"
+const peerHostPath = "/contiv/oper/peer"
 
 // PeerHostState : Information about the peer host
 type PeerHostState struct {
@@ -67,6 +67,11 @@ func (s *PeerHostState) Clear() error {
 
 // Run peer discovery
 func publishHostInfo(info *core.InstanceInfo) error {
+	// Some error checking
+	if info.VtepIP == "" {
+		log.Errorf("Error: Vtep IP is empty")
+	}
+
 	// first publish ourselves
 	myHostInfo := new(PeerHostState)
 	myHostInfo.ID = info.HostLabel

@@ -84,7 +84,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.box = "shaleman/ubuntu-v4"
     # Commenting out the url since we host the image on Atlas.
     # config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
-    num_nodes = 1
+    num_nodes = 2
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i
     end

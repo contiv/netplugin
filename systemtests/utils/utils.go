@@ -386,7 +386,6 @@ func GetNetpluginConfigWithConsul() string {
 	return `{
                     "drivers" : {
                        "network": "ovs",
-                       "endpoint": "ovs",
                        "state": "consul"
                     },
                     "plugin-instance": {
