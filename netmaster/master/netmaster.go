@@ -716,15 +716,7 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *intent.ConfigT
 	return err
 }
 
-func getEpName(net *ConfigNetwork, ep *ConfigEP) string {
-	if ep.Container != "" {
-		return net.Name + "-" + ep.Container
-	}
-
-	return ep.Host + "-native-intf"
-}
-
-func allocSetEpAddress(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
+func allocSetEpAddress(ep *intent.ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	nwCfg *drivers.OvsCfgNetworkState) (err error) {
 
 	var ipAddrValue uint

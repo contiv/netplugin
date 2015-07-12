@@ -37,9 +37,11 @@ type Network interface {
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
 	FetchNetwork(id string) (State, error)
+}
 
-	// Endpoint identifies an addressable entity in a network. An endpoint
-	// belongs to a single network.
+// Endpoint identifies an addressable entity in a network. An endpoint
+// belongs to a single network.
+type Endpoint interface {
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
 	FetchEndpoint(id string) (State, error)

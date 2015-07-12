@@ -64,8 +64,6 @@ func (self *Table) NewFlow(match FlowMatch) (*Flow, error) {
         return nil, errors.New("Flow already exists")
     }
 
-    log.Infof("Added flow: %s", flowKey)
-    
     // Save it in DB. We dont install the flow till its next graph elem is set
     self.flowDb[flowKey] = flow
 
@@ -73,13 +71,8 @@ func (self *Table) NewFlow(match FlowMatch) (*Flow, error) {
 }
 
 // Delete a flow from the table
-func (self *Table) DeleteFlow(flowKey string) error {
-    // first empty it and then delete it.
-    self.flowDb[flowKey] = nil
-    delete(self.flowDb, flowKey)
-
-    log.Infof("Deleted flow: %s", flowKey)
-
+func (self *Table) DeleteFlow(match FlowMatch) error {
+    // FIXME: to be implemented
     return nil
 }
 

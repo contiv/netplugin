@@ -78,29 +78,6 @@ func NewVrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vrouter {
     return vrouter
 }
 
-// Handle new master added event
-func (self *Vrouter) MasterAdded(master *OfnetNode) error {
-    // Send all local routes to new master.
-    for _, route := range self.routeTable {
-        if route.OriginatorIp.String() == self.agent.localIp.String() {
-            var resp bool
-
-            log.Infof("Sending route %+v to master %+v", route, master)
-
-            // Make the RPC call to add the route to master
-            client := rpcHub.Client(master.HostAddr, master.HostPort)
-            err := client.Call("OfnetMaster.RouteAdd", route, &resp)
-            if (err != nil) {
-                log.Errorf("Failed to add route %+v to master %+v. Err: %v", route, master, err)
-                return err
-            }
-        }
-    }
-
-    return nil
-}
-
-
 // Handle switch connected notification
 func (self *Vrouter) SwitchConnected(sw *ofctrl.OFSwitch) {
     // Keep a reference to the switch

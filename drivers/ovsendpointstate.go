@@ -73,7 +73,6 @@ type OvsOperEndpointState struct {
 	AttachUUID string `json:"attachUUID"`
 	IPAddress  string `json:"ipAddress"`
 	MacAddress string `json:"macAddress"`
-	PortName   string `json:"portName"`
 	HomingHost string `json:"homingHost"`
 	IntfName   string `json:"intfName"`
 	PortName   string `json:"portName"`

@@ -23,9 +23,6 @@ import (
 
 // Interface implemented by each datapath
 type OfnetDatapath interface {
-    // New master was added.
-    MasterAdded(master *OfnetNode) error
-
     // Switch connected notification
     SwitchConnected(sw *ofctrl.OFSwitch)
 

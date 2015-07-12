@@ -204,12 +204,6 @@ func (self *OfnetAgent) AddMaster(masterInfo *OfnetNode, ret *bool) error {
         return err
     }
 
-    // Perform master added callback so that datapaths can send their FDB to master
-    err = self.datapath.MasterAdded(master)
-    if err != nil {
-        log.Errorf("Error making master added callback for %+v. Err: %v", master, err)
-    }
-
     return nil
 }
 

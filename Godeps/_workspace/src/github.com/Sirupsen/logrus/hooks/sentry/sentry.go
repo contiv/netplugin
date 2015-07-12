@@ -2,8 +2,8 @@ package logrus_sentry
 
 import (
 	"fmt"
-	"net/http"
 	"time"
+	"net/http"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"

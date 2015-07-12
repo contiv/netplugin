@@ -142,7 +142,6 @@ func (self *OvsDriver) CreateBridge(bridgeName string) error {
 	bridge := make(map[string]interface{})
 	bridge["name"] = bridgeName
 	bridge["protocols"], _ = libovsdb.NewOvsSet(protocols)
-	bridge["fail_mode"] = "secure"
 	brOp = libovsdb.Operation{
 		Op:       "insert",
 		Table:    "Bridge",

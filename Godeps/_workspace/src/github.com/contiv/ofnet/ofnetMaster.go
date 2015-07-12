@@ -88,35 +88,7 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 
     log.Infof("Registered node: %+v", node)
 
-    // Send all existing routes
-    for _, route := range self.routeDb {
-        if (node.HostAddr != route.OriginatorIp.String()) {
-            var resp bool
-
-            log.Infof("Sending Route: %+v to node %s", route, node.HostAddr)
-
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("Vrouter.RouteAdd", route, &resp)
-            if (err != nil) {
-                log.Errorf("Error adding route to %s. Err: %v", node.HostAddr, err)
-            }
-        }
-    }
-
-    // Send all mac routes
-    for _, macRoute := range self.macRouteDb {
-        if (node.HostAddr != macRoute.OriginatorIp.String()) {
-            var resp bool
-
-            log.Infof("Sending MacRoute: %+v to node %s", macRoute, node.HostAddr)
-
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("Vxlan.MacRouteAdd", macRoute, &resp)
-            if (err != nil) {
-                log.Errorf("Error adding route to %s. Err: %v", node.HostAddr, err)
-            }
-        }
-    }
+    // FIXME: Send all existing routes
 
     return nil
 }
