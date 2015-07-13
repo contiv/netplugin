@@ -111,17 +111,37 @@ func NewVxlan(agent *OfnetAgent, rpcServ *rpc.Server) *Vxlan {
     return vxlan
 }
 
+// Handle new master added event
+func (self *Vxlan) MasterAdded(master *OfnetNode) error {
+    // Send all local routes to new master.
+    for _, macRoute := range self.macRouteDb {
+        if macRoute.OriginatorIp.String() == self.agent.localIp.String() {
+            var resp bool
+
+            log.Infof("Sending macRoute %+v to master %+v", macRoute, master)
+
+            // Make the RPC call to add the route to master
+            client := rpcHub.Client(master.HostAddr, master.HostPort)
+            err := client.Call("OfnetMaster.MacRouteAdd", macRoute, &resp)
+            if (err != nil) {
+                log.Errorf("Failed to add route %+v to master %+v. Err: %v", macRoute, master, err)
+                return err
+            }
+        }
+    }
+
+    return nil
+}
+
 // Handle switch connected notification
 func (self *Vxlan) SwitchConnected(sw *ofctrl.OFSwitch) {
     // Keep a reference to the switch
     self.ofSwitch = sw
-
     // Init the Fgraph
     self.initFgraph()
 
     log.Infof("Switch connected(vxlan)")
 }
-
 // Handle switch disconnected notification
 func (self *Vxlan) SwitchDisconnected(sw *ofctrl.OFSwitch) {
     // FIXME: ??

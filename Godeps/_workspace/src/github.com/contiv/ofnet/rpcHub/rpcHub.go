@@ -21,6 +21,8 @@ import (
     "net/rpc"
     "net/rpc/jsonrpc"
     "strings"
+    "time"
+    "errors"
 
     log "github.com/Sirupsen/logrus"
 )
@@ -58,41 +60,96 @@ func NewRpcServer(portNo uint16) (*rpc.Server, net.Listener) {
     return server, l
 }
 
-// DB of all existing clients
-var clientDb map[string]*rpc.Client = make(map[string]*rpc.Client)
-
 // Create a new client
-func NewRpcClient(servAddr string, portNo uint16) *rpc.Client {
+func dialRpcClient(servAddr string, portNo uint16) (*rpc.Client, net.Conn) {
+    var client *rpc.Client
+    var conn net.Conn
+    var err error
     log.Infof("Connecting to RPC server: %s:%d", servAddr, portNo)
 
-    // Connect to the server
-    conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
-    if err != nil {
-        panic(err)
+    // Retry connecting for 10sec
+    for i := 0; i < 10; i++ {
+        // Connect to the server
+        conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", servAddr, portNo))
+        if err == nil {
+            log.Infof("Connected to RPC server: %s:%d", servAddr, portNo)
+
+            // Create an RPC client
+            client = jsonrpc.NewClient(conn)
+
+            break
+        }
+
+        log.Warnf("Error %v connecting to %s:%s. Retrying..", err, servAddr, portNo)
+        // Sleep for a second and retry again
+        time.Sleep(1 * time.Second)
     }
 
-    log.Infof("Connected to RPC server: %s:%d", servAddr, portNo)
+    // If we failed to connect, report error
+    if client == nil {
+        log.Errorf("Failed to connect to Rpc server %s:%d", servAddr, portNo)
+        return nil, nil
+    }
 
-    // Create an RPC client
-    client := jsonrpc.NewClient(conn)
-
-    // FIXME: handle disconnects
-
-    return client
+    return client, conn
 }
 
+// Info for eahc client
+type RpcClient struct {
+    servAddr    string
+    portNo      uint16
+    client      *rpc.Client
+    conn        net.Conn
+}
+
+// DB of all existing clients
+var clientDb map[string]*RpcClient = make(map[string]*RpcClient)
+
 // Get a client to the rpc server
-func Client(servAddr string, portNo uint16) *rpc.Client {
+func Client(servAddr string, portNo uint16) *RpcClient {
     clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
 
     // Return the client if it already exists
-    if (clientDb[clientKey] != nil) {
+    if (clientDb[clientKey] != nil) && (clientDb[clientKey].conn.RemoteAddr() != nil) {
         return clientDb[clientKey]
     }
 
     // Create a new client and add it to the DB
-    client := NewRpcClient(servAddr, portNo)
-    clientDb[clientKey] = client
+    client, conn := dialRpcClient(servAddr, portNo)
+    rpcClient := RpcClient{
+        servAddr: servAddr,
+        portNo: portNo,
+        client: client,
+        conn: conn,
+    }
 
-    return client
+    clientDb[clientKey] = &rpcClient
+    return &rpcClient
+}
+
+// Make an rpc call
+func (self *RpcClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+    // Check if connectin failed
+    if self.client == nil {
+        log.Errorf("Error calling RPC: %s. Could not connect to server", serviceMethod)
+        return errors.New("Could not connect to server")
+    }
+
+    // Perform RPC call.
+    err := self.client.Call(serviceMethod, args, reply)
+    if err == nil {
+        return nil
+    }
+
+    // Check if we need to reconnect
+    if err == rpc.ErrShutdown {
+        client, conn := dialRpcClient(self.servAddr, self.portNo)
+        self.client = client
+        self.conn = conn
+
+        // Retry making the call
+        return self.client.Call(serviceMethod, args, reply)
+    }
+
+    return err
 }
