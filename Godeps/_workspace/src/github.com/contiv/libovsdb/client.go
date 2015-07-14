@@ -19,16 +19,13 @@ type OvsdbClient struct {
 
 func newOvsdbClient(c *rpc2.Client) *OvsdbClient {
 	ovs := &OvsdbClient{rpcClient: c, Schema: make(map[string]DatabaseSchema)}
-	if connections == nil {
-		connections = make(map[*rpc2.Client]*OvsdbClient)
-	}
 	connections[c] = ovs
 	return ovs
 }
 
 // Would rather replace this connection map with an OvsdbClient Receiver scoped method
 // Unfortunately rpc2 package acts wierd with a receiver scoped method and needs some investigation.
-var connections map[*rpc2.Client]*OvsdbClient
+var connections map[*rpc2.Client]*OvsdbClient = make(map[*rpc2.Client]*OvsdbClient)
 
 const DEFAULT_ADDR = "127.0.0.1"
 const DEFAULT_PORT = 6640
@@ -248,7 +245,7 @@ func getTableUpdatesFromRawUnmarshal(raw map[string]map[string]RowUpdate) TableU
 }
 
 func clearConnection(c *rpc2.Client) {
-	connections[c] = nil
+	delete(connections, c)
 }
 
 func handleDisconnectNotification(c *rpc2.Client) {

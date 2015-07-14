@@ -26,8 +26,8 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",
-			"Comment": "v0.1-2-gdd22d36",
-			"Rev": "dd22d36ef4e082ff782932d13aeaa2cbad2aedf8"
+			"Comment": "v0.1-3-g45476f1",
+			"Rev": "45476f107954c5e22cf114211e684a5dd9a69595"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
