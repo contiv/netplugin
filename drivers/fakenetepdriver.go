@@ -6,7 +6,7 @@ import "github.com/contiv/netplugin/core"
 // which is an empty struct.
 type FakeNetEpDriverConfig struct{}
 
-// FakeNetEpDriver implements core.NetworkDriver and core.EndpointDriver interface
+// FakeNetEpDriver implements core.NetworkDriver interface
 // for use with unit-tests
 type FakeNetEpDriver struct {
 }
@@ -40,7 +40,12 @@ func (d *FakeNetEpDriver) DeleteEndpoint(id string) (err error) {
 	return core.Errorf("Not implemented")
 }
 
-// MakeEndpointAddress is not implemented.
-func (d *FakeNetEpDriver) MakeEndpointAddress() (*core.Address, error) {
-	return nil, core.Errorf("Not implemented")
+// CreatePeerHost is not implemented.
+func (d *FakeNetEpDriver) CreatePeerHost(id string) error {
+	return core.Errorf("Not implemented")
+}
+
+// DeletePeerHost is not implemented.
+func (d *FakeNetEpDriver) DeletePeerHost(id string) error {
+	return core.Errorf("Not implemented")
 }

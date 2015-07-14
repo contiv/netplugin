@@ -59,6 +59,12 @@ fi
 
 ## install openvswitch and enable ovsdb-server to listen for incoming requests
 #(apt-get install -y openvswitch-switch > /dev/null) || exit 1
+## Install OVS 2.3.1
+# (wget -nv -O ovs-common.deb https://cisco.box.com/shared/static/v1dvgoboo5zgqrtn6tu27vxeqtdo2bdl.deb &&
+#  wget -nv -O ovs-switch.deb https://cisco.box.com/shared/static/ymbuwvt2qprs4tquextw75b82hyaxwon.deb) || exit 1
+# (dpkg -i ovs-common.deb &&
+#  dpkg -i ovs-switch.deb) || exit 1
+
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
 
@@ -67,19 +73,24 @@ fi
 # wget https://dl.bintray.com/mitchellh/consul/0.5.2_linux_amd64.zip && \
 # unzip 0.5.2_linux_amd64.zip && \
 # mv /tmp/consul /usr/bin) || exit 1
+
+# add vagrant user to docker group
+(usermod -a -G docker vagrant)
+
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-    config.vm.box = "contiv/ubuntu/v3"
-    config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
-    num_nodes = 1
+    config.vm.box = "contiv/ubuntu-v4"
+    # Commenting out the url since we host the image on Atlas.
+    # config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
+    num_nodes = 2
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i
     end
     base_ip = "192.168.2."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
-    node_names = num_nodes.times.collect { |n| "netplugin-node#{n+1}" } 
+    node_names = num_nodes.times.collect { |n| "netplugin-node#{n+1}" }
     num_nodes.times do |n|
         node_name = node_names[n]
         node_addr = node_ips[n]

@@ -9,7 +9,7 @@ TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
 
-all: build unit-test system-test system-test-dind
+all: build unit-test system-test
 
 default: build
 
@@ -47,9 +47,9 @@ unit-test: build
 # on first failure and leave setup in that state. This can be useful for debugging
 # as part of development.
 system-test: build
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test -v -run "sanity" \
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/singlehost 
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 50m -v -run "sanity" \
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 60m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/twohosts
 
 # setting CONTIV_SOE=1 while calling 'make regress-test' will stop the test

@@ -29,18 +29,6 @@ var networkDriverRegistry = map[string]driverConfigTypes{
 	},
 }
 
-var endpointDriverRegistry = map[string]driverConfigTypes{
-	OvsNameStr: driverConfigTypes{
-		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
-		ConfigType: reflect.TypeOf(drivers.OvsDriverConfig{}),
-	},
-	// fakedriver is used for tests, so not exposing a public name for it.
-	"fakedriver": driverConfigTypes{
-		DriverType: reflect.TypeOf(drivers.FakeNetEpDriver{}),
-		ConfigType: reflect.TypeOf(drivers.FakeNetEpDriverConfig{}),
-	},
-}
-
 var stateDriverRegistry = map[string]driverConfigTypes{
 	EtcdNameStr: driverConfigTypes{
 		DriverType: reflect.TypeOf(state.EtcdStateDriver{}),
@@ -146,26 +134,6 @@ func NewNetworkDriver(name, configStr string, instInfo *core.InstanceInfo) (core
 	}
 
 	d := driver.(core.NetworkDriver)
-	err = d.Init(drvConfig, instInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	return d, nil
-}
-
-// NewEndpointDriver instantiates a 'named' endpoint-driver with specified configuration
-func NewEndpointDriver(name, configStr string, instInfo *core.InstanceInfo) (core.EndpointDriver, error) {
-	if name == "" || configStr == "" {
-		return nil, core.Errorf("invalid driver name or configuration passed.")
-	}
-
-	driver, drvConfig, err := initHelper(endpointDriverRegistry, name, configStr)
-	if err != nil {
-		return nil, err
-	}
-
-	d := driver.(core.EndpointDriver)
 	err = d.Init(drvConfig, instInfo)
 	if err != nil {
 		return nil, err

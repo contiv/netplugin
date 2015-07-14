@@ -30,6 +30,7 @@ type OvsCfgEndpointState struct {
 	ContName   string `json:"contName"`
 	AttachUUID string `json:"attachUUID"`
 	IPAddress  string `json:"ipAddress"`
+	MacAddress string `json:"macAddress"`
 	HomingHost string `json:"homingHost"`
 	IntfName   string `json:"intfName"`
 	VtepIP     string `json:"vtepIP"`
@@ -71,9 +72,10 @@ type OvsOperEndpointState struct {
 	ContName   string `json:"contName"`
 	AttachUUID string `json:"attachUUID"`
 	IPAddress  string `json:"ipAddress"`
-	PortName   string `json:"portName"`
+	MacAddress string `json:"macAddress"`
 	HomingHost string `json:"homingHost"`
 	IntfName   string `json:"intfName"`
+	PortName   string `json:"portName"`
 	VtepIP     string `json:"vtepIP"`
 }
 
@@ -83,6 +85,7 @@ func (s *OvsOperEndpointState) Matches(c *OvsCfgEndpointState) bool {
 		s.ContName == c.ContName &&
 		s.AttachUUID == c.AttachUUID &&
 		s.IPAddress == c.IPAddress &&
+		s.MacAddress == c.MacAddress &&
 		s.HomingHost == c.HomingHost &&
 		s.IntfName == c.IntfName &&
 		s.VtepIP == c.VtepIP
