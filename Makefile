@@ -9,7 +9,7 @@ TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
 
-all: build unit-test system-test system-test-dind
+all: build unit-test system-test
 
 default: build
 

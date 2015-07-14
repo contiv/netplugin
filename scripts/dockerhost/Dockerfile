@@ -1,7 +1,7 @@
 FROM      ubuntu
 MAINTAINER Sachin Jain <sachja@gmail.com>
 
-RUN apt-get update -qq && apt-get install -y -qq curl build-essential pkg-config python2.7-dev libpython2.7-dev
+RUN apt-get update -qq && apt-get install -y -qq curl build-essential pkg-config python2.7-dev libpython2.7-dev wget
 
 RUN curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null
 
@@ -11,7 +11,10 @@ RUN cd /tmp && \
   mv /tmp/etcd-v2.0.0-linux-amd64/etcd /usr/bin && \
   mv /tmp/etcd-v2.0.0-linux-amd64/etcdctl /usr/bin
 
-RUN apt-get install -y openvswitch-switch
+RUN wget -nv -O ovs-common.deb https://cisco.box.com/shared/static/v1dvgoboo5zgqrtn6tu27vxeqtdo2bdl.deb && \
+  wget -nv -O ovs-switch.deb https://cisco.box.com/shared/static/ymbuwvt2qprs4tquextw75b82hyaxwon.deb \
+  dpkg -i ovs-common.deb && \
+  dpkg -i ovs-switch.deb
 
 RUN apt-get install -y -qq unzip && \
  cd /tmp && \
