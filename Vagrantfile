@@ -72,7 +72,7 @@ SCRIPT
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "centos" then
-        config.vm.box = "contiv/centos/v1"
+        config.vm.box = "contiv/centos"
     else
         config.vm.box = "contiv/ubuntu/v3"
         config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
