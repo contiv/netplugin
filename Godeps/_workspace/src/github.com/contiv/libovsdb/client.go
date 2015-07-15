@@ -19,36 +19,19 @@ type OvsdbClient struct {
 
 func newOvsdbClient(c *rpc2.Client) *OvsdbClient {
 	ovs := &OvsdbClient{rpcClient: c, Schema: make(map[string]DatabaseSchema)}
-	if connections == nil {
-		connections = make(map[*rpc2.Client]*OvsdbClient)
-	}
 	connections[c] = ovs
 	return ovs
 }
 
 // Would rather replace this connection map with an OvsdbClient Receiver scoped method
 // Unfortunately rpc2 package acts wierd with a receiver scoped method and needs some investigation.
-var connections map[*rpc2.Client]*OvsdbClient
+var connections map[*rpc2.Client]*OvsdbClient = make(map[*rpc2.Client]*OvsdbClient)
 
 const DEFAULT_ADDR = "127.0.0.1"
 const DEFAULT_PORT = 6640
+const DEFAULT_SOCK = "/var/run/openvswitch/db.sock"
 
-func Connect(ipAddr string, port int) (*OvsdbClient, error) {
-	if ipAddr == "" {
-		ipAddr = DEFAULT_ADDR
-	}
-
-	if port <= 0 {
-		port = DEFAULT_PORT
-	}
-
-	target := fmt.Sprintf("%s:%d", ipAddr, port)
-	conn, err := net.Dial("tcp", target)
-
-	if err != nil {
-		return nil, err
-	}
-
+func configureConnection(conn net.Conn) (*OvsdbClient, error) {
 	c := rpc2.NewClientWithCodec(jsonrpc.NewJSONCodec(conn))
 	c.Handle("echo", echo)
 	c.Handle("update", update)
@@ -70,6 +53,37 @@ func Connect(ipAddr string, port int) (*OvsdbClient, error) {
 		}
 	}
 	return ovs, nil
+}
+
+func ConnectUnix(socketPath string) (*OvsdbClient, error) {
+	if socketPath == "" {
+		socketPath = DEFAULT_SOCK
+	}
+
+	conn, err := net.Dial("unix", socketPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return configureConnection(conn)
+}
+
+func Connect(ipAddr string, port int) (*OvsdbClient, error) {
+	if ipAddr == "" {
+		ipAddr = DEFAULT_ADDR
+	}
+
+	if port <= 0 {
+		port = DEFAULT_PORT
+	}
+
+	target := fmt.Sprintf("%s:%d", ipAddr, port)
+	conn, err := net.Dial("tcp", target)
+	if err != nil {
+		return nil, err
+	}
+
+	return configureConnection(conn)
 }
 
 func (ovs *OvsdbClient) Register(handler NotificationHandler) {
@@ -231,7 +245,6 @@ func getTableUpdatesFromRawUnmarshal(raw map[string]map[string]RowUpdate) TableU
 }
 
 func clearConnection(c *rpc2.Client) {
-	connections[c] = nil
 	delete(connections, c)
 }
 

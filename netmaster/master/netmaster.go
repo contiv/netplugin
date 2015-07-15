@@ -13,9 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package netmaster
+package master
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -23,8 +24,10 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
+	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -32,23 +35,6 @@ import (
 const (
 	defaultInfraNetName = "infra"
 )
-
-// interface that cluster manager implements; this is external interface to
-// the cluster manager
-type netmasterIf interface {
-	Init(cfg *Config) error
-	CreateNetwork(net *ConfigNetwork) error
-	DeleteNetwork(netid string) error
-	CreateEndpoint(ep *ConfigEP) error
-	DeleteEndpoint(epid string) error
-}
-
-// Init is an implementation of the netmasterIf interface
-// TODO remove reference to statedriver being passed as an argument,
-// instead create and maintain the state
-func Init(stateDriver *core.StateDriver, cfg *Config) error {
-	return nil
-}
 
 func checkPktTagType(pktTagType string) error {
 	if pktTagType != "" && pktTagType != "vlan" && pktTagType != "vxlan" {
@@ -58,7 +44,7 @@ func checkPktTagType(pktTagType string) error {
 	return nil
 }
 
-func validateTenantConfig(tenant *ConfigTenant) error {
+func validateTenantConfig(tenant *intent.ConfigTenant) error {
 	if tenant.Name == "" {
 		return core.Errorf("invalid tenant name")
 	}
@@ -95,7 +81,7 @@ func validateTenantConfig(tenant *ConfigTenant) error {
 }
 
 // CreateTenant sets the tenant's state according to the passed ConfigTenant.
-func CreateTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
+func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	gOper := &gstate.Oper{}
 	gOper.StateDriver = stateDriver
 	err := gOper.Read(tenant.Name)
@@ -165,7 +151,7 @@ func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
 }
 
 // DeleteTenant deletes a tenant from the state store based on its ConfigTenant.
-func DeleteTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
+func DeleteTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	err := validateTenantConfig(tenant)
 	if err != nil {
 		return err
@@ -178,7 +164,7 @@ func DeleteTenant(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	return nil
 }
 
-func validateHostConfig(host *ConfigHost) error {
+func validateHostConfig(host *intent.ConfigHost) error {
 	if host.Name == "" {
 		return core.Errorf("null host name")
 	}
@@ -214,7 +200,7 @@ func createInfraNetwork(epCfg *drivers.OvsCfgEndpointState) error {
 	return nil
 }
 
-func createVtep(stateDriver core.StateDriver, hostCfg *MasterHostConfig, tenantNet string) error {
+func createVtep(stateDriver core.StateDriver, hostCfg *HostConfig, tenantNet string) error {
 
 	epCfg := &drivers.OvsCfgEndpointState{}
 	epCfg.StateDriver = stateDriver
@@ -258,7 +244,7 @@ func getVLANIfName(hostLabel string) string {
 	return hostLabel + "-native-intf"
 }
 
-func createVLANIf(stateDriver core.StateDriver, host *ConfigHost) error {
+func createVLANIf(stateDriver core.StateDriver, host *intent.ConfigHost) error {
 
 	epCfg := &drivers.OvsCfgEndpointState{}
 	epCfg.StateDriver = stateDriver
@@ -298,7 +284,7 @@ func deleteVLANIf(stateDriver core.StateDriver, hostName string) error {
 }
 
 // CreateHost creates a host in the state configuration.
-func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
+func CreateHost(stateDriver core.StateDriver, host *intent.ConfigHost) error {
 	err := validateHostConfig(host)
 	if err != nil {
 		log.Errorf("error validating host config. Error: %s", err)
@@ -306,7 +292,7 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 	}
 
 	// construct and update master host state
-	hostCfg := &MasterHostConfig{}
+	hostCfg := &HostConfig{}
 	hostCfg.StateDriver = stateDriver
 	hostCfg.Name = host.Name
 	hostCfg.Intf = host.Intf
@@ -351,7 +337,7 @@ func CreateHost(stateDriver core.StateDriver, host *ConfigHost) error {
 
 // DeleteHostID deletes a host by ID.
 func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
-	hostCfg := &MasterHostConfig{}
+	hostCfg := &HostConfig{}
 	hostCfg.StateDriver = stateDriver
 	hostCfg.Name = hostName
 
@@ -398,11 +384,11 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 }
 
 // DeleteHost deletes a host by its ConfigHost state
-func DeleteHost(stateDriver core.StateDriver, host *ConfigHost) error {
+func DeleteHost(stateDriver core.StateDriver, host *intent.ConfigHost) error {
 	return DeleteHostID(stateDriver, host.Name)
 }
 
-func validateNetworkConfig(tenant *ConfigTenant) error {
+func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	var err error
 
 	if tenant.Name == "" {
@@ -445,7 +431,7 @@ func validateNetworkConfig(tenant *ConfigTenant) error {
 
 // CreateNetworks creates the necessary virtual networks for the tenant
 // provided by ConfigTenant.
-func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
+func CreateNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	var extPktTag, pktTag uint
 
 	gCfg := gstate.Cfg{}
@@ -477,7 +463,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		}
 
 		// construct and update network state
-		nwMasterCfg := &MasterNwConfig{}
+		nwMasterCfg := &NwConfig{}
 		nwMasterCfg.StateDriver = stateDriver
 		nwMasterCfg.Tenant = tenant.Name
 		nwMasterCfg.ID = network.Name
@@ -546,7 +532,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 
 		if nwCfg.PktTagType == "vxlan" {
 
-			readHost := &MasterHostConfig{}
+			readHost := &HostConfig{}
 			readHost.StateDriver = stateDriver
 			hostCfgs, err := readHost.ReadAll()
 			if err != nil {
@@ -555,7 +541,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 				}
 			}
 			for _, hostCfg := range hostCfgs {
-				host := hostCfg.(*MasterHostConfig)
+				host := hostCfg.(*HostConfig)
 				err = createVtep(stateDriver, host, nwCfg.ID)
 				if err != nil {
 					log.Errorf("error creating vtep. Error: %s", err)
@@ -567,7 +553,7 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	return err
 }
 
-func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwConfig,
+func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *NwConfig,
 	nwCfg *drivers.OvsCfgNetworkState, gCfg *gstate.Cfg) (err error) {
 
 	tempRm, err := resources.GetStateResourceManager()
@@ -602,7 +588,7 @@ func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *MasterNwCon
 
 // DeleteNetworkID removes a network by ID.
 func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
-	nwMasterCfg := &MasterNwConfig{}
+	nwMasterCfg := &NwConfig{}
 	nwMasterCfg.StateDriver = stateDriver
 	err := nwMasterCfg.Read(netID)
 	if err != nil {
@@ -641,7 +627,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 }
 
 // DeleteNetworks removes all the virtual networks for a given tenant.
-func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
+func DeleteNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
 
@@ -661,7 +647,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 		if len(network.Endpoints) > 0 {
 			continue
 		}
-		nwMasterCfg := &MasterNwConfig{}
+		nwMasterCfg := &NwConfig{}
 		nwMasterCfg.StateDriver = stateDriver
 		err = nwMasterCfg.Read(network.Name)
 		if err != nil {
@@ -692,7 +678,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	return err
 }
 
-func validateEndpointConfig(stateDriver core.StateDriver, tenant *ConfigTenant) error {
+func validateEndpointConfig(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	var err error
 
 	if tenant.Name == "" {
@@ -709,7 +695,7 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *ConfigTenant) 
 				return core.Errorf("invalid container name for the endpoint")
 			}
 			if ep.IPAddress != "" {
-				nwMasterCfg := &MasterNwConfig{}
+				nwMasterCfg := &NwConfig{}
 				nwMasterCfg.StateDriver = stateDriver
 				err = nwMasterCfg.Read(network.Name)
 				if err != nil {
@@ -730,14 +716,7 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *ConfigTenant) 
 	return err
 }
 
-func getEpName(net *ConfigNetwork, ep *ConfigEP) string {
-	if ep.Container != "" {
-		return net.Name + "-" + ep.Container
-	}
-
-	return ep.Host + "-native-intf"
-}
-func allocSetEpIP(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
+func allocSetEpAddress(ep *intent.ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	nwCfg *drivers.OvsCfgNetworkState) (err error) {
 
 	var ipAddrValue uint
@@ -770,11 +749,16 @@ func allocSetEpIP(ep *ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	epCfg.IPAddress = ipAddress
 	nwCfg.IPAllocMap.Set(ipAddrValue)
 
+	// Set mac address which is derived from IP address
+	ipAddr := net.ParseIP(ipAddress)
+	macAddr := fmt.Sprintf("02:02:%02x:%02x:%02x:%02x", ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15])
+	epCfg.MacAddress = macAddr
+
 	return
 }
 
 // CreateEndpoints creates the endpoints for a given tenant.
-func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
+func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	err := validateEndpointConfig(stateDriver, tenant)
 	if err != nil {
 		log.Errorf("error validating endpoint config. Error: %s", err)
@@ -782,7 +766,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	}
 
 	for _, network := range tenant.Networks {
-		nwMasterCfg := MasterNwConfig{}
+		nwMasterCfg := NwConfig{}
 		nwMasterCfg.StateDriver = stateDriver
 		err = nwMasterCfg.Read(network.Name)
 		if err != nil {
@@ -813,7 +797,7 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 			epCfg.AttachUUID = ep.AttachUUID
 			epCfg.HomingHost = ep.Host
 
-			err = allocSetEpIP(&ep, epCfg, nwCfg)
+			err = allocSetEpAddress(&ep, epCfg, nwCfg)
 			if err != nil {
 				log.Errorf("error allocating and/or reserving IP. Error: %s", err)
 				return err
@@ -893,7 +877,7 @@ func DeleteEndpointID(stateDriver core.StateDriver, epID string) error {
 }
 
 // DeleteEndpoints deletes the endpoints for the tenant.
-func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
+func DeleteEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 
 	err := validateEndpointConfig(stateDriver, tenant)
 	if err != nil {
@@ -902,7 +886,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	}
 
 	for _, network := range tenant.Networks {
-		nwMasterCfg := &MasterNwConfig{}
+		nwMasterCfg := &NwConfig{}
 		nwMasterCfg.StateDriver = stateDriver
 		err = nwMasterCfg.Read(network.Name)
 		if err != nil {
@@ -950,7 +934,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *ConfigTenant) error {
 	return err
 }
 
-func validateEpBindings(epBindings *[]ConfigEP) error {
+func validateEpBindings(epBindings *[]intent.ConfigEP) error {
 	for _, ep := range *epBindings {
 		if ep.Host == "" {
 			return core.Errorf("invalid host name for the endpoint")
@@ -965,9 +949,13 @@ func validateEpBindings(epBindings *[]ConfigEP) error {
 
 // CreateEpBindings binds an endpoint to a host by updating host-label info
 // in driver's endpoint configuration.
-func CreateEpBindings(stateDriver core.StateDriver, epBindings *[]ConfigEP) error {
+func CreateEpBindings(epBindings *[]intent.ConfigEP) error {
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
 
-	err := validateEpBindings(epBindings)
+	err = validateEpBindings(epBindings)
 	if err != nil {
 		log.Errorf("error validating the ep bindings. Error: %s", err)
 		return err

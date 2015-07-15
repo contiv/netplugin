@@ -26,8 +26,12 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",
-			"Comment": "v0.1-1-g49d499e",
-			"Rev": "49d499e670493116d607cf59274e6c378479c3b8"
+			"Comment": "v0.1-3-g45476f1",
+			"Rev": "45476f107954c5e22cf114211e684a5dd9a69595"
+		},
+		{
+			"ImportPath": "github.com/contiv/ofnet",
+			"Rev": "71287c33566a0b4e552280eddbc66655ac2ac5e1"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
@@ -43,6 +47,14 @@
 			"ImportPath": "github.com/docker/docker/pkg/units",
 			"Comment": "v1.4.1-3331-g23abd51",
 			"Rev": "23abd51ef15b2c0138e272708845750be5eb0b03"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "47e8f450ef38c857cdd922ec08862ca9d65a1c6d"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
@@ -62,6 +74,22 @@
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
 			"Rev": "4e6f4a21c07510dd6446d28053351a275591f08d"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/common",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/util",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",

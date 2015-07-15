@@ -132,6 +132,9 @@ func main() {
 	// If you prefer to connect to OVS in a specific location :
 	// ovs, err := libovsdb.Connect("192.168.56.101", 6640)
 
+	// If you prefer to connect over a Unix socket:
+	// ovs, err := libovsdb.ConnectUnix("")
+
 	if err != nil {
 		fmt.Println("Unable to Connect ", err)
 		os.Exit(1)

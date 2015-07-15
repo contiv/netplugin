@@ -5,11 +5,11 @@
 # XXX: explore a better way that doesn't need multiple 'find'
 PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|systemtests'`
 PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts'`
-TO_BUILD := ./netplugin/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/pslibnet/
+TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/pslibnet/
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
 
-all: build unit-test system-test system-test-dind
+all: build unit-test system-test
 
 default: build
 
@@ -51,13 +51,13 @@ unit-test-centos: build
 # on first failure and leave setup in that state. This can be useful for debugging
 # as part of development.
 system-test: build
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test -v -run "sanity" \
-					   github.com/contiv/netplugin/systemtests/singlehost
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -v -run "sanity" \
+					   github.com/contiv/netplugin/systemtests/singlehost 
 	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 60m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/twohosts
 
 system-test-centos: build
-	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test -v -run "sanity" \
+	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/singlehost
 	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 90m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/twohosts

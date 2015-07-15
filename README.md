@@ -48,9 +48,10 @@ Note:
 
 ####A quick example
 
-1. Start netplugin
+1. Start netmaster and netplugin
 
-    `sudo netplugin`
+    `sudo netmaster`
+    `sudo netplugin -host-label=host1`
 
 2. Launch a desired configuration for the two containers
 

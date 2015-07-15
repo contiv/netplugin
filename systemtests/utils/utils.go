@@ -25,7 +25,7 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
-	"github.com/contiv/netplugin/netmaster"
+	"github.com/contiv/netplugin/netmaster/intent"
 	u "github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
@@ -68,6 +68,7 @@ func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
 	}
 	//XXX: remove this once netplugin is capable of handling cleanup
 	StopNetPlugin(t, nodes)
+	StopNetmaster(t, nodes[0])
 }
 
 // StopNetPlugin stops the netplugin on specified testbed nodes
@@ -76,6 +77,12 @@ func StopNetPlugin(t *testing.T, nodes []TestbedNode) {
 		cmdStr := "sudo pkill netplugin"
 		node.RunCommand(cmdStr)
 	}
+}
+
+// StopNetmaster stops the netmaster on specified testbed node
+func StopNetmaster(t *testing.T, node TestbedNode) {
+	cmdStr := "sudo pkill netmaster"
+	node.RunCommand(cmdStr)
 }
 
 // StartNetPluginWithConfig starts netplugin on specified testbed nodes with specified config
@@ -124,6 +131,35 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 // StartNetPlugin starts netplugin on  specified testbed nodes
 func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 	StartNetPluginWithConfig(t, nodes, nativeInteg, "")
+}
+
+// StartNetmasterWithFlags starts netplugin on specified testbed nodes with specified flags
+func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]string) {
+	var (
+		cmdStr   string
+		flagsStr string
+	)
+
+	for k, v := range flags {
+		flagsStr += fmt.Sprintf("%s=%s", k, v)
+	}
+
+	if os.Getenv("CONTIV_TESTBED") == "DIND" {
+		cmdStr = fmt.Sprintf("netmaster %s 0<&- &>/tmp/netmaster.log ", flagsStr)
+	} else {
+		cmdStr = fmt.Sprintf("nohup netmaster %s 0<&- &>/tmp/netmaster.log &", flagsStr)
+	}
+	output, err := node.RunCommandBackground(cmdStr)
+	if err != nil {
+		t.Fatalf("Failed to launch netplugin. Error: %s\nCmd:%q\n Output : %s\n",
+			err, cmdStr, output)
+	}
+
+}
+
+// StartNetmaster starts netplugin on specified testbed node
+func StartNetmaster(t *testing.T, node TestbedNode) {
+	StartNetmasterWithFlags(t, node, map[string]string{})
 }
 
 // StartPowerStripAdapter starts the powerstrip adapter on specified testbed nodes
@@ -249,7 +285,7 @@ func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node TestbedNode) {
 
 // FixUpContainerUUIDs fills up UUID information in passed jsonCfg and returns host-binding configuration
 func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (string, error) {
-	epBindings := []netmaster.ConfigEP{}
+	epBindings := []intent.ConfigEP{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
 	if err != nil {
 		t.Fatalf("error '%s' unmarshing host bindings, data %s \n", err,
@@ -285,7 +321,7 @@ func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (str
 // FixUpInfraContainerUUIDs fills up UUID information in passed jsonCfg and returns host-binding configuration
 func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraContCfg string) (string, error) {
 
-	epBindings := []netmaster.ConfigEP{}
+	epBindings := []intent.ConfigEP{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
 	if err != nil {
 		t.Fatalf("error '%s' unmarshing host bindings, data %s \n", err,
@@ -338,6 +374,8 @@ func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraC
 
 // ConfigSetupCommon performs common configuration setup on specified testbed nodes
 func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []TestbedNode) {
+	StartNetmaster(t, nodes[0])
+
 	StartNetPlugin(t, nodes, false)
 
 	ApplyDesiredConfig(t, jsonCfg, nodes[0])
@@ -348,7 +386,6 @@ func GetNetpluginConfigWithConsul() string {
 	return `{
                     "drivers" : {
                        "network": "ovs",
-                       "endpoint": "ovs",
                        "state": "consul"
                     },
                     "plugin-instance": {
@@ -372,6 +409,8 @@ func GetNetpluginConfigWithConsul() string {
 
 // ConfigSetupCommonWithConsul performs common configuration setup on specified testbed nodes
 func ConfigSetupCommonWithConsul(t *testing.T, jsonCfg string, nodes []TestbedNode) {
+	StartNetmasterWithFlags(t, nodes[0], map[string]string{
+		"--state-store": "consul"})
 
 	StartNetPluginWithConfig(t, nodes, false, GetNetpluginConfigWithConsul())
 
@@ -389,18 +428,19 @@ func GetIPAddress(t *testing.T, node TestbedNode, ep, stateStore string) string 
 	if err != nil || string(output) == "" {
 		time.Sleep(2 * time.Second)
 		output, err = node.RunCommandWithOutput(cmdStr)
+		if err != nil || output == "" {
+			t.Fatalf("Error getting ip for ep %s. Error: %s, Cmdstr: %s, Output: \n%s\n",
+				err, ep, cmdStr, output)
+		}
 	}
+
+	output = strings.Trim(string(output), "[]")
 
 	epStruct := drivers.OvsOperEndpointState{}
 
-	if err != nil || output == "" {
-		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%q\n",
-			err, ep, output)
-	}
-
 	if err := json.Unmarshal([]byte(output), &epStruct); err != nil {
-		t.Fatalf("Error '%s' getting ip for ep %s, Output: \n%s\n",
-			err, ep, output)
+		t.Fatalf("Error getting ip for ep %s. Error: %s, Cmdstr: %s, Output: \n%s\n",
+			err, ep, cmdStr, output)
 	}
 
 	return epStruct.IPAddress

@@ -4,7 +4,7 @@
 # like etcd state, ovs configuration, etc.
 # the script is not meant to be used in production, rather something to
 # allow easy experimentation on failure runs or crashes that leaves
-# system in invalid state 
+# system in invalid state
 
 # Note: issuing ovs-vsctl needs 'root' permission otherwise
 # cleanup will silently fail. Make sure the caller invokes this script
@@ -22,13 +22,14 @@ fi
 
 if ! $(which ovs-vsctl > /dev/null 2>&1)
 then
-    echo "etcdctl not found !\n"
+    echo "ovs-vsctl not found !\n"
     exit 1
 fi
 
 etcdctl rm -recursive /contiv > /dev/null 2>&1
 curl -X DELETE http://localhost:8500/v1/kv/contiv?recurse > /dev/null 2>&1
-ovs-vsctl del-br contivBridge > /dev/null 2>&1
+ovs-vsctl del-br contivVlanBridge > /dev/null 2>&1
+ovs-vsctl del-br contivVxlanBridge > /dev/null 2>&1
 
 echo "cleanup complete!"
 exit 0

@@ -13,25 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package master
 
 import (
-	"bufio"
-	"encoding/json"
-	"io/ioutil"
-	"os"
-	"time"
-
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
-	"github.com/contiv/netplugin/netmaster"
+	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
 
-func getEpName(net *netmaster.ConfigNetwork, ep *netmaster.ConfigEP) string {
+func getEpName(net *intent.ConfigNetwork, ep *intent.ConfigEP) string {
 	if ep.Container != "" {
 		return net.Name + "-" + ep.Container
 	}
@@ -39,11 +33,7 @@ func getEpName(net *netmaster.ConfigNetwork, ep *netmaster.ConfigEP) string {
 	return ep.Host + "-native-intf"
 }
 
-func postProcessing() {
-	time.Sleep(1 * time.Second)
-}
-
-func hostPresent(allCfg *netmaster.Config, hostName string) bool {
+func hostPresent(allCfg *intent.Config, hostName string) bool {
 	for _, host := range allCfg.Hosts {
 		if hostName == host.Name {
 			return true
@@ -53,7 +43,7 @@ func hostPresent(allCfg *netmaster.Config, hostName string) bool {
 	return false
 }
 
-func tenantPresent(allCfg *netmaster.Config, tenantID string) bool {
+func tenantPresent(allCfg *intent.Config, tenantID string) bool {
 	for _, tenant := range allCfg.Tenants {
 		if tenantID == tenant.Name {
 			return true
@@ -63,7 +53,7 @@ func tenantPresent(allCfg *netmaster.Config, tenantID string) bool {
 	return false
 }
 
-func netPresent(allCfg *netmaster.Config, netID string) bool {
+func netPresent(allCfg *intent.Config, netID string) bool {
 	for _, tenant := range allCfg.Tenants {
 		for _, net := range tenant.Networks {
 			if netID == net.Name {
@@ -75,7 +65,7 @@ func netPresent(allCfg *netmaster.Config, netID string) bool {
 	return false
 }
 
-func epPresent(allCfg *netmaster.Config, epID string) bool {
+func epPresent(allCfg *intent.Config, epID string) bool {
 	for _, tenant := range allCfg.Tenants {
 		for _, net := range tenant.Networks {
 			for _, ep := range net.Endpoints {
@@ -89,7 +79,14 @@ func epPresent(allCfg *netmaster.Config, epID string) bool {
 	return false
 }
 
-func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
+// DeleteDelta deletes any existing configuration from netmaster's statestore
+// that is not present in the configuration passed. This may result in
+// generating Delete triggers for the netplugin
+func DeleteDelta(allCfg *intent.Config) error {
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
 
 	readEp := &drivers.OvsCfgEndpointState{}
 	readEp.StateDriver = stateDriver
@@ -103,7 +100,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 	for _, epCfg := range epCfgs {
 		cfg := epCfg.(*drivers.OvsCfgEndpointState)
 		if !epPresent(allCfg, cfg.ID) {
-			err1 := netmaster.DeleteEndpointID(stateDriver, cfg.ID)
+			err1 := DeleteEndpointID(stateDriver, cfg.ID)
 			if err1 != nil {
 				log.Errorf("error '%s' deleting epid %s \n", err1, cfg.ID)
 				err = err1
@@ -124,7 +121,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 	for _, nwCfg := range nwCfgs {
 		cfg := nwCfg.(*drivers.OvsCfgNetworkState)
 		if !netPresent(allCfg, cfg.ID) {
-			err1 := netmaster.DeleteNetworkID(stateDriver, cfg.ID)
+			err1 := DeleteNetworkID(stateDriver, cfg.ID)
 			if err1 != nil {
 				log.Errorf("error '%s' deleting net %s \n", err1, cfg.ID)
 				err = err1
@@ -145,7 +142,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 	for _, gCfg := range gCfgs {
 		cfg := gCfg.(*gstate.Cfg)
 		if !tenantPresent(allCfg, cfg.Tenant) {
-			err1 := netmaster.DeleteTenantID(stateDriver, cfg.Tenant)
+			err1 := DeleteTenantID(stateDriver, cfg.Tenant)
 			if err1 != nil {
 				log.Errorf("error '%s' deleting tenant %s \n", err1, cfg.Tenant)
 				err = err1
@@ -154,7 +151,7 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		}
 	}
 
-	readHost := &netmaster.MasterHostConfig{}
+	readHost := &HostConfig{}
 	readHost.StateDriver = stateDriver
 	hostCfgs, err := readHost.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
@@ -164,10 +161,10 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 		hostCfgs = []core.State{}
 	}
 	for _, hostCfg := range hostCfgs {
-		cfg := hostCfg.(*netmaster.MasterHostConfig)
+		cfg := hostCfg.(*HostConfig)
 		hostName := cfg.Name
 		if !hostPresent(allCfg, hostName) {
-			err1 := netmaster.DeleteHostID(stateDriver, hostName)
+			err1 := DeleteHostID(stateDriver, hostName)
 			if err1 != nil {
 				log.Errorf("error '%s' deleting host %s \n", err1, hostName)
 				err = err1
@@ -179,9 +176,16 @@ func deleteDelta(stateDriver core.StateDriver, allCfg *netmaster.Config) error {
 	return err
 }
 
-func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
+// ProcessAdditions adds the configuration passed to netmaster's statestore.
+// This may result in generating Add/Create triggers for the netplugin.
+func ProcessAdditions(allCfg *intent.Config) (err error) {
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
 	for _, host := range allCfg.Hosts {
-		err1 := netmaster.CreateHost(stateDriver, &host)
+		err1 := CreateHost(stateDriver, &host)
 		if err1 != nil {
 			log.Errorf("error '%s' adding host %s \n", err1, host.Name)
 			err = err1
@@ -190,21 +194,21 @@ func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 	}
 
 	for _, tenant := range allCfg.Tenants {
-		err1 := netmaster.CreateTenant(stateDriver, &tenant)
+		err1 := CreateTenant(stateDriver, &tenant)
 		if err1 != nil {
 			log.Errorf("error adding tenant '%s' \n", err1)
 			err = err1
 			continue
 		}
 
-		err1 = netmaster.CreateNetworks(stateDriver, &tenant)
+		err1 = CreateNetworks(stateDriver, &tenant)
 		if err1 != nil {
 			log.Errorf("error adding networks '%s' \n", err1)
 			err = err1
 			continue
 		}
 
-		err1 = netmaster.CreateEndpoints(stateDriver, &tenant)
+		err1 = CreateEndpoints(stateDriver, &tenant)
 		if err1 != nil {
 			log.Errorf("error adding endpoints '%s' \n", err1)
 			err = err1
@@ -215,9 +219,16 @@ func processAdditions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 	return
 }
 
-func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (err error) {
+// ProcessDeletions deletes the configuration passed from netmaster's statestore.
+// This may result in generating Delete triggers for the netplugin.
+func ProcessDeletions(allCfg *intent.Config) (err error) {
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
 	for _, host := range allCfg.Hosts {
-		err1 := netmaster.DeleteHost(stateDriver, &host)
+		err1 := DeleteHost(stateDriver, &host)
 		if err1 != nil {
 			log.Errorf("error '%s' deleting host %s \n", err1, host.Name)
 			err = err1
@@ -226,93 +237,26 @@ func processDeletions(stateDriver core.StateDriver, allCfg *netmaster.Config) (e
 	}
 
 	for _, tenant := range allCfg.Tenants {
-		err1 := netmaster.DeleteEndpoints(stateDriver, &tenant)
+		err1 := DeleteEndpoints(stateDriver, &tenant)
 		if err1 != nil {
 			log.Errorf("error deleting endpoints '%s' \n", err1)
 			err = err1
 			continue
 		}
 
-		err1 = netmaster.DeleteNetworks(stateDriver, &tenant)
+		err1 = DeleteNetworks(stateDriver, &tenant)
 		if err1 != nil {
 			log.Errorf("error deleting networks '%s' \n", err1)
 			err = err1
 			continue
 		}
 
-		err1 = netmaster.DeleteTenant(stateDriver, &tenant)
+		err1 = DeleteTenant(stateDriver, &tenant)
 		if err1 != nil {
 			log.Errorf("error deleting tenant '%s' \n", err1)
 			err = err1
 			continue
 		}
-	}
-
-	return
-}
-
-func executeJSONCfg(defOpts *cliOpts) (err error) {
-	data := []byte{}
-	if opts.idStr == "-" {
-		reader := bufio.NewReader(os.Stdin)
-		data, err = ioutil.ReadAll(reader)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		data, err = ioutil.ReadFile(opts.idStr)
-		if err != nil {
-			return err
-		}
-	}
-
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		return err
-	}
-
-	if opts.cfgHostBindings {
-		epBindings := []netmaster.ConfigEP{}
-		err = json.Unmarshal(data, &epBindings)
-		if err != nil {
-			log.Errorf("error '%s' unmarshing host bindings, data ============\n%s\n=============\n", err, data)
-			return
-		}
-
-		err = netmaster.CreateEpBindings(stateDriver, &epBindings)
-		if err != nil {
-			log.Errorf("error '%s' creating host bindings \n", err)
-		}
-		return
-	}
-
-	allCfg := &netmaster.Config{}
-	err = json.Unmarshal(data, allCfg)
-	if err != nil {
-		log.Errorf("error '%s' unmarshaling tenant cfg, data %s \n", err, data)
-		return
-	}
-
-	log.Debugf("parsed config %v \n", allCfg)
-
-	if defOpts.cfgDesired {
-		err = deleteDelta(stateDriver, allCfg)
-	}
-	if err != nil {
-		log.Errorf("error deleting delta '%s' \n", err)
-		return
-	}
-
-	if defOpts.cfgDeletions {
-		err = processDeletions(stateDriver, allCfg)
-	} else if defOpts.cfgAdditions || defOpts.cfgDesired {
-		err = processAdditions(stateDriver, allCfg)
-	} else {
-		return core.Errorf("invalid json config file type")
-	}
-	if err != nil {
-		return core.Errorf("error processing cfg. Error: %s", err)
 	}
 
 	return

@@ -47,6 +47,14 @@ type Endpoint interface {
 	FetchEndpoint(id string) (State, error)
 }
 
+// PeerHost identifies a peer which this node can communicate to
+// Generally this info is used for network wide operations like setting up
+// VTEP tunnels, synchronizing routes etc.
+type PeerHost interface {
+	CreatePeerHost(id string) error
+	DeletePeerHost(id string) error
+}
+
 // Plugin brings together an implementation of a network, endpoint and
 // state drivers. Along with implementing north-bound interfaces for
 // network and endpoint operations
@@ -55,6 +63,7 @@ type Plugin interface {
 	Deinit()
 	Network
 	Endpoint
+	PeerHost
 }
 
 // InstanceInfo encapsulates data that is specific to a running instance of
@@ -62,28 +71,24 @@ type Plugin interface {
 type InstanceInfo struct {
 	StateDriver StateDriver `json:"-"`
 	HostLabel   string      `json:"host-label"`
+	VtepIP      string      `json:"vtep-ip"`
+	VlanIntf    string      `json:"vlan-if"`
 }
 
 // Driver implements the programming logic
 type Driver interface{}
 
-// NetworkDriver implements the programming logic for network
+// NetworkDriver implements the programming logic for network and endpoints
 type NetworkDriver interface {
 	Driver
 	Init(config *Config, info *InstanceInfo) error
 	Deinit()
 	CreateNetwork(id string) error
 	DeleteNetwork(id string) error
-}
-
-// EndpointDriver implements the programming logic for endpoints
-type EndpointDriver interface {
-	Driver
-	Init(config *Config, info *InstanceInfo) error
-	Deinit()
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
-	MakeEndpointAddress() (*Address, error)
+	CreatePeerHost(id string) error
+	DeletePeerHost(id string) error
 }
 
 // WatchState is used to provide a difference between core.State structs by

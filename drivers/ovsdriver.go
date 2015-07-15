@@ -18,11 +18,7 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
-	"strconv"
-	"strings"
 
-	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
 
 	log "github.com/Sirupsen/logrus"
@@ -70,310 +66,14 @@ func (s *OvsDriverOperState) Clear() error {
 }
 
 // OvsDriver implements the Layer 2 Network and Endpoint Driver interfaces
-// specific to vlan based open-vswitch. It also implements the
-// libovsdb.Notifier interface to keep cache of ovs table state.
+// specific to vlan based open-vswitch.
 type OvsDriver struct {
-	ovs   *libovsdb.OvsdbClient
-	cache map[string]map[libovsdb.UUID]libovsdb.Row
-	oper  OvsDriverOperState
+	oper     OvsDriverOperState
+	switchDb map[string]*OvsSwitch
 }
 
-func (d *OvsDriver) getRootUUID() libovsdb.UUID {
-	for uuid := range d.cache[rootTable] {
-		return uuid
-	}
-	return libovsdb.UUID{}
-}
-
-func (d *OvsDriver) populateCache(updates libovsdb.TableUpdates) {
-	for table, tableUpdate := range updates.Updates {
-		if _, ok := d.cache[table]; !ok {
-			d.cache[table] = make(map[libovsdb.UUID]libovsdb.Row)
-		}
-		for uuid, row := range tableUpdate.Rows {
-			empty := libovsdb.Row{}
-			if !reflect.DeepEqual(row.New, empty) {
-				d.cache[table][libovsdb.UUID{GoUuid: uuid}] = row.New
-			} else {
-				delete(d.cache[table], libovsdb.UUID{GoUuid: uuid})
-			}
-		}
-	}
-}
-
-// Update updates the ovsdb with the libovsdb.TableUpdates.
-func (d *OvsDriver) Update(context interface{}, tableUpdates libovsdb.TableUpdates) {
-	d.populateCache(tableUpdates)
-}
-
-// Locked satisfies a libovsdb interface dependency.
-func (d *OvsDriver) Locked([]interface{}) {
-}
-
-// Stolen satisfies a libovsdb interface dependency.
-func (d *OvsDriver) Stolen([]interface{}) {
-}
-
-// Echo satisfies a libovsdb interface dependency.
-func (d *OvsDriver) Echo([]interface{}) {
-}
-
-func (d *OvsDriver) performOvsdbOps(ops []libovsdb.Operation) error {
-	reply, _ := d.ovs.Transact(ovsDataBase, ops...)
-
-	if len(reply) < len(ops) {
-		return core.Errorf("Unexpected number of replies. Expected: %d, Recvd: %d",
-			len(ops), len(reply))
-	}
-	ok := true
-	errors := []string{}
-	for i, o := range reply {
-		if o.Error != "" && i < len(ops) {
-			errors = append(errors, fmt.Sprintf("%s(%s)", o.Error, o.Details))
-			ok = false
-		} else if o.Error != "" {
-			errors = append(errors, fmt.Sprintf("%s(%s)", o.Error, o.Details))
-			ok = false
-		}
-	}
-
-	if ok {
-		return nil
-	}
-
-	return core.Errorf("ovs operation failed. Error(s): %v", errors)
-}
-
-func (d *OvsDriver) createDeleteBridge(bridgeName string, op oper) error {
-	namedUUIDStr := "netplugin"
-	brUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: namedUUIDStr}}
-	opStr := "insert"
-	if op != operCreateBridge {
-		opStr = "delete"
-	}
-
-	// simple insert/delete operation
-	brOp := libovsdb.Operation{}
-	if op == operCreateBridge {
-		bridge := make(map[string]interface{})
-		bridge["name"] = bridgeName
-		brOp = libovsdb.Operation{
-			Op:       opStr,
-			Table:    bridgeTable,
-			Row:      bridge,
-			UUIDName: namedUUIDStr,
-		}
-	} else {
-		condition := libovsdb.NewCondition("name", "==", bridgeName)
-		brOp = libovsdb.Operation{
-			Op:    opStr,
-			Table: bridgeTable,
-			Where: []interface{}{condition},
-		}
-		// also fetch the br-uuid from cache
-		for uuid, row := range d.cache[bridgeTable] {
-			name := row.Fields["name"].(string)
-			if name == bridgeName {
-				brUUID = []libovsdb.UUID{uuid}
-				break
-			}
-		}
-	}
-
-	// Inserting/Deleting a Bridge row in Bridge table requires mutating
-	// the open_vswitch table.
-	mutateUUID := brUUID
-	mutateSet, _ := libovsdb.NewOvsSet(mutateUUID)
-	mutation := libovsdb.NewMutation("bridges", opStr, mutateSet)
-	condition := libovsdb.NewCondition("_uuid", "==", d.getRootUUID())
-
-	// simple mutate operation
-	mutateOp := libovsdb.Operation{
-		Op:        "mutate",
-		Table:     rootTable,
-		Mutations: []interface{}{mutation},
-		Where:     []interface{}{condition},
-	}
-
-	operations := []libovsdb.Operation{brOp, mutateOp}
-	return d.performOvsdbOps(operations)
-}
-
-func (d *OvsDriver) getPortName() string {
+func (d *OvsDriver) getIntfName() string {
 	return fmt.Sprintf(portNameFmt, d.oper.CurrPortNum)
-}
-
-func (d *OvsDriver) getPortOrIntfNameFromID(id string, isPort bool) (string, error) {
-	table := portTable
-	if !isPort {
-		table = interfaceTable
-	}
-
-	for _, row := range d.cache[table] {
-		if extIDs, ok := row.Fields["external_ids"]; ok {
-			extIDMap := extIDs.(libovsdb.OvsMap).GoMap
-			if portID, ok := extIDMap["endpoint-id"]; ok && portID == id {
-				return row.Fields["name"].(string), nil
-			}
-		}
-	}
-	return "", core.Errorf("Ovs port/intf not found for id: %s", id)
-}
-
-func (d *OvsDriver) createDeletePort(portName, intfName, intfType, id string,
-	intfOptions map[string]interface{}, tag int, op oper) error {
-	// portName is assumed to be unique enough to become uuid
-	portUUIDStr := portName
-	intfUUIDStr := fmt.Sprintf("Intf%s", portName)
-	portUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: portUUIDStr}}
-	intfUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: intfUUIDStr}}
-	opStr := "insert"
-	if op != operCreatePort {
-		opStr = "delete"
-	}
-
-	var err error
-
-	// insert/delete a row in Interface table
-	idMap := make(map[string]string)
-	intfOp := libovsdb.Operation{}
-	if op == operCreatePort {
-		intf := make(map[string]interface{})
-		intf["name"] = intfName
-		intf["type"] = intfType
-		idMap["endpoint-id"] = id
-		intf["external_ids"], err = libovsdb.NewOvsMap(idMap)
-		if err != nil {
-			return err
-		}
-
-		if intfOptions != nil {
-			intf["options"], err = libovsdb.NewOvsMap(intfOptions)
-			if err != nil {
-				log.Errorf("error '%s' creating options from %v \n", err, intfOptions)
-				return err
-			}
-		}
-		intfOp = libovsdb.Operation{
-			Op:       opStr,
-			Table:    interfaceTable,
-			Row:      intf,
-			UUIDName: intfUUIDStr,
-		}
-	} else {
-		condition := libovsdb.NewCondition("name", "==", intfName)
-		intfOp = libovsdb.Operation{
-			Op:    opStr,
-			Table: interfaceTable,
-			Where: []interface{}{condition},
-		}
-		// also fetch the intf-uuid from cache
-		for uuid, row := range d.cache[interfaceTable] {
-			name := row.Fields["name"].(string)
-			if name == intfName {
-				intfUUID = []libovsdb.UUID{uuid}
-				break
-			}
-		}
-	}
-
-	// insert/delete a row in Port table
-	portOp := libovsdb.Operation{}
-	if op == operCreatePort {
-		port := make(map[string]interface{})
-		port["name"] = portName
-		if tag != 0 {
-			port["vlan_mode"] = "access"
-			port["tag"] = tag
-		} else {
-			port["vlan_mode"] = "trunk"
-		}
-		port["interfaces"], err = libovsdb.NewOvsSet(intfUUID)
-		if err != nil {
-			return err
-		}
-		port["external_ids"], err = libovsdb.NewOvsMap(idMap)
-		if err != nil {
-			return err
-		}
-		portOp = libovsdb.Operation{
-			Op:       opStr,
-			Table:    portTable,
-			Row:      port,
-			UUIDName: portUUIDStr,
-		}
-	} else {
-		condition := libovsdb.NewCondition("name", "==", portName)
-		portOp = libovsdb.Operation{
-			Op:    opStr,
-			Table: portTable,
-			Where: []interface{}{condition},
-		}
-		// also fetch the port-uuid from cache
-		for uuid, row := range d.cache[portTable] {
-			name := row.Fields["name"].(string)
-			if name == portName {
-				portUUID = []libovsdb.UUID{uuid}
-				break
-			}
-		}
-	}
-
-	// mutate the Ports column of the row in the Bridge table
-	mutateSet, _ := libovsdb.NewOvsSet(portUUID)
-	mutation := libovsdb.NewMutation("ports", opStr, mutateSet)
-	condition := libovsdb.NewCondition("name", "==", defaultBridgeName)
-	mutateOp := libovsdb.Operation{
-		Op:        "mutate",
-		Table:     bridgeTable,
-		Mutations: []interface{}{mutation},
-		Where:     []interface{}{condition},
-	}
-
-	operations := []libovsdb.Operation{intfOp, portOp, mutateOp}
-	return d.performOvsdbOps(operations)
-}
-
-func vxlanIfName(netID, vtepIP string) string {
-	return fmt.Sprintf(vxlanIfNameFmt,
-		netID, strings.Replace(vtepIP, ".", "", -1))
-}
-
-func (d *OvsDriver) getCreateVtepProps(epCfg *OvsCfgEndpointState) (map[string]interface{},
-	string, string, error) {
-	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.oper.StateDriver
-	err := cfgNw.Read(epCfg.NetID)
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	intfOptions := make(map[string]interface{})
-	intfOptions["remote_ip"] = epCfg.VtepIP
-	intfOptions["key"] = strconv.Itoa(cfgNw.ExtPktTag)
-
-	intfName := vxlanIfName(epCfg.NetID, epCfg.VtepIP)
-	return intfOptions, intfName, intfName, nil
-}
-
-func (d *OvsDriver) deleteVtep(epOper *OvsOperEndpointState) error {
-	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.oper.StateDriver
-	err := cfgNw.Read(epOper.NetID)
-	if err != nil {
-		return err
-	}
-
-	intfName := vxlanIfName(epOper.NetID, epOper.VtepIP)
-	err = d.createDeletePort(intfName, intfName, "vxlan", cfgNw.ID,
-		nil, cfgNw.PktTag, operDeletePort)
-	if err != nil {
-		log.Errorf("error '%s' deleting vxlan peer intfName %s, tag %d \n",
-			err, intfName, cfgNw.PktTag)
-		return err
-	}
-
-	return nil
 }
 
 // Init initializes the OVS driver.
@@ -384,20 +84,14 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 			config, info)
 	}
 
-	cfg, ok := config.V.(*OvsDriverConfig)
+	_, ok := config.V.(*OvsDriverConfig)
 	if !ok {
 		return core.Errorf("Invalid type passed")
 	}
 
-	ovs, err := libovsdb.Connect(cfg.Ovs.DbIP, cfg.Ovs.DbPort)
-	if err != nil {
-		return err
-	}
-
-	d.ovs = ovs
 	d.oper.StateDriver = info.StateDriver
 	// restore the driver's runtime state if it exists
-	err = d.oper.Read(info.HostLabel)
+	err := d.oper.Read(info.HostLabel)
 	if core.ErrIfKeyExists(err) != nil {
 		log.Printf("Failed to read driver oper state for key %q. Error: %s",
 			info.HostLabel, err)
@@ -412,27 +106,34 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 		}
 	}
 
-	d.cache = make(map[string]map[libovsdb.UUID]libovsdb.Row)
-	d.ovs.Register(d)
-	initial, _ := d.ovs.MonitorAll(ovsDataBase, "")
-	d.populateCache(*initial)
-
-	// Create a bridge after registering for events as we depend on ovsdb cache.
-	// Since the same dirver is used as endpoint driver, only create the bridge
-	// if it's not already created
-	// XXX: revisit if the bridge-name needs to be configurable
-	brCreated := false
-	for _, row := range d.cache[bridgeTable] {
-		if row.Fields["name"] == defaultBridgeName {
-			brCreated = true
-			break
-		}
+	// Publish peer host info to registry
+	err = publishHostInfo(info)
+	if err != nil {
+		log.Fatalf("Error publishing my host info. Err: %v", err)
 	}
 
-	if !brCreated {
-		err = d.createDeleteBridge(defaultBridgeName, operCreateBridge)
+	log.Infof("Initializing ovsdriver")
+
+	// Init switch DB
+	d.switchDb = make(map[string]*OvsSwitch)
+
+	// Create Vxlan switch
+	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP)
+	if err != nil {
+		log.Fatalf("Error creating vlan switch. Err: %v", err)
+	}
+
+	// Create Vlan switch
+	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP)
+	if err != nil {
+		log.Fatalf("Error creating vlan switch. Err: %v", err)
+	}
+
+	// Add uplink to VLAN switch
+	if info.VlanIntf != "" {
+		err = d.switchDb["vlan"].AddUplinkPort(info.VlanIntf)
 		if err != nil {
-			return err
+			log.Errorf("Could not add uplink %s to vlan OVS. Err: %v", info.VlanIntf, err)
 		}
 	}
 
@@ -441,9 +142,14 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 
 // Deinit performs cleanup prior to destruction of the OvsDriver
 func (d *OvsDriver) Deinit() {
-	if d.ovs != nil {
-		d.createDeleteBridge(defaultBridgeName, operDeleteBridge)
-		(*d.ovs).Disconnect()
+	log.Infof("Cleaning up ovsdriver")
+
+	// cleanup both vlan and vxlan OVS instances
+	if d.switchDb["vlan"] != nil {
+		d.switchDb["vlan"].Delete()
+	}
+	if d.switchDb["vxlan"] != nil {
+		d.switchDb["vxlan"].Delete()
 	}
 }
 
@@ -458,24 +164,44 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 	}
 	log.Infof("create net %s \n", cfgNw.ID)
 
-	return nil
+	// Find the switch based on network type
+	var sw *OvsSwitch
+	if cfgNw.PktTagType == "vxlan" {
+		sw = d.switchDb["vxlan"]
+	} else {
+		sw = d.switchDb["vlan"]
+	}
+
+	return sw.CreateNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag))
 }
 
 // DeleteNetwork deletes a network by named identifier
 func (d *OvsDriver) DeleteNetwork(id string) error {
-
-	// no driver operation for network delete
 	log.Infof("delete net %s \n", id)
 
-	return nil
+	cfgNw := OvsCfgNetworkState{}
+	cfgNw.StateDriver = d.oper.StateDriver
+	err := cfgNw.Read(id)
+	if err != nil {
+		log.Errorf("Failed to read net %s \n", cfgNw.ID)
+		return err
+	}
+
+	// Find the switch based on network type
+	var sw *OvsSwitch
+	if cfgNw.PktTagType == "vxlan" {
+		sw = d.switchDb["vxlan"]
+	} else {
+		sw = d.switchDb["vlan"]
+	}
+
+	return sw.DeleteNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag))
 }
 
 // CreateEndpoint creates an endpoint by named identifier
 func (d *OvsDriver) CreateEndpoint(id string) error {
 	var (
 		err      error
-		intfOpts map[string]interface{}
-		portName string
 		intfName string
 		intfType string
 	)
@@ -485,6 +211,30 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	err = cfgEp.Read(id)
 	if err != nil {
 		return err
+	}
+
+	// Ignore VTEP endpoints and uplink endpoints
+	// FIXME: we need to stop publiching these from netmaster
+	if cfgEp.VtepIP != "" {
+		return nil
+	}
+	if cfgEp.IntfName != "" {
+		return nil
+	}
+
+	cfgNw := OvsCfgNetworkState{}
+	cfgNw.StateDriver = d.oper.StateDriver
+	err = cfgNw.Read(cfgEp.NetID)
+	if err != nil {
+		return err
+	}
+
+	// Find the switch based on network type
+	var sw *OvsSwitch
+	if cfgNw.PktTagType == "vxlan" {
+		sw = d.switchDb["vxlan"]
+	} else {
+		sw = d.switchDb["vlan"]
 	}
 
 	operEp := &OvsOperEndpointState{}
@@ -497,6 +247,14 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		// up the EP and continue add new one. In case of match just return.
 		if operEp.Matches(cfgEp) {
 			log.Printf("Found matching oper state for ep %s, noop", id)
+
+			// Ask the switch to update the port
+			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgNw.PktTag)
+			if err != nil {
+				log.Errorf("Error creating port %s. Err: %v", intfName, err)
+				return err
+			}
+
 			return nil
 		}
 		log.Printf("Found mismatching oper state for Ep, cleaning it. Config: %+v, Oper: %+v",
@@ -504,68 +262,35 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		d.DeleteEndpoint(operEp.ID)
 	}
 
-	if cfgEp.VtepIP != "" {
-		intfOpts, portName, intfName, err = d.getCreateVtepProps(cfgEp)
-		if err != nil {
-			log.Errorf("error '%s' creating vtep interface(s) for "+
-				"remote endpoint %s\n", err, cfgEp.VtepIP)
-			return err
-		}
-		intfType = "vxlan"
-	} else {
-		// add an internal ovs port with vlan-tag information from the state
+	// add an internal ovs port with vlan-tag information from the state
 
-		// XXX: revisit, the port name might need to come from user. Also revisit
-		// the algorithm to take care of port being deleted and reuse unused port
-		// numbers
-		d.oper.CurrPortNum++
-		err = d.oper.Write()
-		if err != nil {
-			return err
-		}
-		portName = d.getPortName()
-		intfName = portName
-		intfType = "internal"
-		intfOpts = nil
-	}
-
-	// use the user provided interface name. The primary usecase for such
-	// endpoints is for adding the host-interfaces to the ovs bridge.
-	// But other usecases might involve user created linux interface
-	// devices for containers like SRIOV, that need to be bridged using ovs
-	// Also, if the interface name is provided by user then we don't create
-	// ovs-internal interface
-	if cfgEp.IntfName != "" {
-		intfName = cfgEp.IntfName
-		intfType = ""
-	}
-
-	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.oper.StateDriver
-	err = cfgNw.Read(cfgEp.NetID)
+	// XXX: revisit, the port name might need to come from user. Also revisit
+	// the algorithm to take care of port being deleted and reuse unused port
+	// numbers
+	d.oper.CurrPortNum++
+	err = d.oper.Write()
 	if err != nil {
 		return err
 	}
+	intfName = d.getIntfName()
+	intfType = "internal"
 
-	err = d.createDeletePort(portName, intfName, intfType, cfgEp.ID,
-		intfOpts, cfgNw.PktTag, operCreatePort)
+	// Ask the switch to create the port
+	err = sw.CreatePort(intfName, intfType, cfgEp, cfgNw.PktTag)
 	if err != nil {
+		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err
 	}
-	defer func() {
-		if err != nil {
-			d.createDeletePort(portName, intfName, intfType, "", nil, 0,
-				operDeletePort)
-		}
-	}()
 
+	// Save the oper state
 	operEp = &OvsOperEndpointState{
-		PortName:   portName,
 		NetID:      cfgEp.NetID,
 		AttachUUID: cfgEp.AttachUUID,
 		ContName:   cfgEp.ContName,
 		IPAddress:  cfgEp.IPAddress,
+		MacAddress: cfgEp.MacAddress,
 		IntfName:   cfgEp.IntfName,
+		PortName:   intfName,
 		HomingHost: cfgEp.HomingHost,
 		VtepIP:     cfgEp.VtepIP}
 	operEp.StateDriver = d.oper.StateDriver
@@ -596,35 +321,70 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 		epOper.Clear()
 	}()
 
-	if epOper.VtepIP != "" {
-		err = d.deleteVtep(&epOper)
-		if err != nil {
-			log.Errorf("error '%s' deleting vtep interface(s) for "+
-				"remote endpoint %s\n", err, epOper.VtepIP)
-		}
-		return
-	}
-
-	portName, err := d.getPortOrIntfNameFromID(epOper.ID, getPortName)
+	// Get the network state
+	cfgNw := OvsCfgNetworkState{}
+	cfgNw.StateDriver = d.oper.StateDriver
+	err = cfgNw.Read(epOper.NetID)
 	if err != nil {
 		return err
 	}
 
-	intfName := ""
-	intfName, err = d.getPortOrIntfNameFromID(epOper.ID, getIntfName)
+	// Find the switch based on network type
+	var sw *OvsSwitch
+	if cfgNw.PktTagType == "vxlan" {
+		sw = d.switchDb["vxlan"]
+	} else {
+		sw = d.switchDb["vlan"]
+	}
+
+	err = sw.DeletePort(&epOper)
+	if err != nil {
+		log.Errorf("Error deleting endpoint: %+v. Err: %v", epOper, err)
+	}
+
+	return nil
+}
+
+// CreatePeerHost creates peer host object and adds VTEPs if necessary
+func (d *OvsDriver) CreatePeerHost(id string) error {
+	log.Infof("CreatePeerHost for %s", id)
+
+	// Read the peer information
+	peer := PeerHostState{}
+	peer.StateDriver = d.oper.StateDriver
+	err := peer.Read(id)
 	if err != nil {
 		return err
 	}
 
-	err = d.createDeletePort(portName, intfName, "", "", nil, 0, operDeletePort)
+	// Add the VTEP for the peer in vxlan switch.
+	err = d.switchDb["vxlan"].CreateVtep(peer.VtepIPAddr)
 	if err != nil {
+		log.Errorf("Error adding the VTEP %s. Err: %s", peer.VtepIPAddr, err)
 		return err
 	}
 
 	return nil
 }
 
-// MakeEndpointAddress is currently unsupported.
-func (d *OvsDriver) MakeEndpointAddress() (*core.Address, error) {
-	return nil, core.Errorf("Not supported")
+// DeletePeerHost deletes peer host info and associated VTEP
+func (d *OvsDriver) DeletePeerHost(id string) error {
+	log.Infof("DeletePeerHost for %s", id)
+
+	// Read the peer information
+	peer := PeerHostState{}
+	peer.StateDriver = d.oper.StateDriver
+	err := peer.Read(id)
+	if err != nil {
+		return err
+	}
+
+	// Add the VTEP for the peer in vxlan switch.
+	err = d.switchDb["vxlan"].DeleteVtep(peer.VtepIPAddr)
+	if err != nil {
+		log.Errorf("Error deleting the VTEP %s. Err: %s", peer.VtepIPAddr, err)
+		return err
+	}
+
+	return nil
 }

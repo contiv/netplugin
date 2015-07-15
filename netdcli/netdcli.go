@@ -16,9 +16,12 @@ limitations under the License.
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -26,6 +29,9 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
+	"github.com/contiv/netplugin/netmaster/client"
+	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
@@ -133,6 +139,7 @@ type cliOpts struct {
 	construct       construct
 	stateStore      string
 	storeURL        string
+	netmasterURL    string
 	tenant          string
 	netID           string
 	pktTag          string
@@ -193,6 +200,10 @@ func init() {
 		"store-url",
 		"",
 		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
+	flagSet.StringVar(&opts.netmasterURL,
+		"netmaster-url",
+		master.DaemonURL,
+		"Netmaster's url.")
 	flagSet.StringVar(&opts.tenant,
 		"tenant",
 		"default",
@@ -391,9 +402,7 @@ func executeOpts(opts *cliOpts) error {
 	switch opts.construct.Get() {
 	case cliConstructEndpoint:
 		if opts.oper.Get() == cliOperGet {
-			epOper := &drivers.OvsOperEndpointState{}
-			epOper.StateDriver = stateDriver
-			coreState = epOper
+			// noop
 		} else if opts.oper.Get() == cliOperAttach || opts.oper.Get() == cliOperDetach {
 			epCfg := &drivers.OvsCfgEndpointState{}
 			epCfg.StateDriver = stateDriver
@@ -429,9 +438,7 @@ func executeOpts(opts *cliOpts) error {
 		}
 	case cliConstructNetwork:
 		if opts.oper.Get() == cliOperGet {
-			nwCfg := &drivers.OvsCfgNetworkState{}
-			nwCfg.StateDriver = stateDriver
-			coreState = nwCfg
+			// noop
 		} else {
 			nwCfg := &drivers.OvsCfgNetworkState{}
 			nwCfg.StateDriver = stateDriver
@@ -501,16 +508,38 @@ func executeOpts(opts *cliOpts) error {
 
 	switch opts.oper.Get() {
 	case cliOperGet:
-		err = coreState.Read(opts.idStr)
-		if err != nil {
-			log.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
-			return err
+		var (
+			resp    []byte
+			content bytes.Buffer
+		)
+		nmc := client.New(opts.netmasterURL)
+		switch opts.construct.Get() {
+		case cliConstructNetwork:
+			if resp, err = nmc.GetNetwork(opts.idStr); err != nil {
+				return core.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
+			}
+		case cliConstructEndpoint:
+			if resp, err = nmc.GetEndpoint(opts.idStr); err != nil {
+				return core.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
+			}
+		case cliConstructVLANResource:
+			fallthrough
+		case cliConstructVXLANResource:
+			fallthrough
+		case cliConstructSubnetResource:
+			if err = coreState.Read(opts.idStr); err != nil {
+				return core.Errorf("Failed to read %s. Error: %s", opts.construct.Get(), err)
+			}
+			if resp, err = json.Marshal(coreState); err != nil {
+				return core.Errorf("Failed to marshal state for %s . Error: %s", opts.construct.Get(), err)
+			}
 		}
-		content, err := json.MarshalIndent(coreState, "", "  ")
+
+		err := json.Indent(&content, resp, "", "  ")
 		if err != nil {
-			log.Fatalf("Failed to marshal corestate %+v", coreState)
+			log.Fatalf("Failed to marshal state %s", resp)
 		}
-		fmt.Println(string(content))
+		content.WriteTo(os.Stdout)
 	case cliOperAttach, cliOperDetach, cliOperCreate:
 		err = coreState.Write()
 		if err != nil {
@@ -523,6 +552,50 @@ func executeOpts(opts *cliOpts) error {
 			log.Errorf("Failed to delete %s. Error: %s", opts.construct.Get(), err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func executeJSONCfg(opts *cliOpts) error {
+	var (
+		err  error
+		data []byte
+	)
+
+	if opts.idStr == "-" {
+		reader := bufio.NewReader(os.Stdin)
+		if data, err = ioutil.ReadAll(reader); err != nil {
+			return err
+		}
+
+	} else {
+		if data, err = ioutil.ReadFile(opts.idStr); err != nil {
+			return err
+		}
+	}
+
+	allCfg := &intent.Config{}
+	if err = json.Unmarshal(data, allCfg); err != nil {
+		log.Errorf("error '%s' unmarshaling tenant cfg, data %s \n", err, data)
+		return err
+	}
+	log.Debugf("parsed config %v \n", allCfg)
+
+	nmc := client.New(opts.netmasterURL)
+	switch {
+	case opts.cfgDesired:
+		err = nmc.PostDesiredConfig(allCfg)
+	case opts.cfgAdditions:
+		err = nmc.PostAddConfig(allCfg)
+	case opts.cfgDeletions:
+		err = nmc.PostDeleteConfig(allCfg)
+	case opts.cfgHostBindings:
+		err = nmc.PostHostBindings(allCfg)
+	}
+
+	if err != nil {
+		return core.Errorf("error processing cfg. Error: %s", err)
 	}
 
 	return nil
@@ -583,7 +656,7 @@ func main() {
 		err = executeOpts(&opts)
 	}
 	if err != nil {
-		log.Fatalf("error %s executing the config opts %v \n", err, opts)
+		log.Fatalf("error executing the command. Opts: %+v. Error: %s", opts, err)
 	}
 
 	os.Exit(0)

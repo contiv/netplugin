@@ -16,7 +16,6 @@ limitations under the License.
 package plugin
 
 import (
-	"encoding/json"
 	"sync"
 
 	"github.com/contiv/netplugin/core"
@@ -25,7 +24,8 @@ import (
 
 // implements the generic Plugin interface
 
-type config struct {
+// Config has the configuration for the plugin
+type Config struct {
 	Drivers struct {
 		Network  string `json:"network"`
 		Endpoint string `json:"endpoint"`
@@ -39,24 +39,14 @@ type config struct {
 // in `state/`.
 type NetPlugin struct {
 	sync.Mutex
-	ConfigFile     string
-	NetworkDriver  core.NetworkDriver
-	EndpointDriver core.EndpointDriver
-	StateDriver    core.StateDriver
+	ConfigFile    string
+	NetworkDriver core.NetworkDriver
+	StateDriver   core.StateDriver
 }
 
 // Init initializes the NetPlugin instance via the configuration string passed.
-func (p *NetPlugin) Init(configStr string) error {
-	if configStr == "" {
-		return core.Errorf("empty config passed")
-	}
-
-	pluginConfig := &config{}
-	err := json.Unmarshal([]byte(configStr), pluginConfig)
-	if err != nil {
-		return err
-	}
-
+func (p *NetPlugin) Init(pluginConfig Config, configStr string) error {
+	var err error
 	if pluginConfig.Instance.HostLabel == "" {
 		return core.Errorf("empty host-label passed")
 	}
@@ -74,7 +64,10 @@ func (p *NetPlugin) Init(configStr string) error {
 
 	instanceInfo := &core.InstanceInfo{
 		HostLabel:   pluginConfig.Instance.HostLabel,
-		StateDriver: p.StateDriver}
+		VtepIP:      pluginConfig.Instance.VtepIP,
+		VlanIntf:    pluginConfig.Instance.VlanIntf,
+		StateDriver: p.StateDriver,
+	}
 
 	// initialize network driver
 	p.NetworkDriver, err = utils.NewNetworkDriver(pluginConfig.Drivers.Network,
@@ -88,27 +81,11 @@ func (p *NetPlugin) Init(configStr string) error {
 		}
 	}()
 
-	// initialize endpoint driver
-	p.EndpointDriver, err = utils.NewEndpointDriver(pluginConfig.Drivers.Endpoint,
-		configStr, instanceInfo)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			p.EndpointDriver.Deinit()
-		}
-	}()
-
 	return nil
 }
 
 // Deinit is a destructor for the NetPlugin configuration.
 func (p *NetPlugin) Deinit() {
-	if p.EndpointDriver != nil {
-		p.EndpointDriver.Deinit()
-		p.EndpointDriver = nil
-	}
 	if p.NetworkDriver != nil {
 		p.NetworkDriver.Deinit()
 		p.NetworkDriver = nil
@@ -136,15 +113,25 @@ func (p *NetPlugin) FetchNetwork(id string) (core.State, error) {
 
 // CreateEndpoint creates an endpoint for a given ID.
 func (p *NetPlugin) CreateEndpoint(id string) error {
-	return p.EndpointDriver.CreateEndpoint(id)
+	return p.NetworkDriver.CreateEndpoint(id)
 }
 
 // DeleteEndpoint destroys an endpoint for an ID.
 func (p *NetPlugin) DeleteEndpoint(id string) error {
-	return p.EndpointDriver.DeleteEndpoint(id)
+	return p.NetworkDriver.DeleteEndpoint(id)
 }
 
 // FetchEndpoint retrieves an endpoint's state for a given ID
 func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 	return nil, core.Errorf("Not implemented")
+}
+
+// CreatePeerHost creates an peer host for a given ID.
+func (p *NetPlugin) CreatePeerHost(id string) error {
+	return p.NetworkDriver.CreatePeerHost(id)
+}
+
+// DeletePeerHost destroys a peer host for an ID.
+func (p *NetPlugin) DeletePeerHost(id string) error {
+	return p.NetworkDriver.DeletePeerHost(id)
 }

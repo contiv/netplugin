@@ -16,6 +16,7 @@ limitations under the License.
 package plugin
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/contiv/netplugin/state"
@@ -44,8 +45,16 @@ func TestNetPluginInit(t *testing.T) {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
+
+	// Parse the config
+	pluginConfig := Config{}
+	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+	if err != nil {
+		t.Fatalf("Error parsing config. Err: %v", err)
+	}
+
 	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
+	err = plugin.Init(pluginConfig, configStr)
 	if err != nil {
 		t.Fatalf("plugin init failed: Error: %s", err)
 	}
@@ -54,8 +63,10 @@ func TestNetPluginInit(t *testing.T) {
 
 func TestNetPluginInitInvalidConfigEmptyString(t *testing.T) {
 	configStr := ""
+	pluginConfig := Config{}
+
 	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
+	err := plugin.Init(pluginConfig, configStr)
 	if err == nil {
 		t.Fatalf("plugin init succeeded, should have failed!")
 	}
@@ -79,8 +90,13 @@ func TestNetPluginInitInvalidConfigMissingInstance(t *testing.T) {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
+
+	// Parse the config
+	pluginConfig := Config{}
+	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+
 	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
+	err = plugin.Init(pluginConfig, configStr)
 	if err == nil {
 		t.Fatalf("plugin init succeeded, should have failed!")
 	}
@@ -107,8 +123,16 @@ func TestNetPluginInitInvalidConfigEmptyHostLabel(t *testing.T) {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
+
+	// Parse the config
+	pluginConfig := Config{}
+	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+	if err != nil {
+		t.Fatalf("Error parsing config. Err: %v", err)
+	}
+
 	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
+	err = plugin.Init(pluginConfig, configStr)
 	if err == nil {
 		t.Fatalf("plugin init succeeded, should have failed!")
 	}
@@ -136,8 +160,16 @@ func TestNetPluginInitInvalidConfigMissingStateDriverName(t *testing.T) {
                     }
 
                   }`
+
+	// Parse the config
+	pluginConfig := Config{}
+	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+	if err != nil {
+		t.Fatalf("Error parsing config. Err: %v", err)
+	}
+
 	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
+	err = plugin.Init(pluginConfig, configStr)
 	if err == nil {
 		t.Fatalf("plugin init succeeded, should have failed!")
 	}
@@ -162,8 +194,16 @@ func TestNetPluginInitInvalidConfigMissingStateDriver(t *testing.T) {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
+
+	// Parse the config
+	pluginConfig := Config{}
+	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+	if err != nil {
+		t.Fatalf("Error parsing config. Err: %v", err)
+	}
+
 	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
+	err = plugin.Init(pluginConfig, configStr)
 	if err != nil {
 		t.Fatalf("plugin init failed: Error: %s", err)
 	}
@@ -190,35 +230,16 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriverName(t *testing.T) {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
-	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
-	if err == nil {
-		t.Fatalf("plugin init succeeded, should have failed!")
-	}
-}
 
-func TestNetPluginInitInvalidConfigMissingEndpointDriverName(t *testing.T) {
-	configStr := `{
-                    "drivers" : {
-                       "network": "ovs",
-                       "state": "fakedriver",
-                       "container": "docker"
-                    },
-                    "plugin-instance": {
-                       "host-label": "testHost"
-                    },
-                    "ovs" : {
-                       "dbip": "127.0.0.1",
-                       "dbport": 6640
-                    },
-                    "fakedriver" : {
-                    },
-                    "docker" : {
-                        "socket" : "unix:///var/run/docker.sock"
-                    }
-                  }`
+	// Parse the config
+	pluginConfig := Config{}
+	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+	if err != nil {
+		t.Fatalf("Error parsing config. Err: %v", err)
+	}
+
 	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
+	err = plugin.Init(pluginConfig, configStr)
 	if err == nil {
 		t.Fatalf("plugin init succeeded, should have failed!")
 	}
@@ -241,8 +262,16 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriver(t *testing.T) {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`
+
+	// Parse the config
+	pluginConfig := Config{}
+	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+	if err != nil {
+		t.Fatalf("Error parsing config. Err: %v", err)
+	}
+
 	plugin := NetPlugin{}
-	err := plugin.Init(configStr)
+	err = plugin.Init(pluginConfig, configStr)
 	if err != nil {
 		t.Fatalf("plugin init failed: Error: %s", err)
 	}

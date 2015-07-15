@@ -17,7 +17,7 @@ limitations under the License.
 // events; uses state distribution to achieve intent realization
 // netmaster runs as a logically centralized unit on in the cluster
 
-package netmaster
+package master
 
 import (
 	"encoding/json"
@@ -34,8 +34,8 @@ const (
 	networkConfigPath       = networkConfigPathPrefix + "%s"
 )
 
-// MasterNwConfig is the network configuration for a given tenant+network
-type MasterNwConfig struct {
+// NwConfig is the network configuration for a given tenant+network
+type NwConfig struct {
 	core.CommonState
 	Tenant     string `json:"tenant"`
 	PktTagType string `json:"pktTagType"`
@@ -46,24 +46,24 @@ type MasterNwConfig struct {
 }
 
 // Write the state
-func (s *MasterNwConfig) Write() error {
+func (s *NwConfig) Write() error {
 	key := fmt.Sprintf(networkConfigPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the state in for a given ID.
-func (s *MasterNwConfig) Read(id string) error {
+func (s *NwConfig) Read(id string) error {
 	key := fmt.Sprintf(networkConfigPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll reads all the state for master network configurations and returns it.
-func (s *MasterNwConfig) ReadAll() ([]core.State, error) {
+func (s *NwConfig) ReadAll() ([]core.State, error) {
 	return s.StateDriver.ReadAllState(networkConfigPathPrefix, s, json.Unmarshal)
 }
 
 // Clear removes the configuration from the state store.
-func (s *MasterNwConfig) Clear() error {
+func (s *NwConfig) Clear() error {
 	key := fmt.Sprintf(networkConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }
