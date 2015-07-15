@@ -59,7 +59,7 @@ system-test: build
 system-test-centos: build
 	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/singlehost
-	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 50m -v -run "sanity" \
+	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 90m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/twohosts
 
 centos-tests: unit-test-centos system-test-centos
