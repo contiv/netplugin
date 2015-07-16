@@ -9,7 +9,7 @@ TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
 
-all: build unit-test system-test
+all: build unit-test system-test system-test-dind
 
 default: build
 
@@ -48,7 +48,7 @@ unit-test: build
 # as part of development.
 system-test: build
 	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -v -run "sanity" \
-					   github.com/contiv/netplugin/systemtests/singlehost 
+					   github.com/contiv/netplugin/systemtests/singlehost
 	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 60m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/twohosts
 
@@ -57,11 +57,11 @@ system-test: build
 # as part of development.
 regress-test: build
 	CONTIV_HOST_GOPATH=$(GOPATH) godep go test -v -run "regress" \
-					   github.com/contiv/netplugin/systemtests/singlehost 
+					   github.com/contiv/netplugin/systemtests/singlehost
 	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 60m -v -run "regress" \
 					   github.com/contiv/netplugin/systemtests/twohosts
 
-# Setting CONTIV_TESTBED=DIND uses docker in docker as the testbed instead of vagrant VMs. 
+# Setting CONTIV_TESTBED=DIND uses docker in docker as the testbed instead of vagrant VMs.
 system-test-dind:
 	CONTIV_TESTBED=DIND make system-test
 

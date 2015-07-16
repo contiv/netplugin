@@ -15,6 +15,10 @@ limitations under the License.
 
 package utils
 
+import (
+	"time"
+)
+
 // DindNode implements a node in docker-in-docker (dind) testbed
 type DindNode struct {
 	Name    string
@@ -32,6 +36,9 @@ func (n DindNode) RunCommand(cmd string) error {
 func (n DindNode) RunCommandWithOutput(cmd string) (string, error) {
 	tcmd := &TestCommand{ContivNodes: n.NodeNum}
 	output, err := tcmd.RunWithOutput("sh", "-c", "sudo docker exec "+n.Name+" "+cmd)
+
+	time.Sleep(500 * time.Millisecond)
+
 	return string(output), err
 }
 
@@ -39,6 +46,9 @@ func (n DindNode) RunCommandWithOutput(cmd string) (string, error) {
 func (n DindNode) RunCommandBackground(cmd string) (string, error) {
 	tcmd := &TestCommand{ContivNodes: n.NodeNum}
 	output, err := tcmd.RunWithOutput("sh", "-c", "sudo docker exec -d "+n.Name+" "+cmd)
+
+	time.Sleep(1 * time.Second)
+
 	return string(output), err
 }
 
