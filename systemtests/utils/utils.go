@@ -127,7 +127,7 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 		}
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 }
 
 // StartNetPlugin starts netplugin on  specified testbed nodes
