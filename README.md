@@ -35,6 +35,8 @@ Please do not use this code in production, until code goes through more testing 
 
   `make system-test`
 
+There is an additional document available [docs/SETUP-BUILD.md](docs/SETUP-BUILD.md) that describes how to setup a build environment from scratch.
+
 ###Trying it out 
 
 The netplugin produces two binaries, a netplugin daemon and a netdcli tool to interact with it. The binaries can tried out in a vagrant environment, which can be setup as follows.
