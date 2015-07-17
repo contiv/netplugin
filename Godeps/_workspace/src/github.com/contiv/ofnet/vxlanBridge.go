@@ -156,6 +156,12 @@ func (self *Vxlan) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 func (self *Vxlan) AddLocalEndpoint(endpoint EndpointInfo) error {
     log.Infof("Adding local endpoint: %+v", endpoint)
 
+    vni := self.agent.vlanVniMap[endpoint.Vlan]
+    if vni == nil {
+        log.Errorf("VNI for vlan %d is not known", endpoint.Vlan)
+        return errors.New("Unknown Vlan")
+    }
+
     // Install a flow entry for vlan mapping and point it to IP table
     portVlanFlow, err := self.vlanTable.NewFlow(ofctrl.FlowMatch{
                             Priority: FLOW_MATCH_PRIORITY,
@@ -203,7 +209,7 @@ func (self *Vxlan) AddLocalEndpoint(endpoint EndpointInfo) error {
     // Build the mac route
     macRoute := MacRoute{
                     MacAddrStr: endpoint.MacAddr.String(),
-                    Vni: *(self.agent.vlanVniMap[endpoint.Vlan]),
+                    Vni: *vni,
                     OriginatorIp: self.agent.localIp,
                     PortNo: endpoint.PortNo,
                     Timestamp: time.Now(),
@@ -457,6 +463,11 @@ func (self *Vxlan) MacRouteAdd(macRoute *MacRoute, ret *bool) error {
 
     // map VNI to vlan Id
     vlanId := self.agent.vniVlanMap[macRoute.Vni]
+    if vlanId == nil {
+        log.Errorf("Macroute %+v on unknown VNI: %d", macRoute, macRoute.Vni)
+        return errors.New("Unknown VNI")
+    }
+
     macAddr, _ := net.ParseMAC(macRoute.MacAddrStr)
 
     // Install the route in OVS
