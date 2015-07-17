@@ -1,87 +1,42 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-netplugin_synced_gopath="/opt/golang"
-host_gobin_path="/opt/go/bin"
-host_goroot_path="/opt/go/root"
+NETPLUGIN_SYNCED_GOPATH="/opt/golang"
+HOST_GOBIN_PATH="/opt/go/bin"
+HOST_GOROOT_PATH="/opt/go/root"
 
-provision_common = <<SCRIPT
-## setup the environment file. Export the env-vars passed as args to 'vagrant up'
-echo Args passed: [[ $@ ]]
-echo 'export GOPATH=#{netplugin_synced_gopath}' > /etc/profile.d/envvar.sh
-echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
-echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
-echo 'export GOROOT=#{host_goroot_path}' >> /etc/profile.d/envvar.sh
-echo 'export PATH=$PATH:#{host_gobin_path}:$GOBIN' >> /etc/profile.d/envvar.sh
-if [ $# -gt 0 ]; then
-    echo "export $@" >> /etc/profile.d/envvar.sh
-fi
+def ansible_provision(host) 
+  proc do |ansible|
+    ansible.playbook = 'ansible/site.yml'
+    # Note: Can't do ranges like mon[0-2] in groups because
+    # these aren't supported by Vagrant, see
+    # https://github.com/mitchellh/vagrant/issues/3539
+    ansible.groups = { }
+    proxy_env = { }
 
-source /etc/profile.d/envvar.sh
+    %w[http_proxy https_proxy].each do |name|
+      if ENV[name]
+        proxy_env[name] = ENV[name]
+      end
+    end
 
-## set the mounted host filesystems to be read-only.Just a safety check
-## to prevent inadvertent modifications from vm.
-(mount -o remount,ro,exec /vagrant) || exit 1
-if [ -e #{host_gobin_path} ]; then
-    (mount -o remount,ro,exec #{host_gobin_path}) || exit 1
-fi
-if [ -e #{host_goroot_path} ]; then
-    (mount -o remount,ro,exec #{host_goroot_path}) || exit 1
-fi
-if [ -e #{netplugin_synced_gopath} ]; then
-    (mount -o remount,ro,exec #{netplugin_synced_gopath}) || exit 1
-fi
+    # In a production deployment, these should be secret
+    ansible.extra_vars = {
+      proxy_env: proxy_env,
+      contiv_env: ENV['CONTIV_ENV'],
+      netplugin_synced_gopath: NETPLUGIN_SYNCED_GOPATH,
+      host_gobin_path: HOST_GOBIN_PATH,
+      host_goroot_path: HOST_GOROOT_PATH,
+      hostname: host,
+    }
 
-### install basic packages
-#(apt-get update -qq > /dev/null && apt-get install -y vim curl python-software-properties git > /dev/null) || exit 1
-#
-### install Go 1.4
-#(cd /usr/local/ && \
-#curl -L https://storage.googleapis.com/golang/go1.4.linux-amd64.tar.gz -o go1.4.linux-amd64.tar.gz && \
-#tar -xzf go1.4.linux-amd64.tar.gz) || exit 1
-#
-### install etcd
-#(cd /tmp && \
-#curl -L  https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o etcd-v2.0.0-linux-amd64.tar.gz && \
-#tar -xzf etcd-v2.0.0-linux-amd64.tar.gz && \
-#mv /tmp/etcd-v2.0.0-linux-amd64/etcd /usr/bin/ && \
-#mv /tmp/etcd-v2.0.0-linux-amd64/etcdctl /usr/bin/ ) || exit 1
-#
-### install and start docker
-#(curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null) || exit 1
-#
-## pass the env-var args to docker and restart the service. This helps passing
-## stuff like http-proxy etc
-if [ $# -gt 0 ]; then
-    (echo "export $@" >> /etc/default/docker && \
-     service docker restart) || exit 1
-fi
-
-## install openvswitch and enable ovsdb-server to listen for incoming requests
-#(apt-get install -y openvswitch-switch > /dev/null) || exit 1
-## Install OVS 2.3.1
-# (wget -nv -O ovs-common.deb https://cisco.box.com/shared/static/v1dvgoboo5zgqrtn6tu27vxeqtdo2bdl.deb &&
-#  wget -nv -O ovs-switch.deb https://cisco.box.com/shared/static/ymbuwvt2qprs4tquextw75b82hyaxwon.deb) || exit 1
-# (dpkg -i ovs-common.deb &&
-#  dpkg -i ovs-switch.deb) || exit 1
-
-(ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
- ovs-vsctl set-manager ptcp:6640) || exit 1
-
-### install consul
-#(apt-get install -y unzip && cd /tmp && \
-# wget https://dl.bintray.com/mitchellh/consul/0.5.2_linux_amd64.zip && \
-# unzip 0.5.2_linux_amd64.zip && \
-# mv /tmp/consul /usr/bin) || exit 1
-
-# add vagrant user to docker group
-(usermod -a -G docker vagrant)
-
-SCRIPT
+    ansible.limit = host
+  end
+end
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-    config.vm.box = "contiv/ubuntu-v4"
+    config.vm.box = "ubuntu/vivid64"
     # Commenting out the url since we host the image on Atlas.
     # config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
     num_nodes = 2
@@ -107,7 +62,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
         end
         config.vm.define node_name do |node|
-            node.vm.hostname = node_name
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true"
             # create an interface for bridged network
@@ -128,20 +82,19 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             # contains the unmodified path passed from the Makefile, use that
             # when it is defined.
             if ENV['CONTIV_HOST_GOPATH'] != nil
-                node.vm.synced_folder ENV['CONTIV_HOST_GOPATH'], netplugin_synced_gopath
+                node.vm.synced_folder ENV['CONTIV_HOST_GOPATH'], NETPLUGIN_SYNCED_GOPATH
             else
-                node.vm.synced_folder ENV['GOPATH'], netplugin_synced_gopath
+                node.vm.synced_folder ENV['GOPATH'], NETPLUGIN_SYNCED_GOPATH
             end
             if ENV['CONTIV_HOST_GOBIN'] != nil
-                node.vm.synced_folder ENV['CONTIV_HOST_GOBIN'], host_gobin_path
+                node.vm.synced_folder ENV['CONTIV_HOST_GOBIN'], HOST_GOBIN_PATH
             end
             if ENV['CONTIV_HOST_GOROOT'] != nil
-                node.vm.synced_folder ENV['CONTIV_HOST_GOROOT'], host_goroot_path
+                node.vm.synced_folder ENV['CONTIV_HOST_GOROOT'], HOST_GOROOT_PATH
             end
-            node.vm.provision "shell" do |s|
-                s.inline = provision_common
-                s.args = ENV['CONTIV_ENV']
-            end
+
+            node.vm.provision :ansible, &ansible_provision(node_name)
+
 provision_node = <<SCRIPT
 ## start etcd with generated config
 (echo etcd -name #{node_name} -data-dir /opt/etcd \

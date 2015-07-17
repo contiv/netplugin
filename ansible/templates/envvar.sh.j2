@@ -1,0 +1,12 @@
+export GOPATH={{ netplugin_synced_gopath }}
+export GOBIN=$GOPATH/bin
+export GOSRC=$GOPATH/src
+export PATH=$PATH:/usr/local/go/bin:{{ host_gobin_path }}:$GOBIN
+
+{% if host_goroot_path %}
+export GOROOT={{ host_goroot_path }}
+{% endif %}
+
+{% if contiv_env %}
+export {{ contiv_env }}
+{% endif %}
