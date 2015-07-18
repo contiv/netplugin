@@ -56,7 +56,9 @@ echo $scriptdir
 
 # Create a linux bridge between containers
 sudo brctl addbr br-em1
+sudo brctl addbr br-em2
 sudo ip link set br-em1 up
+sudo ip link set br-em2 up
 
 num_nodes=1
 if [ -n "$CONTIV_NODES" ];
@@ -95,17 +97,25 @@ do
         -c "/gopath/src/github.com/contiv/netplugin/scripts/dockerhost/start-service.sh & bash"
     sudo docker exec $host hostname $host
     sudo docker exec $host sh -c 'echo $(hostname -I | cut -d\  -f1) $(hostname) | tee -a /etc/hosts'
+    # Create eth1
     sudo ip link add $i-int type veth peer name $i-ext
     sudo brctl addif br-em1 $i-ext
     sudo ip link set $i-ext up
     sudo ip link set netns $($scriptdir/docker-pid $host) dev $i-int
-    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set dev $i-int name eth2
-    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set eth2 up
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set dev $i-int name eth1
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set eth1 up
     addr=$((10+$i-1))
     ip_addr="192.168.2."$addr"/32"
     echo "IP address = "$ip_addr
-    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip addr add $ip_addr dev eth2
-    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip route add "192.168.2.0/24" dev eth2
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip addr add $ip_addr dev eth1
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip route add "192.168.2.0/24" dev eth1
+    # Create eth2
+    sudo ip link add $i-int2 type veth peer name $i-ext2
+    sudo brctl addif br-em2 $i-ext2
+    sudo ip link set $i-ext2 up
+    sudo ip link set netns $($scriptdir/docker-pid $host) dev $i-int2
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set dev $i-int2 name eth2
+    sudo nsenter -t $($scriptdir/docker-pid $host) -n ip link set eth2 up
     if [ $i -gt "1" ]; then
 	cluster=$cluster",";
     fi
