@@ -375,80 +375,90 @@ func attachContainer(stateDriver core.StateDriver, crt *crt.CRT, contName string
 }
 
 // search cfg eps to find epid of a matching container name
-func getEpIDByContainerName(netPlugin *plugin.NetPlugin, contName string) (string, error) {
+func getEpIDByContainerName(netPlugin *plugin.NetPlugin, contName string) ([]string, error) {
 
+	epIDs := []string{}
 	readEp := &drivers.OvsCfgEndpointState{}
 	readEp.StateDriver = netPlugin.StateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err != nil {
 		log.Errorf("got err %v when reading all cfg eps \n", err)
-		return "", err
+		return epIDs, err
 	}
 	for _, epCfg := range epCfgs {
 		ep := epCfg.(*drivers.OvsCfgEndpointState)
 		if ep.ContName == contName {
-			return ep.ID, nil
+			epIDs = append(epIDs, ep.ID)
 		}
 	}
 
-	log.Errorf("failed to find epCfg for contName %s \n", contName)
+	if len(epIDs) == 0 {
+		err = errors.New("failed to find epCfg for contName")
+		log.Errorf("error getting endpoint id from container name '%s': %v \n", contName, err)
+	}
 
-	return "", err
+	return epIDs, err
 }
 
 // search oper eps to find epid of a matching container uuid
-func getEpIDByContainerUUID(netPlugin *plugin.NetPlugin, contUUID string) (string, error) {
+func getEpIDByContainerUUID(netPlugin *plugin.NetPlugin, contUUID string) ([]string, error) {
+	epIDs := []string{}
 	readOperEp := &drivers.OvsOperEndpointState{}
 	readOperEp.StateDriver = netPlugin.StateDriver
 	epOpers, err := readOperEp.ReadAll()
 	if err != nil {
 		log.Errorf("error reading all oper eps: %v \n", err)
-		return "", err
+		return epIDs, err
 	}
 	for _, epOper := range epOpers {
 		ep := epOper.(*drivers.OvsOperEndpointState)
 		if ep.ContUUID == contUUID {
-			return ep.ID, nil
+			log.Infof("VJ - deleting ep with following info: %v \n", ep)
+			epIDs = append(epIDs, ep.ID)
 		}
 	}
 
-	err = errors.New("UUID not found")
-	log.Errorf("getting endpoint id from uuid %v \n", err)
-	return "", err
+	if len(epIDs) == 0 {
+		err = errors.New("UUID not found")
+		log.Errorf("getting endpoint id from uuid %v \n", err)
+	}
+
+	return epIDs, err
 }
 
 func createContainerEpOper(netPlugin *plugin.NetPlugin, contUUID, contName string) error {
-	epID, err := getEpIDByContainerName(netPlugin, contName)
+	epIDs, err := getEpIDByContainerName(netPlugin, contName)
 	if err != nil {
 		log.Debugf("unable to find ep for container %s, error %v\n", contName, err)
 		return err
 	}
 
-	operEp := &drivers.OvsOperEndpointState{}
-	operEp.StateDriver = netPlugin.StateDriver
-	err = operEp.Read(epID)
-	if core.ErrIfKeyExists(err) != nil {
-		return err
-	}
-
-	if err == nil {
-		operEp.ContUUID = contUUID
-		err = operEp.Write()
-		if err != nil {
-			log.Errorf("error updating oper state for ep %s \n", contName)
+	for _, epID := range epIDs {
+		operEp := &drivers.OvsOperEndpointState{}
+		operEp.StateDriver = netPlugin.StateDriver
+		err = operEp.Read(epID)
+		if core.ErrIfKeyExists(err) != nil {
 			return err
 		}
 
-		log.Infof("updating container '%s' with id '%s' \n", contName, contUUID)
-	} else {
-		err = netPlugin.CreateEndpoint(epID)
-		if err != nil {
-			log.Errorf("Endpoint creation failed. Error: %s", err)
-			return err
-		}
-		log.Infof("Endpoint operation create succeeded")
-	}
+		if err == nil {
+			operEp.ContUUID = contUUID
+			err = operEp.Write()
+			if err != nil {
+				log.Errorf("error updating oper state for ep %s \n", contName)
+				return err
+			}
 
+			log.Infof("updating container '%s' with id '%s' \n", contName, contUUID)
+		} else {
+			err = netPlugin.CreateEndpoint(epID)
+			if err != nil {
+				log.Errorf("Endpoint creation failed. Error: %s", err)
+				return err
+			}
+			log.Infof("Endpoint operation create succeeded")
+		}
+	}
 	return err
 }
 
@@ -498,15 +508,17 @@ func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOpt
 
 	if opts.forceDeleteEp {
 		log.Infof("deleting operEp for container with uuid %s \n", contID)
-		epID, err := getEpIDByContainerUUID(netPlugin, contID)
+		epIDs, err := getEpIDByContainerUUID(netPlugin, contID)
 		if err != nil {
 			log.Errorf("error obtaining container's epid for uuid %s: %v \n", contID, err)
 			return err
 		}
-		err = netPlugin.DeleteEndpoint(epID)
-		if err != nil {
-			log.Errorf("error deleting an endpoint upon container stop: %v \n", err)
-			return err
+		for _, epID := range epIDs {
+			err = netPlugin.DeleteEndpoint(epID)
+			if err != nil {
+				log.Errorf("error deleting an endpoint upon container stop: %v \n", err)
+				return err
+			}
 		}
 	}
 
