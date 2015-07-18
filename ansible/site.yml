@@ -1,0 +1,45 @@
+- hosts: all
+  sudo: true
+  environment: proxy_env
+  tasks:
+    - hostname: "name={{ hostname }}"
+    - template: src=templates/envvar.sh.j2 dest=/etc/profile.d/envvar.sh owner=root group=root mode=0755
+    - apt: "update_cache=yes name={{ item }}"
+      with_items:
+        - unzip
+        - vim-nox
+        - curl
+        - python-software-properties
+        - git 
+    - shell: creates=/usr/local/go/bin/go curl -L https://storage.googleapis.com/golang/go1.4.2.linux-amd64.tar.gz | tar -xvz -C /usr/local
+    - get_url: 
+        url: https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz
+        dest: /tmp/etcd.tar.gz
+    - shell: creates=/usr/bin/etcd tar vxzf /tmp/etcd.tar.gz && mv etcd-v2.0.0-linux-amd64/etcd* /usr/bin
+    - shell: creates=/usr/bin/docker curl https://get.docker.com | bash
+    - lineinfile:
+        dest: /etc/default/docker
+        line: ". /etc/profile.d/envvar.sh"
+    - user: name=vagrant groups=docker append=yes
+    - get_url:
+        dest: "{{ item.dest }}"
+        url: "{{ item.url }}"
+      with_items:
+        - { 
+            url: "https://cisco.box.com/shared/static/v1dvgoboo5zgqrtn6tu27vxeqtdo2bdl.deb",
+            dest: /tmp/ovs-common.deb
+          }
+        - { 
+            url: "https://cisco.box.com/shared/static/ymbuwvt2qprs4tquextw75b82hyaxwon.deb",
+            dest: /tmp/ovs-switch.deb
+          }
+    - apt: "deb=/tmp/ovs-common.deb"
+    - apt: "deb=/tmp/ovs-switch.deb"
+    - shell: "ovs-vsctl set-manager {{ item }}"
+      with_items:
+        - "tcp:127.0.0.1:6640"
+        - "ptcp:6640"
+    - get_url: 
+        url: https://dl.bintray.com/mitchellh/consul/0.5.2_linux_amd64.zip
+        dest: /tmp/consul.zip
+    - shell: "chdir=/tmp creates=/usr/bin/consul unzip /tmp/consul.zip && mv /tmp/consul /usr/bin"
