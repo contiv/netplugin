@@ -18,6 +18,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -46,14 +47,15 @@ import (
 // network provisioning interfaces
 
 type cliOpts struct {
-	hostLabel   string
-	nativeInteg bool
-	cfgFile     string
-	debug       bool
-	syslog      string
-	jsonLog     bool
-	vtepIP      string
-	vlanIntf    string
+	hostLabel     string
+	nativeInteg   bool
+	cfgFile       string
+	debug         bool
+	syslog        string
+	jsonLog       bool
+	vtepIP        string
+	vlanIntf      string
+	forceDeleteEp bool
 }
 
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
@@ -193,7 +195,6 @@ func getContainerEPContextByContName(stateDriver core.StateDriver, contName stri
 	epCtxs []crtclient.ContainerEPContext, err error) {
 	var epCtx *crtclient.ContainerEPContext
 
-	contName = strings.TrimPrefix(contName, "/")
 	readEp := &drivers.OvsCfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
@@ -373,7 +374,95 @@ func attachContainer(stateDriver core.StateDriver, crt *crt.CRT, contName string
 	return nil
 }
 
-func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT,
+// search cfg eps to find epid of a matching container name
+func getEpIDByContainerName(netPlugin *plugin.NetPlugin, contName string) ([]string, error) {
+
+	epIDs := []string{}
+	readEp := &drivers.OvsCfgEndpointState{}
+	readEp.StateDriver = netPlugin.StateDriver
+	epCfgs, err := readEp.ReadAll()
+	if err != nil {
+		log.Errorf("got err %v when reading all cfg eps \n", err)
+		return epIDs, err
+	}
+	for _, epCfg := range epCfgs {
+		ep := epCfg.(*drivers.OvsCfgEndpointState)
+		if ep.ContName == contName {
+			epIDs = append(epIDs, ep.ID)
+		}
+	}
+
+	if len(epIDs) == 0 {
+		err = errors.New("failed to find epCfg for contName")
+		log.Errorf("error getting endpoint id from container name '%s': %v \n", contName, err)
+	}
+
+	return epIDs, err
+}
+
+// search oper eps to find epid of a matching container uuid
+func getEpIDByContainerUUID(netPlugin *plugin.NetPlugin, contUUID string) ([]string, error) {
+	epIDs := []string{}
+	readOperEp := &drivers.OvsOperEndpointState{}
+	readOperEp.StateDriver = netPlugin.StateDriver
+	epOpers, err := readOperEp.ReadAll()
+	if err != nil {
+		log.Errorf("error reading all oper eps: %v \n", err)
+		return epIDs, err
+	}
+	for _, epOper := range epOpers {
+		ep := epOper.(*drivers.OvsOperEndpointState)
+		if ep.ContUUID == contUUID {
+			log.Infof("VJ - deleting ep with following info: %v \n", ep)
+			epIDs = append(epIDs, ep.ID)
+		}
+	}
+
+	if len(epIDs) == 0 {
+		err = errors.New("UUID not found")
+		log.Errorf("getting endpoint id from uuid %v \n", err)
+	}
+
+	return epIDs, err
+}
+
+func createContainerEpOper(netPlugin *plugin.NetPlugin, contUUID, contName string) error {
+	epIDs, err := getEpIDByContainerName(netPlugin, contName)
+	if err != nil {
+		log.Debugf("unable to find ep for container %s, error %v\n", contName, err)
+		return err
+	}
+
+	for _, epID := range epIDs {
+		operEp := &drivers.OvsOperEndpointState{}
+		operEp.StateDriver = netPlugin.StateDriver
+		err = operEp.Read(epID)
+		if core.ErrIfKeyExists(err) != nil {
+			return err
+		}
+
+		if err == nil {
+			operEp.ContUUID = contUUID
+			err = operEp.Write()
+			if err != nil {
+				log.Errorf("error updating oper state for ep %s \n", contName)
+				return err
+			}
+
+			log.Infof("updating container '%s' with id '%s' \n", contName, contUUID)
+		} else {
+			err = netPlugin.CreateEndpoint(epID)
+			if err != nil {
+				log.Errorf("Endpoint creation failed. Error: %s", err)
+				return err
+			}
+			log.Infof("Endpoint operation create succeeded")
+		}
+	}
+	return err
+}
+
+func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOpts,
 	contID string) error {
 	// var epContexts []crtclient.ContainerEPContext
 
@@ -381,6 +470,15 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	if err != nil {
 		log.Errorf("Could not find container name from container id %s \n", contID)
 		return err
+	}
+	contName = strings.TrimPrefix(contName, "/")
+
+	if opts.forceDeleteEp {
+		err = createContainerEpOper(netPlugin, contID, contName)
+		if err != nil {
+			log.Errorf("error updating container's uuid: %v \n", err)
+			return err
+		}
 	}
 
 	err = attachContainer(netPlugin.StateDriver, crt, contName)
@@ -391,7 +489,7 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	return err
 }
 
-func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.CRT,
+func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOpts,
 	contID string) error {
 	// If CONTIV_DIND_HOST_GOPATH env variable is set we can assume we are in docker in docker testbed
 	// Here we need to set the network namespace of the ports created by netplugin back to NS of the docker host
@@ -407,6 +505,23 @@ func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 		}
 		return err
 	}
+
+	if opts.forceDeleteEp {
+		log.Infof("deleting operEp for container with uuid %s \n", contID)
+		epIDs, err := getEpIDByContainerUUID(netPlugin, contID)
+		if err != nil {
+			log.Errorf("error obtaining container's epid for uuid %s: %v \n", contID, err)
+			return err
+		}
+		for _, epID := range epIDs {
+			err = netPlugin.DeleteEndpoint(epID)
+			if err != nil {
+				log.Errorf("error deleting an endpoint upon container stop: %v \n", err)
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -424,20 +539,25 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 		log.Errorf("error decoding netplugin in handleDocker \n")
 	}
 
+	opts, ok := args[2].(*cliOpts)
+	if !ok {
+		log.Errorf("error decoding global opts in Docker handler \n")
+	}
+
 	log.Infof("Received event: %#v, for netPlugin %v \n", *event, netPlugin)
 
 	// XXX: with plugin (in a lib) this code will handle these events
 	// this cod will need to go away then
 	switch event.Status {
 	case "start":
-		err = handleContainerStart(netPlugin, crt, event.Id)
+		err = handleContainerStart(netPlugin, crt, opts, event.Id)
 		if err != nil {
 			log.Errorf("error '%s' handling container %s \n", err, event.Id)
 		}
 
 	case "die":
 		log.Debugf("received die event for container \n")
-		err = handleContainerStop(netPlugin, crt, event.Id)
+		err = handleContainerStop(netPlugin, crt, opts, event.Id)
 		if err != nil {
 			log.Errorf("error '%s' handling container %s \n", err, event.Id)
 		}
@@ -567,7 +687,7 @@ func startDockerEventPoll(netPlugin *plugin.NetPlugin, crt *crt.CRT, recvErr cha
 		// start docker client and handle docker events
 		// wait on error chan for problems handling the docker events
 		dockerCRT := crt.ContainerIf.(*docker.Docker)
-		dockerCRT.Client.StartMonitorEvents(handleDockerEvents, recvErr, netPlugin, crt)
+		dockerCRT.Client.StartMonitorEvents(handleDockerEvents, recvErr, netPlugin, crt, &opts)
 	}
 }
 
@@ -622,6 +742,10 @@ func main() {
 		"debug",
 		false,
 		"Show debugging information generated by netplugin")
+	flagSet.BoolVar(&opts.forceDeleteEp,
+		"force-delete-ep",
+		false,
+		"force ep deletion upon container deletion")
 	flagSet.BoolVar(&opts.jsonLog,
 		"json-log",
 		false,
@@ -667,6 +791,14 @@ func main() {
 
 	if flagSet.NFlag() < 1 {
 		log.Infof("host-label not specified, using default (%s)", opts.hostLabel)
+	}
+
+	if utils.FetchSysAttrs() != nil {
+		log.Fatalf("Error reading system attributes \n")
+	} else {
+		if utils.SysAttrs.OsType == "centos" {
+			opts.forceDeleteEp = true
+		}
 	}
 
 	defConfigStr := fmt.Sprintf(`{

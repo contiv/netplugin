@@ -70,6 +70,7 @@ type OvsOperEndpointState struct {
 	core.CommonState
 	NetID      string `json:"netID"`
 	ContName   string `json:"contName"`
+	ContUUID   string `json:"contUUID"`
 	AttachUUID string `json:"attachUUID"`
 	IPAddress  string `json:"ipAddress"`
 	MacAddress string `json:"macAddress"`

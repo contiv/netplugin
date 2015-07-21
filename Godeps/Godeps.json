@@ -31,7 +31,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "745d8b6ec38fcff41e7123f9db524ab329a91444"
+			"Rev": "2ed83a9c24b58c6bbdb807a771947958ad352bbd"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",

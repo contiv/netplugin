@@ -46,6 +46,7 @@ type Vrouter struct {
 
     // Flow Database
     flowDb      map[string]*ofctrl.Flow // Database of flow entries
+    portVlanFlowDb  map[uint32]*ofctrl.Flow // Database of flow entries
 
     // Router Mac to be used
     myRouterMac net.HardwareAddr
@@ -70,6 +71,7 @@ func NewVrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vrouter {
     // Create a route table and my router mac
     vrouter.routeTable = make(map[string]*OfnetRoute)
     vrouter.flowDb = make(map[string]*ofctrl.Flow)
+    vrouter.portVlanFlowDb  = make(map[uint32]*ofctrl.Flow)
     vrouter.myRouterMac, _ = net.ParseMAC("00:00:11:11:11:11")
 
     // Register for Route rpc callbacks
@@ -161,6 +163,9 @@ func (self *Vrouter) AddLocalEndpoint(endpoint EndpointInfo) error {
         return err
     }
 
+    // save the flow entry
+    self.portVlanFlowDb[endpoint.PortNo] = portVlanFlow
+
     // build the route to add
     route := OfnetRoute{
                 IpAddr: endpoint.IpAddr,
@@ -212,7 +217,8 @@ func (self *Vrouter) AddLocalEndpoint(endpoint EndpointInfo) error {
 // Note: Works only for local ports
 func (self *Vrouter) findLocalRouteByPortno(portNo uint32) *OfnetRoute {
     for _, route := range self.routeTable {
-        if route.PortNo == portNo {
+        if (route.OriginatorIp.String() == self.agent.localIp.String()) &&
+            (route.PortNo == portNo) {
             return route
         }
     }
@@ -228,6 +234,15 @@ func (self *Vrouter) RemoveLocalEndpoint(portNo uint32) error {
         log.Errorf("Could not find local route ")
     }
 
+    // Remove the port vlan flow.
+    portVlanFlow := self.portVlanFlowDb[portNo]
+    if portVlanFlow != nil {
+        err := portVlanFlow.Delete()
+        if err != nil {
+            log.Errorf("Error deleting portvlan flow. Err: %v", err)
+        }
+    }
+    
     // Uninstall the route
     err := self.uninstallRoute(route)
     if err != nil {

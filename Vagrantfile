@@ -21,15 +21,15 @@ source /etc/profile.d/envvar.sh
 
 ## set the mounted host filesystems to be read-only.Just a safety check
 ## to prevent inadvertent modifications from vm.
-(mount -o remount,ro,exec /vagrant) || exit 1
+(mount -o remount,ro,exec,norelatime /vagrant) || exit 1
 if [ -e #{host_gobin_path} ]; then
-    (mount -o remount,ro,exec #{host_gobin_path}) || exit 1
+    (mount -o remount,ro,exec,norelatime #{host_gobin_path}) || exit 1
 fi
 if [ -e #{host_goroot_path} ]; then
-    (mount -o remount,ro,exec #{host_goroot_path}) || exit 1
+    (mount -o remount,ro,exec,norelatime #{host_goroot_path}) || exit 1
 fi
 if [ -e #{netplugin_synced_gopath} ]; then
-    (mount -o remount,ro,exec #{netplugin_synced_gopath}) || exit 1
+    (mount -o remount,ro,exec,norelatime #{netplugin_synced_gopath}) || exit 1
 fi
 
 ### install basic packages
@@ -81,9 +81,13 @@ SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-    config.vm.box = "contiv/ubuntu-v4"
-    # Commenting out the url since we host the image on Atlas.
-    # config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
+    if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "centos" then
+        config.vm.box = "contiv/centos"
+    else
+      config.vm.box = "contiv/ubuntu-v4"
+      # Commenting out the url since we host the image on Atlas.
+      # config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
+    end
     num_nodes = 2
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i

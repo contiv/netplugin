@@ -43,14 +43,26 @@ unit-test: build
 	CONTIV_HOST_GOPATH=$(GOPATH) CONTIV_HOST_GOBIN=$(HOST_GOBIN) \
 					   CONTIV_HOST_GOROOT=$(HOST_GOROOT) ./scripts/unittests -vagrant
 
+unit-test-centos: build
+	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) CONTIV_HOST_GOBIN=$(HOST_GOBIN) \
+					   CONTIV_HOST_GOROOT=$(HOST_GOROOT) ./scripts/unittests -vagrant
+
 # setting CONTIV_SOE=1 while calling 'make system-test' will stop the test
 # on first failure and leave setup in that state. This can be useful for debugging
 # as part of development.
 system-test: build
 	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -v -run "sanity" \
-					   github.com/contiv/netplugin/systemtests/singlehost
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 60m -v -run "sanity" \
+					   github.com/contiv/netplugin/systemtests/singlehost 
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 80m -v -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/twohosts
+
+system-test-centos: build
+	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -v -run "sanity" \
+					   github.com/contiv/netplugin/systemtests/singlehost
+	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 90m -v -run "sanity" \
+					   github.com/contiv/netplugin/systemtests/twohosts
+
+centos-tests: unit-test-centos system-test-centos
 
 # setting CONTIV_SOE=1 while calling 'make regress-test' will stop the test
 # on first failure and leave setup in that state. This can be useful for debugging

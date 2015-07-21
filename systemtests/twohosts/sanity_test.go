@@ -800,7 +800,7 @@ func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
 	}()
 }
 
-func TestTwoHostsVxlanDeltaConfig_sanity_sanity(t *testing.T) {
+func TestTwoHostsVxlanDeltaConfig_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())

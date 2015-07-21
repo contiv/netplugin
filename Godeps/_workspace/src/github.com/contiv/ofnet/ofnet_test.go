@@ -196,97 +196,147 @@ func TestOfnetSetupVtep(t *testing.T) {
 
 // Test adding/deleting Vrouter routes
 func TestOfnetVrouteAddDelete(t *testing.T) {
-	for i := 0; i < NUM_AGENT; i++ {
-		j := i + 1
-		macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
-		ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
-		endpoint := EndpointInfo{
-		    PortNo  : uint32(NUM_AGENT + 2),
-		    MacAddr : macAddr,
-		    Vlan    : 1,
-		    IpAddr  : ipAddr,
-		}
+    for iter := 0; iter < 4; iter++ {
+    	for i := 0; i < NUM_AGENT; i++ {
+    		j := i + 1
+    		macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
+    		ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
+    		endpoint := EndpointInfo{
+    		    PortNo  : uint32(NUM_AGENT + 2),
+    		    MacAddr : macAddr,
+    		    Vlan    : 1,
+    		    IpAddr  : ipAddr,
+    		}
 
-		log.Infof("Installing local vrouter endpoint: %+v", endpoint)
+    		log.Infof("Installing local vrouter endpoint: %+v", endpoint)
 
-		// Install the local endpoint
-		err := vrtrAgents[i].AddLocalEndpoint(endpoint)
-		if err != nil {
-			t.Errorf("Error installing endpoint: %+v. Err: %v", endpoint, err)
-		}
-	}
+    		// Install the local endpoint
+    		err := vrtrAgents[i].AddLocalEndpoint(endpoint)
+    		if err != nil {
+    			t.Fatalf("Error installing endpoint: %+v. Err: %v", endpoint, err)
+                return
+    		}
+    	}
 
-	log.Infof("Finished adding local vrouter endpoint")
+    	log.Infof("Finished adding local vrouter endpoint")
 
-	// verify all ovs switches have this route
-	for i := 0; i < NUM_AGENT; i++ {
-		brName := "ovsbr1" + fmt.Sprintf("%d", i)
+    	// verify all ovs switches have this route
+    	for i := 0; i < NUM_AGENT; i++ {
+    		brName := "ovsbr1" + fmt.Sprintf("%d", i)
 
-		flowList, err := ofctlFlowDump(brName)
-		if err != nil {
-			t.Errorf("Error getting flow entries. Err: %v", err)
-		}
+    		flowList, err := ofctlFlowDump(brName)
+    		if err != nil {
+    			t.Errorf("Error getting flow entries. Err: %v", err)
+    		}
 
-		// verify flow entry exists
-		for j := 0; j < NUM_AGENT; j++ {
-			k := j + 1
-			ipFlowMatch := fmt.Sprintf("priority=100,ip,nw_dst=10.10.%d.%d", k, k)
-			ipTableId := 2
-			if !ofctlFlowMatch(flowList, ipTableId, ipFlowMatch) {
-				t.Errorf("Could not find the route %s on ovs %s", ipFlowMatch, brName)
-			}
+    		// verify flow entry exists
+    		for j := 0; j < NUM_AGENT; j++ {
+    			k := j + 1
+    			ipFlowMatch := fmt.Sprintf("priority=100,ip,nw_dst=10.10.%d.%d", k, k)
+    			ipTableId := 2
+    			if !ofctlFlowMatch(flowList, ipTableId, ipFlowMatch) {
+    				t.Errorf("Could not find the route %s on ovs %s", ipFlowMatch, brName)
+    			}
 
-			log.Infof("Found ipflow %s on ovs %s", ipFlowMatch, brName)
-		}
-	}
+    			log.Infof("Found ipflow %s on ovs %s", ipFlowMatch, brName)
+    		}
+    	}
+
+        log.Infof("Adding Vrouter endpoint successful.\n Testing Delete")
+
+        for i := 0; i < NUM_AGENT; i++ {
+            j := i + 1
+            macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
+            ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
+            endpoint := EndpointInfo{
+                PortNo  : uint32(NUM_AGENT + 2),
+                MacAddr : macAddr,
+                Vlan    : 1,
+                IpAddr  : ipAddr,
+            }
+
+            log.Infof("Deleting local vrouter endpoint: %+v", endpoint)
+
+            // Install the local endpoint
+            err := vrtrAgents[i].RemoveLocalEndpoint(uint32(NUM_AGENT + 2))
+            if err != nil {
+                t.Fatalf("Error deleting endpoint: %+v. Err: %v", endpoint, err)
+                return
+            }
+        }
+    }
 }
 
 // Test adding/deleting Vxlan routes
 func TestOfnetVxlanAddDelete(t *testing.T) {
-	for i := 0; i < NUM_AGENT; i++ {
-		j := i + 1
-		macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
-		ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
-		endpoint := EndpointInfo{
-		    PortNo  : uint32(NUM_AGENT + 2),
-		    MacAddr : macAddr,
-		    Vlan    : 1,
-		    IpAddr  : ipAddr,
-		}
+    for iter := 0; iter < 4; iter++ {
+    	for i := 0; i < NUM_AGENT; i++ {
+    		j := i + 1
+    		macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
+    		ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
+    		endpoint := EndpointInfo{
+    		    PortNo  : uint32(NUM_AGENT + 2),
+    		    MacAddr : macAddr,
+    		    Vlan    : 1,
+    		    IpAddr  : ipAddr,
+    		}
 
-		log.Infof("Installing local vxlan endpoint: %+v", endpoint)
+    		log.Infof("Installing local vxlan endpoint: %+v", endpoint)
 
-		// Install the local endpoint
-		err := vxlanAgents[i].AddLocalEndpoint(endpoint)
-		if err != nil {
-			t.Errorf("Error installing endpoint: %+v. Err: %v", endpoint, err)
-		}
-	}
+    		// Install the local endpoint
+    		err := vxlanAgents[i].AddLocalEndpoint(endpoint)
+    		if err != nil {
+    			t.Errorf("Error installing endpoint: %+v. Err: %v", endpoint, err)
+    		}
+    	}
 
-	log.Infof("Finished adding local vxlan endpoint")
+    	log.Infof("Finished adding local vxlan endpoint")
 
-	// verify all ovs switches have this route
-	for i := 0; i < NUM_AGENT; i++ {
-		brName := "ovsbr2" + fmt.Sprintf("%d", i)
+    	// verify all ovs switches have this route
+    	for i := 0; i < NUM_AGENT; i++ {
+    		brName := "ovsbr2" + fmt.Sprintf("%d", i)
 
-		flowList, err := ofctlFlowDump(brName)
-		if err != nil {
-			t.Errorf("Error getting flow entries. Err: %v", err)
-		}
+    		flowList, err := ofctlFlowDump(brName)
+    		if err != nil {
+    			t.Errorf("Error getting flow entries. Err: %v", err)
+    		}
 
-		// verify flow entry exists
-		for j := 0; j < NUM_AGENT; j++ {
-			k := j + 1
-			macFlowMatch := fmt.Sprintf("priority=100,dl_vlan=1,dl_dst=02:02:02:%02x:%02x:%02x", k, k, k)
+    		// verify flow entry exists
+    		for j := 0; j < NUM_AGENT; j++ {
+    			k := j + 1
+    			macFlowMatch := fmt.Sprintf("priority=100,dl_vlan=1,dl_dst=02:02:02:%02x:%02x:%02x", k, k, k)
 
-			macTableId := 3
-			if !ofctlFlowMatch(flowList, macTableId, macFlowMatch) {
-				t.Errorf("Could not find the mac flow %s on ovs %s", macFlowMatch, brName)
-			}
+    			macTableId := 3
+    			if !ofctlFlowMatch(flowList, macTableId, macFlowMatch) {
+    				t.Errorf("Could not find the mac flow %s on ovs %s", macFlowMatch, brName)
+    			}
 
-			log.Infof("Found macFlow %s on ovs %s", macFlowMatch, brName)
-		}
-	}
+    			log.Infof("Found macFlow %s on ovs %s", macFlowMatch, brName)
+    		}
+    	}
+
+        log.Infof("Add vxlan endpoint successful.\n Testing Delete")
+
+        for i := 0; i < NUM_AGENT; i++ {
+    		j := i + 1
+    		macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
+    		ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
+    		endpoint := EndpointInfo{
+    		    PortNo  : uint32(NUM_AGENT + 2),
+    		    MacAddr : macAddr,
+    		    Vlan    : 1,
+    		    IpAddr  : ipAddr,
+    		}
+
+    		log.Infof("Deleting local vxlan endpoint: %+v", endpoint)
+
+    		// Install the local endpoint
+    		err := vxlanAgents[i].RemoveLocalEndpoint(uint32(NUM_AGENT + 2))
+    		if err != nil {
+    			t.Errorf("Error deleting endpoint: %+v. Err: %v", endpoint, err)
+    		}
+    	}
+    }
 }
 
 // Wait for debug and cleanup
