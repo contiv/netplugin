@@ -56,7 +56,7 @@ func FetchSysAttrs() error {
 	} else if strings.Contains(strOutput, "Ubuntu") {
 		SysAttrs.OsType = "ubuntu"
 	} else {
-		SysAttrs.OsType = "unsuppored"
+		SysAttrs.OsType = "unsupported"
 	}
 
 	// fetch the system memory, disk, and other attributes
