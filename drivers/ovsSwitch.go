@@ -125,6 +125,9 @@ func (sw *OvsSwitch) Delete() {
 	}
 	if sw.ovsdbDriver != nil {
 		sw.ovsdbDriver.Delete()
+
+		// Wait a little for OVS switch to be deleted
+		time.Sleep(300 * time.Millisecond)
 	}
 }
 
