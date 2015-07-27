@@ -53,9 +53,9 @@ fi
 ## pass the env-var args to docker and restart the service. This helps passing
 ## stuff like http-proxy etc
 if [ $# -gt 0 ]; then
-    (echo "export $@" >> /etc/default/docker && \
-     service docker restart) || exit 1
+    (echo "export $@" >> /etc/default/docker) || exit 1
 fi
+(service docker restart) || exit 1
 
 ## install openvswitch and enable ovsdb-server to listen for incoming requests
 #(apt-get install -y openvswitch-switch > /dev/null) || exit 1
@@ -85,10 +85,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         config.vm.box = "contiv/centos"
     else
       config.vm.box = "contiv/ubuntu-v4"
-      # Commenting out the url since we host the image on Atlas.
-      # config.vm.box_url = "https://cisco.box.com/shared/static/27u8utb1em5730rzprhr5szeuv2p0wir.box"
     end
-    num_nodes = 2
+    num_nodes = 1
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i
     end

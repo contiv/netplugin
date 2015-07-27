@@ -12,4 +12,4 @@ export GOSRC=$GOPATH/src
 export PATH=$PATH:/sbin/:/usr/local/go/bin:$GOBIN
 
 cd $GOSRC/github.com/contiv/netplugin
-make
+make all-CI
