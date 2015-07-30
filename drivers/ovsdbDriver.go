@@ -83,6 +83,7 @@ func NewOvsdbDriver(bridgeName string, failMode string) (*OvsdbDriver, error) {
 func (d *OvsdbDriver) Delete() error {
 	if d.ovs != nil {
 		d.createDeleteBridge(d.bridgeName, "", operDeleteBridge)
+		log.Infof("Deleting OVS bridge: %s", d.bridgeName)
 		(*d.ovs).Disconnect()
 	}
 

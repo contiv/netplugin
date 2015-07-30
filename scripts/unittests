@@ -61,7 +61,7 @@ for pkg in ${test_packages}
 do
   # running in the sand box
   (cd $GOSRC/github.com/contiv/netplugin && \
-  godep go test -v ${pkg}) || exit 1
+  godep go test ${pkg}) || exit 1
 done
 
 echo "Sandbox: Tests succeeded!"

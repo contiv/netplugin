@@ -9,7 +9,12 @@ TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/
 HOST_GOBIN := `which go | xargs dirname`
 HOST_GOROOT := `go env GOROOT`
 
-all: build unit-test system-test
+all: build unit-test system-test system-test-dind centos-tests
+
+# 'all-CI' target is used by the scripts/CI.sh that passes appropriate set of
+# ENV variables (from the jenkins job) to run OS (centos, ubuntu etc) and
+# sandbox specific(vagrant, docker-in-docker)
+all-CI: build unit-test system-test
 
 default: build
 
@@ -43,25 +48,37 @@ unit-test: build
 	CONTIV_HOST_GOPATH=$(GOPATH) CONTIV_HOST_GOBIN=$(HOST_GOBIN) \
 					   CONTIV_HOST_GOROOT=$(HOST_GOROOT) ./scripts/unittests -vagrant
 
+unit-test-centos: build
+	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) CONTIV_HOST_GOBIN=$(HOST_GOBIN) \
+					   CONTIV_HOST_GOROOT=$(HOST_GOROOT) ./scripts/unittests -vagrant
+
 # setting CONTIV_SOE=1 while calling 'make system-test' will stop the test
 # on first failure and leave setup in that state. This can be useful for debugging
 # as part of development.
 system-test: build
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -v -run "sanity" \
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/singlehost 
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 60m -v -run "sanity" \
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 80m -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/twohosts
+
+system-test-centos: build
+	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 30m -run "sanity" \
+					   github.com/contiv/netplugin/systemtests/singlehost
+	CONTIV_NODE_OS=centos CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 90m -run "sanity" \
+					   github.com/contiv/netplugin/systemtests/twohosts
+
+centos-tests: unit-test-centos system-test-centos
 
 # setting CONTIV_SOE=1 while calling 'make regress-test' will stop the test
 # on first failure and leave setup in that state. This can be useful for debugging
 # as part of development.
 regress-test: build
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test -v -run "regress" \
-					   github.com/contiv/netplugin/systemtests/singlehost 
-	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 60m -v -run "regress" \
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test -run "regress" \
+					   github.com/contiv/netplugin/systemtests/singlehost
+	CONTIV_HOST_GOPATH=$(GOPATH) godep go test --timeout 60m -run "regress" \
 					   github.com/contiv/netplugin/systemtests/twohosts
 
-# Setting CONTIV_TESTBED=DIND uses docker in docker as the testbed instead of vagrant VMs. 
+# Setting CONTIV_TESTBED=DIND uses docker in docker as the testbed instead of vagrant VMs.
 system-test-dind:
 	CONTIV_TESTBED=DIND make system-test
 
