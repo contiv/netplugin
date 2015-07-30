@@ -170,20 +170,20 @@ Need to logout / login to make the changes effective (or `source .bashrc`)
 # Project Setup
 Created the Netplugin source tree using:
 
-	$ mkdir -p ~/go/src/github.com
+	$ mkdir -p $GOPATH/src/github.com
 	
-Lot of good info regarding Go directory layout [here](http://golang.org/doc/code.html). Then installed the Netplugin source tree. Note that I forked the project into my own account (rschmied) on Github.
+Lot of good info regarding Go directory layout [here](http://golang.org/doc/code.html). Then installed the Netplugin source tree. Note that I forked the project into my own account (johndoe) on Github.
 
-	$ go get github.com/rschmied/netplugin
-	package github.com/rschmied/netplugin
-        imports github.com/rschmied/netplugin
-        imports github.com/rschmied/netplugin: no buildable Go source files in /home/netplugin/go/src/github.com/rschmied/netplugin
+	$ go get github.com/johndoe/netplugin
+	package github.com/johndoe/netplugin
+        imports github.com/johndoe/netplugin
+        imports github.com/johndoe/netplugin: no buildable Go source files in /home/netplugin/go/src/github.com/johndoe/netplugin
 	$ 
 
 ### Syncing the Netplugin Fork
 In my case, my fork of Netplugin was out of date... Looking [here](https://help.github.com/articles/syncing-a-fork/) and [here](http://www.jonathanmedd.net/2013/06/git-remote-add-upstream-fatal-remote-upstream-already-exists.html) definitely helped to get to the latest master. These were my steps (and I was several commits behind which is not showing below b/c it already fetched and merged those in the meantime):
 
-	$ cd ~/go/src/github.com/rschmied/netplugin
+	$ cd $GOPATH/src/github.com/johndoe/netplugin
 	$ git remote add upstream https://github.com/contiv/netplugin
 	$ git fetch upstream
 	From https://github.com/contiv/netplugin
@@ -197,22 +197,31 @@ In my case, my fork of Netplugin was out of date... Looking [here](https://help.
 	Already up-to-date.
 	$ 
 	
-### Sym Links
-In order to successfully build the environment I had to add a symbolic link in the Go directory tree so that the 'contiv' (original) path points to my fork... This helped:
+### Git Setup
+To setup the local fork and track `contiv/netlugin` as the master the following commands are required:
 
-	$ cd ~/go/src/github.com/
-	$ ln -s rschmied contiv 
+	$ go get -d github.com/contiv/netplugin
+	$ cd $GOPATH/src/github.com/contiv/netplugin
+	$ git remote add johndoe git@github.com:johndoe/netplugin
+	
+This allows to work with remote `johndoe` when pushing to your fork.
+
+### Alternative Setup with Sym Links
+An alternative way to build the environment is to add a symbolic link in the Go directory tree so that the 'contiv' (original) path points to your fork... This helped in my case:
+
+	$ cd $GOPATH/go/src/github.com/
+	$ ln -s johndoe contiv 
 	$ ls -l
 	total 4
-	lrwxrwxrwx 1 netplugin netplugin    8 Jul 16 16:35 contiv -> rschmied
-	drwxrwxr-x 3 netplugin netplugin 4096 Jul 16 16:38 rschmied
+	lrwxrwxrwx 1 netplugin netplugin    8 Jul 16 16:35 contiv -> johndoe
+	drwxrwxr-x 3 netplugin netplugin 4096 Jul 16 16:38 johndoe
 	$ 
-
+	
 
 # Build
 We should be ready now to build the project.
 
-	$ cd ~/go/src/github.com/rschmied/netplugin
+	$ cd $GOPATH/src/github.com/johndoe/netplugin
 	$ make build
 	$ make unit-test
 	
@@ -232,4 +241,3 @@ When everything goes well, we will see a lot of output ending in:
 	$ 
 
 And we then can go on with the system-test and the other demo and test targets as outlined in the top level README.
-
