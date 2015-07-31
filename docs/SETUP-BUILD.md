@@ -167,19 +167,34 @@ Add the following lines to `~/.bashrc`:
 
 Need to logout / login to make the changes effective (or `source .bashrc`)
 
-# Project Setup
+# Project Setup and Contributing
 Created the Netplugin source tree using:
 
 	$ mkdir -p $GOPATH/src/github.com
 	
-Lot of good info regarding Go directory layout [here](http://golang.org/doc/code.html). Then installed the Netplugin source tree. To setup the local fork and track `contiv/netlugin` as the master the following commands are required:
+Lots of good info regarding Go directory layout [here](http://golang.org/doc/code.html). Then installed the Netplugin source tree. To setup the local fork and track `contiv/netlugin` as the master the following commands are required:
 
 	$ go get -d github.com/contiv/netplugin
 	$ cd $GOPATH/src/github.com/contiv/netplugin
 	$ git remote add johndoe git@github.com:johndoe/netplugin
 	
-This allows to work with remote `johndoe` when pushing to your fork.
+This allows to work with remote `johndoe` when pushing to your fork. If you're (relatively) new to Git and contributing to public projects then [this document](https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project#Forked-Public-Project) will help. In a nutshell, the sequence to add stuff to the upstream project looks something like this
+
+	$ git checkout master
+	$ git pull --rebase
+	$ git checkout <your branch>
+	$ git rebase -i master
 	
+At this point your editor will open and you'll be asked to edit the text to provide rebase instructions. What you want to do is replace the `pick` with `s` on every line but the first one. After saving and exiting, some operations will occur and you will see another editor to edit your commit message.
+
+Then,
+
+	$ git push -f <your remote> <your branch>
+
+To push the changes back to the code base. [^1]
+
+[^1]: Most of this section shamelessly plagiarized from comments [Erik](https://github.com/erikh) made.
+
 
 # Build
 We should be ready now to build the project.
