@@ -118,7 +118,7 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 		if os.Getenv("CONTIV_TESTBED") == "DIND" {
 			cmdStr = fmt.Sprintf("netplugin %s 0<&- &>/tmp/netplugin-%d.log ", flagsStr, i+1)
 		} else {
-			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s 0<&- &>/tmp/netplugin.log &", flagsStr)
+			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s 0<&- &>/tmp/netplugin.log", flagsStr)
 		}
 		output, err := node.RunCommandBackground(cmdStr)
 		if err != nil {
@@ -147,9 +147,9 @@ func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]st
 	}
 
 	if os.Getenv("CONTIV_TESTBED") == "DIND" {
-		cmdStr = fmt.Sprintf("netmaster %s 0<&- &>/tmp/netmaster.log ", flagsStr)
+		cmdStr = fmt.Sprintf("netmaster %s 0<&- &>/tmp/netmaster.log", flagsStr)
 	} else {
-		cmdStr = fmt.Sprintf("nohup netmaster %s 0<&- &>/tmp/netmaster.log &", flagsStr)
+		cmdStr = fmt.Sprintf("nohup netmaster %s 0<&- &>/tmp/netmaster.log", flagsStr)
 	}
 	output, err := node.RunCommandBackground(cmdStr)
 	if err != nil {

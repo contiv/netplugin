@@ -16,6 +16,7 @@ limitations under the License.
 package utils
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -75,11 +76,52 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 		return err
 	}
 
+	// some more work to figure the ssh port and private key details
+	// XXX: vagrant ssh-config --host <> seems to be broken as-in it doesn't
+	// correctly filter the output based on passed host-name. So filtering
+	// the output ourselves below.
+	if output, err = vCmd.RunWithOutput("ssh-config"); err != nil {
+		return core.Errorf("Error running vagrant ssh-config. Error: %s. Output: \n%s\n", err, output)
+	}
+
+	if re, err = regexp.Compile("Host [a-zA-Z0-9_-]+|Port [0-9]+|IdentityFile .*"); err != nil {
+		return err
+	}
+
+	nodeInfosBytes := re.FindAll(output, -1)
+	if nodeInfosBytes == nil {
+		return core.Errorf("Failed to find node info in vagrant ssh-config output: \n%s\n", output)
+	}
+
 	// got the names, now fill up the vagrant-nodes structure
-	for i, nodeName := range nodeNames {
-		log.Infof("Adding node: %q", nodeName)
-		node := TestbedNode(VagrantNode{Name: nodeName, NodeNum: i + 1})
-		v.nodes = append(v.nodes, node)
+	for _, nodeName := range nodeNames {
+		nodeInfoPos := -1
+		// nodeInfos is a slice of node info orgranised as nodename, it's port and identity-file in that order per node
+		for j := range nodeInfosBytes {
+			if string(nodeInfosBytes[j]) == fmt.Sprintf("Host %s", nodeName) {
+				nodeInfoPos = j
+				break
+			}
+		}
+		if nodeInfoPos == -1 {
+			return core.Errorf("Failed to find %q info in vagrant ssh-config output: \n%s\n", nodeName, output)
+		}
+		port := ""
+		if n, err := fmt.Sscanf(string(nodeInfosBytes[nodeInfoPos+1]), "Port %s", &port); n == 0 || err != nil {
+			return core.Errorf("Failed to find %q port info in vagrant ssh-config output: \n%s\n. Error: %s",
+				nodeName, nodeInfosBytes[nodeInfoPos+1], err)
+		}
+		privKeyFile := ""
+		if n, err := fmt.Sscanf(string(nodeInfosBytes[nodeInfoPos+2]), "IdentityFile %s", &privKeyFile); n == 0 || err != nil {
+			return core.Errorf("Failed to find %q identity file info in vagrant ssh-config output: \n%s\n. Error: %s",
+				nodeName, nodeInfosBytes[nodeInfoPos+2], err)
+		}
+		log.Infof("Adding node: %q(%s:%s)", nodeName, port, privKeyFile)
+		var node *VagrantNode
+		if node, err = NewVagrantNode(nodeName, port, privKeyFile); err != nil {
+			return err
+		}
+		v.nodes = append(v.nodes, TestbedNode(node))
 	}
 
 	return nil
@@ -87,6 +129,10 @@ func (v *Vagrant) Setup(env string, numNodes int) error {
 
 // Teardown cleans up a vagrant testbed
 func (v *Vagrant) Teardown() {
+	for _, node := range v.nodes {
+		vnode := node.(*VagrantNode)
+		vnode.Cleanup()
+	}
 	vCmd := &VagrantCommand{ContivNodes: v.expectedNodes}
 	output, err := vCmd.RunWithOutput("destroy", "-f")
 	if err != nil {
