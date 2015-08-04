@@ -271,17 +271,17 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEPContext) error {
 		return err
 	}
 
-	out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "ip",
+	out, err := exec.Command("/sbin/ip", "netns", "exec", contPid, "/sbin/ip",
 		"addr", "add", ctx.IPAddress+"/"+strconv.Itoa(int(ctx.SubnetLen)),
-		"dev", ctx.InterfaceID).Output()
+		"dev", ctx.InterfaceID).CombinedOutput()
 	if err != nil {
 		log.Errorf("error configuring ip address for interface %s output = '%s'. Error: %s",
 			ctx.InterfaceID, out, err)
 		return err
 	}
 
-	out, err = exec.Command("/sbin/ip", "netns", "exec", contPid, "ip",
-		"link", "set", ctx.InterfaceID, "up").Output()
+	out, err = exec.Command("/sbin/ip", "netns", "exec", contPid, "/sbin/ip",
+		"link", "set", ctx.InterfaceID, "up").CombinedOutput()
 	if err != nil {
 		log.Errorf("error bringing interface %s up 'out = %s'. Error: %s",
 			ctx.InterfaceID, out, err)
