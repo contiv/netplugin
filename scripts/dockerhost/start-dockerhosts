@@ -62,17 +62,23 @@ sudo ip link set br-em2 up
 
 num_nodes=1
 if [ -n "$CONTIV_NODES" ];
-then 
+then
     num_nodes=$CONTIV_NODES
 fi
 echo "Num nodes = "$num_nodes
 
 # Pull the docker image for hosts from docker-hub
 # sudo docker build -t contiv/ubuntu $scriptdir
-sudo docker pull contiv/ubuntu
+sudo docker images contiv/ubuntu | grep ubuntu
+if [ $? != 0 ]; then
+    sudo docker pull contiv/ubuntu
+fi
 
 # Pull ubuntu image for use within the docker hosts
-sudo docker pull ubuntu
+sudo docker images ubuntu | grep ubuntu
+if [ $? != 0 ]; then
+    sudo docker pull ubuntu
+fi
 
 mkdir /tmp/ubuntu_image
 
@@ -80,7 +86,7 @@ sudo docker save -o /tmp/ubuntu_image/ubuntu-image.tar ubuntu
 
 cluster=""
 first_node_ip=""
-for i in `seq 1 $num_nodes`; 
+for i in `seq 1 $num_nodes`;
 do
     host="netplugin-node$i"
     echo "Starting $host"
@@ -130,7 +136,7 @@ done
 
 sudo rm -rf /tmp/ubuntu_image
 
-for i in `seq 1 $num_nodes`; 
+for i in `seq 1 $num_nodes`;
 do
     host="netplugin-node$i"
     echo "Starting etcd on $host"

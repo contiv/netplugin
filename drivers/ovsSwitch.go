@@ -25,7 +25,10 @@ import (
 	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
+
+const useVethPair = true
 
 // OvsSwitch represents on OVS bridge instance
 type OvsSwitch struct {
@@ -159,11 +162,67 @@ func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32) error {
 	return nil
 }
 
+// createVethPair creates veth interface pairs with specified name
+func createVethPair(name1, name2 string) error {
+	log.Infof("Creating Veth pairs with name: %s, %s", name1, name2)
+
+	// Veth pair params
+	veth := &netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:   name1,
+			TxQLen: 0,
+		},
+		PeerName: name2,
+	}
+
+	// Create the veth pair
+	if err := netlink.LinkAdd(veth); err != nil {
+		log.Errorf("error creating veth pair: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// setLinkUp sets the link up
+func setLinkUp(name string) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	return netlink.LinkSetUp(iface)
+}
+
 // CreatePort creates a port in ovs switch
-func (sw *OvsSwitch) CreatePort(intfName, intfType string, cfgEp *OvsCfgEndpointState,
-	pktTag int) error {
-	// Ask OVSDB driver to add/delete the port
-	err := sw.ovsdbDriver.CreatePort(intfName, intfType, cfgEp.ID, pktTag)
+func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
+	var ovsPortName string
+	var ovsIntfType string
+	if useVethPair {
+		// Generate interface
+		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
+		ovsIntfType = ""
+
+		// Create a Veth pair
+		err := createVethPair(intfName, ovsPortName)
+		if err != nil {
+			log.Errorf("Error creating veth pairs. Err: %v", err)
+			return err
+		}
+
+		// Set the OVS side of the port as up
+		err = setLinkUp(ovsPortName)
+		if err != nil {
+			log.Errorf("Error setting link %s up. Err: %v", ovsPortName, err)
+			return err
+		}
+	} else {
+		ovsPortName = intfName
+		ovsIntfType = "internal"
+
+	}
+
+	// Ask OVSDB driver to add the port
+	err := sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag)
 	if err != nil {
 		return err
 	}
@@ -176,10 +235,6 @@ func (sw *OvsSwitch) CreatePort(intfName, intfType string, cfgEp *OvsCfgEndpoint
 	// Wait a little for OVS to create the interface
 	time.Sleep(300 * time.Millisecond)
 
-	if intfType != "internal" {
-		log.Fatalf("Not expecting interface type :%s.", intfType)
-	}
-
 	// Set the interface mac address
 	err = netutils.SetInterfaceMac(intfName, cfgEp.MacAddress)
 	if err != nil {
@@ -190,9 +245,9 @@ func (sw *OvsSwitch) CreatePort(intfName, intfType string, cfgEp *OvsCfgEndpoint
 	// Add the endpoint to ofnet
 	if sw.netType == "vxlan" {
 		// Get the openflow port number for the interface
-		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
+		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
 		if err != nil {
-			log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+			log.Errorf("Could not find the OVS port %s. Err: %v", ovsPortName, err)
 			return err
 		}
 
@@ -209,7 +264,7 @@ func (sw *OvsSwitch) CreatePort(intfName, intfType string, cfgEp *OvsCfgEndpoint
 		// Add the local port to ofnet
 		err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
 		if err != nil {
-			log.Errorf("Error adding local port %s to ofnet. Err: %v", intfName, err)
+			log.Errorf("Error adding local port %s to ofnet. Err: %v", ovsPortName, err)
 			return err
 		}
 	}
@@ -219,12 +274,20 @@ func (sw *OvsSwitch) CreatePort(intfName, intfType string, cfgEp *OvsCfgEndpoint
 
 // UpdatePort updates an OVS port without creating it
 func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
+	var ovsPortName string
+	if useVethPair {
+		// Generate interface
+		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
+	} else {
+		ovsPortName = intfName
+	}
+
 	// Add the endpoint to ofnet
 	if sw.netType == "vxlan" {
 		// Get the openflow port number for the interface
-		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
+		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
 		if err != nil {
-			log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+			log.Errorf("Could not find the OVS port %s. Err: %v", ovsPortName, err)
 			return err
 		}
 
@@ -241,7 +304,7 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 		// Add the local port to ofnet
 		err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
 		if err != nil {
-			log.Errorf("Error adding local port %s to ofnet. Err: %v", intfName, err)
+			log.Errorf("Error adding local port %s to ofnet. Err: %v", ovsPortName, err)
 			return err
 		}
 	}
@@ -251,6 +314,7 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 
 // DeletePort removes a port from OVS
 func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
+
 	if epOper.VtepIP != "" {
 		return nil
 	}
@@ -260,23 +324,31 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 		return err
 	}
 
+	var ovsPortName string
+	if useVethPair {
+		// Generate interface
+		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
+	} else {
+		ovsPortName = intfName
+	}
+
 	// Remove info from ofnet
 	if sw.netType == "vxlan" {
 		// Get the openflow port number for the interface
-		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
+		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
 		if err != nil {
-			log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+			log.Errorf("Could not find the OVS port %s. Err: %v", ovsPortName, err)
 			return err
 		}
 
 		err = sw.ofnetAgent.RemoveLocalEndpoint(ofpPort)
 		if err != nil {
-			log.Errorf("Error removing port %s from ofnet. Err: %v", intfName, err)
+			log.Errorf("Error removing port %s from ofnet. Err: %v", ovsPortName, err)
 		}
 	}
 
 	// Delete it from ovsdb
-	err = sw.ovsdbDriver.DeletePort(intfName)
+	err = sw.ovsdbDriver.DeletePort(ovsPortName)
 	if err != nil {
 		return err
 	}

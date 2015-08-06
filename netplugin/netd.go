@@ -34,6 +34,7 @@ import (
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/netplugin/utils"
@@ -870,6 +871,10 @@ func main() {
 		pluginConfig.Instance.VlanIntf = opts.vlanIntf
 	}
 
+	// Initialize docker plugin
+	dockplugin.InitDockPlugin()
+
+	// Init the driver plugins..
 	err = netPlugin.Init(pluginConfig, string(config))
 	if err != nil {
 		log.Fatalf("Failed to initialize the plugin. Error: %s", err)
