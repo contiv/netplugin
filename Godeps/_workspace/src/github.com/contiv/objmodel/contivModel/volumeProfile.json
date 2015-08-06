@@ -4,7 +4,15 @@
 		{
 			"name": "volumeProfile",
 			"type": "object",
+<<<<<<< HEAD
+<<<<<<< HEAD
 			"key": [ "tenantName", "volumeProfileName" ],
+=======
+			"key": "string",
+>>>>>>> Integrate contivModel to netmaster
+=======
+			"key": [ "tenantName", "volumeProfileName" ],
+>>>>>>> First version of dockplugin
 			"properties": {
 				"volumeProfileName": {
 					"type": "string",

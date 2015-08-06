@@ -17,6 +17,7 @@ package ofnet
 // This file contains the ofnet master implementation
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/rpc"
@@ -37,6 +38,9 @@ type OfnetMaster struct {
 
 	// Endpoint database
 	endpointDb map[string]*OfnetEndpoint
+
+	// Policy database
+	policyDb map[string]*OfnetPolicyRule
 }
 
 // Create new Ofnet master
@@ -47,6 +51,7 @@ func NewOfnetMaster(portNo uint16) *OfnetMaster {
 	// Init params
 	master.agentDb = make(map[string]*OfnetNode)
 	master.endpointDb = make(map[string]*OfnetEndpoint)
+	master.policyDb = make(map[string]*OfnetPolicyRule)
 
 	// Create a new RPC server
 	master.rpcServer, master.rpcListener = rpcHub.NewRpcServer(portNo)
@@ -88,7 +93,7 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 		if node.HostAddr != endpoint.OriginatorIp.String() {
 			var resp bool
 
-			log.Infof("Sending endpoint: %+v to node %s", endpoint, node.HostAddr)
+			log.Infof("Sending endpoint: %+v to node %s:%d", endpoint, node.HostAddr, node.HostPort)
 
 			client := rpcHub.Client(node.HostAddr, node.HostPort)
 			err := client.Call("OfnetAgent.EndpointAdd", endpoint, &resp)
@@ -120,7 +125,7 @@ func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 		if node.HostAddr != ep.OriginatorIp.String() {
 			var resp bool
 
-			log.Infof("Sending endpoint: %+v to node %s", ep, node.HostAddr)
+			log.Infof("Sending endpoint: %+v to node %s:%d", ep, node.HostAddr, node.HostPort)
 
 			client := rpcHub.Client(node.HostAddr, node.HostPort)
 			err := client.Call("OfnetAgent.EndpointAdd", ep, &resp)
@@ -156,7 +161,7 @@ func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 		if node.HostAddr != ep.OriginatorIp.String() {
 			var resp bool
 
-			log.Infof("Sending DELETE endpoint: %+v to node %s", ep, node.HostAddr)
+			log.Infof("Sending DELETE endpoint: %+v to node %s:%d", ep, node.HostAddr, node.HostPort)
 
 			client := rpcHub.Client(node.HostAddr, node.HostPort)
 			err := client.Call("OfnetAgent.EndpointDel", ep, &resp)
@@ -168,6 +173,60 @@ func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 	}
 
 	*ret = true
+	return nil
+}
+
+// AddRule adds a new rule to the policyDB
+func (self *OfnetMaster) AddRule(rule *OfnetPolicyRule) error {
+	// Check if we have the rule already
+	if self.policyDb[rule.RuleId] != nil {
+		return errors.New("Rule already exists")
+	}
+
+	// Save the rule in DB
+	self.policyDb[rule.RuleId] = rule
+
+	// Publish it to all agents except where it came from
+	for _, node := range self.agentDb {
+		var resp bool
+
+		log.Infof("Sending rule: %+v to node %s:%d", rule, node.HostAddr, node.HostPort)
+
+		client := rpcHub.Client(node.HostAddr, node.HostPort)
+		err := client.Call("PolicyAgent.AddRule", rule, &resp)
+		if err != nil {
+			log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DelRule removes a rule from policy DB
+func (self *OfnetMaster) DelRule(rule *OfnetPolicyRule) error {
+	// Check if we have the rule
+	if self.policyDb[rule.RuleId] == nil {
+		return errors.New("Rule does not exist")
+	}
+
+	// Remove the rule from DB
+	delete(self.policyDb, rule.RuleId)
+
+	// Publish it to all agents except where it came from
+	for _, node := range self.agentDb {
+		var resp bool
+
+		log.Infof("Sending DELETE rule: %+v to node %s", rule, node.HostAddr)
+
+		client := rpcHub.Client(node.HostAddr, node.HostPort)
+		err := client.Call("PolicyAgent.DelRule", rule, &resp)
+		if err != nil {
+			log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -4,6 +4,8 @@
 		{
 			"name": "network",
 			"type": "object",
+<<<<<<< HEAD
+<<<<<<< HEAD
 			"key": [ "tenantName", "networkName"],
 			"properties": {
 				"networkName": {
@@ -15,6 +17,26 @@
 					"type": "string",
 					"title": "Tenant Name",
 					"length": 64
+=======
+			"key": "string",
+=======
+			"key": [ "tenantName", "networkName"],
+>>>>>>> First version of dockplugin
+			"properties": {
+				"networkName": {
+					"type": "string",
+					"title": "Network name",
+					"length": 64
+				},
+				"tenantName": {
+					"type": "string",
+<<<<<<< HEAD
+					"description": "Tenant Name"
+>>>>>>> Integrate contivModel to netmaster
+=======
+					"title": "Tenant Name",
+					"length": 64
+>>>>>>> First version of dockplugin
 				},
 				"isPublic": {
 					"type": "bool"
@@ -23,6 +45,8 @@
 					"type": "bool"
 				},
 				"encap": {
+<<<<<<< HEAD
+<<<<<<< HEAD
 					"type": "string",
 					"format": "^(vlan|vxlan)$"
 				},
@@ -33,14 +57,42 @@
 				"defaultGw": {
 					"type": "string",
 					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$"
+=======
+					"type": "string"
+=======
+					"type": "string",
+					"format": "^(vlan|vxlan)$"
+>>>>>>> First version of dockplugin
+				},
+				"subnet": {
+					"type": "string",
+					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?/[0-9]{1,2}?)$"
+				},
+				"defaultGw": {
+<<<<<<< HEAD
+					"type": "string"
+>>>>>>> Integrate contivModel to netmaster
+=======
+					"type": "string",
+					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$"
+>>>>>>> First version of dockplugin
 				}
 			},
 			"link-sets": {
 				"services": {
 					"ref": "service"
+<<<<<<< HEAD
+<<<<<<< HEAD
 				},
 				"endpointGroups": {
 					"ref": "endpointGroup"
+=======
+>>>>>>> Integrate contivModel to netmaster
+=======
+				},
+				"endpointGroups": {
+					"ref": "endpointGroup"
+>>>>>>> First version of dockplugin
 				}
 			},
 			"links": {

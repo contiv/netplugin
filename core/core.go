@@ -31,6 +31,12 @@ type Config struct {
 	V interface{}
 }
 
+// ServiceInfo has information about a service
+type ServiceInfo struct {
+	HostAddr string // Host name or IP address where its running
+	Port     int    // Port number where its listening
+}
+
 // Network identifies a group of (addressable) endpoints that can
 // comunicate.
 type Network interface {
@@ -47,12 +53,12 @@ type Endpoint interface {
 	FetchEndpoint(id string) (State, error)
 }
 
-// PeerHost identifies a peer which this node can communicate to
-// Generally this info is used for network wide operations like setting up
-// VTEP tunnels, synchronizing routes etc.
-type PeerHost interface {
-	CreatePeerHost(id string) error
-	DeletePeerHost(id string) error
+// Clustering has functions for discovering peer nodes and masters
+type Clustering interface {
+	AddPeerHost(node ServiceInfo) error
+	DeletePeerHost(node ServiceInfo) error
+	AddMaster(node ServiceInfo) error
+	DeleteMaster(node ServiceInfo) error
 }
 
 // Plugin brings together an implementation of a network, endpoint and
@@ -63,7 +69,7 @@ type Plugin interface {
 	Deinit()
 	Network
 	Endpoint
-	PeerHost
+	Clustering
 }
 
 // InstanceInfo encapsulates data that is specific to a running instance of
@@ -87,8 +93,10 @@ type NetworkDriver interface {
 	DeleteNetwork(id string) error
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
-	CreatePeerHost(id string) error
-	DeletePeerHost(id string) error
+	AddPeerHost(node ServiceInfo) error
+	DeletePeerHost(node ServiceInfo) error
+	AddMaster(node ServiceInfo) error
+	DeleteMaster(node ServiceInfo) error
 }
 
 // WatchState is used to provide a difference between core.State structs by

@@ -377,44 +377,54 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 	return nil
 }
 
-// CreatePeerHost creates peer host object and adds VTEPs if necessary
-func (d *OvsDriver) CreatePeerHost(id string) error {
-	log.Infof("CreatePeerHost for %s", id)
-
-	// Read the peer information
-	peer := PeerHostState{}
-	peer.StateDriver = d.oper.StateDriver
-	err := peer.Read(id)
-	if err != nil {
-		return err
-	}
+// AddPeerHost adds VTEPs if necessary
+func (d *OvsDriver) AddPeerHost(node core.ServiceInfo) error {
+	log.Infof("CreatePeerHost for %+v", node)
 
 	// Add the VTEP for the peer in vxlan switch.
-	err = d.switchDb["vxlan"].CreateVtep(peer.VtepIPAddr)
+	err := d.switchDb["vxlan"].CreateVtep(node.HostAddr)
 	if err != nil {
-		log.Errorf("Error adding the VTEP %s. Err: %s", peer.VtepIPAddr, err)
+		log.Errorf("Error adding the VTEP %s. Err: %s", node.HostAddr, err)
 		return err
 	}
 
 	return nil
 }
 
-// DeletePeerHost deletes peer host info and associated VTEP
-func (d *OvsDriver) DeletePeerHost(id string) error {
-	log.Infof("DeletePeerHost for %s", id)
+// DeletePeerHost deletes associated VTEP
+func (d *OvsDriver) DeletePeerHost(node core.ServiceInfo) error {
+	log.Infof("DeletePeerHost for %+v", node)
 
-	// Read the peer information
-	peer := PeerHostState{}
-	peer.StateDriver = d.oper.StateDriver
-	err := peer.Read(id)
+	// Add the VTEP for the peer in vxlan switch.
+	err := d.switchDb["vxlan"].DeleteVtep(node.HostAddr)
+	if err != nil {
+		log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
+		return err
+	}
+
+	return nil
+}
+
+// AddMaster adds master node
+func (d *OvsDriver) AddMaster(node core.ServiceInfo) error {
+	log.Infof("AddMaster for %+v", node)
+
+	// Add master to vlan and vxlan datapaths
+	err := d.switchDb["vxlan"].AddMaster(node)
 	if err != nil {
 		return err
 	}
 
-	// Add the VTEP for the peer in vxlan switch.
-	err = d.switchDb["vxlan"].DeleteVtep(peer.VtepIPAddr)
+	return nil
+}
+
+// DeleteMaster deletes master node
+func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
+	log.Infof("DeleteMaster for %+v", node)
+
+	// Delete master from vlan and vxlan datapaths
+	err := d.switchDb["vxlan"].DeleteMaster(node)
 	if err != nil {
-		log.Errorf("Error deleting the VTEP %s. Err: %s", peer.VtepIPAddr, err)
 		return err
 	}
 

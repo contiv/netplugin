@@ -4,7 +4,15 @@
 		{
 			"name": "policy",
 			"type": "object",
+<<<<<<< HEAD
+<<<<<<< HEAD
 			"key": [ "tenantName", "policyName" ],
+=======
+			"key": "string",
+>>>>>>> Integrate contivModel to netmaster
+=======
+			"key": [ "tenantName", "policyName" ],
+>>>>>>> First version of dockplugin
 			"properties": {
 				"policyName": {
 					"type": "string",
@@ -13,15 +21,34 @@
 				"tenantName": {
 					"type": "string",
 					"description": "Tenant Name"
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+				},
+				"rules": {
+					"type": "array",
+					"items": "string"
+>>>>>>> Integrate contivModel to netmaster
+=======
+>>>>>>> First version of dockplugin
 				}
 			},
 			"link-sets": {
 				"endpointGroups": {
 					"ref": "endpointGroup"
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> First version of dockplugin
 				},
 				"rules": {
 					"ref": "rule"
 
+<<<<<<< HEAD
+=======
+>>>>>>> Integrate contivModel to netmaster
+=======
+>>>>>>> First version of dockplugin
 				}
 			},
 			"links": {

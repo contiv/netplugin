@@ -31,6 +31,9 @@ import (
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/objmodel/objdb"
+	"github.com/contiv/objmodel/objdb/client"
+	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/consul/api"
 )
@@ -53,6 +56,7 @@ func usage() {
 type daemon struct {
 	opts          cliOpts
 	apiController *objApi.APIController
+	ofnetMaster   *ofnet.OfnetMaster
 }
 
 func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
@@ -117,6 +121,32 @@ func (d *daemon) parseOpts() error {
 	return nil
 }
 
+func (d *daemon) registerService() {
+	// Create an objdb client
+	objdbClient := client.NewClient()
+
+	// Get the address to be used for local communication
+	localIP, err := objdbClient.GetLocalAddr()
+	if err != nil {
+		log.Fatalf("Error getting locla IP address. Err: %v", err)
+	}
+
+	// service info
+	srvInfo := objdb.ServiceInfo{
+		ServiceName: "netmaster",
+		HostAddr:    localIP,
+		Port:        9999,
+	}
+
+	// Register the node with service registry
+	err = objdbClient.RegisterService(srvInfo)
+	if err != nil {
+		log.Fatalf("Error registering service. Err: %v", err)
+	}
+
+	log.Infof("Registered netmaster service with registry")
+}
+
 func (d *daemon) execOpts() {
 	if err := d.parseOpts(); err != nil {
 		log.Fatalf("Failed to parse cli options. Error: %s", err)
@@ -140,6 +170,12 @@ func (d *daemon) execOpts() {
 	if _, err = resources.NewStateResourceManager(sd); err != nil {
 		log.Fatalf("Failed to init resource manager. Error: %s", err)
 	}
+
+	// Register netmaster service
+	d.registerService()
+
+	// Create the netmaster
+	d.ofnetMaster = ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
 }
 
 func (d *daemon) ListenAndServe() {
@@ -168,6 +204,9 @@ func (d *daemon) ListenAndServe() {
 		get(false, d.networks))
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetNetworksRESTEndpoint),
 		get(true, d.networks))
+
+	log.Infof("Netmaster listening on %s", d.opts.listenURL)
+
 	if err := http.ListenAndServe(d.opts.listenURL, r); err != nil {
 		log.Fatalf("Error listening for http requests. Error: %s", err)
 	}

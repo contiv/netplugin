@@ -126,12 +126,22 @@ func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 	return nil, core.Errorf("Not implemented")
 }
 
-// CreatePeerHost creates an peer host for a given ID.
-func (p *NetPlugin) CreatePeerHost(id string) error {
-	return p.NetworkDriver.CreatePeerHost(id)
+// AddPeerHost adds an peer host.
+func (p *NetPlugin) AddPeerHost(node core.ServiceInfo) error {
+	return p.NetworkDriver.AddPeerHost(node)
 }
 
-// DeletePeerHost destroys a peer host for an ID.
-func (p *NetPlugin) DeletePeerHost(id string) error {
-	return p.NetworkDriver.DeletePeerHost(id)
+// DeletePeerHost removes a peer host.
+func (p *NetPlugin) DeletePeerHost(node core.ServiceInfo) error {
+	return p.NetworkDriver.DeletePeerHost(node)
+}
+
+// AddMaster adds a master node.
+func (p *NetPlugin) AddMaster(node core.ServiceInfo) error {
+	return p.NetworkDriver.AddMaster(node)
+}
+
+// DeleteMaster removes a master node
+func (p *NetPlugin) DeleteMaster(node core.ServiceInfo) error {
+	return p.NetworkDriver.DeleteMaster(node)
 }

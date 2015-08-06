@@ -16,7 +16,8 @@ import (
 )
 
 const NUM_MASTER = 2
-const NUM_AGENT = 4
+const NUM_AGENT = 5
+const NUM_ITER = 4
 
 var vrtrMasters [NUM_MASTER]*OfnetMaster
 var vxlanMasters [NUM_MASTER]*OfnetMaster
@@ -24,11 +25,16 @@ var vrtrAgents [NUM_AGENT]*OfnetAgent
 var vxlanAgents [NUM_AGENT]*OfnetAgent
 var ovsDrivers [NUM_AGENT * 2]*ovsdbDriver.OvsDriver
 
-var localIpList []string = []string{"10.10.10.1", "10.10.10.2", "10.10.10.3", "10.10.10.4"}
+//var localIpList []string = []string{"10.10.10.1", "10.10.10.2", "10.10.10.3", "10.10.10.4"}
+var localIpList []string
 
 // Create couple of ofnet masters and few agents
 func TestOfnetInit(t *testing.T) {
 	var err error
+
+	for i := 0; i < NUM_AGENT; i++ {
+		localIpList = append(localIpList, fmt.Sprintf("10.10.10.%d", (i+1)))
+	}
 
 	// Create the masters
 	for i := 0; i < NUM_MASTER; i++ {
@@ -191,7 +197,7 @@ func TestOfnetSetupVtep(t *testing.T) {
 
 // Test adding/deleting Vrouter routes
 func TestOfnetVrouteAddDelete(t *testing.T) {
-	for iter := 0; iter < 4; iter++ {
+	for iter := 0; iter < NUM_ITER; iter++ {
 		for i := 0; i < NUM_AGENT; i++ {
 			j := i + 1
 			macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
@@ -259,12 +265,36 @@ func TestOfnetVrouteAddDelete(t *testing.T) {
 				return
 			}
 		}
+
+		log.Infof("Deleted endpoints. Verifying they are gone")
+
+		// verify flows are deleted
+		for i := 0; i < NUM_AGENT; i++ {
+			brName := "ovsbr1" + fmt.Sprintf("%d", i)
+
+			flowList, err := ofctlFlowDump(brName)
+			if err != nil {
+				t.Errorf("Error getting flow entries. Err: %v", err)
+			}
+
+			// verify flow entry exists
+			for j := 0; j < NUM_AGENT; j++ {
+				k := j + 1
+				ipFlowMatch := fmt.Sprintf("priority=100,ip,nw_dst=10.10.%d.%d", k, k)
+				ipTableId := IP_TBL_ID
+				if ofctlFlowMatch(flowList, ipTableId, ipFlowMatch) {
+					t.Errorf("Still found the flow %s on ovs %s", ipFlowMatch, brName)
+				}
+			}
+		}
+
+		log.Infof("Verified all flows are deleted")
 	}
 }
 
 // Test adding/deleting Vxlan routes
 func TestOfnetVxlanAddDelete(t *testing.T) {
-	for iter := 0; iter < 4; iter++ {
+	for iter := 0; iter < NUM_ITER; iter++ {
 		for i := 0; i < NUM_AGENT; i++ {
 			j := i + 1
 			macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
@@ -329,6 +359,29 @@ func TestOfnetVxlanAddDelete(t *testing.T) {
 			err := vxlanAgents[i].RemoveLocalEndpoint(uint32(NUM_AGENT + 2))
 			if err != nil {
 				t.Errorf("Error deleting endpoint: %+v. Err: %v", endpoint, err)
+			}
+		}
+
+		log.Infof("Deleted endpoints. Verifying they are gone")
+
+		// verify flow is deleted
+		for i := 0; i < NUM_AGENT; i++ {
+			brName := "ovsbr2" + fmt.Sprintf("%d", i)
+
+			flowList, err := ofctlFlowDump(brName)
+			if err != nil {
+				t.Errorf("Error getting flow entries. Err: %v", err)
+			}
+
+			// verify flow entry exists
+			for j := 0; j < NUM_AGENT; j++ {
+				k := j + 1
+				macFlowMatch := fmt.Sprintf("priority=100,dl_vlan=1,dl_dst=02:02:02:%02x:%02x:%02x", k, k, k)
+
+				macTableId := MAC_DEST_TBL_ID
+				if ofctlFlowMatch(flowList, macTableId, macFlowMatch) {
+					t.Errorf("Still found the mac flow %s on ovs %s", macFlowMatch, brName)
+				}
 			}
 		}
 	}

@@ -435,8 +435,6 @@ func (self *Vxlan) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 	return nil
 }
 
-const MAC_DEST_TBL_ID = 5
-
 // initialize Fgraph on the switch
 func (self *Vxlan) initFgraph() error {
 	sw := self.ofSwitch

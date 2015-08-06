@@ -4,7 +4,15 @@
 		{
 			"name": "app",
 			"type": "object",
+<<<<<<< HEAD
+<<<<<<< HEAD
 			"key": [ "tenantName", "appName" ],
+=======
+			"key": "string",
+>>>>>>> Integrate contivModel to netmaster
+=======
+			"key": [ "tenantName", "appName" ],
+>>>>>>> First version of dockplugin
 			"properties": {
 				"appName": {
 					"type": "string",

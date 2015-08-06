@@ -4,7 +4,15 @@
 		{
 			"name": "endpointGroup",
 			"type": "object",
+<<<<<<< HEAD
+<<<<<<< HEAD
 			"key": [ "tenantName", "groupName" ],
+=======
+			"key": "string",
+>>>>>>> Integrate contivModel to netmaster
+=======
+			"key": [ "tenantName", "groupName" ],
+>>>>>>> First version of dockplugin
 			"properties": {
 				"groupName": {
 					"type": "string",

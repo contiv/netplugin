@@ -68,6 +68,9 @@ func InitDockPlugin() error {
 		"/NetworkDriver.EndpointOperInfo": endpointInfo,
 		"/NetworkDriver.Join":             join(),
 		"/NetworkDriver.Leave":            leave(),
+		"/NetworkDriver.EndpointOperInfo": endpointInfo,
+		"/NetworkDriver.Join":             join(),
+		"/NetworkDriver.Leave":            leave(),
 	}
 
 	for dispatchPath, dispatchFunc := range dispatchMap {
@@ -416,18 +419,6 @@ func join() func(http.ResponseWriter, *http.Request) {
 			httpError(w, "Could not get network", err)
 			return
 		}
-
-		// Inspect the container
-		/*
-			sbKey := strings.Split(jr.SandboxKey, "/")
-			cntId := sbKey[len(sbKey)-1]
-			log.Infof("Executing: docker inspect %s", cntId)
-			out, err := exec.Command("docker", "inspect", cntId).CombinedOutput()
-			log.Infof("docker ispect %s\nErr: %v\n%s", cntId, err, out)
-
-			out, err := exec.Command("sh", "-c", "curl localhost:4243/v1.20/networks").CombinedOutput()
-			log.Infof("curl localhost:4243/v1.20/networks\nErr: %v\n%s", err, out)
-		*/
 
 		content, err = json.Marshal(api.JoinResponse{
 			InterfaceNames: []*api.InterfaceName{

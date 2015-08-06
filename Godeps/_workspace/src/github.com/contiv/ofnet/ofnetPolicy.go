@@ -16,7 +16,9 @@ limitations under the License.
 package ofnet
 
 import (
+	"errors"
 	"net"
+	"net/rpc"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/ofnet/ofctrl"
@@ -42,17 +44,32 @@ type PolicyAgent struct {
 }
 
 // NewPolicyMgr Creates a new policy manager
-func NewPolicyAgent(agent *OfnetAgent, sw *ofctrl.OFSwitch) *PolicyAgent {
+func NewPolicyAgent(agent *OfnetAgent, rpcServ *rpc.Server) *PolicyAgent {
 	policyAgent := new(PolicyAgent)
 
 	// initialize
 	policyAgent.agent = agent
-	policyAgent.ofSwitch = sw
 	policyAgent.Rules = make(map[string]*PolicyRule)
 	policyAgent.DstGrpFlow = make(map[string]*ofctrl.Flow)
 
+	// Register for Master add/remove events
+	rpcServ.Register(policyAgent)
+
 	// done
 	return policyAgent
+}
+
+// Handle switch connected notification
+func (self *PolicyAgent) SwitchConnected(sw *ofctrl.OFSwitch) {
+	// Keep a reference to the switch
+	self.ofSwitch = sw
+
+	log.Infof("Switch connected(vrouter). installing flows")
+}
+
+// Handle switch disconnected notification
+func (self *PolicyAgent) SwitchDisconnected(sw *ofctrl.OFSwitch) {
+	// FIXME: ??
 }
 
 // Metadata Format
@@ -94,6 +111,8 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 		return nil
 	}
 
+	log.Infof("Adding dst group entry for endpoint: %+v", endpoint)
+
 	// Install the Dst group lookup flow
 	dstGrpFlow, err := self.dstGrpTable.NewFlow(ofctrl.FlowMatch{
 		Priority:  FLOW_MATCH_PRIORITY,
@@ -130,6 +149,21 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 
 // DelEndpoint deletes an endpoint from dst group lookup
 func (self *PolicyAgent) DelEndpoint(endpoint *OfnetEndpoint) error {
+	// find the dst group flow
+	dstGrp := self.DstGrpFlow[endpoint.EndpointID]
+	if dstGrp == nil {
+		return errors.New("Dst Group not found")
+	}
+
+	// delete the Flow
+	err := dstGrp.Delete()
+	if err != nil {
+		log.Errorf("Error deleting dst group for endpoint: %+v. Err: %v", endpoint, err)
+	}
+
+	// delete the cache
+	delete(self.DstGrpFlow, endpoint.EndpointID)
+
 	return nil
 }
 
@@ -141,6 +175,8 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 	var ipSaMask *net.IP = nil
 	var md *uint64 = nil
 	var mdm *uint64 = nil
+
+	log.Infof("Received AddRule: %+v", rule)
 
 	// Parse dst ip
 	if rule.DstIpAddr != "" {
@@ -226,11 +262,26 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 
 // DelRule deletes a security rule from policy table
 func (self *PolicyAgent) DelRule(rule *OfnetPolicyRule, ret *bool) error {
+	log.Infof("Received DelRule: %+v", rule)
+
+	// Gte the rule
+	cache := self.Rules[rule.RuleId]
+	if cache == nil {
+		log.Errorf("Could not find rule: %+v", rule)
+		return errors.New("rule not found")
+	}
+
+	// Delete the Flow
+	err := cache.flow.Delete()
+	if err != nil {
+		log.Errorf("Error deleting flow: %+v. Err: %v", rule, err)
+	}
+
+	// Delete the rule from cache
+	delete(self.Rules, rule.RuleId)
+
 	return nil
 }
-
-const DST_GRP_TBL_ID = 2
-const POLICY_TBL_ID = 3
 
 // InitTables initializes policy table on the switch
 func (self *PolicyAgent) InitTables(nextTblId uint8) error {

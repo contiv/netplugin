@@ -48,7 +48,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "67b2a4ce90a7593fcb591fb7d291a0253a08b960"
+			"Rev": "3804664eeaa16868384a18a1055ab0b36ac30009"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",
@@ -201,6 +201,10 @@
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "4b5dce31de6d42af5bb9811c6d265472199e0fec"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netns",
+			"Rev": "493029407eeb434d0c2d44e02ea072ff2488d322"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",

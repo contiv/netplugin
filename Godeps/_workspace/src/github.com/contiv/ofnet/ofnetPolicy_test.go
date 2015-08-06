@@ -16,25 +16,44 @@ limitations under the License.
 package ofnet
 
 import (
+	"fmt"
 	"net"
 	"testing"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/ofnet/ovsdbDriver"
 )
 
-func TestPolicy(t *testing.T) {
-	rpcPort := uint16(9101)
-	ovsPort := uint16(9151)
-	lclIp := net.ParseIP("10.10.10.10")
-	ofnetAgent, err := NewOfnetAgent("vrouter", lclIp, rpcPort, ovsPort)
+func TestPolicyAddDelete(t *testing.T) {
+	var resp bool
+	rpcPort := uint16(9600)
+	ovsPort := uint16(9601)
+	lclIP := net.ParseIP("10.10.10.10")
+	ofnetAgent, err := NewOfnetAgent("vrouter", lclIP, rpcPort, ovsPort)
 	if err != nil {
 		t.Fatalf("Error creating ofnet agent. Err: %v", err)
 	}
 
+	defer func() { ofnetAgent.Delete() }()
+
 	// Override MyAddr to local host
 	ofnetAgent.MyAddr = "127.0.0.1"
+
+	// Create a Master
+	ofnetMaster := NewOfnetMaster(uint16(9602))
+
+	defer func() { ofnetMaster.Delete() }()
+
+	masterInfo := OfnetNode{
+		HostAddr: "127.0.0.1",
+		HostPort: uint16(9602),
+	}
+
+	// connect vrtr agent to master
+	err = ofnetAgent.AddMaster(&masterInfo, &resp)
+	if err != nil {
+		t.Errorf("Error adding master %+v. Err: %v", masterInfo, err)
+	}
 
 	log.Infof("Created vrouter ofnet agent: %v", ofnetAgent)
 
@@ -45,26 +64,31 @@ func TestPolicy(t *testing.T) {
 		t.Fatalf("Error adding controller to ovs: %s", brName)
 	}
 
-	// Wait for 10sec for switch to connect to controller
-	time.Sleep(10 * time.Second)
+	defer func() { ovsDriver.DeleteBridge(brName) }()
 
-	// create policy agent
-	policyAgent := NewPolicyAgent(ofnetAgent, ofnetAgent.ofSwitch)
+	// Wait for switch to connect to controller
+	ofnetAgent.WaitForSwitchConnection()
 
-	// Init tables
-	policyAgent.InitTables(IP_TBL_ID)
+	// Create a vlan for the endpoint
+	ofnetAgent.AddVlan(1, 1)
+
+	macAddr, _ := net.ParseMAC("00:01:02:03:04:05")
+	endpoint := EndpointInfo{
+		EndpointGroup: 100,
+		PortNo:        12,
+		MacAddr:       macAddr,
+		Vlan:          1,
+		IpAddr:        net.ParseIP("10.2.2.2"),
+	}
+
+	log.Infof("Adding Local endpoint: %+v", endpoint)
 
 	// Add an Endpoint
-	err = policyAgent.AddEndpoint(&OfnetEndpoint{
-		EndpointID:    "1234",
-		EndpointGroup: 100,
-		IpAddr:        net.ParseIP("10.10.10.10"),
-	})
+	err = ofnetAgent.AddLocalEndpoint(endpoint)
 	if err != nil {
 		t.Errorf("Error adding endpoint. Err: %v", err)
 	}
 
-	var resp bool
 	tcpRule := &OfnetPolicyRule{
 		RuleId:           "tcpRule",
 		SrcEndpointGroup: 100,
@@ -76,8 +100,10 @@ func TestPolicy(t *testing.T) {
 		SrcPort:          200,
 	}
 
+	log.Infof("Adding rule: %+v", tcpRule)
+
 	// Add a policy
-	err = policyAgent.AddRule(tcpRule, &resp)
+	err = ofnetMaster.AddRule(tcpRule)
 	if err != nil {
 		t.Errorf("Error installing tcpRule {%+v}. Err: %v", tcpRule, err)
 	}
@@ -93,13 +119,87 @@ func TestPolicy(t *testing.T) {
 		SrcPort:          400,
 	}
 
+	log.Infof("Adding rule: %+v", udpRule)
+
 	// Add the policy
-	err = policyAgent.AddRule(udpRule, &resp)
+	err = ofnetMaster.AddRule(udpRule)
 	if err != nil {
 		t.Errorf("Error installing udpRule {%+v}. Err: %v", udpRule, err)
 	}
 
-	// Cleanup
-	ofnetAgent.Delete()
-	ovsDriver.DeleteBridge(brName)
+	// Get all the flows
+	flowList, err := ofctlFlowDump(brName)
+	if err != nil {
+		t.Errorf("Error getting flow entries. Err: %v", err)
+	}
+
+	// verify src group flow
+	srcGrpFlowMatch := fmt.Sprintf("priority=100,in_port=12 actions=push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x640000/0x7fff0000")
+	if !ofctlFlowMatch(flowList, VLAN_TBL_ID, srcGrpFlowMatch) {
+		t.Errorf("Could not find the route %s on ovs %s", srcGrpFlowMatch, brName)
+	}
+
+	log.Infof("Found src group %s on ovs %s", srcGrpFlowMatch, brName)
+
+	// verify dst group flow
+	dstGrpFlowMatch := fmt.Sprintf("priority=100,ip,nw_dst=10.2.2.2 actions=write_metadata:0xc8/0xfffe")
+	if !ofctlFlowMatch(flowList, DST_GRP_TBL_ID, dstGrpFlowMatch) {
+		t.Errorf("Could not find the route %s on ovs %s", dstGrpFlowMatch, brName)
+	}
+
+	log.Infof("Found dst group %s on ovs %s", dstGrpFlowMatch, brName)
+
+	// verify tcp rule flow entry exists
+	tcpFlowMatch := fmt.Sprintf("priority=100,tcp,metadata=0x640190/0x7ffffffe,nw_src=10.10.10.0/24,nw_dst=10.1.1.0/24,tp_src=200,tp_dst=100")
+	if !ofctlFlowMatch(flowList, POLICY_TBL_ID, tcpFlowMatch) {
+		t.Errorf("Could not find the route %s on ovs %s", tcpFlowMatch, brName)
+	}
+
+	log.Infof("Found tcp rule %s on ovs %s", tcpFlowMatch, brName)
+
+	// verify udp rule flow
+	udpFlowMatch := fmt.Sprintf("priority=100,udp,metadata=0x12c0320/0x7ffffffe,nw_src=20.20.20.0/24,nw_dst=20.2.2.0/24,tp_src=400,tp_dst=300")
+	if !ofctlFlowMatch(flowList, POLICY_TBL_ID, udpFlowMatch) {
+		t.Errorf("Could not find the route %s on ovs %s", udpFlowMatch, brName)
+	}
+
+	log.Infof("Found udp rule %s on ovs %s", udpFlowMatch, brName)
+
+	// Delete policies
+	err = ofnetMaster.DelRule(tcpRule)
+	if err != nil {
+		t.Errorf("Error deleting tcpRule {%+v}. Err: %v", tcpRule, err)
+	}
+	err = ofnetMaster.DelRule(udpRule)
+	if err != nil {
+		t.Errorf("Error deleting udpRule {%+v}. Err: %v", udpRule, err)
+	}
+	err = ofnetAgent.RemoveLocalEndpoint(endpoint.PortNo)
+	if err != nil {
+		t.Errorf("Error deleting endpoint: %+v. Err: %v", endpoint, err)
+	}
+
+	log.Infof("Deleted all policy entries")
+
+	// Get the flows again
+	flowList, err = ofctlFlowDump(brName)
+	if err != nil {
+		t.Errorf("Error getting flow entries. Err: %v", err)
+	}
+
+	// Make sure flows are gone
+	if ofctlFlowMatch(flowList, VLAN_TBL_ID, srcGrpFlowMatch) {
+		t.Errorf("Still found the flow %s on ovs %s", srcGrpFlowMatch, brName)
+	}
+	if ofctlFlowMatch(flowList, DST_GRP_TBL_ID, dstGrpFlowMatch) {
+		t.Errorf("Still found the flow %s on ovs %s", dstGrpFlowMatch, brName)
+	}
+	if ofctlFlowMatch(flowList, POLICY_TBL_ID, tcpFlowMatch) {
+		t.Errorf("Still found the flow %s on ovs %s", tcpFlowMatch, brName)
+	}
+	if ofctlFlowMatch(flowList, POLICY_TBL_ID, udpFlowMatch) {
+		t.Errorf("Still found the flow %s on ovs %s", udpFlowMatch, brName)
+	}
+
+	log.Infof("Verified all flows are deleted")
 }
