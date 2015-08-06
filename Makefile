@@ -6,7 +6,8 @@
 PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|systemtests'`
 PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts'`
 TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/pslibnet/
-HOST_GOBIN := `which go | xargs dirname`
+HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
+HOST_GO_BINARY := `dirname $$(which go)`
 HOST_GOROOT := `go env GOROOT`
 
 all: build unit-test system-test system-test-dind centos-tests
