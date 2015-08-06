@@ -26,6 +26,7 @@ checks:
 	./scripts/checks "$(PKGS)"
 
 build: deps checks
+	rm -rf Godeps/_workspace/pkg
 	godep go install -v $(TO_BUILD)
 
 clean: deps
