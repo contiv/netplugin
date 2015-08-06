@@ -7,7 +7,6 @@ PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Go
 PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts'`
 TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/pslibnet/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
-HOST_GO_BINARY := `dirname $$(which go)`
 HOST_GOROOT := `go env GOROOT`
 
 all: build unit-test system-test system-test-dind centos-tests
@@ -26,10 +25,10 @@ checks:
 	./scripts/checks "$(PKGS)"
 
 build: deps checks
-	rm -rf Godeps/_workspace/pkg
 	godep go install -v $(TO_BUILD)
 
 clean: deps
+	rm -rf Godeps/_workspace/pkg
 	godep go clean -i -v ./...
 
 # setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
@@ -45,6 +44,9 @@ start-dockerdemo:
 
 clean-dockerdemo:
 	scripts/dockerhost/cleanup-dockerhosts
+
+ssh:
+	@vagrant ssh netplugin-node1 || echo 'Please run "make demo"'
 
 unit-test: build
 	CONTIV_HOST_GOPATH=$(GOPATH) CONTIV_HOST_GOBIN=$(HOST_GOBIN) \
