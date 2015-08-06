@@ -1,0 +1,48 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "tenant",
+			"type": "object",
+			"key": "string",
+			"properties": {
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name"
+				},
+				"subnetPool": {
+					"type": "string"
+				},
+				"subnetLen": {
+					"type": "int"
+				},
+				"vlans": {
+					"type": "string"
+				},
+				"vxlans": {
+					"type": "string"
+				}
+			},
+			"link-sets": {
+				"networks": {
+					"ref": "network"
+				},
+				"apps": {
+					"ref": "app"
+				},
+				"endpointGroups": {
+					"ref": "endpointGroup"
+				},
+				"policies": {
+					"ref": "policy"
+				},
+				"volumes": {
+					"ref": "volume"
+				},
+				"volumeProfiles": {
+					"ref": "volumeProfile"
+				}
+			}
+		}
+	]
+}

@@ -1,0 +1,45 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "network",
+			"type": "object",
+			"key": "string",
+			"properties": {
+				"networkName": {
+					"type": "string",
+					"title": "Network name"
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name"
+				},
+				"isPublic": {
+					"type": "bool"
+				},
+				"isPrivate": {
+					"type": "bool"
+				},
+				"encap": {
+					"type": "string"
+				},
+				"subnet": {
+					"type": "string"
+				},
+				"defaultGw": {
+					"type": "string"
+				}
+			},
+			"link-sets": {
+				"services": {
+					"ref": "service"
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				}
+			}
+		}
+	]
+}
