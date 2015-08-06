@@ -44,9 +44,34 @@
 			"Rev": "b24dd8e4e67d7203c5a68cd43de4f6ffcfff5e66"
 		},
 		{
+			"ImportPath": "github.com/docker/docker/pkg/listenbuffer",
+			"Comment": "v1.4.1-5404-gc471b7a",
+			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/plugins",
+			"Comment": "v1.4.1-5404-gc471b7a",
+			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/sockets",
+			"Comment": "v1.4.1-5404-gc471b7a",
+			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/tlsconfig",
+			"Comment": "v1.4.1-5404-gc471b7a",
+			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/units",
-			"Comment": "v1.4.1-3331-g23abd51",
-			"Rev": "23abd51ef15b2c0138e272708845750be5eb0b03"
+			"Comment": "v1.4.1-5404-gc471b7a",
+			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+		},
+		{
+			"ImportPath": "github.com/docker/libnetwork/drivers/remote/api",
+			"Comment": "v0.2-335-g8280c18",
+			"Rev": "8280c188e2795f9327365e872db56956974ec7c6"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -70,6 +95,11 @@
 			"ImportPath": "github.com/mapuri/libnetwork/driverapi",
 			"Comment": "v0.1-34-gbf9450e",
 			"Rev": "bf9450eec0646abd7e71dc3eaff47a55f7a1f1df"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",
+			"Comment": "v0.0.3-14-g9be9157",
+			"Rev": "9be9157fc5cd9cf59c155fe194a0acc5f1e6f926"
 		},
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
