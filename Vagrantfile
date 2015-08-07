@@ -12,7 +12,7 @@ echo 'export GOPATH=#{netplugin_synced_gopath}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export GOROOT=#{host_goroot_path}' >> /etc/profile.d/envvar.sh
-echo 'export PATH=$PATH:#{host_gobin_path}:$GOBIN' >> /etc/profile.d/envvar.sh
+echo 'export PATH=$PATH:#{host_goroot_path}/bin:#{host_gobin_path}:$GOBIN' >> /etc/profile.d/envvar.sh
 if [ $# -gt 0 ]; then
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
