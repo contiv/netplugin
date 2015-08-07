@@ -271,8 +271,6 @@ func (d *daemon) endpoints(id string) ([]core.State, error) {
 		return nil, err
 	}
 
-	println(id)
-
 	if id == "all" {
 		return ep.ReadAll()
 	}
