@@ -320,7 +320,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 				contEpContext.CurrContName, epID)
 		}
 	}
-	if !isDelete && contAttachPointAdded(contEpContext) {
+	if !isDelete && !opts.nativeInteg && contAttachPointAdded(contEpContext) {
 		// re-read post ep updated state
 		newContEpContext, err1 := getEndpointContainerContext(
 			netPlugin.StateDriver, epID)
@@ -473,7 +473,7 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOp
 	}
 	contName = strings.TrimPrefix(contName, "/")
 
-	if opts.forceDeleteEp {
+	if opts.forceDeleteEp || opts.nativeInteg {
 		err = createContainerEpOper(netPlugin, contID, contName)
 		if err != nil {
 			log.Errorf("error updating container's uuid: %v \n", err)
@@ -481,9 +481,11 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOp
 		}
 	}
 
-	err = attachContainer(netPlugin.StateDriver, crt, contName)
-	if err != nil {
-		log.Errorf("error attaching container: %v\n", err)
+	if !opts.nativeInteg {
+		err = attachContainer(netPlugin.StateDriver, crt, contName)
+		if err != nil {
+			log.Errorf("error attaching container: %v\n", err)
+		}
 	}
 
 	return err
@@ -654,24 +656,26 @@ func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error {
 	recvErr := make(chan error, 1)
 	recvEventErr := make(chan error)
+	go handleStateEvents(netPlugin, crt, opts, recvErr)
 
 	//monitor and process state change events
-	go handleStateEvents(netPlugin, crt, opts, recvErr)
-	startDockerEventPoll(netPlugin, crt, recvEventErr, opts)
+	if !opts.nativeInteg {
+		startDockerEventPoll(netPlugin, crt, recvEventErr, opts)
 
-	go func() {
-		for {
-			err := <-recvEventErr
-			if err != nil {
-				log.Warnf("Failure occured talking to docker events. Sleeping for a second and retrying. Error: %s", err)
+		go func() {
+			for {
+				err := <-recvEventErr
+				if err != nil {
+					log.Warnf("Failure occured talking to docker events. Sleeping for a second and retrying. Error: %s", err)
+				}
+
+				time.Sleep(1 * time.Second)
+				// FIXME note that we are assuming this goroutine crashed, which if not
+				// might generate double events. Synchronize this with a channel.
+				startDockerEventPoll(netPlugin, crt, recvEventErr, opts)
 			}
-
-			time.Sleep(1 * time.Second)
-			// FIXME note that we are assuming this goroutine crashed, which if not
-			// might generate double events. Synchronize this with a channel.
-			startDockerEventPoll(netPlugin, crt, recvEventErr, opts)
-		}
-	}()
+		}()
+	}
 
 	err := <-recvErr
 	if err != nil {
