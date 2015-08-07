@@ -659,12 +659,7 @@ func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error
 	go handleStateEvents(netPlugin, crt, opts, recvErr)
 
 	//monitor and process state change events
-	if opts.nativeInteg {
-		for {
-			<-recvErr
-			go handleStateEvents(netPlugin, crt, opts, recvErr)
-		}
-	} else {
+	if !opts.nativeInteg {
 		startDockerEventPoll(netPlugin, crt, recvEventErr, opts)
 
 		go func() {
@@ -680,15 +675,15 @@ func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error
 				startDockerEventPoll(netPlugin, crt, recvEventErr, opts)
 			}
 		}()
-
-		err := <-recvErr
-		if err != nil {
-			log.Errorf("Failure occured. Error: %s", err)
-			return err
-		}
-
-		return nil
 	}
+
+	err := <-recvErr
+	if err != nil {
+		log.Errorf("Failure occured. Error: %s", err)
+		return err
+	}
+
+	return nil
 }
 
 func startDockerEventPoll(netPlugin *plugin.NetPlugin, crt *crt.CRT, recvErr chan error, opts cliOpts) {
