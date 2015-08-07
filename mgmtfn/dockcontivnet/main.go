@@ -406,35 +406,6 @@ func leave(networkName string) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func netdcli(payload string, add bool) error {
-	cmdstr := "del"
-	if add {
-		cmdstr = "add"
-	}
-
-	log.Debugf("netdcli operation %q with payload: %s", cmdstr, payload)
-
-	cmd := exec.Command("netdcli", "-"+cmdstr+"-cfg", "-")
-	w, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-
-	if _, err := w.Write([]byte(payload)); err != nil {
-		return err
-	}
-
-	w.Close()
-
-	out, err := cmd.CombinedOutput()
-
-	log.Debug(string(out))
-
-	// to ensure changes propagate
-	time.Sleep(100 * time.Millisecond)
-	return err
-}
-
 func netdcliAdd(payload *intent.Config) error {
 	c := client.New("localhost:9999")
 	fmt.Println(payload)
