@@ -1,13 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/contiv/netplugin/drivers"
@@ -63,15 +65,22 @@ func main() {
 	router := mux.NewRouter()
 	s := router.Headers("Accept", "application/vnd.docker.plugins.v1+json").
 		Methods("POST").Subrouter()
-	s.HandleFunc("/Plugin.Activate", activate(hostname, interfaceName))
-	s.HandleFunc("/Plugin.Deactivate", deactivate(hostname, interfaceName))
-	s.HandleFunc("/NetworkDriver.CreateNetwork", createNetwork(tenantName, networkName))
-	s.HandleFunc("/NetworkDriver.DeleteNetwork", deleteNetwork(tenantName, networkName))
-	s.HandleFunc("/NetworkDriver.CreateEndpoint", createEndpoint(tenantName, networkName, hostname))
-	s.HandleFunc("/NetworkDriver.DeleteEndpoint", deleteEndpoint(tenantName, networkName, hostname))
-	s.HandleFunc("/NetworkDriver.EndpointOperInfo", endpointInfo)
-	s.HandleFunc("/NetworkDriver.Join", join(networkName))
-	s.HandleFunc("/NetworkDriver.Leave", leave(networkName))
+
+	dispatchMap := map[string]func(http.ResponseWriter, *http.Request){
+		"/Plugin.Activate":                activate(hostname, interfaceName),
+		"/Plugin.Deactivate":              deactivate(hostname, interfaceName),
+		"/NetworkDriver.CreateNetwork":    createNetwork(tenantName, networkName),
+		"/NetworkDriver.DeleteNetwork":    deleteNetwork(tenantName, networkName),
+		"/NetworkDriver.CreateEndpoint":   createEndpoint(tenantName, networkName, hostname),
+		"/NetworkDriver.DeleteEndpoint":   deleteEndpoint(tenantName, networkName, hostname),
+		"/NetworkDriver.EndpointOperInfo": endpointInfo,
+		"/NetworkDriver.Join":             join(networkName),
+		"/NetworkDriver.Leave":            leave(networkName),
+	}
+
+	for dispatchPath, dispatchFunc := range dispatchMap {
+		s.HandleFunc(dispatchPath, logHandler(dispatchPath, *optDebug, dispatchFunc))
+	}
 
 	if *optDebug {
 		log.Debug("Enabling catchall networkdriver interface")
@@ -79,6 +88,24 @@ func main() {
 	}
 
 	http.ListenAndServe(*optListen, router)
+}
+
+func logHandler(name string, debug bool, actionFunc func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if debug {
+			buf := new(bytes.Buffer)
+			io.Copy(buf, r.Body)
+			log.Debugf("Dispatching %s with %v", name, strings.TrimSpace(string(buf.Bytes())))
+			var writer *io.PipeWriter
+			r.Body, writer = io.Pipe()
+			go func() {
+				io.Copy(writer, buf)
+				writer.Close()
+			}()
+		}
+
+		actionFunc(w, r)
+	}
 }
 
 // Catchall for additional driver functions.
