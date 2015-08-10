@@ -2,8 +2,6 @@
 # vi: set ft=ruby :
 
 netplugin_synced_gopath="/opt/golang"
-host_gobin_path="/opt/go/bin"
-host_goroot_path="/opt/go/root"
 
 provision_common = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
@@ -11,26 +9,12 @@ echo Args passed: [[ $@ ]]
 echo 'export GOPATH=#{netplugin_synced_gopath}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
-echo 'export GOROOT=#{host_goroot_path}' >> /etc/profile.d/envvar.sh
-echo 'export PATH=$PATH:#{host_goroot_path}/bin:#{host_gobin_path}:$GOBIN' >> /etc/profile.d/envvar.sh
+echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
 if [ $# -gt 0 ]; then
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
 source /etc/profile.d/envvar.sh
-
-## set the mounted host filesystems to be read-only.Just a safety check
-## to prevent inadvertent modifications from vm.
-(mount -o remount,ro,exec,norelatime /vagrant) || exit 1
-if [ -e #{host_gobin_path} ]; then
-    (mount -o remount,ro,exec,norelatime #{host_gobin_path}) || exit 1
-fi
-if [ -e #{host_goroot_path} ]; then
-    (mount -o remount,ro,exec,norelatime #{host_goroot_path}) || exit 1
-fi
-if [ -e #{netplugin_synced_gopath} ]; then
-    (mount -o remount,ro,exec,norelatime #{netplugin_synced_gopath}) || exit 1
-fi
 
 ### install basic packages
 #(apt-get update -qq > /dev/null && apt-get install -y vim curl python-software-properties git > /dev/null) || exit 1
@@ -125,21 +109,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
             end
             # mount the host directories
-            node.vm.synced_folder ".", "/vagrant"
-            # godep modifies the host's GOPATH env variable, CONTIV_HOST_GOPATH
-            # contains the unmodified path passed from the Makefile, use that
-            # when it is defined.
-            if ENV['CONTIV_HOST_GOPATH'] != nil
-                node.vm.synced_folder ENV['CONTIV_HOST_GOPATH'], netplugin_synced_gopath
-            else
-                node.vm.synced_folder ENV['GOPATH'], netplugin_synced_gopath
-            end
-            if ENV['CONTIV_HOST_GOBIN'] != nil
-                node.vm.synced_folder ENV['CONTIV_HOST_GOBIN'], host_gobin_path
-            end
-            if ENV['CONTIV_HOST_GOROOT'] != nil
-                node.vm.synced_folder ENV['CONTIV_HOST_GOROOT'], host_goroot_path
-            end
+            node.vm.synced_folder ".", "/opt/golang/src/github.com/contiv/netplugin"
+            node.vm.synced_folder File.join(File.dirname(__FILE__), "bin"), File.join(netplugin_synced_gopath, "bin")
+
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
                 s.args = ENV['CONTIV_ENV']
