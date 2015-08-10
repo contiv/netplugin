@@ -134,8 +134,7 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 			cmdStr = fmt.Sprintf("netplugin %s 1>/tmp/netplugin-%s.log 2>&1",
 				flagsStr, time.Now().Format("15:04:05.999999999"))
 		} else {
-			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s 0<&- &>/tmp/netplugin-%s.log",
-				flagsStr, time.Now().Format("15:04:05.999999999"))
+			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin -force-delete-ep=true %s 0<&- &>/tmp/netplugin.log-%s", flagsStr, time.Now().Format("15:04:05.999999999"))
 		}
 		output, err := node.RunCommandBackground(cmdStr)
 		if err != nil {
@@ -154,6 +153,8 @@ func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 
 // StartNetmasterWithFlags starts netplugin on specified testbed nodes with specified flags
 func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]string) {
+	time.Sleep(5 * time.Second)
+
 	var (
 		cmdStr   string
 		flagsStr string
@@ -174,6 +175,7 @@ func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]st
 			err, cmdStr, output)
 	}
 
+	time.Sleep(5 * time.Second)
 }
 
 // StartNetmaster starts netplugin on specified testbed node

@@ -20,6 +20,8 @@ Please do not use this code in production, until code goes through more testing 
 
 ###Building and Testing
 
+**Note:** Vagrant 1.7.4 and VirtualBox 5.0+ are required to build and test netplugin.
+
 - Build:
 
   `make build`

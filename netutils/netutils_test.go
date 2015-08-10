@@ -196,10 +196,3 @@ func TestGetSubnetNumber(t *testing.T) {
 		}
 	}
 }
-
-func TestGetLocalIP(t *testing.T) {
-	ipAddr, err := GetLocalIP()
-	if ipAddr == "" {
-		t.Fatalf("error obtaining local IP of the host '%s' \n", err)
-	}
-}

@@ -28,3 +28,7 @@ _testmain.go
 
 # vagrant
 .vagrant
+
+bin/*
+
+resolv.conf
