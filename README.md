@@ -1,4 +1,4 @@
-[[![Build Status](http://1f53f76f.ngrok.com/view/Netplugin%20Sanity/job/Push%20Build%20Master/badge/icon)](http://1f53f76f.ngrok.com/view/Netplugin%20Sanity/job/Push%20Build%20Master/))
+[![Build Status](http://1f53f76f.ngrok.com/view/Netplugin%20Sanity/job/Push%20Build%20Master/badge/icon)](http://1f53f76f.ngrok.com/view/Netplugin%20Sanity/job/Push%20Build%20Master/)
 
 ## Netplugin
 
