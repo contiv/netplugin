@@ -16,6 +16,7 @@ limitations under the License.
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -116,9 +117,25 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 		}
 
 		if os.Getenv("CONTIV_TESTBED") == "DIND" {
-			cmdStr = fmt.Sprintf("netplugin %s 0<&- &>/tmp/netplugin-%d.log ", flagsStr, i+1)
+			tCmd := &TestCommand{}
+			cmdStr = "sudo docker version | grep 'Server version' | awk '{print $3}'"
+			output, err := tCmd.RunWithOutput("sh", "-c", cmdStr)
+			if err != nil {
+				t.Fatalf("Failed to determine docker version. Error: %s\nCmd:%q\n Output : %s\n",
+					err, cmdStr, output)
+			}
+			output = []byte(strings.Trim(string(output), " \n"))
+			t.Logf("Docker version: %q", output)
+			if bytes.Compare(output, []byte("1.6.0")) > 0 {
+				// for docker version greater than 1.6.0 add the --force-delete-ep flag
+				flagsStr = fmt.Sprintf("%s --force-delete-ep=true", flagsStr)
+			}
+
+			cmdStr = fmt.Sprintf("netplugin %s 1>/tmp/netplugin-%s.log 2>&1",
+				flagsStr, time.Now().Format("15:04:05.999999999"))
 		} else {
-			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s 0<&- &>/tmp/netplugin.log", flagsStr)
+			cmdStr = fmt.Sprintf("sudo PATH=$PATH nohup netplugin %s 0<&- &>/tmp/netplugin-%s.log",
+				flagsStr, time.Now().Format("15:04:05.999999999"))
 		}
 		output, err := node.RunCommandBackground(cmdStr)
 		if err != nil {
@@ -147,7 +164,7 @@ func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]st
 	}
 
 	if os.Getenv("CONTIV_TESTBED") == "DIND" {
-		cmdStr = fmt.Sprintf("netmaster %s 0<&- &>/tmp/netmaster.log", flagsStr)
+		cmdStr = fmt.Sprintf("netmaster %s 1>/tmp/netmaster.log 2>&1", flagsStr)
 	} else {
 		cmdStr = fmt.Sprintf("nohup netmaster %s 0<&- &>/tmp/netmaster.log", flagsStr)
 	}
