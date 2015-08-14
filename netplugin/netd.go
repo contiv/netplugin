@@ -505,7 +505,6 @@ func handleContainerStop(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOpt
 				err, output)
 			return err
 		}
-		return err
 	}
 
 	if opts.forceDeleteEp {

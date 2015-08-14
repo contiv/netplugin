@@ -24,21 +24,21 @@ type DindNode struct {
 // RunCommand runs a shell command in a dind node and returns it's exit status
 func (n DindNode) RunCommand(cmd string) error {
 	tcmd := &TestCommand{ContivNodes: n.NodeNum}
-	return tcmd.Run("sh", "-c", "sudo docker exec "+n.Name+" "+cmd)
+	return tcmd.Run("sudo", "docker", "exec", n.Name, "sh", "-c", cmd)
 }
 
 // RunCommandWithOutput runs a shell command in a dind node and returns it's
 // exit status and output
 func (n DindNode) RunCommandWithOutput(cmd string) (string, error) {
 	tcmd := &TestCommand{ContivNodes: n.NodeNum}
-	output, err := tcmd.RunWithOutput("sh", "-c", "sudo docker exec "+n.Name+" "+cmd)
+	output, err := tcmd.RunWithOutput("sudo", "docker", "exec", n.Name, "sh", "-c", cmd)
 	return string(output), err
 }
 
 // RunCommandBackground runs a background command in a dind node
 func (n DindNode) RunCommandBackground(cmd string) (string, error) {
 	tcmd := &TestCommand{ContivNodes: n.NodeNum}
-	output, err := tcmd.RunWithOutput("sh", "-c", "sudo docker exec -d "+n.Name+" "+cmd)
+	output, err := tcmd.RunWithOutput("sudo", "docker", "exec", "-d", n.Name, "sh", "-c", cmd)
 	return string(output), err
 }
 
