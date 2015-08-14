@@ -10,8 +10,10 @@ echo 'export GOPATH=#{netplugin_synced_gopath}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
-if [ $# -gt 0 ]; then
-    echo "export $@" >> /etc/profile.d/envvar.sh
+echo "export http_proxy='$1'" >> /etc/profile.d/envvar.sh
+echo "export https_proxy='$2'" >> /etc/profile.d/envvar.sh
+if [ $# -gt 2 ]; then
+    echo "export $3" >> /etc/profile.d/envvar.sh
 fi
 
 source /etc/profile.d/envvar.sh
@@ -36,9 +38,8 @@ source /etc/profile.d/envvar.sh
 #
 ## pass the env-var args to docker and restart the service. This helps passing
 ## stuff like http-proxy etc
-if [ $# -gt 0 ]; then
-    (echo "export $@" >> /etc/default/docker) || exit 1
-fi
+
+echo ". /etc/profile.d/envvar.sh" >>/etc/default/docker
 (service docker restart) || exit 1
 
 ## install openvswitch and enable ovsdb-server to listen for incoming requests
@@ -114,7 +115,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
-                s.args = ENV['CONTIV_ENV']
+                s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || "", *ENV['CONTIV_ENV']]
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config
