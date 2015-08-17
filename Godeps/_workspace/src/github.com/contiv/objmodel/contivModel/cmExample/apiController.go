@@ -40,7 +40,19 @@ func NewApiController(router *mux.Router) *ApiController {
 	ctrler.router = router
 
 	// initialize the model objects
-	contivModel.Init(ctrler)
+	contivModel.Init()
+
+	// Register Callbacks
+	contivModel.RegisterAppCallbacks(ctrler)
+	contivModel.RegisterEndpointGroupCallbacks(ctrler)
+	contivModel.RegisterNetworkCallbacks(ctrler)
+	contivModel.RegisterPolicyCallbacks(ctrler)
+	contivModel.RegisterRuleCallbacks(ctrler)
+	contivModel.RegisterServiceCallbacks(ctrler)
+	contivModel.RegisterServiceInstanceCallbacks(ctrler)
+	contivModel.RegisterTenantCallbacks(ctrler)
+	contivModel.RegisterVolumeCallbacks(ctrler)
+	contivModel.RegisterVolumeProfileCallbacks(ctrler)
 
 	// Register routes
 	contivModel.AddRoutes(router)
@@ -160,6 +172,20 @@ func (self *ApiController) PolicyDelete(policy *contivModel.Policy) error {
 	log.Infof("Received PolicyDelete: %+v", policy)
 	return nil
 }
+
+func (self *ApiController) RuleCreate(rule *contivModel.Rule) error {
+	log.Infof("Received RuleCreate: %+v", rule)
+	return nil
+}
+func (self *ApiController) RuleUpdate(rule, params *contivModel.Rule) error {
+	log.Infof("Received RuleUpdate: %+v, params: %+v", rule, params)
+	return nil
+}
+func (self *ApiController) RuleDelete(rule *contivModel.Rule) error {
+	log.Infof("Received RuleDelete: %+v", rule)
+	return nil
+}
+
 func (self *ApiController) ServiceCreate(service *contivModel.Service) error {
 	log.Infof("Received ServiceCreate: %+v", service)
 

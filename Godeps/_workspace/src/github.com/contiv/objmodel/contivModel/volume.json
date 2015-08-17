@@ -4,7 +4,7 @@
 		{
 			"name": "volume",
 			"type": "object",
-			"key": "string",
+			"key": [ "tenantName", "volumeName" ],
 			"properties": {
 				"volumeName": {
 					"type": "string",

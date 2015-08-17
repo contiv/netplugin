@@ -34,6 +34,7 @@ import (
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/netplugin/utils"
@@ -880,6 +881,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize container run time, err %s \n", err)
 	}
+
+	// Initialize docker plugin
+	dockplugin.InitDockPlugin()
 
 	// Process all current state
 	processCurrentState(netPlugin, crt, opts)
