@@ -4,15 +4,17 @@
 		{
 			"name": "network",
 			"type": "object",
-			"key": "string",
+			"key": [ "tenantName", "networkName"],
 			"properties": {
 				"networkName": {
 					"type": "string",
-					"title": "Network name"
+					"title": "Network name",
+					"length": 64
 				},
 				"tenantName": {
 					"type": "string",
-					"description": "Tenant Name"
+					"title": "Tenant Name",
+					"length": 64
 				},
 				"isPublic": {
 					"type": "bool"
@@ -21,18 +23,24 @@
 					"type": "bool"
 				},
 				"encap": {
-					"type": "string"
+					"type": "string",
+					"format": "^(vlan|vxlan)$"
 				},
 				"subnet": {
-					"type": "string"
+					"type": "string",
+					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?/[0-9]{1,2}?)$"
 				},
 				"defaultGw": {
-					"type": "string"
+					"type": "string",
+					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$"
 				}
 			},
 			"link-sets": {
 				"services": {
 					"ref": "service"
+				},
+				"endpointGroups": {
+					"ref": "endpointGroup"
 				}
 			},
 			"links": {

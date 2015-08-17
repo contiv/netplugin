@@ -42,7 +42,19 @@ func NewAPIController(router *mux.Router) *APIController {
 	ctrler.router = router
 
 	// initialize the model objects
-	contivModel.Init(ctrler)
+	contivModel.Init()
+
+	// Register Callbacks
+	contivModel.RegisterAppCallbacks(ctrler)
+	contivModel.RegisterEndpointGroupCallbacks(ctrler)
+	contivModel.RegisterNetworkCallbacks(ctrler)
+	contivModel.RegisterPolicyCallbacks(ctrler)
+	contivModel.RegisterRuleCallbacks(ctrler)
+	contivModel.RegisterServiceCallbacks(ctrler)
+	contivModel.RegisterServiceInstanceCallbacks(ctrler)
+	contivModel.RegisterTenantCallbacks(ctrler)
+	contivModel.RegisterVolumeCallbacks(ctrler)
+	contivModel.RegisterVolumeProfileCallbacks(ctrler)
 
 	// Register routes
 	contivModel.AddRoutes(router)
@@ -231,6 +243,24 @@ func (ac *APIController) PolicyUpdate(policy, params *contivModel.Policy) error 
 // PolicyDelete deletes policy
 func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 	log.Infof("Received PolicyDelete: %+v", policy)
+	return nil
+}
+
+// RuleCreate Creates the rule witin a policy
+func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
+	log.Infof("Received RuleCreate: %+v", rule)
+	return nil
+}
+
+// RuleUpdate updates the rule within a policy
+func (ac *APIController) RuleUpdate(rule, params *contivModel.Rule) error {
+	log.Infof("Received RuleUpdate: %+v, params: %+v", rule, params)
+	return nil
+}
+
+// RuleDelete deletes the rule within a policy
+func (ac *APIController) RuleDelete(rule *contivModel.Rule) error {
+	log.Infof("Received RuleDelete: %+v", rule)
 	return nil
 }
 

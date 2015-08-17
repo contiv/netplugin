@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/objmodel/objdb/modeldb"
@@ -18,8 +19,8 @@ type HttpApiFunc func(w http.ResponseWriter, r *http.Request, vars map[string]st
 
 type App struct {
 	Key        string      `json:"key,omitempty"`
-	AppName    string      `json:"appName,omitempty"`
 	TenantName string      `json:"tenantName,omitempty"`
+	AppName    string      `json:"appName,omitempty"`
 	LinkSets   AppLinkSets `json:"link-sets,omitempty"`
 	Links      AppLinks    `json:"links,omitempty"`
 }
@@ -66,7 +67,8 @@ type Network struct {
 }
 
 type NetworkLinkSets struct {
-	Services map[string]modeldb.Link `json:"services,omitempty"`
+	EndpointGroups map[string]modeldb.Link `json:"endpointGroups,omitempty"`
+	Services       map[string]modeldb.Link `json:"services,omitempty"`
 }
 
 type NetworkLinks struct {
@@ -75,35 +77,53 @@ type NetworkLinks struct {
 
 type Policy struct {
 	Key        string         `json:"key,omitempty"`
-	TenantName string         `json:"tenantName,omitempty"`
-	Rules      []string       `json:"rules,omitempty"`
 	PolicyName string         `json:"policyName,omitempty"`
+	TenantName string         `json:"tenantName,omitempty"`
 	LinkSets   PolicyLinkSets `json:"link-sets,omitempty"`
 	Links      PolicyLinks    `json:"links,omitempty"`
 }
 
 type PolicyLinkSets struct {
 	EndpointGroups map[string]modeldb.Link `json:"endpointGroups,omitempty"`
+	Rules          map[string]modeldb.Link `json:"rules,omitempty"`
 }
 
 type PolicyLinks struct {
 	Tenant modeldb.Link `json:"tenant,omitempty"`
 }
 
+type Rule struct {
+	Key           string       `json:"key,omitempty"`
+	EndpointGroup string       `json:"endpointGroup,omitempty"`
+	Network       string       `json:"network,omitempty"`
+	Protocol      string       `json:"protocol,omitempty"`
+	RuleName      string       `json:"ruleName,omitempty"`
+	PolicyName    string       `json:"policyName,omitempty"`
+	TenantName    string       `json:"tenantName,omitempty"`
+	Direction     string       `json:"direction,omitempty"`
+	IpAddress     string       `json:"ipAddress,omitempty"`
+	Port          int64        `json:"port,omitempty"`
+	LinkSets      RuleLinkSets `json:"link-sets,omitempty"`
+}
+
+type RuleLinkSets struct {
+	Policies map[string]modeldb.Link `json:"policies,omitempty"`
+}
+
 type Service struct {
 	Key            string          `json:"key,omitempty"`
-	Command        string          `json:"command,omitempty"`
-	Environment    []string        `json:"environment,omitempty"`
+	Scale          int64           `json:"scale,omitempty"`
+	ServiceName    string          `json:"serviceName,omitempty"`
+	AppName        string          `json:"appName,omitempty"`
+	ImageName      string          `json:"imageName,omitempty"`
+	Cpu            string          `json:"cpu,omitempty"`
 	EndpointGroups []string        `json:"endpointGroups,omitempty"`
 	Networks       []string        `json:"networks,omitempty"`
 	VolumeProfile  string          `json:"volumeProfile,omitempty"`
 	TenantName     string          `json:"tenantName,omitempty"`
 	Memory         string          `json:"memory,omitempty"`
-	ImageName      string          `json:"imageName,omitempty"`
-	Cpu            string          `json:"cpu,omitempty"`
-	Scale          int64           `json:"scale,omitempty"`
-	ServiceName    string          `json:"serviceName,omitempty"`
-	AppName        string          `json:"appName,omitempty"`
+	Command        string          `json:"command,omitempty"`
+	Environment    []string        `json:"environment,omitempty"`
 	LinkSets       ServiceLinkSets `json:"link-sets,omitempty"`
 	Links          ServiceLinks    `json:"links,omitempty"`
 }
@@ -115,17 +135,17 @@ type ServiceLinkSets struct {
 }
 
 type ServiceLinks struct {
-	App           modeldb.Link `json:"app,omitempty"`
 	VolumeProfile modeldb.Link `json:"volumeProfile,omitempty"`
+	App           modeldb.Link `json:"app,omitempty"`
 }
 
 type ServiceInstance struct {
 	Key         string                  `json:"key,omitempty"`
+	InstanceID  string                  `json:"instanceId,omitempty"`
+	TenantName  string                  `json:"tenantName,omitempty"`
 	AppName     string                  `json:"appName,omitempty"`
 	ServiceName string                  `json:"serviceName,omitempty"`
 	Volumes     []string                `json:"volumes,omitempty"`
-	InstanceID  string                  `json:"instanceId,omitempty"`
-	TenantName  string                  `json:"tenantName,omitempty"`
 	LinkSets    ServiceInstanceLinkSets `json:"link-sets,omitempty"`
 	Links       ServiceInstanceLinks    `json:"links,omitempty"`
 }
@@ -149,22 +169,22 @@ type Tenant struct {
 }
 
 type TenantLinkSets struct {
+	EndpointGroups map[string]modeldb.Link `json:"endpointGroups,omitempty"`
 	Policies       map[string]modeldb.Link `json:"policies,omitempty"`
 	Volumes        map[string]modeldb.Link `json:"volumes,omitempty"`
 	VolumeProfiles map[string]modeldb.Link `json:"volumeProfiles,omitempty"`
 	Networks       map[string]modeldb.Link `json:"networks,omitempty"`
 	Apps           map[string]modeldb.Link `json:"apps,omitempty"`
-	EndpointGroups map[string]modeldb.Link `json:"endpointGroups,omitempty"`
 }
 
 type Volume struct {
 	Key           string         `json:"key,omitempty"`
-	TenantName    string         `json:"tenantName,omitempty"`
-	DatastoreType string         `json:"datastoreType,omitempty"`
-	PoolName      string         `json:"poolName,omitempty"`
 	Size          string         `json:"size,omitempty"`
 	MountPoint    string         `json:"mountPoint,omitempty"`
 	VolumeName    string         `json:"volumeName,omitempty"`
+	TenantName    string         `json:"tenantName,omitempty"`
+	DatastoreType string         `json:"datastoreType,omitempty"`
+	PoolName      string         `json:"poolName,omitempty"`
 	LinkSets      VolumeLinkSets `json:"link-sets,omitempty"`
 	Links         VolumeLinks    `json:"links,omitempty"`
 }
@@ -179,12 +199,12 @@ type VolumeLinks struct {
 
 type VolumeProfile struct {
 	Key               string                `json:"key,omitempty"`
+	Size              string                `json:"size,omitempty"`
+	MountPoint        string                `json:"mountPoint,omitempty"`
 	VolumeProfileName string                `json:"volumeProfileName,omitempty"`
 	TenantName        string                `json:"tenantName,omitempty"`
 	DatastoreType     string                `json:"datastoreType,omitempty"`
 	PoolName          string                `json:"poolName,omitempty"`
-	Size              string                `json:"size,omitempty"`
-	MountPoint        string                `json:"mountPoint,omitempty"`
 	LinkSets          VolumeProfileLinkSets `json:"link-sets,omitempty"`
 	Links             VolumeProfileLinks    `json:"links,omitempty"`
 }
@@ -202,6 +222,7 @@ type Collections struct {
 	endpointGroups   map[string]*EndpointGroup
 	networks         map[string]*Network
 	policys          map[string]*Policy
+	rules            map[string]*Rule
 	services         map[string]*Service
 	serviceInstances map[string]*ServiceInstance
 	tenants          map[string]*Tenant
@@ -211,45 +232,87 @@ type Collections struct {
 
 var collections Collections
 
-type Callbacks interface {
+type AppCallbacks interface {
 	AppCreate(app *App) error
 	AppUpdate(app, params *App) error
 	AppDelete(app *App) error
+}
+
+type EndpointGroupCallbacks interface {
 	EndpointGroupCreate(endpointGroup *EndpointGroup) error
 	EndpointGroupUpdate(endpointGroup, params *EndpointGroup) error
 	EndpointGroupDelete(endpointGroup *EndpointGroup) error
+}
+
+type NetworkCallbacks interface {
 	NetworkCreate(network *Network) error
 	NetworkUpdate(network, params *Network) error
 	NetworkDelete(network *Network) error
+}
+
+type PolicyCallbacks interface {
 	PolicyCreate(policy *Policy) error
 	PolicyUpdate(policy, params *Policy) error
 	PolicyDelete(policy *Policy) error
+}
+
+type RuleCallbacks interface {
+	RuleCreate(rule *Rule) error
+	RuleUpdate(rule, params *Rule) error
+	RuleDelete(rule *Rule) error
+}
+
+type ServiceCallbacks interface {
 	ServiceCreate(service *Service) error
 	ServiceUpdate(service, params *Service) error
 	ServiceDelete(service *Service) error
+}
+
+type ServiceInstanceCallbacks interface {
 	ServiceInstanceCreate(serviceInstance *ServiceInstance) error
 	ServiceInstanceUpdate(serviceInstance, params *ServiceInstance) error
 	ServiceInstanceDelete(serviceInstance *ServiceInstance) error
+}
+
+type TenantCallbacks interface {
 	TenantCreate(tenant *Tenant) error
 	TenantUpdate(tenant, params *Tenant) error
 	TenantDelete(tenant *Tenant) error
+}
+
+type VolumeCallbacks interface {
 	VolumeCreate(volume *Volume) error
 	VolumeUpdate(volume, params *Volume) error
 	VolumeDelete(volume *Volume) error
+}
+
+type VolumeProfileCallbacks interface {
 	VolumeProfileCreate(volumeProfile *VolumeProfile) error
 	VolumeProfileUpdate(volumeProfile, params *VolumeProfile) error
 	VolumeProfileDelete(volumeProfile *VolumeProfile) error
 }
 
-var objCallbackHandler Callbacks
+type CallbackHandlers struct {
+	AppCb             AppCallbacks
+	EndpointGroupCb   EndpointGroupCallbacks
+	NetworkCb         NetworkCallbacks
+	PolicyCb          PolicyCallbacks
+	RuleCb            RuleCallbacks
+	ServiceCb         ServiceCallbacks
+	ServiceInstanceCb ServiceInstanceCallbacks
+	TenantCb          TenantCallbacks
+	VolumeCb          VolumeCallbacks
+	VolumeProfileCb   VolumeProfileCallbacks
+}
 
-func Init(handler Callbacks) {
-	objCallbackHandler = handler
+var objCallbackHandler CallbackHandlers
 
+func Init() {
 	collections.apps = make(map[string]*App)
 	collections.endpointGroups = make(map[string]*EndpointGroup)
 	collections.networks = make(map[string]*Network)
 	collections.policys = make(map[string]*Policy)
+	collections.rules = make(map[string]*Rule)
 	collections.services = make(map[string]*Service)
 	collections.serviceInstances = make(map[string]*ServiceInstance)
 	collections.tenants = make(map[string]*Tenant)
@@ -260,11 +323,52 @@ func Init(handler Callbacks) {
 	restoreEndpointGroup()
 	restoreNetwork()
 	restorePolicy()
+	restoreRule()
 	restoreService()
 	restoreServiceInstance()
 	restoreTenant()
 	restoreVolume()
 	restoreVolumeProfile()
+}
+
+func RegisterAppCallbacks(handler AppCallbacks) {
+	objCallbackHandler.AppCb = handler
+}
+
+func RegisterEndpointGroupCallbacks(handler EndpointGroupCallbacks) {
+	objCallbackHandler.EndpointGroupCb = handler
+}
+
+func RegisterNetworkCallbacks(handler NetworkCallbacks) {
+	objCallbackHandler.NetworkCb = handler
+}
+
+func RegisterPolicyCallbacks(handler PolicyCallbacks) {
+	objCallbackHandler.PolicyCb = handler
+}
+
+func RegisterRuleCallbacks(handler RuleCallbacks) {
+	objCallbackHandler.RuleCb = handler
+}
+
+func RegisterServiceCallbacks(handler ServiceCallbacks) {
+	objCallbackHandler.ServiceCb = handler
+}
+
+func RegisterServiceInstanceCallbacks(handler ServiceInstanceCallbacks) {
+	objCallbackHandler.ServiceInstanceCb = handler
+}
+
+func RegisterTenantCallbacks(handler TenantCallbacks) {
+	objCallbackHandler.TenantCb = handler
+}
+
+func RegisterVolumeCallbacks(handler VolumeCallbacks) {
+	objCallbackHandler.VolumeCb = handler
+}
+
+func RegisterVolumeProfileCallbacks(handler VolumeProfileCallbacks) {
+	objCallbackHandler.VolumeProfileCb = handler
 }
 
 // Simple Wrapper for http handlers
@@ -345,6 +449,16 @@ func AddRoutes(router *mux.Router) {
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreatePolicy))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreatePolicy))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeletePolicy))
+
+	// Register rule
+	route = "/api/rules/{key}/"
+	listRoute = "/api/rules/"
+	log.Infof("Registering %s", route)
+	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListRules))
+	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetRule))
+	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateRule))
+	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateRule))
+	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteRule))
 
 	// Register service
 	route = "/api/services/{key}/"
@@ -474,10 +588,23 @@ func httpDeleteApp(w http.ResponseWriter, r *http.Request, vars map[string]strin
 
 // Create a app object
 func CreateApp(obj *App) error {
+	// Validate parameters
+	err := ValidateApp(obj)
+	if err != nil {
+		log.Errorf("ValidateApp retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.AppCb == nil {
+		log.Errorf("No callback registered for app object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.apps[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.AppUpdate(collections.apps[obj.Key], obj)
+		err = objCallbackHandler.AppCb.AppUpdate(collections.apps[obj.Key], obj)
 		if err != nil {
 			log.Errorf("AppUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -487,7 +614,7 @@ func CreateApp(obj *App) error {
 		collections.apps[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.AppCreate(obj)
+		err = objCallbackHandler.AppCb.AppCreate(obj)
 		if err != nil {
 			log.Errorf("AppCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.apps, obj.Key)
@@ -496,7 +623,7 @@ func CreateApp(obj *App) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving app %s to db. Err: %v", obj.Key, err)
 		return err
@@ -524,11 +651,14 @@ func DeleteApp(key string) error {
 		return errors.New("app not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.AppCb == nil {
+		log.Errorf("No callback registered for app object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.AppDelete(obj)
+	err := objCallbackHandler.AppCb.AppDelete(obj)
 	if err != nil {
 		log.Errorf("AppDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -599,6 +729,20 @@ func restoreApp() error {
 		// add it to the collection
 		collections.apps[app.Key] = &app
 	}
+
+	return nil
+}
+
+// Validate a app object
+func ValidateApp(obj *App) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.AppName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting App Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
 
 	return nil
 }
@@ -679,10 +823,23 @@ func httpDeleteEndpointGroup(w http.ResponseWriter, r *http.Request, vars map[st
 
 // Create a endpointGroup object
 func CreateEndpointGroup(obj *EndpointGroup) error {
+	// Validate parameters
+	err := ValidateEndpointGroup(obj)
+	if err != nil {
+		log.Errorf("ValidateEndpointGroup retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.EndpointGroupCb == nil {
+		log.Errorf("No callback registered for endpointGroup object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.endpointGroups[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.EndpointGroupUpdate(collections.endpointGroups[obj.Key], obj)
+		err = objCallbackHandler.EndpointGroupCb.EndpointGroupUpdate(collections.endpointGroups[obj.Key], obj)
 		if err != nil {
 			log.Errorf("EndpointGroupUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -692,7 +849,7 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 		collections.endpointGroups[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.EndpointGroupCreate(obj)
+		err = objCallbackHandler.EndpointGroupCb.EndpointGroupCreate(obj)
 		if err != nil {
 			log.Errorf("EndpointGroupCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.endpointGroups, obj.Key)
@@ -701,7 +858,7 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving endpointGroup %s to db. Err: %v", obj.Key, err)
 		return err
@@ -729,11 +886,14 @@ func DeleteEndpointGroup(key string) error {
 		return errors.New("endpointGroup not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.EndpointGroupCb == nil {
+		log.Errorf("No callback registered for endpointGroup object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.EndpointGroupDelete(obj)
+	err := objCallbackHandler.EndpointGroupCb.EndpointGroupDelete(obj)
 	if err != nil {
 		log.Errorf("EndpointGroupDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -804,6 +964,20 @@ func restoreEndpointGroup() error {
 		// add it to the collection
 		collections.endpointGroups[endpointGroup.Key] = &endpointGroup
 	}
+
+	return nil
+}
+
+// Validate a endpointGroup object
+func ValidateEndpointGroup(obj *EndpointGroup) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.GroupName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting EndpointGroup Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
 
 	return nil
 }
@@ -884,10 +1058,23 @@ func httpDeleteNetwork(w http.ResponseWriter, r *http.Request, vars map[string]s
 
 // Create a network object
 func CreateNetwork(obj *Network) error {
+	// Validate parameters
+	err := ValidateNetwork(obj)
+	if err != nil {
+		log.Errorf("ValidateNetwork retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.NetworkCb == nil {
+		log.Errorf("No callback registered for network object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.networks[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.NetworkUpdate(collections.networks[obj.Key], obj)
+		err = objCallbackHandler.NetworkCb.NetworkUpdate(collections.networks[obj.Key], obj)
 		if err != nil {
 			log.Errorf("NetworkUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -897,7 +1084,7 @@ func CreateNetwork(obj *Network) error {
 		collections.networks[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.NetworkCreate(obj)
+		err = objCallbackHandler.NetworkCb.NetworkCreate(obj)
 		if err != nil {
 			log.Errorf("NetworkCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.networks, obj.Key)
@@ -906,7 +1093,7 @@ func CreateNetwork(obj *Network) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving network %s to db. Err: %v", obj.Key, err)
 		return err
@@ -934,11 +1121,14 @@ func DeleteNetwork(key string) error {
 		return errors.New("network not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.NetworkCb == nil {
+		log.Errorf("No callback registered for network object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.NetworkDelete(obj)
+	err := objCallbackHandler.NetworkCb.NetworkDelete(obj)
 	if err != nil {
 		log.Errorf("NetworkDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -1008,6 +1198,43 @@ func restoreNetwork() error {
 
 		// add it to the collection
 		collections.networks[network.Key] = &network
+	}
+
+	return nil
+}
+
+// Validate a network object
+func ValidateNetwork(obj *Network) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.NetworkName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting Network Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	defaultGwMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$")
+	if defaultGwMatch.MatchString(obj.DefaultGw) == false {
+		return errors.New("defaultGw string invalid format")
+	}
+
+	encapMatch := regexp.MustCompile("^(vlan|vxlan)$")
+	if encapMatch.MatchString(obj.Encap) == false {
+		return errors.New("encap string invalid format")
+	}
+
+	if len(obj.NetworkName) > 64 {
+		return errors.New("networkName string too long")
+	}
+
+	subnetMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?/[0-9]{1,2}?)$")
+	if subnetMatch.MatchString(obj.Subnet) == false {
+		return errors.New("subnet string invalid format")
+	}
+
+	if len(obj.TenantName) > 64 {
+		return errors.New("tenantName string too long")
 	}
 
 	return nil
@@ -1089,10 +1316,23 @@ func httpDeletePolicy(w http.ResponseWriter, r *http.Request, vars map[string]st
 
 // Create a policy object
 func CreatePolicy(obj *Policy) error {
+	// Validate parameters
+	err := ValidatePolicy(obj)
+	if err != nil {
+		log.Errorf("ValidatePolicy retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.PolicyCb == nil {
+		log.Errorf("No callback registered for policy object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.policys[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.PolicyUpdate(collections.policys[obj.Key], obj)
+		err = objCallbackHandler.PolicyCb.PolicyUpdate(collections.policys[obj.Key], obj)
 		if err != nil {
 			log.Errorf("PolicyUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -1102,7 +1342,7 @@ func CreatePolicy(obj *Policy) error {
 		collections.policys[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.PolicyCreate(obj)
+		err = objCallbackHandler.PolicyCb.PolicyCreate(obj)
 		if err != nil {
 			log.Errorf("PolicyCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.policys, obj.Key)
@@ -1111,7 +1351,7 @@ func CreatePolicy(obj *Policy) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving policy %s to db. Err: %v", obj.Key, err)
 		return err
@@ -1139,11 +1379,14 @@ func DeletePolicy(key string) error {
 		return errors.New("policy not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.PolicyCb == nil {
+		log.Errorf("No callback registered for policy object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.PolicyDelete(obj)
+	err := objCallbackHandler.PolicyCb.PolicyDelete(obj)
 	if err != nil {
 		log.Errorf("PolicyDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -1213,6 +1456,289 @@ func restorePolicy() error {
 
 		// add it to the collection
 		collections.policys[policy.Key] = &policy
+	}
+
+	return nil
+}
+
+// Validate a policy object
+func ValidatePolicy(obj *Policy) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.PolicyName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting Policy Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	return nil
+}
+
+// LIST REST call
+func httpListRules(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpListRules: %+v", vars)
+
+	list := make([]*Rule, 0)
+	for _, obj := range collections.rules {
+		list = append(list, obj)
+	}
+
+	// Return the list
+	return list, nil
+}
+
+// GET REST call
+func httpGetRule(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetRule: %+v", vars)
+
+	key := vars["key"]
+
+	obj := collections.rules[key]
+	if obj == nil {
+		log.Errorf("rule %s not found", key)
+		return nil, errors.New("rule not found")
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// CREATE REST call
+func httpCreateRule(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetRule: %+v", vars)
+
+	var obj Rule
+	key := vars["key"]
+
+	// Get object from the request
+	err := json.NewDecoder(r.Body).Decode(&obj)
+	if err != nil {
+		log.Errorf("Error decoding rule create request. Err %v", err)
+		return nil, err
+	}
+
+	// set the key
+	obj.Key = key
+
+	// Create the object
+	err = CreateRule(&obj)
+	if err != nil {
+		log.Errorf("CreateRule error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// DELETE rest call
+func httpDeleteRule(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpDeleteRule: %+v", vars)
+
+	key := vars["key"]
+
+	// Delete the object
+	err := DeleteRule(key)
+	if err != nil {
+		log.Errorf("DeleteRule error for: %s. Err: %v", key, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return key, nil
+}
+
+// Create a rule object
+func CreateRule(obj *Rule) error {
+	// Validate parameters
+	err := ValidateRule(obj)
+	if err != nil {
+		log.Errorf("ValidateRule retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.RuleCb == nil {
+		log.Errorf("No callback registered for rule object")
+		return errors.New("Invalid object type")
+	}
+
+	// Check if object already exists
+	if collections.rules[obj.Key] != nil {
+		// Perform Update callback
+		err = objCallbackHandler.RuleCb.RuleUpdate(collections.rules[obj.Key], obj)
+		if err != nil {
+			log.Errorf("RuleUpdate retruned error for: %+v. Err: %v", obj, err)
+			return err
+		}
+	} else {
+		// save it in cache
+		collections.rules[obj.Key] = obj
+
+		// Perform Create callback
+		err = objCallbackHandler.RuleCb.RuleCreate(obj)
+		if err != nil {
+			log.Errorf("RuleCreate retruned error for: %+v. Err: %v", obj, err)
+			delete(collections.rules, obj.Key)
+			return err
+		}
+	}
+
+	// Write it to modeldb
+	err = obj.Write()
+	if err != nil {
+		log.Errorf("Error saving rule %s to db. Err: %v", obj.Key, err)
+		return err
+	}
+
+	return nil
+}
+
+// Return a pointer to rule from collection
+func FindRule(key string) *Rule {
+	obj := collections.rules[key]
+	if obj == nil {
+		log.Errorf("rule %s not found", key)
+		return nil
+	}
+
+	return obj
+}
+
+// Delete a rule object
+func DeleteRule(key string) error {
+	obj := collections.rules[key]
+	if obj == nil {
+		log.Errorf("rule %s not found", key)
+		return errors.New("rule not found")
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.RuleCb == nil {
+		log.Errorf("No callback registered for rule object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.RuleCb.RuleDelete(obj)
+	if err != nil {
+		log.Errorf("RuleDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// delete it from modeldb
+	err = obj.Delete()
+	if err != nil {
+		log.Errorf("Error deleting rule %s. Err: %v", obj.Key, err)
+	}
+
+	// delete it from cache
+	delete(collections.rules, key)
+
+	return nil
+}
+
+func (self *Rule) GetType() string {
+	return "rule"
+}
+
+func (self *Rule) GetKey() string {
+	return self.Key
+}
+
+func (self *Rule) Read() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to read rule object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.ReadObj("rule", self.Key, self)
+}
+
+func (self *Rule) Write() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Write rule object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.WriteObj("rule", self.Key, self)
+}
+
+func (self *Rule) Delete() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Delete rule object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.DeleteObj("rule", self.Key)
+}
+
+func restoreRule() error {
+	strList, err := modeldb.ReadAllObj("rule")
+	if err != nil {
+		log.Errorf("Error reading rule list. Err: %v", err)
+	}
+
+	for _, objStr := range strList {
+		// Parse the json model
+		var rule Rule
+		err = json.Unmarshal([]byte(objStr), &rule)
+		if err != nil {
+			log.Errorf("Error parsing object %s, Err %v", objStr, err)
+			return err
+		}
+
+		// add it to the collection
+		collections.rules[rule.Key] = &rule
+	}
+
+	return nil
+}
+
+// Validate a rule object
+func ValidateRule(obj *Rule) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.PolicyName + ":" + obj.RuleName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting Rule Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	directionMatch := regexp.MustCompile("^(in|out)$")
+	if directionMatch.MatchString(obj.Direction) == false {
+		return errors.New("direction string invalid format")
+	}
+
+	if len(obj.EndpointGroup) > 64 {
+		return errors.New("endpointGroup string too long")
+	}
+
+	if len(obj.Network) > 64 {
+		return errors.New("network string too long")
+	}
+
+	if len(obj.PolicyName) > 64 {
+		return errors.New("policyName string too long")
+	}
+
+	if obj.Port > 65535 {
+		return errors.New("port Value Out of bound")
+	}
+
+	protocolMatch := regexp.MustCompile("^(tcp|udp|icmp|[0-9]{1,3}?)$")
+	if protocolMatch.MatchString(obj.Protocol) == false {
+		return errors.New("protocol string invalid format")
+	}
+
+	if len(obj.RuleName) > 64 {
+		return errors.New("ruleName string too long")
+	}
+
+	if len(obj.TenantName) > 64 {
+		return errors.New("tenantName string too long")
 	}
 
 	return nil
@@ -1294,10 +1820,23 @@ func httpDeleteService(w http.ResponseWriter, r *http.Request, vars map[string]s
 
 // Create a service object
 func CreateService(obj *Service) error {
+	// Validate parameters
+	err := ValidateService(obj)
+	if err != nil {
+		log.Errorf("ValidateService retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.ServiceCb == nil {
+		log.Errorf("No callback registered for service object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.services[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.ServiceUpdate(collections.services[obj.Key], obj)
+		err = objCallbackHandler.ServiceCb.ServiceUpdate(collections.services[obj.Key], obj)
 		if err != nil {
 			log.Errorf("ServiceUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -1307,7 +1846,7 @@ func CreateService(obj *Service) error {
 		collections.services[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.ServiceCreate(obj)
+		err = objCallbackHandler.ServiceCb.ServiceCreate(obj)
 		if err != nil {
 			log.Errorf("ServiceCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.services, obj.Key)
@@ -1316,7 +1855,7 @@ func CreateService(obj *Service) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving service %s to db. Err: %v", obj.Key, err)
 		return err
@@ -1344,11 +1883,14 @@ func DeleteService(key string) error {
 		return errors.New("service not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.ServiceCb == nil {
+		log.Errorf("No callback registered for service object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.ServiceDelete(obj)
+	err := objCallbackHandler.ServiceCb.ServiceDelete(obj)
 	if err != nil {
 		log.Errorf("ServiceDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -1419,6 +1961,20 @@ func restoreService() error {
 		// add it to the collection
 		collections.services[service.Key] = &service
 	}
+
+	return nil
+}
+
+// Validate a service object
+func ValidateService(obj *Service) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.AppName + ":" + obj.ServiceName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting Service Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
 
 	return nil
 }
@@ -1499,10 +2055,23 @@ func httpDeleteServiceInstance(w http.ResponseWriter, r *http.Request, vars map[
 
 // Create a serviceInstance object
 func CreateServiceInstance(obj *ServiceInstance) error {
+	// Validate parameters
+	err := ValidateServiceInstance(obj)
+	if err != nil {
+		log.Errorf("ValidateServiceInstance retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.ServiceInstanceCb == nil {
+		log.Errorf("No callback registered for serviceInstance object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.serviceInstances[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.ServiceInstanceUpdate(collections.serviceInstances[obj.Key], obj)
+		err = objCallbackHandler.ServiceInstanceCb.ServiceInstanceUpdate(collections.serviceInstances[obj.Key], obj)
 		if err != nil {
 			log.Errorf("ServiceInstanceUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -1512,7 +2081,7 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 		collections.serviceInstances[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.ServiceInstanceCreate(obj)
+		err = objCallbackHandler.ServiceInstanceCb.ServiceInstanceCreate(obj)
 		if err != nil {
 			log.Errorf("ServiceInstanceCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.serviceInstances, obj.Key)
@@ -1521,7 +2090,7 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving serviceInstance %s to db. Err: %v", obj.Key, err)
 		return err
@@ -1549,11 +2118,14 @@ func DeleteServiceInstance(key string) error {
 		return errors.New("serviceInstance not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.ServiceInstanceCb == nil {
+		log.Errorf("No callback registered for serviceInstance object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.ServiceInstanceDelete(obj)
+	err := objCallbackHandler.ServiceInstanceCb.ServiceInstanceDelete(obj)
 	if err != nil {
 		log.Errorf("ServiceInstanceDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -1624,6 +2196,20 @@ func restoreServiceInstance() error {
 		// add it to the collection
 		collections.serviceInstances[serviceInstance.Key] = &serviceInstance
 	}
+
+	return nil
+}
+
+// Validate a serviceInstance object
+func ValidateServiceInstance(obj *ServiceInstance) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.AppName + ":" + obj.ServiceName + ":" + obj.InstanceID
+	if obj.Key != keyStr {
+		log.Errorf("Expecting ServiceInstance Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
 
 	return nil
 }
@@ -1704,10 +2290,23 @@ func httpDeleteTenant(w http.ResponseWriter, r *http.Request, vars map[string]st
 
 // Create a tenant object
 func CreateTenant(obj *Tenant) error {
+	// Validate parameters
+	err := ValidateTenant(obj)
+	if err != nil {
+		log.Errorf("ValidateTenant retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.TenantCb == nil {
+		log.Errorf("No callback registered for tenant object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.tenants[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.TenantUpdate(collections.tenants[obj.Key], obj)
+		err = objCallbackHandler.TenantCb.TenantUpdate(collections.tenants[obj.Key], obj)
 		if err != nil {
 			log.Errorf("TenantUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -1717,7 +2316,7 @@ func CreateTenant(obj *Tenant) error {
 		collections.tenants[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.TenantCreate(obj)
+		err = objCallbackHandler.TenantCb.TenantCreate(obj)
 		if err != nil {
 			log.Errorf("TenantCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.tenants, obj.Key)
@@ -1726,7 +2325,7 @@ func CreateTenant(obj *Tenant) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving tenant %s to db. Err: %v", obj.Key, err)
 		return err
@@ -1754,11 +2353,14 @@ func DeleteTenant(key string) error {
 		return errors.New("tenant not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.TenantCb == nil {
+		log.Errorf("No callback registered for tenant object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.TenantDelete(obj)
+	err := objCallbackHandler.TenantCb.TenantDelete(obj)
 	if err != nil {
 		log.Errorf("TenantDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -1828,6 +2430,47 @@ func restoreTenant() error {
 
 		// add it to the collection
 		collections.tenants[tenant.Key] = &tenant
+	}
+
+	return nil
+}
+
+// Validate a tenant object
+func ValidateTenant(obj *Tenant) error {
+	// Validate key is correct
+	keyStr := obj.TenantName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting Tenant Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	if obj.SubnetLen < 1 {
+		return errors.New("subnetLen Value Out of bound")
+	}
+
+	if obj.SubnetLen > 32 {
+		return errors.New("subnetLen Value Out of bound")
+	}
+
+	subnetPoolMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?/[0-9]{1,2}?)$")
+	if subnetPoolMatch.MatchString(obj.SubnetPool) == false {
+		return errors.New("subnetPool string invalid format")
+	}
+
+	if len(obj.TenantName) > 64 {
+		return errors.New("tenantName string too long")
+	}
+
+	vlansMatch := regexp.MustCompile("^([0-9]{1,4}?-[0-9]{1,4}?)$")
+	if vlansMatch.MatchString(obj.Vlans) == false {
+		return errors.New("vlans string invalid format")
+	}
+
+	vxlansMatch := regexp.MustCompile("^([0-9]{1,8}?-[0-9]{1,8}?)$")
+	if vxlansMatch.MatchString(obj.Vxlans) == false {
+		return errors.New("vxlans string invalid format")
 	}
 
 	return nil
@@ -1909,10 +2552,23 @@ func httpDeleteVolume(w http.ResponseWriter, r *http.Request, vars map[string]st
 
 // Create a volume object
 func CreateVolume(obj *Volume) error {
+	// Validate parameters
+	err := ValidateVolume(obj)
+	if err != nil {
+		log.Errorf("ValidateVolume retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.VolumeCb == nil {
+		log.Errorf("No callback registered for volume object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.volumes[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.VolumeUpdate(collections.volumes[obj.Key], obj)
+		err = objCallbackHandler.VolumeCb.VolumeUpdate(collections.volumes[obj.Key], obj)
 		if err != nil {
 			log.Errorf("VolumeUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -1922,7 +2578,7 @@ func CreateVolume(obj *Volume) error {
 		collections.volumes[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.VolumeCreate(obj)
+		err = objCallbackHandler.VolumeCb.VolumeCreate(obj)
 		if err != nil {
 			log.Errorf("VolumeCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.volumes, obj.Key)
@@ -1931,7 +2587,7 @@ func CreateVolume(obj *Volume) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving volume %s to db. Err: %v", obj.Key, err)
 		return err
@@ -1959,11 +2615,14 @@ func DeleteVolume(key string) error {
 		return errors.New("volume not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.VolumeCb == nil {
+		log.Errorf("No callback registered for volume object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.VolumeDelete(obj)
+	err := objCallbackHandler.VolumeCb.VolumeDelete(obj)
 	if err != nil {
 		log.Errorf("VolumeDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -2034,6 +2693,20 @@ func restoreVolume() error {
 		// add it to the collection
 		collections.volumes[volume.Key] = &volume
 	}
+
+	return nil
+}
+
+// Validate a volume object
+func ValidateVolume(obj *Volume) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.VolumeName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting Volume Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
 
 	return nil
 }
@@ -2114,10 +2787,23 @@ func httpDeleteVolumeProfile(w http.ResponseWriter, r *http.Request, vars map[st
 
 // Create a volumeProfile object
 func CreateVolumeProfile(obj *VolumeProfile) error {
+	// Validate parameters
+	err := ValidateVolumeProfile(obj)
+	if err != nil {
+		log.Errorf("ValidateVolumeProfile retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.VolumeProfileCb == nil {
+		log.Errorf("No callback registered for volumeProfile object")
+		return errors.New("Invalid object type")
+	}
+
 	// Check if object already exists
 	if collections.volumeProfiles[obj.Key] != nil {
 		// Perform Update callback
-		err := objCallbackHandler.VolumeProfileUpdate(collections.volumeProfiles[obj.Key], obj)
+		err = objCallbackHandler.VolumeProfileCb.VolumeProfileUpdate(collections.volumeProfiles[obj.Key], obj)
 		if err != nil {
 			log.Errorf("VolumeProfileUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
@@ -2127,7 +2813,7 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 		collections.volumeProfiles[obj.Key] = obj
 
 		// Perform Create callback
-		err := objCallbackHandler.VolumeProfileCreate(obj)
+		err = objCallbackHandler.VolumeProfileCb.VolumeProfileCreate(obj)
 		if err != nil {
 			log.Errorf("VolumeProfileCreate retruned error for: %+v. Err: %v", obj, err)
 			delete(collections.volumeProfiles, obj.Key)
@@ -2136,7 +2822,7 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 	}
 
 	// Write it to modeldb
-	err := obj.Write()
+	err = obj.Write()
 	if err != nil {
 		log.Errorf("Error saving volumeProfile %s to db. Err: %v", obj.Key, err)
 		return err
@@ -2164,11 +2850,14 @@ func DeleteVolumeProfile(key string) error {
 		return errors.New("volumeProfile not found")
 	}
 
-	// set the key
-	obj.Key = key
+	// Check if we handle this object
+	if objCallbackHandler.VolumeProfileCb == nil {
+		log.Errorf("No callback registered for volumeProfile object")
+		return errors.New("Invalid object type")
+	}
 
 	// Perform callback
-	err := objCallbackHandler.VolumeProfileDelete(obj)
+	err := objCallbackHandler.VolumeProfileCb.VolumeProfileDelete(obj)
 	if err != nil {
 		log.Errorf("VolumeProfileDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
@@ -2239,6 +2928,20 @@ func restoreVolumeProfile() error {
 		// add it to the collection
 		collections.volumeProfiles[volumeProfile.Key] = &volumeProfile
 	}
+
+	return nil
+}
+
+// Validate a volumeProfile object
+func ValidateVolumeProfile(obj *VolumeProfile) error {
+	// Validate key is correct
+	keyStr := obj.TenantName + ":" + obj.VolumeProfileName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting VolumeProfile Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
 
 	return nil
 }

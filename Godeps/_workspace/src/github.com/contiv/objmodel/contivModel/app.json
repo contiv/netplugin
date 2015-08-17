@@ -4,7 +4,7 @@
 		{
 			"name": "app",
 			"type": "object",
-			"key": "string",
+			"key": [ "tenantName", "appName" ],
 			"properties": {
 				"appName": {
 					"type": "string",
