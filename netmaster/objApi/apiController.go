@@ -518,12 +518,13 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 
 	// Create private network for the tenant
 	err = contivModel.CreateNetwork(&contivModel.Network{
-		Key:         tenant.TenantName + ":" + "privateNet",
+		Key:         tenant.TenantName + ":" + "private",
 		IsPublic:    false,
 		IsPrivate:   true,
 		Encap:       "vxlan",
 		Subnet:      "10.1.0.0/16",
-		NetworkName: "privateNet",
+		DefaultGw:   "10.1.0.1",
+		NetworkName: "private",
 		TenantName:  tenant.TenantName,
 	})
 	if err != nil {
@@ -533,12 +534,13 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 
 	// Create public network for the tenant
 	err = contivModel.CreateNetwork(&contivModel.Network{
-		Key:         tenant.TenantName + ":" + "publicNet",
+		Key:         tenant.TenantName + ":" + "public",
 		IsPublic:    true,
 		IsPrivate:   false,
 		Encap:       "vlan",
 		Subnet:      "192.168.1.0/24",
-		NetworkName: "publicNet",
+		DefaultGw:   "192.168.1.1",
+		NetworkName: "public",
 		TenantName:  tenant.TenantName,
 	})
 	if err != nil {

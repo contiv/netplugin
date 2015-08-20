@@ -30,6 +30,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/mgmtfn/dockplugin/libnetClient"
 	"github.com/contiv/netplugin/netmaster/client"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/docker/docker/pkg/plugins"
@@ -48,9 +49,7 @@ func InitDockPlugin() error {
 	}
 
 	var (
-		interfaceName = "eth2"
-		tenantName    = "default"
-		networkName   = "privateNet"
+		tenantName = "default"
 	)
 
 	log.Debugf("Configuring router")
@@ -60,15 +59,15 @@ func InitDockPlugin() error {
 		Methods("POST").Subrouter()
 
 	dispatchMap := map[string]func(http.ResponseWriter, *http.Request){
-		"/Plugin.Activate":                activate(hostname, interfaceName),
-		"/Plugin.Deactivate":              deactivate(hostname, interfaceName),
-		"/NetworkDriver.CreateNetwork":    createNetwork(tenantName, networkName),
-		"/NetworkDriver.DeleteNetwork":    deleteNetwork(tenantName, networkName),
-		"/NetworkDriver.CreateEndpoint":   createEndpoint(tenantName, networkName, hostname),
-		"/NetworkDriver.DeleteEndpoint":   deleteEndpoint(tenantName, networkName, hostname),
+		"/Plugin.Activate":                activate(hostname),
+		"/Plugin.Deactivate":              deactivate(hostname),
+		"/NetworkDriver.CreateNetwork":    createNetwork(),
+		"/NetworkDriver.DeleteNetwork":    deleteNetwork(),
+		"/NetworkDriver.CreateEndpoint":   createEndpoint(tenantName, hostname),
+		"/NetworkDriver.DeleteEndpoint":   deleteEndpoint(tenantName, hostname),
 		"/NetworkDriver.EndpointOperInfo": endpointInfo,
-		"/NetworkDriver.Join":             join(networkName),
-		"/NetworkDriver.Leave":            leave(networkName),
+		"/NetworkDriver.Join":             join(),
+		"/NetworkDriver.Leave":            leave(),
 	}
 
 	for dispatchPath, dispatchFunc := range dispatchMap {
@@ -131,14 +130,14 @@ func logEvent(typ string) {
 }
 
 // activate the plugin and register it as a network driver.
-func deactivate(hostname, interfaceName string) func(http.ResponseWriter, *http.Request) {
+func deactivate(hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("deactivate")
 	}
 }
 
 // activate the plugin and register it as a network driver.
-func activate(hostname, interfaceName string) func(http.ResponseWriter, *http.Request) {
+func activate(hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("activate")
 
@@ -152,7 +151,7 @@ func activate(hostname, interfaceName string) func(http.ResponseWriter, *http.Re
 	}
 }
 
-func deleteNetwork(tenantName, networkName string) func(http.ResponseWriter, *http.Request) {
+func deleteNetwork() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("delete network")
 
@@ -178,7 +177,7 @@ func deleteNetwork(tenantName, networkName string) func(http.ResponseWriter, *ht
 	}
 }
 
-func createNetwork(tenantName, networkName string) func(http.ResponseWriter, *http.Request) {
+func createNetwork() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("create network")
 
@@ -230,7 +229,7 @@ func generateEndpoint(containerID, tenantName, networkName, hostname string) *in
 	}
 }
 
-func deleteEndpoint(tenantName, networkName, hostname string) func(http.ResponseWriter, *http.Request) {
+func deleteEndpoint(tenantName, hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("delete endpoint")
 
@@ -243,6 +242,13 @@ func deleteEndpoint(tenantName, networkName, hostname string) func(http.Response
 		der := api.DeleteEndpointRequest{}
 		if err := json.Unmarshal(content, &der); err != nil {
 			httpError(w, "Could not read delete endpoint request", err)
+			return
+		}
+
+		networkName, err := GetNetworkName(der.NetworkID)
+		if err != nil {
+			log.Errorf("Error getting network name for UUID: %s. Err: %v", der.NetworkID, err)
+			httpError(w, "Could not get network name", err)
 			return
 		}
 
@@ -261,7 +267,7 @@ func deleteEndpoint(tenantName, networkName, hostname string) func(http.Response
 	}
 }
 
-func createEndpoint(tenantName, networkName, hostname string) func(http.ResponseWriter, *http.Request) {
+func createEndpoint(tenantName, hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// assumptions on options passed as of early v1:
 		// io.docker.network.endpoint.exposedports: docker's notion of exposed ports:
@@ -293,6 +299,16 @@ func createEndpoint(tenantName, networkName, hostname string) func(http.Response
 		}
 
 		log.Infof("CreateEndpointRequest: %+v", cereq)
+
+		networkName, err := GetNetworkName(cereq.NetworkID)
+		if err != nil {
+			log.Errorf("Error getting network name for UUID: %s. Err: %v", cereq.NetworkID, err)
+			httpError(w, "Could not get network name", err)
+			return
+		}
+
+		// FIXME:
+		GetEndPointName(cereq.NetworkID, cereq.EndpointID)
 
 		if err := netdcliAdd(generateEndpoint(cereq.EndpointID, tenantName, networkName, hostname)); err != nil {
 			httpError(w, "Could not create endpoint", err)
@@ -361,7 +377,7 @@ func endpointInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
-func join(networkName string) func(http.ResponseWriter, *http.Request) {
+func join() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("join")
 
@@ -379,6 +395,16 @@ func join(networkName string) func(http.ResponseWriter, *http.Request) {
 
 		log.Infof("JoinRequest: %+v", jr)
 
+		networkName, err := GetNetworkName(jr.NetworkID)
+		if err != nil {
+			log.Errorf("Error getting network name for UUID: %s. Err: %v", jr.NetworkID, err)
+			httpError(w, "Could not get network name", err)
+			return
+		}
+
+		// FIXME:
+		GetEndPointName(jr.NetworkID, jr.EndpointID)
+
 		ep, err := netdcliGetEndpoint(networkName + "-" + jr.EndpointID)
 		if err != nil {
 			httpError(w, "Could not derive created interface", err)
@@ -390,6 +416,18 @@ func join(networkName string) func(http.ResponseWriter, *http.Request) {
 			httpError(w, "Could not get network", err)
 			return
 		}
+
+		// Inspect the container
+		/*
+			sbKey := strings.Split(jr.SandboxKey, "/")
+			cntId := sbKey[len(sbKey)-1]
+			log.Infof("Executing: docker inspect %s", cntId)
+			out, err := exec.Command("docker", "inspect", cntId).CombinedOutput()
+			log.Infof("docker ispect %s\nErr: %v\n%s", cntId, err, out)
+
+			out, err := exec.Command("sh", "-c", "curl localhost:4243/v1.20/networks").CombinedOutput()
+			log.Infof("curl localhost:4243/v1.20/networks\nErr: %v\n%s", err, out)
+		*/
 
 		content, err = json.Marshal(api.JoinResponse{
 			InterfaceNames: []*api.InterfaceName{
@@ -411,7 +449,7 @@ func join(networkName string) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func leave(networkName string) func(http.ResponseWriter, *http.Request) {
+func leave() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("leave")
 		w.WriteHeader(200)
@@ -464,4 +502,40 @@ func netdcliGetNetwork(name string) ([]drivers.OvsCfgNetworkState, error) {
 	}
 
 	return network, nil
+}
+
+// GetNetwork gets network name from network UUID
+func GetNetworkName(nwId string) (string, error) {
+	api := libnetClient.NewRemoteAPI("")
+
+	nw, err := api.NetworkByID(nwId)
+	if err != nil {
+		log.Infof("Error: %v", err)
+		return "", err
+	}
+
+	log.Infof("Returning network name %s for ID %s", nw.Name(), nwId)
+
+	return nw.Name(), nil
+}
+
+// GetEndPointName Returns endpoint name from networkId, endpointId
+func GetEndPointName(nwId, epId string) (string, error) {
+	api := libnetClient.NewRemoteAPI("")
+
+	nw, err := api.NetworkByID(nwId)
+	if err != nil {
+		log.Infof("Error: %v", err)
+		return "", err
+	}
+
+	ep, err := nw.EndpointByID(epId)
+	if err != nil {
+		log.Infof("Error: %v", err)
+		return "", err
+	}
+
+	log.Infof("Returning endpoint name %s for ID %s/%s", ep.Name(), nwId, epId)
+
+	return ep.Name(), nil
 }

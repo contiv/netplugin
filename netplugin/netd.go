@@ -871,6 +871,10 @@ func main() {
 		pluginConfig.Instance.VlanIntf = opts.vlanIntf
 	}
 
+	// Initialize docker plugin
+	dockplugin.InitDockPlugin()
+
+	// Init the driver plugins..
 	err = netPlugin.Init(pluginConfig, string(config))
 	if err != nil {
 		log.Fatalf("Failed to initialize the plugin. Error: %s", err)
@@ -881,9 +885,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize container run time, err %s \n", err)
 	}
-
-	// Initialize docker plugin
-	dockplugin.InitDockPlugin()
 
 	// Process all current state
 	processCurrentState(netPlugin, crt, opts)

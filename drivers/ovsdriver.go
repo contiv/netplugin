@@ -17,11 +17,12 @@ package drivers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	"github.com/contiv/netplugin/core"
-
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/mgmtfn/dockplugin/libnetClient"
 )
 
 type oper int
@@ -153,6 +154,31 @@ func (d *OvsDriver) Deinit() {
 	}
 }
 
+const driverName = "netplugin"
+
+// createDockNet Creates a network in docker daemon
+func createDockNet(networkName string) error {
+	api := libnetClient.NewRemoteAPI("")
+
+	// Check if the network already exists
+	nw, err := api.NetworkByName(networkName)
+	if err == nil && nw.Type() == driverName {
+		return nil
+	} else if err == nil && nw.Type() != driverName {
+		log.Errorf("Network name %s used by another driver %s", networkName, nw.Type())
+		return errors.New("Network name used by another driver")
+	}
+
+	// Create network
+	_, err = api.NewNetwork(driverName, networkName)
+	if err != nil {
+		log.Errorf("Error creating network %s. Err: %v", networkName, err)
+		return err
+	}
+
+	return nil
+}
+
 // CreateNetwork creates a network by named identifier
 func (d *OvsDriver) CreateNetwork(id string) error {
 	cfgNw := OvsCfgNetworkState{}
@@ -163,6 +189,13 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		return err
 	}
 	log.Infof("create net %s \n", cfgNw.ID)
+
+	// Create the network in docker
+	err = createDockNet(cfgNw.ID)
+	if err != nil {
+		log.Errorf("Error creating network %s in docker. Err: %v", cfgNw.ID, err)
+		return err
+	}
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
@@ -203,7 +236,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	var (
 		err      error
 		intfName string
-		intfType string
 	)
 
 	cfgEp := &OvsCfgEndpointState{}
@@ -273,10 +305,9 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 	intfName = d.getIntfName()
-	intfType = "internal"
 
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, intfType, cfgEp, cfgNw.PktTag)
+	err = sw.CreatePort(intfName, cfgEp, cfgNw.PktTag)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err
