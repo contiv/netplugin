@@ -28,7 +28,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-const USE_VETH_PAIR = true
+const useVethPair = true
 
 // OvsSwitch represents on OVS bridge instance
 type OvsSwitch struct {
@@ -197,7 +197,7 @@ func setLinkUp(name string) error {
 func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
 	var ovsPortName string
 	var ovsIntfType string
-	if USE_VETH_PAIR {
+	if useVethPair {
 		// Generate interface
 		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
 		ovsIntfType = ""
@@ -275,7 +275,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 // UpdatePort updates an OVS port without creating it
 func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
 	var ovsPortName string
-	if USE_VETH_PAIR {
+	if useVethPair {
 		// Generate interface
 		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
 	} else {
@@ -325,7 +325,7 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 	}
 
 	var ovsPortName string
-	if USE_VETH_PAIR {
+	if useVethPair {
 		// Generate interface
 		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
 	} else {
