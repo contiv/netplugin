@@ -14,22 +14,21 @@ import (
 // Equivalent to: `ip route add $route`
 func RouteAdd(route *Route) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
-	return routeHandle(route, req)
+	return routeHandle(route, req, nl.NewRtMsg())
 }
 
 // RouteAdd will delete a route from the system.
 // Equivalent to: `ip route del $route`
 func RouteDel(route *Route) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
-	return routeHandle(route, req)
+	return routeHandle(route, req, nl.NewRtDelMsg())
 }
 
-func routeHandle(route *Route, req *nl.NetlinkRequest) error {
+func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 	if (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil {
 		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
 	}
 
-	msg := nl.NewRtMsg()
 	msg.Scope = uint8(route.Scope)
 	family := -1
 	var rtAttrs []*nl.RtAttr
@@ -119,7 +118,7 @@ func RouteList(link Link, family int) ([]Route, error) {
 	}
 
 	native := nl.NativeEndian()
-	res := make([]Route, 0)
+	var res []Route
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
 
@@ -193,7 +192,7 @@ func RouteGet(destination net.IP) ([]Route, error) {
 	}
 
 	native := nl.NativeEndian()
-	res := make([]Route, 0)
+	var res []Route
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
 		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
