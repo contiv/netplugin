@@ -504,38 +504,38 @@ func netdcliGetNetwork(name string) ([]drivers.OvsCfgNetworkState, error) {
 	return network, nil
 }
 
-// GetNetwork gets network name from network UUID
-func GetNetworkName(nwId string) (string, error) {
+// GetNetworkName gets network name from network UUID
+func GetNetworkName(nwID string) (string, error) {
 	api := libnetClient.NewRemoteAPI("")
 
-	nw, err := api.NetworkByID(nwId)
+	nw, err := api.NetworkByID(nwID)
 	if err != nil {
 		log.Infof("Error: %v", err)
 		return "", err
 	}
 
-	log.Infof("Returning network name %s for ID %s", nw.Name(), nwId)
+	log.Infof("Returning network name %s for ID %s", nw.Name(), nwID)
 
 	return nw.Name(), nil
 }
 
 // GetEndPointName Returns endpoint name from networkId, endpointId
-func GetEndPointName(nwId, epId string) (string, error) {
+func GetEndPointName(nwID, epID string) (string, error) {
 	api := libnetClient.NewRemoteAPI("")
 
-	nw, err := api.NetworkByID(nwId)
+	nw, err := api.NetworkByID(nwID)
 	if err != nil {
 		log.Infof("Error: %v", err)
 		return "", err
 	}
 
-	ep, err := nw.EndpointByID(epId)
+	ep, err := nw.EndpointByID(epID)
 	if err != nil {
 		log.Infof("Error: %v", err)
 		return "", err
 	}
 
-	log.Infof("Returning endpoint name %s for ID %s/%s", ep.Name(), nwId, epId)
+	log.Infof("Returning endpoint name %s for ID %s/%s", ep.Name(), nwID, epID)
 
 	return ep.Name(), nil
 }
