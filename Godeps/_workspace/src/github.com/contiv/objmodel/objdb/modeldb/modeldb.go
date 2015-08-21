@@ -18,7 +18,9 @@ package modeldb
 // Wrapper for persistently storing object model
 
 import (
-	"github.com/contiv/objmodel/objdb/objdbClient"
+	"sync"
+
+	"github.com/contiv/objmodel/objdb/client"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -34,10 +36,14 @@ type ModelObj interface {
 type Link struct {
 	ObjType string `json:"type,omitempty"`
 	ObjKey  string `json:"key,omitempty"`
+
+	mutex sync.Mutex
 }
 
 // AddLink adds a one way link to target object
 func AddLink(link *Link, obj ModelObj) {
+	link.mutex.Lock()
+	defer link.mutex.Unlock()
 	link.ObjType = obj.GetType()
 	link.ObjKey = obj.GetKey()
 }
@@ -77,7 +83,7 @@ func RemoveLinkSet(linkSet *(map[string]Link), obj ModelObj) error {
 }
 
 // persistent database
-var cdb = objdbClient.NewClient()
+var cdb = client.NewClient()
 
 func WriteObj(objType, objKey string, value interface{}) error {
 	key := "/modeldb/" + objType + "/" + objKey
