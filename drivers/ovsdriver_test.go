@@ -279,6 +279,8 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 		t.Fatalf("endpoint creation failed. Error: %s", err)
 	}
 
+	defer func() { driver.DeleteEndpoint(id) }()
+
 	output, err := exec.Command("ovs-vsctl", "list", "Port").CombinedOutput()
 	expectedPortName := fmt.Sprintf("port%d", driver.oper.CurrPortNum)
 	if err != nil || !strings.Contains(string(output), expectedPortName) {
@@ -302,6 +304,8 @@ func TestOvsDriverCreateEndpointStateful(t *testing.T) {
 	if err != nil {
 		t.Fatalf("endpoint creation failed. Error: %s", err)
 	}
+
+	defer func() { driver.DeleteEndpoint(id) }()
 
 	err = driver.CreateEndpoint(id)
 	if err != nil {
@@ -349,6 +353,8 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stateful endpoint creation failed. Error: %s", err)
 	}
+
+	defer func() { driver.DeleteEndpoint(id) }()
 
 	output, err := exec.Command("ovs-vsctl", "list", "Port").CombinedOutput()
 	expectedPortName := fmt.Sprintf("port%d", driver.oper.CurrPortNum)
