@@ -174,6 +174,9 @@ func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]st
 			err, cmdStr, output)
 	}
 
+	// Wait 10sec for netmaster to start.
+	// Since netmaster writes to objdb at startup, it takes surprisingly long
+	time.Sleep(20 * time.Second)
 }
 
 // StartNetmaster starts netplugin on specified testbed node
