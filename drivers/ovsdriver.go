@@ -173,7 +173,8 @@ func createDockNet(networkName string) error {
 	_, err = api.NewNetwork(driverName, networkName)
 	if err != nil {
 		log.Errorf("Error creating network %s. Err: %v", networkName, err)
-		return err
+		// FIXME: Ignore errors till we fully move to docker 1.9
+		return nil
 	}
 
 	return nil

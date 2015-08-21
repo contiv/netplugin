@@ -457,7 +457,7 @@ func leave() func(http.ResponseWriter, *http.Request) {
 }
 
 func netdcliAdd(payload *intent.Config) error {
-	c := client.New("localhost:9999")
+	c := client.New("netmaster:9999")
 	log.Infof("netdcliAdd payload: %+v", payload)
 	if err := c.PostAddConfig(payload); err != nil {
 		println(err)
@@ -468,12 +468,12 @@ func netdcliAdd(payload *intent.Config) error {
 }
 
 func netdcliDel(payload *intent.Config) error {
-	c := client.New("localhost:9999")
+	c := client.New("netmaster:9999")
 	return c.PostDeleteConfig(payload)
 }
 
 func netdcliGetEndpoint(name string) ([]drivers.OvsOperEndpointState, error) {
-	c := client.New("localhost:9999")
+	c := client.New("netmaster:9999")
 	content, err := c.GetEndpoint(name)
 	if err != nil {
 		return nil, err
@@ -491,7 +491,7 @@ func netdcliGetEndpoint(name string) ([]drivers.OvsOperEndpointState, error) {
 func netdcliGetNetwork(name string) ([]drivers.OvsCfgNetworkState, error) {
 	var network []drivers.OvsCfgNetworkState
 
-	c := client.New("localhost:9999")
+	c := client.New("netmaster:9999")
 	content, err := c.GetNetwork(name)
 	if err != nil {
 		return network, err

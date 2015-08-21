@@ -3,7 +3,8 @@
 
 require 'fileutils'
 
-netplugin_synced_gopath="/opt/golang"
+# netplugin_synced_gopath="/opt/golang"
+gopath_folder="/opt/gopath"
 FileUtils.cp "/etc/resolv.conf", Dir.pwd
 
 provision_common = <<SCRIPT
@@ -17,7 +18,7 @@ hostname -F /etc/hostname
 /sbin/ip link set eth1 up
 /sbin/ip link set eth2 up
 
-echo 'export GOPATH=#{netplugin_synced_gopath}' > /etc/profile.d/envvar.sh
+echo 'export GOPATH=#{gopath_folder}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
@@ -28,7 +29,7 @@ echo "export no_proxy=192.168.0.0/16,localhost,127.0.0.0/8" >> /etc/profile.d/en
 source /etc/profile.d/envvar.sh
 
 mv /etc/resolv.conf /etc/resolv.conf.bak
-cp #{netplugin_synced_gopath}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
+cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
 
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
@@ -41,6 +42,9 @@ if [ $# -gt 5 ]; then
     shift; shift; shift; shift; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
+
+# Install experimental docker
+# curl -sSL https://experimental.docker.com/ | sh
 
 (service docker restart) || exit 1
 
@@ -94,9 +98,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
             end
             # mount the host directories
-            node.vm.synced_folder ".", "/opt/golang/src/github.com/contiv/netplugin"
-            node.vm.synced_folder File.join(File.dirname(__FILE__), "bin"), File.join(netplugin_synced_gopath, "bin")
+            # node.vm.synced_folder ".", "/opt/golang/src/github.com/contiv/netplugin"
+            # node.vm.synced_folder File.join(File.dirname(__FILE__), "bin"), File.join(netplugin_synced_gopath, "bin")
+            node.vm.synced_folder "../../../../", gopath_folder
 
+            node.vm.provision "shell" do |s|
+                s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_addr} #{node_name}' >> /etc/hosts"
+            end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
                 s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", *ENV['CONTIV_ENV']]
@@ -116,7 +124,7 @@ set -x
 (nohup consul agent -server #{consul_join_flag} #{consul_bootstrap_flag} \
  -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
 SCRIPT
-            node.vm.provision "shell" do |s|
+            node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_node
             end
         end

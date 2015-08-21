@@ -68,8 +68,8 @@ func NewAPIController(router *mux.Router) *APIController {
 			TenantName: "default",
 			SubnetPool: "10.1.1.1/16",
 			SubnetLen:  24,
-			Vlans:      "1-2000",
-			Vxlans:     "10001-12000",
+			Vlans:      "100-200",
+			Vxlans:     "1001-1100",
 		})
 		if err != nil {
 			log.Fatalf("Error creating default tenant. Err: %v", err)
@@ -207,7 +207,7 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	// Remove link
 	modeldb.RemoveLinkSet(&tenant.LinkSets.Networks, network)
 
-	// Save the tenant too since we added the links
+	// Save the tenant too since we removed the links
 	err := tenant.Write()
 	if err != nil {
 		return err

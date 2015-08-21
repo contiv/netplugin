@@ -4,69 +4,50 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/contiv/symphony/pkg/netutils"
 )
 
-/*
-
 func TestCreateBridge(t *testing.T) {
-    // Connect to OVS
-    ovsDriver := NewOvsDriver()
+	// Connect to OVS
+	ovsDriver := NewOvsDriver("ovsbr10")
 
-    // Test create
-    err := ovsDriver.CreateBridge("ovsbr10")
-    if (err != nil) {
-        fmt.Printf("Error creating the bridge. Err: %v", err)
-        t.Errorf("Failed to create a bridge")
-    }
-}
-
-func TestDeleteBridge(t *testing.T) {
-    // Connect to OVS
-    ovsDriver := NewOvsDriver()
-
-    // Test delete
-    err := ovsDriver.DeleteBridge("ovsbr10")
-    if (err != nil) {
-        fmt.Printf("Error deleting the bridge. Err: %v", err)
-        t.Errorf("Failed to delete a bridge")
-    }
-
+	// Test create
+	err := ovsDriver.CreateBridge("ovsbr10")
+	if err != nil {
+		fmt.Printf("Error creating the bridge. Err: %v", err)
+		t.Errorf("Failed to create a bridge")
+	}
 }
 
 func TestCreateDeleteMultipleBridge(t *testing.T) {
-    // Connect to OVS
-    ovsDriver := NewOvsDriver()
+	// Connect to OVS
+	ovsDriver := NewOvsDriver("ovsbr10")
 
-    // Test create
-    for i := 0; i < 10; i++ {
-        brName := "ovsbr1" + fmt.Sprintf("%d", i)
-        err := ovsDriver.CreateBridge(brName)
-        if (err != nil) {
-            fmt.Printf("Error creating the bridge. Err: %v", err)
-            t.Errorf("Failed to create a bridge")
-        }
-        // time.Sleep(1 * time.Second)
-    }
+	// Test create
+	for i := 0; i < 10; i++ {
+		brName := "ovsbr2" + fmt.Sprintf("%d", i)
+		err := ovsDriver.CreateBridge(brName)
+		if err != nil {
+			fmt.Printf("Error creating the bridge. Err: %v", err)
+			t.Errorf("Failed to create a bridge")
+		}
+		// time.Sleep(1 * time.Second)
+	}
 
-    // Test delete
-    for i := 0; i < 10; i++ {
-        brName := "ovsbr1" + fmt.Sprintf("%d", i)
-        err := ovsDriver.DeleteBridge(brName)
-        if (err != nil) {
-            fmt.Printf("Error deleting the bridge. Err: %v", err)
-            t.Errorf("Failed to delete a bridge")
-        }
-        // time.Sleep(1 * time.Second)
-    }
+	// Test delete
+	for i := 0; i < 10; i++ {
+		brName := "ovsbr2" + fmt.Sprintf("%d", i)
+		err := ovsDriver.DeleteBridge(brName)
+		if err != nil {
+			fmt.Printf("Error deleting the bridge. Err: %v", err)
+			t.Errorf("Failed to delete a bridge")
+		}
+		// time.Sleep(1 * time.Second)
+	}
 }
-
-*/
 
 func TestCreatePort(t *testing.T) {
 	// Connect to OVS
-	ovsDriver := NewOvsDriver()
+	ovsDriver := NewOvsDriver("ovsbr10")
 
 	// Create a port
 	err := ovsDriver.CreatePort("port12", "internal", 11)
@@ -76,31 +57,6 @@ func TestCreatePort(t *testing.T) {
 	}
 
 	// HACK: wait a little so that interface is visible
-	time.Sleep(time.Second * 1)
-
-	contpid := 31936
-
-	// Move the interface into a container namespace
-	err = netutils.MoveIntfToNetns("port12", contpid)
-	if err != nil {
-		fmt.Printf("Error moving interface to container. Err %v\n", err)
-	}
-
-	// identity params
-	identity := netutils.NetnsIntfIdentify{
-		PortName:   "eth0",
-		MacAddr:    "00:01:02:03:04:05",
-		IPAddr:     "10.10.10.10",
-		NetmaskLen: 24,
-		DefaultGw:  "10.10.10.1",
-	}
-
-	// Set identity of the interface
-	netutils.SetNetnsIntfIdentity(contpid, "port12", identity)
-	if err != nil {
-		fmt.Printf("Error setting interface identity. Err %v\n", err)
-	}
-
 	time.Sleep(time.Second * 1)
 
 	ovsDriver.PrintCache()
@@ -114,7 +70,7 @@ func TestCreatePort(t *testing.T) {
 
 func TestDeletePort(t *testing.T) {
 	// Connect to OVS
-	ovsDriver := NewOvsDriver()
+	ovsDriver := NewOvsDriver("ovsbr10")
 
 	err := ovsDriver.DeletePort("port12")
 	if err != nil {
@@ -125,7 +81,7 @@ func TestDeletePort(t *testing.T) {
 
 func TestCreateVtep(t *testing.T) {
 	// Connect to OVS
-	ovsDriver := NewOvsDriver()
+	ovsDriver := NewOvsDriver("ovsbr10")
 
 	// Create a port
 	err := ovsDriver.CreateVtep("vtep1", "10.10.10.10")
@@ -134,7 +90,7 @@ func TestCreateVtep(t *testing.T) {
 		t.Errorf("Failed to create a port")
 	}
 
-	time.After(100 * time.Millisecond)
+	time.After(1000 * time.Millisecond)
 
 	isPresent, vtepName := ovsDriver.IsVtepPresent("10.10.10.10")
 	if (!isPresent) || (vtepName != "vtep1") {
@@ -144,7 +100,7 @@ func TestCreateVtep(t *testing.T) {
 
 func TestAddController(t *testing.T) {
 	// Connect to OVS
-	ovsDriver := NewOvsDriver()
+	ovsDriver := NewOvsDriver("ovsbr10")
 
 	// Create a port
 	err := ovsDriver.AddController("127.0.0.1", 6666)
@@ -152,4 +108,17 @@ func TestAddController(t *testing.T) {
 		fmt.Printf("Error adding controller. Err: %v", err)
 		t.Errorf("Failed to add controller")
 	}
+}
+
+func TestDeleteBridge(t *testing.T) {
+	// Connect to OVS
+	ovsDriver := NewOvsDriver("ovsbr10")
+
+	// Test delete
+	err := ovsDriver.DeleteBridge("ovsbr10")
+	if err != nil {
+		fmt.Printf("Error deleting the bridge. Err: %v", err)
+		t.Errorf("Failed to delete a bridge")
+	}
+
 }

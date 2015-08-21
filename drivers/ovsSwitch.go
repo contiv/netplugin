@@ -184,6 +184,28 @@ func createVethPair(name1, name2 string) error {
 	return nil
 }
 
+// deleteVethPair deletes veth interface pairs
+func deleteVethPair(name1, name2 string) error {
+	log.Infof("Deleting Veth pairs with name: %s, %s", name1, name2)
+
+	// Veth pair params
+	veth := &netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:   name1,
+			TxQLen: 0,
+		},
+		PeerName: name2,
+	}
+
+	// Create the veth pair
+	if err := netlink.LinkDel(veth); err != nil {
+		log.Errorf("error deleting veth pair: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 // setLinkUp sets the link up
 func setLinkUp(name string) error {
 	iface, err := netlink.LinkByName(name)
@@ -319,17 +341,20 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 		return nil
 	}
 
-	intfName, err := sw.ovsdbDriver.GetPortOrIntfNameFromID(epOper.ID, getIntfName)
-	if err != nil {
-		return err
-	}
-
 	var ovsPortName string
 	if useVethPair {
 		// Generate interface
-		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
+		ovsPortName = strings.Replace(epOper.PortName, "port", "vport", 1)
+
+		// Delete a Veth pair
+		err := deleteVethPair(ovsPortName, epOper.PortName)
+		if err != nil {
+			log.Errorf("Error creating veth pairs. Err: %v", err)
+			return err
+		}
+
 	} else {
-		ovsPortName = intfName
+		ovsPortName = epOper.PortName
 	}
 
 	// Remove info from ofnet
@@ -348,7 +373,7 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 	}
 
 	// Delete it from ovsdb
-	err = sw.ovsdbDriver.DeletePort(ovsPortName)
+	err := sw.ovsdbDriver.DeletePort(ovsPortName)
 	if err != nil {
 		return err
 	}

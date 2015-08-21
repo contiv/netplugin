@@ -153,8 +153,6 @@ func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 
 // StartNetmasterWithFlags starts netplugin on specified testbed nodes with specified flags
 func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]string) {
-	time.Sleep(5 * time.Second)
-
 	var (
 		cmdStr   string
 		flagsStr string
@@ -175,7 +173,9 @@ func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]st
 			err, cmdStr, output)
 	}
 
-	time.Sleep(5 * time.Second)
+	// Wait 20sec for netmaster to start.
+	// Since netmaster writes to objdb at startup, it takes surprisingly long
+	time.Sleep(20 * time.Second)
 }
 
 // StartNetmaster starts netplugin on specified testbed node

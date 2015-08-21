@@ -107,7 +107,7 @@ func (d *daemon) parseOpts() error {
 		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
 	flagSet.StringVar(&d.opts.listenURL,
 		"listen-url",
-		master.DaemonURL,
+		":9999",
 		"Url to listen http requests on")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
