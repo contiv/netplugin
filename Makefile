@@ -100,7 +100,7 @@ regress-test-dind:
 	CONTIV_TESTBED=DIND make regress-test
 
 tar: clean-tar build
-	@echo "v0.0.`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
+	@echo "v0.0.0-`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
 	@tar -jcf $(TAR_FILE) -C $(GOPATH)/bin netplugin netdcli netmaster dockcontivnet k8contivnet
 
 clean-tar:

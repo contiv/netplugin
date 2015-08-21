@@ -5,11 +5,6 @@
 # - push to master
 # - pull request on master
 
-#$WORKSPACE points to the Jenkins' workspace root
-export GOPATH=$WORKSPACE
-export GOBIN=$GOPATH/bin
-export GOSRC=$GOPATH/src
-export PATH=$PATH:/sbin/:/usr/local/go/bin:$GOBIN
-
+. `dirname $0`/env.sh
 cd $GOSRC/github.com/contiv/netplugin
 make all-CI
