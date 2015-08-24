@@ -53,7 +53,7 @@ demo-centos:
 	CONTIV_NODE_OS=centos make demo
 
 stop:
-	CONTIV_NODES=2 vagrant destroy -f
+	CONTIV_NODES=$${CONTIV_NODES:-2} vagrant destroy -f
 
 demo: stop start build
 
