@@ -42,52 +42,10 @@ if [ $# -gt 5 ]; then
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
-### install basic packages
-#(apt-get update -qq > /dev/null && apt-get install -y vim curl python-software-properties git > /dev/null) || exit 1
-#
-### install Go 1.4
-#(cd /usr/local/ && \
-#curl -L https://storage.googleapis.com/golang/go1.4.linux-amd64.tar.gz -o go1.4.linux-amd64.tar.gz && \
-#tar -xzf go1.4.linux-amd64.tar.gz) || exit 1
-#
-### install etcd
-#(cd /tmp && \
-#curl -L  https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o etcd-v2.0.0-linux-amd64.tar.gz && \
-#tar -xzf etcd-v2.0.0-linux-amd64.tar.gz && \
-#mv /tmp/etcd-v2.0.0-linux-amd64/etcd /usr/bin/ && \
-#mv /tmp/etcd-v2.0.0-linux-amd64/etcdctl /usr/bin/ ) || exit 1
-#
-### install and start docker
-#(curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null) || exit 1
-#
-## pass the env-var args to docker and restart the service. This helps passing
-## stuff like http-proxy etc
-# if [ $# -gt 0 ]; then
-#     (echo "export $@" >> /etc/default/docker) || exit 1
-# fi
-
 (service docker restart) || exit 1
-
-## install openvswitch and enable ovsdb-server to listen for incoming requests
-#(apt-get install -y openvswitch-switch > /dev/null) || exit 1
-## Install OVS 2.3.1
-# (wget -nv -O ovs-common.deb https://cisco.box.com/shared/static/v1dvgoboo5zgqrtn6tu27vxeqtdo2bdl.deb &&
-#  wget -nv -O ovs-switch.deb https://cisco.box.com/shared/static/ymbuwvt2qprs4tquextw75b82hyaxwon.deb) || exit 1
-# (dpkg -i ovs-common.deb &&
-#  dpkg -i ovs-switch.deb) || exit 1
 
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
-
-### install consul
-#(apt-get install -y unzip && cd /tmp && \
-# wget https://dl.bintray.com/mitchellh/consul/0.5.2_linux_amd64.zip && \
-# unzip 0.5.2_linux_amd64.zip && \
-# mv /tmp/consul /usr/bin) || exit 1
-
-# add vagrant user to docker group
-# (usermod -a -G docker vagrant)
-
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
@@ -121,9 +79,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         end
         config.vm.define node_name do |node|
             # node.vm.hostname = node_name
-            # # create an interface for etcd cluster
+            # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
-            # # create an interface for bridged network
+            # create an interface for bridged network
             node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true", auto_config: false
             node.vm.provider "virtualbox" do |v|
                 # make all nics 'virtio' to take benefit of builtin vlan tag
