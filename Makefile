@@ -48,9 +48,12 @@ clean: deps
 	rm -rf Godeps/_workspace/pkg
 	godep go clean -i -v ./...
 
+update:
+	vagrant box update
+
 # setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
 # up a cluster of <number> nodes. By default <number> = 1
-start:
+start: update
 	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 
 demo-centos:
