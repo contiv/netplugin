@@ -1,6 +1,7 @@
 #!/bin/bash
 
 go get github.com/tools/godep
+go get github.com/c4milo/github-release
 
 if ! go get github.com/golang/lint/golint
 then

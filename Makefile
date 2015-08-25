@@ -1,5 +1,5 @@
 
-.PHONY: all build clean default system-test unit-test
+.PHONY: all all-CI build clean default system-test unit-test release tar
 
 # find all verifiable packages.
 # XXX: explore a better way that doesn't need multiple 'find'
@@ -8,6 +8,16 @@ PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|God
 TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/dockcontivnet/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
+NAME := netplugin
+# We are using date based versioning, so for consistent version during a build
+# we evaluate and set the value of version once in a file and use it in 'tar'
+# and 'release' targets.
+VERSION_FILE := /tmp/$(NAME)-version
+VERSION := `cat $(VERSION_FILE)`
+TAR_EXT := tar.bz2
+TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
+TAR_LOC := .
+TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
 
 all: build unit-test system-test system-test-dind centos-tests
 
@@ -88,3 +98,22 @@ system-test-dind:
 
 regress-test-dind:
 	CONTIV_TESTBED=DIND make regress-test
+
+tar: clean-tar build
+	@echo "v0.0.0-`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
+	@tar -jcf $(TAR_FILE) -C $(GOPATH)/bin netplugin netdcli netmaster dockcontivnet k8contivnet
+
+clean-tar:
+	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
+
+# GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
+release: tar
+	@latest_tag=$$(git describe --tags `git rev-list --tags --max-count=1`); \
+		comparison="$$latest_tag..HEAD"; \
+		changelog=$$(git log $$comparison --oneline --no-merges --reverse); \
+		if [ -z "$$changelog" ]; then echo "No new changes to release!"; exit 0; fi; \
+		set -x; \
+		( ( github-release -v release -p -r netplugin -t $(VERSION) -d "**Changelog**<br/>$$changelog" ) && \
+		( github-release -v upload -r netplugin -t $(VERSION) -n $(TAR_FILENAME) -f $(TAR_FILE) || \
+		github-release -v delete -r netplugin -t $(VERSION) ) ) || exit 1
+	@make clean-tar
