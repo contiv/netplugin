@@ -34,11 +34,15 @@ deps:
 checks:
 	./scripts/checks "$(PKGS)"
 
+host-build:
+	sudo /bin/bash -c 'source /etc/profile.d/envvar.sh; make run-build'
+
 run-build: deps checks
 	godep go install -v $(TO_BUILD)
 
 build: start
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/golang/src/github.com/contiv/netplugin && make run-build"'
+	make stop
 
 clean: deps
 	rm -rf Godeps/_workspace/pkg
@@ -55,7 +59,7 @@ demo-centos:
 stop:
 	CONTIV_NODES=$${CONTIV_NODES:-2} vagrant destroy -f
 
-demo: stop start build
+demo: stop start
 
 start-dockerdemo:
 	scripts/dockerhost/start-dockerhosts
