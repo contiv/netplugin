@@ -37,7 +37,7 @@ checks:
 host-build:
 	sudo /bin/bash -c 'source /etc/profile.d/envvar.sh; make run-build'
 
-run-build: deps checks
+run-build: deps checks clean
 	godep go install -v $(TO_BUILD)
 
 build: start
