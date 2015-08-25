@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
@@ -80,14 +81,22 @@ func NewOvsdbDriver(bridgeName string, failMode string) (*OvsdbDriver, error) {
 }
 
 // Delete : Cleanup the ovsdb driver. delete the bridge we created.
-func (d *OvsdbDriver) Delete() error {
+func (d *OvsdbDriver) Delete() {
 	if d.ovs != nil {
-		d.createDeleteBridge(d.bridgeName, "", operDeleteBridge)
+
 		log.Infof("Deleting OVS bridge: %s", d.bridgeName)
+		for {
+			// corrects a race deleting and creating bridges at the same time
+			// if the error is non-nil, assume the bridge is gone (or ovs at least does not care about it anymore).
+			// until then, sleep and retry.
+			if err := d.createDeleteBridge(d.bridgeName, "", operDeleteBridge); err != nil {
+				break
+			}
+
+			time.Sleep(100 * time.Millisecond)
+		}
 		(*d.ovs).Disconnect()
 	}
-
-	return nil
 }
 
 func (d *OvsdbDriver) getRootUUID() libovsdb.UUID {
@@ -130,32 +139,33 @@ func (d *OvsdbDriver) Stolen([]interface{}) {
 func (d *OvsdbDriver) Echo([]interface{}) {
 }
 
-func (d *OvsdbDriver) performOvsdbOps(ops []libovsdb.Operation) error {
-	reply, _ := d.ovs.Transact(ovsDataBase, ops...)
+func (d *OvsdbDriver) performOvsdbOps(ops []libovsdb.Operation) (int, error) {
+	reply, err := d.ovs.Transact(ovsDataBase, ops...)
+	if err != nil {
+		return 0, err
+	}
 
 	if len(reply) < len(ops) {
-		return core.Errorf("Unexpected number of replies. Expected: %d, Recvd: %d",
+		return 0, core.Errorf("Unexpected number of replies. Expected: %d, Recvd: %d",
 			len(ops), len(reply))
 	}
-	ok := true
+
 	errors := []string{}
-	for i, o := range reply {
-		if o.Error != "" && i < len(ops) {
+	totalCount := 0
+	for _, o := range reply {
+		if o.Error != "" {
 			errors = append(errors, fmt.Sprintf("%s(%s)", o.Error, o.Details))
-			ok = false
-		} else if o.Error != "" {
-			errors = append(errors, fmt.Sprintf("%s(%s)", o.Error, o.Details))
-			ok = false
 		}
+
+		totalCount += o.Count
 	}
 
-	if ok {
-		return nil
+	if len(errors) > 0 {
+		log.Errorf("OVS operation failed for op: %+v", ops)
+		err = core.Errorf("ovs operation failed. Error(s): %v", errors)
 	}
 
-	log.Errorf("OVS operation failed for op: %+v", ops)
-
-	return core.Errorf("ovs operation failed. Error(s): %v", errors)
+	return totalCount, err
 }
 
 // Create or delete an OVS bridge instance
@@ -171,11 +181,15 @@ func (d *OvsdbDriver) createDeleteBridge(bridgeName, failMode string, op oper) e
 	// simple insert/delete operation
 	brOp := libovsdb.Operation{}
 	if op == operCreateBridge {
+		var err error
 		bridge := make(map[string]interface{})
 		bridge["name"] = bridgeName
 
 		// Enable Openflow1.3
-		bridge["protocols"], _ = libovsdb.NewOvsSet(protocols)
+		bridge["protocols"], err = libovsdb.NewOvsSet(protocols)
+		if err != nil {
+			return err
+		}
 
 		// set fail-mode if required
 		if failMode != "" {
@@ -208,7 +222,11 @@ func (d *OvsdbDriver) createDeleteBridge(bridgeName, failMode string, op oper) e
 	// Inserting/Deleting a Bridge row in Bridge table requires mutating
 	// the open_vswitch table.
 	mutateUUID := brUUID
-	mutateSet, _ := libovsdb.NewOvsSet(mutateUUID)
+	mutateSet, err := libovsdb.NewOvsSet(mutateUUID)
+	if err != nil {
+		return err
+	}
+
 	mutation := libovsdb.NewMutation("bridges", opStr, mutateSet)
 	condition := libovsdb.NewCondition("_uuid", "==", d.getRootUUID())
 
@@ -221,7 +239,16 @@ func (d *OvsdbDriver) createDeleteBridge(bridgeName, failMode string, op oper) e
 	}
 
 	operations := []libovsdb.Operation{brOp, mutateOp}
-	return d.performOvsdbOps(operations)
+	count, err := d.performOvsdbOps(operations)
+	// corrects a race deleting and creating bridges at the same time
+	// if the count is less than 2, error out because nothing was modified
+	// therefore the operation (which is mutating) did not succeed. The OVSDB
+	// response count will always be at least 1.
+	if op == operDeleteBridge && count < 2 {
+		return fmt.Errorf("Did not succeed in OVS bridge delete operation, no records modified.")
+	}
+
+	return err
 }
 
 // GetPortOrIntfNameFromID gets interface name from id
@@ -310,7 +337,8 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag int) error {
 	}
 
 	operations := []libovsdb.Operation{intfOp, portOp, mutateOp}
-	return d.performOvsdbOps(operations)
+	_, err = d.performOvsdbOps(operations)
+	return err
 }
 
 // DeletePort deletes a port from OVS
@@ -357,7 +385,8 @@ func (d *OvsdbDriver) DeletePort(intfName string) error {
 
 	// Perform OVS transaction
 	operations := []libovsdb.Operation{intfOp, portOp, mutateOp}
-	return d.performOvsdbOps(operations)
+	_, err := d.performOvsdbOps(operations)
+	return err
 }
 
 // CreateVtep creates a VTEP port on the OVS
@@ -425,7 +454,8 @@ func (d *OvsdbDriver) CreateVtep(intfName string, vtepRemoteIP string) error {
 
 	// Perform OVS transaction
 	operations := []libovsdb.Operation{intfOp, portOp, mutateOp}
-	return d.performOvsdbOps(operations)
+	_, err = d.performOvsdbOps(operations)
+	return err
 }
 
 // DeleteVtep deletes a VTEP port
@@ -470,7 +500,8 @@ func (d *OvsdbDriver) AddController(ipAddr string, portNo uint16) error {
 
 	// Perform OVS transaction
 	operations := []libovsdb.Operation{ctrlerOp, mutateOp}
-	return d.performOvsdbOps(operations)
+	_, err := d.performOvsdbOps(operations)
+	return err
 }
 
 // RemoveController : Remove controller configuration
