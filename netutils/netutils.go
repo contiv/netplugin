@@ -211,40 +211,6 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 	return tagRanges, nil
 }
 
-// GetLocalIP obtains the first IP on a local interface on the host.
-func GetLocalIP() (string, error) {
-	var addrs []netlink.Addr
-	localIPAddr := ""
-
-	for idx := 0; idx < 3; idx++ {
-		linkName := "eth" + strconv.Itoa(idx)
-		link, err := netlink.LinkByName(linkName)
-		if err != nil {
-			if strings.Contains(err.Error(), "Link not found") {
-				continue
-			}
-			return "", err
-		}
-		addrs, err = netlink.AddrList(link, netlink.FAMILY_V4)
-		if err != nil {
-			if strings.Contains(err.Error(), "Link not found") {
-				continue
-			}
-			return "", err
-		}
-		if len(addrs) > 0 {
-			localIPAddr = addrs[0].IP.String()
-		}
-	}
-
-	err := core.Errorf("local ip not found")
-	if localIPAddr != "" {
-		err = nil
-	}
-
-	return localIPAddr, err
-}
-
 // ParseCIDR parses a CIDR string into a gateway IP and length.
 func ParseCIDR(cidrStr string) (string, uint, error) {
 	strs := strings.Split(cidrStr, "/")
