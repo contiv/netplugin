@@ -40,7 +40,8 @@ host-build:
 run-build: deps checks clean
 	godep go install -v $(TO_BUILD)
 
-build: start
+build:
+	make start
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/golang/src/github.com/contiv/netplugin && make run-build"'
 	make stop
 
