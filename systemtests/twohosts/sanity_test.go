@@ -310,7 +310,7 @@ func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -388,7 +388,7 @@ func TestTwoHostsMultiVxlanPingSuccessConsul_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -466,7 +466,7 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStart_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -562,7 +562,7 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStartConsul_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -659,7 +659,7 @@ func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -732,7 +732,7 @@ func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -821,7 +821,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -892,7 +892,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -955,7 +955,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -1098,7 +1098,7 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -1236,7 +1236,7 @@ func TestTwoHostsVxlanAddDelNetworkConsul_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",

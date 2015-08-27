@@ -344,10 +344,10 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 	var ovsPortName string
 	if useVethPair {
 		// Generate interface
-		ovsPortName = strings.Replace(epOper.PortName, "vport", "port", 1)
+		ovsPortName = strings.Replace(epOper.PortName, "port", "vport", 1)
 
 		// Delete a Veth pair
-		err := deleteVethPair(epOper.PortName, ovsPortName)
+		err := deleteVethPair(ovsPortName, epOper.PortName)
 		if err != nil {
 			log.Errorf("Error creating veth pairs. Err: %v", err)
 			return err
