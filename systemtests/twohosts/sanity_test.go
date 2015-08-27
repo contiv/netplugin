@@ -1488,52 +1488,20 @@ func TestTwoHostsVxlanMultiAddDelDeltaConfig_sanity(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		jsonCfg =
 			`{
-        "Hosts" : [{
-            "Name"                      : "host1",
-            "VtepIp"                    : "192.168.2.10"
-        },
-        {
-            "Name"                      : "host2",
-            "VtepIp"                    : "192.168.2.11"
-        }],
         "Tenants" : [ {
             "Name"                      : "tenant-one",
-            "DefaultNetType"            : "vxlan",
-            "SubnetPool"                : "11.1.0.0/16",
-            "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
             "Networks"  : [
-            {
-                "Name"                  : "orange",
-                "Endpoints" : [
-                {
-                    "Container"         : "myContainer1",
-                    "Host"              : "host1"
-                },
-                {
-                    "Container"         : "myContainer2",
-                    "Host"              : "host2"
-                } ]
-            },
             {
                 "Name"                  : "purple",
                 "Endpoints" : [
                 {
-                    "Container"         : "myContainer3",
-                    "Host"              : "host1"
-                },
-                {
                     "Container"         : "myContainer2",
                     "Host"              : "host2"
-                },
-                {
-                    "Container"         : "myContainer4",
-                    "Host"              : "host2"
-                } ]
+                }]
             } ]
         } ]
         }`
-		utils.ApplyDesiredConfig(t, jsonCfg, testbed.GetNodes()[0])
+		utils.AddConfig(t, jsonCfg, testbed.GetNodes()[0])
 
 		ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 		utils.DockerCleanup(t, node2, "myContainer2")
