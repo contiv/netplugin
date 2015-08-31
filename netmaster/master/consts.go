@@ -17,7 +17,7 @@ package master
 
 const (
 	// DaemonURL is default url used by netmaster to listen for http requests
-	DaemonURL = "localhost:9999"
+	DaemonURL = ":9999"
 
 	//DesiredConfigRESTEndpoint is the REST endpoint to post desired configuration
 	DesiredConfigRESTEndpoint = "desired-config"

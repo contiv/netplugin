@@ -760,7 +760,7 @@ func main() {
 		"label used to identify endpoints homed for this host, default is host name. If -config flag is used then host-label must be specified in the the configuration passed.")
 	flagSet.BoolVar(&opts.nativeInteg,
 		"native-integration",
-		false,
+		true,
 		"do not listen to container runtime events, because the events are natively integrated into their call sequence and external integration is not required")
 	flagSet.StringVar(&opts.cfgFile,
 		"config",

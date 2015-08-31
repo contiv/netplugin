@@ -17,56 +17,55 @@ package ofctrl
 // This file implements the forwarding graph API for the output element
 
 import (
-    "github.com/shaleman/libOpenflow/openflow13"
+	"github.com/shaleman/libOpenflow/openflow13"
 
-    // log "github.com/Sirupsen/logrus"
+	// log "github.com/Sirupsen/logrus"
 )
 
 type Output struct {
-    outputType      string      // Output type: "drop", "toController" or "port"
-    portNo          uint32      // Output port number
+	outputType string // Output type: "drop", "toController" or "port"
+	portNo     uint32 // Output port number
 }
-
 
 // Fgraph element type for the output
 func (self *Output) Type() string {
-    return "output"
+	return "output"
 }
 
 // instruction set for output element
 func (self *Output) GetFlowInstr() openflow13.Instruction {
-    outputInstr := openflow13.NewInstrApplyActions()
+	outputInstr := openflow13.NewInstrApplyActions()
 
-    switch (self.outputType) {
-    case "drop":
-        return nil
-    case "toController":
-        outputAct := openflow13.NewActionOutput(openflow13.P_CONTROLLER)
-        // Dont buffer the packets being sent to controller
-        outputAct.MaxLen = openflow13.OFPCML_NO_BUFFER
-        outputInstr.AddAction(outputAct, false)
-    case "port":
-        outputAct := openflow13.NewActionOutput(self.portNo)
-        outputInstr.AddAction(outputAct, false)
-    }
+	switch self.outputType {
+	case "drop":
+		return nil
+	case "toController":
+		outputAct := openflow13.NewActionOutput(openflow13.P_CONTROLLER)
+		// Dont buffer the packets being sent to controller
+		outputAct.MaxLen = openflow13.OFPCML_NO_BUFFER
+		outputInstr.AddAction(outputAct, false)
+	case "port":
+		outputAct := openflow13.NewActionOutput(self.portNo)
+		outputInstr.AddAction(outputAct, false)
+	}
 
-    return outputInstr
+	return outputInstr
 }
 
 // Return an output action (Used by group mods)
 func (self *Output) GetOutAction() openflow13.Action {
-    switch (self.outputType) {
-    case "drop":
-        return nil
-    case "toController":
-        outputAct := openflow13.NewActionOutput(openflow13.P_CONTROLLER)
-        // Dont buffer the packets being sent to controller
-        outputAct.MaxLen = openflow13.OFPCML_NO_BUFFER
+	switch self.outputType {
+	case "drop":
+		return nil
+	case "toController":
+		outputAct := openflow13.NewActionOutput(openflow13.P_CONTROLLER)
+		// Dont buffer the packets being sent to controller
+		outputAct.MaxLen = openflow13.OFPCML_NO_BUFFER
 
-        return outputAct
-    case "port":
-         return openflow13.NewActionOutput(self.portNo)
-    }
+		return outputAct
+	case "port":
+		return openflow13.NewActionOutput(self.portNo)
+	}
 
-    return nil
+	return nil
 }
