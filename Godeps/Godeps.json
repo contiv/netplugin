@@ -180,19 +180,19 @@
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+			"Rev": "773b26aafae227067213c7222de82c9b2177c3fc"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+			"Rev": "773b26aafae227067213c7222de82c9b2177c3fc"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+			"Rev": "773b26aafae227067213c7222de82c9b2177c3fc"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+			"Rev": "773b26aafae227067213c7222de82c9b2177c3fc"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
