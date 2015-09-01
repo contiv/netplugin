@@ -452,7 +452,7 @@ func createContainerEpOper(netPlugin *plugin.NetPlugin, contUUID, contName strin
 
 			log.Infof("updating container '%s' with id '%s' \n", contName, contUUID)
 		} else {
-      err = netPlugin.CreateEndpoint(epID)
+			err = netPlugin.CreateEndpoint(epID)
 			if err != nil {
 				log.Errorf("Endpoint creation failed. Error: %s", err)
 				return err
