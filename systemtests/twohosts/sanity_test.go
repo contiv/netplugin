@@ -1361,3 +1361,163 @@ func TestTwoHostsVxlanAddDelNetworkConsul_sanity(t *testing.T) {
 		t.Fatalf("Error - network %s doesn't seem to be deleted \n", "green")
 	}
 }
+
+func TestTwoHostsSingleVlanPingSuccessMultiAddDelEp_sanity(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
+		utils.StopOnError(t.Failed())
+	}()
+
+	jsonCfg :=
+		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "Intf"                      : "eth2"
+        },
+        {
+            "Name"                      : "host2",
+            "Intf"                      : "eth2"
+        }],
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "Vlans"                     : "11-48",
+            "Networks"  : [ {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
+
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
+	for i := 0; i < 10; i++ {
+		func() {
+			utils.StartServer(t, node1, "myContainer1")
+			defer func() {
+				utils.DockerCleanup(t, node1, "myContainer1")
+			}()
+
+			ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
+			utils.StartClient(t, node2, "myContainer2", ipAddress)
+			defer func() {
+				utils.DockerCleanup(t, node2, "myContainer2")
+			}()
+		}()
+	}
+}
+
+func TestTwoHostsVxlanMultiAddDelDeltaConfig(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
+		utils.StopOnError(t.Failed())
+	}()
+
+	jsonCfg :=
+		`{
+        "Hosts" : [{
+            "Name"                      : "host1",
+            "VtepIp"                    : "192.168.2.10"
+        },
+        {
+            "Name"                      : "host2",
+            "VtepIp"                    : "192.168.2.11"
+        }],
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "DefaultNetType"            : "vxlan",
+            "SubnetPool"                : "11.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "VXlans"                    : "10001-14000",
+            "Networks"  : [
+            {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer3",
+                    "Host"              : "host1"
+                },
+                {
+                    "Container"         : "myContainer4",
+                    "Host"              : "host2"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
+
+	node1 := testbed.GetNodes()[0]
+	node2 := testbed.GetNodes()[1]
+
+	utils.StartServer(t, node1, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(t, node1, "myContainer1")
+	}()
+
+	utils.StartServer(t, node1, "myContainer3")
+	defer func() {
+		utils.DockerCleanup(t, node1, "myContainer3")
+	}()
+
+	ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
+	utils.StartClient(t, node2, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer2")
+	}()
+
+	ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
+	utils.StartClient(t, node2, "myContainer4", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer4")
+	}()
+	for i := 0; i < 5; i++ {
+		jsonCfg =
+			`{
+        "Tenants" : [ {
+            "Name"                      : "tenant-one",
+            "Networks"  : [
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host2"
+                }]
+            } ]
+        } ]
+        }`
+		utils.AddConfig(t, jsonCfg, testbed.GetNodes()[0])
+
+		ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
+		utils.DockerCleanup(t, node2, "myContainer2")
+		utils.StartClient(t, node2, "myContainer2", ipAddress)
+	}
+	defer func() {
+		utils.DockerCleanup(t, node2, "myContainer2")
+	}()
+}
