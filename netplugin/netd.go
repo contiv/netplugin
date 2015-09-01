@@ -452,7 +452,7 @@ func createContainerEpOper(netPlugin *plugin.NetPlugin, contUUID, contName strin
 
 			log.Infof("updating container '%s' with id '%s' \n", contName, contUUID)
 		} else {
-			err = netPlugin.CreateEndpoint(epID)
+      err = netPlugin.CreateEndpoint(epID)
 			if err != nil {
 				log.Errorf("Endpoint creation failed. Error: %s", err)
 				return err
@@ -499,7 +499,6 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOp
 			log.Errorf("error attaching container: %v\n", err)
 		}
 	}
-
 	return err
 }
 
@@ -578,7 +577,6 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 		// it until ep configuration is removed
 		// ep configuration as instantiated can be applied to another container
 		// or reincarnation of the same container
-
 	}
 
 	if err != nil {
