@@ -51,6 +51,10 @@
 			"Rev": "67b2a4ce90a7593fcb591fb7d291a0253a08b960"
 		},
 		{
+			"ImportPath": "github.com/contiv/systemtests-utils",
+			"Rev": "24bbdf19c0b4ad0cd3d8bf543d97fe2626b54f8c"
+		},
+		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
 			"Comment": "v2.1.0-alpha.0-51-gb24dd8e",
 			"Rev": "b24dd8e4e67d7203c5a68cd43de4f6ffcfff5e66"

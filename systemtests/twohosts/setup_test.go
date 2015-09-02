@@ -19,7 +19,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/contiv/netplugin/systemtests/utils"
+	utils "github.com/contiv/systemtests-utils"
 
 	log "github.com/Sirupsen/logrus"
 )

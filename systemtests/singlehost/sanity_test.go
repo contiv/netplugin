@@ -18,8 +18,8 @@ package singlehost
 import (
 	"testing"
 
-	"github.com/contiv/netplugin/systemtests/utils"
 	u "github.com/contiv/netplugin/utils"
+	utils "github.com/contiv/systemtests-utils"
 )
 
 // Testcase:
