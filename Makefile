@@ -87,8 +87,8 @@ unit-test-centos: stop clean
 system-test: system-test-singlehost system-test-multihost
 
 # the `make stop` here and below are necessary because build leaves around a VM (intentionally)
-system-test-singlehost: stop clean build
-	make stop
+system-test-singlehost: stop clean
+	make build stop
 	godep go test -v --timeout 30m -run "sanity" \
 					   github.com/contiv/netplugin/systemtests/singlehost
 

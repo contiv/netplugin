@@ -44,7 +44,7 @@ if [ $# -gt 5 ]; then
 fi
 
 # Install experimental docker
-curl -sSL https://experimental.docker.com/ | sh
+# curl -sSL https://experimental.docker.com/ | sh
 
 (service docker restart) || exit 1
 
@@ -104,7 +104,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             # mount the host directories
             # node.vm.synced_folder ".", "/opt/golang/src/github.com/contiv/netplugin"
             # node.vm.synced_folder File.join(File.dirname(__FILE__), "bin"), File.join(netplugin_synced_gopath, "bin")
-            node.vm.synced_folder ENV['GOPATH'], gopath_folder
+            node.vm.synced_folder "../../../../", gopath_folder
 
             node.vm.provision "shell" do |s|
                 s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_addr} #{node_name}' >> /etc/hosts"

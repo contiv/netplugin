@@ -522,6 +522,9 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStart_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 
+	// Wait for Netplugin to cleanup
+	time.Sleep(1 * time.Second)
+
 	//restart the netplugin and retry the pings
 	utils.StopNetPlugin(t, testbed.GetNodes())
 	utils.StartNetPlugin(t, testbed.GetNodes(), false)
@@ -617,6 +620,9 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStartConsul_sanity(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
+
+	// Wait for Netplugin to cleanup
+	time.Sleep(1 * time.Second)
 
 	//restart the netplugin and retry the pings
 	utils.StopNetPlugin(t, testbed.GetNodes())
@@ -781,6 +787,9 @@ func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
+
+	// Wait for Netplugin to cleanup
+	time.Sleep(1 * time.Second)
 
 	//restart the netplugin and retry the pings
 	utils.StopNetPlugin(t, testbed.GetNodes())
