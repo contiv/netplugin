@@ -207,7 +207,7 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	// Remove link
 	modeldb.RemoveLinkSet(&tenant.LinkSets.Networks, network)
 
-	// Save the tenant too since we added the links
+	// Save the tenant too since we removed the links
 	err := tenant.Write()
 	if err != nil {
 		return err
