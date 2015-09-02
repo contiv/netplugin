@@ -1404,22 +1404,16 @@ func TestTwoHostsSingleVlanPingSuccessMultiAddDelEp_sanity(t *testing.T) {
 	node1 := testbed.GetNodes()[0]
 	node2 := testbed.GetNodes()[1]
 	for i := 0; i < 10; i++ {
-		func() {
-			utils.StartServer(t, node1, "myContainer1")
-			defer func() {
-				utils.DockerCleanup(t, node1, "myContainer1")
-			}()
+		utils.StartServer(t, node1, "myContainer1")
+		ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
+		utils.StartClient(t, node2, "myContainer2", ipAddress)
+		utils.DockerCleanup(t, node1, "myContainer1")
+		utils.DockerCleanup(t, node2, "myContainer2")
 
-			ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
-			utils.StartClient(t, node2, "myContainer2", ipAddress)
-			defer func() {
-				utils.DockerCleanup(t, node2, "myContainer2")
-			}()
-		}()
 	}
 }
 
-func TestTwoHostsVxlanMultiAddDelDeltaConfig(t *testing.T) {
+func TestTwoHostsVxlanMultiAddDelDeltaConfig_sanity(t *testing.T) {
 	defer func() {
 		utils.ConfigCleanupCommon(t, testbed.GetNodes())
 		utils.StopOnError(t.Failed())
@@ -1515,6 +1509,11 @@ func TestTwoHostsVxlanMultiAddDelDeltaConfig(t *testing.T) {
 
 		ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 		utils.DockerCleanup(t, node2, "myContainer2")
+		utils.StartClient(t, node2, "myContainer2", ipAddress)
+
+		utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
+		utils.DockerCleanup(t, node2, "myContainer2")
+		ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 		utils.StartClient(t, node2, "myContainer2", ipAddress)
 	}
 	defer func() {
