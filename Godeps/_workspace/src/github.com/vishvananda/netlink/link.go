@@ -19,13 +19,20 @@ type (
 type LinkAttrs struct {
 	Index        int
 	MTU          int
-	TxQLen       uint32 // Transmit Queue Length
+	TxQLen       int // Transmit Queue Length
 	Name         string
 	HardwareAddr net.HardwareAddr
 	Flags        net.Flags
 	ParentIndex  int         // index of the parent link device
 	MasterIndex  int         // must be the index of a bridge
 	Namespace    interface{} // nil | NsPid | NsFd
+}
+
+// NewLinkAttrs returns LinkAttrs structure filled with default values
+func NewLinkAttrs() LinkAttrs {
+	return LinkAttrs{
+		TxQLen: -1,
+	}
 }
 
 // Device links cannot be created via netlink. These links
@@ -150,6 +157,7 @@ type Vxlan struct {
 	L2miss       bool
 	L3miss       bool
 	NoAge        bool
+	GBP          bool
 	Age          int
 	Limit        int
 	Port         int

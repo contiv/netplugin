@@ -21,12 +21,11 @@ import (
 	"errors"
 	"net"
 	"net/rpc"
-	"time"
+	"strings"
 
 	//"github.com/shaleman/libOpenflow/openflow13"
 	//"github.com/shaleman/libOpenflow/protocol"
 	"github.com/contiv/ofnet/ofctrl"
-	"github.com/contiv/ofnet/rpcHub"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -57,9 +56,6 @@ type Vxlan struct {
 
 	vlanDb map[uint16]*Vlan // Database of known vlans
 
-	// Mac route table
-	macRouteDb map[string]*MacRoute
-
 	// Fgraph tables
 	inputTable   *ofctrl.Table // Packet lookup starts here
 	vlanTable    *ofctrl.Table // Vlan Table. map port or VNI to vlan
@@ -79,15 +75,6 @@ type Vlan struct {
 	allFlood      *ofctrl.Flood      // local + remote flood list
 }
 
-// Mac address info
-type MacRoute struct {
-	MacAddrStr   string    // Mac address of the end point(in string format)
-	Vni          uint32    // Vxlan VNI
-	OriginatorIp net.IP    // Originating switch
-	PortNo       uint32    // Port number on originating switch
-	Timestamp    time.Time // Timestamp of the last event
-}
-
 const METADATA_RX_VTEP = 0x1
 
 // Create a new vxlan instance
@@ -98,40 +85,15 @@ func NewVxlan(agent *OfnetAgent, rpcServ *rpc.Server) *Vxlan {
 	vxlan.agent = agent
 
 	// init DBs
-	vxlan.macRouteDb = make(map[string]*MacRoute)
 	vxlan.vlanDb = make(map[uint16]*Vlan)
 	vxlan.macFlowDb = make(map[string]*ofctrl.Flow)
 	vxlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
-
-	log.Infof("Registering vxlan RPC calls")
-
-	// Register for Route rpc callbacks
-	err := rpcServ.Register(vxlan)
-	if err != nil {
-		log.Fatalf("Error registering vxlan RPC")
-	}
 
 	return vxlan
 }
 
 // Handle new master added event
 func (self *Vxlan) MasterAdded(master *OfnetNode) error {
-	// Send all local routes to new master.
-	for _, macRoute := range self.macRouteDb {
-		if macRoute.OriginatorIp.String() == self.agent.localIp.String() {
-			var resp bool
-
-			log.Infof("Sending macRoute %+v to master %+v", macRoute, master)
-
-			// Make the RPC call to add the route to master
-			client := rpcHub.Client(master.HostAddr, master.HostPort)
-			err := client.Call("OfnetMaster.MacRouteAdd", macRoute, &resp)
-			if err != nil {
-				log.Errorf("Failed to add route %+v to master %+v. Err: %v", macRoute, master, err)
-				return err
-			}
-		}
-	}
 
 	return nil
 }
@@ -157,7 +119,7 @@ func (self *Vxlan) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 }
 
 // Add a local endpoint and install associated local route
-func (self *Vxlan) AddLocalEndpoint(endpoint EndpointInfo) error {
+func (self *Vxlan) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	log.Infof("Adding local endpoint: %+v", endpoint)
 
 	vni := self.agent.vlanVniMap[endpoint.Vlan]
@@ -195,11 +157,13 @@ func (self *Vxlan) AddLocalEndpoint(endpoint EndpointInfo) error {
 		vlan.allFlood.AddOutput(output)
 	}
 
+	macAddr, _ := net.ParseMAC(endpoint.MacAddrStr)
+
 	// Finally install the mac address
 	macFlow, err := self.macDestTable.NewFlow(ofctrl.FlowMatch{
 		Priority: FLOW_MATCH_PRIORITY,
 		VlanId:   endpoint.Vlan,
-		MacDa:    &endpoint.MacAddr,
+		MacDa:    &macAddr,
 	})
 	if err != nil {
 		log.Errorf("Error creating mac flow for endpoint %+v. Err: %v", endpoint, err)
@@ -211,59 +175,22 @@ func (self *Vxlan) AddLocalEndpoint(endpoint EndpointInfo) error {
 	macFlow.Next(output)
 
 	// Save the flow in DB
-	self.macFlowDb[endpoint.MacAddr.String()] = macFlow
-
-	// Build the mac route
-	macRoute := MacRoute{
-		MacAddrStr:   endpoint.MacAddr.String(),
-		Vni:          *vni,
-		OriginatorIp: self.agent.localIp,
-		PortNo:       endpoint.PortNo,
-		Timestamp:    time.Now(),
-	}
-
-	// Advertize the route to master
-	err = self.localMacRouteAdd(&macRoute)
-	if err != nil {
-		log.Errorf("Failed to add route %+v to master. Err: %v", macRoute, err)
-		return err
-	}
-
-	return nil
-}
-
-// Find a mac by output port number
-// Note: Works only for local ports
-// FIXME: remove this function and add a mapping between local portNo and macRoute
-func (self *Vxlan) findLocalMacRouteByPortno(portNo uint32) *MacRoute {
-	for _, macRoute := range self.macRouteDb {
-		if (macRoute.OriginatorIp.String() == self.agent.localIp.String()) &&
-			(macRoute.PortNo == portNo) {
-			return macRoute
-		}
-	}
+	self.macFlowDb[endpoint.MacAddrStr] = macFlow
 
 	return nil
 }
 
 // Remove local endpoint
-func (self *Vxlan) RemoveLocalEndpoint(portNo uint32) error {
-	// find the mac route
-	macRoute := self.findLocalMacRouteByPortno(portNo)
-	if macRoute == nil {
-		log.Errorf("Local mac route not found for port: %d", portNo)
-		return errors.New("Local mac route not found")
-	}
-
+func (self *Vxlan) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	// Remove the port from flood lists
-	vlanId := self.agent.vniVlanMap[macRoute.Vni]
+	vlanId := self.agent.vniVlanMap[endpoint.Vni]
 	vlan := self.vlanDb[*vlanId]
-	output, _ := self.ofSwitch.OutputPort(portNo)
+	output, _ := self.ofSwitch.OutputPort(endpoint.PortNo)
 	vlan.localFlood.RemoveOutput(output)
 	vlan.allFlood.RemoveOutput(output)
 
 	// Remove the port vlan flow.
-	portVlanFlow := self.portVlanFlowDb[portNo]
+	portVlanFlow := self.portVlanFlowDb[endpoint.PortNo]
 	if portVlanFlow != nil {
 		err := portVlanFlow.Delete()
 		if err != nil {
@@ -271,14 +198,20 @@ func (self *Vxlan) RemoveLocalEndpoint(portNo uint32) error {
 		}
 	}
 
-	// Uninstall the flow
-	err := self.uninstallMacRoute(macRoute)
-	if err != nil {
-		log.Errorf("Error Uninstalling mac route: %+v. Err: %v", macRoute, err)
+	// find the flow
+	macFlow := self.macFlowDb[endpoint.MacAddrStr]
+	if macFlow == nil {
+		log.Errorf("Could not find the flow for endpoint: %+v", endpoint)
+		return errors.New("Mac flow not found")
 	}
 
-	// Remove the route from local DB and Advertize delete
-	return self.localMacRouteDel(macRoute)
+	// Delete the flow
+	err := macFlow.Delete()
+	if err != nil {
+		log.Errorf("Error deleting mac flow: %+v. Err: %v", macFlow, err)
+	}
+
+	return nil
 }
 
 // Add virtual tunnel end point. This is mainly used for mapping remote vtep IP
@@ -287,11 +220,18 @@ func (self *Vxlan) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 	// Install VNI to vlan mapping for each vni
 	for vni, vlan := range self.agent.vniVlanMap {
 		// Install a flow entry for  VNI/vlan and point it to macDest table
-		portVlanFlow, _ := self.vlanTable.NewFlow(ofctrl.FlowMatch{
+		portVlanFlow, err := self.vlanTable.NewFlow(ofctrl.FlowMatch{
 			Priority:  FLOW_MATCH_PRIORITY,
 			InputPort: portNo,
 			TunnelId:  uint64(vni),
 		})
+		if err != nil && strings.Contains(err.Error(), "Flow already exists") {
+			log.Infof("VTEP %s already exists", remoteIp.String())
+			return nil
+		} else if err != nil {
+			log.Errorf("Error adding Flow for VNI %d. Err: %v", vni, err)
+			return err
+		}
 		portVlanFlow.SetVlan(*vlan)
 
 		// Set the metadata to indicate packet came in from VTEP port
@@ -324,17 +264,6 @@ func (self *Vxlan) RemoveVtepPort(portNo uint32, remoteIp net.IP) error {
 	}
 
 	// FIXME: uninstall vlan-vni mapping.
-
-	// Walk all routes and remove anything pointing at this VTEP
-	for _, macRoute := range self.macRouteDb {
-		// If it originated from this remote host, uninstall the flow
-		if macRoute.OriginatorIp.String() == remoteIp.String() {
-			err := self.uninstallMacRoute(macRoute)
-			if err != nil {
-				log.Errorf("Error uninstalling mac route: %+v. Err: %v", macRoute, err)
-			}
-		}
-	}
 
 	return nil
 }
@@ -432,13 +361,6 @@ func (self *Vxlan) RemoveVlan(vlanId uint16, vni uint32) error {
 		log.Fatalf("VLAN flood list is not empty")
 	}
 
-	// make sure there are no mac routes still installed in this vlan
-	for _, macRoute := range self.macRouteDb {
-		if macRoute.Vni == vni {
-			log.Fatalf("Vlan %d still has routes. Route: %+v", vlanId, macRoute)
-		}
-	}
-
 	// Uninstall the flood lists
 	vlan.allFlood.Delete()
 	vlan.localFlood.Delete()
@@ -449,45 +371,28 @@ func (self *Vxlan) RemoveVlan(vlanId uint16, vni uint32) error {
 	return nil
 }
 
-// Mac route add rpc call from master
-func (self *Vxlan) MacRouteAdd(macRoute *MacRoute, ret *bool) error {
-	log.Infof("Received mac route: %+v", macRoute)
+// AddEndpoint Add an endpoint to the datapath
+func (self *Vxlan) AddEndpoint(endpoint *OfnetEndpoint) error {
+	log.Infof("Received endpoint: %+v", endpoint)
 
-	// If this is a local route we are done
-	if macRoute.OriginatorIp.String() == self.agent.localIp.String() {
-		return nil
-	}
-
-	// Check if we have the route already and which is more recent
-	oldRoute := self.macRouteDb[macRoute.MacAddrStr]
-	if oldRoute != nil {
-		// If old route has more recent timestamp, nothing to do
-		if !macRoute.Timestamp.After(oldRoute.Timestamp) {
-			return nil
-		}
-	}
-
-	// First, add the route to local routing table
-	self.macRouteDb[macRoute.MacAddrStr] = macRoute
-
-	// Lookup the VTEP for the route
-	vtepPort := self.agent.vtepTable[macRoute.OriginatorIp.String()]
+	// Lookup the VTEP for the endpoint
+	vtepPort := self.agent.vtepTable[endpoint.OriginatorIp.String()]
 	if vtepPort == nil {
-		log.Errorf("Could not find the VTEP for mac route: %+v", macRoute)
+		log.Errorf("Could not find the VTEP for endpoint: %+v", endpoint)
 
 		return errors.New("VTEP not found")
 	}
 
 	// map VNI to vlan Id
-	vlanId := self.agent.vniVlanMap[macRoute.Vni]
+	vlanId := self.agent.vniVlanMap[endpoint.Vni]
 	if vlanId == nil {
-		log.Errorf("Macroute %+v on unknown VNI: %d", macRoute, macRoute.Vni)
+		log.Errorf("Endpoint %+v on unknown VNI: %d", endpoint, endpoint.Vni)
 		return errors.New("Unknown VNI")
 	}
 
-	macAddr, _ := net.ParseMAC(macRoute.MacAddrStr)
+	macAddr, _ := net.ParseMAC(endpoint.MacAddrStr)
 
-	// Install the route in OVS
+	// Install the endpoint in OVS
 	// Create an output port for the vtep
 	outPort, err := self.ofSwitch.OutputPort(*vtepPort)
 	if err != nil {
@@ -502,94 +407,22 @@ func (self *Vxlan) MacRouteAdd(macRoute *MacRoute, ret *bool) error {
 		MacDa:    &macAddr,
 	})
 	macFlow.PopVlan()
-	macFlow.SetTunnelId(uint64(macRoute.Vni))
+	macFlow.SetTunnelId(uint64(endpoint.Vni))
 	macFlow.Next(outPort)
 
 	// Save the flow in DB
-	self.macFlowDb[macRoute.MacAddrStr] = macFlow
-
+	self.macFlowDb[endpoint.MacAddrStr] = macFlow
 	return nil
 }
 
-// Mac route delete rpc call from master
-func (self *Vxlan) MacRouteDel(macRoute *MacRoute, ret *bool) error {
-	log.Infof("Received DELETE mac route: %+v", macRoute)
+// RemoveEndpoint removes an endpoint from the datapath
+func (self *Vxlan) RemoveEndpoint(endpoint *OfnetEndpoint) error {
+	log.Infof("Received DELETE endpoint: %+v", endpoint)
 
-	// If this is a local route we are done
-	if macRoute.OriginatorIp.String() == self.agent.localIp.String() {
-		return nil
-	}
-
-	// Ignore duplicate delete requests we might receive from multiple
-	// Ofnet masters
-	if self.macRouteDb[macRoute.MacAddrStr] == nil {
-		return nil
-	}
-
-	// Uninstall the route
-	err := self.uninstallMacRoute(macRoute)
-	if err != nil {
-		log.Errorf("Error uninstalling mac route %+v. Err: %v", macRoute, err)
-	}
-
-	// Remove it from route table
-	delete(self.macRouteDb, macRoute.MacAddrStr)
-
-	return nil
-}
-
-// Add a local route to routing table and distribute it
-func (self *Vxlan) localMacRouteAdd(macRoute *MacRoute) error {
-	// First, add the route to local routing table
-	self.macRouteDb[macRoute.MacAddrStr] = macRoute
-
-	// Send the route to all known masters
-	for _, master := range self.agent.masterDb {
-		var resp bool
-
-		log.Infof("Sending macRoute %+v to master %+v", macRoute, master)
-
-		// Make the RPC call to add the route to master
-		client := rpcHub.Client(master.HostAddr, master.HostPort)
-		err := client.Call("OfnetMaster.MacRouteAdd", macRoute, &resp)
-		if err != nil {
-			log.Errorf("Failed to add route %+v to master %+v. Err: %v", macRoute, master, err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Delete a local route and inform the master
-func (self *Vxlan) localMacRouteDel(macRoute *MacRoute) error {
-	// delete the route from local routing table
-	delete(self.macRouteDb, macRoute.MacAddrStr)
-
-	// Send the DELETE to all known masters
-	for _, master := range self.agent.masterDb {
-		var resp bool
-
-		log.Infof("Sending DELETE macRoute %+v to master %+v", macRoute, master)
-
-		// Make the RPC call to add the route to master
-		client := rpcHub.Client(master.HostAddr, master.HostPort)
-		err := client.Call("OfnetMaster.MacRouteDel", macRoute, &resp)
-		if err != nil {
-			log.Errorf("Failed to DELETE route %+v to master %+v. Err: %v", macRoute, master, err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Uninstall mac route from OVS
-func (self *Vxlan) uninstallMacRoute(macRoute *MacRoute) error {
 	// find the flow
-	macFlow := self.macFlowDb[macRoute.MacAddrStr]
+	macFlow := self.macFlowDb[endpoint.MacAddrStr]
 	if macFlow == nil {
-		log.Errorf("Could not find the flow for macRoute: %+v", macRoute)
+		log.Errorf("Could not find the flow for endpoint: %+v", endpoint)
 		return errors.New("Mac flow not found")
 	}
 
@@ -599,10 +432,10 @@ func (self *Vxlan) uninstallMacRoute(macRoute *MacRoute) error {
 		log.Errorf("Error deleting mac flow: %+v. Err: %v", macFlow, err)
 	}
 
-	return err
+	return nil
 }
 
-const MAC_DEST_TBL_ID = 3
+const MAC_DEST_TBL_ID = 5
 
 // initialize Fgraph on the switch
 func (self *Vxlan) initFgraph() error {

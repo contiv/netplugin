@@ -14,52 +14,88 @@ limitations under the License.
 */
 
 package ofnet
+
 // This package implements openflow network manager
 
 import (
-    "net"
-    "github.com/contiv/ofnet/ofctrl"
+	"net"
+	"time"
+
+	"github.com/contiv/ofnet/ofctrl"
 )
 
 // Interface implemented by each datapath
 type OfnetDatapath interface {
-    // New master was added.
-    MasterAdded(master *OfnetNode) error
+	// New master was added.
+	MasterAdded(master *OfnetNode) error
 
-    // Switch connected notification
-    SwitchConnected(sw *ofctrl.OFSwitch)
+	// Switch connected notification
+	SwitchConnected(sw *ofctrl.OFSwitch)
 
-    // Switch disconnected notification
-    SwitchDisconnected(sw *ofctrl.OFSwitch)
+	// Switch disconnected notification
+	SwitchDisconnected(sw *ofctrl.OFSwitch)
 
-    // Process Incoming packet
-    PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn)
+	// Process Incoming packet
+	PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn)
 
-    // Add a local endpoint to forwarding DB
-    AddLocalEndpoint(endpoint EndpointInfo) error
+	// Add a local endpoint to forwarding DB
+	AddLocalEndpoint(endpoint OfnetEndpoint) error
 
-    // Remove a local endpoint from forwarding DB
-    RemoveLocalEndpoint(portNo uint32) error
+	// Remove a local endpoint from forwarding DB
+	RemoveLocalEndpoint(endpoint OfnetEndpoint) error
 
-    // Add an remote VTEP
-    AddVtepPort(portNo uint32, remoteIp net.IP) error
+	// Add a remote endpoint to forwarding DB
+	AddEndpoint(endpoint *OfnetEndpoint) error
 
-    // Remove remote VTEP
-    RemoveVtepPort(portNo uint32, remoteIp net.IP) error
+	// Remove a remote endpoint from forwarding DB
+	RemoveEndpoint(endpoint *OfnetEndpoint) error
 
-    // Add a vlan
-    AddVlan(vlanId uint16, vni uint32) error
+	// Add an remote VTEP
+	AddVtepPort(portNo uint32, remoteIp net.IP) error
 
-    // Remove a vlan
-    RemoveVlan(vlanId uint16, vni uint32) error
+	// Remove remote VTEP
+	RemoveVtepPort(portNo uint32, remoteIp net.IP) error
+
+	// Add a vlan
+	AddVlan(vlanId uint16, vni uint32) error
+
+	// Remove a vlan
+	RemoveVlan(vlanId uint16, vni uint32) error
 }
 
 // Default port numbers
 const OFNET_MASTER_PORT = 9001
-const OFNET_AGENT_PORT  = 9002
+const OFNET_AGENT_PORT = 9002
 
 // Information about each node
 type OfnetNode struct {
-    HostAddr    string
-    HostPort    uint16
+	HostAddr string
+	HostPort uint16
+}
+
+// OfnetEndpoint has info about an endpoint
+type OfnetEndpoint struct {
+	EndpointID    string    // Unique identifier for the endpoint
+	EndpointType  string    // Type of the endpoint "internal", "external" or "externalRoute"
+	EndpointGroup uint32    // Endpoint group identifier for policies.
+	IpAddr        net.IP    // IP address of the end point
+	VrfId         uint16    // IP address namespace
+	MacAddrStr    string    // Mac address of the end point(in string format)
+	Vlan          uint16    // Vlan Id for the endpoint
+	Vni           uint32    // Vxlan VNI
+	OriginatorIp  net.IP    // Originating switch
+	PortNo        uint32    // Port number on originating switch
+	Timestamp     time.Time // Timestamp of the last event
+}
+
+// OfnetPolicyRule has security rule to be installed
+type OfnetPolicyRule struct {
+	RuleId           string // Unique identifier for the rule
+	SrcEndpointGroup uint32 // Source endpoint group
+	DstEndpointGroup uint32 // Destination endpoint group
+	SrcIpAddr        string // source IP addrss and mask
+	DstIpAddr        string // Destination IP address and mask
+	IpProtocol       uint8  // IP protocol number
+	SrcPort          uint16 // Source port
+	DstPort          uint16 // destination port
 }

@@ -110,7 +110,7 @@ func Client(servAddr string, portNo uint16) *RpcClient {
     clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
 
     // Return the client if it already exists
-    if (clientDb[clientKey] != nil) && (clientDb[clientKey].conn.RemoteAddr() != nil) {
+    if (clientDb[clientKey] != nil) && (clientDb[clientKey].conn != nil) {
         return clientDb[clientKey]
     }
 

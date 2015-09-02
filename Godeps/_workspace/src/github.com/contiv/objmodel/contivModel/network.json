@@ -1,0 +1,53 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "network",
+			"type": "object",
+			"key": [ "tenantName", "networkName"],
+			"properties": {
+				"networkName": {
+					"type": "string",
+					"title": "Network name",
+					"length": 64
+				},
+				"tenantName": {
+					"type": "string",
+					"title": "Tenant Name",
+					"length": 64
+				},
+				"isPublic": {
+					"type": "bool"
+				},
+				"isPrivate": {
+					"type": "bool"
+				},
+				"encap": {
+					"type": "string",
+					"format": "^(vlan|vxlan)$"
+				},
+				"subnet": {
+					"type": "string",
+					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?/[0-9]{1,2}?)$"
+				},
+				"defaultGw": {
+					"type": "string",
+					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$"
+				}
+			},
+			"link-sets": {
+				"services": {
+					"ref": "service"
+				},
+				"endpointGroups": {
+					"ref": "endpointGroup"
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				}
+			}
+		}
+	]
+}

@@ -1,0 +1,73 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "service",
+			"type": "object",
+			"key": [ "tenantName", "appName", "serviceName" ],
+			"properties": {
+				"serviceName": {
+					"type": "string",
+					"description": "Service Name"
+				},
+				"appName": {
+					"type": "string",
+					"description": "Application Name"
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name"
+				},
+				"imageName": {
+					"type": "string"
+				},
+				"cpu": {
+					"type": "string"
+				},
+				"memory": {
+					"type": "string"
+				},
+				"command": {
+					"type": "string"
+				},
+				"environment": {
+					"type": "array",
+					"items": "string"
+				},
+				"scale": {
+					"type": "int"
+				},
+				"endpointGroups": {
+					"type": "array",
+					"items": "string"
+				},
+				"networks": {
+					"type": "array",
+					"items": "string"
+				},
+				"volumeProfile": {
+					"type": "string"
+				}
+			},
+			"link-sets": {
+				"networks": {
+					"ref": "network"
+				},
+				"endpointGroups": {
+					"ref": "endpointGroup"
+				},
+				"instances": {
+					"ref": "serviceInstance"
+				}
+			},
+			"links": {
+				"app": {
+					"ref": "app"
+				},
+				"volumeProfile": {
+					"ref": "volumeProfile"
+				}
+			}
+		}
+	]
+}

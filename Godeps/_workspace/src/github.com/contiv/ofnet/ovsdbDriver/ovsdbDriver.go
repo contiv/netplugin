@@ -1,10 +1,10 @@
 package ovsdbDriver
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
-	"errors"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/libovsdb"
@@ -52,12 +52,22 @@ func NewOvsDriver(bridgeName string) *OvsDriver {
 	// Create the default bridge instance
 	err = ovsDriver.CreateBridge(ovsDriver.OvsBridgeName)
 	if err != nil {
-		log.Errorf("Error creating the default bridge. It probably already exists")
-		log.Errorf("Error: %v", err)
+		log.Fatalf("Error creating the default bridge. Err: %v", err)
 	}
 
 	// Return the new OVS driver
 	return ovsDriver
+}
+
+// Delete : Cleanup the ovsdb driver. delete the bridge we created.
+func (d *OvsDriver) Delete() error {
+	if d.ovsClient != nil {
+		d.DeleteBridge(d.OvsBridgeName)
+		log.Infof("Deleting OVS bridge: %s", d.OvsBridgeName)
+		(*d.ovsClient).Disconnect()
+	}
+
+	return nil
 }
 
 // Populate local cache of ovs state
@@ -402,7 +412,7 @@ func (self *OvsDriver) AddController(ipAddr string, portNo uint16) error {
 	ctrlerUuid := []libovsdb.UUID{{ctrlerUuidStr}}
 
 	// If controller already exists, nothing to do
-	if self.IsControllerPresent(target) {
+	if self.IsControllerPresent(ipAddr, portNo) {
 		return nil
 	}
 
@@ -484,7 +494,8 @@ func (self *OvsDriver) IsBridgePresent(bridgeName string) bool {
 }
 
 // Check if Controller already exists
-func (self *OvsDriver) IsControllerPresent(target string) bool {
+func (self *OvsDriver) IsControllerPresent(ipAddr string, portNo uint16) bool {
+	target := fmt.Sprintf("tcp:%s:%d", ipAddr, portNo)
 	for tName, table := range self.ovsdbCache {
 		if tName == "Controller" {
 			for _, row := range table {
