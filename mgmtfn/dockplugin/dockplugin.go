@@ -129,7 +129,7 @@ func logEvent(typ string) {
 	log.Infof("Handling %q event", typ)
 }
 
-// activate the plugin and register it as a network driver.
+// deactivate the plugin
 func deactivate(hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("deactivate")
@@ -506,9 +506,9 @@ func netdcliGetNetwork(name string) ([]drivers.OvsCfgNetworkState, error) {
 
 // GetNetworkName gets network name from network UUID
 func GetNetworkName(nwID string) (string, error) {
-	api := libnetClient.NewRemoteAPI("")
+	libnetAPI := libnetClient.NewRemoteAPI("")
 
-	nw, err := api.NetworkByID(nwID)
+	nw, err := libnetAPI.NetworkByID(nwID)
 	if err != nil {
 		log.Infof("Error: %v", err)
 		return "", err
@@ -521,9 +521,9 @@ func GetNetworkName(nwID string) (string, error) {
 
 // GetEndPointName Returns endpoint name from networkId, endpointId
 func GetEndPointName(nwID, epID string) (string, error) {
-	api := libnetClient.NewRemoteAPI("")
+	libnetAPI := libnetClient.NewRemoteAPI("")
 
-	nw, err := api.NetworkByID(nwID)
+	nw, err := libnetAPI.NetworkByID(nwID)
 	if err != nil {
 		log.Infof("Error: %v", err)
 		return "", err

@@ -215,13 +215,28 @@ func setLinkUp(name string) error {
 	return netlink.LinkSetUp(iface)
 }
 
+// getOvsPostName returns OVS port name depending on if we use Veth pairs
+func getOvsPostName(intfName string) string {
+	var ovsPortName string
+
+	if useVethPair {
+		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
+	} else {
+		ovsPortName = intfName
+	}
+
+	return ovsPortName
+}
+
 // CreatePort creates a port in ovs switch
 func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
-	var ovsPortName string
 	var ovsIntfType string
+
+	// Get OVS port name
+	ovsPortName := getOvsPostName(intfName)
+
+	// Create Veth pairs if required
 	if useVethPair {
-		// Generate interface
-		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
 		ovsIntfType = ""
 
 		// Create a Veth pair
@@ -238,7 +253,6 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 			return err
 		}
 	} else {
-		ovsPortName = intfName
 		ovsIntfType = "internal"
 
 	}
@@ -296,13 +310,8 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 
 // UpdatePort updates an OVS port without creating it
 func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
-	var ovsPortName string
-	if useVethPair {
-		// Generate interface
-		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
-	} else {
-		ovsPortName = intfName
-	}
+	// Get OVS port name
+	ovsPortName := getOvsPostName(intfName)
 
 	// Add the endpoint to ofnet
 	if sw.netType == "vxlan" {
@@ -341,11 +350,11 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 		return nil
 	}
 
-	var ovsPortName string
-	if useVethPair {
-		// Generate interface
-		ovsPortName = strings.Replace(epOper.PortName, "port", "vport", 1)
+	// Get the OVS port name
+	ovsPortName := getOvsPostName(epOper.PortName)
 
+	// Delete the Veth pairs if required
+	if useVethPair {
 		// Delete a Veth pair
 		err := deleteVethPair(ovsPortName, epOper.PortName)
 		if err != nil {
@@ -353,8 +362,6 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 			return err
 		}
 
-	} else {
-		ovsPortName = epOper.PortName
 	}
 
 	// Remove info from ofnet
