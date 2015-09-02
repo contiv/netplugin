@@ -97,10 +97,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
             end
-            if !ENV['GOPATH'] || ENV['GOPATH'] == ""
-                puts "GOPATH not defined"
-                exit
-            end
             # mount the host directories
             # node.vm.synced_folder ".", "/opt/golang/src/github.com/contiv/netplugin"
             # node.vm.synced_folder File.join(File.dirname(__FILE__), "bin"), File.join(netplugin_synced_gopath, "bin")
