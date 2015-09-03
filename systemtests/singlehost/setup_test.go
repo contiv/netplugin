@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 		testbed = &utils.Vagrant{}
 	}
 	log.Printf("Starting testbed setup...")
-	err := testbed.Setup(os.Getenv("CONTIV_ENV"), 1)
+	err := testbed.Setup(true, os.Getenv("CONTIV_ENV"), 1)
 	log.Printf("Done with testbed setup...")
 	if err != nil {
 		testbed.Teardown()
