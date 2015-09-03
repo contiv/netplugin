@@ -17,7 +17,7 @@ package utils
 
 // Testbed is a collection of test nodes
 type Testbed interface {
-	Setup(env string, numNodes int) error
+	Setup(start bool, env string, numNodes int) error
 	Teardown()
 	GetNodes() []TestbedNode
 }
