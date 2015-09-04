@@ -62,7 +62,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 	// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
 	if netType == "vxlan" {
 		// Create an ofnet agent
-		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vrouter", net.ParseIP(localIP),
+		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
 			ofnet.OFNET_AGENT_PORT, 6633)
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
@@ -263,11 +263,14 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 
 		// Build the endpoint info
 		endpoint := ofnet.EndpointInfo{
-			PortNo:  ofpPort,
-			MacAddr: macAddr,
-			Vlan:    uint16(pktTag),
-			IpAddr:  net.ParseIP(cfgEp.IPAddress),
+			PortNo:        ofpPort,
+			MacAddr:       macAddr,
+			Vlan:          uint16(pktTag),
+			IpAddr:        net.ParseIP(cfgEp.IPAddress),
+			EndpointGroup: cfgEp.EndpointGroupID,
 		}
+
+		log.Infof("Adding local endpoint: {%+v}", endpoint)
 
 		// Add the local port to ofnet
 		err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
@@ -331,7 +334,7 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 		err := deleteVethPair(ovsPortName, epOper.PortName)
 		if err != nil {
 			log.Errorf("Error creating veth pairs. Err: %v", err)
-			return err
+			// Continue to cleanup remaining state
 		}
 
 	} else {

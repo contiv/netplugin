@@ -51,8 +51,9 @@ import (
 
 // Vxlan state.
 type Vxlan struct {
-	agent    *OfnetAgent      // Pointer back to ofnet agent that owns this
-	ofSwitch *ofctrl.OFSwitch // openflow switch we are talking to
+	agent       *OfnetAgent      // Pointer back to ofnet agent that owns this
+	ofSwitch    *ofctrl.OFSwitch // openflow switch we are talking to
+	policyAgent *PolicyAgent     // Policy agent
 
 	vlanDb map[uint16]*Vlan // Database of known vlans
 
@@ -84,6 +85,9 @@ func NewVxlan(agent *OfnetAgent, rpcServ *rpc.Server) *Vxlan {
 	// Keep a reference to the agent
 	vxlan.agent = agent
 
+	// Create policy agent
+	vxlan.policyAgent = NewPolicyAgent(agent, rpcServ)
+
 	// init DBs
 	vxlan.vlanDb = make(map[uint16]*Vlan)
 	vxlan.macFlowDb = make(map[string]*ofctrl.Flow)
@@ -102,6 +106,10 @@ func (self *Vxlan) MasterAdded(master *OfnetNode) error {
 func (self *Vxlan) SwitchConnected(sw *ofctrl.OFSwitch) {
 	// Keep a reference to the switch
 	self.ofSwitch = sw
+
+	// Tell the policy agent about the switch
+	self.policyAgent.SwitchConnected(sw)
+
 	// Init the Fgraph
 	self.initFgraph()
 
@@ -138,9 +146,16 @@ func (self *Vxlan) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		return err
 	}
 
+	// Set source endpoint group if specified
+	if endpoint.EndpointGroup != 0 {
+		metadata, metadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
+		portVlanFlow.SetMetadata(metadata, metadataMask)
+	}
+
 	// Set the vlan and install it
 	portVlanFlow.SetVlan(endpoint.Vlan)
-	err = portVlanFlow.Next(self.macDestTable)
+	dstGrpTbl := self.ofSwitch.GetTable(DST_GRP_TBL_ID)
+	err = portVlanFlow.Next(dstGrpTbl)
 	if err != nil {
 		log.Errorf("Error installing portvlan entry. Err: %v", err)
 		return err
@@ -173,6 +188,13 @@ func (self *Vxlan) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	// Remove vlan tag and point it to local port
 	macFlow.PopVlan()
 	macFlow.Next(output)
+
+	// Install dst group entry for the endpoint
+	err = self.policyAgent.AddEndpoint(&endpoint)
+	if err != nil {
+		log.Errorf("Error adding endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+		return err
+	}
 
 	// Save the flow in DB
 	self.macFlowDb[endpoint.MacAddrStr] = macFlow
@@ -211,6 +233,13 @@ func (self *Vxlan) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		log.Errorf("Error deleting mac flow: %+v. Err: %v", macFlow, err)
 	}
 
+	// Remove the endpoint from policy tables
+	err = self.policyAgent.DelEndpoint(&endpoint)
+	if err != nil {
+		log.Errorf("Error deleting endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -238,6 +267,7 @@ func (self *Vxlan) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 		portVlanFlow.SetMetadata(METADATA_RX_VTEP, METADATA_RX_VTEP)
 
 		// Point to next table
+		// Note that we bypass policy lookup on dest host.
 		portVlanFlow.Next(self.macDestTable)
 	}
 
@@ -305,7 +335,8 @@ func (self *Vxlan) AddVlan(vlanId uint16, vni uint32) error {
 		portVlanFlow.SetMetadata(METADATA_RX_VTEP, METADATA_RX_VTEP)
 
 		// Point to next table
-		portVlanFlow.Next(self.macDestTable)
+		dstGrpTbl := self.ofSwitch.GetTable(DST_GRP_TBL_ID)
+		portVlanFlow.Next(dstGrpTbl)
 	}
 
 	// Walk all VTEP ports and add it to the allFlood list
@@ -410,6 +441,13 @@ func (self *Vxlan) AddEndpoint(endpoint *OfnetEndpoint) error {
 	macFlow.SetTunnelId(uint64(endpoint.Vni))
 	macFlow.Next(outPort)
 
+	// Install dst group entry for the endpoint
+	err = self.policyAgent.AddEndpoint(endpoint)
+	if err != nil {
+		log.Errorf("Error adding endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+		return err
+	}
+
 	// Save the flow in DB
 	self.macFlowDb[endpoint.MacAddrStr] = macFlow
 	return nil
@@ -432,6 +470,13 @@ func (self *Vxlan) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 		log.Errorf("Error deleting mac flow: %+v. Err: %v", macFlow, err)
 	}
 
+	// Remove the endpoint from policy tables
+	err = self.policyAgent.DelEndpoint(endpoint)
+	if err != nil {
+		log.Errorf("Error deleting endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -445,6 +490,13 @@ func (self *Vxlan) initFgraph() error {
 	self.inputTable = sw.DefaultTable()
 	self.vlanTable, _ = sw.NewTable(VLAN_TBL_ID)
 	self.macDestTable, _ = sw.NewTable(MAC_DEST_TBL_ID)
+
+	// Init policy tables
+	err := self.policyAgent.InitTables(MAC_DEST_TBL_ID)
+	if err != nil {
+		log.Fatalf("Error installing policy table. Err: %v", err)
+		return err
+	}
 
 	//Create all drop entries
 	// Drop mcast source mac

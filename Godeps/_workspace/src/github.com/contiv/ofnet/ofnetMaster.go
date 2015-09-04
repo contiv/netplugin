@@ -103,6 +103,20 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 		}
 	}
 
+	// Send all existing policy rules to the new node
+	for _, rule := range self.policyDb {
+			var resp bool
+
+			log.Infof("Sending rule: %+v to node %s:%d", rule, node.HostAddr, node.HostPort)
+
+			client := rpcHub.Client(node.HostAddr, node.HostPort)
+			err := client.Call("PolicyAgent.AddRule", rule, &resp)
+			if err != nil {
+				log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
+				return err
+			}
+	}
+
 	return nil
 }
 

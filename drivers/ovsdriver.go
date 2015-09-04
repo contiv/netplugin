@@ -69,8 +69,9 @@ func (s *OvsDriverOperState) Clear() error {
 // OvsDriver implements the Layer 2 Network and Endpoint Driver interfaces
 // specific to vlan based open-vswitch.
 type OvsDriver struct {
-	oper     OvsDriverOperState
-	switchDb map[string]*OvsSwitch
+	oper     OvsDriverOperState    // Oper state of the driver
+	localIP  string                // Local IP address
+	switchDb map[string]*OvsSwitch // OVS switch instances
 }
 
 func (d *OvsDriver) getIntfName() string {
@@ -91,6 +92,7 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	}
 
 	d.oper.StateDriver = info.StateDriver
+	d.localIP = info.VtepIP
 	// restore the driver's runtime state if it exists
 	err := d.oper.Read(info.HostLabel)
 	if core.ErrIfKeyExists(err) != nil {
@@ -105,12 +107,6 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	// Publish peer host info to registry
-	err = publishHostInfo(info)
-	if err != nil {
-		log.Fatalf("Error publishing my host info. Err: %v", err)
 	}
 
 	log.Infof("Initializing ovsdriver")
@@ -379,6 +375,11 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 
 // AddPeerHost adds VTEPs if necessary
 func (d *OvsDriver) AddPeerHost(node core.ServiceInfo) error {
+	// Nothing to do if this is our own IP
+	if node.HostAddr == d.localIP {
+		return nil
+	}
+
 	log.Infof("CreatePeerHost for %+v", node)
 
 	// Add the VTEP for the peer in vxlan switch.
@@ -393,6 +394,11 @@ func (d *OvsDriver) AddPeerHost(node core.ServiceInfo) error {
 
 // DeletePeerHost deletes associated VTEP
 func (d *OvsDriver) DeletePeerHost(node core.ServiceInfo) error {
+	// Nothing to do if this is our own IP
+	if node.HostAddr == d.localIP {
+		return nil
+	}
+
 	log.Infof("DeletePeerHost for %+v", node)
 
 	// Add the VTEP for the peer in vxlan switch.

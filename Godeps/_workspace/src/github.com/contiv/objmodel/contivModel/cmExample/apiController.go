@@ -40,10 +40,6 @@ func NewApiController(router *mux.Router) *ApiController {
 	ctrler.router = router
 
 	// initialize the model objects
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> First version of dockplugin
 	contivModel.Init()
 
 	// Register Callbacks
@@ -57,12 +53,6 @@ func NewApiController(router *mux.Router) *ApiController {
 	contivModel.RegisterTenantCallbacks(ctrler)
 	contivModel.RegisterVolumeCallbacks(ctrler)
 	contivModel.RegisterVolumeProfileCallbacks(ctrler)
-<<<<<<< HEAD
-=======
-	contivModel.Init(ctrler)
->>>>>>> Integrate contivModel to netmaster
-=======
->>>>>>> First version of dockplugin
 
 	// Register routes
 	contivModel.AddRoutes(router)
@@ -182,10 +172,6 @@ func (self *ApiController) PolicyDelete(policy *contivModel.Policy) error {
 	log.Infof("Received PolicyDelete: %+v", policy)
 	return nil
 }
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> First version of dockplugin
 
 func (self *ApiController) RuleCreate(rule *contivModel.Rule) error {
 	log.Infof("Received RuleCreate: %+v", rule)
@@ -200,11 +186,6 @@ func (self *ApiController) RuleDelete(rule *contivModel.Rule) error {
 	return nil
 }
 
-<<<<<<< HEAD
-=======
->>>>>>> Integrate contivModel to netmaster
-=======
->>>>>>> First version of dockplugin
 func (self *ApiController) ServiceCreate(service *contivModel.Service) error {
 	log.Infof("Received ServiceCreate: %+v", service)
 

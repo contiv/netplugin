@@ -31,9 +31,6 @@ const (
 	createEpIDStateful         = "testCreateEpStateful"
 	createEpIDStatefulMismatch = "testCreateEpStatefulMismatch"
 	deleteEpID                 = "testDeleteEp"
-	peerHostID                 = "testPeerHost"
-	peerHostName               = "peerHost1"
-	peerHostIP                 = "127.0.0.1"
 	testOvsNwID                = "testNetID"
 	testOvsNwIDStateful        = "testNetIDStateful"
 	testPktTag                 = 100
@@ -126,18 +123,6 @@ func createCommonState(stateDriver core.StateDriver) error {
 		cfgEp.MacAddress = testEpMacAddress
 		cfgEp.StateDriver = stateDriver
 		if err := cfgEp.Write(); err != nil {
-			return err
-		}
-	}
-
-	{
-		cfgPeer := &PeerHostState{}
-		cfgPeer.ID = peerHostID
-		cfgPeer.Hostname = peerHostName
-		cfgPeer.HostAddr = peerHostIP
-		cfgPeer.VtepIPAddr = peerHostIP
-		cfgPeer.StateDriver = stateDriver
-		if err := cfgPeer.Write(); err != nil {
 			return err
 		}
 	}
@@ -401,42 +386,6 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	output, err = exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
 	if err != nil || strings.Contains(string(output), testIntfName) {
 		t.Fatalf("interface lookup succeeded after delete. Error: %s Output: %s", err, output)
-	}
-}
-
-func TestOvsDriverAddDeletePeer(t *testing.T) {
-	driver := initOvsDriver(t)
-	defer func() { driver.Deinit() }()
-
-	// create peer host
-	err := driver.CreatePeerHost(peerHostID)
-	if err != nil {
-		t.Fatalf("Error creating peer host. Err: %v", err)
-	}
-
-	time.Sleep(300 * time.Millisecond)
-
-	// verify VTEP exists
-	expVtepName := vxlanIfName(peerHostIP)
-	output, err := exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
-	if err != nil || !strings.Contains(string(output), expVtepName) {
-		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
-			err, expVtepName, output)
-	}
-
-	// delete peer host
-	err = driver.DeletePeerHost(peerHostID)
-	if err != nil {
-		t.Fatalf("Error deleting peer host. Err: %v", err)
-	}
-
-	time.Sleep(300 * time.Millisecond)
-
-	// verify VTEP is gone.
-	output, err = exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
-	if err != nil || strings.Contains(string(output), expVtepName) {
-		t.Fatalf("interface still exists. Error: %s expected port: %s Output: %s",
-			err, expVtepName, output)
 	}
 }
 

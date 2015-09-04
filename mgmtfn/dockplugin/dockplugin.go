@@ -55,7 +55,7 @@ func InitDockPlugin() error {
 	log.Debugf("Configuring router")
 
 	router := mux.NewRouter()
-	s := router.Headers("Accept", "application/vnd.docker.plugins.v1+json").
+	s := router.Headers("Accept", "application/vnd.docker.plugins.v1.1+json").
 		Methods("POST").Subrouter()
 
 	dispatchMap := map[string]func(http.ResponseWriter, *http.Request){
@@ -65,9 +65,6 @@ func InitDockPlugin() error {
 		"/NetworkDriver.DeleteNetwork":    deleteNetwork(),
 		"/NetworkDriver.CreateEndpoint":   createEndpoint(tenantName, hostname),
 		"/NetworkDriver.DeleteEndpoint":   deleteEndpoint(tenantName, hostname),
-		"/NetworkDriver.EndpointOperInfo": endpointInfo,
-		"/NetworkDriver.Join":             join(),
-		"/NetworkDriver.Leave":            leave(),
 		"/NetworkDriver.EndpointOperInfo": endpointInfo,
 		"/NetworkDriver.Join":             join(),
 		"/NetworkDriver.Leave":            leave(),
@@ -211,7 +208,7 @@ func createNetwork() func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func generateEndpoint(containerID, tenantName, networkName, hostname string) *intent.Config {
+func generateEndpoint(containerID, tenantName, networkName, serviceName, hostname string) *intent.Config {
 	return &intent.Config{
 		Tenants: []intent.ConfigTenant{
 			{
@@ -221,8 +218,9 @@ func generateEndpoint(containerID, tenantName, networkName, hostname string) *in
 						Name: networkName,
 						Endpoints: []intent.ConfigEP{
 							{
-								Container: containerID,
-								Host:      hostname,
+								Container:   containerID,
+								Host:        hostname,
+								ServiceName: serviceName,
 							},
 						},
 					},
@@ -255,7 +253,7 @@ func deleteEndpoint(tenantName, hostname string) func(http.ResponseWriter, *http
 			return
 		}
 
-		if err := netdcliDel(generateEndpoint(der.EndpointID, tenantName, networkName, hostname)); err != nil {
+		if err := netdcliDel(generateEndpoint(der.EndpointID, tenantName, networkName, "", hostname)); err != nil {
 			httpError(w, "Could not create the endpoint", err)
 			return
 		}
@@ -310,10 +308,15 @@ func createEndpoint(tenantName, hostname string) func(http.ResponseWriter, *http
 			return
 		}
 
-		// FIXME:
-		GetEndPointName(cereq.NetworkID, cereq.EndpointID)
+		// Get Service name
+		serviceName, err := GetEndpointName(cereq.NetworkID, cereq.EndpointID)
+		if err != nil {
+			log.Errorf("Error getting endpoint name for EP: %s. Err: %v", cereq.EndpointID, err)
+			httpError(w, "Could not get endpoint name", err)
+			return
+		}
 
-		if err := netdcliAdd(generateEndpoint(cereq.EndpointID, tenantName, networkName, hostname)); err != nil {
+		if err := netdcliAdd(generateEndpoint(cereq.EndpointID, tenantName, networkName, serviceName, hostname)); err != nil {
 			httpError(w, "Could not create endpoint", err)
 			return
 		}
@@ -342,6 +345,8 @@ func createEndpoint(tenantName, hostname string) func(http.ResponseWriter, *http
 				},
 			},
 		}
+
+		log.Infof("Sending CreateEndpointResponse: {%+v}, IP Addr: %v", epResponse, ep[0].IPAddress)
 
 		content, err = json.Marshal(epResponse)
 		if err != nil {
@@ -406,7 +411,7 @@ func join() func(http.ResponseWriter, *http.Request) {
 		}
 
 		// FIXME:
-		GetEndPointName(jr.NetworkID, jr.EndpointID)
+		GetEndpointName(jr.NetworkID, jr.EndpointID)
 
 		ep, err := netdcliGetEndpoint(networkName + "-" + jr.EndpointID)
 		if err != nil {
@@ -420,7 +425,7 @@ func join() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		content, err = json.Marshal(api.JoinResponse{
+		joinResp := api.JoinResponse{
 			InterfaceNames: []*api.InterfaceName{
 				&api.InterfaceName{},
 				&api.InterfaceName{
@@ -429,8 +434,11 @@ func join() func(http.ResponseWriter, *http.Request) {
 				},
 			},
 			Gateway: nw[0].DefaultGw,
-		})
+		}
 
+		log.Infof("Sending JoinResponse: {%+v}", joinResp)
+
+		content, err = json.Marshal(joinResp)
 		if err != nil {
 			httpError(w, "Could not generate join response", err)
 			return
@@ -510,8 +518,8 @@ func GetNetworkName(nwID string) (string, error) {
 	return nw.Name(), nil
 }
 
-// GetEndPointName Returns endpoint name from networkId, endpointId
-func GetEndPointName(nwID, epID string) (string, error) {
+// GetEndpointName Returns endpoint name from networkId, endpointId
+func GetEndpointName(nwID, epID string) (string, error) {
 	libnetAPI := libnetClient.NewRemoteAPI("")
 
 	nw, err := libnetAPI.NetworkByID(nwID)

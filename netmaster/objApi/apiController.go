@@ -16,9 +16,9 @@ limitations under the License.
 package objApi
 
 import (
-	"errors"
 	"fmt"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/utils"
@@ -79,18 +79,28 @@ func NewAPIController(router *mux.Router) *APIController {
 	return ctrler
 }
 
+// Utility function to check if string exists in a slice
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 // AppCreate creates app state
 func (ac *APIController) AppCreate(app *contivModel.App) error {
 	log.Infof("Received AppCreate: %+v", app)
 
 	// Make sure tenant exists
 	if app.TenantName == "" {
-		return errors.New("Invalid tenant name")
+		return core.Errorf("Invalid tenant name")
 	}
 
 	tenant := contivModel.FindTenant(app.TenantName)
 	if tenant == nil {
-		return errors.New("Tenant not found")
+		return core.Errorf("Tenant not found")
 	}
 
 	// Setup links
@@ -120,15 +130,131 @@ func (ac *APIController) AppDelete(app *contivModel.App) error {
 	return nil
 }
 
+// FIXME: hack to allocate unique endpoint group ids
+var globalEpgID = 1
+
 // EndpointGroupCreate creates end point group
 func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupCreate: %+v", endpointGroup)
+
+	// assign unique endpoint group ids
+	endpointGroup.EndpointGroupID = globalEpgID
+	globalEpgID = globalEpgID + 1
+
+	// Find the tenant
+	tenant := contivModel.FindTenant(endpointGroup.TenantName)
+	if tenant == nil {
+		return core.Errorf("Tenant not found")
+	}
+
+	// Setup links
+	modeldb.AddLink(&endpointGroup.Links.Tenant, tenant)
+	modeldb.AddLinkSet(&tenant.LinkSets.EndpointGroups, endpointGroup)
+
+	// Save the tenant too since we added the links
+	err := tenant.Write()
+	if err != nil {
+		return err
+	}
+
+	// for each policy create an epg policy Instance
+	for _, policyName := range endpointGroup.Policies {
+		policyKey := endpointGroup.TenantName + ":" + policyName
+		// find the policy
+		policy := contivModel.FindPolicy(policyKey)
+		if policy == nil {
+			log.Errorf("Could not find policy %s", policyName)
+			return core.Errorf("Policy not found")
+		}
+
+		// attach policy to epg
+		err = master.PolicyAttach(endpointGroup, policy)
+		if err != nil {
+			log.Errorf("Error attaching policy %s to epg %s", policyName, endpointGroup.Key)
+			return err
+		}
+
+		// establish Links
+		modeldb.AddLinkSet(&policy.LinkSets.EndpointGroups, endpointGroup)
+		modeldb.AddLinkSet(&endpointGroup.LinkSets.Policies, policy)
+
+		// Write the policy
+		err = policy.Write()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 // EndpointGroupUpdate updates endpoint group
 func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupUpdate: %+v, params: %+v", endpointGroup, params)
+
+	// Only update policy attachments
+
+	// Look for policy adds
+	for _, policyName := range params.Policies {
+		if !stringInSlice(policyName, endpointGroup.Policies) {
+			policyKey := endpointGroup.TenantName + ":" + policyName
+
+			// find the policy
+			policy := contivModel.FindPolicy(policyKey)
+			if policy == nil {
+				log.Errorf("Could not find policy %s", policyName)
+				return core.Errorf("Policy not found")
+			}
+
+			// attach policy to epg
+			err := master.PolicyAttach(endpointGroup, policy)
+			if err != nil && err != master.EpgPolicyExists {
+				log.Errorf("Error attaching policy %s to epg %s", policyName, endpointGroup.Key)
+				return err
+			}
+
+			// Setup links
+			modeldb.AddLinkSet(&policy.LinkSets.EndpointGroups, endpointGroup)
+			modeldb.AddLinkSet(&endpointGroup.LinkSets.Policies, policy)
+			err = policy.Write()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// now look for policy removals
+	for _, policyName := range endpointGroup.Policies {
+		if !stringInSlice(policyName, params.Policies) {
+			policyKey := endpointGroup.TenantName + ":" + policyName
+
+			// find the policy
+			policy := contivModel.FindPolicy(policyKey)
+			if policy == nil {
+				log.Errorf("Could not find policy %s", policyName)
+				return core.Errorf("Policy not found")
+			}
+
+			// attach policy to epg
+			err := master.PolicyDetach(endpointGroup, policy)
+			if err != nil && err != master.EpgPolicyExists {
+				log.Errorf("Error detaching policy %s from epg %s", policyName, endpointGroup.Key)
+				return err
+			}
+
+			// Remove links
+			modeldb.RemoveLinkSet(&policy.LinkSets.EndpointGroups, endpointGroup)
+			modeldb.RemoveLinkSet(&endpointGroup.LinkSets.Policies, policy)
+			err = policy.Write()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Update the policy list
+	endpointGroup.Policies = params.Policies
+
 	return nil
 }
 
@@ -144,12 +270,12 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 
 	// Make sure tenant exists
 	if network.TenantName == "" {
-		return errors.New("Invalid tenant name")
+		return core.Errorf("Invalid tenant name")
 	}
 
 	tenant := contivModel.FindTenant(network.TenantName)
 	if tenant == nil {
-		return errors.New("Tenant not found")
+		return core.Errorf("Tenant not found")
 	}
 
 	// Setup links
@@ -191,7 +317,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 // NetworkUpdate updates network
 func (ac *APIController) NetworkUpdate(network, params *contivModel.Network) error {
 	log.Infof("Received NetworkUpdate: %+v, params: %+v", network, params)
-	return errors.New("Cant change network parameters after its created")
+	return core.Errorf("Cant change network parameters after its created")
 }
 
 // NetworkDelete deletes network
@@ -201,7 +327,7 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	// Find the tenant
 	tenant := contivModel.FindTenant(network.TenantName)
 	if tenant == nil {
-		return errors.New("Tenant not found")
+		return core.Errorf("Tenant not found")
 	}
 
 	// Remove link
@@ -246,9 +372,34 @@ func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 	return nil
 }
 
-// RuleCreate Creates the rule witin a policy
+// RuleCreate Creates the rule within a policy
 func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 	log.Infof("Received RuleCreate: %+v", rule)
+
+	policyKey := rule.TenantName + ":" + rule.PolicyName
+
+	// find the policy
+	policy := contivModel.FindPolicy(policyKey)
+	if policy == nil {
+		log.Errorf("Error finding policy %s", policyKey)
+		return core.Errorf("Policy not found")
+	}
+
+	// link the rule to policy
+	modeldb.AddLinkSet(&rule.LinkSets.Policies, policy)
+	modeldb.AddLinkSet(&policy.LinkSets.Rules, rule)
+	err := policy.Write()
+	if err != nil {
+		return err
+	}
+
+	// Trigger policyDB Update
+	err = master.PolicyAddRule(policy, rule)
+	if err != nil {
+		log.Errorf("Error adding rule %s to policy %s. Err: %v", rule.Key, policy.Key, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -261,6 +412,30 @@ func (ac *APIController) RuleUpdate(rule, params *contivModel.Rule) error {
 // RuleDelete deletes the rule within a policy
 func (ac *APIController) RuleDelete(rule *contivModel.Rule) error {
 	log.Infof("Received RuleDelete: %+v", rule)
+
+	policyKey := rule.TenantName + ":" + rule.PolicyName
+
+	// find the policy
+	policy := contivModel.FindPolicy(policyKey)
+	if policy == nil {
+		log.Errorf("Error finding policy %s", policyKey)
+		return core.Errorf("Policy not found")
+	}
+
+	// unlink the rule from policy
+	modeldb.RemoveLinkSet(&policy.LinkSets.Rules, rule)
+	err := policy.Write()
+	if err != nil {
+		return err
+	}
+
+	// Trigger policyDB Update
+	err = master.PolicyDelRule(policy, rule)
+	if err != nil {
+		log.Errorf("Error deleting rule %s to policy %s. Err: %v", rule.Key, policy.Key, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -270,19 +445,19 @@ func (ac *APIController) ServiceCreate(service *contivModel.Service) error {
 
 	// check params
 	if (service.TenantName == "") || (service.AppName == "") {
-		return errors.New("Invalid parameters")
+		return core.Errorf("Invalid parameters")
 	}
 
 	// Make sure tenant exists
 	tenant := contivModel.FindTenant(service.TenantName)
 	if tenant == nil {
-		return errors.New("Tenant not found")
+		return core.Errorf("Tenant not found")
 	}
 
 	// Find the app this service belongs to
 	app := contivModel.FindApp(service.TenantName + ":" + service.AppName)
 	if app == nil {
-		return errors.New("App not found")
+		return core.Errorf("App not found")
 	}
 
 	// Setup links
@@ -306,7 +481,7 @@ func (ac *APIController) ServiceCreate(service *contivModel.Service) error {
 		network := contivModel.FindNetwork(netKey)
 		if network == nil {
 			log.Errorf("Service: %s could not find network %s", service.Key, netKey)
-			return errors.New("Network not found")
+			return core.Errorf("Network not found")
 		}
 
 		// Link the network
@@ -350,7 +525,7 @@ func (ac *APIController) ServiceCreate(service *contivModel.Service) error {
 		endpointGroup := contivModel.FindEndpointGroup(service.TenantName + ":" + epgName)
 		if endpointGroup == nil {
 			log.Errorf("Error: could not find endpoint group: %s", epgName)
-			return errors.New("could not find endpointGroup")
+			return core.Errorf("could not find endpointGroup")
 		}
 
 		// setup links
@@ -373,7 +548,7 @@ func (ac *APIController) ServiceCreate(service *contivModel.Service) error {
 	volProfile := contivModel.FindVolumeProfile(volProfKey)
 	if volProfile == nil {
 		log.Errorf("Could not find the volume profile: %s", service.VolumeProfile)
-		return errors.New("VolumeProfile not found")
+		return core.Errorf("VolumeProfile not found")
 	}
 
 	// fixup default values
@@ -382,7 +557,7 @@ func (ac *APIController) ServiceCreate(service *contivModel.Service) error {
 	}
 
 	// Create service instances
-	for idx := int(0); idx < service.Scale; idx++ {
+	for idx := 0; idx < service.Scale; idx++ {
 		instID := fmt.Sprintf("%d", idx+1)
 		var volumes []string
 
@@ -449,7 +624,7 @@ func (ac *APIController) ServiceInstanceCreate(serviceInstance *contivModel.Serv
 	service := contivModel.FindService(serviceKey)
 	if service == nil {
 		log.Errorf("Service %s not found for instance: %+v", serviceKey, inst)
-		return errors.New("Service not found")
+		return core.Errorf("Service not found")
 	}
 
 	// Add links
@@ -462,7 +637,7 @@ func (ac *APIController) ServiceInstanceCreate(serviceInstance *contivModel.Serv
 		volume := contivModel.FindVolume(inst.TenantName + ":" + volumeName)
 		if volume == nil {
 			log.Errorf("Could not find colume %s for service: %s", volumeName, inst.Key)
-			return errors.New("Could not find the volume")
+			return core.Errorf("Could not find the volume")
 		}
 
 		// add Links
@@ -490,7 +665,7 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 	log.Infof("Received TenantCreate: %+v", tenant)
 
 	if tenant.TenantName == "" {
-		return errors.New("Invalid tenant name")
+		return core.Errorf("Invalid tenant name")
 	}
 
 	// Get the state driver
@@ -524,7 +699,7 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		IsPrivate:   true,
 		Encap:       "vxlan",
 		Subnet:      "10.1.0.0/16",
-		DefaultGw:   "10.1.0.1",
+		DefaultGw:   "10.1.254.254",
 		NetworkName: "private",
 		TenantName:  tenant.TenantName,
 	})
@@ -540,7 +715,7 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		IsPrivate:   false,
 		Encap:       "vlan",
 		Subnet:      "192.168.1.0/24",
-		DefaultGw:   "192.168.1.1",
+		DefaultGw:   "192.168.1.254",
 		NetworkName: "public",
 		TenantName:  tenant.TenantName,
 	})
@@ -571,7 +746,7 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 func (ac *APIController) TenantUpdate(tenant, params *contivModel.Tenant) error {
 	log.Infof("Received TenantUpdate: %+v, params: %+v", tenant, params)
 
-	return errors.New("Cant change tenant parameters after its created")
+	return core.Errorf("Cant change tenant parameters after its created")
 }
 
 // TenantDelete deletes a tenant
@@ -601,12 +776,12 @@ func (ac *APIController) VolumeCreate(volume *contivModel.Volume) error {
 
 	// Make sure tenant exists
 	if volume.TenantName == "" {
-		return errors.New("Invalid tenant name")
+		return core.Errorf("Invalid tenant name")
 	}
 
 	tenant := contivModel.FindTenant(volume.TenantName)
 	if tenant == nil {
-		return errors.New("Tenant not found")
+		return core.Errorf("Tenant not found")
 	}
 
 	// Setup links
@@ -640,11 +815,11 @@ func (ac *APIController) VolumeProfileCreate(volumeProfile *contivModel.VolumePr
 
 	// Make sure tenant exists
 	if volumeProfile.TenantName == "" {
-		return errors.New("Invalid tenant name")
+		return core.Errorf("Invalid tenant name")
 	}
 	tenant := contivModel.FindTenant(volumeProfile.TenantName)
 	if tenant == nil {
-		return errors.New("Tenant not found")
+		return core.Errorf("Tenant not found")
 	}
 
 	// Setup links

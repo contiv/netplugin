@@ -33,7 +33,6 @@ import (
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/objmodel/objdb"
 	"github.com/contiv/objmodel/objdb/client"
-	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/consul/api"
 )
@@ -56,7 +55,6 @@ func usage() {
 type daemon struct {
 	opts          cliOpts
 	apiController *objApi.APIController
-	ofnetMaster   *ofnet.OfnetMaster
 }
 
 func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
@@ -174,8 +172,8 @@ func (d *daemon) execOpts() {
 	// Register netmaster service
 	d.registerService()
 
-	// Create the netmaster
-	d.ofnetMaster = ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
+	// initialize policy manager
+	master.InitPolicyMgr()
 }
 
 func (d *daemon) ListenAndServe() {

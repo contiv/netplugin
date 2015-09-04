@@ -16,8 +16,6 @@ limitations under the License.
 package main
 
 import (
-	"time"
-
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/objmodel/objdb"
@@ -64,11 +62,14 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) 
 	masterEventCh := make(chan objdb.WatchServiceEvent, 1)
 	masterWatchStopCh := make(chan bool, 1)
 
-	// Wait a little for things to settle
-	time.Sleep(3 * time.Second)
+	// Get the local address
+	localIP, err := objdbClient.GetLocalAddr()
+	if err != nil {
+		log.Fatalf("Error getting locla IP address. Err: %v", err)
+	}
 
 	// Start a watch on netplugin service so that we dont miss any
-	err := objdbClient.WatchService("netplugin", nodeEventCh, watchStopCh)
+	err = objdbClient.WatchService("netplugin", nodeEventCh, watchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
 	}
@@ -86,6 +87,22 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) 
 	}
 
 	log.Infof("Got netplugin service list: %+v", nodeList)
+
+	// walk each node and add it as a PeerHost
+	for _, node := range nodeList {
+		// Ignore if its our own info
+		if node.HostAddr == localIP {
+			continue
+		}
+		// add the node
+		err := netplugin.AddPeerHost(core.ServiceInfo{
+			HostAddr: node.HostAddr,
+			Port:     ofnet.OFNET_AGENT_PORT,
+		})
+		if err != nil {
+			log.Errorf("Error adding node {%+v}. Err: %v", node, err)
+		}
+	}
 
 	// Get a list of all existing netmasters
 	masterList, err := objdbClient.GetService("netmaster")
@@ -115,11 +132,34 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) 
 			// collect the info about the node
 			nodeInfo := srvEvent.ServiceInfo
 
+			// check if its our on info coming back to us
+			if nodeInfo.HostAddr == localIP {
+				break
+			}
+
 			// Handle based on event type
 			if srvEvent.EventType == objdb.WatchServiceEventAdd {
 				log.Infof("Node add event for {%+v}", nodeInfo)
+
+				// add the node
+				err := netplugin.AddPeerHost(core.ServiceInfo{
+					HostAddr: nodeInfo.HostAddr,
+					Port:     ofnet.OFNET_AGENT_PORT,
+				})
+				if err != nil {
+					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
+				}
 			} else if srvEvent.EventType == objdb.WatchServiceEventDel {
 				log.Infof("Node delete event for {%+v}", nodeInfo)
+
+				// remove the node
+				err := netplugin.DeletePeerHost(core.ServiceInfo{
+					HostAddr: nodeInfo.HostAddr,
+					Port:     ofnet.OFNET_AGENT_PORT,
+				})
+				if err != nil {
+					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
+				}
 			}
 		case srvEvent := <-masterEventCh:
 			log.Infof("Received netmaster service watch event: %+v", srvEvent)

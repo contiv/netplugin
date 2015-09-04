@@ -48,7 +48,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "3804664eeaa16868384a18a1055ab0b36ac30009"
+			"Rev": "03f8035750c738e13a2d6f4ac57fcf994d646bc1"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",

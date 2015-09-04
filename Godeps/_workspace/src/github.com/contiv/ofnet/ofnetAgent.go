@@ -67,15 +67,16 @@ type OfnetAgent struct {
 // local End point information
 type EndpointInfo struct {
 	PortNo        uint32
-	EndpointGroup uint32
+	EndpointGroup int
 	MacAddr       net.HardwareAddr
 	Vlan          uint16
 	IpAddr        net.IP
 }
 
-const FLOW_MATCH_PRIORITY = 100 // Priority for all match flows
-const FLOW_FLOOD_PRIORITY = 10  // Priority for flood entries
-const FLOW_MISS_PRIORITY = 1    // priority for table miss flow
+const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
+const FLOW_FLOOD_PRIORITY = 10         // Priority for flood entries
+const FLOW_MISS_PRIORITY = 1           // priority for table miss flow
+const FLOW_POLICY_PRIORITY_OFFSET = 10 // Priority offset for policy rules
 
 const VLAN_TBL_ID = 1
 const DST_GRP_TBL_ID = 2

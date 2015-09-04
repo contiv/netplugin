@@ -143,7 +143,8 @@ func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	}
 
 	// Set the vlan and install it
-	portVlanFlow.SetVlan(endpoint.Vlan)
+	// FIXME: Dont set the vlan till multi-vrf support. We cant pop vlan unless flow matches on vlan
+	// portVlanFlow.SetVlan(endpoint.Vlan)
 
 	// Set source endpoint group if specified
 	if endpoint.EndpointGroup != 0 {
@@ -258,9 +259,11 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 	}
 
 	// FIXME: Need to match on tunnelId and set vlan-id per VRF
-	// FIXME: not needed till multi-vrf support
+	// FIXME: not needed till multi-vrf support. We cant pop vlan unless flow matches on vlan
 	// portVlanFlow.SetVlan(1)
 
+	// Point it to next table.
+	// Note that we bypass policy lookup on dest host.
 	portVlanFlow.Next(self.ipTable)
 
 	// FIXME: walk all the routes and see if we can install it
@@ -327,6 +330,7 @@ func (self *Vrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	// Set VNI
 	// FIXME: hardcode VNI for default VRF.
 	// FIXME: We need to use fabric VNI per VRF
+	// FIXME: Cant pop vlan tag till the flow matches on vlan.
 	ipFlow.SetTunnelId(1)
 
 	// Point it to output port

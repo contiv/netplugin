@@ -44,7 +44,7 @@ if [ $# -gt 5 ]; then
 fi
 
 # Install experimental docker
-curl -sSL https://experimental.docker.com/ | sh
+# curl -sSL https://experimental.docker.com/ | sh
 
 (service docker restart) || exit 1
 
