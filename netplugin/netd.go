@@ -34,6 +34,7 @@ import (
 	"github.com/contiv/netplugin/crtclient"
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/netplugin/utils"
@@ -456,6 +457,17 @@ func createContainerEpOper(netPlugin *plugin.NetPlugin, contUUID, contName strin
 				log.Errorf("Endpoint creation failed. Error: %s", err)
 				return err
 			}
+
+			err = operEp.Read(epID)
+			if err == nil {
+				operEp.ContUUID = contUUID
+				err = operEp.Write()
+				if err != nil {
+					log.Errorf("error updating oper state for ep %s \n", contName)
+					return err
+				}
+			}
+
 			log.Infof("Endpoint operation create succeeded")
 		}
 	}
@@ -870,6 +882,10 @@ func main() {
 		pluginConfig.Instance.VlanIntf = opts.vlanIntf
 	}
 
+	// Initialize docker plugin
+	dockplugin.InitDockPlugin()
+
+	// Init the driver plugins..
 	err = netPlugin.Init(pluginConfig, string(config))
 	if err != nil {
 		log.Fatalf("Failed to initialize the plugin. Error: %s", err)

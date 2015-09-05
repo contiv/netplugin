@@ -27,6 +27,7 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
+	"github.com/contiv/netplugin/netmaster/objApi"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
@@ -50,7 +51,8 @@ func usage() {
 }
 
 type daemon struct {
-	opts cliOpts
+	opts          cliOpts
+	apiController *objApi.APIController
 }
 
 func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
@@ -105,7 +107,7 @@ func (d *daemon) parseOpts() error {
 		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
 	flagSet.StringVar(&d.opts.listenURL,
 		"listen-url",
-		master.DaemonURL,
+		":9999",
 		"Url to listen http requests on")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
@@ -143,6 +145,10 @@ func (d *daemon) execOpts() {
 func (d *daemon) ListenAndServe() {
 	r := mux.NewRouter()
 
+	// Create a new api controller
+	d.apiController = objApi.NewAPIController(r)
+
+	// Add REST routes
 	s := r.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
 	s.HandleFunc(fmt.Sprintf("/%s", master.DesiredConfigRESTEndpoint),
 		post(d.desiredConfig))

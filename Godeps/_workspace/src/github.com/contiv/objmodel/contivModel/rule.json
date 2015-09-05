@@ -1,0 +1,55 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "rule",
+			"type": "object",
+			"key": [ "tenantName", "policyName", "ruleName" ],
+			"properties": {
+				"ruleName": {
+					"type": "string",
+					"title": "Rule Name",
+					"length": 64
+				},
+				"policyName": {
+					"type": "string",
+					"title": "Policy Name",
+					"length": 64
+				},
+				"tenantName": {
+					"type": "string",
+					"title": "Tenant Name",
+					"length": 64
+				},
+				"direction": {
+					"type": "string",
+					"format": "^(in|out)$"
+				},
+				"endpointGroup": {
+					"type": "string",
+					"length": 64
+				},
+				"network": {
+					"type": "string",
+					"length": 64
+				},
+				"ipAddress": {
+					"type": "string"
+				},
+				"protocol": {
+					"type": "string",
+					"format": "^(tcp|udp|icmp|[0-9]{1,3}?)$"
+				},
+				"port": {
+					"type": "int",
+					"max": 65535
+				}
+			},
+			"link-sets": {
+				"policies": {
+					"ref": "policy"
+				}
+			}
+		}
+	]
+}

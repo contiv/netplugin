@@ -1,0 +1,43 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "endpointGroup",
+			"type": "object",
+			"key": [ "tenantName", "groupName" ],
+			"properties": {
+				"groupName": {
+					"type": "string",
+					"description": "Endpoint group Name"
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name"
+				},
+				"networkName": {
+					"type": "string"
+				},
+				"policies": {
+					"type": "array",
+					"items": "string"
+				}
+			},
+			"link-sets": {
+				"services": {
+					"ref": "service"
+				},
+				"policies": {
+					"ref": "policy"
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				},
+				"network": {
+					"ref": "network"
+				}
+			}
+		}
+	]
+}

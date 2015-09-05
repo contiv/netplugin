@@ -2,23 +2,17 @@ package ofnet
 
 // Test ofnet APIs
 
-
 import (
-    "fmt"
+	"fmt"
 	"net"
-	"time"
-	"testing"
+	"os/exec"
 	"strings"
-    "os/exec"
+	"testing"
+	"time"
 
-
-    //"github.com/shaleman/libOpenflow/openflow13"
-    //"github.com/shaleman/libOpenflow/protocol"
-    //"github.com/contiv/ofnet/ofctrl"
-    //"github.com/contiv/ofnet/rpcHub"
 	"github.com/contiv/ofnet/ovsdbDriver"
 
-    log "github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 )
 
 const NUM_MASTER = 2
@@ -136,10 +130,10 @@ func TestOfnetInit(t *testing.T) {
 		brName := "ovsbr1" + fmt.Sprintf("%d", i)
 		ovsPort := uint16(9151 + i)
 		ovsDrivers[i] = ovsdbDriver.NewOvsDriver(brName)
-	    err := ovsDrivers[i].AddController("127.0.0.1", ovsPort)
-	    if err != nil {
-	        t.Fatalf("Error adding controller to ovs: %s", brName)
-	    }
+		err := ovsDrivers[i].AddController("127.0.0.1", ovsPort)
+		if err != nil {
+			t.Fatalf("Error adding controller to ovs: %s", brName)
+		}
 	}
 	// Create OVS switches and connect them to vxlan ofnet agents
 	for i := 0; i < NUM_AGENT; i++ {
@@ -147,10 +141,10 @@ func TestOfnetInit(t *testing.T) {
 		ovsPort := uint16(9251 + i)
 		j := NUM_AGENT + i
 		ovsDrivers[j] = ovsdbDriver.NewOvsDriver(brName)
-	    err := ovsDrivers[j].AddController("127.0.0.1", ovsPort)
-	    if err != nil {
-	        t.Fatalf("Error adding controller to ovs: %s", brName)
-	    }
+		err := ovsDrivers[j].AddController("127.0.0.1", ovsPort)
+		if err != nil {
+			t.Fatalf("Error adding controller to ovs: %s", brName)
+		}
 	}
 
 	// Wait for 10sec for switch to connect to controller
@@ -159,31 +153,32 @@ func TestOfnetInit(t *testing.T) {
 
 // test adding vlan
 func TestOfnetSetupVlan(t *testing.T) {
-    for i := 0; i < NUM_AGENT; i++ {
-        for j := 1; j < 10; j++ {
-            log.Infof("Adding Vlan %d on %s", j, localIpList[i])
-            err := vrtrAgents[i].AddVlan(uint16(j), uint32(j))
-            if err != nil {
-                t.Errorf("Error adding vlan %d. Err: %v", j, err)
-            }
-            err = vxlanAgents[i].AddVlan(uint16(j), uint32(j))
-            if err != nil {
-                t.Errorf("Error adding vlan %d. Err: %v", j, err)
-            }
-        }
-    }
+	for i := 0; i < NUM_AGENT; i++ {
+		for j := 1; j < 10; j++ {
+			log.Infof("Adding Vlan %d on %s", j, localIpList[i])
+			err := vrtrAgents[i].AddVlan(uint16(j), uint32(j))
+			if err != nil {
+				t.Errorf("Error adding vlan %d. Err: %v", j, err)
+			}
+			err = vxlanAgents[i].AddVlan(uint16(j), uint32(j))
+			if err != nil {
+				t.Errorf("Error adding vlan %d. Err: %v", j, err)
+			}
+		}
+	}
 }
+
 // test adding full mesh vtep ports
 func TestOfnetSetupVtep(t *testing.T) {
 	for i := 0; i < NUM_AGENT; i++ {
 		for j := 0; j < NUM_AGENT; j++ {
 			if i != j {
 				log.Infof("Adding VTEP on %s for remoteIp: %s", localIpList[i], localIpList[j])
-				err := vrtrAgents[i].AddVtepPort(uint32(j + 1), net.ParseIP(localIpList[j]))
+				err := vrtrAgents[i].AddVtepPort(uint32(j+1), net.ParseIP(localIpList[j]))
 				if err != nil {
 					t.Errorf("Error adding VTEP port. Err: %v", err)
 				}
-				err = vxlanAgents[i].AddVtepPort(uint32(j + 1), net.ParseIP(localIpList[j]))
+				err = vxlanAgents[i].AddVtepPort(uint32(j+1), net.ParseIP(localIpList[j]))
 				if err != nil {
 					t.Errorf("Error adding VTEP port. Err: %v", err)
 				}
@@ -196,229 +191,228 @@ func TestOfnetSetupVtep(t *testing.T) {
 
 // Test adding/deleting Vrouter routes
 func TestOfnetVrouteAddDelete(t *testing.T) {
-    for iter := 0; iter < 4; iter++ {
-    	for i := 0; i < NUM_AGENT; i++ {
-    		j := i + 1
-    		macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
-    		ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
-    		endpoint := EndpointInfo{
-    		    PortNo  : uint32(NUM_AGENT + 2),
-    		    MacAddr : macAddr,
-    		    Vlan    : 1,
-    		    IpAddr  : ipAddr,
-    		}
+	for iter := 0; iter < 4; iter++ {
+		for i := 0; i < NUM_AGENT; i++ {
+			j := i + 1
+			macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
+			ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
+			endpoint := EndpointInfo{
+				PortNo:  uint32(NUM_AGENT + 2),
+				MacAddr: macAddr,
+				Vlan:    1,
+				IpAddr:  ipAddr,
+			}
 
-    		log.Infof("Installing local vrouter endpoint: %+v", endpoint)
+			log.Infof("Installing local vrouter endpoint: %+v", endpoint)
 
-    		// Install the local endpoint
-    		err := vrtrAgents[i].AddLocalEndpoint(endpoint)
-    		if err != nil {
-    			t.Fatalf("Error installing endpoint: %+v. Err: %v", endpoint, err)
-                return
-    		}
-    	}
+			// Install the local endpoint
+			err := vrtrAgents[i].AddLocalEndpoint(endpoint)
+			if err != nil {
+				t.Fatalf("Error installing endpoint: %+v. Err: %v", endpoint, err)
+				return
+			}
+		}
 
-    	log.Infof("Finished adding local vrouter endpoint")
+		log.Infof("Finished adding local vrouter endpoint")
 
-    	// verify all ovs switches have this route
-    	for i := 0; i < NUM_AGENT; i++ {
-    		brName := "ovsbr1" + fmt.Sprintf("%d", i)
+		// verify all ovs switches have this route
+		for i := 0; i < NUM_AGENT; i++ {
+			brName := "ovsbr1" + fmt.Sprintf("%d", i)
 
-    		flowList, err := ofctlFlowDump(brName)
-    		if err != nil {
-    			t.Errorf("Error getting flow entries. Err: %v", err)
-    		}
+			flowList, err := ofctlFlowDump(brName)
+			if err != nil {
+				t.Errorf("Error getting flow entries. Err: %v", err)
+			}
 
-    		// verify flow entry exists
-    		for j := 0; j < NUM_AGENT; j++ {
-    			k := j + 1
-    			ipFlowMatch := fmt.Sprintf("priority=100,ip,nw_dst=10.10.%d.%d", k, k)
-    			ipTableId := 2
-    			if !ofctlFlowMatch(flowList, ipTableId, ipFlowMatch) {
-    				t.Errorf("Could not find the route %s on ovs %s", ipFlowMatch, brName)
-    			}
+			// verify flow entry exists
+			for j := 0; j < NUM_AGENT; j++ {
+				k := j + 1
+				ipFlowMatch := fmt.Sprintf("priority=100,ip,nw_dst=10.10.%d.%d", k, k)
+				ipTableId := IP_TBL_ID
+				if !ofctlFlowMatch(flowList, ipTableId, ipFlowMatch) {
+					t.Errorf("Could not find the route %s on ovs %s", ipFlowMatch, brName)
+				}
 
-    			log.Infof("Found ipflow %s on ovs %s", ipFlowMatch, brName)
-    		}
-    	}
+				log.Infof("Found ipflow %s on ovs %s", ipFlowMatch, brName)
+			}
+		}
 
-        log.Infof("Adding Vrouter endpoint successful.\n Testing Delete")
+		log.Infof("Adding Vrouter endpoint successful.\n Testing Delete")
 
-        for i := 0; i < NUM_AGENT; i++ {
-            j := i + 1
-            macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
-            ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
-            endpoint := EndpointInfo{
-                PortNo  : uint32(NUM_AGENT + 2),
-                MacAddr : macAddr,
-                Vlan    : 1,
-                IpAddr  : ipAddr,
-            }
+		for i := 0; i < NUM_AGENT; i++ {
+			j := i + 1
+			macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
+			ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
+			endpoint := EndpointInfo{
+				PortNo:  uint32(NUM_AGENT + 2),
+				MacAddr: macAddr,
+				Vlan:    1,
+				IpAddr:  ipAddr,
+			}
 
-            log.Infof("Deleting local vrouter endpoint: %+v", endpoint)
+			log.Infof("Deleting local vrouter endpoint: %+v", endpoint)
 
-            // Install the local endpoint
-            err := vrtrAgents[i].RemoveLocalEndpoint(uint32(NUM_AGENT + 2))
-            if err != nil {
-                t.Fatalf("Error deleting endpoint: %+v. Err: %v", endpoint, err)
-                return
-            }
-        }
-    }
+			// Install the local endpoint
+			err := vrtrAgents[i].RemoveLocalEndpoint(uint32(NUM_AGENT + 2))
+			if err != nil {
+				t.Fatalf("Error deleting endpoint: %+v. Err: %v", endpoint, err)
+				return
+			}
+		}
+	}
 }
 
 // Test adding/deleting Vxlan routes
 func TestOfnetVxlanAddDelete(t *testing.T) {
-    for iter := 0; iter < 4; iter++ {
-    	for i := 0; i < NUM_AGENT; i++ {
-    		j := i + 1
-    		macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
-    		ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
-    		endpoint := EndpointInfo{
-    		    PortNo  : uint32(NUM_AGENT + 2),
-    		    MacAddr : macAddr,
-    		    Vlan    : 1,
-    		    IpAddr  : ipAddr,
-    		}
+	for iter := 0; iter < 4; iter++ {
+		for i := 0; i < NUM_AGENT; i++ {
+			j := i + 1
+			macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
+			ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
+			endpoint := EndpointInfo{
+				PortNo:  uint32(NUM_AGENT + 2),
+				MacAddr: macAddr,
+				Vlan:    1,
+				IpAddr:  ipAddr,
+			}
 
-    		log.Infof("Installing local vxlan endpoint: %+v", endpoint)
+			log.Infof("Installing local vxlan endpoint: %+v", endpoint)
 
-    		// Install the local endpoint
-    		err := vxlanAgents[i].AddLocalEndpoint(endpoint)
-    		if err != nil {
-    			t.Errorf("Error installing endpoint: %+v. Err: %v", endpoint, err)
-    		}
-    	}
+			// Install the local endpoint
+			err := vxlanAgents[i].AddLocalEndpoint(endpoint)
+			if err != nil {
+				t.Errorf("Error installing endpoint: %+v. Err: %v", endpoint, err)
+			}
+		}
 
-    	log.Infof("Finished adding local vxlan endpoint")
+		log.Infof("Finished adding local vxlan endpoint")
 
-    	// verify all ovs switches have this route
-    	for i := 0; i < NUM_AGENT; i++ {
-    		brName := "ovsbr2" + fmt.Sprintf("%d", i)
+		// verify all ovs switches have this route
+		for i := 0; i < NUM_AGENT; i++ {
+			brName := "ovsbr2" + fmt.Sprintf("%d", i)
 
-    		flowList, err := ofctlFlowDump(brName)
-    		if err != nil {
-    			t.Errorf("Error getting flow entries. Err: %v", err)
-    		}
+			flowList, err := ofctlFlowDump(brName)
+			if err != nil {
+				t.Errorf("Error getting flow entries. Err: %v", err)
+			}
 
-    		// verify flow entry exists
-    		for j := 0; j < NUM_AGENT; j++ {
-    			k := j + 1
-    			macFlowMatch := fmt.Sprintf("priority=100,dl_vlan=1,dl_dst=02:02:02:%02x:%02x:%02x", k, k, k)
+			// verify flow entry exists
+			for j := 0; j < NUM_AGENT; j++ {
+				k := j + 1
+				macFlowMatch := fmt.Sprintf("priority=100,dl_vlan=1,dl_dst=02:02:02:%02x:%02x:%02x", k, k, k)
 
-    			macTableId := 3
-    			if !ofctlFlowMatch(flowList, macTableId, macFlowMatch) {
-    				t.Errorf("Could not find the mac flow %s on ovs %s", macFlowMatch, brName)
-    			}
+				macTableId := MAC_DEST_TBL_ID
+				if !ofctlFlowMatch(flowList, macTableId, macFlowMatch) {
+					t.Errorf("Could not find the mac flow %s on ovs %s", macFlowMatch, brName)
+				}
 
-    			log.Infof("Found macFlow %s on ovs %s", macFlowMatch, brName)
-    		}
-    	}
+				log.Infof("Found macFlow %s on ovs %s", macFlowMatch, brName)
+			}
+		}
 
-        log.Infof("Add vxlan endpoint successful.\n Testing Delete")
+		log.Infof("Add vxlan endpoint successful.\n Testing Delete")
 
-        for i := 0; i < NUM_AGENT; i++ {
-    		j := i + 1
-    		macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
-    		ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
-    		endpoint := EndpointInfo{
-    		    PortNo  : uint32(NUM_AGENT + 2),
-    		    MacAddr : macAddr,
-    		    Vlan    : 1,
-    		    IpAddr  : ipAddr,
-    		}
+		for i := 0; i < NUM_AGENT; i++ {
+			j := i + 1
+			macAddr, _ := net.ParseMAC(fmt.Sprintf("02:02:02:%02x:%02x:%02x", j, j, j))
+			ipAddr := net.ParseIP(fmt.Sprintf("10.10.%d.%d", j, j))
+			endpoint := EndpointInfo{
+				PortNo:  uint32(NUM_AGENT + 2),
+				MacAddr: macAddr,
+				Vlan:    1,
+				IpAddr:  ipAddr,
+			}
 
-    		log.Infof("Deleting local vxlan endpoint: %+v", endpoint)
+			log.Infof("Deleting local vxlan endpoint: %+v", endpoint)
 
-    		// Install the local endpoint
-    		err := vxlanAgents[i].RemoveLocalEndpoint(uint32(NUM_AGENT + 2))
-    		if err != nil {
-    			t.Errorf("Error deleting endpoint: %+v. Err: %v", endpoint, err)
-    		}
-    	}
-    }
+			// Install the local endpoint
+			err := vxlanAgents[i].RemoveLocalEndpoint(uint32(NUM_AGENT + 2))
+			if err != nil {
+				t.Errorf("Error deleting endpoint: %+v. Err: %v", endpoint, err)
+			}
+		}
+	}
 }
 
 // Wait for debug and cleanup
 func TestWaitAndCleanup(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
-    // Disconnect from switches.
-    for i := 0; i < NUM_AGENT; i++ {
-        vrtrAgents[i].Delete()
-        vxlanAgents[i].Delete()
-    }
+	// Disconnect from switches.
+	for i := 0; i < NUM_AGENT; i++ {
+		vrtrAgents[i].Delete()
+		vxlanAgents[i].Delete()
+	}
 
 	for i := 0; i < NUM_AGENT; i++ {
 		brName := "ovsbr1" + fmt.Sprintf("%d", i)
 		log.Infof("Deleting OVS bridge: %s", brName)
 		err := ovsDrivers[i].DeleteBridge(brName)
-	    if err != nil {
-	        t.Errorf("Error deleting the bridge. Err: %v", err)
-	    }
+		if err != nil {
+			t.Errorf("Error deleting the bridge. Err: %v", err)
+		}
 	}
 	for i := 0; i < NUM_AGENT; i++ {
 		brName := "ovsbr2" + fmt.Sprintf("%d", i)
 		log.Infof("Deleting OVS bridge: %s", brName)
 		err := ovsDrivers[i].DeleteBridge(brName)
-	    if err != nil {
-	        t.Errorf("Error deleting the bridge. Err: %v", err)
-	    }
+		if err != nil {
+			t.Errorf("Error deleting the bridge. Err: %v", err)
+		}
 	}
 }
 
-
 // Run an ovs-ofctl command
-func runOfctlCmd(cmd, brName string) ([]byte, error){
-    cmdStr := fmt.Sprintf("sudo /usr/bin/ovs-ofctl -O Openflow13 %s %s", cmd, brName)
-    out, err := exec.Command("/bin/sh", "-c", cmdStr).Output()
+func runOfctlCmd(cmd, brName string) ([]byte, error) {
+	cmdStr := fmt.Sprintf("sudo /usr/bin/ovs-ofctl -O Openflow13 %s %s", cmd, brName)
+	out, err := exec.Command("/bin/sh", "-c", cmdStr).Output()
 	if err != nil {
 		log.Errorf("error running ovs-ofctl %s %s. Error: %v", cmd, brName, err)
 		return nil, err
 	}
 
-    return out, nil
+	return out, nil
 }
 
 // dump the flows and parse the Output
 func ofctlFlowDump(brName string) ([]string, error) {
-    flowDump, err := runOfctlCmd("dump-flows", brName)
-    if err != nil {
-        log.Errorf("Error running dump-flows on %s. Err: %v", brName, err)
-        return nil, err
-    }
+	flowDump, err := runOfctlCmd("dump-flows", brName)
+	if err != nil {
+		log.Errorf("Error running dump-flows on %s. Err: %v", brName, err)
+		return nil, err
+	}
 
-    log.Debugf("Flow dump: %s", flowDump)
-    flowOutStr := string(flowDump)
-    flowDb := strings.Split(flowOutStr, "\n")[1:]
+	log.Debugf("Flow dump: %s", flowDump)
+	flowOutStr := string(flowDump)
+	flowDb := strings.Split(flowOutStr, "\n")[1:]
 
-    log.Debugf("flowDb: %+v", flowDb)
+	log.Debugf("flowDb: %+v", flowDb)
 
-    var flowList []string
-    for _, flow := range flowDb {
-        felem := strings.Fields(flow)
-        if len(felem) > 2 {
-            felem = append(felem[:1], felem[2:]...)
-            felem = append(felem[:2], felem[4:]...)
-            fstr := strings.Join(felem, " ")
-            flowList = append(flowList, fstr)
-        }
-    }
+	var flowList []string
+	for _, flow := range flowDb {
+		felem := strings.Fields(flow)
+		if len(felem) > 2 {
+			felem = append(felem[:1], felem[2:]...)
+			felem = append(felem[:2], felem[4:]...)
+			fstr := strings.Join(felem, " ")
+			flowList = append(flowList, fstr)
+		}
+	}
 
-    log.Debugf("flowList: %+v", flowList)
+	log.Debugf("flowList: %+v", flowList)
 
-    return flowList, nil
+	return flowList, nil
 }
 
 // Find a flow in flow list and match its action
 func ofctlFlowMatch(flowList []string, tableId int, matchStr string) bool {
-    mtStr := fmt.Sprintf("table=%d, %s", tableId, matchStr)
-    for _, flowEntry := range flowList {
-        log.Debugf("Looking for %s in %s", mtStr, flowEntry)
-        if strings.Contains(flowEntry, mtStr) {
-            return true
-        }
-    }
+	mtStr := fmt.Sprintf("table=%d, %s", tableId, matchStr)
+	for _, flowEntry := range flowList {
+		log.Debugf("Looking for %s in %s", mtStr, flowEntry)
+		if strings.Contains(flowEntry, mtStr) {
+			return true
+		}
+	}
 
-    return false
+	return false
 }

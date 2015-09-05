@@ -310,7 +310,7 @@ func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -388,7 +388,7 @@ func TestTwoHostsMultiVxlanPingSuccessConsul_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -466,7 +466,7 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStart_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -522,6 +522,9 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStart_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 
+	// Wait for Netplugin to cleanup
+	time.Sleep(1 * time.Second)
+
 	//restart the netplugin and retry the pings
 	utils.StopNetPlugin(t, testbed.GetNodes())
 	utils.StartNetPlugin(t, testbed.GetNodes(), false)
@@ -562,7 +565,7 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStartConsul_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -618,6 +621,9 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStartConsul_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
 
+	// Wait for Netplugin to cleanup
+	time.Sleep(1 * time.Second)
+
 	//restart the netplugin and retry the pings
 	utils.StopNetPlugin(t, testbed.GetNodes())
 	utils.StartNetPluginWithConfig(t, testbed.GetNodes(), false, utils.GetNetpluginConfigWithConsul())
@@ -659,7 +665,7 @@ func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -732,7 +738,7 @@ func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -782,6 +788,9 @@ func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node2, "myContainer3")
 	}()
 
+	// Wait for Netplugin to cleanup
+	time.Sleep(1 * time.Second)
+
 	//restart the netplugin and retry the pings
 	utils.StopNetPlugin(t, testbed.GetNodes())
 	utils.StartNetPlugin(t, testbed.GetNodes(), false)
@@ -821,7 +830,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -892,7 +901,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -955,7 +964,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -1098,7 +1107,7 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
@@ -1236,7 +1245,7 @@ func TestTwoHostsVxlanAddDelNetworkConsul_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [ 
             {
                 "Name"                  : "orange",
