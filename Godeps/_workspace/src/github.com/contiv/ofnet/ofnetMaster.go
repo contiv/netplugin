@@ -13,271 +13,180 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 package ofnet
+
 // This file contains the ofnet master implementation
 
 import (
-    "fmt"
-    "net"
-    "net/rpc"
-    "time"
+	"fmt"
+	"net"
+	"net/rpc"
+	"time"
 
-    "github.com/contiv/ofnet/rpcHub"
+	"github.com/contiv/ofnet/rpcHub"
 
-    log "github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 )
-
 
 // Ofnet master state
 type OfnetMaster struct {
-    rpcServer   *rpc.Server             // json-rpc server
-    rpcListener net.Listener           // Listener
+	rpcServer   *rpc.Server  // json-rpc server
+	rpcListener net.Listener // Listener
 
-    // Database of agent nodes
-    agentDb     map[string]*OfnetNode
+	// Database of agent nodes
+	agentDb map[string]*OfnetNode
 
-    // Route Database
-    routeDb     map[string]*OfnetRoute
-
-    // Mac route database
-    macRouteDb  map[string]*MacRoute
+	// Endpoint database
+	endpointDb map[string]*OfnetEndpoint
 }
-
 
 // Create new Ofnet master
 func NewOfnetMaster(portNo uint16) *OfnetMaster {
-    // Create the master
-    master := new(OfnetMaster)
+	// Create the master
+	master := new(OfnetMaster)
 
-    // Init params
-    master.agentDb    = make(map[string]*OfnetNode)
-    master.routeDb    = make(map[string]*OfnetRoute)
-    master.macRouteDb = make(map[string]*MacRoute)
+	// Init params
+	master.agentDb = make(map[string]*OfnetNode)
+	master.endpointDb = make(map[string]*OfnetEndpoint)
 
-    // Create a new RPC server
-    master.rpcServer, master.rpcListener = rpcHub.NewRpcServer(portNo)
+	// Create a new RPC server
+	master.rpcServer, master.rpcListener = rpcHub.NewRpcServer(portNo)
 
-    // Register RPC handler
-    err := master.rpcServer.Register(master)
-    if err != nil {
-        log.Fatalf("Error Registering RPC callbacks. Err: %v", err)
-        return nil
-    }
+	// Register RPC handler
+	err := master.rpcServer.Register(master)
+	if err != nil {
+		log.Fatalf("Error Registering RPC callbacks. Err: %v", err)
+		return nil
+	}
 
-    return master
+	return master
 }
 
 // Delete closes rpc listener
 func (self *OfnetMaster) Delete() error {
-    self.rpcListener.Close()
-    time.Sleep(100 * time.Millisecond)
+	self.rpcListener.Close()
+	time.Sleep(100 * time.Millisecond)
 
-    return nil
+	return nil
 }
 
 // Register an agent
 func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
-    // Create a node
-    node := new(OfnetNode)
-    node.HostAddr = hostInfo.HostAddr
-    node.HostPort = hostInfo.HostPort
+	// Create a node
+	node := new(OfnetNode)
+	node.HostAddr = hostInfo.HostAddr
+	node.HostPort = hostInfo.HostPort
 
-    hostKey := fmt.Sprintf("%s:%d", hostInfo.HostAddr, hostInfo.HostPort)
+	hostKey := fmt.Sprintf("%s:%d", hostInfo.HostAddr, hostInfo.HostPort)
 
-    // Add it to DB
-    self.agentDb[hostKey] = node
+	// Add it to DB
+	self.agentDb[hostKey] = node
 
-    log.Infof("Registered node: %+v", node)
+	log.Infof("Registered node: %+v", node)
 
-    // Send all existing routes
-    for _, route := range self.routeDb {
-        if (node.HostAddr != route.OriginatorIp.String()) {
-            var resp bool
+	// Send all existing endpoints to the new node
+	for _, endpoint := range self.endpointDb {
+		if node.HostAddr != endpoint.OriginatorIp.String() {
+			var resp bool
 
-            log.Infof("Sending Route: %+v to node %s", route, node.HostAddr)
+			log.Infof("Sending endpoint: %+v to node %s", endpoint, node.HostAddr)
 
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("Vrouter.RouteAdd", route, &resp)
-            if (err != nil) {
-                log.Errorf("Error adding route to %s. Err: %v", node.HostAddr, err)
-            }
-        }
-    }
+			client := rpcHub.Client(node.HostAddr, node.HostPort)
+			err := client.Call("OfnetAgent.EndpointAdd", endpoint, &resp)
+			if err != nil {
+				log.Errorf("Error adding endpoint to %s. Err: %v", node.HostAddr, err)
+			}
+		}
+	}
 
-    // Send all mac routes
-    for _, macRoute := range self.macRouteDb {
-        if (node.HostAddr != macRoute.OriginatorIp.String()) {
-            var resp bool
-
-            log.Infof("Sending MacRoute: %+v to node %s", macRoute, node.HostAddr)
-
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("Vxlan.MacRouteAdd", macRoute, &resp)
-            if (err != nil) {
-                log.Errorf("Error adding route to %s. Err: %v", node.HostAddr, err)
-            }
-        }
-    }
-
-    return nil
+	return nil
 }
 
-// Add a route
-func (self *OfnetMaster) RouteAdd (route *OfnetRoute, ret *bool) error {
-    // Check if we have the route already and which is more recent
-    oldRoute := self.routeDb[route.IpAddr.String()]
-    if (oldRoute != nil) {
-        // If old route has more recent timestamp, nothing to do
-        if (!route.Timestamp.After(oldRoute.Timestamp)) {
-            return nil
-        }
-    }
+// Add an Endpoint
+func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
+	// Check if we have the endpoint already and which is more recent
+	oldEp := self.endpointDb[ep.EndpointID]
+	if oldEp != nil {
+		// If old endpoint has more recent timestamp, nothing to do
+		if !ep.Timestamp.After(oldEp.Timestamp) {
+			return nil
+		}
+	}
 
-    // Save the route in DB
-    self.routeDb[route.IpAddr.String()] = route
+	// Save the endpoint in DB
+	self.endpointDb[ep.EndpointID] = ep
 
-    // Publish it to all agents except where it came from
-    for _, node := range self.agentDb {
-        if (node.HostAddr != route.OriginatorIp.String()) {
-            var resp bool
+	// Publish it to all agents except where it came from
+	for _, node := range self.agentDb {
+		if node.HostAddr != ep.OriginatorIp.String() {
+			var resp bool
 
-            log.Infof("Sending Route: %+v to node %s", route, node.HostAddr)
+			log.Infof("Sending endpoint: %+v to node %s", ep, node.HostAddr)
 
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("Vrouter.RouteAdd", route, &resp)
-            if (err != nil) {
-                log.Errorf("Error adding route to %s. Err: %v", node.HostAddr, err)
-                return err
-            }
-        }
-    }
+			client := rpcHub.Client(node.HostAddr, node.HostPort)
+			err := client.Call("OfnetAgent.EndpointAdd", ep, &resp)
+			if err != nil {
+				log.Errorf("Error adding endpoint to %s. Err: %v", node.HostAddr, err)
+				return err
+			}
+		}
+	}
 
-    *ret = true
-    return nil
+	*ret = true
+	return nil
 }
 
-// Delete a route
-func (self *OfnetMaster) RouteDel (route *OfnetRoute, ret *bool) error {
-    // Check if we have the route, if we dont have the route, nothing to do
-    oldRoute := self.routeDb[route.IpAddr.String()]
-    if (oldRoute == nil) {
-        return nil
-    }
+// Delete an Endpoint
+func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
+	// Check if we have the endpoint, if we dont have the endpoint, nothing to do
+	oldEp := self.endpointDb[ep.EndpointID]
+	if oldEp == nil {
+		return nil
+	}
 
-    // If existing route has more recent timestamp, nothing to do
-    if (oldRoute.Timestamp.After(route.Timestamp)) {
-        return nil
-    }
+	// If existing endpoint has more recent timestamp, nothing to do
+	if oldEp.Timestamp.After(ep.Timestamp) {
+		return nil
+	}
 
-    // Delete the route from DB
-    delete(self.routeDb, route.IpAddr.String())
+	// Delete the endpoint from DB
+	delete(self.endpointDb, ep.EndpointID)
 
-    // Publish it to all agents except where it came from
-    for _, node := range self.agentDb {
-        if (node.HostAddr != route.OriginatorIp.String()) {
-            var resp bool
+	// Publish it to all agents except where it came from
+	for _, node := range self.agentDb {
+		if node.HostAddr != ep.OriginatorIp.String() {
+			var resp bool
 
-            log.Infof("Sending DELETE Route: %+v to node %s", route, node.HostAddr)
+			log.Infof("Sending DELETE endpoint: %+v to node %s", ep, node.HostAddr)
 
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("Vrouter.RouteDel", route, &resp)
-            if (err != nil) {
-                log.Errorf("Error sending DELERE route to %s. Err: %v", node.HostAddr, err)
-                return err
-            }
-        }
-    }
+			client := rpcHub.Client(node.HostAddr, node.HostPort)
+			err := client.Call("OfnetAgent.EndpointDel", ep, &resp)
+			if err != nil {
+				log.Errorf("Error sending DELERE endpoint to %s. Err: %v", node.HostAddr, err)
+				return err
+			}
+		}
+	}
 
-    *ret = true
-    return nil
-}
-
-
-// Add a mac route
-func (self *OfnetMaster) MacRouteAdd (macRoute *MacRoute, ret *bool) error {
-    // Check if we have the route already and which is more recent
-    oldRoute := self.macRouteDb[macRoute.MacAddrStr]
-    if (oldRoute != nil) {
-        // If old route has more recent timestamp, nothing to do
-        if (!macRoute.Timestamp.After(oldRoute.Timestamp)) {
-            return nil
-        }
-    }
-
-    // Save the route in DB
-    self.macRouteDb[macRoute.MacAddrStr] = macRoute
-
-    // Publish it to all agents except where it came from
-    for _, node := range self.agentDb {
-        if (node.HostAddr != macRoute.OriginatorIp.String()) {
-            var resp bool
-
-            log.Infof("Sending MacRoute: %+v to node %s", macRoute, node.HostAddr)
-
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("Vxlan.MacRouteAdd", macRoute, &resp)
-            if (err != nil) {
-                log.Errorf("Error adding route to %s. Err: %v", node.HostAddr, err)
-                return err
-            }
-        }
-    }
-
-    *ret = true
-    return nil
-}
-
-// Delete a mac route
-func (self *OfnetMaster) MacRouteDel (macRoute *MacRoute, ret *bool) error {
-    // Check if we have the route, if we dont have the route, nothing to do
-    oldRoute := self.macRouteDb[macRoute.MacAddrStr]
-    if (oldRoute == nil) {
-        return nil
-    }
-
-    // If existing route has more recent timestamp, nothing to do
-    if (oldRoute.Timestamp.After(macRoute.Timestamp)) {
-        return nil
-    }
-
-    // Delete the route from DB
-    delete(self.macRouteDb, macRoute.MacAddrStr)
-
-    // Publish it to all agents except where it came from
-    for _, node := range self.agentDb {
-        if (node.HostAddr != macRoute.OriginatorIp.String()) {
-            var resp bool
-
-            log.Infof("Sending DELETE MacRoute: %+v to node %s", macRoute, node.HostAddr)
-
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("Vxlan.MacRouteDel", macRoute, &resp)
-            if (err != nil) {
-                log.Errorf("Error sending DELERE mac route to %s. Err: %v", node.HostAddr, err)
-                return err
-            }
-        }
-    }
-
-    *ret = true
-    return nil
+	*ret = true
+	return nil
 }
 
 // Make a dummy RPC call to all agents. for testing purposes..
 func (self *OfnetMaster) MakeDummyRpcCall() error {
-    // Publish it to all agents except where it came from
-    for _, node := range self.agentDb {
-            var resp bool
-            dummyArg := "dummy string"
+	// Publish it to all agents except where it came from
+	for _, node := range self.agentDb {
+		var resp bool
+		dummyArg := "dummy string"
 
-            log.Infof("Making dummy rpc call to node %+v", node)
+		log.Infof("Making dummy rpc call to node %+v", node)
 
-            client := rpcHub.Client(node.HostAddr, node.HostPort)
-            err := client.Call("OfnetAgent.DummyRpc", &dummyArg, &resp)
-            if (err != nil) {
-                log.Errorf("Error making dummy rpc call to %+v. Err: %v", node, err)
-                return err
-            }
-    }
+		client := rpcHub.Client(node.HostAddr, node.HostPort)
+		err := client.Call("OfnetAgent.DummyRpc", &dummyArg, &resp)
+		if err != nil {
+			log.Errorf("Error making dummy rpc call to %+v. Err: %v", node, err)
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }

@@ -429,14 +429,13 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	return err
 }
 
-// CreateNetworks creates the necessary virtual networks for the tenant
-// provided by ConfigTenant.
-func CreateNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
+// CreateNetwork creates a network from intent
+func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, tenantName string) error {
 	var extPktTag, pktTag uint
 
 	gCfg := gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
-	err := gCfg.Read(tenant.Name)
+	err := gCfg.Read(tenantName)
 	if err != nil {
 		log.Errorf("error reading tenant cfg state. Error: %s", err)
 		return err
@@ -448,116 +447,131 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 	}
 	rm := core.ResourceManager(tempRm)
 
-	err = validateNetworkConfig(tenant)
+	// Create network state
+	nwCfg := &drivers.OvsCfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	if nwCfg.Read(network.Name) == nil {
+		// TODO: check if parameters changed and apply an update if needed
+		return nil
+	}
+
+	// construct and update network state
+	nwMasterCfg := &NwConfig{}
+	nwMasterCfg.StateDriver = stateDriver
+	nwMasterCfg.Tenant = tenantName
+	nwMasterCfg.ID = network.Name
+	nwMasterCfg.PktTagType = network.PktTagType
+	nwMasterCfg.PktTag = network.PktTag
+	nwMasterCfg.SubnetIP, nwMasterCfg.SubnetLen, _ = netutils.ParseCIDR(network.SubnetCIDR)
+	nwMasterCfg.DefaultGw = network.DefaultGw
+
+	nwCfg = &drivers.OvsCfgNetworkState{
+		Tenant:     nwMasterCfg.Tenant,
+		PktTagType: nwMasterCfg.PktTagType,
+		SubnetIP:   nwMasterCfg.SubnetIP,
+		SubnetLen:  nwMasterCfg.SubnetLen,
+	}
+	nwCfg.StateDriver = stateDriver
+	nwCfg.ID = nwMasterCfg.ID
+
+	if nwMasterCfg.PktTagType == "" {
+		nwCfg.PktTagType = gCfg.Deploy.DefaultNetType
+	}
+	if nwMasterCfg.PktTag == "" {
+		if nwCfg.PktTagType == "vlan" {
+			pktTag, err = gCfg.AllocVLAN(rm)
+			if err != nil {
+				return err
+			}
+		} else if nwCfg.PktTagType == "vxlan" {
+			extPktTag, pktTag, err = gCfg.AllocVXLAN(rm)
+			if err != nil {
+				return err
+			}
+		}
+
+		nwCfg.ExtPktTag = int(extPktTag)
+		nwCfg.PktTag = int(pktTag)
+	} else if nwMasterCfg.PktTagType == "vxlan" {
+		// XXX: take local vlan as config, instead of allocating it
+		// independently. Return erro for now, if user tries this config
+		return core.Errorf("Not handled. Need to introduce local-vlan config")
+	} else if nwMasterCfg.PktTagType == "vlan" {
+		nwCfg.PktTag, _ = strconv.Atoi(nwMasterCfg.PktTag)
+		// XXX: do configuration check, to make sure it is allowed
+	}
+
+	subnetIsAllocated := false
+	if nwCfg.SubnetIP == "" {
+		nwCfg.SubnetLen = gCfg.Auto.AllocSubnetLen
+		nwCfg.SubnetIP, err = gCfg.AllocSubnet(rm)
+		if err != nil {
+			return err
+		}
+		subnetIsAllocated = true
+	}
+
+	nwCfg.DefaultGw = network.DefaultGw
+	// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
+	if nwCfg.DefaultGw == "" && subnetIsAllocated {
+		var ipAddrValue uint
+		ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
+		nwCfg.DefaultGw, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
+		if err != nil {
+			return err
+		}
+		nwCfg.IPAllocMap.Set(ipAddrValue)
+	}
+
+	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
+	err = nwCfg.Write()
+	if err != nil {
+		return err
+	}
+
+	err = nwMasterCfg.Write()
+	if err != nil {
+		log.Errorf("error writing nw config. Error: %s", err)
+		return err
+	}
+
+	if nwCfg.PktTagType == "vxlan" {
+
+		readHost := &HostConfig{}
+		readHost.StateDriver = stateDriver
+		hostCfgs, err := readHost.ReadAll()
+		if err != nil {
+			if !strings.Contains(err.Error(), "Key not found") {
+				log.Errorf("error reading hosts during net add. Error: %s", err)
+			}
+		}
+		for _, hostCfg := range hostCfgs {
+			host := hostCfg.(*HostConfig)
+			err = createVtep(stateDriver, host, nwCfg.ID)
+			if err != nil {
+				log.Errorf("error creating vtep. Error: %s", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// CreateNetworks creates the necessary virtual networks for the tenant
+// provided by ConfigTenant.
+func CreateNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
+	// Validate the config
+	err := validateNetworkConfig(tenant)
 	if err != nil {
 		log.Errorf("error validating network config. Error: %s", err)
 		return err
 	}
 
 	for _, network := range tenant.Networks {
-		var subnetIsAllocated bool
-
-		nwCfg := &drivers.OvsCfgNetworkState{}
-		nwCfg.StateDriver = stateDriver
-		if nwCfg.Read(network.Name) == nil {
-			// TODO: check if parameters changed and apply an update if needed
-			continue
-		}
-
-		// construct and update network state
-		nwMasterCfg := &NwConfig{}
-		nwMasterCfg.StateDriver = stateDriver
-		nwMasterCfg.Tenant = tenant.Name
-		nwMasterCfg.ID = network.Name
-		nwMasterCfg.PktTagType = network.PktTagType
-		nwMasterCfg.PktTag = network.PktTag
-		nwMasterCfg.SubnetIP, nwMasterCfg.SubnetLen, _ = netutils.ParseCIDR(network.SubnetCIDR)
-		nwMasterCfg.DefaultGw = network.DefaultGw
-
-		nwCfg = &drivers.OvsCfgNetworkState{Tenant: nwMasterCfg.Tenant,
-			PktTagType: nwMasterCfg.PktTagType,
-			SubnetIP:   nwMasterCfg.SubnetIP, SubnetLen: nwMasterCfg.SubnetLen}
-		nwCfg.StateDriver = stateDriver
-		nwCfg.ID = nwMasterCfg.ID
-
-		if nwMasterCfg.PktTagType == "" {
-			nwCfg.PktTagType = gCfg.Deploy.DefaultNetType
-		}
-		if nwMasterCfg.PktTag == "" {
-			if nwCfg.PktTagType == "vlan" {
-				pktTag, err = gCfg.AllocVLAN(rm)
-				if err != nil {
-					return err
-				}
-			} else if nwCfg.PktTagType == "vxlan" {
-				extPktTag, pktTag, err = gCfg.AllocVXLAN(rm)
-				if err != nil {
-					return err
-				}
-			}
-
-			nwCfg.ExtPktTag = int(extPktTag)
-			nwCfg.PktTag = int(pktTag)
-		} else if nwMasterCfg.PktTagType == "vxlan" {
-			// XXX: take local vlan as config, instead of allocating it
-			// independently. Return erro for now, if user tries this config
-			return core.Errorf("Not handled. Need to introduce local-vlan config")
-		} else if nwMasterCfg.PktTagType == "vlan" {
-			nwCfg.PktTag, _ = strconv.Atoi(nwMasterCfg.PktTag)
-			// XXX: do configuration check, to make sure it is allowed
-		}
-
-		subnetIsAllocated = false
-		if nwCfg.SubnetIP == "" {
-			nwCfg.SubnetLen = gCfg.Auto.AllocSubnetLen
-			nwCfg.SubnetIP, err = gCfg.AllocSubnet(rm)
-			if err != nil {
-				return err
-			}
-			subnetIsAllocated = true
-		}
-
-		nwCfg.DefaultGw = network.DefaultGw
-		// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
-		if nwCfg.DefaultGw == "" && subnetIsAllocated {
-			var ipAddrValue uint
-			ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
-			nwCfg.DefaultGw, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
-			if err != nil {
-				return err
-			}
-			nwCfg.IPAllocMap.Set(ipAddrValue)
-		}
-
-		netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
-		err = nwCfg.Write()
+		err = CreateNetwork(network, stateDriver, tenant.Name)
 		if err != nil {
+			log.Errorf("Error creating network {%+v}. Err: %v", network, err)
 			return err
-		}
-
-		err = nwMasterCfg.Write()
-		if err != nil {
-			log.Errorf("error writing nw config. Error: %s", err)
-			return err
-		}
-
-		if nwCfg.PktTagType == "vxlan" {
-
-			readHost := &HostConfig{}
-			readHost.StateDriver = stateDriver
-			hostCfgs, err := readHost.ReadAll()
-			if err != nil {
-				if !strings.Contains(err.Error(), "Key not found") {
-					log.Errorf("error reading hosts during net add. Error: %s", err)
-				}
-			}
-			for _, hostCfg := range hostCfgs {
-				host := hostCfg.(*HostConfig)
-				err = createVtep(stateDriver, host, nwCfg.ID)
-				if err != nil {
-					log.Errorf("error creating vtep. Error: %s", err)
-				}
-			}
 		}
 	}
 

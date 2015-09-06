@@ -1,0 +1,42 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "volume",
+			"type": "object",
+			"key": [ "tenantName", "volumeName" ],
+			"properties": {
+				"volumeName": {
+					"type": "string",
+					"description": "Volume Name"
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name"
+				},
+				"datastoreType": {
+					"type": "string"
+				},
+				"poolName": {
+					"type": "string"
+				},
+				"size": {
+					"type": "string"
+				},
+				"mountPoint": {
+					"type": "string"
+				}
+			},
+			"link-sets": {
+				"serviceInstances": {
+					"ref": "serviceInstance"
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				}
+			}
+		}
+	]
+}

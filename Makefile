@@ -42,7 +42,7 @@ run-build: deps checks clean
 
 build:
 	make start
-	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/golang/src/github.com/contiv/netplugin && make run-build"'
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	make stop
 
 clean: deps
@@ -87,10 +87,10 @@ unit-test-centos: stop clean
 system-test: system-test-singlehost system-test-multihost
 
 # the `make stop` here and below are necessary because build leaves around a VM (intentionally)
-system-test-singlehost: stop clean build
-	make stop
+system-test-singlehost: stop clean
+	make build stop
 	godep go test -v --timeout 30m -run "sanity" \
-					   github.com/contiv/netplugin/systemtests/singlehost 
+					   github.com/contiv/netplugin/systemtests/singlehost
 
 system-test-multihost: stop clean
 	make build stop
