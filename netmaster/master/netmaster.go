@@ -455,6 +455,8 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 	}
 
 	for _, network := range tenant.Networks {
+		var subnetIsAllocated bool
+
 		nwCfg := &drivers.OvsCfgNetworkState{}
 		nwCfg.StateDriver = stateDriver
 		if nwCfg.Read(network.Name) == nil {
@@ -505,17 +507,26 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 			// XXX: do configuration check, to make sure it is allowed
 		}
 
+		subnetIsAllocated = false
 		if nwCfg.SubnetIP == "" {
 			nwCfg.SubnetLen = gCfg.Auto.AllocSubnetLen
 			nwCfg.SubnetIP, err = gCfg.AllocSubnet(rm)
 			if err != nil {
 				return err
 			}
+			subnetIsAllocated = true
 		}
 
 		nwCfg.DefaultGw = network.DefaultGw
-		if nwCfg.DefaultGw == "" {
-			// TBD: allocate per global policy
+		// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
+		if nwCfg.DefaultGw == "" && subnetIsAllocated {
+			var ipAddrValue uint
+			ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
+			nwCfg.DefaultGw, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
+			if err != nil {
+				return err
+			}
+			nwCfg.IPAllocMap.Set(ipAddrValue)
 		}
 
 		netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
