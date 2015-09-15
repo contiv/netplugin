@@ -70,6 +70,11 @@ func (c *CRT) GetContainerName(contID string) (string, error) {
 	return c.ContainerIf.GetContainerName(contID)
 }
 
+// ExecContainer executes a specified in the container's namespace
+func (c *CRT) ExecContainer(contName string, cmdParams ...string) ([]byte, error) {
+	return c.ContainerIf.ExecContainer(contName, cmdParams...)
+}
+
 // Deinit deinitializes the container interface.
 func (c *CRT) Deinit() {
 	c.ContainerIf.Deinit()
