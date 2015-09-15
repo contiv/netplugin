@@ -1519,4 +1519,4 @@ func TestTwoHostsVxlanMultiAddDelDeltaConfig_sanity(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer2")
 	}()
-}     
+}
