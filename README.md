@@ -2,7 +2,7 @@
 
 ## Netplugin
 
-Generic network plugin (experimental) is designed to handle networking use
+Generic network plugin is designed to handle networking use
 cases in clustered multi-host systems. It is specifically designed to handle:
 
 - Multi-tenant environment where disjoint networks are offered to containers on the same host
@@ -12,22 +12,6 @@ cases in clustered multi-host systems. It is specifically designed to handle:
 - Multicast or multi-destination dependent applications
 - Integration with existing IPAM tools for migrating customers
 - Handle NIC's capabilities for acceleration (SRIOV/Offload/etc.)
-
-The overall design is _not_ assumed to be complete, because of ongoing work in
-the docker community with regards to the suitable APIs to interface with
-network extensions like this. Regardless, flexibility in the design has been
-taken into consideration to allow using a different state driver for key-value
-synchronization, or a different flavor of a soft-switch i.e. linux-bridge, MAC
-VLAN, or OpenvSwitch.
-
-The ability to specify the intent succinctly is the primary goal of the design
-and thus some of the specified user interface will change, and in some cases
-functionality will be enhanced to accommodate the same. Design details and
-future work is captured in a
-[docs/design.md](https://github.com/contiv/netplugin/blob/master/docs/Design.md).
-
-Please do not use this code in production, until code goes through more testing
-and few critical open issues are resolved.
 
 ### Getting Started
 
@@ -74,12 +58,7 @@ $ ping 11.1.0.2
 
 The [docs/TwoHostMultiVlanDemo.md](docs/TwoHostMultiVlanDemo.md) walks through
 setting up a multi host demo network and deploy the following Vlan based
-network: ![VlanNetwork](./docs/VlanNetwork.jpg)
-
-One can deploy the following Vxlan network by following the steps in the above
-demo and using [examples/two_hosts_multiple_vxlan_nets.json](examples/two_hosts_multiple_vxlan_nets.json)
-configuration file instead. Trying out the configuration is left as an exercise
-to the reader.  ![VxlanNetwork](./docs/VxlanNetwork.jpg)
+network.
 
 #### Multi-tenant network
 
@@ -101,13 +80,6 @@ High level `make` targets:
   centos instead of ubuntu.
 * `system-test`: run the networking/"sanity" tests. Specify
   `CONTIV_NODE_OS=centos` to test on centos instead of ubuntu.
-
-#### Resource Allocation
-Various network resources like, IP-Subnets, VLAN/VXLAN-IDs, IP Addresses, can
-be automatically managed or they can be specified at network/endpoint
-granularity. To avoid any conflict with rest of the network, it is encouraged
-to specify the resource ranges, but when not specified, the resource-allocator
-can pick up the default values.
 
 #### Kubernetes Integration
 The plugin code contains the netplugin code that interfaces with kublet to
