@@ -23,7 +23,7 @@ In this example we will simulate a two host cluster (with the two hosts being si
     sudo $GOPATH/bin/netplugin -host-label host2 &
     ```
 
-4. Load the multi-host multi vlan configuration from the [../examples/two_hosts_multiple_vlans_nets.json](../examples/two_hosts_multiple_vlans_nets.json) file by issuing the following commands from one of the vagrant vms.
+3. Load the multi-host multi vlan configuration from the [../examples/two_hosts_multiple_vlans_nets.json](../examples/two_hosts_multiple_vlans_nets.json) file by issuing the following commands from one of the vagrant vms.
 
     ```
     CONTIV_NODES=2 vagrant ssh netplugin-node1
@@ -31,7 +31,7 @@ In this example we will simulate a two host cluster (with the two hosts being si
     netdcli -cfg examples/two_hosts_multiple_vlans_nets.json
     ```
 
-3. Launch 4 containers, two on each vagrant node that we will add to the two networks viz. orange and purple later.
+4. Launch 4 containers, two on each vagrant node that we will add to the two networks viz. orange and purple later.
 
     On netplugin-node1:
     ```
@@ -55,12 +55,16 @@ In this example we will simulate a two host cluster (with the two hosts being si
     $ ping 11.1.0.2
 
     # ping from myContainer2 to myContainer4 should also succeed (both belonging to purple network)
-    $ docker exec -it myContainer1 /bin/bash
+    $ docker exec -it myContainer4 /bin/bash
     < inside the container >
     $ ip addr
     $ ping 11.1.1.2
 
+    # ping between containers belonging to different networks would fail
+    # unless they belong to the same tenant and routing is enabled.
     ```
 
-    Ping between containers belonging to different networks would fail, unless they belong to the same
-    tenant and routing is enabled.
+Trying out VXLAN network is similar, except using [examples/two_hosts_multiple_vxlan_nets.json](examples/two_hosts_multiple_vxlan_nets.json)
+configuration file instead, and it emulates the connectivity as in the following diagram:
+
+![VXLANNetwork](./VxlanNetwork.jpg)
