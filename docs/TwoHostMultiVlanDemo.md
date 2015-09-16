@@ -31,7 +31,7 @@ In this example we will simulate a two host cluster (with the two hosts being si
     netdcli -cfg examples/two_hosts_multiple_vlans_nets.json
     ```
 
-4. Launch 4 containers, two on each vagrant node that we will add to the two networks viz. orange and purple later.
+4. Launch 4 containers, two on each vagrant node that we will add to the two networks viz. orange and purple
 
     On netplugin-node1:
     ```
