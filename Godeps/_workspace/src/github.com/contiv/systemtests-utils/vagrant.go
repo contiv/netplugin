@@ -32,22 +32,27 @@ type Vagrant struct {
 }
 
 // Setup brings up a vagrant testbed
-func (v *Vagrant) Setup(env string, numNodes int) error {
+func (v *Vagrant) Setup(start bool, env string, numNodes int) error {
 	vCmd := &VagrantCommand{ContivNodes: numNodes, ContivEnv: env}
-	output, err := vCmd.RunWithOutput("up")
-	if err != nil {
-		log.Errorf("Vagrant up failed. Error: %s Output: \n%s\n",
-			err, output)
-		return err
-	}
-	v.expectedNodes = numNodes
-	defer func() {
-		if err != nil {
-			v.Teardown()
-		}
-	}()
 
-	output, err = vCmd.RunWithOutput("status")
+	if start {
+		output, err := vCmd.RunWithOutput("up")
+		if err != nil {
+			log.Errorf("Vagrant up failed. Error: %s Output: \n%s\n",
+				err, output)
+			return err
+		}
+
+		defer func() {
+			if err != nil {
+				v.Teardown()
+			}
+		}()
+	}
+
+	v.expectedNodes = numNodes
+
+	output, err := vCmd.RunWithOutput("status")
 	if err != nil {
 		log.Errorf("Vagrant status failed. Error: %s Output: \n%s\n",
 			err, output)

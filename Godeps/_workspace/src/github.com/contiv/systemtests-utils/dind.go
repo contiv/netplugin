@@ -29,26 +29,29 @@ type Dind struct {
 }
 
 // Setup brings up a dind testbed
-func (v *Dind) Setup(env string, numNodes int) error {
-
+func (v *Dind) Setup(start bool, env string, numNodes int) error {
 	err := os.Chdir(os.Getenv("CONTIV_HOST_GOPATH") + "/src/github.com/contiv/netplugin")
 	if err != nil {
 		log.Errorf("chDir failed. Error: %s ",
 			err)
 	}
-	cmd := &TestCommand{ContivNodes: numNodes, ContivEnv: env}
-	output, err := cmd.RunWithOutput("scripts/dockerhost/start-dockerhosts")
-	if err != nil {
-		log.Errorf("start-dockerhosts failed. Error: %s Output: \n%s\n",
-			err, output)
-		return err
-	}
-	v.expectedNodes = numNodes
-	defer func() {
+
+	if start {
+		cmd := &TestCommand{ContivNodes: numNodes, ContivEnv: env}
+		output, err := cmd.RunWithOutput("scripts/dockerhost/start-dockerhosts")
 		if err != nil {
-			v.Teardown()
+			log.Errorf("start-dockerhosts failed. Error: %s Output: \n%s\n",
+				err, output)
+			return err
 		}
-	}()
+		defer func() {
+			if err != nil {
+				v.Teardown()
+			}
+		}()
+	}
+
+	v.expectedNodes = numNodes
 
 	// TODO : Check if expected nodes docker containers are running
 	// TODO : Find names of docker hosts using Docker API
