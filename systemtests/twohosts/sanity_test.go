@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/contiv/netplugin/systemtests/utils"
 	u "github.com/contiv/netplugin/utils"
+	utils "github.com/contiv/systemtests-utils"
 )
 
 func TestTwoHostsSingleVlanPingSuccess_sanity(t *testing.T) {

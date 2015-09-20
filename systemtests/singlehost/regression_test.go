@@ -19,8 +19,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/contiv/netplugin/systemtests/utils"
 	u "github.com/contiv/netplugin/utils"
+	utils "github.com/contiv/systemtests-utils"
 )
 
 func TestOneHostMultipleNets_regress(t *testing.T) {
