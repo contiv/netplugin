@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -51,6 +52,63 @@ func TestSetGet(t *testing.T) {
 	if err := client.DelObj("/contiv.io/test"); err != nil {
 		t.Fatalf("Fatal deleting test object. Err: %v", err)
 	}
+
+	fmt.Printf("Set/Get/Del test successful\n")
+}
+
+func TestSetGetPerformance(t *testing.T) {
+	// Set
+	setVal := JsonObj{
+		Value: "test1",
+	}
+	var retVal JsonObj
+
+	const testCount = 100
+
+	log.Infof("Performing %d write tests", testCount)
+
+	startTime := time.Now()
+
+	for i := 0; i < testCount; i++ {
+		if err := client.SetObj("/contiv.io/test"+strconv.Itoa(i), setVal); err != nil {
+			fmt.Printf("Fatal setting key. Err: %v\n", err)
+			t.Fatalf("Fatal setting key")
+		}
+	}
+
+	timeTook := time.Since(startTime).Nanoseconds() / 1000000
+	log.Infof("Write Test took %d milli seconds per write. %d ms total", timeTook/testCount, timeTook)
+
+	log.Infof("Performing %d read tests", testCount)
+
+	// Get test
+	startTime = time.Now()
+
+	for i := 0; i < testCount; i++ {
+		if err := client.GetObj("/contiv.io/test"+strconv.Itoa(i), &retVal); err != nil {
+			fmt.Printf("Fatal getting key. Err: %v\n", err)
+			t.Fatalf("Fatal getting key")
+		}
+
+		if retVal.Value != "test1" {
+			fmt.Printf("Got invalid response: %+v\n", retVal)
+			t.Fatalf("Got invalid response")
+		}
+	}
+
+	timeTook = time.Since(startTime).Nanoseconds() / 1000000
+	log.Infof("Read Test took %d milli seconds per read. %d ms total", timeTook/testCount, timeTook)
+
+	startTime = time.Now()
+
+	for i := 0; i < testCount; i++ {
+		if err := client.DelObj("/contiv.io/test" + strconv.Itoa(i)); err != nil {
+			t.Fatalf("Fatal deleting test object. Err: %v", err)
+		}
+	}
+
+	timeTook = time.Since(startTime).Nanoseconds() / 1000000
+	log.Infof("Delete Test took %d milli seconds per delete. %d ms total", timeTook/testCount, timeTook)
 
 	fmt.Printf("Set/Get/Del test successful\n")
 }

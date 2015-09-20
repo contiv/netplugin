@@ -303,7 +303,7 @@ func (self *ApiController) ServiceCreate(service *contivModel.Service) error {
 	}
 
 	// Create service instances
-	for idx := int64(0); idx < service.Scale; idx++ {
+	for idx := 0; idx < service.Scale; idx++ {
 		instId := fmt.Sprintf("%d", idx+1)
 		var volumes []string
 

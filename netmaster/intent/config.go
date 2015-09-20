@@ -61,6 +61,7 @@ type ConfigNetwork struct {
 type ConfigTenant struct {
 	Name           string
 	DefaultNetType string
+	DefaultNetwork string
 	SubnetPool     string
 	AllocSubnetLen uint
 	VLANs          string

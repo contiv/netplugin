@@ -328,3 +328,84 @@ func TestInvalidGlobalConfig(t *testing.T) {
 			cfgData)
 	}
 }
+
+func TestDefaultNetwork(t *testing.T) {
+	cfgData := []byte(`
+        {
+            "Tenant"  : "default",
+            "Auto" : {
+                "SubnetPool"        : "11.1.0.0",
+                "SubnetLen"         : 16,
+                "AllocSubnetLen"    : 24,
+                "VLANs"             : "100-400"
+            },
+            "Deploy" : {
+                "DefaultNetType"    : "vlan",
+                "DefaultNetwork"    : "purple"
+            }
+        }`)
+
+	gc, err := Parse(cfgData)
+	if err != nil {
+		t.Fatalf("Error: was able to parse config '%s'", cfgData)
+	}
+
+	gstateSD.Init(nil)
+	defer func() { gstateSD.Deinit() }()
+	gc.StateDriver = gstateSD
+
+	defName, err := gc.AssignDefaultNetwork("orange")
+	if err != nil {
+		t.Fatalf("Error: '%s' unable to assign default network '%s'", err, cfgData)
+	}
+
+	if defName != "purple" {
+		t.Fatalf("Error: assigned invalid default network '%s' cfg '%s'", defName, cfgData)
+	}
+
+	if err := gc.UnassignNetwork("orange"); err != nil {
+		t.Fatalf("Error: '%s' could unassign a network that was not default network", err)
+	}
+
+	if err := gc.UnassignNetwork("purple"); err != nil {
+		t.Fatalf("Error: '%s' could not unassign default network", err)
+	}
+}
+
+func TestAutoDefaultNetwork(t *testing.T) {
+	cfgData := []byte(`
+        {
+            "Tenant"  : "default",
+            "Auto" : {
+                "SubnetPool"        : "11.1.0.0",
+                "SubnetLen"         : 16,
+                "AllocSubnetLen"    : 24,
+                "VLANs"             : "100-400"
+            },
+            "Deploy" : {
+                "DefaultNetType"    : "vlan"
+            }
+        }`)
+
+	gc, err := Parse(cfgData)
+	if err != nil {
+		t.Fatalf("Error: was able to parse config '%s'", cfgData)
+	}
+
+	gstateSD.Init(nil)
+	defer func() { gstateSD.Deinit() }()
+	gc.StateDriver = gstateSD
+
+	defName, err := gc.AssignDefaultNetwork("orange")
+	if err != nil {
+		t.Fatalf("Error: '%s' unable to assign default network '%s'", err, cfgData)
+	}
+
+	if defName != "orange" {
+		t.Fatalf("Error: assigned invalid default network '%s' cfg '%s'", defName, cfgData)
+	}
+
+	if err := gc.UnassignNetwork("orange"); err != nil {
+		t.Fatalf("Error: '%s' could not unassign default network", err)
+	}
+}

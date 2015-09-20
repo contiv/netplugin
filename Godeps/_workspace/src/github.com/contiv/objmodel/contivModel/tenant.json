@@ -27,6 +27,11 @@
 				"vxlans": {
 					"type": "string",
 					"format": "^([0-9]{1,8}?-[0-9]{1,8}?)$"
+				},
+				"defaultNetwork": {
+					"type" : "string",
+					"title": "Network name",
+					"length": 64
 				}
 			},
 			"link-sets": {

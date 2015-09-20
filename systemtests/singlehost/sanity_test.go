@@ -17,6 +17,7 @@ package singlehost
 
 import (
 	"testing"
+	"time"
 
 	"github.com/contiv/netplugin/systemtests/utils"
 	u "github.com/contiv/netplugin/utils"
@@ -193,4 +194,73 @@ func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
 	}()
+}
+
+// Default Network Assignment and freeing
+func TestSingleHostDefaultNetwork_sanity(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
+		utils.StopOnError(t.Failed())
+	}()
+
+	//create a single vlan network, with two endpoints
+	jsonCfg :=
+		`{
+        "Tenants" : [ {
+            "Name"                      : "tee-one",
+            "DefaultNetType"            : "vlan",
+            "DefaultNetwork"            : "orange",
+            "SubnetPool"                : "100.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "Vlans"                     : "11-48",
+            "Networks"  : [ {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host1"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
+
+	node := testbed.GetNodes()[0]
+
+	utils.StartServer(t, node, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(t, node, "myContainer1")
+	}()
+
+	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
+	utils.StartClientFailure(t, node, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node, "myContainer2")
+	}()
+
+	jsonCfg = `
+    {
+      "Tenants" : [ {
+        "Name"                      : "tee-one",
+        "Networks"  : [ {
+          "Name"                  : "orange"
+        } ]
+      } ]
+    }`
+
+	// deletion would result into unassignment
+	utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
+	time.Sleep(1 * time.Second)
+	if utils.NetworkStateExists(node, "orange", "") == nil {
+		t.Fatalf("Error - network %s doesn't seem to be deleted \n", "green")
+	}
 }

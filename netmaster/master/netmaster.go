@@ -49,29 +49,25 @@ func validateTenantConfig(tenant *intent.ConfigTenant) error {
 		return core.Errorf("invalid tenant name")
 	}
 
-	err := checkPktTagType(tenant.DefaultNetType)
-	if err != nil {
+	if err := checkPktTagType(tenant.DefaultNetType); err != nil {
 		return err
 	}
 
 	if tenant.SubnetPool != "" {
-		_, _, err = net.ParseCIDR(tenant.SubnetPool)
-		if err != nil {
+		if _, _, err := net.ParseCIDR(tenant.SubnetPool); err != nil {
 			return err
 		}
 	}
 
 	if tenant.VLANs != "" {
-		_, err = netutils.ParseTagRanges(tenant.VLANs, "vlan")
-		if err != nil {
+		if _, err := netutils.ParseTagRanges(tenant.VLANs, "vlan"); err != nil {
 			log.Errorf("error parsing vlan range '%s'. Error: %s", tenant.VLANs, err)
 			return err
 		}
 	}
 
 	if tenant.VXLANs != "" {
-		_, err = netutils.ParseTagRanges(tenant.VXLANs, "vxlan")
-		if err != nil {
+		if _, err := netutils.ParseTagRanges(tenant.VXLANs, "vxlan"); err != nil {
 			log.Errorf("error parsing vxlan range '%s'.Error: %s", tenant.VXLANs, err)
 			return err
 		}
@@ -99,6 +95,7 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 	gCfg.Version = gstate.VersionBeta1
 	gCfg.Tenant = tenant.Name
 	gCfg.Deploy.DefaultNetType = tenant.DefaultNetType
+	gCfg.Deploy.DefaultNetwork = tenant.DefaultNetwork
 	gCfg.Auto.SubnetPool, gCfg.Auto.SubnetLen, _ = netutils.ParseCIDR(tenant.SubnetPool)
 	gCfg.Auto.VLANs = tenant.VLANs
 	gCfg.Auto.VXLANs = tenant.VXLANs
@@ -511,16 +508,24 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		subnetIsAllocated = true
 	}
 
-	nwCfg.DefaultGw = network.DefaultGw
-	// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
-	if nwCfg.DefaultGw == "" && subnetIsAllocated {
-		var ipAddrValue uint
-		ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
-		nwCfg.DefaultGw, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
-		if err != nil {
-			return err
+	defaultNwName, err := gCfg.AssignDefaultNetwork(network.Name)
+	if err != nil {
+		log.Errorf("error assigning the default network. Error: %s", err)
+		return err
+	}
+
+	if network.Name == defaultNwName {
+		nwCfg.DefaultGw = network.DefaultGw
+		// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
+		if nwCfg.DefaultGw == "" && subnetIsAllocated {
+			var ipAddrValue uint
+			ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
+			nwCfg.DefaultGw, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
+			if err != nil {
+				return err
+			}
+			nwCfg.IPAllocMap.Set(ipAddrValue)
 		}
-		nwCfg.IPAllocMap.Set(ipAddrValue)
 	}
 
 	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
@@ -606,6 +611,10 @@ func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *NwConfig,
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := gCfg.UnassignNetwork(nwMasterCfg.ID); err != nil {
+		return err
 	}
 
 	return err
