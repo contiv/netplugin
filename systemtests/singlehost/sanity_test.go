@@ -16,6 +16,7 @@ limitations under the License.
 package singlehost
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -247,12 +248,25 @@ func TestSingleHostDefaultNetwork_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer2")
 	}()
 
+	// confirm the default gateway in one of the containers
+	output, err := node.RunCommandWithOutput("docker exec myContainer1 /sbin/ip route")
+	if err != nil {
+		t.Fatalf("Error - unable to get default ip route, output = '%s'", output)
+	}
+	if !strings.Contains(output, "default via 100.1.0.254") {
+		t.Fatalf("Error - unable to confirm container's default ip route, output = '%s'", output)
+	}
+
 	jsonCfg = `
     {
       "Tenants" : [ {
         "Name"                      : "tee-one",
         "Networks"  : [ {
-          "Name"                  : "orange"
+          "Name"                    : "orange",
+          "Endpoints" : [ {
+            "Container"             : "myContainer1",
+            "Host"                  : "host1"
+          } ]
         } ]
       } ]
     }`
@@ -260,7 +274,14 @@ func TestSingleHostDefaultNetwork_sanity(t *testing.T) {
 	// deletion would result into unassignment
 	utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
 	time.Sleep(1 * time.Second)
-	if utils.NetworkStateExists(node, "orange", "") == nil {
-		t.Fatalf("Error - network %s doesn't seem to be deleted \n", "green")
+
+	// confirm the default gateway in one of the containers
+	output, err = node.RunCommandWithOutput("docker exec myContainer1 /sbin/ip route")
+	if err != nil {
+		t.Fatalf("Error - unable to get default ip route, output = '%s'", output)
 	}
+	if strings.Contains(output, "default via 100.1.0.254") {
+		t.Fatalf("Error - able to still find the default rout after network is deleted output = '%s'", output)
+	}
+
 }
