@@ -29,9 +29,9 @@ $ cd netplugin; make build demo ssh
 #### Step 2: Inside the VM, boot `netmaster` and `netplugin`
 
 ```
-$ cd /opt/golang/src/github.com/contiv/netplugin
-$ sudo bin/netmaster &
-$ sudo bin/netplugin -host-label host1 &
+$ cd /opt/gopath/src/github.com/contiv/netplugin
+$ sudo $GOPATH/bin/netmaster &
+$ sudo $GOPATH/bin/netplugin -host-label host1 &
 ```
 
 #### Step 3: Upload your intent, which we take from the `examples/` directory
