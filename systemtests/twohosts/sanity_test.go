@@ -16,11 +16,10 @@ limitations under the License.
 package twohosts
 
 import (
-	"testing"
-	"time"
-
 	"github.com/contiv/netplugin/systemtests/utils"
 	u "github.com/contiv/netplugin/utils"
+	"testing"
+	"time"
 )
 
 func TestTwoHostsSingleVlanPingSuccess_sanity(t *testing.T) {
@@ -311,7 +310,7 @@ func TestTwoHostsMultiVxlanPingSuccess_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -389,7 +388,7 @@ func TestTwoHostsMultiVxlanPingSuccessConsul_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -467,7 +466,7 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStart_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -566,7 +565,7 @@ func TestTwoHostsMultiVxlanPingSuccessStatefulStartConsul_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -666,7 +665,7 @@ func TestTwoHostsMultiVxlanPingFailure_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -739,7 +738,7 @@ func TestTwoHostsMultiVxlanPingFailureStatefulStart_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -831,7 +830,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -902,7 +901,7 @@ func TestTwoHostsVxlanDeltaConfig_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -965,7 +964,7 @@ func TestTwoHostsVxlanAddDelEp_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -1108,7 +1107,7 @@ func TestTwoHostsVxlanAddDelNetwork_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -1246,7 +1245,7 @@ func TestTwoHostsVxlanAddDelNetworkConsul_sanity(t *testing.T) {
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
             "VXlans"                    : "10001-11000",
-            "Networks"  : [ 
+            "Networks"  : [
             {
                 "Name"                  : "orange",
                 "Endpoints" : [
@@ -1434,7 +1433,7 @@ func TestTwoHostsVxlanMultiAddDelDeltaConfig_sanity(t *testing.T) {
             "DefaultNetType"            : "vxlan",
             "SubnetPool"                : "11.1.0.0/16",
             "AllocSubnetLen"            : 24,
-            "VXlans"                    : "10001-14000",
+            "VXlans"                    : "10001-11000",
             "Networks"  : [
             {
                 "Name"                  : "orange",
@@ -1489,6 +1488,7 @@ func TestTwoHostsVxlanMultiAddDelDeltaConfig_sanity(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node2, "myContainer4")
 	}()
+
 	for i := 0; i < 5; i++ {
 		jsonCfg =
 			`{
@@ -1505,14 +1505,13 @@ func TestTwoHostsVxlanMultiAddDelDeltaConfig_sanity(t *testing.T) {
             } ]
         } ]
         }`
-		utils.AddConfig(t, jsonCfg, testbed.GetNodes()[0])
-
-		ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 		utils.DockerCleanup(t, node2, "myContainer2")
+		utils.AddConfig(t, jsonCfg, testbed.GetNodes()[0])
+		ipAddress = utils.GetIPAddress(t, node1, "purple-myContainer3", u.EtcdNameStr)
 		utils.StartClient(t, node2, "myContainer2", ipAddress)
 
-		utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
 		utils.DockerCleanup(t, node2, "myContainer2")
+		utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
 		ipAddress := utils.GetIPAddress(t, node1, "orange-myContainer1", u.EtcdNameStr)
 		utils.StartClient(t, node2, "myContainer2", ipAddress)
 	}
