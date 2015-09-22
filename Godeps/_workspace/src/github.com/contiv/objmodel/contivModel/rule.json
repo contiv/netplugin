@@ -4,9 +4,9 @@
 		{
 			"name": "rule",
 			"type": "object",
-			"key": [ "tenantName", "policyName", "ruleName" ],
+			"key": [ "tenantName", "policyName", "ruleId" ],
 			"properties": {
-				"ruleName": {
+				"ruleId": {
 					"type": "string",
 					"title": "Rule Name",
 					"length": 64
@@ -23,7 +23,13 @@
 				},
 				"direction": {
 					"type": "string",
-					"format": "^(in|out)$"
+					"format": "^(in|out|both)$"
+				},
+				"priority": {
+					"type": "int",
+					"min": 1,
+					"max": 100,
+					"default": "1"
 				},
 				"endpointGroup": {
 					"type": "string",
@@ -38,11 +44,15 @@
 				},
 				"protocol": {
 					"type": "string",
-					"format": "^(tcp|udp|icmp|[0-9]{1,3}?)$"
+					"format": "^(tcp|udp|icmp||[0-9]{1,3}?)$"
 				},
 				"port": {
 					"type": "int",
 					"max": 65535
+				},
+				"action": {
+					"type": "string",
+					"format": "^(accept|deny)$"
 				}
 			},
 			"link-sets": {

@@ -16,7 +16,9 @@ limitations under the License.
 package singlehost
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	u "github.com/contiv/netplugin/utils"
 	utils "github.com/contiv/systemtests-utils"
@@ -193,4 +195,93 @@ func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
 	}()
+}
+
+// Default Network Assignment and freeing
+func TestSingleHostDefaultNetwork_sanity(t *testing.T) {
+	defer func() {
+		utils.ConfigCleanupCommon(t, testbed.GetNodes())
+		utils.StopOnError(t.Failed())
+	}()
+
+	//create a single vlan network, with two endpoints
+	jsonCfg :=
+		`{
+        "Tenants" : [ {
+            "Name"                      : "tee-one",
+            "DefaultNetType"            : "vlan",
+            "DefaultNetwork"            : "orange",
+            "SubnetPool"                : "100.1.0.0/16",
+            "AllocSubnetLen"            : 24,
+            "Vlans"                     : "11-48",
+            "Networks"  : [ {
+                "Name"                  : "orange",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer1",
+                    "Host"              : "host1"
+                } ]
+            },
+            {
+                "Name"                  : "purple",
+                "Endpoints" : [
+                {
+                    "Container"         : "myContainer2",
+                    "Host"              : "host1"
+                } ]
+            } ]
+        } ]
+        }`
+
+	utils.ConfigSetupCommon(t, jsonCfg, testbed.GetNodes())
+
+	node := testbed.GetNodes()[0]
+
+	utils.StartServer(t, node, "myContainer1")
+	defer func() {
+		utils.DockerCleanup(t, node, "myContainer1")
+	}()
+
+	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
+	utils.StartClientFailure(t, node, "myContainer2", ipAddress)
+	defer func() {
+		utils.DockerCleanup(t, node, "myContainer2")
+	}()
+
+	// confirm the default gateway in one of the containers
+	output, err := node.RunCommandWithOutput("docker exec myContainer1 /sbin/ip route")
+	if err != nil {
+		t.Fatalf("Error - unable to get default ip route, output = '%s'", output)
+	}
+	if !strings.Contains(output, "default via 100.1.0.254") {
+		t.Fatalf("Error - unable to confirm container's default ip route, output = '%s'", output)
+	}
+
+	jsonCfg = `
+    {
+      "Tenants" : [ {
+        "Name"                      : "tee-one",
+        "Networks"  : [ {
+          "Name"                    : "orange",
+          "Endpoints" : [ {
+            "Container"             : "myContainer1",
+            "Host"                  : "host1"
+          } ]
+        } ]
+      } ]
+    }`
+
+	// deletion would result into unassignment
+	utils.DelConfig(t, jsonCfg, testbed.GetNodes()[0])
+	time.Sleep(1 * time.Second)
+
+	// confirm the default gateway in one of the containers
+	output, err = node.RunCommandWithOutput("docker exec myContainer1 /sbin/ip route")
+	if err != nil {
+		t.Fatalf("Error - unable to get default ip route, output = '%s'", output)
+	}
+	if strings.Contains(output, "default via 100.1.0.254") {
+		t.Fatalf("Error - able to still find the default rout after network is deleted output = '%s'", output)
+	}
+
 }

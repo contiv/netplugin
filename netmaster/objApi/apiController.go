@@ -382,7 +382,7 @@ func (ac *APIController) ServiceCreate(service *contivModel.Service) error {
 	}
 
 	// Create service instances
-	for idx := int64(0); idx < service.Scale; idx++ {
+	for idx := int(0); idx < service.Scale; idx++ {
 		instID := fmt.Sprintf("%d", idx+1)
 		var volumes []string
 
@@ -503,6 +503,7 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 	tenantCfg := intent.ConfigTenant{
 		Name:           tenant.TenantName,
 		DefaultNetType: "vlan",
+		DefaultNetwork: tenant.DefaultNetwork,
 		SubnetPool:     tenant.SubnetPool,
 		AllocSubnetLen: uint(tenant.SubnetLen),
 		VLANs:          tenant.Vlans,

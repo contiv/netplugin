@@ -17,6 +17,9 @@
 				"networkName": {
 					"type": "string"
 				},
+				"endpointGroupId": {
+					"type": "int"
+				},
 				"policies": {
 					"type": "array",
 					"items": "string"

@@ -57,6 +57,7 @@ type AutoParams struct {
 // DeployParams specifies parameters that decides the deployment choices
 type DeployParams struct {
 	DefaultNetType string `json:"defaultNetType"`
+	DefaultNetwork string `json:"defaultNetwork"`
 }
 
 // Cfg is the configuration of a tenant.
@@ -72,6 +73,7 @@ type Cfg struct {
 type Oper struct {
 	core.CommonState
 	Tenant          string `json:"tenant"`
+	DefaultNetwork  string `json:"defaultNetwork"`
 	FreeVXLANsStart uint   `json:"freeVXLANsStart"`
 }
 
@@ -424,5 +426,56 @@ func (gc *Cfg) Process(ra core.ResourceManager) error {
 	}
 
 	log.Debugf("updating the global config to new state %v \n", gc)
+	return nil
+}
+
+// AssignDefaultNetwork assigns a default network for a tenant based on the configuration
+// in case configuration is absent it uses the provided network name to be the default
+// network. It records the default network in oper state (derived or configured)
+func (gc *Cfg) AssignDefaultNetwork(networkName string) (string, error) {
+	g := &Oper{}
+	g.StateDriver = gc.StateDriver
+	if err := g.Read(gc.Tenant); core.ErrIfKeyExists(err) != nil {
+		return "", err
+	}
+	if g.DefaultNetwork != "" {
+		return "", nil
+	}
+
+	if gc.Deploy.DefaultNetwork != "" {
+		g.DefaultNetwork = gc.Deploy.DefaultNetwork
+	} else {
+		// not checking if this network exists within a tenant
+		g.DefaultNetwork = networkName
+	}
+
+	if err := g.Write(); err != nil {
+		log.Errorf("error '%s' updating goper state %v \n", err, g)
+		return "", err
+	}
+
+	return g.DefaultNetwork, nil
+}
+
+// UnassignNetwork clears the oper state w.r.t. default network name
+func (gc *Cfg) UnassignNetwork(networkName string) error {
+	if networkName == "" {
+		return nil
+	}
+
+	g := &Oper{}
+	g.StateDriver = gc.StateDriver
+	if err := g.Read(gc.Tenant); core.ErrIfKeyExists(err) != nil {
+		return err
+	}
+
+	if networkName == g.DefaultNetwork {
+		g.DefaultNetwork = ""
+		if err := g.Write(); err != nil {
+			log.Errorf("error '%s' updating goper state %v \n", err, g)
+			return err
+		}
+	}
+
 	return nil
 }
