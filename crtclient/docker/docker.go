@@ -373,3 +373,15 @@ func (d *Docker) GetContainerName(contID string) (string, error) {
 
 	return contInfo.Name, nil
 }
+
+// ExecContainer executes a specified in the container's namespace
+func (d *Docker) ExecContainer(contName string, cmdParams ...string) ([]byte, error) {
+	newCmdParams := append([]string{"exec", contName}, cmdParams...)
+	output, err := exec.Command("docker", newCmdParams...).CombinedOutput()
+	if err != nil {
+		log.Errorf("Unable to execute in container namespace. Cmd: %v Error: %s Output: \n%s\n", newCmdParams, err, output)
+		return nil, err
+	}
+
+	return output, err
+}

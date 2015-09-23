@@ -42,4 +42,5 @@ type ContainerIf interface {
 	DetachEndpoint(ctx *ContainerEPContext) error
 	GetContainerID(contName string) string
 	GetContainerName(contName string) (string, error)
+	ExecContainer(contName string, cmdString ...string) ([]byte, error)
 }
