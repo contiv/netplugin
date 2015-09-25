@@ -66,15 +66,23 @@ type OfnetAgent struct {
 
 // local End point information
 type EndpointInfo struct {
-	PortNo  uint32
-	MacAddr net.HardwareAddr
-	Vlan    uint16
-	IpAddr  net.IP
+	PortNo        uint32
+	EndpointGroup int
+	MacAddr       net.HardwareAddr
+	Vlan          uint16
+	IpAddr        net.IP
 }
 
-const FLOW_MATCH_PRIORITY = 100 // Priority for all match flows
-const FLOW_FLOOD_PRIORITY = 10  // Priority for flood entries
-const FLOW_MISS_PRIORITY = 1    // priority for table miss flow
+const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
+const FLOW_FLOOD_PRIORITY = 10         // Priority for flood entries
+const FLOW_MISS_PRIORITY = 1           // priority for table miss flow
+const FLOW_POLICY_PRIORITY_OFFSET = 10 // Priority offset for policy rules
+
+const VLAN_TBL_ID = 1
+const DST_GRP_TBL_ID = 2
+const POLICY_TBL_ID = 3
+const IP_TBL_ID = 4
+const MAC_DEST_TBL_ID = 5
 
 // Create a new Ofnet agent and initialize it
 func NewOfnetAgent(dpName string, localIp net.IP, rpcPort uint16, ovsPort uint16) (*OfnetAgent, error) {
@@ -185,6 +193,17 @@ func (self *OfnetAgent) IsSwitchConnected() bool {
 	return self.isConnected
 }
 
+// WaitForSwitchConnection wait till switch connects
+func (self *OfnetAgent) WaitForSwitchConnection() {
+	// Wait for a while for OVS switch to connect to ofnet agent
+	for i := 0; i < 20; i++ {
+		time.Sleep(1 * time.Second)
+		if self.IsSwitchConnected() {
+			break
+		}
+	}
+}
+
 // Receive a packet from the switch.
 func (self *OfnetAgent) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 	log.Infof("Packet received from switch %v. Packet: %+v", sw.DPID(), pkt)
@@ -218,7 +237,7 @@ func (self *OfnetAgent) AddMaster(masterInfo *OfnetNode, ret *bool) error {
 	// Register the agent with the master
 	err := rpcHub.Client(master.HostAddr, master.HostPort).Call("OfnetMaster.RegisterNode", &myInfo, &resp)
 	if err != nil {
-		log.Fatalf("Failed to register with the master %+v. Err: %v", master, err)
+		log.Errorf("Failed to register with the master %+v. Err: %v", master, err)
 		return err
 	}
 
@@ -277,16 +296,17 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 
 	// Build endpoint registry info
 	epreg := &OfnetEndpoint{
-		EndpointID:   epId,
-		EndpointType: "internal",
-		IpAddr:       endpoint.IpAddr,
-		VrfId:        0, // FIXME set VRF correctly
-		MacAddrStr:   endpoint.MacAddr.String(),
-		Vlan:         endpoint.Vlan,
-		Vni:          *vni,
-		OriginatorIp: self.localIp,
-		PortNo:       endpoint.PortNo,
-		Timestamp:    time.Now(),
+		EndpointID:    epId,
+		EndpointType:  "internal",
+		EndpointGroup: endpoint.EndpointGroup,
+		IpAddr:        endpoint.IpAddr,
+		VrfId:         0, // FIXME set VRF correctly
+		MacAddrStr:    endpoint.MacAddr.String(),
+		Vlan:          endpoint.Vlan,
+		Vni:           *vni,
+		OriginatorIp:  self.localIp,
+		PortNo:        endpoint.PortNo,
+		Timestamp:     time.Now(),
 	}
 
 	// Call the datapath
@@ -418,7 +438,7 @@ func (self *OfnetAgent) RemoveVlan(vlanId uint16, vni uint32) error {
 
 // Add remote endpoint RPC call from master
 func (self *OfnetAgent) EndpointAdd(epreg *OfnetEndpoint, ret *bool) error {
-	log.Infof("EndpointAdd rpc call for endpoint: %+v", epreg)
+	log.Infof("EndpointAdd rpc call for endpoint: %+v. localIp: %v", epreg, self.localIp)
 
 	// If this is a local endpoint we are done
 	if epreg.OriginatorIp.String() == self.localIp.String() {

@@ -39,6 +39,7 @@ host-build:
 
 run-build: deps checks clean
 	godep go install -v $(TO_BUILD)
+	cp ./scripts/python/contivctl.py $(GOPATH)/bin/contivctl
 
 build:
 	make start

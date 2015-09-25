@@ -291,9 +291,6 @@ func (sw *OvsSwitch) AddPeer(vtepIP string) error {
 		}
 	}
 
-	// Wait a little for OVS to create the interface
-	time.Sleep(300 * time.Millisecond)
-
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
 	if err != nil {

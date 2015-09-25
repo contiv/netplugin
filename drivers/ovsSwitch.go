@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/ofnet"
 
@@ -36,7 +37,6 @@ type OvsSwitch struct {
 	netType     string
 	ovsdbDriver *OvsdbDriver
 	ofnetAgent  *ofnet.OfnetAgent
-	ofnetMaster *ofnet.OfnetMaster
 }
 
 // NewOvsSwitch Creates a new OVS switch instance
@@ -61,13 +61,6 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 
 	// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
 	if netType == "vxlan" {
-		// Create ofnet master
-		// FIXME: Move ofnet master to netmaster.
-		sw.ofnetMaster = ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
-		if sw.ofnetMaster == nil {
-			log.Fatalf("Error creating ofnet master")
-		}
-
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
 			ofnet.OFNET_AGENT_PORT, 6633)
@@ -88,31 +81,12 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 			}
 		}
 
-		// Wait a little for master to be ready before we connect
-		time.Sleep(300 * time.Millisecond)
-
-		// Let local ofnet agent connect to local master too.
-		var resp bool
-		masterInfo := ofnet.OfnetNode{
-			HostAddr: localIP,
-			HostPort: ofnet.OFNET_MASTER_PORT,
-		}
-		err = sw.ofnetAgent.AddMaster(&masterInfo, &resp)
-		if err != nil {
-			log.Errorf("Error adding %s as ofnet master. Err: %v", localIP, err)
-		}
-
 		log.Infof("Waiting for OVS switch to connect..")
 
 		// Wait for a while for OVS switch to connect to ofnet agent
-		for i := 0; i < 10; i++ {
-			time.Sleep(1 * time.Second)
-			if sw.ofnetAgent.IsSwitchConnected() {
-				break
-			}
-		}
+		sw.ofnetAgent.WaitForSwitchConnection()
 
-		log.Infof("Switch connected.")
+		log.Infof("Switch (vxlan) connected.")
 	}
 
 	return sw, nil
@@ -122,9 +96,6 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 func (sw *OvsSwitch) Delete() {
 	if sw.ofnetAgent != nil {
 		sw.ofnetAgent.Delete()
-	}
-	if sw.ofnetMaster != nil {
-		sw.ofnetMaster.Delete()
 	}
 	if sw.ovsdbDriver != nil {
 		sw.ovsdbDriver.Delete()
@@ -253,6 +224,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 			return err
 		}
 	} else {
+		ovsPortName = intfName
 		ovsIntfType = "internal"
 
 	}
@@ -291,11 +263,14 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 
 		// Build the endpoint info
 		endpoint := ofnet.EndpointInfo{
-			PortNo:  ofpPort,
-			MacAddr: macAddr,
-			Vlan:    uint16(pktTag),
-			IpAddr:  net.ParseIP(cfgEp.IPAddress),
+			PortNo:        ofpPort,
+			MacAddr:       macAddr,
+			Vlan:          uint16(pktTag),
+			IpAddr:        net.ParseIP(cfgEp.IPAddress),
+			EndpointGroup: cfgEp.EndpointGroupID,
 		}
+
+		log.Infof("Adding local endpoint: {%+v}", endpoint)
 
 		// Add the local port to ofnet
 		err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
@@ -359,9 +334,11 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 		err := deleteVethPair(ovsPortName, epOper.PortName)
 		if err != nil {
 			log.Errorf("Error creating veth pairs. Err: %v", err)
-			return err
+			// Continue to cleanup remaining state
 		}
 
+	} else {
+		ovsPortName = epOper.PortName
 	}
 
 	// Remove info from ofnet
@@ -427,20 +404,6 @@ func (sw *OvsSwitch) CreateVtep(vtepIP string) error {
 		return err
 	}
 
-	// Add each of the peers as ofnet masters.
-	// This essentially forms full mesh connectivity today.
-	// FIXME: Move ofnet master to netmaster.
-	var resp bool
-	masterInfo := ofnet.OfnetNode{
-		HostAddr: vtepIP,
-		HostPort: ofnet.OFNET_MASTER_PORT,
-	}
-	err = sw.ofnetAgent.AddMaster(&masterInfo, &resp)
-	if err != nil {
-		log.Errorf("Error adding %s as ofnet master. Err: %v", vtepIP, err)
-		return err
-	}
-
 	return nil
 }
 
@@ -497,6 +460,44 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 			sw.ovsdbDriver.DeletePort(intfName)
 		}
 	}()
+
+	return nil
+}
+
+// AddMaster adds master node
+func (sw *OvsSwitch) AddMaster(node core.ServiceInfo) error {
+	var resp bool
+
+	// Build master info
+	masterInfo := ofnet.OfnetNode{
+		HostAddr: node.HostAddr,
+		HostPort: uint16(node.Port),
+	}
+
+	// Add the master
+	err := sw.ofnetAgent.AddMaster(&masterInfo, &resp)
+	if err != nil {
+		log.Errorf("Error adding ofnet master %+v. Err: %v", masterInfo, err)
+		return err
+	}
+
+	return nil
+}
+
+// DeleteMaster deletes master node
+func (sw *OvsSwitch) DeleteMaster(node core.ServiceInfo) error {
+	// Build master info
+	masterInfo := ofnet.OfnetNode{
+		HostAddr: node.HostAddr,
+		HostPort: uint16(node.Port),
+	}
+
+	// remove the master
+	err := sw.ofnetAgent.RemoveMaster(&masterInfo)
+	if err != nil {
+		log.Errorf("Error deleting ofnet master %+v. Err: %v", masterInfo, err)
+		return err
+	}
 
 	return nil
 }

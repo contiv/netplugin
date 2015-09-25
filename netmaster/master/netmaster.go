@@ -791,6 +791,47 @@ func allocSetEpAddress(ep *intent.ConfigEP, epCfg *drivers.OvsCfgEndpointState,
 	return
 }
 
+// CreateEndpoint creates an endpoint
+func CreateEndpoint(stateDriver core.StateDriver, network *intent.ConfigNetwork,
+	nwCfg *drivers.OvsCfgNetworkState, ep *intent.ConfigEP) error {
+	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg.StateDriver = stateDriver
+	epCfg.ID = getEpName(network, ep)
+	err := epCfg.Read(epCfg.ID)
+	if err == nil {
+		// TODO: check for diffs and possible updates
+		return nil
+	}
+
+	epCfg.NetID = network.Name
+	epCfg.ContName = ep.Container
+	epCfg.AttachUUID = ep.AttachUUID
+	epCfg.HomingHost = ep.Host
+	epCfg.ServiceName = ep.ServiceName
+
+	// Allocate addresses
+	err = allocSetEpAddress(ep, epCfg, nwCfg)
+	if err != nil {
+		log.Errorf("error allocating and/or reserving IP. Error: %s", err)
+		return err
+	}
+
+	// Set endpoint group
+	epCfg.EndpointGroupID, err = getEndpointGroupID(ep.ServiceName, network.Name)
+	if err != nil {
+		log.Errorf("Error getting endpoint group for %s.%s. Err: %v", ep.ServiceName, network.Name, err)
+		return err
+	}
+
+	err = epCfg.Write()
+	if err != nil {
+		log.Errorf("error writing ep config. Error: %s", err)
+		return err
+	}
+
+	return nil
+}
+
 // CreateEndpoints creates the endpoints for a given tenant.
 func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	err := validateEndpointConfig(stateDriver, tenant)
@@ -817,31 +858,12 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 		}
 
 		for _, ep := range network.Endpoints {
-			epCfg := &drivers.OvsCfgEndpointState{}
-			epCfg.StateDriver = stateDriver
-			epCfg.ID = getEpName(&network, &ep)
-			err = epCfg.Read(epCfg.ID)
-			if err == nil {
-				// TODO: check for diffs and possible updates
-				continue
-			}
-
-			epCfg.NetID = network.Name
-			epCfg.ContName = ep.Container
-			epCfg.AttachUUID = ep.AttachUUID
-			epCfg.HomingHost = ep.Host
-
-			err = allocSetEpAddress(&ep, epCfg, nwCfg)
+			err = CreateEndpoint(stateDriver, &network, nwCfg, &ep)
 			if err != nil {
-				log.Errorf("error allocating and/or reserving IP. Error: %s", err)
+				log.Errorf("Error creating endpoint %+v. Err: %v", ep, err)
 				return err
 			}
 
-			err = epCfg.Write()
-			if err != nil {
-				log.Errorf("error writing nw config. Error: %s", err)
-				return err
-			}
 			nwCfg.EpCount++
 		}
 

@@ -545,27 +545,34 @@ func (self *OvsDriver) IsVtepPresent(remoteIp string) (bool, string) {
 
 // Return OFP port number for an interface
 func (self *OvsDriver) GetOfpPortNo(intfName string) (uint32, error) {
-	for tName, table := range self.ovsdbCache {
-		if tName == "Interface" {
-			for _, row := range table {
-				if row.Fields["name"] == intfName {
-					value := row.Fields["ofport"]
-					switch t := value.(type) {
-					case uint32:
-						return t, nil
-					case float64:
-						var ofpPort uint32 = uint32(t)
-						return ofpPort, nil
-					default:
-						return 0, errors.New("Unknown field type")
-					}
-				}
-			}
-		}
+	retryNo := 0
+	condition := libovsdb.NewCondition("name", "==", intfName)
+	selectOp := libovsdb.Operation{
+		Op:    "select",
+		Table: "Interface",
+		Where: []interface{}{condition},
 	}
 
-	// We could not find the interface name
-	return 0, errors.New("Interface not found")
+	for {
+		row, err := self.ovsClient.Transact("Open_vSwitch", selectOp)
+
+		if err == nil {
+			value := row[0].Rows[0]["ofport"]
+			if reflect.TypeOf(value).Kind() == reflect.Float64 {
+				//retry few more time. Due to asynchronous call between
+				//port creation and populating ovsdb entry for the interface
+				//may not be populated instantly.
+				var ofpPort uint32 = uint32(reflect.ValueOf(value).Float())
+				return ofpPort, nil
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+
+		if retryNo == 5 {
+			return 0, errors.New("ofPort not found")
+		}
+		retryNo++
+	}
 }
 
 // ************************ Notification handler for OVS DB changes ****************
