@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 func TestGenerate(t *testing.T) {
@@ -92,6 +92,17 @@ func TestFieldCannotBeSet(t *testing.T) {
 	if _, ok := err.(CannotSetFieldError); !ok {
 		t.Fatalf("expected CannotSetFieldError, got %#v", err)
 	} else if expected := "cannot set field"; !strings.Contains(err.Error(), expected) {
+		t.Fatalf("expected %q in error message, got %s", expected, err.Error())
+	}
+}
+
+func TestTypeMismatchError(t *testing.T) {
+	type Model struct{ Foo int }
+	_, err := GenerateFromModel(Generic{"Foo": "bar"}, Model{})
+
+	if _, ok := err.(TypeMismatchError); !ok {
+		t.Fatalf("expected TypeMismatchError, got %#v", err)
+	} else if expected := "type mismatch"; !strings.Contains(err.Error(), expected) {
 		t.Fatalf("expected %q in error message, got %s", expected, err.Error())
 	}
 }

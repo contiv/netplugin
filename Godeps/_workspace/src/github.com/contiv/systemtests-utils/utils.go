@@ -60,7 +60,7 @@ func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
 	}
 
 	for _, node := range nodes {
-		cmdStr := "sh -c 'sudo $GOSRC/github.com/contiv/netplugin/scripts/cleanup'"
+		cmdStr := "sudo -E $GOSRC/github.com/contiv/netplugin/scripts/cleanup"
 		output, err := node.RunCommandWithOutput(cmdStr)
 		if err != nil {
 			t.Errorf("Failed to cleanup the left over test case state. Error: %s\nCmd: %q\nOutput:\n%s\n",
@@ -106,7 +106,7 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 			jsonCfg := fmt.Sprintf(configStr, i+1)
 			jsonCfg = getEchoCompatibleStr(jsonCfg)
 			cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonCfg, cfgFile)
-			output, err := node.RunCommandWithOutput("sh -c '" + cmdStr + "'")
+			output, err := node.RunCommandWithOutput(cmdStr)
 			if err != nil {
 				t.Fatalf("Error '%s' creating config file\nCmd: %q\n Output : %s \n",
 					err, cmdStr, output)
@@ -153,6 +153,8 @@ func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
 
 // StartNetmasterWithFlags starts netplugin on specified testbed nodes with specified flags
 func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]string) {
+	time.Sleep(5 * time.Second)
+
 	var (
 		cmdStr   string
 		flagsStr string
@@ -173,9 +175,7 @@ func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]st
 			err, cmdStr, output)
 	}
 
-	// Wait 20sec for netmaster to start.
-	// Since netmaster writes to objdb at startup, it takes surprisingly long
-	time.Sleep(20 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
 // StartNetmaster starts netplugin on specified testbed node
@@ -194,7 +194,7 @@ func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode, stateS
 	// echo to consume and produce desired json config
 	jsonCfg = getEchoCompatibleStr(jsonCfg)
 	cmdStr := fmt.Sprintf("echo \"%s\" > /tmp/netdcli.cfg", jsonCfg)
-	output, err := node.RunCommandWithOutput("sh -c '" + cmdStr + "'")
+	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
 		t.Fatalf("Error '%s' creating config file\nCmd: %q\n Output : %s \n",
 			err, cmdStr, output)

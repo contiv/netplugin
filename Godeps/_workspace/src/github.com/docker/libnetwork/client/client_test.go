@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 // nopCloser is used to provide a dummy CallFunc for Cmd()
@@ -26,12 +26,13 @@ func TestMain(m *testing.M) {
 }
 
 var callbackFunc func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error)
-var mockNwJSON, mockNwListJSON, mockServiceJSON, mockServiceListJSON []byte
+var mockNwJSON, mockNwListJSON, mockServiceJSON, mockServiceListJSON, mockSbJSON, mockSbListJSON []byte
 var mockNwName = "test"
 var mockNwID = "2a3456789"
 var mockServiceName = "testSrv"
 var mockServiceID = "2a3456789"
 var mockContainerID = "2a3456789"
+var mockSandboxID = "2b3456789"
 
 func setupMockHTTPCallback() {
 	var list []networkResource
@@ -45,6 +46,12 @@ func setupMockHTTPCallback() {
 	mockServiceJSON, _ = json.Marshal(ep)
 	srvList = append(srvList, ep)
 	mockServiceListJSON, _ = json.Marshal(srvList)
+
+	var sbxList []SandboxResource
+	sb := SandboxResource{ID: mockSandboxID, ContainerID: mockContainerID}
+	mockSbJSON, _ = json.Marshal(sb)
+	sbxList = append(sbxList, sb)
+	mockSbListJSON, _ = json.Marshal(sbxList)
 
 	dummyHTTPHdr := http.Header{}
 
@@ -78,6 +85,10 @@ func setupMockHTTPCallback() {
 				rsp = string(mockServiceJSON)
 			} else if strings.Contains(path, "containers") {
 				return nopCloser{bytes.NewBufferString("")}, dummyHTTPHdr, 400, fmt.Errorf("Bad Request")
+			} else if strings.Contains(path, fmt.Sprintf("sandboxes?container-id=%s", mockContainerID)) {
+				rsp = string(mockSbListJSON)
+			} else if strings.Contains(path, fmt.Sprintf("sandboxes?partial-container-id=%s", mockContainerID)) {
+				rsp = string(mockSbListJSON)
 			}
 		case "POST":
 			var data []byte
@@ -86,7 +97,7 @@ func setupMockHTTPCallback() {
 			} else if strings.HasSuffix(path, "services") {
 				data, _ = json.Marshal(mockServiceID)
 			} else if strings.HasSuffix(path, "backend") {
-				data, _ = json.Marshal(mockContainerID)
+				data, _ = json.Marshal(mockSandboxID)
 			}
 			rsp = string(data)
 		case "PUT":

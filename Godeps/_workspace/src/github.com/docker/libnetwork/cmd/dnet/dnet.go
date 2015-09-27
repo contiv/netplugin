@@ -7,10 +7,13 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/codegangsta/cli"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/reexec"
 
@@ -18,8 +21,8 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
-	"github.com/docker/libnetwork/client"
 	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/gorilla/mux"
@@ -27,7 +30,7 @@ import (
 
 const (
 	// DefaultHTTPHost is used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
-	DefaultHTTPHost = "127.0.0.1"
+	DefaultHTTPHost = "0.0.0.0"
 	// DefaultHTTPPort is the default http port used by dnet
 	DefaultHTTPPort = 2385
 	// DefaultUnixSocket exported
@@ -35,6 +38,8 @@ const (
 	cfgFileEnv        = "LIBNETWORK_CFG"
 	defaultCfgFile    = "/etc/default/libnetwork.toml"
 )
+
+var epConn *dnetConnection
 
 func main() {
 	if reexec.Init() {
@@ -44,7 +49,7 @@ func main() {
 	_, stdout, stderr := term.StdStreams()
 	logrus.SetOutput(stderr)
 
-	err := dnetCommand(stdout, stderr)
+	err := dnetApp(stdout, stderr)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -80,70 +85,25 @@ func processConfig(cfg *config.Config) []config.Option {
 	if cfg.Daemon.Labels != nil {
 		options = append(options, config.OptionLabels(cfg.Daemon.Labels))
 	}
-	if strings.TrimSpace(cfg.Datastore.Client.Provider) != "" {
-		options = append(options, config.OptionKVProvider(cfg.Datastore.Client.Provider))
+	if strings.TrimSpace(cfg.GlobalStore.Client.Provider) != "" {
+		options = append(options, config.OptionKVProvider(cfg.GlobalStore.Client.Provider))
 	}
-	if strings.TrimSpace(cfg.Datastore.Client.Address) != "" {
-		options = append(options, config.OptionKVProviderURL(cfg.Datastore.Client.Address))
+	if strings.TrimSpace(cfg.GlobalStore.Client.Address) != "" {
+		options = append(options, config.OptionKVProviderURL(cfg.GlobalStore.Client.Address))
 	}
 	return options
 }
 
-func dnetCommand(stdout, stderr io.Writer) error {
-	flag.Parse()
+func dnetApp(stdout, stderr io.Writer) error {
+	app := cli.NewApp()
 
-	if *flHelp {
-		flag.Usage()
-		return nil
-	}
+	app.Name = "dnet"
+	app.Usage = "A self-sufficient runtime for container networking."
+	app.Flags = dnetFlags
+	app.Before = processFlags
+	app.Commands = dnetCommands
 
-	if *flLogLevel != "" {
-		lvl, err := logrus.ParseLevel(*flLogLevel)
-		if err != nil {
-			fmt.Fprintf(stderr, "Unable to parse logging level: %s\n", *flLogLevel)
-			return err
-		}
-		logrus.SetLevel(lvl)
-	} else {
-		logrus.SetLevel(logrus.InfoLevel)
-	}
-
-	if *flDebug {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
-
-	if *flHost == "" {
-		defaultHost := os.Getenv("DNET_HOST")
-		if defaultHost == "" {
-			// TODO : Add UDS support
-			defaultHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
-		}
-		*flHost = defaultHost
-	}
-
-	dc, err := newDnetConnection(*flHost)
-	if err != nil {
-		if *flDaemon {
-			logrus.Error(err)
-		} else {
-			fmt.Fprint(stderr, err)
-		}
-		return err
-	}
-
-	if *flDaemon {
-		err := dc.dnetDaemon()
-		if err != nil {
-			logrus.Errorf("dnet Daemon exited with an error : %v", err)
-		}
-		return err
-	}
-
-	cli := client.NewNetworkCli(stdout, stderr, dc.httpCall)
-	if err := cli.Cmd("dnet", flag.Args()...); err != nil {
-		fmt.Fprintln(stderr, err)
-		return err
-	}
+	app.Run(os.Args)
 	return nil
 }
 
@@ -157,8 +117,7 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 		// Bridge driver is special due to legacy reasons
 		if d == "bridge" {
 			genericOption[netlabel.GenericData] = map[string]interface{}{
-				"BridgeName":            nw,
-				"AllowNonDefaultBridge": "true",
+				"BridgeName": nw,
 			}
 			networkOption := libnetwork.NetworkOptionGeneric(genericOption)
 			createOptions = append(createOptions, networkOption)
@@ -177,8 +136,12 @@ type dnetConnection struct {
 	addr string
 }
 
-func (d *dnetConnection) dnetDaemon() error {
-	cfg, err := parseConfig(*flCfgFile)
+func (d *dnetConnection) dnetDaemon(cfgFile string) error {
+	if err := startTestDriver(); err != nil {
+		return fmt.Errorf("failed to start test driver: %v\n", err)
+	}
+
+	cfg, err := parseConfig(cfgFile)
 	var cOptions []config.Option
 	if err == nil {
 		cOptions = processConfig(cfg)
@@ -199,7 +162,84 @@ func (d *dnetConnection) dnetDaemon() error {
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	post = r.PathPrefix("/services").Subrouter()
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+	post = r.PathPrefix("/{.*}/sandboxes").Subrouter()
+	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+	post = r.PathPrefix("/sandboxes").Subrouter()
+	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+
+	handleSignals(controller)
+
 	return http.ListenAndServe(d.addr, r)
+}
+
+func handleSignals(controller libnetwork.NetworkController) {
+	c := make(chan os.Signal, 1)
+	signals := []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT}
+	signal.Notify(c, signals...)
+	go func() {
+		for _ = range c {
+			controller.Stop()
+			os.Exit(0)
+		}
+	}()
+}
+
+func startTestDriver() error {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	if server == nil {
+		return fmt.Errorf("Failed to start a HTTP Server")
+	}
+
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, `{"Scope":"global"}`)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.CreateNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.CreateEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.Leave", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile("/usr/share/docker/plugins/test.spec", []byte(server.URL), 0644); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func newDnetConnection(val string) (*dnetConnection, error) {

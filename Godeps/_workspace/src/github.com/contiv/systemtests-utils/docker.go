@@ -42,7 +42,7 @@ func DockerCleanup(t *testing.T, node TestbedNode, contName string) {
 func StartServerWithEnvAndArgs(t *testing.T, node TestbedNode, contName string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run -d %s --name=" + contName +
-		" ubuntu /bin/bash -c 'mkfifo foo && < foo'"
+		" ubuntu /bin/bash -c \"mkfifo foo && < foo\""
 	cmdStr = fmt.Sprintf(cmdStr, strings.Join(env, " "),
 		strings.Join(dockerArgs, " "))
 	output, err := node.RunCommandWithOutput(cmdStr)
@@ -63,7 +63,7 @@ func StartServer(t *testing.T, node TestbedNode, contName string) {
 func StartClientWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddress string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run %s --name=" + contName +
-		" ubuntu /bin/bash -c 'ping -c5 " + ipAddress + "'"
+		" ubuntu /bin/bash -c \"ping -c5 " + ipAddress + "\""
 	cmdStr = fmt.Sprintf(cmdStr, strings.Join(env, " "),
 		strings.Join(dockerArgs, " "))
 	output, err := node.RunCommandWithOutput(cmdStr)
@@ -99,7 +99,7 @@ func StartClient(t *testing.T, node TestbedNode, contName, ipAddress string) {
 func StartClientFailureWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddress string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run %s --name=" + contName +
-		" ubuntu /bin/bash -c 'ping -c5 " + ipAddress + "'"
+		" ubuntu /bin/bash -c \"ping -c5 " + ipAddress + "\""
 	cmdStr = fmt.Sprintf(cmdStr, strings.Join(env, " "),
 		strings.Join(dockerArgs, " "))
 	output, err := node.RunCommandWithOutput(cmdStr)

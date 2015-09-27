@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/config"
-	_ "github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	_ "github.com/docker/libnetwork/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -122,6 +122,7 @@ type dummyObject struct {
 	ID          string
 	DBIndex     uint64
 	DBExists    bool
+	SkipSave    bool
 	ReturnValue bool
 }
 
@@ -162,6 +163,14 @@ func (n *dummyObject) Exists() bool {
 	return n.DBExists
 }
 
+func (n *dummyObject) Skip() bool {
+	return n.SkipSave
+}
+
+func (n *dummyObject) DataScope() DataScope {
+	return LocalScope
+}
+
 func (n *dummyObject) MarshalJSON() ([]byte, error) {
 	netMap := make(map[string]interface{})
 	netMap["name"] = n.Name
@@ -190,6 +199,7 @@ type recStruct struct {
 	Dict     map[string]string `kv:"iterative"`
 	DBIndex  uint64
 	DBExists bool
+	SkipSave bool
 }
 
 func (r *recStruct) Key() []string {
@@ -220,6 +230,10 @@ func (r *recStruct) Exists() bool {
 	return r.DBExists
 }
 
+func (r *recStruct) Skip() bool {
+	return r.SkipSave
+}
+
 func dummyKVObject(id string, retValue bool) *dummyObject {
 	cDict := make(map[string]string)
 	cDict["foo"] = "bar"
@@ -228,13 +242,14 @@ func dummyKVObject(id string, retValue bool) *dummyObject {
 		Name:        "testNw",
 		NetworkType: "bridge",
 		EnableIPv6:  true,
-		Rec:         &recStruct{"gen", 5, cDict, 0, false},
+		Rec:         &recStruct{"gen", 5, cDict, 0, false, false},
 		ID:          id,
 		DBIndex:     0,
 		ReturnValue: retValue,
-		DBExists:    false}
+		DBExists:    false,
+		SkipSave:    false}
 	generic := make(map[string]interface{})
-	generic["label1"] = &recStruct{"value1", 1, cDict, 0, false}
+	generic["label1"] = &recStruct{"value1", 1, cDict, 0, false, false}
 	generic["label2"] = "subnet=10.1.1.0/16"
 	n.Generic = generic
 	return &n

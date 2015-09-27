@@ -6,6 +6,10 @@ import (
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
+	"github.com/docker/libkv/store/consul"
+	"github.com/docker/libkv/store/etcd"
+	"github.com/docker/libkv/store/zookeeper"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/types"
 )
@@ -55,7 +59,21 @@ type KV interface {
 	// True if the object exists in the datastore, false if it hasn't been stored yet.
 	// When SetIndex() is called, the object has been stored.
 	Exists() bool
+	// DataScope indicates the storage scope of the KV object
+	DataScope() DataScope
+	// Skip provides a way for a KV Object to avoid persisting it in the KV Store
+	Skip() bool
 }
+
+// DataScope indicates the storage scope
+type DataScope int
+
+const (
+	// LocalScope indicates to store the KV object in local datastore such as boltdb
+	LocalScope DataScope = iota
+	// GlobalScope indicates to store the KV object in global datastore such as consul/etcd/zookeeper
+	GlobalScope
+)
 
 const (
 	// NetworkKeyPrefix is the prefix for network key in the kv store
@@ -65,6 +83,13 @@ const (
 )
 
 var rootChain = []string{"docker", "libnetwork"}
+
+func init() {
+	consul.Register()
+	zookeeper.Register()
+	etcd.Register()
+	boltdb.Register()
+}
 
 //Key provides convenient method to create a Key
 func Key(key ...string) string {
@@ -85,8 +110,11 @@ func ParseKey(key string) ([]string, error) {
 }
 
 // newClient used to connect to KV Store
-func newClient(kv string, addrs string) (DataStore, error) {
-	store, err := libkv.NewStore(store.Backend(kv), []string{addrs}, &store.Config{})
+func newClient(kv string, addrs string, config *store.Config) (DataStore, error) {
+	if config == nil {
+		config = &store.Config{}
+	}
+	store, err := libkv.NewStore(store.Backend(kv), []string{addrs}, config)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +128,7 @@ func NewDataStore(cfg *config.DatastoreCfg) (DataStore, error) {
 		return nil, types.BadRequestErrorf("invalid configuration passed to datastore")
 	}
 	// TODO : cfg.Embedded case
-	return newClient(cfg.Client.Provider, cfg.Client.Address)
+	return newClient(cfg.Client.Provider, cfg.Client.Address, cfg.Client.Config)
 }
 
 // NewCustomDataStore can be used by clients to plugin cusom datatore that adhers to store.Store
