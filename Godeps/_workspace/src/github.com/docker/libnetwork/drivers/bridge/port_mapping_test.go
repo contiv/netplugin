@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestPortMappingConfig(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -27,7 +27,7 @@ func TestPortMappingConfig(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
+	if err := d.configure(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -49,14 +49,13 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	te := &testEndpoint{ifaces: []*testInterface{}}
+	te := &testEndpoint{}
 	err = d.CreateEndpoint("dummy", "ep1", te, epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
 	}
 
-	dd := d.(*driver)
-	network, ok := dd.networks["dummy"]
+	network, ok := d.networks["dummy"]
 	if !ok {
 		t.Fatalf("Cannot find network %s inside driver", "dummy")
 	}

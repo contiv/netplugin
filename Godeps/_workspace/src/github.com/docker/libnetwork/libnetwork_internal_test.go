@@ -13,6 +13,7 @@ func TestDriverRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 	err = c.(*controller).RegisterDriver(bridgeNetType, nil, driverapi.Capability{})
 	if err == nil {
 		t.Fatalf("Expecting the RegisterDriver to fail for %s", bridgeNetType)
@@ -28,5 +29,5 @@ func TestDriverRegistration(t *testing.T) {
 
 func SetTestDataStore(c NetworkController, custom datastore.DataStore) {
 	con := c.(*controller)
-	con.store = custom
+	con.globalStore = custom
 }

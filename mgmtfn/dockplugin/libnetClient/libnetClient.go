@@ -15,7 +15,6 @@ import (
 
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/config"
-	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -34,18 +33,12 @@ type endpointResource struct {
 	Network string `json:"network"`
 }
 
-// containerResource is the body of "get service backend" response message
-type containerResource struct {
-	ID string `json:"id"`
+// sandboxResource is the body of "get service backend" response message
+type sandboxResource struct {
+	ID          string `json:"id"`
+	Key         string `json:"key"`
+	ContainerID string `json:"container_id"`
 	// will add more fields once labels change is in
-}
-
-// endpointInfoResource is the body of the "get endpoint info" http response message
-type endpointInfoResource struct {
-	Interfaces []interfaceResource `json:"interfaces"`
-	Gateway4   string              `json:"gateway"`
-	Gateway6   string              `json:"gateway6"`
-	Sandbox    string              `json:"sandbox"`
 }
 
 type interfaceResource struct {
@@ -72,17 +65,22 @@ type endpointCreate struct {
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }
 
+// sandboxCreate is the expected body of the "create sandbox" http request message
+type sandboxCreate struct {
+	ContainerID       string      `json:"container_id"`
+	HostName          string      `json:"host_name"`
+	DomainName        string      `json:"domain_name"`
+	HostsPath         string      `json:"hosts_path"`
+	ResolvConfPath    string      `json:"resolv_conf_path"`
+	DNS               []string    `json:"dns"`
+	ExtraHosts        []extraHost `json:"extra_hosts"`
+	UseDefaultSandbox bool        `json:"use_default_sandbox"`
+	UseExternalKey    bool        `json:"use_external_key"`
+}
+
 // endpointJoin represents the expected body of the "join endpoint" or "leave endpoint" http request messages
 type endpointJoin struct {
-	ContainerID       string                 `json:"container_id"`
-	HostName          string                 `json:"host_name"`
-	DomainName        string                 `json:"domain_name"`
-	HostsPath         string                 `json:"hosts_path"`
-	ResolvConfPath    string                 `json:"resolv_conf_path"`
-	DNS               []string               `json:"dns"`
-	ExtraHosts        []endpointExtraHost    `json:"extra_hosts"`
-	ParentUpdates     []endpointParentUpdate `json:"parent_updates"`
-	UseDefaultSandbox bool                   `json:"use_default_sandbox"`
+	SandboxID string `json:"sandbox_id"`
 }
 
 // servicePublish represents the body of the "publish service" http request message
@@ -93,18 +91,10 @@ type servicePublish struct {
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }
 
-// EndpointExtraHost represents the extra host object
-type endpointExtraHost struct {
+// extraHost represents the extra host object
+type extraHost struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
-}
-
-// EndpointParentUpdate is the object carrying the information about the
-// endpoint parent that needs to be updated
-type endpointParentUpdate struct {
-	EndpointID string `json:"endpoint_id"`
-	Name       string `json:"name"`
-	Address    string `json:"address"`
 }
 
 // ErrNotImplemented is returned for function that are not implemented
@@ -112,6 +102,7 @@ var ErrNotImplemented = errors.New("method not implemented")
 
 // Implements NetworkController by means of HTTP api
 type remoteController struct {
+	id      string
 	baseURL *url.URL
 	client  *http.Client
 }
@@ -131,6 +122,7 @@ func NewRemoteAPI(daemonUrl string) libnetwork.NetworkController {
 		url.Scheme = "http"
 	}
 	return &remoteController{
+		id:      "",
 		baseURL: url,
 		client:  newHTTPClient(url, nil),
 	}
@@ -226,9 +218,39 @@ func (c *remoteController) GC() {
 	panic("remoteController does not implement GC()")
 }
 
+// GC triggers immediate garbage collection of resources which are garbage collected.
+func (c *remoteController) ID() string {
+	panic("remoteController does not implement ID()")
+}
+
 // LeaveAll accepts a container id and attempts to leave all endpoints that the container has joined
 func (c *remoteController) LeaveAll(id string) error {
 	return ErrNotImplemented
+}
+
+// NewSandbox cretes a new network sandbox for the passed container id
+func (c *remoteController) NewSandbox(containerID string, options ...libnetwork.SandboxOption) (libnetwork.Sandbox, error) {
+	return nil, ErrNotImplemented
+}
+
+// Sandboxes returns the list of Sandbox(s) managed by this controller.
+func (c *remoteController) Sandboxes() []libnetwork.Sandbox {
+	return nil
+}
+
+// WlakSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
+func (c *remoteController) WalkSandboxes(walker libnetwork.SandboxWalker) {
+	// Nothing to do
+}
+
+// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
+func (c *remoteController) SandboxByID(id string) (libnetwork.Sandbox, error) {
+	return nil, ErrNotImplemented
+}
+
+// Stop network controller
+func (c *remoteController) Stop() {
+	// nothing to do
 }
 
 type remoteNetwork struct {
@@ -359,12 +381,12 @@ func (e *remoteEndpoint) Network() string {
 // Join creates a new sandbox for the given container ID and populates the
 // network resources allocated for the endpoint and joins the sandbox to
 // the endpoint. It returns the sandbox key to the caller
-func (e *remoteEndpoint) Join(containerID string, options ...libnetwork.EndpointOption) error {
+func (e *remoteEndpoint) Join(sandbox libnetwork.Sandbox, options ...libnetwork.EndpointOption) error {
 	url := path.Join("/networks", e.networkID, "endpoints", e.er.ID, "containers")
 
 	//TODO: process options somehow
 	join := endpointJoin{
-		ContainerID: containerID,
+		SandboxID: sandbox.ID(),
 	}
 
 	sk := ""
@@ -373,11 +395,18 @@ func (e *remoteEndpoint) Join(containerID string, options ...libnetwork.Endpoint
 
 // Leave removes the sandbox associated with  container ID and detaches
 // the network resources populated in the sandbox
-func (e *remoteEndpoint) Leave(containerID string, options ...libnetwork.EndpointOption) error {
-	url := path.Join("/networks", e.networkID, "endpoints", e.er.ID, "containers", containerID)
+func (e *remoteEndpoint) Leave(sandbox libnetwork.Sandbox, options ...libnetwork.EndpointOption) error {
+	url := path.Join("/networks", e.networkID, "endpoints", e.er.ID)
 	return e.rc.httpDelete(url)
 }
 
+// Return certain operational data belonging to this endpoint
+func (e *remoteEndpoint) Info() libnetwork.EndpointInfo {
+	// FIXME: implement this
+	return nil
+}
+
+/*
 // Return certain operational data belonging to this endpoint
 func (e *remoteEndpoint) Info() libnetwork.EndpointInfo {
 	url := path.Join("/networks", e.networkID, "endpoints", e.er.ID, "info")
@@ -388,57 +417,17 @@ func (e *remoteEndpoint) Info() libnetwork.EndpointInfo {
 
 	return (*remoteEndpointInfo)(eir)
 }
+*/
 
 // DriverInfo returns a collection of driver operational data related to this endpoint retrieved from the driver
 func (e *remoteEndpoint) DriverInfo() (map[string]interface{}, error) {
 	return nil, ErrNotImplemented
 }
 
-// ContainerInfo returns the info available at the endpoint about the attached container
-func (e *remoteEndpoint) ContainerInfo() libnetwork.ContainerInfo {
-	return nil
-}
-
 // Delete and detaches this endpoint from the network.
 func (e *remoteEndpoint) Delete() error {
 	url := path.Join("/networks", e.networkID, "endpoints", e.er.ID)
 	return e.rc.httpDelete(url)
-}
-
-// Retrieve the interfaces' statistics from the sandbox
-func (e *remoteEndpoint) Statistics() (map[string]*sandbox.InterfaceStatistics, error) {
-	return nil, ErrNotImplemented
-}
-
-type remoteEndpointInfo endpointInfoResource
-
-// InterfaceList returns an interface list which were assigned to the endpoint
-// by the driver. This can be used after the endpoint has been created.
-func (ei *remoteEndpointInfo) InterfaceList() []libnetwork.InterfaceInfo {
-	iis := []libnetwork.InterfaceInfo{}
-	for _, ii := range ei.Interfaces {
-		iis = append(iis, (*remoteInterfaceInfo)(&ii))
-	}
-	return iis
-}
-
-// Gateway returns the IPv4 gateway assigned by the driver.
-// This will only return a valid value if a container has joined the endpoint.
-func (ei *remoteEndpointInfo) Gateway() net.IP {
-	return net.ParseIP(ei.Gateway4)
-}
-
-// GatewayIPv6 returns the IPv6 gateway assigned by the driver.
-// This will only return a valid value if a container has joined the endpoint.
-func (ei *remoteEndpointInfo) GatewayIPv6() net.IP {
-	return net.ParseIP(ei.Gateway6)
-}
-
-// SandboxKey returns the sanbox key for the container which has joined
-// the endpoint. If there is no container joined then this will return an
-// empty string.
-func (ei *remoteEndpointInfo) SandboxKey() string {
-	return ei.Sandbox
 }
 
 type remoteInterfaceInfo interfaceResource

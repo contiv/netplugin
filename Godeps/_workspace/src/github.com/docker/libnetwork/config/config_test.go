@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/netlabel"
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 func TestInvalidConfig(t *testing.T) {
@@ -47,6 +47,9 @@ func TestValidName(t *testing.T) {
 		t.Fatal("Name validation fails for a name that must be accepted")
 	}
 	if IsValidName("") {
+		t.Fatal("Name validation succeeds for a case when it is expected to fail")
+	}
+	if IsValidName("   ") {
 		t.Fatal("Name validation succeeds for a case when it is expected to fail")
 	}
 	if IsValidName("name.with.dots") {

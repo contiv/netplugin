@@ -2,11 +2,13 @@ package consul
 
 import (
 	"crypto/tls"
+	"errors"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	api "github.com/hashicorp/consul/api"
 )
@@ -18,22 +20,37 @@ const (
 	DefaultWatchWaitTime = 15 * time.Second
 )
 
+var (
+	// ErrMultipleEndpointsUnsupported is thrown when there are
+	// multiple endpoints specified for Consul
+	ErrMultipleEndpointsUnsupported = errors.New("consul does not support multiple endpoints")
+)
+
 // Consul is the receiver type for the
 // Store interface
 type Consul struct {
 	sync.Mutex
-	config       *api.Config
-	client       *api.Client
-	ephemeralTTL time.Duration
+	config *api.Config
+	client *api.Client
 }
 
 type consulLock struct {
-	lock *api.Lock
+	lock    *api.Lock
+	renewCh chan struct{}
+}
+
+// Register registers consul to libkv
+func Register() {
+	libkv.AddStore(store.CONSUL, New)
 }
 
 // New creates a new Consul client given a list
 // of endpoints and optional tls config
 func New(endpoints []string, options *store.Config) (store.Store, error) {
+	if len(endpoints) > 1 {
+		return nil, ErrMultipleEndpointsUnsupported
+	}
+
 	s := &Consul{}
 
 	// Create Consul client
@@ -50,9 +67,6 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 		}
 		if options.ConnectionTimeout != 0 {
 			s.setTimeout(options.ConnectionTimeout)
-		}
-		if options.EphemeralTTL != 0 {
-			s.setEphemeralTTL(options.EphemeralTTL)
 		}
 	}
 
@@ -79,18 +93,13 @@ func (s *Consul) setTimeout(time time.Duration) {
 	s.config.WaitTime = time
 }
 
-// SetEphemeralTTL sets the ttl for ephemeral nodes
-func (s *Consul) setEphemeralTTL(ttl time.Duration) {
-	s.ephemeralTTL = ttl
-}
-
 // Normalize the key for usage in Consul
 func (s *Consul) normalize(key string) string {
 	key = store.Normalize(key)
 	return strings.TrimPrefix(key, "/")
 }
 
-func (s *Consul) refreshSession(pair *api.KVPair) error {
+func (s *Consul) refreshSession(pair *api.KVPair, ttl time.Duration) error {
 	// Check if there is any previous session with an active TTL
 	session, err := s.getActiveSession(pair.Key)
 	if err != nil {
@@ -99,9 +108,9 @@ func (s *Consul) refreshSession(pair *api.KVPair) error {
 
 	if session == "" {
 		entry := &api.SessionEntry{
-			Behavior:  api.SessionBehaviorDelete,       // Delete the key when the session expires
-			TTL:       ((s.ephemeralTTL) / 2).String(), // Consul multiplies the TTL by 2x
-			LockDelay: 1 * time.Millisecond,            // Virtually disable lock delay
+			Behavior:  api.SessionBehaviorDelete, // Delete the key when the session expires
+			TTL:       (ttl / 2).String(),        // Consul multiplies the TTL by 2x
+			LockDelay: 1 * time.Millisecond,      // Virtually disable lock delay
 		}
 
 		// Create the key session
@@ -126,7 +135,7 @@ func (s *Consul) refreshSession(pair *api.KVPair) error {
 
 	_, _, err = s.client.Session().Renew(session, nil)
 	if err != nil {
-		return s.refreshSession(pair)
+		return s.refreshSession(pair, ttl)
 	}
 	return nil
 }
@@ -174,9 +183,9 @@ func (s *Consul) Put(key string, value []byte, opts *store.WriteOptions) error {
 		Value: value,
 	}
 
-	if opts != nil && opts.Ephemeral {
+	if opts != nil && opts.TTL > 0 {
 		// Create or refresh the session
-		err := s.refreshSession(p)
+		err := s.refreshSession(p, opts.TTL)
 		if err != nil {
 			return err
 		}
@@ -188,6 +197,9 @@ func (s *Consul) Put(key string, value []byte, opts *store.WriteOptions) error {
 
 // Delete a value at "key"
 func (s *Consul) Delete(key string) error {
+	if _, err := s.Get(key); err != nil {
+		return err
+	}
 	_, err := s.client.KV().Delete(s.normalize(key), nil)
 	return err
 }
@@ -195,7 +207,10 @@ func (s *Consul) Delete(key string) error {
 // Exists checks that the key exists inside the store
 func (s *Consul) Exists(key string) (bool, error) {
 	_, err := s.Get(key)
-	if err != nil && err == store.ErrKeyNotFound {
+	if err != nil {
+		if err == store.ErrKeyNotFound {
+			return false, nil
+		}
 		return false, err
 	}
 	return true, nil
@@ -229,6 +244,9 @@ func (s *Consul) List(directory string) ([]*store.KVPair, error) {
 
 // DeleteTree deletes a range of keys under a given directory
 func (s *Consul) DeleteTree(directory string) error {
+	if _, err := s.List(directory); err != nil {
+		return err
+	}
 	_, err := s.client.KV().DeleteTree(s.normalize(directory), nil)
 	return err
 }
@@ -343,32 +361,63 @@ func (s *Consul) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*
 // NewLock returns a handle to a lock struct which can
 // be used to provide mutual exclusion on a key
 func (s *Consul) NewLock(key string, options *store.LockOptions) (store.Locker, error) {
-	consulOpts := &api.LockOptions{
+	lockOpts := &api.LockOptions{
 		Key: s.normalize(key),
 	}
 
+	lock := &consulLock{}
+
 	if options != nil {
-		consulOpts.Value = options.Value
+		// Set optional TTL on Lock
+		if options.TTL != 0 {
+			entry := &api.SessionEntry{
+				Behavior:  api.SessionBehaviorRelease, // Release the lock when the session expires
+				TTL:       (options.TTL / 2).String(), // Consul multiplies the TTL by 2x
+				LockDelay: 1 * time.Millisecond,       // Virtually disable lock delay
+			}
+
+			// Create the key session
+			session, _, err := s.client.Session().Create(entry, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			// Place the session on lock
+			lockOpts.Session = session
+
+			// Renew the session ttl lock periodically
+			go s.client.Session().RenewPeriodic(entry.TTL, session, nil, options.RenewLock)
+			lock.renewCh = options.RenewLock
+		}
+
+		// Set optional value on Lock
+		if options.Value != nil {
+			lockOpts.Value = options.Value
+		}
 	}
 
-	l, err := s.client.LockOpts(consulOpts)
+	l, err := s.client.LockOpts(lockOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	return &consulLock{lock: l}, nil
+	lock.lock = l
+	return lock, nil
 }
 
 // Lock attempts to acquire the lock and blocks while
 // doing so. It returns a channel that is closed if our
 // lock is lost or if an error occurs
-func (l *consulLock) Lock() (<-chan struct{}, error) {
-	return l.lock.Lock(nil)
+func (l *consulLock) Lock(stopChan chan struct{}) (<-chan struct{}, error) {
+	return l.lock.Lock(stopChan)
 }
 
 // Unlock the "key". Calling unlock while
 // not holding the lock will throw an error
 func (l *consulLock) Unlock() error {
+	if l.renewCh != nil {
+		close(l.renewCh)
+	}
 	return l.lock.Unlock()
 }
 
