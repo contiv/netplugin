@@ -207,7 +207,6 @@ startStopContainer(testbed, numCntr, numIteration)
 testBasicPolicy(testbed, numCntr, numIteration)
 testPolicyAddDeleteRule(testbed, numCntr, numIteration)
 
-
 # Cleanup testbed
 testbed.cleanup()
 
