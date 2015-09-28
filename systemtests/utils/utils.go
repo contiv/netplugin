@@ -28,6 +28,7 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/intent"
 	u "github.com/contiv/netplugin/utils"
+	stu "github.com/contiv/systemtests-utils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -53,14 +54,14 @@ func StopOnError(testFailed bool) {
 }
 
 // ConfigCleanupCommon performs common cleanup after each test
-func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
+func ConfigCleanupCommon(t *testing.T, nodes []stu.TestbedNode) {
 
 	if !OkToCleanup(t.Failed()) {
 		return
 	}
 
 	for _, node := range nodes {
-		cmdStr := "sh -c 'sudo $GOSRC/github.com/contiv/netplugin/scripts/cleanup'"
+		cmdStr := "sudo -E $GOSRC/github.com/contiv/netplugin/scripts/cleanup"
 		output, err := node.RunCommandWithOutput(cmdStr)
 		if err != nil {
 			t.Errorf("Failed to cleanup the left over test case state. Error: %s\nCmd: %q\nOutput:\n%s\n",
@@ -73,7 +74,7 @@ func ConfigCleanupCommon(t *testing.T, nodes []TestbedNode) {
 }
 
 // StopNetPlugin stops the netplugin on specified testbed nodes
-func StopNetPlugin(t *testing.T, nodes []TestbedNode) {
+func StopNetPlugin(t *testing.T, nodes []stu.TestbedNode) {
 	for _, node := range nodes {
 		cmdStr := "sudo pkill netplugin"
 		node.RunCommand(cmdStr)
@@ -81,13 +82,13 @@ func StopNetPlugin(t *testing.T, nodes []TestbedNode) {
 }
 
 // StopNetmaster stops the netmaster on specified testbed node
-func StopNetmaster(t *testing.T, node TestbedNode) {
+func StopNetmaster(t *testing.T, node stu.TestbedNode) {
 	cmdStr := "sudo pkill netmaster"
 	node.RunCommand(cmdStr)
 }
 
 // StartNetPluginWithConfig starts netplugin on specified testbed nodes with specified config
-func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg bool,
+func StartNetPluginWithConfig(t *testing.T, nodes []stu.TestbedNode, nativeInteg bool,
 	configStr string) {
 	nativeIntegStr := ""
 	if nativeInteg {
@@ -106,7 +107,7 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 			jsonCfg := fmt.Sprintf(configStr, i+1)
 			jsonCfg = getEchoCompatibleStr(jsonCfg)
 			cmdStr := fmt.Sprintf("echo \"%s\" > %s", jsonCfg, cfgFile)
-			output, err := node.RunCommandWithOutput("sh -c '" + cmdStr + "'")
+			output, err := node.RunCommandWithOutput(cmdStr)
 			if err != nil {
 				t.Fatalf("Error '%s' creating config file\nCmd: %q\n Output : %s \n",
 					err, cmdStr, output)
@@ -117,7 +118,7 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 		}
 
 		if os.Getenv("CONTIV_TESTBED") == "DIND" {
-			tCmd := &TestCommand{}
+			tCmd := &stu.TestCommand{}
 			cmdStr = "sudo docker version | grep 'Server version' | awk '{print $3}'"
 			output, err := tCmd.RunWithOutput("sh", "-c", cmdStr)
 			if err != nil {
@@ -147,12 +148,14 @@ func StartNetPluginWithConfig(t *testing.T, nodes []TestbedNode, nativeInteg boo
 }
 
 // StartNetPlugin starts netplugin on  specified testbed nodes
-func StartNetPlugin(t *testing.T, nodes []TestbedNode, nativeInteg bool) {
+func StartNetPlugin(t *testing.T, nodes []stu.TestbedNode, nativeInteg bool) {
 	StartNetPluginWithConfig(t, nodes, nativeInteg, "")
 }
 
 // StartNetmasterWithFlags starts netplugin on specified testbed nodes with specified flags
-func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]string) {
+func StartNetmasterWithFlags(t *testing.T, node stu.TestbedNode, flags map[string]string) {
+	time.Sleep(5 * time.Second)
+
 	var (
 		cmdStr   string
 		flagsStr string
@@ -173,13 +176,11 @@ func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]st
 			err, cmdStr, output)
 	}
 
-	// Wait 20sec for netmaster to start.
-	// Since netmaster writes to objdb at startup, it takes surprisingly long
-	time.Sleep(20 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
 // StartNetmaster starts netplugin on specified testbed node
-func StartNetmaster(t *testing.T, node TestbedNode) {
+func StartNetmaster(t *testing.T, node stu.TestbedNode) {
 	StartNetmasterWithFlags(t, node, map[string]string{})
 }
 
@@ -189,12 +190,12 @@ func getEchoCompatibleStr(inStr string) string {
 	return strings.Replace(strings.Replace(inStr, "\n", " ", -1), "\"", "\\\"", -1)
 }
 
-func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode, stateStore string) {
+func applyConfig(t *testing.T, cfgType, jsonCfg string, node stu.TestbedNode, stateStore string) {
 	// replace newlines with space and "(quote) with \"(escaped quote) for
 	// echo to consume and produce desired json config
 	jsonCfg = getEchoCompatibleStr(jsonCfg)
 	cmdStr := fmt.Sprintf("echo \"%s\" > /tmp/netdcli.cfg", jsonCfg)
-	output, err := node.RunCommandWithOutput("sh -c '" + cmdStr + "'")
+	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
 		t.Fatalf("Error '%s' creating config file\nCmd: %q\n Output : %s \n",
 			err, cmdStr, output)
@@ -211,42 +212,42 @@ func applyConfig(t *testing.T, cfgType, jsonCfg string, node TestbedNode, stateS
 }
 
 // AddConfig issues netdcli with -add-cfg flag
-func AddConfig(t *testing.T, jsonCfg string, node TestbedNode) {
+func AddConfig(t *testing.T, jsonCfg string, node stu.TestbedNode) {
 	applyConfig(t, "add-cfg", jsonCfg, node, "")
 }
 
 // AddConfigConsul issues netdcli with -add-cfg flag and uses consul state-store
-func AddConfigConsul(t *testing.T, jsonCfg string, node TestbedNode) {
+func AddConfigConsul(t *testing.T, jsonCfg string, node stu.TestbedNode) {
 	applyConfig(t, "add-cfg", jsonCfg, node, u.ConsulNameStr)
 }
 
 // DelConfig issues netdcli with -del-cfg flag
-func DelConfig(t *testing.T, jsonCfg string, node TestbedNode) {
+func DelConfig(t *testing.T, jsonCfg string, node stu.TestbedNode) {
 	applyConfig(t, "del-cfg", jsonCfg, node, "")
 }
 
 // DelConfigConsul issues netdcli with -del-cfg flag and uses consul state-store
-func DelConfigConsul(t *testing.T, jsonCfg string, node TestbedNode) {
+func DelConfigConsul(t *testing.T, jsonCfg string, node stu.TestbedNode) {
 	applyConfig(t, "del-cfg", jsonCfg, node, u.ConsulNameStr)
 }
 
 // ApplyDesiredConfig issues netdcli with -cfg flag
-func ApplyDesiredConfig(t *testing.T, jsonCfg string, node TestbedNode) {
+func ApplyDesiredConfig(t *testing.T, jsonCfg string, node stu.TestbedNode) {
 	applyConfig(t, "cfg", jsonCfg, node, "")
 }
 
 // ApplyDesiredConfigConsul issues netdcli with -cfg flag and uses consul state-store
-func ApplyDesiredConfigConsul(t *testing.T, jsonCfg string, node TestbedNode) {
+func ApplyDesiredConfigConsul(t *testing.T, jsonCfg string, node stu.TestbedNode) {
 	applyConfig(t, "cfg", jsonCfg, node, u.ConsulNameStr)
 }
 
 // ApplyHostBindingsConfig issues netdcli with -host-bindings-cfg flag
-func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node TestbedNode) {
+func ApplyHostBindingsConfig(t *testing.T, jsonCfg string, node stu.TestbedNode) {
 	applyConfig(t, "host-bindings-cfg", jsonCfg, node, "")
 }
 
 // FixUpContainerUUIDs fills up UUID information in passed jsonCfg and returns host-binding configuration
-func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (string, error) {
+func FixUpContainerUUIDs(t *testing.T, nodes []stu.TestbedNode, jsonCfg string) (string, error) {
 	epBindings := []intent.ConfigEP{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
 	if err != nil {
@@ -281,7 +282,7 @@ func FixUpContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg string) (str
 }
 
 // FixUpInfraContainerUUIDs fills up UUID information in passed jsonCfg and returns host-binding configuration
-func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraContCfg string) (string, error) {
+func FixUpInfraContainerUUIDs(t *testing.T, nodes []stu.TestbedNode, jsonCfg, infraContCfg string) (string, error) {
 
 	epBindings := []intent.ConfigEP{}
 	err := json.Unmarshal([]byte(jsonCfg), &epBindings)
@@ -335,7 +336,7 @@ func FixUpInfraContainerUUIDs(t *testing.T, nodes []TestbedNode, jsonCfg, infraC
 }
 
 // ConfigSetupCommon performs common configuration setup on specified testbed nodes
-func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []TestbedNode) {
+func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []stu.TestbedNode) {
 	StartNetmaster(t, nodes[0])
 
 	StartNetPlugin(t, nodes, false)
@@ -370,7 +371,7 @@ func GetNetpluginConfigWithConsul() string {
 }
 
 // ConfigSetupCommonWithConsul performs common configuration setup on specified testbed nodes
-func ConfigSetupCommonWithConsul(t *testing.T, jsonCfg string, nodes []TestbedNode) {
+func ConfigSetupCommonWithConsul(t *testing.T, jsonCfg string, nodes []stu.TestbedNode) {
 	StartNetmasterWithFlags(t, nodes[0], map[string]string{
 		"--state-store": "consul"})
 
@@ -380,7 +381,7 @@ func ConfigSetupCommonWithConsul(t *testing.T, jsonCfg string, nodes []TestbedNo
 }
 
 // GetIPAddress returns IP-address information for specified endpoint
-func GetIPAddress(t *testing.T, node TestbedNode, ep, stateStore string) string {
+func GetIPAddress(t *testing.T, node stu.TestbedNode, ep, stateStore string) string {
 	cmdStr := "netdcli -oper get -construct endpoint " + ep + " 2>&1"
 	if stateStore != "" {
 		cmdStr = "netdcli -oper get -state-store " + stateStore + " -construct endpoint " + ep + " 2>&1"
@@ -409,7 +410,7 @@ func GetIPAddress(t *testing.T, node TestbedNode, ep, stateStore string) string 
 }
 
 // NetworkStateExists tests if state for specified network exists
-func NetworkStateExists(node TestbedNode, network, stateStore string) error {
+func NetworkStateExists(node stu.TestbedNode, network, stateStore string) error {
 	cmdStr := "netdcli -oper get -construct network " + network + " 2>&1"
 	if stateStore != "" {
 		cmdStr = "netdcli -state-store " + stateStore + "-oper get -construct network " + network + " 2>&1"
@@ -426,7 +427,7 @@ func NetworkStateExists(node TestbedNode, network, stateStore string) error {
 }
 
 // DumpNetpluginLogs prints netplugin logs from the specified testbed node
-func DumpNetpluginLogs(node TestbedNode) {
+func DumpNetpluginLogs(node stu.TestbedNode) {
 	cmdStr := fmt.Sprintf("sudo cat /tmp/netplugin.log")
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err == nil {
