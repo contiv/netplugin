@@ -452,6 +452,12 @@ func (self *OfnetAgent) EndpointAdd(epreg *OfnetEndpoint, ret *bool) error {
 		if !epreg.Timestamp.After(oldEp.Timestamp) {
 			return nil
 		}
+
+		// Uninstall the old endpoint from datapath
+		err := self.datapath.RemoveEndpoint(oldEp)
+		if err != nil {
+			log.Errorf("Error deleting old endpoint: {%+v}. Err: %v", oldEp, err)
+		}
 	}
 
 	// First, add the endpoint to local routing table

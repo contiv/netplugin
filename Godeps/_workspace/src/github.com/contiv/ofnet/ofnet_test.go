@@ -29,7 +29,7 @@ var ovsDrivers [NUM_AGENT * 2]*ovsdbDriver.OvsDriver
 var localIpList []string
 
 // Create couple of ofnet masters and few agents
-func TestOfnetInit(t *testing.T) {
+func TestMain(m *testing.M) {
 	var err error
 
 	for i := 0; i < NUM_AGENT; i++ {
@@ -38,16 +38,16 @@ func TestOfnetInit(t *testing.T) {
 
 	// Create the masters
 	for i := 0; i < NUM_MASTER; i++ {
-		vrtrMasters[i] = NewOfnetMaster(uint16(9001 + i))
+		vrtrMasters[i] = NewOfnetMaster(uint16(9301 + i))
 		if vrtrMasters[i] == nil {
-			t.Fatalf("Error creating ofnet master")
+			log.Fatalf("Error creating ofnet master")
 		}
 
 		log.Infof("Created Master: %v", vrtrMasters[i])
 
 		vxlanMasters[i] = NewOfnetMaster(uint16(9051 + i))
 		if vxlanMasters[i] == nil {
-			t.Fatalf("Error creating ofnet master")
+			log.Fatalf("Error creating ofnet master")
 		}
 
 		log.Infof("Created Master: %v", vxlanMasters[i])
@@ -63,7 +63,7 @@ func TestOfnetInit(t *testing.T) {
 		lclIp := net.ParseIP(localIpList[i])
 		vrtrAgents[i], err = NewOfnetAgent("vrouter", lclIp, rpcPort, ovsPort)
 		if err != nil {
-			t.Fatalf("Error creating ofnet agent. Err: %v", err)
+			log.Fatalf("Error creating ofnet agent. Err: %v", err)
 		}
 
 		// Override MyAddr to local host
@@ -79,7 +79,7 @@ func TestOfnetInit(t *testing.T) {
 
 		vxlanAgents[i], err = NewOfnetAgent("vxlan", lclIp, rpcPort, ovsPort)
 		if err != nil {
-			t.Fatalf("Error creating ofnet agent. Err: %v", err)
+			log.Fatalf("Error creating ofnet agent. Err: %v", err)
 		}
 
 		// Override MyAddr to local host
@@ -95,19 +95,19 @@ func TestOfnetInit(t *testing.T) {
 			var resp bool
 			masterInfo := OfnetNode{
 				HostAddr: "127.0.0.1",
-				HostPort: uint16(9001 + j),
+				HostPort: uint16(9301 + j),
 			}
 			// connect vrtr agent to vrtr master
 			err := vrtrAgents[i].AddMaster(&masterInfo, &resp)
 			if err != nil {
-				t.Errorf("Error adding master %+v to vrtr node %d. Err: %v", masterInfo, i, err)
+				log.Fatalf("Error adding master %+v to vrtr node %d. Err: %v", masterInfo, i, err)
 			}
 
 			// connect vxlan agents to vxlan master
 			masterInfo.HostPort = uint16(9051 + j)
 			err = vxlanAgents[i].AddMaster(&masterInfo, &resp)
 			if err != nil {
-				t.Errorf("Error adding master %+v to vxlan node %d. Err: %v", masterInfo, i, err)
+				log.Fatalf("Error adding master %+v to vxlan node %d. Err: %v", masterInfo, i, err)
 			}
 
 		}
@@ -119,12 +119,12 @@ func TestOfnetInit(t *testing.T) {
 	for i := 0; i < NUM_MASTER; i++ {
 		err := vrtrMasters[i].MakeDummyRpcCall()
 		if err != nil {
-			t.Fatalf("Error making dummy rpc call. Err: %v", err)
+			log.Fatalf("Error making dummy rpc call. Err: %v", err)
 			return
 		}
 		err = vxlanMasters[i].MakeDummyRpcCall()
 		if err != nil {
-			t.Fatalf("Error making dummy rpc call. Err: %v", err)
+			log.Fatalf("Error making dummy rpc call. Err: %v", err)
 			return
 		}
 	}
@@ -138,7 +138,7 @@ func TestOfnetInit(t *testing.T) {
 		ovsDrivers[i] = ovsdbDriver.NewOvsDriver(brName)
 		err := ovsDrivers[i].AddController("127.0.0.1", ovsPort)
 		if err != nil {
-			t.Fatalf("Error adding controller to ovs: %s", brName)
+			log.Fatalf("Error adding controller to ovs: %s", brName)
 		}
 	}
 	// Create OVS switches and connect them to vxlan ofnet agents
@@ -149,7 +149,7 @@ func TestOfnetInit(t *testing.T) {
 		ovsDrivers[j] = ovsdbDriver.NewOvsDriver(brName)
 		err := ovsDrivers[j].AddController("127.0.0.1", ovsPort)
 		if err != nil {
-			t.Fatalf("Error adding controller to ovs: %s", brName)
+			log.Fatalf("Error adding controller to ovs: %s", brName)
 		}
 	}
 
