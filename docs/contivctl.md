@@ -2,8 +2,9 @@
 
 contivctl command line tool lets you add/modify/delete objects into contiv object model using REST api.
 
-Command can be found under $GOPATH/bin directory (/opt/gopath/bin in vagrant VMs) after a build. 
-Currently, contivctl needs to be run on the same host where netmaster is running
+*Note:*
+`contivctl` Command can be found under `$GOPATH/bin` directory (`/opt/gopath/bin` in vagrant VMs) after a build. 
+Currently, `contivctl` needs to be run on the same host where `netmaster` is running
 
 ## Usage
 
@@ -23,7 +24,7 @@ optional arguments:
   --version             show program's version number and exit
 ```
 
-### Creating networks
+###  Networks
 
 ```
 vagrant@netplugin-node1:~$ contivctl network create --help
@@ -46,7 +47,7 @@ optional arguments:
 
 #### Examples
 
-Following creates a vxlan network called production under default tenant and assigns a subnet to it
+Following creates a vxlan network called `production` under `default` tenant and assigns a subnet to it
 
 ```
 vagrant@netplugin-node1:~$ contivctl network create production -encap=vxlan -subnet=20.20.20.0/24 -defaultGw=20.20.20.254
@@ -54,7 +55,7 @@ Creating network default:production
 Network Create response is: {"key":"default:production","defaultGw":"20.20.20.254","encap":"vxlan","isPrivate":true,"networkName":"production","subnet":"20.20.20.0/24","tenantName":"default","link-sets":{},"links":{"Tenant":{"type":"tenant","key":"default"}}}
 ```
 
-Following lists all networks under default tenant
+Following lists all networks under `default` tenant
 
 ```
 vagrant@netplugin-node1:~$ contivctl network list
@@ -65,14 +66,14 @@ public		Yes	vlan	192.168.1.0/24		192.168.1.254
 production		No	vxlan	20.20.20.0/24		20.20.20.254
 ```
 
-Following deletes a network from default tenant
+Following deletes a network from `default` tenant
 
 ```
 vagrant@netplugin-node1:~$ contivctl network delete production
 Deleting network default:production
 ```
 
-### Creating a policy
+### Policies
 
 #### Usage
 
@@ -91,14 +92,14 @@ optional arguments:
 
 #### Example
 
-Following creates a policy names 'webTier'
+Following creates a policy named `webTier`
 ```
 vagrant@netplugin-node1:~$ contivctl policy create webTier 
 Creating policy default:webTier
 Create policy response is: {"key":"default:webTier","policyName":"webTier","tenantName":"default","link-sets":{},"links":{"Tenant":{}}}
 ```
 
-Following lists all policies under default tenant
+Following lists all policies under `default` tenant
 
 ```
 vagrant@netplugin-node1:~$ contivctl policy list
@@ -109,7 +110,7 @@ default		first
 default		webTier
 ```
 
-### Adding rules to a policy
+### Rules
 
 #### Usage
 ```
@@ -142,7 +143,7 @@ optional arguments:
                         Accept or deny
 ```
 
-All rules have a  rule Id which uniquely identifies the rule under a policy. Rule Id is a string that can be anything user chooses. Rule id does not specify the order in which rules are applied. User has to specify the priority for the rule. Higher the priority, higher preference a rule gets. In following example, we add a default deny rule which uses default priority 1 and a allow web traffic rule which is at higher priority 10.
+All rules have a rule Id which uniquely identifies the rule under a policy. Rule Id is a string that can be anything user chooses. Rule id does not specify the order in which rules are applied. User has to specify the priority for the rule. Higher the priority, higher preference a rule gets. In following example, we add a default deny rule which uses default priority 1 and a allow web traffic rule which is at higher priority 10.
 
 #### Examples
 
@@ -164,7 +165,7 @@ rule create, sending: {"direction": "in", "protocol": "tcp", "ruleId": "2", "por
 Rule add response is: {"key":"default:webTier:2","action":"accept","direction":"in","policyName":"webTier","port":80,"priority":10,"protocol":"tcp","ruleId":"2","tenantName":"default","link-sets":{"Policies":{"default:webTier":{"type":"policy","key":"default:webTier"}}}}
 ```
 
-Following lists all the rules under 'webTier' policy
+Following lists all the rules under `webTier` policy
 
 ```
 vagrant@netplugin-node1:~$ contivctl rule list webTier
@@ -175,14 +176,14 @@ Rule, direction, priority, endpointGroup, network, ipAddress, protocol, port, ac
 2, in, 10, --, --, --, tcp, 80, accept
 ```
 
-Following deletes a rule from webTier policy
+Following deletes a rule from `webTier` policy
 
 ```
 vagrant@netplugin-node1:~$ contivctl rule delete webTier 2
 Deleting rule default:webTier:2
 ```
 
-### Creating EPGs
+### Endpoint Groups
 
 ```
 vagrant@netplugin-node1:~$ contivctl group create --help
