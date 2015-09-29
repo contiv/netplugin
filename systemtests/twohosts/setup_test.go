@@ -19,18 +19,19 @@ import (
 	"os"
 	"testing"
 
-	utils "github.com/contiv/systemtests-utils"
+	"github.com/contiv/netplugin/systemtests/utils"
+	stu "github.com/contiv/systemtests-utils"
 
 	log "github.com/Sirupsen/logrus"
 )
 
-var testbed utils.Testbed
+var testbed stu.Testbed
 
 func TestMain(m *testing.M) {
 	if os.Getenv("CONTIV_TESTBED") == "DIND" {
-		testbed = &utils.Dind{}
+		testbed = &stu.Dind{}
 	} else {
-		testbed = &utils.Vagrant{}
+		testbed = &stu.Vagrant{}
 	}
 	log.Printf("Starting testbed setup...")
 	err := testbed.Setup(true, os.Getenv("CONTIV_ENV"), 2)

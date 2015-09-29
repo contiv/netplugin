@@ -69,7 +69,7 @@ func newCmdStrWithSource(cmd string) string {
 	// we need to source the environment manually as the ssh package client
 	// doesn't do it automatically (I guess something to do with non interative
 	// mode)
-	return fmt.Sprintf("source /etc/profile.d/envvar.sh && %s", cmd)
+	return fmt.Sprintf("bash -lc '%s'", cmd)
 }
 
 // RunCommand runs a shell command in a vagrant node and returns it's exit status
@@ -83,6 +83,11 @@ func (n *VagrantNode) RunCommand(cmd string) error {
 		return err
 	}
 	defer s.Close()
+
+	if err := s.RequestPty("vt100", 80, 25, ssh.TerminalModes{}); err != nil {
+		fmt.Println(err)
+		return err
+	}
 
 	return s.Run(newCmdStrWithSource(cmd))
 }
