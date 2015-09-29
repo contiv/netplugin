@@ -61,6 +61,7 @@ func InitDockPlugin() error {
 	dispatchMap := map[string]func(http.ResponseWriter, *http.Request){
 		"/Plugin.Activate":                activate(hostname),
 		"/Plugin.Deactivate":              deactivate(hostname),
+		"/NetworkDriver.GetCapabilities":  getCapability(),
 		"/NetworkDriver.CreateNetwork":    createNetwork(),
 		"/NetworkDriver.DeleteNetwork":    deleteNetwork(),
 		"/NetworkDriver.CreateEndpoint":   createEndpoint(tenantName, hostname),
@@ -73,6 +74,8 @@ func InitDockPlugin() error {
 	for dispatchPath, dispatchFunc := range dispatchMap {
 		s.HandleFunc(dispatchPath, logHandler(dispatchPath, dispatchFunc))
 	}
+
+	s.HandleFunc("/NetworkDriver.{*}", unknownAction)
 
 	driverPath := path.Join(pluginPath, driverName) + ".sock"
 	os.Remove(driverPath)
@@ -129,6 +132,14 @@ func logEvent(typ string) {
 	log.Infof("Handling %q event", typ)
 }
 
+// Catchall for additional driver functions.
+func unknownAction(w http.ResponseWriter, r *http.Request) {
+	log.Infof("Unknown networkdriver action at %q", r.URL.Path)
+	content, _ := ioutil.ReadAll(r.Body)
+	log.Infof("Body content: %s", string(content))
+	w.WriteHeader(503)
+}
+
 // deactivate the plugin
 func deactivate(hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -144,6 +155,19 @@ func activate(hostname string) func(http.ResponseWriter, *http.Request) {
 		content, err := json.Marshal(plugins.Manifest{Implements: []string{"NetworkDriver"}})
 		if err != nil {
 			httpError(w, "Could not generate bootstrap response", err)
+			return
+		}
+
+		w.Write(content)
+	}
+}
+func getCapability() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logEvent("getCapability")
+
+		content, err := json.Marshal(api.GetCapabilityResponse{Scope: "local"})
+		if err != nil {
+			httpError(w, "Could not generate getCapability response", err)
 			return
 		}
 
@@ -333,16 +357,13 @@ func createEndpoint(tenantName, hostname string) func(http.ResponseWriter, *http
 
 		nw, err := netdcliGetNetwork(networkName)
 		if err != nil {
-			httpError(w, "Could not find created endpoint", err)
+			httpError(w, "Could not find network", err)
 			return
 		}
 
 		epResponse := api.CreateEndpointResponse{
-			Interfaces: []*api.EndpointInterface{
-				&api.EndpointInterface{
-					ID:      1,
-					Address: fmt.Sprintf("%s/%d", ep[0].IPAddress, nw[0].SubnetLen),
-				},
+			Interface: &api.EndpointInterface{
+				Address: fmt.Sprintf("%s/%d", ep[0].IPAddress, nw[0].SubnetLen),
 			},
 		}
 
@@ -426,12 +447,9 @@ func join() func(http.ResponseWriter, *http.Request) {
 		}
 
 		joinResp := api.JoinResponse{
-			InterfaceNames: []*api.InterfaceName{
-				&api.InterfaceName{},
-				&api.InterfaceName{
-					SrcName:   ep[0].PortName,
-					DstPrefix: "eth",
-				},
+			InterfaceName: &api.InterfaceName{
+				SrcName:   ep[0].PortName,
+				DstPrefix: "eth",
 			},
 			Gateway: nw[0].DefaultGw,
 		}

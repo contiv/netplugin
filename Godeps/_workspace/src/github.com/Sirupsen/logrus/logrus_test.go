@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -191,7 +190,7 @@ func TestUserSuppliedLevelFieldHasPrefix(t *testing.T) {
 		log.WithField("level", 1).Info("test")
 	}, func(fields Fields) {
 		assert.Equal(t, fields["level"], "info")
-		assert.Equal(t, fields["fields.level"], 1.0) // JSON has floats only
+		assert.Equal(t, fields["fields.level"], 1)
 	})
 }
 
@@ -281,21 +280,4 @@ func TestParseLevel(t *testing.T) {
 
 	l, err = ParseLevel("invalid")
 	assert.Equal(t, "not a valid logrus Level: \"invalid\"", err.Error())
-}
-
-func TestGetSetLevelRace(t *testing.T) {
-	wg := sync.WaitGroup{}
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			if i%2 == 0 {
-				SetLevel(InfoLevel)
-			} else {
-				GetLevel()
-			}
-		}(i)
-
-	}
-	wg.Wait()
 }

@@ -4,6 +4,7 @@
 *.so
 
 # Folders
+integration-tmp/
 _obj
 _test
 
@@ -22,6 +23,7 @@ _testmain.go
 *.exe
 *.test
 *.prof
+cmd/dnet/dnet
 
 # Coverage
 *.tmp

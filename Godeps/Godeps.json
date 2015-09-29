@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/contiv/netplugin",
-	"GoVersion": "go1.4",
+	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
 	],
@@ -12,12 +12,17 @@
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.8.2-10-g21d4508",
-			"Rev": "21d4508646ae56d79244bd9046c1df63a5fa8c37"
+			"Comment": "v0.6.4-12-g467d9d5",
+			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
 		},
 		{
 			"ImportPath": "github.com/armon/go-metrics",
 			"Rev": "eb0af217e5e9747e41dd5303755356b62d28e3ec"
+		},
+		{
+			"ImportPath": "github.com/boltdb/bolt",
+			"Comment": "v1.0-129-g51f99c8",
+			"Rev": "51f99c862475898df9773747d3accd05a7ca33c1"
 		},
 		{
 			"ImportPath": "github.com/cenkalti/hub",
@@ -40,15 +45,15 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/objmodel/contivModel",
-			"Rev": "ee5cc8dda51f479defd814c23e4f97589eb1f315"
+			"Rev": "91ca68de3a8aaef7202efbccee37beb4e92a513d"
 		},
 		{
 			"ImportPath": "github.com/contiv/objmodel/objdb",
-			"Rev": "ee5cc8dda51f479defd814c23e4f97589eb1f315"
+			"Rev": "91ca68de3a8aaef7202efbccee37beb4e92a513d"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "03f8035750c738e13a2d6f4ac57fcf994d646bc1"
+			"Rev": "ba331e98bc6f90cd3361b615cbe49b1a8bb9c652"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",
@@ -70,12 +75,27 @@
 			"Rev": "73a8ef737e8ea002281a28b4cb92a1de121ad4c6"
 		},
 		{
+			"ImportPath": "github.com/coreos/go-systemd/dbus",
+			"Comment": "v3",
+			"Rev": "be94bc700879ae8217780e9d141789a2defa302b"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/util",
+			"Comment": "v3",
+			"Rev": "be94bc700879ae8217780e9d141789a2defa302b"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/ioutils",
 			"Comment": "v1.4.1-5404-gc471b7a",
 			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/listenbuffer",
+			"Comment": "v1.4.1-5404-gc471b7a",
+			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mount",
 			"Comment": "v1.4.1-5404-gc471b7a",
 			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
 		},
@@ -115,6 +135,11 @@
 			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
 		},
 		{
+			"ImportPath": "github.com/docker/docker/pkg/symlink",
+			"Comment": "v1.4.1-5404-gc471b7a",
+			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/tlsconfig",
 			"Comment": "v1.4.1-5404-gc471b7a",
 			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
@@ -126,12 +151,12 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libkv",
-			"Rev": "60c7c881345b3c67defc7f93a8297debf041d43c"
+			"Rev": "1d2361d74ecd9aa75b17992cf5c63d2c5ab717ab"
 		},
 		{
 			"ImportPath": "github.com/docker/libnetwork",
-			"Comment": "v0.2-359-g0dca755",
-			"Rev": "0dca75517b2feb75890b20aaad2652f3a0d8ff10"
+			"Comment": "v0.2-490-g70409ac",
+			"Rev": "70409acbcd661e6a7bfe04e2b81412a465d29512"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",
@@ -139,12 +164,16 @@
 			"Rev": "41608027bdce7bfa8959d653a00b954591220e67"
 		},
 		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "8df8a93c670173cd1d8737a507a253b94f2d0b5a"
+		},
+		{
 			"ImportPath": "github.com/gorilla/context",
 			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
-			"Rev": "47e8f450ef38c857cdd922ec08862ca9d65a1c6d"
+			"Rev": "8096f47503459bcc74d1f4c487b7e6e42e5746b5"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
@@ -170,7 +199,7 @@
 			"Rev": "1f0c6de81a62732e75f6c97f1e28e5a009b5df68"
 		},
 		{
-			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",
+			"ImportPath": "github.com/opencontainers/runc/libcontainer",
 			"Comment": "v0.0.3-14-g9be9157",
 			"Rev": "9be9157fc5cd9cf59c155fe194a0acc5f1e6f926"
 		},
@@ -199,6 +228,10 @@
 			"Rev": "773b26aafae227067213c7222de82c9b2177c3fc"
 		},
 		{
+			"ImportPath": "github.com/syndtr/gocapability/capability",
+			"Rev": "2c00daeb6c3b45114c80ac44119e7b8801fdd852"
+		},
+		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "4b5dce31de6d42af5bb9811c6d265472199e0fec"
 		},
@@ -207,12 +240,8 @@
 			"Rev": "493029407eeb434d0c2d44e02ea072ff2488d322"
 		},
 		{
-			"ImportPath": "github.com/vishvananda/netns",
-			"Rev": "493029407eeb434d0c2d44e02ea072ff2488d322"
-		},
-		{
 			"ImportPath": "golang.org/x/crypto/ssh",
-			"Rev": "cc04154d65fb9296747569b107cfd05380b1ea3e"
+			"Rev": "83f1503f771a82af8a31f358eb825e9efb5dae6c"
 		}
 	]
 }

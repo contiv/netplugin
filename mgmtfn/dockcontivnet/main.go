@@ -348,11 +348,8 @@ func createEndpoint(tenantName, networkName, hostname string) func(http.Response
 		}
 
 		epResponse := api.CreateEndpointResponse{
-			Interfaces: []*api.EndpointInterface{
-				&api.EndpointInterface{
-					ID:      1,
-					Address: fmt.Sprintf("%s/%d", ep[0].IPAddress, nw[0].SubnetLen),
-				},
+			Interface: &api.EndpointInterface{
+				Address: fmt.Sprintf("%s/%d", ep[0].IPAddress, nw[0].SubnetLen),
 			},
 		}
 
@@ -407,12 +404,9 @@ func join(networkName string) func(http.ResponseWriter, *http.Request) {
 		}
 
 		content, err = json.Marshal(api.JoinResponse{
-			InterfaceNames: []*api.InterfaceName{
-				&api.InterfaceName{},
-				&api.InterfaceName{
-					SrcName: ep[0].PortName,
-					DstName: "eth",
-				},
+			InterfaceName: &api.InterfaceName{
+				SrcName: ep[0].PortName,
+				DstName: "eth",
 			},
 			Gateway: nw[0].DefaultGw,
 		})

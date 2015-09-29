@@ -165,14 +165,20 @@ func (self *Vxlan) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	self.portVlanFlowDb[endpoint.PortNo] = portVlanFlow
 
 	// Add the port to local and remote flood list
-	output, _ := self.ofSwitch.OutputPort(endpoint.PortNo)
+	output, err := self.ofSwitch.OutputPort(endpoint.PortNo)
+	if err != nil {
+		return err
+	}
 	vlan := self.vlanDb[endpoint.Vlan]
 	if vlan != nil {
 		vlan.localFlood.AddOutput(output)
 		vlan.allFlood.AddOutput(output)
 	}
 
-	macAddr, _ := net.ParseMAC(endpoint.MacAddrStr)
+	macAddr, err := net.ParseMAC(endpoint.MacAddrStr)
+	if err != nil {
+		return err
+	}
 
 	// Finally install the mac address
 	macFlow, err := self.macDestTable.NewFlow(ofctrl.FlowMatch{
@@ -207,9 +213,11 @@ func (self *Vxlan) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	// Remove the port from flood lists
 	vlanId := self.agent.vniVlanMap[endpoint.Vni]
 	vlan := self.vlanDb[*vlanId]
-	output, _ := self.ofSwitch.OutputPort(endpoint.PortNo)
-	vlan.localFlood.RemoveOutput(output)
-	vlan.allFlood.RemoveOutput(output)
+	output, err := self.ofSwitch.OutputPort(endpoint.PortNo)
+	if err == nil {
+		vlan.localFlood.RemoveOutput(output)
+		vlan.allFlood.RemoveOutput(output)
+	}
 
 	// Remove the port vlan flow.
 	portVlanFlow := self.portVlanFlowDb[endpoint.PortNo]
@@ -228,7 +236,7 @@ func (self *Vxlan) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	}
 
 	// Delete the flow
-	err := macFlow.Delete()
+	err = macFlow.Delete()
 	if err != nil {
 		log.Errorf("Error deleting mac flow: %+v. Err: %v", macFlow, err)
 	}
@@ -277,7 +285,10 @@ func (self *Vxlan) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 		if vni == nil {
 			log.Errorf("Can not find vni for vlan: %d", vlanId)
 		}
-		output, _ := self.ofSwitch.OutputPort(portNo)
+		output, err := self.ofSwitch.OutputPort(portNo)
+		if err != nil {
+			return err
+		}
 		vlan.allFlood.AddTunnelOutput(output, uint64(*vni))
 	}
 
@@ -300,6 +311,7 @@ func (self *Vxlan) RemoveVtepPort(portNo uint32, remoteIp net.IP) error {
 
 // Add a vlan.
 func (self *Vxlan) AddVlan(vlanId uint16, vni uint32) error {
+	var err error
 	// check if the vlan already exists. if it does, we are done
 	if self.vlanDb[vlanId] != nil {
 		return nil
@@ -312,8 +324,14 @@ func (self *Vxlan) AddVlan(vlanId uint16, vni uint32) error {
 	vlan.allPortList = make(map[uint32]*uint32)
 
 	// Create flood entries
-	vlan.localFlood, _ = self.ofSwitch.NewFlood()
-	vlan.allFlood, _ = self.ofSwitch.NewFlood()
+	vlan.localFlood, err = self.ofSwitch.NewFlood()
+	if err != nil {
+		return err
+	}
+	vlan.allFlood, err = self.ofSwitch.NewFlood()
+	if err != nil {
+		return err
+	}
 
 	// Walk all VTEP ports and add vni-vlan mapping for new VNI
 	for _, vtepPort := range self.agent.vtepTable {
@@ -341,7 +359,10 @@ func (self *Vxlan) AddVlan(vlanId uint16, vni uint32) error {
 
 	// Walk all VTEP ports and add it to the allFlood list
 	for _, vtepPort := range self.agent.vtepTable {
-		output, _ := self.ofSwitch.OutputPort(*vtepPort)
+		output, err := self.ofSwitch.OutputPort(*vtepPort)
+		if err != nil {
+			return err
+		}
 		vlan.allFlood.AddTunnelOutput(output, uint64(vni))
 	}
 
@@ -421,7 +442,10 @@ func (self *Vxlan) AddEndpoint(endpoint *OfnetEndpoint) error {
 		return errors.New("Unknown VNI")
 	}
 
-	macAddr, _ := net.ParseMAC(endpoint.MacAddrStr)
+	macAddr, err := net.ParseMAC(endpoint.MacAddrStr)
+	if err != nil {
+		return err
+	}
 
 	// Install the endpoint in OVS
 	// Create an output port for the vtep
@@ -432,11 +456,16 @@ func (self *Vxlan) AddEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	// Finally install the mac address
-	macFlow, _ := self.macDestTable.NewFlow(ofctrl.FlowMatch{
+	macFlow, err := self.macDestTable.NewFlow(ofctrl.FlowMatch{
 		Priority: FLOW_MATCH_PRIORITY,
 		VlanId:   *vlanId,
 		MacDa:    &macAddr,
 	})
+	if err != nil {
+		log.Errorf("Error creating mac flow {%+v}. Err: %v", macFlow, err)
+		return err
+	}
+
 	macFlow.PopVlan()
 	macFlow.SetTunnelId(uint64(endpoint.Vni))
 	macFlow.Next(outPort)
