@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	stu "github.com/contiv/systemtests-utils"
 )
 
 // DockerCleanupWithEnv kills and removes a container on a specified testbed node
 // and with specified env-variables
-func DockerCleanupWithEnv(t *testing.T, node TestbedNode, contName string, env []string) {
+func DockerCleanupWithEnv(t *testing.T, node stu.TestbedNode, contName string, env []string) {
 	if !OkToCleanup(t.Failed()) {
 		return
 	}
@@ -34,12 +36,12 @@ func DockerCleanupWithEnv(t *testing.T, node TestbedNode, contName string, env [
 }
 
 // DockerCleanup kills and removes a container on a specified testbed node
-func DockerCleanup(t *testing.T, node TestbedNode, contName string) {
+func DockerCleanup(t *testing.T, node stu.TestbedNode, contName string) {
 	DockerCleanupWithEnv(t, node, contName, []string{})
 }
 
 // StartServerWithEnvAndArgs starts a server container with specified env-variables
-func StartServerWithEnvAndArgs(t *testing.T, node TestbedNode, contName string,
+func StartServerWithEnvAndArgs(t *testing.T, node stu.TestbedNode, contName string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run -d %s --name=" + contName +
 		" ubuntu /bin/bash -c \"mkfifo foo && < foo\""
@@ -54,13 +56,13 @@ func StartServerWithEnvAndArgs(t *testing.T, node TestbedNode, contName string,
 }
 
 // StartServer starts a server container
-func StartServer(t *testing.T, node TestbedNode, contName string) {
+func StartServer(t *testing.T, node stu.TestbedNode, contName string) {
 	StartServerWithEnvAndArgs(t, node, contName, []string{}, []string{})
 }
 
 // StartClientWithEnvAndArgs starts a client container with specified env-variables.
 // It expects ping to server container to succeed
-func StartClientWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddress string,
+func StartClientWithEnvAndArgs(t *testing.T, node stu.TestbedNode, contName, ipAddress string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run %s --name=" + contName +
 		" ubuntu /bin/bash -c \"ping -c5 " + ipAddress + "\""
@@ -90,13 +92,13 @@ func StartClientWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddre
 }
 
 // StartClient starts a client container. It expects ping to server container to succeed
-func StartClient(t *testing.T, node TestbedNode, contName, ipAddress string) {
+func StartClient(t *testing.T, node stu.TestbedNode, contName, ipAddress string) {
 	StartClientWithEnvAndArgs(t, node, contName, ipAddress, []string{}, []string{})
 }
 
 // StartClientFailureWithEnvAndArgs starts a client container with specified env-variables.
 // It expects ping to server container to failure
-func StartClientFailureWithEnvAndArgs(t *testing.T, node TestbedNode, contName, ipAddress string,
+func StartClientFailureWithEnvAndArgs(t *testing.T, node stu.TestbedNode, contName, ipAddress string,
 	env, dockerArgs []string) {
 	cmdStr := "sudo %s docker run %s --name=" + contName +
 		" ubuntu /bin/bash -c \"ping -c5 " + ipAddress + "\""
@@ -117,11 +119,11 @@ func StartClientFailureWithEnvAndArgs(t *testing.T, node TestbedNode, contName, 
 }
 
 // StartClientFailure starts a client container. It expects ping to server container to fail
-func StartClientFailure(t *testing.T, node TestbedNode, contName, ipAddress string) {
+func StartClientFailure(t *testing.T, node stu.TestbedNode, contName, ipAddress string) {
 	StartClientFailureWithEnvAndArgs(t, node, contName, ipAddress, []string{}, []string{})
 }
 
-func getContainerUUID(node TestbedNode, contName string) (string, error) {
+func getContainerUUID(node stu.TestbedNode, contName string) (string, error) {
 	cmdStr := "sudo docker inspect --format='{{.Id}}' " + contName
 	output, err := node.RunCommandWithOutput(cmdStr)
 	if err != nil {
