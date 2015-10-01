@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
@@ -82,8 +83,16 @@ func NewOvsdbDriver(bridgeName string, failMode string) (*OvsdbDriver, error) {
 // Delete : Cleanup the ovsdb driver. delete the bridge we created.
 func (d *OvsdbDriver) Delete() error {
 	if d.ovs != nil {
-		d.createDeleteBridge(d.bridgeName, "", operDeleteBridge)
 		log.Infof("Deleting OVS bridge: %s", d.bridgeName)
+		for i := 0; i < 3; i++ {
+			err := d.createDeleteBridge(d.bridgeName, "", operDeleteBridge)
+			if err != nil {
+				log.Errorf("Error deleting the bridge %s. Err: %v", d.bridgeName, err)
+				time.Sleep(300 * time.Millisecond)
+			} else {
+				break
+			}
+		}
 		(*d.ovs).Disconnect()
 	}
 
@@ -153,7 +162,7 @@ func (d *OvsdbDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 		return nil
 	}
 
-	log.Errorf("OVS operation failed for op: %+v", ops)
+	log.Errorf("OVS operation failed for op: %+v: Errors: %v", ops, errors)
 
 	return core.Errorf("ovs operation failed. Error(s): %v", errors)
 }

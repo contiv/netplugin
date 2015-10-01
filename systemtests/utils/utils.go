@@ -153,7 +153,7 @@ func StartNetPlugin(t *testing.T, nodes []stu.TestbedNode, nativeInteg bool) {
 }
 
 // StartNetmasterWithFlags starts netplugin on specified testbed nodes with specified flags
-func StartNetmasterWithFlags(t *testing.T, node stu.TestbedNode, flags map[string]string) {
+func StartNetmasterWithFlags(t *testing.T, node TestbedNode, flags map[string]string) {
 	time.Sleep(5 * time.Second)
 
 	var (

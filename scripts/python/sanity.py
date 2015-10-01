@@ -196,17 +196,18 @@ for addr in sys.argv[1:]:
 # Setup testbed
 testbed = testbedApi.testbed(addrList)
 
-time.sleep(5)
+time.sleep(15)
 
 numCntr = testbed.numNodes() * 2
+numIteration = 2
 
 # Run the test
-testBasicPolicy(testbed, numCntr, 4)
-testPolicyAddDeleteRule(testbed, numCntr, 4)
-startRemoveContainer(testbed, numCntr, 4)
+testBasicPolicy(testbed, numCntr, numIteration)
+testPolicyAddDeleteRule(testbed, numCntr, numIteration)
+startRemoveContainer(testbed, numCntr, numIteration)
 
-# FIXME: This test is not passing yet
-#startStopContainer(testbed, numCntr, 4)
+# FIXME: This test is not passing yet as native-integ mode cleanup is not working
+# startStopContainer(testbed, numCntr, 4)
 
 # Cleanup testbed
 testbed.cleanup()
