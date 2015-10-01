@@ -86,11 +86,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node_peers += ["#{node_name}=http://#{node_addr}:2380,#{node_name}=http://#{node_addr}:7001"]
         consul_join_flag = if n > 0 then "-join #{node_ips[0]}" else "" end
         consul_bootstrap_flag = "-bootstrap-expect=3"
+        swarm_flag = "slave"
         if num_nodes < 3 then
             if n == 0 then
                 consul_bootstrap_flag = "-bootstrap"
+                swarm_flag = "master"
             else
                 consul_bootstrap_flag = ""
+                swarm_flag = "slave"
             end
         end
         config.vm.define node_name do |node|
@@ -136,7 +139,7 @@ set -x
  -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
 
 # start swarm
-(nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} > /tmp/start-swarm.log &) || exit 1
+(nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} #{swarm_flag}> /tmp/start-swarm.log &) || exit 1
 
 SCRIPT
             node.vm.provision "shell", run: "always" do |s|
@@ -144,7 +147,9 @@ SCRIPT
             end
 
             # forward netmaster port
-            # node.vm.network "forwarded_port", guest: 9999, host: 8080 + n
+            if n == 0 then
+                node.vm.network "forwarded_port", guest: 9999, host: 8080
+            end
         end
     end
 end
