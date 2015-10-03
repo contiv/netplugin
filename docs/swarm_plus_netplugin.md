@@ -66,8 +66,9 @@ You can run containers and attach them to one of these networks as below.
 $ docker run -itd --publish-service foo.private ubuntu bash
 f291e269b45a5877f6fc952317feb329e12a99bda3a44a740b4c3307ef87954c
 ```
+publish-service takes service name  in `<service>.<network>` format. Container above gets the servic ename `foo` in network `private`
 
-You can verify its running and has the correct service name
+You can verify the container is running and has the correct service name
 
 ```
 $ docker ps
