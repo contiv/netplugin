@@ -9,18 +9,18 @@ Docker + Swarm + Netplugin == Awesome!!
 
 Checkout netplugin tree and bringup vagrant setup
 ```
-mkdir -p github.com/contiv/
-cd github/contiv
+mkdir -p src/github.com/contiv/
+cd src/github/contiv
 git clone -b demo https://github.com/contiv/netplugin.git
 CONTIV_NODES=2 make build demo
 ```
 This brings up two VM cluster with docker, swarm and netplugin/netmaster running.
 
-To make docker commands start using swarm instead of docker, set the following environment variable.
+Set the following environment variable to make docker client talk to Swarm
 ```
 export DOCKER_HOST=tcp://192.168.2.10:2375
 ```
-Now, you should be able to see the information about the cluster
+Now, you should be able to see the information about the swarm cluster
 ```
 $ docker info
 Containers: 0
@@ -52,7 +52,7 @@ $ docker ps
 CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
 ```
 
-When netplugin/netmaster start up, they create two networks as below
+Netmaster creates two networks by default
 ```
 $ contivctl network list
 Listing all networks for tenant default
@@ -61,13 +61,13 @@ private		No	vxlan	10.1.0.0/16		10.1.254.254
 public		Yes	vlan	192.168.1.0/24		192.168.1.254
 ```
 
-you can run containers and attach them to one of these networks as below.
+You can run containers and attach them to one of these networks as below.
 ```
 $ docker run -itd --publish-service foo.private ubuntu bash
 f291e269b45a5877f6fc952317feb329e12a99bda3a44a740b4c3307ef87954c
 ```
 
-you can verify its running and has the correct service name
+You can verify its running and has the correct service name
 
 ```
 $ docker ps
@@ -78,7 +78,7 @@ $ docker inspect f291e269b45a | grep -i "net\|ip\|mac\|service"
     "NetworkSettings": {
         "GlobalIPv6Address": "",
         "GlobalIPv6PrefixLen": 0,
-        "IPAddress": "10.1.0.1",
+        "IPAddress": "10.1.0.1",     <<<<<< IP address allocated by netplugin
         "IPPrefixLen": 16,
         "IPv6Gateway": "",
         "LinkLocalIPv6Address": "",
@@ -92,7 +92,7 @@ $ docker inspect f291e269b45a | grep -i "net\|ip\|mac\|service"
         "Name": "netplugin-node2",
         "NetworkMode": "default",
         "IpcMode": "",
-        "PublishService": "foo.private",
+        "PublishService": "foo.private", <<<<<< Service name for the container
         "NetworkDisabled": false,
         "MacAddress": "",
 ```
