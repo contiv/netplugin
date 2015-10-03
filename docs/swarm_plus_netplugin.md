@@ -14,7 +14,8 @@ cd github/contiv
 git clone -b demo https://github.com/contiv/netplugin.git
 CONTIV_NODES=2 make build demo
 ```
-This brings up two VM cluster with docker, swarm and netplugin/netmaster running
+This brings up two VM cluster with docker, swarm and netplugin/netmaster running.
+
 To make docker commands start using swarm instead of docker, set the following environment variable.
 ```
 export DOCKER_HOST=tcp://192.168.2.10:2375
