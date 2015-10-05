@@ -404,7 +404,7 @@ func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 	}
 
 	// Delete all associated Rules
-	for key, _ := range policy.LinkSets.Rules {
+	for key := range policy.LinkSets.Rules {
 		// delete the rule
 		err := contivModel.DeleteRule(key)
 		if err != nil {
