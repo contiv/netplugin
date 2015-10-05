@@ -33,6 +33,7 @@ import (
 	"github.com/contiv/netplugin/mgmtfn/dockplugin/libnetClient"
 	"github.com/contiv/netplugin/netmaster/client"
 	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/plugin"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/gorilla/mux"
@@ -41,8 +42,11 @@ import (
 const pluginPath = "/run/docker/plugins"
 const driverName = "netplugin"
 
+var netPlugin *plugin.NetPlugin
+
 // InitDockPlugin initializes the docker plugin
-func InitDockPlugin() error {
+func InitDockPlugin(netplugin *plugin.NetPlugin) error {
+	netPlugin = netplugin
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatalf("Could not retrieve hostname: %v", err)
@@ -436,8 +440,20 @@ func join() func(http.ResponseWriter, *http.Request) {
 
 		ep, err := netdcliGetEndpoint(networkName + "-" + jr.EndpointID)
 		if err != nil {
-			httpError(w, "Could not derive created interface", err)
-			return
+			// Add the endpoint oper state
+			err = netPlugin.CreateEndpoint(networkName + "-" + jr.EndpointID)
+			if err != nil {
+				log.Errorf("Endpoint creation failed. Error: %s", err)
+				httpError(w, "Could not create endpoint", err)
+				return
+			}
+
+			// Try to get it again
+			ep, err = netdcliGetEndpoint(networkName + "-" + jr.EndpointID)
+			if err != nil {
+				httpError(w, "Could not find created endpoint", err)
+				return
+			}
 		}
 
 		nw, err := netdcliGetNetwork(networkName)
@@ -454,7 +470,7 @@ func join() func(http.ResponseWriter, *http.Request) {
 			Gateway: nw[0].DefaultGw,
 		}
 
-		log.Infof("Sending JoinResponse: {%+v}", joinResp)
+		log.Infof("Sending JoinResponse: {%+v}, InterfaceName: %s", joinResp, ep[0].PortName)
 
 		content, err = json.Marshal(joinResp)
 		if err != nil {
@@ -469,6 +485,37 @@ func join() func(http.ResponseWriter, *http.Request) {
 func leave() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("leave")
+
+		lr := api.LeaveRequest{}
+		content, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			httpError(w, "Could not read join request", err)
+			return
+		}
+
+		if err := json.Unmarshal(content, &lr); err != nil {
+			httpError(w, "Could not parse join request", err)
+			return
+		}
+
+		log.Infof("LeaveRequest: %+v", lr)
+
+		networkName, err := GetNetworkName(lr.NetworkID)
+		if err != nil {
+			log.Errorf("Error getting network name for UUID: %s. Err: %v", lr.NetworkID, err)
+			httpError(w, "Could not get network name", err)
+			return
+		}
+
+		// Delete the Endpoint
+		err = netPlugin.DeleteEndpoint(networkName + "-" + lr.EndpointID)
+		if err != nil {
+			log.Errorf("error deleting an endpoint upon container stop: %v \n", err)
+			httpError(w, "Could not delete endpoint", err)
+			return
+		}
+
+		// Send response
 		w.WriteHeader(200)
 	}
 }

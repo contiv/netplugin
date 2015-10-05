@@ -897,7 +897,7 @@ func main() {
 	}
 
 	// Initialize docker plugin
-	dockplugin.InitDockPlugin()
+	dockplugin.InitDockPlugin(netPlugin)
 
 	// Init the driver plugins..
 	err = netPlugin.Init(pluginConfig, string(config))

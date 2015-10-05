@@ -199,15 +199,14 @@ testbed = testbedApi.testbed(addrList)
 time.sleep(15)
 
 numCntr = testbed.numNodes() * 2
-numIteration = 2
+numIteration = 3
 
-# Run the test
+# Run the tests
+startRemoveContainer(testbed, numCntr, numIteration)
+startStopContainer(testbed, numCntr, numIteration)
 testBasicPolicy(testbed, numCntr, numIteration)
 testPolicyAddDeleteRule(testbed, numCntr, numIteration)
-startRemoveContainer(testbed, numCntr, numIteration)
 
-# FIXME: This test is not passing yet as native-integ mode cleanup is not working
-# startStopContainer(testbed, numCntr, 4)
 
 # Cleanup testbed
 testbed.cleanup()
