@@ -30,11 +30,14 @@ echo "starting netplugin"
 nohup /opt/gopath/bin/netplugin -native-integration=true > /tmp/netplugin.log 2>&1 &
 
 if [[ $mode == "master" ]]; then
+    echo "starting netmaster"
+    #start netmaster
+    nohup /opt/gopath/bin/netmaster > /tmp/netmaster.log 2>&1 &
+
+    unset http_proxy
+    unset https_proxy
     echo "starting swarm manager"
     # Start swarm manager
     nohup /usr/bin/swarm manage -H tcp://$node_addr:2375 etcd://localhost:2379 > /tmp/swarm-manage.log 2>&1 &
 
-    echo "starting netmaster"
-    #start netmaster
-    nohup /opt/gopath/bin/netmaster > /tmp/netmaster.log 2>&1 &
 fi
