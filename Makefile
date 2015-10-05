@@ -26,6 +26,8 @@ all: build unit-test system-test system-test-dind centos-tests
 # sandbox specific(vagrant, docker-in-docker)
 all-CI: build unit-test system-test
 
+test: build unit-test system-test centos-tests
+
 default: build
 
 deps:
@@ -48,6 +50,7 @@ build:
 
 clean: deps
 	rm -rf Godeps/_workspace/pkg
+	rm -rf $(GOPATH)/pkg
 	godep go clean -i -v ./...
 
 update:
@@ -78,8 +81,8 @@ ssh:
 unit-test: stop clean build
 	./scripts/unittests -vagrant
 
-unit-test-centos: stop clean
-	CONTIV_NODE_OS=centos make build
+unit-test-centos: stop
+	CONTIV_NODE_OS=centos make clean build
 	CONTIV_NODE_OS=centos ./scripts/unittests -vagrant
 
 # setting CONTIV_SOE=1 while calling 'make system-test' will stop the test
