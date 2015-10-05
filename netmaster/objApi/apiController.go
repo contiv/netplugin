@@ -235,7 +235,7 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 				return core.Errorf("Policy not found")
 			}
 
-			// attach policy to epg
+			// detach policy to epg
 			err := master.PolicyDetach(endpointGroup, policy)
 			if err != nil && err != master.EpgPolicyExists {
 				log.Errorf("Error detaching policy %s from epg %s", policyName, endpointGroup.Key)
@@ -261,6 +261,34 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 // EndpointGroupDelete deletes end point group
 func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupDelete: %+v", endpointGroup)
+
+	// Detach the endpoint group from the Policies
+	for _, policyName := range endpointGroup.Policies {
+		policyKey := endpointGroup.TenantName + ":" + policyName
+
+		// find the policy
+		policy := contivModel.FindPolicy(policyKey)
+		if policy == nil {
+			log.Errorf("Could not find policy %s", policyName)
+			return core.Errorf("Policy not found")
+		}
+
+		// detach policy to epg
+		err := master.PolicyDetach(endpointGroup, policy)
+		if err != nil && err != master.EpgPolicyExists {
+			log.Errorf("Error detaching policy %s from epg %s", policyName, endpointGroup.Key)
+			return err
+		}
+
+		// Remove links
+		modeldb.RemoveLinkSet(&policy.LinkSets.EndpointGroups, endpointGroup)
+		modeldb.RemoveLinkSet(&endpointGroup.LinkSets.Policies, policy)
+		err = policy.Write()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -369,6 +397,21 @@ func (ac *APIController) PolicyUpdate(policy, params *contivModel.Policy) error 
 // PolicyDelete deletes policy
 func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 	log.Infof("Received PolicyDelete: %+v", policy)
+
+	// Check if any endpoint group is using the Policy
+	if len(policy.LinkSets.EndpointGroups) != 0 {
+		return core.Errorf("Policy is being used")
+	}
+
+	// Delete all associated Rules
+	for key, _ := range policy.LinkSets.Rules {
+		// delete the rule
+		err := contivModel.DeleteRule(key)
+		if err != nil {
+			log.Errorf("Error deleting the rule: %s. Err: %v", key, err)
+		}
+	}
+
 	return nil
 }
 
