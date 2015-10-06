@@ -29,6 +29,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/plugin"
+	"github.com/contiv/netplugin/registrator"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/gorilla/mux"
@@ -93,6 +94,8 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 		l.Close()
 		log.Infof("docker plugin closing %s", driverPath)
 	}()
+
+	registrator.InitRegistrator("consul:")
 
 	return nil
 }
