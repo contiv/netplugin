@@ -8,21 +8,30 @@
 			"properties": {
 				"groupName": {
 					"type": "string",
-					"description": "Endpoint group Name"
+					"description": "Endpoint group Name",
+					"Title": "Group name",
+					"ShowSummary": true
 				},
 				"tenantName": {
 					"type": "string",
-					"description": "Tenant Name"
+					"description": "Tenant Name",
+					"Title": "Tenant",
+					"ShowSummary": false
 				},
 				"networkName": {
-					"type": "string"
+					"type": "string",
+					"Title": "Network",
+					"ShowSummary": true
 				},
 				"endpointGroupId": {
-					"type": "int"
+					"type": "int",
+					"Title": "Group Identifier"
 				},
 				"policies": {
 					"type": "array",
-					"items": "string"
+					"items": "string",
+					"Title": "Policies",
+					"ShowSummary": true
 				}
 			},
 			"link-sets": {

@@ -530,29 +530,67 @@ func (d *OvsdbDriver) IsPortNamePresent(intfName string) bool {
 	return false
 }
 
-// GetOfpPortNo : Return OFP port number for an interface
-func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
-	for tName, table := range d.cache {
-		if tName == "Interface" {
-			for _, row := range table {
-				if row.Fields["name"] == intfName {
-					value := row.Fields["ofport"]
-					switch t := value.(type) {
-					case uint32:
-						return t, nil
-					case float64:
-						ofpPort := uint32(t)
-						return ofpPort, nil
-					default:
-						return 0, errors.New("Unknown field type")
+// GetOfpPortNoOld : original Return OFP port number for an interface
+func (d *OvsdbDriver) GetOfpPortNoOld(intfName string) (uint32, error) {
+	for i := 0; i < 10; i++ {
+		for tName, table := range d.cache {
+			if tName == "Interface" {
+				for _, row := range table {
+					if row.Fields["name"] == intfName {
+						value := row.Fields["ofport"]
+						switch t := value.(type) {
+						case uint32:
+							return t, nil
+						case float64:
+							ofpPort := uint32(t)
+							return ofpPort, nil
+						default:
+							// return 0, errors.New("Unknown field type")
+						}
 					}
 				}
 			}
 		}
+
+		log.Warnf("Failed to get ofport %s. Retrying", intfName)
+		// Wait if we didnt find the right ofport
+		time.Sleep(300 * time.Millisecond)
 	}
 
 	// We could not find the interface name
 	return 0, errors.New("Interface not found")
+}
+
+// GetOfpPortNo returns OFP port number for an interface
+func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
+	retryNo := 0
+	condition := libovsdb.NewCondition("name", "==", intfName)
+	selectOp := libovsdb.Operation{
+		Op:    "select",
+		Table: "Interface",
+		Where: []interface{}{condition},
+	}
+
+	for {
+		row, err := d.ovs.Transact(ovsDataBase, selectOp)
+
+		if err == nil {
+			value := row[0].Rows[0]["ofport"]
+			if reflect.TypeOf(value).Kind() == reflect.Float64 {
+				//retry few more time. Due to asynchronous call between
+				//port creation and populating ovsdb entry for the interface
+				//may not be populated instantly.
+				ofpPort := uint32(reflect.ValueOf(value).Float())
+				return ofpPort, nil
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+
+		if retryNo == 5 {
+			return 0, errors.New("ofPort not found")
+		}
+		retryNo++
+	}
 }
 
 // IsVtepPresent checks if VTEP already exists
@@ -569,11 +607,11 @@ func (d *OvsdbDriver) IsVtepPresent(remoteIP string) (bool, string) {
 						case string:
 							return true, t
 						default:
-							return false, ""
+							// return false, ""
 						}
 					}
 				default:
-					return false, ""
+					// return false, ""
 				}
 			}
 		}

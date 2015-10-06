@@ -489,12 +489,12 @@ func leave() func(http.ResponseWriter, *http.Request) {
 		lr := api.LeaveRequest{}
 		content, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			httpError(w, "Could not read join request", err)
+			httpError(w, "Could not read leave request", err)
 			return
 		}
 
 		if err := json.Unmarshal(content, &lr); err != nil {
-			httpError(w, "Could not parse join request", err)
+			httpError(w, "Could not parse leave request", err)
 			return
 		}
 

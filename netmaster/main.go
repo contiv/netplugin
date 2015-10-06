@@ -187,6 +187,17 @@ func (d *daemon) ListenAndServe() {
 	if goPath != "" {
 		webPath := goPath + "/src/github.com/contiv/objmodel/contivModel/www/"
 
+		// Make sure we have the web UI files
+		_, err := os.Stat(webPath)
+		if err != nil {
+			webPath = goPath + "/src/github.com/contiv/netplugin/" +
+				"Godeps/_workspace/src/github.com/contiv/objmodel/contivModel/www/"
+			_, err := os.Stat(webPath)
+			if err != nil {
+				log.Fatalf("Can not find the web UI directory")
+			}
+		}
+
 		log.Infof("Using webPath: %s", webPath)
 
 		// serve static files

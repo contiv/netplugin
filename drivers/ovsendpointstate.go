@@ -70,16 +70,17 @@ func (s *OvsCfgEndpointState) Clear() error {
 // OvsOperEndpointState is the necessary data used to perform operations on endpoints.
 type OvsOperEndpointState struct {
 	core.CommonState
-	NetID      string `json:"netID"`
-	ContName   string `json:"contName"`
-	ContUUID   string `json:"contUUID"`
-	AttachUUID string `json:"attachUUID"`
-	IPAddress  string `json:"ipAddress"`
-	MacAddress string `json:"macAddress"`
-	HomingHost string `json:"homingHost"`
-	IntfName   string `json:"intfName"`
-	PortName   string `json:"portName"`
-	VtepIP     string `json:"vtepIP"`
+	NetID       string `json:"netID"`
+	ContName    string `json:"contName"`
+	ServiceName string `json:"serviceName"`
+	ContUUID    string `json:"contUUID"`
+	AttachUUID  string `json:"attachUUID"`
+	IPAddress   string `json:"ipAddress"`
+	MacAddress  string `json:"macAddress"`
+	HomingHost  string `json:"homingHost"`
+	IntfName    string `json:"intfName"`
+	PortName    string `json:"portName"`
+	VtepIP      string `json:"vtepIP"`
 }
 
 // Matches matches the fields updated from configuration state
