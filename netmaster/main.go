@@ -177,13 +177,40 @@ func (d *daemon) execOpts() {
 }
 
 func (d *daemon) ListenAndServe() {
-	r := mux.NewRouter()
+	router := mux.NewRouter()
 
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(r)
+	d.apiController = objApi.NewAPIController(router)
+
+	// Setup the router to serve the web UI
+	goPath := os.Getenv("GOPATH")
+	if goPath != "" {
+		webPath := goPath + "/src/github.com/contiv/objmodel/contivModel/www/"
+
+		// Make sure we have the web UI files
+		_, err := os.Stat(webPath)
+		if err != nil {
+			webPath = goPath + "/src/github.com/contiv/netplugin/" +
+				"Godeps/_workspace/src/github.com/contiv/objmodel/contivModel/www/"
+			_, err := os.Stat(webPath)
+			if err != nil {
+				log.Errorf("Can not find the web UI directory")
+			}
+		}
+
+		log.Infof("Using webPath: %s", webPath)
+
+		// serve static files
+		router.PathPrefix("/web/").Handler(http.StripPrefix("/web/", http.FileServer(http.Dir(webPath))))
+
+		// Special case to serve main index.html
+		router.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
+			http.ServeFile(rw, req, webPath+"index.html")
+		})
+	}
 
 	// Add REST routes
-	s := r.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
+	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
 	s.HandleFunc(fmt.Sprintf("/%s", master.DesiredConfigRESTEndpoint),
 		post(d.desiredConfig))
 	s.HandleFunc(fmt.Sprintf("/%s", master.AddConfigRESTEndpoint),
@@ -193,7 +220,7 @@ func (d *daemon) ListenAndServe() {
 	s.HandleFunc(fmt.Sprintf("/%s", master.HostBindingConfigRESTEndpoint),
 		post(d.hostBindingsConfig))
 
-	s = r.Methods("Get").Subrouter()
+	s = router.Methods("Get").Subrouter()
 	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetEndpointRESTEndpoint, "{id}"),
 		get(false, d.endpoints))
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetEndpointsRESTEndpoint),
@@ -205,7 +232,7 @@ func (d *daemon) ListenAndServe() {
 
 	log.Infof("Netmaster listening on %s", d.opts.listenURL)
 
-	if err := http.ListenAndServe(d.opts.listenURL, r); err != nil {
+	if err := http.ListenAndServe(d.opts.listenURL, router); err != nil {
 		log.Fatalf("Error listening for http requests. Error: %s", err)
 	}
 }

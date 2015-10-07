@@ -31,11 +31,16 @@ source /etc/profile.d/envvar.sh
 mv /etc/resolv.conf /etc/resolv.conf.bak
 cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
 
+# setup docker remote api
+cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
+systemctl enable docker-tcp.socket
+
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 echo "Environment=\\\"no_proxy=192.168.0.0/16,localhost,127.0.0.0/8\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
 sudo systemctl stop docker
+systemctl start docker-tcp.socket
 sudo systemctl start docker
 
 if [ $# -gt 5 ]; then
@@ -45,6 +50,13 @@ fi
 
 # Install experimental docker
 # curl -sSL https://experimental.docker.com/ | sh
+
+# Get swarm binary
+(wget https://cisco.box.com/shared/static/isn9te95op8qgmz9o0al45eps2zmfz7c -q -O /usr/bin/swarm &&
+chmod +x /usr/bin/swarm) || exit 1
+
+# remove duplicate docker key
+rm /etc/docker/key.json
 
 (service docker restart) || exit 1
 
@@ -76,11 +88,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node_peers += ["#{node_name}=http://#{node_addr}:2380,#{node_name}=http://#{node_addr}:7001"]
         consul_join_flag = if n > 0 then "-join #{node_ips[0]}" else "" end
         consul_bootstrap_flag = "-bootstrap-expect=3"
+        swarm_flag = "slave"
         if num_nodes < 3 then
             if n == 0 then
                 consul_bootstrap_flag = "-bootstrap"
+                swarm_flag = "master"
             else
                 consul_bootstrap_flag = ""
+                swarm_flag = "slave"
             end
         end
         config.vm.define node_name do |node|
@@ -124,9 +139,18 @@ set -x
 ## start consul
 (nohup consul agent -server #{consul_join_flag} #{consul_bootstrap_flag} \
  -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
+
+# start swarm
+(nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} #{swarm_flag}> /tmp/start-swarm.log &) || exit 1
+
 SCRIPT
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_node
+            end
+
+            # forward netmaster port
+            if n == 0 then
+                node.vm.network "forwarded_port", guest: 9999, host: 9999
             end
         end
     end

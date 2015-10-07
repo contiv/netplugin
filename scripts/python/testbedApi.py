@@ -57,7 +57,7 @@ class vagrantNode:
     # Start netplugin process on vagrant node
     def startNetplugin(self):
         ssh_object = self.sshConnect()
-        command = "sudo /opt/gopath/bin/netplugin > /tmp/netplugin.log 2>&1"
+        command = "sudo /opt/gopath/bin/netplugin -native-integration=true > /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()
@@ -65,7 +65,7 @@ class vagrantNode:
     # Start netmaster process
     def startNetmaster(self):
         ssh_object = self.sshConnect()
-        command = "/opt/gopath/bin/netmaster > /tmp/netmaster.log 2>&1"
+        command = "GOPATH=/opt/gopath /opt/gopath/bin/netmaster > /tmp/netmaster.log 2>&1"
         self.nmThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.nmThread.start()
@@ -129,6 +129,9 @@ class testbed:
             # Cleanup all state before we can start
             node.stopNetmaster()
             node.stopNetplugin()
+
+        # cleanup master and slave state
+        for node in self.nodes:
             node.cleanupMaster()
             node.cleanupSlave()
 
@@ -143,16 +146,16 @@ class testbed:
 
     # Cleanup a testbed once test is done
     def cleanup(self):
-        # cleanup master
-        print "Cleaning up master"
-        self.nodes[0].stopNetmaster()
-        self.nodes[0].cleanupMaster()
-
         # Cleanup each node
         for node in self.nodes:
             print "Cleaning up node " + node.addr
             node.stopNetplugin()
             node.cleanupSlave()
+
+        # cleanup master
+        print "Cleaning up master"
+        self.nodes[0].stopNetmaster()
+        self.nodes[0].cleanupMaster()
 
     # Number of nodes in the testbed
     def numNodes(self):

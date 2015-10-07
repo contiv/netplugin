@@ -196,17 +196,17 @@ for addr in sys.argv[1:]:
 # Setup testbed
 testbed = testbedApi.testbed(addrList)
 
-time.sleep(5)
+time.sleep(15)
 
 numCntr = testbed.numNodes() * 2
+numIteration = 3
 
-# Run the test
-testBasicPolicy(testbed, numCntr, 4)
-testPolicyAddDeleteRule(testbed, numCntr, 4)
-startRemoveContainer(testbed, numCntr, 4)
+# Run the tests
+startRemoveContainer(testbed, numCntr, numIteration)
+startStopContainer(testbed, numCntr, numIteration)
+testBasicPolicy(testbed, numCntr, numIteration)
+testPolicyAddDeleteRule(testbed, numCntr, numIteration)
 
-# FIXME: This test is not passing yet
-#startStopContainer(testbed, numCntr, 4)
 
 # Cleanup testbed
 testbed.cleanup()

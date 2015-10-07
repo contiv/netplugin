@@ -8,11 +8,15 @@
 			"properties": {
 				"policyName": {
 					"type": "string",
-					"description": "Policy Name"
+					"description": "Policy Name",
+					"title": "Policy Name",
+					"showSummary": true
 				},
 				"tenantName": {
 					"type": "string",
-					"description": "Tenant Name"
+					"description": "Tenant Name",
+					"title": "Tenant Name",
+					"showSummary": true
 				}
 			},
 			"link-sets": {
