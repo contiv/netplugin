@@ -41,7 +41,7 @@ func assert(err error) {
 }
 
 // InitRegistrator creates a new bridge to Service registrator
-func InitRegistrator(bridgeType string) error {
+func InitRegistrator(bridgeType string) (*bridge.Bridge, error) {
 	log.Printf("Initing registrator from Dockplugin")
 
 	if *hostIP != "" {
@@ -82,7 +82,7 @@ func InitRegistrator(bridgeType string) error {
 		b.Sync(false)
 	}
 
-	return nil
+	return b, nil
 }
 
 func main() {

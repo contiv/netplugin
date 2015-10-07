@@ -182,6 +182,20 @@ func (b *Bridge) add(containerID string, quiet bool) {
 	}
 }
 
+// AddService adds a new service when triggered from dockplugin
+func (b *Bridge) AddService(epName string, epIP string) {
+	log.Println("Called AddService for ", epName)
+	service := new(Service)
+	service.ID = epName
+	service.Name = epName
+	service.IP = epIP
+	service.TTL = b.config.RefreshTTL
+	err := b.registry.Register(service)
+	if err != nil {
+		log.Println("register failed:", service, err)
+	}
+}
+
 func (b *Bridge) newService(port ServicePort, isgroup bool) *Service {
 	container := port.container
 	defaultName := strings.Split(path.Base(container.Config.Image), ":")[0]

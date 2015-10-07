@@ -30,6 +30,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/netplugin/registrator"
+	"github.com/contiv/netplugin/registrator/bridge"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/gorilla/mux"
@@ -39,6 +40,7 @@ const pluginPath = "/run/docker/plugins"
 const driverName = "netplugin"
 
 var netPlugin *plugin.NetPlugin
+var regBridge = &bridge.Bridge{}
 
 // InitDockPlugin initializes the docker plugin
 func InitDockPlugin(netplugin *plugin.NetPlugin) error {
@@ -95,7 +97,7 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 		log.Infof("docker plugin closing %s", driverPath)
 	}()
 
-	registrator.InitRegistrator("consul:")
+	regBridge, err = registrator.InitRegistrator("consul:")
 
 	return nil
 }
