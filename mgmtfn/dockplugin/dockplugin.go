@@ -97,7 +97,7 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 		log.Infof("docker plugin closing %s", driverPath)
 	}()
 
-	regBridge, err = registrator.InitRegistrator("consul:")
+	regBridge, err = registrator.InitRegistrator("skydns2:")
 
 	return nil
 }
