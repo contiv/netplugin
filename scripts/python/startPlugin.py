@@ -5,6 +5,7 @@ import testbedApi
 import time
 import sys
 import os
+import setupProxy
 
 # Parse command line args
 if len(sys.argv) <= 1:
@@ -20,5 +21,8 @@ for addr in sys.argv[1:]:
 # Cleanup all state and start netplugin/netmaster
 testbed = testbedApi.testbed(addrList)
 time.sleep(2)
+
+# Setup proxy
+setupProxy.setupProxy()
 
 os._exit(0)

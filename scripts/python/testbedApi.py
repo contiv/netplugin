@@ -233,6 +233,15 @@ class container:
         self.cid = cid
         self.serviceName = serviceName
 
+        # Read interface ip
+        out, err, exitCode = self.execCmd('ip addr show dev eth0 | grep "inet "')
+        if err != [] or exitCode != 0:
+            print "Error during docker exec"
+            print err
+            exit("Failed to get IP address")
+
+        self.eth0Addr = out[0].strip().split(' ')[1].split('/')[0]
+
     # Return container identifier
     def myId(self):
         if self.serviceName != None:
@@ -279,6 +288,9 @@ class container:
 
     # Get IP address of the container
     def getIpAddr(self, intfName="eth0"):
+        if intfName == "eth0":
+            return self.eth0Addr
+
         # Read interface ip
         out, err, exitCode = self.execCmd("ifconfig " + intfName)
         if err != [] or exitCode != 0:
