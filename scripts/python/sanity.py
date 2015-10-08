@@ -122,7 +122,7 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 	policy = tenant.newPolicy('first')
 
 	# create default deny Rule
-	policy.addRule('1', direction="both", action="deny")
+	policy.addRule('1', direction="both", protocol="tcp", action="deny")
 
 	# Create allow port 8000 Rule
 	policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="accept")

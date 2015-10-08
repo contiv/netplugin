@@ -26,14 +26,14 @@ import (
 
 // Small subset of openflow fields we currently support
 type FlowMatch struct {
-	Priority     uint16 // Priority of the flow
-	InputPort    uint32
-	MacDa        *net.HardwareAddr
-	MacDaMask    *net.HardwareAddr
-	MacSa        *net.HardwareAddr
-	MacSaMask    *net.HardwareAddr
-	Ethertype    uint16
-	VlanId       uint16
+	Priority     uint16            // Priority of the flow
+	InputPort    uint32            // Input port number
+	MacDa        *net.HardwareAddr // Mac dest
+	MacDaMask    *net.HardwareAddr // Mac dest mask
+	MacSa        *net.HardwareAddr // Mac source
+	MacSaMask    *net.HardwareAddr // Mac source mask
+	Ethertype    uint16            // Ethertype
+	VlanId       uint16            // vlan id
 	IpSa         *net.IP
 	IpSaMask     *net.IP
 	IpDa         *net.IP
@@ -45,7 +45,9 @@ type FlowMatch struct {
 	UdpDstPort   uint16
 	Metadata     *uint64
 	MetadataMask *uint64
-	TunnelId     uint64
+	TunnelId     uint64  // Vxlan Tunnel id i.e. VNI
+	TcpFlags     *uint16 // TCP flags
+	TcpFlagsMask *uint16 // Mask for TCP flags
 }
 
 // additional actions in flow's instruction set
@@ -182,6 +184,12 @@ func (self *Flow) xlateMatch() openflow13.Match {
 	if self.Match.IpProto == IP_PROTO_UDP && self.Match.UdpDstPort != 0 {
 		portField := openflow13.NewUdpDstField(self.Match.UdpDstPort)
 		ofMatch.AddField(*portField)
+	}
+
+	// Handle tcp flags
+	if self.Match.IpProto == IP_PROTO_TCP && self.Match.TcpFlags != nil {
+		tcpFlagField := openflow13.NewTcpFlagsField(*self.Match.TcpFlags, self.Match.TcpFlagsMask)
+		ofMatch.AddField(*tcpFlagField)
 	}
 
 	// Handle metadata
