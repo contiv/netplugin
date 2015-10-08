@@ -99,5 +99,6 @@ type OfnetPolicyRule struct {
 	IpProtocol       uint8  // IP protocol number
 	SrcPort          uint16 // Source port
 	DstPort          uint16 // destination port
+	TcpFlags         string // TCP flags to match: syn || syn,ack || ack || syn,!ack || !syn,ack;
 	Action           string // rule action: 'accept' or 'deny'
 }

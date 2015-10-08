@@ -17,13 +17,13 @@ package ofctrl
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	// "github.com/shaleman/libOpenflow/openflow13"
 	"github.com/contiv/ofnet/ovsdbDriver"
 )
 
@@ -113,7 +113,7 @@ func ofctlFlowMatch(flowList []string, tableId int, matchStr, actStr string) boo
 }
 
 // Test if OVS switch connects successfully
-func TestOfctrlInit(t *testing.T) {
+func TestMain(m *testing.M) {
 	// Create a controller
 	ctrler = NewController(&ofActor)
 
@@ -124,13 +124,13 @@ func TestOfctrlInit(t *testing.T) {
 	ovsDriver = ovsdbDriver.NewOvsDriver("ovsbr11")
 	err := ovsDriver.AddController("127.0.0.1", 6733)
 	if err != nil {
-		t.Fatalf("Error adding controller to ovs")
+		log.Fatalf("Error adding controller to ovs")
 	}
 
 	//wait for 10sec and see if switch connects
 	time.Sleep(10 * time.Second)
 	if !ofActor.isSwitchConnected {
-		t.Fatalf("ovsbr0 switch did not connect within 20sec")
+		log.Fatalf("ovsbr0 switch did not connect within 20sec")
 		return
 	}
 
@@ -139,31 +139,22 @@ func TestOfctrlInit(t *testing.T) {
 	// Create initial tables
 	ofActor.inputTable = ofActor.Switch.DefaultTable()
 	if ofActor.inputTable == nil {
-		t.Fatalf("Failed to get input table")
+		log.Fatalf("Failed to get input table")
 		return
 	}
 
 	ofActor.nextTable, err = ofActor.Switch.NewTable(1)
 	if err != nil {
-		t.Fatalf("Error creating next table. Err: %v", err)
+		log.Fatalf("Error creating next table. Err: %v", err)
 		return
 	}
 
 	log.Infof("Openflow tables created successfully")
-}
 
-/* Experimental code
-// Test connecting over unix socket
-func TestUnixSocket(t *testing.T) {
-    // Connect to unix socket
-    _, err := net.Dial("unix", "/var/run/openvswitch/ovsbr11.mgmt")
-    if (err != nil) {
-        log.Printf("Failed to connect to unix socket. Err: %v", err)
-        t.Fatalf("Failed to connect to unix socket. Err: %v", err)
-        return
-    }
+	// run the test
+	exitCode := m.Run()
+	os.Exit(exitCode)
 }
-*/
 
 // test create/delete table
 func TestTableCreateDelete(t *testing.T) {
@@ -246,6 +237,26 @@ func TestCreateDeleteFlow(t *testing.T) {
 		t.Errorf("Error installing the ip flow")
 	}
 
+	// install tcp Flow
+	tcpFlag := uint16(0x2)
+	tcpFlow, err := ofActor.nextTable.NewFlow(FlowMatch{
+		Priority:     100,
+		Ethertype:    0x0800,
+		IpProto:      6,
+		TcpDstPort:   80,
+		TcpFlags:     &tcpFlag,
+		TcpFlagsMask: &tcpFlag,
+	})
+	if err != nil {
+		t.Errorf("Error creating tcp flow. Err: %v", err)
+	}
+
+	log.Infof("Creating tcp flow: %+v", tcpFlow)
+	err = tcpFlow.Next(output)
+	if err != nil {
+		t.Errorf("Error installing the tcp flow")
+	}
+
 	// verify it got installed
 	flowList, err := ofctlFlowDump("ovsbr11")
 	if err != nil {
@@ -271,6 +282,12 @@ func TestCreateDeleteFlow(t *testing.T) {
 		return
 	}
 
+	// match tcp flow
+	if !ofctlFlowMatch(flowList, 1, "priority=100,tcp,tp_dst=80,tcp_flags=+syn",
+		"output:1") {
+		t.Errorf("IP flow not found in OVS.")
+	}
+
 	// Delete the flow
 	err = inPortFlow.Delete()
 	if err != nil {
@@ -287,6 +304,12 @@ func TestCreateDeleteFlow(t *testing.T) {
 	err = ipFlow.Delete()
 	if err != nil {
 		t.Errorf("Error deleting the ip flow. Err: %v", err)
+	}
+
+	// Delete the flow
+	err = tcpFlow.Delete()
+	if err != nil {
+		t.Errorf("Error deleting the tcp flow. Err: %v", err)
 	}
 
 	// Make sure they are really gone
@@ -311,6 +334,12 @@ func TestCreateDeleteFlow(t *testing.T) {
 	if ofctlFlowMatch(flowList, 1, "priority=100,dl_vlan=1,dl_dst=02:01:01:01:01:01",
 		"pop_vlan,output:1") {
 		t.Errorf("Mac flow not found in OVS.")
+	}
+
+	// match tcp flow
+	if ofctlFlowMatch(flowList, 1, "priority=100,tcp,tp_dst=80,tcp_flags=+syn",
+		"output:1") {
+		t.Errorf("IP flow not found in OVS.")
 	}
 }
 
