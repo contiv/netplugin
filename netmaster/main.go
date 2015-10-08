@@ -197,7 +197,7 @@ func (d *daemon) ListenAndServe() {
 				"Godeps/_workspace/src/github.com/contiv/objmodel/contivModel/www/"
 			_, err := os.Stat(webPath)
 			if err != nil {
-				log.Fatalf("Can not find the web UI directory")
+				log.Errorf("Can not find the web UI directory")
 			}
 		}
 
