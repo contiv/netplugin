@@ -20,7 +20,10 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
@@ -209,6 +212,9 @@ func (d *daemon) ListenAndServe() {
 		})
 	}
 
+	// proxy Handler
+	router.PathPrefix("/proxy/").HandlerFunc(proxyHandler)
+
 	// Add REST routes
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
 	s.HandleFunc(fmt.Sprintf("/%s", master.DesiredConfigRESTEndpoint),
@@ -235,6 +241,27 @@ func (d *daemon) ListenAndServe() {
 	if err := http.ListenAndServe(d.opts.listenURL, router); err != nil {
 		log.Fatalf("Error listening for http requests. Error: %s", err)
 	}
+}
+
+// proxyHandler acts as a simple reverse proxy to access containers via http
+func proxyHandler(w http.ResponseWriter, r *http.Request) {
+	proxyUrl := strings.TrimPrefix(r.URL.Path, "/proxy/")
+	log.Infof("proxy handler for %q : %s", r.URL.Path, proxyUrl)
+
+	// build the proxy url
+	url, _ := url.Parse("http://" + proxyUrl)
+
+	// Create a proxy for the URL
+	proxy := httputil.NewSingleHostReverseProxy(url)
+
+	// modify the request url
+	newReq := *r
+	newReq.URL = url
+
+	log.Infof("Proxying request(%v): %+v", url, newReq)
+
+	// Serve http
+	proxy.ServeHTTP(w, &newReq)
 }
 
 func post(hook func(cfg *intent.Config) error) func(http.ResponseWriter, *http.Request) {

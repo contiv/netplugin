@@ -311,6 +311,11 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 
 		// set port numbers
 		ofnetRule.DstPort = uint16(rule.Port)
+
+		// set tcp flags
+		if rule.Protocol == "tcp" && rule.Port == 0 {
+			ofnetRule.TcpFlags = "syn,!ack"
+		}
 	case "inTx":
 		// Set src/dest endpoint group
 		ofnetRule.SrcEndpointGroup = gp.EndpointGroupID
@@ -341,6 +346,11 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 
 		// set port numbers
 		ofnetRule.DstPort = uint16(rule.Port)
+
+		// set tcp flags
+		if rule.Protocol == "tcp" && rule.Port == 0 {
+			ofnetRule.TcpFlags = "syn,!ack"
+		}
 	default:
 		log.Fatalf("Unknown rule direction %s", dir)
 	}
@@ -370,19 +380,19 @@ func (gp *EpgPolicy) AddRule(rule *contivModel.Rule) error {
 	// Figure out all the directional rules we need to install
 	switch rule.Direction {
 	case "in":
-		if rule.Protocol == "udp" || rule.Protocol == "tcp" {
+		if (rule.Protocol == "udp" || rule.Protocol == "tcp") && rule.Port != 0 {
 			dirs = []string{"inRx", "inTx"}
 		} else {
 			dirs = []string{"inRx"}
 		}
 	case "out":
-		if rule.Protocol == "udp" || rule.Protocol == "tcp" {
+		if (rule.Protocol == "udp" || rule.Protocol == "tcp") && rule.Port != 0 {
 			dirs = []string{"outRx", "outTx"}
 		} else {
 			dirs = []string{"outTx"}
 		}
 	case "both":
-		if rule.Protocol == "udp" || rule.Protocol == "tcp" {
+		if (rule.Protocol == "udp" || rule.Protocol == "tcp") && rule.Port != 0 {
 			dirs = []string{"inRx", "inTx", "outRx", "outTx"}
 		} else {
 			dirs = []string{"inRx", "outTx"}
