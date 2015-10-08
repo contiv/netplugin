@@ -245,11 +245,11 @@ func (d *daemon) ListenAndServe() {
 
 // proxyHandler acts as a simple reverse proxy to access containers via http
 func proxyHandler(w http.ResponseWriter, r *http.Request) {
-	proxyUrl := strings.TrimPrefix(r.URL.Path, "/proxy/")
-	log.Infof("proxy handler for %q : %s", r.URL.Path, proxyUrl)
+	proxyURL := strings.TrimPrefix(r.URL.Path, "/proxy/")
+	log.Infof("proxy handler for %q : %s", r.URL.Path, proxyURL)
 
 	// build the proxy url
-	url, _ := url.Parse("http://" + proxyUrl)
+	url, _ := url.Parse("http://" + proxyURL)
 
 	// Create a proxy for the URL
 	proxy := httputil.NewSingleHostReverseProxy(url)
@@ -369,7 +369,11 @@ func (d *daemon) endpoints(id string) ([]core.State, error) {
 	}
 
 	if id == "all" {
-		return ep.ReadAll()
+		eps, err := ep.ReadAll()
+		if err != nil {
+			return []core.State{}, nil
+		}
+		return eps, nil
 	}
 
 	err = ep.Read(id)
