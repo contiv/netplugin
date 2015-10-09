@@ -63,23 +63,27 @@ def setupProxy():
     for iter in range(5):
         resp = httpGet('http://netmaster:9999/endpoints')
         if resp != "Error":
-            break
+            # Read the json response
+            epList = json.loads(resp)
+
+            # Look for pro
+            for ep in epList:
+            	if ep['id'] == "private-myContainer1":
+        		# Config ip and bringup interface
+			print "Found the proxy endpoint, bringing up the ovs interface"
+            		print "sudo ifconfig " + ep['portName'] + " " + ep['ipAddress'] + " up"
+            		print os.popen("sudo ifconfig " + ep['portName'] + " " + ep['ipAddress'] + " up").read()
+        		return
+
+            print "Failed to find proxy endpoint. Retrying.."
         else:
             print "HTTP error reading endpoints. Retrying.."
 
+        # Retry after 1 sec
         time.sleep(1)
 
-    # Read the json response
-    epList = json.loads(resp)
-
-    for ep in epList:
-    	if ep['id'] == "private-myContainer1":
-		# Config ip and bringup interface
-    		print "sudo ifconfig " + ep['portName'] + " " + ep['ipAddress'] + " up"
-    		print os.popen("sudo ifconfig " + ep['portName'] + " " + ep['ipAddress'] + " up").read()
-		return
-
-    print "ERROR: Failed to find proxy endpoint"
+    # Failed to create endpoint
+    print "ERROR: Error finding proxy endpoint. Exiting"
     os._exit(1)
 
 if __name__ == "__main__":
