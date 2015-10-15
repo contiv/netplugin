@@ -30,7 +30,7 @@ import (
 )
 
 const useVethPair = true
-const vxlanVethMtu = 1450
+const vxlanEndpointMtu = 1450
 
 // OvsSwitch represents on OVS bridge instance
 type OvsSwitch struct {
@@ -233,22 +233,22 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 			log.Errorf("Error setting link %s up. Err: %v", ovsPortName, err)
 			return err
 		}
-
-		// Set the link mtu to 1450 to allow for 50 bytes vxlan encap
-		// (inner eth header(14) + outer IP(20) outer UDP(8) + vxlan header(8))
-		err = setLinkMtu(intfName, vxlanVethMtu)
-		if err != nil {
-			log.Errorf("Error setting link %s mtu. Err: %v", intfName, err)
-			return err
-		}
 	} else {
 		ovsPortName = intfName
 		ovsIntfType = "internal"
 
 	}
 
+	// Set the link mtu to 1450 to allow for 50 bytes vxlan encap
+	// (inner eth header(14) + outer IP(20) outer UDP(8) + vxlan header(8))
+	err := setLinkMtu(intfName, vxlanEndpointMtu)
+	if err != nil {
+		log.Errorf("Error setting link %s mtu. Err: %v", intfName, err)
+		return err
+	}
+
 	// Ask OVSDB driver to add the port
-	err := sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag)
+	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag)
 	if err != nil {
 		return err
 	}
