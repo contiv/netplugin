@@ -22,6 +22,9 @@ that lives behind an OVS bridge and has its own unique interfaces.
 #### Step 1: Clone the project:
 
 ```
+$ export GOPATH=`pwd`
+$ mkdir src/github.com/contiv
+$ cd src/github.com/contiv
 $ git clone https://github.com/contiv/netplugin
 $ cd netplugin; make build demo ssh
 ```
