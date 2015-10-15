@@ -185,15 +185,31 @@ func (b *Bridge) add(containerID string, quiet bool) {
 // AddService adds a new service when triggered from dockplugin
 func (b *Bridge) AddService(epName string, serviceName string, epIP string) {
 	log.Println("Called AddService for ", epName)
+	service := b.createService(epName, serviceName, epIP)
+	err := b.registry.Register(service)
+	if err != nil {
+		log.Println("service registration failed:", service, err)
+	}
+}
+
+// RemoveService adds a new service when triggered from dockplugin
+func (b *Bridge) RemoveService(epName string, serviceName string, epIP string) {
+	log.Println("Called RemoveService for ", epName)
+	service := b.createService(epName, serviceName, epIP)
+	err := b.registry.Deregister(service)
+	if err != nil {
+		log.Println("service removal failed:", service, err)
+	}
+}
+
+func (b *Bridge) createService(epName string, serviceName string, epIP string) *Service {
 	service := new(Service)
 	service.ID = epName
 	service.Name = serviceName
 	service.IP = epIP
 	service.TTL = b.config.RefreshTTL
-	err := b.registry.Register(service)
-	if err != nil {
-		log.Println("register failed:", service, err)
-	}
+
+	return service
 }
 
 func (b *Bridge) newService(port ServicePort, isgroup bool) *Service {
