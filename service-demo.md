@@ -1,5 +1,7 @@
 <h1>Service discovery using Skydns</h1>
 
+![alt tag](https://github.com/DivyaVavili/netplugin/blob/libnet-service/skydns-discovery-model.png)
+
 <h4>Starting SkyDNS in a container</h4>
 Start SkyDNS in a container and attach it to the bridge network to allow backend communication to etcd servers
 
