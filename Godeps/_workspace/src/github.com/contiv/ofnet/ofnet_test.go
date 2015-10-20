@@ -5,6 +5,7 @@ package ofnet
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -155,6 +156,11 @@ func TestMain(m *testing.M) {
 
 	// Wait for 10sec for switch to connect to controller
 	time.Sleep(10 * time.Second)
+
+	// run the test
+	exitCode := m.Run()
+	os.Exit(exitCode)
+
 }
 
 // test adding vlan

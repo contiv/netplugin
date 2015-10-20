@@ -223,6 +223,8 @@ func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 		case OXM_FIELD_TUNNEL_ID:
 			val = new(TunnelIdField)
 		case OXM_FIELD_IPV6_EXTHDR:
+		case OXM_FIELD_TCP_FLAGS:
+			val = new(TcpFlagsField)
 		}
 
 		val.UnmarshalBinary(data)
@@ -289,6 +291,8 @@ const (
 	OXM_FIELD_PBB_ISID       = 37 /* PBB I-SID. */
 	OXM_FIELD_TUNNEL_ID      = 38 /* Logical Port Metadata. */
 	OXM_FIELD_IPV6_EXTHDR    = 39 /* IPv6 Extension Header pseudo-field */
+	OXM_FIELD_PBB_UCA        = 41 /* PBB UCA header field (from OpenFlow 1.4) */
+	OXM_FIELD_TCP_FLAGS      = 42 /* TCP flags (from OpenFlow 1.5) */
 )
 
 // IN_PORT field
@@ -754,6 +758,48 @@ func NewUdpDstField(port uint16) *MatchField {
 	tcpSrcField.port = port
 	f.Value = tcpSrcField
 	f.Length = uint8(tcpSrcField.Len())
+
+	return f
+}
+
+// Tcp flags field
+type TcpFlagsField struct {
+	TcpFlags uint16
+}
+
+func (m *TcpFlagsField) Len() uint16 {
+	return 2
+}
+func (m *TcpFlagsField) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, m.Len())
+	binary.BigEndian.PutUint16(data, m.TcpFlags)
+	return
+}
+func (m *TcpFlagsField) UnmarshalBinary(data []byte) error {
+	m.TcpFlags = binary.BigEndian.Uint16(data)
+	return nil
+}
+
+// Return a tcp flags field
+func NewTcpFlagsField(tcpFlag uint16, tcpFlagMask *uint16) *MatchField {
+	f := new(MatchField)
+	f.Class = OXM_CLASS_OPENFLOW_BASIC
+	f.Field = OXM_FIELD_TCP_FLAGS
+	f.HasMask = false
+
+	tcpFlagField := new(TcpFlagsField)
+	tcpFlagField.TcpFlags = tcpFlag
+	f.Value = tcpFlagField
+	f.Length = uint8(tcpFlagField.Len())
+
+	// Add the mask
+	if tcpFlagMask != nil {
+		mask := new(TcpFlagsField)
+		mask.TcpFlags = *tcpFlagMask
+		f.Mask = mask
+		f.HasMask = true
+		f.Length += uint8(mask.Len())
+	}
 
 	return f
 }

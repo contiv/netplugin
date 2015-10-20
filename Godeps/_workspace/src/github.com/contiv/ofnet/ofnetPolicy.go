@@ -175,6 +175,8 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 	var ipSaMask *net.IP = nil
 	var md *uint64 = nil
 	var mdm *uint64 = nil
+	var flag, flagMask uint16
+	var flagPtr, flagMaskPtr *uint16
 
 	log.Infof("Received AddRule: %+v", rule)
 
@@ -222,6 +224,34 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 		mdm = &dstMetadataMask
 	}
 
+	const TCP_FLAG_ACK = 0x10
+	const TCP_FLAG_SYN = 0x2
+	// Setup TCP flags
+	if rule.IpProtocol == 6 && rule.TcpFlags != "" {
+		switch rule.TcpFlags {
+		case "syn":
+			flag = TCP_FLAG_SYN
+			flagMask = TCP_FLAG_SYN
+		case "syn,ack":
+			flag = TCP_FLAG_ACK | TCP_FLAG_SYN
+			flagMask = TCP_FLAG_ACK | TCP_FLAG_SYN
+		case "ack":
+			flag = TCP_FLAG_ACK
+			flagMask = TCP_FLAG_ACK
+		case "syn,!ack":
+			flag = TCP_FLAG_SYN
+			flagMask = TCP_FLAG_ACK | TCP_FLAG_SYN
+		case "!syn,ack":
+			flag = TCP_FLAG_ACK
+			flagMask = TCP_FLAG_ACK | TCP_FLAG_SYN
+		default:
+			log.Errorf("Unknown TCP flags: %s, in rule: %+v", rule.TcpFlags, rule)
+			return errors.New("Unknown TCP flag")
+		}
+
+		flagPtr = &flag
+		flagMaskPtr = &flagMask
+	}
 	// Install the rule in policy table
 	ruleFlow, err := self.policyTable.NewFlow(ofctrl.FlowMatch{
 		Priority:     uint16(FLOW_POLICY_PRIORITY_OFFSET + rule.Priority),
@@ -237,6 +267,8 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 		UdpDstPort:   rule.DstPort,
 		Metadata:     md,
 		MetadataMask: mdm,
+		TcpFlags:     flagPtr,
+		TcpFlagsMask: flagMaskPtr,
 	})
 	if err != nil {
 		log.Errorf("Error adding flow for rule {%v}. Err: %v", rule, err)

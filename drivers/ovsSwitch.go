@@ -30,6 +30,7 @@ import (
 )
 
 const useVethPair = true
+const vxlanEndpointMtu = 1450
 
 // OvsSwitch represents on OVS bridge instance
 type OvsSwitch struct {
@@ -186,6 +187,15 @@ func setLinkUp(name string) error {
 	return netlink.LinkSetUp(iface)
 }
 
+// Set the link mtu
+func setLinkMtu(name string, mtu int) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	return netlink.LinkSetMTU(iface, mtu)
+}
+
 // getOvsPostName returns OVS port name depending on if we use Veth pairs
 func getOvsPostName(intfName string) string {
 	var ovsPortName string
@@ -229,8 +239,16 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 
 	}
 
+	// Set the link mtu to 1450 to allow for 50 bytes vxlan encap
+	// (inner eth header(14) + outer IP(20) outer UDP(8) + vxlan header(8))
+	err := setLinkMtu(intfName, vxlanEndpointMtu)
+	if err != nil {
+		log.Errorf("Error setting link %s mtu. Err: %v", intfName, err)
+		return err
+	}
+
 	// Ask OVSDB driver to add the port
-	err := sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag)
+	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import urllib
 import urllib2
 import json
 import argparse
+import os
 
 # HTTP Delete wrapper
 def httpDelete(url):
@@ -41,11 +42,28 @@ def httpPost(url, data):
 		print "URL error:", err.reason
 		return "Error"
 
+# Wrapper for HTTP get
+def httpGet(url):
+    try:
+        retData = urllib2.urlopen(url)
+        return retData.read()
+
+    except urllib2.HTTPError, err:
+        if err.code == 404:
+            print "Page not found!"
+        elif err.code == 403:
+            print "Access denied!"
+        else:
+            print "HTTP Error! Error code", err.code
+        os._exit(1)
+    except urllib2.URLError, err:
+        print "URL error:", err.reason
+        os._exit(1)
 
 # Create policy
 def createPolicy(args):
 	print "Creating policy {0}:{1}".format(args.tenantName, args.policyName)
-	postUrl = 'http://localhost:9999/api/policys/' + args.tenantName + ':' + args.policyName + '/'
+	postUrl = 'http://netmaster:9999/api/policys/' + args.tenantName + ':' + args.policyName + '/'
 	jdata = json.dumps({
 	  "tenantName": args.tenantName,
 	  "policyName": args.policyName
@@ -58,7 +76,7 @@ def deletePolicy(args):
 	print "Deleting policy {0}:{1}".format(args.tenantName, args.policyName)
 
 	# Delete Policy
-	deleteUrl = 'http://localhost:9999/api/policys/' + args.tenantName + ':' + args.policyName + '/'
+	deleteUrl = 'http://netmaster:9999/api/policys/' + args.tenantName + ':' + args.policyName + '/'
 	httpDelete(deleteUrl)
 
 # List all policies
@@ -66,7 +84,7 @@ def listPolicy(args):
 	print "Listing all policies for tenant {0}".format(args.tenantName)
 
 	# Get a list of policies
-	policyList = json.loads(urllib2.urlopen('http://localhost:9999/api/policys/').read())
+	policyList = json.loads(httpGet('http://netmaster:9999/api/policys/'))
 
 	print "Tenant,		Policy"
 	print "-----------------------------------"
@@ -81,7 +99,7 @@ def addRule(args):
 	print "Adding rule to pilicy rule {0}:{1}".format(args.tenantName, args.policyName)
 
 	#Post the data
-	postUrl = 'http://localhost:9999/api/rules/' + args.tenantName + ':' + args.policyName + ':' + args.ruleId + '/'
+	postUrl = 'http://netmaster:9999/api/rules/' + args.tenantName + ':' + args.policyName + ':' + args.ruleId + '/'
 	jdata = json.dumps({
 	  "tenantName": args.tenantName,
 	  "policyName": args.policyName,
@@ -104,7 +122,7 @@ def deleteRule(args):
 	print "Deleting rule {0}:{1}:{2}".format(args.tenantName, args.policyName, args.ruleId)
 
 	# Delete Rule
-	deleteUrl = 'http://localhost:9999/api/rules/' + args.tenantName + ':' + args.policyName + ':' + args.ruleId + '/'
+	deleteUrl = 'http://netmaster:9999/api/rules/' + args.tenantName + ':' + args.policyName + ':' + args.ruleId + '/'
 	httpDelete(deleteUrl)
 
 # List all rules
@@ -112,7 +130,7 @@ def listRule(args):
 	print "Listing all rules for policy {0}:{1}".format(args.tenantName, args.policyName)
 
 	# Get the list of all rules
-	ruleList = json.loads(urllib2.urlopen('http://localhost:9999/api/rules/').read())
+	ruleList = json.loads(httpGet('http://netmaster:9999/api/rules/'))
 
 	print "Rule, direction, priority, endpointGroup, network, ipAddress, protocol, port, action"
 	print "---------------------------------------------------------------------------------------------"
@@ -140,7 +158,7 @@ def createEpg(args):
 	print "Creating endpoint group {0}:{1}".format(args.tenantName, args.groupName)
 
 	# Create epg
-	postUrl = 'http://localhost:9999/api/endpointGroups/' + args.tenantName + ':' + args.groupName + '/'
+	postUrl = 'http://netmaster:9999/api/endpointGroups/' + args.tenantName + ':' + args.groupName + '/'
 	jdata = json.dumps({
 	  "tenantName": args.tenantName,
 	  "groupName": args.groupName,
@@ -155,7 +173,7 @@ def deleteEpg(args):
 	print "Deleting endpoint group {0}:{1}".format(args.tenantName, args.groupName)
 
 	# Delete EPG
-	deleteUrl = 'http://localhost:9999/api/endpointGroups/' + args.tenantName + ':' + args.groupName + '/'
+	deleteUrl = 'http://netmaster:9999/api/endpointGroups/' + args.tenantName + ':' + args.groupName + '/'
 	httpDelete(deleteUrl)
 
 # List all endpoint groups
@@ -163,7 +181,7 @@ def listEpg(args):
 	print "Listing all endpoint groups for tenant {0}".format(args.tenantName)
 
 	# Get the list of endpoint groups
-	epgList = json.loads(urllib2.urlopen('http://localhost:9999/api/endpointGroups/').read())
+	epgList = json.loads(httpGet('http://netmaster:9999/api/endpointGroups/'))
 
 	print "Group		Network		Policies"
 	print "---------------------------------------------------"
@@ -183,7 +201,7 @@ def createNet(args):
 	print "Creating network {0}:{1}".format(args.tenantName, args.networkName)
 
 	# Create network
-	postUrl = 'http://localhost:9999/api/networks/' + args.tenantName + ':' + args.networkName + '/'
+	postUrl = 'http://netmaster:9999/api/networks/' + args.tenantName + ':' + args.networkName + '/'
 	jdata = json.dumps({
 	  "tenantName": args.tenantName,
 	  "networkName": args.networkName,
@@ -201,7 +219,7 @@ def deleteNet(args):
 	print "Deleting network {0}:{1}".format(args.tenantName, args.networkName)
 
 	# Delete network
-	deleteUrl = 'http://localhost:9999/api/networks/' + args.tenantName + ':' + args.networkName + '/'
+	deleteUrl = 'http://netmaster:9999/api/networks/' + args.tenantName + ':' + args.networkName + '/'
 	httpDelete(deleteUrl)
 
 # List all Networks
@@ -209,7 +227,7 @@ def listNet(args):
 	print "Listing all networks for tenant {0}".format(args.tenantName)
 
 	# Get the list of Networks
-	netList = json.loads(urllib2.urlopen('http://localhost:9999/api/networks/').read())
+	netList = json.loads(httpGet('http://netmaster:9999/api/networks/'))
 
 	print "Network		Public	Encap	Subnet			Gateway"
 
