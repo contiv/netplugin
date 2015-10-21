@@ -40,7 +40,7 @@ var AppModalView = React.createClass({
 	render() {
 		var obj = this.props.app
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New app' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='App' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
@@ -106,7 +106,7 @@ var EndpointGroupModalView = React.createClass({
 	render() {
 		var obj = this.props.endpointGroup
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New endpointGroup' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='EndpointGroup' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
@@ -181,7 +181,7 @@ var NetworkModalView = React.createClass({
 	render() {
 		var obj = this.props.network
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New network' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Network' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
@@ -254,7 +254,7 @@ var PolicyModalView = React.createClass({
 	render() {
 		var obj = this.props.policy
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New policy' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Policy' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
@@ -283,7 +283,27 @@ var RuleSummaryView = React.createClass({
 				<ModalTrigger modal={<RuleModalView rule={ rule }/>}>
 					<tr key={ rule.key } className="info">
 						
-						           
+						 
+						<td>{ rule.action }</td>
+						 
+						<td>{ rule.direction }</td>
+						 
+						<td>{ rule.endpointGroup }</td>
+						 
+						<td>{ rule.ipAddress }</td>
+						  
+						<td>{ rule.policyName }</td>
+						 
+						<td>{ rule.port }</td>
+						 
+						<td>{ rule.priority }</td>
+						 
+						<td>{ rule.protocol }</td>
+						 
+						<td>{ rule.ruleId }</td>
+						 
+						<td>{ rule.tenantName }</td>
+						
 					</tr>
 				</ModalTrigger>
 			);
@@ -295,7 +315,17 @@ var RuleSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					           
+					 
+						<th> Action </th>  
+						<th> Direction </th>  
+						<th> Group </th>  
+						<th> IP Address </th>   
+						<th> Policy Name </th>  
+						<th> Port No </th>  
+						<th> Priority </th>  
+						<th> Protocol </th>  
+						<th> Rule Id </th>  
+						<th> Tenant Name </th> 
 					</tr>
 				</thead>
 				<tbody>
@@ -311,29 +341,29 @@ var RuleModalView = React.createClass({
 	render() {
 		var obj = this.props.rule
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New rule' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Rule' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
-				<Input type='text' label='' ref='action' defaultValue={obj.action} placeholder='' />
+				<Input type='text' label='Action' ref='action' defaultValue={obj.action} placeholder='Action' />
 			
-				<Input type='text' label='' ref='direction' defaultValue={obj.direction} placeholder='' />
+				<Input type='text' label='Direction' ref='direction' defaultValue={obj.direction} placeholder='Direction' />
 			
-				<Input type='text' label='' ref='endpointGroup' defaultValue={obj.endpointGroup} placeholder='' />
+				<Input type='text' label='Group' ref='endpointGroup' defaultValue={obj.endpointGroup} placeholder='Group' />
 			
-				<Input type='text' label='' ref='ipAddress' defaultValue={obj.ipAddress} placeholder='' />
+				<Input type='text' label='IP Address' ref='ipAddress' defaultValue={obj.ipAddress} placeholder='IP Address' />
 			
-				<Input type='text' label='' ref='network' defaultValue={obj.network} placeholder='' />
+				<Input type='text' label='Network Name' ref='network' defaultValue={obj.network} placeholder='Network Name' />
 			
 				<Input type='text' label='Policy Name' ref='policyName' defaultValue={obj.policyName} placeholder='Policy Name' />
 			
-				<Input type='text' label='' ref='port' defaultValue={obj.port} placeholder='' />
+				<Input type='text' label='Port No' ref='port' defaultValue={obj.port} placeholder='Port No' />
 			
-				<Input type='text' label='' ref='priority' defaultValue={obj.priority} placeholder='' />
+				<Input type='text' label='Priority' ref='priority' defaultValue={obj.priority} placeholder='Priority' />
 			
-				<Input type='text' label='' ref='protocol' defaultValue={obj.protocol} placeholder='' />
+				<Input type='text' label='Protocol' ref='protocol' defaultValue={obj.protocol} placeholder='Protocol' />
 			
-				<Input type='text' label='Rule Name' ref='ruleId' defaultValue={obj.ruleId} placeholder='Rule Name' />
+				<Input type='text' label='Rule Id' ref='ruleId' defaultValue={obj.ruleId} placeholder='Rule Id' />
 			
 				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
@@ -386,7 +416,7 @@ var ServiceModalView = React.createClass({
 	render() {
 		var obj = this.props.service
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New service' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Service' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
@@ -463,7 +493,7 @@ var ServiceInstanceModalView = React.createClass({
 	render() {
 		var obj = this.props.serviceInstance
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New serviceInstance' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='ServiceInstance' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
@@ -526,7 +556,7 @@ var TenantModalView = React.createClass({
 	render() {
 		var obj = this.props.tenant
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New tenant' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Tenant' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
@@ -591,7 +621,7 @@ var VolumeModalView = React.createClass({
 	render() {
 		var obj = this.props.volume
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New volume' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Volume' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
@@ -656,7 +686,7 @@ var VolumeProfileModalView = React.createClass({
 	render() {
 		var obj = this.props.volumeProfile
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='New volumeProfile' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='VolumeProfile' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
