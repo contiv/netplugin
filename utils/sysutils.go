@@ -37,7 +37,7 @@ type SystemAttributes struct {
 	TotalNetBw  int
 }
 
-// Exported system attributes
+// SysAttrs are the exported system attributes
 var SysAttrs SystemAttributes
 
 // FetchSysAttrs would read the system attributes and store them in the
