@@ -24,6 +24,18 @@ type Bridge struct {
 	config         Config
 }
 
+// DefaultBridgeConfig sets the default configuration for Bridge config
+func DefaultBridgeConfig() Config {
+	return Config{
+		HostIP:          "",
+		Internal:        false,
+		ForceTags:       "",
+		RefreshTTL:      0,
+		RefreshInterval: 0,
+		DeregisterCheck: "always",
+	}
+}
+
 // New creates a new bridge between the Registry providers and containers
 func New(docker *dockerapi.Client, adapterURI string, config Config) (*Bridge, error) {
 	uri, err := url.Parse(adapterURI)

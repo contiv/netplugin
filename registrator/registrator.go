@@ -1,9 +1,8 @@
 package registrator
 
 import (
-	"errors"
 	"flag"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"os"
 	"time"
 
@@ -17,13 +16,7 @@ var Version string
 
 var versionChecker = usage.NewChecker("registrator", Version)
 
-var hostIP = flag.String("ip", "", "IP for ports mapped to the host")
-var internal = flag.Bool("internal", false, "Use internal ports instead of published ones")
-var refreshInterval = flag.Int("ttl-refresh", 0, "Frequency with which service TTLs are refreshed")
-var refreshTTL = flag.Int("ttl", 0, "TTL for services (default is no expiry)")
-var forceTags = flag.String("tags", "", "Append tags for all registered services")
 var resyncInterval = flag.Int("resync", 0, "Frequency with which services are resynchronized")
-var deregister = flag.String("deregister", "always", "Deregister exited services \"always\" or \"on-success\"")
 var retryAttempts = flag.Int("retry-attempts", 0, "Max retry attempts to establish a connection with the backend. Use -1 for infinite retries")
 var retryInterval = flag.Int("retry-interval", 2000, "Interval (in millisecond) between retry-attempts.")
 
@@ -41,93 +34,76 @@ func assert(err error) {
 }
 
 // InitRegistrator creates a new bridge to Service registrator
-func InitRegistrator(bridgeType string) (*bridge.Bridge, error) {
+func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bridge, error) {
+
 	log.Printf("Initing registrator from Dockplugin")
+	var bConfig bridge.Config
 
-	if *hostIP != "" {
-		log.Println("Forcing host IP to", *hostIP)
+	defaultBridgeConfig := bridge.DefaultBridgeConfig()
+	if len(bridgeCfg) == 0 {
+		bConfig = defaultBridgeConfig
+	} else {
+		bConfig = bridgeCfg[0]
+		if bConfig.HostIP != "" {
+			log.Println("Forcing host IP to", bConfig.HostIP)
+		}
+
+		if (bConfig.RefreshTTL == 0 && bConfig.RefreshInterval > 0) ||
+			(bConfig.RefreshTTL > 0 && bConfig.RefreshInterval == 0) {
+			log.WithFields(log.Fields{
+				"RefreshTTL":      bConfig.RefreshTTL,
+				"RefreshInterval": bConfig.RefreshInterval,
+			}).Warn("RefreshTTL and RefreshInterval ",
+				"must be specified together or not at all. ",
+				"Setting to default values (",
+				defaultBridgeConfig.RefreshTTL,
+				",", defaultBridgeConfig.RefreshInterval,
+				") and continuing")
+			bConfig.RefreshTTL = defaultBridgeConfig.RefreshTTL
+			bConfig.RefreshInterval = defaultBridgeConfig.RefreshInterval
+		} else if bConfig.RefreshTTL > 0 &&
+			bConfig.RefreshTTL <= bConfig.RefreshInterval {
+			log.WithFields(log.Fields{
+				"RefreshTTL":      bConfig.RefreshTTL,
+				"RefreshInterval": bConfig.RefreshInterval,
+			}).Warn("RefreshTTL must be greater than RefreshInterval",
+				". Setting to default values (",
+				defaultBridgeConfig.RefreshTTL,
+				",", defaultBridgeConfig.RefreshInterval,
+				") and continuing")
+			bConfig.RefreshTTL = defaultBridgeConfig.RefreshTTL
+			bConfig.RefreshInterval = defaultBridgeConfig.RefreshInterval
+		}
+
+		if bConfig.DeregisterCheck != "always" &&
+			bConfig.DeregisterCheck != "on-success" {
+			log.WithFields(log.Fields{
+				"DegisterCheck": bConfig.DeregisterCheck,
+			}).Warn("Deregister must be \"always\" or ",
+				"\"on-success\". Setting to default value of ",
+				defaultBridgeConfig.DeregisterCheck,
+				" and continuing")
+			bConfig.DeregisterCheck = defaultBridgeConfig.DeregisterCheck
+		}
 	}
 
-	if (*refreshTTL == 0 && *refreshInterval > 0) || (*refreshTTL > 0 && *refreshInterval == 0) {
-		assert(errors.New("-ttl and -ttl-refresh must be specified together or not at all"))
-	} else if *refreshTTL > 0 && *refreshTTL <= *refreshInterval {
-		assert(errors.New("-ttl must be greater than -ttl-refresh"))
-	}
-
-	if *retryInterval <= 0 {
-		assert(errors.New("-retry-interval must be greater than 0"))
-	}
-
+	// TODO: Remove dependency on docker api
 	docker, err := dockerapi.NewClient(getopt("DOCKER_HOST", "unix:///var/run/docker.sock"))
 	assert(err)
 
-	if *deregister != "always" && *deregister != "on-success" {
-		assert(errors.New("-deregister must be \"always\" or \"on-success\""))
-	}
+	log.Info("Creating a new bridge: ", bridgeType)
 
-	log.Println("Creating a new bridge: ", bridgeType)
-
-	b, err := bridge.New(docker, bridgeType, bridge.Config{
-		HostIP:          *hostIP,
-		Internal:        *internal,
-		ForceTags:       *forceTags,
-		RefreshTTL:      *refreshTTL,
-		RefreshInterval: *refreshInterval,
-		DeregisterCheck: *deregister,
-	})
+	b, err := bridge.New(docker, bridgeType, bConfig)
 
 	if err != nil {
-		log.Fatal("Bridge not created: ", err)
-	} else {
-		b.Sync(false)
+		log.WithFields(log.Fields{
+			"Error": err,
+		}).Error("Bridge creation errored out. ",
+			"Service registration will not work.")
+		return nil, err
 	}
 
-	return b, nil
-}
-
-func main() {
-	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		versionChecker.PrintVersion()
-		os.Exit(0)
-	}
-	log.Printf("Starting registrator %s ...", Version)
-
-	flag.Parse()
-
-	if *hostIP != "" {
-		log.Println("Forcing host IP to", *hostIP)
-	}
-
-	if (*refreshTTL == 0 && *refreshInterval > 0) || (*refreshTTL > 0 && *refreshInterval == 0) {
-		assert(errors.New("-ttl and -ttl-refresh must be specified together or not at all"))
-	} else if *refreshTTL > 0 && *refreshTTL <= *refreshInterval {
-		assert(errors.New("-ttl must be greater than -ttl-refresh"))
-	}
-
-	if *retryInterval <= 0 {
-		assert(errors.New("-retry-interval must be greater than 0"))
-	}
-
-	docker, err := dockerapi.NewClient(getopt("DOCKER_HOST", "unix:///var/run/docker.sock"))
-	assert(err)
-
-	if *deregister != "always" && *deregister != "on-success" {
-		assert(errors.New("-deregister must be \"always\" or \"on-success\""))
-	}
-
-	log.Println("Creating a new bridge: ", flag.Arg(0))
-
-	b, err := bridge.New(docker, flag.Arg(0), bridge.Config{
-		HostIP:          *hostIP,
-		Internal:        *internal,
-		ForceTags:       *forceTags,
-		RefreshTTL:      *refreshTTL,
-		RefreshInterval: *refreshInterval,
-		DeregisterCheck: *deregister,
-	})
-
-	assert(err)
-
+	// TODO: Add proper checks for retryInterval, retryAttempts
 	attempt := 0
 	for *retryAttempts == -1 || attempt <= *retryAttempts {
 		log.Printf("Connecting to backend (%v/%v)", attempt, *retryAttempts)
@@ -145,18 +121,15 @@ func main() {
 		attempt++
 	}
 
-	// Start event listener before listing containers to avoid missing anything
-	events := make(chan *dockerapi.APIEvents)
-	assert(docker.AddEventListener(events))
-	log.Println("Listening for Docker events ...")
-
 	b.Sync(false)
 
+	// TODO: Move quit channel & refresh/resync logic to netplugin/dockplugin
+	// Retaining the code here till then
 	quit := make(chan struct{})
 
 	// Start the TTL refresh timer
-	if *refreshInterval > 0 {
-		ticker := time.NewTicker(time.Duration(*refreshInterval) * time.Second)
+	if bConfig.RefreshInterval > 0 {
+		ticker := time.NewTicker(time.Duration(bConfig.RefreshInterval) * time.Second)
 		go func() {
 			for {
 				select {
@@ -186,18 +159,7 @@ func main() {
 		}()
 	}
 
-	// Process Docker events
-	for msg := range events {
-		switch msg.Status {
-		case "start":
-			go b.Add(msg.ID)
-		case "die":
-			go b.RemoveOnExit(msg.ID)
-		case "stop", "kill":
-			go b.Remove(msg.ID)
-		}
-	}
-
 	close(quit)
-	log.Fatal("Docker event loop closed") // todo: reconnect?
+
+	return b, nil
 }
