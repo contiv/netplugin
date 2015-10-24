@@ -121,7 +121,7 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 		attempt++
 	}
 
-	b.Sync(false)
+	//b.Sync(false)
 
 	// TODO: Move quit channel & refresh/resync logic to netplugin/dockplugin
 	// Retaining the code here till then
@@ -159,7 +159,7 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 		}()
 	}
 
-	close(quit)
+	//	close(quit)
 
 	return b, nil
 }

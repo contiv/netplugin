@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"errors"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	dockerapi "github.com/fsouza/go-dockerclient"
 )
 
@@ -98,7 +98,7 @@ func (b *Bridge) Refresh() {
 				log.Println("refresh failed:", service.ID, err)
 				continue
 			}
-			log.Println("refreshed:", containerID[:12], service.ID)
+			log.Println("refreshed:", containerID)
 		}
 	}
 }
@@ -202,6 +202,7 @@ func (b *Bridge) AddService(epName string, serviceName string, epIP string) {
 	if err != nil {
 		log.Println("service registration failed:", service, err)
 	}
+	b.services[epName+serviceName] = append(b.services[epName+serviceName], service)
 }
 
 // RemoveService adds a new service when triggered from dockplugin
