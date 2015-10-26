@@ -11,7 +11,7 @@ The plugin for Kubernetes is always built as a binary and kept in `$GOPATH/bin` 
 
 2. Install Kubernetes and etcd components on your favorite system using the [Setup Guides](https://github.com/GoogleCloudPlatform/kubernetes/blob/master/docs/getting-started-guides). However you must make sure that kublet was started with `--network_plugin=k8contivnet` option
 
-3. Start netplugin with desired network intent as specified in [late-bindings example](examples/late_bindings/multiple_vxlan_nets.json). Note taht the json input doesn't specify the host information, which is automatically picked up from as `kubernetes scheduler` picks up a minion for the host. And `Container` in the json schema is really a pod's name instead of the container(s) within pod.
+3. Start netplugin with desired network intent as specified in [late-bindings example](examples/late_bindings/multiple_vxlan_nets.json). Note that the json input doesn't specify the host information, which is automatically picked up from as `kubernetes scheduler` picks up a minion for the host. And `Container` in the json schema is really a pod's name instead of the container(s) within pod.
 
 4. Launch applications/pods via Kubernetes as usual, they would be connected as specified by the network intent
 
