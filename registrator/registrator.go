@@ -3,29 +3,13 @@ package registrator
 import (
 	"flag"
 	log "github.com/Sirupsen/logrus"
-	"os"
 	"time"
 
 	"github.com/contiv/netplugin/registrator/bridge"
-	dockerapi "github.com/fsouza/go-dockerclient"
-	"github.com/gliderlabs/pkg/usage"
 )
 
-// Version maintains the registrator's version
-var Version string
-
-var versionChecker = usage.NewChecker("registrator", Version)
-
-var resyncInterval = flag.Int("resync", 0, "Frequency with which services are resynchronized")
 var retryAttempts = flag.Int("retry-attempts", 0, "Max retry attempts to establish a connection with the backend. Use -1 for infinite retries")
 var retryInterval = flag.Int("retry-interval", 2000, "Interval (in millisecond) between retry-attempts.")
-
-func getopt(name, def string) string {
-	if env := os.Getenv(name); env != "" {
-		return env
-	}
-	return def
-}
 
 func assert(err error) {
 	if err != nil {
@@ -87,13 +71,9 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 		}
 	}
 
-	// TODO: Remove dependency on docker api
-	docker, err := dockerapi.NewClient(getopt("DOCKER_HOST", "unix:///var/run/docker.sock"))
-	assert(err)
-
 	log.Info("Creating a new bridge: ", bridgeType)
 
-	b, err := bridge.New(docker, bridgeType, bConfig)
+	b, err := bridge.New(bridgeType, bConfig)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -121,8 +101,6 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 		attempt++
 	}
 
-	//b.Sync(false)
-
 	// TODO: Move quit channel & refresh/resync logic to netplugin/dockplugin
 	// Retaining the code here till then
 	quit := make(chan struct{})
@@ -137,22 +115,6 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 					b.Refresh()
 				case <-quit:
 					ticker.Stop()
-					return
-				}
-			}
-		}()
-	}
-
-	// Start the resync timer if enabled
-	if *resyncInterval > 0 {
-		resyncTicker := time.NewTicker(time.Duration(*resyncInterval) * time.Second)
-		go func() {
-			for {
-				select {
-				case <-resyncTicker.C:
-					b.Sync(true)
-				case <-quit:
-					resyncTicker.Stop()
 					return
 				}
 			}
