@@ -426,6 +426,65 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	return err
 }
 
+// CreateEndpointGroup creates a EndpointGroup from intent
+func CreateEndpointGroup(eg intent.ConfigEndpointGroup, stateDriver core.StateDriver, tenantName string) error {
+	var pktTag uint
+
+	gCfg := gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	err := gCfg.Read(tenantName)
+	if err != nil {
+		log.Errorf("error reading tenant cfg state. Error: %s", err)
+		return err
+	}
+
+	// Read network state
+	nwCfg := &drivers.OvsCfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	err = nwCfg.Read(eg.NetworkName)
+	if err != nil {
+		// TODO: check if parameters changed and apply an update if needed
+		log.Errorf("error reading network. Error: %s", err)
+		return err
+	}
+
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		return err
+	}
+	rm := core.ResourceManager(tempRm)
+
+	// Create epGroup state
+	epgCfg := &drivers.OvsCfgEpGroupState{
+		Name:       eg.Name,
+		Tenant:     tenantName,
+		PktTagType: nwCfg.PktTagType,
+		PktTag:     nwCfg.PktTag,
+		ExtPktTag:  nwCfg.ExtPktTag,
+	}
+
+	epgCfg.StateDriver = stateDriver
+	epgCfg.ID = strconv.Itoa(eg.ID)
+	log.Debugf("##Create EpGroup %v network %v tagtype %v", eg.Name, eg.NetworkName, nwCfg.PktTagType)
+
+	//TODO add check for aci mode
+	if epgCfg.PktTagType == "vlan" {
+		pktTag, err = gCfg.AllocVLAN(rm)
+		if err != nil {
+			return err
+		}
+		epgCfg.PktTag = int(pktTag)
+		log.Debugf("Allocated vlan %v for epg %v", pktTag, eg.Name)
+	}
+
+	err = epgCfg.Write()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // CreateNetwork creates a network from intent
 func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, tenantName string) error {
 	var extPktTag, pktTag uint

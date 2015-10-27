@@ -63,10 +63,11 @@ type DeployParams struct {
 // Cfg is the configuration of a tenant.
 type Cfg struct {
 	core.CommonState
-	Version string       `json:"version"`
-	Tenant  string       `json:"tenant"`
-	Auto    AutoParams   `json:"auto"`
-	Deploy  DeployParams `json:"deploy"`
+	Version     string       `json:"version"`
+	Tenant      string       `json:"tenant"`
+	Auto        AutoParams   `json:"auto"`
+	Deploy      DeployParams `json:"deploy"`
+	NwInfraMode string       `json:"nw-infra-mode"`
 }
 
 // Oper encapsulates operations on a tenant.

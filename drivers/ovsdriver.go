@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
@@ -251,16 +252,17 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return nil
 	}
 
-	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.oper.StateDriver
-	err = cfgNw.Read(cfgEp.NetID)
+	cfgEpGroup := &OvsCfgEpGroupState{}
+	cfgEpGroup.StateDriver = d.oper.StateDriver
+	err = cfgEpGroup.Read(strconv.Itoa(cfgEp.EndpointGroupID))
 	if err != nil {
 		return err
 	}
+	log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
-	if cfgNw.PktTagType == "vxlan" {
+	if cfgEpGroup.PktTagType == "vxlan" {
 		sw = d.switchDb["vxlan"]
 	} else {
 		sw = d.switchDb["vlan"]
@@ -278,7 +280,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			log.Printf("Found matching oper state for ep %s, noop", id)
 
 			// Ask the switch to update the port
-			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgNw.PktTag)
+			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgEpGroup.PktTag)
 			if err != nil {
 				log.Errorf("Error creating port %s. Err: %v", intfName, err)
 				return err
@@ -304,7 +306,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	intfName = d.getIntfName()
 
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, cfgNw.PktTag)
+	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err

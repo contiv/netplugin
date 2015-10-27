@@ -114,6 +114,7 @@ func (ac *APIController) AppCreate(app *contivModel.App) error {
 		return err
 	}
 
+	CreateAppNw(app)
 	return nil
 }
 
@@ -121,6 +122,7 @@ func (ac *APIController) AppCreate(app *contivModel.App) error {
 func (ac *APIController) AppUpdate(app, params *contivModel.App) error {
 	log.Infof("Received AppUpdate: %+v, params: %+v", app, params)
 
+	CreateAppNw(app)
 	return nil
 }
 
@@ -155,6 +157,24 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	err := tenant.Write()
 	if err != nil {
 		return err
+	}
+
+	// Get the state driver
+	stateDriver, uErr := utils.GetStateDriver()
+	if uErr != nil {
+		return uErr
+	}
+	// Build endpoint group config
+	epgCfg := intent.ConfigEndpointGroup{
+		Name:        endpointGroup.GroupName,
+		ID:          endpointGroup.EndpointGroupID,
+		NetworkName: endpointGroup.NetworkName,
+	}
+
+	// Create the endpoint group
+	err = master.CreateEndpointGroup(epgCfg, stateDriver, endpointGroup.TenantName)
+	if err != nil {
+		log.Errorf("Error creating ep group {%+v}. Err: %v", endpointGroup, err)
 	}
 
 	// for each policy create an epg policy Instance
@@ -740,7 +760,7 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		Key:         tenant.TenantName + ":" + "private",
 		IsPublic:    false,
 		IsPrivate:   true,
-		Encap:       "vxlan",
+		Encap:       "vlan",
 		Subnet:      "10.1.0.0/16",
 		DefaultGw:   "10.1.254.254",
 		NetworkName: "private",
