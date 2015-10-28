@@ -44,7 +44,7 @@ type Docker struct {
 }
 
 // Init initializes the docker client
-func (d *Docker) Init(config *crtclient.Config) error {
+func (d *Docker) Init(config *core.Config) error {
 	if config == nil {
 		return core.Errorf("null config!")
 	}

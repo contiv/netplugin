@@ -15,6 +15,8 @@ limitations under the License.
 
 package crtclient
 
+import "github.com/contiv/netplugin/core"
+
 // ContainerEPContext is used to manage the parameters for all
 // container+endpoint management operations.
 type ContainerEPContext struct {
@@ -28,15 +30,10 @@ type ContainerEPContext struct {
 	DefaultGw      string
 }
 
-// Config should be replaced by core.Config FIXME
-type Config struct {
-	V interface{}
-}
-
 // ContainerIf implementations are used to configure and manage container
 // interfaces.
 type ContainerIf interface {
-	Init(config *Config) error
+	Init(config *core.Config) error
 	Deinit()
 	AttachEndpoint(ctx *ContainerEPContext) error
 	DetachEndpoint(ctx *ContainerEPContext) error
