@@ -36,6 +36,8 @@ import (
 	"github.com/contiv/netplugin/crtclient/docker"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/netplugin/utils"
@@ -51,6 +53,7 @@ import (
 type cliOpts struct {
 	hostLabel     string
 	nativeInteg   bool
+	dockPlugin    bool
 	cfgFile       string
 	debug         bool
 	syslog        string
@@ -67,23 +70,23 @@ func skipHost(vtepIP, homingHost, myHostLabel string) bool {
 
 func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts) error {
-	readNet := &drivers.OvsCfgNetworkState{}
+	readNet := &mastercfg.CfgNetworkState{}
 	readNet.StateDriver = netPlugin.StateDriver
 	netCfgs, err := readNet.ReadAll()
 	if err == nil {
 		for idx, netCfg := range netCfgs {
-			net := netCfg.(*drivers.OvsCfgNetworkState)
+			net := netCfg.(*mastercfg.CfgNetworkState)
 			log.Debugf("read net key[%d] %s, populating state \n", idx, net.ID)
 			processNetEvent(netPlugin, net.ID, false)
 		}
 	}
 
-	readEp := &drivers.OvsCfgEndpointState{}
+	readEp := &mastercfg.CfgEndpointState{}
 	readEp.StateDriver = netPlugin.StateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err == nil {
 		for idx, epCfg := range epCfgs {
-			ep := epCfg.(*drivers.OvsCfgEndpointState)
+			ep := epCfg.(*mastercfg.CfgEndpointState)
 			log.Debugf("read ep key[%d] %s, populating state \n", idx, ep.ID)
 			processEpEvent(netPlugin, crt, opts, ep.ID, false)
 		}
@@ -168,7 +171,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 	var epCtx crtclient.ContainerEPContext
 	var err error
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	err = epCfg.Read(epID)
 	if err != nil {
@@ -177,7 +180,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 	epCtx.NewContName = epCfg.ContName
 	epCtx.NewAttachUUID = epCfg.AttachUUID
 
-	cfgNet := &drivers.OvsCfgNetworkState{}
+	cfgNet := &mastercfg.CfgNetworkState{}
 	cfgNet.StateDriver = stateDriver
 	err = cfgNet.Read(epCfg.NetID)
 	if err != nil {
@@ -204,7 +207,7 @@ func getContainerEPContextByContName(stateDriver core.StateDriver, contName stri
 	epCtxs []crtclient.ContainerEPContext, err error) {
 	var epCtx *crtclient.ContainerEPContext
 
-	readEp := &drivers.OvsCfgEndpointState{}
+	readEp := &mastercfg.CfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err != nil {
@@ -214,7 +217,7 @@ func getContainerEPContextByContName(stateDriver core.StateDriver, contName stri
 	epCtxs = make([]crtclient.ContainerEPContext, len(epCfgs))
 	idx := 0
 	for _, epCfg := range epCfgs {
-		cfg := epCfg.(*drivers.OvsCfgEndpointState)
+		cfg := epCfg.(*mastercfg.CfgEndpointState)
 		if cfg.ContName != contName {
 			continue
 		}
@@ -254,6 +257,10 @@ func contAttachPointDeleted(epCtx *crtclient.ContainerEPContext) bool {
 
 func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	epID string, isDelete bool) (err error) {
+	// Dont process endpoint events in dockplugin mode
+	if opts.dockPlugin {
+		return nil
+	}
 	// take a lock to ensure we are programming one event at a time.
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
@@ -265,7 +272,7 @@ func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	vtepIP := ""
 
 	if !isDelete {
-		epCfg := &drivers.OvsCfgEndpointState{}
+		epCfg := &mastercfg.CfgEndpointState{}
 		epCfg.StateDriver = netPlugin.StateDriver
 		err = epCfg.Read(epID)
 		if err != nil {
@@ -387,7 +394,7 @@ func attachContainer(stateDriver core.StateDriver, crt *crt.CRT, contName string
 func getEpIDByContainerName(netPlugin *plugin.NetPlugin, contName string) ([]string, error) {
 
 	epIDs := []string{}
-	readEp := &drivers.OvsCfgEndpointState{}
+	readEp := &mastercfg.CfgEndpointState{}
 	readEp.StateDriver = netPlugin.StateDriver
 	epCfgs, err := readEp.ReadAll()
 	if err != nil {
@@ -395,7 +402,7 @@ func getEpIDByContainerName(netPlugin *plugin.NetPlugin, contName string) ([]str
 		return epIDs, err
 	}
 	for _, epCfg := range epCfgs {
-		ep := epCfg.(*drivers.OvsCfgEndpointState)
+		ep := epCfg.(*mastercfg.CfgEndpointState)
 		if ep.ContName == contName {
 			epIDs = append(epIDs, ep.ID)
 		}
@@ -493,7 +500,7 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOp
 	}
 	contName = strings.TrimPrefix(contName, "/")
 
-	if opts.forceDeleteEp || opts.nativeInteg {
+	if (opts.forceDeleteEp || opts.nativeInteg) && !opts.dockPlugin {
 		err = createContainerEpOper(netPlugin, contID, contName)
 		if err != nil {
 			log.Errorf("error updating container's uuid: %v \n", err)
@@ -615,11 +622,11 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 			log.Debugf("Received a modify event, treating it as a 'create'")
 		}
 
-		if nwCfg, ok := currentState.(*drivers.OvsCfgNetworkState); ok {
+		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
 			processNetEvent(netPlugin, nwCfg.ID, isDelete)
 		}
-		if epCfg, ok := currentState.(*drivers.OvsCfgEndpointState); ok {
+		if epCfg, ok := currentState.(*mastercfg.CfgEndpointState); ok {
 			log.Infof("Received %q for endpoint: %q", eventStr, epCfg.ID)
 			processEpEvent(netPlugin, crt, opts, epCfg.ID, isDelete)
 		}
@@ -634,7 +641,7 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, crt, opts, rsps)
-	cfg := drivers.OvsCfgNetworkState{}
+	cfg := mastercfg.CfgNetworkState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	retErr <- cfg.WatchAll(rsps)
 	return
@@ -644,7 +651,7 @@ func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	opts cliOpts, retErr chan error) {
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, crt, opts, rsps)
-	cfg := drivers.OvsCfgEndpointState{}
+	cfg := mastercfg.CfgEndpointState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	retErr <- cfg.WatchAll(rsps)
 	return
@@ -781,6 +788,10 @@ func main() {
 		"native-integration",
 		false,
 		"do not listen to container runtime events, because the events are natively integrated into their call sequence and external integration is not required")
+	flagSet.BoolVar(&opts.dockPlugin,
+		"docker-plugin",
+		false,
+		"Operate in docker plugin mode")
 	flagSet.StringVar(&opts.cfgFile,
 		"config",
 		"",
@@ -915,7 +926,7 @@ func main() {
 	processCurrentState(netPlugin, crt, opts)
 
 	// Initialize clustering
-	clusterInit(netPlugin, opts)
+	cluster.Init(netPlugin)
 
 	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
 	//etcd.SetLogger(logger)

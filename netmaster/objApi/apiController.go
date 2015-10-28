@@ -233,6 +233,14 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	err = master.CreateEndpointGroup(epgCfg, stateDriver, endpointGroup.TenantName)
 	if err != nil {
 		log.Errorf("Error creating ep group {%+v}. Err: %v", endpointGroup, err)
+		return err
+        }
+
+	// create the endpoint group state
+	err = master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+	if err != nil {
+		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
+		return err
 	}
 
 	// for each policy create an epg policy Instance
@@ -340,6 +348,12 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupDelete: %+v", endpointGroup)
 
+	// delete the endpoint group state
+	err := master.DeleteEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+	if err != nil {
+		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
+	}
+
 	// Detach the endpoint group from the Policies
 	for _, policyName := range endpointGroup.Policies {
 		policyKey := endpointGroup.TenantName + ":" + policyName
@@ -348,23 +362,19 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 		policy := contivModel.FindPolicy(policyKey)
 		if policy == nil {
 			log.Errorf("Could not find policy %s", policyName)
-			return core.Errorf("Policy not found")
+			continue
 		}
 
 		// detach policy to epg
 		err := master.PolicyDetach(endpointGroup, policy)
 		if err != nil && err != master.EpgPolicyExists {
 			log.Errorf("Error detaching policy %s from epg %s", policyName, endpointGroup.Key)
-			return err
 		}
 
 		// Remove links
 		modeldb.RemoveLinkSet(&policy.LinkSets.EndpointGroups, endpointGroup)
 		modeldb.RemoveLinkSet(&endpointGroup.LinkSets.Policies, policy)
-		err = policy.Write()
-		if err != nil {
-			return err
-		}
+		policy.Write()
 	}
 
 	return nil
@@ -452,7 +462,8 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	}
 
 	// Delete the network
-	err = master.DeleteNetworkID(stateDriver, network.NetworkName)
+	networkID := network.NetworkName + "." + network.TenantName
+	err = master.DeleteNetworkID(stateDriver, networkID)
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", network.NetworkName, err)
 	}

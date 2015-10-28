@@ -30,6 +30,7 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
@@ -47,6 +48,8 @@ type cliOpts struct {
 	storeURL   string
 	listenURL  string
 }
+
+type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
 
 var flagSet *flag.FlagSet
 
@@ -226,6 +229,11 @@ func (d *daemon) ListenAndServe() {
 	s.HandleFunc(fmt.Sprintf("/%s", master.HostBindingConfigRESTEndpoint),
 		post(d.hostBindingsConfig))
 
+	s.HandleFunc("/plugin/allocAddress", makeHTTPHandler(master.AllocAddressHandler))
+	s.HandleFunc("/plugin/releaseAddress", makeHTTPHandler(master.ReleaseAddressHandler))
+	s.HandleFunc("/plugin/createEndpoint", makeHTTPHandler(master.CreateEndpointHandler))
+	s.HandleFunc("/plugin/deleteEndpoint", makeHTTPHandler(master.DeleteEndpointHandler))
+
 	s = router.Methods("Get").Subrouter()
 	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetEndpointRESTEndpoint, "{id}"),
 		get(false, d.endpoints))
@@ -262,6 +270,41 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Serve http
 	proxy.ServeHTTP(w, &newReq)
+}
+
+// Simple Wrapper for http handlers
+func makeHTTPHandler(handlerFunc httpAPIFunc) http.HandlerFunc {
+	// Create a closure and return an anonymous function
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Call the handler
+		resp, err := handlerFunc(w, r, mux.Vars(r))
+		if err != nil {
+			// Log error
+			log.Errorf("Handler for %s %s returned error: %s", r.Method, r.URL, err)
+
+			// Send HTTP response
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			// Send HTTP response as Json
+			err = writeJSON(w, http.StatusOK, resp)
+			if err != nil {
+				log.Errorf("Error generating json. Err: %v", err)
+			}
+		}
+	}
+}
+
+// writeJSON: writes the value v to the http response stream as json with standard
+// json encoding.
+func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
+	// Set content type as json
+	w.Header().Set("Content-Type", "application/json")
+
+	// write the HTTP status code
+	w.WriteHeader(code)
+
+	// Write the Json output
+	return json.NewEncoder(w).Encode(v)
 }
 
 func post(hook func(cfg *intent.Config) error) func(http.ResponseWriter, *http.Request) {
@@ -388,10 +431,10 @@ func (d *daemon) endpoints(id string) ([]core.State, error) {
 func (d *daemon) networks(id string) ([]core.State, error) {
 	var (
 		err error
-		nw  *drivers.OvsCfgNetworkState
+		nw  *mastercfg.CfgNetworkState
 	)
 
-	nw = &drivers.OvsCfgNetworkState{}
+	nw = &mastercfg.CfgNetworkState{}
 	if nw.StateDriver, err = utils.GetStateDriver(); err != nil {
 		return nil, err
 	}

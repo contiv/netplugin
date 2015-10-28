@@ -13,9 +13,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package cluster
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/plugin"
 	"github.com/contiv/objmodel/objdb"
@@ -27,12 +34,98 @@ import (
 
 // This file implements netplugin <-> netmaster clustering
 
+// Database of master nodes
+var masterDB = make(map[string]*core.ServiceInfo)
+
+func masterKey(srvInfo core.ServiceInfo) string {
+	return srvInfo.HostAddr + ":" + fmt.Sprintf("%d", srvInfo.Port)
+}
+
+// Add a master node
+func addMaster(netplugin *plugin.NetPlugin, srvInfo core.ServiceInfo) error {
+	// save it in db
+	masterDB[masterKey(srvInfo)] = &srvInfo
+
+	// tell the plugin about the master
+	return netplugin.AddMaster(srvInfo)
+}
+
+// delete master node
+func deleteMaster(netplugin *plugin.NetPlugin, srvInfo core.ServiceInfo) error {
+	// delete from the db
+	delete(masterDB, masterKey(srvInfo))
+
+	// tel plugin about it
+	return netplugin.DeleteMaster(srvInfo)
+}
+
+// httpPost performs http POST operation
+func httpPost(url string, req interface{}, resp interface{}) error {
+	// Convert the req to json
+	jsonStr, err := json.Marshal(req)
+	if err != nil {
+		log.Errorf("Error converting request data(%#v) to Json. Err: %v", req, err)
+		return err
+	}
+
+	// Perform HTTP POST operation
+	res, err := http.Post(url, "application/json", strings.NewReader(string(jsonStr)))
+	if err != nil {
+		log.Errorf("Error during http get. Err: %v", err)
+		return err
+	}
+
+	// Check the response code
+	if res.StatusCode != http.StatusOK {
+		log.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
+		return errors.New("HTTP Error response")
+	}
+
+	// Read the entire response
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Errorf("Error during ioutil readall. Err: %v", err)
+		return err
+	}
+
+	// Convert response json to struct
+	err = json.Unmarshal(body, resp)
+	if err != nil {
+		log.Errorf("Error during json unmarshall. Err: %v", err)
+		return err
+	}
+
+	log.Infof("Results for (%s): %+v\n", url, resp)
+
+	return nil
+}
+
+// MasterPostReq makes a POST request to master node
+func MasterPostReq(path string, req interface{}, resp interface{}) error {
+	for _, master := range masterDB {
+		url := "http://" + master.HostAddr + ":9999" + path
+
+		log.Infof("Making REST request to url: %s", url)
+
+		err := httpPost(url, req, resp)
+		if err != nil {
+			log.Warnf("Error making POST request: Err: %v", err)
+			// continue and try making POST call to next master
+		} else {
+			return nil
+		}
+	}
+
+	log.Errorf("Error making POST request. All master failed")
+	return errors.New("POST request failed")
+}
+
 // Register netplugin with service registry
-func registerService(objdbClient objdb.ObjdbApi, opts cliOpts) error {
+func registerService(objdbClient objdb.ObjdbApi) error {
 	// Get the address to be used for local communication
 	localIP, err := objdbClient.GetLocalAddr()
 	if err != nil {
-		log.Fatalf("Error getting locla IP address. Err: %v", err)
+		log.Fatalf("Error getting local IP address. Err: %v", err)
 		return err
 	}
 
@@ -115,7 +208,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) 
 	// Walk each master and add it
 	for _, master := range masterList {
 		// Add the master
-		err := netplugin.AddMaster(core.ServiceInfo{
+		err := addMaster(netplugin, core.ServiceInfo{
 			HostAddr: master.HostAddr,
 			Port:     ofnet.OFNET_MASTER_PORT,
 		})
@@ -172,7 +265,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) 
 				log.Infof("Master add event for {%+v}", nodeInfo)
 
 				// Add the master
-				err := netplugin.AddMaster(core.ServiceInfo{
+				err := addMaster(netplugin, core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
 					Port:     ofnet.OFNET_MASTER_PORT,
 				})
@@ -183,24 +276,25 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) 
 				log.Infof("Master delete event for {%+v}", nodeInfo)
 
 				// Delete the master
-				err := netplugin.DeleteMaster(core.ServiceInfo{
+				err := deleteMaster(netplugin, core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
 					Port:     nodeInfo.Port,
 				})
 				if err != nil {
-					log.Errorf("Error deletin master {%+v}. Err: %v", nodeInfo, err)
+					log.Errorf("Error deleting master {%+v}. Err: %v", nodeInfo, err)
 				}
 			}
 		}
 	}
 }
 
-func clusterInit(netplugin *plugin.NetPlugin, opts cliOpts) error {
+// Init initializes the cluster module
+func Init(netplugin *plugin.NetPlugin) error {
 	// Create an objdb client
 	objdbClient := client.NewClient()
 
 	// Register ourselves
-	registerService(objdbClient, opts)
+	registerService(objdbClient)
 
 	// Start peer discovery loop
 	go peerDiscoveryLoop(netplugin, objdbClient)

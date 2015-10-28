@@ -21,6 +21,7 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/jainvipin/bitset"
 )
 
@@ -30,7 +31,7 @@ const (
 )
 
 const (
-	vXLANResourceConfigPathPrefix = drivers.StateConfigPath + AutoVXLANResource + "/"
+	vXLANResourceConfigPathPrefix = mastercfg.StateConfigPath + AutoVXLANResource + "/"
 	vXLANResourceConfigPath       = vXLANResourceConfigPathPrefix + "%s"
 	vXLANResourceOperPathPrefix   = drivers.StateOperPath + AutoVXLANResource + "/"
 	vXLANResourceOperPath         = vXLANResourceOperPathPrefix + "%s"

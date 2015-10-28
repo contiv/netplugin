@@ -141,7 +141,7 @@ func (c *remoteController) Config() config.Config {
 // Create a new network. The options parameter carries network specific options.
 // Labels support will be added in the near future.
 func (c *remoteController) NewNetwork(networkType, name string, options ...libnetwork.NetworkOption) (libnetwork.Network, error) {
-	url := "/networks"
+	url := "/networks/create"
 
 	// TODO: handle options somehow
 	create := networkCreate{
@@ -340,6 +340,10 @@ func (n *remoteNetwork) EndpointByName(name string) (libnetwork.Endpoint, error)
 		}
 	}
 	return nil, libnetwork.ErrNoSuchEndpoint(name)
+}
+
+func (n *remoteNetwork) Info() libnetwork.NetworkInfo {
+	return nil
 }
 
 // EndpointByID returns the Endpoint which has the passed id. If not found, the error ErrNoSuchEndpoint is returned.

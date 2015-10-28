@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package mastercfg
 
 import (
 	"testing"
@@ -22,97 +22,98 @@ import (
 )
 
 const (
-	testNwID = "testNw"
-	nwCfgKey = networkConfigPathPrefix + testNwID
+	testEpID  = "testEp"
+	epCfgKey  = endpointConfigPathPrefix + testEpID
+	epOperKey = endpointOperPathPrefix + testEpID
 )
 
-type testNwStateDriver struct{}
+type testEpStateDriver struct{}
 
-var nwStateDriver = &testNwStateDriver{}
+var epStateDriver = &testEpStateDriver{}
 
-func (d *testNwStateDriver) Init(config *core.Config) error {
+func (d *testEpStateDriver) Init(config *core.Config) error {
 	return core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) Deinit() {
+func (d *testEpStateDriver) Deinit() {
 }
 
-func (d *testNwStateDriver) Write(key string, value []byte) error {
+func (d *testEpStateDriver) Write(key string, value []byte) error {
 	return core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) Read(key string) ([]byte, error) {
+func (d *testEpStateDriver) Read(key string) ([]byte, error) {
 	return []byte{}, core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) ReadAll(baseKey string) ([][]byte, error) {
+func (d *testEpStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return [][]byte{}, core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
+func (d *testEpStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 	return core.Errorf("not supported")
 }
 
-func (d *testNwStateDriver) validateKey(key string) error {
-	if key != nwCfgKey {
-		return core.Errorf("Unexpected key. recvd: %s expected: %s ",
-			key, nwCfgKey)
+func (d *testEpStateDriver) validateKey(key string) error {
+	if key != epCfgKey && key != epOperKey {
+		return core.Errorf("Unexpected key. recvd: %s expected: %s or %s ",
+			key, epCfgKey, epOperKey)
 	}
 
 	return nil
 }
 
-func (d *testNwStateDriver) ClearState(key string) error {
+func (d *testEpStateDriver) ClearState(key string) error {
 	return d.validateKey(key)
 }
 
-func (d *testNwStateDriver) ReadState(key string, value core.State,
+func (d *testEpStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
 	return d.validateKey(key)
 }
 
-func (d *testNwStateDriver) ReadAllState(key string, value core.State,
+func (d *testEpStateDriver) ReadAllState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) ([]core.State, error) {
 	return nil, core.Errorf("Shouldn't be called!")
 }
 
-func (d *testNwStateDriver) WatchAllState(baseKey string, sType core.State,
+func (d *testEpStateDriver) WatchAllState(baseKey string, sType core.State,
 	unmarshal func([]byte, interface{}) error, rsps chan core.WatchState) error {
 	return core.Errorf("not supported")
 }
 
-func (d *testNwStateDriver) WriteState(key string, value core.State,
+func (d *testEpStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validateKey(key)
 }
 
-func TestOvsCfgNetworkStateRead(t *testing.T) {
-	nwCfg := &OvsCfgNetworkState{}
-	nwCfg.StateDriver = nwStateDriver
+func TestCfgEndpointStateRead(t *testing.T) {
+	epCfg := &CfgEndpointState{}
+	epCfg.StateDriver = epStateDriver
 
-	err := nwCfg.Read(testNwID)
+	err := epCfg.Read(testEpID)
 	if err != nil {
 		t.Fatalf("read config state failed. Error: %s", err)
 	}
 }
 
-func TestOvsCfgNetworkStateWrite(t *testing.T) {
-	nwCfg := &OvsCfgNetworkState{}
-	nwCfg.StateDriver = nwStateDriver
-	nwCfg.ID = testNwID
+func TestCfgEndpointStateWrite(t *testing.T) {
+	epCfg := &CfgEndpointState{}
+	epCfg.StateDriver = epStateDriver
+	epCfg.ID = testEpID
 
-	err := nwCfg.Write()
+	err := epCfg.Write()
 	if err != nil {
 		t.Fatalf("write config state failed. Error: %s", err)
 	}
 }
 
-func TestOvsCfgNetworkStateClear(t *testing.T) {
-	nwCfg := &OvsCfgNetworkState{}
-	nwCfg.StateDriver = nwStateDriver
-	nwCfg.ID = testNwID
+func TestCfgEndpointStateClear(t *testing.T) {
+	epCfg := &CfgEndpointState{}
+	epCfg.StateDriver = epStateDriver
+	epCfg.ID = testEpID
 
-	err := nwCfg.Clear()
+	err := epCfg.Clear()
 	if err != nil {
 		t.Fatalf("clear config state failed. Error: %s", err)
 	}

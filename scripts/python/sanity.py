@@ -65,6 +65,8 @@ def startStopContainer(testbed, numContainer, numIter):
 def testBasicPolicy(testbed, numContainer, numIter):
 	for iter in range(numIter):
 		tenant = objmodel.tenant('default')
+		network = tenant.newNetwork('private')
+
 		# Create policy
 		policy = tenant.newPolicy('first')
 
@@ -78,12 +80,12 @@ def testBasicPolicy(testbed, numContainer, numIter):
 		groups = []
 		for cntIdx in range(numContainer):
 			nodeIdx = cntIdx % testbed.numNodes()
-			epgName = "srv" + str(cntIdx) + ".private"
-			group = tenant.newGroup(epgName, policies=["first"])
+			epgName = "srv" + str(cntIdx)
+			group = network.newGroup(epgName, policies=["first"])
 			groups.append(group)
 
 		# start containers
-		containers = testbed.runContainers(numContainer)
+		containers = testbed.runContainers(numContainer, withService=True)
 
 
 		# start netcast listeners
@@ -105,6 +107,12 @@ def testBasicPolicy(testbed, numContainer, numIter):
 		for group in groups:
 			group.removePolicy("first")
 
+		# delete epg
+		for cntIdx in range(numContainer):
+			nodeIdx = cntIdx % testbed.numNodes()
+			epgName = "srv" + str(cntIdx)
+			network.deleteGroup(epgName)
+
 		# Remove the policy and rules
 		policy.deleteRule('1')
 		policy.deleteRule('2')
@@ -118,6 +126,8 @@ def testBasicPolicy(testbed, numContainer, numIter):
 # Test adding/deleting rules from Policy
 def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 	tenant = objmodel.tenant('default')
+	network = tenant.newNetwork('private')
+
 	# Create policy
 	policy = tenant.newPolicy('first')
 
@@ -131,12 +141,12 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 	groups = []
 	for cntIdx in range(numContainer):
 		nodeIdx = cntIdx % testbed.numNodes()
-		epgName = "srv" + str(cntIdx) + ".private"
-		group = tenant.newGroup(epgName, policies=["first"])
+		epgName = "srv" + str(cntIdx)
+		group = network.newGroup(epgName, policies=["first"])
 		groups.append(group)
 
 	# start containers
-	containers = testbed.runContainers(numContainer)
+	containers = testbed.runContainers(numContainer, withService=True)
 
 	# start netcast listeners
 	testbed.startListeners(containers, [8000, 8001])
@@ -179,12 +189,16 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 	for group in groups:
 		group.removePolicy("first")
 
+	# delete epg
+	for cntIdx in range(numContainer):
+		nodeIdx = cntIdx % testbed.numNodes()
+		epgName = "srv" + str(cntIdx)
+		network.deleteGroup(epgName)
+
 	# Remove the policy and rules
 	policy.deleteRule('1')
 	policy.deleteRule('2')
 	tenant.deletePolicy('first')
-
-
 
 	testbedApi.info("testPolicyAddDeleteRule Test passed")
 
@@ -202,8 +216,8 @@ numCntr = testbed.numNodes() * 2
 numIteration = 3
 
 # Run the tests
-startRemoveContainer(testbed, numCntr, numIteration)
-startStopContainer(testbed, numCntr, numIteration)
+# startRemoveContainer(testbed, numCntr, numIteration)
+# startStopContainer(testbed, numCntr, numIteration)
 testBasicPolicy(testbed, numCntr, numIteration)
 testPolicyAddDeleteRule(testbed, numCntr, numIteration)
 

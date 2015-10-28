@@ -15,6 +15,8 @@ limitations under the License.
 
 package master
 
+import "github.com/contiv/netplugin/netmaster/mastercfg"
+
 const (
 	// DaemonURL is default url used by netmaster to listen for http requests
 	DaemonURL = "localhost:9999"
@@ -35,4 +37,9 @@ const (
 	GetNetworkRESTEndpoint = "network"
 	//GetNetworksRESTEndpoint is the REST endpoint to request info of all networks
 	GetNetworksRESTEndpoint = "networks"
+
+	basePath                = mastercfg.StateBasePath + "master/"
+	configPath              = basePath + "config/"
+	networkConfigPathPrefix = configPath + "nets/"
+	networkConfigPath       = networkConfigPathPrefix + "%s"
 )

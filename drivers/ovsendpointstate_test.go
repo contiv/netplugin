@@ -87,38 +87,6 @@ func (d *testEpStateDriver) WriteState(key string, value core.State,
 	return d.validateKey(key)
 }
 
-func TestOvsCfgEndpointStateRead(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
-	epCfg.StateDriver = epStateDriver
-
-	err := epCfg.Read(testEpID)
-	if err != nil {
-		t.Fatalf("read config state failed. Error: %s", err)
-	}
-}
-
-func TestOvsCfgEndpointStateWrite(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
-	epCfg.StateDriver = epStateDriver
-	epCfg.ID = testEpID
-
-	err := epCfg.Write()
-	if err != nil {
-		t.Fatalf("write config state failed. Error: %s", err)
-	}
-}
-
-func TestOvsCfgEndpointStateClear(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
-	epCfg.StateDriver = epStateDriver
-	epCfg.ID = testEpID
-
-	err := epCfg.Clear()
-	if err != nil {
-		t.Fatalf("clear config state failed. Error: %s", err)
-	}
-}
-
 func TestOvsOperEndpointStateRead(t *testing.T) {
 	epOper := &OvsOperEndpointState{}
 	epOper.StateDriver = epStateDriver

@@ -19,16 +19,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
-	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -187,12 +185,12 @@ func getVtepName(netID, hostLabel string) string {
 	return netID + "-" + hostLabel
 }
 
-func createInfraNetwork(epCfg *drivers.OvsCfgEndpointState) error {
+func createInfraNetwork(epCfg *mastercfg.CfgEndpointState) error {
 	if epCfg.NetID != "" {
 		return nil
 	}
 
-	nwCfg := &drivers.OvsCfgNetworkState{}
+	nwCfg := &mastercfg.CfgNetworkState{}
 	nwCfg.StateDriver = epCfg.StateDriver
 	if nwCfg.Read(epCfg.NetID) == nil {
 		return nil
@@ -210,7 +208,7 @@ func createInfraNetwork(epCfg *drivers.OvsCfgEndpointState) error {
 
 func createVtep(stateDriver core.StateDriver, hostCfg *HostConfig, tenantNet string) error {
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getVtepName(tenantNet, hostCfg.Name)
 	epCfg.HomingHost = hostCfg.Name
@@ -233,7 +231,7 @@ func createVtep(stateDriver core.StateDriver, hostCfg *HostConfig, tenantNet str
 
 func deleteVtep(stateDriver core.StateDriver, netID, hostName string) error {
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getVtepName(netID, hostName)
 	epCfg.HomingHost = hostName
@@ -254,7 +252,7 @@ func getVLANIfName(hostLabel string) string {
 
 func createVLANIf(stateDriver core.StateDriver, host *intent.ConfigHost) error {
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getVLANIfName(host.Name)
 	epCfg.HomingHost = host.Name
@@ -277,7 +275,7 @@ func createVLANIf(stateDriver core.StateDriver, host *intent.ConfigHost) error {
 
 func deleteVLANIf(stateDriver core.StateDriver, hostName string) error {
 
-	epCfg := &drivers.OvsCfgEndpointState{}
+	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getVLANIfName(hostName)
 	epCfg.HomingHost = hostName
@@ -310,7 +308,7 @@ func CreateHost(stateDriver core.StateDriver, host *intent.ConfigHost) error {
 	if host.VtepIP != "" {
 		// walk through all nets and create vtep eps as necessary
 
-		readNet := &drivers.OvsCfgNetworkState{}
+		readNet := &mastercfg.CfgNetworkState{}
 		readNet.StateDriver = stateDriver
 		tenantNets, err := readNet.ReadAll()
 		if err != nil {
@@ -319,7 +317,7 @@ func CreateHost(stateDriver core.StateDriver, host *intent.ConfigHost) error {
 			}
 		}
 		for _, tenantNet := range tenantNets {
-			nw := tenantNet.(*drivers.OvsCfgNetworkState)
+			nw := tenantNet.(*mastercfg.CfgNetworkState)
 			err = createVtep(stateDriver, hostCfg, nw.ID)
 			if err != nil {
 				log.Errorf("error creating vtep. Error: %s", err)
@@ -358,7 +356,7 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 
 	if hostCfg.VtepIP != "" {
 		// walk through all nets and delete vtep eps as necessary
-		readNet := &drivers.OvsCfgNetworkState{}
+		readNet := &mastercfg.CfgNetworkState{}
 		readNet.StateDriver = stateDriver
 		tenantNets, err := readNet.ReadAll()
 		if err != nil {
@@ -367,7 +365,7 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 			}
 		}
 		for _, tenantNet := range tenantNets {
-			nw := tenantNet.(*drivers.OvsCfgNetworkState)
+			nw := tenantNet.(*mastercfg.CfgNetworkState)
 			err = deleteVtep(stateDriver, nw.ID, hostName)
 			if err != nil {
 				log.Errorf("error deleting vtep. Error: %s", err)
@@ -394,738 +392,4 @@ func DeleteHostID(stateDriver core.StateDriver, hostName string) error {
 // DeleteHost deletes a host by its ConfigHost state
 func DeleteHost(stateDriver core.StateDriver, host *intent.ConfigHost) error {
 	return DeleteHostID(stateDriver, host.Name)
-}
-
-func validateNetworkConfig(tenant *intent.ConfigTenant) error {
-	var err error
-
-	if tenant.Name == "" {
-		return core.Errorf("null tenant name")
-	}
-
-	for _, network := range tenant.Networks {
-		if network.Name == "" {
-			core.Errorf("null network name")
-		}
-
-		err = checkPktTagType(network.PktTagType)
-		if err != nil {
-			return err
-		}
-
-		if network.PktTag != "" {
-			_, err = strconv.Atoi(network.PktTag)
-			if err != nil {
-				return err
-			}
-		}
-
-		if network.SubnetCIDR != "" {
-			_, _, err = netutils.ParseCIDR(network.SubnetCIDR)
-			if err != nil {
-				return err
-			}
-		}
-
-		if network.DefaultGw != "" {
-			if net.ParseIP(network.DefaultGw) == nil {
-				return core.Errorf("invalid IP")
-			}
-		}
-	}
-
-	return err
-}
-
-// CreateEndpointGroup creates a EndpointGroup from intent
-func CreateEndpointGroup(eg intent.ConfigEndpointGroup, stateDriver core.StateDriver, tenantName string) error {
-	var pktTag uint
-
-	gCfg := gstate.Cfg{}
-	gCfg.StateDriver = stateDriver
-	err := gCfg.Read(tenantName)
-	if err != nil {
-		log.Errorf("error reading tenant cfg state. Error: %s", err)
-		return err
-	}
-
-	// Read network state
-	nwCfg := &drivers.OvsCfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(eg.NetworkName)
-	if err != nil {
-		// TODO: check if parameters changed and apply an update if needed
-		log.Errorf("error reading network. Error: %s", err)
-		return err
-	}
-
-	tempRm, err := resources.GetStateResourceManager()
-	if err != nil {
-		return err
-	}
-	rm := core.ResourceManager(tempRm)
-
-	// Create epGroup state
-	epgCfg := &drivers.OvsCfgEpGroupState{
-		Name:       eg.Name,
-		Tenant:     tenantName,
-		PktTagType: nwCfg.PktTagType,
-		PktTag:     nwCfg.PktTag,
-		ExtPktTag:  nwCfg.ExtPktTag,
-	}
-
-	epgCfg.StateDriver = stateDriver
-	epgCfg.ID = strconv.Itoa(eg.ID)
-	log.Debugf("##Create EpGroup %v network %v tagtype %v", eg.Name, eg.NetworkName, nwCfg.PktTagType)
-
-	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
-	masterGc := &GlobConfig{}
-	masterGc.StateDriver = stateDriver
-	err = masterGc.Read("config")
-	if core.ErrIfKeyExists(err) != nil {
-		log.Errorf("Couldn't read global config %v", err)
-		return err
-	}
-
-	if err == nil && masterGc.NwInfraType == "aci" {
-		if epgCfg.PktTagType != "vlan" {
-			log.Errorf("Network type must be VLAN for ACI mode")
-			return errors.New("Network type must be VLAN for ACI mode")
-		}
-
-		pktTag, err = gCfg.AllocVLAN(rm)
-		if err != nil {
-			return err
-		}
-		epgCfg.PktTag = int(pktTag)
-		log.Debugf("ACI -- Allocated vlan %v for epg %v", pktTag, eg.Name)
-
-	}
-
-	err = epgCfg.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// CreateNetwork creates a network from intent
-func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, tenantName string) error {
-	var extPktTag, pktTag uint
-
-	gCfg := gstate.Cfg{}
-	gCfg.StateDriver = stateDriver
-	err := gCfg.Read(tenantName)
-	if err != nil {
-		log.Errorf("error reading tenant cfg state. Error: %s", err)
-		return err
-	}
-
-	tempRm, err := resources.GetStateResourceManager()
-	if err != nil {
-		return err
-	}
-	rm := core.ResourceManager(tempRm)
-
-	// Create network state
-	nwCfg := &drivers.OvsCfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	if nwCfg.Read(network.Name) == nil {
-		// TODO: check if parameters changed and apply an update if needed
-		return nil
-	}
-
-	// construct and update network state
-	nwMasterCfg := &NwConfig{}
-	nwMasterCfg.StateDriver = stateDriver
-	nwMasterCfg.Tenant = tenantName
-	nwMasterCfg.ID = network.Name
-	nwMasterCfg.PktTagType = network.PktTagType
-	nwMasterCfg.PktTag = network.PktTag
-	nwMasterCfg.SubnetIP, nwMasterCfg.SubnetLen, _ = netutils.ParseCIDR(network.SubnetCIDR)
-	nwMasterCfg.DefaultGw = network.DefaultGw
-
-	nwCfg = &drivers.OvsCfgNetworkState{
-		Tenant:     nwMasterCfg.Tenant,
-		PktTagType: nwMasterCfg.PktTagType,
-		SubnetIP:   nwMasterCfg.SubnetIP,
-		SubnetLen:  nwMasterCfg.SubnetLen,
-	}
-	nwCfg.StateDriver = stateDriver
-	nwCfg.ID = nwMasterCfg.ID
-
-	if nwMasterCfg.PktTagType == "" {
-		nwCfg.PktTagType = gCfg.Deploy.DefaultNetType
-	}
-	if nwMasterCfg.PktTag == "" {
-		if nwCfg.PktTagType == "vlan" {
-			pktTag, err = gCfg.AllocVLAN(rm)
-			if err != nil {
-				return err
-			}
-		} else if nwCfg.PktTagType == "vxlan" {
-			extPktTag, pktTag, err = gCfg.AllocVXLAN(rm)
-			if err != nil {
-				return err
-			}
-		}
-
-		nwCfg.ExtPktTag = int(extPktTag)
-		nwCfg.PktTag = int(pktTag)
-	} else if nwMasterCfg.PktTagType == "vxlan" {
-		// XXX: take local vlan as config, instead of allocating it
-		// independently. Return erro for now, if user tries this config
-		return core.Errorf("Not handled. Need to introduce local-vlan config")
-	} else if nwMasterCfg.PktTagType == "vlan" {
-		nwCfg.PktTag, _ = strconv.Atoi(nwMasterCfg.PktTag)
-		// XXX: do configuration check, to make sure it is allowed
-	}
-
-	subnetIsAllocated := false
-	if nwCfg.SubnetIP == "" {
-		nwCfg.SubnetLen = gCfg.Auto.AllocSubnetLen
-		nwCfg.SubnetIP, err = gCfg.AllocSubnet(rm)
-		if err != nil {
-			return err
-		}
-		subnetIsAllocated = true
-	}
-
-	defaultNwName, err := gCfg.AssignDefaultNetwork(network.Name)
-	if err != nil {
-		log.Errorf("error assigning the default network. Error: %s", err)
-		return err
-	}
-
-	if network.Name == defaultNwName {
-		nwCfg.DefaultGw = network.DefaultGw
-		// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
-		if nwCfg.DefaultGw == "" && subnetIsAllocated {
-			var ipAddrValue uint
-			ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
-			nwCfg.DefaultGw, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
-			if err != nil {
-				return err
-			}
-			nwCfg.IPAllocMap.Set(ipAddrValue)
-		}
-	}
-
-	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
-	err = nwCfg.Write()
-	if err != nil {
-		return err
-	}
-
-	err = nwMasterCfg.Write()
-	if err != nil {
-		log.Errorf("error writing nw config. Error: %s", err)
-		return err
-	}
-
-	if nwCfg.PktTagType == "vxlan" {
-
-		readHost := &HostConfig{}
-		readHost.StateDriver = stateDriver
-		hostCfgs, err := readHost.ReadAll()
-		if err != nil {
-			if !strings.Contains(err.Error(), "Key not found") {
-				log.Errorf("error reading hosts during net add. Error: %s", err)
-			}
-		}
-		for _, hostCfg := range hostCfgs {
-			host := hostCfg.(*HostConfig)
-			err = createVtep(stateDriver, host, nwCfg.ID)
-			if err != nil {
-				log.Errorf("error creating vtep. Error: %s", err)
-			}
-		}
-	}
-
-	return nil
-}
-
-// CreateNetworks creates the necessary virtual networks for the tenant
-// provided by ConfigTenant.
-func CreateNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-	// Validate the config
-	err := validateNetworkConfig(tenant)
-	if err != nil {
-		log.Errorf("error validating network config. Error: %s", err)
-		return err
-	}
-
-	for _, network := range tenant.Networks {
-		err = CreateNetwork(network, stateDriver, tenant.Name)
-		if err != nil {
-			log.Errorf("Error creating network {%+v}. Err: %v", network, err)
-			return err
-		}
-	}
-
-	return err
-}
-
-func freeNetworkResources(stateDriver core.StateDriver, nwMasterCfg *NwConfig,
-	nwCfg *drivers.OvsCfgNetworkState, gCfg *gstate.Cfg) (err error) {
-
-	tempRm, err := resources.GetStateResourceManager()
-	if err != nil {
-		return err
-	}
-	rm := core.ResourceManager(tempRm)
-
-	if nwCfg.PktTagType == "vlan" {
-		err = gCfg.FreeVLAN(rm, uint(nwCfg.PktTag))
-		if err != nil {
-			return err
-		}
-	} else if nwCfg.PktTagType == "vxlan" {
-		log.Infof("freeing vlan %d vxlan %d", nwCfg.PktTag, nwCfg.ExtPktTag)
-		err = gCfg.FreeVXLAN(rm, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
-		if err != nil {
-			return err
-		}
-	}
-
-	if nwMasterCfg.SubnetIP == "" {
-		log.Infof("freeing subnet %s/%s", nwCfg.SubnetIP, nwCfg.SubnetLen)
-		err = gCfg.FreeSubnet(rm, nwCfg.SubnetIP)
-		if err != nil {
-			return err
-		}
-	}
-
-	if err := gCfg.UnassignNetwork(nwMasterCfg.ID); err != nil {
-		return err
-	}
-
-	return err
-}
-
-// DeleteNetworkID removes a network by ID.
-func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
-	nwMasterCfg := &NwConfig{}
-	nwMasterCfg.StateDriver = stateDriver
-	err := nwMasterCfg.Read(netID)
-	if err != nil {
-		log.Errorf("network %q is not configured", netID)
-		return err
-	}
-
-	nwCfg := &drivers.OvsCfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(netID)
-	if err != nil {
-		log.Errorf("network %s is not operational", netID)
-		return err
-	}
-
-	gCfg := &gstate.Cfg{}
-	gCfg.StateDriver = stateDriver
-	err = gCfg.Read(nwMasterCfg.Tenant)
-	if err != nil {
-		log.Errorf("error reading tenant info for %q. Error: %s", nwMasterCfg.Tenant, err)
-		return err
-	}
-
-	err = freeNetworkResources(stateDriver, nwMasterCfg, nwCfg, gCfg)
-	if err != nil {
-		return err
-	}
-
-	err = nwCfg.Clear()
-	if err != nil {
-		log.Errorf("error writing nw config. Error: %s", err)
-		return err
-	}
-
-	return err
-}
-
-// DeleteNetworks removes all the virtual networks for a given tenant.
-func DeleteNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-	gCfg := &gstate.Cfg{}
-	gCfg.StateDriver = stateDriver
-
-	err := gCfg.Read(tenant.Name)
-	if err != nil {
-		log.Errorf("error reading tenant state. Error: %s", err)
-		return err
-	}
-
-	err = validateNetworkConfig(tenant)
-	if err != nil {
-		log.Errorf("error validating network config. Error: %s", err)
-		return err
-	}
-
-	for _, network := range tenant.Networks {
-		if len(network.Endpoints) > 0 {
-			continue
-		}
-		nwMasterCfg := &NwConfig{}
-		nwMasterCfg.StateDriver = stateDriver
-		err = nwMasterCfg.Read(network.Name)
-		if err != nil {
-			log.Infof("network %q is not configured", network.Name)
-			continue
-		}
-
-		nwCfg := &drivers.OvsCfgNetworkState{}
-		nwCfg.StateDriver = stateDriver
-		err = nwCfg.Read(network.Name)
-		if err != nil {
-			log.Infof("network %q is not operational", network.Name)
-			continue
-		}
-
-		err = freeNetworkResources(stateDriver, nwMasterCfg, nwCfg, gCfg)
-		if err != nil {
-			return err
-		}
-
-		err = nwCfg.Clear()
-		if err != nil {
-			log.Errorf("error when writing nw config. Error: %s", err)
-			return err
-		}
-	}
-
-	return err
-}
-
-func validateEndpointConfig(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-	var err error
-
-	if tenant.Name == "" {
-		return core.Errorf("null tenant name")
-	}
-
-	for _, network := range tenant.Networks {
-		if network.Name == "" {
-			core.Errorf("null network name")
-		}
-
-		for _, ep := range network.Endpoints {
-			if ep.Container == "" {
-				return core.Errorf("invalid container name for the endpoint")
-			}
-			if ep.IPAddress != "" {
-				nwMasterCfg := &NwConfig{}
-				nwMasterCfg.StateDriver = stateDriver
-				err = nwMasterCfg.Read(network.Name)
-				if err != nil {
-					log.Errorf("error reading network state. Error: %s", err)
-					return err
-				}
-				if nwMasterCfg.SubnetIP != "" {
-					log.Errorf("found ep with ip for auto-allocated net")
-					return core.Errorf("found ep with ip for auto-allocated net")
-				}
-				if net.ParseIP(ep.IPAddress) == nil {
-					return core.Errorf("invalid ep IP")
-				}
-			}
-		}
-	}
-
-	return err
-}
-
-func allocSetEpAddress(ep *intent.ConfigEP, epCfg *drivers.OvsCfgEndpointState,
-	nwCfg *drivers.OvsCfgNetworkState) (err error) {
-
-	var ipAddrValue uint
-	var found bool
-
-	ipAddress := ep.IPAddress
-	if ipAddress == "" {
-		if ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0); !found {
-			log.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
-				nwCfg.SubnetIP, nwCfg.SubnetLen)
-			err = core.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
-				nwCfg.SubnetIP, nwCfg.SubnetLen)
-			return
-		}
-		ipAddress, err = netutils.GetSubnetIP(
-			nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
-		if err != nil {
-			log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
-			return
-		}
-	} else if ipAddress != "" && nwCfg.SubnetIP != "" {
-		ipAddrValue, err = netutils.GetIPNumber(
-			nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddress)
-		if err != nil {
-			log.Errorf("create eps: error getting host id from hostIP %s Subnet %s/%d. Error: %s",
-				ipAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
-			return
-		}
-	}
-	epCfg.IPAddress = ipAddress
-	nwCfg.IPAllocMap.Set(ipAddrValue)
-
-	// Set mac address which is derived from IP address
-	ipAddr := net.ParseIP(ipAddress)
-	macAddr := fmt.Sprintf("02:02:%02x:%02x:%02x:%02x", ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15])
-	epCfg.MacAddress = macAddr
-
-	return
-}
-
-// CreateEndpoint creates an endpoint
-func CreateEndpoint(stateDriver core.StateDriver, network *intent.ConfigNetwork,
-	nwCfg *drivers.OvsCfgNetworkState, ep *intent.ConfigEP) error {
-	epCfg := &drivers.OvsCfgEndpointState{}
-	epCfg.StateDriver = stateDriver
-	epCfg.ID = getEpName(network, ep)
-	err := epCfg.Read(epCfg.ID)
-	if err == nil {
-		// TODO: check for diffs and possible updates
-		return nil
-	}
-
-	epCfg.NetID = network.Name
-	epCfg.ContName = ep.Container
-	epCfg.AttachUUID = ep.AttachUUID
-	epCfg.HomingHost = ep.Host
-	epCfg.ServiceName = ep.ServiceName
-
-	// Allocate addresses
-	err = allocSetEpAddress(ep, epCfg, nwCfg)
-	if err != nil {
-		log.Errorf("error allocating and/or reserving IP. Error: %s", err)
-		return err
-	}
-
-	// Set endpoint group
-	epCfg.EndpointGroupID, err = getEndpointGroupID(ep.ServiceName, network.Name)
-	if err != nil {
-		log.Errorf("Error getting endpoint group for %s.%s. Err: %v", ep.ServiceName, network.Name, err)
-		return err
-	}
-
-	err = epCfg.Write()
-	if err != nil {
-		log.Errorf("error writing ep config. Error: %s", err)
-		return err
-	}
-
-	return nil
-}
-
-// CreateEndpoints creates the endpoints for a given tenant.
-func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-	err := validateEndpointConfig(stateDriver, tenant)
-	if err != nil {
-		log.Errorf("error validating endpoint config. Error: %s", err)
-		return err
-	}
-
-	for _, network := range tenant.Networks {
-		nwMasterCfg := NwConfig{}
-		nwMasterCfg.StateDriver = stateDriver
-		err = nwMasterCfg.Read(network.Name)
-		if err != nil {
-			log.Errorf("error reading cfg network %s. Error: %s", network.Name, err)
-			return err
-		}
-
-		nwCfg := &drivers.OvsCfgNetworkState{}
-		nwCfg.StateDriver = stateDriver
-		err = nwCfg.Read(network.Name)
-		if err != nil {
-			log.Errorf("error reading oper network %s. Error: %s", network.Name, err)
-			return err
-		}
-
-		for _, ep := range network.Endpoints {
-			err = CreateEndpoint(stateDriver, &network, nwCfg, &ep)
-			if err != nil {
-				log.Errorf("Error creating endpoint %+v. Err: %v", ep, err)
-				return err
-			}
-
-			nwCfg.EpCount++
-		}
-
-		err = nwCfg.Write()
-		if err != nil {
-			log.Errorf("error writing nw config. Error: %s", err)
-			return err
-		}
-	}
-
-	return err
-}
-
-func freeEndpointResources(epCfg *drivers.OvsCfgEndpointState,
-	nwCfg *drivers.OvsCfgNetworkState) error {
-	if epCfg.IPAddress == "" {
-		return nil
-	}
-
-	ipAddrValue, err := netutils.GetIPNumber(
-		nwCfg.SubnetIP, nwCfg.SubnetLen, 32, epCfg.IPAddress)
-	if err != nil {
-		log.Errorf("error getting host id from hostIP %s Subnet %s/%d. Error: %s",
-			epCfg.IPAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
-		return err
-	}
-	nwCfg.IPAllocMap.Clear(ipAddrValue)
-	nwCfg.EpCount--
-
-	return nil
-}
-
-// DeleteEndpointID deletes an endpoint by ID.
-func DeleteEndpointID(stateDriver core.StateDriver, epID string) error {
-	epCfg := &drivers.OvsCfgEndpointState{}
-	epCfg.StateDriver = stateDriver
-	err := epCfg.Read(epID)
-	if err != nil {
-		return err
-	}
-
-	nwCfg := &drivers.OvsCfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(epCfg.NetID)
-	if err != nil {
-		return err
-	}
-
-	err = freeEndpointResources(epCfg, nwCfg)
-	if err != nil {
-		return err
-	}
-
-	err = epCfg.Clear()
-	if err != nil {
-		log.Errorf("error writing nw config. Error: %s", err)
-		return err
-	}
-
-	err = nwCfg.Write()
-	if err != nil {
-		log.Errorf("error writing nw config. Error: %s", err)
-		return err
-	}
-
-	return err
-}
-
-// DeleteEndpoints deletes the endpoints for the tenant.
-func DeleteEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-
-	err := validateEndpointConfig(stateDriver, tenant)
-	if err != nil {
-		log.Errorf("error validating endpoint config: Error: %s", err)
-		return err
-	}
-
-	for _, network := range tenant.Networks {
-		nwMasterCfg := &NwConfig{}
-		nwMasterCfg.StateDriver = stateDriver
-		err = nwMasterCfg.Read(network.Name)
-		if err != nil {
-			log.Errorf("error reading network state. Error: %s", err)
-			return err
-		}
-
-		nwCfg := &drivers.OvsCfgNetworkState{}
-		nwCfg.StateDriver = stateDriver
-		err = nwCfg.Read(network.Name)
-		if err != nil {
-			log.Errorf("error reading network state. Error: %s", err)
-			return err
-		}
-
-		for _, ep := range network.Endpoints {
-			epCfg := &drivers.OvsCfgEndpointState{}
-			epCfg.StateDriver = stateDriver
-			epCfg.ID = getEpName(&network, &ep)
-			err = epCfg.Read(epCfg.ID)
-			if err != nil {
-				log.Errorf("error getting cfg state of ep %s, Error: %s", epCfg.ID, err)
-				continue
-			}
-
-			err = freeEndpointResources(epCfg, nwCfg)
-			if err != nil {
-				continue
-			}
-
-			err = epCfg.Clear()
-			if err != nil {
-				log.Errorf("error writing ep config. Error: %s", err)
-				return err
-			}
-		}
-
-		err = nwCfg.Write()
-		if err != nil {
-			log.Errorf("error writing nw config. Error: %s", err)
-			return err
-		}
-	}
-
-	return err
-}
-
-func validateEpBindings(epBindings *[]intent.ConfigEP) error {
-	for _, ep := range *epBindings {
-		if ep.Host == "" {
-			return core.Errorf("invalid host name for the endpoint")
-		}
-		if ep.Container == "" {
-			return core.Errorf("invalid container name for the endpoint")
-		}
-	}
-
-	return nil
-}
-
-// CreateEpBindings binds an endpoint to a host by updating host-label info
-// in driver's endpoint configuration.
-func CreateEpBindings(epBindings *[]intent.ConfigEP) error {
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		return err
-	}
-
-	err = validateEpBindings(epBindings)
-	if err != nil {
-		log.Errorf("error validating the ep bindings. Error: %s", err)
-		return err
-	}
-
-	readEp := &drivers.OvsCfgEndpointState{}
-	readEp.StateDriver = stateDriver
-	epCfgs, err := readEp.ReadAll()
-	if err != nil {
-		log.Errorf("error fetching eps. Error: %s", err)
-		return err
-	}
-	for _, ep := range *epBindings {
-		log.Infof("creating binding between container '%s' and host '%s'",
-			ep.Container, ep.Host)
-
-		for _, epCfg := range epCfgs {
-			cfg := epCfg.(*drivers.OvsCfgEndpointState)
-			if cfg.ContName != ep.Container {
-				continue
-			}
-			cfg.HomingHost = ep.Host
-			cfg.AttachUUID = ep.AttachUUID
-			err = cfg.Write()
-			if err != nil {
-				log.Errorf("error updating epCfg. Error: %s", err)
-				return err
-			}
-		}
-	}
-
-	return nil
 }

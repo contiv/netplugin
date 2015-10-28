@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package master
+package mastercfg
 
 import (
 	"testing"
@@ -55,7 +55,8 @@ func (d *testNwStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error 
 
 func (d *testNwStateDriver) validateKey(key string) error {
 	if key != nwCfgKey {
-		return core.Errorf("Unexpected key. recvd: %s expected: %s", key, nwCfgKey)
+		return core.Errorf("Unexpected key. recvd: %s expected: %s ",
+			key, nwCfgKey)
 	}
 
 	return nil
@@ -85,8 +86,8 @@ func (d *testNwStateDriver) WriteState(key string, value core.State,
 	return d.validateKey(key)
 }
 
-func TestNwConfigRead(t *testing.T) {
-	nwCfg := &NwConfig{}
+func TestCfgNetworkStateRead(t *testing.T) {
+	nwCfg := &CfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
 
 	err := nwCfg.Read(testNwID)
@@ -95,8 +96,8 @@ func TestNwConfigRead(t *testing.T) {
 	}
 }
 
-func TestNwConfigWrite(t *testing.T) {
-	nwCfg := &NwConfig{}
+func TestCfgNetworkStateWrite(t *testing.T) {
+	nwCfg := &CfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
 	nwCfg.ID = testNwID
 
@@ -106,8 +107,8 @@ func TestNwConfigWrite(t *testing.T) {
 	}
 }
 
-func TestNwConfigClear(t *testing.T) {
-	nwCfg := &NwConfig{}
+func TestCfgNetworkStateClear(t *testing.T) {
+	nwCfg := &CfgNetworkState{}
 	nwCfg.StateDriver = nwStateDriver
 	nwCfg.ID = testNwID
 

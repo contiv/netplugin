@@ -22,6 +22,7 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/jainvipin/bitset"
 )
@@ -36,7 +37,7 @@ const (
 )
 
 const (
-	subnetResourceConfigPathPrefix = drivers.StateConfigPath + AutoSubnetResource + "/"
+	subnetResourceConfigPathPrefix = mastercfg.StateConfigPath + AutoSubnetResource + "/"
 	subnetResourceConfigPath       = subnetResourceConfigPathPrefix + "%s"
 	subnetResourceOperPathPrefix   = drivers.StateOperPath + AutoSubnetResource + "/"
 	subnetResourceOperPath         = subnetResourceOperPathPrefix + "%s"

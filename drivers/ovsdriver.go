@@ -17,13 +17,12 @@ package drivers
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/mgmtfn/dockplugin/libnetClient"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 )
 
 type oper int
@@ -151,35 +150,9 @@ func (d *OvsDriver) Deinit() {
 	}
 }
 
-const driverName = "netplugin"
-
-// createDockNet Creates a network in docker daemon
-func createDockNet(networkName string) error {
-	api := libnetClient.NewRemoteAPI("")
-
-	// Check if the network already exists
-	nw, err := api.NetworkByName(networkName)
-	if err == nil && nw.Type() == driverName {
-		return nil
-	} else if err == nil && nw.Type() != driverName {
-		log.Errorf("Network name %s used by another driver %s", networkName, nw.Type())
-		return errors.New("Network name used by another driver")
-	}
-
-	// Create network
-	_, err = api.NewNetwork(driverName, networkName)
-	if err != nil {
-		log.Errorf("Error creating network %s. Err: %v", networkName, err)
-		// FIXME: Ignore errors till we fully move to docker 1.9
-		return nil
-	}
-
-	return nil
-}
-
 // CreateNetwork creates a network by named identifier
 func (d *OvsDriver) CreateNetwork(id string) error {
-	cfgNw := OvsCfgNetworkState{}
+	cfgNw := mastercfg.CfgNetworkState{}
 	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(id)
 	if err != nil {
@@ -187,13 +160,6 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		return err
 	}
 	log.Infof("create net %s \n", cfgNw.ID)
-
-	// Create the network in docker
-	err = createDockNet(cfgNw.ID)
-	if err != nil {
-		log.Errorf("Error creating network %s in docker. Err: %v", cfgNw.ID, err)
-		return err
-	}
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
@@ -210,7 +176,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 func (d *OvsDriver) DeleteNetwork(id string) error {
 	log.Infof("delete net %s \n", id)
 
-	cfgNw := OvsCfgNetworkState{}
+	cfgNw := mastercfg.CfgNetworkState{}
 	cfgNw.StateDriver = d.oper.StateDriver
 	err := cfgNw.Read(id)
 	if err != nil {
@@ -236,7 +202,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		intfName string
 	)
 
-	cfgEp := &OvsCfgEndpointState{}
+	cfgEp := &mastercfg.CfgEndpointState{}
 	cfgEp.StateDriver = d.oper.StateDriver
 	err = cfgEp.Read(id)
 	if err != nil {
@@ -368,7 +334,7 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 	}()
 
 	// Get the network state
-	cfgNw := OvsCfgNetworkState{}
+	cfgNw := mastercfg.CfgNetworkState{}
 	cfgNw.StateDriver = d.oper.StateDriver
 	err = cfgNw.Read(epOper.NetID)
 	if err != nil {
