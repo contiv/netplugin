@@ -206,7 +206,6 @@ func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int) error
 	} else {
 		sw = d.switchDb["vlan"]
 	}
-
 	return sw.DeleteNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag), cfgNw.Gateway)
 }
 
@@ -422,6 +421,7 @@ func (d *OvsDriver) AddMaster(node core.ServiceInfo) error {
 		return err
 	}
 	err = d.switchDb["vxlan"].AddMaster(node)
+
 	if err != nil {
 		return err
 	}
