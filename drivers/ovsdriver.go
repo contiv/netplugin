@@ -401,7 +401,7 @@ func (d *OvsDriver) AddMaster(node core.ServiceInfo) error {
 	log.Infof("AddMaster for %+v", node)
 
 	// Add master to vlan and vxlan datapaths
-	err := d.switchDb["vxlan"].AddMaster(node)
+	err := d.switchDb["vlan"].AddMaster(node)
 	if err != nil {
 		return err
 	}

@@ -39,6 +39,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/Sirupsen/logrus/hooks/syslog"
+
+	api "github.com/osrg/gobgp/api"
+	"github.com/osrg/gobgp/packet"
+	//"github.com/osrg/gobgp/server"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -127,6 +133,7 @@ func processEpState(netPlugin *plugin.NetPlugin, opts cliOpts, epID string) erro
 	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = netPlugin.StateDriver
 	err := epCfg.Read(epID)
+
 	if err != nil {
 		log.Errorf("Failed to read config for ep '%s' \n", epID)
 		return err
