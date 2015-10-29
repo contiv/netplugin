@@ -27,7 +27,7 @@ type ContainerEPContext struct {
 	InterfaceID    string
 	IPAddress      string
 	SubnetLen      uint
-	DefaultGw      string
+	Gateway        string
 }
 
 // ContainerIf implementations are used to configure and manage container

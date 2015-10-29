@@ -92,17 +92,6 @@ func processCurrentState(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 		}
 	}
 
-	peer := &drivers.PeerHostState{}
-	peer.StateDriver = netPlugin.StateDriver
-	peerList, err := peer.ReadAll()
-	if err == nil {
-		for idx, peerState := range peerList {
-			peerInfo := peerState.(*drivers.PeerHostState)
-			log.Debugf("read peer key[%d] %s, populating state \n", idx, peerInfo.ID)
-			processPeerEvent(netPlugin, opts, peerInfo, false)
-		}
-	}
-
 	return nil
 }
 
@@ -132,40 +121,6 @@ func processNetEvent(netPlugin *plugin.NetPlugin, netID string,
 	return
 }
 
-func processPeerEvent(netPlugin *plugin.NetPlugin, opts cliOpts,
-	peerInfo *drivers.PeerHostState, isDelete bool) (err error) {
-
-	// if this is our own peer info coming back to us, ignore it
-	if peerInfo.ID == opts.hostLabel {
-		return nil
-	}
-
-	nodeInfo := core.ServiceInfo{
-		HostAddr: peerInfo.HostAddr,
-		Port:     0,
-	}
-
-	// take a lock to ensure we are programming one event at a time.
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
-
-	operStr := ""
-	if isDelete {
-		err = netPlugin.DeletePeerHost(nodeInfo)
-		operStr = "delete"
-	} else {
-		err = netPlugin.AddPeerHost(nodeInfo)
-		operStr = "create"
-	}
-	if err != nil {
-		log.Errorf("PeerHost operation %s failed. Error: %s", operStr, err)
-	} else {
-		log.Infof("PeerHost operation %s succeeded", operStr)
-	}
-
-	return
-}
-
 func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 	*crtclient.ContainerEPContext, error) {
 	var epCtx crtclient.ContainerEPContext
@@ -186,7 +141,7 @@ func getEndpointContainerContext(stateDriver core.StateDriver, epID string) (
 	if err != nil {
 		return &epCtx, err
 	}
-	epCtx.DefaultGw = cfgNet.DefaultGw
+	epCtx.Gateway = cfgNet.Gateway
 	epCtx.SubnetLen = cfgNet.SubnetLen
 
 	operEp := &drivers.OvsOperEndpointState{}
@@ -630,10 +585,6 @@ func processStateEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 			log.Infof("Received %q for endpoint: %q", eventStr, epCfg.ID)
 			processEpEvent(netPlugin, crt, opts, epCfg.ID, isDelete)
 		}
-		if peerInfo, ok := currentState.(*drivers.PeerHostState); ok {
-			log.Infof("Received %q for peer host: %q", eventStr, peerInfo.ID)
-			processPeerEvent(netPlugin, opts, peerInfo, isDelete)
-		}
 	}
 }
 
@@ -657,16 +608,6 @@ func handleEndpointEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
 	return
 }
 
-func handlePeerEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT,
-	opts cliOpts, retErr chan error) {
-	rsps := make(chan core.WatchState)
-	go processStateEvent(netPlugin, crt, opts, rsps)
-	peer := drivers.PeerHostState{}
-	peer.StateDriver = netPlugin.StateDriver
-	retErr <- peer.WatchAll(rsps)
-	return
-}
-
 func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	retErr chan error) {
 	// monitor network events
@@ -674,9 +615,6 @@ func handleStateEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 
 	// monitor endpoint events
 	go handleEndpointEvents(netPlugin, crt, opts, retErr)
-
-	// monitor peer host events
-	go handlePeerEvents(netPlugin, crt, opts, retErr)
 }
 
 func handleEvents(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts) error {

@@ -25,9 +25,9 @@ import (
 
 const (
 	// StateBasePath is the base path for all state operations.
-	StateBasePath = "/contiv/"
+	StateBasePath = "/contiv.io/"
 	// StateConfigPath is the path to the root of the configuration state
-	StateConfigPath = StateBasePath + "config/"
+	StateConfigPath = StateBasePath + "state/"
 
 	networkConfigPathPrefix  = StateConfigPath + "nets/"
 	networkConfigPath        = networkConfigPathPrefix + "%s"
@@ -48,7 +48,7 @@ type CfgNetworkState struct {
 	ExtPktTag   int           `json:"extPktTag"`
 	SubnetIP    string        `json:"subnetIP"`
 	SubnetLen   uint          `json:"subnetLen"`
-	DefaultGw   string        `json:"defaultGw"`
+	Gateway     string        `json:"gateway"`
 	EpCount     int           `json:"epCount"`
 	IPAllocMap  bitset.BitSet `json:"ipAllocMap"`
 }

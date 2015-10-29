@@ -56,6 +56,9 @@ func (d *EtcdStateDriver) Init(config *core.Config) error {
 
 	d.Client = etcd.NewClient(cfg.Etcd.Machines)
 
+	// Set strong consistency
+	d.Client.SetConsistency(etcd.STRONG_CONSISTENCY)
+
 	return nil
 }
 

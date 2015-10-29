@@ -415,9 +415,9 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	networkCfg := intent.ConfigNetwork{
 		Name:       network.NetworkName,
 		PktTagType: network.Encap,
-		PktTag:     "",
+		PktTag:     network.PktTag,
 		SubnetCIDR: network.Subnet,
-		DefaultGw:  network.DefaultGw,
+		Gateway:    network.Gateway,
 	}
 
 	// Create the network
@@ -830,8 +830,9 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		IsPublic:    false,
 		IsPrivate:   true,
 		Encap:       "vxlan",
+		PktTag:      1001,
 		Subnet:      "10.1.0.0/16",
-		DefaultGw:   "10.1.254.254",
+		Gateway:     "10.1.254.254",
 		NetworkName: "private",
 		TenantName:  tenant.TenantName,
 	})
@@ -846,8 +847,9 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		IsPublic:    true,
 		IsPrivate:   false,
 		Encap:       "vlan",
+		PktTag:      1,
 		Subnet:      "192.168.1.0/24",
-		DefaultGw:   "192.168.1.254",
+		Gateway:     "192.168.1.254",
 		NetworkName: "public",
 		TenantName:  tenant.TenantName,
 	})

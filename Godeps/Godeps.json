@@ -45,11 +45,11 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/objmodel/contivModel",
-			"Rev": "4aa743722df04ef3e56cc1dadae6e3ca92b2fc10"
+			"Rev": "4c33e4e57c34492fbdf6ce65698661770391c735"
 		},
 		{
 			"ImportPath": "github.com/contiv/objmodel/objdb",
-			"Rev": "4aa743722df04ef3e56cc1dadae6e3ca92b2fc10"
+			"Rev": "4c33e4e57c34492fbdf6ce65698661770391c735"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",

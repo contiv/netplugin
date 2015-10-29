@@ -20,9 +20,12 @@ import (
 	"fmt"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 )
 
 const (
+	basePath             = mastercfg.StateBasePath + "master/"
+	configPath           = basePath + "config/"
 	hostConfigPathPrefix = configPath + "hosts/"
 	hostConfigPath       = hostConfigPathPrefix + "%s"
 )

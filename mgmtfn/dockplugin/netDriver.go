@@ -302,22 +302,6 @@ func join() func(http.ResponseWriter, *http.Request) {
 		if err != nil {
 			httpError(w, "Could not find created endpoint", err)
 			return
-			/* FIXME: remove this
-			// Add the endpoint oper state
-			err = netPlugin.CreateEndpoint(networkName + "-" + jr.EndpointID)
-			if err != nil {
-				log.Errorf("Endpoint creation failed. Error: %s", err)
-				httpError(w, "Could not create endpoint", err)
-				return
-			}
-
-			// Try to get it again
-			ep, err = netdGetEndpoint(networkName + "-" + jr.EndpointID)
-			if err != nil {
-				httpError(w, "Could not find created endpoint", err)
-				return
-			}
-			*/
 		}
 
 		nw, err := netdGetNetwork(netID)
@@ -331,7 +315,7 @@ func join() func(http.ResponseWriter, *http.Request) {
 				SrcName:   ep.PortName,
 				DstPrefix: "eth",
 			},
-			Gateway: nw.DefaultGw,
+			Gateway: nw.Gateway,
 		}
 
 		log.Infof("Sending JoinResponse: {%+v}, InterfaceName: %s", joinResp, ep.PortName)
@@ -363,23 +347,6 @@ func leave() func(http.ResponseWriter, *http.Request) {
 		}
 
 		log.Infof("LeaveRequest: %+v", lr)
-
-		/* FIXME: remove this
-		networkName, err := GetDockerNetworkName(lr.NetworkID)
-		if err != nil {
-			log.Errorf("Error getting network name for UUID: %s. Err: %v", lr.NetworkID, err)
-			httpError(w, "Could not get network name", err)
-			return
-		}
-
-		// Delete the Endpoint
-		err = netPlugin.DeleteEndpoint(networkName + "-" + lr.EndpointID)
-		if err != nil {
-			log.Errorf("error deleting an endpoint upon container stop: %v \n", err)
-			httpError(w, "Could not delete endpoint", err)
-			return
-		}
-		*/
 
 		// Send response
 		w.WriteHeader(200)

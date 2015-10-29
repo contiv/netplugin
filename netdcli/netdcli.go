@@ -151,7 +151,7 @@ type cliOpts struct {
 	subnetIP        string
 	subnetLen       uint
 	allocSubnetLen  uint
-	defaultGw       string
+	gateway         string
 	idStr           string
 	vlans           string
 	vxlans          string
@@ -224,7 +224,7 @@ func init() {
 		"subnet",
 		"",
 		"Network Subnet IP with mask e.g. 11.0.1.1/24, or 0/24 to specify only mask")
-	flagSet.StringVar(&opts.defaultGw,
+	flagSet.StringVar(&opts.gateway,
 		"gw",
 		"",
 		"Default Gateway Address of the network e.g. 11.0.1.1")
@@ -447,7 +447,7 @@ func executeOpts(opts *cliOpts) error {
 			nwCfg.PktTagType = opts.pktTagType
 			nwCfg.SubnetIP = opts.subnetIP
 			nwCfg.SubnetLen = opts.subnetLen
-			nwCfg.DefaultGw = opts.defaultGw
+			nwCfg.Gateway = opts.gateway
 			nwCfg.ID = opts.idStr
 			coreState = nwCfg
 		}

@@ -151,28 +151,6 @@ func DeleteDelta(allCfg *intent.Config) error {
 		}
 	}
 
-	readHost := &HostConfig{}
-	readHost.StateDriver = stateDriver
-	hostCfgs, err := readHost.ReadAll()
-	if core.ErrIfKeyExists(err) != nil {
-		return err
-	} else if err != nil {
-		err = nil
-		hostCfgs = []core.State{}
-	}
-	for _, hostCfg := range hostCfgs {
-		cfg := hostCfg.(*HostConfig)
-		hostName := cfg.Name
-		if !hostPresent(allCfg, hostName) {
-			err1 := DeleteHostID(stateDriver, hostName)
-			if err1 != nil {
-				log.Errorf("error '%s' deleting host %s \n", err1, hostName)
-				err = err1
-				continue
-			}
-		}
-	}
-
 	return err
 }
 
@@ -182,15 +160,6 @@ func ProcessAdditions(allCfg *intent.Config) (err error) {
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return err
-	}
-
-	for _, host := range allCfg.Hosts {
-		err1 := CreateHost(stateDriver, &host)
-		if err1 != nil {
-			log.Errorf("error '%s' adding host %s \n", err1, host.Name)
-			err = err1
-			continue
-		}
 	}
 
 	for _, tenant := range allCfg.Tenants {
@@ -225,15 +194,6 @@ func ProcessDeletions(allCfg *intent.Config) (err error) {
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return err
-	}
-
-	for _, host := range allCfg.Hosts {
-		err1 := DeleteHost(stateDriver, &host)
-		if err1 != nil {
-			log.Errorf("error '%s' deleting host %s \n", err1, host.Name)
-			err = err1
-			continue
-		}
 	}
 
 	for _, tenant := range allCfg.Tenants {

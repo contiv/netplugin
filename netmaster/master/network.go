@@ -19,8 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
-	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
@@ -50,13 +48,6 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 			return err
 		}
 
-		if network.PktTag != "" {
-			_, err = strconv.Atoi(network.PktTag)
-			if err != nil {
-				return err
-			}
-		}
-
 		if network.SubnetCIDR != "" {
 			_, _, err = netutils.ParseCIDR(network.SubnetCIDR)
 			if err != nil {
@@ -64,8 +55,8 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 			}
 		}
 
-		if network.DefaultGw != "" {
-			if net.ParseIP(network.DefaultGw) == nil {
+		if network.Gateway != "" {
+			if net.ParseIP(network.Gateway) == nil {
 				return core.Errorf("invalid IP")
 			}
 		}
@@ -179,7 +170,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		PktTagType:  network.PktTagType,
 		SubnetIP:    subnetIP,
 		SubnetLen:   subnetLen,
-		DefaultGw:   network.DefaultGw,
+		Gateway:     network.Gateway,
 	}
 
 	nwCfg.ID = networkID
@@ -188,7 +179,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	if network.PktTagType == "" {
 		nwCfg.PktTagType = gCfg.Deploy.DefaultNetType
 	}
-	if network.PktTag == "" {
+	if network.PktTag == 0 {
 		if nwCfg.PktTagType == "vlan" {
 			pktTag, err = gCfg.AllocVLAN(rm)
 			if err != nil {
@@ -204,11 +195,10 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		nwCfg.ExtPktTag = int(extPktTag)
 		nwCfg.PktTag = int(pktTag)
 	} else if network.PktTagType == "vxlan" {
-		// XXX: take local vlan as config, instead of allocating it
-		// independently. Return erro for now, if user tries this config
-		return core.Errorf("Not handled. Need to introduce local-vlan config")
+		nwCfg.ExtPktTag = network.PktTag
+		nwCfg.PktTag = network.PktTag
 	} else if network.PktTagType == "vlan" {
-		nwCfg.PktTag, _ = strconv.Atoi(network.PktTag)
+		nwCfg.PktTag = network.PktTag
 		// XXX: do configuration check, to make sure it is allowed
 	}
 
@@ -230,10 +220,10 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 
 	if network.Name == defaultNwName {
 		// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
-		if nwCfg.DefaultGw == "" && subnetIsAllocated {
+		if nwCfg.Gateway == "" && subnetIsAllocated {
 			var ipAddrValue uint
 			ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
-			nwCfg.DefaultGw, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
+			nwCfg.Gateway, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
 			if err != nil {
 				return err
 			}
@@ -247,28 +237,9 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		return err
 	}
 
-	if nwCfg.PktTagType == "vxlan" {
-
-		readHost := &HostConfig{}
-		readHost.StateDriver = stateDriver
-		hostCfgs, err := readHost.ReadAll()
-		if err != nil {
-			if !strings.Contains(err.Error(), "Key not found") {
-				log.Errorf("error reading hosts during net add. Error: %s", err)
-			}
-		}
-		for _, hostCfg := range hostCfgs {
-			host := hostCfg.(*HostConfig)
-			err = createVtep(stateDriver, host, nwCfg.ID)
-			if err != nil {
-				log.Errorf("error creating vtep. Error: %s", err)
-			}
-		}
-	}
-
 	// Create the network in docker
 	subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
-	err = createDockNet(nwCfg.ID, subnetCIDR, nwCfg.DefaultGw)
+	err = createDockNet(nwCfg.ID, subnetCIDR, nwCfg.Gateway)
 	if err != nil {
 		log.Errorf("Error creating network %s in docker. Err: %v", nwCfg.ID, err)
 		return err

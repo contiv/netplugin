@@ -209,7 +209,7 @@ def createNet(args):
 	  "isPrivate": False if args.public == True else True,
 	  "encap": args.encap,
 	  "subnet": args.subnet,
-	  "defaultGw": args.defaultGw,
+	  "gateway": args.gateway,
 	 })
 	response = httpPost(postUrl, jdata)
 	print "Network Create response is: " + response
@@ -238,7 +238,7 @@ def listNet(args):
 			if 'isPublic' in net and net['isPublic'] == True:
 				isPublic = "Yes"
 
-			print "{0}		{1}	{2}	{3}		{4}".format(net['networkName'], isPublic, net['encap'], net['subnet'], net['defaultGw'])
+			print "{0}		{1}	{2}	{3}		{4}".format(net['networkName'], isPublic, net['encap'], net['subnet'], net['gateway'])
 
 # Set global config
 def globalSet(args):
@@ -377,7 +377,7 @@ def addNetworkParser(sub):
 	netCreateParser.add_argument("-public", default="no", choices=["yes", "no"], help="Is this a public network")
 	netCreateParser.add_argument("-encap", default="vxlan", choices=["vlan", "vxlan"], help="Packet tag")
 	netCreateParser.add_argument("-subnet", required=True, help="Subnet addr/mask")
-	netCreateParser.add_argument("-defaultGw", required=True, help="default GW")
+	netCreateParser.add_argument("-gateway", required=True, help="default GW")
 
 	# Handler functions
 	netCreateParser.set_defaults(func=createNet)

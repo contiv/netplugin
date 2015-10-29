@@ -36,7 +36,7 @@ type ConfigHost struct {
 type ConfigInfraNetwork struct {
 	Name       string
 	PktTagType string
-	PktTag     string
+	PktTag     int
 }
 
 // ConfigEP encapulsates an endpoint: a leg into a network
@@ -55,9 +55,9 @@ type ConfigNetwork struct {
 
 	// overrides for various functions when auto allocation is not desired
 	PktTagType string
-	PktTag     string
+	PktTag     int
 	SubnetCIDR string
-	DefaultGw  string
+	Gateway    string
 
 	// eps associated with the network
 	Endpoints []ConfigEP

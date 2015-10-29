@@ -10,7 +10,7 @@
 					"type": "string",
 					"title": "Network name",
 					"length": 64,
-					"ShowSummary": true
+					"showSummary": true
 				},
 				"tenantName": {
 					"type": "string",
@@ -19,29 +19,34 @@
 				},
 				"isPublic": {
 					"type": "bool",
-					"Title": "Public network"
+					"title": "Public network"
 				},
 				"isPrivate": {
 					"type": "bool",
-					"Title": "Private network"
+					"title": "Private network"
 				},
 				"encap": {
 					"type": "string",
 					"format": "^(vlan|vxlan)$",
-					"Title": "Encapsulation",
-					"ShowSummary": true
+					"title": "Encapsulation",
+					"showSummary": true
+				},
+				"pktTag": {
+					"type": "int",
+					"title": "Vlan/Vxlan Tag",
+					"showSummary": true
 				},
 				"subnet": {
 					"type": "string",
 					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?/[0-9]{1,2}?)$",
-					"Title": "Subnet",
-					"ShowSummary": true
+					"title": "Subnet",
+					"showSummary": true
 				},
-				"defaultGw": {
+				"gateway": {
 					"type": "string",
 					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$",
-					"Title": "Gateway",
-					"ShowSummary": true
+					"title": "Gateway",
+					"showSummary": true
 				}
 			},
 			"link-sets": {

@@ -31,6 +31,12 @@ source /etc/profile.d/envvar.sh
 mv /etc/resolv.conf /etc/resolv.conf.bak
 cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
 
+# Install experimental docker
+curl -sSL https://test.docker.com/ | sh
+
+# setup docker cluster store
+cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service /lib/systemd/system/docker.service
+
 # setup docker remote api
 cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
 systemctl enable docker-tcp.socket
@@ -48,11 +54,8 @@ if [ $# -gt 5 ]; then
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
-# Install experimental docker
-# curl -sSL https://experimental.docker.com/ | sh
-
 # Get swarm binary
-(wget https://cisco.box.com/shared/static/isn9te95op8qgmz9o0al45eps2zmfz7c -q -O /usr/bin/swarm &&
+(wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
 chmod +x /usr/bin/swarm) || exit 1
 
 # remove duplicate docker key

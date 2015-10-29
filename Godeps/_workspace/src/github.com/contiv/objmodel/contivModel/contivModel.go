@@ -72,11 +72,12 @@ type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	DefaultGw   string `json:"defaultGw,omitempty"`
 	Encap       string `json:"encap,omitempty"`
+	Gateway     string `json:"gateway,omitempty"`
 	IsPrivate   bool   `json:"isPrivate,omitempty"`
 	IsPublic    bool   `json:"isPublic,omitempty"`
 	NetworkName string `json:"networkName,omitempty"`
+	PktTag      int    `json:"pktTag,omitempty"`
 	Subnet      string `json:"subnet,omitempty"`
 	TenantName  string `json:"tenantName,omitempty"`
 
@@ -1046,7 +1047,7 @@ func restoreEndpointGroup() error {
 // Validate a endpointGroup object
 func ValidateEndpointGroup(obj *EndpointGroup) error {
 	// Validate key is correct
-	keyStr := obj.TenantName + ":" + obj.GroupName
+	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.GroupName
 	if obj.Key != keyStr {
 		log.Errorf("Expecting EndpointGroup Key: %s. Got: %s", keyStr, obj.Key)
 		return errors.New("Invalid Key")
@@ -1532,14 +1533,14 @@ func ValidateNetwork(obj *Network) error {
 
 	// Validate each field
 
-	defaultGwMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$")
-	if defaultGwMatch.MatchString(obj.DefaultGw) == false {
-		return errors.New("defaultGw string invalid format")
-	}
-
 	encapMatch := regexp.MustCompile("^(vlan|vxlan)$")
 	if encapMatch.MatchString(obj.Encap) == false {
 		return errors.New("encap string invalid format")
+	}
+
+	gatewayMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$")
+	if gatewayMatch.MatchString(obj.Gateway) == false {
+		return errors.New("gateway string invalid format")
 	}
 
 	if len(obj.NetworkName) > 64 {

@@ -93,7 +93,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 	subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
 
 	// Create each EPG as a docker network
-	err = createDockNet(epgNet, subnetCIDR, nwCfg.DefaultGw)
+	err = createDockNet(epgNet, subnetCIDR, nwCfg.Gateway)
 	if err != nil {
 		log.Errorf("Error creating docker network %s. Err: %v", epgNet, err)
 		return err

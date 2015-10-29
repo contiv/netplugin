@@ -409,7 +409,7 @@ func join(networkName string) func(http.ResponseWriter, *http.Request) {
 				SrcName: ep[0].PortName,
 				DstName: "eth",
 			},
-			Gateway: nw[0].DefaultGw,
+			Gateway: nw[0].Gateway,
 		})
 
 		if err != nil {
