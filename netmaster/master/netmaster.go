@@ -16,6 +16,7 @@ limitations under the License.
 package master
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -74,6 +75,16 @@ func validateTenantConfig(tenant *intent.ConfigTenant) error {
 	}
 
 	return nil
+}
+
+// CreateGlobal sets the global state
+func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
+
+	masterGc := &GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	masterGc.NwInfraType = gc.NwInfraType
+	err := masterGc.Write()
+	return err
 }
 
 // CreateTenant sets the tenant's state according to the passed ConfigTenant.
@@ -467,14 +478,23 @@ func CreateEndpointGroup(eg intent.ConfigEndpointGroup, stateDriver core.StateDr
 	epgCfg.ID = strconv.Itoa(eg.ID)
 	log.Debugf("##Create EpGroup %v network %v tagtype %v", eg.Name, eg.NetworkName, nwCfg.PktTagType)
 
-	//TODO add check for aci mode
-	if epgCfg.PktTagType == "vlan" {
+	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
+	masterGc := &GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	err = masterGc.Read("config")
+	if err == nil && masterGc.NwInfraType == "aci" {
+		if epgCfg.PktTagType != "vlan" {
+			log.Errorf("Network type must be VLAN for ACI mode")
+			return errors.New("Network type must be VLAN for ACI mode")
+		}
+
 		pktTag, err = gCfg.AllocVLAN(rm)
 		if err != nil {
 			return err
 		}
 		epgCfg.PktTag = int(pktTag)
-		log.Debugf("Allocated vlan %v for epg %v", pktTag, eg.Name)
+		log.Debugf("ACI -- Allocated vlan %v for epg %v", pktTag, eg.Name)
+
 	}
 
 	err = epgCfg.Write()

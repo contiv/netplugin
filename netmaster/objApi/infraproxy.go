@@ -8,6 +8,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/objmodel/contivModel"
 	"io/ioutil"
@@ -167,6 +168,19 @@ func CreateAppNw(app *contivModel.App) error {
 	stateDriver, uErr := utils.GetStateDriver()
 	if uErr != nil {
 		return uErr
+	}
+
+	//if we are not in ACI mode, just return
+	masterGc := &master.GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	uErr = masterGc.Read("config")
+	if uErr != nil {
+		log.Warnf("Couldn't read global config %v", uErr)
+		return nil
+	}
+	if masterGc.NwInfraType != "aci" {
+		log.Debugf("NwInfra type is %v, no ACI", masterGc.NwInfraType)
+		return nil
 	}
 
 	netName := ""

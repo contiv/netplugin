@@ -240,6 +240,27 @@ def listNet(args):
 
 			print "{0}		{1}	{2}	{3}		{4}".format(net['networkName'], isPublic, net['encap'], net['subnet'], net['defaultGw'])
 
+# Set global config
+def globalSet(args):
+	print "Setting network type {0}".format(args.nwinfra)
+
+	postUrl = 'http://netmaster:9999/api/globals/config/'
+	jdata = json.dumps({
+          "name": "config",
+	  "network-infra-type": args.nwinfra,
+	 })
+	print jdata
+	response = httpPost(postUrl, jdata)
+	print "Global config response is: " + response
+
+# Set global config
+def globalGet(args):
+	print "Getting network type" 
+
+	getUrl = 'http://netmaster:9999/api/globals/config/'
+	res = json.loads(httpGet(getUrl))
+        print res
+#        print "\nnwinfra: " + res['network-infra-type']
 
 # Add policy subparser
 def addPolicyParser(sub):
@@ -363,6 +384,18 @@ def addNetworkParser(sub):
 	netDeleteParser.set_defaults(func=deleteNet)
 	netListParser.set_defaults(func=listNet)
 
+# Add Global parser
+def addGlobalParser(sub):
+	modeParser = sub.add_parser("global", help="Global config")
+	modeSubparser = modeParser.add_subparsers()
+	modeSetParser = modeSubparser.add_parser("set", help="Set Global config")
+	modeGetParser = modeSubparser.add_parser("get", help="Get Global config")
+	modeSetParser.add_argument("-nwinfra", required=True, choices=["aci", "stand-alone"], help="set network type")
+
+	# Handler function
+	modeSetParser.set_defaults(func=globalSet)
+	modeGetParser.set_defaults(func=globalGet)
+
 # Create the parser and sub parser
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', action='version', version='1.0.0')
@@ -373,6 +406,7 @@ addPolicyParser(subparsers)
 addRuleParser(subparsers)
 addEpgParser(subparsers)
 addNetworkParser(subparsers)
+addGlobalParser(subparsers)
 
 # Run the parser
 args = parser.parse_args()

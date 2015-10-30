@@ -255,10 +255,23 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	cfgEpGroup := &OvsCfgEpGroupState{}
 	cfgEpGroup.StateDriver = d.oper.StateDriver
 	err = cfgEpGroup.Read(strconv.Itoa(cfgEp.EndpointGroupID))
-	if err != nil {
-		return err
+	if err == nil {
+		log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
+	} else {
+		// In case EpGroup is not specified, get the tag from nw.
+		// this is mainly for the intent based system tests
+		log.Warnf("%v will use network based tag ", err)
+		cfgNw := OvsCfgNetworkState{}
+		cfgNw.StateDriver = d.oper.StateDriver
+		err1 := cfgNw.Read(cfgEp.NetID)
+		if err1 != nil {
+			log.Errorf("Unable to get tag neither epg nor nw")
+			return err1
+		}
+
+		cfgEpGroup.PktTagType = cfgNw.PktTagType
+		cfgEpGroup.PktTag = cfgNw.PktTag
 	}
-	log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
 
 	// Find the switch based on network type
 	var sw *OvsSwitch

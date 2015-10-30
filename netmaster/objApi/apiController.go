@@ -45,6 +45,7 @@ func NewAPIController(router *mux.Router) *APIController {
 	contivModel.Init()
 
 	// Register Callbacks
+	contivModel.RegisterGlobalCallbacks(ctrler)
 	contivModel.RegisterAppCallbacks(ctrler)
 	contivModel.RegisterEndpointGroupCallbacks(ctrler)
 	contivModel.RegisterNetworkCallbacks(ctrler)
@@ -87,6 +88,63 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+// GlobalCreate creates global state
+func (ac *APIController) GlobalCreate(global *contivModel.Global) error {
+	log.Infof("Received GlobalCreate: %+v", global)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Build global config
+	gCfg := intent.ConfigGlobal{
+		NwInfraType: global.NetworkInfraType,
+	}
+
+	// Create the object
+	err = master.CreateGlobal(stateDriver, &gCfg)
+	if err != nil {
+		log.Errorf("Error creating global config {%+v}. Err: %v", global, err)
+		return err
+	}
+
+	return nil
+}
+
+// GlobalUpdate updates global state
+func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error {
+	log.Infof("Received GlobalUpdate: %+v", global)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Build global config
+	gCfg := intent.ConfigGlobal{
+		NwInfraType: params.NetworkInfraType,
+	}
+
+	// Create the object
+	err = master.CreateGlobal(stateDriver, &gCfg)
+	if err != nil {
+		log.Errorf("Error creating global config {%+v}. Err: %v", global, err)
+		return err
+	}
+
+	global.NetworkInfraType = params.NetworkInfraType
+	return nil
+}
+
+// GlobalDelete is not supported
+func (ac *APIController) GlobalDelete(global *contivModel.Global) error {
+	log.Infof("Received GlobalDelete: %+v", global)
+	return nil
 }
 
 // AppCreate creates app state

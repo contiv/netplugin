@@ -17,6 +17,11 @@ limitations under the License.
 
 package intent
 
+// ConfigGlobal keeps track of settings that are globally applicable
+type ConfigGlobal struct {
+	NwInfraType string
+}
+
 // ConfigHost keeps track of the host's properties; A host is a node where
 // containers are deployed
 type ConfigHost struct {

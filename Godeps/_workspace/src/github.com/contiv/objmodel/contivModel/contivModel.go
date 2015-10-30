@@ -60,6 +60,14 @@ type EndpointGroupLinks struct {
 	Tenant  modeldb.Link `json:"Tenant,omitempty"`
 }
 
+type Global struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	Name             string `json:"name,omitempty"`
+	NetworkInfraType string `json:"network-infra-type,omitempty"`
+}
+
 type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -262,6 +270,7 @@ type VolumeProfileLinks struct {
 type Collections struct {
 	apps             map[string]*App
 	endpointGroups   map[string]*EndpointGroup
+	globals          map[string]*Global
 	networks         map[string]*Network
 	policys          map[string]*Policy
 	rules            map[string]*Rule
@@ -284,6 +293,12 @@ type EndpointGroupCallbacks interface {
 	EndpointGroupCreate(endpointGroup *EndpointGroup) error
 	EndpointGroupUpdate(endpointGroup, params *EndpointGroup) error
 	EndpointGroupDelete(endpointGroup *EndpointGroup) error
+}
+
+type GlobalCallbacks interface {
+	GlobalCreate(global *Global) error
+	GlobalUpdate(global, params *Global) error
+	GlobalDelete(global *Global) error
 }
 
 type NetworkCallbacks interface {
@@ -337,6 +352,7 @@ type VolumeProfileCallbacks interface {
 type CallbackHandlers struct {
 	AppCb             AppCallbacks
 	EndpointGroupCb   EndpointGroupCallbacks
+	GlobalCb          GlobalCallbacks
 	NetworkCb         NetworkCallbacks
 	PolicyCb          PolicyCallbacks
 	RuleCb            RuleCallbacks
@@ -352,6 +368,7 @@ var objCallbackHandler CallbackHandlers
 func Init() {
 	collections.apps = make(map[string]*App)
 	collections.endpointGroups = make(map[string]*EndpointGroup)
+	collections.globals = make(map[string]*Global)
 	collections.networks = make(map[string]*Network)
 	collections.policys = make(map[string]*Policy)
 	collections.rules = make(map[string]*Rule)
@@ -363,6 +380,7 @@ func Init() {
 
 	restoreApp()
 	restoreEndpointGroup()
+	restoreGlobal()
 	restoreNetwork()
 	restorePolicy()
 	restoreRule()
@@ -380,6 +398,10 @@ func RegisterAppCallbacks(handler AppCallbacks) {
 
 func RegisterEndpointGroupCallbacks(handler EndpointGroupCallbacks) {
 	objCallbackHandler.EndpointGroupCb = handler
+}
+
+func RegisterGlobalCallbacks(handler GlobalCallbacks) {
+	objCallbackHandler.GlobalCb = handler
 }
 
 func RegisterNetworkCallbacks(handler NetworkCallbacks) {
@@ -472,6 +494,16 @@ func AddRoutes(router *mux.Router) {
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateEndpointGroup))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateEndpointGroup))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteEndpointGroup))
+
+	// Register global
+	route = "/api/globals/{key}/"
+	listRoute = "/api/globals/"
+	log.Infof("Registering %s", route)
+	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListGlobals))
+	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetGlobal))
+	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateGlobal))
+	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateGlobal))
+	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteGlobal))
 
 	// Register network
 	route = "/api/networks/{key}/"
@@ -1021,6 +1053,249 @@ func ValidateEndpointGroup(obj *EndpointGroup) error {
 	}
 
 	// Validate each field
+
+	return nil
+}
+
+// LIST REST call
+func httpListGlobals(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpListGlobals: %+v", vars)
+
+	list := make([]*Global, 0)
+	for _, obj := range collections.globals {
+		list = append(list, obj)
+	}
+
+	// Return the list
+	return list, nil
+}
+
+// GET REST call
+func httpGetGlobal(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetGlobal: %+v", vars)
+
+	key := vars["key"]
+
+	obj := collections.globals[key]
+	if obj == nil {
+		log.Errorf("global %s not found", key)
+		return nil, errors.New("global not found")
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// CREATE REST call
+func httpCreateGlobal(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetGlobal: %+v", vars)
+
+	var obj Global
+	key := vars["key"]
+
+	// Get object from the request
+	err := json.NewDecoder(r.Body).Decode(&obj)
+	if err != nil {
+		log.Errorf("Error decoding global create request. Err %v", err)
+		return nil, err
+	}
+
+	// set the key
+	obj.Key = key
+
+	// Create the object
+	err = CreateGlobal(&obj)
+	if err != nil {
+		log.Errorf("CreateGlobal error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// DELETE rest call
+func httpDeleteGlobal(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpDeleteGlobal: %+v", vars)
+
+	key := vars["key"]
+
+	// Delete the object
+	err := DeleteGlobal(key)
+	if err != nil {
+		log.Errorf("DeleteGlobal error for: %s. Err: %v", key, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return key, nil
+}
+
+// Create a global object
+func CreateGlobal(obj *Global) error {
+	// Validate parameters
+	err := ValidateGlobal(obj)
+	if err != nil {
+		log.Errorf("ValidateGlobal retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.GlobalCb == nil {
+		log.Errorf("No callback registered for global object")
+		return errors.New("Invalid object type")
+	}
+
+	// Check if object already exists
+	if collections.globals[obj.Key] != nil {
+		// Perform Update callback
+		err = objCallbackHandler.GlobalCb.GlobalUpdate(collections.globals[obj.Key], obj)
+		if err != nil {
+			log.Errorf("GlobalUpdate retruned error for: %+v. Err: %v", obj, err)
+			return err
+		}
+	} else {
+		// save it in cache
+		collections.globals[obj.Key] = obj
+
+		// Perform Create callback
+		err = objCallbackHandler.GlobalCb.GlobalCreate(obj)
+		if err != nil {
+			log.Errorf("GlobalCreate retruned error for: %+v. Err: %v", obj, err)
+			delete(collections.globals, obj.Key)
+			return err
+		}
+	}
+
+	// Write it to modeldb
+	err = obj.Write()
+	if err != nil {
+		log.Errorf("Error saving global %s to db. Err: %v", obj.Key, err)
+		return err
+	}
+
+	return nil
+}
+
+// Return a pointer to global from collection
+func FindGlobal(key string) *Global {
+	obj := collections.globals[key]
+	if obj == nil {
+		log.Errorf("global %s not found", key)
+		return nil
+	}
+
+	return obj
+}
+
+// Delete a global object
+func DeleteGlobal(key string) error {
+	obj := collections.globals[key]
+	if obj == nil {
+		log.Errorf("global %s not found", key)
+		return errors.New("global not found")
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.GlobalCb == nil {
+		log.Errorf("No callback registered for global object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.GlobalCb.GlobalDelete(obj)
+	if err != nil {
+		log.Errorf("GlobalDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// delete it from modeldb
+	err = obj.Delete()
+	if err != nil {
+		log.Errorf("Error deleting global %s. Err: %v", obj.Key, err)
+	}
+
+	// delete it from cache
+	delete(collections.globals, key)
+
+	return nil
+}
+
+func (self *Global) GetType() string {
+	return "global"
+}
+
+func (self *Global) GetKey() string {
+	return self.Key
+}
+
+func (self *Global) Read() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to read global object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.ReadObj("global", self.Key, self)
+}
+
+func (self *Global) Write() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Write global object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.WriteObj("global", self.Key, self)
+}
+
+func (self *Global) Delete() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Delete global object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.DeleteObj("global", self.Key)
+}
+
+func restoreGlobal() error {
+	strList, err := modeldb.ReadAllObj("global")
+	if err != nil {
+		log.Errorf("Error reading global list. Err: %v", err)
+	}
+
+	for _, objStr := range strList {
+		// Parse the json model
+		var global Global
+		err = json.Unmarshal([]byte(objStr), &global)
+		if err != nil {
+			log.Errorf("Error parsing object %s, Err %v", objStr, err)
+			return err
+		}
+
+		// add it to the collection
+		collections.globals[global.Key] = &global
+	}
+
+	return nil
+}
+
+// Validate a global object
+func ValidateGlobal(obj *Global) error {
+	// Validate key is correct
+	keyStr := obj.Name
+	if obj.Key != keyStr {
+		log.Errorf("Expecting Global Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	if len(obj.Name) > 64 {
+		return errors.New("name string too long")
+	}
+
+	if len(obj.NetworkInfraType) > 64 {
+		return errors.New("network-infra-type string too long")
+	}
 
 	return nil
 }

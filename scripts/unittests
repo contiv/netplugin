@@ -6,6 +6,7 @@
 # etc to be setup.
 
 USAGE="${0} -vagrant"
+PATH=$PATH:/usr/local/go/bin
 
 run_in_vagrant=false
 test_packages="github.com/contiv/netplugin/drivers \
@@ -61,7 +62,7 @@ for pkg in ${test_packages}
 do
   # running in the sand box
   (cd $GOSRC/github.com/contiv/netplugin && \
-  godep go test ${pkg}) || exit 1
+  $GOBIN/godep go test ${pkg}) || exit 1
 done
 
 echo "Sandbox: Tests succeeded!"
