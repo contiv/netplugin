@@ -40,6 +40,7 @@ import (
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/plugin"
+	"github.com/contiv/netplugin/registrator"
 	"github.com/contiv/netplugin/utils"
 	"github.com/samalba/dockerclient"
 
@@ -692,6 +693,9 @@ func configureSyslog(syslogParam string) {
 func main() {
 	var opts cliOpts
 	var flagSet *flag.FlagSet
+
+	registrator.QuitCh = make(chan struct{})
+	defer close(registrator.QuitCh)
 
 	defHostLabel, err := os.Hostname()
 	if err != nil {

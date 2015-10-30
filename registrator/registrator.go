@@ -8,6 +8,9 @@ import (
 	"github.com/contiv/netplugin/registrator/bridge"
 )
 
+// QuitCh maintains the status of netplugin
+var QuitCh chan struct{}
+
 var retryAttempts = flag.Int("retry-attempts", 0, "Max retry attempts to establish a connection with the backend. Use -1 for infinite retries")
 var retryInterval = flag.Int("retry-interval", 2000, "Interval (in millisecond) between retry-attempts.")
 
@@ -101,10 +104,6 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 		attempt++
 	}
 
-	// TODO: Move quit channel & refresh/resync logic to netplugin/dockplugin
-	// Retaining the code here till then
-	quit := make(chan struct{})
-
 	// Start the TTL refresh timer
 	if bConfig.RefreshInterval > 0 {
 		ticker := time.NewTicker(time.Duration(bConfig.RefreshInterval) * time.Second)
@@ -113,15 +112,14 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 				select {
 				case <-ticker.C:
 					b.Refresh()
-				case <-quit:
+				case <-QuitCh:
+					log.Infof("Quit registrator")
 					ticker.Stop()
 					return
 				}
 			}
 		}()
 	}
-
-	//	close(quit)
 
 	return b, nil
 }
