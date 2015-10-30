@@ -69,7 +69,7 @@ func NewAPIController(router *mux.Router) *APIController {
 			TenantName: "default",
 			SubnetPool: "10.1.1.1/16",
 			SubnetLen:  24,
-			Vlans:      "100-200",
+			Vlans:      "100-1100",
 			Vxlans:     "1001-1100",
 		})
 		if err != nil {
