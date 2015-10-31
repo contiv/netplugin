@@ -36,6 +36,9 @@ deps:
 checks:
 	./scripts/checks "$(PKGS)"
 
+host-godep:
+	go get github.com/kr/godep
+
 host-build:
 	sudo /bin/bash -c 'source /etc/profile.d/envvar.sh; make run-build'
 
@@ -50,7 +53,6 @@ build:
 
 clean: deps
 	rm -rf Godeps/_workspace/pkg
-	rm -rf $(GOPATH)/pkg
 	godep go clean -i -v ./...
 
 update:
@@ -78,7 +80,7 @@ clean-dockerdemo:
 ssh:
 	@vagrant ssh netplugin-node1 || echo 'Please run "make demo"'
 
-unit-test: stop clean build
+unit-test: host-godep stop clean build
 	./scripts/unittests -vagrant
 
 unit-test-centos: stop
@@ -88,7 +90,7 @@ unit-test-centos: stop
 # setting CONTIV_SOE=1 while calling 'make system-test' will stop the test
 # on first failure and leave setup in that state. This can be useful for debugging
 # as part of development.
-system-test: system-test-singlehost system-test-multihost
+system-test: host-godep system-test-singlehost system-test-multihost
 
 # the `make stop` here and below are necessary because build leaves around a VM (intentionally)
 system-test-singlehost: stop clean checks

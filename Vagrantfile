@@ -3,11 +3,12 @@
 
 require 'fileutils'
 
-# netplugin_synced_gopath="/opt/golang"
+netplugin_synced_gopath="/opt/gopath/src/github.com/contiv/netplugin"
 gopath_folder="/opt/gopath"
-FileUtils.cp "/etc/resolv.conf", Dir.pwd
 
 provision_common = <<SCRIPT
+set -e
+
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
 
@@ -28,11 +29,8 @@ echo "export no_proxy=192.168.0.0/16,localhost,127.0.0.0/8" >> /etc/profile.d/en
 
 source /etc/profile.d/envvar.sh
 
-mv /etc/resolv.conf /etc/resolv.conf.bak
-cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
-
 # setup docker remote api
-cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
+cp #{netplugin_synced_gopath}/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
 systemctl enable docker-tcp.socket
 
 mkdir /etc/systemd/system/docker.service.d
@@ -99,6 +97,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
         end
         config.vm.define node_name do |node|
+            config.vm.synced_folder ".", netplugin_synced_gopath, create: true
+            config.vm.synced_folder "bin", "/opt/gopath/bin", create: true
             # node.vm.hostname = node_name
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
@@ -115,12 +115,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
             end
 
-            # mount the host directories
-            node.vm.synced_folder "../../../../", gopath_folder
-
             node.vm.provision "shell" do |s|
                 s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_addr} #{node_name}' >> /etc/hosts"
             end
+
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
                 s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", *ENV['CONTIV_ENV']]
