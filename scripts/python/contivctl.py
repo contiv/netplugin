@@ -259,8 +259,7 @@ def globalGet(args):
 
 	getUrl = 'http://netmaster:9999/api/globals/config/'
 	res = json.loads(httpGet(getUrl))
-        print res
-#        print "\nnwinfra: " + res['network-infra-type']
+        print "\nnwinfra: " + res['network-infra-type']
 
 # Add policy subparser
 def addPolicyParser(sub):
