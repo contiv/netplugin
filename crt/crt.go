@@ -103,7 +103,7 @@ func (c *CRT) Init(configStr string) error {
 	crtType := containerIfRegistry[cfg.CRT.Type].CRTType
 	crtif := reflect.New(crtType).Interface()
 	c.ContainerIf = crtif.(crtclient.ContainerIf)
-	err = c.ContainerIf.Init(&crtclient.Config{V: crtConfig})
+	err = c.ContainerIf.Init(&core.Config{V: crtConfig})
 	if err != nil {
 		return err
 	}
