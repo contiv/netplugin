@@ -818,7 +818,7 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		Key:         tenant.TenantName + ":" + "private",
 		IsPublic:    false,
 		IsPrivate:   true,
-		Encap:       "vlan",
+		Encap:       "vxlan",
 		Subnet:      "10.1.0.0/16",
 		DefaultGw:   "10.1.254.254",
 		NetworkName: "private",

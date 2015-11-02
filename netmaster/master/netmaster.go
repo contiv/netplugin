@@ -482,6 +482,11 @@ func CreateEndpointGroup(eg intent.ConfigEndpointGroup, stateDriver core.StateDr
 	masterGc := &GlobConfig{}
 	masterGc.StateDriver = stateDriver
 	err = masterGc.Read("config")
+	if core.ErrIfKeyExists(err) != nil {
+		log.Errorf("Couldn't read global config %v", err)
+		return err
+	}
+
 	if err == nil && masterGc.NwInfraType == "aci" {
 		if epgCfg.PktTagType != "vlan" {
 			log.Errorf("Network type must be VLAN for ACI mode")

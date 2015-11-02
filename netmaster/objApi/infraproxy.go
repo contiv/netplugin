@@ -20,8 +20,8 @@ const (
 	proxyURL = "http://localhost:5000/"
 )
 
-// AppNwSpec Applications network spec per the composition
-type AppNwSpec struct {
+// appNwSpec Applications network spec per the composition
+type appNwSpec struct {
 	TenantName string `json:"tenant,omitempty"`
 	Subnet     string `json:"subnet,omitempty"`
 	AppName    string `json:"app,omitempty"`
@@ -72,7 +72,7 @@ func httpPost(url string, jdata interface{}) error {
 	return nil
 }
 
-func (ans *AppNwSpec) validate() error {
+func (ans *appNwSpec) validate() error {
 
 	url := proxyURL + "validateAppProf"
 	if err := httpPost(url, ans); err != nil {
@@ -83,7 +83,7 @@ func (ans *AppNwSpec) validate() error {
 	return nil
 }
 
-func (ans *AppNwSpec) launch() error {
+func (ans *appNwSpec) launch() error {
 
 	ans.TenantName = "CONTIV-" + ans.TenantName
 	url := proxyURL + "createAppProf"
@@ -174,6 +174,11 @@ func CreateAppNw(app *contivModel.App) error {
 	masterGc := &master.GlobConfig{}
 	masterGc.StateDriver = stateDriver
 	uErr = masterGc.Read("config")
+	if core.ErrIfKeyExists(uErr) != nil {
+		log.Errorf("Couldn't read global config %v", uErr)
+		return uErr
+	}
+
 	if uErr != nil {
 		log.Warnf("Couldn't read global config %v", uErr)
 		return nil
@@ -186,7 +191,7 @@ func CreateAppNw(app *contivModel.App) error {
 	netName := ""
 	eMap := &epgMap{}
 	eMap.Specs = make(map[string]epgSpec)
-	ans := &AppNwSpec{}
+	ans := &appNwSpec{}
 
 	ans.TenantName = app.TenantName
 	ans.AppName = app.AppName
