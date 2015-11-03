@@ -96,7 +96,7 @@ def listTenant(args):
 
 	# Print the tenants
 	for tenant in tenantList:
-		if tenant['tenantName'] == args.tenantName:
+		if (args.tenantName == "") or (tenant['tenantName'] == args.tenantName):
 			print "{0}		{1}	{2}	{3}	{4}".format(tenant['tenantName'], tenant['subnetPool'], tenant['subnetLen'], tenant['vlans'], tenant['vxlans'])
 
 # Create policy
@@ -313,7 +313,7 @@ def addTenantParser(sub):
 	# Tenant name
 	tenantCreateParser.add_argument("tenantName", help="Tenant name")
 	tenantDeleteParser.add_argument("tenantName", help="Tenant name")
-	tenantListParser.add_argument("-tenantName", default="default")
+	tenantListParser.add_argument("-tenantName", default="")
 
 	# tenant params
 	tenantCreateParser.add_argument("-subnetpool", required=True, help="Subnet addr/mask")
