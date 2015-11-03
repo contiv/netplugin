@@ -17,6 +17,9 @@ package master
 
 import (
 	"net"
+	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
@@ -141,7 +144,7 @@ func startServiceContainer(tenantName string) error {
 
 		containerConfig := &dockerclient.ContainerConfig{
 			Image: "skynetservices/skydns",
-			Env: []string{"ETCD_MACHINES=http://172.17.42.1:4001", "SKYDNS_NAMESERVERS=8.8.8.8:53", "SKYDNS_ADDR=0.0.0.0:53", "SKYDNS_DOMAIN=skydns.local"}}
+			Env:   []string{"ETCD_MACHINES=http://172.17.42.1:4001", "SKYDNS_NAMESERVERS=8.8.8.8:53", "SKYDNS_ADDR=0.0.0.0:53", "SKYDNS_DOMAIN=skydns.local"}}
 
 		containerID, err := docker.CreateContainer(containerConfig, tenantName+"skydns")
 		if err != nil {
