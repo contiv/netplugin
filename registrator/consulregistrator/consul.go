@@ -2,10 +2,10 @@ package consulregistrator
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/registrator/bridge"
 	consulapi "github.com/hashicorp/consul/api"
 )
@@ -15,7 +15,7 @@ const DefaultInterval = "10s"
 
 // InitConsulAdapter registers as a new bridge
 func init() {
-	log.Printf("Calling consul init")
+	log.Infof("Calling consul init")
 	bridge.Register(new(Factory), "consul")
 }
 
@@ -53,7 +53,7 @@ func (r *ConsulAdapter) Ping() error {
 	if err != nil {
 		return err
 	}
-	log.Println("consul: current leader ", leader)
+	log.Infof("consul: current leader ", leader)
 
 	return nil
 }

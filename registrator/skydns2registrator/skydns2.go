@@ -1,17 +1,17 @@
 package skydns2registrator
 
 import (
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/registrator/bridge"
 	"github.com/coreos/go-etcd/etcd"
 )
 
 func init() {
-	log.Printf("Calling skydns2 init")
+	log.Infof("Calling skydns2 init")
 	bridge.Register(new(Factory), "skydns2")
 }
 
@@ -57,7 +57,7 @@ func (r *Skydns2Adapter) Register(service *bridge.Service) error {
 	record := `{"host":"` + service.IP + `","port":` + port + `}`
 	_, err := r.client.Set(r.servicePath(service), record, uint64(service.TTL))
 	if err != nil {
-		log.Println("skydns2: failed to register service:", err)
+		log.Errorf("skydns2: failed to register service: %s", err)
 	}
 	return err
 }
@@ -66,7 +66,7 @@ func (r *Skydns2Adapter) Register(service *bridge.Service) error {
 func (r *Skydns2Adapter) Deregister(service *bridge.Service) error {
 	_, err := r.client.Delete(r.servicePath(service), false)
 	if err != nil {
-		log.Println("skydns2: failed to register service:", err)
+		log.Errorf("skydns2: failed to register service: %s", err)
 	}
 	return err
 }

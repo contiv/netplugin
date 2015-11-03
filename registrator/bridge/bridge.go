@@ -39,7 +39,7 @@ func New(adapterURI string, config Config) (*Bridge, error) {
 		return nil, errors.New("unrecognized adapter: " + adapterURI)
 	}
 
-	log.Println("Using", uri.Scheme, "adapter:", uri)
+	log.Infof("Using", uri.Scheme, "service adapter:", uri)
 	return &Bridge{
 		config:   config,
 		registry: factory.New(uri),
@@ -61,10 +61,10 @@ func (b *Bridge) Refresh() {
 		for _, service := range services {
 			err := b.registry.Refresh(service)
 			if err != nil {
-				log.Println("refresh failed:", service.ID, err)
+				log.Errorf("Service refresh failed for %s. Error: %s",
+					serviceID, err)
 				continue
 			}
-			log.Println("refreshed:", serviceID)
 		}
 	}
 }
@@ -74,11 +74,12 @@ func (b *Bridge) AddService(epName string, serviceName string, epIP string) {
 	b.Lock()
 	defer b.Unlock()
 
-	log.Println("Called AddService for ", epName)
+	log.Infof("Called AddService for ", epName)
 	service := b.createService(epName, serviceName, epIP)
 	err := b.registry.Register(service)
 	if err != nil {
-		log.Println("service registration failed:", service, err)
+		log.Errorf("Service registration failed for %v. Error: %s",
+			service, err)
 	}
 	b.services[epName+serviceName] = append(b.services[epName+serviceName], service)
 }
@@ -88,11 +89,12 @@ func (b *Bridge) RemoveService(epName string, serviceName string, epIP string) {
 	b.Lock()
 	defer b.Unlock()
 
-	log.Println("Called RemoveService for ", epName)
+	log.Infof("Called RemoveService for ", epName)
 	service := b.createService(epName, serviceName, epIP)
 	err := b.registry.Deregister(service)
 	if err != nil {
-		log.Println("service removal failed:", service, err)
+		log.Errorf("Service removal failed for service %v. Error: %s:",
+			service, err)
 	}
 	delete(b.services, epName+serviceName)
 }
