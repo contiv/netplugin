@@ -146,15 +146,15 @@ func startServiceContainer(tenantName string) error {
 			Image: "skynetservices/skydns",
 			Env:   []string{"ETCD_MACHINES=http://172.17.42.1:4001", "SKYDNS_NAMESERVERS=8.8.8.8:53", "SKYDNS_ADDR=0.0.0.0:53", "SKYDNS_DOMAIN=skydns.local"}}
 
-		containerID, err := docker.CreateContainer(containerConfig, tenantName+"skydns")
+		containerID, err := docker.CreateContainer(containerConfig, tenantName+"dns")
 		if err != nil {
-			log.Errorf("Error creating skydns container for tenant: %s. Error: %s", tenantName, err)
+			log.Errorf("Error creating DNS container for tenant: %s. Error: %s", tenantName, err)
 		}
 
 		// Start the container
 		err = docker.StartContainer(containerID, nil)
 		if err != nil {
-			log.Errorf("Error starting skydns container for tenant: %s. Error: %s", tenantName, err)
+			log.Errorf("Error starting DNS container for tenant: %s. Error: %s", tenantName, err)
 		}
 	}
 
