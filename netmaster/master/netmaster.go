@@ -27,6 +27,7 @@ import (
 	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/samalba/dockerclient"
 )
 
 const (
@@ -122,6 +123,36 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 	if err != nil {
 		log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
 		return err
+	}
+
+	err = startServiceContainer(tenant.Name)
+
+	return err
+}
+
+func startServiceContainer(tenantName string) error {
+	var err error
+	if !strings.Contains(strings.ToLower(tenantName), "default") {
+		docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+		if err != nil {
+			log.Errorf("Unable to connect to docker. Error %v", err)
+			return err
+		}
+
+		containerConfig := &dockerclient.ContainerConfig{
+			Image: "skynetservices/skydns",
+			Env: []string{"ETCD_MACHINES=http://172.17.42.1:4001", "SKYDNS_NAMESERVERS=8.8.8.8:53", "SKYDNS_ADDR=0.0.0.0:53", "SKYDNS_DOMAIN=skydns.local"}}
+
+		containerID, err := docker.CreateContainer(containerConfig, tenantName+"skydns")
+		if err != nil {
+			log.Errorf("Error creating skydns container for tenant: %s. Error: %s", tenantName, err)
+		}
+
+		// Start the container
+		err = docker.StartContainer(containerID, nil)
+		if err != nil {
+			log.Errorf("Error starting skydns container for tenant: %s. Error: %s", tenantName, err)
+		}
 	}
 
 	return err
