@@ -20,7 +20,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"

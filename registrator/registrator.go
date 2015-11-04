@@ -1,7 +1,6 @@
 package registrator
 
 import (
-	"flag"
 	log "github.com/Sirupsen/logrus"
 	"time"
 
@@ -10,15 +9,6 @@ import (
 
 // QuitCh maintains the status of netplugin
 var QuitCh chan struct{}
-
-var retryAttempts = flag.Int("retry-attempts", 0, "Max retry attempts to establish a connection with the backend. Use -1 for infinite retries")
-var retryInterval = flag.Int("retry-interval", 2000, "Interval (in millisecond) between retry-attempts.")
-
-func assert(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 // InitRegistrator creates a new bridge to Service registrator
 func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bridge, error) {
@@ -88,19 +78,20 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 
 	// TODO: Add proper checks for retryInterval, retryAttempts
 	attempt := 0
-	for *retryAttempts == -1 || attempt <= *retryAttempts {
-		log.Printf("Connecting to backend (%v/%v)", attempt, *retryAttempts)
+	for bConfig.RetryAttempts == -1 || attempt <= bConfig.RetryAttempts {
+		log.Infof("Connecting to backend (%v/%v)",
+			attempt, bConfig.RetryAttempts)
 
 		err = b.Ping()
 		if err == nil {
 			break
 		}
 
-		if err != nil && attempt == *retryAttempts {
-			assert(err)
+		if err != nil && attempt == bConfig.RetryAttempts {
+			log.Errorf("Service registrator not connecting to backend %v", err)
 		}
 
-		time.Sleep(time.Duration(*retryInterval) * time.Millisecond)
+		time.Sleep(time.Duration(bConfig.RetryInterval) * time.Millisecond)
 		attempt++
 	}
 

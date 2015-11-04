@@ -25,6 +25,8 @@ func DefaultBridgeConfig() Config {
 		RefreshTTL:      0,
 		RefreshInterval: 0,
 		DeregisterCheck: "always",
+		RetryAttempts:   0,
+		RetryInterval:   2000,
 	}
 }
 
