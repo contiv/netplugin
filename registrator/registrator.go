@@ -25,6 +25,24 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 			log.Println("Forcing host IP to", bConfig.HostIP)
 		}
 
+		if bConfig.RefreshTTL < 0 {
+			log.WithFields(log.Fields{
+				"RefreshTTL": bConfig.RefreshTTL,
+			}).Warn("RefreshTTL must be greater than 0.",
+				"Setting to default value of ",
+				defaultBridgeConfig.RefreshTTL,
+				" and continuing")
+			bConfig.RefreshTTL = 0
+		}
+		if bConfig.RefreshInterval < 0 {
+			log.WithFields(log.Fields{
+				"RefreshInterval": bConfig.RefreshInterval,
+			}).Warn("RefreshInterval must be greater than 0.",
+				"Setting to default value of ",
+				defaultBridgeConfig.RefreshInterval,
+				" and continuing")
+			bConfig.RefreshInterval = 0
+		}
 		if (bConfig.RefreshTTL == 0 && bConfig.RefreshInterval > 0) ||
 			(bConfig.RefreshTTL > 0 && bConfig.RefreshInterval == 0) {
 			log.WithFields(log.Fields{
