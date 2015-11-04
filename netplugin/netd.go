@@ -286,6 +286,14 @@ func main() {
 		"version",
 		false,
 		"Show version")
+	flagSet.StringVar(&opts.bgpPeerID,
+		"bgpPeerID",
+		"",
+		"My bgp peer ip address")
+	flagSet.StringVar(&opts.bgpRouterID,
+		"bgpRouterID",
+		"",
+		"My bgp router ip address")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {

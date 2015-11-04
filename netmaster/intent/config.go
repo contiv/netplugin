@@ -54,8 +54,9 @@ type ConfigTenant struct {
 	DefaultNetwork string
 	VLANs          string
 	VXLANs         string
-
-	Networks []ConfigNetwork
+	ProtocolEP     string
+	ProtocolPeerEP string
+	Networks       []ConfigNetwork
 }
 
 // Config is the top level configuration
