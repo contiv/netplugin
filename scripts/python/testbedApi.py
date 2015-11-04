@@ -77,6 +77,10 @@ class vagrantNode:
     # Stop netmaster by killing it
     def stopNetmaster(self):
         self.runCmd("sudo killall netmaster")
+        # cleanup docker network
+        out, err, exitCode = self.runCmd("docker network ls | grep netplugin | awk '{print $2}'")
+        for net in out:
+            self.runCmd("docker network rm " + net)
 
     # Cleanup all state created by netplugin
     def cleanupSlave(self):
@@ -179,6 +183,17 @@ class testbed:
 
         return containers
 
+    # Start containers on the testbed
+    def runContainersInService(self, numContainer, serviceName):
+        containers = []
+        # Start the containers
+        for cntIdx in range(numContainer):
+            nodeIdx = cntIdx % self.numNodes()
+            cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private.default", serviceName=serviceName)
+            containers.append(cnt)
+
+        return containers
+
     # Remove containers
     def removeContainers(self, containers):
         # remove containers
@@ -231,6 +246,25 @@ class testbed:
         # Return
         return success
 
+    # Check bipartite connection between two list of containers
+    def checkConnectionPair(self, fromContainers, toContainers, port, success):
+        toIpList = []
+        # Read all IP addresses
+        for cnt in toContainers:
+            cntrIp = cnt.getIpAddr()
+            toIpList.append(cntrIp)
+
+        # Check connection from each container
+        for cidx, cnt in enumerate(fromContainers):
+            for aidx, ipAddr in enumerate(toIpList):
+                if cnt.getIpAddr() != ipAddr:
+                    ret = cnt.checkConnection(ipAddr, port)
+                    # If connection status is not what we were expecting, we are done.
+                    if ret != success:
+                        return ret
+
+        # Return
+        return success
 
 # This class represents a docker Container
 class container:

@@ -195,3 +195,66 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 	tenant.deletePolicy('first')
 
 	testbedApi.info("testPolicyAddDeleteRule Test passed")
+
+# Test basic group based policy
+def testPolicyFromEpg(testbed, numContainer, numIter):
+	for iter in range(numIter):
+		tenant = objmodel.tenant('default')
+		network = tenant.newNetwork('private')
+		# Create common epg
+		network.newGroup('common')
+
+		# Add the policy to epg
+		groups = []
+		for cntIdx in range(numContainer):
+			nodeIdx = cntIdx % testbed.numNodes()
+			srvName = "srv" + str(cntIdx)
+
+			# Create policy for each service
+			policy = tenant.newPolicy(srvName)
+
+			# create default deny Rule
+			policy.addRule('1', direction="in", protocol="tcp", action="deny")
+
+			# Create allow port 8000 Rule
+			policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="accept")
+			# Create allow from 'common' epg rule
+			policy.addRule('3', direction="in", priority=100, endpointGroup="common", network='private', protocol="tcp", port=8001, action="accept")
+			group = network.newGroup(srvName, policies=[srvName])
+			groups.append(group)
+
+		# start containers
+		containers = testbed.runContainers(numContainer, withService=True)
+
+		# Start containers in common Epg
+		cmnContainers = testbed.runContainersInService(numContainer, serviceName='common')
+
+		# start netcast listeners
+		testbed.startListeners(containers, [8000, 8001])
+
+		# Check connection to all containers
+		if testbed.checkConnections(containers, 8000, True) != True:
+			testbedApi.exit("Connection failed")
+		if testbed.checkConnections(containers, 8001, False) != False:
+			testbedApi.exit("Connection succeded while expecting it to fail")
+		if testbed.checkConnectionPair(cmnContainers, containers, 8001, True) != True:
+			testbedApi.exit("Connection failed")
+
+		# stop netcast listeners
+		testbed.stopListeners(containers)
+
+		# remove containers
+		testbed.removeContainers(containers)
+		testbed.removeContainers(cmnContainers)
+
+		# delete epg
+		for cntIdx in range(numContainer):
+			nodeIdx = cntIdx % testbed.numNodes()
+			srvName = "srv" + str(cntIdx)
+			network.deleteGroup(srvName)
+			tenant.deletePolicy(srvName)
+
+
+		testbedApi.info("testPolicyFromEpg Iteration " + str(iter) + " passed")
+
+	testbedApi.info("testPolicyFromEpg Test passed")
