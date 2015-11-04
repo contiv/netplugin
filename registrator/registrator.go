@@ -13,7 +13,7 @@ var QuitCh chan struct{}
 // InitRegistrator creates a new bridge to Service registrator
 func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bridge, error) {
 
-	log.Printf("Initing registrator from Dockplugin")
+	log.Printf("Initing service registrator")
 	var bConfig bridge.Config
 
 	defaultBridgeConfig := bridge.DefaultBridgeConfig()
