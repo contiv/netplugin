@@ -45,11 +45,11 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/objmodel/contivModel",
-			"Rev": "4c33e4e57c34492fbdf6ce65698661770391c735"
+			"Rev": "e9102cd3c0774470a8206f581f7fa87f0267d3aa"
 		},
 		{
 			"ImportPath": "github.com/contiv/objmodel/objdb",
-			"Rev": "4c33e4e57c34492fbdf6ce65698661770391c735"
+			"Rev": "e9102cd3c0774470a8206f581f7fa87f0267d3aa"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
@@ -155,8 +155,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libnetwork",
-			"Comment": "v0.2-490-g70409ac",
-			"Rev": "70409acbcd661e6a7bfe04e2b81412a465d29512"
+			"Comment": "v0.2-654-g2559410",
+			"Rev": "2559410949b7200a81f63e0333ae768fe7a73d71"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",

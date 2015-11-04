@@ -2,7 +2,7 @@ package ipam
 
 import (
 	"encoding/json"
-	"net"
+	"fmt"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
@@ -10,179 +10,122 @@ import (
 )
 
 // Key provides the Key to be used in KV Store
-func (a *Allocator) Key() []string {
-	a.Lock()
-	defer a.Unlock()
-	return []string{a.App, a.ID}
+func (aSpace *addrSpace) Key() []string {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+	return []string{aSpace.id}
 }
 
 // KeyPrefix returns the immediate parent key that can be used for tree walk
-func (a *Allocator) KeyPrefix() []string {
-	a.Lock()
-	defer a.Unlock()
-	return []string{a.App}
+func (aSpace *addrSpace) KeyPrefix() []string {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+	return []string{dsConfigKey}
 }
 
 // Value marshals the data to be stored in the KV store
-func (a *Allocator) Value() []byte {
-	a.Lock()
-	defer a.Unlock()
-
-	if a.subnets == nil {
-		return []byte{}
-	}
-
-	b, err := subnetsToByteArray(a.subnets)
+func (aSpace *addrSpace) Value() []byte {
+	b, err := json.Marshal(aSpace)
 	if err != nil {
+		log.Warnf("Failed to marshal ipam configured pools: %v", err)
 		return nil
 	}
 	return b
 }
 
 // SetValue unmarshalls the data from the KV store.
-func (a *Allocator) SetValue(value []byte) error {
-	a.subnets = byteArrayToSubnets(value)
+func (aSpace *addrSpace) SetValue(value []byte) error {
+	rc := &addrSpace{subnets: make(map[SubnetKey]*PoolData)}
+	if err := json.Unmarshal(value, rc); err != nil {
+		return err
+	}
+	aSpace.subnets = rc.subnets
 	return nil
-}
-
-func subnetsToByteArray(m map[subnetKey]*SubnetInfo) ([]byte, error) {
-	if m == nil {
-		return nil, nil
-	}
-
-	mm := make(map[string]string, len(m))
-	for k, v := range m {
-		mm[k.String()] = v.Subnet.String()
-	}
-
-	return json.Marshal(mm)
-}
-
-func byteArrayToSubnets(ba []byte) map[subnetKey]*SubnetInfo {
-	m := map[subnetKey]*SubnetInfo{}
-
-	if ba == nil || len(ba) == 0 {
-		return m
-	}
-
-	var mm map[string]string
-	err := json.Unmarshal(ba, &mm)
-	if err != nil {
-		log.Warnf("Failed to decode subnets byte array: %v", err)
-		return m
-	}
-	for ks, vs := range mm {
-		sk := subnetKey{}
-		if err := sk.FromString(ks); err != nil {
-			log.Warnf("Failed to decode subnets map entry: (%s, %s)", ks, vs)
-			continue
-		}
-		si := &SubnetInfo{}
-		_, nw, err := net.ParseCIDR(vs)
-		if err != nil {
-			log.Warnf("Failed to decode subnets map entry value: (%s, %s)", ks, vs)
-			continue
-		}
-		si.Subnet = nw
-		m[sk] = si
-	}
-	return m
 }
 
 // Index returns the latest DB Index as seen by this object
-func (a *Allocator) Index() uint64 {
-	a.Lock()
-	defer a.Unlock()
-	return a.dbIndex
+func (aSpace *addrSpace) Index() uint64 {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+	return aSpace.dbIndex
 }
 
 // SetIndex method allows the datastore to store the latest DB Index into this object
-func (a *Allocator) SetIndex(index uint64) {
-	a.Lock()
-	a.dbIndex = index
-	a.dbExists = true
-	a.Unlock()
+func (aSpace *addrSpace) SetIndex(index uint64) {
+	aSpace.Lock()
+	aSpace.dbIndex = index
+	aSpace.dbExists = true
+	aSpace.Unlock()
 }
 
 // Exists method is true if this object has been stored in the DB.
-func (a *Allocator) Exists() bool {
-	a.Lock()
-	defer a.Unlock()
-	return a.dbExists
+func (aSpace *addrSpace) Exists() bool {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+	return aSpace.dbExists
 }
 
 // Skip provides a way for a KV Object to avoid persisting it in the KV Store
-func (a *Allocator) Skip() bool {
+func (aSpace *addrSpace) Skip() bool {
 	return false
 }
 
-func (a *Allocator) watchForChanges() error {
-	if a.store == nil {
-		return nil
+func (a *Allocator) getStore(as string) datastore.DataStore {
+	a.Lock()
+	defer a.Unlock()
+
+	if aSpace, ok := a.addrSpaces[as]; ok {
+		return aSpace.ds
 	}
 
-	kvpChan, err := a.store.KVStore().Watch(datastore.Key(a.Key()...), nil)
-	if err != nil {
-		return err
+	return nil
+}
+
+func (a *Allocator) getAddressSpaceFromStore(as string) (*addrSpace, error) {
+	store := a.getStore(as)
+	if store == nil {
+		return nil, fmt.Errorf("store for address space %s not found", as)
 	}
-	go func() {
-		for {
-			select {
-			case kvPair := <-kvpChan:
-				if kvPair != nil {
-					log.Debugf("Got notification for key %v: %v", kvPair.Key, kvPair.Value)
-					a.subnetConfigFromStore(kvPair)
-				}
-			}
+
+	pc := &addrSpace{id: dsConfigKey + "/" + as, ds: store, alloc: a}
+	if err := store.GetObject(datastore.Key(pc.Key()...), pc); err != nil {
+		if err == datastore.ErrKeyNotFound {
+			return nil, nil
 		}
-	}()
-	return nil
+
+		return nil, fmt.Errorf("could not get pools config from store: %v", err)
+	}
+
+	return pc, nil
 }
 
-func (a *Allocator) readFromStore() error {
-	a.Lock()
-	store := a.store
-	a.Unlock()
-
+func (a *Allocator) writeToStore(aSpace *addrSpace) error {
+	store := aSpace.store()
 	if store == nil {
-		return nil
+		return fmt.Errorf("invalid store while trying to write %s address space", aSpace.DataScope())
 	}
 
-	kvPair, err := a.store.KVStore().Get(datastore.Key(a.Key()...))
-	if err != nil {
-		return err
-	}
-
-	a.subnetConfigFromStore(kvPair)
-
-	return nil
-}
-
-func (a *Allocator) writeToStore() error {
-	a.Lock()
-	store := a.store
-	a.Unlock()
-	if store == nil {
-		return nil
-	}
-	err := store.PutObjectAtomic(a)
+	err := store.PutObjectAtomic(aSpace)
 	if err == datastore.ErrKeyModified {
 		return types.RetryErrorf("failed to perform atomic write (%v). retry might fix the error", err)
 	}
+
 	return err
 }
 
-func (a *Allocator) deleteFromStore() error {
-	a.Lock()
-	store := a.store
-	a.Unlock()
+func (a *Allocator) deleteFromStore(aSpace *addrSpace) error {
+	store := aSpace.store()
 	if store == nil {
-		return nil
+		return fmt.Errorf("invalid store while trying to delete %s address space", aSpace.DataScope())
 	}
-	return store.DeleteObjectAtomic(a)
+
+	return store.DeleteObjectAtomic(aSpace)
 }
 
 // DataScope method returns the storage scope of the datastore
-func (a *Allocator) DataScope() datastore.DataScope {
-	return datastore.GlobalScope
+func (aSpace *addrSpace) DataScope() string {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+
+	return aSpace.scope
 }

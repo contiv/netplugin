@@ -26,10 +26,10 @@ numCntr = testbed.numNodes() * 2
 numIteration = 3
 
 # Run the tests
-# testcases.startRemoveContainer(testbed, numCntr, numIteration)
-# testcases.startStopContainer(testbed, numCntr, numIteration)
-# testcases.testBasicPolicy(testbed, numCntr, numIteration)
-# testcases.testPolicyAddDeleteRule(testbed, numCntr, numIteration)
+testcases.startRemoveContainer(testbed, numCntr, numIteration)
+testcases.startStopContainer(testbed, numCntr, numIteration)
+testcases.testBasicPolicy(testbed, numCntr, numIteration)
+testcases.testPolicyAddDeleteRule(testbed, numCntr, numIteration)
 testcases.testPolicyFromEpg(testbed, numCntr, numIteration)
 
 # Cleanup testbed

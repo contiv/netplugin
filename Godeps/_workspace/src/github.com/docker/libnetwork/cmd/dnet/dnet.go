@@ -3,28 +3,36 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/codegangsta/cli"
+	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/reexec"
 
 	"github.com/Sirupsen/logrus"
+	psignal "github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
 
@@ -37,6 +45,8 @@ const (
 	DefaultUnixSocket = "/var/run/dnet.sock"
 	cfgFileEnv        = "LIBNETWORK_CFG"
 	defaultCfgFile    = "/etc/default/libnetwork.toml"
+	defaultHeartbeat  = time.Duration(10) * time.Second
+	ttlFactor         = 2
 )
 
 var epConn *dnetConnection
@@ -70,6 +80,7 @@ func processConfig(cfg *config.Config) []config.Option {
 	if cfg == nil {
 		return options
 	}
+
 	dn := "bridge"
 	if strings.TrimSpace(cfg.Daemon.DefaultNetwork) != "" {
 		dn = cfg.Daemon.DefaultNetwork
@@ -85,13 +96,70 @@ func processConfig(cfg *config.Config) []config.Option {
 	if cfg.Daemon.Labels != nil {
 		options = append(options, config.OptionLabels(cfg.Daemon.Labels))
 	}
-	if strings.TrimSpace(cfg.GlobalStore.Client.Provider) != "" {
-		options = append(options, config.OptionKVProvider(cfg.GlobalStore.Client.Provider))
+
+	if dcfg, ok := cfg.Scopes[datastore.GlobalScope]; ok && dcfg.IsValid() {
+		options = append(options, config.OptionKVProvider(dcfg.Client.Provider))
+		options = append(options, config.OptionKVProviderURL(dcfg.Client.Address))
 	}
-	if strings.TrimSpace(cfg.GlobalStore.Client.Address) != "" {
-		options = append(options, config.OptionKVProviderURL(cfg.GlobalStore.Client.Address))
+
+	dOptions, err := startDiscovery(&cfg.Cluster)
+	if err != nil {
+		logrus.Infof("Skipping discovery : %s", err.Error())
+	} else {
+		options = append(options, dOptions...)
 	}
+
 	return options
+}
+
+func startDiscovery(cfg *config.ClusterCfg) ([]config.Option, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("discovery requires a valid configuration")
+	}
+
+	hb := time.Duration(cfg.Heartbeat) * time.Second
+	if hb == 0 {
+		hb = defaultHeartbeat
+	}
+	logrus.Infof("discovery : %s $s", cfg.Discovery, hb.String())
+	d, err := discovery.New(cfg.Discovery, hb, ttlFactor*hb)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Address == "" {
+		iface, err := net.InterfaceByName("eth0")
+		if err != nil {
+			return nil, err
+		}
+		addrs, err := iface.Addrs()
+		if err != nil || len(addrs) == 0 {
+			return nil, err
+		}
+		ip, _, _ := net.ParseCIDR(addrs[0].String())
+		cfg.Address = ip.String()
+	}
+
+	if ip := net.ParseIP(cfg.Address); ip == nil {
+		return nil, errors.New("address config should be either ipv4 or ipv6 address")
+	}
+
+	if err := d.Register(cfg.Address + ":0"); err != nil {
+		return nil, err
+	}
+
+	options := []config.Option{config.OptionDiscoveryWatcher(d), config.OptionDiscoveryAddress(cfg.Address)}
+	go func() {
+		for {
+			select {
+			case <-time.After(hb):
+				if err := d.Register(cfg.Address + ":0"); err != nil {
+					logrus.Warn(err)
+				}
+			}
+		}
+	}()
+	return options, nil
 }
 
 func dnetApp(stdout, stderr io.Writer) error {
@@ -116,12 +184,23 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 	if nw != "" && d != "" {
 		// Bridge driver is special due to legacy reasons
 		if d == "bridge" {
-			genericOption[netlabel.GenericData] = map[string]interface{}{
-				"BridgeName": nw,
+			genericOption[netlabel.GenericData] = map[string]string{
+				"BridgeName":    "docker0",
+				"DefaultBridge": "true",
 			}
-			networkOption := libnetwork.NetworkOptionGeneric(genericOption)
-			createOptions = append(createOptions, networkOption)
+			createOptions = append(createOptions,
+				libnetwork.NetworkOptionGeneric(genericOption),
+				ipamOption(nw))
 		}
+
+		if n, err := c.NetworkByName(nw); err == nil {
+			logrus.Debugf("Default network %s already present. Deleting it", nw)
+			if err = n.Delete(); err != nil {
+				logrus.Debugf("Network could not be deleted: %v", err)
+				return
+			}
+		}
+
 		_, err := c.NewNetwork(d, nw, createOptions...)
 		if err != nil {
 			logrus.Errorf("Error creating default network : %s : %v", nw, err)
@@ -151,6 +230,7 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 		fmt.Println("Error starting dnetDaemon :", err)
 		return err
 	}
+
 	createDefaultNetwork(controller)
 	httpHandler := api.NewHTTPHandler(controller)
 	r := mux.NewRouter().StrictSlash(false)
@@ -168,8 +248,19 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 
 	handleSignals(controller)
+	setupDumpStackTrap()
 
 	return http.ListenAndServe(d.addr, r)
+}
+
+func setupDumpStackTrap() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGUSR1)
+	go func() {
+		for range c {
+			psignal.DumpStacks()
+		}
+	}()
 }
 
 func handleSignals(controller libnetwork.NetworkController) {
@@ -231,11 +322,11 @@ func startTestDriver() error {
 		fmt.Fprintf(w, "null")
 	})
 
-	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		return err
 	}
 
-	if err := ioutil.WriteFile("/usr/share/docker/plugins/test.spec", []byte(server.URL), 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/docker/plugins/test.spec", []byte(server.URL), 0644); err != nil {
 		return err
 	}
 
@@ -325,4 +416,16 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 		}
 	}
 	return params, nil
+}
+
+func ipamOption(bridgeName string) libnetwork.NetworkOption {
+	if nw, _, err := ipamutils.ElectInterfaceAddresses(bridgeName); err == nil {
+		ipamV4Conf := &libnetwork.IpamConf{PreferredPool: nw.String()}
+		hip, _ := types.GetHostPartIP(nw.IP, nw.Mask)
+		if hip.IsGlobalUnicast() {
+			ipamV4Conf.Gateway = nw.IP.String()
+		}
+		return libnetwork.NetworkOptionIpam("default", "", []*libnetwork.IpamConf{ipamV4Conf}, nil)
+	}
+	return nil
 }
