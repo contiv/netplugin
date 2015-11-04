@@ -3,7 +3,6 @@ package skydns2registrator
 import (
 	"net/url"
 	"strconv"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/registrator/bridge"
@@ -22,23 +21,19 @@ type Factory struct{}
 func (f *Factory) New(uri *url.URL) bridge.RegistryAdapter {
 	var urls []string
 
-	uri, _ = url.ParseRequestURI("http://127.0.0.1:4001/skydns.local")
+	// Default SkyDNS config
+	uri, _ = url.ParseRequestURI("http://127.0.0.1:4001")
 
 	if uri.Host != "" {
 		urls = append(urls, "http://"+uri.Host)
 	}
 
-	if len(uri.Path) < 2 {
-		log.Fatal("skydns2: dns domain required e.g.: skydns2://<host>/<domain>")
-	}
-
-	return &Skydns2Adapter{client: etcd.NewClient(urls), path: domainPath(uri.Path[1:])}
+	return &Skydns2Adapter{client: etcd.NewClient(urls)}
 }
 
 // Skydns2Adapter implements skydns2 client interface
 type Skydns2Adapter struct {
 	client *etcd.Client
-	path   string
 }
 
 // Ping will try to connect to skydns2 by attempting to retrieve the current leader
@@ -78,12 +73,4 @@ func (r *Skydns2Adapter) Refresh(service *bridge.Service) error {
 
 func (r *Skydns2Adapter) servicePath(service *bridge.Service) string {
 	return "/skydns/" + service.Tenant + "/" + service.Name + "/" + service.ID
-}
-
-func domainPath(domain string) string {
-	components := strings.Split(domain, ".")
-	for i, j := 0, len(components)-1; i < j; i, j = i+1, j-1 {
-		components[i], components[j] = components[j], components[i]
-	}
-	return "/skydns/" + strings.Join(components, "/")
 }
