@@ -16,10 +16,14 @@ limitations under the License.
 package master
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/objmodel/contivModel"
 
@@ -42,28 +46,6 @@ func getEndpointGroupID(serviceName, networkName, tenantName string) (int, error
 	epg := contivModel.FindEndpointGroup(epgKey)
 	if epg == nil {
 		return 0, core.Errorf("EPG not created")
-		/* FIXME: remove this
-		endpointGroup := contivModel.EndpointGroup{
-			Key:         epgKey,
-			TenantName:  tenantName,
-			NetworkName: networkName,
-			GroupName:   epgName,
-		}
-
-		// Create endpoint group
-		err := contivModel.CreateEndpointGroup(&endpointGroup)
-		if err != nil {
-			log.Errorf("Error creating endpoint group: %+v, Err: %v", endpointGroup, err)
-			return 0, err
-		}
-
-		// find again
-		epg = contivModel.FindEndpointGroup(epgKey)
-		if epg == nil {
-			log.Errorf("Error creating endpoint group %s.", epgName)
-			return 0, core.Errorf("EPG not created")
-		}
-		*/
 	}
 
 	// return endpoint group id
@@ -71,10 +53,19 @@ func getEndpointGroupID(serviceName, networkName, tenantName string) (int, error
 }
 
 // CreateEndpointGroup handles creation of endpoint group
-func CreateEndpointGroup(tenantName, networkName, groupName string) error {
+func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) error {
 	// Gte the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
+		return err
+	}
+
+	// Read global config
+	gCfg := gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	err = gCfg.Read(tenantName)
+	if err != nil {
+		log.Errorf("error reading tenant cfg state. Error: %s", err)
 		return err
 	}
 
@@ -96,6 +87,57 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 	err = createDockNet(epgNet, subnetCIDR, nwCfg.Gateway)
 	if err != nil {
 		log.Errorf("Error creating docker network %s. Err: %v", epgNet, err)
+		return err
+	}
+
+	// Get resource manager
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		return err
+	}
+	rm := core.ResourceManager(tempRm)
+
+	// Create epGroup state
+	epgCfg := &mastercfg.EndpointGroupState{
+		Name:        groupName,
+		Tenant:      tenantName,
+		NetworkName: networkName,
+		PktTagType:  nwCfg.PktTagType,
+		PktTag:      nwCfg.PktTag,
+		ExtPktTag:   nwCfg.ExtPktTag,
+	}
+
+	epgCfg.StateDriver = stateDriver
+	epgCfg.ID = strconv.Itoa(epgID)
+	log.Debugf("##Create EpGroup %v network %v tagtype %v", groupName, networkName, nwCfg.PktTagType)
+
+	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
+	masterGc := &mastercfg.GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	err = masterGc.Read("config")
+	if core.ErrIfKeyExists(err) != nil {
+		log.Errorf("Couldn't read global config %v", err)
+		return err
+	}
+
+	// Special handling for ACI mode
+	if err == nil && masterGc.NwInfraType == "aci" {
+		if epgCfg.PktTagType != "vlan" {
+			log.Errorf("Network type must be VLAN for ACI mode")
+			return errors.New("Network type must be VLAN for ACI mode")
+		}
+
+		pktTag, err := gCfg.AllocVLAN(rm)
+		if err != nil {
+			return err
+		}
+		epgCfg.PktTag = int(pktTag)
+		log.Debugf("ACI -- Allocated vlan %v for epg %v", pktTag, groupName)
+
+	}
+
+	err = epgCfg.Write()
+	if err != nil {
 		return err
 	}
 

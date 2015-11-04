@@ -17,17 +17,16 @@ limitations under the License.
 // events; uses state distribution to achieve intent realization
 // netmaster runs as a logically centralized unit on in the cluster
 
-package master
+package mastercfg
 
 import (
 	"encoding/json"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 )
 
 const (
-	gBasePath              = drivers.StateBasePath + "master/"
+	gBasePath              = StateBasePath + "master/"
 	gConfigPath            = gBasePath + "config/"
 	globalConfigPathPrefix = gConfigPath
 	globalConfigPath       = globalConfigPathPrefix + "global"

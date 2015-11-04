@@ -16,13 +16,12 @@ limitations under the License.
 package master
 
 import (
-	"errors"
-	"fmt"
 	"net"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
 
@@ -76,7 +75,7 @@ func validateTenantConfig(tenant *intent.ConfigTenant) error {
 // CreateGlobal sets the global state
 func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 
-	masterGc := &GlobConfig{}
+	masterGc := &mastercfg.GlobConfig{}
 	masterGc.StateDriver = stateDriver
 	masterGc.NwInfraType = gc.NwInfraType
 	err := masterGc.Write()

@@ -217,27 +217,9 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		return err
 	}
 
-	// Get the state driver
-	stateDriver, uErr := utils.GetStateDriver()
-	if uErr != nil {
-		return uErr
-	}
-	// Build endpoint group config
-	epgCfg := intent.ConfigEndpointGroup{
-		Name:        endpointGroup.GroupName,
-		ID:          endpointGroup.EndpointGroupID,
-		NetworkName: endpointGroup.NetworkName,
-	}
-
-	// Create the endpoint group
-	err = master.CreateEndpointGroup(epgCfg, stateDriver, endpointGroup.TenantName)
-	if err != nil {
-		log.Errorf("Error creating ep group {%+v}. Err: %v", endpointGroup, err)
-		return err
-        }
-
 	// create the endpoint group state
-	err = master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+	err = master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName,
+		endpointGroup.GroupName, endpointGroup.EndpointGroupID)
 	if err != nil {
 		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
 		return err

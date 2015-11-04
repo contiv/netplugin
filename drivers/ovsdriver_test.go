@@ -81,7 +81,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEpGroup := &OvsCfgEpGroupState{}
+		cfgEpGroup := &EndpointGroupState{}
 		cfgEpGroup.StateDriver = stateDriver
 		cfgEpGroup.ID = testOvsEpGroupID
 		cfgEpGroup.PktTagType = "vlan"
@@ -92,7 +92,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEpGroup := &OvsCfgEpGroupState{}
+		cfgEpGroup := &EndpointGroupState{}
 		cfgEpGroup.StateDriver = stateDriver
 		cfgEpGroup.ID = testOvsEpGroupIDStateful
 		cfgEpGroup.PktTagType = "vlan"

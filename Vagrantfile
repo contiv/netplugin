@@ -31,9 +31,6 @@ source /etc/profile.d/envvar.sh
 mv /etc/resolv.conf /etc/resolv.conf.bak
 cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
 
-# Install experimental docker
-# curl -sSL https://experimental.docker.com/ | sh
-
 # setup docker cluster store
 cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service /lib/systemd/system/docker.service
 
@@ -55,8 +52,8 @@ if [ $# -gt 5 ]; then
 fi
 
 # Get swarm binary
-(wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
-chmod +x /usr/bin/swarm) || exit 1
+# (wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
+# chmod +x /usr/bin/swarm) || exit 1
 
 # remove duplicate docker key
 rm /etc/docker/key.json
@@ -71,10 +68,10 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "centos" then
         config.vm.box = "contiv/centos71-netplugin"
-        config.vm.box_version = "0.3.0"
+        config.vm.box_version = "0.3.1"
     else
         config.vm.box = "contiv/ubuntu1504-netplugin"
-        config.vm.box_version = "0.3.0"
+        config.vm.box_version = "0.3.1"
     end
     num_nodes = 1
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
@@ -108,7 +105,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             # create an interface for bridged network
             node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true", auto_config: false
             node.vm.provider "virtualbox" do |v|
-                v.customize ["modifyvm", :id, "--memory", 2048]
                 # make all nics 'virtio' to take benefit of builtin vlan tag
                 # support, which otherwise needs to be enabled in Intel drivers,
                 # which are used by default by virtualbox

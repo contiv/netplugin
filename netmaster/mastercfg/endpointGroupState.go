@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package mastercfg
 
 import (
 	"encoding/json"
@@ -22,42 +22,43 @@ import (
 	"github.com/contiv/netplugin/core"
 )
 
-// OvsCfgEpGroupState implements the State interface for endpoint group implemented using
+// EndpointGroupState implements the State interface for endpoint group implemented using
 // vlans with ovs. The state is stored as Json objects.
-type OvsCfgEpGroupState struct {
+type EndpointGroupState struct {
 	core.CommonState
-	Name       string `json:"name"`
-	Tenant     string `json:"tenant"`
-	PktTagType string `json:"pktTagType"`
-	PktTag     int    `json:"pktTag"`
-	ExtPktTag  int    `json:"extPktTag"`
+	Name        string `json:"name"`
+	Tenant      string `json:"tenant"`
+	NetworkName string `json:"networkName"`
+	PktTagType  string `json:"pktTagType"`
+	PktTag      int    `json:"pktTag"`
+	ExtPktTag   int    `json:"extPktTag"`
 }
 
 // Write the state.
-func (s *OvsCfgEpGroupState) Write() error {
+func (s *EndpointGroupState) Write() error {
 	key := fmt.Sprintf(epGroupConfigPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the state for a given identifier
-func (s *OvsCfgEpGroupState) Read(id string) error {
+func (s *EndpointGroupState) Read(id string) error {
 	key := fmt.Sprintf(epGroupConfigPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll state and return the collection.
-func (s *OvsCfgEpGroupState) ReadAll() ([]core.State, error) {
+func (s *EndpointGroupState) ReadAll() ([]core.State, error) {
 	return s.StateDriver.ReadAllState(epGroupConfigPathPrefix, s, json.Unmarshal)
 }
 
 // WatchAll state transitions and send them through the channel.
-func (s *OvsCfgEpGroupState) WatchAll(rsps chan core.WatchState) error {
+func (s *EndpointGroupState) WatchAll(rsps chan core.WatchState) error {
 	return s.StateDriver.WatchAllState(epGroupConfigPathPrefix, s, json.Unmarshal,
 		rsps)
 }
 
 // Clear removes the state.
-func (s *OvsCfgEpGroupState) Clear() error {
+func (s *EndpointGroupState) Clear() error {
 	key := fmt.Sprintf(networkConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }

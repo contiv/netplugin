@@ -63,17 +63,6 @@ type ConfigNetwork struct {
 	Endpoints []ConfigEP
 }
 
-// ConfigEndpointGroup is a multi-destination isolated containment of endpoints
-type ConfigEndpointGroup struct {
-	Name string
-
-	ID int
-	// overrides for various functions when auto allocation is not desired
-	PktTagType  string
-	PktTag      string
-	NetworkName string
-}
-
 // ConfigTenant keeps the global tenant specific policy and networks within
 type ConfigTenant struct {
 	Name           string
