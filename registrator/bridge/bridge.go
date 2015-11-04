@@ -70,40 +70,41 @@ func (b *Bridge) Refresh() {
 }
 
 // AddService adds a new service to registry when triggered from dockplugin
-func (b *Bridge) AddService(epName string, serviceName string, epIP string) {
+func (b *Bridge) AddService(srvName string, nwName string, tenantName string, srvIP string) {
 	b.Lock()
 	defer b.Unlock()
 
-	log.Infof("Called AddService for ", epName)
-	service := b.createService(epName, serviceName, epIP)
+	log.Infof("Called AddService for ", srvName)
+	service := b.createService(srvName, nwName, tenantName, srvIP)
 	err := b.registry.Register(service)
 	if err != nil {
 		log.Errorf("Service registration failed for %v. Error: %s",
 			service, err)
 	}
-	b.services[epName+serviceName] = append(b.services[epName+serviceName], service)
+	b.services[srvName+nwName] = append(b.services[srvName+nwName], service)
 }
 
 // RemoveService removes service from registry when triggered from dockplugin
-func (b *Bridge) RemoveService(epName string, serviceName string, epIP string) {
+func (b *Bridge) RemoveService(srvName string, nwName string, tenantName string, srvIP string) {
 	b.Lock()
 	defer b.Unlock()
 
-	log.Infof("Called RemoveService for ", epName)
-	service := b.createService(epName, serviceName, epIP)
+	log.Infof("Called RemoveService for ", srvName)
+	service := b.createService(srvName, nwName, tenantName, srvIP)
 	err := b.registry.Deregister(service)
 	if err != nil {
 		log.Errorf("Service removal failed for service %v. Error: %s:",
 			service, err)
 	}
-	delete(b.services, epName+serviceName)
+	delete(b.services, srvName+nwName)
 }
 
-func (b *Bridge) createService(epName string, serviceName string, epIP string) *Service {
+func (b *Bridge) createService(srvName string, nwName string, tenantName string, srvIP string) *Service {
 	service := new(Service)
-	service.ID = epName
-	service.Name = serviceName
-	service.IP = epIP
+	service.ID = srvName
+	service.Name = nwName
+	service.Tenant = tenantName
+	service.IP = srvIP
 	service.TTL = b.config.RefreshTTL
 
 	return service

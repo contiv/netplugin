@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
@@ -135,27 +136,28 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 
 func startServiceContainer(tenantName string) error {
 	var err error
-	if !strings.Contains(strings.ToLower(tenantName), "default") {
-		docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
-		if err != nil {
-			log.Errorf("Unable to connect to docker. Error %v", err)
-			return err
-		}
+	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	if err != nil {
+		log.Errorf("Unable to connect to docker. Error %v", err)
+		return err
+	}
 
-		containerConfig := &dockerclient.ContainerConfig{
-			Image: "skynetservices/skydns",
-			Env:   []string{"ETCD_MACHINES=http://172.17.42.1:4001", "SKYDNS_NAMESERVERS=8.8.8.8:53", "SKYDNS_ADDR=0.0.0.0:53", "SKYDNS_DOMAIN=skydns.local"}}
+	containerConfig := &dockerclient.ContainerConfig{
+		Image: "skynetservices/skydns",
+		Env: []string{"ETCD_MACHINES=http://172.17.42.1:4001",
+			"SKYDNS_NAMESERVERS=8.8.8.8:53",
+			"SKYDNS_ADDR=0.0.0.0:53",
+			"SKYDNS_DOMAIN=" + tenantName}}
 
-		containerID, err := docker.CreateContainer(containerConfig, tenantName+"dns")
-		if err != nil {
-			log.Errorf("Error creating DNS container for tenant: %s. Error: %s", tenantName, err)
-		}
+	containerID, err := docker.CreateContainer(containerConfig, tenantName+"dns")
+	if err != nil {
+		log.Errorf("Error creating DNS container for tenant: %s. Error: %s", tenantName, err)
+	}
 
-		// Start the container
-		err = docker.StartContainer(containerID, nil)
-		if err != nil {
-			log.Errorf("Error starting DNS container for tenant: %s. Error: %s", tenantName, err)
-		}
+	// Start the container
+	err = docker.StartContainer(containerID, nil)
+	if err != nil {
+		log.Errorf("Error starting DNS container for tenant: %s. Error: %s", tenantName, err)
 	}
 
 	return err
