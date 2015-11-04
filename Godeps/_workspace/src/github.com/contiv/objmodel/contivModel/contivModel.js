@@ -131,6 +131,69 @@ var EndpointGroupModalView = React.createClass({
 
 module.exports.EndpointGroupSummaryView = EndpointGroupSummaryView
 module.exports.EndpointGroupModalView = EndpointGroupModalView
+var GlobalSummaryView = React.createClass({
+  	render: function() {
+		var self = this
+
+		// Walk thru all objects
+		var globalListView = self.props.globals.map(function(global){
+			return (
+				<ModalTrigger modal={<GlobalModalView global={ global }/>}>
+					<tr key={ global.key } className="info">
+						
+						 
+						<td>{ global.name }</td>
+						 
+						<td>{ global.network-infra-type }</td>
+						
+					</tr>
+				</ModalTrigger>
+			);
+		});
+
+		return (
+        <div>
+			<Table hover>
+				<thead>
+					<tr>
+					
+					 
+						<th> name of this block </th>  
+						<th> Network infrastructure type </th> 
+					</tr>
+				</thead>
+				<tbody>
+            		{ globalListView }
+				</tbody>
+			</Table>
+        </div>
+    	);
+	}
+});
+
+var GlobalModalView = React.createClass({
+	render() {
+		var obj = this.props.global
+	    return (
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Global' animation={false}>
+	        <div className='modal-body' style={ {margin: '5%',} }>
+			
+			
+				<Input type='text' label='name of this block' ref='name' defaultValue={obj.name} placeholder='name of this block' />
+			
+				<Input type='text' label='Network infrastructure type' ref='network-infra-type' defaultValue={obj.network-infra-type} placeholder='Network infrastructure type' />
+			
+			</div>
+	        <div className='modal-footer'>
+				<Button onClick={this.props.onRequestHide}>Close</Button>
+	        </div>
+	      </Modal>
+	    );
+  	}
+});
+
+module.exports.GlobalSummaryView = GlobalSummaryView
+module.exports.GlobalModalView = GlobalModalView
 var NetworkSummaryView = React.createClass({
   	render: function() {
 		var self = this

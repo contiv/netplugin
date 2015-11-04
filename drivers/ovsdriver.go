@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
@@ -251,16 +252,32 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return nil
 	}
 
-	cfgNw := OvsCfgNetworkState{}
-	cfgNw.StateDriver = d.oper.StateDriver
-	err = cfgNw.Read(cfgEp.NetID)
-	if err != nil {
+	cfgEpGroup := &OvsCfgEpGroupState{}
+	cfgEpGroup.StateDriver = d.oper.StateDriver
+	err = cfgEpGroup.Read(strconv.Itoa(cfgEp.EndpointGroupID))
+	if err == nil {
+		log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
+	} else if core.ErrIfKeyExists(err) == nil {
+		// In case EpGroup is not specified, get the tag from nw.
+		// this is mainly for the intent based system tests
+		log.Warnf("%v will use network based tag ", err)
+		cfgNw := OvsCfgNetworkState{}
+		cfgNw.StateDriver = d.oper.StateDriver
+		err1 := cfgNw.Read(cfgEp.NetID)
+		if err1 != nil {
+			log.Errorf("Unable to get tag neither epg nor nw")
+			return err1
+		}
+
+		cfgEpGroup.PktTagType = cfgNw.PktTagType
+		cfgEpGroup.PktTag = cfgNw.PktTag
+	} else {
 		return err
 	}
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
-	if cfgNw.PktTagType == "vxlan" {
+	if cfgEpGroup.PktTagType == "vxlan" {
 		sw = d.switchDb["vxlan"]
 	} else {
 		sw = d.switchDb["vlan"]
@@ -278,7 +295,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			log.Printf("Found matching oper state for ep %s, noop", id)
 
 			// Ask the switch to update the port
-			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgNw.PktTag)
+			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgEpGroup.PktTag)
 			if err != nil {
 				log.Errorf("Error creating port %s. Err: %v", intfName, err)
 				return err
@@ -304,7 +321,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	intfName = d.getIntfName()
 
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, cfgNw.PktTag)
+	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err

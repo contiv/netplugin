@@ -45,6 +45,7 @@ func NewAPIController(router *mux.Router) *APIController {
 	contivModel.Init()
 
 	// Register Callbacks
+	contivModel.RegisterGlobalCallbacks(ctrler)
 	contivModel.RegisterAppCallbacks(ctrler)
 	contivModel.RegisterEndpointGroupCallbacks(ctrler)
 	contivModel.RegisterNetworkCallbacks(ctrler)
@@ -68,7 +69,7 @@ func NewAPIController(router *mux.Router) *APIController {
 			TenantName: "default",
 			SubnetPool: "10.1.1.1/16",
 			SubnetLen:  24,
-			Vlans:      "100-200",
+			Vlans:      "100-1100",
 			Vxlans:     "1001-1100",
 		})
 		if err != nil {
@@ -87,6 +88,63 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+// GlobalCreate creates global state
+func (ac *APIController) GlobalCreate(global *contivModel.Global) error {
+	log.Infof("Received GlobalCreate: %+v", global)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Build global config
+	gCfg := intent.ConfigGlobal{
+		NwInfraType: global.NetworkInfraType,
+	}
+
+	// Create the object
+	err = master.CreateGlobal(stateDriver, &gCfg)
+	if err != nil {
+		log.Errorf("Error creating global config {%+v}. Err: %v", global, err)
+		return err
+	}
+
+	return nil
+}
+
+// GlobalUpdate updates global state
+func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error {
+	log.Infof("Received GlobalUpdate: %+v", global)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Build global config
+	gCfg := intent.ConfigGlobal{
+		NwInfraType: params.NetworkInfraType,
+	}
+
+	// Create the object
+	err = master.CreateGlobal(stateDriver, &gCfg)
+	if err != nil {
+		log.Errorf("Error creating global config {%+v}. Err: %v", global, err)
+		return err
+	}
+
+	global.NetworkInfraType = params.NetworkInfraType
+	return nil
+}
+
+// GlobalDelete is not supported
+func (ac *APIController) GlobalDelete(global *contivModel.Global) error {
+	log.Infof("Received GlobalDelete: %+v", global)
+	return nil
 }
 
 // AppCreate creates app state
@@ -114,6 +172,7 @@ func (ac *APIController) AppCreate(app *contivModel.App) error {
 		return err
 	}
 
+	CreateAppNw(app)
 	return nil
 }
 
@@ -121,6 +180,7 @@ func (ac *APIController) AppCreate(app *contivModel.App) error {
 func (ac *APIController) AppUpdate(app, params *contivModel.App) error {
 	log.Infof("Received AppUpdate: %+v, params: %+v", app, params)
 
+	CreateAppNw(app)
 	return nil
 }
 
@@ -155,6 +215,24 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	err := tenant.Write()
 	if err != nil {
 		return err
+	}
+
+	// Get the state driver
+	stateDriver, uErr := utils.GetStateDriver()
+	if uErr != nil {
+		return uErr
+	}
+	// Build endpoint group config
+	epgCfg := intent.ConfigEndpointGroup{
+		Name:        endpointGroup.GroupName,
+		ID:          endpointGroup.EndpointGroupID,
+		NetworkName: endpointGroup.NetworkName,
+	}
+
+	// Create the endpoint group
+	err = master.CreateEndpointGroup(epgCfg, stateDriver, endpointGroup.TenantName)
+	if err != nil {
+		log.Errorf("Error creating ep group {%+v}. Err: %v", endpointGroup, err)
 	}
 
 	// for each policy create an epg policy Instance

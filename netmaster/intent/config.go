@@ -17,6 +17,11 @@ limitations under the License.
 
 package intent
 
+// ConfigGlobal keeps track of settings that are globally applicable
+type ConfigGlobal struct {
+	NwInfraType string
+}
+
 // ConfigHost keeps track of the host's properties; A host is a node where
 // containers are deployed
 type ConfigHost struct {
@@ -56,6 +61,17 @@ type ConfigNetwork struct {
 
 	// eps associated with the network
 	Endpoints []ConfigEP
+}
+
+// ConfigEndpointGroup is a multi-destination isolated containment of endpoints
+type ConfigEndpointGroup struct {
+	Name string
+
+	ID int
+	// overrides for various functions when auto allocation is not desired
+	PktTagType  string
+	PktTag      string
+	NetworkName string
 }
 
 // ConfigTenant keeps the global tenant specific policy and networks within

@@ -23,6 +23,8 @@ const (
 	networkOperPath          = networkOperPathPrefix + "%s"
 	endpointOperPathPrefix   = StateOperPath + "eps/"
 	endpointOperPath         = endpointOperPathPrefix + "%s"
+	epGroupConfigPathPrefix  = StateConfigPath + "endpointGroups/"
+	epGroupConfigPath        = epGroupConfigPathPrefix + "%s"
 )
 
 const (

@@ -16,6 +16,7 @@ limitations under the License.
 package master
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -74,6 +75,16 @@ func validateTenantConfig(tenant *intent.ConfigTenant) error {
 	}
 
 	return nil
+}
+
+// CreateGlobal sets the global state
+func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
+
+	masterGc := &GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	masterGc.NwInfraType = gc.NwInfraType
+	err := masterGc.Write()
+	return err
 }
 
 // CreateTenant sets the tenant's state according to the passed ConfigTenant.
@@ -424,6 +435,79 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	}
 
 	return err
+}
+
+// CreateEndpointGroup creates a EndpointGroup from intent
+func CreateEndpointGroup(eg intent.ConfigEndpointGroup, stateDriver core.StateDriver, tenantName string) error {
+	var pktTag uint
+
+	gCfg := gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	err := gCfg.Read(tenantName)
+	if err != nil {
+		log.Errorf("error reading tenant cfg state. Error: %s", err)
+		return err
+	}
+
+	// Read network state
+	nwCfg := &drivers.OvsCfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	err = nwCfg.Read(eg.NetworkName)
+	if err != nil {
+		// TODO: check if parameters changed and apply an update if needed
+		log.Errorf("error reading network. Error: %s", err)
+		return err
+	}
+
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		return err
+	}
+	rm := core.ResourceManager(tempRm)
+
+	// Create epGroup state
+	epgCfg := &drivers.OvsCfgEpGroupState{
+		Name:       eg.Name,
+		Tenant:     tenantName,
+		PktTagType: nwCfg.PktTagType,
+		PktTag:     nwCfg.PktTag,
+		ExtPktTag:  nwCfg.ExtPktTag,
+	}
+
+	epgCfg.StateDriver = stateDriver
+	epgCfg.ID = strconv.Itoa(eg.ID)
+	log.Debugf("##Create EpGroup %v network %v tagtype %v", eg.Name, eg.NetworkName, nwCfg.PktTagType)
+
+	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
+	masterGc := &GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	err = masterGc.Read("config")
+	if core.ErrIfKeyExists(err) != nil {
+		log.Errorf("Couldn't read global config %v", err)
+		return err
+	}
+
+	if err == nil && masterGc.NwInfraType == "aci" {
+		if epgCfg.PktTagType != "vlan" {
+			log.Errorf("Network type must be VLAN for ACI mode")
+			return errors.New("Network type must be VLAN for ACI mode")
+		}
+
+		pktTag, err = gCfg.AllocVLAN(rm)
+		if err != nil {
+			return err
+		}
+		epgCfg.PktTag = int(pktTag)
+		log.Debugf("ACI -- Allocated vlan %v for epg %v", pktTag, eg.Name)
+
+	}
+
+	err = epgCfg.Write()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateNetwork creates a network from intent

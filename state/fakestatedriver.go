@@ -48,7 +48,7 @@ func (d *FakeStateDriver) Read(key string) ([]byte, error) {
 		return val.value, nil
 	}
 
-	return []byte{}, core.Errorf("Key not found!")
+	return []byte{}, core.Errorf("Key not found! key: %v", key)
 }
 
 // ReadAll values from baseKey

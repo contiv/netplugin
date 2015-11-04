@@ -33,6 +33,10 @@ const (
 	deleteEpID                 = "testDeleteEp"
 	testOvsNwID                = "testNetID"
 	testOvsNwIDStateful        = "testNetIDStateful"
+	testOvsEpGroupID           = "10"
+	testOvsEpGroupIDStateful   = "11"
+	testOvsEpgHandle           = 10
+	testOvsEpgHandleStateful   = 11
 	testPktTag                 = 100
 	testPktTagStateful         = 200
 	testExtPktTag              = 10000
@@ -77,8 +81,31 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
+		cfgEpGroup := &OvsCfgEpGroupState{}
+		cfgEpGroup.StateDriver = stateDriver
+		cfgEpGroup.ID = testOvsEpGroupID
+		cfgEpGroup.PktTagType = "vlan"
+		cfgEpGroup.PktTag = testPktTag
+		if err := cfgEpGroup.Write(); err != nil {
+			return err
+		}
+	}
+
+	{
+		cfgEpGroup := &OvsCfgEpGroupState{}
+		cfgEpGroup.StateDriver = stateDriver
+		cfgEpGroup.ID = testOvsEpGroupIDStateful
+		cfgEpGroup.PktTagType = "vlan"
+		cfgEpGroup.PktTag = testPktTagStateful
+		if err := cfgEpGroup.Write(); err != nil {
+			return err
+		}
+	}
+
+	{
 		cfgEp := &OvsCfgEndpointState{}
 		cfgEp.ID = createEpID
+		cfgEp.EndpointGroupID = testOvsEpgHandle
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = ""
 		cfgEp.IPAddress = testEpAddress
@@ -92,6 +119,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	{
 		cfgEp := &OvsCfgEndpointState{}
 		cfgEp.ID = createEpIDStateful
+		cfgEp.EndpointGroupID = testOvsEpgHandleStateful
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = ""
 		cfgEp.IPAddress = testEpAddress
@@ -105,6 +133,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	{
 		cfgEp := &OvsCfgEndpointState{}
 		cfgEp.ID = createEpIDStatefulMismatch
+		cfgEp.EndpointGroupID = testOvsEpgHandle
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IntfName = ""
 		cfgEp.IPAddress = testEpAddress
@@ -118,6 +147,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	{
 		cfgEp := &OvsCfgEndpointState{}
 		cfgEp.ID = deleteEpID
+		cfgEp.EndpointGroupID = testOvsEpgHandle
 		cfgEp.NetID = testOvsNwID
 		cfgEp.IPAddress = testEpAddress
 		cfgEp.MacAddress = testEpMacAddress
