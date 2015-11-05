@@ -176,7 +176,7 @@ func StartNetmasterWithFlags(t *testing.T, node stu.TestbedNode, flags map[strin
 			err, cmdStr, output)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(15 * time.Second)
 }
 
 // StartNetmaster starts netplugin on specified testbed node
