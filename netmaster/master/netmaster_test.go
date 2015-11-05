@@ -43,13 +43,6 @@ func applyConfig(t *testing.T, cfgBytes []byte) {
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
 
-	for _, host := range cfg.Hosts {
-		err = CreateHost(fakeDriver, &host)
-		if err != nil {
-			t.Fatalf("error '%s' creating host\n", err)
-		}
-	}
-
 	for _, tenant := range cfg.Tenants {
 		err = CreateTenant(fakeDriver, &tenant)
 		if err != nil {
@@ -98,10 +91,12 @@ func initFakeStateDriver(t *testing.T) {
 	}
 
 	fakeDriver = d.(*state.FakeStateDriver)
+	testMode = true
 }
 
 func deinitFakeStateDriver() {
 	utils.ReleaseStateDriver()
+	testMode = false
 }
 
 func TestVlanConfig(t *testing.T) {
@@ -145,14 +140,6 @@ func TestVlanConfig(t *testing.T) {
 
 func TestVlanWithUnderlayConfig(t *testing.T) {
 	cfgBytes := []byte(`{
-    "Hosts" : [{
-        "Name"                    : "host1",
-        "Intf"                    : "eth2"
-    },
-    {
-        "Name"                    : "host2",
-        "Intf"                    : "eth2"
-    }],
     "Tenants" : [{
         "Name"                      : "tenant-one",
         "DefaultNetType"          : "vlan",
@@ -198,14 +185,6 @@ func TestVlanWithUnderlayConfig(t *testing.T) {
 
 func TestVxlanConfig(t *testing.T) {
 	cfgBytes := []byte(`{
-    "Hosts" : [{
-        "Name"                  : "host1",
-        "VtepIp"                : "192.168.2.11"
-    },
-    {
-        "Name"                  : "host2",
-        "VtepIp"                : "192.168.2.12"
-    }],
     "Tenants" : [{
         "Name"                  : "tenant-one",
         "DefaultNetType"        : "vxlan",
@@ -245,23 +224,13 @@ func TestVxlanConfig(t *testing.T) {
 
 	keys := []string{"tenant-one", "nets/orange", "nets/purple",
 		"myContainer1", "myContainer2",
-		"myContainer3", "myContainer4",
-		"orange-host1", "purple-host1",
-		"purple-host2", "orange-host2"}
+		"myContainer3", "myContainer4"}
 
 	verifyKeys(t, keys)
 }
 
 func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 	cfgBytes := []byte(`{
-        "Hosts" : [{
-        "Name"                  : "host1",
-        "VtepIp"                : "192.168.2.11"
-    },
-    {
-        "Name"                  : "host2",
-        "VtepIp"                : "192.168.2.12"
-    }],
     "Tenants" : [{
         "Name"                  : "tenant-one",
         "DefaultNetType"        : "vxlan",
@@ -296,9 +265,7 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 	applyConfig(t, cfgBytes)
 	fakeDriver.DumpState()
 
-	keys := []string{"tenant-one", "nets/orange", "nets/purple",
-		"orange-host1", "purple-host1",
-		"purple-host2", "orange-host2"}
+	keys := []string{"tenant-one", "nets/orange", "nets/purple"}
 
 	verifyKeys(t, keys)
 
@@ -323,9 +290,7 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 
 	keys = []string{"tenant-one", "nets/orange", "nets/purple",
 		"myContainer1", "myContainer2",
-		"myContainer3", "myContainer4",
-		"orange-host1", "purple-host1",
-		"purple-host2", "orange-host2"}
+		"myContainer3", "myContainer4"}
 
 	fakeDriver.DumpState()
 

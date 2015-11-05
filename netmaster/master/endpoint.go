@@ -129,7 +129,8 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 	for _, network := range tenant.Networks {
 		nwCfg := &mastercfg.CfgNetworkState{}
 		nwCfg.StateDriver = stateDriver
-		err = nwCfg.Read(network.Name)
+		networkID := network.Name + "." + tenant.Name
+		err = nwCfg.Read(networkID)
 		if err != nil {
 			log.Errorf("error reading oper network %s. Error: %s", network.Name, err)
 			return err
@@ -212,7 +213,8 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 	for _, network := range tenant.Networks {
 		nwCfg := &mastercfg.CfgNetworkState{}
 		nwCfg.StateDriver = stateDriver
-		err = nwCfg.Read(network.Name)
+		networkID := network.Name + "." + tenant.Name
+		err = nwCfg.Read(networkID)
 		if err != nil {
 			log.Errorf("error reading network state. Error: %s", err)
 			return err

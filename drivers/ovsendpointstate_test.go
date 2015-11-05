@@ -23,7 +23,6 @@ import (
 
 const (
 	testEpID  = "testEp"
-	epCfgKey  = endpointConfigPathPrefix + testEpID
 	epOperKey = endpointOperPathPrefix + testEpID
 )
 
@@ -55,9 +54,9 @@ func (d *testEpStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error 
 }
 
 func (d *testEpStateDriver) validateKey(key string) error {
-	if key != epCfgKey && key != epOperKey {
-		return core.Errorf("Unexpected key. recvd: %s expected: %s or %s ",
-			key, epCfgKey, epOperKey)
+	if key != epOperKey {
+		return core.Errorf("Unexpected key. recvd: %s expected: %s ",
+			key, epOperKey)
 	}
 
 	return nil

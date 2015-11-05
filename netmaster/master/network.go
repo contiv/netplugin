@@ -31,6 +31,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+const driverName = "netplugin"
+
+var testMode = false
+
 func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	var err error
 
@@ -65,10 +69,14 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	return err
 }
 
-const driverName = "netplugin"
-
 // createDockNet Creates a network in docker daemon
 func createDockNet(networkName, subnetCIDR, gateway string) error {
+	// do nothing in test mode
+	if testMode {
+		return nil
+	}
+
+	// connect to docker
 	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
@@ -115,6 +123,12 @@ func createDockNet(networkName, subnetCIDR, gateway string) error {
 
 // deleteDockNet deletes a network in docker daemon
 func deleteDockNet(networkName string) error {
+	// do nothing in test mode
+	if testMode {
+		return nil
+	}
+
+	// connect to docker
 	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
