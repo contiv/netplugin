@@ -223,7 +223,7 @@ func DeleteEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 		for _, ep := range network.Endpoints {
 			epCfg := &mastercfg.CfgEndpointState{}
 			epCfg.StateDriver = stateDriver
-			epCfg.ID = getEpName(network.Name, &ep)
+			epCfg.ID = getEpName(networkID, &ep)
 			err = epCfg.Read(epCfg.ID)
 			if err != nil {
 				log.Errorf("error getting cfg state of ep %s, Error: %s", epCfg.ID, err)

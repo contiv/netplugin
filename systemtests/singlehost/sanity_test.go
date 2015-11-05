@@ -66,7 +66,7 @@ func TestSingleHostSingleVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node, "orange.tenant-one-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
@@ -126,7 +126,7 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node, "orange.tenant-one-myContainer1", u.EtcdNameStr)
 	utils.StartClient(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
@@ -137,7 +137,7 @@ func TestSingleHostMultiVlanPingSuccess_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer4")
 	}()
 
-	ipAddress = utils.GetIPAddress(t, node, "purple-myContainer4", u.EtcdNameStr)
+	ipAddress = utils.GetIPAddress(t, node, "purple.tenant-one-myContainer4", u.EtcdNameStr)
 	utils.StartClient(t, node, "myContainer3", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer3")
@@ -190,7 +190,7 @@ func TestSingleHostMultiVlanPingFailure_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node, "orange.tenant-one-myContainer1", u.EtcdNameStr)
 	utils.StartClientFailure(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
@@ -208,7 +208,7 @@ func TestSingleHostDefaultNetwork_sanity(t *testing.T) {
 	jsonCfg :=
 		`{
         "Tenants" : [ {
-            "Name"                      : "tee-one",
+            "Name"                      : "tenant-one",
             "DefaultNetType"            : "vlan",
             "DefaultNetwork"            : "orange",
             "SubnetPool"                : "100.1.0.0/16",
@@ -242,7 +242,7 @@ func TestSingleHostDefaultNetwork_sanity(t *testing.T) {
 		utils.DockerCleanup(t, node, "myContainer1")
 	}()
 
-	ipAddress := utils.GetIPAddress(t, node, "orange-myContainer1", u.EtcdNameStr)
+	ipAddress := utils.GetIPAddress(t, node, "orange.tenant-one-myContainer1", u.EtcdNameStr)
 	utils.StartClientFailure(t, node, "myContainer2", ipAddress)
 	defer func() {
 		utils.DockerCleanup(t, node, "myContainer2")
@@ -260,7 +260,7 @@ func TestSingleHostDefaultNetwork_sanity(t *testing.T) {
 	jsonCfg = `
     {
       "Tenants" : [ {
-        "Name"                      : "tee-one",
+        "Name"                      : "tenant-one",
         "Networks"  : [ {
           "Name"                    : "orange",
           "Endpoints" : [ {
