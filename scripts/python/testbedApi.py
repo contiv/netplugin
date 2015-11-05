@@ -57,7 +57,7 @@ class vagrantNode:
     # Start netplugin process on vagrant node
     def startNetplugin(self):
         ssh_object = self.sshConnect()
-        command = "sudo /opt/gopath/bin/netplugin -native-integration=true > /tmp/netplugin.log 2>&1"
+        command = "sudo /opt/gopath/bin/netplugin -native-integration=true -docker-plugin > /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()
@@ -77,6 +77,10 @@ class vagrantNode:
     # Stop netmaster by killing it
     def stopNetmaster(self):
         self.runCmd("sudo killall netmaster")
+        # cleanup docker network
+        out, err, exitCode = self.runCmd("docker network ls | grep netplugin | awk '{print $2}'")
+        for net in out:
+            self.runCmd("docker network rm " + net)
 
     # Cleanup all state created by netplugin
     def cleanupSlave(self):
@@ -92,12 +96,14 @@ class vagrantNode:
         self.runCmd("etcdctl rm --recursive /contiv")
         self.runCmd("etcdctl rm --recursive /contiv.io")
 
-    def runContainer(self, imgName="ubuntu", cmdName="sh", serviceName=None):
-        srvStr = ""
-        if serviceName != None:
-            srvStr = "--publish-service " + serviceName
+    def runContainer(self, imgName="ubuntu", cmdName="sh", networkName=None, serviceName=None):
+        netSrt = ""
+        if networkName != None:
+            netSrt = "--net=" + networkName
+            if serviceName != None:
+                netSrt = "--net=" + serviceName + "." + networkName
         # docker command
-        dkrCmd = "docker run -itd " + srvStr + " " + imgName + " " + cmdName
+        dkrCmd = "docker run -itd " + netSrt + " " + imgName + " " + cmdName
         out, err, exitCode = self.runCmd(dkrCmd)
         if exitCode != 0:
             print "Error running container: " + dkrCmd + " on " + self.addr
@@ -109,7 +115,7 @@ class vagrantNode:
         cid = out[0].split('\n')[0]
 
         # Return a container object
-        return container(self, cid, serviceName)
+        return container(self, cid, networkName)
 
 # This class represents a testbed i.e, collection of vagrant nodes
 class testbed:
@@ -162,13 +168,28 @@ class testbed:
         return len(self.nodes)
 
     # Start containers on the testbed
-    def runContainers(self, numContainer):
+    def runContainers(self, numContainer, withService=False):
         containers = []
         # Start the containers
         for cntIdx in range(numContainer):
             nodeIdx = cntIdx % self.numNodes()
-            srvName = "srv" + str(cntIdx) + ".private"
-            cnt = self.nodes[nodeIdx].runContainer("ubuntu", serviceName=srvName)
+            if withService:
+                srvName = "srv" + str(cntIdx)
+                cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private.default", serviceName=srvName)
+            else:
+                cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private.default")
+
+            containers.append(cnt)
+
+        return containers
+
+    # Start containers on the testbed
+    def runContainersInService(self, numContainer, serviceName):
+        containers = []
+        # Start the containers
+        for cntIdx in range(numContainer):
+            nodeIdx = cntIdx % self.numNodes()
+            cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private.default", serviceName=serviceName)
             containers.append(cnt)
 
         return containers
@@ -225,13 +246,32 @@ class testbed:
         # Return
         return success
 
+    # Check bipartite connection between two list of containers
+    def checkConnectionPair(self, fromContainers, toContainers, port, success):
+        toIpList = []
+        # Read all IP addresses
+        for cnt in toContainers:
+            cntrIp = cnt.getIpAddr()
+            toIpList.append(cntrIp)
+
+        # Check connection from each container
+        for cidx, cnt in enumerate(fromContainers):
+            for aidx, ipAddr in enumerate(toIpList):
+                if cnt.getIpAddr() != ipAddr:
+                    ret = cnt.checkConnection(ipAddr, port)
+                    # If connection status is not what we were expecting, we are done.
+                    if ret != success:
+                        return ret
+
+        # Return
+        return success
 
 # This class represents a docker Container
 class container:
-    def __init__(self, node, cid, serviceName=None):
+    def __init__(self, node, cid, networkName=None):
         self.node = node
         self.cid = cid
-        self.serviceName = serviceName
+        self.networkName = networkName
 
         # Read interface ip
         out, err, exitCode = self.execCmd('ip addr show dev eth0 | grep "inet "')
@@ -244,8 +284,8 @@ class container:
 
     # Return container identifier
     def myId(self):
-        if self.serviceName != None:
-            return self.node.hostname + "(" + self.node.addr + ")/" + self.serviceName
+        if self.networkName != None:
+            return self.node.hostname + "(" + self.node.addr + ")/" + self.networkName
         else:
             return self.node.hostname + "(" + self.node.addr + ")/" + self.cid
 
@@ -283,8 +323,8 @@ class container:
             self.errorExit("Error removing container", out, err)
 
         # Unpublish the service
-        if self.serviceName != None:
-            self.node.runCmd("docker service unpublish " + self.serviceName)
+        # if self.serviceName != None:
+        #    self.node.runCmd("docker service unpublish " + self.serviceName)
 
     # Get IP address of the container
     def getIpAddr(self, intfName="eth0"):

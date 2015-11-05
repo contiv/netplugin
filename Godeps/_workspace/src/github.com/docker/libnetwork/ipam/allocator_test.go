@@ -1,24 +1,51 @@
 package ipam
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/bitseq"
-	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/ipamutils"
 	_ "github.com/docker/libnetwork/testutils"
+	"github.com/docker/libnetwork/types"
 )
 
-var ds datastore.DataStore
+const (
+	defaultPrefix = "/tmp/libnetwork/test/ipam"
+)
+
+// OptionBoltdbWithRandomDBFile function returns a random dir for local store backend
+func randomLocalStore() (datastore.DataStore, error) {
+	tmp, err := ioutil.TempFile("", "libnetwork-")
+	if err != nil {
+		return nil, fmt.Errorf("Error creating temp file: %v", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return nil, fmt.Errorf("Error closing temp file: %v", err)
+	}
+	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
+		Client: datastore.ScopeClientCfg{
+			Provider: "boltdb",
+			Address:  defaultPrefix + tmp.Name(),
+			Config: &store.Config{
+				Bucket:            "libnetwork",
+				ConnectionTimeout: 3 * time.Second,
+			},
+		},
+	})
+}
 
 // enable w/ upper case
-func testMain(m *testing.M) {
+func TestMain(m *testing.M) {
 	var err error
-	ds, err = datastore.NewDataStore(&config.DatastoreCfg{Embedded: false, Client: config.DatastoreClientCfg{Provider: "consul", Address: "127.0.0.1:8500"}})
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -26,20 +53,23 @@ func testMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func getAllocator(t *testing.T, subnet *net.IPNet) *Allocator {
-	a, err := NewAllocator(ds)
+func getAllocator() (*Allocator, error) {
+	ds, err := randomLocalStore()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
-	a.AddSubnet("default", &SubnetInfo{Subnet: subnet})
-	return a
+	a, err := NewAllocator(ds, nil)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
 }
 
 func TestInt2IP2IntConversion(t *testing.T) {
-	for i := uint32(0); i < 256*256*256; i++ {
+	for i := uint64(0); i < 256*256*256; i++ {
 		var array [4]byte // new array at each cycle
 		addIntToIP(array[:], i)
-		j := ipToUint32(array[:])
+		j := ipToUint64(array[:])
 		if j != i {
 			t.Fatalf("Failed to convert ordinal %d to IP % x and back to ordinal. Got %d", i, array, j)
 		}
@@ -62,24 +92,23 @@ func TestGetAddressVersion(t *testing.T) {
 }
 
 func TestKeyString(t *testing.T) {
-
-	k := &subnetKey{addressSpace: "default", subnet: "172.27.0.0/16"}
+	k := &SubnetKey{AddressSpace: "default", Subnet: "172.27.0.0/16"}
 	expected := "default/172.27.0.0/16"
 	if expected != k.String() {
 		t.Fatalf("Unexpected key string: %s", k.String())
 	}
 
-	k2 := &subnetKey{}
+	k2 := &SubnetKey{}
 	err := k2.FromString(expected)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if k2.addressSpace != k.addressSpace || k2.subnet != k.subnet {
-		t.Fatalf("subnetKey.FromString() failed. Expected %v. Got %v", k, k2)
+	if k2.AddressSpace != k.AddressSpace || k2.Subnet != k.Subnet {
+		t.Fatalf("SubnetKey.FromString() failed. Expected %v. Got %v", k, k2)
 	}
 
 	expected = fmt.Sprintf("%s/%s", expected, "172.27.3.0/24")
-	k.childSubnet = "172.27.3.0/24"
+	k.ChildSubnet = "172.27.3.0/24"
 	if expected != k.String() {
 		t.Fatalf("Unexpected key string: %s", k.String())
 	}
@@ -88,222 +117,543 @@ func TestKeyString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if k2.addressSpace != k.addressSpace || k2.subnet != k.subnet {
-		t.Fatalf("subnetKey.FromString() failed. Expected %v. Got %v", k, k2)
+	if k2.AddressSpace != k.AddressSpace || k2.Subnet != k.Subnet || k2.ChildSubnet != k.ChildSubnet {
+		t.Fatalf("SubnetKey.FromString() failed. Expected %v. Got %v", k, k2)
 	}
 }
 
-func TestAddSubnets(t *testing.T) {
-	a, err := NewAllocator(nil)
+func TestPoolDataMarshal(t *testing.T) {
+	_, nw, err := net.ParseCIDR("172.28.30.1/24")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, sub0, _ := net.ParseCIDR("10.0.0.0/8")
-	err = a.AddSubnet("default", &SubnetInfo{Subnet: sub0})
+	p := &PoolData{
+		ParentKey: SubnetKey{AddressSpace: "Blue", Subnet: "172.28.0.0/16"},
+		Pool:      nw,
+		Range:     &AddressRange{Sub: &net.IPNet{IP: net.IP{172, 28, 20, 0}, Mask: net.IPMask{255, 255, 255, 0}}, Start: 0, End: 255},
+		RefCount:  4,
+	}
+
+	ba, err := json.Marshal(p)
 	if err != nil {
-		t.Fatalf("Unexpected failure in adding subent")
+		t.Fatal(err)
 	}
-
-	err = a.AddSubnet("abc", &SubnetInfo{Subnet: sub0})
+	var q PoolData
+	err = json.Unmarshal(ba, &q)
 	if err != nil {
-		t.Fatalf("Unexpected failure in adding overlapping subents to different address spaces")
+		t.Fatal(err)
 	}
 
-	err = a.AddSubnet("abc", &SubnetInfo{Subnet: sub0})
-	if err == nil {
-		t.Fatalf("Failed to detect overlapping subnets: %s and %s", sub0, sub0)
+	if p.ParentKey != q.ParentKey || !types.CompareIPNet(p.Range.Sub, q.Range.Sub) ||
+		p.Range.Start != q.Range.Start || p.Range.End != q.Range.End || p.RefCount != q.RefCount ||
+		!types.CompareIPNet(p.Pool, q.Pool) {
+		t.Fatalf("\n%#v\n%#v", p, &q)
 	}
 
-	_, sub1, _ := net.ParseCIDR("10.20.2.0/24")
-	err = a.AddSubnet("default", &SubnetInfo{Subnet: sub1})
-	if err == nil {
-		t.Fatalf("Failed to detect overlapping subnets: %s and %s", sub0, sub1)
+	p = &PoolData{
+		ParentKey: SubnetKey{AddressSpace: "Blue", Subnet: "172.28.0.0/16"},
+		Pool:      nw,
+		RefCount:  4,
 	}
 
-	_, sub2, _ := net.ParseCIDR("10.128.0.0/9")
-	err = a.AddSubnet("default", &SubnetInfo{Subnet: sub2})
-	if err == nil {
-		t.Fatalf("Failed to detect overlapping subnets: %s and %s", sub1, sub2)
-	}
-
-	_, sub6, err := net.ParseCIDR("1003:1:2:3:4:5:6::/112")
+	ba, err = json.Marshal(p)
 	if err != nil {
-		t.Fatalf("Wrong input, Can't proceed: %s", err.Error())
+		t.Fatal(err)
 	}
-	err = a.AddSubnet("default", &SubnetInfo{Subnet: sub6})
+	err = json.Unmarshal(ba, &q)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if q.Range != nil {
+		t.Fatalf("Unexpected Range")
+	}
+}
+
+func TestSubnetsMarshal(t *testing.T) {
+	a, err := getAllocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid0, _, _, err := a.RequestPool(localAddressSpace, "192.168.0.0/16", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid1, _, _, err := a.RequestPool(localAddressSpace, "192.169.0.0/16", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = a.RequestAddress(pid0, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ba := cfg.Value()
+	if err := cfg.SetValue(ba); err != nil {
+		t.Fatal(err)
+	}
+
+	expIP := &net.IPNet{IP: net.IP{192, 168, 0, 2}, Mask: net.IPMask{255, 255, 0, 0}}
+	ip, _, err := a.RequestAddress(pid0, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(expIP, ip) {
+		t.Fatalf("Got unexpected ip after pool config restore: %s", ip)
+	}
+
+	expIP = &net.IPNet{IP: net.IP{192, 169, 0, 1}, Mask: net.IPMask{255, 255, 0, 0}}
+	ip, _, err = a.RequestAddress(pid1, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(expIP, ip) {
+		t.Fatalf("Got unexpected ip after pool config restore: %s", ip)
+	}
+}
+
+func TestAddSubnets(t *testing.T) {
+	a, err := getAllocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.addrSpaces["abc"] = a.addrSpaces[localAddressSpace]
+
+	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure in adding subnet")
+	}
+
+	pid1, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure in adding overlapping subnets to different address spaces: %v", err)
+	}
+
+	if pid0 == pid1 {
+		t.Fatalf("returned same pool id for same subnets in different namespaces")
+	}
+
+	pid, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure requesting existing subnet: %v", err)
+	}
+	if pid != pid1 {
+		t.Fatalf("returned different pool id for same subnet requests")
+	}
+
+	_, _, _, err = a.RequestPool("abc", "10.128.0.0/9", "", nil, false)
+	if err == nil {
+		t.Fatalf("Expected failure on adding overlapping base subnet")
+	}
+
+	pid2, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "10.128.0.0/9", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure on adding sub pool: %v", err)
+	}
+	pid3, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "10.128.0.0/9", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure on adding overlapping sub pool: %v", err)
+	}
+	if pid2 != pid3 {
+		t.Fatalf("returned different pool id for same sub pool requests")
+	}
+
+	pid, _, _, err = a.RequestPool(localAddressSpace, "10.20.2.0/24", "", nil, false)
+	if err == nil {
+		t.Fatalf("Failed to detect overlapping subnets")
+	}
+
+	_, _, _, err = a.RequestPool(localAddressSpace, "10.128.0.0/9", "", nil, false)
+	if err == nil {
+		t.Fatalf("Failed to detect overlapping subnets")
+	}
+
+	_, _, _, err = a.RequestPool(localAddressSpace, "1003:1:2:3:4:5:6::/112", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to add v6 subnet: %s", err.Error())
 	}
 
-	_, sub6, err = net.ParseCIDR("1003:1:2:3::/64")
-	if err != nil {
-		t.Fatalf("Wrong input, Can't proceed: %s", err.Error())
-	}
-	err = a.AddSubnet("default", &SubnetInfo{Subnet: sub6})
+	_, _, _, err = a.RequestPool(localAddressSpace, "1003:1:2:3::/64", "", nil, false)
 	if err == nil {
 		t.Fatalf("Failed to detect overlapping v6 subnet")
 	}
 }
 
-func TestAdjustAndCheckSubnet(t *testing.T) {
-	_, sub6, _ := net.ParseCIDR("1003:1:2:300::/63")
-	_, err := adjustAndCheckSubnetSize(sub6)
-	if err == nil {
-		t.Fatalf("Failed detect too big v6 subnet")
-	}
+func TestAddReleasePoolID(t *testing.T) {
+	var k0, k1, k2 SubnetKey
 
-	_, sub, _ := net.ParseCIDR("192.0.0.0/7")
-	_, err = adjustAndCheckSubnetSize(sub)
-	if err == nil {
-		t.Fatalf("Failed detect too big v4 subnet")
-	}
-
-	subnet := "1004:1:2:6::/64"
-	_, sub6, _ = net.ParseCIDR(subnet)
-	subnetToSplit, err := adjustAndCheckSubnetSize(sub6)
+	a, err := getAllocator()
 	if err != nil {
-		t.Fatalf("Unexpected error returned by adjustAndCheckSubnetSize()")
+		t.Fatal(err)
 	}
-	ones, _ := subnetToSplit.Mask.Size()
-	if ones < minNetSizeV6Eff {
-		t.Fatalf("Wrong effective network size for %s. Expected: %d. Got: %d", subnet, minNetSizeV6Eff, ones)
+
+	aSpace, err := a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets := aSpace.subnets
+	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure in adding pool")
+	}
+	if err := k0.FromString(pid0); err != nil {
+		t.Fatal(err)
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+
+	if subnets[k0].RefCount != 1 {
+		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	}
+
+	pid1, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure in adding sub pool")
+	}
+	if err := k1.FromString(pid1); err != nil {
+		t.Fatal(err)
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+	if subnets[k1].RefCount != 1 {
+		t.Fatalf("Unexpected ref count for %s: %d", k1, subnets[k1].RefCount)
+	}
+
+	pid2, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure in adding sub pool")
+	}
+	if pid0 == pid1 || pid0 == pid2 || pid1 != pid2 {
+		t.Fatalf("Incorrect poolIDs returned %s, %s, %s", pid0, pid1, pid2)
+	}
+	if err := k2.FromString(pid2); err != nil {
+		t.Fatal(err)
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+	if subnets[k2].RefCount != 2 {
+		t.Fatalf("Unexpected ref count for %s: %d", k2, subnets[k2].RefCount)
+	}
+
+	if subnets[k0].RefCount != 3 {
+		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	}
+
+	if err := a.ReleasePool(pid1); err != nil {
+		t.Fatal(err)
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+	if subnets[k0].RefCount != 2 {
+		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	}
+	if err := a.ReleasePool(pid0); err != nil {
+		t.Fatal(err)
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+	if subnets[k0].RefCount != 1 {
+		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	}
+
+	pid00, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure in adding pool")
+	}
+	if pid00 != pid0 {
+		t.Fatalf("main pool should still exist")
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+	if subnets[k0].RefCount != 2 {
+		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	}
+
+	if err := a.ReleasePool(pid2); err != nil {
+		t.Fatal(err)
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+	if subnets[k0].RefCount != 1 {
+		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	}
+
+	if err := a.ReleasePool(pid00); err != nil {
+		t.Fatal(err)
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+	if bp, ok := subnets[k0]; ok {
+		t.Fatalf("Base pool %s is still present: %v", k0, bp)
+	}
+
+	_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure in adding pool")
+	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+	if subnets[k0].RefCount != 1 {
+		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	}
+}
+
+func TestPredefinedPool(t *testing.T) {
+	a, err := getAllocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := a.getPredefinedPool("blue", false); err == nil {
+		t.Fatalf("Expected failure for non default addr space")
+	}
+
+	exp, err := ipamutils.FindAvailableNetwork(a.predefined[localAddressSpace])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nw, err := a.getPredefinedPool(localAddressSpace, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(nw, exp) {
+		t.Fatalf("Unexpected default network returned: %s. Expected: %s", nw, exp)
+	}
+
+	pid, nw, _, err := a.RequestPool(localAddressSpace, exp.String(), "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(nw, exp) {
+		t.Fatalf("Unexpected default network returned: %s. Expected: %s", nw, exp)
+	}
+
+	nw2, err := a.getPredefinedPool(localAddressSpace, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if types.CompareIPNet(nw, nw2) {
+		t.Fatalf("Unexpected default network returned: %s = %s", nw2, nw)
+	}
+
+	if err := a.ReleasePool(pid); err != nil {
+		t.Fatal(err)
+	}
+
+	nw, err = a.getPredefinedPool(localAddressSpace, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(nw, exp) {
+		t.Fatalf("Unexpected default network returned: %s. Expected %s", nw, exp)
 	}
 }
 
 func TestRemoveSubnet(t *testing.T) {
-	a, err := NewAllocator(nil)
+	a, err := getAllocator()
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	input := []struct {
-		addrSpace AddressSpace
-		subnet    string
-	}{
-		{"default", "192.168.0.0/16"},
-		{"default", "172.17.0.0/16"},
-		{"default", "10.0.0.0/8"},
-		{"default", "2002:1:2:3:4:5:ffff::/112"},
-		{"splane", "172.17.0.0/16"},
-		{"splane", "10.0.0.0/8"},
-		{"splane", "2002:1:2:3:4:5:6::/112"},
-		{"splane", "2002:1:2:3:4:5:ffff::/112"},
+	a.addrSpaces["splane"] = &addrSpace{
+		id:      dsConfigKey + "/" + "splane",
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
 	}
 
-	for _, i := range input {
-		_, sub, err := net.ParseCIDR(i.subnet)
-		if err != nil {
-			t.Fatalf("Wrong input, Can't proceed: %s", err.Error())
-		}
-		err = a.AddSubnet(i.addrSpace, &SubnetInfo{Subnet: sub})
-		if err != nil {
+	input := []struct {
+		addrSpace string
+		subnet    string
+		v6        bool
+	}{
+		{localAddressSpace, "192.168.0.0/16", false},
+		{localAddressSpace, "172.17.0.0/16", false},
+		{localAddressSpace, "10.0.0.0/8", false},
+		{localAddressSpace, "2002:1:2:3:4:5:ffff::/112", false},
+		{"splane", "172.17.0.0/16", false},
+		{"splane", "10.0.0.0/8", false},
+		{"splane", "2002:1:2:3:4:5:6::/112", true},
+		{"splane", "2002:1:2:3:4:5:ffff::/112", true},
+	}
+
+	poolIDs := make([]string, len(input))
+
+	for ind, i := range input {
+		if poolIDs[ind], _, _, err = a.RequestPool(i.addrSpace, i.subnet, "", nil, i.v6); err != nil {
 			t.Fatalf("Failed to apply input. Can't proceed: %s", err.Error())
 		}
 	}
 
-	_, sub, _ := net.ParseCIDR("172.17.0.0/16")
-	a.RemoveSubnet("default", sub)
-	if len(a.subnets) != 7 {
-		t.Fatalf("Failed to remove subnet info")
-	}
-	list := a.getSubnetList("default", v4)
-	if len(list) != 257 {
-		t.Fatalf("Failed to effectively remove subnet address space")
-	}
-
-	_, sub, _ = net.ParseCIDR("2002:1:2:3:4:5:ffff::/112")
-	a.RemoveSubnet("default", sub)
-	if len(a.subnets) != 6 {
-		t.Fatalf("Failed to remove subnet info")
-	}
-	list = a.getSubnetList("default", v6)
-	if len(list) != 0 {
-		t.Fatalf("Failed to effectively remove subnet address space")
-	}
-
-	_, sub, _ = net.ParseCIDR("2002:1:2:3:4:5:6::/112")
-	a.RemoveSubnet("splane", sub)
-	if len(a.subnets) != 5 {
-		t.Fatalf("Failed to remove subnet info")
-	}
-	list = a.getSubnetList("splane", v6)
-	if len(list) != 1 {
-		t.Fatalf("Failed to effectively remove subnet address space")
-	}
-}
-
-func TestGetInternalSubnets(t *testing.T) {
-	// This function tests the splitting of a parent subnet in small host subnets.
-	// The splitting is controlled by the max host size, which is the first parameter
-	// passed to the function. It basically says if the parent subnet host size is
-	// greater than the max host size, split the parent subnet into N internal small
-	// subnets with host size = max host size to cover the same address space.
-
-	input := []struct {
-		internalHostSize int
-		parentSubnet     string
-		firstIntSubnet   string
-		lastIntSubnet    string
-	}{
-		// Test 8 bits prefix network
-		{24, "10.0.0.0/8", "10.0.0.0/8", "10.0.0.0/8"},
-		{16, "10.0.0.0/8", "10.0.0.0/16", "10.255.0.0/16"},
-		{8, "10.0.0.0/8", "10.0.0.0/24", "10.255.255.0/24"},
-		// Test 16 bits prefix network
-		{16, "192.168.0.0/16", "192.168.0.0/16", "192.168.0.0/16"},
-		{8, "192.168.0.0/16", "192.168.0.0/24", "192.168.255.0/24"},
-		// Test 24 bits prefix network
-		{16, "192.168.57.0/24", "192.168.57.0/24", "192.168.57.0/24"},
-		{8, "192.168.57.0/24", "192.168.57.0/24", "192.168.57.0/24"},
-		// Test non byte multiple host size
-		{24, "10.0.0.0/8", "10.0.0.0/8", "10.0.0.0/8"},
-		{20, "10.0.0.0/12", "10.0.0.0/12", "10.0.0.0/12"},
-		{20, "10.128.0.0/12", "10.128.0.0/12", "10.128.0.0/12"},
-		{12, "10.16.0.0/16", "10.16.0.0/20", "10.16.240.0/20"},
-		{13, "10.0.0.0/8", "10.0.0.0/19", "10.255.224.0/19"},
-		{15, "10.0.0.0/8", "10.0.0.0/17", "10.255.128.0/17"},
-		// Test v6 network
-		{16, "2002:1:2:3:4:5:6000::/110", "2002:1:2:3:4:5:6000:0/112", "2002:1:2:3:4:5:6003:0/112"},
-		{16, "2002:1:2:3:4:5:ff00::/104", "2002:1:2:3:4:5:ff00:0/112", "2002:1:2:3:4:5:ffff:0/112"},
-		{12, "2002:1:2:3:4:5:ffff::/112", "2002:1:2:3:4:5:ffff:0/116", "2002:1:2:3:4:5:ffff:f000/116"},
-		{11, "2002:1:2:3:4:5:ffff::/112", "2002:1:2:3:4:5:ffff:0/117", "2002:1:2:3:4:5:ffff:f800/117"},
-	}
-
-	for _, d := range input {
-		assertInternalSubnet(t, d.internalHostSize, d.parentSubnet, d.firstIntSubnet, d.lastIntSubnet)
+	for ind, id := range poolIDs {
+		if err := a.ReleasePool(id); err != nil {
+			t.Fatalf("Failed to release poolID %s (%d)", id, ind)
+		}
 	}
 }
 
 func TestGetSameAddress(t *testing.T) {
-	a, err := NewAllocator(nil)
+	a, err := getAllocator()
 	if err != nil {
 		t.Fatal(err)
 	}
+	a.addrSpaces["giallo"] = &addrSpace{
+		id:      dsConfigKey + "/" + "giallo",
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
+	}
 
-	addSpace := AddressSpace("giallo")
-	_, subnet, _ := net.ParseCIDR("192.168.100.0/24")
-	if err := a.AddSubnet(addSpace, &SubnetInfo{Subnet: subnet}); err != nil {
+	pid, _, _, err := a.RequestPool("giallo", "192.168.100.0/24", "", nil, false)
+	if err != nil {
 		t.Fatal(err)
 	}
 
 	ip := net.ParseIP("192.168.100.250")
-	req := &AddressRequest{Subnet: *subnet, Address: ip}
-
-	_, err = a.Request(addSpace, req)
+	_, _, err = a.RequestAddress(pid, ip, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = a.Request(addSpace, req)
+	_, _, err = a.RequestAddress(pid, ip, nil)
 	if err == nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRequestReleaseAddressFromSubPool(t *testing.T) {
+	a, err := getAllocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.addrSpaces["rosso"] = &addrSpace{
+		id:      dsConfigKey + "/" + "rosso",
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
+	}
+
+	poolID, _, _, err := a.RequestPool("rosso", "172.28.0.0/16", "172.28.30.0/24", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var ip *net.IPNet
+	expected := &net.IPNet{IP: net.IP{172, 28, 30, 255}, Mask: net.IPMask{255, 255, 0, 0}}
+	for err == nil {
+		var c *net.IPNet
+		if c, _, err = a.RequestAddress(poolID, nil, nil); err == nil {
+			ip = c
+		}
+	}
+	if err != ipamapi.ErrNoAvailableIPs {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(expected, ip) {
+		t.Fatalf("Unexpected last IP from subpool. Expected: %s. Got: %v.", expected, ip)
+	}
+	rp := &net.IPNet{IP: net.IP{172, 28, 30, 97}, Mask: net.IPMask{255, 255, 0, 0}}
+	if err = a.ReleaseAddress(poolID, rp.IP); err != nil {
+		t.Fatal(err)
+	}
+	if ip, _, err = a.RequestAddress(poolID, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(rp, ip) {
+		t.Fatalf("Unexpected IP from subpool. Expected: %s. Got: %v.", rp, ip)
+	}
+
+	_, _, _, err = a.RequestPool("rosso", "10.0.0.0/8", "10.0.0.0/16", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	poolID, _, _, err = a.RequestPool("rosso", "10.0.0.0/16", "10.0.0.0/24", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected = &net.IPNet{IP: net.IP{10, 0, 0, 255}, Mask: net.IPMask{255, 255, 0, 0}}
+	for err == nil {
+		var c *net.IPNet
+		if c, _, err = a.RequestAddress(poolID, nil, nil); err == nil {
+			ip = c
+		}
+	}
+	if err != ipamapi.ErrNoAvailableIPs {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(expected, ip) {
+		t.Fatalf("Unexpected last IP from subpool. Expected: %s. Got: %v.", expected, ip)
+	}
+	rp = &net.IPNet{IP: net.IP{10, 0, 0, 79}, Mask: net.IPMask{255, 255, 0, 0}}
+	if err = a.ReleaseAddress(poolID, rp.IP); err != nil {
+		t.Fatal(err)
+	}
+	if ip, _, err = a.RequestAddress(poolID, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(rp, ip) {
+		t.Fatalf("Unexpected IP from subpool. Expected: %s. Got: %v.", rp, ip)
 	}
 }
 
 func TestGetAddress(t *testing.T) {
 	input := []string{
-		/*"10.0.0.0/8", "10.0.0.0/9", */ "10.0.0.0/10", "10.0.0.0/11", "10.0.0.0/12", "10.0.0.0/13", "10.0.0.0/14",
+		/*"10.0.0.0/8", "10.0.0.0/9", "10.0.0.0/10",*/ "10.0.0.0/11", "10.0.0.0/12", "10.0.0.0/13", "10.0.0.0/14",
 		"10.0.0.0/15", "10.0.0.0/16", "10.0.0.0/17", "10.0.0.0/18", "10.0.0.0/19", "10.0.0.0/20", "10.0.0.0/21",
 		"10.0.0.0/22", "10.0.0.0/23", "10.0.0.0/24", "10.0.0.0/25", "10.0.0.0/26", "10.0.0.0/27", "10.0.0.0/28",
 		"10.0.0.0/29", "10.0.0.0/30", "10.0.0.0/31"}
@@ -313,90 +663,76 @@ func TestGetAddress(t *testing.T) {
 	}
 }
 
-func TestGetSubnetList(t *testing.T) {
-	a, err := NewAllocator(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	input := []struct {
-		addrSpace AddressSpace
-		subnet    string
-	}{
-		{"default", "192.168.0.0/16"},
-		{"default", "172.17.0.0/16"},
-		{"default", "10.0.0.0/8"},
-		{"default", "2002:1:2:3:4:5:6::/112"},
-		{"default", "2002:1:2:3:4:5:ffff::/112"},
-		{"splane", "172.17.0.0/16"},
-		{"splane", "10.0.0.0/8"},
-		{"splane", "2002:1:2:3:4:5:ff00::/104"},
-	}
-
-	for _, i := range input {
-		_, sub, err := net.ParseCIDR(i.subnet)
-		if err != nil {
-			t.Fatalf("Wrong input, Can't proceed: %s", err.Error())
-		}
-		err = a.AddSubnet(i.addrSpace, &SubnetInfo{Subnet: sub})
-		if err != nil {
-			t.Fatalf("Failed to apply input. Can't proceed: %s", err.Error())
-		}
-	}
-
-	list := a.getSubnetList("default", v4)
-	if len(list) != 258 {
-		t.Fatalf("Incorrect number of internal subnets for ipv4 version. Expected 258. Got %d.", len(list))
-	}
-	list = a.getSubnetList("splane", v4)
-	if len(list) != 257 {
-		t.Fatalf("Incorrect number of internal subnets for ipv4 version. Expected 257. Got %d.", len(list))
-	}
-
-	list = a.getSubnetList("default", v6)
-	if len(list) != 2 {
-		t.Fatalf("Incorrect number of internal subnets for ipv6 version. Expected 2. Got %d.", len(list))
-	}
-	list = a.getSubnetList("splane", v6)
-	if len(list) != 256 {
-		t.Fatalf("Incorrect number of internal subnets for ipv6 version. Expected 256. Got %d.", len(list))
-	}
-
-}
-
 func TestRequestSyntaxCheck(t *testing.T) {
 	var (
-		subnet   = "192.168.0.0/16"
-		addSpace = AddressSpace("green")
+		pool    = "192.168.0.0/16"
+		subPool = "192.168.0.0/24"
+		as      = "green"
+		err     error
 	)
 
-	a, err := NewAllocator(nil)
+	a, err := getAllocator()
 	if err != nil {
 		t.Fatal(err)
 	}
+	a.addrSpaces[as] = &addrSpace{
+		id:      dsConfigKey + "/" + as,
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
+	}
 
-	// Add subnet and create base request
-	_, sub, _ := net.ParseCIDR(subnet)
-	a.AddSubnet(addSpace, &SubnetInfo{Subnet: sub})
-	req := &AddressRequest{Subnet: *sub}
-
-	// Empty address space request
-	_, err = a.Request("", req)
+	_, _, _, err = a.RequestPool("", pool, "", nil, false)
 	if err == nil {
 		t.Fatalf("Failed to detect wrong request: empty address space")
 	}
 
-	// Preferred address from different subnet in request
-	req.Address = net.ParseIP("172.17.0.23")
-	_, err = a.Request(addSpace, req)
+	_, _, _, err = a.RequestPool("", pool, subPool, nil, false)
+	if err == nil {
+		t.Fatalf("Failed to detect wrong request: empty address space")
+	}
+
+	_, _, _, err = a.RequestPool(as, "", subPool, nil, false)
+	if err == nil {
+		t.Fatalf("Failed to detect wrong request: subPool specified and no pool")
+	}
+
+	pid, _, _, err := a.RequestPool(as, pool, subPool, nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected failure: %v", err)
+	}
+
+	_, _, err = a.RequestAddress("", nil, nil)
+	if err == nil {
+		t.Fatalf("Failed to detect wrong request: no pool id specified")
+	}
+
+	ip := net.ParseIP("172.17.0.23")
+	_, _, err = a.RequestAddress(pid, ip, nil)
 	if err == nil {
 		t.Fatalf("Failed to detect wrong request: preferred IP from different subnet")
 	}
 
-	// Preferred address specified and nil subnet
-	req = &AddressRequest{Address: net.ParseIP("172.17.0.23")}
-	_, err = a.Request(addSpace, req)
+	ip = net.ParseIP("192.168.0.50")
+	_, _, err = a.RequestAddress(pid, ip, nil)
+	if err != nil {
+		t.Fatalf("Unexpected failure: %v", err)
+	}
+
+	err = a.ReleaseAddress("", ip)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: subnet not specified but preferred address specified")
+		t.Fatalf("Failed to detect wrong request: no pool id specified")
+	}
+
+	err = a.ReleaseAddress(pid, nil)
+	if err == nil {
+		t.Fatalf("Failed to detect wrong request: no pool id specified")
+	}
+
+	err = a.ReleaseAddress(pid, ip)
+	if err != nil {
+		t.Fatalf("Unexpected failure: %v: %s, %s", err, pid, ip)
 	}
 }
 
@@ -417,12 +753,14 @@ func TestRequest(t *testing.T) {
 		{"10.0.0.0/8", 256, "10.0.1.0"},
 
 		{"192.168.128.0/18", 4*256 - 1, "192.168.131.255"},
-		{"192.168.240.0/20", 16*256 - 2, "192.168.255.254"},
+		/*
+			{"192.168.240.0/20", 16*256 - 2, "192.168.255.254"},
 
-		{"192.168.0.0/16", 256*256 - 2, "192.168.255.254"},
-		{"10.0.0.0/8", 2 * 256, "10.0.2.0"},
-		{"10.0.0.0/8", 5 * 256, "10.0.5.0"},
-		//{"10.0.0.0/8", 100 * 256 * 254, "10.99.255.254"},
+			{"192.168.0.0/16", 256*256 - 2, "192.168.255.254"},
+			{"10.0.0.0/8", 2 * 256, "10.0.2.0"},
+			{"10.0.0.0/8", 5 * 256, "10.0.5.0"},
+			{"10.0.0.0/8", 100 * 256 * 254, "10.99.255.254"},
+		*/
 	}
 
 	for _, d := range input {
@@ -432,19 +770,23 @@ func TestRequest(t *testing.T) {
 
 func TestRelease(t *testing.T) {
 	var (
-		err    error
-		req    *AddressRequest
-		subnet = "192.168.0.0/16"
+		subnet = "192.168.0.0/23"
 	)
 
-	_, sub, _ := net.ParseCIDR(subnet)
-	a := getAllocator(t, sub)
-	req = &AddressRequest{Subnet: *sub}
-	bm := a.addresses[subnetKey{"default", subnet, subnet}]
+	a, err := getAllocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bm := a.addresses[SubnetKey{localAddressSpace, subnet, ""}]
 
 	// Allocate all addresses
-	for err != ErrNoAvailableIPs {
-		_, err = a.Request("default", req)
+	for err != ipamapi.ErrNoAvailableIPs {
+		_, _, err = a.RequestAddress(pid, nil, nil)
 	}
 
 	toRelease := []struct {
@@ -470,47 +812,27 @@ func TestRelease(t *testing.T) {
 
 		{"192.168.1.3"},
 
-		{"192.168.255.253"},
-		{"192.168.255.254"},
+		{"192.168.1.253"},
+		{"192.168.1.254"},
 	}
 
 	// One by one, relase the address and request again. We should get the same IP
-	req = &AddressRequest{Subnet: *sub}
 	for i, inp := range toRelease {
-		address := net.ParseIP(inp.address)
-		a.Release("default", address)
+		ip0 := net.ParseIP(inp.address)
+		a.ReleaseAddress(pid, ip0)
+		bm = a.addresses[SubnetKey{localAddressSpace, subnet, ""}]
 		if bm.Unselected() != 1 {
 			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
 		}
 
-		rsp, err := a.Request("default", req)
+		nw, _, err := a.RequestAddress(pid, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to obtain the address: %s", err.Error())
 		}
-		if !address.Equal(rsp.Address) {
-			t.Fatalf("Failed to obtain the same address. Expected: %s, Got: %s", address, rsp.Address)
+		ip := nw.IP
+		if !ip0.Equal(ip) {
+			t.Fatalf("Failed to obtain the same address. Expected: %s, Got: %s", ip0, ip)
 		}
-	}
-}
-
-func assertInternalSubnet(t *testing.T, hostSize int, bigSubnet, firstSmall, lastSmall string) {
-	_, subnet, _ := net.ParseCIDR(bigSubnet)
-	list, _ := getInternalSubnets(subnet, hostSize)
-	count := 1
-	ones, bits := subnet.Mask.Size()
-	diff := bits - ones - int(hostSize)
-	if diff > 0 {
-		count <<= uint(diff)
-	}
-
-	if len(list) != count {
-		t.Fatalf("Wrong small subnets number. Expected: %d, Got: %d", count, len(list))
-	}
-	if firstSmall != list[0].String() {
-		t.Fatalf("Wrong first small subent. Expected: %v, Got: %v", firstSmall, list[0])
-	}
-	if lastSmall != list[count-1].String() {
-		t.Fatalf("Wrong last small subent. Expected: %v, Got: %v", lastSmall, list[count-1])
 	}
 }
 
@@ -526,15 +848,15 @@ func assertGetAddress(t *testing.T, subnet string) {
 	zeroes := bits - ones
 	numAddresses := 1 << uint(zeroes)
 
-	bm, err := bitseq.NewHandle("ipam_test", nil, "default/192.168.0.0/24", uint32(numAddresses))
+	bm, err := bitseq.NewHandle("ipam_test", nil, "default/"+subnet, uint64(numAddresses))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	start := time.Now()
 	run := 0
-	for err != ErrNoAvailableIPs {
-		_, err = a.getAddress(sub, bm, nil, v4)
+	for err != ipamapi.ErrNoAvailableIPs {
+		_, err = a.getAddress(sub, bm, nil, nil)
 		run++
 	}
 	if printTime {
@@ -553,60 +875,59 @@ func assertGetAddress(t *testing.T, subnet string) {
 
 func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP string) {
 	var (
-		err       error
-		req       *AddressRequest
-		rsp       *AddressResponse
+		nw        *net.IPNet
 		printTime = false
 	)
 
-	_, sub, _ := net.ParseCIDR(subnet)
 	lastIP := net.ParseIP(lastExpectedIP)
-
-	a := getAllocator(t, sub)
-	req = &AddressRequest{Subnet: *sub}
+	a, err := getAllocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	i := 0
 	start := time.Now()
 	for ; i < numReq; i++ {
-		rsp, err = a.Request("default", req)
+		nw, _, err = a.RequestAddress(pid, nil, nil)
 	}
 	if printTime {
 		fmt.Printf("\nTaken %v, to allocate %d addresses on %s\n", time.Since(start), numReq, subnet)
 	}
 
-	if !lastIP.Equal(rsp.Address) {
-		t.Fatalf("Wrong last IP. Expected %s. Got: %s (err: %v, ind: %d)", lastExpectedIP, rsp.Address.String(), err, i)
+	if !lastIP.Equal(nw.IP) {
+		t.Fatalf("Wrong last IP. Expected %s. Got: %s (err: %v, ind: %d)", lastExpectedIP, nw.IP.String(), err, i)
 	}
 }
 
-func benchmarkRequest(subnet *net.IPNet) {
-	var err error
-
-	a, _ := NewAllocator(nil)
-	a.internalHostSize = 20
-	a.AddSubnet("default", &SubnetInfo{Subnet: subnet})
-
-	req := &AddressRequest{Subnet: *subnet}
-	for err != ErrNoAvailableIPs {
-		_, err = a.Request("default", req)
-
+func benchmarkRequest(b *testing.B, a *Allocator, subnet string) {
+	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
+	for err != ipamapi.ErrNoAvailableIPs {
+		_, _, err = a.RequestAddress(pid, nil, nil)
 	}
 }
 
-func benchMarkRequest(subnet *net.IPNet, b *testing.B) {
+func benchMarkRequest(subnet string, b *testing.B) {
+	a, _ := getAllocator()
 	for n := 0; n < b.N; n++ {
-		benchmarkRequest(subnet)
+		benchmarkRequest(b, a, subnet)
 	}
 }
 
 func BenchmarkRequest_24(b *testing.B) {
-	benchmarkRequest(&net.IPNet{IP: []byte{10, 0, 0, 0}, Mask: []byte{255, 255, 255, 0}})
+	a, _ := getAllocator()
+	benchmarkRequest(b, a, "10.0.0.0/24")
 }
 
 func BenchmarkRequest_16(b *testing.B) {
-	benchmarkRequest(&net.IPNet{IP: []byte{10, 0, 0, 0}, Mask: []byte{255, 255, 0, 0}})
+	a, _ := getAllocator()
+	benchmarkRequest(b, a, "10.0.0.0/16")
 }
 
 func BenchmarkRequest_8(b *testing.B) {
-	benchmarkRequest(&net.IPNet{IP: []byte{10, 0, 0, 0}, Mask: []byte{255, 0xfc, 0, 0}})
+	a, _ := getAllocator()
+	benchmarkRequest(b, a, "10.0.0.0/8")
 }

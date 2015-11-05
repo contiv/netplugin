@@ -288,10 +288,10 @@ func (d *Docker) configureIfAddress(ctx *crtclient.ContainerEPContext) error {
 		return err
 	}
 
-	if ctx.DefaultGw != "" {
+	if ctx.Gateway != "" {
 		out, err = exec.Command("/sbin/ip", "netns", "exec", contPid,
 			"/sbin/route", "add", "default", "gateway",
-			ctx.DefaultGw).CombinedOutput()
+			ctx.Gateway).CombinedOutput()
 		if err != nil {
 			log.Errorf("error setting default gateway for if %s 'out = %s'. Error: %s",
 				ctx.InterfaceID, out, err)

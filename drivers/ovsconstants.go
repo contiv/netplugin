@@ -1,30 +1,12 @@
 package drivers
 
+import "github.com/contiv/netplugin/netmaster/mastercfg"
+
 const (
 	operCreateBridge oper = iota
 	operDeleteBridge
 	operCreatePort
 	operDeletePort
-)
-
-const (
-	// StateBasePath is the base path for all state operations.
-	StateBasePath = "/contiv/"
-	// StateConfigPath is the path to the root of the configuration state
-	StateConfigPath = StateBasePath + "config/"
-	// StateOperPath is the path to the operations stored in state.
-	StateOperPath = StateBasePath + "oper/"
-
-	networkConfigPathPrefix  = StateConfigPath + "nets/"
-	networkConfigPath        = networkConfigPathPrefix + "%s"
-	endpointConfigPathPrefix = StateConfigPath + "eps/"
-	endpointConfigPath       = endpointConfigPathPrefix + "%s"
-	networkOperPathPrefix    = StateOperPath + "nets/"
-	networkOperPath          = networkOperPathPrefix + "%s"
-	endpointOperPathPrefix   = StateOperPath + "eps/"
-	endpointOperPath         = endpointOperPathPrefix + "%s"
-	epGroupConfigPathPrefix  = StateConfigPath + "endpointGroups/"
-	epGroupConfigPath        = epGroupConfigPathPrefix + "%s"
 )
 
 const (
@@ -41,6 +23,12 @@ const (
 	getPortName = true
 	getIntfName = false
 
-	ovsOperPathPrefix = StateOperPath + "ovs-driver/"
-	ovsOperPath       = ovsOperPathPrefix + "%s"
+	// StateOperPath is the path to the operations stored in state.
+	StateOperPath          = mastercfg.StateBasePath + "oper/"
+	ovsOperPathPrefix      = StateOperPath + "ovs-driver/"
+	ovsOperPath            = ovsOperPathPrefix + "%s"
+	networkOperPathPrefix  = StateOperPath + "nets/"
+	endpointOperPathPrefix = StateOperPath + "eps/"
+	networkOperPath        = networkOperPathPrefix + "%s"
+	endpointOperPath       = endpointOperPathPrefix + "%s"
 )

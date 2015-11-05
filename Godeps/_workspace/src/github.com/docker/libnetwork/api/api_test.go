@@ -14,6 +14,8 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/testutils"
@@ -24,12 +26,6 @@ const (
 	bridgeNetType = "bridge"
 	bridgeName    = "docker0"
 )
-
-func getEmptyGenericOption() map[string]interface{} {
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = options.Generic{}
-	return genericOption
-}
 
 func i2s(i interface{}) string {
 	s, ok := i.(string)
@@ -88,11 +84,13 @@ func i2sbL(i interface{}) []*sandboxResource {
 }
 
 func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkController, libnetwork.Network) {
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -106,6 +104,22 @@ func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkControll
 	}
 
 	return c, nw
+}
+
+func getExposedPorts() []types.TransportPort {
+	return []types.TransportPort{
+		types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
+		types.TransportPort{Proto: types.UDP, Port: uint16(400)},
+		types.TransportPort{Proto: types.TCP, Port: uint16(600)},
+	}
+}
+
+func getPortMapping() []types.PortBinding {
+	return []types.PortBinding{
+		types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
+		types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
+		types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -175,6 +189,9 @@ func TestJson(t *testing.T) {
 func TestCreateDeleteNetwork(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -208,15 +225,11 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
 	}
 
-	ops := options.Generic{
-		netlabel.EnableIPv6: true,
-		netlabel.GenericData: map[string]string{
-			"BridgeName":  "abc",
-			"FixedCIDRv6": "fe80::1/64",
-			"AddressIP":   "172.28.30.254/24",
-		},
+	ops := map[string]string{
+		bridge.BridgeName:   "abc",
+		netlabel.EnableIPv6: "true",
 	}
-	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, Options: ops}
+	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, DriverOpts: ops}
 	goodBody, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -244,10 +257,36 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
+
+	// Create with labels
+	labels := map[string]string{
+		netlabel.EnableIPv6: "true",
+		bridge.BridgeName:   "abc",
+	}
+	nc = networkCreate{Name: "network_2", NetworkType: bridgeNetType, DriverOpts: labels}
+	goodBody, err = json.Marshal(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, errRsp = procCreateNetwork(c, vars, goodBody)
+	if errRsp != &createdResponse {
+		t.Fatalf("Unexepected failure: %v", errRsp)
+	}
+
+	vars[urlNwName] = "network_2"
+	_, errRsp = procDeleteNetwork(c, vars, nil)
+	if errRsp != &successResponse {
+		t.Fatalf("Unexepected failure: %v", errRsp)
+	}
+
 }
 
 func TestGetNetworksAndEndpoints(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {
@@ -255,13 +294,10 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 	defer c.Stop()
 
-	ops := options.Generic{
-		netlabel.GenericData: map[string]string{
-			"BridgeName": "api_test_nw",
-		},
+	ops := map[string]string{
+		bridge.BridgeName: "api_test_nw",
 	}
-
-	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, Options: ops}
+	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, DriverOpts: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -278,17 +314,9 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 
 	ec1 := endpointCreate{
-		Name: "ep1",
-		ExposedPorts: []types.TransportPort{
-			types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
-			types.TransportPort{Proto: types.UDP, Port: uint16(400)},
-			types.TransportPort{Proto: types.TCP, Port: uint16(600)},
-		},
-		PortMapping: []types.PortBinding{
-			types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
-			types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
-			types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
-		},
+		Name:         "ep1",
+		ExposedPorts: getExposedPorts(),
+		PortMapping:  getPortMapping(),
 	}
 	b1, err := json.Marshal(ec1)
 	if err != nil {
@@ -430,10 +458,10 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	nr1 := i2n(inr1)
 
 	delete(vars, urlNwName)
-	vars[urlNwID] = "cacca"
+	vars[urlNwID] = "acacac"
 	_, errRsp = procGetNetwork(c, vars, nil)
 	if errRsp == &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Expected failure. Got: %v", errRsp)
 	}
 	vars[urlNwID] = nid
 	inr2, errRsp := procGetNetwork(c, vars, nil)
@@ -517,6 +545,9 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 
 func TestProcGetServices(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {
@@ -686,6 +717,7 @@ func TestProcGetService(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
 	ep1, err := nw.CreateEndpoint("db")
 	if err != nil {
 		t.Fatal(err)
@@ -738,6 +770,8 @@ func TestProcPublishUnpublishService(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, _ := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	vars := make(map[string]string)
 
 	vbad, err := json.Marshal("bad service create data")
@@ -810,18 +844,10 @@ func TestProcPublishUnpublishService(t *testing.T) {
 	}
 
 	sp := servicePublish{
-		Name:    "web",
-		Network: "network",
-		ExposedPorts: []types.TransportPort{
-			types.TransportPort{Proto: types.TCP, Port: uint16(6000)},
-			types.TransportPort{Proto: types.UDP, Port: uint16(500)},
-			types.TransportPort{Proto: types.TCP, Port: uint16(700)},
-		},
-		PortMapping: []types.PortBinding{
-			types.PortBinding{Proto: types.TCP, Port: uint16(1230), HostPort: uint16(37000)},
-			types.PortBinding{Proto: types.UDP, Port: uint16(1200), HostPort: uint16(36000)},
-			types.PortBinding{Proto: types.TCP, Port: uint16(1120), HostPort: uint16(35000)},
-		},
+		Name:         "web",
+		Network:      "network",
+		ExposedPorts: getExposedPorts(),
+		PortMapping:  getPortMapping(),
 	}
 	b, err = json.Marshal(sp)
 	if err != nil {
@@ -870,6 +896,7 @@ func TestAttachDetachBackend(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
 	ep1, err := nw.CreateEndpoint("db")
 	if err != nil {
 		t.Fatal(err)
@@ -994,6 +1021,9 @@ func TestAttachDetachBackend(t *testing.T) {
 }
 
 func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1011,6 +1041,7 @@ func TestDetectGetEndpointsInvalidQueryComposition(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, _ := createTestNetwork(t, "network")
+	defer c.Stop()
 
 	vars := map[string]string{urlNwName: "network", urlEpName: "x", urlEpPID: "y"}
 	_, errRsp := procGetEndpoints(c, vars, nil)
@@ -1023,6 +1054,7 @@ func TestDetectGetServicesInvalidQueryComposition(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, _ := createTestNetwork(t, "network")
+	defer c.Stop()
 
 	vars := map[string]string{urlNwName: "network", urlEpName: "x", urlEpPID: "y"}
 	_, errRsp := procGetServices(c, vars, nil)
@@ -1040,6 +1072,8 @@ func TestFindNetworkUtil(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	nid := nw.ID()
 
 	_, errRsp := findNetwork(c, "", byName)
@@ -1101,6 +1135,9 @@ func TestFindNetworkUtil(t *testing.T) {
 
 func TestCreateDeleteEndpoints(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {
@@ -1225,6 +1262,9 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 func TestJoinLeave(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1301,6 +1341,7 @@ func TestJoinLeave(t *testing.T) {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
+	// bad labels
 	vars[urlEpName] = "endpoint"
 	key, errRsp := procJoinEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
@@ -1382,6 +1423,8 @@ func TestFindEndpointUtilPanic(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	defer checkPanic(t)
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	nid := nw.ID()
 	findEndpoint(c, nid, "", byID, -1)
 }
@@ -1390,6 +1433,8 @@ func TestFindServiceUtilPanic(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	defer checkPanic(t)
 	c, _ := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	findService(c, "random_service", -1)
 }
 
@@ -1397,6 +1442,8 @@ func TestFindEndpointUtil(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	nid := nw.ID()
 
 	ep, err := nw.CreateEndpoint("secondEp", nil)
@@ -1443,7 +1490,8 @@ func TestFindEndpointUtil(t *testing.T) {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
 
-	if ep0 != ep1 || ep0 != ep2 || ep0 != ep3 || ep0 != ep4 || ep0 != ep5 {
+	if ep0.ID() != ep1.ID() || ep0.ID() != ep2.ID() ||
+		ep0.ID() != ep3.ID() || ep0.ID() != ep4.ID() || ep0.ID() != ep5.ID() {
 		t.Fatalf("Diffenrent queries returned different endpoints")
 	}
 
@@ -1665,6 +1713,9 @@ func TestwriteJSON(t *testing.T) {
 func TestHttpHandlerUninit(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1732,6 +1783,9 @@ func TestHttpHandlerBadBody(t *testing.T) {
 
 	rsp := newWriter()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1765,6 +1819,9 @@ func TestEndToEnd(t *testing.T) {
 
 	rsp := newWriter()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1773,21 +1830,14 @@ func TestEndToEnd(t *testing.T) {
 
 	handleRequest := NewHTTPHandler(c)
 
-	ops := options.Generic{
-		netlabel.EnableIPv6: true,
-		netlabel.GenericData: map[string]string{
-			"BridgeName":          "cdef",
-			"FixedCIDRv6":         "fe80:2000::1/64",
-			"EnableIPv6":          "true",
-			"Mtu":                 "1460",
-			"EnableIPTables":      "true",
-			"AddressIP":           "172.28.30.254/16",
-			"EnableUserlandProxy": "true",
-		},
+	ops := map[string]string{
+		bridge.BridgeName:   "cdef",
+		netlabel.EnableIPv6: "true",
+		netlabel.DriverMTU:  "1460",
 	}
 
 	// Create network
-	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, Options: ops}
+	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, DriverOpts: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -2212,6 +2262,9 @@ func TestEndToEndErrorMessage(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	rsp := newWriter()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {

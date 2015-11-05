@@ -41,50 +41,6 @@ func InitPolicyMgr() error {
 	return nil
 }
 
-// getEndpointGroupID returns endpoint group Id for a service
-// It autocreates the endpoint group if it doesnt exist
-func getEndpointGroupID(serviceName, networkName string) (int, error) {
-	// FIXME: Get tenant name
-	tenantName := "default"
-
-	// If service name is not specified, we are done
-	if serviceName == "" {
-		return 0, nil
-	}
-
-	// form the key based on network and service name.
-	epgName := serviceName + "." + networkName
-	epgKey := tenantName + ":" + epgName
-
-	// See if the epg exists
-	epg := contivModel.FindEndpointGroup(epgKey)
-	if epg == nil {
-		endpointGroup := contivModel.EndpointGroup{
-			Key:         epgKey,
-			TenantName:  tenantName,
-			NetworkName: networkName,
-			GroupName:   epgName,
-		}
-
-		// Create endpoint group
-		err := contivModel.CreateEndpointGroup(&endpointGroup)
-		if err != nil {
-			log.Errorf("Error creating endpoint group: %+v, Err: %v", endpointGroup, err)
-			return 0, err
-		}
-
-		// find again
-		epg = contivModel.FindEndpointGroup(epgKey)
-		if epg == nil {
-			log.Errorf("Error creating endpoint group %s.", epgName)
-			return 0, core.Errorf("EPG not created")
-		}
-	}
-
-	// return endpoint group id
-	return epg.EndpointGroupID, nil
-}
-
 // PolicyAttach attaches a policy to an endpoint and adds associated rules to policyDB
 func PolicyAttach(epg *contivModel.EndpointGroup, policy *contivModel.Policy) error {
 	epgpKey := epg.Key + ":" + policy.Key
@@ -268,7 +224,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	remoteEpgID := 0
 	// See if user specified an endpoint Group in the rule
 	if rule.EndpointGroup != "" {
-		epgKey := rule.TenantName + ":" + rule.EndpointGroup
+		epgKey := rule.TenantName + ":" + rule.Network + ":" + rule.EndpointGroup
 
 		// find the endpoint group
 		epg := contivModel.FindEndpointGroup(epgKey)

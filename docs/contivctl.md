@@ -3,7 +3,7 @@
 contivctl command line tool lets you add/modify/delete objects into contiv object model using REST api.
 
 *Note:*
-`contivctl` Command can be found under `$GOPATH/bin` directory (`/opt/gopath/bin` in vagrant VMs) after a build. 
+`contivctl` Command can be found under `$GOPATH/bin` directory (`/opt/gopath/bin` in vagrant VMs) after a build.
 Currently, `contivctl` needs to be run on the same host where `netmaster` is running
 
 ## Usage
@@ -30,7 +30,7 @@ optional arguments:
 vagrant@netplugin-node1:~$ contivctl network create --help
 usage: contivctl network create [-h] [-tenantName TENANTNAME]
                                 [-public {yes,no}] [-encap {vlan,vxlan}]
-                                -subnet SUBNET -defaultGw DEFAULTGW
+                                -subnet SUBNET -gateway DEFAULTGW
                                 networkName
 
 positional arguments:
@@ -42,7 +42,7 @@ optional arguments:
   -public {yes,no}      Is this a public network
   -encap {vlan,vxlan}   Packet tag
   -subnet SUBNET        Subnet addr/mask
-  -defaultGw DEFAULTGW  default GW
+  -gateway DEFAULTGW  default GW
 ```
 
 #### Examples
@@ -50,9 +50,9 @@ optional arguments:
 Following creates a vxlan network called `production` under `default` tenant and assigns a subnet to it
 
 ```
-vagrant@netplugin-node1:~$ contivctl network create production -encap=vxlan -subnet=20.20.20.0/24 -defaultGw=20.20.20.254
+vagrant@netplugin-node1:~$ contivctl network create production -encap=vxlan -subnet=20.20.20.0/24 -gateway=20.20.20.254
 Creating network default:production
-Network Create response is: {"key":"default:production","defaultGw":"20.20.20.254","encap":"vxlan","isPrivate":true,"networkName":"production","subnet":"20.20.20.0/24","tenantName":"default","link-sets":{},"links":{"Tenant":{"type":"tenant","key":"default"}}}
+Network Create response is: {"key":"default:production","gateway":"20.20.20.254","encap":"vxlan","isPrivate":true,"networkName":"production","subnet":"20.20.20.0/24","tenantName":"default","link-sets":{},"links":{"Tenant":{"type":"tenant","key":"default"}}}
 ```
 
 Following lists all networks under `default` tenant
@@ -94,7 +94,7 @@ optional arguments:
 
 Following creates a policy named `webTier`
 ```
-vagrant@netplugin-node1:~$ contivctl policy create webTier 
+vagrant@netplugin-node1:~$ contivctl policy create webTier
 Creating policy default:webTier
 Create policy response is: {"key":"default:webTier","policyName":"webTier","tenantName":"default","link-sets":{},"links":{"Tenant":{}}}
 ```
@@ -159,7 +159,7 @@ Rule add response is: {"key":"default:webTier:1","action":"deny","direction":"in
 Following adds a rule to allow incoming traffic on port 80. Note that it has a higher priority 10.
 
 ```
-vagrant@netplugin-node1:~$ contivctl rule add webTier 2 -direction=in -priority 10 -protocol=tcp -port=80 -action=accept 
+vagrant@netplugin-node1:~$ contivctl rule add webTier 2 -direction=in -priority 10 -protocol=tcp -port=80 -action=accept
 Adding rule to pilicy rule default:webTier
 rule create, sending: {"direction": "in", "protocol": "tcp", "ruleId": "2", "port": 80, "policyName": "webTier", "network": null, "priority": 10, "tenantName": "default", "endpointGroup": null, "action": "accept", "ipAddress": null}
 Rule add response is: {"key":"default:webTier:2","action":"accept","direction":"in","policyName":"webTier","port":80,"priority":10,"protocol":"tcp","ruleId":"2","tenantName":"default","link-sets":{"Policies":{"default:webTier":{"type":"policy","key":"default:webTier"}}}}

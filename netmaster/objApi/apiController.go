@@ -217,22 +217,12 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		return err
 	}
 
-	// Get the state driver
-	stateDriver, uErr := utils.GetStateDriver()
-	if uErr != nil {
-		return uErr
-	}
-	// Build endpoint group config
-	epgCfg := intent.ConfigEndpointGroup{
-		Name:        endpointGroup.GroupName,
-		ID:          endpointGroup.EndpointGroupID,
-		NetworkName: endpointGroup.NetworkName,
-	}
-
-	// Create the endpoint group
-	err = master.CreateEndpointGroup(epgCfg, stateDriver, endpointGroup.TenantName)
+	// create the endpoint group state
+	err = master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName,
+		endpointGroup.GroupName, endpointGroup.EndpointGroupID)
 	if err != nil {
-		log.Errorf("Error creating ep group {%+v}. Err: %v", endpointGroup, err)
+		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
+		return err
 	}
 
 	// for each policy create an epg policy Instance
@@ -340,6 +330,12 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupDelete: %+v", endpointGroup)
 
+	// delete the endpoint group state
+	err := master.DeleteEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+	if err != nil {
+		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
+	}
+
 	// Detach the endpoint group from the Policies
 	for _, policyName := range endpointGroup.Policies {
 		policyKey := endpointGroup.TenantName + ":" + policyName
@@ -348,23 +344,19 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 		policy := contivModel.FindPolicy(policyKey)
 		if policy == nil {
 			log.Errorf("Could not find policy %s", policyName)
-			return core.Errorf("Policy not found")
+			continue
 		}
 
 		// detach policy to epg
 		err := master.PolicyDetach(endpointGroup, policy)
 		if err != nil && err != master.EpgPolicyExists {
 			log.Errorf("Error detaching policy %s from epg %s", policyName, endpointGroup.Key)
-			return err
 		}
 
 		// Remove links
 		modeldb.RemoveLinkSet(&policy.LinkSets.EndpointGroups, endpointGroup)
 		modeldb.RemoveLinkSet(&endpointGroup.LinkSets.Policies, policy)
-		err = policy.Write()
-		if err != nil {
-			return err
-		}
+		policy.Write()
 	}
 
 	return nil
@@ -405,9 +397,9 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	networkCfg := intent.ConfigNetwork{
 		Name:       network.NetworkName,
 		PktTagType: network.Encap,
-		PktTag:     "",
+		PktTag:     network.PktTag,
 		SubnetCIDR: network.Subnet,
-		DefaultGw:  network.DefaultGw,
+		Gateway:    network.Gateway,
 	}
 
 	// Create the network
@@ -452,7 +444,8 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	}
 
 	// Delete the network
-	err = master.DeleteNetworkID(stateDriver, network.NetworkName)
+	networkID := network.NetworkName + "." + network.TenantName
+	err = master.DeleteNetworkID(stateDriver, networkID)
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", network.NetworkName, err)
 	}
@@ -819,8 +812,9 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		IsPublic:    false,
 		IsPrivate:   true,
 		Encap:       "vxlan",
+		PktTag:      1001,
 		Subnet:      "10.1.0.0/16",
-		DefaultGw:   "10.1.254.254",
+		Gateway:     "10.1.254.254",
 		NetworkName: "private",
 		TenantName:  tenant.TenantName,
 	})
@@ -835,8 +829,9 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		IsPublic:    true,
 		IsPrivate:   false,
 		Encap:       "vlan",
+		PktTag:      1,
 		Subnet:      "192.168.1.0/24",
-		DefaultGw:   "192.168.1.254",
+		Gateway:     "192.168.1.254",
 		NetworkName: "public",
 		TenantName:  tenant.TenantName,
 	})

@@ -31,6 +31,9 @@ source /etc/profile.d/envvar.sh
 mv /etc/resolv.conf /etc/resolv.conf.bak
 cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
 
+# setup docker cluster store
+cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service /lib/systemd/system/docker.service
+
 # setup docker remote api
 cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
 systemctl enable docker-tcp.socket
@@ -48,12 +51,9 @@ if [ $# -gt 5 ]; then
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
-# Install experimental docker
-# curl -sSL https://experimental.docker.com/ | sh
-
 # Get swarm binary
-(wget https://cisco.box.com/shared/static/isn9te95op8qgmz9o0al45eps2zmfz7c -q -O /usr/bin/swarm &&
-chmod +x /usr/bin/swarm) || exit 1
+# (wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
+# chmod +x /usr/bin/swarm) || exit 1
 
 # remove duplicate docker key
 rm /etc/docker/key.json
@@ -68,10 +68,10 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "centos" then
         config.vm.box = "contiv/centos71-netplugin"
-        config.vm.box_version = "0.2.0"
+        config.vm.box_version = "0.3.1"
     else
         config.vm.box = "contiv/ubuntu1504-netplugin"
-        config.vm.box_version = "0.2.0"
+        config.vm.box_version = "0.3.1"
     end
     num_nodes = 1
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then

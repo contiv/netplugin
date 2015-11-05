@@ -17,17 +17,17 @@ package master
 
 import (
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
 
-func getEpName(net *intent.ConfigNetwork, ep *intent.ConfigEP) string {
+func getEpName(networkName string, ep *intent.ConfigEP) string {
 	if ep.Container != "" {
-		return net.Name + "-" + ep.Container
+		return networkName + "-" + ep.Container
 	}
 
 	return ep.Host + "-native-intf"
@@ -56,7 +56,7 @@ func tenantPresent(allCfg *intent.Config, tenantID string) bool {
 func netPresent(allCfg *intent.Config, netID string) bool {
 	for _, tenant := range allCfg.Tenants {
 		for _, net := range tenant.Networks {
-			if netID == net.Name {
+			if netID == (net.Name + "." + tenant.Name) {
 				return true
 			}
 		}
@@ -69,7 +69,7 @@ func epPresent(allCfg *intent.Config, epID string) bool {
 	for _, tenant := range allCfg.Tenants {
 		for _, net := range tenant.Networks {
 			for _, ep := range net.Endpoints {
-				if epID == getEpName(&net, &ep) {
+				if epID == getEpName(net.Name, &ep) {
 					return true
 				}
 			}
@@ -88,7 +88,7 @@ func DeleteDelta(allCfg *intent.Config) error {
 		return err
 	}
 
-	readEp := &drivers.OvsCfgEndpointState{}
+	readEp := &mastercfg.CfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
@@ -98,9 +98,9 @@ func DeleteDelta(allCfg *intent.Config) error {
 		epCfgs = []core.State{}
 	}
 	for _, epCfg := range epCfgs {
-		cfg := epCfg.(*drivers.OvsCfgEndpointState)
+		cfg := epCfg.(*mastercfg.CfgEndpointState)
 		if !epPresent(allCfg, cfg.ID) {
-			err1 := DeleteEndpointID(stateDriver, cfg.ID)
+			_, err1 := DeleteEndpointID(stateDriver, cfg.ID)
 			if err1 != nil {
 				log.Errorf("error '%s' deleting epid %s \n", err1, cfg.ID)
 				err = err1
@@ -109,7 +109,7 @@ func DeleteDelta(allCfg *intent.Config) error {
 		}
 	}
 
-	readNet := &drivers.OvsCfgNetworkState{}
+	readNet := &mastercfg.CfgNetworkState{}
 	readNet.StateDriver = stateDriver
 	nwCfgs, err := readNet.ReadAll()
 	if core.ErrIfKeyExists(err) != nil {
@@ -119,7 +119,7 @@ func DeleteDelta(allCfg *intent.Config) error {
 		nwCfgs = []core.State{}
 	}
 	for _, nwCfg := range nwCfgs {
-		cfg := nwCfg.(*drivers.OvsCfgNetworkState)
+		cfg := nwCfg.(*mastercfg.CfgNetworkState)
 		if !netPresent(allCfg, cfg.ID) {
 			err1 := DeleteNetworkID(stateDriver, cfg.ID)
 			if err1 != nil {
@@ -151,28 +151,6 @@ func DeleteDelta(allCfg *intent.Config) error {
 		}
 	}
 
-	readHost := &HostConfig{}
-	readHost.StateDriver = stateDriver
-	hostCfgs, err := readHost.ReadAll()
-	if core.ErrIfKeyExists(err) != nil {
-		return err
-	} else if err != nil {
-		err = nil
-		hostCfgs = []core.State{}
-	}
-	for _, hostCfg := range hostCfgs {
-		cfg := hostCfg.(*HostConfig)
-		hostName := cfg.Name
-		if !hostPresent(allCfg, hostName) {
-			err1 := DeleteHostID(stateDriver, hostName)
-			if err1 != nil {
-				log.Errorf("error '%s' deleting host %s \n", err1, hostName)
-				err = err1
-				continue
-			}
-		}
-	}
-
 	return err
 }
 
@@ -182,15 +160,6 @@ func ProcessAdditions(allCfg *intent.Config) (err error) {
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return err
-	}
-
-	for _, host := range allCfg.Hosts {
-		err1 := CreateHost(stateDriver, &host)
-		if err1 != nil {
-			log.Errorf("error '%s' adding host %s \n", err1, host.Name)
-			err = err1
-			continue
-		}
 	}
 
 	for _, tenant := range allCfg.Tenants {
@@ -225,15 +194,6 @@ func ProcessDeletions(allCfg *intent.Config) (err error) {
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return err
-	}
-
-	for _, host := range allCfg.Hosts {
-		err1 := DeleteHost(stateDriver, &host)
-		if err1 != nil {
-			log.Errorf("error '%s' deleting host %s \n", err1, host.Name)
-			err = err1
-			continue
-		}
 	}
 
 	for _, tenant := range allCfg.Tenants {

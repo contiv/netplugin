@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/config"
@@ -33,10 +32,10 @@ func testNewController(t *testing.T, provider, url string) (NetworkController, e
 }
 
 func TestBoltdbBackend(t *testing.T) {
-	defer os.Remove(defaultLocalStoreConfig.Client.Address)
+	defer os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 	testLocalBackend(t, "", "", nil)
 	defer os.Remove("/tmp/boltdb.db")
-	config := &store.Config{Bucket: "testBackend", ConnectionTimeout: 3 * time.Second}
+	config := &store.Config{Bucket: "testBackend"}
 	testLocalBackend(t, "boltdb", "/tmp/boltdb.db", config)
 
 }
@@ -52,7 +51,6 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	genericOption[netlabel.GenericData] = driverOptions
 	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", genericOption))
 
-	fmt.Printf("URL : %s\n", url)
 	ctrl, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
@@ -65,12 +63,12 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.(*controller).localStore.KVStore()
+	store := ctrl.(*controller).getStore(datastore.LocalScope).KVStore()
 	if exists, err := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, string(nw.ID()))); !exists || err != nil {
 		t.Fatalf("Network key should have been created.")
 	}
-	if exists, err := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, string(nw.ID()), string(ep.ID())}...)); exists || err != nil {
-		t.Fatalf("Endpoint key shouldn't have been created.")
+	if exists, err := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, string(nw.ID()), string(ep.ID())}...)); !exists || err != nil {
+		t.Fatalf("Endpoint key should have been created.")
 	}
 	store.Close()
 
@@ -101,7 +99,7 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.(*controller).localStore.KVStore()
+	store := ctrl.(*controller).getStore(datastore.LocalScope).KVStore()
 	if exists, _ := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, string(nw.ID()))); exists {
 		t.Fatalf("Network with persist=false should not be stored in KV Store")
 	}
@@ -123,12 +121,12 @@ func OptionBoltdbWithRandomDBFile() ([]config.Option, error) {
 	cfgOptions := []config.Option{}
 	cfgOptions = append(cfgOptions, config.OptionLocalKVProvider("boltdb"))
 	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(tmp.Name()))
-	sCfg := &store.Config{Bucket: "testBackend", ConnectionTimeout: 3 * time.Second}
+	sCfg := &store.Config{Bucket: "testBackend"}
 	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(sCfg))
 	return cfgOptions, nil
 }
 
-func TestLocalStoreLockTimeout(t *testing.T) {
+func TestMultipleControllersWithSameStore(t *testing.T) {
 	cfgOptions, err := OptionBoltdbWithRandomDBFile()
 	if err != nil {
 		t.Fatalf("Error getting random boltdb configs %v", err)
@@ -139,12 +137,8 @@ func TestLocalStoreLockTimeout(t *testing.T) {
 	}
 	defer ctrl1.Stop()
 	// Use the same boltdb file without closing the previous controller
-	ctrl2, _ := New(cfgOptions...)
+	_, err = New(cfgOptions...)
 	if err != nil {
-		t.Fatalf("Error new controller: %v", err)
-	}
-	store := ctrl2.(*controller).localStore
-	if store != nil {
-		t.Fatalf("localstore is expected to be nil")
+		t.Fatalf("Local store must support concurrent controllers")
 	}
 }

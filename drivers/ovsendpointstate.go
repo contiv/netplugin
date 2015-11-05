@@ -20,52 +20,8 @@ import (
 	"fmt"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 )
-
-// OvsCfgEndpointState implements the State interface for an endpoint implemented using
-// vlans with ovs. The state is stored as Json objects.
-type OvsCfgEndpointState struct {
-	core.CommonState
-	NetID           string `json:"netID"`
-	ContName        string `json:"contName"`
-	ServiceName     string `json:"serviceName"`
-	EndpointGroupID int    `json:"endpointGroupId"`
-	AttachUUID      string `json:"attachUUID"`
-	IPAddress       string `json:"ipAddress"`
-	MacAddress      string `json:"macAddress"`
-	HomingHost      string `json:"homingHost"`
-	IntfName        string `json:"intfName"`
-	VtepIP          string `json:"vtepIP"`
-}
-
-// Write the state.
-func (s *OvsCfgEndpointState) Write() error {
-	key := fmt.Sprintf(endpointConfigPath, s.ID)
-	return s.StateDriver.WriteState(key, s, json.Marshal)
-}
-
-// Read the state for a given identifier.
-func (s *OvsCfgEndpointState) Read(id string) error {
-	key := fmt.Sprintf(endpointConfigPath, id)
-	return s.StateDriver.ReadState(key, s, json.Unmarshal)
-}
-
-// ReadAll reads all state objects for the endpoints.
-func (s *OvsCfgEndpointState) ReadAll() ([]core.State, error) {
-	return s.StateDriver.ReadAllState(endpointConfigPathPrefix, s, json.Unmarshal)
-}
-
-// WatchAll fills a channel on each state event related to endpoints.
-func (s *OvsCfgEndpointState) WatchAll(rsps chan core.WatchState) error {
-	return s.StateDriver.WatchAllState(endpointConfigPathPrefix, s, json.Unmarshal,
-		rsps)
-}
-
-// Clear removes the state.
-func (s *OvsCfgEndpointState) Clear() error {
-	key := fmt.Sprintf(endpointConfigPath, s.ID)
-	return s.StateDriver.ClearState(key)
-}
 
 // OvsOperEndpointState is the necessary data used to perform operations on endpoints.
 type OvsOperEndpointState struct {
@@ -84,7 +40,7 @@ type OvsOperEndpointState struct {
 }
 
 // Matches matches the fields updated from configuration state
-func (s *OvsOperEndpointState) Matches(c *OvsCfgEndpointState) bool {
+func (s *OvsOperEndpointState) Matches(c *mastercfg.CfgEndpointState) bool {
 	return s.NetID == c.NetID &&
 		s.ContName == c.ContName &&
 		s.AttachUUID == c.AttachUUID &&

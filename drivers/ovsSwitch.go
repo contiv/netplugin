@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/ofnet"
 
@@ -210,7 +211,7 @@ func getOvsPostName(intfName string) string {
 }
 
 // CreatePort creates a port in ovs switch
-func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
+func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag int) error {
 	var ovsIntfType string
 
 	// Get OVS port name
@@ -302,7 +303,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *OvsCfgEndpointState, pkt
 }
 
 // UpdatePort updates an OVS port without creating it
-func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *OvsCfgEndpointState, pktTag int) error {
+func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag int) error {
 	// Get OVS port name
 	ovsPortName := getOvsPostName(intfName)
 

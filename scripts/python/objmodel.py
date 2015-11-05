@@ -73,12 +73,11 @@ class tenant:
         #Pretend to create the tenant
         self.tenantName = tenantName
         self.policies = {}
-        self.groups = {}
         self.networks = {}
 
     # Create a network
-    def newNetwork(self, networkName, public=False, encap="vxlan", subnet="", defaultGw=""):
-        return network(tenantName, networkName, public, encap, subnet, defaultGw)
+    def newNetwork(self, networkName, public=False, encap="vxlan", subnet="", gateway=""):
+        return network(self.tenantName, networkName, public, encap, subnet, gateway)
 
     # Create a policy
     def newPolicy(self, policyName):
@@ -89,14 +88,6 @@ class tenant:
 
         return pl
 
-    def newGroup(self, groupName, networkName="", policies=[]):
-        epg = group(self.tenantName, groupName, networkName, policies)
-
-        # store the epg
-        self.groups[groupName] = epg
-
-        return epg
-
     # Delete policy
     def deletePolicy(self, policyName):
         if policyName not in self.policies:
@@ -106,13 +97,6 @@ class tenant:
         self.policies[policyName].delete()
         del self.policies[policyName]
 
-    def deleteGroup(self, groupName):
-        if groupName not in self.groups:
-            return
-
-        # delete the epg
-        self.groups[groupName].delete()
-        del self.groups[groupName]
 
 class policy:
     def __init__(self, tenantName, policyName):
@@ -170,9 +154,9 @@ class rule:
         deleteRule(self.tenantName, self.policyName, self.ruleId)
 
 class group:
-    def __init__(self, tenantName, groupName, networkName, policies):
+    def __init__(self, tenantName, networkName, groupName, policies):
         # create the Epg
-        createEpg(tenantName, groupName, networkName, policies)
+        createEpg(tenantName, networkName, groupName, policies)
 
         # save parameters
         self.tenantName = tenantName
@@ -186,7 +170,7 @@ class group:
         self.policies.append(policyName)
 
         # update the model
-        createEpg(self.tenantName, self.groupName, self.networkName, self.policies)
+        createEpg(self.tenantName, self.networkName, self.groupName, self.policies)
 
     def removePolicy(self, policyName):
         # check if it exists
@@ -196,17 +180,24 @@ class group:
         self.policies.remove(policyName)
 
         # update the model
-        createEpg(self.tenantName, self.groupName, self.networkName, self.policies)
+        createEpg(self.tenantName, self.networkName, self.groupName, self.policies)
 
     # delete the epg
     def delete(self):
         # delete the Epg
-        deleteEpg(self.tenantName, self.groupName)
+        deleteEpg(self.tenantName, self.networkName, self.groupName)
 
 class network:
-    def __init__(self, tenantName, networkName, public, encap, subnet, defaultGw):
-        #Create the network
-        createNet(tenantName, networkName, public, encap, subnet, defaultGw)
+    def __init__(self, tenantName, networkName, public, encap, subnet, gateway):
+        netList = listNet()
+        found = False
+        for net in netList:
+            if net['tenantName'] == tenantName and net['networkName'] == networkName:
+                found = True
+
+        #Create the network if not found
+        if found == False:
+            createNet(tenantName, networkName, public, encap, subnet, gateway)
 
         # Save Parameters
         self.tenantName = tenantName
@@ -214,7 +205,24 @@ class network:
         self.public = public
         self.encap = encap
         self.subnet = subnet
-        self.defaultGw = defaultGw
+        self.gateway = gateway
+        self.groups = {}
+
+    def newGroup(self, groupName, policies=[]):
+        epg = group(self.tenantName, self.networkName, groupName, policies)
+
+        # store the epg
+        self.groups[groupName] = epg
+
+        return epg
+
+    def deleteGroup(self, groupName):
+        if groupName not in self.groups:
+            return
+
+        # delete the epg
+        self.groups[groupName].delete()
+        del self.groups[groupName]
 
 # Create policy
 def createPolicy(tenantName, policyName):
@@ -304,8 +312,8 @@ def listRule():
     return json.loads(urllib2.urlopen('http://localhost:9999/api/rules/').read())
 
 # Create endpoint group
-def createEpg(tenantName, groupName, networkName="", policies=[]):
-    print "Creating endpoint group {0}:{1}".format(tenantName, groupName)
+def createEpg(tenantName, networkName, groupName, policies=[]):
+    print "Creating endpoint group {0}:{1}:{2}".format(tenantName, networkName, groupName)
 
     jdata = json.dumps({
       "tenantName": tenantName,
@@ -315,7 +323,7 @@ def createEpg(tenantName, groupName, networkName="", policies=[]):
      })
 
     # Create epg
-    postUrl = 'http://localhost:9999/api/endpointGroups/' + tenantName + ':' + groupName + '/'
+    postUrl = 'http://localhost:9999/api/endpointGroups/' + tenantName + ':' + networkName + ':' + groupName + '/'
     response = httpPost(postUrl, jdata)
     print "Epg Create response is: " + response
 
@@ -324,11 +332,11 @@ def createEpg(tenantName, groupName, networkName="", policies=[]):
         errorExit("Epg create failure")
 
 # Delete endpoint group
-def deleteEpg(tenantName, groupName):
-    print "Deleting endpoint group {0}:{1}".format(tenantName, groupName)
+def deleteEpg(tenantName, networkName, groupName):
+    print "Deleting endpoint group {0}:{1}:{2}".format(tenantName, networkName, groupName)
 
     # Delete EPG
-    deleteUrl = 'http://localhost:9999/api/endpointGroups/' + tenantName + ':' + groupName + '/'
+    deleteUrl = 'http://localhost:9999/api/endpointGroups/' + tenantName + ':' + networkName + ':' + groupName + '/'
     response = httpDelete(deleteUrl)
 
     # Check for error
@@ -343,7 +351,7 @@ def listEpg():
     return json.loads(urllib2.urlopen('http://localhost:9999/api/endpointGroups/').read())
 
 # Create Network
-def createNet(tenantName, networkName, public=False, encap="vxlan", subnet="", defaultGw=""):
+def createNet(tenantName, networkName, public=False, encap="vxlan", subnet="", gateway=""):
     print "Creating network {0}:{1}".format(tenantName, networkName)
 
     # Create network
@@ -355,7 +363,7 @@ def createNet(tenantName, networkName, public=False, encap="vxlan", subnet="", d
       "isPrivate": False if public == True else True,
       "encap": encap,
       "subnet": subnet,
-      "defaultGw": defaultGw,
+      "gateway": gateway,
      })
     response = httpPost(postUrl, jdata)
     print "Network Create response is: " + response

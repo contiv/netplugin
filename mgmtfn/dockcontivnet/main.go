@@ -15,6 +15,7 @@ import (
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/client"
 	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/drivers/remote/api"
@@ -408,7 +409,7 @@ func join(networkName string) func(http.ResponseWriter, *http.Request) {
 				SrcName: ep[0].PortName,
 				DstName: "eth",
 			},
-			Gateway: nw[0].DefaultGw,
+			Gateway: nw[0].Gateway,
 		})
 
 		if err != nil {
@@ -459,8 +460,8 @@ func netdcliGetEndpoint(name string) ([]drivers.OvsOperEndpointState, error) {
 	return endpoint, nil
 }
 
-func netdcliGetNetwork(name string) ([]drivers.OvsCfgNetworkState, error) {
-	var network []drivers.OvsCfgNetworkState
+func netdcliGetNetwork(name string) ([]mastercfg.CfgNetworkState, error) {
+	var network []mastercfg.CfgNetworkState
 
 	c := client.New("localhost:9999")
 	content, err := c.GetNetwork(name)

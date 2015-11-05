@@ -23,7 +23,6 @@ import (
 
 const (
 	testEpID  = "testEp"
-	epCfgKey  = endpointConfigPathPrefix + testEpID
 	epOperKey = endpointOperPathPrefix + testEpID
 )
 
@@ -55,9 +54,9 @@ func (d *testEpStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error 
 }
 
 func (d *testEpStateDriver) validateKey(key string) error {
-	if key != epCfgKey && key != epOperKey {
-		return core.Errorf("Unexpected key. recvd: %s expected: %s or %s ",
-			key, epCfgKey, epOperKey)
+	if key != epOperKey {
+		return core.Errorf("Unexpected key. recvd: %s expected: %s ",
+			key, epOperKey)
 	}
 
 	return nil
@@ -85,38 +84,6 @@ func (d *testEpStateDriver) WatchAllState(baseKey string, sType core.State,
 func (d *testEpStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	return d.validateKey(key)
-}
-
-func TestOvsCfgEndpointStateRead(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
-	epCfg.StateDriver = epStateDriver
-
-	err := epCfg.Read(testEpID)
-	if err != nil {
-		t.Fatalf("read config state failed. Error: %s", err)
-	}
-}
-
-func TestOvsCfgEndpointStateWrite(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
-	epCfg.StateDriver = epStateDriver
-	epCfg.ID = testEpID
-
-	err := epCfg.Write()
-	if err != nil {
-		t.Fatalf("write config state failed. Error: %s", err)
-	}
-}
-
-func TestOvsCfgEndpointStateClear(t *testing.T) {
-	epCfg := &OvsCfgEndpointState{}
-	epCfg.StateDriver = epStateDriver
-	epCfg.ID = testEpID
-
-	err := epCfg.Clear()
-	if err != nil {
-		t.Fatalf("clear config state failed. Error: %s", err)
-	}
 }
 
 func TestOvsOperEndpointStateRead(t *testing.T) {

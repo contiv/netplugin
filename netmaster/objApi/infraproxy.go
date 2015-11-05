@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
-	"github.com/contiv/netplugin/netmaster/master"
-	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/objmodel/contivModel"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/objmodel/contivModel"
 )
 
 const (
@@ -101,7 +101,7 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 	epg.Name = epgObj.GroupName
 
 	//update vlantag from EpGroupState
-	epgCfg := &drivers.OvsCfgEpGroupState{}
+	epgCfg := &mastercfg.EndpointGroupState{}
 	epgCfg.StateDriver = stateDriver
 	eErr := epgCfg.Read(strconv.Itoa(epgObj.EndpointGroupID))
 	if eErr != nil {
@@ -171,7 +171,7 @@ func CreateAppNw(app *contivModel.App) error {
 	}
 
 	//if we are not in ACI mode, just return
-	masterGc := &master.GlobConfig{}
+	masterGc := &mastercfg.GlobConfig{}
 	masterGc.StateDriver = stateDriver
 	uErr = masterGc.Read("config")
 	if core.ErrIfKeyExists(uErr) != nil {
@@ -220,14 +220,14 @@ func CreateAppNw(app *contivModel.App) error {
 	}
 
 	// get the subnet info and add it to ans
-	nwCfg := &drivers.OvsCfgNetworkState{}
+	nwCfg := &mastercfg.CfgNetworkState{}
 	nwCfg.StateDriver = stateDriver
 	nErr := nwCfg.Read(netName)
 	if nErr != nil {
 		log.Errorf("Failed to network info %v %v ", netName, nErr)
 		return nErr
 	}
-	ans.Subnet = nwCfg.DefaultGw + "/" + strconv.Itoa(int(nwCfg.SubnetLen))
+	ans.Subnet = nwCfg.Gateway + "/" + strconv.Itoa(int(nwCfg.SubnetLen))
 	log.Debugf("Nw %v subnet %v", netName, ans.Subnet)
 
 	ans.launch()

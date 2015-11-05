@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/state"
 )
 
@@ -55,7 +56,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	//create all the common config state required by the tests
 
 	{
-		cfgNw := &OvsCfgNetworkState{}
+		cfgNw := &mastercfg.CfgNetworkState{}
 		cfgNw.ID = testOvsNwID
 		cfgNw.PktTag = testPktTag
 		cfgNw.ExtPktTag = testExtPktTag
@@ -68,7 +69,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgNw := &OvsCfgNetworkState{}
+		cfgNw := &mastercfg.CfgNetworkState{}
 		cfgNw.ID = testOvsNwIDStateful
 		cfgNw.PktTag = testPktTagStateful
 		cfgNw.ExtPktTag = testExtPktTag
@@ -81,7 +82,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEpGroup := &OvsCfgEpGroupState{}
+		cfgEpGroup := &mastercfg.EndpointGroupState{}
 		cfgEpGroup.StateDriver = stateDriver
 		cfgEpGroup.ID = testOvsEpGroupID
 		cfgEpGroup.PktTagType = "vlan"
@@ -92,7 +93,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEpGroup := &OvsCfgEpGroupState{}
+		cfgEpGroup := &mastercfg.EndpointGroupState{}
 		cfgEpGroup.StateDriver = stateDriver
 		cfgEpGroup.ID = testOvsEpGroupIDStateful
 		cfgEpGroup.PktTagType = "vlan"
@@ -103,7 +104,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &mastercfg.CfgEndpointState{}
 		cfgEp.ID = createEpID
 		cfgEp.EndpointGroupID = testOvsEpgHandle
 		cfgEp.NetID = testOvsNwID
@@ -117,7 +118,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &mastercfg.CfgEndpointState{}
 		cfgEp.ID = createEpIDStateful
 		cfgEp.EndpointGroupID = testOvsEpgHandleStateful
 		cfgEp.NetID = testOvsNwID
@@ -131,7 +132,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &mastercfg.CfgEndpointState{}
 		cfgEp.ID = createEpIDStatefulMismatch
 		cfgEp.EndpointGroupID = testOvsEpgHandle
 		cfgEp.NetID = testOvsNwID
@@ -145,7 +146,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 	}
 
 	{
-		cfgEp := &OvsCfgEndpointState{}
+		cfgEp := &mastercfg.CfgEndpointState{}
 		cfgEp.ID = deleteEpID
 		cfgEp.EndpointGroupID = testOvsEpgHandle
 		cfgEp.NetID = testOvsNwID
@@ -351,7 +352,7 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 		t.Fatalf("endpoint creation failed. Error: %s", err)
 	}
 
-	cfgEp := OvsCfgEndpointState{}
+	cfgEp := mastercfg.CfgEndpointState{}
 	cfgEp.StateDriver = driver.oper.StateDriver
 	err = cfgEp.Read(id)
 	if err != nil {

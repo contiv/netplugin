@@ -205,11 +205,13 @@ var NetworkSummaryView = React.createClass({
 					<tr key={ network.key } className="info">
 						
 						 
-						<td>{ network.defaultGw }</td>
-						 
 						<td>{ network.encap }</td>
+						 
+						<td>{ network.gateway }</td>
 						   
 						<td>{ network.networkName }</td>
+						 
+						<td>{ network.pktTag }</td>
 						 
 						<td>{ network.subnet }</td>
 						 
@@ -225,9 +227,10 @@ var NetworkSummaryView = React.createClass({
 					<tr>
 					
 					 
-						<th> Gateway </th>  
-						<th> Encapsulation </th>    
+						<th> Encapsulation </th>  
+						<th> Gateway </th>    
 						<th> Network name </th>  
+						<th> Vlan/Vxlan Tag </th>  
 						<th> Subnet </th>  
 					</tr>
 				</thead>
@@ -248,15 +251,17 @@ var NetworkModalView = React.createClass({
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
-				<Input type='text' label='Gateway' ref='defaultGw' defaultValue={obj.defaultGw} placeholder='Gateway' />
-			
 				<Input type='text' label='Encapsulation' ref='encap' defaultValue={obj.encap} placeholder='Encapsulation' />
+			
+				<Input type='text' label='Gateway' ref='gateway' defaultValue={obj.gateway} placeholder='Gateway' />
 			
 				<Input type='text' label='Private network' ref='isPrivate' defaultValue={obj.isPrivate} placeholder='Private network' />
 			
 				<Input type='text' label='Public network' ref='isPublic' defaultValue={obj.isPublic} placeholder='Public network' />
 			
 				<Input type='text' label='Network name' ref='networkName' defaultValue={obj.networkName} placeholder='Network name' />
+			
+				<Input type='text' label='Vlan/Vxlan Tag' ref='pktTag' defaultValue={obj.pktTag} placeholder='Vlan/Vxlan Tag' />
 			
 				<Input type='text' label='Subnet' ref='subnet' defaultValue={obj.subnet} placeholder='Subnet' />
 			
