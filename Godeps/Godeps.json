@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/contiv/netplugin",
-	"GoVersion": "go1.4.2",
+	"GoVersion": "go1.5.1",
 	"Packages": [
 		"./..."
 	],
@@ -32,6 +32,11 @@
 		{
 			"ImportPath": "github.com/cenkalti/rpc2",
 			"Rev": "44d0d95e4f529a0fe230c90d2126bd597c61148c"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-155-g96f1fed",
+			"Rev": "96f1fedb28e10f2e5ad3fd4b7347101529a7ca56"
 		},
 		{
 			"ImportPath": "github.com/contiv/go-etcd/etcd",
