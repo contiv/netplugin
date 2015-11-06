@@ -258,6 +258,30 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		return err
 	}
 
+	// Attach service container endpoint to the network
+	err = attachServiceContainer(tenantName, networkID)
+	if err != nil {
+		log.Errorf("Error attaching service container to network: %s.%s",
+			tenantName, network.Name)
+	}
+
+	return nil
+}
+
+func attachServiceContainer(tenantName string, networkName string) error {
+	contName := tenantName + "dns"
+	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	if err != nil {
+		log.Errorf("Unable to connect to docker. Error %v", err)
+		return err
+	}
+
+	err = docker.ConnectNetwork(networkName, contName)
+	if err != nil {
+		log.Errorf("Could not attach container(%s) to network %s. Error: %s",
+			contName, networkName, err)
+		return err
+	}
 	return nil
 }
 

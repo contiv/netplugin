@@ -46,14 +46,15 @@ type Config struct {
 
 // Service defines the state required for the configuration on the service
 type Service struct {
-	ID     string
-	Name   string
-	Tenant string
-	Port   int
-	IP     string
-	Tags   []string
-	Attrs  map[string]string
-	TTL    int
+	ID      string
+	Name    string
+	Network string
+	Tenant  string
+	Port    int
+	IP      string
+	Tags    []string
+	Attrs   map[string]string
+	TTL     int
 
 	Origin ServicePort
 }

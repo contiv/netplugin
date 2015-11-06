@@ -153,6 +153,18 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
+		ep, err := netdGetEndpoint(netID + "-" + delreq.EndpointID)
+		if err != nil {
+			httpError(w, "Could not find endpoint", err)
+			return
+		}
+
+		// Remove the DNS entry for the service
+		if serviceName != "" {
+			log.Infof("Calling RemoveService with: ID: %s, Name: %s, Network: %s, Tenant: %s, IP: %s", delreq.EndpointID[len(delreq.EndpointID)-12:], serviceName, netName, tenantName, ep.IPAddress)
+			regBridge.RemoveService(delreq.EndpointID[len(delreq.EndpointID)-12:], serviceName, netName, tenantName, ep.IPAddress)
+		}
+
 		// build response
 		content, err = json.Marshal(api.DeleteEndpointResponse{})
 		if err != nil {
@@ -231,6 +243,12 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 
 		epResponse := api.CreateEndpointResponse{
 			Interface: &api.EndpointInterface{},
+		}
+
+		// Add the service information to Service registrator
+		if serviceName != "" {
+			log.Infof("Calling AddService with: ID: %s, Name: %s, Network: %s, Tenant: %s, IP: %s", cereq.EndpointID[len(cereq.EndpointID)-12:], serviceName, netName, tenantName, ep.IPAddress)
+			regBridge.AddService(cereq.EndpointID[len(cereq.EndpointID)-12:], serviceName, netName, tenantName, ep.IPAddress)
 		}
 
 		log.Infof("Sending CreateEndpointResponse: {%+v}, IP Addr: %v", epResponse, ep.IPAddress)

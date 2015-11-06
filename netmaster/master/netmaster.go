@@ -17,9 +17,6 @@ package master
 
 import (
 	"net"
-	"os/exec"
-	"strconv"
-	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
@@ -141,9 +138,16 @@ func startServiceContainer(tenantName string) error {
 		return err
 	}
 
+	imageName := "skynetservices/skydns:latest"
+	err = docker.PullImage(imageName, nil)
+	if err != nil {
+		log.Errorf("Unable to pull image: %s", imageName)
+		return err
+	}
+
 	containerConfig := &dockerclient.ContainerConfig{
-		Image: "skynetservices/skydns",
-		Env: []string{"ETCD_MACHINES=http://172.17.42.1:4001",
+		Image: imageName,
+		Env: []string{"ETCD_MACHINES=http://172.17.0.1:4001",
 			"SKYDNS_NAMESERVERS=8.8.8.8:53",
 			"SKYDNS_ADDR=0.0.0.0:53",
 			"SKYDNS_DOMAIN=" + tenantName}}
