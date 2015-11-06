@@ -216,14 +216,13 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		// XXX: do configuration check, to make sure it is allowed
 	}
 
-	subnetIsAllocated := false
 	if nwCfg.SubnetIP == "" {
 		nwCfg.SubnetLen = gCfg.Auto.AllocSubnetLen
 		nwCfg.SubnetIP, err = gCfg.AllocSubnet(rm)
 		if err != nil {
 			return err
 		}
-		subnetIsAllocated = true
+		nwCfg.SubnetIsAllocated = true
 	}
 
 	defaultNwName, err := gCfg.AssignDefaultNetwork(network.Name)
@@ -234,7 +233,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 
 	if network.Name == defaultNwName {
 		// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
-		if nwCfg.Gateway == "" && subnetIsAllocated {
+		if nwCfg.Gateway == "" && nwCfg.SubnetIsAllocated {
 			var ipAddrValue uint
 			ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
 			nwCfg.Gateway, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
@@ -304,10 +303,12 @@ func freeNetworkResources(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetw
 		}
 	}
 
-	log.Infof("freeing subnet %s/%s", nwCfg.SubnetIP, nwCfg.SubnetLen)
-	err = gCfg.FreeSubnet(rm, nwCfg.SubnetIP)
-	if err != nil {
-		return err
+	if nwCfg.SubnetIsAllocated {
+		log.Infof("freeing subnet %s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
+		err = gCfg.FreeSubnet(rm, nwCfg.SubnetIP)
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := gCfg.UnassignNetwork(nwCfg.ID); err != nil {
@@ -335,6 +336,13 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
+	// Delete the docker network
+	err = deleteDockNet(netID)
+	if err != nil {
+		log.Errorf("Error deleting network %s. Err: %v", netID, err)
+	}
+
+	// Free resource associated with the network
 	err = freeNetworkResources(stateDriver, nwCfg, gCfg)
 	if err != nil {
 		return err
