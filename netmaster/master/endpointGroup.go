@@ -54,7 +54,7 @@ func getEndpointGroupID(serviceName, networkName, tenantName string) (int, error
 
 // CreateEndpointGroup handles creation of endpoint group
 func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) error {
-	// Gte the state driver
+	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return err
@@ -112,16 +112,13 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 	log.Debugf("##Create EpGroup %v network %v tagtype %v", groupName, networkName, nwCfg.PktTagType)
 
 	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
-	masterGc := &mastercfg.GlobConfig{}
-	masterGc.StateDriver = stateDriver
-	err = masterGc.Read("config")
-	if core.ErrIfKeyExists(err) != nil {
-		log.Errorf("Couldn't read global config %v", err)
-		return err
+	aciMode, rErr := IsAciConfigured()
+	if rErr != nil {
+		return rErr
 	}
 
 	// Special handling for ACI mode
-	if err == nil && masterGc.NwInfraType == "aci" {
+	if aciMode {
 		if epgCfg.PktTagType != "vlan" {
 			log.Errorf("Network type must be VLAN for ACI mode")
 			return errors.New("Network type must be VLAN for ACI mode")
@@ -145,8 +142,57 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 }
 
 // DeleteEndpointGroup handles endpoint group deletes
-func DeleteEndpointGroup(tenantName, networkName, groupName string) error {
-	epgNet := groupName + "." + networkName + "." + tenantName
+func DeleteEndpointGroup(epgID int) error {
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	epgCfg := &mastercfg.EndpointGroupState{}
+	epgCfg.StateDriver = stateDriver
+	err = epgCfg.Read(strconv.Itoa(epgID))
+	if err != nil {
+		log.Errorf("EpGroup %v is not configured", epgID)
+		return err
+	}
+
+	gCfg := gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	err = gCfg.Read(epgCfg.Tenant)
+	if err != nil {
+		log.Errorf("error reading tenant cfg state. Error: %s", err)
+		return err
+	}
+
+	// if aci mode we allocate per-epg vlan. free it here.
+	aciMode, aErr := IsAciConfigured()
+	if aErr != nil {
+		return aErr
+	}
+
+	if aciMode {
+		tempRm, rErr := resources.GetStateResourceManager()
+		if rErr != nil {
+			return rErr
+		}
+		rm := core.ResourceManager(tempRm)
+		if epgCfg.PktTagType == "vlan" {
+			err = gCfg.FreeVLAN(rm, uint(epgCfg.PktTag))
+			if err != nil {
+				return err
+			}
+			log.Debugf("Freed vlan %v\n", epgCfg.PktTag)
+		}
+	}
+
+	epgNet := epgCfg.Name + "." + epgCfg.NetworkName + "." + epgCfg.Tenant
+
+	err = epgCfg.Clear()
+	if err != nil {
+		log.Errorf("error writing epGroup config. Error: %v", err)
+		return err
+	}
 
 	return deleteDockNet(epgNet)
 }

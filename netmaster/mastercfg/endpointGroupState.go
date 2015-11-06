@@ -59,6 +59,6 @@ func (s *EndpointGroupState) WatchAll(rsps chan core.WatchState) error {
 
 // Clear removes the state.
 func (s *EndpointGroupState) Clear() error {
-	key := fmt.Sprintf(networkConfigPath, s.ID)
+	key := fmt.Sprintf(epGroupConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }

@@ -187,6 +187,7 @@ func (ac *APIController) AppUpdate(app, params *contivModel.App) error {
 // AppDelete delete the app
 func (ac *APIController) AppDelete(app *contivModel.App) error {
 	log.Infof("Received AppDelete: %+v", app)
+	DeleteAppNw(app)
 	return nil
 }
 
@@ -331,7 +332,7 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 	log.Infof("Received EndpointGroupDelete: %+v", endpointGroup)
 
 	// delete the endpoint group state
-	err := master.DeleteEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+	err := master.DeleteEndpointGroup(endpointGroup.EndpointGroupID)
 	if err != nil {
 		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
 	}
