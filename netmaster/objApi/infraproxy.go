@@ -201,7 +201,7 @@ func CreateAppNw(app *contivModel.App) error {
 		epgObj := contivModel.FindEndpointGroup(epgKey)
 		if epgObj == nil {
 			err := fmt.Sprintf("Epg %v does not exist", epgKey)
-			log.Errorf("%v", epgKey)
+			log.Errorf("%v", err)
 			return errors.New(err)
 		}
 
