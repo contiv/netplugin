@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/objmodel/contivModel"
@@ -134,6 +135,15 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 				continue
 			}
 
+			//TODO: make this a list and add protocol
+			epg.ServPort = append(epg.ServPort, strconv.Itoa(rule.Port))
+			log.Debugf("Service port: %v", strconv.Itoa(rule.Port))
+
+			if rule.EndpointGroup == "" {
+				log.Debugf("User unspecified %v == exposed contract", ruleName)
+				continue
+			}
+
 			// rule.EndpointGroup uses this epg
 			uEpg, ok := eMap.Specs[rule.EndpointGroup]
 			if ok {
@@ -146,9 +156,6 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 				eMap.Specs[rule.EndpointGroup] = userEpg
 			}
 			log.Debugf("==Used by %v", rule.EndpointGroup)
-			//TODO: make this a list and add protocol
-			epg.ServPort = append(epg.ServPort, strconv.Itoa(rule.Port))
-			log.Debugf("Service port: %v", strconv.Itoa(rule.Port))
 		}
 
 	}
@@ -164,28 +171,21 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 
 //CreateAppNw Fill in the Nw spec and launch the nw infra
 func CreateAppNw(app *contivModel.App) error {
+	aciPresent, aErr := master.IsAciConfigured()
+	if aErr != nil {
+		log.Errorf("Couldn't read global config %v", aErr)
+		return aErr
+	}
+
+	if !aciPresent {
+		log.Debugf("ACI not configured")
+		return nil
+	}
+
 	// Get the state driver
 	stateDriver, uErr := utils.GetStateDriver()
 	if uErr != nil {
 		return uErr
-	}
-
-	//if we are not in ACI mode, just return
-	masterGc := &mastercfg.GlobConfig{}
-	masterGc.StateDriver = stateDriver
-	uErr = masterGc.Read("config")
-	if core.ErrIfKeyExists(uErr) != nil {
-		log.Errorf("Couldn't read global config %v", uErr)
-		return uErr
-	}
-
-	if uErr != nil {
-		log.Warnf("Couldn't read global config %v", uErr)
-		return nil
-	}
-	if masterGc.NwInfraType != "aci" {
-		log.Debugf("NwInfra type is %v, no ACI", masterGc.NwInfraType)
-		return nil
 	}
 
 	netName := ""
@@ -197,12 +197,11 @@ func CreateAppNw(app *contivModel.App) error {
 	ans.AppName = app.AppName
 
 	// Gather all basic epg info into the epg map
-	for epgName := range app.LinkSets.Services {
-		epgKey := app.TenantName + ":" + epgName
+	for epgKey := range app.LinkSets.Services {
 		epgObj := contivModel.FindEndpointGroup(epgKey)
 		if epgObj == nil {
-			err := fmt.Sprintf("Epg %v does not exist", epgName)
-			log.Errorf("%v", epgName)
+			err := fmt.Sprintf("Epg %v does not exist", epgKey)
+			log.Errorf("%v", epgKey)
 			return errors.New(err)
 		}
 
@@ -222,7 +221,8 @@ func CreateAppNw(app *contivModel.App) error {
 	// get the subnet info and add it to ans
 	nwCfg := &mastercfg.CfgNetworkState{}
 	nwCfg.StateDriver = stateDriver
-	nErr := nwCfg.Read(netName)
+	networkID := netName + "." + app.TenantName
+	nErr := nwCfg.Read(networkID)
 	if nErr != nil {
 		log.Errorf("Failed to network info %v %v ", netName, nErr)
 		return nErr
@@ -231,6 +231,32 @@ func CreateAppNw(app *contivModel.App) error {
 	log.Debugf("Nw %v subnet %v", netName, ans.Subnet)
 
 	ans.launch()
+
+	return nil
+}
+
+//DeleteAppNw deletes the app profile from infra
+func DeleteAppNw(app *contivModel.App) error {
+	aciPresent, aErr := master.IsAciConfigured()
+	if aErr != nil {
+		log.Errorf("Couldn't read global config %v", aErr)
+		return aErr
+	}
+
+	if !aciPresent {
+		log.Debugf("ACI not configured")
+		return nil
+	}
+
+	ans := &appNwSpec{}
+	ans.TenantName = "CONTIV-" + app.TenantName
+	ans.AppName = app.AppName
+
+	url := proxyURL + "deleteAppProf"
+	if err := httpPost(url, ans); err != nil {
+		log.Errorf("Delete failed. Error: %v", err)
+		return err
+	}
 
 	return nil
 }

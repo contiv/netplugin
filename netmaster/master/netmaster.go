@@ -24,6 +24,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -165,4 +166,35 @@ func DeleteTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 	}
 
 	return nil
+}
+
+// IsAciConfigured returns true if aci is configured on netmaster.
+func IsAciConfigured() (res bool, err error) {
+	// Get the state driver
+	stateDriver, uErr := utils.GetStateDriver()
+	if uErr != nil {
+		log.Warnf("Couldn't read global config %v", uErr)
+		return false, uErr
+	}
+
+	// read global config
+	masterGc := &mastercfg.GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	uErr = masterGc.Read("config")
+	if core.ErrIfKeyExists(uErr) != nil {
+		log.Errorf("Couldn't read global config %v", uErr)
+		return false, uErr
+	}
+
+	if uErr != nil {
+		log.Warnf("Couldn't read global config %v", uErr)
+		return false, nil
+	}
+
+	if masterGc.NwInfraType != "aci" {
+		log.Debugf("NwInfra type is %v, no ACI", masterGc.NwInfraType)
+		return false, nil
+	}
+
+	return true, nil
 }
