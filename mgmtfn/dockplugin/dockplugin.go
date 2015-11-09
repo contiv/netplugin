@@ -99,8 +99,8 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 
 	// Adding bridge Config temporarily to check service refresh
 	bConfig := bridge.DefaultBridgeConfig()
-	bConfig.RefreshTTL = 30
-	bConfig.RefreshInterval = 20
+	bConfig.RefreshTTL = 15
+	bConfig.RefreshInterval = 10
 	dnsBridge, err = svcplugin.InitServicePlugin("skydns2:", bConfig)
 
 	return nil

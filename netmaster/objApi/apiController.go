@@ -16,7 +16,6 @@ limitations under the License.
 package objApi
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/contiv/netplugin/core"
