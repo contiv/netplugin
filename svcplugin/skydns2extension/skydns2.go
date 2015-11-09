@@ -1,11 +1,11 @@
-package skydns2registrator
+package skydns2extension
 
 import (
 	"net/url"
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/registrator/bridge"
+	"github.com/contiv/netplugin/svcplugin/bridge"
 	"github.com/coreos/go-etcd/etcd"
 )
 

@@ -1,19 +1,19 @@
-package registrator
+package svcplugin
 
 import (
 	log "github.com/Sirupsen/logrus"
 	"time"
 
-	"github.com/contiv/netplugin/registrator/bridge"
+	"github.com/contiv/netplugin/svcplugin/bridge"
 )
 
 // QuitCh maintains the status of netplugin
 var QuitCh chan struct{}
 
-// InitRegistrator creates a new bridge to Service registrator
-func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bridge, error) {
+// InitServicePlugin creates a new bridge to Service plugin
+func InitServicePlugin(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bridge, error) {
 
-	log.Printf("Initing service registrator")
+	log.Printf("Initing service plugin")
 	var bConfig bridge.Config
 
 	defaultBridgeConfig := bridge.DefaultBridgeConfig()
@@ -106,7 +106,7 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 		}
 
 		if err != nil && attempt == bConfig.RetryAttempts {
-			log.Errorf("Service registrator not connecting to backend %v", err)
+			log.Errorf("Service plugin not connecting to backend %v", err)
 		}
 
 		time.Sleep(time.Duration(bConfig.RetryInterval) * time.Millisecond)
@@ -122,7 +122,7 @@ func InitRegistrator(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bri
 				case <-ticker.C:
 					b.Refresh()
 				case <-QuitCh:
-					log.Infof("Quit registrator")
+					log.Infof("Quit service plugin")
 					ticker.Stop()
 					return
 				}

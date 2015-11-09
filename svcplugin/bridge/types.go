@@ -13,7 +13,7 @@ type AdapterFactory interface {
 	New(uri *url.URL) RegistryAdapter
 }
 
-// RegistryAdapter defines the interface that ServiceRestrators must implement
+// RegistryAdapter defines the interface that ServiceRegistrators must implement
 type RegistryAdapter interface {
 	Ping() error
 	Register(service *Service) error

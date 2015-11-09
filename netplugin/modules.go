@@ -1,6 +1,6 @@
 package main
 
 import (
-	_ "github.com/contiv/netplugin/registrator/consulregistrator"
-	_ "github.com/contiv/netplugin/registrator/skydns2registrator"
+	_ "github.com/contiv/netplugin/svcplugin/consulextension"
+	_ "github.com/contiv/netplugin/svcplugin/skydns2extension"
 )
