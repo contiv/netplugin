@@ -337,9 +337,9 @@ func FixUpInfraContainerUUIDs(t *testing.T, nodes []stu.TestbedNode, jsonCfg, in
 
 // ConfigSetupCommon performs common configuration setup on specified testbed nodes
 func ConfigSetupCommon(t *testing.T, jsonCfg string, nodes []stu.TestbedNode) {
-	StartNetmaster(t, nodes[0])
-
 	StartNetPlugin(t, nodes, false)
+
+	StartNetmaster(t, nodes[0])
 
 	ApplyDesiredConfig(t, jsonCfg, nodes[0])
 }

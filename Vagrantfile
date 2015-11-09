@@ -62,6 +62,8 @@ rm /etc/docker/key.json
 
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
+
+docker pull skynetservices/skydns:latest
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
