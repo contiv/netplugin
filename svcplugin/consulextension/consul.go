@@ -10,7 +10,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 )
 
-// Default Interval time to perform health checks for services
+// DefaultInterval time to perform health checks for services
 const DefaultInterval = "10s"
 
 // InitConsulAdapter registers as a new bridge
