@@ -9,15 +9,7 @@ import (
 
 func main() {
 	app := cli.NewApp()
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "master",
-			Value:  netctl.DefaultMaster,
-			Usage:  "The hostname of the netmaster",
-			EnvVar: "NETMASTER",
-		},
-	}
-
+	app.Flags = netctl.NetmasterFlags
 	app.Version = ""
 	app.Commands = netctl.Commands
 	app.Run(os.Args)
