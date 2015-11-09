@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
-	"github.com/contiv/netplugin/contivctl"
+	"github.com/contiv/netplugin/netctl"
 )
 
 func main() {
@@ -12,13 +12,13 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "master",
-			Value:  contivctl.DefaultMaster,
+			Value:  netctl.DefaultMaster,
 			Usage:  "The hostname of the netmaster",
 			EnvVar: "NETMASTER",
 		},
 	}
 
 	app.Version = ""
-	app.Commands = contivctl.Commands
+	app.Commands = netctl.Commands
 	app.Run(os.Args)
 }
