@@ -16,9 +16,9 @@ docker service attach <skydns-container-id> skydns.web
 
 <h4>Launch services in the network</h4>
 ```
-docker run -itd --publish-service=web1.web --dns=20.1.1.1 --name=web1 --hostname=web1 tracert /bin/bash
-docker run -itd --publish-service=web2.web --dns=20.1.1.1 --name=web2 --hostname=web2 tracert /bin/bash
-docker run -itd --publish-service=web3.web --dns=20.1.1.1 --name=web3 --hostname=web3 tracert /bin/bash
+docker run -itd --publish-service=web1.web --dns=20.1.1.1 --name=web1 --hostname=web1 ubuntu /bin/bash
+docker run -itd --publish-service=web2.web --dns=20.1.1.1 --name=web2 --hostname=web2 ubuntu /bin/bash
+docker run -itd --publish-service=web3.web --dns=20.1.1.1 --name=web3 --hostname=web3 ubuntu /bin/bash
 ```
 <h4>DNS query for SRV records lists all services</h4>
 ```
