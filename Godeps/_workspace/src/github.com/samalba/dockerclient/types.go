@@ -494,10 +494,10 @@ type NetworkResource struct {
 
 //EndpointResource contains network resources allocated and usd for a container in a network
 type EndpointResource struct {
-	EndpointID  string `json:"endpoint"`
-	MacAddress  string `json:"mac_address"`
-	IPv4Address string `json:"ipv4_address"`
-	IPv6Address string `json:"ipv6_address"`
+	EndpointID  string `json:"EndpointID"`
+	MacAddress  string `json:"MacAddress"`
+	IPv4Address string `json:"IPv4Address"`
+	IPv6Address string `json:"IPv6Address"`
 }
 
 // NetworkCreate is the expected body of the "create network" http request message

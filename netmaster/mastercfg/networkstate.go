@@ -52,6 +52,7 @@ type CfgNetworkState struct {
 	EpCount           int           `json:"epCount"`
 	IPAllocMap        bitset.BitSet `json:"ipAllocMap"`
 	SubnetIsAllocated bool          `json:"subnetIsAllocated"`
+	DNSServer         string        `json:"dnsServer"`
 }
 
 // Write the state.

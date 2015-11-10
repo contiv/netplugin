@@ -82,6 +82,10 @@ class vagrantNode:
         for net in out:
             self.runCmd("docker network rm " + net)
 
+    # Remove all containers on this node
+    def cleanupContainers(self):
+        self.runCmd("docker rm -f `docker ps -aq`")
+
     # Cleanup all state created by netplugin
     def cleanupSlave(self):
         self.runCmd("docker rm -f `docker ps -aq`")
@@ -133,6 +137,7 @@ class testbed:
             self.nodes.append(node)
 
             # Cleanup all state before we can start
+            node.cleanupContainers()
             node.stopNetmaster()
             node.stopNetplugin()
 
@@ -141,14 +146,14 @@ class testbed:
             node.cleanupMaster()
             node.cleanupSlave()
 
-        # Start netmaster
-        print "Starting netmaster"
-        self.nodes[0].startNetmaster()
-
         # Start netplugin on all nodes
         for node in self.nodes:
             print "Starting netplugin on " + node.addr
             node.startNetplugin()
+
+        # Start netmaster in the end
+        print "Starting netmaster"
+        self.nodes[0].startNetmaster()
 
     # Cleanup a testbed once test is done
     def cleanup(self):
