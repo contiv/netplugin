@@ -32,6 +32,7 @@ import (
 
 const (
 	defaultInfraNetName = "infra"
+	defaultSkyDNSImage  = "skynetservices/skydns:latest"
 )
 
 func checkPktTagType(pktTagType string) error {
@@ -143,7 +144,7 @@ func startServiceContainer(tenantName string) error {
 	}
 
 	// pull the skydns image if it does not exist
-	imageName := "skynetservices/skydns:latest"
+	imageName := defaultSkyDNSImage
 	_, err = docker.InspectImage(imageName)
 	if err != nil {
 		err = docker.PullImage(imageName, nil)
