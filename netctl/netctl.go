@@ -92,10 +92,6 @@ func addRule(ctx *cli.Context) {
 		"action":        ctx.String("action"),
 	}
 
-	if args["ruleId"] == nil || args["ruleId"].(string) == "" {
-		errExit(ctx, exitInvalid, "RuleID (-i) must be specified", false)
-	}
-
 	url := fmt.Sprintf(
 		"%s%s:%s:%s/",
 		ruleURL(ctx),

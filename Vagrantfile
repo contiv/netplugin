@@ -118,7 +118,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
 
             # mount the host directories
-            node.vm.synced_folder "../../../../", gopath_folder
+            node.vm.synced_folder "bin", File.join(gopath_folder, "bin")
+            if ENV["GOPATH"]
+              node.vm.synced_folder File.join(ENV["GOPATH"].split(":").first, "src"), File.join(gopath_folder, "src"), rsync: true
+            else
+              puts "!!! No GOPATH, mounting netplugin by itself"
+              node.vm.synced_folder ".", File.join(gopath_folder, "src/github.com/contiv/netplugin"), rsync: true
+            end
 
             node.vm.provision "shell" do |s|
                 s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_addr} #{node_name}' >> /etc/hosts"
