@@ -1,8 +1,6 @@
-package contivctl
+package netctl
 
-import (
-	"github.com/codegangsta/cli"
-)
+import "github.com/codegangsta/cli"
 
 var tenantFlag = cli.StringFlag{
 	Name:  "tenant, t",
@@ -18,6 +16,16 @@ var allFlag = cli.BoolFlag{
 var jsonFlag = cli.BoolFlag{
 	Name:  "json, j",
 	Usage: "Output list in JSON format",
+}
+
+// NetmasterFlags encapsulates the flags required for talking to the netmaster.
+var NetmasterFlags = []cli.Flag{
+	cli.StringFlag{
+		Name:   "netmaster",
+		Value:  DefaultMaster,
+		Usage:  "The hostname of the netmaster",
+		EnvVar: "NETMASTER",
+	},
 }
 
 // Commands are all the commands that go into `contivctl`, the end-user tool.

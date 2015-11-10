@@ -1,4 +1,4 @@
-package contivctl
+package netctl
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 var client = &http.Client{}
 
 func baseURL(ctx *cli.Context) string {
-	return ctx.GlobalString("master")
+	return ctx.GlobalString("netmaster")
 }
 
 func policyURL(ctx *cli.Context) string {

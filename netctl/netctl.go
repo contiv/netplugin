@@ -1,4 +1,4 @@
-package contivctl
+package netctl
 
 import (
 	"encoding/json"
