@@ -37,6 +37,7 @@ func argCheck(args int, ctx *cli.Context) {
 
 func respCheck(resp *http.Response, ctx *cli.Context) {
 	if resp.StatusCode != 200 {
+		writeBody(resp, ctx)
 		errExit(ctx, exitInvalid, fmt.Sprintf("Status %d in request response", resp.StatusCode), false)
 	}
 }
