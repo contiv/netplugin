@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
@@ -259,16 +260,16 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	}
 
 	// Attach service container endpoint to the network
-	err = attachServiceContainer(tenantName, networkID)
+	err = attachServiceContainer(tenantName, networkID, stateDriver)
 	if err != nil {
-		log.Errorf("Error attaching service container to network: %s.%s",
-			tenantName, network.Name)
+		log.Errorf("Error attaching service container to network: %s. Err: %v",
+			networkID, err)
 	}
 
 	return nil
 }
 
-func attachServiceContainer(tenantName string, networkName string) error {
+func attachServiceContainer(tenantName string, networkName string, stateDriver core.StateDriver) error {
 	contName := tenantName + "dns"
 	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
 	if err != nil {
@@ -282,6 +283,49 @@ func attachServiceContainer(tenantName string, networkName string) error {
 			contName, networkName, err)
 		return err
 	}
+
+	// inspect the container
+	cinfo, err := docker.InspectContainer(contName)
+	if err != nil {
+		log.Errorf("Error inspecting the container %s. Err: %v", contName, err)
+		return err
+	}
+
+	log.Debugf("Container info: %+v\n Hostconfig: %+v", cinfo, cinfo.HostConfig)
+
+	ninfo, err := docker.InspectNetwork(networkName)
+	if err != nil {
+		log.Errorf("Error getting network info for %s. Err: %v", networkName, err)
+		return err
+	}
+
+	log.Debugf("Network info: %+v", ninfo)
+
+	// find the container in network info
+	epInfo, ok := ninfo.Containers[cinfo.Id]
+	if !ok {
+		log.Errorf("Could not find container %s in network info", cinfo.Id)
+		return errors.New("Endpoint not found")
+	}
+
+	// read network Config
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	err = nwCfg.Read(networkName)
+	if err != nil {
+		return err
+	}
+
+	// set the dns server Info
+	nwCfg.DNSServer = strings.Split(epInfo.IPv4Address, "/")[0]
+	log.Infof("Dns server for network %s: %s", networkName, nwCfg.DNSServer)
+
+	// write the network config
+	err = nwCfg.Write()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

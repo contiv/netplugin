@@ -23,6 +23,6 @@ testbed = testbedApi.testbed(addrList)
 time.sleep(2)
 
 # Setup proxy
-setupProxy.setupProxy()
+# setupProxy.setupProxy()
 
 os._exit(0)

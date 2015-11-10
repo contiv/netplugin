@@ -19,7 +19,9 @@ for addr in sys.argv[1:]:
 # Cleanup nodes
 for addr in addrList:
 	node = testbedApi.vagrantNode(addr)
-
+	node.cleanupContainers()
+	
+for addr in addrList:
 	# Cleanup all state before we can start
 	node.stopNetmaster()
 	node.stopNetplugin()

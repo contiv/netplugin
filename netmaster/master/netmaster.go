@@ -126,8 +126,12 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 	}
 
 	err = startServiceContainer(tenant.Name)
+	if err != nil {
+		log.Errorf("Error starting service container. Err: %v", err)
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func startServiceContainer(tenantName string) error {
@@ -138,11 +142,15 @@ func startServiceContainer(tenantName string) error {
 		return err
 	}
 
+	// pull the skydns image if it does not exist
 	imageName := "skynetservices/skydns:latest"
-	err = docker.PullImage(imageName, nil)
+	_, err = docker.InspectImage(imageName)
 	if err != nil {
-		log.Errorf("Unable to pull image: %s", imageName)
-		return err
+		err = docker.PullImage(imageName, nil)
+		if err != nil {
+			log.Errorf("Unable to pull image: %s", imageName)
+			return err
+		}
 	}
 
 	containerConfig := &dockerclient.ContainerConfig{
