@@ -29,6 +29,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/plugin"
+	"github.com/contiv/netplugin/svcplugin"
+	"github.com/contiv/netplugin/svcplugin/bridge"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/gorilla/mux"
@@ -38,6 +40,7 @@ const pluginPath = "/run/docker/plugins"
 const driverName = "netplugin"
 
 var netPlugin *plugin.NetPlugin
+var dnsBridge = &bridge.Bridge{}
 
 // InitDockPlugin initializes the docker plugin
 func InitDockPlugin(netplugin *plugin.NetPlugin) error {
@@ -93,6 +96,12 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 		l.Close()
 		log.Infof("docker plugin closing %s", driverPath)
 	}()
+
+	// Adding bridge Config temporarily to check service refresh
+	bConfig := bridge.DefaultBridgeConfig()
+	bConfig.RefreshTTL = 15
+	bConfig.RefreshInterval = 10
+	dnsBridge, err = svcplugin.InitServicePlugin("skydns2:", bConfig)
 
 	return nil
 }

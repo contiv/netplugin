@@ -24,7 +24,7 @@ echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
 echo "export http_proxy='$4'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
-echo "export no_proxy=192.168.0.0/16,localhost,127.0.0.0/8" >> /etc/profile.d/envvar.sh
+echo "export no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 
 source /etc/profile.d/envvar.sh
 
@@ -40,7 +40,7 @@ systemctl enable docker-tcp.socket
 
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
-echo "Environment=\\\"no_proxy=192.168.0.0/16,localhost,127.0.0.0/8\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
+echo "Environment=\\\"no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
 sudo systemctl stop docker
 systemctl start docker-tcp.socket
@@ -62,6 +62,8 @@ rm /etc/docker/key.json
 
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
+
+docker pull skynetservices/skydns:latest
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"

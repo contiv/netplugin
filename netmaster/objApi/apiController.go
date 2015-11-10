@@ -16,6 +16,8 @@ limitations under the License.
 package objApi
 
 import (
+	"time"
+
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
@@ -56,6 +58,14 @@ func NewAPIController(router *mux.Router) *APIController {
 	// Register routes
 	contivModel.AddRoutes(router)
 
+	return ctrler
+}
+
+// CreateDefaultTenant creates the default tenant
+func CreateDefaultTenant() {
+	// Wait for netmaster to start listening to port 9999
+	time.Sleep(time.Second)
+
 	// Add default tenant if it doesnt exist
 	tenant := contivModel.FindTenant("default")
 	if tenant == nil {
@@ -72,8 +82,6 @@ func NewAPIController(router *mux.Router) *APIController {
 			log.Fatalf("Error creating default tenant. Err: %v", err)
 		}
 	}
-
-	return ctrler
 }
 
 // Utility function to check if string exists in a slice

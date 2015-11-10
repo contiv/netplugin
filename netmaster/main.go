@@ -246,9 +246,12 @@ func (d *daemon) ListenAndServe() {
 
 	log.Infof("Netmaster listening on %s", d.opts.listenURL)
 
+	go objApi.CreateDefaultTenant()
+
 	if err := http.ListenAndServe(d.opts.listenURL, router); err != nil {
 		log.Fatalf("Error listening for http requests. Error: %s", err)
 	}
+
 }
 
 // proxyHandler acts as a simple reverse proxy to access containers via http

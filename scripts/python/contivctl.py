@@ -60,6 +60,45 @@ def httpGet(url):
         print "URL error:", err.reason
         os._exit(1)
 
+# Create Tenant
+def createTenant(args):
+	print "Creating tenant {0}".format(args.tenantName)
+
+	# Create tenant
+	postUrl = 'http://localhost:9999/api/tenants/' + args.tenantName + '/'
+	jdata = json.dumps({
+       "key": args.tenantName,
+       "tenantName": args.tenantName,
+       "subnetPool": args.subnetpool,
+       "subnetLen":  args.subnetlen,
+       "vlans": args.vlans,
+       "vxlans": args.vxlans,
+	 })
+	response = httpPost(postUrl, jdata)
+	print "Tenant Create response is: " + response
+
+# Delete Tenant
+def deleteTenant(args):
+	print "Deleting tenant {0}".format(args.tenantName)
+
+	# Delete tenant
+	deleteUrl = 'http://localhost:9999/api/tenants/' + args.tenantName + '/'
+	httpDelete(deleteUrl)
+
+# List all Tenants
+def listTenant(args):
+	print "Listing all tenants"
+
+	# Get the list of Tenants
+	tenantList = json.loads(urllib2.urlopen('http://localhost:9999/api/tenants/').read())
+
+	print "TenantName       SubnetPool  SubnetLen   Vlans          Vxlans"
+
+	# Print the tenants
+	for tenant in tenantList:
+		if (args.tenantName == "") or (tenant['tenantName'] == args.tenantName):
+			print "{0}		{1}	{2}	{3}	{4}".format(tenant['tenantName'], tenant['subnetPool'], tenant['subnetLen'], tenant['vlans'], tenant['vxlans'])
+
 # Create policy
 def createPolicy(args):
 	print "Creating policy {0}:{1}".format(args.tenantName, args.policyName)
@@ -261,6 +300,33 @@ def globalGet(args):
 	res = json.loads(httpGet(getUrl))
         print "\nnwinfra: " + res['network-infra-type']
 
+# Add Tenant parser
+def addTenantParser(sub):
+	tenantParser = sub.add_parser("tenant", help="Tenant operations")
+	tenantSubparser = tenantParser.add_subparsers()
+
+	#Add tenant add/delete commands
+	tenantCreateParser = tenantSubparser.add_parser("create", help="Create Tenant")
+	tenantDeleteParser = tenantSubparser.add_parser("delete", help="Delete Tenant")
+	tenantListParser = tenantSubparser.add_parser("list", help="List all Tenants")
+
+	# Tenant name
+	tenantCreateParser.add_argument("tenantName", help="Tenant name")
+	tenantDeleteParser.add_argument("tenantName", help="Tenant name")
+	tenantListParser.add_argument("-tenantName", default="")
+
+	# tenant params
+	tenantCreateParser.add_argument("-subnetpool", required=True, help="Subnet addr/mask")
+	tenantCreateParser.add_argument("-subnetlen", default=24, help="subnet length")
+	tenantCreateParser.add_argument("-vlans", required=True, help="Vlan range <x-y>")
+	tenantCreateParser.add_argument("-vxlans", required=True, help="Vlan range <Vx-Vy>")
+
+	# Handler functions
+	tenantCreateParser.set_defaults(func=createTenant)
+	tenantDeleteParser.set_defaults(func=deleteTenant)
+	tenantListParser.set_defaults(func=listTenant)
+
+
 # Add policy subparser
 def addPolicyParser(sub):
 	policyParser = sub.add_parser("policy", help="Policy operations")
@@ -402,6 +468,7 @@ parser.add_argument('--version', action='version', version='1.0.0')
 subparsers = parser.add_subparsers()
 
 # Add subparser for each object
+addTenantParser(subparsers)
 addPolicyParser(subparsers)
 addRuleParser(subparsers)
 addEpgParser(subparsers)
