@@ -137,10 +137,12 @@ var Commands = []cli.Command{
 					cli.IntFlag{
 						Name:  "priority, p",
 						Usage: "Priority Indicator",
+						Value: 1,
 					},
 					cli.StringFlag{
 						Name:  "direction, d",
 						Usage: "Direction of traffic (in/out)",
+						Value: "both",
 					},
 					cli.StringFlag{
 						Name:  "group, g",
@@ -165,6 +167,7 @@ var Commands = []cli.Command{
 					cli.StringFlag{
 						Name:  "action, j",
 						Usage: "Action to take (e.g., deny)",
+						Value: "accept",
 					},
 				},
 				Action: addRule,
