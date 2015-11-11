@@ -1,66 +1,98 @@
 ## Contributing to Netplugin
 
-There are many ways to contribute - report issues, suggest doc changes, 
-submit bug fixes, propose design changes, discuss use cases, propose 
-interop with other ecosystem software, or become a maintainer.
+Submitting code changes is only one of the many ways to contribute.
+Reporting issues, proposing documentation and design changes,
+discussing use cases and proposing integration with other software
+from the ecosystem are more ways to contribute to netplugin.
+Contributors can also become maintainers.
 
-All contributions, big or small are welcome!
+All contributions are welcome, no matter how small or how big they are.
+
 
 ### Reporting Issues
-Usage or non code related issues can be reported by clicking `New Issue` on
+Issues which aren't related to the code or which are related to usage
+should be reported by clicking `New Issue` on
 [netplugin's issues on github](https://github.com/contiv/netplugin/issues).
-A feature request can also be submitted as an issue.
+Issues should also be opened for feature requests.
 
-However if there is an issue with running the netplugin binary, providing following 
-information would shorten the debug time:
-- Version of container runtime (e.g. docker), state driver (e.g. etcd), 
-netplugin version, driver (e.g. ovs), Operating System version, and other
-applicable information.
-- Steps to reproduce, if any
-- Backtrace, if applicable
+The following pieces of information should be provided when running into
+problems with netplugin:
+- version of the container runtime (e.g. `docker version` for docker)
+- state driver (e.g. etcd)
+- netplugin version
+- driver (e.g. ovs)
+- operating system & version (found in `/etc/os-release` on some distributions, `uname -a`)
+- step by step procedure to reproduce the problem
+- backtrace if any
 
-### Suggesting a doc change, or submitting a bug fix
-Just go ahead and submit a PR, one of the maintainers would review the diffs
-and provide feedback. After discussions, as the changes look good, they will
-be merged into the master. Please make sure you run the unit and system tests
-before submitting the PR.
 
-### Proposing a design change
-If you would like to refactor the code, propose a new design component, or
-introduce a significant change, please discuss it as an issue titled as
-`Proposal: ...` in order for people to provide feedback early enough. 
-Making significant code changes before design discussion may waste
-time, therefore it is discouraged.
+### Submitting pull requests for code or documentation changes
+Changes can be proposed by sending a pull request (PR). A maintainer
+will review the changes and provide feedback. The pull request will be merged
+into the master branch after discussion.
+
+Please make sure that the unit tests and the system tests pass before
+submitting the PR.
+Please keep in mind some changes might not be merged if the maintainers
+decide they can't be merged.
+
+
+### Submitting proposals for major changes
+Please include `Proposal: ...` in the title of the issue if you wish to
+do significant refactoring of the code, to propose a new component or to
+introduce a major change. Marking the issue as a proposal will ensure that
+more people provide feedback as early as possible.
+
+Significant code changes submitted without an accompanying proposal might
+be rejected and not merged. Such significant submissions without a proposal are
+discouraged to avoid wasting time.
+
 
 After design discussions:
-- Fork a private repo
-- Make the changes in the private repo
+- Fork the netplugin repository to your own public repository
+- Make the changes in your repository in a new branch
 - Add unit and system test cases for your code
 - Make sure existing tests and newly added tests pass
-- Merge your changes with the latest in the master branch
+- Rebase your branch on top of the latest master branch
 - Re-run the unit and system tests
-- Submit a PR with the code changes
-- This would involve discussions and few adjustments may need to be made.
-It is encouraged to engage into discussions during the coding phase as well.
-- After `LGTM` from maintainers, re-run unit and system tests
-- One of the maintainers would merge your changes into the appropriate release candidate
+- Submit a pull request with the code changes
+- A discussion may take place on your pull request
+- Discussing while writing the code is also recommended
+- Requested changes should be made to the same branch on your fork
+- Changes should be force pushed to the same branch of the pull request
+- The unit and system tests need to be run again after the maintainers `LGTM` the change
+- One of the maintainers will merge the changes
 
 
 ### Discussing use cases and requesting new features
-Bring up your use cases by submitting an issue. Describe the use case that
-is not handled in the latest version. Issues that seek new features should
-be titled as `Feature Request: ...`. It is encouraged to include diagrams 
-(pics of hand drawn diagrams is just fine), or other details that best
-describes a use case.
+Submit an issue to discuss your use case. A description of the use case
+should be provided. The description should also explain why the existing
+features don't help with this use case.
+Feature requests should have a title which starts with `Feature request: ...`.
+We encourage the inclusion of diagrams (or pictures of drawings) and other
+details to provide a better description of the use case.
+
 
 ### Becoming a maintainer
-Of course, play with the code, know is inside out - and you will know if you
-are ripe to become a maintainer. If you think you are ready, drop an eamil
-to any of the maintainers.
+Play with the code and know it inside out. Once you think you are comfortable
+with the code and you think you are ready to become a maintainer, you can send
+an email to one of the maintainers.
+
+### Commit message format guidelines
+The commit message should have a short summary of no more than 50
+characters on the first line. The description should use verbs in the imperative
+(e.g. `netmaster: fix bug`, not `netmaster: fixed bug`).
+The second line should be left empty.
+
+A longer description of what the commit does should start on the third line when
+such a description is deemed necessary. This description needs to be wrapped to
+72 characters. Paragraphs following this one should have an empty line above
+them.
+
 
 ### Legal Stuff: Sign your work
-You must sign-off your work by adding your signature at the end of 
-patch description. Your signature certifies that you wrote the patch or 
+You must sign off on your work by adding your signature at the end of the
+commit message. Your signature certifies that you wrote the patch or
 otherwise have the right to pass it on as an open-source patch. 
 By signing off your work you ascertain following (from [developercertificate.org](http://developercertificate.org/)):
 
@@ -102,12 +134,35 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
-Then you just add a line to every git commit message:
+Every git commit message must have the following at the end on a separate line:
 
     Signed-off-by: Joe Smith <joe.smith@email.com>
 
-Use your real name (sorry, no pseudonyms or anonymous contributions.)
+Your real legal name has to be used. Anonymous contributions or contributions
+submitted using pseudonyms cannot be accepted.
 
-If you set your `user.name` and `user.email` git configs, you can sign your
-commit automatically with `git commit -s`.
+Two examples of commit messages with the sign-off message can be found below:
+```
+netmaster: fix bug
 
+This fixes a random bug encountered in netmaster.
+
+Signed-off-by: Joe Smith <joe.smith@email.com>
+```
+```
+netmaster: fix bug
+
+Signed-off-by: Joe Smith <joe.smith@email.com>
+```
+
+If you set your `user.name` and `user.email` git configuration options, you can
+sign your commits automatically with `git commit -s`.
+
+These git options can be set using the following commands:
+```
+git config user.name "Joe Smith"
+git config user.email joe.smith@email.com
+```
+
+`git commit -s` should be used now to sign the commits automatically, instead of
+`git commit`.
