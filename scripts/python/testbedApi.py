@@ -99,6 +99,7 @@ class vagrantNode:
     def cleanupMaster(self):
         self.runCmd("etcdctl rm --recursive /contiv")
         self.runCmd("etcdctl rm --recursive /contiv.io")
+        self.runCmd("etcdctl rm --recursive /skydns")
 
     def runContainer(self, imgName="ubuntu", cmdName="sh", networkName=None, serviceName=None):
         netSrt = ""
