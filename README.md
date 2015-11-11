@@ -1,4 +1,4 @@
-[![Build Status](http://1cea435f.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/badge/icon)](http://1cea435f.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/)
+[![Build Status](http://51633006.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/badge/icon)](http://51633006.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/)
 
 ## Netplugin
 
