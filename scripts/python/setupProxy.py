@@ -36,9 +36,8 @@ def setupProxy():
             {
                 "Name"                  : "private",
                 "Endpoints" : [ {
-                    "Container"         : "myContainer1",
-                    "Host"         	    : "netplugin-node1",
-                    "ServiceName"		: "proxy"
+                    "Container"         : "proxyPort",
+                    "Host"         	    : "netplugin-node1"
                 }]
             } ]
         } ]
@@ -68,7 +67,7 @@ def setupProxy():
 
             # Look for pro
             for ep in epList:
-            	if ep['id'] == "private-myContainer1":
+            	if ep['id'] == "private.default-proxyPort":
         		# Config ip and bringup interface
 			print "Found the proxy endpoint, bringing up the ovs interface"
             		print "sudo ifconfig " + ep['portName'] + " " + ep['ipAddress'] + " up"

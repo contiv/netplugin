@@ -20,9 +20,12 @@ for addr in sys.argv[1:]:
 
 # Cleanup all state and start netplugin/netmaster
 testbed = testbedApi.testbed(addrList)
-time.sleep(2)
+
+print "Waiting for netmaster to come up"
+time.sleep(15)
 
 # Setup proxy
-# setupProxy.setupProxy()
+setupProxy.setupProxy()
 
+print "################### Started Netplugin #####################"
 os._exit(0)

@@ -18,6 +18,7 @@ package dockplugin
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -32,6 +33,8 @@ import (
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/samalba/dockerclient"
 )
+
+const defaultTenantName = "default"
 
 func getCapability() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -400,7 +403,6 @@ func netdGetNetwork(networkID string) (*mastercfg.CfgNetworkState, error) {
 	nwCfg.StateDriver = stateDriver
 	err = nwCfg.Read(networkID)
 	if err != nil {
-		log.Errorf("network %s is not operational", networkID)
 		return nil, err
 	}
 
@@ -433,14 +435,27 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 			var tenantName, netName, serviceName string
 			names := strings.Split(nw.Name, ".")
 			if len(names) == 2 {
-				// has only network.tenant format
-				tenantName = names[1]
-				netName = names[0]
+				// determine if this is service.network on default tenant or network.tenant
+				_, err = netdGetNetwork(fmt.Sprintf("%s.%s", names[1], defaultTenantName))
+				if err == nil {
+					// This is service.network on default tenant
+					tenantName = defaultTenantName
+					netName = names[1]
+					serviceName = names[0]
+				} else {
+					// this is in network.tenant format
+					tenantName = names[1]
+					netName = names[0]
+				}
 			} else if len(names) == 3 {
 				// has service.network.tenant format
 				tenantName = names[2]
 				netName = names[1]
 				serviceName = names[0]
+			} else if len(names) == 1 {
+				// If only network is specified, use default tenant
+				tenantName = defaultTenantName
+				netName = names[0]
 			} else {
 				log.Errorf("Invalid network name format for network %s", nw.Name)
 				return "", "", "", errors.New("Invalid format")

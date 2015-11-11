@@ -32,9 +32,17 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const driverName = "netplugin"
+const (
+	driverName        = "netplugin"
+	defaultTenantName = "default"
+)
 
 var testMode = false
+
+// Trim default tenant from network name
+func trimDefaultTenant(networkName string) string {
+	return strings.TrimRight(strings.TrimRight(networkName, defaultTenantName), ".")
+}
 
 func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	var err error
@@ -76,6 +84,9 @@ func createDockNet(networkName, subnetCIDR, gateway string) error {
 	if testMode {
 		return nil
 	}
+
+	// Trim default tenant name
+	networkName = trimDefaultTenant(networkName)
 
 	// connect to docker
 	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
@@ -128,6 +139,9 @@ func deleteDockNet(networkName string) error {
 	if testMode {
 		return nil
 	}
+
+	// Trim default tenant name
+	networkName = trimDefaultTenant(networkName)
 
 	// connect to docker
 	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
@@ -277,7 +291,10 @@ func attachServiceContainer(tenantName string, networkName string, stateDriver c
 		return err
 	}
 
-	err = docker.ConnectNetwork(networkName, contName)
+	// Trim default tenant
+	dnetName := trimDefaultTenant(networkName)
+
+	err = docker.ConnectNetwork(dnetName, contName)
 	if err != nil {
 		log.Errorf("Could not attach container(%s) to network %s. Error: %s",
 			contName, networkName, err)
@@ -293,9 +310,9 @@ func attachServiceContainer(tenantName string, networkName string, stateDriver c
 
 	log.Debugf("Container info: %+v\n Hostconfig: %+v", cinfo, cinfo.HostConfig)
 
-	ninfo, err := docker.InspectNetwork(networkName)
+	ninfo, err := docker.InspectNetwork(dnetName)
 	if err != nil {
-		log.Errorf("Error getting network info for %s. Err: %v", networkName, err)
+		log.Errorf("Error getting network info for %s. Err: %v", dnetName, err)
 		return err
 	}
 
@@ -477,6 +494,8 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 	var ipAddrValue uint
 	var found bool
 	var err error
+
+	// alloc address
 	if reqAddr == "" {
 		ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0)
 		if !found {
