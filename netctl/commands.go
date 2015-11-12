@@ -38,7 +38,7 @@ var Commands = []cli.Command{
 			{
 				Name:      "create",
 				Usage:     "Create an endpoint group",
-				ArgsUsage: "[group] [network]",
+				ArgsUsage: "[network] [group]",
 				Flags: []cli.Flag{
 					tenantFlag,
 					cli.StringFlag{
@@ -51,7 +51,7 @@ var Commands = []cli.Command{
 			{
 				Name:      "delete",
 				Usage:     "Delete an endpoint group",
-				ArgsUsage: "[group]",
+				ArgsUsage: "[network] [group]",
 				Flags:     []cli.Flag{tenantFlag},
 				Action:    deleteEndpointGroup,
 			},
@@ -88,22 +88,22 @@ var Commands = []cli.Command{
 				ArgsUsage: "[network]",
 				Flags: []cli.Flag{
 					tenantFlag,
-					cli.BoolFlag{
-						Name:  "public, p",
-						Usage: "Indicate this network is public",
-					},
 					cli.StringFlag{
 						Name:  "encap, e",
-						Usage: "Packet tag",
+						Usage: "Encap type (vlan or vxlan)",
 						Value: "vxlan",
+					},
+					cli.StringFlag{
+						Name:  "pkt-tag, p",
+						Usage: "Packet tag (Vlan/Vxlan ids)- REQUIRED",
 					},
 					cli.StringFlag{
 						Name:  "subnet, s",
 						Usage: "Subnet CIDR - REQUIRED",
 					},
 					cli.StringFlag{
-						Name:  "default-gw, g",
-						Usage: "Default Gateway - REQUIRED",
+						Name:  "gateway, g",
+						Usage: "Gateway - REQUIRED",
 					},
 				},
 				Action: createNetwork,
