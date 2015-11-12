@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 
 	"github.com/codegangsta/cli"
 )
@@ -32,6 +33,15 @@ func ruleURL(ctx *cli.Context) string {
 	return fmt.Sprintf("%s/api/rules/", baseURL(ctx))
 }
 
+func writeBody(resp *http.Response, ctx *cli.Context) {
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
+	os.Stderr.Write(content)
+}
+
 func postMap(ctx *cli.Context, url string, jsonMap map[string]interface{}) {
 	content, err := json.Marshal(jsonMap)
 	if err != nil {
@@ -40,6 +50,7 @@ func postMap(ctx *cli.Context, url string, jsonMap map[string]interface{}) {
 
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(content))
 	if err != nil {
+		writeBody(resp, ctx)
 		errExit(ctx, exitRequest, err.Error(), false)
 	}
 
@@ -54,6 +65,7 @@ func deleteURL(ctx *cli.Context, url string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		writeBody(resp, ctx)
 		errExit(ctx, exitRequest, err.Error(), false)
 	}
 
@@ -63,6 +75,7 @@ func deleteURL(ctx *cli.Context, url string) {
 func getList(ctx *cli.Context, url string) []map[string]interface{} {
 	resp, err := client.Get(url)
 	if err != nil {
+		writeBody(resp, ctx)
 		errExit(ctx, exitRequest, err.Error(), false)
 	}
 
