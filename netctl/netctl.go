@@ -51,8 +51,6 @@ func listPolicies(ctx *cli.Context) {
 	policies := getList(ctx, policyURL(ctx))
 	filtered := []map[string]interface{}{}
 
-	filtered = policies
-
 	if !ctx.Bool("all") {
 		for _, policy := range policies {
 			if policy["tenantName"] == tenant {
@@ -177,26 +175,26 @@ func createNetwork(ctx *cli.Context) {
 	argCheck(1, ctx)
 
 	subnet := ctx.String("subnet")
-	defaultGw := ctx.String("default-gw")
+	gateway := ctx.String("gateway")
 
-	if subnet == "" || defaultGw == "" {
+	if subnet == "" || gateway == "" {
 		errExit(ctx, exitHelp, "Invalid Arguments", true)
 	}
 
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 	encap := ctx.String("encap")
+	pktTag := ctx.Int("pkt-tag")
 
 	url := fmt.Sprintf("%s%s:%s/", networkURL(ctx), tenant, network)
 
 	out := map[string]interface{}{
 		"tenantName":  tenant,
 		"networkName": network,
-		"isPublic":    ctx.Bool("public"),
-		"isPrivate":   !ctx.Bool("public"),
 		"encap":       encap,
+		"pktTag":      pktTag,
 		"subnet":      subnet,
-		"defaultGw":   defaultGw,
+		"gateway":     gateway,
 	}
 
 	postMap(ctx, url, out)
@@ -237,23 +235,18 @@ func listNetworks(ctx *cli.Context) {
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tNetwork\tPublic\tEncap\tSubnet\tGateway\n"))
-		writer.Write([]byte("------\t-------\t------\t-----\t------\t-------\n"))
+		writer.Write([]byte("Tenant\tNetwork\tEncap type\tPacket tag\tSubnet\tGateway\n"))
+		writer.Write([]byte("------\t-------\t----------\t----------\t-------\t------\n"))
 
 		for _, net := range filtered {
-			isPublic := net["isPublic"]
-			if isPublic == nil {
-				isPublic = false
-			}
-
 			writer.Write(
 				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\n",
 					net["tenantName"],
 					net["networkName"],
-					isPublic,
 					net["encap"],
+					net["pktTag"],
 					net["subnet"],
-					net["defaultGw"],
+					net["gateway"],
 				)))
 		}
 	}
@@ -263,9 +256,9 @@ func createEndpointGroup(ctx *cli.Context) {
 	argCheck(2, ctx)
 
 	tenant := ctx.String("tenant")
-	group := ctx.Args()[0]
-	network := ctx.Args()[1]
-	url := fmt.Sprintf("%s%s:%s/", epgURL(ctx), tenant, group)
+	network := ctx.Args()[0]
+	group := ctx.Args()[1]
+	url := fmt.Sprintf("%s%s:%s:%s/", epgURL(ctx), tenant, network, group)
 
 	policies := strings.Split(ctx.String("policy"), ",")
 	if ctx.String("policy") == "" {
@@ -283,12 +276,13 @@ func createEndpointGroup(ctx *cli.Context) {
 }
 
 func deleteEndpointGroup(ctx *cli.Context) {
-	argCheck(1, ctx)
+	argCheck(2, ctx)
 
 	tenant := ctx.String("tenant")
-	group := ctx.Args()[0]
+	network := ctx.Args()[0]
+	group := ctx.Args()[1]
 
-	deleteURL(ctx, fmt.Sprintf("%s%s:%s/", epgURL(ctx), tenant, group))
+	deleteURL(ctx, fmt.Sprintf("%s%s:%s:%s/", epgURL(ctx), tenant, network, group))
 }
 
 func listEndpointGroups(ctx *cli.Context) {
@@ -317,7 +311,11 @@ func listEndpointGroups(ctx *cli.Context) {
 		for _, group := range filtered {
 			policies := ""
 			if group["policies"] != nil {
-				policies = strings.Join(group["policies"].([]string), ",")
+				policyList := []string{}
+				for _, p := range group["policies"].([]interface{}) {
+					policyList = append(policyList, p.(string))
+				}
+				policies = strings.Join(policyList, ",")
 			}
 			writer.Write(
 				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\n",
