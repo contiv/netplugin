@@ -3,6 +3,7 @@ import paramiko
 import threading
 import sys
 import os
+import time
 
 # Utility function to run ssh
 def ssh_exec_thread(ssh_object, command):
@@ -151,6 +152,9 @@ class testbed:
             print "Starting netplugin on " + node.addr
             node.startNetplugin()
 
+        # Wait few seconds before starting netmaster
+        time.sleep(3)
+
         # Start netmaster in the end
         print "Starting netmaster"
         self.nodes[0].startNetmaster()
@@ -159,13 +163,19 @@ class testbed:
     def cleanup(self):
         # Cleanup each node
         for node in self.nodes:
+            print "Stopping containers on " + node.addr
+            node.cleanupContainers()
+
+        # Stop netmaster and remove networks
+        self.nodes[0].stopNetmaster()
+
+        for node in self.nodes:
             print "Cleaning up node " + node.addr
             node.stopNetplugin()
             node.cleanupSlave()
 
         # cleanup master
         print "Cleaning up master"
-        self.nodes[0].stopNetmaster()
         self.nodes[0].cleanupMaster()
 
     # Number of nodes in the testbed
@@ -180,9 +190,9 @@ class testbed:
             nodeIdx = cntIdx % self.numNodes()
             if withService:
                 srvName = "srv" + str(cntIdx)
-                cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private.default", serviceName=srvName)
+                cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private", serviceName=srvName)
             else:
-                cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private.default")
+                cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private")
 
             containers.append(cnt)
 
@@ -194,7 +204,7 @@ class testbed:
         # Start the containers
         for cntIdx in range(numContainer):
             nodeIdx = cntIdx % self.numNodes()
-            cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private.default", serviceName=serviceName)
+            cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private", serviceName=serviceName)
             containers.append(cnt)
 
         return containers
@@ -327,10 +337,6 @@ class container:
         if exitCode != 0:
             self.errorExit("Error removing container", out, err)
 
-        # Unpublish the service
-        # if self.serviceName != None:
-        #    self.node.runCmd("docker service unpublish " + self.serviceName)
-
     # Get IP address of the container
     def getIpAddr(self, intfName="eth0"):
         if intfName == "eth0":
@@ -377,7 +383,7 @@ class container:
     # Check if this container can connect to destination port
     def checkConnection(self, ipAddr, port, protocol="tcp"):
         protoStr = "-u " if protocol == "udp" else " "
-        out, err, exitCode = self.execCmd("netcat -z -n -v -w 5 " + protoStr + ipAddr + " " + str(port))
+        out, err, exitCode = self.execCmd("netcat -z -n -v -w 1 " + protoStr + ipAddr + " " + str(port))
 
         print "checkConnection Output(" + str(exitCode) + "): " + ''.join(out)
         print "checkConnection Err: " + ''.join(err)

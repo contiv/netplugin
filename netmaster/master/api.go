@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -75,6 +76,9 @@ type DeleteEndpointResponse struct {
 	EndpointConfig mastercfg.CfgEndpointState // Endpoint config
 }
 
+// Global mutex for address allocation
+var addrMutex sync.Mutex
+
 // AllocAddressHandler allocates addresses
 func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	var allocReq AddressAllocRequest
@@ -87,6 +91,10 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 	}
 
 	log.Infof("Received AddressAllocRequest: %+v", allocReq)
+
+	// Take a global lock for address allocation
+	addrMutex.Lock()
+	defer addrMutex.Unlock()
 
 	// Get hold of the state driver
 	stateDriver, err := utils.GetStateDriver()

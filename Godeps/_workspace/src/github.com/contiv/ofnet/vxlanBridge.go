@@ -23,8 +23,6 @@ import (
 	"net/rpc"
 	"strings"
 
-	//"github.com/shaleman/libOpenflow/openflow13"
-	//"github.com/shaleman/libOpenflow/protocol"
 	"github.com/contiv/ofnet/ofctrl"
 
 	log "github.com/Sirupsen/logrus"
@@ -353,8 +351,8 @@ func (self *Vxlan) AddVlan(vlanId uint16, vni uint32) error {
 		portVlanFlow.SetMetadata(METADATA_RX_VTEP, METADATA_RX_VTEP)
 
 		// Point to next table
-		dstGrpTbl := self.ofSwitch.GetTable(DST_GRP_TBL_ID)
-		portVlanFlow.Next(dstGrpTbl)
+		// Note that we pypass policy lookup on dest host
+		portVlanFlow.Next(self.macDestTable)
 	}
 
 	// Walk all VTEP ports and add it to the allFlood list

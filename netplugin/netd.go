@@ -214,7 +214,9 @@ func contAttachPointDeleted(epCtx *crtclient.ContainerEPContext) bool {
 func processEpEvent(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts cliOpts,
 	epID string, isDelete bool) (err error) {
 	// Dont process endpoint events in dockplugin mode
-	if opts.dockPlugin {
+	// HACK alert: Ugly hack to create proxy port in docker-plugin mode
+	if opts.dockPlugin && !strings.Contains(epID, "proxyPort") {
+		log.Infof("Ignoring endpoint create in docker-plugin mode for: %s", epID)
 		return nil
 	}
 	// take a lock to ensure we are programming one event at a time.
@@ -769,6 +771,11 @@ func main() {
 
 	if opts.syslog != "" {
 		configureSyslog(opts.syslog)
+	}
+
+	// Enable nativ-integ flag in docker plugin mode
+	if opts.dockPlugin == true {
+		opts.nativeInteg = true
 	}
 
 	if flagSet.NFlag() < 1 {
