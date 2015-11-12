@@ -1,4 +1,4 @@
-[![Build Status](http://1cea435f.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/badge/icon)](http://1cea435f.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/)
+[![Build Status](http://51633006.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/badge/icon)](http://51633006.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/)
 
 ## Netplugin
 
@@ -34,27 +34,26 @@ $ cd netplugin; make build demo ssh
 ```
 $ cd /opt/gopath/src/github.com/contiv/netplugin
 $ sudo $GOPATH/bin/netmaster &
-$ sudo $GOPATH/bin/netplugin -host-label host1 &
+$ sudo $GOPATH/bin/netplugin -docker-plugin &
 ```
 
-#### Step 3: Upload your intent, which we take from the `examples/` directory
+#### Step 3: Create a network
 
 ```
-$ netdcli -cfg examples/one_host_multiple_nets.json
+$ $GOPATH/bin/netctl net create contiv-net --subnet=20.1.1.0/24 --gateway=20.1.1.254 --pktTag=200
 ```
-
-**Note:** there are tons of examples of network intent in the `examples/`
-directory. Try a few of them out!
 
 #### Step 4: Run your containers and enjoy the networking!
 
 ```
-$ docker run -itd --name=myContainer1 --hostname=myContainer1 ubuntu /bin/bash
-$ docker run -itd --name=myContainer2 --hostname=myContainer2 ubuntu /bin/bash
-$ docker exec -it myContainer1 /bin/bash
+$ docker run -itd --name=web --net=contiv-net ubuntu /bin/bash
+$ docker run -itd --name=db --net=contiv-net ubuntu /bin/bash
+$ docker exec -it web /bin/bash
 < inside the container >
-$ ip addr
-$ ping 11.1.0.2
+root@f90e7fd409c4:/# ping db
+PING db (20.1.1.3) 56(84) bytes of data.
+64 bytes from db (20.1.1.3): icmp_seq=1 ttl=64 time=0.658 ms
+64 bytes from db (20.1.1.3): icmp_seq=2 ttl=64 time=0.103 ms
 ```
 
 #### Trying it out in a multi-host VLAN/VXLAN network
@@ -92,4 +91,4 @@ Please see [Kubernetes Integration](docs/kubernetes.md) for details
 ### How to Contribute
 Patches and contributions are welcome, please hit the GitHub page to open an
 issue or to submit patches send pull requests. Please sign your commits, and
-read [CONTRIBUTING.md](docs/CONTRIBUTING.md)
+read [CONTRIBUTING.md](CONTRIBUTING.md)
