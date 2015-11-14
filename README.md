@@ -19,7 +19,7 @@ This will provide you with a minimal experience of uploading the intent and
 seeing the netplugin system act on it. It will create a network on your host
 that lives behind an OVS bridge and has its own unique interfaces.
 
-#### Step 1: Clone the project:
+#### Step 1: Clone the project and bringup the VMs
 
 ```
 $ git clone https://github.com/contiv/netplugin
