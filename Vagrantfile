@@ -75,7 +75,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         config.vm.box = "contiv/ubuntu1504-netplugin"
         config.vm.box_version = "0.3.1"
     end
-    num_nodes = 1
+    num_nodes = 2
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i
     end
@@ -119,10 +119,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
             # mount the host directories
             node.vm.synced_folder "bin", File.join(gopath_folder, "bin")
-            if ENV["GOPATH"]
+            if ENV["GOPATH"] && ENV['GOPATH'] != ""
               node.vm.synced_folder File.join(ENV["GOPATH"].split(":").first, "src"), File.join(gopath_folder, "src"), rsync: true
             else
-              puts "!!! No GOPATH, mounting netplugin by itself"
               node.vm.synced_folder ".", File.join(gopath_folder, "src/github.com/contiv/netplugin"), rsync: true
             end
 

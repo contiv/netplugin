@@ -22,28 +22,18 @@ that lives behind an OVS bridge and has its own unique interfaces.
 #### Step 1: Clone the project:
 
 ```
-$ export GOPATH=`pwd`
-$ mkdir -p src/github.com/contiv
-$ cd src/github.com/contiv
 $ git clone https://github.com/contiv/netplugin
-$ cd netplugin; make build demo ssh
+$ cd netplugin; make demo
+$ vagrant ssh netplugin-node1
 ```
 
-#### Step 2: Inside the VM, boot `netmaster` and `netplugin`
+#### Step 2: Create a network
 
 ```
-$ cd /opt/gopath/src/github.com/contiv/netplugin
-$ sudo $GOPATH/bin/netmaster &
-$ sudo $GOPATH/bin/netplugin -docker-plugin &
+$ netctl net create contiv-net --subnet=20.1.1.0/24 --gateway=20.1.1.254 --pkt-tag=200
 ```
 
-#### Step 3: Create a network
-
-```
-$ $GOPATH/bin/netctl net create contiv-net --subnet=20.1.1.0/24 --gateway=20.1.1.254 --pktTag=200
-```
-
-#### Step 4: Run your containers and enjoy the networking!
+#### Step 3: Run your containers and enjoy the networking!
 
 ```
 $ docker run -itd --name=web --net=contiv-net ubuntu /bin/bash
