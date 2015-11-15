@@ -27,6 +27,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/utils"
 	"github.com/samalba/dockerclient"
 
 	log "github.com/Sirupsen/logrus"
@@ -144,6 +145,57 @@ func deleteDockNet(networkName string) error {
 		log.Errorf("Error deleting network %s. Err: %v", networkName, err)
 		// FIXME: Ignore errors till we fully move to docker 1.9
 		return nil
+	}
+
+	return nil
+}
+
+func detachServiceContainer(networkName, tenantName string) error {
+	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	if err != nil {
+		log.Errorf("Unable to connect to docker. Error %v", err)
+		return errors.New("Unable to connect to docker")
+	}
+
+	dnsContName := tenantName + "dns"
+	cinfo, err := docker.InspectContainer(dnsContName)
+	if err != nil {
+		log.Errorf("Error inspecting the container %s. Err: %v", dnsContName, err)
+		return err
+	}
+
+	// Remove dns container from network if all other endpoints are withdrawn
+	nwState, err := docker.InspectNetwork(networkName)
+	if err != nil {
+		log.Errorf("Error while inspecting network: %+v", networkName)
+		return err
+	}
+	log.Infof("Containers in network: %+v are {%+v}", networkName, nwState.Containers)
+	dnsServerIP := strings.Split(nwState.Containers[cinfo.Id].IPv4Address, "/")[0]
+
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		log.Errorf("Could not get StateDriver while trying to disconnect dnsContainer from %+v", networkName)
+		return err
+	}
+
+	// Read network config and get DNSServer information
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	err = nwCfg.Read(networkName)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("dnsServerIP: %+v, nwCfg.dnsip: %+v", dnsServerIP, nwCfg.DNSServer)
+	if len(nwState.Containers) == 1 && (dnsServerIP == nwCfg.DNSServer) {
+		log.Infof("Disconnecting dns container from network as all other endpoints are removed: %+v", networkName)
+		err = docker.DisconnectNetwork(networkName, dnsContName)
+		if err != nil {
+			log.Errorf("Could not detach container(%s) from network %s. Error: %s",
+				dnsContName, networkName, err)
+			return err
+		}
 	}
 
 	return nil
@@ -401,6 +453,13 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	err = gCfg.Read(nwCfg.Tenant)
 	if err != nil {
 		log.Errorf("error reading tenant info for %q. Error: %s", nwCfg.Tenant, err)
+		return err
+	}
+
+	err = detachServiceContainer(netID, nwCfg.Tenant)
+	if err != nil {
+		log.Errorf("Error in detaching dns container from %+v:%+v",
+			netID, nwCfg.Tenant)
 		return err
 	}
 
