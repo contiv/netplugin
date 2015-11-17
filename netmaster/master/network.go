@@ -157,7 +157,7 @@ func deleteDockNet(networkName string) error {
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", networkName, err)
 		// FIXME: Ignore errors till we fully move to docker 1.9
-		return nil
+		return err
 	}
 
 	return nil
@@ -425,6 +425,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	err = deleteDockNet(netID)
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", netID, err)
+		return err
 	}
 
 	// Free resource associated with the network
