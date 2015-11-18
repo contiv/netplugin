@@ -11,10 +11,6 @@
 			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
 		},
 		{
-			"ImportPath": "github.com/cenkalti/backoff",
-			"Rev": "4dc77674aceaabba2c7e3da25d4c823edfb73f99"
-		},
-		{
 			"ImportPath": "github.com/cenkalti/hub",
 			"Comment": "v1.0.0-12-g7be60e1",
 			"Rev": "7be60e186e66cd86db2d50ef2ca3778e281c87b4"
@@ -113,10 +109,6 @@
 			"ImportPath": "github.com/docker/libnetwork/types",
 			"Comment": "v0.2-654-g2559410",
 			"Rev": "2559410949b7200a81f63e0333ae768fe7a73d71"
-		},
-		{
-			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "ef410296f87750305e1e1acf9ad2ba3833dcb004"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",

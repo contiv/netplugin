@@ -3,7 +3,6 @@ package consulextension
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/svcplugin/bridge"
@@ -19,11 +18,13 @@ func init() {
 	bridge.Register(new(Factory), "consul")
 }
 
+/* TODO: Fix this for check_script
 func (r *ConsulAdapter) interpolateService(script string, service *bridge.Service) string {
 	withIP := strings.Replace(script, "$SERVICE_IP", service.Origin.HostIP, -1)
 	withPort := strings.Replace(withIP, "$SERVICE_PORT", service.Origin.HostPort, -1)
 	return withPort
 }
+*/
 
 // Factory implementation to implement RegistryAdapter interface functions
 type Factory struct{}
@@ -77,15 +78,18 @@ func (r *ConsulAdapter) buildCheck(service *bridge.Service) *consulapi.AgentServ
 		if timeout := service.Attrs["check_timeout"]; timeout != "" {
 			check.Timeout = timeout
 		}
-	} else if cmd := service.Attrs["check_cmd"]; cmd != "" {
-		check.Script = fmt.Sprintf("check-cmd %s %s %s", service.Origin.ContainerID[:12], service.Origin.ExposedPort, cmd)
-	} else if script := service.Attrs["check_script"]; script != "" {
-		check.Script = r.interpolateService(script, service)
 	} else if ttl := service.Attrs["check_ttl"]; ttl != "" {
 		check.TTL = ttl
 	} else {
 		return nil
 	}
+	/* TODO: Fix check_cmd and check_script to not use port information
+	    else if cmd := service.Attrs["check_cmd"]; cmd != "" {
+			check.Script = fmt.Sprintf("check-cmd %s %s %s", service.Origin.ContainerID[:12], service.Origin.ExposedPort, cmd)
+		} else if script := service.Attrs["check_script"]; script != "" {
+			check.Script = r.interpolateService(script, service)
+		} */
+
 	if check.Script != "" || check.HTTP != "" {
 		if interval := service.Attrs["check_interval"]; interval != "" {
 			check.Interval = interval

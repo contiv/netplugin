@@ -737,38 +737,40 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 		return err
 	}
 
-	// Create private network for the tenant
-	err = contivModel.CreateNetwork(&contivModel.Network{
-		Key:         tenant.TenantName + ":" + "private",
-		IsPublic:    false,
-		IsPrivate:   true,
-		Encap:       "vxlan",
-		PktTag:      1001,
-		Subnet:      "10.1.0.0/16",
-		Gateway:     "10.1.254.254",
-		NetworkName: "private",
-		TenantName:  tenant.TenantName,
-	})
-	if err != nil {
-		log.Errorf("Error creating privateNet for tenant: %+v. Err: %v", tenant, err)
-		return err
-	}
+	if tenant.TenantName == "default" {
+		// Create private network for the tenant
+		err = contivModel.CreateNetwork(&contivModel.Network{
+			Key:         tenant.TenantName + ":" + "private",
+			IsPublic:    false,
+			IsPrivate:   true,
+			Encap:       "vxlan",
+			PktTag:      1001,
+			Subnet:      "10.1.0.0/16",
+			Gateway:     "10.1.254.254",
+			NetworkName: "private",
+			TenantName:  tenant.TenantName,
+		})
+		if err != nil {
+			log.Errorf("Error creating privateNet for tenant: %+v. Err: %v", tenant, err)
+			return err
+		}
 
-	// Create public network for the tenant
-	err = contivModel.CreateNetwork(&contivModel.Network{
-		Key:         tenant.TenantName + ":" + "public",
-		IsPublic:    true,
-		IsPrivate:   false,
-		Encap:       "vlan",
-		PktTag:      1,
-		Subnet:      "192.168.1.0/24",
-		Gateway:     "192.168.1.254",
-		NetworkName: "public",
-		TenantName:  tenant.TenantName,
-	})
-	if err != nil {
-		log.Errorf("Error creating publicNet for tenant: %+v. Err: %v", tenant, err)
-		return err
+		// Create public network for the tenant
+		err = contivModel.CreateNetwork(&contivModel.Network{
+			Key:         tenant.TenantName + ":" + "public",
+			IsPublic:    true,
+			IsPrivate:   false,
+			Encap:       "vlan",
+			PktTag:      1,
+			Subnet:      "192.168.1.0/24",
+			Gateway:     "192.168.1.254",
+			NetworkName: "public",
+			TenantName:  tenant.TenantName,
+		})
+		if err != nil {
+			log.Errorf("Error creating publicNet for tenant: %+v. Err: %v", tenant, err)
+			return err
+		}
 	}
 
 	return nil
