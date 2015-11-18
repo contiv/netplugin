@@ -18,6 +18,7 @@ package master
 import (
 	"net"
 
+	"github.com/cenkalti/backoff"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -147,7 +148,16 @@ func startServiceContainer(tenantName string) error {
 	imageName := defaultSkyDNSImage
 	_, err = docker.InspectImage(imageName)
 	if err != nil {
-		err = docker.PullImage(imageName, nil)
+		pullOperation := func() error {
+			err := docker.PullImage(imageName, nil)
+			if err != nil {
+				log.Errorf("Retrying to pull image: %s", imageName)
+				return err
+			}
+			return nil
+		}
+
+		err = backoff.Retry(pullOperation, backoff.NewExponentialBackOff())
 		if err != nil {
 			log.Errorf("Unable to pull image: %s", imageName)
 			return err
