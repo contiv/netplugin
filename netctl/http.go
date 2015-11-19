@@ -29,6 +29,10 @@ func networkURL(ctx *cli.Context) string {
 	return fmt.Sprintf("%s/api/networks/", baseURL(ctx))
 }
 
+func tenantURL(ctx *cli.Context) string {
+	return fmt.Sprintf("%s/api/tenants/", baseURL(ctx))
+}
+
 func ruleURL(ctx *cli.Context) string {
 	return fmt.Sprintf("%s/api/rules/", baseURL(ctx))
 }
