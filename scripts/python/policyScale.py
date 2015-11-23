@@ -1,14 +1,15 @@
 #!/usr/bin/python
 
 # sanity tests
-import testbedApi
+import api.tbed
+import api.tutils
 import time
 import sys
-import objmodel
+import api.objmodel
 
 # create lot of policies
 def createPolicies(numPolicy, numRulesPerPolicy):
-	tenant = objmodel.tenant('default')
+	tenant = api.objmodel.tenant('default')
 
 	for pid in range(numPolicy):
 		pname = 'policy' + str(pid + 1)
@@ -38,9 +39,9 @@ def testConnections(testbed, numContainer):
 
 	# Check connection to all containers
 	if testbed.checkConnections(containers, 8000, True) != True:
-		testbedApi.exit("Connection failed")
+		api.tutils.exit("Connection failed")
 	if testbed.checkConnections(containers, 7999, False) != False:
-		testbedApi.exit("Connection succeded while expecting it to fail")
+		api.tutils.exit("Connection succeded while expecting it to fail")
 
 	# stop netcast listeners
 	testbed.stopListeners(containers)
@@ -50,7 +51,7 @@ def testConnections(testbed, numContainer):
 
 # Cleanup all policies
 def cleanupPolicies(numPolicy, numRulesPerPolicy):
-	tenant = objmodel.tenant('default')
+	tenant = api.objmodel.tenant('default')
 	for pid in range(numPolicy):
 		pname = 'policy' + str(pid + 1)
 		policy = tenant.newPolicy(pname)
@@ -75,7 +76,7 @@ def testPolicyScale(testbed, numCntr, numIter, numPolicies, numRulesPerPolicy):
 		# Cleanup policies
 		cleanupPolicies(numPolicies, numRulesPerPolicy)
 
-		testbedApi.info("testPolicyScale Iteration " + str(iter) + " Passed")
+		api.tutils.info("testPolicyScale Iteration " + str(iter) + " Passed")
 
 
 if __name__ == "__main__":
@@ -100,7 +101,7 @@ if __name__ == "__main__":
 			addrList.append(addr)
 
 		# Setup testbed
-		testbed = testbedApi.testbed(addrList)
+		testbed = api.tbed.Testbed(addrList)
 
 		time.sleep(5)
 
@@ -112,8 +113,8 @@ if __name__ == "__main__":
 
 		# Cleanup testbed
 		testbed.cleanup()
-		
-		testbedApi.info("Policy Scale test PASSES")
+
+		api.tutils.info("Policy Scale test PASSES")
 
 	else:
 		print "Unknown command " + command

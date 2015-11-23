@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/plugin"
+	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/objmodel/objdb"
 	"github.com/contiv/objmodel/objdb/client"
 	"github.com/contiv/ofnet"
@@ -225,7 +225,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) 
 			// collect the info about the node
 			nodeInfo := srvEvent.ServiceInfo
 
-			// check if its our on info coming back to us
+			// check if its our own info coming back to us
 			if nodeInfo.HostAddr == localIP {
 				break
 			}

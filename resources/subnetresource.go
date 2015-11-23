@@ -23,7 +23,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/netutils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/jainvipin/bitset"
 )
 

@@ -23,9 +23,9 @@ import (
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/samalba/dockerclient"
@@ -110,26 +110,29 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 	gCfg.Auto.VLANs = tenant.VLANs
 	gCfg.Auto.VXLANs = tenant.VXLANs
 	gCfg.Auto.AllocSubnetLen = tenant.AllocSubnetLen
-	err = gCfg.Write()
-	if err != nil {
-		log.Errorf("error updating tenant '%s'.Error: %s", tenant.Name, err)
-		return err
-	}
 
 	tempRm, err := resources.GetStateResourceManager()
 	if err != nil {
 		return err
 	}
 
+	// setup resources
 	err = gCfg.Process(core.ResourceManager(tempRm))
 	if err != nil {
 		log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
 		return err
 	}
 
+	// start skydns container
 	err = startServiceContainer(tenant.Name)
 	if err != nil {
 		log.Errorf("Error starting service container. Err: %v", err)
+		return err
+	}
+
+	err = gCfg.Write()
+	if err != nil {
+		log.Errorf("error updating tenant '%s'.Error: %s", tenant.Name, err)
 		return err
 	}
 
@@ -137,6 +140,11 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 }
 
 func startServiceContainer(tenantName string) error {
+	// do nothing in test mode
+	if testMode {
+		return nil
+	}
+
 	var err error
 	docker, err := utils.GetDockerClient()
 	if err != nil {
@@ -227,8 +235,27 @@ func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
 
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
-	gCfg.Version = gstate.VersionBeta1
-	gCfg.Tenant = tenantID
+	err = gCfg.Read(tenantID)
+	if err != nil {
+		log.Errorf("error reading tenant config '%s'. Error: %s", tenantID, err)
+		return err
+	}
+
+	tempRm, err := resources.GetStateResourceManager()
+	if err == nil {
+		err = gCfg.DeleteResources(core.ResourceManager(tempRm))
+		if err != nil {
+			log.Errorf("Error deleting the config %+v. Error: %s", gCfg, err)
+		}
+	}
+
+	err = stopAndRemoveServiceContainer(tenantID)
+	if err != nil {
+		log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
+		return err
+	}
+
+	// delete tenant config
 	err = gCfg.Clear()
 	if err != nil {
 		log.Errorf("error deleting cfg for tenant %q: Error: %s", tenantID, err)

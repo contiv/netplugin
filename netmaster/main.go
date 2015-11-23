@@ -61,6 +61,7 @@ func usage() {
 type daemon struct {
 	opts          cliOpts
 	apiController *objApi.APIController
+	stateDriver   core.StateDriver
 }
 
 func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
@@ -175,11 +176,7 @@ func (d *daemon) execOpts() {
 		log.Fatalf("Failed to init resource manager. Error: %s", err)
 	}
 
-	// Register netmaster service
-	d.registerService()
-
-	// initialize policy manager
-	master.InitPolicyMgr()
+	d.stateDriver = sd
 }
 
 func (d *daemon) ListenAndServe() {
@@ -188,35 +185,14 @@ func (d *daemon) ListenAndServe() {
 	// Create a new api controller
 	d.apiController = objApi.NewAPIController(router)
 
-	// Setup the router to serve the web UI
-	goPath := os.Getenv("GOPATH")
-	if goPath != "" {
-		webPath := goPath + "/src/github.com/contiv/objmodel/contivModel/www/"
+	// initialize policy manager
+	mastercfg.InitPolicyMgr(d.stateDriver)
 
-		// Make sure we have the web UI files
-		_, err := os.Stat(webPath)
-		if err != nil {
-			webPath = goPath + "/src/github.com/contiv/netplugin/" +
-				"Godeps/_workspace/src/github.com/contiv/objmodel/contivModel/www/"
-			_, err := os.Stat(webPath)
-			if err != nil {
-				log.Errorf("Can not find the web UI directory")
-			}
-		}
+	// Register netmaster service
+	d.registerService()
 
-		log.Infof("Using webPath: %s", webPath)
-
-		// serve static files
-		router.PathPrefix("/web/").Handler(http.StripPrefix("/web/", http.FileServer(http.Dir(webPath))))
-
-		// Special case to serve main index.html
-		router.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
-			http.ServeFile(rw, req, webPath+"index.html")
-		})
-	}
-
-	// proxy Handler
-	router.PathPrefix("/proxy/").HandlerFunc(proxyHandler)
+	// register web ui handlers
+	registerWebuiHandler(router)
 
 	// Add REST routes
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
@@ -252,6 +228,39 @@ func (d *daemon) ListenAndServe() {
 		log.Fatalf("Error listening for http requests. Error: %s", err)
 	}
 
+}
+
+// registerWebuiHandler registers handlers for serving web UI
+func registerWebuiHandler(router *mux.Router) {
+	// Setup the router to serve the web UI
+	goPath := os.Getenv("GOPATH")
+	if goPath != "" {
+		webPath := goPath + "/src/github.com/contiv/objmodel/contivModel/www/"
+
+		// Make sure we have the web UI files
+		_, err := os.Stat(webPath)
+		if err != nil {
+			webPath = goPath + "/src/github.com/contiv/netplugin/" +
+				"Godeps/_workspace/src/github.com/contiv/objmodel/contivModel/www/"
+			_, err := os.Stat(webPath)
+			if err != nil {
+				log.Errorf("Can not find the web UI directory")
+			}
+		}
+
+		log.Infof("Using webPath: %s", webPath)
+
+		// serve static files
+		router.PathPrefix("/web/").Handler(http.StripPrefix("/web/", http.FileServer(http.Dir(webPath))))
+
+		// Special case to serve main index.html
+		router.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
+			http.ServeFile(rw, req, webPath+"index.html")
+		})
+	}
+
+	// proxy Handler
+	router.PathPrefix("/proxy/").HandlerFunc(proxyHandler)
 }
 
 // proxyHandler acts as a simple reverse proxy to access containers via http

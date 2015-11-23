@@ -70,14 +70,47 @@ def httpGet(url):
 
 class tenant:
     def __init__(self, tenantName):
-        #Pretend to create the tenant
+        tenantList = listTenant()
+        found = False
+        for tnt in tenantList:
+            if tnt['tenantName'] == tenantName:
+                found = True
+
+        #Create the tenant if not found
+        if found == False:
+            createTenant(tenantName)
+
+        # Save Parameters
         self.tenantName = tenantName
         self.policies = {}
         self.networks = {}
 
+    # get a network
+    def network(self, networkName, pktTag, subnet, gateway, encap="vxlan"):
+        net = network(self.tenantName, networkName, pktTag, subnet, gateway, encap)
+
+        # Store the network
+        self.networks[networkName] = net
+
+        return net
+
     # Create a network
-    def newNetwork(self, networkName, public=False, encap="vxlan", subnet="", gateway=""):
-        return network(self.tenantName, networkName, public, encap, subnet, gateway)
+    def newNetwork(self, networkName, pktTag, subnet, gateway, encap="vxlan"):
+        net = network(self.tenantName, networkName, pktTag, subnet, gateway, encap)
+
+        # Store the network
+        self.networks[networkName] = net
+
+        return net
+
+    # Delete network
+    def deleteNetwork(self, networkName):
+        if networkName not in self.networks:
+            return
+
+        # delete the network
+        self.networks[networkName].delete()
+        del self.networks[networkName]
 
     # Create a policy
     def newPolicy(self, policyName):
@@ -96,6 +129,9 @@ class tenant:
         # delete the policy
         self.policies[policyName].delete()
         del self.policies[policyName]
+
+    def delete(self):
+        deleteTenant(self.tenantName)
 
 
 class policy:
@@ -188,7 +224,7 @@ class group:
         deleteEpg(self.tenantName, self.networkName, self.groupName)
 
 class network:
-    def __init__(self, tenantName, networkName, public, encap, subnet, gateway):
+    def __init__(self, tenantName, networkName, pktTag, subnet, gateway, encap):
         netList = listNet()
         found = False
         for net in netList:
@@ -197,12 +233,12 @@ class network:
 
         #Create the network if not found
         if found == False:
-            createNet(tenantName, networkName, public, encap, subnet, gateway)
+            createNet(tenantName, networkName, pktTag, encap, subnet, gateway)
 
         # Save Parameters
         self.tenantName = tenantName
         self.networkName = networkName
-        self.public = public
+        self.pktTag = pktTag
         self.encap = encap
         self.subnet = subnet
         self.gateway = gateway
@@ -223,6 +259,9 @@ class network:
         # delete the epg
         self.groups[groupName].delete()
         del self.groups[groupName]
+
+    def delete(self):
+        deleteNet(self.tenantName, self.networkName)
 
 # Create policy
 def createPolicy(tenantName, policyName):
@@ -254,8 +293,6 @@ def deletePolicy(tenantName, policyName):
 
 # List all policies
 def listPolicy():
-    print "Listing all policies"
-
     # Get a list of policies
     retDate = urllib2.urlopen('http://localhost:9999/api/policys/')
     if retData == "Error":
@@ -306,8 +343,6 @@ def deleteRule(tenantName, policyName, ruleId):
 
 # List all rules
 def listRule():
-    print "Listing all rules"
-
     # Get the list of all rules
     return json.loads(urllib2.urlopen('http://localhost:9999/api/rules/').read())
 
@@ -345,13 +380,11 @@ def deleteEpg(tenantName, networkName, groupName):
 
 # List all endpoint groups
 def listEpg():
-    print "Listing all endpoint groups"
-
     # Get the list of endpoint groups
     return json.loads(urllib2.urlopen('http://localhost:9999/api/endpointGroups/').read())
 
 # Create Network
-def createNet(tenantName, networkName, public=False, encap="vxlan", subnet="", gateway=""):
+def createNet(tenantName, networkName, pktTag, encap="vxlan", subnet="", gateway=""):
     print "Creating network {0}:{1}".format(tenantName, networkName)
 
     # Create network
@@ -359,8 +392,9 @@ def createNet(tenantName, networkName, public=False, encap="vxlan", subnet="", g
     jdata = json.dumps({
       "tenantName": tenantName,
       "networkName": networkName,
-      "isPublic": True if public == True else False,
-      "isPrivate": False if public == True else True,
+      "pktTag": pktTag,
+      "isPublic": False,
+      "isPrivate": True,
       "encap": encap,
       "subnet": subnet,
       "gateway": gateway,
@@ -386,7 +420,43 @@ def deleteNet(tenantName, networkName):
 
 # List all Networks
 def listNet():
-    print "Listing all networks"
-
     # Get the list of Networks
     return json.loads(urllib2.urlopen('http://localhost:9999/api/networks/').read())
+
+# Create Tenant
+def createTenant(tenantName):
+    print "Creating tenant {0}".format(tenantName)
+
+    # Create tenant
+    postUrl = 'http://localhost:9999/api/tenants/' + tenantName + '/'
+    jdata = json.dumps({
+       "key": tenantName,
+       "tenantName": tenantName,
+       "subnetPool": "10.1.1.1/8",
+       "subnetLen":  24,
+       "vlans": "100-100",
+       "vxlans": "1000-1100",
+     })
+    response = httpPost(postUrl, jdata)
+    print "Tenant Create response is: " + response
+
+    # Check for error
+    if response == "Error":
+        errorExit("Tenant create failure")
+
+# Delete Tenant
+def deleteTenant(tenantName):
+    print "Deleting tenant {0}".format(tenantName)
+
+    # Delete tenant
+    deleteUrl = 'http://localhost:9999/api/tenants/' + tenantName + '/'
+    response = httpDelete(deleteUrl)
+
+    # Check for error
+    if response == "Error":
+        errorExit("Tenant delete failure")
+
+# List all Tenants
+def listTenant():
+    # Get the list of Tenants
+    return json.loads(urllib2.urlopen('http://localhost:9999/api/tenants/').read())

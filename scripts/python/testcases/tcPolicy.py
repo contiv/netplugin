@@ -1,67 +1,16 @@
-#!/usr/bin/python
-
-# sanity tests
-import testbedApi
+import api.tutils
 import time
 import sys
-import objmodel
-
-# Start/Remove container test
-def startRemoveContainer(testbed, numContainer, numIter):
-	for iter in range(numIter):
-		# Start the containers
-		containers = testbed.runContainers(numContainer)
-
-		# Perform ping test on the containers
-		testbed.pingTest(containers)
-
-		# remove containers
-		for cnt in containers:
-			cnt.remove()
-
-		# Iteration is done
-		testbedApi.info("Iteration " + str(iter) + " Passed")
-
-	# Test is done
-	testbedApi.info("startRemoveContainer Test passed")
-
-# start/stop containers
-def startStopContainer(testbed, numContainer, numIter):
-	# Start the containers
-	containers = testbed.runContainers(numContainer)
-
-	# Perform ping test on the containers
-	testbed.pingTest(containers)
-
-	for iter in range(numIter):
-
-		# Stop the containers
-		for cnt in containers:
-			cnt.stop()
-
-		# Start the containers
-		for cnt in containers:
-			cnt.start()
-
-		# Perform ping test on the containers
-		testbed.pingTest(containers)
-
-		# Iteration is done
-		testbedApi.info("Iteration " + str(iter) + " Passed")
-
-	# remove containers
-	for cnt in containers:
-		cnt.remove()
-
-	# Test is done
-	testbedApi.info("startStopContainer Test passed")
+import api.objmodel
 
 # Test basic group based policy
 def testBasicPolicy(testbed, numContainer, numIter):
-	for iter in range(numIter):
-		tenant = objmodel.tenant('default')
-		network = tenant.newNetwork('private')
+	api.tutils.info("testBasicPolicy starting")
 
+	tenant = api.objmodel.tenant('default')
+	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254")
+
+	for iter in range(numIter):
 		# Create policy
 		policy = tenant.newPolicy('first')
 
@@ -87,9 +36,9 @@ def testBasicPolicy(testbed, numContainer, numIter):
 
 		# Check connection to all containers
 		if testbed.checkConnections(containers, 8000, True) != True:
-			testbedApi.exit("Connection failed")
+			api.tutils.exit("Connection failed")
 		if testbed.checkConnections(containers, 8001, False) != False:
-			testbedApi.exit("Connection succeded while expecting it to fail")
+			api.tutils.exit("Connection succeded while expecting it to fail")
 
 		# stop netcast listeners
 		testbed.stopListeners(containers)
@@ -112,15 +61,23 @@ def testBasicPolicy(testbed, numContainer, numIter):
 		policy.deleteRule('2')
 		tenant.deletePolicy('first')
 
-		testbedApi.info("testBasicPolicy Iteration " + str(iter) + " passed")
+		# Check for errors
+		testbed.chekForNetpluginErrors()
 
-	testbedApi.info("testBasicPolicy Test passed")
+		api.tutils.info("testBasicPolicy Iteration " + str(iter) + " passed")
+
+	# Delete the network we created
+	tenant.deleteNetwork('private')
+
+	api.tutils.info("testBasicPolicy Test passed")
 
 
 # Test adding/deleting rules from Policy
 def testPolicyAddDeleteRule(testbed, numContainer, numIter):
-	tenant = objmodel.tenant('default')
-	network = tenant.newNetwork('private')
+	api.tutils.info("testPolicyAddDeleteRule starting")
+
+	tenant = api.objmodel.tenant('default')
+	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254")
 
 	# Create policy
 	policy = tenant.newPolicy('first')
@@ -147,9 +104,9 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 
 	# Check connection to all containers
 	if testbed.checkConnections(containers, 8000, True) != True:
-		testbedApi.exit("Connection failed")
+		api.tutils.exit("Connection failed")
 	if testbed.checkConnections(containers, 8001, False) != False:
-		testbedApi.exit("Connection succeded while expecting it to fail")
+		api.tutils.exit("Connection succeded while expecting it to fail")
 
 	for iter in range(numIter):
 
@@ -157,21 +114,20 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 		policy.addRule('3', direction="in", priority=100, protocol="tcp", port=8001, action="accept")
 
 		# now check connection passes
-		if testbed.checkConnections(containers, 8000, True) != True:
-			testbedApi.exit("Connection failed")
 		if testbed.checkConnections(containers, 8001, True) != True:
-			testbedApi.exit("Connection failed to port 8001")
+			api.tutils.exit("Connection failed to port 8001")
 
 		# Now delete the Rule
 		policy.deleteRule('3')
 
 		# Now verify connection fails
-		if testbed.checkConnections(containers, 8000, True) != True:
-			testbedApi.exit("Connection failed")
 		if testbed.checkConnections(containers, 8001, False) != False:
-			testbedApi.exit("Connection succeded while expecting it to fail")
+			api.tutils.exit("Connection succeded while expecting it to fail")
 
-		testbedApi.info("testPolicyAddDeleteRule Iteration " + str(iter) + " Passed")
+		# Check for errors
+		testbed.chekForNetpluginErrors()
+
+		api.tutils.info("testPolicyAddDeleteRule Iteration " + str(iter) + " Passed")
 
 	# stop netcast listeners
 	testbed.stopListeners(containers)
@@ -193,14 +149,21 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 	policy.deleteRule('1')
 	policy.deleteRule('2')
 	tenant.deletePolicy('first')
+	tenant.deleteNetwork('private')
 
-	testbedApi.info("testPolicyAddDeleteRule Test passed")
+	# Check for errors
+	testbed.chekForNetpluginErrors()
+
+	api.tutils.info("testPolicyAddDeleteRule Test passed")
 
 # Test basic group based policy
 def testPolicyFromEpg(testbed, numContainer, numIter):
+	api.tutils.info("testPolicyFromEpg starting")
+
+	tenant = api.objmodel.tenant('default')
+	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254")
+
 	for iter in range(numIter):
-		tenant = objmodel.tenant('default')
-		network = tenant.newNetwork('private')
 		# Create common epg
 		network.newGroup('common')
 
@@ -229,18 +192,18 @@ def testPolicyFromEpg(testbed, numContainer, numIter):
 		# Start containers in common Epg
 		cmnContainers = testbed.runContainersInService(numContainer, serviceName='common')
 
-		# start netcast listeners
+		# start netcat listeners
 		testbed.startListeners(containers, [8000, 8001])
 
 		# Check connection to all containers
 		if testbed.checkConnections(containers, 8000, True) != True:
-			testbedApi.exit("Connection failed")
+			api.tutils.exit("Connection failed")
 		if testbed.checkConnections(containers, 8001, False) != False:
-			testbedApi.exit("Connection succeded while expecting it to fail")
+			api.tutils.exit("Connection succeded while expecting it to fail")
 		if testbed.checkConnectionPair(cmnContainers, containers, 8001, True) != True:
-			testbedApi.exit("Connection failed")
+			api.tutils.exit("Connection failed")
 
-		# stop netcast listeners
+		# stop netcat listeners
 		testbed.stopListeners(containers)
 
 		# remove containers
@@ -254,7 +217,12 @@ def testPolicyFromEpg(testbed, numContainer, numIter):
 			network.deleteGroup(srvName)
 			tenant.deletePolicy(srvName)
 
+		# Check for errors
+		testbed.chekForNetpluginErrors()
 
-		testbedApi.info("testPolicyFromEpg Iteration " + str(iter) + " passed")
+		api.tutils.info("testPolicyFromEpg Iteration " + str(iter) + " passed")
 
-	testbedApi.info("testPolicyFromEpg Test passed")
+	# delete the network
+	tenant.deleteNetwork('private')
+
+	api.tutils.info("testPolicyFromEpg Test passed")

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
+	"sync"
 	"time"
 
 	"github.com/contiv/ofnet/rpcHub"
@@ -32,6 +33,7 @@ import (
 type OfnetMaster struct {
 	rpcServer   *rpc.Server  // json-rpc server
 	rpcListener net.Listener // Listener
+	masterMutex sync.Mutex   // Mutex to lock master datastructures
 
 	// Database of agent nodes
 	agentDb map[string]*OfnetNode
@@ -84,7 +86,9 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 	hostKey := fmt.Sprintf("%s:%d", hostInfo.HostAddr, hostInfo.HostPort)
 
 	// Add it to DB
+	self.masterMutex.Lock()
 	self.agentDb[hostKey] = node
+	self.masterMutex.Unlock()
 
 	log.Infof("Registered node: %+v", node)
 
@@ -105,16 +109,16 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 
 	// Send all existing policy rules to the new node
 	for _, rule := range self.policyDb {
-			var resp bool
+		var resp bool
 
-			log.Infof("Sending rule: %+v to node %s:%d", rule, node.HostAddr, node.HostPort)
+		log.Infof("Sending rule: %+v to node %s:%d", rule, node.HostAddr, node.HostPort)
 
-			client := rpcHub.Client(node.HostAddr, node.HostPort)
-			err := client.Call("PolicyAgent.AddRule", rule, &resp)
-			if err != nil {
-				log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
-				return err
-			}
+		client := rpcHub.Client(node.HostAddr, node.HostPort)
+		err := client.Call("PolicyAgent.AddRule", rule, &resp)
+		if err != nil {
+			log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
+			return err
+		}
 	}
 
 	return nil

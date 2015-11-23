@@ -20,7 +20,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/crt"
 )
 
 const (
@@ -42,6 +41,7 @@ type LLDPNeighbor struct {
 	CiscoACINodeID    string
 }
 
+/* FIXME: Migrate this to samalba/dockerclient
 // FetchLLDPInfo reads the lldp information using lldptool
 // A native go lib could be done but it requires that lldpad daemon is
 // accessible natively on the lldp ipc path
@@ -64,6 +64,7 @@ func FetchLLDPInfo(crt *crt.CRT, ifname string) (*LLDPNeighbor, error) {
 
 	return lldp, err
 }
+*/
 
 func parseLLDPArgs(lldpToolOutput string, lldp *LLDPNeighbor) error {
 	var err error

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # Start netplugin and netmaster
-import testbedApi
+import api.tbed
 import time
 import sys
 import os
@@ -19,13 +19,13 @@ for addr in sys.argv[1:]:
 	addrList.append(addr)
 
 # Cleanup all state and start netplugin/netmaster
-testbed = testbedApi.testbed(addrList)
+testbed = api.tbed.Testbed(addrList)
 
 print "Waiting for netmaster to come up"
 time.sleep(15)
 
 # Setup proxy
-setupProxy.setupProxy()
+# setupProxy.setupProxy()
 
 print "################### Started Netplugin #####################"
 os._exit(0)

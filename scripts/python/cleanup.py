@@ -1,10 +1,9 @@
 #!/usr/bin/python
 
 # sanity tests
-import testbedApi
+import api.tnode
 import time
 import sys
-import objmodel
 
 # Parse command line args
 if len(sys.argv) <= 1:
@@ -18,12 +17,13 @@ for addr in sys.argv[1:]:
 
 # Cleanup nodes
 for addr in addrList:
-	node = testbedApi.vagrantNode(addr)
+	node = api.tnode.Node(addr)
 	node.cleanupContainers()
-	
+
 for addr in addrList:
 	# Cleanup all state before we can start
 	node.stopNetmaster()
+	node.cleanupDockerNetwork()
 	node.stopNetplugin()
 	node.cleanupMaster()
 	node.cleanupSlave()
