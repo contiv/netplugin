@@ -49,6 +49,9 @@ func versionURL(ctx *cli.Context) string {
 
 func globalURL(ctx *cli.Context) string {
 	return fmt.Sprintf("%s/api/globals/", baseURL(ctx))
+
+func bgpURL(ctx *cli.Context) string {
+	return fmt.Sprintf("%s/api/Bgps/", baseURL(ctx))
 }
 
 func writeBody(resp *http.Response, ctx *cli.Context) {
@@ -56,7 +59,6 @@ func writeBody(resp *http.Response, ctx *cli.Context) {
 	if err != nil {
 		errExit(ctx, exitIO, err.Error(), false)
 	}
-
 	os.Stderr.Write(content)
 }
 

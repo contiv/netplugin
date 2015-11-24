@@ -97,6 +97,8 @@ type NetworkDriver interface {
 	DeletePeerHost(node ServiceInfo) error
 	AddMaster(node ServiceInfo) error
 	DeleteMaster(node ServiceInfo) error
+	AddBgpNeighbors(id string) error
+	DeleteBgpNeighbors(id string) error
 }
 
 // WatchState is used to provide a difference between core.State structs by

@@ -39,12 +39,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/Sirupsen/logrus/hooks/syslog"
-
-	api "github.com/osrg/gobgp/api"
-	"github.com/osrg/gobgp/packet"
-	//"github.com/osrg/gobgp/server"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -175,11 +169,16 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			log.Infof("Received a modify event, ignoring it")
 			continue
 		}
-
+		log.Infof("Received a !!! %q", eventStr)
 		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
 			processNetEvent(netPlugin, nwCfg, isDelete)
 		}
+		if bgpCfg, ok := currentState.(*mastercfg.CfgBgpState); ok {
+			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Name)
+			processBgpEvent(netPlugin, opts, bgpCfg.Name, isDelete)
+		}
+
 	}
 }
 
@@ -192,9 +191,21 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, opts cliOpts, retErr chan 
 	return
 }
 
+func handleBgpEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvErr chan error) {
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, crt, opts, rsps)
+	cfg := mastercfg.CfgBgpState{}
+	cfg.StateDriver = netPlugin.StateDriver
+	recvErr <- cfg.WatchAll(rsps)
+	return
+}
+
 func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
+
 	recvErr := make(chan error, 1)
 	go handleNetworkEvents(netPlugin, opts, recvErr)
+
+	go handleBgpEvents(netPlugin, opts, recvErr)
 
 	err := <-recvErr
 	if err != nil {
@@ -202,6 +213,7 @@ func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 		return err
 	}
 
+	go handleBgpEvents(netPlugin, crt, opts, retErr)
 	return nil
 }
 
@@ -438,4 +450,30 @@ func main() {
 	if err := handleEvents(netPlugin, opts); err != nil {
 		os.Exit(1)
 	}
+}
+
+func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, netID string,
+	isDelete bool) (err error) {
+	// take a lock to ensure we are programming one event at a time.
+	// Also network create events need to be processed before endpoint creates
+	// and reverse shall happen for deletes. That order is ensured by netmaster,
+	// so we don't need to worry about that here
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+
+	operStr := ""
+	if isDelete {
+		err = netPlugin.DeleteBgpNeighbors(netID)
+		operStr = "delete"
+	} else {
+		err = netPlugin.AddBgpNeighbors(netID)
+		operStr = "create"
+	}
+	if err != nil {
+		log.Errorf("Bgp operation %s failed. Error: %s", operStr, err)
+	} else {
+		log.Infof("Bgp operation %s succeeded", operStr)
+	}
+
+	return
 }

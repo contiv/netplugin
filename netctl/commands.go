@@ -275,4 +275,46 @@ var Commands = []cli.Command{
 			},
 		},
 	},
+	{
+		Name:  "bgp",
+		Usage: "router capability configuration",
+		Subcommands: []cli.Command{
+			{
+				Name:      "delete",
+				Usage:     "Delete Bgp neighbor",
+				ArgsUsage: "[router]",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "host",
+						Usage: "host name",
+					},
+					cli.StringFlag{
+						Name:  "neighbors",
+						Usage: "List of neighbors separated by commas",
+					},
+				},
+				Action: deleteBgpNeighbors,
+			},
+			{
+				Name:      "add",
+				Usage:     "Add router capability configuration.",
+				ArgsUsage: " ",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "host",
+						Usage: "host name",
+					},
+					cli.StringFlag{
+						Name:  "as",
+						Usage: "AS id",
+					},
+					cli.StringFlag{
+						Name:  "neighbors",
+						Usage: "List of neighbors separated by commas",
+					},
+				},
+				Action: addBgpNeighbors,
+			},
+		},
+	},
 }

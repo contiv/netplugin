@@ -27,4 +27,6 @@ const (
 	endpointOperPathPrefix = mastercfg.StateOperPath + "eps/"
 	networkOperPath        = networkOperPathPrefix + "%s"
 	endpointOperPath       = endpointOperPathPrefix + "%s"
+	bgpOperPathPrefix      = StateOperPath + "bgps/"
+	bgpOperPath            = bgpOperPathPrefix + "%s"
 )

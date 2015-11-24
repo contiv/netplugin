@@ -54,7 +54,7 @@ func NewAPIController(router *mux.Router) *APIController {
 	contivModel.RegisterServiceCallbacks(ctrler)
 	contivModel.RegisterServiceInstanceCallbacks(ctrler)
 	contivModel.RegisterTenantCallbacks(ctrler)
-
+	contivModel.RegisterBgpCallbacks(ctrler)
 	// Register routes
 	contivModel.AddRoutes(router)
 
@@ -779,5 +779,41 @@ func (ac *APIController) TenantDelete(tenant *contivModel.Tenant) error {
 		log.Errorf("Error deleting tenant %s. Err: %v", tenant.TenantName, err)
 	}
 
+	return nil
+}
+
+func (ac *APIController) BgpCreate(bgpNeighborCfg *contivModel.Bgp) error {
+	log.Infof("Received BgpCreate: %+v", bgpNeighborCfg)
+
+	if bgpNeighborCfg.Name == "" {
+		return core.Errorf("Invalid host name")
+	}
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Build bgp config
+	bgpCfg := intent.ConfigBgp{
+		Name:      bgpNeighborCfg.Name,
+		As:        bgpNeighborCfg.AS,
+		Neighbors: bgpNeighborCfg.NeighborList,
+	}
+
+	// Create the tenant
+	err = master.AddBgpNeighbors(stateDriver, &bgpCfg)
+	if err != nil {
+		log.Errorf("Error creating Bgp neighbors {%+v}. Err: %v", bgpNeighborCfg.NeighborList, err)
+		return err
+	}
+	return nil
+}
+
+func (ac *APIController) BgpDelete(bgpNeighborCfg *contivModel.Bgp) error {
+	return nil
+}
+func (ac *APIController) BgpUpdate(oldbgpNeighborCfg *contivModel.Bgp, NewbgpNeighborCfg *contivModel.Bgp) error {
 	return nil
 }

@@ -145,3 +145,11 @@ func (p *NetPlugin) AddMaster(node core.ServiceInfo) error {
 func (p *NetPlugin) DeleteMaster(node core.ServiceInfo) error {
 	return p.NetworkDriver.DeleteMaster(node)
 }
+
+func (p *NetPlugin) AddBgpNeighbors(id string) error {
+	return p.NetworkDriver.AddBgpNeighbors(id)
+}
+
+func (p *NetPlugin) DeleteBgpNeighbors(id string) error {
+	return p.NetworkDriver.DeleteBgpNeighbors(id)
+}

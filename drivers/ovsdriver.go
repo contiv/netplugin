@@ -432,3 +432,49 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 
 	return nil
 }
+
+// AddBgpNeighbors adds bgp neighbors by named identifier
+func (d *OvsDriver) AddBgpNeighbors(id string) error {
+	cfg := mastercfg.CfgBgpState{}
+	cfg.StateDriver = d.oper.StateDriver
+	log.Info("Reading from etcd State %s", id)
+	err := cfg.Read(id)
+	if err != nil {
+		log.Errorf("Failed to read router state %s \n", cfg.Name)
+		return err
+	}
+	log.Infof("create Bgp Server %s \n", cfg.Name)
+
+	// Find the switch based on network type
+	var sw *OvsSwitch
+	//if cfg.CfgType == "bgp-vxlan" {
+	//	sw = d.switchDb["vxlan"]
+	//} else {
+	sw = d.switchDb["vlan"]
+	//}
+
+	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbors)
+}
+
+// DeleteBgpNeightbor deletes a bgp neighbor by named identifier
+func (d *OvsDriver) DeleteBgpNeighbors(id string) error {
+	log.Infof("delete router state %s \n", id)
+
+	cfg := mastercfg.CfgBgpState{}
+	cfg.StateDriver = d.oper.StateDriver
+	err := cfg.Read(id)
+	if err != nil {
+		log.Errorf("Failed to read router state %s \n", cfg.Name)
+		return err
+	}
+
+	// Find the switch based on network type
+	var sw *OvsSwitch
+	//	if cfg.CfgType == "bgp-vxlan" {
+	//		sw = d.switchDb["vxlan"]
+	//	} else {
+	sw = d.switchDb["vlan"]
+	//	}
+
+	return sw.DeleteBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbors)
+}

@@ -575,3 +575,31 @@ func (sw *OvsSwitch) DeleteMaster(node core.ServiceInfo) error {
 
 	return nil
 }
+
+// CreateNetwork creates a new network/vlan
+func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbors []string) error {
+	if sw.netType == "vlan" {
+		// Add the vlan/vni to ofnet
+		err := sw.ofnetAgent.AddBgpNeighbors(As, neighbors)
+		if err != nil {
+			log.Errorf("Error adding BGP server")
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DeleteNetwork deletes a network/vlan
+func (sw *OvsSwitch) DeleteBgpNeighbors(hostname string, As string, neighbors []string) error {
+	if sw.netType == "vlan" {
+		// Delete vlan/vni mapping
+		err := sw.ofnetAgent.DeleteBgpNeighbors(As, neighbors)
+		if err != nil {
+			log.Errorf("Error removing bgp server Err: %v", err)
+			return err
+		}
+	}
+
+	return nil
+}

@@ -185,7 +185,7 @@ func listRules(ctx *cli.Context) {
 }
 
 func createNetwork(ctx *cli.Context) {
-	argCheck(1, ctx)
+	//argCheck(1, ctx)
 
 	subnet := ctx.String("subnet")
 	gateway := ctx.String("gateway")
@@ -465,4 +465,30 @@ func showVersion(ctx *cli.Context) {
 		fmt.Printf("Server Version:\n")
 		fmt.Printf(version.StringFromInfo(&ver))
 	}
+
+func addBgpNeighbors(ctx *cli.Context) {
+	//argCheck(3, ctx)
+
+	hostname := ctx.String("host")
+	asid := ctx.String("as")
+	neighborList := strings.Split(ctx.String("neighbors"), ",")
+	url := fmt.Sprintf("%s%s/", bgpURL(ctx), hostname)
+
+	out := map[string]interface{}{
+		"Name":         hostname,
+		"as":           asid,
+		"neighborList": neighborList,
+	}
+	postMap(ctx, url, out)
+}
+func deleteBgpNeighbors(ctx *cli.Context) {
+	//argCheck(2, ctx)
+
+	hostname := ctx.String("host")
+	//	asid := ctx.String("AS")
+	//	neighborList := strings.Split(ctx.String("neighbors"), ",")
+
+	logrus.Infof("Deleting router config %s:%s", hostname)
+
+	deleteURL(ctx, fmt.Sprintf("%s%s/", bgpURL(ctx), hostname))
 }

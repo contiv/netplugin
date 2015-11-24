@@ -59,9 +59,16 @@ type ConfigTenant struct {
 	Networks       []ConfigNetwork
 }
 
+type ConfigBgp struct {
+	Name      string
+	As        string
+	Neighbors []string
+}
+
 // Config is the top level configuration
 type Config struct {
 	Tenants []ConfigTenant
 	// (optional) host bindings
 	HostBindings []ConfigEP
+	RouterInfo   []ConfigBgp
 }
