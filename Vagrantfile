@@ -28,16 +28,6 @@ echo "export no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster" >
 
 source /etc/profile.d/envvar.sh
 
-mv /etc/resolv.conf /etc/resolv.conf.bak
-cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
-
-# setup docker cluster store
-cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service /lib/systemd/system/docker.service
-
-# setup docker remote api
-cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
-systemctl enable docker-tcp.socket
-
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 echo "Environment=\\\"no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
@@ -70,10 +60,10 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "centos" then
         config.vm.box = "contiv/centos71-netplugin"
-        config.vm.box_version = "0.3.1"
+        config.vm.box_version = "0.5.0"
     else
         config.vm.box = "contiv/ubuntu1504-netplugin"
-        config.vm.box_version = "0.3.1"
+        config.vm.box_version = "0.5.0"
     end
     num_nodes = 2
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
