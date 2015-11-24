@@ -39,12 +39,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/Sirupsen/logrus/hooks/syslog"
-
-	api "github.com/osrg/gobgp/api"
-	"github.com/osrg/gobgp/packet"
-	//"github.com/osrg/gobgp/server"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -184,7 +178,6 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Name)
 			processBgpEvent(netPlugin, opts, bgpCfg.Name, isDelete)
 		}
-
 	}
 }
 
