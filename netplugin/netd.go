@@ -39,12 +39,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/Sirupsen/logrus/hooks/syslog"
-
-	api "github.com/osrg/gobgp/api"
-	"github.com/osrg/gobgp/packet"
-	//"github.com/osrg/gobgp/server"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -484,10 +478,6 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string,
 		log.Errorf("Skipping deleting neighbor on this host")
 		return
 	}
-	// take a lock to ensure we are programming one event at a time.
-	// Also network create events need to be processed before endpoint creates
-	// and reverse shall happen for deletes. That order is ensured by netmaster,
-	// so we don't need to worry about that here
 	netPlugin.Lock()
 	defer func() { netPlugin.Unlock() }()
 

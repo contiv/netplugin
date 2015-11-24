@@ -445,6 +445,7 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 }
 
 // AddBgpNeighbors adds bgp neighbor by named identifier
+
 func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	cfg := mastercfg.CfgBgpState{}
 	cfg.StateDriver = d.oper.StateDriver
@@ -463,24 +464,20 @@ func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	//} else {
 	sw = d.switchDb["vlan"]
 	//}
-
-	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbor)
+	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbors)
 }
 
-// DeleteBgpNeighbors deletes a bgp neighbor by named identifier
+// DeleteBgpNeightbor deletes a bgp neighbor by named identifier
 func (d *OvsDriver) DeleteBgpNeighbors(id string) error {
 	log.Infof("delete router state %s \n", id)
-	//FixME: We are not maintaining oper state for Bgp
-	//Need to Revisit again
-	/*
-		cfg := mastercfg.CfgBgpState{}
-		cfg.StateDriver = d.oper.StateDriver
-		err := cfg.Read(id)
-		if err != nil {
-			log.Errorf("Failed to read router state %s \n", cfg.Name)
-			return err
-		}
-	*/
+
+	cfg := mastercfg.CfgBgpState{}
+	cfg.StateDriver = d.oper.StateDriver
+	err := cfg.Read(id)
+	if err != nil {
+		log.Errorf("Failed to read router state %s \n", cfg.Name)
+		return err
+	}
 	// Find the switch based on network type
 	var sw *OvsSwitch
 	//	if cfg.CfgType == "bgp-vxlan" {

@@ -630,6 +630,7 @@ func (sw *OvsSwitch) DeleteBgpNeighbors() error {
 	if sw.netType == "vlan" {
 		// Delete vlan/vni mapping
 		err := sw.ofnetAgent.DeleteBgpNeighbors()
+
 		if err != nil {
 			log.Errorf("Error removing bgp server Err: %v", err)
 			return err
