@@ -39,12 +39,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/Sirupsen/logrus/hooks/syslog"
-
-	api "github.com/osrg/gobgp/api"
-	"github.com/osrg/gobgp/packet"
-	//"github.com/osrg/gobgp/server"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -209,7 +203,7 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, opts cliOpts, retErr chan 
 
 func handleBgpEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvErr chan error) {
 	rsps := make(chan core.WatchState)
-	go processStateEvent(netPlugin, crt, opts, rsps)
+	go processStateEvent(netPlugin, opts, rsps)
 	cfg := mastercfg.CfgBgpState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
@@ -229,7 +223,6 @@ func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 		return err
 	}
 
-	go handleBgpEvents(netPlugin, crt, opts, retErr)
 	return nil
 }
 
