@@ -372,10 +372,10 @@ func GetNetpluginConfigWithConsul() string {
 
 // ConfigSetupCommonWithConsul performs common configuration setup on specified testbed nodes
 func ConfigSetupCommonWithConsul(t *testing.T, jsonCfg string, nodes []stu.TestbedNode) {
+	StartNetPluginWithConfig(t, nodes, false, GetNetpluginConfigWithConsul())
+
 	StartNetmasterWithFlags(t, nodes[0], map[string]string{
 		"--state-store": "consul"})
-
-	StartNetPluginWithConfig(t, nodes, false, GetNetpluginConfigWithConsul())
 
 	ApplyDesiredConfigConsul(t, jsonCfg, nodes[0])
 }
