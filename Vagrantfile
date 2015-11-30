@@ -63,7 +63,7 @@ rm /etc/docker/key.json
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
 
-docker pull skynetservices/skydns:latest
+docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar 
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
@@ -120,7 +120,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             # mount the host directories
             node.vm.synced_folder "bin", File.join(gopath_folder, "bin")
             if ENV["GOPATH"]
-              node.vm.synced_folder File.join(ENV["GOPATH"].split(":").first, "src"), File.join(gopath_folder, "src"), rsync: true
+              node.vm.synced_folder "../../../", File.join(gopath_folder, "src"), rsync: true
             else
               puts "!!! No GOPATH, mounting netplugin by itself"
               node.vm.synced_folder ".", File.join(gopath_folder, "src/github.com/contiv/netplugin"), rsync: true
