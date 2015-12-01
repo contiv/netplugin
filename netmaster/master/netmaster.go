@@ -18,6 +18,7 @@ package master
 import (
 	"net"
 
+	"github.com/cenkalti/backoff"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -147,7 +148,16 @@ func startServiceContainer(tenantName string) error {
 	imageName := defaultSkyDNSImage
 	_, err = docker.InspectImage(imageName)
 	if err != nil {
-		err = docker.PullImage(imageName, nil)
+		pullOperation := func() error {
+			err := docker.PullImage(imageName, nil)
+			if err != nil {
+				log.Errorf("Retrying to pull image: %s", imageName)
+				return err
+			}
+			return nil
+		}
+
+		err = backoff.Retry(pullOperation, backoff.NewExponentialBackOff())
 		if err != nil {
 			log.Errorf("Unable to pull image: %s", imageName)
 			return err
@@ -175,6 +185,30 @@ func startServiceContainer(tenantName string) error {
 	return err
 }
 
+func stopServiceContainer(tenantName string) error {
+	var err error
+	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	if err != nil {
+		log.Errorf("Unable to connect to docker. Error %v", err)
+		return err
+	}
+
+	dnsContName := tenantName + "dns"
+	// Stop the container
+	err = docker.StopContainer(dnsContName, 10)
+	if err != nil {
+		log.Errorf("Error stopping DNS container for tenant: %s. Error: %s", tenantName, err)
+		return err
+	}
+
+	err = docker.RemoveContainer(dnsContName, true, true)
+	if err != nil {
+		log.Errorf("Error removing DNS container for tenant: %s. Error: %s", tenantName, err)
+		return err
+	}
+	return err
+}
+
 // DeleteTenantID deletes a tenant from the state store, by ID.
 func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
 	gOper := &gstate.Oper{}
@@ -182,6 +216,12 @@ func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
 	err := gOper.Read(tenantID)
 	if err != nil {
 		log.Errorf("error reading tenant info '%s'. Error: %s", tenantID, err)
+		return err
+	}
+
+	err = stopServiceContainer(tenantID)
+	if err != nil {
+		log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
 		return err
 	}
 

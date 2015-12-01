@@ -4,8 +4,6 @@ package bridge
 
 import (
 	"net/url"
-
-	dockerapi "github.com/fsouza/go-dockerclient"
 )
 
 // AdapterFactory implements the ServiceRegistrator
@@ -55,24 +53,4 @@ type Service struct {
 	Tags    []string
 	Attrs   map[string]string
 	TTL     int
-
-	Origin ServicePort
-}
-
-// DeadContainer maintains the containers that are killed
-type DeadContainer struct {
-	TTL      int
-	Services []*Service
-}
-
-// ServicePort maintains the port level service details exposed by a container
-type ServicePort struct {
-	HostPort          string
-	HostIP            string
-	ExposedPort       string
-	ExposedIP         string
-	PortType          string
-	ContainerHostname string
-	ContainerID       string
-	container         *dockerapi.Container
 }
