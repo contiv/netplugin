@@ -13,6 +13,11 @@ cases in clustered multi-host systems. It is specifically designed to handle:
 - Integration with existing IPAM tools for migrating customers
 - Handle NIC's capabilities for acceleration (SRIOV/Offload/etc.)
 
+### Documentation
+Full, comprehensive documentation is available on the website:
+
+http://docs.contiv.io
+
 ### Getting Started
 
 This will provide you with a minimal experience of uploading the intent and
