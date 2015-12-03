@@ -13,7 +13,7 @@ Service binding states are modified during the following triggers:
   - when the host on which the container resides crashes
 
 <h4> Trying out service binding features </h4>
-Refer to [README.md](README.md) to setup and bringup netplugin environment
+Refer to [README.md](../README.md) to setup and bringup netplugin environment
 
 Run `make demo`
 
