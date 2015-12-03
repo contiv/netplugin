@@ -301,7 +301,7 @@ func listTenants(ctx *cli.Context) {
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Name  \tSubnet Pool\t\tSubnet Len\tvlans\t\tvxlans\n"))
+		writer.Write([]byte("Name\tSubnet Pool\t\tSubnet Len\tvlans\t\tvxlans\n"))
 		writer.Write([]byte("------\t-----------\t\t----------\t-----\t\t------\n"))
 
 		for _, tenant := range list {
