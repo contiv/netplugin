@@ -1,0 +1,29 @@
+{
+	"ImportPath": "github.com/contiv/objdb",
+	"GoVersion": "go1.5.1",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.6.4-12-g467d9d5",
+			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
+		},
+		{
+			"ImportPath": "github.com/contiv/go-etcd/etcd",
+			"Comment": "v0.4.6-6-g4734e7a",
+			"Rev": "4734e7aca379f0d7fcdf04fbb2101696a4b45ce8"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
+			"Comment": "v2.1.0-alpha.0-51-gb24dd8e",
+			"Rev": "b24dd8e4e67d7203c5a68cd43de4f6ffcfff5e66"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/types",
+			"Comment": "v2.1.0-alpha.0-51-gb24dd8e",
+			"Rev": "b24dd8e4e67d7203c5a68cd43de4f6ffcfff5e66"
+		}
+	]
+}
