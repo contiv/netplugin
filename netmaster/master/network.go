@@ -40,9 +40,9 @@ const (
 
 var testMode = false
 
-// Trim default tenant from network name
+// trimDefaultTenant trims default tenant from network name
 func trimDefaultTenant(networkName string) string {
-	return strings.TrimRight(strings.TrimRight(networkName, defaultTenantName), ".")
+	return strings.TrimRight(strings.TrimSuffix(networkName, defaultTenantName), ".")
 }
 
 func validateNetworkConfig(tenant *intent.ConfigTenant) error {
