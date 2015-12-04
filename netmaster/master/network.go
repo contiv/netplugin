@@ -164,6 +164,8 @@ func deleteDockNet(networkName string) error {
 	return nil
 }
 
+// detachServiceContainer detaches the service container's endpoint during network delete
+//      - detach happens only if all other endpoints in the network are already removed
 func detachServiceContainer(networkName, tenantName string) error {
 	docker, err := utils.GetDockerClient()
 	if err != nil {
