@@ -39,7 +39,7 @@ const (
 
 var testMode = false
 
-// Trim default tenant from network name
+// trimDefaultTenant trims default tenant from network name
 func trimDefaultTenant(networkName string) string {
 	return strings.TrimRight(strings.TrimSuffix(networkName, defaultTenantName), ".")
 }
