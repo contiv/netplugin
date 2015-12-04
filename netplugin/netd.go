@@ -472,7 +472,6 @@ func handleContainerStart(netPlugin *plugin.NetPlugin, crt *crt.CRT, opts *cliOp
 			log.Errorf("error attaching container: %v\n", err)
 		}
 	}
-
 	return err
 }
 
@@ -551,7 +550,6 @@ func handleDockerEvents(event *dockerclient.Event, retErr chan error,
 		// it until ep configuration is removed
 		// ep configuration as instantiated can be applied to another container
 		// or reincarnation of the same container
-
 	}
 
 	if err != nil {
