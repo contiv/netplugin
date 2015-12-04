@@ -252,6 +252,71 @@ func listNetworks(ctx *cli.Context) {
 	}
 }
 
+func createTenant(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	tenant := ctx.Args()[0]
+	subnetPool := ctx.String("subnet-pool")
+	subnetLen := ctx.Int("subnet-len")
+	vlans := ctx.String("vlans")
+	vxlans := ctx.String("vxlans")
+
+	if subnetPool == "" || vlans == "" || vxlans == "" {
+		errExit(ctx, exitHelp, "Invalid Arguments", true)
+	}
+
+	logrus.Infof("Creating tenant: %s", tenant)
+
+	url := fmt.Sprintf("%s%s/", tenantURL(ctx), tenant)
+	args := map[string]interface{}{
+		"key":        tenant,
+		"tenantName": tenant,
+		"subnetPool": subnetPool,
+		"subnetLen":  subnetLen,
+		"vlans":      vlans,
+		"vxlans":     vxlans,
+	}
+
+	postMap(ctx, url, args)
+}
+
+func deleteTenant(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	tenant := ctx.Args()[0]
+
+	logrus.Infof("Deleting tenant %s", tenant)
+
+	url := fmt.Sprintf("%s%s/", tenantURL(ctx), tenant)
+	deleteURL(ctx, url)
+}
+
+func listTenants(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	list := getList(ctx, tenantURL(ctx))
+
+	if ctx.Bool("json") {
+		dumpList(ctx, list)
+	} else {
+		writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		defer writer.Flush()
+		writer.Write([]byte("Name\tSubnet Pool\t\tSubnet Len\tvlans\t\tvxlans\n"))
+		writer.Write([]byte("------\t-----------\t\t----------\t-----\t\t------\n"))
+
+		for _, tenant := range list {
+			writer.Write(
+				[]byte(fmt.Sprintf("%v\t%v\t\t%v\t%v\t\t%v\n",
+					tenant["tenantName"],
+					tenant["subnetPool"],
+					tenant["subnetLen"],
+					tenant["vlans"],
+					tenant["vxlans"],
+				)))
+		}
+	}
+}
+
 func createEndpointGroup(ctx *cli.Context) {
 	argCheck(2, ctx)
 

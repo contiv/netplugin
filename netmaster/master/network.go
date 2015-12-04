@@ -27,6 +27,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/utils"
 	"github.com/samalba/dockerclient"
 
 	log "github.com/Sirupsen/logrus"
@@ -163,6 +164,59 @@ func deleteDockNet(networkName string) error {
 	return nil
 }
 
+// detachServiceContainer detaches the service container's endpoint during network delete
+//      - detach happens only if all other endpoints in the network are already removed
+func detachServiceContainer(networkName, tenantName string) error {
+	docker, err := utils.GetDockerClient()
+	if err != nil {
+		log.Errorf("Unable to connect to docker. Error %v", err)
+		return errors.New("Unable to connect to docker")
+	}
+
+	dnsContName := tenantName + "dns"
+	cinfo, err := docker.InspectContainer(dnsContName)
+	if err != nil {
+		log.Errorf("Error inspecting the container %s. Err: %v", dnsContName, err)
+		return err
+	}
+
+	nwState, err := docker.InspectNetwork(networkName)
+	if err != nil {
+		log.Errorf("Error while inspecting network: %+v", networkName)
+		return err
+	}
+	log.Infof("Containers in network: %+v are {%+v}", networkName, nwState.Containers)
+	dnsServerIP := strings.Split(nwState.Containers[cinfo.Id].IPv4Address, "/")[0]
+
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		log.Errorf("Could not get StateDriver while trying to disconnect dnsContainer from %+v", networkName)
+		return err
+	}
+
+	// Read network config and get DNSServer information
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	err = nwCfg.Read(networkName)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("dnsServerIP: %+v, nwCfg.dnsip: %+v", dnsServerIP, nwCfg.DNSServer)
+	// Remove dns container from network if all other endpoints are withdrawn
+	if len(nwState.Containers) == 1 && (dnsServerIP == nwCfg.DNSServer) {
+		log.Infof("Disconnecting dns container from network as all other endpoints are removed: %+v", networkName)
+		err = docker.DisconnectNetwork(networkName, dnsContName)
+		if err != nil {
+			log.Errorf("Could not detach container(%s) from network %s. Error: %s",
+				dnsContName, networkName, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
 // CreateNetwork creates a network from intent
 func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, tenantName string) error {
 	var extPktTag, pktTag uint
@@ -285,7 +339,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 
 func attachServiceContainer(tenantName string, networkName string, stateDriver core.StateDriver) error {
 	contName := tenantName + "dns"
-	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	docker, err := utils.GetDockerClient()
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
 		return err
@@ -297,7 +351,7 @@ func attachServiceContainer(tenantName string, networkName string, stateDriver c
 	err = docker.ConnectNetwork(dnetName, contName)
 	if err != nil {
 		log.Errorf("Could not attach container(%s) to network %s. Error: %s",
-			contName, networkName, err)
+			contName, dnetName, err)
 		return err
 	}
 
@@ -413,18 +467,24 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
-	gCfg := &gstate.Cfg{}
-	gCfg.StateDriver = stateDriver
-	err = gCfg.Read(nwCfg.Tenant)
+	err = detachServiceContainer(netID, nwCfg.Tenant)
 	if err != nil {
-		log.Errorf("error reading tenant info for %q. Error: %s", nwCfg.Tenant, err)
-		return err
+		log.Errorf("Error in detaching dns container from %+v:%+v",
+			netID, nwCfg.Tenant)
 	}
 
 	// Delete the docker network
 	err = deleteDockNet(netID)
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", netID, err)
+	}
+
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	err = gCfg.Read(nwCfg.Tenant)
+	if err != nil {
+		log.Errorf("error reading tenant info for %q. Error: %s", nwCfg.Tenant, err)
+		return err
 	}
 
 	// Free resource associated with the network

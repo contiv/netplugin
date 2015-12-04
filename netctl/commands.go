@@ -111,6 +111,49 @@ var Commands = []cli.Command{
 		},
 	},
 	{
+		Name:  "tenant",
+		Usage: "Tenant manipulation tools",
+		Subcommands: []cli.Command{
+			{
+				Name:      "list",
+				Usage:     "List tenants",
+				ArgsUsage: " ",
+				Action:    listTenants,
+			},
+			{
+				Name:      "delete",
+				Usage:     "Delete a tenant",
+				ArgsUsage: "[tenant]",
+				Action:    deleteTenant,
+			},
+			{
+				Name:      "create",
+				Usage:     "Create a tenant",
+				ArgsUsage: "[tenant]",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "subnet-pool, p",
+						Usage: "Subnet CIDR - REQUIRED",
+					},
+					cli.IntFlag{
+						Name:  "subnet-len, l",
+						Usage: "Subnet length",
+						Value: 24,
+					},
+					cli.StringFlag{
+						Name:  "vlans, v",
+						Usage: "Vlan range - REQUIRED",
+					},
+					cli.StringFlag{
+						Name:  "vxlans, x",
+						Usage: "Vxlan range - REQUIRED",
+					},
+				},
+				Action: createTenant,
+			},
+		},
+	},
+	{
 		Name:  "rule",
 		Usage: "Rule manipulation tools",
 		Subcommands: []cli.Command{
