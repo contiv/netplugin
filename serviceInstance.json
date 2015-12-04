@@ -1,0 +1,40 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "serviceInstance",
+			"type": "object",
+			"key": [ "tenantName", "appName", "serviceName", "instanceId" ],
+			"properties": {
+				"instanceId": {
+					"type": "string",
+					"description": "Service instance id"
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name"
+				},
+				"appName": {
+					"type": "string"
+				},
+				"serviceName": {
+					"type": "string"
+				},
+				"volumes": {
+					"type": "array",
+					"items": "string"
+				}
+			},
+			"link-sets": {
+				"volumes": {
+					"ref": "volume"
+				}
+			},
+			"links": {
+				"service": {
+					"ref": "service"
+				}
+			}
+		}
+	]
+}

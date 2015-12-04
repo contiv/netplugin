@@ -1,0 +1,38 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "policy",
+			"type": "object",
+			"key": [ "tenantName", "policyName" ],
+			"properties": {
+				"policyName": {
+					"type": "string",
+					"description": "Policy Name",
+					"title": "Policy Name",
+					"showSummary": true
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name",
+					"title": "Tenant Name",
+					"showSummary": true
+				}
+			},
+			"link-sets": {
+				"endpointGroups": {
+					"ref": "endpointGroup"
+				},
+				"rules": {
+					"ref": "rule"
+
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				}
+			}
+		}
+	]
+}
