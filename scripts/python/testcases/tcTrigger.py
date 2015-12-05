@@ -113,6 +113,7 @@ def triggerNetpluginRestart(testbed):
     for node in testbed.nodes:
         api.tutils.info("Restarting netplugin on " + node.hostname)
         node.stopNetplugin()
+        time.sleep(1)
 
         # Move old log file
         currTime = time.strftime("%H:%M:%S", time.localtime())
@@ -128,6 +129,7 @@ def triggerNetpluginRestart(testbed):
 def triggerNetmasterRestart(testbed):
     api.tutils.info("Restarting netmaster on " + testbed.nodes[0].hostname)
     testbed.nodes[0].stopNetmaster()
+    time.sleep(1)
 
     currTime = time.strftime("%H:%M:%S", time.localtime())
     testbed.nodes[0].runCmd("mv /tmp/netmaster.log /tmp/netmaster-" + currTime + ".log")
