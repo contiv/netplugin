@@ -92,7 +92,7 @@ centos-tests: unit-test-centos sanity-test-centos
 
 sanity-test:
 	vagrant up
-	vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/scripts/python && ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
+	vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
 
 tar: clean-tar build
 	@echo "v0.0.0-`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
