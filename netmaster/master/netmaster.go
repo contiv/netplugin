@@ -249,12 +249,6 @@ func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
 		}
 	}
 
-	err = stopAndRemoveServiceContainer(tenantID)
-	if err != nil {
-		log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
-		return err
-	}
-
 	// delete tenant config
 	err = gCfg.Clear()
 	if err != nil {

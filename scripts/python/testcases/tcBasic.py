@@ -25,7 +25,7 @@ def startRemoveContainer(testbed, numContainer, numIter, encap="vxlan"):
 		testbed.chekForNetpluginErrors()
 
 		# Iteration is done
-		api.tutils.info("Iteration " + str(iter) + " Passed")
+		api.tutils.info("startRemoveContainer iteration " + str(iter) + " Passed")
 
 	# Delete the network we created
 	tenant.deleteNetwork('private')
