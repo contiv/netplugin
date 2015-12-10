@@ -1,4 +1,0 @@
-#!/bin/bash
-scriptdir=`dirname "$BASH_SOURCE"`
-PID=$($scriptdir/docker-pid $1)
-sudo nsenter --target $PID --mount --uts --ipc --net --pid env -i - $(sudo cat /proc/$PID/environ | xargs -0) bash

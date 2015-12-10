@@ -369,7 +369,17 @@ func leave() func(http.ResponseWriter, *http.Request) {
 		log.Infof("LeaveRequest: %+v", lr)
 
 		// Send response
-		w.WriteHeader(200)
+		leaveResp := api.LeaveResponse{}
+
+		log.Infof("Sending LeaveResponse: {%+v}", leaveResp)
+
+		content, err = json.Marshal(leaveResp)
+		if err != nil {
+			httpError(w, "Could not generate leave response", err)
+			return
+		}
+
+		w.Write(content)
 	}
 }
 

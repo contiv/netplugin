@@ -33,7 +33,6 @@ import (
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/svcplugin"
 	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/netplugin/utils/netutils"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/Sirupsen/logrus/hooks/syslog"
@@ -44,13 +43,14 @@ import (
 
 type cliOpts struct {
 	hostLabel  string
-	dockPlugin bool
+	dockPlugin bool // Operate in docker plugin mode
 	cfgFile    string
 	debug      bool
 	syslog     string
 	jsonLog    bool
-	vtepIP     string
-	vlanIntf   string
+	ctrlIP     string // IP address to be used by control protocols
+	vtepIP     string // IP address to be used by the VTEP
+	vlanIntf   string // Uplink interface for VLAN switching
 }
 
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
@@ -237,8 +237,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to fetch hostname. Error: %s", err)
 	}
-	// default to using eth1's IP addr
-	defVtepIP, _ := netutils.GetInterfaceIP("eth1")
+
+	// default to using local IP addr
+	localIP, err := cluster.GetLocalAddr()
+	if err != nil {
+		log.Fatalf("Error getting local address. Err: %v", err)
+	}
+	defCtrlIP := localIP
+	defVtepIP := localIP
 	defVlanIntf := "eth2"
 
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
@@ -270,6 +276,10 @@ func main() {
 		"vtep-ip",
 		defVtepIP,
 		"My VTEP ip address")
+	flagSet.StringVar(&opts.ctrlIP,
+		"ctrl-ip",
+		defCtrlIP,
+		"Local ip address to be used for control communication")
 	flagSet.StringVar(&opts.vlanIntf,
 		"vlan-if",
 		defVlanIntf,
@@ -381,7 +391,7 @@ func main() {
 	processCurrentState(netPlugin, opts)
 
 	// Initialize clustering
-	cluster.Init(netPlugin)
+	cluster.Init(netPlugin, opts.ctrlIP)
 
 	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
 	//etcd.SetLogger(logger)

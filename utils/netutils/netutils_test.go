@@ -16,6 +16,7 @@ limitations under the License.
 package netutils
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -195,4 +196,20 @@ func TestGetSubnetNumber(t *testing.T) {
 				hostID, te.hostID, te.subnetIP, te.subnetLen, te.subnetAllocLen)
 		}
 	}
+}
+
+func TestGetAddrList(t *testing.T) {
+	addrList, err := GetNetlinkAddrList()
+	if err != nil {
+		t.Fatalf("Error getting address list. Err: %v", err)
+	}
+
+	fmt.Printf("Got netlink address list: %v\n", addrList)
+
+	addrList, err = GetLocalAddrList()
+	if err != nil {
+		t.Fatalf("Error getting address list. Err: %v", err)
+	}
+
+	fmt.Printf("Got local address list: %v\n", addrList)
 }

@@ -6,7 +6,7 @@ import tutils
 # This class represents a testbed i.e, collection of nodes
 class Testbed:
     # Initialize a testbed
-    def __init__(self, addrList, username='vagrant', password='vagrant'):
+    def __init__(self, addrList, username='vagrant', password='vagrant', binpath='/opt/gopath/bin'):
         self.nodes = []
         self.failOnError = True
         # Basic error checking
@@ -16,10 +16,11 @@ class Testbed:
 
         # Create nodes
         for addr in addrList:
-            node = tnode.Node(addr, username, password)
+            node = tnode.Node(addr, username, password, binpath)
             self.nodes.append(node)
 
-            # Cleanup all state before we can start
+        # Cleanup all state before we can start
+        for node in self.nodes:
             node.cleanupContainers()
             node.stopNetmaster()
             node.cleanupDockerNetwork()
@@ -61,6 +62,7 @@ class Testbed:
         # cleanup master
         print "Cleaning up master"
         self.nodes[0].cleanupMaster()
+
 
     # Number of nodes in the testbed
     def numNodes(self):
@@ -144,9 +146,9 @@ class Testbed:
             cntrIp = cnt.getIpAddr()
             cntrIpList.append(cntrIp)
 
-        # Test ping to all other containers
+        # Test ping to all other containers from one container in each node
         for cidx, cnt in enumerate(containers):
-            if (cidx % self.numNodes()) == 0:
+            if (cidx < self.numNodes()):
                 for ipAddr in cntrIpList:
                     cnt.checkPing(ipAddr)
 
@@ -160,9 +162,9 @@ class Testbed:
             cntrIp = cnt.getIpAddr()
             cntrIpList.append(cntrIp)
 
-        # Check connection to all containers
+        # Check connection to all containers from one container on each node
         for cidx, cnt in enumerate(containers):
-            if (cidx % self.numNodes()) == 0:
+            if (cidx < self.numNodes()):
                 for aidx, ipAddr in enumerate(cntrIpList):
                     if cidx != aidx:
                         ret = cnt.checkConnection(ipAddr, port)
@@ -199,3 +201,12 @@ class Testbed:
             ret = node.chekForNetpluginErrors()
             if ret == False and self.failOnError:
                 tutils.exit("Errors in log file")
+
+    # Print netplugin errors if any and exit
+    def errExit(self, str):
+        # print erros from netplugin log file
+        for node in self.nodes:
+            node.chekForNetpluginErrors()
+
+        # exit the script
+        tutils.exit(str)

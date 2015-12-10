@@ -16,12 +16,14 @@ limitations under the License.
 package netutils
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 	"unsafe"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/jainvipin/bitset"
 	"github.com/vishvananda/netlink"
 
@@ -263,4 +265,98 @@ func SetInterfaceMac(name string, macaddr string) error {
 		return err
 	}
 	return netlink.LinkSetHardwareAddr(iface, hwaddr)
+}
+
+// GetNetlinkAddrList returns a list of local IP addresses
+func GetNetlinkAddrList() ([]string, error) {
+	var addrList []string
+	// get the link list
+	linkList, err := netlink.LinkList()
+	if err != nil {
+		return addrList, err
+	}
+
+	log.Debugf("Got link list(%d): %+v", len(linkList), linkList)
+
+	// Loop thru each interface and add its ip addr to list
+	for _, link := range linkList {
+		if strings.HasPrefix(link.Attrs().Name, "docker") || strings.HasPrefix(link.Attrs().Name, "veth") ||
+			strings.HasPrefix(link.Attrs().Name, "vport") || strings.HasPrefix(link.Attrs().Name, "lo") {
+			continue
+		}
+		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+		if err != nil {
+			return addrList, err
+		}
+
+		for _, addr := range addrs {
+			addrList = append(addrList, addr.IP.String())
+		}
+	}
+
+	return addrList, err
+}
+
+// GetLocalAddrList returns a list of local IP addresses
+func GetLocalAddrList() ([]string, error) {
+	var addrList []string
+	// get the link list
+	intfList, err := net.Interfaces()
+	if err != nil {
+		return addrList, err
+	}
+
+	log.Debugf("Got address list(%d): %+v", len(intfList), intfList)
+
+	// Loop thru each interface and add its ip addr to list
+	for _, intf := range intfList {
+		if strings.HasPrefix(intf.Name, "docker") || strings.HasPrefix(intf.Name, "veth") ||
+			strings.HasPrefix(intf.Name, "vport") || strings.HasPrefix(intf.Name, "lo") {
+			continue
+		}
+
+		addrs, err := intf.Addrs()
+		if err != nil {
+			return addrList, err
+		}
+
+		for _, addr := range addrs {
+			addrList = append(addrList, addr.String())
+		}
+	}
+
+	return addrList, err
+}
+
+// IsAddrLocal check if an address is local
+func IsAddrLocal(findAddr string) bool {
+	// get the local addr list
+	addrList, err := GetNetlinkAddrList()
+	if err != nil {
+		return false
+	}
+
+	// find the address
+	for _, addr := range addrList {
+		if addr == findAddr {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetFirstLocalAddr returns the first ip address
+func GetFirstLocalAddr() (string, error) {
+	// get the local addr list
+	addrList, err := GetNetlinkAddrList()
+	if err != nil {
+		return "", err
+	}
+
+	if len(addrList) > 0 {
+		return addrList[0], nil
+	}
+
+	return "", errors.New("No address was found")
 }

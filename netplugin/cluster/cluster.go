@@ -25,6 +25,7 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objmodel/objdb"
 	"github.com/contiv/objmodel/objdb/client"
 	"github.com/contiv/ofnet"
@@ -121,14 +122,7 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 }
 
 // Register netplugin with service registry
-func registerService(objdbClient objdb.ObjdbApi) error {
-	// Get the address to be used for local communication
-	localIP, err := objdbClient.GetLocalAddr()
-	if err != nil {
-		log.Fatalf("Error getting local IP address. Err: %v", err)
-		return err
-	}
-
+func registerService(objdbClient objdb.ObjdbApi, localIP string) error {
 	// service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netplugin",
@@ -137,7 +131,7 @@ func registerService(objdbClient objdb.ObjdbApi) error {
 	}
 
 	// Register the node with service registry
-	err = objdbClient.RegisterService(srvInfo)
+	err := objdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 		return err
@@ -148,21 +142,15 @@ func registerService(objdbClient objdb.ObjdbApi) error {
 }
 
 // Main loop to discover peer hosts and masters
-func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) {
+func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi, localIP string) {
 	// Create channels for watch thread
 	nodeEventCh := make(chan objdb.WatchServiceEvent, 1)
 	watchStopCh := make(chan bool, 1)
 	masterEventCh := make(chan objdb.WatchServiceEvent, 1)
 	masterWatchStopCh := make(chan bool, 1)
 
-	// Get the local address
-	localIP, err := objdbClient.GetLocalAddr()
-	if err != nil {
-		log.Fatalf("Error getting locla IP address. Err: %v", err)
-	}
-
 	// Start a watch on netplugin service so that we dont miss any
-	err = objdbClient.WatchService("netplugin", nodeEventCh, watchStopCh)
+	err := objdbClient.WatchService("netplugin", nodeEventCh, watchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
 	}
@@ -288,16 +276,35 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi) 
 	}
 }
 
+// GetLocalAddr gets local address to be used
+func GetLocalAddr() (string, error) {
+	// Get objdb's client IP
+	clientIP, err := client.NewClient().GetLocalAddr()
+	if err != nil {
+		log.Warnf("Error getting local address from objdb. Returning first local address. Err: %v", err)
+
+		return netutils.GetFirstLocalAddr()
+	}
+
+	// Make sure the ip address is local
+	if netutils.IsAddrLocal(clientIP) {
+		return clientIP, nil
+	}
+
+	// Return first available address if client IP is not local
+	return netutils.GetFirstLocalAddr()
+}
+
 // Init initializes the cluster module
-func Init(netplugin *plugin.NetPlugin) error {
+func Init(netplugin *plugin.NetPlugin, localIP string) error {
 	// Create an objdb client
 	objdbClient := client.NewClient()
 
 	// Register ourselves
-	registerService(objdbClient)
+	registerService(objdbClient, localIP)
 
 	// Start peer discovery loop
-	go peerDiscoveryLoop(netplugin, objdbClient)
+	go peerDiscoveryLoop(netplugin, objdbClient, localIP)
 
 	return nil
 }

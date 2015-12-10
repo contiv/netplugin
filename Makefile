@@ -81,22 +81,15 @@ ssh:
 unit-test: stop clean build
 	./scripts/unittests -vagrant
 
-unit-test-centos: stop
-	CONTIV_NODE_OS=centos make clean build
-	CONTIV_NODE_OS=centos ./scripts/unittests -vagrant
+centos-tests:
+	CONTIV_NODE_OS=centos make clean build unit-test sanity-test stop
 
-sanity-test-centos: stop clean
-	CONTIV_NODE_OS=centos make build stop sanity-test
-
-centos-tests: unit-test-centos sanity-test-centos
-
-sanity-test:
-	vagrant up
+sanity-test: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
 
 tar: clean-tar build
 	@echo "v0.0.0-`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
-	@tar -jcf $(TAR_FILE) -C $(GOPATH)/bin netplugin netmaster netctl
+	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)

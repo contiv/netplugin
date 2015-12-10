@@ -18,10 +18,11 @@ import traceback
 # Create the parser and sub parser
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', action='version', version='1.0.0')
-parser.add_argument("-nodes", help="list of nodes(comma seperates)")
+parser.add_argument("-nodes", required=True, help="list of nodes(comma seperated)")
 parser.add_argument("-iteration", default="3", help="Number of iterations")
 parser.add_argument("-user", default='vagrant', help="User id for ssh")
 parser.add_argument("-password", default='vagrant', help="password for ssh")
+parser.add_argument("-binpath", default='/opt/gopath/bin', help="netplugin/netmaster binary path")
 parser.add_argument("-containers", default='0', help="number of containers")
 
 # Parse the args
@@ -40,7 +41,7 @@ try:
     startTime = time.time()
 
     # Setup testbed
-    testbed = api.tbed.Testbed(addrList, args.user, args.password)
+    testbed = api.tbed.Testbed(addrList, args.user, args.password, args.binpath)
 
     time.sleep(15)
 
