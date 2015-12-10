@@ -41,10 +41,19 @@ class Node:
         except paramiko.ssh_exception.AuthenticationException:
             tutils.exit("Authentication failed")
 
+    def isConnected(self):
+        transport = self.ssh.get_transport() if self.ssh else None
+        return transport and transport.is_active()
+
     # Run a command on vagrant node
     def runCmd(self, cmd, timeout=None):
         try:
             print "run: " + cmd
+            # We we disconnected for any reason, reconnect
+            if not self.isConnected():
+                self.ssh = self.sshConnect(self.username, self.password)
+
+            # Execute the command
             stdin, stdout, stderr = self.ssh.exec_command(cmd, timeout=timeout)
             out = stdout.readlines()
             err = stderr.readlines()

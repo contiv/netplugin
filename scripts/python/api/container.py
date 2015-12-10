@@ -1,4 +1,5 @@
 import tutils
+import time
 
 # This class represents a docker Container
 class Container:
@@ -31,11 +32,21 @@ class Container:
 
     # Execute a command inside a container
     def execCmd(self, cmd):
-        return self.node.runCmd("docker exec " + self.cid + " " + cmd)
+        out, err, exitCode = self.node.runCmd("docker exec " + self.cid + " " + cmd)
+        # Retry failures once to workaround docker issue #15713
+        if out == [] and err == [] and exitCode == 255:
+            time.sleep(1)
+            return self.node.runCmd("docker exec " + self.cid + " " + cmd)
+        return out, err, exitCode
 
     # Execute a command inside a container in backgroud
     def execBgndCmd(self, cmd):
-        return self.node.runCmd("docker exec -d " + self.cid + " " + cmd)
+        out, err, exitCode = self.node.runCmd("docker exec -d " + self.cid + " " + cmd)
+        # Retry failures once to workaround docker issue #15713
+        if out == [] and err == [] and exitCode == 255:
+            time.sleep(1)
+            return self.node.runCmd("docker exec -d " + self.cid + " " + cmd)
+        return out, err, exitCode
 
     # start the container
     def start(self):
