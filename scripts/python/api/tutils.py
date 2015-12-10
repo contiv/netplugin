@@ -14,5 +14,5 @@ def exit(str):
     log("Printing stacktrace of the error:")
     traceback.print_stack()
     log("Exiting...")
-    time.Sleep(1)
+    time.sleep(1)
     os._exit(1)
