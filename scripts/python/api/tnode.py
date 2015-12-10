@@ -5,6 +5,7 @@ import os
 import time
 import container
 import tutils
+import exceptions
 
 # Utility function to run ssh
 def ssh_exec_thread(ssh_object, command):
@@ -53,7 +54,7 @@ class Node:
             if err != []:
                 print "stderr: " + ''.join(err)
             return out, err, exitCode
-        except exception.EOFError:
+        except exceptions.EOFError:
             print "Ignoring EOF errors executing command"
             return [], [], 0
 
