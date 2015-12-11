@@ -28,7 +28,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/plugin"
+	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/svcplugin"
 	"github.com/contiv/netplugin/svcplugin/bridge"
 	"github.com/docker/docker/pkg/plugins"
@@ -134,7 +134,7 @@ func httpError(w http.ResponseWriter, message string, err error) {
 		return
 	}
 
-	log.Warnf("Returning HTTP error handling plugin negotiation: %s", fullError)
+	log.Errorf("Returning HTTP error handling plugin negotiation: %s", fullError)
 	http.Error(w, string(content), http.StatusInternalServerError)
 }
 

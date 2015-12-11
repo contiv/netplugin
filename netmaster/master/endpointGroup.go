@@ -80,13 +80,12 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 	}
 
 	// params for docker network
-	epgNet := groupName + "." + networkID
 	subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
 
 	// Create each EPG as a docker network
-	err = createDockNet(epgNet, subnetCIDR, nwCfg.Gateway)
+	err = createDockNet(tenantName, networkName, groupName, subnetCIDR, nwCfg.Gateway)
 	if err != nil {
-		log.Errorf("Error creating docker network %s. Err: %v", epgNet, err)
+		log.Errorf("Error creating docker network for group %s.%s. Err: %v", networkName, groupName, err)
 		return err
 	}
 
@@ -186,13 +185,12 @@ func DeleteEndpointGroup(epgID int) error {
 		}
 	}
 
-	epgNet := epgCfg.Name + "." + epgCfg.NetworkName + "." + epgCfg.Tenant
-
+	// Delete endpoint group
 	err = epgCfg.Clear()
 	if err != nil {
 		log.Errorf("error writing epGroup config. Error: %v", err)
 		return err
 	}
 
-	return deleteDockNet(epgNet)
+	return deleteDockNet(epgCfg.Tenant, epgCfg.NetworkName, epgCfg.Name)
 }

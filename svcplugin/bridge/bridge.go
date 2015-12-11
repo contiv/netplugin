@@ -95,7 +95,7 @@ func (b *Bridge) RemoveService(srvID string, srvName string, nwName string, tena
 	service := b.createService(srvID, srvName, nwName, tenantName, srvIP)
 	err := b.registry.Deregister(service)
 	if err != nil {
-		log.Errorf("Service removal failed for service %v. Error: %s:",
+		log.Warningf("Service removal failed for service %v. Error: %s:",
 			service, err)
 	}
 	delete(b.services, srvName+nwName)

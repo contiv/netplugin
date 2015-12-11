@@ -173,26 +173,18 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork deletes a network by named identifier
-func (d *OvsDriver) DeleteNetwork(id string) error {
+func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int) error {
 	log.Infof("delete net %s \n", id)
-
-	cfgNw := mastercfg.CfgNetworkState{}
-	cfgNw.StateDriver = d.oper.StateDriver
-	err := cfgNw.Read(id)
-	if err != nil {
-		log.Errorf("Failed to read net %s \n", cfgNw.ID)
-		return err
-	}
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
-	if cfgNw.PktTagType == "vxlan" {
+	if encap == "vxlan" {
 		sw = d.switchDb["vxlan"]
 	} else {
 		sw = d.switchDb["vlan"]
 	}
 
-	return sw.DeleteNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag))
+	return sw.DeleteNetwork(uint16(pktTag), uint32(extPktTag))
 }
 
 // CreateEndpoint creates an endpoint by named identifier
@@ -207,15 +199,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	err = cfgEp.Read(id)
 	if err != nil {
 		return err
-	}
-
-	// Ignore VTEP endpoints and uplink endpoints
-	// FIXME: we need to stop publiching these from netmaster
-	if cfgEp.VtepIP != "" {
-		return nil
-	}
-	if cfgEp.IntfName != "" {
-		return nil
 	}
 
 	cfgEpGroup := &mastercfg.EndpointGroupState{}

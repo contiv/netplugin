@@ -1,29 +1,35 @@
 #!/usr/bin/python
 
 # sanity tests
-import testbedApi
+import api.tnode
 import time
 import sys
-import objmodel
+import argparse
 
 # Parse command line args
-if len(sys.argv) <= 1:
-	print "Usage: " + sys.argv[0] + " <ip-addr> <ip-addr>..."
-	sys.exit(1)
+# Create the parser and sub parser
+parser = argparse.ArgumentParser()
+parser.add_argument('--version', action='version', version='1.0.0')
+parser.add_argument("-nodes", required=True, help="list of nodes(comma seperated)")
+parser.add_argument("-user", default='vagrant', help="User id for ssh")
+parser.add_argument("-password", default='vagrant', help="password for ssh")
 
-# Form address list
-addrList = []
-for addr in sys.argv[1:]:
-	addrList.append(addr)
+# Parse the args
+args = parser.parse_args()
+addrList = args.nodes.split(",")
+
+nodes = []
 
 # Cleanup nodes
 for addr in addrList:
-	node = testbedApi.vagrantNode(addr)
+	node = api.tnode.Node(addr, args.user, args.password)
 	node.cleanupContainers()
-	
-for addr in addrList:
+	nodes.append(node)
+
+for node in nodes:
 	# Cleanup all state before we can start
 	node.stopNetmaster()
+	node.cleanupDockerNetwork()
 	node.stopNetplugin()
 	node.cleanupMaster()
 	node.cleanupSlave()

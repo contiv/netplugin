@@ -23,7 +23,7 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/netutils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
@@ -320,10 +320,11 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 
 		// Build the endpoint info
 		endpoint := ofnet.EndpointInfo{
-			PortNo:  ofpPort,
-			MacAddr: macAddr,
-			Vlan:    uint16(pktTag),
-			IpAddr:  net.ParseIP(cfgEp.IPAddress),
+			PortNo:        ofpPort,
+			MacAddr:       macAddr,
+			Vlan:          uint16(pktTag),
+			IpAddr:        net.ParseIP(cfgEp.IPAddress),
+			EndpointGroup: cfgEp.EndpointGroupID,
 		}
 
 		// Add the local port to ofnet

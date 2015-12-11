@@ -18,7 +18,6 @@ package dockplugin
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -147,15 +146,7 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		// delete the endpoint
 		netID := netName + "." + tenantName
-		err = netPlugin.DeleteEndpoint(netID + "-" + delreq.EndpointID)
-		if err != nil {
-			log.Errorf("Error deleting endpoint %s. Err: %v", delreq.EndpointID, err)
-			httpError(w, "failed to delete endpoint", err)
-			return
-		}
-
 		ep, err := netdGetEndpoint(netID + "-" + delreq.EndpointID)
 		if err != nil {
 			httpError(w, "Could not find endpoint", err)
@@ -166,6 +157,14 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 		if serviceName != "" {
 			log.Infof("Calling RemoveService with: ID: %s, Name: %s, Network: %s, Tenant: %s, IP: %s", delreq.EndpointID[len(delreq.EndpointID)-12:], serviceName, netName, tenantName, ep.IPAddress)
 			dnsBridge.RemoveService(delreq.EndpointID[len(delreq.EndpointID)-12:], serviceName, netName, tenantName, ep.IPAddress)
+		}
+
+		// delete the endpoint
+		err = netPlugin.DeleteEndpoint(netID + "-" + delreq.EndpointID)
+		if err != nil {
+			log.Errorf("Error deleting endpoint %s. Err: %v", delreq.EndpointID, err)
+			httpError(w, "failed to delete endpoint", err)
+			return
 		}
 
 		// build response
@@ -370,7 +369,17 @@ func leave() func(http.ResponseWriter, *http.Request) {
 		log.Infof("LeaveRequest: %+v", lr)
 
 		// Send response
-		w.WriteHeader(200)
+		leaveResp := api.LeaveResponse{}
+
+		log.Infof("Sending LeaveResponse: {%+v}", leaveResp)
+
+		content, err = json.Marshal(leaveResp)
+		if err != nil {
+			httpError(w, "Could not generate leave response", err)
+			return
+		}
+
+		w.Write(content)
 	}
 }
 
@@ -423,39 +432,43 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 		return "", "", "", err
 	}
 
-	log.Infof("Got networks:")
+	log.Debugf("Got networks:")
 
 	// find the network by uuid
 	for _, nw := range nwList {
-		log.Infof("%+v", nw)
+		log.Debugf("%+v", nw)
 		if nw.ID == nwID {
 			log.Infof("Returning network name %s for ID %s", nw.Name, nwID)
 
 			// parse the network name
 			var tenantName, netName, serviceName string
-			names := strings.Split(nw.Name, ".")
+			names := strings.Split(nw.Name, "/")
 			if len(names) == 2 {
-				// determine if this is service.network on default tenant or network.tenant
-				_, err = netdGetNetwork(fmt.Sprintf("%s.%s", names[1], defaultTenantName))
-				if err == nil {
-					// This is service.network on default tenant
-					tenantName = defaultTenantName
-					netName = names[1]
-					serviceName = names[0]
+				// has service.network/tenant format.
+				tenantName = names[1]
+
+				// parse service and network names
+				sNames := strings.Split(names[0], ".")
+				if len(sNames) == 2 {
+					// has service.network format
+					netName = sNames[1]
+					serviceName = sNames[0]
 				} else {
-					// this is in network.tenant format
-					tenantName = names[1]
-					netName = names[0]
+					netName = sNames[0]
 				}
-			} else if len(names) == 3 {
-				// has service.network.tenant format
-				tenantName = names[2]
-				netName = names[1]
-				serviceName = names[0]
 			} else if len(names) == 1 {
-				// If only network is specified, use default tenant
+				// has ser.network in default tenant
 				tenantName = defaultTenantName
-				netName = names[0]
+
+				// parse service and network names
+				sNames := strings.Split(names[0], ".")
+				if len(sNames) == 2 {
+					// has service.network format
+					netName = sNames[1]
+					serviceName = sNames[0]
+				} else {
+					netName = sNames[0]
+				}
 			} else {
 				log.Errorf("Invalid network name format for network %s", nw.Name)
 				return "", "", "", errors.New("Invalid format")

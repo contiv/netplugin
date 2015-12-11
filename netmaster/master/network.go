@@ -25,9 +25,9 @@ import (
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/samalba/dockerclient"
 
 	log "github.com/Sirupsen/logrus"
@@ -40,9 +40,21 @@ const (
 
 var testMode = false
 
-// trimDefaultTenant trims default tenant from network name
-func trimDefaultTenant(networkName string) string {
-	return strings.TrimRight(strings.TrimSuffix(networkName, defaultTenantName), ".")
+// Trim default tenant from network name
+func getDocknetName(tenantName, networkName, serviceName string) string {
+	if tenantName == defaultTenantName {
+		if serviceName == "" {
+			return fmt.Sprintf("%s", networkName)
+		}
+
+		return fmt.Sprintf("%s.%s", serviceName, networkName)
+	}
+
+	if serviceName == "" {
+		return fmt.Sprintf("%s/%s", networkName, tenantName)
+	}
+
+	return fmt.Sprintf("%s.%s/%s", serviceName, networkName, tenantName)
 }
 
 func validateNetworkConfig(tenant *intent.ConfigTenant) error {
@@ -80,14 +92,14 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 }
 
 // createDockNet Creates a network in docker daemon
-func createDockNet(networkName, subnetCIDR, gateway string) error {
+func createDockNet(tenantName, networkName, serviceName, subnetCIDR, gateway string) error {
 	// do nothing in test mode
 	if testMode {
 		return nil
 	}
 
 	// Trim default tenant name
-	networkName = trimDefaultTenant(networkName)
+	docknetName := getDocknetName(tenantName, networkName, serviceName)
 
 	// connect to docker
 	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
@@ -97,17 +109,17 @@ func createDockNet(networkName, subnetCIDR, gateway string) error {
 	}
 
 	// Check if the network already exists
-	nw, err := docker.InspectNetwork(networkName)
+	nw, err := docker.InspectNetwork(docknetName)
 	if err == nil && nw.Driver == driverName {
 		return nil
 	} else if err == nil && nw.Driver != driverName {
-		log.Errorf("Network name %s used by another driver %s", networkName, nw.Driver)
+		log.Errorf("Network name %s used by another driver %s", docknetName, nw.Driver)
 		return errors.New("Network name used by another driver")
 	}
 
 	// Build network parameters
 	nwCreate := dockerclient.NetworkCreate{
-		Name:           networkName,
+		Name:           docknetName,
 		CheckDuplicate: true,
 		Driver:         driverName,
 		IPAM: dockerclient.IPAM{
@@ -126,23 +138,22 @@ func createDockNet(networkName, subnetCIDR, gateway string) error {
 	// Create network
 	_, err = docker.CreateNetwork(&nwCreate)
 	if err != nil {
-		log.Errorf("Error creating network %s. Err: %v", networkName, err)
-		// FIXME: Ignore errors till we fully move to docker 1.9
-		return nil
+		log.Errorf("Error creating network %s. Err: %v", docknetName, err)
+		return err
 	}
 
 	return nil
 }
 
 // deleteDockNet deletes a network in docker daemon
-func deleteDockNet(networkName string) error {
+func deleteDockNet(tenantName, networkName, serviceName string) error {
 	// do nothing in test mode
 	if testMode {
 		return nil
 	}
 
 	// Trim default tenant name
-	networkName = trimDefaultTenant(networkName)
+	docknetName := getDocknetName(tenantName, networkName, serviceName)
 
 	// connect to docker
 	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
@@ -151,67 +162,14 @@ func deleteDockNet(networkName string) error {
 		return errors.New("Unable to connect to docker")
 	}
 
-	log.Infof("Deleting docker network: %+v", networkName)
+	log.Infof("Deleting docker network: %+v", docknetName)
 
 	// Delete network
-	err = docker.RemoveNetwork(networkName)
+	err = docker.RemoveNetwork(docknetName)
 	if err != nil {
-		log.Errorf("Error deleting network %s. Err: %v", networkName, err)
+		log.Errorf("Error deleting network %s. Err: %v", docknetName, err)
 		// FIXME: Ignore errors till we fully move to docker 1.9
 		return nil
-	}
-
-	return nil
-}
-
-// detachServiceContainer detaches the service container's endpoint during network delete
-//      - detach happens only if all other endpoints in the network are already removed
-func detachServiceContainer(networkName, tenantName string) error {
-	docker, err := utils.GetDockerClient()
-	if err != nil {
-		log.Errorf("Unable to connect to docker. Error %v", err)
-		return errors.New("Unable to connect to docker")
-	}
-
-	dnsContName := tenantName + "dns"
-	cinfo, err := docker.InspectContainer(dnsContName)
-	if err != nil {
-		log.Errorf("Error inspecting the container %s. Err: %v", dnsContName, err)
-		return err
-	}
-
-	nwState, err := docker.InspectNetwork(networkName)
-	if err != nil {
-		log.Errorf("Error while inspecting network: %+v", networkName)
-		return err
-	}
-	log.Infof("Containers in network: %+v are {%+v}", networkName, nwState.Containers)
-	dnsServerIP := strings.Split(nwState.Containers[cinfo.Id].IPv4Address, "/")[0]
-
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		log.Errorf("Could not get StateDriver while trying to disconnect dnsContainer from %+v", networkName)
-		return err
-	}
-
-	// Read network config and get DNSServer information
-	nwCfg := &mastercfg.CfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(networkName)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("dnsServerIP: %+v, nwCfg.dnsip: %+v", dnsServerIP, nwCfg.DNSServer)
-	// Remove dns container from network if all other endpoints are withdrawn
-	if len(nwState.Containers) == 1 && (dnsServerIP == nwCfg.DNSServer) {
-		log.Infof("Disconnecting dns container from network as all other endpoints are removed: %+v", networkName)
-		err = docker.DisconnectNetwork(networkName, dnsContName)
-		if err != nil {
-			log.Errorf("Could not detach container(%s) from network %s. Error: %s",
-				dnsContName, networkName, err)
-			return err
-		}
 	}
 
 	return nil
@@ -321,23 +279,29 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 
 	// Create the network in docker
 	subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
-	err = createDockNet(nwCfg.ID, subnetCIDR, nwCfg.Gateway)
+	err = createDockNet(tenantName, network.Name, "", subnetCIDR, nwCfg.Gateway)
 	if err != nil {
 		log.Errorf("Error creating network %s in docker. Err: %v", nwCfg.ID, err)
 		return err
 	}
 
 	// Attach service container endpoint to the network
-	err = attachServiceContainer(tenantName, networkID, stateDriver)
+	err = attachServiceContainer(tenantName, network.Name, stateDriver)
 	if err != nil {
 		log.Errorf("Error attaching service container to network: %s. Err: %v",
 			networkID, err)
+		return err
 	}
 
 	return nil
 }
 
-func attachServiceContainer(tenantName string, networkName string, stateDriver core.StateDriver) error {
+func attachServiceContainer(tenantName, networkName string, stateDriver core.StateDriver) error {
+	// do nothing in test mode
+	if testMode {
+		return nil
+	}
+
 	contName := tenantName + "dns"
 	docker, err := utils.GetDockerClient()
 	if err != nil {
@@ -346,7 +310,7 @@ func attachServiceContainer(tenantName string, networkName string, stateDriver c
 	}
 
 	// Trim default tenant
-	dnetName := trimDefaultTenant(networkName)
+	dnetName := getDocknetName(tenantName, networkName, "")
 
 	err = docker.ConnectNetwork(dnetName, contName)
 	if err != nil {
@@ -381,8 +345,9 @@ func attachServiceContainer(tenantName string, networkName string, stateDriver c
 
 	// read network Config
 	nwCfg := &mastercfg.CfgNetworkState{}
+	networkID := networkName + "." + tenantName
 	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(networkName)
+	err = nwCfg.Read(networkID)
 	if err != nil {
 		return err
 	}
@@ -395,6 +360,65 @@ func attachServiceContainer(tenantName string, networkName string, stateDriver c
 	err = nwCfg.Write()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// detachServiceContainer detaches the service container's endpoint during network delete
+//      - detach happens only if all other endpoints in the network are already removed
+func detachServiceContainer(tenantName, networkName string) error {
+	docker, err := utils.GetDockerClient()
+	if err != nil {
+		log.Errorf("Unable to connect to docker. Error %v", err)
+		return errors.New("Unable to connect to docker")
+	}
+
+	dnsContName := tenantName + "dns"
+	cinfo, err := docker.InspectContainer(dnsContName)
+	if err != nil {
+		log.Errorf("Error inspecting the container %s. Err: %v", dnsContName, err)
+		return err
+	}
+
+	// Trim default tenant
+	dnetName := getDocknetName(tenantName, networkName, "")
+
+	// inspect docker network
+	nwState, err := docker.InspectNetwork(dnetName)
+	if err != nil {
+		log.Errorf("Error while inspecting network: %+v", dnetName)
+		return err
+	}
+
+	log.Infof("Containers in network: %+v are {%+v}", dnetName, nwState.Containers)
+	dnsServerIP := strings.Split(nwState.Containers[cinfo.Id].IPv4Address, "/")[0]
+
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		log.Errorf("Could not get StateDriver while trying to disconnect dnsContainer from %+v", networkName)
+		return err
+	}
+
+	// Read network config and get DNSServer information
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	networkID := networkName + "." + tenantName
+	err = nwCfg.Read(networkID)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("dnsServerIP: %+v, nwCfg.dnsip: %+v", dnsServerIP, nwCfg.DNSServer)
+	// Remove dns container from network if all other endpoints are withdrawn
+	if len(nwState.Containers) == 1 && (dnsServerIP == nwCfg.DNSServer) {
+		log.Infof("Disconnecting dns container from network as all other endpoints are removed: %+v", networkName)
+		err = docker.DisconnectNetwork(dnetName, dnsContName)
+		if err != nil {
+			log.Errorf("Could not detach container(%s) from network %s. Error: %s",
+				dnsContName, dnetName, err)
+			return err
+		}
 	}
 
 	return nil
@@ -467,14 +491,14 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
-	err = detachServiceContainer(netID, nwCfg.Tenant)
+	// detach Dns container
+	err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
 	if err != nil {
-		log.Errorf("Error in detaching dns container from %+v:%+v",
-			netID, nwCfg.Tenant)
+		log.Errorf("Error detaching service container. Err: %v", err)
 	}
 
 	// Delete the docker network
-	err = deleteDockNet(netID)
+	err = deleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", netID, err)
 	}

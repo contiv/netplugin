@@ -19,6 +19,7 @@ import (
 	"errors"
 	"net"
 	"net/rpc"
+	"reflect"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/ofnet/ofctrl"
@@ -103,6 +104,11 @@ func SrcGroupMetadata(groupId int) (uint64, uint64) {
 	return metadata, metadataMask
 }
 
+// ruleIsSame check if two rules are identical
+func ruleIsSame(r1, r2 *OfnetPolicyRule) bool {
+	return reflect.DeepEqual(*r1, *r2)
+}
+
 // AddEndpoint adds an endpoint to dst group lookup
 func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 	if self.DstGrpFlow[endpoint.EndpointID] != nil {
@@ -177,6 +183,18 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 	var mdm *uint64 = nil
 	var flag, flagMask uint16
 	var flagPtr, flagMaskPtr *uint16
+
+	// check if we already have the rule
+	if self.Rules[rule.RuleId] != nil {
+		oldRule := self.Rules[rule.RuleId].rule
+
+		if ruleIsSame(oldRule, rule) {
+			return nil
+		} else {
+			log.Errorf("Rule already exists. new rule: {%+v}, old rule: {%+v}", rule, oldRule)
+			return errors.New("Rule already exists")
+		}
+	}
 
 	log.Infof("Received AddRule: %+v", rule)
 

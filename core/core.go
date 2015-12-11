@@ -41,7 +41,7 @@ type ServiceInfo struct {
 // comunicate.
 type Network interface {
 	CreateNetwork(id string) error
-	DeleteNetwork(id string) error
+	DeleteNetwork(id, encap string, pktTag, extPktTag int) error
 	FetchNetwork(id string) (State, error)
 }
 
@@ -90,7 +90,7 @@ type NetworkDriver interface {
 	Init(config *Config, info *InstanceInfo) error
 	Deinit()
 	CreateNetwork(id string) error
-	DeleteNetwork(id string) error
+	DeleteNetwork(id, encap string, pktTag, extPktTag int) error
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
 	AddPeerHost(node ServiceInfo) error

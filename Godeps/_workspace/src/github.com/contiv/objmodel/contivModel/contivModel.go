@@ -712,7 +712,6 @@ func CreateApp(obj *App) error {
 func FindApp(key string) *App {
 	obj := collections.apps[key]
 	if obj == nil {
-		log.Errorf("app %s not found", key)
 		return nil
 	}
 
@@ -947,7 +946,6 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 func FindEndpointGroup(key string) *EndpointGroup {
 	obj := collections.endpointGroups[key]
 	if obj == nil {
-		log.Errorf("endpointGroup %s not found", key)
 		return nil
 	}
 
@@ -1182,7 +1180,6 @@ func CreateGlobal(obj *Global) error {
 func FindGlobal(key string) *Global {
 	obj := collections.globals[key]
 	if obj == nil {
-		log.Errorf("global %s not found", key)
 		return nil
 	}
 
@@ -1425,7 +1422,6 @@ func CreateNetwork(obj *Network) error {
 func FindNetwork(key string) *Network {
 	obj := collections.networks[key]
 	if obj == nil {
-		log.Errorf("network %s not found", key)
 		return nil
 	}
 
@@ -1683,7 +1679,6 @@ func CreatePolicy(obj *Policy) error {
 func FindPolicy(key string) *Policy {
 	obj := collections.policys[key]
 	if obj == nil {
-		log.Errorf("policy %s not found", key)
 		return nil
 	}
 
@@ -1918,7 +1913,6 @@ func CreateRule(obj *Rule) error {
 func FindRule(key string) *Rule {
 	obj := collections.rules[key]
 	if obj == nil {
-		log.Errorf("rule %s not found", key)
 		return nil
 	}
 
@@ -2204,7 +2198,6 @@ func CreateService(obj *Service) error {
 func FindService(key string) *Service {
 	obj := collections.services[key]
 	if obj == nil {
-		log.Errorf("service %s not found", key)
 		return nil
 	}
 
@@ -2439,7 +2432,6 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 func FindServiceInstance(key string) *ServiceInstance {
 	obj := collections.serviceInstances[key]
 	if obj == nil {
-		log.Errorf("serviceInstance %s not found", key)
 		return nil
 	}
 
@@ -2674,7 +2666,6 @@ func CreateTenant(obj *Tenant) error {
 func FindTenant(key string) *Tenant {
 	obj := collections.tenants[key]
 	if obj == nil {
-		log.Errorf("tenant %s not found", key)
 		return nil
 	}
 
@@ -2940,7 +2931,6 @@ func CreateVolume(obj *Volume) error {
 func FindVolume(key string) *Volume {
 	obj := collections.volumes[key]
 	if obj == nil {
-		log.Errorf("volume %s not found", key)
 		return nil
 	}
 
@@ -3175,7 +3165,6 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 func FindVolumeProfile(key string) *VolumeProfile {
 	obj := collections.volumeProfiles[key]
 	if obj == nil {
-		log.Errorf("volumeProfile %s not found", key)
 		return nil
 	}
 

@@ -106,7 +106,19 @@ func releasePool() func(http.ResponseWriter, *http.Request) {
 
 		log.Infof("Received ReleasePoolRequest: %+v", preq)
 
-		w.WriteHeader(200)
+		// response
+		relResp := api.ReleasePoolResponse{}
+
+		log.Infof("Sending ReleasePoolResponse: {%+v}", relResp)
+
+		content, err = json.Marshal(relResp)
+		if err != nil {
+			httpError(w, "Could not generate release pool response", err)
+			return
+		}
+
+		// Send response
+		w.Write(content)
 	}
 }
 
@@ -193,6 +205,18 @@ func releaseAddress() func(http.ResponseWriter, *http.Request) {
 
 		log.Infof("Received ReleaseAddressRequest: %+v", preq)
 
-		w.WriteHeader(200)
+		// response
+		relResp := api.ReleaseAddressResponse{}
+
+		log.Infof("Sending ReleaseAddressResponse: {%+v}", relResp)
+
+		content, err = json.Marshal(relResp)
+		if err != nil {
+			httpError(w, "Could not generate release addr response", err)
+			return
+		}
+
+		// Send response
+		w.Write(content)
 	}
 }

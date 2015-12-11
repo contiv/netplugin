@@ -1,11 +1,11 @@
 
-.PHONY: all all-CI build clean default system-test unit-test release tar
+.PHONY: all all-CI build clean default unit-test release tar
 
 # find all verifiable packages.
 # XXX: explore a better way that doesn't need multiple 'find'
-PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|systemtests|bin'`
+PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin'`
 PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts|bin'`
-TO_BUILD := ./netplugin/ ./netmaster/ ./netdcli/ ./mgmtfn/k8contivnet/ ./mgmtfn/dockcontivnet/ ./netctl/netctl/
+TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
 NAME := netplugin
@@ -19,14 +19,14 @@ TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
 TAR_LOC := .
 TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
 
-all: build unit-test system-test system-test-dind centos-tests
+all: build unit-test sanity-test centos-tests
 
 # 'all-CI' target is used by the scripts/CI.sh that passes appropriate set of
 # ENV variables (from the jenkins job) to run OS (centos, ubuntu etc) and
 # sandbox specific(vagrant, docker-in-docker)
-all-CI: build unit-test system-test
+all-CI: build unit-test sanity-test
 
-test: build unit-test system-test centos-tests
+test: build unit-test sanity-test centos-tests
 
 default: build
 
@@ -49,7 +49,7 @@ build:
 
 clean: deps
 	rm -rf Godeps/_workspace/pkg
-	rm -rf $(GOPATH)/pkg
+	rm -rf $(GOPATH)/pkg/*
 	godep go clean -i -v ./...
 
 update:
@@ -75,62 +75,21 @@ demo:
 	vagrant ssh netplugin-node1 -c 'nohup bash -lc "/opt/gopath/bin/netmaster 2>&1> /tmp/netmaster.log &"'
 	sleep 10
 
-start-dockerdemo:
-	scripts/dockerhost/start-dockerhosts
-
-clean-dockerdemo:
-	scripts/dockerhost/cleanup-dockerhosts
-
 ssh:
 	@vagrant ssh netplugin-node1 || echo 'Please run "make demo"'
 
 unit-test: stop clean build
 	./scripts/unittests -vagrant
 
-unit-test-centos: stop
-	CONTIV_NODE_OS=centos make clean build
-	CONTIV_NODE_OS=centos ./scripts/unittests -vagrant
+centos-tests:
+	CONTIV_NODE_OS=centos make clean build unit-test sanity-test stop
 
-# setting CONTIV_SOE=1 while calling 'make system-test' will stop the test
-# on first failure and leave setup in that state. This can be useful for debugging
-# as part of development.
-system-test: system-test-singlehost system-test-multihost
-
-# the `make stop` here and below are necessary because build leaves around a VM (intentionally)
-system-test-singlehost: stop clean checks
-	make build stop
-	godep go test -v --timeout 30m -run "sanity" \
-					   github.com/contiv/netplugin/systemtests/singlehost
-
-system-test-multihost: stop clean checks build
-	make build stop
-	godep go test -v --timeout 80m -run "sanity" \
-					   github.com/contiv/netplugin/systemtests/twohosts
-
-system-test-centos: stop clean
-	CONTIV_NODE_OS=centos make build stop system-test-singlehost system-test-multihost
-
-centos-tests: unit-test-centos system-test-centos
-
-# setting CONTIV_SOE=1 while calling 'make regress-test' will stop the test
-# on first failure and leave setup in that state. This can be useful for debugging
-# as part of development.
-regress-test: build
-	godep go test -run "regress" \
-					   github.com/contiv/netplugin/systemtests/singlehost
-	godep go test --timeout 60m -run "regress" \
-					   github.com/contiv/netplugin/systemtests/twohosts
-
-# Setting CONTIV_TESTBED=DIND uses docker in docker as the testbed instead of vagrant VMs.
-system-test-dind:
-	CONTIV_TESTBED=DIND make system-test
-
-regress-test-dind:
-	CONTIV_TESTBED=DIND make regress-test
+sanity-test: start
+	vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
 
 tar: clean-tar build
 	@echo "v0.0.0-`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
-	@tar -jcf $(TAR_FILE) -C $(GOPATH)/bin netplugin netdcli netmaster dockcontivnet k8contivnet
+	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)

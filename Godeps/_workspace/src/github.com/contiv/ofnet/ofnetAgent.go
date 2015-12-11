@@ -356,6 +356,7 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 
 	// delete the endpoint from local endpoint table
 	delete(self.endpointDb, epreg.EndpointID)
+	delete(self.localEndpointDb, portNo)
 
 	// Send the DELETE to all known masters
 	for _, master := range self.masterDb {
@@ -377,6 +378,12 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 // Add virtual tunnel end point. This is mainly used for mapping remote vtep IP
 // to ofp port number.
 func (self *OfnetAgent) AddVtepPort(portNo uint32, remoteIp net.IP) error {
+	// Ignore duplicate Add vtep messages
+	oldPort, ok := self.vtepTable[remoteIp.String()]
+	if ok && *oldPort == portNo {
+		return nil
+	}
+
 	log.Infof("Adding VTEP port(%d), Remote IP: %v", portNo, remoteIp)
 
 	// Store the vtep IP to port number mapping

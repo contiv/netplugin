@@ -23,14 +23,14 @@ import (
 	"github.com/jainvipin/bitset"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/netutils"
 	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/utils/netutils"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 const (
-	baseGlobal       = "/contiv/"
+	baseGlobal       = "/contiv.io/"
 	cfgGlobalPrefix  = baseGlobal + "config/global/"
 	cfgGlobalPath    = cfgGlobalPrefix + "%s"
 	operGlobalPrefix = baseGlobal + "oper/global/"
@@ -428,6 +428,31 @@ func (gc *Cfg) Process(ra core.ResourceManager) error {
 
 	log.Debugf("updating the global config to new state %v \n", gc)
 	return nil
+}
+
+// DeleteResources deletes associated resources
+func (gc *Cfg) DeleteResources(ra core.ResourceManager) error {
+	tenant := gc.Tenant
+	if tenant == "" {
+		return core.Errorf("null tenant")
+	}
+
+	err := ra.UndefineResource(tenant, resources.AutoSubnetResource)
+	if err != nil {
+		log.Errorf("Error deleting subnet resource. Err: %v", err)
+	}
+
+	err = ra.UndefineResource(tenant, resources.AutoVLANResource)
+	if err != nil {
+		log.Errorf("Error deleting vlan resource. Err: %v", err)
+	}
+
+	err = ra.UndefineResource(tenant, resources.AutoVXLANResource)
+	if err != nil {
+		log.Errorf("Error deleting vxlan resource. Err: %v", err)
+	}
+
+	return err
 }
 
 // AssignDefaultNetwork assigns a default network for a tenant based on the configuration
