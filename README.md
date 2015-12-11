@@ -1,4 +1,4 @@
-[![Build Status](http://51633006.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/badge/icon)](http://51633006.ngrok.com/view/Netplugin%20Sanity/job/Netplugin_Release/)
+[![Build Status](http://547ae48f.ngrok.com/job/Netplugin%20Push%20Build%20Master/badge/icon)](http://547ae48f.ngrok.com/job/Netplugin%20Push%20Build%20Master/)
 
 ## Netplugin
 
@@ -51,18 +51,6 @@ PING db (20.1.1.3) 56(84) bytes of data.
 64 bytes from db (20.1.1.3): icmp_seq=2 ttl=64 time=0.103 ms
 ```
 
-#### Trying it out in a multi-host VLAN/VXLAN network
-
-The [docs/TwoHostMultiVlanDemo.md](docs/TwoHostMultiVlanDemo.md) walks through
-setting up a multi host demo network and deploy the following Vlan based
-network.
-
-#### Multi-tenant network
-
-In the examples directory [two_hosts_multiple_tenants.json](examples/two_hosts_multiple_tenants.json) and
-[two_hosts_multiple_tenants_mix_vlan_vxlan.json](examples/two_hosts_multiple_tenants_mix_vlan_vxlan.json)
-shows the creation of a multi-tenant (disjoint, overlapping) networks within a
-cluster.
 
 ### Building and Testing
 
@@ -70,18 +58,11 @@ cluster.
 
 High level `make` targets:
 
-* `demo`: start a VM (or multiple, set `CONTIV_NODES` to greater than 1) for
-  development or testing.
+* `demo`: start two VM demo cluster for development or testing.
 * `build`: build the binary in a VM and download it to the host.
-* `unit-test`: run the unit tests. Specify `CONTIV_NODE_OS=centos` to test on
-  centos instead of ubuntu.
-* `system-test`: run the networking/"sanity" tests. Specify
-  `CONTIV_NODE_OS=centos` to test on centos instead of ubuntu.
+* `unit-test`: run the unit tests. Specify `CONTIV_NODE_OS=centos` to test on centos instead of ubuntu.
+* `system-test`: run the networking/"sanity" tests. Specify `CONTIV_NODE_OS=centos` to test on centos instead of ubuntu.
 
-#### Kubernetes Integration
-The plugin code contains the netplugin code that interfaces with kublet to
-allow network plumbing before a container is scheduled on one of the minions.
-Please see [Kubernetes Integration](docs/kubernetes.md) for details
 
 ### How to Contribute
 Patches and contributions are welcome, please hit the GitHub page to open an
