@@ -68,6 +68,8 @@ SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+    config.ssh.insert_key = false
+
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "centos" then
         config.vm.box = "contiv/centos71-netplugin"
         config.vm.box_version = "0.3.1"

@@ -58,7 +58,7 @@ update:
 # setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
 # up a cluster of <number> nodes. By default <number> = 1
 start: update
-	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
+	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up --provider virtualbox
 
 demo-centos:
 	CONTIV_NODE_OS=centos make demo
@@ -67,7 +67,7 @@ stop:
 	CONTIV_NODES=$${CONTIV_NODES:-2} vagrant destroy -f
 
 demo:
-	vagrant up
+	vagrant up --provider virtualbox
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	vagrant ssh netplugin-node1 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -docker-plugin 2>&1> /tmp/netplugin.log &"'
 	vagrant ssh netplugin-node2 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -docker-plugin 2>&1> /tmp/netplugin.log &"'
