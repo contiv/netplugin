@@ -221,8 +221,8 @@ func ParseCIDR(cidrStr string) (string, uint, error) {
 	}
 
 	subnetStr := strs[0]
-	subnetLen, _ := strconv.Atoi(strs[1])
-	if subnetLen > 32 {
+	subnetLen, err := strconv.Atoi(strs[1])
+	if subnetLen > 32 || err != nil {
 		return "", 0, core.Errorf("invalid mask in gateway/mask specification ")
 	}
 
