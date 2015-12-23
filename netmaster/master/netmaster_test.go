@@ -78,6 +78,18 @@ func verifyKeys(t *testing.T, keys []string) {
 	}
 }
 
+func verifyKeysDoNotExist(t *testing.T, keys []string) {
+
+	for _, key := range keys {
+		found := false
+		for stateKey := range fakeDriver.TestState {
+			if found = strings.Contains(stateKey, key); found {
+				t.Fatalf("key '%s' was populated in db", key)
+			}
+		}
+	}
+}
+
 func initFakeStateDriver(t *testing.T) {
 	config := &core.Config{V: &state.FakeStateDriverConfig{}}
 	cfgBytes, err := json.Marshal(config)
@@ -295,4 +307,34 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 	fakeDriver.DumpState()
 
 	verifyKeys(t, keys)
+}
+
+// Tests for https://github.com/contiv/netplugin/issues/214
+func TestVxlanConfigPktTagOutOfRange(t *testing.T) {
+	cfgBytes := []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant-one",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "orange",
+            "PktTag"            : 1300
+        }]
+    }]}`)
+
+	initFakeStateDriver(t)
+	defer deinitFakeStateDriver()
+
+	// Create the Tenant and Network
+	applyConfig(t, cfgBytes)
+	fakeDriver.DumpState()
+
+	keys := []string{"tenant-one"}
+	verifyKeys(t, keys)
+
+	keys = []string{"nets/orange"}
+	fakeDriver.DumpState()
+	verifyKeysDoNotExist(t, keys)
 }
