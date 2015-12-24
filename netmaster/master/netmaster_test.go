@@ -310,8 +310,8 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 }
 
 // Tests for https://github.com/contiv/netplugin/issues/214
-func TestVxlanConfigPktTagOutOfRange(t *testing.T) {
-	cfgBytes := []byte(`{
+func TestConfigPktTagOutOfRange(t *testing.T) {
+	vxlanOutOfRangeCfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant-one",
         "DefaultNetType"        : "vxlan",
@@ -320,21 +320,61 @@ func TestVxlanConfigPktTagOutOfRange(t *testing.T) {
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "orange",
-            "PktTag"            : 1300
+            "PktTag"            : 6000,
+            "PktTagType"        : "vxlan"
         }]
     }]}`)
+	applyVerifyOutOfRangeTag(t, vxlanOutOfRangeCfgBytes)
 
+	vlanOutOfRangeCfgBytes := []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant-one",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1200-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "orange",
+            "PktTag"            : 1600,
+            "PktTagType"        : "vlan"
+        }]
+    }]}`)
+	applyVerifyOutOfRangeTag(t, vlanOutOfRangeCfgBytes)
+
+}
+
+func applyVerifyOutOfRangeTag(t *testing.T, cfgBytes []byte) {
 	initFakeStateDriver(t)
 	defer deinitFakeStateDriver()
 
-	// Create the Tenant and Network
-	applyConfig(t, cfgBytes)
-	fakeDriver.DumpState()
+	cfg := &intent.Config{}
+	err := json.Unmarshal(cfgBytes, cfg)
+	if err != nil {
+		t.Fatalf("error '%s' parsing config '%s'\n", err, cfgBytes)
+	}
+
+	_, err = resources.NewStateResourceManager(fakeDriver)
+	if err != nil {
+		log.Fatalf("state store initialization failed. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
+
+	tenant := cfg.Tenants[0]
+	err = CreateTenant(fakeDriver, &tenant)
+	if err != nil {
+		t.Fatalf("error '%s' creating tenant\n", err)
+	}
+
+	err = CreateNetworks(fakeDriver, &tenant)
+	if err == nil {
+		t.Fatalf("CreateNetworks did not return error for OutOfRangeVlan\n")
+	}
 
 	keys := []string{"tenant-one"}
 	verifyKeys(t, keys)
 
 	keys = []string{"nets/orange"}
-	fakeDriver.DumpState()
 	verifyKeysDoNotExist(t, keys)
+
 }

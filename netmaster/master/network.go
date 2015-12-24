@@ -236,11 +236,17 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		nwCfg.ExtPktTag = int(extPktTag)
 		nwCfg.PktTag = int(pktTag)
 	} else if network.PktTagType == "vxlan" {
+		if !netutils.IsTagInRange(network.PktTag, gCfg.Auto.VXLANs, "vxlan") {
+			return fmt.Errorf("vxlan %d does not adhere to tenant's vxlan range %s", network.PktTag, gCfg.Auto.VXLANs)
+		}
+
 		nwCfg.ExtPktTag = network.PktTag
 		nwCfg.PktTag = network.PktTag
 	} else if network.PktTagType == "vlan" {
+		if !netutils.IsTagInRange(network.PktTag, gCfg.Auto.VLANs, "vlan") {
+			return fmt.Errorf("vlan %d does not adhere to tenant's vlan range %s", network.PktTag, gCfg.Auto.VLANs)
+		}
 		nwCfg.PktTag = network.PktTag
-		// XXX: do configuration check, to make sure it is allowed
 	}
 
 	if nwCfg.SubnetIP == "" {

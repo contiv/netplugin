@@ -213,6 +213,23 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 	return tagRanges, nil
 }
 
+// IsTagInRange verifies if the passed pktTag adheres to the valueRange
+func IsTagInRange(pktTag int, valueRangeStr string, encap string) bool {
+	// Parse the valueRange to form a []TagRange object
+	valueRanges, err := ParseTagRanges(valueRangeStr, "vlan")
+	if err != nil {
+		log.Errorf("Not able to pass valueRange. Err: %s", err)
+		return false
+	}
+
+	for _, valueRange := range valueRanges {
+		if pktTag >= valueRange.Min && pktTag <= valueRange.Max {
+			return true
+		}
+	}
+	return false
+}
+
 // ParseCIDR parses a CIDR string into a gateway IP and length.
 func ParseCIDR(cidrStr string) (string, uint, error) {
 	strs := strings.Split(cidrStr, "/")
