@@ -434,7 +434,7 @@ def createTenant(tenantName):
        "tenantName": tenantName,
        "subnetPool": "10.1.1.1/8",
        "subnetLen":  24,
-       "vlans": "100-100",
+       "vlans": "100-1100",
        "vxlans": "1000-1100",
      })
     response = httpPost(postUrl, jdata)
