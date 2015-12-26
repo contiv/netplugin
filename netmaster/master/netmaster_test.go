@@ -311,40 +311,133 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 
 // Tests for https://github.com/contiv/netplugin/issues/214
 func TestConfigPktTagOutOfRange(t *testing.T) {
-	vxlanOutOfRangeCfgBytes := []byte(`{
+	CfgBytes := []byte(`{
     "Tenants" : [{
-        "Name"                  : "tenant-one",
+        "Name"                  : "tenant1",
         "DefaultNetType"        : "vxlan",
         "SubnetPool"            : "11.1.0.0/16",
         "AllocSubnetLen"        : 24,
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
-            "Name"              : "orange",
-            "PktTag"            : 6000,
+            "Name"              : "net1",
+            "PktTag"            : 2000,
             "PktTagType"        : "vxlan"
         }]
     }]}`)
-	applyVerifyOutOfRangeTag(t, vxlanOutOfRangeCfgBytes)
+	applyVerifyRangeTag(t, CfgBytes, true)
 
-	vlanOutOfRangeCfgBytes := []byte(`{
+	CfgBytes = []byte(`{
     "Tenants" : [{
-        "Name"                  : "tenant-one",
+        "Name"                  : "tenant2",
         "DefaultNetType"        : "vxlan",
         "SubnetPool"            : "11.1.0.0/16",
         "AllocSubnetLen"        : 24,
-        "Vlans"                 : "1200-1500",
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
-            "Name"              : "orange",
-            "PktTag"            : 1600,
+            "Name"              : "net2",
+            "PktTag"            : 2001,
+            "PktTagType"        : "vxlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, false)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant3",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net3",
+            "PktTag"            : 3000,
+            "PktTagType"        : "vxlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, false)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant4",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net4",
+            "PktTag"            : 3001,
+            "PktTagType"        : "vxlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, true)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant5",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1201-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net5",
+            "PktTag"            : 1200,
             "PktTagType"        : "vlan"
         }]
     }]}`)
-	applyVerifyOutOfRangeTag(t, vlanOutOfRangeCfgBytes)
+	applyVerifyRangeTag(t, CfgBytes, true)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant6",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1201-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net6",
+            "PktTag"            : 1201,
+            "PktTagType"        : "vlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, false)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant7",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1201-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net7",
+            "PktTag"            : 1500,
+            "PktTagType"        : "vlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, false)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant8",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1201-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net8",
+            "PktTag"            : 1501,
+            "PktTagType"        : "vlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, true)
 
 }
 
-func applyVerifyOutOfRangeTag(t *testing.T, cfgBytes []byte) {
+func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 	initFakeStateDriver(t)
 	defer deinitFakeStateDriver()
 
@@ -367,14 +460,12 @@ func applyVerifyOutOfRangeTag(t *testing.T, cfgBytes []byte) {
 	}
 
 	err = CreateNetworks(fakeDriver, &tenant)
-	if err == nil {
-		t.Fatalf("CreateNetworks did not return error for OutOfRangeVlan\n")
+	if shouldFail {
+		if err == nil {
+			t.Fatalf("CreateNetworks did not return error for OutOfRange\n")
+		}
+	} else if err != nil {
+		t.Fatalf("error '%s' while creating network\n", err)
 	}
-
-	keys := []string{"tenant-one"}
-	verifyKeys(t, keys)
-
-	keys = []string{"nets/orange"}
-	verifyKeysDoNotExist(t, keys)
 
 }
