@@ -27,12 +27,13 @@ problems with netplugin:
 
 
 ### Submitting pull requests for code or documentation changes
-Changes can be proposed by sending a pull request (PR). A maintainer
+Changes can be proposed by sending a pull request (PR). One of the maintainers
 will review the changes and provide feedback. The pull request will be merged
 into the master branch after discussion.
 
 Please make sure that the unit tests and the system tests pass before
-submitting the PR.
+submitting the PR. We encourage using [Developer's Guide](docs/DevEnv.md) to use
+well tested steps to make changes to netplugin
 Please keep in mind some changes might not be merged if the maintainers
 decide they can't be merged.
 

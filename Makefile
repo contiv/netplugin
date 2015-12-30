@@ -36,9 +36,6 @@ deps:
 checks:
 	./scripts/checks "$(PKGS)"
 
-host-build:
-	sudo /bin/bash -c 'source /etc/profile.d/envvar.sh; make run-build'
-
 run-build: deps checks clean
 	godep go install -v $(TO_BUILD)
 
@@ -86,6 +83,22 @@ centos-tests:
 
 sanity-test: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
+
+host-build:
+	@echo "dev: making binaries..."
+	sudo /bin/bash -c 'source /etc/profile.d/envvar.sh; make run-build'
+
+host-unit-test:
+	@echo dev: running unit tests...
+	cd $(GOPATH)/src/github.com/contiv/netplugin && sudo -E PATH=$(PATH) scripts/unittests
+
+host-sanity-test:
+	@echo dev: running sanity tests...
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes ${CLUSTER_NODE_IPS}
+
+host-cleanup:
+	@echo dev: cleaning up, restarting services...
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./cleanup.py -nodes ${CLUSTER_NODE_IPS}
 
 tar: clean-tar build
 	@echo "v0.0.0-`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
