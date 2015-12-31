@@ -17,6 +17,7 @@ package master
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 	"testing"
@@ -461,7 +462,16 @@ func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 
 	err = CreateNetworks(fakeDriver, &tenant)
 	if shouldFail {
-		if err == nil {
+
+		var expError string
+		network := tenant.Networks[0]
+		if network.PktTagType == "vlan" {
+			expError = fmt.Sprintf("vlan %d does not adhere to tenant's vlan range %s", network.PktTag, tenant.VLANs)
+		} else {
+			expError = fmt.Sprintf("vxlan %d does not adhere to tenant's vxlan range %s", network.PktTag, tenant.VXLANs)
+		}
+
+		if err.Error() != expError {
 			t.Fatalf("CreateNetworks did not return error for OutOfRange\n")
 		}
 	} else if err != nil {
