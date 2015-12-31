@@ -471,7 +471,9 @@ func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 			expError = fmt.Sprintf("vxlan %d does not adhere to tenant's vxlan range %s", network.PktTag, tenant.VXLANs)
 		}
 
-		if err.Error() != expError {
+		if err == nil {
+			t.Fatalf("CreateNetworks did not return error\n")
+		} else if err.Error() != expError {
 			t.Fatalf("CreateNetworks did not return error for OutOfRange\n")
 		}
 	} else if err != nil {
