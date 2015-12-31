@@ -176,8 +176,8 @@ func deleteDockNet(tenantName, networkName, serviceName string) error {
 	return nil
 }
 
-// IsTagInRange verifies if the requested vlan/vxlan adheres to tenants configured range
-func IsTagInRange(pktTag int, pktTagType string, pktTagRange string, stateDriver core.StateDriver, tenantName string) bool {
+// isTagInRange verifies if the requested vlan/vxlan adheres to tenants configured range
+func isTagInRange(pktTag uint, pktTagType string, pktTagRange string, stateDriver core.StateDriver, tenantName string) bool {
 	if pktTag == 0 {
 		return true
 	}
@@ -192,7 +192,8 @@ func IsTagInRange(pktTag int, pktTagType string, pktTagRange string, stateDriver
 		// Vxlan bitset allocation is reverse offseted by the start of the range
 		// So, if we were allocating vlan 2001, when the allowed range was 2000-3000;
 		// We would internally allocate bitset (2001-2000) = 1 for it.
-		startOffset, err := strconv.Atoi(strings.Split(pktTagRange, "-")[0])
+		startOffset64, err := strconv.Atoi(strings.Split(pktTagRange, "-")[0])
+		startOffset := uint(startOffset64)
 
 		if err != nil {
 			log.Errorf("Error in startOffset conversion pktTagRange: %s err: %s", pktTagRange, err)
@@ -202,7 +203,7 @@ func IsTagInRange(pktTag int, pktTagType string, pktTagRange string, stateDriver
 			return false
 		}
 
-		return rCfg.VXLANs.Test(uint(pktTag - startOffset))
+		return rCfg.VXLANs.Test(pktTag - startOffset)
 	} else if pktTagType == "vlan" {
 		rCfg := &resources.AutoVLANCfgResource{}
 		rCfg.StateDriver = stateDriver
@@ -210,7 +211,7 @@ func IsTagInRange(pktTag int, pktTagType string, pktTagRange string, stateDriver
 			return false
 		}
 
-		return rCfg.VLANs.Test(uint(pktTag))
+		return rCfg.VLANs.Test(pktTag)
 	}
 	return false
 }
@@ -276,7 +277,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		nwCfg.ExtPktTag = int(extPktTag)
 		nwCfg.PktTag = int(pktTag)
 	} else if network.PktTagType == "vxlan" {
-		if !IsTagInRange(network.PktTag, "vxlan", gCfg.Auto.VXLANs, stateDriver, tenantName) {
+		if !isTagInRange(uint(network.PktTag), "vxlan", gCfg.Auto.VXLANs, stateDriver, tenantName) {
 			return fmt.Errorf("vxlan %d does not adhere to tenant's vxlan range %s", network.PktTag, gCfg.Auto.VXLANs)
 		}
 
@@ -284,7 +285,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		nwCfg.PktTag = network.PktTag
 	} else if network.PktTagType == "vlan" {
 
-		if !IsTagInRange(network.PktTag, "vlan", gCfg.Auto.VLANs, stateDriver, tenantName) {
+		if !isTagInRange(uint(network.PktTag), "vlan", gCfg.Auto.VLANs, stateDriver, tenantName) {
 			return fmt.Errorf("vlan %d does not adhere to tenant's vlan range %s", network.PktTag, gCfg.Auto.VLANs)
 		}
 		nwCfg.PktTag = network.PktTag
