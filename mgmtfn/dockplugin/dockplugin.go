@@ -24,10 +24,10 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/netplugin/directapi"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/svcplugin"
 	"github.com/contiv/netplugin/svcplugin/bridge"
@@ -35,9 +35,6 @@ import (
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/gorilla/mux"
 )
-
-const pluginPath = "/run/docker/plugins"
-const driverName = "netplugin"
 
 var netPlugin *plugin.NetPlugin
 var dnsBridge = &bridge.Bridge{}
@@ -53,8 +50,7 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 	log.Debugf("Configuring router")
 
 	router := mux.NewRouter()
-	s := router.Headers("Accept", "application/vnd.docker.plugins.v1.1+json").
-		Methods("POST").Subrouter()
+	s := router.Headers("Accept", "application/vnd.docker.plugins.v1.1+json").Methods("POST").Subrouter()
 
 	dispatchMap := map[string]func(http.ResponseWriter, *http.Request){
 		"/Plugin.Activate":                    activate(hostname),
@@ -81,9 +77,14 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 	s.HandleFunc("/NetworkDriver.{*}", unknownAction)
 	s.HandleFunc("/IpamDriver.{*}", unknownAction)
 
-	driverPath := path.Join(pluginPath, driverName) + ".sock"
+	// register handlers for cni
+	t := router.Headers("Content-Type", "application/json").Methods("POST").Subrouter()
+	t.HandleFunc("/NetworkDriver.DirectEPCreate", directEPCreate(hostname))
+	t.HandleFunc("/NetworkDriver.{*}", unknownAction)
+
+	driverPath := directapi.NetPluginSocket
 	os.Remove(driverPath)
-	os.MkdirAll(pluginPath, 0700)
+	os.MkdirAll(directapi.PluginPath, 0700)
 
 	go func() {
 		l, err := net.ListenUnix("unix", &net.UnixAddr{Name: driverPath, Net: "unix"})

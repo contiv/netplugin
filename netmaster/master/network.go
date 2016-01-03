@@ -278,20 +278,20 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	}
 
 	// Create the network in docker
-	subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
-	err = createDockNet(tenantName, network.Name, "", subnetCIDR, nwCfg.Gateway)
-	if err != nil {
-		log.Errorf("Error creating network %s in docker. Err: %v", nwCfg.ID, err)
-		return err
-	}
+	//	subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
+	//	err = createDockNet(tenantName, network.Name, "", subnetCIDR, nwCfg.Gateway)
+	//	if err != nil {
+	//		log.Errorf("Error creating network %s in docker. Err: %v", nwCfg.ID, err)
+	//		return err
+	//	}
 
 	// Attach service container endpoint to the network
-	err = attachServiceContainer(tenantName, network.Name, stateDriver)
-	if err != nil {
-		log.Errorf("Error attaching service container to network: %s. Err: %v",
-			networkID, err)
-		return err
-	}
+	//	err = attachServiceContainer(tenantName, network.Name, stateDriver)
+	//	if err != nil {
+	//		log.Errorf("Error attaching service container to network: %s. Err: %v",
+	//			networkID, err)
+	//		return err
+	//	}
 
 	return nil
 }
@@ -492,16 +492,16 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	}
 
 	// detach Dns container
-	err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
-	if err != nil {
-		log.Errorf("Error detaching service container. Err: %v", err)
-	}
+	//	err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
+	//	if err != nil {
+	//		log.Errorf("Error detaching service container. Err: %v", err)
+	//	}
 
 	// Delete the docker network
-	err = deleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
-	if err != nil {
-		log.Errorf("Error deleting network %s. Err: %v", netID, err)
-	}
+	//	err = deleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
+	//	if err != nil {
+	//		log.Errorf("Error deleting network %s. Err: %v", netID, err)
+	//	}
 
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
@@ -579,6 +579,7 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 	var found bool
 	var err error
 
+	log.Infof("===> reqAddr: %s", reqAddr)
 	// alloc address
 	if reqAddr == "" {
 		ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0)
@@ -595,6 +596,7 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 			log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
 			return "", err
 		}
+		log.Infof("1st===> ipAddress: %s", ipAddress)
 	} else if reqAddr != "" && nwCfg.SubnetIP != "" {
 		ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
 		if err != nil {
@@ -604,10 +606,18 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 		}
 
 		ipAddress = reqAddr
+		log.Infof("2nd===> ipAddress: %s", ipAddress)
 	}
 
 	// Set the bitmap
 	nwCfg.IPAllocMap.Set(ipAddrValue)
+	log.Infof("===> ipAddrValue: %u", ipAddrValue)
+	nxtClr, found := nwCfg.IPAllocMap.NextClear(0)
+	if found {
+		log.Infof("===> nextClear: %u", nxtClr)
+	} else {
+		log.Infof("===> nextClear not found")
+	}
 
 	err = nwCfg.Write()
 	if err != nil {
