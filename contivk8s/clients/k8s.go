@@ -31,8 +31,15 @@ const (
 
 // APIClient defines informatio needed for the k8s api client
 type APIClient struct {
-	baseURL string
-	client  *http.Client
+	baseURL  string
+	client   *http.Client
+	podCache podInfo
+}
+
+type podInfo struct {
+	nameSpace string
+	name      string
+	labels    map[string]string
 }
 
 // NewAPIClient creates an instance of the k8s api client
@@ -66,60 +73,102 @@ func NewAPIClient(serverURL, caFile, keyFile, certFile string) *APIClient {
 	transport := &http.Transport{TLSClientConfig: tlsCfg}
 	c.client = &http.Client{Transport: transport}
 
+	p := &c.podCache
+	p.labels = make(map[string]string)
+	p.nameSpace = ""
+	p.name = ""
+
 	return &c
 }
 
-// GetPodLabel retrieves the value of the specified label from the pod
-func (c *APIClient) GetPodLabel(ns, name, label string) (string, error) {
+func (p *podInfo) setDefaults(ns, name string) {
+	p.nameSpace = ns
+	p.name = name
+	p.labels["tenant"] = "default"
+	p.labels["network"] = "default-net"
+	p.labels["net-group"] = "default-epg"
+}
+
+// fetchPodLabels retrieves the labels from the podspec metadata
+func (c *APIClient) fetchPodLabels(ns, name string) error {
 	var data interface{}
 
 	// initiate a get request to the api server
 	podURL := c.baseURL + ns + "/pods/" + name
 	r, err := c.client.Get(podURL)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	defer r.Body.Close()
 	switch {
 	case r.StatusCode == int(404):
-		return "", fmt.Errorf("Page not found!")
+		return fmt.Errorf("Page not found!")
 	case r.StatusCode == int(403):
-		return "", fmt.Errorf("Access denied!")
+		return fmt.Errorf("Access denied!")
 	case r.StatusCode != int(200):
 		log.Errorf("GET Status '%s' status code %d \n", r.Status, r.StatusCode)
-		return "", fmt.Errorf("%s", r.Status)
+		return fmt.Errorf("%s", r.Status)
 	}
 
-	response, err1 := ioutil.ReadAll(r.Body)
-	if err1 != nil {
-		return "", err1
+	response, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
 	}
 
-	err1 = json.Unmarshal(response, &data)
-	if err1 != nil {
-		return "", err1
+	err = json.Unmarshal(response, &data)
+	if err != nil {
+		return err
 	}
 
 	podSpec := data.(map[string]interface{})
 	m, ok := podSpec["metadata"]
+	// Treat missing metadata as a fatal error
 	if !ok {
-		return "", fmt.Errorf("metadata not found in podSpec")
+		return fmt.Errorf("metadata not found in podSpec")
 	}
+
+	p := &c.podCache
+	p.setDefaults(ns, name)
 
 	meta := m.(map[string]interface{})
-	m, ok = meta["labels"]
-	if !ok {
-		return "", fmt.Errorf("labels not found in podSpec metadata")
+	l, ok := meta["labels"]
+	if ok {
+		labels := l.(map[string]interface{})
+		for key, val := range labels {
+			switch valType := val.(type) {
+
+			case string:
+				p.labels[key] = val.(string)
+
+			default:
+				log.Infof("Label %s type %v in pod %s.%s ignored",
+					key, valType, ns, name)
+			}
+		}
+	} else {
+		log.Infof("labels not found in podSpec metadata, using defaults")
 	}
 
-	labels := m.(map[string]interface{})
-	lval, found := labels[label]
-	if !found {
-		// this means net-group is not specified
-		return "", nil
+	return nil
+}
+
+// GetPodLabel retrieves the specified label
+func (c *APIClient) GetPodLabel(ns, name, label string) (string, error) {
+
+	// If cache does not match, fetch
+	if c.podCache.nameSpace != ns || c.podCache.name != name {
+		err := c.fetchPodLabels(ns, name)
+		if err != nil {
+			return "", err
+		}
 	}
 
-	res := lval.(string)
-	return res, nil
+	res, found := c.podCache.labels[label]
+	if found {
+		return res, nil
+	}
+
+	log.Infof("label %s not found in podSpec for %s.%s", label, ns, name)
+	return "", nil
 }

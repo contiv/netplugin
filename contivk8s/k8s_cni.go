@@ -233,13 +233,15 @@ func main() {
 		epg = "default-epg"
 	}
 
-	log.Infof("EPG is %s for pod %s\n", epg, pInfo.Name)
+	netw, _ := ac.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name, "network")
+	tenant, _ := ac.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name, "tenant")
+	log.Infof("labels is %s/%s/%s for pod %s\n", tenant, netw, epg, pInfo.Name)
 
 	// Create the network endpoint
 	nc := clients.NewNWClient()
 	epSpec := directapi.ReqCreateEP{
-		Tenant:     "default",
-		Network:    "k8s-poc",
+		Tenant:     tenant,
+		Network:    netw,
 		Group:      epg,
 		EndpointID: pInfo.InfraContainerID,
 	}
