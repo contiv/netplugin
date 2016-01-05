@@ -55,6 +55,7 @@ type cliOpts struct {
 	vtepIP     string // IP address to be used by the VTEP
 	vlanIntf   string // Uplink interface for VLAN switching
 	version    bool
+	routerIP   string
 }
 
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
@@ -82,6 +83,17 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 			ep := epCfg.(*mastercfg.CfgEndpointState)
 			log.Debugf("read ep key[%d] %s, populating state \n", idx, ep.ID)
 			processEpState(netPlugin, opts, ep.ID)
+		}
+	}
+
+	readBgp := &mastercfg.CfgBgpState{}
+	readBgp.StateDriver = netPlugin.StateDriver
+	bgpCfgs, err := readBgp.ReadAll()
+	if err == nil {
+		for idx, bgpCfg := range bgpCfgs {
+			bgp := bgpCfg.(*mastercfg.CfgBgpState)
+			log.Debugf("read bgp key[%d] %s, populating state \n", idx, bgp.Name)
+			processBgpEvent(netPlugin, opts, bgp.Name, false)
 		}
 	}
 
@@ -305,6 +317,10 @@ func main() {
 		"bgpRouterID",
 		"",
 		"My bgp router ip address")
+	flagSet.StringVar(&opts.routerIP,
+		"router-ip",
+		"",
+		"My Router ip address")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
@@ -361,7 +377,8 @@ func main() {
                     "plugin-instance": {
                        "host-label": %q,
 						"vtep-ip": %q,
-						"vlan-if": %q
+						"vlan-if": %q,
+						"router-ip":%q
                     },
                     %q : {
                        "dbip": "127.0.0.1",
@@ -374,7 +391,7 @@ func main() {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`, utils.OvsNameStr, opts.hostLabel, opts.vtepIP,
-		opts.vlanIntf, utils.OvsNameStr)
+		opts.vlanIntf, opts.routerIP, utils.OvsNameStr)
 
 	netPlugin := &plugin.NetPlugin{}
 
@@ -415,6 +432,9 @@ func main() {
 	if pluginConfig.Instance.VlanIntf == "" {
 		pluginConfig.Instance.VlanIntf = opts.vlanIntf
 	}
+	if pluginConfig.Instance.RouterIP == "" {
+		pluginConfig.Instance.RouterIP = opts.routerIP
+	}
 
 	svcplugin.QuitCh = make(chan struct{})
 	defer close(svcplugin.QuitCh)
@@ -451,8 +471,13 @@ func main() {
 	}
 }
 
-func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, netID string,
+func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string,
 	isDelete bool) (err error) {
+
+	if opts.hostLabel != hostID {
+		log.Errorf("Skipping deleting neighbor on this host")
+		return
+	}
 	// take a lock to ensure we are programming one event at a time.
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
@@ -462,10 +487,10 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, netID string,
 
 	operStr := ""
 	if isDelete {
-		err = netPlugin.DeleteBgpNeighbors(netID)
+		err = netPlugin.DeleteBgpNeighbors(hostID)
 		operStr = "delete"
 	} else {
-		err = netPlugin.AddBgpNeighbors(netID)
+		err = netPlugin.AddBgpNeighbors(hostID)
 		operStr = "create"
 	}
 	if err != nil {

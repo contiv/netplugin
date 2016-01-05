@@ -782,6 +782,7 @@ func (ac *APIController) TenantDelete(tenant *contivModel.Tenant) error {
 	return nil
 }
 
+//BgpCreate add bgp config
 func (ac *APIController) BgpCreate(bgpNeighborCfg *contivModel.Bgp) error {
 	log.Infof("Received BgpCreate: %+v", bgpNeighborCfg)
 
@@ -811,9 +812,25 @@ func (ac *APIController) BgpCreate(bgpNeighborCfg *contivModel.Bgp) error {
 	return nil
 }
 
+//BgpDelete delete bgp config
 func (ac *APIController) BgpDelete(bgpNeighborCfg *contivModel.Bgp) error {
+
+	log.Infof("Received delete for Bgp config on {%+v} ", bgpNeighborCfg.Name)
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	err = master.DeleteBgpNeighbors(stateDriver, bgpNeighborCfg.Name)
+	if err != nil {
+		log.Errorf("Error Deleting Bgp neighbors. Err: %v", err)
+		return err
+	}
 	return nil
 }
+
+//BgpUpdate delete bgp config
 func (ac *APIController) BgpUpdate(oldbgpNeighborCfg *contivModel.Bgp, NewbgpNeighborCfg *contivModel.Bgp) error {
 	return nil
 }

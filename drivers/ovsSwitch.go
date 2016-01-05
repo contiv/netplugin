@@ -48,7 +48,7 @@ type OvsSwitch struct {
 }
 
 // NewOvsSwitch Creates a new OVS switch instance
-func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
+func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*OvsSwitch, error) {
 	var err error
 	var ofnetPort, ctrlerPort uint16
 
@@ -108,7 +108,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 	if netType == "vlan" {
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vlrouter", net.ParseIP(localIP),
-			ofnet.OFNET_AGENT_PORT, 6633)
+			ofnet.OFNET_AGENT_PORT, 6633, routerInfo...)
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err
@@ -151,26 +151,25 @@ func (sw *OvsSwitch) Delete() {
 }
 
 // CreateNetwork creates a new network/vlan
-func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32) error {
-	// Add the vlan/vni to ofnet
-	err := sw.ofnetAgent.AddVlan(pktTag, extPktTag)
-	if err != nil {
-		log.Errorf("Error adding vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
-		return err
-	}
 
+func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32, defaultGw string) error {
+		// Add the vlan/vni to ofnet
+		err := sw.ofnetAgent.AddNetwork(pktTag, extPktTag, defaultGw)
+		if err != nil {
+			log.Errorf("Error adding vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
+			return err
+		}
 	return nil
 }
 
 // DeleteNetwork deletes a network/vlan
-func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32) error {
+func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32, Gw string) error {
 	// Delete vlan/vni mapping
-	err := sw.ofnetAgent.RemoveVlan(pktTag, extPktTag)
+	err := sw.ofnetAgent.RemoveNetwork(pktTag, extPktTag, Gw)
 	if err != nil {
 		log.Errorf("Error removing vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
 		return err
 	}
-
 	return nil
 }
 
@@ -576,7 +575,7 @@ func (sw *OvsSwitch) DeleteMaster(node core.ServiceInfo) error {
 	return nil
 }
 
-// CreateNetwork creates a new network/vlan
+// AddBgpNeighbors adds a bgp neighbor to host
 func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbors []string) error {
 	if sw.netType == "vlan" {
 		// Add the vlan/vni to ofnet
@@ -590,16 +589,15 @@ func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbors []str
 	return nil
 }
 
-// DeleteNetwork deletes a network/vlan
-func (sw *OvsSwitch) DeleteBgpNeighbors(hostname string, As string, neighbors []string) error {
+// DeleteBgpNeighbors deletes bgp config for host
+func (sw *OvsSwitch) DeleteBgpNeighbors() error {
 	if sw.netType == "vlan" {
 		// Delete vlan/vni mapping
-		err := sw.ofnetAgent.DeleteBgpNeighbors(As, neighbors)
+		err := sw.ofnetAgent.DeleteBgpNeighbors()
 		if err != nil {
 			log.Errorf("Error removing bgp server Err: %v", err)
 			return err
 		}
 	}
-
 	return nil
 }

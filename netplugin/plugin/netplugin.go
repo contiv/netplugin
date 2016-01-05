@@ -66,6 +66,7 @@ func (p *NetPlugin) Init(pluginConfig Config, configStr string) error {
 		HostLabel:   pluginConfig.Instance.HostLabel,
 		VtepIP:      pluginConfig.Instance.VtepIP,
 		VlanIntf:    pluginConfig.Instance.VlanIntf,
+		RouterIP:    pluginConfig.Instance.RouterIP,
 		StateDriver: p.StateDriver,
 	}
 
@@ -146,10 +147,12 @@ func (p *NetPlugin) DeleteMaster(node core.ServiceInfo) error {
 	return p.NetworkDriver.DeleteMaster(node)
 }
 
+//AddBgpNeighbors adds bgp neigbor
 func (p *NetPlugin) AddBgpNeighbors(id string) error {
 	return p.NetworkDriver.AddBgpNeighbors(id)
 }
 
+//DeleteBgpNeighbors deletes bgp neigbor
 func (p *NetPlugin) DeleteBgpNeighbors(id string) error {
 	return p.NetworkDriver.DeleteBgpNeighbors(id)
 }

@@ -59,6 +59,7 @@ type ConfigTenant struct {
 	Networks       []ConfigNetwork
 }
 
+//ConfigBgp keeps bgp specific configs
 type ConfigBgp struct {
 	Name      string
 	As        string
