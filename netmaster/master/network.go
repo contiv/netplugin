@@ -579,7 +579,6 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 	var found bool
 	var err error
 
-	log.Infof("===> reqAddr: %s", reqAddr)
 	// alloc address
 	if reqAddr == "" {
 		ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0)
@@ -596,7 +595,6 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 			log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
 			return "", err
 		}
-		log.Infof("1st===> ipAddress: %s", ipAddress)
 	} else if reqAddr != "" && nwCfg.SubnetIP != "" {
 		ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
 		if err != nil {
@@ -606,18 +604,10 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 		}
 
 		ipAddress = reqAddr
-		log.Infof("2nd===> ipAddress: %s", ipAddress)
 	}
 
 	// Set the bitmap
 	nwCfg.IPAllocMap.Set(ipAddrValue)
-	log.Infof("===> ipAddrValue: %u", ipAddrValue)
-	nxtClr, found := nwCfg.IPAllocMap.NextClear(0)
-	if found {
-		log.Infof("===> nextClear: %u", nxtClr)
-	} else {
-		log.Infof("===> nextClear not found")
-	}
 
 	err = nwCfg.Write()
 	if err != nil {

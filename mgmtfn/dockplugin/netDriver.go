@@ -180,6 +180,25 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+// epFailCleanUp cleans up if a create fails.
+func epFailCleanUp(req directapi.ReqCreateEP) {
+	// first delete from netplugin
+	// ignore any errors as this is best effort
+	netID := req.Network + "." + req.Tenant
+	netPlugin.DeleteEndpoint(netID + "-" + req.EndpointID)
+
+	// now delete from master
+	delReq := master.DeleteEndpointRequest{
+		TenantName:  req.Tenant,
+		NetworkName: req.Network,
+		ServiceName: req.Group,
+		EndpointID:  req.EndpointID,
+	}
+
+	var delResp master.DeleteEndpointResponse
+	cluster.MasterPostReq("/plugin/deleteEndpoint", &delReq, &delResp)
+}
+
 func directEPCreate(hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logEvent("attach endpoint")
@@ -217,6 +236,7 @@ func directEPCreate(hostname string) func(http.ResponseWriter, *http.Request) {
 			var mresp master.CreateEndpointResponse
 			err = cluster.MasterPostReq("/plugin/createEndpoint", &mreq, &mresp)
 			if err != nil {
+				epFailCleanUp(req)
 				httpError(w, "master failed to create endpoint", err)
 				return
 			}
@@ -227,12 +247,14 @@ func directEPCreate(hostname string) func(http.ResponseWriter, *http.Request) {
 			err = netPlugin.CreateEndpoint(netID + "-" + req.EndpointID)
 			if err != nil {
 				log.Errorf("Endpoint creation failed. Error: %s", err)
+				epFailCleanUp(req)
 				httpError(w, "Could not create endpoint", err)
 				return
 			}
 
 			ep, err = netdGetEndpoint(netID + "-" + req.EndpointID)
 			if err != nil {
+				epFailCleanUp(req)
 				httpError(w, "Could not find created endpoint", err)
 				return
 			}
