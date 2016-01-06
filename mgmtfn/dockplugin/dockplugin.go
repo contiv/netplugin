@@ -80,6 +80,7 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 	// register handlers for cni
 	t := router.Headers("Content-Type", "application/json").Methods("POST").Subrouter()
 	t.HandleFunc("/NetworkDriver.DirectEPCreate", directEPCreate(hostname))
+	t.HandleFunc("/NetworkDriver.DirectEPDelete", directEPDelete(hostname))
 	t.HandleFunc("/NetworkDriver.{*}", unknownAction)
 
 	driverPath := directapi.NetPluginSocket

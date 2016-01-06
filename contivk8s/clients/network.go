@@ -91,3 +91,32 @@ func (c *NWClient) AddEndpoint(epSpec interface{}) (*directapi.RspCreateEP, erro
 
 	return &data, nil
 }
+
+// DelEndpoint deletes an endpoint from the netplugin using the direct api
+func (c *NWClient) DelEndpoint(epSpec interface{}) error {
+
+	buf, err := json.Marshal(epSpec)
+	if err != nil {
+		return err
+	}
+
+	body := bytes.NewBuffer(buf)
+	url := c.baseURL + "DirectEPDelete"
+	r, err := c.client.Post(url, "application/json", body)
+	if err != nil {
+		return err
+	}
+	defer r.Body.Close()
+
+	switch {
+	case r.StatusCode == int(404):
+		return fmt.Errorf("Page not found!")
+	case r.StatusCode == int(403):
+		return fmt.Errorf("Access denied!")
+	case r.StatusCode != int(200):
+		log.Errorf("GET Status '%s' status code %d \n", r.Status, r.StatusCode)
+		return fmt.Errorf("%s", r.Status)
+	}
+
+	return nil
+}

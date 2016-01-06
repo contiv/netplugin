@@ -180,12 +180,12 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-// epFailCleanUp cleans up if a create fails.
-func epFailCleanUp(req directapi.ReqCreateEP) {
+// epCleanUp deletes the ep from netplugin and netmaster
+func epCleanUp(req directapi.ReqCreateEP) error {
 	// first delete from netplugin
 	// ignore any errors as this is best effort
 	netID := req.Network + "." + req.Tenant
-	netPlugin.DeleteEndpoint(netID + "-" + req.EndpointID)
+	err1 := netPlugin.DeleteEndpoint(netID + "-" + req.EndpointID)
 
 	// now delete from master
 	delReq := master.DeleteEndpointRequest{
@@ -196,7 +196,38 @@ func epFailCleanUp(req directapi.ReqCreateEP) {
 	}
 
 	var delResp master.DeleteEndpointResponse
-	cluster.MasterPostReq("/plugin/deleteEndpoint", &delReq, &delResp)
+	err2 := cluster.MasterPostReq("/plugin/deleteEndpoint", &delReq, &delResp)
+
+	if err1 != nil {
+		return err1
+	}
+
+	return err2
+}
+
+func directEPDelete(hostname string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logEvent("dettach endpoint")
+
+		content, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			httpError(w, "Could not read endpoint delete request", err)
+			return
+		}
+
+		req := directapi.ReqCreateEP{}
+		if err := json.Unmarshal(content, &req); err != nil {
+			httpError(w, "Could not read endpoint delete request", err)
+			return
+		}
+
+		err = epCleanUp(req)
+		if err != nil {
+			httpError(w, "Could not read endpoint delete request", err)
+			return
+		}
+		w.Write([]byte("SUCCESS"))
+	}
 }
 
 func directEPCreate(hostname string) func(http.ResponseWriter, *http.Request) {
@@ -236,7 +267,7 @@ func directEPCreate(hostname string) func(http.ResponseWriter, *http.Request) {
 			var mresp master.CreateEndpointResponse
 			err = cluster.MasterPostReq("/plugin/createEndpoint", &mreq, &mresp)
 			if err != nil {
-				epFailCleanUp(req)
+				epCleanUp(req)
 				httpError(w, "master failed to create endpoint", err)
 				return
 			}
@@ -247,14 +278,14 @@ func directEPCreate(hostname string) func(http.ResponseWriter, *http.Request) {
 			err = netPlugin.CreateEndpoint(netID + "-" + req.EndpointID)
 			if err != nil {
 				log.Errorf("Endpoint creation failed. Error: %s", err)
-				epFailCleanUp(req)
+				epCleanUp(req)
 				httpError(w, "Could not create endpoint", err)
 				return
 			}
 
 			ep, err = netdGetEndpoint(netID + "-" + req.EndpointID)
 			if err != nil {
-				epFailCleanUp(req)
+				epCleanUp(req)
 				httpError(w, "Could not find created endpoint", err)
 				return
 			}

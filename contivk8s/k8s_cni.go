@@ -29,7 +29,7 @@ import (
 	"github.com/contiv/netplugin/netplugin/directapi"
 	"github.com/vishvananda/netlink"
 
-	log "github.com/Sirupsen/logrus"
+	logger "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -51,6 +51,8 @@ type ContivConfig struct {
 	K8sKey       string `json:"K8S_KEY,omitempty"`
 	K8sCert      string `json:"K8S_CERT,omitempty"`
 }
+
+var log *logger.Entry
 
 func getConfig(cfgFile string, pCfg *ContivConfig) error {
 	bytes, err := ioutil.ReadFile(cfgFile)
@@ -182,23 +184,81 @@ func setIfAttrs(ifname, netns, cidr, newname string) error {
 
 }
 
+func addPodToContiv(nc *clients.NWClient, epSpec *directapi.ReqCreateEP, pInfo *PodInfo) {
+
+	// Create the network endpoint
+	result, err := nc.AddEndpoint(epSpec)
+	if err != nil {
+		log.Fatalf("EP create failed -- %s", err)
+		os.Exit(-1)
+	} else {
+		log.Infof("EP created Intf: %s IP: %s\n", result.IntfName, result.IPAddress)
+	}
+
+	// Move the network endpoint to the specified network name space
+	log.Infof("Nw Ns: %s \n", pInfo.NwNameSpace)
+
+	cniIfName := os.Getenv("CNI_IFNAME")
+	err = setIfAttrs(result.IntfName, pInfo.NwNameSpace, result.IPAddress, cniIfName)
+	if err != nil {
+		log.Fatalf("failed -- %v", err)
+		os.Exit(-1)
+	} else {
+		log.Infof("SUCCESS!\n")
+	}
+
+	// Finally, write the ip address of the created endpoint to stdout
+	fmt.Printf("{\n\"cniVersion\": \"0.1.0\",\n")
+	fmt.Printf("\"ip4\": {\n")
+	fmt.Printf("\"ip\": \"%s\"\n}\n}\n", result.IPAddress)
+}
+
+func deletePodFromContiv(nc *clients.NWClient, epSpec *directapi.ReqCreateEP, pInfo *PodInfo) {
+
+	err := nc.DelEndpoint(epSpec)
+	if err != nil {
+		log.Errorf("DelEndpoint returned %v", err)
+	}
+}
+
+func getPrefixedLogger() *logger.Entry {
+	var nsID string
+
+	netNS := os.Getenv("CNI_NETNS")
+	ok := strings.HasPrefix(netNS, "/proc/")
+	if ok {
+		elements := strings.Split(netNS, "/")
+		nsID = elements[2]
+	} else {
+		nsID = "EMPTY"
+	}
+
+	l := logger.WithFields(logger.Fields{
+		"NETNS": nsID,
+	})
+
+	return l
+}
+
 func main() {
 
 	cCfg := ContivConfig{}
 	pInfo := PodInfo{}
+	cniCmd := os.Getenv("CNI_COMMAND")
 
 	// Open a logfile
 	f, err := os.OpenFile("/var/log/contivk8s.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+		logger.Fatalf("error opening file: %v", err)
 		os.Exit(-1)
 	}
 	defer f.Close()
 
-	log.SetOutput(f)
+	logger.SetOutput(f)
+	log = getPrefixedLogger()
+
 	log.Infof("==> Start New Log <==\n")
-	log.Infof("command: %s, cni_args: %s", os.Getenv("CNI_COMMAND"), os.Getenv("CNI_ARGS"))
-	log.Infof("netns: %s\n", os.Getenv("CNI_NETNS"))
+	log.Infof("command: %s, cni_args: %s", cniCmd, os.Getenv("CNI_ARGS"))
 
 	// Read config
 	err = getConfig(contivCfgFile, &cCfg)
@@ -237,7 +297,6 @@ func main() {
 	tenant, _ := ac.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name, "tenant")
 	log.Infof("labels is %s/%s/%s for pod %s\n", tenant, netw, epg, pInfo.Name)
 
-	// Create the network endpoint
 	nc := clients.NewNWClient()
 	epSpec := directapi.ReqCreateEP{
 		Tenant:     tenant,
@@ -245,27 +304,10 @@ func main() {
 		Group:      epg,
 		EndpointID: pInfo.InfraContainerID,
 	}
-	result, err := nc.AddEndpoint(epSpec)
-	if err != nil {
-		log.Fatalf("EP create failed -- %s", err)
-		os.Exit(-1)
-	} else {
-		log.Infof("EP created Intf: %s IP: %s\n", result.IntfName, result.IPAddress)
+
+	if cniCmd == "ADD" {
+		addPodToContiv(nc, &epSpec, &pInfo)
+	} else if cniCmd == "DEL" {
+		deletePodFromContiv(nc, &epSpec, &pInfo)
 	}
-
-	// Move the network endpoint to the specified network name space
-	log.Infof("Nw Ns: %s \n", pInfo.NwNameSpace)
-
-	err = setIfAttrs(result.IntfName, pInfo.NwNameSpace, result.IPAddress, "eth0")
-	if err != nil {
-		log.Fatalf("failed -- %v", err)
-		os.Exit(-1)
-	} else {
-		log.Infof("SUCCESS!\n")
-	}
-
-	// Finally, write the ip address of the created endpoint to stdout
-	fmt.Printf("{\n\"cniVersion\": \"0.1.0\",\n")
-	fmt.Printf("\"ip4\": {\n")
-	fmt.Printf("\"ip\": \"%s\"\n}\n}\n", result.IPAddress)
 }
