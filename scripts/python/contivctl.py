@@ -135,7 +135,7 @@ def listPolicy(args):
 
 # Add rule to a policy
 def addRule(args):
-	print "Adding rule to pilicy rule {0}:{1}".format(args.tenantName, args.policyName)
+	print "Adding rule to policy rule {0}:{1}".format(args.tenantName, args.policyName)
 
 	#Post the data
 	postUrl = 'http://netmaster:9999/api/rules/' + args.tenantName + ':' + args.policyName + ':' + args.ruleId + '/'
