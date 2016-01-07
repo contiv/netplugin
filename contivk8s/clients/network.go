@@ -20,14 +20,14 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/netplugin/directapi"
+	"github.com/contiv/netplugin/mgmtfn/cniapi"
 	"io/ioutil"
 	"net"
 	"net/http"
 )
 
 const (
-	nwURL = "http://localhost/NetworkDriver."
+	nwURL = "http://localhost"
 )
 
 // NWClient defines informatio needed for the k8s api client
@@ -37,7 +37,7 @@ type NWClient struct {
 }
 
 func unixDial(proto, addr string) (conn net.Conn, err error) {
-	sock := directapi.NetPluginSocket
+	sock := cniapi.ContivCniSocket
 	return net.Dial("unix", sock)
 }
 
@@ -52,16 +52,16 @@ func NewNWClient() *NWClient {
 	return &c
 }
 
-// AddEndpoint adds an endpoint to the netplugin using the direct api
-func (c *NWClient) AddEndpoint(epSpec interface{}) (*directapi.RspCreateEP, error) {
+// AddPod adds a pod to contiv using the cni api
+func (c *NWClient) AddPod(podInfo interface{}) (*cniapi.RspAddPod, error) {
 
-	buf, err := json.Marshal(epSpec)
+	buf, err := json.Marshal(podInfo)
 	if err != nil {
 		return nil, err
 	}
 
 	body := bytes.NewBuffer(buf)
-	url := c.baseURL + "DirectEPCreate"
+	url := c.baseURL + cniapi.EPAddURL
 	r, err := c.client.Post(url, "application/json", body)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (c *NWClient) AddEndpoint(epSpec interface{}) (*directapi.RspCreateEP, erro
 		return nil, err
 	}
 
-	data := directapi.RspCreateEP{}
+	data := cniapi.RspAddPod{}
 	err = json.Unmarshal(response, &data)
 	if err != nil {
 		return nil, err
@@ -92,16 +92,16 @@ func (c *NWClient) AddEndpoint(epSpec interface{}) (*directapi.RspCreateEP, erro
 	return &data, nil
 }
 
-// DelEndpoint deletes an endpoint from the netplugin using the direct api
-func (c *NWClient) DelEndpoint(epSpec interface{}) error {
+// DelPod deletes a pod from contiv using the cni api
+func (c *NWClient) DelPod(podInfo interface{}) error {
 
-	buf, err := json.Marshal(epSpec)
+	buf, err := json.Marshal(podInfo)
 	if err != nil {
 		return err
 	}
 
 	body := bytes.NewBuffer(buf)
-	url := c.baseURL + "DirectEPDelete"
+	url := c.baseURL + cniapi.EPDelURL
 	r, err := c.client.Post(url, "application/json", body)
 	if err != nil {
 		return err

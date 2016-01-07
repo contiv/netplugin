@@ -20,7 +20,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,7 +28,6 @@ import (
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
-	"github.com/contiv/netplugin/netplugin/directapi"
 	"github.com/contiv/netplugin/utils"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/samalba/dockerclient"
@@ -173,148 +171,6 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 		content, err = json.Marshal(api.DeleteEndpointResponse{})
 		if err != nil {
 			httpError(w, "Could not generate delete endpoint response", err)
-			return
-		}
-
-		w.Write(content)
-	}
-}
-
-// epCleanUp deletes the ep from netplugin and netmaster
-func epCleanUp(req directapi.ReqCreateEP) error {
-	// first delete from netplugin
-	// ignore any errors as this is best effort
-	netID := req.Network + "." + req.Tenant
-	err1 := netPlugin.DeleteEndpoint(netID + "-" + req.EndpointID)
-
-	// now delete from master
-	delReq := master.DeleteEndpointRequest{
-		TenantName:  req.Tenant,
-		NetworkName: req.Network,
-		ServiceName: req.Group,
-		EndpointID:  req.EndpointID,
-	}
-
-	var delResp master.DeleteEndpointResponse
-	err2 := cluster.MasterPostReq("/plugin/deleteEndpoint", &delReq, &delResp)
-
-	if err1 != nil {
-		return err1
-	}
-
-	return err2
-}
-
-func directEPDelete(hostname string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logEvent("dettach endpoint")
-
-		content, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			httpError(w, "Could not read endpoint delete request", err)
-			return
-		}
-
-		req := directapi.ReqCreateEP{}
-		if err := json.Unmarshal(content, &req); err != nil {
-			httpError(w, "Could not read endpoint delete request", err)
-			return
-		}
-
-		err = epCleanUp(req)
-		if err != nil {
-			httpError(w, "Could not read endpoint delete request", err)
-			return
-		}
-		w.Write([]byte("SUCCESS"))
-	}
-}
-
-func directEPCreate(hostname string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logEvent("attach endpoint")
-
-		content, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			httpError(w, "Could not read endpoint create request", err)
-			return
-		}
-
-		req := directapi.ReqCreateEP{}
-		if err := json.Unmarshal(content, &req); err != nil {
-			httpError(w, "Could not read endpoint attach request", err)
-			return
-		}
-
-		// if the ep already exists, just return with the info
-		netID := req.Network + "." + req.Tenant
-		ep, err := netdGetEndpoint(netID + "-" + req.EndpointID)
-		if err != nil {
-
-			// Build endpoint request
-			mreq := master.CreateEndpointRequest{
-				TenantName:  req.Tenant,
-				NetworkName: req.Network,
-				ServiceName: req.Group,
-				EndpointID:  req.EndpointID,
-				ConfigEP: intent.ConfigEP{
-					Container:   req.EndpointID,
-					Host:        hostname,
-					ServiceName: req.Group,
-				},
-			}
-
-			var mresp master.CreateEndpointResponse
-			err = cluster.MasterPostReq("/plugin/createEndpoint", &mreq, &mresp)
-			if err != nil {
-				epCleanUp(req)
-				httpError(w, "master failed to create endpoint", err)
-				return
-			}
-
-			log.Infof("Got endpoint create resp from master: %+v", mresp)
-
-			// Ask netplugin to create the endpoint
-			err = netPlugin.CreateEndpoint(netID + "-" + req.EndpointID)
-			if err != nil {
-				log.Errorf("Endpoint creation failed. Error: %s", err)
-				epCleanUp(req)
-				httpError(w, "Could not create endpoint", err)
-				return
-			}
-
-			ep, err = netdGetEndpoint(netID + "-" + req.EndpointID)
-			if err != nil {
-				epCleanUp(req)
-				httpError(w, "Could not find created endpoint", err)
-				return
-			}
-		}
-
-		log.Debug(ep)
-		// need to get the subnetlen from nw state.
-		nw, err := netdGetNetwork(netID)
-		if err != nil {
-			httpError(w, "Could not read network oper state", err)
-			return
-		}
-
-		epResponse := directapi.RspCreateEP{}
-		epResponse.EndpointID = ep.ContUUID
-		epResponse.IntfName = ep.PortName
-		epResponse.IPAddress = ep.IPAddress + "/" + strconv.Itoa(int(nw.SubnetLen))
-
-		// Add the service information using Service plugin
-		//		if serviceName != "" {
-		//			log.Infof("Calling AddService with: ID: %s, Name: %s, Network: %s, Tenant: %s, IP: %s", cereq.EndpointID[len(cereq.EndpointID)-12:], serviceName, netName, tenantName, ep.IPAddress)
-		//			dnsBridge.AddService(cereq.EndpointID[len(cereq.EndpointID)-12:], serviceName, netName, tenantName, ep.IPAddress)
-		//		}
-
-		log.Infof("Sending CreateEndpointResponse: {%+v}, IP Addr: %v", epResponse, ep.IPAddress)
-
-		content, err = json.Marshal(epResponse)
-		if err != nil {
-			httpError(w, "Could not generate create endpoint response", err)
 			return
 		}
 
