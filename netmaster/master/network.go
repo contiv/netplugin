@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
@@ -175,6 +176,46 @@ func deleteDockNet(tenantName, networkName, serviceName string) error {
 	return nil
 }
 
+// isTagInRange verifies if the requested vlan/vxlan adheres to tenants configured range
+func isTagInRange(pktTag uint, pktTagType string, pktTagRange string, stateDriver core.StateDriver, tenantName string) bool {
+	if pktTag == 0 {
+		return true
+	}
+
+	if pktTagType == "vxlan" {
+		rCfg := &resources.AutoVXLANCfgResource{}
+		rCfg.StateDriver = stateDriver
+		if err := rCfg.Read(tenantName); err != nil {
+			return false
+		}
+
+		// Vxlan bitset allocation is reverse offseted by the start of the range
+		// So, if we were allocating vlan 2001, when the allowed range was 2000-3000;
+		// We would internally allocate bitset (2001-2000) = 1 for it.
+		startOffset64, err := strconv.Atoi(strings.Split(pktTagRange, "-")[0])
+		startOffset := uint(startOffset64)
+
+		if err != nil {
+			log.Errorf("Error in startOffset conversion pktTagRange: %s err: %s", pktTagRange, err)
+			return false
+		}
+		if startOffset > pktTag {
+			return false
+		}
+
+		return rCfg.VXLANs.Test(pktTag - startOffset)
+	} else if pktTagType == "vlan" {
+		rCfg := &resources.AutoVLANCfgResource{}
+		rCfg.StateDriver = stateDriver
+		if err := rCfg.Read(tenantName); err != nil {
+			return false
+		}
+
+		return rCfg.VLANs.Test(pktTag)
+	}
+	return false
+}
+
 // CreateNetwork creates a network from intent
 func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, tenantName string) error {
 	var extPktTag, pktTag uint
@@ -236,11 +277,18 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		nwCfg.ExtPktTag = int(extPktTag)
 		nwCfg.PktTag = int(pktTag)
 	} else if network.PktTagType == "vxlan" {
+		if !isTagInRange(uint(network.PktTag), "vxlan", gCfg.Auto.VXLANs, stateDriver, tenantName) {
+			return fmt.Errorf("vxlan %d does not adhere to tenant's vxlan range %s", network.PktTag, gCfg.Auto.VXLANs)
+		}
+
 		nwCfg.ExtPktTag = network.PktTag
 		nwCfg.PktTag = network.PktTag
 	} else if network.PktTagType == "vlan" {
+
+		if !isTagInRange(uint(network.PktTag), "vlan", gCfg.Auto.VLANs, stateDriver, tenantName) {
+			return fmt.Errorf("vlan %d does not adhere to tenant's vlan range %s", network.PktTag, gCfg.Auto.VLANs)
+		}
 		nwCfg.PktTag = network.PktTag
-		// XXX: do configuration check, to make sure it is allowed
 	}
 
 	if nwCfg.SubnetIP == "" {
