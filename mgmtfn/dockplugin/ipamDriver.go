@@ -48,19 +48,19 @@ func getDefaultAddressSpaces() func(http.ResponseWriter, *http.Request) {
 // requestPool
 func requestPool() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			decoder = json.NewDecoder(r.Body)
+			preq    = api.RequestPoolRequest{}
+		)
+
 		logEvent("requestPool")
 
-		// Read the message
-		content, err := ioutil.ReadAll(r.Body)
+		// Decode the JSON request
+		err = decoder.Decode(&preq)
 		if err != nil {
-			httpError(w, "Could not read requestPool request", err)
-			return
-		}
-
-		// parse the json
-		preq := api.RequestPoolRequest{}
-		if err := json.Unmarshal(content, &preq); err != nil {
-			httpError(w, "Could not parse requestPool request", err)
+			httpError(w, "Could not read and parse requestPool request", err)
 			return
 		}
 
@@ -88,19 +88,19 @@ func requestPool() func(http.ResponseWriter, *http.Request) {
 // releasePool
 func releasePool() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			decoder = json.NewDecoder(r.Body)
+			preq    = api.ReleasePoolRequest{}
+		)
+
 		logEvent("releasePool")
 
-		// Read the message
-		content, err := ioutil.ReadAll(r.Body)
+		// Decode the JSON message
+		err = decoder.Decode(&preq)
 		if err != nil {
-			httpError(w, "Could not read releasePool request", err)
-			return
-		}
-
-		// parse the json
-		preq := api.ReleasePoolRequest{}
-		if err := json.Unmarshal(content, &preq); err != nil {
-			httpError(w, "Could not parse releasePool request", err)
+			httpError(w, "Could not read and parse releasePool request", err)
 			return
 		}
 
@@ -125,19 +125,19 @@ func releasePool() func(http.ResponseWriter, *http.Request) {
 // requestAddress
 func requestAddress() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			areq    = api.RequestAddressRequest{}
+			decoder = json.NewDecoder(r.Body)
+		)
+
 		logEvent("requestAddress")
 
-		// Read the message
-		content, err := ioutil.ReadAll(r.Body)
+		// Decode the JSON message
+		err = decoder.Decode(&areq)
 		if err != nil {
-			httpError(w, "Could not read requestAddress request", err)
-			return
-		}
-
-		// parse the json
-		areq := api.RequestAddressRequest{}
-		if err := json.Unmarshal(content, &areq); err != nil {
-			httpError(w, "Could not parse requestAddress request", err)
+			httpError(w, "Could not read and parse requestAddress request", err)
 			return
 		}
 
@@ -187,23 +187,23 @@ func requestAddress() func(http.ResponseWriter, *http.Request) {
 // releaseAddress
 func releaseAddress() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			areq    = api.ReleaseAddressRequest{}
+			decoder = json.NewDecoder(r.Body)
+		)
+
 		logEvent("releaseAddress")
 
-		// Read the message
-		content, err := ioutil.ReadAll(r.Body)
+		// Decode the JSON message
+		err = decoder.Decode(&areq)
 		if err != nil {
-			httpError(w, "Could not read releaseAddress request", err)
+			httpError(w, "Could not read and parse releaseAddress request", err)
 			return
 		}
 
-		// parse the json
-		preq := api.ReleaseAddressRequest{}
-		if err := json.Unmarshal(content, &preq); err != nil {
-			httpError(w, "Could not parse releaseAddress request", err)
-			return
-		}
-
-		log.Infof("Received ReleaseAddressRequest: %+v", preq)
+		log.Infof("Received ReleaseAddressRequest: %+v", areq)
 
 		// response
 		relResp := api.ReleaseAddressResponse{}
