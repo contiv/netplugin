@@ -13,6 +13,12 @@ import (
 
 var client = &http.Client{}
 
+func handleBasicError(ctx *cli.Context, err error) {
+	if err != nil {
+		errExit(ctx, exitRequest, err.Error(), false)
+	}
+}
+
 func baseURL(ctx *cli.Context) string {
 	return ctx.GlobalString("netmaster")
 }
@@ -48,53 +54,36 @@ func writeBody(resp *http.Response, ctx *cli.Context) {
 
 func postMap(ctx *cli.Context, url string, jsonMap map[string]interface{}) {
 	content, err := json.Marshal(jsonMap)
-	if err != nil {
-		errExit(ctx, exitRequest, err.Error(), false)
-	}
+	handleBasicError(ctx, err)
 
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(content))
-	if err != nil {
-		writeBody(resp, ctx)
-		errExit(ctx, exitRequest, err.Error(), false)
-	}
+	handleBasicError(ctx, err)
 
 	respCheck(resp, ctx)
 }
 
 func deleteURL(ctx *cli.Context, url string) {
 	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil {
-		errExit(ctx, exitRequest, err.Error(), false)
-	}
+	handleBasicError(ctx, err)
 
 	resp, err := client.Do(req)
-	if err != nil {
-		writeBody(resp, ctx)
-		errExit(ctx, exitRequest, err.Error(), false)
-	}
+	handleBasicError(ctx, err)
 
 	respCheck(resp, ctx)
 }
 
 func getList(ctx *cli.Context, url string) []map[string]interface{} {
 	resp, err := client.Get(url)
-	if err != nil {
-		writeBody(resp, ctx)
-		errExit(ctx, exitRequest, err.Error(), false)
-	}
+	handleBasicError(ctx, err)
 
 	respCheck(resp, ctx)
 
 	content, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		errExit(ctx, exitRequest, err.Error(), false)
-	}
+	handleBasicError(ctx, err)
 
 	list := []map[string]interface{}{}
 
-	if err := json.Unmarshal(content, &list); err != nil {
-		errExit(ctx, exitRequest, err.Error(), false)
-	}
+	handleBasicError(ctx, json.Unmarshal(content, &list))
 
 	return list
 }
