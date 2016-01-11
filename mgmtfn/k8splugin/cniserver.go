@@ -24,7 +24,7 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/mgmtfn/cniapi"
+	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/gorilla/mux"
 )

@@ -21,8 +21,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/contiv/netplugin/contivk8s/clients"
-	"github.com/contiv/netplugin/mgmtfn/cniapi"
+	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
+	"github.com/contiv/netplugin/mgmtfn/k8splugin/contivk8s/clients"
 
 	logger "github.com/Sirupsen/logrus"
 )

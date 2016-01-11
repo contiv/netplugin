@@ -27,7 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/drivers"
-	"github.com/contiv/netplugin/mgmtfn/cniapi"
+	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -285,6 +285,7 @@ func getEPSpec(pInfo *cniapi.CNIPodAttr) (*epSpec, error) {
 		return &resp, err
 	}
 
+	// Safe to ignore the error return for subsequent invocations of GetPodLabel
 	netw, _ := kubeAPIClient.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name, "network")
 	tenant, _ := kubeAPIClient.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name, "tenant")
 	log.Infof("labels is %s/%s/%s for pod %s\n", tenant, netw, epg, pInfo.Name)

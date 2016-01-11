@@ -20,9 +20,6 @@ package cniapi
 // PluginPath is the path to the listen socket directory for netplugin
 const PluginPath = "/run/contiv"
 
-// DriverName is the name of the listen socket for netplugin
-const DriverName = "netplugin"
-
 // ContivCniSocket is the full path to the listen socket for netplugin
 const ContivCniSocket = "/run/contiv/contiv-cni.sock"
 

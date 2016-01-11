@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/mgmtfn/cniapi"
+	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"io/ioutil"
 	"net"
 	"net/http"
