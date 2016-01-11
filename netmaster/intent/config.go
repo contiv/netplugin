@@ -61,9 +61,9 @@ type ConfigTenant struct {
 
 //ConfigBgp keeps bgp specific configs
 type ConfigBgp struct {
-	Name      string
-	As        string
-	Neighbors []string
+	Name     string
+	As       string
+	Neighbor string
 }
 
 // Config is the top level configuration
