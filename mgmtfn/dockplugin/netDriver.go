@@ -18,7 +18,6 @@ package dockplugin
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -51,17 +50,18 @@ func getCapability() func(http.ResponseWriter, *http.Request) {
 
 func deleteNetwork() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			decoder = json.NewDecoder(r.Body)
+			dnreq   = api.DeleteNetworkRequest{}
+		)
+
 		logEvent("delete network")
 
-		content, err := ioutil.ReadAll(r.Body)
+		err = decoder.Decode(&dnreq)
 		if err != nil {
-			httpError(w, "Could not read delete network request", err)
-			return
-		}
-
-		dnreq := api.DeleteNetworkRequest{}
-		if err := json.Unmarshal(content, &dnreq); err != nil {
-			httpError(w, "Could not read delete network request", err)
+			httpError(w, "Could not read and parse the delete network request", err)
 			return
 		}
 
@@ -77,19 +77,18 @@ func deleteNetwork() func(http.ResponseWriter, *http.Request) {
 
 func createNetwork() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			decoder = json.NewDecoder(r.Body)
+			cnreq   = api.CreateNetworkRequest{}
+		)
+
 		logEvent("create network")
 
-		content, err := ioutil.ReadAll(r.Body)
+		err = decoder.Decode(&cnreq)
 		if err != nil {
-			httpError(w, "Could not read create network request", err)
-			return
-		}
-
-		log.Infoln(string(content))
-
-		cnreq := api.CreateNetworkRequest{}
-		if err := json.Unmarshal(content, &cnreq); err != nil {
-			httpError(w, "Could not read create network request", err)
+			httpError(w, "Could not read and parse the create network request", err)
 			return
 		}
 
@@ -108,25 +107,26 @@ func createNetwork() func(http.ResponseWriter, *http.Request) {
 
 func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			decoder = json.NewDecoder(r.Body)
+			dereq   = api.DeleteEndpointRequest{}
+		)
+
 		logEvent("delete endpoint")
 
-		content, err := ioutil.ReadAll(r.Body)
+		err = decoder.Decode(&dereq)
 		if err != nil {
-			httpError(w, "Could not read delete endpoint request", err)
+			httpError(w, "Could not read and parse the delete endpoint request", err)
 			return
 		}
 
-		der := api.DeleteEndpointRequest{}
-		if err := json.Unmarshal(content, &der); err != nil {
-			httpError(w, "Could not read delete endpoint request", err)
-			return
-		}
+		log.Infof("Received DeleteEndpointRequest: %+v", dereq)
 
-		log.Infof("Received DeleteEndpointRequest: %+v", der)
-
-		tenantName, netName, serviceName, err := GetDockerNetworkName(der.NetworkID)
+		tenantName, netName, serviceName, err := GetDockerNetworkName(dereq.NetworkID)
 		if err != nil {
-			log.Errorf("Error getting network name for UUID: %s. Err: %v", der.NetworkID, err)
+			log.Errorf("Error getting network name for UUID: %s. Err: %v", dereq.NetworkID, err)
 			httpError(w, "Could not get network name", err)
 			return
 		}
@@ -136,7 +136,7 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 			TenantName:  tenantName,
 			NetworkName: netName,
 			ServiceName: serviceName,
-			EndpointID:  der.EndpointID,
+			EndpointID:  dereq.EndpointID,
 		}
 
 		var delResp master.DeleteEndpointResponse
@@ -180,17 +180,18 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 
 func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			decoder = json.NewDecoder(r.Body)
+			cereq   = api.CreateEndpointRequest{}
+		)
+
 		logEvent("create endpoint")
 
-		content, err := ioutil.ReadAll(r.Body)
+		err = decoder.Decode(&cereq)
 		if err != nil {
-			httpError(w, "Could not read endpoint create request", err)
-			return
-		}
-
-		cereq := api.CreateEndpointRequest{}
-		if err := json.Unmarshal(content, &cereq); err != nil {
-			httpError(w, "Could not read endpoint create request", err)
+			httpError(w, "Could not read and parse the create endpoint request", err)
 			return
 		}
 
@@ -266,18 +267,17 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 }
 
 func endpointInfo(w http.ResponseWriter, r *http.Request) {
+	var (
+		err     error
+		decoder = json.NewDecoder(r.Body)
+		epireq  = api.EndpointInfoRequest{}
+	)
+
 	logEvent("endpoint info")
 
-	content, err := ioutil.ReadAll(r.Body)
+	err = decoder.Decode(&epireq)
 	if err != nil {
-		httpError(w, "Could not read endpoint create request", err)
-		return
-	}
-
-	epireq := api.EndpointInfoRequest{}
-
-	if err := json.Unmarshal(content, &epireq); err != nil {
-		httpError(w, "Could not read endpoint create request", err)
+		httpError(w, "Could not read and parse the endpoint info request", err)
 		return
 	}
 
@@ -294,17 +294,18 @@ func endpointInfo(w http.ResponseWriter, r *http.Request) {
 
 func join() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			decoder = json.NewDecoder(r.Body)
+			jr      = api.JoinRequest{}
+		)
+
 		logEvent("join")
 
-		jr := api.JoinRequest{}
-		content, err := ioutil.ReadAll(r.Body)
+		err = decoder.Decode(&jr)
 		if err != nil {
-			httpError(w, "Could not read join request", err)
-			return
-		}
-
-		if err := json.Unmarshal(content, &jr); err != nil {
-			httpError(w, "Could not parse join request", err)
+			httpError(w, "Could not read and parse the join request", err)
 			return
 		}
 
@@ -352,17 +353,18 @@ func join() func(http.ResponseWriter, *http.Request) {
 
 func leave() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			content []byte
+			err     error
+			decoder = json.NewDecoder(r.Body)
+			lr      = api.LeaveRequest{}
+		)
+
 		logEvent("leave")
 
-		lr := api.LeaveRequest{}
-		content, err := ioutil.ReadAll(r.Body)
+		err = decoder.Decode(&lr)
 		if err != nil {
-			httpError(w, "Could not read leave request", err)
-			return
-		}
-
-		if err := json.Unmarshal(content, &lr); err != nil {
-			httpError(w, "Could not parse leave request", err)
+			httpError(w, "Could not read and parse the leave request", err)
 			return
 		}
 

@@ -1,4 +1,4 @@
-[![Build Status](http://contiv.ngrok.io/view/Netplugin%20CI/job/Netplugin%20Push%20Build%20Master/badge/icon)](http://contiv.ngrok.io/view/Netplugin%20CI/job/Netplugin%20Push%20Build%20Master/)
+[![Build Status](http://contiv.ngrok.io/job/Netplugin%20Push%20Build%20Master/badge/icon)](http://contiv.ngrok.io/job/Netplugin%20Push%20Build%20Master/)
 
 ## Netplugin
 

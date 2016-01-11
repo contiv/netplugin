@@ -17,6 +17,7 @@ package master
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 	"testing"
@@ -74,6 +75,18 @@ func verifyKeys(t *testing.T, keys []string) {
 		}
 		if !found {
 			t.Fatalf("key '%s' was not populated in db", key)
+		}
+	}
+}
+
+func verifyKeysDoNotExist(t *testing.T, keys []string) {
+
+	for _, key := range keys {
+		found := false
+		for stateKey := range fakeDriver.TestState {
+			if found = strings.Contains(stateKey, key); found {
+				t.Fatalf("key '%s' was populated in db", key)
+			}
 		}
 	}
 }
@@ -295,4 +308,176 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 	fakeDriver.DumpState()
 
 	verifyKeys(t, keys)
+}
+
+// Tests for https://github.com/contiv/netplugin/issues/214
+func TestConfigPktTagOutOfRange(t *testing.T) {
+	CfgBytes := []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant1",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net1",
+            "PktTag"            : 2000,
+            "PktTagType"        : "vxlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, true)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant2",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net2",
+            "PktTag"            : 2001,
+            "PktTagType"        : "vxlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, false)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant3",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net3",
+            "PktTag"            : 3000,
+            "PktTagType"        : "vxlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, false)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant4",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net4",
+            "PktTag"            : 3001,
+            "PktTagType"        : "vxlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, true)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant5",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1201-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net5",
+            "PktTag"            : 1200,
+            "PktTagType"        : "vlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, true)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant6",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1201-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net6",
+            "PktTag"            : 1201,
+            "PktTagType"        : "vlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, false)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant7",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1201-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net7",
+            "PktTag"            : 1500,
+            "PktTagType"        : "vlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, false)
+
+	CfgBytes = []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant8",
+        "DefaultNetType"        : "vxlan",
+        "SubnetPool"            : "11.1.0.0/16",
+        "AllocSubnetLen"        : 24,
+        "Vlans"                 : "1201-1500",
+        "Vxlans"                : "2001-3000",
+        "Networks"  : [{
+            "Name"              : "net8",
+            "PktTag"            : 1501,
+            "PktTagType"        : "vlan"
+        }]
+    }]}`)
+	applyVerifyRangeTag(t, CfgBytes, true)
+
+}
+
+func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
+	initFakeStateDriver(t)
+	defer deinitFakeStateDriver()
+
+	cfg := &intent.Config{}
+	err := json.Unmarshal(cfgBytes, cfg)
+	if err != nil {
+		t.Fatalf("error '%s' parsing config '%s'\n", err, cfgBytes)
+	}
+
+	_, err = resources.NewStateResourceManager(fakeDriver)
+	if err != nil {
+		log.Fatalf("state store initialization failed. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
+
+	tenant := cfg.Tenants[0]
+	err = CreateTenant(fakeDriver, &tenant)
+	if err != nil {
+		t.Fatalf("error '%s' creating tenant\n", err)
+	}
+
+	err = CreateNetworks(fakeDriver, &tenant)
+	if shouldFail {
+
+		var expError string
+		network := tenant.Networks[0]
+		if network.PktTagType == "vlan" {
+			expError = fmt.Sprintf("vlan %d does not adhere to tenant's vlan range %s", network.PktTag, tenant.VLANs)
+		} else {
+			expError = fmt.Sprintf("vxlan %d does not adhere to tenant's vxlan range %s", network.PktTag, tenant.VXLANs)
+		}
+
+		if err == nil {
+			t.Fatalf("CreateNetworks did not return error\n")
+		} else if err.Error() != expError {
+			t.Fatalf("CreateNetworks did not return error for OutOfRange\n")
+		}
+	} else if err != nil {
+		t.Fatalf("error '%s' while creating network\n", err)
+	}
+
 }
