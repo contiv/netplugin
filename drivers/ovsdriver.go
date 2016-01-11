@@ -438,9 +438,11 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 		return err
 	}
 	err = d.switchDb["vxlan"].DeleteMaster(node)
+
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -464,7 +466,8 @@ func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	//} else {
 	sw = d.switchDb["vlan"]
 	//}
-	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbors)
+
+	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbor)
 }
 
 // DeleteBgpNeightbor deletes a bgp neighbor by named identifier

@@ -71,7 +71,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*O
 		ctrlerPort = vlanCtrlerPort
 	}
 	// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
-	/*if netType == "vxlan" {
+	if netType == "vxlan" {
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
 			ofnet.OFNET_AGENT_VXLAN_PORT, 6633)
@@ -113,11 +113,12 @@ func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*O
 		sw.ofnetAgent.WaitForSwitchConnection()
 
 		log.Infof("Switch (vxlan) connected.")
-	}*/
+	}
+
 	if netType == "vlan" {
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vlrouter", net.ParseIP(localIP),
-			ofnet.OFNET_AGENT_PORT, 6633)
+			ofnet.OFNET_AGENT_VLAN_PORT, 6634, routerInfo...)
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err
@@ -125,7 +126,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*O
 
 		// Add controller to the OVS
 		ctrlerIP := "127.0.0.1"
-		ctrlerPort := uint16(6633)
+		ctrlerPort := uint16(6634)
 		target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, ctrlerPort)
 		if !sw.ovsdbDriver.IsControllerPresent(target) {
 			err = sw.ovsdbDriver.AddController(ctrlerIP, ctrlerPort)
