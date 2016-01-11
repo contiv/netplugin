@@ -444,7 +444,7 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 	return nil
 }
 
-// AddBgpNeighbors adds bgp neighbors by named identifier
+// AddBgpNeighbors adds bgp neighbor by named identifier
 func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	cfg := mastercfg.CfgBgpState{}
 	cfg.StateDriver = d.oper.StateDriver
