@@ -374,6 +374,13 @@ func (d *OvsDriver) AddPeerHost(node core.ServiceInfo) error {
 		return err
 	}
 
+	// Add the VTEP for the peer in vxlan switch.
+	err = d.switchDb["vxlan"].CreateVtep(node.HostAddr)
+	if err != nil {
+		log.Errorf("Error adding the VTEP %s. Err: %s", node.HostAddr, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -395,6 +402,13 @@ func (d *OvsDriver) DeletePeerHost(node core.ServiceInfo) error {
 		return err
 	}
 
+	// Add the VTEP for the peer in vxlan switch.
+	err = d.switchDb["vxlan"].DeleteVtep(node.HostAddr)
+	if err != nil {
+		log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -407,7 +421,6 @@ func (d *OvsDriver) AddMaster(node core.ServiceInfo) error {
 	if err != nil {
 		return err
 	}
-
 	err = d.switchDb["vxlan"].AddMaster(node)
 	if err != nil {
 		return err
@@ -424,7 +437,6 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 	if err != nil {
 		return err
 	}
-
 	err = d.switchDb["vxlan"].DeleteMaster(node)
 	if err != nil {
 		return err
@@ -452,7 +464,7 @@ func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	sw = d.switchDb["vlan"]
 	//}
 
-	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbors)
+	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbor)
 }
 
 // DeleteBgpNeighbors deletes a bgp neighbor by named identifier
@@ -476,8 +488,6 @@ func (d *OvsDriver) DeleteBgpNeighbors(id string) error {
 	//	} else {
 	sw = d.switchDb["vlan"]
 	//	}
-
-	//return sw.DeleteBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbors)
 	return sw.DeleteBgpNeighbors()
 
 }

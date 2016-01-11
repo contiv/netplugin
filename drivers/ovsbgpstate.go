@@ -26,16 +26,16 @@ import (
 // OvsOperBgpState is the necessary data used to perform operations on endpoints.
 type OvsOperBgpState struct {
 	core.CommonState
-	Name      string   `json:"name"`
-	As        string   `json:"As"`
-	Neighbors []string `json:"neighbors"`
+	Name     string   `json:"name"`
+	As       string   `json:"As"`
+	Neighbor []string `json:"neighbor"`
 }
 
 // Matches matches the fields updated from configuration state
 func (s *OvsOperBgpState) Matches(c *mastercfg.CfgBgpState) bool {
 	return s.Name == c.Name &&
 		s.As == c.As &&
-		reflect.DeepEqual(s.Neighbors, c.Neighbors)
+		reflect.DeepEqual(s.Neighbor, c.Neighbor)
 }
 
 // Write the state.

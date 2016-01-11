@@ -798,15 +798,15 @@ func (ac *APIController) BgpCreate(bgpNeighborCfg *contivModel.Bgp) error {
 
 	// Build bgp config
 	bgpCfg := intent.ConfigBgp{
-		Name:      bgpNeighborCfg.Name,
-		As:        bgpNeighborCfg.AS,
-		Neighbors: bgpNeighborCfg.NeighborList,
+		Name:     bgpNeighborCfg.Name,
+		As:       bgpNeighborCfg.AS,
+		Neighbor: bgpNeighborCfg.Neighbor,
 	}
 
-	// Create the tenant
+	// Add the Bgp neighbor
 	err = master.AddBgpNeighbors(stateDriver, &bgpCfg)
 	if err != nil {
-		log.Errorf("Error creating Bgp neighbors {%+v}. Err: %v", bgpNeighborCfg.NeighborList, err)
+		log.Errorf("Error creating Bgp neighbor {%+v}. Err: %v", bgpNeighborCfg.Neighbor, err)
 		return err
 	}
 	return nil
@@ -824,7 +824,7 @@ func (ac *APIController) BgpDelete(bgpNeighborCfg *contivModel.Bgp) error {
 
 	err = master.DeleteBgpNeighbors(stateDriver, bgpNeighborCfg.Name)
 	if err != nil {
-		log.Errorf("Error Deleting Bgp neighbors. Err: %v", err)
+		log.Errorf("Error Deleting Bgp neighbor. Err: %v", err)
 		return err
 	}
 	return nil

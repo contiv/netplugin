@@ -290,7 +290,7 @@ var Commands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name:  "neighbors",
-						Usage: "List of neighbors separated by commas",
+						Usage: "Bgp neighbor to be deleted",
 					},
 				},
 				Action: deleteBgpNeighbors,
@@ -309,8 +309,8 @@ var Commands = []cli.Command{
 						Usage: "AS id",
 					},
 					cli.StringFlag{
-						Name:  "neighbors",
-						Usage: "List of neighbors separated by commas",
+						Name:  "neighbor",
+						Usage: "Bgp neighbor to be added",
 					},
 				},
 				Action: addBgpNeighbors,

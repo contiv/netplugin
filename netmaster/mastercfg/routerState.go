@@ -26,12 +26,12 @@ const (
 	bgpConfigPath       = bgpConfigPathPrefix + "%s"
 )
 
-// CfgBgpState is the router configuration for the host
+// CfgBgpState is the router Bgp configuration for the host
 type CfgBgpState struct {
 	core.CommonState
-	Name      string   `json:"name"`
-	As        string   `json:"as"`
-	Neighbors []string `json:"neighbors"`
+	Name     string `json:"name"`
+	As       string `json:"as"`
+	Neighbor string `json:"neighbor"`
 }
 
 // Write the state

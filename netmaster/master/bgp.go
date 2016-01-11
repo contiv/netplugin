@@ -16,11 +16,6 @@ limitations under the License.
 package master
 
 import (
-	//"errors"
-	//"fmt"
-	//"net"
-	//"strings"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -30,11 +25,11 @@ import (
 //AddBgpNeighbors adds to the etcd state
 func AddBgpNeighbors(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) error {
 
-	log.Infof("Adding bgp neighbors {%v}", bgpCfg)
+	log.Infof("Adding bgp neighbor {%v}", bgpCfg)
 	bgpState := &mastercfg.CfgBgpState{}
 	bgpState.Name = bgpCfg.Name
 	bgpState.As = bgpCfg.As
-	bgpState.Neighbors = bgpCfg.Neighbors
+	bgpState.Neighbor = bgpCfg.Neighbor
 	bgpState.StateDriver = stateDriver
 	bgpState.ID = bgpCfg.Name
 	err := bgpState.Write()
@@ -47,7 +42,7 @@ func AddBgpNeighbors(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) err
 
 //DeleteBgpNeighbors deletes from etcd state
 func DeleteBgpNeighbors(stateDriver core.StateDriver, hostname string) error {
-	log.Infof("Deleting bgp neighbors for {%v}", hostname)
+	log.Infof("Deleting bgp neighbor for {%v}", hostname)
 	bgpState := &mastercfg.CfgBgpState{}
 	bgpState.StateDriver = stateDriver
 	err := bgpState.Read(hostname)

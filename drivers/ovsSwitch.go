@@ -83,32 +83,33 @@ func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*O
 	target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, ctrlerPort)
 	if !sw.ovsdbDriver.IsControllerPresent(target) {
 		err = sw.ovsdbDriver.AddController(ctrlerIP, ctrlerPort)
-	// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
-	/*if netType == "vxlan" {
-		// Create an ofnet agent
-		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
-			ofnet.OFNET_AGENT_PORT, 6633)
-		if err != nil {
-			log.Fatalf("Error adding controller to OVS. Err: %v", err)
-			return nil, err
+		// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
+		if netType == "vxlan" {
+			// Create an ofnet agent
+			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
+				ofnet.OFNET_AGENT_VXLAN_PORT, 6633)
+			if err != nil {
+				log.Fatalf("Error adding controller to OVS. Err: %v", err)
+				return nil, err
+			}
 		}
-	}
 
-	log.Infof("Waiting for OVS switch(%s) to connect..", netType)
+		log.Infof("Waiting for OVS switch(%s) to connect..", netType)
 
-	// Wait for a while for OVS switch to connect to ofnet agent
-	sw.ofnetAgent.WaitForSwitchConnection()
+		// Wait for a while for OVS switch to connect to ofnet agent
+		sw.ofnetAgent.WaitForSwitchConnection()
 
-	log.Infof("Switch (%s) connected.", netType)
+		log.Infof("Switch (%s) connected.", netType)
 		// Wait for a while for OVS switch to connect to ofnet agent
 		sw.ofnetAgent.WaitForSwitchConnection()
 
 		log.Infof("Switch (vxlan) connected.")
-	}*/
+	}
+
 	if netType == "vlan" {
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vlrouter", net.ParseIP(localIP),
-			ofnet.OFNET_AGENT_PORT, 6633, routerInfo...)
+			ofnet.OFNET_AGENT_VLAN_PORT, 6634, routerInfo...)
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err
@@ -116,7 +117,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*O
 
 		// Add controller to the OVS
 		ctrlerIP := "127.0.0.1"
-		ctrlerPort := uint16(6633)
+		ctrlerPort := uint16(6634)
 		target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, ctrlerPort)
 		if !sw.ovsdbDriver.IsControllerPresent(target) {
 			err = sw.ovsdbDriver.AddController(ctrlerIP, ctrlerPort)
@@ -153,12 +154,12 @@ func (sw *OvsSwitch) Delete() {
 // CreateNetwork creates a new network/vlan
 
 func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32, defaultGw string) error {
-		// Add the vlan/vni to ofnet
-		err := sw.ofnetAgent.AddNetwork(pktTag, extPktTag, defaultGw)
-		if err != nil {
-			log.Errorf("Error adding vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
-			return err
-		}
+	// Add the vlan/vni to ofnet
+	err := sw.ofnetAgent.AddNetwork(pktTag, extPktTag, defaultGw)
+	if err != nil {
+		log.Errorf("Error adding vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
+		return err
+	}
 	return nil
 }
 
@@ -334,7 +335,6 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		log.Errorf("Error adding local port %s to ofnet. Err: %v", ovsPortName, err)
 		return err
 	}
-
 	return nil
 }
 
@@ -576,10 +576,9 @@ func (sw *OvsSwitch) DeleteMaster(node core.ServiceInfo) error {
 }
 
 // AddBgpNeighbors adds a bgp neighbor to host
-func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbors []string) error {
+func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbor string) error {
 	if sw.netType == "vlan" {
-		// Add the vlan/vni to ofnet
-		err := sw.ofnetAgent.AddBgpNeighbors(As, neighbors)
+		err := sw.ofnetAgent.AddBgpNeighbors(As, neighbor)
 		if err != nil {
 			log.Errorf("Error adding BGP server")
 			return err

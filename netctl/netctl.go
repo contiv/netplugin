@@ -471,13 +471,13 @@ func addBgpNeighbors(ctx *cli.Context) {
 
 	hostname := ctx.String("host")
 	asid := ctx.String("as")
-	neighborList := strings.Split(ctx.String("neighbors"), ",")
+	neighbor := ctx.String("neighbor") //strings.Split(ctx.String("neighbors"), ",")
 	url := fmt.Sprintf("%s%s/", bgpURL(ctx), hostname)
 
 	out := map[string]interface{}{
-		"Name":         hostname,
-		"as":           asid,
-		"neighborList": neighborList,
+		"Name":     hostname,
+		"as":       asid,
+		"neighbor": neighbor,
 	}
 	postMap(ctx, url, out)
 }
@@ -485,9 +485,6 @@ func deleteBgpNeighbors(ctx *cli.Context) {
 	//argCheck(2, ctx)
 
 	hostname := ctx.String("host")
-	//	asid := ctx.String("AS")
-	//	neighborList := strings.Split(ctx.String("neighbors"), ",")
-
 	logrus.Infof("Deleting router config %s:%s", hostname)
 
 	deleteURL(ctx, fmt.Sprintf("%s%s/", bgpURL(ctx), hostname))

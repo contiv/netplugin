@@ -471,6 +471,7 @@ func main() {
 	}
 }
 
+//processBgpEvent processes Bgp neighbor add/delete events
 func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string,
 	isDelete bool) (err error) {
 
@@ -498,6 +499,5 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string,
 	} else {
 		log.Infof("Bgp operation %s succeeded", operStr)
 	}
-
 	return
 }
