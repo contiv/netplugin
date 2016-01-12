@@ -142,7 +142,6 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
-	log.Infof("NEW OVS SWITCH", info.VtepIP)
 	// Create Vlan switch
 	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP, info.RouterIP, info.VlanIntf)
 	if err != nil {

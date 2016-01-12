@@ -130,7 +130,7 @@ func registerService(objdbClient objdb.API, localIP string) error {
 	}
 
 	// Register the node with service registry
-	err = objdbClient.RegisterService(srvInfo)
+	err := objdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 		return err
@@ -144,7 +144,7 @@ func registerService(objdbClient objdb.API, localIP string) error {
 	}
 
 	// Register the node with service registry
-	err := objdbClient.RegisterService(srvInfo)
+	err = objdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 		return err

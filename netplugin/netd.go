@@ -201,6 +201,7 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, opts cliOpts, retErr chan 
 }
 
 func handleBgpEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvErr chan error) {
+
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, opts, rsps)
 	cfg := mastercfg.CfgBgpState{}
