@@ -23,7 +23,8 @@ import (
 	"reflect"
 )
 
-// OvsOperBgpState is the necessary data used to perform operations on endpoints.
+// OvsOperBgpState is the necessary data used to perform operations on
+//neighbor bgp config.
 type OvsOperBgpState struct {
 	core.CommonState
 	Name     string   `json:"name"`
