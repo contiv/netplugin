@@ -54,8 +54,6 @@ type ConfigTenant struct {
 	DefaultNetwork string
 	VLANs          string
 	VXLANs         string
-	ProtocolEP     string
-	ProtocolPeerEP string
 	Networks       []ConfigNetwork
 }
 

@@ -180,7 +180,6 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			log.Infof("Received a modify event, ignoring it")
 			continue
 		}
-		log.Infof("Received a !!! %q", eventStr)
 		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
 			processNetEvent(netPlugin, nwCfg, isDelete)
