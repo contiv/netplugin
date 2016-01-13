@@ -28,9 +28,10 @@ therefore any changes changes are saved outside VM and are not lost if VM crashe
 ```
 # ssh into one of the VMs
 $ make ssh
-$ cd $GOPATH/src/github.com/contiv/netplugin
+# this command will change the directory to $GOPATH/src/github.com/contiv/netplugin
 # make code changes here and add unit/system tests for your changes
 . . .
+# this command might not be needed if the directory wasn't changed
 $ cd $GOPATH/src/github.com/contiv/netplugin
 # compile the recently made changes. `Estimated time: 1m 20s`
 $ make host-build

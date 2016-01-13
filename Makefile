@@ -73,7 +73,7 @@ demo:
 	sleep 10
 
 ssh:
-	@vagrant ssh netplugin-node1 || echo 'Please run "make demo"'
+	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
 
 unit-test: stop clean build
 	./scripts/unittests -vagrant
