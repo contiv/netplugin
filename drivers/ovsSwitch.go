@@ -193,10 +193,12 @@ func (sw *OvsSwitch) Delete() {
 
 func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32, defaultGw string) error {
 	// Add the vlan/vni to ofnet
-	err := sw.ofnetAgent.AddNetwork(pktTag, extPktTag, defaultGw)
-	if err != nil {
-		log.Errorf("Error adding vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
-		return err
+	if sw.ofnetAgent != nil {
+		err := sw.ofnetAgent.AddNetwork(pktTag, extPktTag, defaultGw)
+		if err != nil {
+			log.Errorf("Error adding vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
+			return err
+		}
 	}
 	return nil
 }
@@ -204,10 +206,12 @@ func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32, defaultGw st
 // DeleteNetwork deletes a network/vlan
 func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32, Gw string) error {
 	// Delete vlan/vni mapping
-	err := sw.ofnetAgent.RemoveNetwork(pktTag, extPktTag, Gw)
-	if err != nil {
-		log.Errorf("Error removing vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
-		return err
+	if sw.ofnetAgent != nil {
+		err := sw.ofnetAgent.RemoveNetwork(pktTag, extPktTag, Gw)
+		if err != nil {
+			log.Errorf("Error removing vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
+			return err
+		}
 	}
 	return nil
 }
@@ -347,6 +351,13 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 	}
 
 	// Add the endpoint to ofnet
+<<<<<<< HEAD
+=======
+	if sw.ofnetAgent == nil {
+		log.Infof("Skipping adding endpoint to ofnet")
+		return nil
+	}
+>>>>>>> Godeps commit
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
 	if err != nil {
@@ -401,6 +412,10 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 	}
 
 	// Add the local port to ofnet
+	if sw.ofnetAgent == nil {
+		log.Infof("Skipping adding localport to ofnet")
+		return nil
+	}
 	err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
 	if err != nil {
 		log.Errorf("Error adding local port %s to ofnet. Err: %v", ovsPortName, err)
@@ -441,9 +456,11 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 		return err
 	}
 
-	err = sw.ofnetAgent.RemoveLocalEndpoint(ofpPort)
-	if err != nil {
-		log.Errorf("Error removing port %s from ofnet. Err: %v", ovsPortName, err)
+	if sw.ofnetAgent != nil {
+		err = sw.ofnetAgent.RemoveLocalEndpoint(ofpPort)
+		if err != nil {
+			log.Errorf("Error removing port %s from ofnet. Err: %v", ovsPortName, err)
+		}
 	}
 
 	// Delete it from ovsdb
@@ -488,10 +505,12 @@ func (sw *OvsSwitch) CreateVtep(vtepIP string) error {
 	}
 
 	// Add info about VTEP port to ofnet
-	err = sw.ofnetAgent.AddVtepPort(ofpPort, net.ParseIP(vtepIP))
-	if err != nil {
-		log.Errorf("Error adding VTEP port %s to ofnet. Err: %v", intfName, err)
-		return err
+	if sw.ofnetAgent != nil {
+		err = sw.ofnetAgent.AddVtepPort(ofpPort, net.ParseIP(vtepIP))
+		if err != nil {
+			log.Errorf("Error adding VTEP port %s to ofnet. Err: %v", intfName, err)
+			return err
+		}
 	}
 
 	return nil
@@ -512,10 +531,12 @@ func (sw *OvsSwitch) DeleteVtep(vtepIP string) error {
 	}
 
 	// Add info about VTEP port to ofnet
-	err = sw.ofnetAgent.RemoveVtepPort(ofpPort, net.ParseIP(vtepIP))
-	if err != nil {
-		log.Errorf("Error deleting VTEP port %s to ofnet. Err: %v", intfName, err)
-		return err
+	if sw.ofnetAgent != nil {
+		err = sw.ofnetAgent.RemoveVtepPort(ofpPort, net.ParseIP(vtepIP))
+		if err != nil {
+			log.Errorf("Error deleting VTEP port %s to ofnet. Err: %v", intfName, err)
+			return err
+		}
 	}
 
 	// ask ovsdb to delete the VTEP
@@ -586,10 +607,12 @@ func (sw *OvsSwitch) AddMaster(node core.ServiceInfo) error {
 	}
 
 	// Add the master
-	err := sw.ofnetAgent.AddMaster(&masterInfo, &resp)
-	if err != nil {
-		log.Errorf("Error adding ofnet master %+v. Err: %v", masterInfo, err)
-		return err
+	if sw.ofnetAgent != nil {
+		err := sw.ofnetAgent.AddMaster(&masterInfo, &resp)
+		if err != nil {
+			log.Errorf("Error adding ofnet master %+v. Err: %v", masterInfo, err)
+			return err
+		}
 	}
 
 	return nil
@@ -604,10 +627,12 @@ func (sw *OvsSwitch) DeleteMaster(node core.ServiceInfo) error {
 	}
 
 	// remove the master
-	err := sw.ofnetAgent.RemoveMaster(&masterInfo)
-	if err != nil {
-		log.Errorf("Error deleting ofnet master %+v. Err: %v", masterInfo, err)
-		return err
+	if sw.ofnetAgent != nil {
+		err := sw.ofnetAgent.RemoveMaster(&masterInfo)
+		if err != nil {
+			log.Errorf("Error deleting ofnet master %+v. Err: %v", masterInfo, err)
+			return err
+		}
 	}
 
 	return nil
@@ -615,7 +640,7 @@ func (sw *OvsSwitch) DeleteMaster(node core.ServiceInfo) error {
 
 // AddBgpNeighbors adds a bgp neighbor to host
 func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbor string) error {
-	if sw.netType == "vlan" {
+	if sw.netType == "vlan" && sw.ofnetAgent != nil {
 		err := sw.ofnetAgent.AddBgpNeighbors(As, neighbor)
 		if err != nil {
 			log.Errorf("Error adding BGP server")
@@ -628,7 +653,7 @@ func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbor string
 
 // DeleteBgpNeighbors deletes bgp config for host
 func (sw *OvsSwitch) DeleteBgpNeighbors() error {
-	if sw.netType == "vlan" {
+	if sw.netType == "vlan" && sw.ofnetAgent != nil {
 		// Delete vlan/vni mapping
 		err := sw.ofnetAgent.DeleteBgpNeighbors()
 
