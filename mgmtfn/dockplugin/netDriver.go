@@ -34,75 +34,69 @@ import (
 
 const defaultTenantName = "default"
 
-func getCapability() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logEvent("getCapability")
+func getCapability(w http.ResponseWriter, r *http.Request) {
+	logEvent("getCapability")
 
-		content, err := json.Marshal(api.GetCapabilityResponse{Scope: "global"})
-		if err != nil {
-			httpError(w, "Could not generate getCapability response", err)
-			return
-		}
-
-		w.Write(content)
+	content, err := json.Marshal(api.GetCapabilityResponse{Scope: "global"})
+	if err != nil {
+		httpError(w, "Could not generate getCapability response", err)
+		return
 	}
+
+	w.Write(content)
 }
 
-func deleteNetwork() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content []byte
-			err     error
-			decoder = json.NewDecoder(r.Body)
-			dnreq   = api.DeleteNetworkRequest{}
-		)
+func deleteNetwork(w http.ResponseWriter, r *http.Request) {
+	var (
+		content []byte
+		err     error
+		decoder = json.NewDecoder(r.Body)
+		dnreq   = api.DeleteNetworkRequest{}
+	)
 
-		logEvent("delete network")
+	logEvent("delete network")
 
-		err = decoder.Decode(&dnreq)
-		if err != nil {
-			httpError(w, "Could not read and parse the delete network request", err)
-			return
-		}
-
-		dnresp := api.DeleteNetworkResponse{}
-		content, err = json.Marshal(dnresp)
-		if err != nil {
-			httpError(w, "Could not generate delete network response", err)
-			return
-		}
-		w.Write(content)
+	err = decoder.Decode(&dnreq)
+	if err != nil {
+		httpError(w, "Could not read and parse the delete network request", err)
+		return
 	}
+
+	dnresp := api.DeleteNetworkResponse{}
+	content, err = json.Marshal(dnresp)
+	if err != nil {
+		httpError(w, "Could not generate delete network response", err)
+		return
+	}
+	w.Write(content)
 }
 
-func createNetwork() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content []byte
-			err     error
-			decoder = json.NewDecoder(r.Body)
-			cnreq   = api.CreateNetworkRequest{}
-		)
+func createNetwork(w http.ResponseWriter, r *http.Request) {
+	var (
+		content []byte
+		err     error
+		decoder = json.NewDecoder(r.Body)
+		cnreq   = api.CreateNetworkRequest{}
+	)
 
-		logEvent("create network")
+	logEvent("create network")
 
-		err = decoder.Decode(&cnreq)
-		if err != nil {
-			httpError(w, "Could not read and parse the create network request", err)
-			return
-		}
-
-		log.Infof("CreateNetworkRequest: %+v", cnreq)
-
-		cnresp := api.CreateNetworkResponse{}
-		content, err = json.Marshal(cnresp)
-		if err != nil {
-			httpError(w, "Could not generate create network response", err)
-			return
-		}
-
-		w.Write(content)
+	err = decoder.Decode(&cnreq)
+	if err != nil {
+		httpError(w, "Could not read and parse the create network request", err)
+		return
 	}
+
+	log.Infof("CreateNetworkRequest: %+v", cnreq)
+
+	cnresp := api.CreateNetworkResponse{}
+	content, err = json.Marshal(cnresp)
+	if err != nil {
+		httpError(w, "Could not generate create network response", err)
+		return
+	}
+
+	w.Write(content)
 }
 
 func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
@@ -292,97 +286,93 @@ func endpointInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
-func join() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content []byte
-			err     error
-			decoder = json.NewDecoder(r.Body)
-			jr      = api.JoinRequest{}
-		)
+func join(w http.ResponseWriter, r *http.Request) {
+	var (
+		content []byte
+		err     error
+		decoder = json.NewDecoder(r.Body)
+		jr      = api.JoinRequest{}
+	)
 
-		logEvent("join")
+	logEvent("join")
 
-		err = decoder.Decode(&jr)
-		if err != nil {
-			httpError(w, "Could not read and parse the join request", err)
-			return
-		}
-
-		log.Infof("JoinRequest: %+v", jr)
-
-		tenantName, netName, _, err := GetDockerNetworkName(jr.NetworkID)
-		if err != nil {
-			log.Errorf("Error getting network name for UUID: %s. Err: %v", jr.NetworkID, err)
-			httpError(w, "Could not get network name", err)
-			return
-		}
-
-		netID := netName + "." + tenantName
-		ep, err := netdGetEndpoint(netID + "-" + jr.EndpointID)
-		if err != nil {
-			httpError(w, "Could not find created endpoint", err)
-			return
-		}
-
-		nw, err := netdGetNetwork(netID)
-		if err != nil {
-			httpError(w, "Could not get network", err)
-			return
-		}
-
-		joinResp := api.JoinResponse{
-			InterfaceName: &api.InterfaceName{
-				SrcName:   ep.PortName,
-				DstPrefix: "eth",
-			},
-			Gateway: nw.Gateway,
-		}
-
-		log.Infof("Sending JoinResponse: {%+v}, InterfaceName: %s", joinResp, ep.PortName)
-
-		content, err = json.Marshal(joinResp)
-		if err != nil {
-			httpError(w, "Could not generate join response", err)
-			return
-		}
-
-		w.Write(content)
+	err = decoder.Decode(&jr)
+	if err != nil {
+		httpError(w, "Could not read and parse the join request", err)
+		return
 	}
+
+	log.Infof("JoinRequest: %+v", jr)
+
+	tenantName, netName, _, err := GetDockerNetworkName(jr.NetworkID)
+	if err != nil {
+		log.Errorf("Error getting network name for UUID: %s. Err: %v", jr.NetworkID, err)
+		httpError(w, "Could not get network name", err)
+		return
+	}
+
+	netID := netName + "." + tenantName
+	ep, err := netdGetEndpoint(netID + "-" + jr.EndpointID)
+	if err != nil {
+		httpError(w, "Could not find created endpoint", err)
+		return
+	}
+
+	nw, err := netdGetNetwork(netID)
+	if err != nil {
+		httpError(w, "Could not get network", err)
+		return
+	}
+
+	joinResp := api.JoinResponse{
+		InterfaceName: &api.InterfaceName{
+			SrcName:   ep.PortName,
+			DstPrefix: "eth",
+		},
+		Gateway: nw.Gateway,
+	}
+
+	log.Infof("Sending JoinResponse: {%+v}, InterfaceName: %s", joinResp, ep.PortName)
+
+	content, err = json.Marshal(joinResp)
+	if err != nil {
+		httpError(w, "Could not generate join response", err)
+		return
+	}
+
+	w.Write(content)
 }
 
-func leave() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content []byte
-			err     error
-			decoder = json.NewDecoder(r.Body)
-			lr      = api.LeaveRequest{}
-		)
+func leave(w http.ResponseWriter, r *http.Request) {
+	var (
+		content []byte
+		err     error
+		decoder = json.NewDecoder(r.Body)
+		lr      = api.LeaveRequest{}
+	)
 
-		logEvent("leave")
+	logEvent("leave")
 
-		err = decoder.Decode(&lr)
-		if err != nil {
-			httpError(w, "Could not read and parse the leave request", err)
-			return
-		}
-
-		log.Infof("LeaveRequest: %+v", lr)
-
-		// Send response
-		leaveResp := api.LeaveResponse{}
-
-		log.Infof("Sending LeaveResponse: {%+v}", leaveResp)
-
-		content, err = json.Marshal(leaveResp)
-		if err != nil {
-			httpError(w, "Could not generate leave response", err)
-			return
-		}
-
-		w.Write(content)
+	err = decoder.Decode(&lr)
+	if err != nil {
+		httpError(w, "Could not read and parse the leave request", err)
+		return
 	}
+
+	log.Infof("LeaveRequest: %+v", lr)
+
+	// Send response
+	leaveResp := api.LeaveResponse{}
+
+	log.Infof("Sending LeaveResponse: {%+v}", leaveResp)
+
+	content, err = json.Marshal(leaveResp)
+	if err != nil {
+		httpError(w, "Could not generate leave response", err)
+		return
+	}
+
+	w.Write(content)
 }
 
 func netdGetEndpoint(epID string) (*drivers.OvsOperEndpointState, error) {
