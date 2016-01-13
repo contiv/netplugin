@@ -42,11 +42,12 @@ import (
 )
 
 type cliOpts struct {
-	help       bool
-	debug      bool
-	stateStore string
-	storeURL   string
-	listenURL  string
+	help        bool
+	debug       bool
+	stateStore  string
+	storeURL    string
+	listenURL   string
+	clusterMode string
 }
 
 type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
@@ -119,6 +120,11 @@ func (d *daemon) parseOpts() error {
 		":9999",
 		"Url to listen http requests on")
 
+	flagSet.StringVar(&d.opts.clusterMode,
+		"cluster-mode",
+		"docker",
+		"{docker, kubernetes}")
+
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return err
 	}
@@ -165,6 +171,10 @@ func (d *daemon) execOpts() {
 
 	if d.opts.debug {
 		log.SetLevel(log.DebugLevel)
+	}
+
+	if err := master.SetClusterMode(d.opts.clusterMode); err != nil {
+		log.Fatalf("Failed to set cluster-mode. Error: %s", err)
 	}
 
 	sd, err := initStateDriver(&d.opts)

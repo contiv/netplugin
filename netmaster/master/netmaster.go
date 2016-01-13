@@ -36,12 +36,38 @@ const (
 	defaultSkyDNSImage  = "skynetservices/skydns:latest"
 )
 
+// Run Time config of netmaster
+type nmRunTimeConf struct {
+	clusterMode string
+}
+
+var masterRTCfg nmRunTimeConf
+
 func checkPktTagType(pktTagType string) error {
 	if pktTagType != "" && pktTagType != "vlan" && pktTagType != "vxlan" {
 		return core.Errorf("invalid pktTagType")
 	}
 
 	return nil
+}
+
+// SetClusterMode sets the cluster mode for the contiv plugin
+func SetClusterMode(cm string) error {
+	switch cm {
+	case "docker":
+	case "kubernetes":
+		break
+	default:
+		return core.Errorf("%s not a valid cluster mode {docker | kubernetes}", cm)
+	}
+
+	masterRTCfg.clusterMode = cm
+	return nil
+}
+
+// GetClusterMode gets the cluster mode of the contiv plugin
+func GetClusterMode() string {
+	return masterRTCfg.clusterMode
 }
 
 func validateTenantConfig(tenant *intent.ConfigTenant) error {

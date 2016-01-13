@@ -325,20 +325,22 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		return err
 	}
 
-	// Create the network in docker
-	subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
-	err = createDockNet(tenantName, network.Name, "", subnetCIDR, nwCfg.Gateway)
-	if err != nil {
-		log.Errorf("Error creating network %s in docker. Err: %v", nwCfg.ID, err)
-		return err
-	}
+	if GetClusterMode() == "docker" {
+		// Create the network in docker
+		subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
+		err = createDockNet(tenantName, network.Name, "", subnetCIDR, nwCfg.Gateway)
+		if err != nil {
+			log.Errorf("Error creating network %s in docker. Err: %v", nwCfg.ID, err)
+			return err
+		}
 
-	// Attach service container endpoint to the network
-	err = attachServiceContainer(tenantName, network.Name, stateDriver)
-	if err != nil {
-		log.Errorf("Error attaching service container to network: %s. Err: %v",
-			networkID, err)
-		return err
+		// Attach service container endpoint to the network
+		err = attachServiceContainer(tenantName, network.Name, stateDriver)
+		if err != nil {
+			log.Errorf("Error attaching service container to network: %s. Err: %v",
+				networkID, err)
+			return err
+		}
 	}
 
 	return nil
@@ -539,16 +541,18 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
-	// detach Dns container
-	err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
-	if err != nil {
-		log.Errorf("Error detaching service container. Err: %v", err)
-	}
+	if GetClusterMode() == "docker" {
+		// detach Dns container
+		err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
+		if err != nil {
+			log.Errorf("Error detaching service container. Err: %v", err)
+		}
 
-	// Delete the docker network
-	err = deleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
-	if err != nil {
-		log.Errorf("Error deleting network %s. Err: %v", netID, err)
+		// Delete the docker network
+		err = deleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
+		if err != nil {
+			log.Errorf("Error deleting network %s. Err: %v", netID, err)
+		}
 	}
 
 	gCfg := &gstate.Cfg{}

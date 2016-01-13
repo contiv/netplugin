@@ -20,6 +20,7 @@ test_packages="github.com/contiv/netplugin/drivers \
     github.com/contiv/netplugin/resources \
     github.com/contiv/netplugin/core \
     github.com/contiv/netplugin/utils \
+    github.com/contiv/netplugin/mgmtfn/k8splugin/contivk8s \
     "
 
 while [ "${#}" -gt 0 ]

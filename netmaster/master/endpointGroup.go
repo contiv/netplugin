@@ -80,13 +80,15 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 	}
 
 	// params for docker network
-	subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
+	if GetClusterMode() == "docker" {
+		subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
 
-	// Create each EPG as a docker network
-	err = createDockNet(tenantName, networkName, groupName, subnetCIDR, nwCfg.Gateway)
-	if err != nil {
-		log.Errorf("Error creating docker network for group %s.%s. Err: %v", networkName, groupName, err)
-		return err
+		// Create each EPG as a docker network
+		err = createDockNet(tenantName, networkName, groupName, subnetCIDR, nwCfg.Gateway)
+		if err != nil {
+			log.Errorf("Error creating docker network for group %s.%s. Err: %v", networkName, groupName, err)
+			return err
+		}
 	}
 
 	// Get resource manager

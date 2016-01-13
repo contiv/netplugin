@@ -28,6 +28,7 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
+	"github.com/contiv/netplugin/mgmtfn/k8splugin"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
@@ -43,7 +44,7 @@ import (
 
 type cliOpts struct {
 	hostLabel  string
-	dockPlugin bool // Operate in docker plugin mode
+	pluginMode string // plugin could be docker | kubernetes
 	cfgFile    string
 	debug      bool
 	syslog     string
@@ -264,10 +265,10 @@ func main() {
 		"host-label",
 		defHostLabel,
 		"label used to identify endpoints homed for this host, default is host name. If -config flag is used then host-label must be specified in the the configuration passed.")
-	flagSet.BoolVar(&opts.dockPlugin,
-		"docker-plugin",
-		true,
-		"Operate in docker plugin mode")
+	flagSet.StringVar(&opts.pluginMode,
+		"plugin-mode",
+		"docker",
+		"plugin mode docker|kubernetes")
 	flagSet.StringVar(&opts.cfgFile,
 		"config",
 		"",
@@ -376,9 +377,16 @@ func main() {
 		pluginConfig.Instance.VlanIntf = opts.vlanIntf
 	}
 
-	// Initialize docker plugin
-	if opts.dockPlugin {
+	// Initialize appropriate plugin
+	switch opts.pluginMode {
+	case "docker":
 		dockplugin.InitDockPlugin(netPlugin)
+
+	case "kubernetes":
+		k8splugin.InitCNIServer(netPlugin)
+
+	default:
+		log.Fatalf("Unknown plugin mode -- should be docker | kubernetes")
 	}
 
 	// Init the driver plugins..

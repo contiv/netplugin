@@ -18,7 +18,6 @@ package master
 import (
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -27,9 +26,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 )
-
-// Global mutex for endpoint creation
-var epMutex sync.Mutex
 
 func validateEndpointConfig(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	var err error
@@ -92,10 +88,6 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 		// TODO: check for diffs and possible updates
 		return epCfg, nil
 	}
-
-	// take the global mutex so that we can safely allocate resources
-	epMutex.Lock()
-	defer epMutex.Unlock()
 
 	epCfg.NetID = nwCfg.ID
 	epCfg.ContName = ep.Container

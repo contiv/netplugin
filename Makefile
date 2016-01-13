@@ -5,7 +5,7 @@
 # XXX: explore a better way that doesn't need multiple 'find'
 PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin'`
 PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts|bin'`
-TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/
+TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
 NAME := netplugin
@@ -66,8 +66,8 @@ stop:
 demo:
 	vagrant up
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	vagrant ssh netplugin-node1 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -docker-plugin 2>&1> /tmp/netplugin.log &"'
-	vagrant ssh netplugin-node2 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -docker-plugin 2>&1> /tmp/netplugin.log &"'
+	vagrant ssh netplugin-node1 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -plugin-mode docker 2>&1> /tmp/netplugin.log &"'
+	vagrant ssh netplugin-node2 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -plugin-mode docker 2>&1> /tmp/netplugin.log &"'
 	sleep 10
 	vagrant ssh netplugin-node1 -c 'nohup bash -lc "/opt/gopath/bin/netmaster 2>&1> /tmp/netmaster.log &"'
 	sleep 10

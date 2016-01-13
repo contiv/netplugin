@@ -204,6 +204,9 @@ func CreateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 	}
 
 	log.Infof("Received CreateEndpointRequest: %+v", epReq)
+	// Take a global lock for address allocation
+	addrMutex.Lock()
+	defer addrMutex.Unlock()
 
 	// Gte the state driver
 	stateDriver, err := utils.GetStateDriver()
