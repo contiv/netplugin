@@ -62,10 +62,6 @@ func writeBody(resp *http.Response, ctx *cli.Context) {
 	os.Stderr.Write(content)
 }
 
-func bgpURL(ctx *cli.Context) string {
-	return fmt.Sprintf("%s/api/Bgps/", baseURL(ctx))
-}
-
 func postMap(ctx *cli.Context, url string, jsonMap map[string]interface{}) {
 	content, err := json.Marshal(jsonMap)
 	handleBasicError(ctx, err)
