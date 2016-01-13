@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sportive-busybox
+  labels:
+    app: demo
+    net-group: poc-epg
+    network: poc-net
+spec:
+  containers:
+  - name: bbox
+    image: contiv/nc-busybox
+    ports:
+    - containerPort: 6379
+    command:
+      - /bin/sh
+      - "nc_loop.sh"

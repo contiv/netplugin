@@ -1,0 +1,73 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require "rubygems"
+require "json"
+
+# method to set up attributes for better performance
+def customize_vm(v)
+  mem = `grep 'MemTotal' /proc/meminfo | sed -e 's/MemTotal://' -e 's/ kB//'`.to_i / 1024 / 8
+  cpus = 4
+  v.customize ["modifyvm", :id, "--memory", mem]
+  v.customize ["modifyvm", :id, "--cpus", cpus]
+end
+
+# method to create an etc_hosts file based on the cluster info
+def create_etc_hosts(cluster)
+  etc_file = open("./export/.etc_hosts", "w")
+  etc_file.write("127.0.0.1   localhost\n")
+  
+  cluster.each do |role, member_list|
+    member_list.each do |member_info|
+      etc_file.write("#{member_info['control-ip']}   #{member_info['name']}\n")
+    end
+  end
+
+  etc_file.close
+end
+
+# method to read the cluster config file
+def read_cluster_config
+  defs_file = open("cluster_defs.json")
+  defs_json = defs_file.read
+  clust_cfg = JSON.parse(defs_json)
+  defs_file.close
+  return clust_cfg
+end
+
+# begin execution here
+cluster = read_cluster_config
+create_etc_hosts(cluster)
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "contiv/k8s-centos"
+  config.vm.box_version = "0.0.6"
+
+  config.ssh.password = 'vagrant'
+  config.vm.synced_folder "./export", "/shared", disabled: false
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+ 
+  config.vm.provider(:virtualbox){|v| v.functional_vboxsf = false }
+ 
+  cluster.each do |role, member_list|
+    member_list.each do |member_info|
+      config.vm.define vm_name = member_info["name"] do |c|
+
+        # Customize VM for better performance
+        config.vm.provider "virtualbox" do |v|
+          customize_vm(v)
+
+        # configure ip address etc
+        c.vm.hostname = vm_name
+        c.vm.network :private_network, ip: member_info["control-ip"]
+        c.vm.network :private_network, ip: member_info["contiv-network-ip"]
+        c.vm.provision "shell", inline: <<-EOS
+          sudo setenforce 0
+          sudo systemctl stop firewalld
+          #copy the etc_hosts file we created
+          sudo cp /shared/.etc_hosts /etc/hosts
+          EOS
+        end # shell
+      end # c
+    end # member_info
+  end #role
+end #config

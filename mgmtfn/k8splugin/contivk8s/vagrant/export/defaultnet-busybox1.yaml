@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: defaultnet-busybox1
+  labels:
+    app: example11
+spec:
+  containers:
+  - name: bbox
+    image: contiv/nc-busybox
+    command:
+      - sleep
+      - "7200"
+

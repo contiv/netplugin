@@ -59,6 +59,16 @@ update:
 start: update
 	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 
+#kubernetes demo targets
+k8s-cluster:
+	cd mgmtfn/k8splugin/contivk8s/vagrant && setup_cluster.sh
+k8s-demo:
+	cd mgmtfn/k8splugin/contivk8s/vagrant && copy_demo.sh
+k8s-demo-start:
+	cd mgmtfn/k8splugin/contivk8s/vagrant && restart_cluster.sh && vagrant ssh k8master
+k8s-destroy:
+	cd mgmtfn/k8splugin/contivk8s/vagrant && vagrant destroy -f
+
 demo-centos:
 	CONTIV_NODE_OS=centos make demo
 
@@ -116,7 +126,7 @@ host-cleanup:
 
 tar: clean-tar build
 	@echo "v0.0.0-`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
-	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl
+	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
