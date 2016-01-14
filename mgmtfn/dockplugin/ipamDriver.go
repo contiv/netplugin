@@ -28,195 +28,185 @@ import (
 )
 
 // getDefaultAddressSpaces
-func getDefaultAddressSpaces() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logEvent("getDefaultAddressSpaces")
+func getDefaultAddressSpaces(w http.ResponseWriter, r *http.Request) {
+	logEvent("getDefaultAddressSpaces")
 
-		rcvd, _ := ioutil.ReadAll(r.Body)
-		log.Infof("Body content: %s", string(rcvd))
+	rcvd, _ := ioutil.ReadAll(r.Body)
+	log.Infof("Body content: %s", string(rcvd))
 
-		content, err := json.Marshal(api.GetAddressSpacesResponse{})
-		if err != nil {
-			httpError(w, "Could not generate getDefaultAddressSpaces response", err)
-			return
-		}
-
-		w.Write(content)
+	content, err := json.Marshal(api.GetAddressSpacesResponse{})
+	if err != nil {
+		httpError(w, "Could not generate getDefaultAddressSpaces response", err)
+		return
 	}
+
+	w.Write(content)
 }
 
 // requestPool
-func requestPool() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content []byte
-			err     error
-			decoder = json.NewDecoder(r.Body)
-			preq    = api.RequestPoolRequest{}
-		)
+func requestPool(w http.ResponseWriter, r *http.Request) {
+	var (
+		content []byte
+		err     error
+		decoder = json.NewDecoder(r.Body)
+		preq    = api.RequestPoolRequest{}
+	)
 
-		logEvent("requestPool")
+	logEvent("requestPool")
 
-		// Decode the JSON request
-		err = decoder.Decode(&preq)
-		if err != nil {
-			httpError(w, "Could not read and parse requestPool request", err)
-			return
-		}
-
-		log.Infof("Received RequestPoolRequest: %+v", preq)
-
-		// build response
-		presp := api.RequestPoolResponse{
-			PoolID: preq.Pool,
-			Pool:   preq.Pool,
-		}
-
-		log.Infof("Sending RequestPoolResponse: %+v", presp)
-
-		// build json
-		content, err = json.Marshal(presp)
-		if err != nil {
-			httpError(w, "Could not generate requestPool response", err)
-			return
-		}
-
-		w.Write(content)
+	// Decode the JSON request
+	err = decoder.Decode(&preq)
+	if err != nil {
+		httpError(w, "Could not read and parse requestPool request", err)
+		return
 	}
+
+	log.Infof("Received RequestPoolRequest: %+v", preq)
+
+	// build response
+	presp := api.RequestPoolResponse{
+		PoolID: preq.Pool,
+		Pool:   preq.Pool,
+	}
+
+	log.Infof("Sending RequestPoolResponse: %+v", presp)
+
+	// build json
+	content, err = json.Marshal(presp)
+	if err != nil {
+		httpError(w, "Could not generate requestPool response", err)
+		return
+	}
+
+	w.Write(content)
 }
 
 // releasePool
-func releasePool() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content []byte
-			err     error
-			decoder = json.NewDecoder(r.Body)
-			preq    = api.ReleasePoolRequest{}
-		)
+func releasePool(w http.ResponseWriter, r *http.Request) {
+	var (
+		content []byte
+		err     error
+		decoder = json.NewDecoder(r.Body)
+		preq    = api.ReleasePoolRequest{}
+	)
 
-		logEvent("releasePool")
+	logEvent("releasePool")
 
-		// Decode the JSON message
-		err = decoder.Decode(&preq)
-		if err != nil {
-			httpError(w, "Could not read and parse releasePool request", err)
-			return
-		}
-
-		log.Infof("Received ReleasePoolRequest: %+v", preq)
-
-		// response
-		relResp := api.ReleasePoolResponse{}
-
-		log.Infof("Sending ReleasePoolResponse: {%+v}", relResp)
-
-		content, err = json.Marshal(relResp)
-		if err != nil {
-			httpError(w, "Could not generate release pool response", err)
-			return
-		}
-
-		// Send response
-		w.Write(content)
+	// Decode the JSON message
+	err = decoder.Decode(&preq)
+	if err != nil {
+		httpError(w, "Could not read and parse releasePool request", err)
+		return
 	}
+
+	log.Infof("Received ReleasePoolRequest: %+v", preq)
+
+	// response
+	relResp := api.ReleasePoolResponse{}
+
+	log.Infof("Sending ReleasePoolResponse: {%+v}", relResp)
+
+	content, err = json.Marshal(relResp)
+	if err != nil {
+		httpError(w, "Could not generate release pool response", err)
+		return
+	}
+
+	// Send response
+	w.Write(content)
 }
 
 // requestAddress
-func requestAddress() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content []byte
-			err     error
-			areq    = api.RequestAddressRequest{}
-			decoder = json.NewDecoder(r.Body)
-		)
+func requestAddress(w http.ResponseWriter, r *http.Request) {
+	var (
+		content []byte
+		err     error
+		areq    = api.RequestAddressRequest{}
+		decoder = json.NewDecoder(r.Body)
+	)
 
-		logEvent("requestAddress")
+	logEvent("requestAddress")
 
-		// Decode the JSON message
-		err = decoder.Decode(&areq)
-		if err != nil {
-			httpError(w, "Could not read and parse requestAddress request", err)
-			return
-		}
-
-		log.Infof("Received RequestAddressRequest: %+v", areq)
-
-		// Build an alloc request to be sent to master
-		allocReq := master.AddressAllocRequest{
-			NetworkID:            areq.PoolID,
-			PreferredIPv4Address: areq.Address,
-		}
-
-		subnetLen := strings.Split(areq.PoolID, "/")[1]
-
-		var addr string
-		if areq.Address != "" {
-			addr = areq.Address + "/" + subnetLen
-		} else {
-			// Make a REST call to master
-			var allocResp master.AddressAllocResponse
-			err = cluster.MasterPostReq("/plugin/allocAddress", &allocReq, &allocResp)
-			if err != nil {
-				httpError(w, "master failed to allocate address", err)
-				return
-			}
-
-			addr = allocResp.IPv4Address
-		}
-
-		// build response
-		aresp := api.RequestAddressResponse{
-			Address: addr,
-		}
-
-		log.Infof("Sending RequestAddressResponse: %+v", aresp)
-
-		// build json
-		content, err = json.Marshal(aresp)
-		if err != nil {
-			httpError(w, "Could not generate requestAddress response", err)
-			return
-		}
-
-		w.Write(content)
+	// Decode the JSON message
+	err = decoder.Decode(&areq)
+	if err != nil {
+		httpError(w, "Could not read and parse requestAddress request", err)
+		return
 	}
+
+	log.Infof("Received RequestAddressRequest: %+v", areq)
+
+	// Build an alloc request to be sent to master
+	allocReq := master.AddressAllocRequest{
+		NetworkID:            areq.PoolID,
+		PreferredIPv4Address: areq.Address,
+	}
+
+	subnetLen := strings.Split(areq.PoolID, "/")[1]
+
+	var addr string
+	if areq.Address != "" {
+		addr = areq.Address + "/" + subnetLen
+	} else {
+		// Make a REST call to master
+		var allocResp master.AddressAllocResponse
+		err = cluster.MasterPostReq("/plugin/allocAddress", &allocReq, &allocResp)
+		if err != nil {
+			httpError(w, "master failed to allocate address", err)
+			return
+		}
+
+		addr = allocResp.IPv4Address
+	}
+
+	// build response
+	aresp := api.RequestAddressResponse{
+		Address: addr,
+	}
+
+	log.Infof("Sending RequestAddressResponse: %+v", aresp)
+
+	// build json
+	content, err = json.Marshal(aresp)
+	if err != nil {
+		httpError(w, "Could not generate requestAddress response", err)
+		return
+	}
+
+	w.Write(content)
 }
 
 // releaseAddress
-func releaseAddress() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content []byte
-			err     error
-			areq    = api.ReleaseAddressRequest{}
-			decoder = json.NewDecoder(r.Body)
-		)
+func releaseAddress(w http.ResponseWriter, r *http.Request) {
+	var (
+		content []byte
+		err     error
+		areq    = api.ReleaseAddressRequest{}
+		decoder = json.NewDecoder(r.Body)
+	)
 
-		logEvent("releaseAddress")
+	logEvent("releaseAddress")
 
-		// Decode the JSON message
-		err = decoder.Decode(&areq)
-		if err != nil {
-			httpError(w, "Could not read and parse releaseAddress request", err)
-			return
-		}
-
-		log.Infof("Received ReleaseAddressRequest: %+v", areq)
-
-		// response
-		relResp := api.ReleaseAddressResponse{}
-
-		log.Infof("Sending ReleaseAddressResponse: {%+v}", relResp)
-
-		content, err = json.Marshal(relResp)
-		if err != nil {
-			httpError(w, "Could not generate release addr response", err)
-			return
-		}
-
-		// Send response
-		w.Write(content)
+	// Decode the JSON message
+	err = decoder.Decode(&areq)
+	if err != nil {
+		httpError(w, "Could not read and parse releaseAddress request", err)
+		return
 	}
+
+	log.Infof("Received ReleaseAddressRequest: %+v", areq)
+
+	// response
+	relResp := api.ReleaseAddressResponse{}
+
+	log.Infof("Sending ReleaseAddressResponse: {%+v}", relResp)
+
+	content, err = json.Marshal(relResp)
+	if err != nil {
+		httpError(w, "Could not generate release addr response", err)
+		return
+	}
+
+	// Send response
+	w.Write(content)
 }
