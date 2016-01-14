@@ -1,2 +1,2 @@
-$GOPATH/bin/modelgen -s ./ -o ./
+$GOPATH/bin/modelgen  ./  ./
 gofmt -w *.go
