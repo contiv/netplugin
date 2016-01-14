@@ -304,7 +304,7 @@ def listPolicy():
 # Add rule to a policy
 def addRule(tenantName, policyName, ruleId, priority=1, direction='both',
     endpointGroup="", network="", ipAddress="", protocol="", port=0, action="accept"):
-    print "Adding rule {2} to pilicy {0}:{1}".format(tenantName, policyName, ruleId)
+    print "Adding rule {2} to policy {0}:{1}".format(tenantName, policyName, ruleId)
 
     jdata = json.dumps({
       "tenantName": tenantName,

@@ -24,15 +24,26 @@ parser.add_argument("-user", default='vagrant', help="User id for ssh")
 parser.add_argument("-password", default='vagrant', help="password for ssh")
 parser.add_argument("-binpath", default='/opt/gopath/bin', help="netplugin/netmaster binary path")
 parser.add_argument("-containers", default='0', help="number of containers")
+parser.add_argument("-short", default='false', help="do a quick run of the tests for quick validation")
 
 # Parse the args
 args = parser.parse_args()
 addrList = args.nodes.split(",")
 
+shortRun = args.short.lower()
+
 numCntr = len(addrList) * 2
+numIteration = int(args.iteration)
+numTriggerTests = 6
+
 if args.containers != '0':
     numCntr = int(args.containers)
-numIteration = int(args.iteration)
+
+if shortRun == "true":
+    print "doing a short run"
+    numCntr = len(addrList) * 2
+    numIteration = 1
+    numTriggerTests = 1
 
 api.tutils.info("Running " + str(numIteration) + " iterations with " + str(numCntr) + " containers on " + str(len(addrList)) + " nodes")
 
@@ -65,7 +76,7 @@ try:
     testcases.tcPolicy.testPolicyFromEpg(testbed, numCntr, numIteration)
 
     # Run multiple triggers on the Testbed
-    testcases.tcTrigger.testMultiTrigger(testbed, (numIteration * 6))
+    testcases.tcTrigger.testMultiTrigger(testbed, (numIteration * numTriggerTests))
 
     # Cleanup testbed
     testbed.cleanup()
