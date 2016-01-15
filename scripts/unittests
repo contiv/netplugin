@@ -9,6 +9,8 @@ USAGE="${0} -vagrant"
 PATH=$PATH:/usr/local/go/bin
 
 run_in_vagrant=false
+coverage_basic=false
+coverage_detail=false
 test_packages="github.com/contiv/netplugin/drivers \
     github.com/contiv/netplugin/state \
     github.com/contiv/netplugin/netplugin/plugin \
@@ -28,7 +30,13 @@ do
     case "${1}" in
         -vagrant)
             run_in_vagrant=true
-            break;;
+	    ;;
+        -c0|--coverage-basic)
+            coverage_basic=true
+            ;;
+        -c1|--coverage-detail)
+            coverage_detail=true
+            ;;
         *)
             echo "${USAGE}" 1>&2
             exit 1;;
@@ -62,8 +70,17 @@ fi
 for pkg in ${test_packages}
 do
   # running in the sand box
-  (cd $GOSRC/github.com/contiv/netplugin && \
-  $GOBIN/godep go test ${pkg}) || exit 1
+  if ${coverage_basic}; then
+      (cd $GOSRC/github.com/contiv/netplugin && \
+      $GOBIN/godep go test ${pkg} -coverprofile=cover.out) || exit 1
+  elif ${coverage_detail}; then
+      (cd $GOSRC/github.com/contiv/netplugin && \
+      $GOBIN/godep go test ${pkg} -coverprofile=cover.out && \
+      $GOBIN/godep go tool cover -func=cover.out) || exit 1
+  else
+      (cd $GOSRC/github.com/contiv/netplugin && \
+      $GOBIN/godep go test ${pkg}) || exit 1
+  fi
 done
 
 echo "Sandbox: Tests succeeded!"

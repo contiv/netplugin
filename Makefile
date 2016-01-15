@@ -92,6 +92,14 @@ host-unit-test:
 	@echo dev: running unit tests...
 	cd $(GOPATH)/src/github.com/contiv/netplugin && sudo -E PATH=$(PATH) scripts/unittests
 
+host-unit-test-coverage:
+	@echo dev: running unit tests...
+	cd $(GOPATH)/src/github.com/contiv/netplugin && sudo -E PATH=$(PATH) scripts/unittests --coverage-basic
+
+host-unit-test-coverage-detail:
+	@echo dev: running unit tests...
+	cd $(GOPATH)/src/github.com/contiv/netplugin && sudo -E PATH=$(PATH) scripts/unittests --coverage-detail
+
 host-sanity-test:
 	@echo dev: running sanity tests...
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes ${CLUSTER_NODE_IPS}
