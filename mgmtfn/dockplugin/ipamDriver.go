@@ -138,7 +138,7 @@ func requestAddress(w http.ResponseWriter, r *http.Request) {
 
 	// Build an alloc request to be sent to master
 	allocReq := master.AddressAllocRequest{
-		NetworkID:            areq.PoolID,
+		AddressPool:          areq.PoolID,
 		PreferredIPv4Address: areq.Address,
 	}
 

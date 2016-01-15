@@ -70,7 +70,7 @@ class Node:
     # Start netplugin process on vagrant node
     def startNetplugin(self, args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "sudo " + self.binpath + "/netplugin -plugin-mode docker " + args + "> /tmp/netplugin.log 2>&1"
+        command = "sudo " + self.binpath + "/netplugin -plugin-mode docker -vlan-if eth2 " + args + "> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()
@@ -106,7 +106,7 @@ class Node:
         self.runCmd("docker rm -f `docker ps -aq`")
         self.runCmd("sudo ovs-vsctl del-br contivVxlanBridge")
         self.runCmd("sudo ovs-vsctl del-br contivVlanBridge")
-        self.runCmd("for p in `/usr/sbin/ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
+        self.runCmd("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
         self.runCmd("sudo rm /var/run/docker/plugins/netplugin.sock")
         self.runCmd("sudo rm /tmp/net*")
         self.runCmd("sudo service docker restart")
@@ -145,7 +145,7 @@ class Node:
         return container.Container(self, cid, cntName="")
 
     def chekForNetpluginErrors(self):
-        out, err, exitCode = self.runCmd("grep error /tmp/net*")
+        out, err, exitCode = self.runCmd('grep "error\|fatal" /tmp/net*')
         if out != [] or err != []:
             print "Error: ".join(out).join(err)
             tutils.log("Errors seen in log files on: " + self.hostname)

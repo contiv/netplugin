@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	log.Infof("Calling skydns2 init")
+	log.Debugf("Calling skydns2 init")
 	bridge.Register(new(Factory), "skydns2")
 }
 

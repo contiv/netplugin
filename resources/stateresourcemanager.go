@@ -22,9 +22,8 @@ import (
 )
 
 var resourceRegistry = map[string]reflect.Type{
-	AutoVLANResource:   reflect.TypeOf(AutoVLANCfgResource{}),
-	AutoVXLANResource:  reflect.TypeOf(AutoVXLANCfgResource{}),
-	AutoSubnetResource: reflect.TypeOf(AutoSubnetCfgResource{}),
+	AutoVLANResource:  reflect.TypeOf(AutoVLANCfgResource{}),
+	AutoVXLANResource: reflect.TypeOf(AutoVXLANCfgResource{}),
 }
 
 // StateResourceManager implements the core.ResourceManager interface.

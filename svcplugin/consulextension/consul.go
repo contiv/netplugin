@@ -14,7 +14,7 @@ const DefaultInterval = "10s"
 
 // InitConsulAdapter registers as a new bridge
 func init() {
-	log.Infof("Calling consul init")
+	log.Debugf("Calling consul init")
 	bridge.Register(new(Factory), "consul")
 }
 

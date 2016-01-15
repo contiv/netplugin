@@ -296,6 +296,17 @@ func (self *Vxlan) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 		vlan.allFlood.AddTunnelOutput(output, uint64(*vni))
 	}
 
+	// walk all routes and see if we need to install it
+	for _, endpoint := range self.agent.endpointDb {
+		if endpoint.OriginatorIp.String() == remoteIp.String() {
+			err := self.AddEndpoint(endpoint)
+			if err != nil {
+				log.Errorf("Error installing endpoint during vtep add(%v) EP: %+v. Err: %v", remoteIp, endpoint, err)
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -448,14 +459,21 @@ func (self *Vxlan) RemoveVlan(vlanId uint16, vni uint32) error {
 
 // AddEndpoint Add an endpoint to the datapath
 func (self *Vxlan) AddEndpoint(endpoint *OfnetEndpoint) error {
+	// Ignore non-vxlan endpoints
+	if endpoint.Vni == 0 {
+		return nil
+	}
+
 	log.Infof("Received endpoint: %+v", endpoint)
 
 	// Lookup the VTEP for the endpoint
 	vtepPort := self.agent.vtepTable[endpoint.OriginatorIp.String()]
 	if vtepPort == nil {
-		log.Errorf("Could not find the VTEP for endpoint: %+v", endpoint)
+		log.Warnf("Could not find the VTEP for endpoint: %+v", endpoint)
 
-		return errors.New("VTEP not found")
+		// Return since remote host is not known.
+		// When VTEP gets added, we'll re-install the routes
+		return nil
 	}
 
 	// map VNI to vlan Id
@@ -507,6 +525,11 @@ func (self *Vxlan) AddEndpoint(endpoint *OfnetEndpoint) error {
 
 // RemoveEndpoint removes an endpoint from the datapath
 func (self *Vxlan) RemoveEndpoint(endpoint *OfnetEndpoint) error {
+	// Ignore non-vxlan endpoints
+	if endpoint.Vni == 0 {
+		return nil
+	}
+
 	log.Infof("Received DELETE endpoint: %+v", endpoint)
 
 	// find the flow
@@ -529,6 +552,16 @@ func (self *Vxlan) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 		return err
 	}
 
+	return nil
+}
+
+// AddUplink adds an uplink to the switch
+func (vx *Vxlan) AddUplink(portNo uint32) error {
+	return nil
+}
+
+// RemoveUplink remove an uplink to the switch
+func (vx *Vxlan) RemoveUplink(portNo uint32) error {
 	return nil
 }
 

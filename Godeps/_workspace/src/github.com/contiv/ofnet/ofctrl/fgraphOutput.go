@@ -44,6 +44,8 @@ func (self *Output) GetFlowInstr() openflow13.Instruction {
 		// Dont buffer the packets being sent to controller
 		outputAct.MaxLen = openflow13.OFPCML_NO_BUFFER
 		outputInstr.AddAction(outputAct, false)
+	case "normal":
+		fallthrough
 	case "port":
 		outputAct := openflow13.NewActionOutput(self.portNo)
 		outputInstr.AddAction(outputAct, false)
@@ -63,6 +65,8 @@ func (self *Output) GetOutAction() openflow13.Action {
 		outputAct.MaxLen = openflow13.OFPCML_NO_BUFFER
 
 		return outputAct
+	case "normal":
+		fallthrough
 	case "port":
 		return openflow13.NewActionOutput(self.portNo)
 	}

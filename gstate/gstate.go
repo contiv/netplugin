@@ -18,7 +18,6 @@ package gstate
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 
 	"github.com/jainvipin/bitset"
 
@@ -47,16 +46,12 @@ const (
 // allocation of resources without having to specify these each time these
 // constructs gets created.
 type AutoParams struct {
-	SubnetPool     string `json:"subnetPool"`
-	SubnetLen      uint   `json:"subnetLen"`
-	AllocSubnetLen uint   `json:"AllocSubnetLen"`
-	VLANs          string `json:"VLANs"`
-	VXLANs         string `json:"VXLANs"`
+	VLANs  string `json:"VLANs"`
+	VXLANs string `json:"VXLANs"`
 }
 
 // DeployParams specifies parameters that decides the deployment choices
 type DeployParams struct {
-	DefaultNetType string `json:"defaultNetType"`
 	DefaultNetwork string `json:"defaultNetwork"`
 }
 
@@ -87,10 +82,6 @@ func (gc *Cfg) Dump() error {
 func (gc *Cfg) checkErrors() error {
 	var err error
 
-	if net.ParseIP(gc.Auto.SubnetPool) == nil {
-		return core.Errorf("invalid ip address pool %s", gc.Auto.SubnetPool)
-	}
-
 	_, err = netutils.ParseTagRanges(gc.Auto.VLANs, "vlan")
 	if err != nil {
 		return err
@@ -101,15 +92,6 @@ func (gc *Cfg) checkErrors() error {
 		return err
 	}
 
-	if gc.Deploy.DefaultNetType != "vlan" &&
-		gc.Deploy.DefaultNetType != "vxlan" {
-		return core.Errorf("unsupported net type %s", gc.Deploy.DefaultNetType)
-	}
-
-	if gc.Auto.SubnetLen > gc.Auto.AllocSubnetLen {
-		return core.Errorf("subnet size %d is smaller than subnets (%d) to be allocated from it",
-			gc.Auto.SubnetLen, gc.Auto.AllocSubnetLen)
-	}
 	return err
 }
 
@@ -345,24 +327,6 @@ func (gc *Cfg) FreeVLAN(ra core.ResourceManager, vlan uint) error {
 	return ra.DeallocateResourceVal(gc.Tenant, resources.AutoVLANResource, vlan)
 }
 
-// AllocSubnet allocates a new subnet. Returns a CIDR.
-func (gc *Cfg) AllocSubnet(ra core.ResourceManager) (string, error) {
-	pair, err := ra.AllocateResourceVal(gc.Tenant, resources.AutoSubnetResource)
-	if err != nil {
-		return "", err
-	}
-
-	return pair.(resources.SubnetIPLenPair).IP.String(), err
-}
-
-// FreeSubnet releases a subnet derived from it's CIDR.
-func (gc *Cfg) FreeSubnet(ra core.ResourceManager, subnetIP string) error {
-	return ra.DeallocateResourceVal(gc.Tenant, resources.AutoSubnetResource,
-		resources.SubnetIPLenPair{
-			IP:  net.ParseIP(subnetIP),
-			Len: gc.Auto.AllocSubnetLen})
-}
-
 // Process validates, implements, and writes the state.
 func (gc *Cfg) Process(ra core.ResourceManager) error {
 	var err error
@@ -379,15 +343,6 @@ func (gc *Cfg) Process(ra core.ResourceManager) error {
 	tenant := gc.Tenant
 	if tenant == "" {
 		return core.Errorf("null tenant")
-	}
-
-	subnetRsrcCfg := &resources.AutoSubnetCfgResource{
-		SubnetPool:     net.ParseIP(gc.Auto.SubnetPool),
-		SubnetPoolLen:  gc.Auto.SubnetLen,
-		AllocSubnetLen: gc.Auto.AllocSubnetLen}
-	err = ra.DefineResource(tenant, resources.AutoSubnetResource, subnetRsrcCfg)
-	if err != nil {
-		return err
 	}
 
 	// Only define a vlan resource if a valid range was specified
@@ -437,12 +392,7 @@ func (gc *Cfg) DeleteResources(ra core.ResourceManager) error {
 		return core.Errorf("null tenant")
 	}
 
-	err := ra.UndefineResource(tenant, resources.AutoSubnetResource)
-	if err != nil {
-		log.Errorf("Error deleting subnet resource. Err: %v", err)
-	}
-
-	err = ra.UndefineResource(tenant, resources.AutoVLANResource)
+	err := ra.UndefineResource(tenant, resources.AutoVLANResource)
 	if err != nil {
 		log.Errorf("Error deleting vlan resource. Err: %v", err)
 	}

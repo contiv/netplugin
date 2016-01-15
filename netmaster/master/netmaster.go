@@ -16,8 +16,6 @@ limitations under the License.
 package master
 
 import (
-	"net"
-
 	"github.com/cenkalti/backoff"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
@@ -43,14 +41,6 @@ type nmRunTimeConf struct {
 
 var masterRTCfg nmRunTimeConf
 
-func checkPktTagType(pktTagType string) error {
-	if pktTagType != "" && pktTagType != "vlan" && pktTagType != "vxlan" {
-		return core.Errorf("invalid pktTagType")
-	}
-
-	return nil
-}
-
 // SetClusterMode sets the cluster mode for the contiv plugin
 func SetClusterMode(cm string) error {
 	switch cm {
@@ -73,16 +63,6 @@ func GetClusterMode() string {
 func validateTenantConfig(tenant *intent.ConfigTenant) error {
 	if tenant.Name == "" {
 		return core.Errorf("invalid tenant name")
-	}
-
-	if err := checkPktTagType(tenant.DefaultNetType); err != nil {
-		return err
-	}
-
-	if tenant.SubnetPool != "" {
-		if _, _, err := net.ParseCIDR(tenant.SubnetPool); err != nil {
-			return err
-		}
 	}
 
 	if tenant.VLANs != "" {
@@ -130,12 +110,9 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 	gCfg.StateDriver = stateDriver
 	gCfg.Version = gstate.VersionBeta1
 	gCfg.Tenant = tenant.Name
-	gCfg.Deploy.DefaultNetType = tenant.DefaultNetType
 	gCfg.Deploy.DefaultNetwork = tenant.DefaultNetwork
-	gCfg.Auto.SubnetPool, gCfg.Auto.SubnetLen, _ = netutils.ParseCIDR(tenant.SubnetPool)
 	gCfg.Auto.VLANs = tenant.VLANs
 	gCfg.Auto.VXLANs = tenant.VXLANs
-	gCfg.Auto.AllocSubnetLen = tenant.AllocSubnetLen
 
 	tempRm, err := resources.GetStateResourceManager()
 	if err != nil {

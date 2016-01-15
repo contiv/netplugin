@@ -269,27 +269,6 @@ func TestInvalidGlobalConfig(t *testing.T) {
             "Version" : "0.01",
             "Tenant"  : "default",
             "Auto" : {
-                "SubnetPool"        : "11..5.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
-                "VLANs"             : "100-400,500-900",
-                "VXLANs"            : "10000-20000"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vlan"
-            }
-        }`)
-
-	_, err := Parse(cfgData)
-	if err == nil {
-		t.Fatalf("Error: was able to parse invalid subnet pool '%s'", cfgData)
-	}
-
-	cfgData = []byte(`
-        {
-            "Version" : "0.01",
-            "Tenant"  : "default",
-            "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
                 "SubnetLen"         : 16,
                 "AllocSubnetLen"    : 24,
@@ -301,31 +280,9 @@ func TestInvalidGlobalConfig(t *testing.T) {
             }
         }`)
 
-	_, err = Parse(cfgData)
+	_, err := Parse(cfgData)
 	if err == nil {
 		t.Fatalf("Error: was able to parse invalid vlan range '%s'", cfgData)
-	}
-
-	cfgData = []byte(`
-        {
-            "Version" : "0.01",
-            "Tenant"  : "default",
-            "Auto" : {
-                "SubnetPool"        : "11.5.0.0",
-                "SubnetLen"         : 22,
-                "AllocSubnetLen"    : 20,
-                "VLANs"             : "100-400,500-900",
-                "VXLANs"            : "10000-20000"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vlan"
-            }
-        }`)
-
-	_, err = Parse(cfgData)
-	if err == nil {
-		t.Fatalf("Error: was able to parse invalid subnetlen/allcocsubnetlen %s'",
-			cfgData)
 	}
 }
 

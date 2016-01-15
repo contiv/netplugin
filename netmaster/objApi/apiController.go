@@ -73,10 +73,10 @@ func CreateDefaultTenant() {
 		err := contivModel.CreateTenant(&contivModel.Tenant{
 			Key:        "default",
 			TenantName: "default",
-			SubnetPool: "10.1.1.1/16",
-			SubnetLen:  24,
 			Vlans:      "100-1100",
 			Vxlans:     "1001-1100",
+			SubnetPool: "10.1.1.1/16",
+			SubnetLen:  24,
 		})
 		if err != nil {
 			log.Fatalf("Error creating default tenant. Err: %v", err)
@@ -722,10 +722,7 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 	// Build tenant config
 	tenantCfg := intent.ConfigTenant{
 		Name:           tenant.TenantName,
-		DefaultNetType: "vlan",
 		DefaultNetwork: tenant.DefaultNetwork,
-		SubnetPool:     tenant.SubnetPool,
-		AllocSubnetLen: uint(tenant.SubnetLen),
 		VLANs:          tenant.Vlans,
 		VXLANs:         tenant.Vxlans,
 	}

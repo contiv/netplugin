@@ -116,12 +116,11 @@ func TestVlanConfig(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                      : "tenant-one",
-        "DefaultNetType"            : "vlan",
-        "SubnetPool"                : "11.1.0.0/16",
-        "AllocSubnetLen"            : 24,
         "Vlans"                     : "11-28",
         "Networks"  : [{
             "Name"                  : "orange",
+			"SubnetCIDR"			: "10.1.1.1/24",
+			"Gateway"				: "10.1.1.254",
             "Endpoints" : [{
                 "Container"         : "myContainer1"
             },
@@ -131,6 +130,8 @@ func TestVlanConfig(t *testing.T) {
         },
         {
             "Name"                  : "purple",
+			"SubnetCIDR"			: "10.1.2.1/24",
+			"Gateway"				: "10.1.2.254",
             "Endpoints" : [{
                 "Container"         : "myContainer3"
             },
@@ -155,12 +156,11 @@ func TestVlanWithUnderlayConfig(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                      : "tenant-one",
-        "DefaultNetType"          : "vlan",
-        "SubnetPool"              : "11.1.0.0/16",
-        "AllocSubnetLen"          : 24,
         "Vlans"                   : "11-48",
         "Networks"  : [{
             "Name"                : "orange",
+			"SubnetCIDR"			: "10.1.1.1/24",
+			"Gateway"				: "10.1.1.254",
             "Endpoints" : [{
                 "Container"       : "myContainer1",
                 "Host"            : "host1"
@@ -172,6 +172,8 @@ func TestVlanWithUnderlayConfig(t *testing.T) {
         },
         {
             "Name"                : "purple",
+			"SubnetCIDR"			: "10.1.2.1/24",
+			"Gateway"				: "10.1.2.254",
             "Endpoints" : [{
                 "Container"       : "myContainer2",
                 "Host"            : "host1"
@@ -200,12 +202,11 @@ func TestVxlanConfig(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant-one",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vxlans"                : "10001-14000",
         "Networks"  : [{
             "Name"              : "orange",
+			"SubnetCIDR"			: "10.1.1.1/24",
+			"Gateway"				: "10.1.1.254",
             "Endpoints" : [
             {
                 "Container"     : "myContainer1",
@@ -219,6 +220,8 @@ func TestVxlanConfig(t *testing.T) {
         },
         {
             "Name"              : "purple",
+			"SubnetCIDR"			: "10.1.2.1/24",
+			"Gateway"				: "10.1.2.254",
             "Endpoints" : [{
                 "Container"     : "myContainer2",
                 "Host"          : "host1"
@@ -246,12 +249,11 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant-one",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vxlans"                : "10001-14000",
         "Networks"  : [{
             "Name"              : "orange",
+			"SubnetCIDR"			: "10.1.1.1/24",
+			"Gateway"				: "10.1.1.254",
             "Endpoints" : [
             {
                 "Container"     : "myContainer1"
@@ -263,6 +265,8 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
         },
         {
             "Name"              : "purple",
+			"SubnetCIDR"			: "10.1.2.1/24",
+			"Gateway"				: "10.1.2.254",
             "Endpoints" : [{
                 "Container"     : "myContainer2"
             },
@@ -315,12 +319,11 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant1",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net1",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 2000,
             "PktTagType"        : "vxlan"
         }]
@@ -330,12 +333,11 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant2",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net2",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 2001,
             "PktTagType"        : "vxlan"
         }]
@@ -345,12 +347,11 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant3",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net3",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 3000,
             "PktTagType"        : "vxlan"
         }]
@@ -360,12 +361,11 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant4",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net4",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 3001,
             "PktTagType"        : "vxlan"
         }]
@@ -375,13 +375,12 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant5",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vlans"                 : "1201-1500",
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net5",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 1200,
             "PktTagType"        : "vlan"
         }]
@@ -391,13 +390,12 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant6",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vlans"                 : "1201-1500",
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net6",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 1201,
             "PktTagType"        : "vlan"
         }]
@@ -407,13 +405,12 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant7",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vlans"                 : "1201-1500",
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net7",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 1500,
             "PktTagType"        : "vlan"
         }]
@@ -423,13 +420,12 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant8",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
         "Vlans"                 : "1201-1500",
         "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net8",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 1501,
             "PktTagType"        : "vlan"
         }]

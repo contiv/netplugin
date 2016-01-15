@@ -24,11 +24,11 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
-	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
@@ -179,6 +179,8 @@ func (d *daemon) execOpts() {
 		os.Exit(0)
 	}
 
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true, TimestampFormat: time.StampNano})
+
 	if d.opts.debug {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -216,14 +218,6 @@ func (d *daemon) ListenAndServe() {
 
 	// Add REST routes
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
-	s.HandleFunc(fmt.Sprintf("/%s", master.DesiredConfigRESTEndpoint),
-		post(d.desiredConfig))
-	s.HandleFunc(fmt.Sprintf("/%s", master.AddConfigRESTEndpoint),
-		post(d.addConfig))
-	s.HandleFunc(fmt.Sprintf("/%s", master.DelConfigRESTEndpoint),
-		post(d.delConfig))
-	s.HandleFunc(fmt.Sprintf("/%s", master.HostBindingConfigRESTEndpoint),
-		post(d.hostBindingsConfig))
 
 	s.HandleFunc("/plugin/allocAddress", makeHTTPHandler(master.AllocAddressHandler))
 	s.HandleFunc("/plugin/releaseAddress", makeHTTPHandler(master.ReleaseAddressHandler))
@@ -338,61 +332,6 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 
 	// Write the Json output
 	return json.NewEncoder(w).Encode(v)
-}
-
-func post(hook func(cfg *intent.Config) error) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		cfg := &intent.Config{}
-		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(cfg); err != nil {
-			http.Error(w,
-				core.Errorf("parsing json failed. Error: %s", err).Error(),
-				http.StatusInternalServerError)
-			return
-		}
-
-		if err := hook(cfg); err != nil {
-			http.Error(w,
-				err.Error(),
-				http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-}
-
-func (d *daemon) desiredConfig(cfg *intent.Config) error {
-	if err := master.DeleteDelta(cfg); err != nil {
-		return err
-	}
-
-	if err := master.ProcessAdditions(cfg); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *daemon) addConfig(cfg *intent.Config) error {
-	if err := master.ProcessAdditions(cfg); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *daemon) delConfig(cfg *intent.Config) error {
-	if err := master.ProcessDeletions(cfg); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *daemon) hostBindingsConfig(cfg *intent.Config) error {
-	if err := master.CreateEpBindings(&cfg.HostBindings); err != nil {
-		return err
-	}
-	return nil
 }
 
 func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.ResponseWriter, *http.Request) {

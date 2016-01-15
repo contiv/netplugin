@@ -4,11 +4,11 @@ import sys
 import api.objmodel
 
 # Test basic group based policy
-def testBasicPolicy(testbed, numContainer, numIter):
+def testBasicPolicy(testbed, numContainer, numIter, encap="vxlan"):
 	api.tutils.info("testBasicPolicy starting")
 
 	tenant = api.objmodel.tenant('default')
-	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254")
+	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254", encap=encap)
 
 	for iter in range(numIter):
 		# Create policy
@@ -73,11 +73,11 @@ def testBasicPolicy(testbed, numContainer, numIter):
 
 
 # Test adding/deleting rules from Policy
-def testPolicyAddDeleteRule(testbed, numContainer, numIter):
+def testPolicyAddDeleteRule(testbed, numContainer, numIter, encap="vxlan"):
 	api.tutils.info("testPolicyAddDeleteRule starting")
 
 	tenant = api.objmodel.tenant('default')
-	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254")
+	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254", encap=encap)
 
 	# Create policy
 	policy = tenant.newPolicy('first')
@@ -157,11 +157,11 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter):
 	api.tutils.info("testPolicyAddDeleteRule Test passed")
 
 # Test basic group based policy
-def testPolicyFromEpg(testbed, numContainer, numIter):
+def testPolicyFromEpg(testbed, numContainer, numIter, encap="vxlan"):
 	api.tutils.info("testPolicyFromEpg starting")
 
 	tenant = api.objmodel.tenant('default')
-	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254")
+	network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254", encap=encap)
 
 	for iter in range(numIter):
 		# Create common epg
@@ -216,6 +216,8 @@ def testPolicyFromEpg(testbed, numContainer, numIter):
 			srvName = "srv" + str(cntIdx)
 			network.deleteGroup(srvName)
 			tenant.deletePolicy(srvName)
+
+		network.deleteGroup('common')
 
 		# Check for errors
 		testbed.chekForNetpluginErrors()

@@ -66,10 +66,7 @@ type ConfigNetwork struct {
 // ConfigTenant keeps the global tenant specific policy and networks within
 type ConfigTenant struct {
 	Name           string
-	DefaultNetType string
 	DefaultNetwork string
-	SubnetPool     string
-	AllocSubnetLen uint
 	VLANs          string
 	VXLANs         string
 

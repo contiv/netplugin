@@ -20,9 +20,6 @@ const (
 	portNameFmt     = "port%d"
 	vxlanIfNameFmt  = "vxif%s"
 
-	getPortName = true
-	getIntfName = false
-
 	// StateOperPath is the path to the operations stored in state.
 	StateOperPath          = mastercfg.StateBasePath + "oper/"
 	ovsOperPathPrefix      = StateOperPath + "ovs-driver/"

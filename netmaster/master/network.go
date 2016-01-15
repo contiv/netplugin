@@ -58,6 +58,14 @@ func getDocknetName(tenantName, networkName, serviceName string) string {
 	return fmt.Sprintf("%s.%s/%s", serviceName, networkName, tenantName)
 }
 
+func checkPktTagType(pktTagType string) error {
+	if pktTagType != "" && pktTagType != "vlan" && pktTagType != "vxlan" {
+		return core.Errorf("invalid pktTagType")
+	}
+
+	return nil
+}
+
 func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	var err error
 
@@ -258,9 +266,6 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	nwCfg.ID = networkID
 	nwCfg.StateDriver = stateDriver
 
-	if network.PktTagType == "" {
-		nwCfg.PktTagType = gCfg.Deploy.DefaultNetType
-	}
 	if network.PktTag == 0 {
 		if nwCfg.PktTagType == "vlan" {
 			pktTag, err = gCfg.AllocVLAN(rm)
@@ -291,33 +296,19 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		nwCfg.PktTag = network.PktTag
 	}
 
-	if nwCfg.SubnetIP == "" {
-		nwCfg.SubnetLen = gCfg.Auto.AllocSubnetLen
-		nwCfg.SubnetIP, err = gCfg.AllocSubnet(rm)
-		if err != nil {
-			return err
-		}
-		nwCfg.SubnetIsAllocated = true
-	}
-
-	defaultNwName, err := gCfg.AssignDefaultNetwork(network.Name)
+	_, err = gCfg.AssignDefaultNetwork(network.Name)
 	if err != nil {
 		log.Errorf("error assigning the default network. Error: %s", err)
 		return err
 	}
 
-	if network.Name == defaultNwName {
-		// For auto derived subnets assign gateway ip be the last valid unicast ip the subnet
-		if nwCfg.Gateway == "" && nwCfg.SubnetIsAllocated {
-			var ipAddrValue uint
-			ipAddrValue = (1 << (32 - nwCfg.SubnetLen)) - 2
-			nwCfg.Gateway, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
-			if err != nil {
-				return err
-			}
-			nwCfg.IPAllocMap.Set(ipAddrValue)
-		}
+	// Reserve gateway IP address
+	ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, nwCfg.Gateway)
+	if err != nil {
+		log.Errorf("Error parsing gateway address %s. Err: %v", nwCfg.Gateway, err)
+		return err
 	}
+	nwCfg.IPAllocMap.Set(ipAddrValue)
 
 	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
 	err = nwCfg.Write()
@@ -511,14 +502,6 @@ func freeNetworkResources(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetw
 	} else if nwCfg.PktTagType == "vxlan" {
 		log.Infof("freeing vlan %d vxlan %d", nwCfg.PktTag, nwCfg.ExtPktTag)
 		err = gCfg.FreeVXLAN(rm, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
-		if err != nil {
-			return err
-		}
-	}
-
-	if nwCfg.SubnetIsAllocated {
-		log.Infof("freeing subnet %s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
-		err = gCfg.FreeSubnet(rm, nwCfg.SubnetIP)
 		if err != nil {
 			return err
 		}
