@@ -2,6 +2,7 @@
 
 go get github.com/tools/godep
 go get github.com/aktau/github-release
+go get github.com/contiv/modelgen
 
 if ! go get github.com/golang/lint/golint
 then

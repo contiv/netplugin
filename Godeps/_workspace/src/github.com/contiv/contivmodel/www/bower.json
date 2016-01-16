@@ -1,0 +1,27 @@
+{
+  "name": "zeus",
+  "version": "0.0.1",
+  "homepage": "https://github.com/shaleman",
+  "authors": [
+    "Sukhesh Halemane <shaleman@cisco.com>"
+  ],
+  "description": "zeus admin console",
+  "main": "zeus",
+  "moduleType": [
+    "globals"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "~3.3.4",
+    "react-bootstrap": "~0.21.1",
+    "react": "~0.13.1"
+  }
+}

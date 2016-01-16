@@ -18,12 +18,12 @@ package objApi
 import (
 	"time"
 
+	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/objmodel/contivModel"
-	"github.com/contiv/objmodel/objdb/modeldb"
+	"github.com/contiv/objdb/modeldb"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"

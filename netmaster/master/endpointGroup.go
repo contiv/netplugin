@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/gstate"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/objmodel/contivModel"
 
 	log "github.com/Sirupsen/logrus"
 )

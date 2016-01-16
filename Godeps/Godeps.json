@@ -6,9 +6,18 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.1.0-21-g056c9bc",
+			"Rev": "056c9bc7be7190eaa7715723883caffa5f8fa3e4"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.6.4-12-g467d9d5",
 			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
+		},
+		{
+			"ImportPath": "github.com/armon/go-radix",
+			"Rev": "fbd82e84e2b13651f3abc5ffd26b65ba71bc8f93"
 		},
 		{
 			"ImportPath": "github.com/cenkalti/backoff",
@@ -29,6 +38,10 @@
 			"Rev": "96f1fedb28e10f2e5ad3fd4b7347101529a7ca56"
 		},
 		{
+			"ImportPath": "github.com/contiv/contivmodel",
+			"Rev": "1cde91e76a5abab40fb0debdf5489eb49f3e6116"
+		},
+		{
 			"ImportPath": "github.com/contiv/go-etcd/etcd",
 			"Comment": "v0.4.6-6-g4734e7a",
 			"Rev": "4734e7aca379f0d7fcdf04fbb2101696a4b45ce8"
@@ -39,20 +52,12 @@
 			"Rev": "45476f107954c5e22cf114211e684a5dd9a69595"
 		},
 		{
-			"ImportPath": "github.com/contiv/objmodel/contivModel",
-			"Rev": "d937af4115558f25eff731b043fb4e5d380ee44a"
-		},
-		{
-			"ImportPath": "github.com/contiv/objmodel/objdb",
-			"Rev": "d937af4115558f25eff731b043fb4e5d380ee44a"
+			"ImportPath": "github.com/contiv/objdb",
+			"Rev": "34faf4d0cdb74e0e484cd674830dfb27378c1422"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
 			"Rev": "2cb22bcd4bba7ff687451d701c372c60af8af2c0"
-		},
-		{
-			"ImportPath": "github.com/contiv/systemtests-utils",
-			"Rev": "e1e81ea4b4c808883c529d7cb027590428aa5136"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
@@ -115,8 +120,8 @@
 			"Rev": "2559410949b7200a81f63e0333ae768fe7a73d71"
 		},
 		{
-			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "ef410296f87750305e1e1acf9ad2ba3833dcb004"
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "221834dcb89c96e4b057ed8bb878bfe569dfacf4"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -140,6 +145,36 @@
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",
 			"Comment": "v0.0.3-14-g9be9157",
 			"Rev": "9be9157fc5cd9cf59c155fe194a0acc5f1e6f926"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/api",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/config",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/packet",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/server",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/table",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/zebra",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
 		},
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
@@ -171,8 +206,28 @@
 			"Rev": "4b5dce31de6d42af5bb9811c6d265472199e0fec"
 		},
 		{
-			"ImportPath": "golang.org/x/crypto/ssh",
-			"Rev": "83f1503f771a82af8a31f358eb825e9efb5dae6c"
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/http2",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/internal/timeseries",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/trace",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc",
+			"Rev": "a202995ce9a99c7d65875ba9f0cf04ff43169dd5"
+		},
+		{
+			"ImportPath": "gopkg.in/tomb.v2",
+			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
 		}
 	]
 }
