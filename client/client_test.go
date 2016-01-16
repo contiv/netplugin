@@ -63,7 +63,7 @@ func TestSetGetPerformance(t *testing.T) {
 	}
 	var retVal JsonObj
 
-	const testCount = 100
+	const testCount = 1000
 
 	log.Infof("Performing %d write tests", testCount)
 
@@ -103,6 +103,108 @@ func TestSetGetPerformance(t *testing.T) {
 
 	for i := 0; i < testCount; i++ {
 		if err := client.DelObj("/contiv.io/test" + strconv.Itoa(i)); err != nil {
+			t.Fatalf("Fatal deleting test object. Err: %v", err)
+		}
+	}
+
+	timeTook = time.Since(startTime).Nanoseconds() / 1000000
+	log.Infof("Delete Test took %d milli seconds per delete. %d ms total", timeTook/testCount, timeTook)
+
+	fmt.Printf("Set/Get/Del test successful\n")
+}
+
+func TestConsulClientSetGet(t *testing.T) {
+	// Get the consul plugin
+	consulClient := objdb.GetPlugin("consul")
+
+	// Initialize the consul client
+	if err := consulClient.Init([]string{}); err != nil {
+		log.Fatalf("Error initializing consul plugin. Err: %v", err)
+	}
+
+	setVal := JsonObj{
+		Value: "test1",
+	}
+
+	if err := consulClient.SetObj("/contiv.io/test", setVal); err != nil {
+		fmt.Printf("Fatal setting key. Err: %v\n", err)
+		t.Fatalf("Fatal setting key")
+	}
+
+	var retVal JsonObj
+
+	if err := consulClient.GetObj("/contiv.io/test", &retVal); err != nil {
+		fmt.Printf("Fatal getting key. Err: %v\n", err)
+		t.Fatalf("Fatal getting key")
+	}
+
+	if retVal.Value != "test1" {
+		fmt.Printf("Got invalid response: %+v\n", retVal)
+		t.Fatalf("Got invalid response")
+	}
+
+	if err := consulClient.DelObj("/contiv.io/test"); err != nil {
+		t.Fatalf("Fatal deleting test object. Err: %v", err)
+	}
+
+	fmt.Printf("Consul Set/Get/Del test successful\n")
+}
+
+func TestConsulSetGetPerformance(t *testing.T) {
+	// Set
+	setVal := JsonObj{
+		Value: "test1",
+	}
+	var retVal JsonObj
+
+	const testCount = 1000
+
+	// Get the consul plugin
+	consulClient := objdb.GetPlugin("consul")
+
+	// Initialize the consul client
+	if err := consulClient.Init([]string{}); err != nil {
+		log.Fatalf("Error initializing consul plugin. Err: %v", err)
+	}
+
+	log.Infof("Performing %d write tests", testCount)
+
+	startTime := time.Now()
+
+	for i := 0; i < testCount; i++ {
+		if err := consulClient.SetObj("/contiv.io/test"+strconv.Itoa(i), setVal); err != nil {
+			fmt.Printf("Fatal setting key. Err: %v\n", err)
+			t.Fatalf("Fatal setting key")
+		}
+	}
+
+	timeTook := time.Since(startTime).Nanoseconds() / 1000000
+	log.Infof("Write Test took %d milli seconds per write. %d ms total", timeTook/testCount, timeTook)
+
+	log.Infof("Performing %d read tests", testCount)
+
+	// Get test
+	startTime = time.Now()
+
+	for i := 0; i < testCount; i++ {
+		if err := consulClient.GetObj("/contiv.io/test"+strconv.Itoa(i), &retVal); err != nil {
+			fmt.Printf("Fatal getting key. Err: %v\n", err)
+			t.Fatalf("Fatal getting key")
+		}
+
+		if retVal.Value != "test1" {
+			fmt.Printf("Got invalid response: %+v\n", retVal)
+			t.Fatalf("Got invalid response")
+		}
+	}
+
+	timeTook = time.Since(startTime).Nanoseconds() / 1000000
+	log.Infof("Read Test took %d milli seconds per read. %d ms total", timeTook/testCount, timeTook)
+
+	startTime = time.Now()
+
+	for i := 0; i < testCount; i++ {
+		if err := consulClient.DelObj("/contiv.io/test" + strconv.Itoa(i)); err != nil {
 			t.Fatalf("Fatal deleting test object. Err: %v", err)
 		}
 	}
