@@ -1,0 +1,30 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "app",
+			"type": "object",
+			"key": [ "tenantName", "appName" ],
+			"properties": {
+				"appName": {
+					"type": "string",
+					"description": "Application Name"
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name"
+				}
+			},
+			"link-sets": {
+				"services": {
+					"ref": "service"
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				}
+			}
+		}
+	]
+}

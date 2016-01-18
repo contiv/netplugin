@@ -35,8 +35,8 @@ import (
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/objmodel/objdb"
-	"github.com/contiv/objmodel/objdb/client"
+	"github.com/contiv/objdb"
+	"github.com/contiv/objdb/client"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/consul/api"
 )
@@ -245,13 +245,13 @@ func registerWebuiHandler(router *mux.Router) {
 	// Setup the router to serve the web UI
 	goPath := os.Getenv("GOPATH")
 	if goPath != "" {
-		webPath := goPath + "/src/github.com/contiv/objmodel/contivModel/www/"
+		webPath := goPath + "/src/github.com/contiv/contivmodel/www/"
 
 		// Make sure we have the web UI files
 		_, err := os.Stat(webPath)
 		if err != nil {
 			webPath = goPath + "/src/github.com/contiv/netplugin/" +
-				"Godeps/_workspace/src/github.com/contiv/objmodel/contivModel/www/"
+				"Godeps/_workspace/src/github.com/contiv/contivmodel/www/"
 			_, err := os.Stat(webPath)
 			if err != nil {
 				log.Errorf("Can not find the web UI directory")

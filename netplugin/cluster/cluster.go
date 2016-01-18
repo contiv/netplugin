@@ -26,8 +26,8 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/utils/netutils"
-	"github.com/contiv/objmodel/objdb"
-	"github.com/contiv/objmodel/objdb/client"
+	"github.com/contiv/objdb"
+	"github.com/contiv/objdb/client"
 	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"

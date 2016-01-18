@@ -16,9 +16,9 @@ limitations under the License.
 package master
 
 import (
+	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/objmodel/contivModel"
 
 	log "github.com/Sirupsen/logrus"
 )
