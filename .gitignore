@@ -35,3 +35,7 @@ resolv.conf
 
 # python
 *.pyc
+
+# version
+version/version_default.go
+version/version_release.go

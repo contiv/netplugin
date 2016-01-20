@@ -43,6 +43,10 @@ func ruleURL(ctx *cli.Context) string {
 	return fmt.Sprintf("%s/api/rules/", baseURL(ctx))
 }
 
+func versionURL(ctx *cli.Context) string {
+	return fmt.Sprintf("%s/version", baseURL(ctx))
+}
+
 func writeBody(resp *http.Response, ctx *cli.Context) {
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -86,4 +90,18 @@ func getList(ctx *cli.Context, url string) []map[string]interface{} {
 	handleBasicError(ctx, json.Unmarshal(content, &list))
 
 	return list
+}
+
+func getObject(ctx *cli.Context, url string, jdata interface{}) error {
+	resp, err := client.Get(url)
+	handleBasicError(ctx, err)
+
+	respCheck(resp, ctx)
+
+	content, err := ioutil.ReadAll(resp.Body)
+	handleBasicError(ctx, err)
+
+	handleBasicError(ctx, json.Unmarshal(content, jdata))
+
+	return nil
 }
