@@ -37,6 +37,7 @@ checks:
 	./scripts/checks "$(PKGS)"
 
 run-build: deps checks clean
+	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version  && \
 	cd Godeps/_workspace/src/github.com/contiv/ && chmod -R 771 contivmodel/ && cd contivmodel/ && ./generate.sh && \
 	cd /opt/gopath/src/github.com/contiv/netplugin && \
 	godep go install -v $(TO_BUILD) 
