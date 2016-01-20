@@ -38,9 +38,8 @@ checks:
 
 run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
-	cd Godeps/_workspace/src/github.com/contiv/ && chmod -R 771 contivmodel/ && cd contivmodel/ && ./generate.sh && \
 	cd /opt/gopath/src/github.com/contiv/netplugin && \
-	godep go install -v $(TO_BUILD) 
+	godep go install -v $(TO_BUILD)
 
 build:
 	make start

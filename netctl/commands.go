@@ -105,7 +105,7 @@ var Commands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name:  "pkt-tag, p",
-						Usage: "Packet tag (Vlan/Vxlan ids)- REQUIRED",
+						Usage: "Packet tag (Vlan/Vxlan ids)",
 					},
 					cli.StringFlag{
 						Name:  "subnet, s",
@@ -142,26 +142,7 @@ var Commands = []cli.Command{
 				Name:      "create",
 				Usage:     "Create a tenant",
 				ArgsUsage: "[tenant]",
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "subnet-pool, p",
-						Usage: "Subnet CIDR - REQUIRED",
-					},
-					cli.IntFlag{
-						Name:  "subnet-len, l",
-						Usage: "Subnet length",
-						Value: 24,
-					},
-					cli.StringFlag{
-						Name:  "vlans, v",
-						Usage: "Vlan range - REQUIRED",
-					},
-					cli.StringFlag{
-						Name:  "vxlans, x",
-						Usage: "Vxlan range - REQUIRED",
-					},
-				},
-				Action: createTenant,
+				Action:    createTenant,
 			},
 		},
 	},
@@ -258,6 +239,42 @@ var Commands = []cli.Command{
 				ArgsUsage: " ",
 				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
 				Action:    listPolicies,
+			},
+		},
+	},
+	{
+		Name:  "global",
+		Usage: "Global information",
+		Subcommands: []cli.Command{
+			{
+				Name:      "info",
+				Usage:     "Show global information",
+				ArgsUsage: " ",
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
+				Action:    showGlobal,
+			},
+			{
+				Name:      "set",
+				Usage:     "Set global parameters",
+				ArgsUsage: " ",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "fabric-mode, f",
+						Usage: "Fabric mode (Aci or default)",
+						Value: "default",
+					},
+					cli.StringFlag{
+						Name:  "vlan-range, v",
+						Usage: "Allowed Vlan id range",
+						Value: "1-4094",
+					},
+					cli.StringFlag{
+						Name:  "vxlan-range, x",
+						Usage: "Allowed Vxlan VNID range",
+						Value: "1-10000",
+					},
+				},
+				Action: setGlobal,
 			},
 		},
 	},

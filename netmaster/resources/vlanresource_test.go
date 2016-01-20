@@ -336,7 +336,7 @@ func TestAutoVLANCfgResourceAllocate(t *testing.T) {
 		t.Fatalf("Vlan resource init failed. Error: %s", err)
 	}
 
-	vlan, err1 := rsrc.Allocate()
+	vlan, err1 := rsrc.Allocate(uint(0))
 	if err1 != nil {
 		t.Fatalf("Vlan resource allocation failed. Error: %s", err1)
 	}
@@ -355,7 +355,7 @@ func TestAutoVLANCfgResourceAllocateExhaustion(t *testing.T) {
 		t.Fatalf("Vlan resource init failed. Error: %s", err)
 	}
 
-	_, err = rsrc.Allocate()
+	_, err = rsrc.Allocate(uint(0))
 	if err == nil {
 		t.Fatalf("Vlan resource allocation succeeded, expected to fail!")
 	}
@@ -375,7 +375,7 @@ func TestAutoVLANCfgResourceDeAllocate(t *testing.T) {
 		t.Fatalf("Vlan resource init failed. Error: %s", err)
 	}
 
-	vlan, err1 := rsrc.Allocate()
+	vlan, err1 := rsrc.Allocate(uint(0))
 	if err1 != nil {
 		t.Fatalf("Vlan resource allocation failed. Error: %s", err1)
 	}

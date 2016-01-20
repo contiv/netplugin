@@ -377,7 +377,7 @@ func TestAutoVXLANCfgResourceAllocate(t *testing.T) {
 		t.Fatalf("VXLAN resource init failed. Error: %s", err)
 	}
 
-	p, err1 := rsrc.Allocate()
+	p, err1 := rsrc.Allocate(uint(0))
 	if err1 != nil {
 		t.Fatalf("VXLAN resource allocation failed. Error: %s", err1)
 	}
@@ -396,7 +396,7 @@ func TestAutoVXLANCfgResourceAllocateVXLANExhaustion(t *testing.T) {
 		t.Fatalf("VXLAN resource init failed. Error: %s", err)
 	}
 
-	_, err = rsrc.Allocate()
+	_, err = rsrc.Allocate(uint(0))
 	if err == nil {
 		t.Fatalf("VXLAN resource allocation succeeded, expected to fail!")
 	}
@@ -415,7 +415,7 @@ func TestAutoVXLANCfgResourceAllocateVLANExhaustion(t *testing.T) {
 		t.Fatalf("VXLAN resource init failed. Error: %s", err)
 	}
 
-	_, err = rsrc.Allocate()
+	_, err = rsrc.Allocate(uint(0))
 	if err == nil {
 		t.Fatalf("VXLAN resource allocation succeeded, expected to fail!")
 	}
@@ -434,7 +434,7 @@ func TestAutoVXLANCfgResourceDeAllocate(t *testing.T) {
 		t.Fatalf("VXLAN resource init failed. Error: %s", err)
 	}
 
-	pair, err1 := rsrc.Allocate()
+	pair, err1 := rsrc.Allocate(uint(0))
 	if err1 != nil {
 		t.Fatalf("VXLAN resource allocation failed. Error: %s", err1)
 	}

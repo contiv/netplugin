@@ -1,7 +1,7 @@
 // policy.js
 // Display Policy information
 
-var contivModel = require("../contivModel")
+var contivModel = require("../client/contivModel")
 
 var PolicySummaryView = React.createClass({
   	render: function() {

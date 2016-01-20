@@ -153,7 +153,7 @@ func (rm *StateResourceManager) UndefineResource(id, desc string) error {
 }
 
 // AllocateResourceVal yields the core.Resource for the id and description.
-func (rm *StateResourceManager) AllocateResourceVal(id, desc string) (interface{},
+func (rm *StateResourceManager) AllocateResourceVal(id, desc string, reqValue interface{}) (interface{},
 	error) {
 	// XXX: need to take care of distibuted updates, locks etc here
 	rsrc, alreadyExists, err := rm.findResource(id, desc)
@@ -166,7 +166,7 @@ func (rm *StateResourceManager) AllocateResourceVal(id, desc string) (interface{
 			desc, id)
 	}
 
-	return rsrc.Allocate()
+	return rsrc.Allocate(reqValue)
 }
 
 // DeallocateResourceVal removes a value from the resource.

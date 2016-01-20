@@ -58,6 +58,22 @@ func NewAPIController(router *mux.Router) *APIController {
 	// Register routes
 	contivModel.AddRoutes(router)
 
+	// Init global state
+	gc := contivModel.FindGlobal("default")
+	if gc == nil {
+		log.Infof("Creating default tenant")
+		err := contivModel.CreateGlobal(&contivModel.Global{
+			Key:              "global",
+			Name:             "global",
+			NetworkInfraType: "default",
+			Vlans:            "1-4094",
+			Vxlans:           "1-10000",
+		})
+		if err != nil {
+			log.Fatalf("Error creating global state. Err: %v", err)
+		}
+	}
+
 	return ctrler
 }
 
@@ -73,10 +89,6 @@ func CreateDefaultTenant() {
 		err := contivModel.CreateTenant(&contivModel.Tenant{
 			Key:        "default",
 			TenantName: "default",
-			Vlans:      "100-1100",
-			Vxlans:     "1001-1100",
-			SubnetPool: "10.1.1.1/16",
-			SubnetLen:  24,
 		})
 		if err != nil {
 			log.Fatalf("Error creating default tenant. Err: %v", err)
@@ -107,6 +119,8 @@ func (ac *APIController) GlobalCreate(global *contivModel.Global) error {
 	// Build global config
 	gCfg := intent.ConfigGlobal{
 		NwInfraType: global.NetworkInfraType,
+		VLANs:       global.Vlans,
+		VXLANs:      global.Vxlans,
 	}
 
 	// Create the object
@@ -121,7 +135,7 @@ func (ac *APIController) GlobalCreate(global *contivModel.Global) error {
 
 // GlobalUpdate updates global state
 func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error {
-	log.Infof("Received GlobalUpdate: %+v", global)
+	log.Infof("Received GlobalUpdate: %+v. Old: %+v", params, global)
 
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
@@ -132,6 +146,8 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	// Build global config
 	gCfg := intent.ConfigGlobal{
 		NwInfraType: params.NetworkInfraType,
+		VLANs:       params.Vlans,
+		VXLANs:      params.Vxlans,
 	}
 
 	// Create the object
@@ -142,6 +158,9 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	}
 
 	global.NetworkInfraType = params.NetworkInfraType
+	global.Vlans = params.Vlans
+	global.Vxlans = params.Vxlans
+
 	return nil
 }
 
@@ -723,8 +742,6 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 	tenantCfg := intent.ConfigTenant{
 		Name:           tenant.TenantName,
 		DefaultNetwork: tenant.DefaultNetwork,
-		VLANs:          tenant.Vlans,
-		VXLANs:         tenant.Vxlans,
 	}
 
 	// Create the tenant

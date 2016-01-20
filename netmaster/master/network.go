@@ -19,14 +19,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/gstate"
+	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/samalba/dockerclient"
@@ -184,63 +182,17 @@ func deleteDockNet(tenantName, networkName, serviceName string) error {
 	return nil
 }
 
-// isTagInRange verifies if the requested vlan/vxlan adheres to tenants configured range
-func isTagInRange(pktTag uint, pktTagType string, pktTagRange string, stateDriver core.StateDriver, tenantName string) bool {
-	if pktTag == 0 {
-		return true
-	}
-
-	if pktTagType == "vxlan" {
-		rCfg := &resources.AutoVXLANCfgResource{}
-		rCfg.StateDriver = stateDriver
-		if err := rCfg.Read(tenantName); err != nil {
-			return false
-		}
-
-		// Vxlan bitset allocation is reverse offseted by the start of the range
-		// So, if we were allocating vlan 2001, when the allowed range was 2000-3000;
-		// We would internally allocate bitset (2001-2000) = 1 for it.
-		startOffset64, err := strconv.Atoi(strings.Split(pktTagRange, "-")[0])
-		startOffset := uint(startOffset64)
-
-		if err != nil {
-			log.Errorf("Error in startOffset conversion pktTagRange: %s err: %s", pktTagRange, err)
-			return false
-		}
-		if startOffset > pktTag {
-			return false
-		}
-
-		return rCfg.VXLANs.Test(pktTag - startOffset)
-	} else if pktTagType == "vlan" {
-		rCfg := &resources.AutoVLANCfgResource{}
-		rCfg.StateDriver = stateDriver
-		if err := rCfg.Read(tenantName); err != nil {
-			return false
-		}
-
-		return rCfg.VLANs.Test(pktTag)
-	}
-	return false
-}
-
 // CreateNetwork creates a network from intent
 func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, tenantName string) error {
 	var extPktTag, pktTag uint
 
 	gCfg := gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
-	err := gCfg.Read(tenantName)
+	err := gCfg.Read("")
 	if err != nil {
 		log.Errorf("error reading tenant cfg state. Error: %s", err)
 		return err
 	}
-
-	tempRm, err := resources.GetStateResourceManager()
-	if err != nil {
-		return err
-	}
-	rm := core.ResourceManager(tempRm)
 
 	// Create network state
 	networkID := network.Name + "." + tenantName
@@ -266,41 +218,22 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	nwCfg.ID = networkID
 	nwCfg.StateDriver = stateDriver
 
-	if network.PktTag == 0 {
-		if nwCfg.PktTagType == "vlan" {
-			pktTag, err = gCfg.AllocVLAN(rm)
-			if err != nil {
-				return err
-			}
-		} else if nwCfg.PktTagType == "vxlan" {
-			extPktTag, pktTag, err = gCfg.AllocVXLAN(rm)
-			if err != nil {
-				return err
-			}
+	// Allocate pkt tags
+	reqPktTag := uint(network.PktTag)
+	if nwCfg.PktTagType == "vlan" {
+		pktTag, err = gCfg.AllocVLAN(reqPktTag)
+		if err != nil {
+			return err
 		}
-
-		nwCfg.ExtPktTag = int(extPktTag)
-		nwCfg.PktTag = int(pktTag)
-	} else if network.PktTagType == "vxlan" {
-		if !isTagInRange(uint(network.PktTag), "vxlan", gCfg.Auto.VXLANs, stateDriver, tenantName) {
-			return fmt.Errorf("vxlan %d does not adhere to tenant's vxlan range %s", network.PktTag, gCfg.Auto.VXLANs)
+	} else if nwCfg.PktTagType == "vxlan" {
+		extPktTag, pktTag, err = gCfg.AllocVXLAN(reqPktTag)
+		if err != nil {
+			return err
 		}
-
-		nwCfg.ExtPktTag = network.PktTag
-		nwCfg.PktTag = network.PktTag
-	} else if network.PktTagType == "vlan" {
-
-		if !isTagInRange(uint(network.PktTag), "vlan", gCfg.Auto.VLANs, stateDriver, tenantName) {
-			return fmt.Errorf("vlan %d does not adhere to tenant's vlan range %s", network.PktTag, gCfg.Auto.VLANs)
-		}
-		nwCfg.PktTag = network.PktTag
 	}
 
-	_, err = gCfg.AssignDefaultNetwork(network.Name)
-	if err != nil {
-		log.Errorf("error assigning the default network. Error: %s", err)
-		return err
-	}
+	nwCfg.ExtPktTag = int(extPktTag)
+	nwCfg.PktTag = int(pktTag)
 
 	// Reserve gateway IP address
 	ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, nwCfg.Gateway)
@@ -487,21 +420,14 @@ func CreateNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 }
 
 func freeNetworkResources(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkState, gCfg *gstate.Cfg) (err error) {
-
-	tempRm, err := resources.GetStateResourceManager()
-	if err != nil {
-		return err
-	}
-	rm := core.ResourceManager(tempRm)
-
 	if nwCfg.PktTagType == "vlan" {
-		err = gCfg.FreeVLAN(rm, uint(nwCfg.PktTag))
+		err = gCfg.FreeVLAN(uint(nwCfg.PktTag))
 		if err != nil {
 			return err
 		}
 	} else if nwCfg.PktTagType == "vxlan" {
 		log.Infof("freeing vlan %d vxlan %d", nwCfg.PktTag, nwCfg.ExtPktTag)
-		err = gCfg.FreeVXLAN(rm, uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
+		err = gCfg.FreeVXLAN(uint(nwCfg.ExtPktTag), uint(nwCfg.PktTag))
 		if err != nil {
 			return err
 		}
@@ -540,7 +466,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
-	err = gCfg.Read(nwCfg.Tenant)
+	err = gCfg.Read("")
 	if err != nil {
 		log.Errorf("error reading tenant info for %q. Error: %s", nwCfg.Tenant, err)
 		return err
@@ -566,7 +492,7 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
 
-	err := gCfg.Read(tenant.Name)
+	err := gCfg.Read("")
 	if err != nil {
 		log.Errorf("error reading tenant state. Error: %s", err)
 		return err

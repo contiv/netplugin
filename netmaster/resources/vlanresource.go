@@ -120,7 +120,7 @@ func (r *AutoVLANCfgResource) Description() string {
 }
 
 // Allocate a resource.
-func (r *AutoVLANCfgResource) Allocate() (interface{}, error) {
+func (r *AutoVLANCfgResource) Allocate(reqVal interface{}) (interface{}, error) {
 	oper := &AutoVLANOperResource{}
 	oper.StateDriver = r.StateDriver
 	err := oper.Read(r.ID)
@@ -128,11 +128,19 @@ func (r *AutoVLANCfgResource) Allocate() (interface{}, error) {
 		return nil, err
 	}
 
-	vlan, ok := oper.FreeVLANs.NextSet(0)
-	if !ok {
-		return nil, core.Errorf("no vlans available.")
+	var vlan uint
+	if (reqVal != nil) && (reqVal.(uint) != 0) {
+		vlan = reqVal.(uint)
+		if !oper.FreeVLANs.Test(vlan) {
+			return nil, core.Errorf("Requested vlan not available")
+		}
+	} else {
+		ok := false
+		vlan, ok = oper.FreeVLANs.NextSet(0)
+		if !ok {
+			return nil, core.Errorf("no vlans available.")
+		}
 	}
-
 	oper.FreeVLANs.Clear(vlan)
 
 	err = oper.Write()

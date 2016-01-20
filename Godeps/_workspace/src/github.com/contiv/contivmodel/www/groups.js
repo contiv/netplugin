@@ -1,7 +1,7 @@
 // groups.js
 // Display Endpoint group information
 
-var contivModel = require("../contivModel")
+var contivModel = require("../client/contivModel")
 
 var GroupsPane = React.createClass({
   	render: function() {

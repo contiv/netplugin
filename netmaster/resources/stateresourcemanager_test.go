@@ -71,7 +71,7 @@ func (r *TestResource) Description() string {
 	return testResourceDesc
 }
 
-func (r *TestResource) Allocate() (interface{}, error) {
+func (r *TestResource) Allocate(reqValue interface{}) (interface{}, error) {
 	return 0, nil
 }
 
@@ -200,7 +200,7 @@ func TestStateResourceManagerAllocateResource(t *testing.T) {
 		t.Fatalf("Resource definition failed. Error: %s", err)
 	}
 
-	_, err = rm.AllocateResourceVal(testResourceID, testResourceDesc)
+	_, err = rm.AllocateResourceVal(testResourceID, testResourceDesc, nil)
 	if err != nil {
 		t.Fatalf("Resource allocation failed. Error: %s", err)
 	}
@@ -210,7 +210,7 @@ func TestStateResourceManagerAllocateInvalidResource(t *testing.T) {
 	rm := &StateResourceManager{stateDriver: fakeDriver}
 
 	gReadCtr = 0
-	_, err := rm.AllocateResourceVal(testResourceID, testResourceDesc)
+	_, err := rm.AllocateResourceVal(testResourceID, testResourceDesc, nil)
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}
@@ -226,7 +226,7 @@ func TestStateResourceManagerAllocateiNonexistentResource(t *testing.T) {
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	_, err := rm.AllocateResourceVal(testResourceID, testResourceDesc)
+	_, err := rm.AllocateResourceVal(testResourceID, testResourceDesc, nil)
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}
@@ -248,7 +248,7 @@ func TestStateResourceManagerDeallocateResource(t *testing.T) {
 		t.Fatalf("Resource definition failed. Error: %s", err)
 	}
 
-	_, err = rm.AllocateResourceVal(testResourceID, testResourceDesc)
+	_, err = rm.AllocateResourceVal(testResourceID, testResourceDesc, nil)
 	if err != nil {
 		t.Fatalf("Resource allocation failed. Error: %s", err)
 	}
@@ -263,7 +263,7 @@ func TestStateResourceManagerDeallocateInvalidResource(t *testing.T) {
 	rm := &StateResourceManager{stateDriver: fakeDriver}
 
 	gReadCtr = 0
-	err := rm.DeallocateResourceVal(testResourceID, testResourceDesc, 0)
+	err := rm.DeallocateResourceVal(testResourceID, testResourceDesc, nil)
 	if err == nil {
 		t.Fatalf("Resource deallocation succeeded, expected to fail!")
 	}
@@ -279,7 +279,7 @@ func TestStateResourceManagerDeallocateiNonexistentResource(t *testing.T) {
 	defer func() { delete(resourceRegistry, testResourceDesc) }()
 
 	gReadCtr = 0
-	err := rm.DeallocateResourceVal(testResourceID, testResourceDesc, 0)
+	err := rm.DeallocateResourceVal(testResourceID, testResourceDesc, nil)
 	if err == nil {
 		t.Fatalf("Resource allocation succeeded, expected to fail!")
 	}

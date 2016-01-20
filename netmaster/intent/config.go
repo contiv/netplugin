@@ -20,23 +20,8 @@ package intent
 // ConfigGlobal keeps track of settings that are globally applicable
 type ConfigGlobal struct {
 	NwInfraType string
-}
-
-// ConfigHost keeps track of the host's properties; A host is a node where
-// containers are deployed
-type ConfigHost struct {
-	Name   string
-	Intf   string
-	VtepIP string
-	NetID  string
-}
-
-// ConfigInfraNetwork holds information about the name and LAN tagging
-// configuration.
-type ConfigInfraNetwork struct {
-	Name       string
-	PktTagType string
-	PktTag     int
+	VLANs       string
+	VXLANs      string
 }
 
 // ConfigEP encapulsates an endpoint: a leg into a network
@@ -75,9 +60,7 @@ type ConfigTenant struct {
 
 // Config is the top level configuration
 type Config struct {
-	InfraNetworks []ConfigInfraNetwork
-	Hosts         []ConfigHost
-	Tenants       []ConfigTenant
+	Tenants []ConfigTenant
 	// (optional) host bindings
 	HostBindings []ConfigEP
 }

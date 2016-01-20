@@ -18,10 +18,9 @@ package master
 import (
 	"github.com/cenkalti/backoff"
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/gstate"
+	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 
@@ -60,6 +59,14 @@ func GetClusterMode() string {
 	return masterRTCfg.clusterMode
 }
 
+func getEpName(networkName string, ep *intent.ConfigEP) string {
+	if ep.Container != "" {
+		return networkName + "-" + ep.Container
+	}
+
+	return ep.Host + "-native-intf"
+}
+
 func validateTenantConfig(tenant *intent.ConfigTenant) error {
 	if tenant.Name == "" {
 		return core.Errorf("invalid tenant name")
@@ -89,53 +96,54 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 	masterGc.StateDriver = stateDriver
 	masterGc.NwInfraType = gc.NwInfraType
 	err := masterGc.Write()
-	return err
-}
-
-// CreateTenant sets the tenant's state according to the passed ConfigTenant.
-func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-	gOper := &gstate.Oper{}
-	gOper.StateDriver = stateDriver
-	err := gOper.Read(tenant.Name)
-	if err == nil {
-		return err
-	}
-
-	err = validateTenantConfig(tenant)
 	if err != nil {
 		return err
 	}
 
+	// Setup global state
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
 	gCfg.Version = gstate.VersionBeta1
-	gCfg.Tenant = tenant.Name
-	gCfg.Deploy.DefaultNetwork = tenant.DefaultNetwork
-	gCfg.Auto.VLANs = tenant.VLANs
-	gCfg.Auto.VXLANs = tenant.VXLANs
+	gCfg.Auto.VLANs = gc.VLANs
+	gCfg.Auto.VXLANs = gc.VXLANs
 
-	tempRm, err := resources.GetStateResourceManager()
-	if err != nil {
-		return err
+	// Delete old state
+	gOper := &gstate.Oper{}
+	gOper.StateDriver = stateDriver
+	err = gOper.Read("")
+	if err == nil {
+		err = gCfg.DeleteResources()
+		if err != nil {
+			return err
+		}
 	}
 
 	// setup resources
-	err = gCfg.Process(core.ResourceManager(tempRm))
+	err = gCfg.Process()
 	if err != nil {
 		log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
 		return err
 	}
 
+	err = gCfg.Write()
+	if err != nil {
+		log.Errorf("error updating global config.Error: %s", err)
+		return err
+	}
+
+	return nil
+}
+
+// CreateTenant sets the tenant's state according to the passed ConfigTenant.
+func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
+	err := validateTenantConfig(tenant)
+	if err != nil {
+		return err
+	}
 	// start skydns container
 	err = startServiceContainer(tenant.Name)
 	if err != nil {
 		log.Errorf("Error starting service container. Err: %v", err)
-		return err
-	}
-
-	err = gCfg.Write()
-	if err != nil {
-		log.Errorf("error updating tenant '%s'.Error: %s", tenant.Name, err)
 		return err
 	}
 
@@ -222,45 +230,10 @@ func stopAndRemoveServiceContainer(tenantName string) error {
 
 // DeleteTenantID deletes a tenant from the state store, by ID.
 func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
-	gOper := &gstate.Oper{}
-	gOper.StateDriver = stateDriver
-	err := gOper.Read(tenantID)
-	if err != nil {
-		log.Errorf("error reading tenant info '%s'. Error: %s", tenantID, err)
-		return err
-	}
-
-	err = stopAndRemoveServiceContainer(tenantID)
+	err := stopAndRemoveServiceContainer(tenantID)
 	if err != nil {
 		log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
 		return err
-	}
-
-	gCfg := &gstate.Cfg{}
-	gCfg.StateDriver = stateDriver
-	err = gCfg.Read(tenantID)
-	if err != nil {
-		log.Errorf("error reading tenant config '%s'. Error: %s", tenantID, err)
-		return err
-	}
-
-	tempRm, err := resources.GetStateResourceManager()
-	if err == nil {
-		err = gCfg.DeleteResources(core.ResourceManager(tempRm))
-		if err != nil {
-			log.Errorf("Error deleting the config %+v. Error: %s", gCfg, err)
-		}
-	}
-
-	// delete tenant config
-	err = gCfg.Clear()
-	if err != nil {
-		log.Errorf("error deleting cfg for tenant %q: Error: %s", tenantID, err)
-	}
-
-	err = gOper.Clear()
-	if err != nil {
-		log.Errorf("error deleting oper for tenant %q: Error: %s", tenantID, err)
 	}
 
 	return err

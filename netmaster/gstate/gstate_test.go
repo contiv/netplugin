@@ -18,7 +18,7 @@ package gstate
 import (
 	"testing"
 
-	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/state"
 )
 
@@ -52,18 +52,18 @@ func TestGlobalConfigAutoVLANs(t *testing.T) {
 	gstateSD.Init(nil)
 	defer func() { gstateSD.Deinit() }()
 	gc.StateDriver = gstateSD
-	rm, err := resources.NewStateResourceManager(gstateSD)
+	_, err = resources.NewStateResourceManager(gstateSD)
 	if err != nil {
 		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process(rm)
+	err = gc.Process()
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vlan, err = gc.AllocVLAN(rm)
+	vlan, err = gc.AllocVLAN(uint(0))
 	if err != nil {
 		t.Fatalf("error - allocating vlan - %s \n", err)
 	}
@@ -74,7 +74,7 @@ func TestGlobalConfigAutoVLANs(t *testing.T) {
 		t.Fatalf("error - expecting vlan %d but allocated %d \n", 1, vlan)
 	}
 
-	err = gc.FreeVLAN(rm, vlan)
+	err = gc.FreeVLAN(vlan)
 	if err != nil {
 		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
 	}
@@ -106,18 +106,18 @@ func TestGlobalConfigAutoVXLAN(t *testing.T) {
 	gstateSD.Init(nil)
 	defer func() { gstateSD.Deinit() }()
 	gc.StateDriver = gstateSD
-	rm, err := resources.NewStateResourceManager(gstateSD)
+	_, err = resources.NewStateResourceManager(gstateSD)
 	if err != nil {
 		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process(rm)
+	err = gc.Process()
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vxlan, localVLAN, err = gc.AllocVXLAN(rm)
+	vxlan, localVLAN, err = gc.AllocVXLAN(uint(0))
 	if err != nil {
 		t.Fatalf("error - allocating vxlan - %s \n", err)
 	}
@@ -128,7 +128,7 @@ func TestGlobalConfigAutoVXLAN(t *testing.T) {
 		t.Fatalf("error - invalid vlan allocated %d \n", localVLAN)
 	}
 
-	err = gc.FreeVXLAN(rm, vxlan, localVLAN)
+	err = gc.FreeVXLAN(vxlan, localVLAN)
 	if err != nil {
 		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
 			vxlan, localVLAN, err)
@@ -161,18 +161,18 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 	gstateSD.Init(nil)
 	defer func() { gstateSD.Deinit() }()
 	gc.StateDriver = gstateSD
-	rm, err := resources.NewStateResourceManager(gstateSD)
+	_, err = resources.NewStateResourceManager(gstateSD)
 	if err != nil {
 		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process(rm)
+	err = gc.Process()
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
 
-	vlan, err = gc.AllocVLAN(rm)
+	vlan, err = gc.AllocVLAN(uint(0))
 	if err != nil {
 		t.Fatalf("error - allocating vlan - %s \n", err)
 	}
@@ -180,7 +180,7 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 		t.Fatalf("error - expecting vlan %d but allocated %d \n", 100, vlan)
 	}
 
-	vxlan, localVLAN, err = gc.AllocVXLAN(rm)
+	vxlan, localVLAN, err = gc.AllocVXLAN(uint(0))
 	if err != nil {
 		t.Fatalf("error - allocating vxlan - %s \n", err)
 	}
@@ -191,52 +191,15 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 		t.Fatalf("error - invalid vlan allocated %d \n", localVLAN)
 	}
 
-	err = gc.FreeVLAN(rm, vlan)
+	err = gc.FreeVLAN(vlan)
 	if err != nil {
 		t.Fatalf("error freeing allocated vlan %d - err '%s' \n", vlan, err)
 	}
 
-	err = gc.FreeVXLAN(rm, vxlan, localVLAN)
+	err = gc.FreeVXLAN(vxlan, localVLAN)
 	if err != nil {
 		t.Fatalf("error freeing allocated vxlan %d localvlan %d - err '%s' \n",
 			vxlan, localVLAN, err)
-	}
-}
-
-func TestInvalidGlobalConfigNoLocalVLANs(t *testing.T) {
-	cfgData := []byte(`
-        {
-            "Version" : "0.01",
-            "Tenant"  : "default",
-            "Auto" : {
-                "SubnetPool"        : "11.5.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
-                "VLANs"             : "1-4095",
-                "VXLANs"            : "10000-10001"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vlan"
-            }
-        }`)
-
-	gc, err := Parse(cfgData)
-	if err != nil {
-		t.Fatalf("error '%s' parsing config '%s' \n", err, cfgData)
-	}
-
-	gstateSD.Init(nil)
-	defer func() { gstateSD.Deinit() }()
-	gc.StateDriver = gstateSD
-	rm, err := resources.NewStateResourceManager(gstateSD)
-	if err != nil {
-		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
-	}
-	defer func() { resources.ReleaseStateResourceManager() }()
-
-	err = gc.Process(rm)
-	if err == nil {
-		t.Fatalf("Was able to process the config, expected to fail!")
 	}
 }
 
@@ -311,13 +274,9 @@ func TestDefaultNetwork(t *testing.T) {
 	defer func() { gstateSD.Deinit() }()
 	gc.StateDriver = gstateSD
 
-	defName, err := gc.AssignDefaultNetwork("orange")
+	_, err = gc.AssignDefaultNetwork("orange")
 	if err != nil {
 		t.Fatalf("Error: '%s' unable to assign default network '%s'", err, cfgData)
-	}
-
-	if defName != "purple" {
-		t.Fatalf("Error: assigned invalid default network '%s' cfg '%s'", defName, cfgData)
 	}
 
 	if err := gc.UnassignNetwork("orange"); err != nil {

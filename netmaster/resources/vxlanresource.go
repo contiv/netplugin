@@ -128,7 +128,7 @@ func (r *AutoVXLANCfgResource) Description() string {
 }
 
 // Allocate allocates a new resource.
-func (r *AutoVXLANCfgResource) Allocate() (interface{}, error) {
+func (r *AutoVXLANCfgResource) Allocate(reqVal interface{}) (interface{}, error) {
 	oper := &AutoVXLANOperResource{}
 	oper.StateDriver = r.StateDriver
 	err := oper.Read(r.ID)
@@ -136,9 +136,18 @@ func (r *AutoVXLANCfgResource) Allocate() (interface{}, error) {
 		return nil, err
 	}
 
-	vxlan, ok := oper.FreeVXLANs.NextSet(0)
-	if !ok {
-		return nil, core.Errorf("no vxlans available.")
+	var vxlan uint
+	if (reqVal != nil) && (reqVal.(uint) != 0) {
+		vxlan = reqVal.(uint)
+		if !oper.FreeVXLANs.Test(vxlan) {
+			return nil, core.Errorf("requested vxlan not available")
+		}
+	} else {
+		ok := false
+		vxlan, ok = oper.FreeVXLANs.NextSet(0)
+		if !ok {
+			return nil, core.Errorf("no vxlans available.")
+		}
 	}
 
 	vlan, ok := oper.FreeLocalVLANs.NextSet(0)

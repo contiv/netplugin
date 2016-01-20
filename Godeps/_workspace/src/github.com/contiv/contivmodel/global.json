@@ -17,6 +17,14 @@
 					"title": "Network infrastructure type",
 					"length": 64,
 					"ShowSummary": true
+				},
+				"vlans": {
+					"type": "string",
+					"format": "^([0-9]{1,4}?-[0-9]{1,4}?)$"
+				},
+				"vxlans": {
+					"type": "string",
+					"format": "^([0-9]{1,8}?-[0-9]{1,8}?)$"
 				}
 			}
 		}

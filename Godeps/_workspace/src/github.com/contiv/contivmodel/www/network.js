@@ -1,7 +1,7 @@
 // network.js
 // Display Network information
 
-var contivModel = require("../contivModel")
+var contivModel = require("../client/contivModel")
 
 var NetworkPane = React.createClass({
   	render: function() {
