@@ -86,7 +86,7 @@ func (p *podInfo) setDefaults(ns, name string) {
 	p.name = name
 	p.labels["tenant"] = "default"
 	p.labels["network"] = "default-net"
-	p.labels["net-group"] = "default-epg"
+	p.labels["net-group"] = ""
 }
 
 // fetchPodLabels retrieves the labels from the podspec metadata
