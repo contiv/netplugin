@@ -1,0 +1,4 @@
+{"master": [{"name": "k8master", "control-ip": "10.6.3.100", "contiv-network-ip": "11.7.4.100"}],
+ "nodes" : [{"name": "k8node-01", "control-ip": "10.6.3.101", "contiv-network-ip": "11.7.4.101"},
+            {"name": "k8node-02", "control-ip": "10.6.3.102", "contiv-network-ip": "11.7.4.102"}]
+}
