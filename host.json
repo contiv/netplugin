@@ -1,0 +1,27 @@
+{
+        "name": "contivModel",
+        "objects": [
+                {
+                        "name": "Bgp",
+                        "type": "object",
+                        "key": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "host name",
+          "length": 256
+        },
+                                "AS": {
+                                        "type": "string",
+                                        "title": "AS id",
+                                        "length": 64
+                                },
+                                "neighbor":{
+                                        "type": "string",
+          "title": "Bgp  neighbor",
+          "length": 15 
+                                }
+      }
+    }]
+}
+
