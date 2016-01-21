@@ -84,9 +84,9 @@ func NewAPIClient(serverURL, caFile, keyFile, certFile string) *APIClient {
 func (p *podInfo) setDefaults(ns, name string) {
 	p.nameSpace = ns
 	p.name = name
-	p.labels["tenant"] = "default"
-	p.labels["network"] = "default-net"
-	p.labels["net-group"] = ""
+	p.labels["io.contiv.tenant"] = "default"
+	p.labels["io.contiv.network"] = "default-net"
+	p.labels["io.contiv.net-group"] = ""
 }
 
 // fetchPodLabels retrieves the labels from the podspec metadata

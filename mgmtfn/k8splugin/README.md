@@ -153,7 +153,8 @@ they can ping each other.
 
 Now let's create Pod with poc-net and poc-epg specified as network and epg
 respectively. Examine pocnet-busybox.yaml. There are two additional labels:
-**network:** *poc-net* and **net-group:** *poc-epg* specified in this pod spec.
+**io.contiv.network:** *poc-net* and **io.contiv.net-group:** *poc-epg* specified
+in this pod spec.
 
 ```
 [root@k8master shared]# kubectl create -f pocnet-busybox.yaml 

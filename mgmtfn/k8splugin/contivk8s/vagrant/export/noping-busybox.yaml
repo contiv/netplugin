@@ -4,8 +4,8 @@ metadata:
   name: annoyed-busybox
   labels:
     app: demo
-    net-group: noping-epg
-    network: poc-net
+    io.contiv.net-group: noping-epg
+    io.contiv.network: poc-net
 spec:
   containers:
   - name: bbox
