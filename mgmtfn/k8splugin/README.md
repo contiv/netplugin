@@ -8,35 +8,18 @@ Networking and Policy can be used for Pod inter-connectivity in a Kubernetes clu
 This step-by-step procedure will guide you through a minimal experience of creating
 a Kubernetes cluster with Contiv networking and applying policy between pods.
 
-#### Step 1: Clone and build kubernetes
+#### Step 1: Clone contrib and netplugin repos
 
 ```
-$ mkdir ~/go/src/github.com/k8s
-$ cd ~/go/src/github.com/k8s
-$ git clone https://github.com/kubernetes/kubernetes
-$ cd kubernetes; make
-```
-
-Note: If the build fails, please retry.
-
-#### Step 2: Clone contrib repo
-
-```
+$ mkdir -p ~/go/src/github.com/k8s
 $ cd ~/go/src/github.com/k8s
 $ git clone https://github.com/jojimt/contrib -b contiv
-```
 
-#### Step 3: Clone and build netplugin
-
-```
 $ cd ~/go/src/github.com/k8s
 $ git clone https://github.com/contiv/netplugin
-
-$ cd netplugin
-$ make run-build
 ```
 
-#### Step 4: Set proxies if your network requires http/https proxy.
+#### Step 2: Set proxies if your network requires http/https proxy.
 
 ```
 $ export http_proxy=http://<....>
@@ -45,7 +28,7 @@ $ export https_proxy=http://<....>
 *Note that https_proxy should be set to point to a http:// URL (not https://).
 This is an ansible requirement.*
 
-#### Step 5: Create cluster
+#### Step 3: Create cluster
 
 ```
 $ cd ~/go/src/github.com/k8s/netplugin
@@ -56,7 +39,7 @@ This step will run Vagrant and ansible commands to bring a kubernetes cluster
 with one master and two worker nodes. This will take some time. Please be 
 patient.
 
-When step 5 completes, you should a message like the one below:
+When step 3 completes, you should a message like the one below:
 
 ```
 PLAY RECAP ******************************************************************** 
@@ -72,35 +55,14 @@ If that happens, just re-issue the command (usually, it's caused by a temporary
 unavailability of a repo on the web). If the problem persists, you should open an
 issue on github.*
 
-You should proceed to Step 6 **only if** the previous step completed successfully.
-
-#### Step 6: Load docker images and files used for demo.
+You should proceed to Step 4 **only if** the previous step completed successfully.
 
 This demo utilizes a **busybox** image built to include a full **netcat** utility.
 However, you can try other images as well if you like. *The Dockerfile used for 
 building the nc-busybox is available in the /shared folder of the k8master node
-(you will get to this directory in Step 7).*
+(you will get to this directory in Step 4).*
 
-This step pulls the nc-busybox (i.e. nc + busybox) image into the cluster nodes
-(this is just to speed up the demo process).
-
-```
-$ make k8s-demo
-```
-
-When step 6 completes, you should a message like the one below:
-
-```
-PLAY RECAP ******************************************************************** 
-k8master                   : ok=x    changed=x    unreachable=0    failed=0   
-k8node-01                  : ok=x    changed=x    unreachable=0    failed=0   
-k8node-02                  : ok=x    changed=x    unreachable=0    failed=0   
-```
-
-Again, if you hit an error, just retry the step.
-
-
-#### Step 7: Start the demo and ssh to the kubernetes master
+#### Step 4: Start the demo and ssh to the kubernetes master
 
 This step will start network services and log you into the kubernetes master node.
 
@@ -108,7 +70,7 @@ This step will start network services and log you into the kubernetes master nod
 $ make k8s-demo-start
 ```
 
-When step 7 completes, you will get a shell prompt from the master. Use *sudo su* to
+When step 4 completes, you will get a shell prompt from the master. Use *sudo su* to
 enter sudo mode. Try a few commands.
 
 
