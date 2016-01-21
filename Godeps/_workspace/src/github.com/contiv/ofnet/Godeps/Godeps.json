@@ -1,0 +1,53 @@
+{
+	"ImportPath": "github.com/contiv/ofnet",
+	"GoVersion": "go1.4.2",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.8.2-10-g21d4508",
+			"Rev": "21d4508646ae56d79244bd9046c1df63a5fa8c37"
+		},
+		{
+			"ImportPath": "github.com/cenkalti/hub",
+			"Comment": "v1.0.0-12-g7be60e1",
+			"Rev": "7be60e186e66cd86db2d50ef2ca3778e281c87b4"
+		},
+		{
+			"ImportPath": "github.com/cenkalti/rpc2",
+			"Rev": "44d0d95e4f529a0fe230c90d2126bd597c61148c"
+		},
+		{
+			"ImportPath": "github.com/contiv/libovsdb",
+			"Comment": "v0.1-3-g45476f1",
+			"Rev": "45476f107954c5e22cf114211e684a5dd9a69595"
+		},
+		{
+			"ImportPath": "github.com/google/gopacket",
+			"Comment": "v1.1.10-132-g7abd91e",
+			"Rev": "7abd91e1d374797e8c5b9a85a44bea266a62d7c5"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/common",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/shaleman/libOpenflow/util",
+			"Rev": "50a0b02df3695fb6e892ad0f82b8a7c4c61fcf51"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netlink",
+			"Rev": "ae3e7dba57271b4e976c4f91637861ee477135e2"
+		}
+	]
+}

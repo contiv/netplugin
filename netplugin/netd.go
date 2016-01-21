@@ -55,7 +55,8 @@ type cliOpts struct {
 	vtepIP     string // IP address to be used by the VTEP
 	vlanIntf   string // Uplink interface for VLAN switching
 	version    bool
-	routerIP   string
+	routerIP   string // myrouter ip to start a protocol like Bgp
+	fwdMode    string // default "bridge". Values: "routing" , "bridge"
 }
 
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
@@ -319,6 +320,10 @@ func main() {
 		"router-ip",
 		"",
 		"My Router ip address")
+	flagSet.StringVar(&opts.fwdMode,
+		"fwd-mode",
+		"bridge",
+		"Forwarding Mode")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
@@ -351,6 +356,11 @@ func main() {
 		configureSyslog(opts.syslog)
 	}
 
+	if opts.fwdMode != "bridge" && opts.fwdMode != "routing" {
+		log.Infof("Invalid forwarding mode. Setting the mode to bridge ")
+		opts.fwdMode = "bridge"
+	}
+
 	if flagSet.NFlag() < 1 {
 		log.Infof("host-label not specified, using default (%s)", opts.hostLabel)
 	}
@@ -376,7 +386,8 @@ func main() {
                        "host-label": %q,
 						"vtep-ip": %q,
 						"vlan-if": %q,
-						"router-ip":%q
+						"router-ip":%q,
+						"fwdMode":%q
                     },
                     %q : {
                        "dbip": "127.0.0.1",
@@ -389,7 +400,7 @@ func main() {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`, utils.OvsNameStr, opts.hostLabel, opts.vtepIP,
-		opts.vlanIntf, opts.routerIP, utils.OvsNameStr)
+		opts.vlanIntf, opts.routerIP, opts.fwdMode, utils.OvsNameStr)
 
 	netPlugin := &plugin.NetPlugin{}
 
@@ -432,6 +443,9 @@ func main() {
 	}
 	if pluginConfig.Instance.RouterIP == "" {
 		pluginConfig.Instance.RouterIP = opts.routerIP
+	}
+	if pluginConfig.Instance.FwdMode == "" {
+		pluginConfig.Instance.FwdMode = opts.fwdMode
 	}
 
 	svcplugin.QuitCh = make(chan struct{})

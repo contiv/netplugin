@@ -48,7 +48,7 @@ type OvsSwitch struct {
 }
 
 // NewOvsSwitch Creates a new OVS switch instance
-func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*OvsSwitch, error) {
+func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string, routerInfo ...string) (*OvsSwitch, error) {
 	var err error
 	var ofnetPort, ctrlerPort uint16
 
@@ -73,8 +73,13 @@ func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*O
 	// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
 	if netType == "vxlan" {
 		// Create an ofnet agent
-		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
-			ofnet.OFNET_AGENT_VXLAN_PORT, 6633)
+		if fwdMode == "bridge" {
+			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
+				ofnet.OFNET_AGENT_VXLAN_PORT, 6633)
+		} else if fwdMode == "routing" {
+			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vrouter", net.ParseIP(localIP),
+				ofnet.OFNET_AGENT_VXLAN_PORT, 6633)
+		}
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err
@@ -117,37 +122,13 @@ func NewOvsSwitch(bridgeName, netType, localIP string, routerInfo ...string) (*O
 
 	if netType == "vlan" {
 		// Create an ofnet agent
-		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vlrouter", net.ParseIP(localIP),
-			ofnet.OFNET_AGENT_VLAN_PORT, 6634, routerInfo...)
-		if err != nil {
-			log.Fatalf("Error initializing ofnet")
-			return nil, err
+		if fwdMode == "bridge" {
+			//For vlan bridge fwd mode ofnetAgent is not instantiated
+			return sw, nil
+		} else if fwdMode == "routing" {
+			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vlrouter", net.ParseIP(localIP),
+				ofnet.OFNET_AGENT_VLAN_PORT, 6634, routerInfo...)
 		}
-
-		// Add controller to the OVS
-		ctrlerIP := "127.0.0.1"
-		ctrlerPort := uint16(6634)
-		target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, ctrlerPort)
-		if !sw.ovsdbDriver.IsControllerPresent(target) {
-			err = sw.ovsdbDriver.AddController(ctrlerIP, ctrlerPort)
-			if err != nil {
-				log.Fatalf("Error adding controller to OVS. Err: %v", err)
-				return nil, err
-			}
-		}
-
-		log.Infof("Waiting for OVS switch to connect..")
-
-		// Wait for a while for OVS switch to connect to ofnet agent
-		sw.ofnetAgent.WaitForSwitchConnection()
-
-		log.Infof("Switch (vlan) connected.")
-	}
-
-	if netType == "vlan" {
-		// Create an ofnet agent
-		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vlrouter", net.ParseIP(localIP),
-			ofnet.OFNET_AGENT_VLAN_PORT, 6634, routerInfo...)
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err
@@ -351,13 +332,6 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 	}
 
 	// Add the endpoint to ofnet
-<<<<<<< HEAD
-=======
-	if sw.ofnetAgent == nil {
-		log.Infof("Skipping adding endpoint to ofnet")
-		return nil
-	}
->>>>>>> Godeps commit
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
 	if err != nil {
@@ -421,7 +395,6 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		log.Errorf("Error adding local port %s to ofnet. Err: %v", ovsPortName, err)
 		return err
 	}
-
 	return nil
 }
 

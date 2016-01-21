@@ -67,6 +67,7 @@ func (p *NetPlugin) Init(pluginConfig Config, configStr string) error {
 		VtepIP:      pluginConfig.Instance.VtepIP,
 		VlanIntf:    pluginConfig.Instance.VlanIntf,
 		RouterIP:    pluginConfig.Instance.RouterIP,
+		FwdMode:     pluginConfig.Instance.FwdMode,
 		StateDriver: p.StateDriver,
 	}
 

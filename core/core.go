@@ -80,6 +80,7 @@ type InstanceInfo struct {
 	VtepIP      string      `json:"vtep-ip"`
 	VlanIntf    string      `json:"vlan-if"`
 	RouterIP    string      `json:"router-ip"`
+	FwdMode     string      `json:"fwd-mode"`
 }
 
 // Driver implements the programming logic

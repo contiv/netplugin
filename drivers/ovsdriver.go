@@ -138,7 +138,8 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	d.switchDb = make(map[string]*OvsSwitch)
 
 	// Create Vxlan switch
-	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP)
+	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP,
+		info.FwdMode)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
@@ -447,7 +448,6 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 }
 
 // AddBgpNeighbors adds bgp neighbor by named identifier
-
 func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	cfg := mastercfg.CfgBgpState{}
 	cfg.StateDriver = d.oper.StateDriver
