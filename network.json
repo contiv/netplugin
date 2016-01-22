@@ -17,14 +17,6 @@
 					"title": "Tenant Name",
 					"length": 64
 				},
-				"isPublic": {
-					"type": "bool",
-					"title": "Public network"
-				},
-				"isPrivate": {
-					"type": "bool",
-					"title": "Private network"
-				},
 				"encap": {
 					"type": "string",
 					"format": "^(vlan|vxlan)$",

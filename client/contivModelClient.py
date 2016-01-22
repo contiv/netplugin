@@ -146,6 +146,8 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"name": obj.name, 
 			"network-infra-type": obj.network-infra-type, 
+			"vlans": obj.vlans, 
+			"vxlans": obj.vxlans, 
 	    })
 
 	    # Post the data
@@ -178,8 +180,6 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"encap": obj.encap, 
 			"gateway": obj.gateway, 
-			"isPrivate": obj.isPrivate, 
-			"isPublic": obj.isPublic, 
 			"networkName": obj.networkName, 
 			"pktTag": obj.pktTag, 
 			"subnet": obj.subnet, 
@@ -365,11 +365,7 @@ class objmodelClient:
 
 	    jdata = json.dumps({ 
 			"defaultNetwork": obj.defaultNetwork, 
-			"subnetLen": obj.subnetLen, 
-			"subnetPool": obj.subnetPool, 
 			"tenantName": obj.tenantName, 
-			"vlans": obj.vlans, 
-			"vxlans": obj.vxlans, 
 	    })
 
 	    # Post the data
