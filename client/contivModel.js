@@ -44,9 +44,9 @@ var AppModalView = React.createClass({
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
-				<Input type='text' label='' ref='appName' defaultValue={obj.appName} placeholder='' />
+				<Input type='text' label='Application Name' ref='appName' defaultValue={obj.appName} placeholder='Application Name' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
 			</div>
 	        <div className='modal-footer'>
@@ -488,7 +488,7 @@ var ServiceModalView = React.createClass({
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
-				<Input type='text' label='' ref='appName' defaultValue={obj.appName} placeholder='' />
+				<Input type='text' label='Application Name' ref='appName' defaultValue={obj.appName} placeholder='Application Name' />
 			
 				<Input type='text' label='' ref='command' defaultValue={obj.command} placeholder='' />
 			
@@ -506,9 +506,9 @@ var ServiceModalView = React.createClass({
 			
 				<Input type='text' label='' ref='scale' defaultValue={obj.scale} placeholder='' />
 			
-				<Input type='text' label='' ref='serviceName' defaultValue={obj.serviceName} placeholder='' />
+				<Input type='text' label='Service Name' ref='serviceName' defaultValue={obj.serviceName} placeholder='Service Name' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
 				<Input type='text' label='' ref='volumeProfile' defaultValue={obj.volumeProfile} placeholder='' />
 			
@@ -567,11 +567,11 @@ var ServiceInstanceModalView = React.createClass({
 			
 				<Input type='text' label='' ref='appName' defaultValue={obj.appName} placeholder='' />
 			
-				<Input type='text' label='' ref='instanceId' defaultValue={obj.instanceId} placeholder='' />
+				<Input type='text' label='Service instance id' ref='instanceId' defaultValue={obj.instanceId} placeholder='Service instance id' />
 			
 				<Input type='text' label='' ref='serviceName' defaultValue={obj.serviceName} placeholder='' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
 				<Input type='text' label='' ref='volumes' defaultValue={obj.volumes} placeholder='' />
 			
@@ -693,9 +693,9 @@ var VolumeModalView = React.createClass({
 			
 				<Input type='text' label='' ref='size' defaultValue={obj.size} placeholder='' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
-				<Input type='text' label='' ref='volumeName' defaultValue={obj.volumeName} placeholder='' />
+				<Input type='text' label='Volume Name' ref='volumeName' defaultValue={obj.volumeName} placeholder='Volume Name' />
 			
 			</div>
 	        <div className='modal-footer'>
@@ -758,9 +758,9 @@ var VolumeProfileModalView = React.createClass({
 			
 				<Input type='text' label='' ref='size' defaultValue={obj.size} placeholder='' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
-				<Input type='text' label='' ref='volumeProfileName' defaultValue={obj.volumeProfileName} placeholder='' />
+				<Input type='text' label='Volume profile Name' ref='volumeProfileName' defaultValue={obj.volumeProfileName} placeholder='Volume profile Name' />
 			
 			</div>
 	        <div className='modal-footer'>
