@@ -175,7 +175,7 @@ func (d *daemon) execOpts() {
 	}
 
 	if d.opts.version {
-		fmt.Printf(version.Print(version.Get()))
+		fmt.Printf(version.String())
 		os.Exit(0)
 	}
 

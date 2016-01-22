@@ -112,7 +112,7 @@ func main() {
 		logger.Fatalf("Failed to parse command. Error: %s", err)
 	}
 	if showVersion {
-		fmt.Printf(version.Print(version.Get()))
+		fmt.Printf(version.String())
 		os.Exit(0)
 	}
 

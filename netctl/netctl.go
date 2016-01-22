@@ -411,9 +411,9 @@ func showVersion(ctx *cli.Context) {
 		fmt.Printf("Unable to fetch version information")
 	} else {
 		fmt.Printf("Client Version:\n")
-		fmt.Printf(version.Print(version.Get()))
+		fmt.Printf(version.String())
 		fmt.Printf("\n")
 		fmt.Printf("Server Version:\n")
-		fmt.Printf(version.Print(&ver))
+		fmt.Printf(version.StringFromInfo(&ver))
 	}
 }

@@ -11,7 +11,7 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Flags = netctl.NetmasterFlags
-	app.Version = "\n" + version.Print(version.Get())
+	app.Version = "\n" + version.String()
 	app.Commands = netctl.Commands
 	app.Run(os.Args)
 }

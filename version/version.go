@@ -36,8 +36,14 @@ func Get() *Info {
 	return &ver
 }
 
-// Print prints the versioning details
-func Print(ver *Info) string {
+// String returns printable version string
+func String() string {
+	ver := Get()
+	return StringFromInfo(ver)
+}
+
+// StringFromInfo prints the versioning details
+func StringFromInfo(ver *Info) string {
 	return fmt.Sprintf("Version: %s\n", ver.Version) +
 		fmt.Sprintf("GitCommit: %s\n", ver.GitCommit) +
 		fmt.Sprintf("BuildTime: %s\n", ver.BuildTime)
