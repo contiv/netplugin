@@ -2,11 +2,11 @@ package objdb
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/netplugin.orig/core"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -57,7 +57,7 @@ func (cp *consulPlugin) GetObj(key string, retVal interface{}) error {
 	// Consul returns success and a nil kv when a key is not found,
 	// translate it to 'Key not found' error
 	if resp == nil {
-		return core.Errorf("Key not found")
+		return errors.New("Key not found")
 	}
 
 	// Parse JSON response
@@ -80,7 +80,7 @@ func (cp *consulPlugin) ListDir(key string) ([]string, error) {
 	// Consul returns success and a nil kv when a key is not found,
 	// translate it to 'Key not found' error
 	if kvs == nil {
-		return nil, core.Errorf("Key not found")
+		return nil, errors.New("Key not found")
 	}
 
 	var keys []string
