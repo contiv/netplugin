@@ -299,7 +299,7 @@ func main() {
 	}
 
 	if opts.version {
-		version.Print(version.Get())
+		fmt.Printf(version.Print(version.Get()))
 		os.Exit(0)
 	}
 
