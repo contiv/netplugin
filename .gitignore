@@ -36,6 +36,7 @@ resolv.conf
 # python
 *.pyc
 
+<<<<<<< HEAD
 # cscope db
 cscope.*
 
@@ -44,6 +45,8 @@ cscope.*
 .out.vagrant
 .etc_hosts
 
+=======
+>>>>>>> 54cc6389435ae35500a9d7611f08da38a430b932
 # version
 version/version_default.go
 version/version_release.go
