@@ -5,12 +5,13 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/contiv/netplugin/netctl"
+	"github.com/contiv/netplugin/version"
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Flags = netctl.NetmasterFlags
-	app.Version = ""
+	app.Version = "\n" + version.Print(version.Get())
 	app.Commands = netctl.Commands
 	app.Run(os.Args)
 }

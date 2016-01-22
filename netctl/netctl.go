@@ -410,6 +410,10 @@ func showVersion(ctx *cli.Context) {
 	if err := getObject(ctx, versionURL(ctx), &ver); err != nil {
 		fmt.Printf("Unable to fetch version information")
 	} else {
+		fmt.Printf("Client Version:\n")
+		fmt.Printf(version.Print(version.Get()))
+		fmt.Printf("\n")
+		fmt.Printf("Server Version:\n")
 		fmt.Printf(version.Print(&ver))
 	}
 }

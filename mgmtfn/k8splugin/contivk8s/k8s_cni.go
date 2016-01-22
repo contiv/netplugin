@@ -17,12 +17,14 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/contivk8s/clients"
+	"github.com/contiv/netplugin/version"
 
 	logger "github.com/Sirupsen/logrus"
 )
@@ -96,6 +98,23 @@ func getPrefixedLogger() *logger.Entry {
 }
 
 func main() {
+	var showVersion bool
+
+	// parse rest of the args that require creating state
+	flagSet := flag.NewFlagSet("netd", flag.ExitOnError)
+
+	flagSet.BoolVar(&showVersion,
+		"version",
+		false,
+		"Show version")
+
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		logger.Fatalf("Failed to parse command. Error: %s", err)
+	}
+	if showVersion {
+		fmt.Printf(version.Print(version.Get()))
+		os.Exit(0)
+	}
 
 	pInfo := cniapi.CNIPodAttr{}
 	cniCmd := os.Getenv("CNI_COMMAND")
