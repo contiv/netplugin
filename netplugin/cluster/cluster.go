@@ -136,20 +136,6 @@ func registerService(objdbClient objdb.API, localIP string) error {
 		return err
 	}
 
-	// service info
-	srvInfo = objdb.ServiceInfo{
-		ServiceName: "netplugin",
-		HostAddr:    localIP,
-		Port:        ofnet.OFNET_AGENT_VLAN_PORT,
-	}
-
-	// Register the node with service registry
-	err = objdbClient.RegisterService(srvInfo)
-	if err != nil {
-		log.Fatalf("Error registering service. Err: %v", err)
-		return err
-	}
-
 	log.Infof("Registered netplugin service with registry")
 	return nil
 }

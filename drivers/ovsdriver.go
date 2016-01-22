@@ -393,16 +393,14 @@ func (d *OvsDriver) DeletePeerHost(node core.ServiceInfo) error {
 
 	log.Infof("DeletePeerHost for %+v", node)
 
-	// Remove VTEP from vxlan switch
-	err := d.switchDb["vxlan"].DeleteVtep(node.HostAddr)
-	// Add the VTEP for the peer in vxlan switch.
+	// Remove the VTEP for the peer in vlan switch.
 	err := d.switchDb["vlan"].DeleteVtep(node.HostAddr)
 	if err != nil {
 		log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
 		return err
 	}
 
-	// Add the VTEP for the peer in vxlan switch.
+	// Remove the VTEP for the peer in vxlan switch.
 	err = d.switchDb["vxlan"].DeleteVtep(node.HostAddr)
 	if err != nil {
 		log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
