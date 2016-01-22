@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -28,6 +29,8 @@ import (
 )
 
 type oper int
+
+const maxIntfRetry = 100
 
 // OvsDriverConfig defines the configuration required to initialize the
 // OvsDriver.
@@ -78,14 +81,14 @@ type OvsDriver struct {
 
 func (d *OvsDriver) getIntfName() (string, error) {
 	// get the next available port number
-	for {
+	for i := 0; i < maxIntfRetry; i++ {
 		// Pick next port number
 		d.oper.CurrPortNum++
 		intfName := fmt.Sprintf("vport%d", d.oper.CurrPortNum)
 
 		// check if the port name is already in use
 		_, err := netlink.LinkByName(intfName)
-		if err != nil {
+		if err != nil && strings.Contains(err.Error(), "not found") {
 			// save the new state
 			err = d.oper.Write()
 			if err != nil {
@@ -94,6 +97,8 @@ func (d *OvsDriver) getIntfName() (string, error) {
 			return intfName, nil
 		}
 	}
+
+	return "", core.Errorf("Could not get intf name. Max retry exceeded")
 }
 
 // Init initializes the OVS driver.
@@ -368,14 +373,7 @@ func (d *OvsDriver) AddPeerHost(node core.ServiceInfo) error {
 		log.Errorf("Error adding the VTEP %s. Err: %s", node.HostAddr, err)
 		return err
 	}
-	/*
-		// Add the VTEP for the peer in vlan switch.
-		err = d.switchDb["vlan"].CreateVtep(node.HostAddr)
-		if err != nil {
-			log.Errorf("Error adding the VTEP %s. Err: %s", node.HostAddr, err)
-			return err
-		}
-	*/
+
 	return nil
 }
 
@@ -395,14 +393,6 @@ func (d *OvsDriver) DeletePeerHost(node core.ServiceInfo) error {
 		return err
 	}
 
-	/*
-		// Remove VTEP from vlan switch
-		err = d.switchDb["vlan"].DeleteVtep(node.HostAddr)
-		if err != nil {
-			log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
-			return err
-		}
-	*/
 	return nil
 }
 

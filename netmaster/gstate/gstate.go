@@ -17,8 +17,6 @@ package gstate
 
 import (
 	"encoding/json"
-	"strconv"
-	"strings"
 
 	"github.com/jainvipin/bitset"
 
@@ -408,44 +406,4 @@ func (gc *Cfg) UnassignNetwork(networkName string) error {
 	}
 
 	return nil
-}
-
-// IsTagInRange verifies if the requested vlan/vxlan adheres to tenants configured range
-func (gc *Cfg) IsTagInRange(pktTag uint, pktTagType string, pktTagRange string) bool {
-	if pktTag == 0 {
-		return true
-	}
-
-	if pktTagType == "vxlan" {
-		rCfg := &resources.AutoVXLANCfgResource{}
-		rCfg.StateDriver = gc.StateDriver
-		if err := rCfg.Read("global"); err != nil {
-			return false
-		}
-
-		// Vxlan bitset allocation is reverse offseted by the start of the range
-		// So, if we were allocating vlan 2001, when the allowed range was 2000-3000;
-		// We would internally allocate bitset (2001-2000) = 1 for it.
-		startOffset64, err := strconv.Atoi(strings.Split(pktTagRange, "-")[0])
-		startOffset := uint(startOffset64)
-
-		if err != nil {
-			log.Errorf("Error in startOffset conversion pktTagRange: %s err: %s", pktTagRange, err)
-			return false
-		}
-		if startOffset > pktTag {
-			return false
-		}
-
-		return rCfg.VXLANs.Test(pktTag - startOffset)
-	} else if pktTagType == "vlan" {
-		rCfg := &resources.AutoVLANCfgResource{}
-		rCfg.StateDriver = gc.StateDriver
-		if err := rCfg.Read("global"); err != nil {
-			return false
-		}
-
-		return rCfg.VLANs.Test(pktTag)
-	}
-	return false
 }

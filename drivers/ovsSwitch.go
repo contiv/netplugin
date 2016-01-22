@@ -468,6 +468,9 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 		}
 	}
 
+	// HACK: When an uplink is added to OVS, it disconnects the controller connection.
+	//       This is a hack to workaround this issue. We wait for the OVS to reconnect
+	//       to the controller.
 	// Wait for a while for OVS switch to disconnect/connect to ofnet agent
 	time.Sleep(time.Second)
 	sw.ofnetAgent.WaitForSwitchConnection()
