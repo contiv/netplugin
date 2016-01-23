@@ -181,7 +181,8 @@ var Commands = []cli.Command{
 				Action:    deleteRule,
 			},
 			{
-				Name:      "add",
+				Name:      "create",
+				Aliases:   []string{"add"},
 				Usage:     "Add a new rule.",
 				ArgsUsage: "[policy] [rule id]",
 				Flags: []cli.Flag{
