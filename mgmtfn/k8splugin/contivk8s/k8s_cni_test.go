@@ -25,9 +25,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	osexec "os/exec"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -161,6 +163,17 @@ func setupTestServer() {
 		l.Close()
 		logger.Infof("k8s test plugin closing %s", driverPath)
 	}()
+
+	// make sure the listener is ready before returning
+	for count := 0; count < 5; count++ {
+		_, err := osexec.Command("ls", driverPath).CombinedOutput()
+		if err == nil {
+			return
+		}
+		time.Sleep(time.Second)
+	}
+
+	logger.Fatalf("Listener not ready after 5 sec")
 
 }
 
