@@ -259,6 +259,10 @@ func DeleteEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 		return nil, err
 	}
 
+	// Take a global lock for address release
+	addrMutex.Lock()
+	defer addrMutex.Unlock()
+
 	// build the endpoint ID
 	netID := epdelReq.NetworkName + "." + epdelReq.TenantName
 	epID := getEpName(netID, &intent.ConfigEP{Container: epdelReq.EndpointID})

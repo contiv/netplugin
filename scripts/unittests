@@ -79,7 +79,7 @@ do
       $GOBIN/godep go tool cover -func=cover.out) || exit 1
   else
       (cd $GOSRC/github.com/contiv/netplugin && \
-      $GOBIN/godep go test ${pkg}) || exit 1
+      $GOBIN/godep go test -v ${pkg}) || exit 1
   fi
 done
 

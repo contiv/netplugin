@@ -279,15 +279,18 @@ func getEPSpec(pInfo *cniapi.CNIPodAttr) (*epSpec, error) {
 	resp := epSpec{}
 
 	// Get labels from the kube api server
-	epg, err := kubeAPIClient.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name, "net-group")
+	epg, err := kubeAPIClient.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name,
+		"io.contiv.net-group")
 	if err != nil {
 		log.Errorf("Error getting epg. Err: %v", err)
 		return &resp, err
 	}
 
 	// Safe to ignore the error return for subsequent invocations of GetPodLabel
-	netw, _ := kubeAPIClient.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name, "network")
-	tenant, _ := kubeAPIClient.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name, "tenant")
+	netw, _ := kubeAPIClient.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name,
+		"io.contiv.network")
+	tenant, _ := kubeAPIClient.GetPodLabel(pInfo.K8sNameSpace, pInfo.Name,
+		"io.contiv.tenant")
 	log.Infof("labels is %s/%s/%s for pod %s\n", tenant, netw, epg, pInfo.Name)
 	resp.Tenant = tenant
 	resp.Network = netw
