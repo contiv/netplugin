@@ -81,12 +81,12 @@ func listPolicies(ctx *cli.Context) {
 }
 
 func addRule(ctx *cli.Context) {
-	argCheck(2, ctx)
+	argCheck(1, ctx)
 
 	args := map[string]interface{}{
 		"tenantName":    ctx.String("tenant"),
-		"policyName":    ctx.Args()[0],
-		"ruleId":        ctx.Args()[1],
+		"policyName":    ctx.String("policy"),
+		"ruleId":        ctx.Args()[0],
 		"priority":      ctx.Int("priority"),
 		"direction":     ctx.String("direction"),
 		"endpointGroup": ctx.String("epg"),
@@ -109,20 +109,20 @@ func addRule(ctx *cli.Context) {
 }
 
 func deleteRule(ctx *cli.Context) {
-	argCheck(2, ctx)
+	argCheck(1, ctx)
 
 	tenant := ctx.String("tenant")
-	policy := ctx.Args()[0]
-	ruleID := ctx.Args()[1]
+	policy := ctx.String("policy")
+	ruleID := ctx.Args()[0]
 
 	deleteURL(ctx, fmt.Sprintf("%s%s:%s:%s/", ruleURL(ctx), tenant, policy, ruleID))
 }
 
 func listRules(ctx *cli.Context) {
-	argCheck(1, ctx)
+	argCheck(0, ctx)
 
 	tenant := ctx.String("tenant")
-	policy := ctx.Args()[0]
+	policy := ctx.String("policy")
 
 	rules := getList(ctx, ruleURL(ctx))
 
