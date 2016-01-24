@@ -45,5 +45,4 @@ cscope.*
 .etc_hosts
 
 # version
-version/version_default.go
-version/version_release.go
+version/version_gen.go
