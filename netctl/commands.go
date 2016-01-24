@@ -18,6 +18,11 @@ var jsonFlag = cli.BoolFlag{
 	Usage: "Output list in JSON format",
 }
 
+var quietFlag = cli.BoolFlag{
+	Name:  "quiet, q",
+	Usage: "Only display name field",
+}
+
 // NetmasterFlags encapsulates the flags required for talking to the netmaster.
 var NetmasterFlags = []cli.Flag{
 	cli.StringFlag{
@@ -66,7 +71,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List endpoint groups",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
 				Action:    listEndpointGroups,
 			},
 		},
@@ -81,7 +86,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List networks",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
 				Action:    listNetworks,
 			},
 			{
@@ -129,6 +134,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List tenants",
 				ArgsUsage: " ",
+				Flags:     []cli.Flag{quietFlag},
 				Action:    listTenants,
 			},
 			{
@@ -155,7 +161,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List rules for a given tenant/policy",
 				ArgsUsage: "[policy]",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
 				Action:    listRules,
 			},
 			{
@@ -237,7 +243,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List policies",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
 				Action:    listPolicies,
 			},
 		},
