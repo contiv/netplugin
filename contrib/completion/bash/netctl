@@ -16,7 +16,7 @@ GLOBAL_OPTIONS="\
 # Fetch all tenant names
 _netctl_complete_tenants() {
     fields='$1'
-    COMPREPLY=( $(compgen -W '$(netctl tenant ls | awk "NR>2 {print $fields}")' -- "$cur") )
+    COMPREPLY=( $(compgen -W '$(netctl tenant ls -q)' -- "$cur") )
 }
 
 # Fetch all network names in the tenant
@@ -24,7 +24,7 @@ _netctl_complete_networks() {
    local tenant
    tenant=$(_netctl_fetch_tenant_value)
    fields='$2'
-    COMPREPLY=( $(compgen -W '$(netctl network ls --tenant $tenant | awk "NR>2 {print $fields}")' -- "$cur") )
+    COMPREPLY=( $(compgen -W '$(netctl network ls --tenant $tenant -q")' -- "$cur") )
 }
 
 # Fetch all policy names in the tenant
@@ -32,7 +32,7 @@ _netctl_complete_policies() {
     local tenant
     tenant=$(_netctl_fetch_tenant_value)
     fields='$2'
-    COMPREPLY=( $(compgen -W '$(netctl policy ls --tenant $tenant | awk "NR>2 {print $fields}")' -- "$cur") )
+    COMPREPLY=( $(compgen -W '$(netctl policy ls --tenant $tenant -q)' -- "$cur") )
 }
 
 # Fetch all group names in the tenant
@@ -40,7 +40,7 @@ _netctl_complete_groups() {
     local tenant
     tenant=$(_netctl_fetch_tenant_value)
     fields='$2'
-    COMPREPLY=( $(compgen -W '$(netctl group ls --tenant $tenant | awk "NR>2 {print $fields}")' -- "$cur") )
+    COMPREPLY=( $(compgen -W '$(netctl group ls --tenant $tenant -q")' -- "$cur") )
 }
 
 
@@ -103,7 +103,7 @@ _netctl() {
             ;;
         rule)
             case "${secondword}" in
-                add)
+                create)
                     _netctl_rule_create
                     ;;
                 rm|delete)
@@ -113,7 +113,7 @@ _netctl() {
                     _netctl_rule_ls
                     ;;
                 *)
-                    COMPREPLY=( $( compgen -W "add rm ls help" -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W "create rm ls help" -- "$cur" ) )
                     ;;
             esac
             ;;
@@ -298,6 +298,10 @@ _netctl_group_create() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
+            return
+            ;;
+        --policy|-p)
+            _netctl_complete_policies
             return
             ;;
     esac
