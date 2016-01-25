@@ -24,3 +24,4 @@ host-build:
 
 host-test:
 	godep go test -v ./ ./modeldb
+	go test -bench=. -run "Benchmark"

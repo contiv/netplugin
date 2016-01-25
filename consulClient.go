@@ -50,7 +50,7 @@ func processKey(inKey string) string {
 func (cp *consulPlugin) GetObj(key string, retVal interface{}) error {
 	key = processKey("/contiv.io/obj/" + processKey(key))
 
-	resp, _, err := cp.client.KV().Get(key, nil)
+	resp, _, err := cp.client.KV().Get(key, &api.QueryOptions{RequireConsistent: true})
 	if err != nil {
 		return err
 	}
