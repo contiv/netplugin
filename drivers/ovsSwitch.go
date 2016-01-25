@@ -16,6 +16,7 @@ limitations under the License.
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -56,12 +57,6 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string, routerInf
 	sw.bridgeName = bridgeName
 	sw.netType = netType
 
-	// Create OVS db driver
-	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure")
-	if err != nil {
-		log.Fatalf("Error creating ovsdb driver. Err: %v", err)
-	}
-
 	// determine ofnet and ctrler ports to use
 	if netType == "vxlan" {
 		ofnetPort = vxlanOfnetPort
@@ -70,27 +65,29 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string, routerInf
 		ofnetPort = vlanOfnetPort
 		ctrlerPort = vlanCtrlerPort
 	}
+
 	// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
 	if netType == "vxlan" {
+		// Create OVS db driver
+		sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure")
+		if err != nil {
+			log.Fatalf("Error creating ovsdb driver. Err: %v", err)
+		}
 		// Create an ofnet agent
 		if fwdMode == "bridge" {
 			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
-				ofnet.OFNET_AGENT_VXLAN_PORT, 6633)
+				ofnetPort, ctrlerPort)
 		} else if fwdMode == "routing" {
 			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vrouter", net.ParseIP(localIP),
-				ofnet.OFNET_AGENT_VXLAN_PORT, 6633)
+				ofnetPort, ctrlerPort)
+		} else {
+			log.Errorf("Invalid Forwarding mode")
+			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err
 		}
-
-	// Create an ofnet agent
-	sw.ofnetAgent, err = ofnet.NewOfnetAgent(netType, net.ParseIP(localIP), ofnetPort, ctrlerPort)
-	if err != nil {
-		log.Fatalf("Error initializing ofnet")
-		return nil, err
-	}
 
 	// Add controller to the OVS
 	ctrlerIP := "127.0.0.1"
@@ -124,11 +121,25 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string, routerInf
 		// Create an ofnet agent
 		if fwdMode == "bridge" {
 			//For vlan bridge fwd mode ofnetAgent is not instantiated
+			// Create OVS db driver
+			sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "")
+			if err != nil {
+				log.Fatalf("Error creating ovsdb driver. Err: %v", err)
+			}
 			return sw, nil
 		} else if fwdMode == "routing" {
+			// Create OVS db driver
+			sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure")
+			if err != nil {
+				log.Fatalf("Error creating ovsdb driver. Err: %v", err)
+			}
 			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vlrouter", net.ParseIP(localIP),
 				ofnet.OFNET_AGENT_VLAN_PORT, 6634, routerInfo...)
+		} else {
+			log.Errorf("Invalid Forwarding mode")
+			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
+
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
 			return nil, err

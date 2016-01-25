@@ -197,7 +197,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork deletes a network by named identifier
-func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int) error {
+func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, Gw string) error {
 	log.Infof("delete net %s, encap %s, tags: %d/%d", id, encap, pktTag, extPktTag)
 
 	// Find the switch based on network type
@@ -207,7 +207,8 @@ func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int) error
 	} else {
 		sw = d.switchDb["vlan"]
 	}
-	return sw.DeleteNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag), cfgNw.Gateway)
+
+	return sw.DeleteNetwork(uint16(pktTag), uint32(extPktTag), Gw)
 }
 
 // CreateEndpoint creates an endpoint by named identifier
@@ -447,6 +448,8 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 
 // AddBgpNeighbors adds bgp neighbor by named identifier
 func (d *OvsDriver) AddBgpNeighbors(id string) error {
+	var sw *OvsSwitch
+
 	cfg := mastercfg.CfgBgpState{}
 	cfg.StateDriver = d.oper.StateDriver
 	log.Info("Reading from etcd State %s", id)
@@ -458,34 +461,20 @@ func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	log.Infof("create Bgp Server %s \n", cfg.Name)
 
 	// Find the switch based on network type
-	var sw *OvsSwitch
-	//if cfg.CfgType == "bgp-vxlan" {
-	//	sw = d.switchDb["vxlan"]
-	//} else {
 	sw = d.switchDb["vlan"]
-	//}
 
 	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbor)
 }
 
 // DeleteBgpNeightbor deletes a bgp neighbor by named identifier
 func (d *OvsDriver) DeleteBgpNeighbors(id string) error {
-	log.Infof("delete router state %s \n", id)
-
-	cfg := mastercfg.CfgBgpState{}
-	cfg.StateDriver = d.oper.StateDriver
-	err := cfg.Read(id)
-	if err != nil {
-		log.Errorf("Failed to read router state %s \n", cfg.Name)
-		return err
-	}
+	log.Infof("delete Bgp Neighbor %s \n", id)
+	//FixME: We are not maintaining oper state for Bgp
+	//Need to Revisit again
 	// Find the switch based on network type
 	var sw *OvsSwitch
-	//	if cfg.CfgType == "bgp-vxlan" {
-	//		sw = d.switchDb["vxlan"]
-	//	} else {
+
 	sw = d.switchDb["vlan"]
-	//	}
 	return sw.DeleteBgpNeighbors()
 
 }

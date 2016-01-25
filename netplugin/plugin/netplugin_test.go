@@ -33,7 +33,8 @@ func TestNetPluginInit(t *testing.T) {
                        "container": "docker"
                     },
                     "plugin-instance": {
-                       "host-label": "testHost"
+                       "host-label": "testHost",
+		       "fwd-mode":"bridge"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -146,7 +147,8 @@ func TestNetPluginInitInvalidConfigMissingStateDriverName(t *testing.T) {
                        "container": "docker"
                     },
                     "plugin-instance": {
-                       "host-label": "testHost"
+                       "host-label": "testHost",
+		       "fwd-mode":"bridge"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -184,7 +186,8 @@ func TestNetPluginInitInvalidConfigMissingStateDriver(t *testing.T) {
                        "container": "docker"
                     },
                     "plugin-instance": {
-                       "host-label": "testHost"
+                       "host-label": "testHost",
+           	       "fwd-mode":"bridge"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -218,7 +221,8 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriverName(t *testing.T) {
                        "container": "docker"
                     },
                     "plugin-instance": {
-                       "host-label": "testHost"
+                       "host-label": "testHost",
+		       "fwd-mode":"bridge"
                     },
                     "ovs" : {
                        "dbip": "127.0.0.1",
@@ -254,7 +258,8 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriver(t *testing.T) {
                        "container": "docker"
                     },
                     "plugin-instance": {
-                       "host-label": "testHost"
+                       "host-label": "testHost",
+		       "fwd-mode":"bridge"
                     },
                     "fakedriver" : {
                     },
@@ -276,4 +281,37 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriver(t *testing.T) {
 		t.Fatalf("plugin init failed: Error: %s", err)
 	}
 	defer func() { plugin.Deinit() }()
+}
+
+func TestNetPluginInitInvalidConfigMissingFwdMode(t *testing.T) {
+	configStr := `{
+                    "drivers" : {
+                       "network": "ovs",
+                       "endpoint": "ovs",
+                       "state": "fakedriver",
+                       "container": "docker",
+                    },
+										"plugin-instance": {
+											 "host-label": "testHost"
+										},
+                    "ovs" : {
+                       "dbip": "127.0.0.1",
+                       "dbport": 6640
+                    },
+                    "fakedriver" : {
+                    },
+                    "docker" : {
+                        "socket" : "unix:///var/run/docker.sock"
+                    }
+                  }`
+
+	// Parse the config
+	pluginConfig := Config{}
+	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+
+	plugin := NetPlugin{}
+	err = plugin.Init(pluginConfig, configStr)
+	if err == nil {
+		t.Fatalf("plugin init succeeded, should have failed!")
+	}
 }
