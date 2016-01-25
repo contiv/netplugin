@@ -23,15 +23,13 @@ _netctl_complete_tenants() {
 _netctl_complete_networks() {
    local tenant
    tenant=$(_netctl_fetch_tenant_value)
-   fields='$2'
-    COMPREPLY=( $(compgen -W '$(netctl network ls --tenant $tenant -q")' -- "$cur") )
+   COMPREPLY=( $(compgen -W '$(netctl network ls --tenant $tenant -q)' -- "$cur") )
 }
 
 # Fetch all policy names in the tenant
 _netctl_complete_policies() {
     local tenant
     tenant=$(_netctl_fetch_tenant_value)
-    fields='$2'
     COMPREPLY=( $(compgen -W '$(netctl policy ls --tenant $tenant -q)' -- "$cur") )
 }
 
@@ -39,9 +37,20 @@ _netctl_complete_policies() {
 _netctl_complete_groups() {
     local tenant
     tenant=$(_netctl_fetch_tenant_value)
-    fields='$2'
-    COMPREPLY=( $(compgen -W '$(netctl group ls --tenant $tenant -q")' -- "$cur") )
+    COMPREPLY=( $(compgen -W '$(netctl group ls --tenant $tenant -q)' -- "$cur") )
 }
+
+_netctl_complete_rules() {
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    policy=$(_netctl_fetch_policy_value)
+    if [ -z $policy ]; then
+        _netctl_fetch_options
+        return
+    fi
+    COMPREPLY=( $(compgen -W '$(netctl rule ls --policy $policy --tenant $tenant -q)' -- "$cur") )
+}
+
 
 
 _netctl() {
@@ -199,7 +208,7 @@ _netctl_network_rm() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
-            return 
+            return
             ;;
    esac
 
@@ -217,7 +226,7 @@ _netctl_network_ls() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
-            return 
+            return
             ;;
    esac
 
@@ -265,7 +274,7 @@ _netctl_policy_rm() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
-            return 
+            return
             ;;
    esac
 
@@ -283,7 +292,7 @@ _netctl_policy_ls() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
-            return 
+            return
             ;;
    esac
 
@@ -318,7 +327,7 @@ _netctl_group_rm() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
-            return 
+            return
             ;;
    esac
 
@@ -336,7 +345,7 @@ _netctl_group_ls() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
-            return 
+            return
             ;;
    esac
 
@@ -369,6 +378,10 @@ _netctl_rule_create() {
             COMPREPLY=( $( compgen -W "accept deny" -- "$cur" ) )
             return
             ;;
+        --policy|-p)
+            _netctl_complete_policies
+            return
+            ;;
     esac
 
     case "$cur" in
@@ -383,13 +396,21 @@ _netctl_rule_rm() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
-            return 
+            return
+            ;;
+        --policy|-p)
+            _netctl_complete_policies
+            return
             ;;
     esac
 
     case "$cur" in
         -*)
             _netctl_fetch_options
+            ;;
+
+        *)
+            _netctl_complete_rules
             ;;
     esac
 }
@@ -398,7 +419,11 @@ _netctl_rule_ls() {
     case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
-            return 
+            return
+            ;;
+        --policy|-p)
+            _netctl_complete_policies
+            return
             ;;
     esac
 
@@ -446,7 +471,22 @@ _netctl_fetch_tenant_value() {
     echo $tenant
 }
 
-# Parses the entire command for the option that is requested 
+_netctl_fetch_policy_value() {
+    local policy
+    policy=$(_netctl_option_val_get '--policy')
+    if [ -z $policy ]; then
+        policy=$(_netctl_option_val_get '-p')
+
+        if [ -z $policy]
+        then
+            policy=""
+        fi
+    fi
+    echo $policy
+}
+
+
+# Parses the entire command for the option that is requested
 # and returns the next pattern as value
 _netctl_option_val_get() {
     local option_prop option_val i
