@@ -8,11 +8,11 @@
 			"properties": {
 				"volumeProfileName": {
 					"type": "string",
-					"description": "Volume profile Name"
+					"title": "Volume profile Name"
 				},
 				"tenantName": {
 					"type": "string",
-					"description": "Tenant Name"
+					"title": "Tenant Name"
 				},
 				"datastoreType": {
 					"type": "string"

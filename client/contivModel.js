@@ -44,9 +44,9 @@ var AppModalView = React.createClass({
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
-				<Input type='text' label='' ref='appName' defaultValue={obj.appName} placeholder='' />
+				<Input type='text' label='Application Name' ref='appName' defaultValue={obj.appName} placeholder='Application Name' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
 			</div>
 	        <div className='modal-footer'>
@@ -145,7 +145,7 @@ var GlobalSummaryView = React.createClass({
 						<td>{ global.name }</td>
 						 
 						<td>{ global.network-infra-type }</td>
-						
+						  
 					</tr>
 				</ModalTrigger>
 			);
@@ -159,7 +159,7 @@ var GlobalSummaryView = React.createClass({
 					
 					 
 						<th> name of this block </th>  
-						<th> Network infrastructure type </th> 
+						<th> Network infrastructure type </th>   
 					</tr>
 				</thead>
 				<tbody>
@@ -182,6 +182,10 @@ var GlobalModalView = React.createClass({
 				<Input type='text' label='name of this block' ref='name' defaultValue={obj.name} placeholder='name of this block' />
 			
 				<Input type='text' label='Network infrastructure type' ref='network-infra-type' defaultValue={obj.network-infra-type} placeholder='Network infrastructure type' />
+			
+				<Input type='text' label='Allowed vlan range' ref='vlans' defaultValue={obj.vlans} placeholder='Allowed vlan range' />
+			
+				<Input type='text' label='Allwed vxlan range' ref='vxlans' defaultValue={obj.vxlans} placeholder='Allwed vxlan range' />
 			
 			</div>
 	        <div className='modal-footer'>
@@ -208,7 +212,7 @@ var NetworkSummaryView = React.createClass({
 						<td>{ network.encap }</td>
 						 
 						<td>{ network.gateway }</td>
-						   
+						 
 						<td>{ network.networkName }</td>
 						 
 						<td>{ network.pktTag }</td>
@@ -228,7 +232,7 @@ var NetworkSummaryView = React.createClass({
 					
 					 
 						<th> Encapsulation </th>  
-						<th> Gateway </th>    
+						<th> Gateway </th>  
 						<th> Network name </th>  
 						<th> Vlan/Vxlan Tag </th>  
 						<th> Subnet </th>  
@@ -254,10 +258,6 @@ var NetworkModalView = React.createClass({
 				<Input type='text' label='Encapsulation' ref='encap' defaultValue={obj.encap} placeholder='Encapsulation' />
 			
 				<Input type='text' label='Gateway' ref='gateway' defaultValue={obj.gateway} placeholder='Gateway' />
-			
-				<Input type='text' label='Private network' ref='isPrivate' defaultValue={obj.isPrivate} placeholder='Private network' />
-			
-				<Input type='text' label='Public network' ref='isPublic' defaultValue={obj.isPublic} placeholder='Public network' />
 			
 				<Input type='text' label='Network name' ref='networkName' defaultValue={obj.networkName} placeholder='Network name' />
 			
@@ -488,7 +488,7 @@ var ServiceModalView = React.createClass({
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
-				<Input type='text' label='' ref='appName' defaultValue={obj.appName} placeholder='' />
+				<Input type='text' label='Application Name' ref='appName' defaultValue={obj.appName} placeholder='Application Name' />
 			
 				<Input type='text' label='' ref='command' defaultValue={obj.command} placeholder='' />
 			
@@ -506,9 +506,9 @@ var ServiceModalView = React.createClass({
 			
 				<Input type='text' label='' ref='scale' defaultValue={obj.scale} placeholder='' />
 			
-				<Input type='text' label='' ref='serviceName' defaultValue={obj.serviceName} placeholder='' />
+				<Input type='text' label='Service Name' ref='serviceName' defaultValue={obj.serviceName} placeholder='Service Name' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
 				<Input type='text' label='' ref='volumeProfile' defaultValue={obj.volumeProfile} placeholder='' />
 			
@@ -567,11 +567,11 @@ var ServiceInstanceModalView = React.createClass({
 			
 				<Input type='text' label='' ref='appName' defaultValue={obj.appName} placeholder='' />
 			
-				<Input type='text' label='' ref='instanceId' defaultValue={obj.instanceId} placeholder='' />
+				<Input type='text' label='Service instance id' ref='instanceId' defaultValue={obj.instanceId} placeholder='Service instance id' />
 			
 				<Input type='text' label='' ref='serviceName' defaultValue={obj.serviceName} placeholder='' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
 				<Input type='text' label='' ref='volumes' defaultValue={obj.volumes} placeholder='' />
 			
@@ -596,7 +596,7 @@ var TenantSummaryView = React.createClass({
 				<ModalTrigger modal={<TenantModalView tenant={ tenant }/>}>
 					<tr key={ tenant.key } className="info">
 						
-						      
+						  
 					</tr>
 				</ModalTrigger>
 			);
@@ -608,7 +608,7 @@ var TenantSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					      
+					  
 					</tr>
 				</thead>
 				<tbody>
@@ -630,15 +630,7 @@ var TenantModalView = React.createClass({
 			
 				<Input type='text' label='Network name' ref='defaultNetwork' defaultValue={obj.defaultNetwork} placeholder='Network name' />
 			
-				<Input type='text' label='' ref='subnetLen' defaultValue={obj.subnetLen} placeholder='' />
-			
-				<Input type='text' label='' ref='subnetPool' defaultValue={obj.subnetPool} placeholder='' />
-			
 				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
-			
-				<Input type='text' label='' ref='vlans' defaultValue={obj.vlans} placeholder='' />
-			
-				<Input type='text' label='' ref='vxlans' defaultValue={obj.vxlans} placeholder='' />
 			
 			</div>
 	        <div className='modal-footer'>
@@ -701,9 +693,9 @@ var VolumeModalView = React.createClass({
 			
 				<Input type='text' label='' ref='size' defaultValue={obj.size} placeholder='' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
-				<Input type='text' label='' ref='volumeName' defaultValue={obj.volumeName} placeholder='' />
+				<Input type='text' label='Volume Name' ref='volumeName' defaultValue={obj.volumeName} placeholder='Volume Name' />
 			
 			</div>
 	        <div className='modal-footer'>
@@ -766,9 +758,9 @@ var VolumeProfileModalView = React.createClass({
 			
 				<Input type='text' label='' ref='size' defaultValue={obj.size} placeholder='' />
 			
-				<Input type='text' label='' ref='tenantName' defaultValue={obj.tenantName} placeholder='' />
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
-				<Input type='text' label='' ref='volumeProfileName' defaultValue={obj.volumeProfileName} placeholder='' />
+				<Input type='text' label='Volume profile Name' ref='volumeProfileName' defaultValue={obj.volumeProfileName} placeholder='Volume profile Name' />
 			
 			</div>
 	        <div className='modal-footer'>

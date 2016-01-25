@@ -142,11 +142,11 @@ type EndpointGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	EndpointGroupID int      `json:"endpointGroupId,omitempty"` //
-	GroupName       string   `json:"groupName,omitempty"`       // Endpoint group Name
-	NetworkName     string   `json:"networkName,omitempty"`     //
+	EndpointGroupID int      `json:"endpointGroupId,omitempty"` // Group Identifier
+	GroupName       string   `json:"groupName,omitempty"`       // Group name
+	NetworkName     string   `json:"networkName,omitempty"`     // Network
 	Policies        []string `json:"policies,omitempty"`
-	TenantName      string   `json:"tenantName,omitempty"` // Tenant Name
+	TenantName      string   `json:"tenantName,omitempty"` // Tenant
 
 	// add link-sets and links
 	LinkSets EndpointGroupLinkSets `json:"link-sets,omitempty"`
@@ -167,8 +167,10 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Name             string `json:"name,omitempty"`               //
-	NetworkInfraType string `json:"network-infra-type,omitempty"` //
+	Name             string `json:"name,omitempty"`               // name of this block
+	NetworkInfraType string `json:"network-infra-type,omitempty"` // Network infrastructure type
+	Vlans            string `json:"vlans,omitempty"`              // Allowed vlan range
+	Vxlans           string `json:"vxlans,omitempty"`             // Allwed vxlan range
 
 }
 
@@ -176,14 +178,12 @@ type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Encap       string `json:"encap,omitempty"`       //
-	Gateway     string `json:"gateway,omitempty"`     //
-	IsPrivate   bool   `json:"isPrivate,omitempty"`   //
-	IsPublic    bool   `json:"isPublic,omitempty"`    //
-	NetworkName string `json:"networkName,omitempty"` //
-	PktTag      int    `json:"pktTag,omitempty"`      //
-	Subnet      string `json:"subnet,omitempty"`      //
-	TenantName  string `json:"tenantName,omitempty"`  //
+	Encap       string `json:"encap,omitempty"`       // Encapsulation
+	Gateway     string `json:"gateway,omitempty"`     // Gateway
+	NetworkName string `json:"networkName,omitempty"` // Network name
+	PktTag      int    `json:"pktTag,omitempty"`      // Vlan/Vxlan Tag
+	Subnet      string `json:"subnet,omitempty"`      // Subnet
+	TenantName  string `json:"tenantName,omitempty"`  // Tenant Name
 
 	// add link-sets and links
 	LinkSets NetworkLinkSets `json:"link-sets,omitempty"`
@@ -224,17 +224,17 @@ type Rule struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Action        string `json:"action,omitempty"`        //
-	Direction     string `json:"direction,omitempty"`     //
-	EndpointGroup string `json:"endpointGroup,omitempty"` //
-	IpAddress     string `json:"ipAddress,omitempty"`     //
-	Network       string `json:"network,omitempty"`       //
-	PolicyName    string `json:"policyName,omitempty"`    //
-	Port          int    `json:"port,omitempty"`          //
-	Priority      int    `json:"priority,omitempty"`      //
-	Protocol      string `json:"protocol,omitempty"`      //
-	RuleID        string `json:"ruleId,omitempty"`        //
-	TenantName    string `json:"tenantName,omitempty"`    //
+	Action        string `json:"action,omitempty"`        // Action
+	Direction     string `json:"direction,omitempty"`     // Direction
+	EndpointGroup string `json:"endpointGroup,omitempty"` // Group
+	IpAddress     string `json:"ipAddress,omitempty"`     // IP Address
+	Network       string `json:"network,omitempty"`       // Network Name
+	PolicyName    string `json:"policyName,omitempty"`    // Policy Name
+	Port          int    `json:"port,omitempty"`          // Port No
+	Priority      int    `json:"priority,omitempty"`      // Priority
+	Protocol      string `json:"protocol,omitempty"`      // Protocol
+	RuleID        string `json:"ruleId,omitempty"`        // Rule Id
+	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
 
 	// add link-sets and links
 	LinkSets RuleLinkSets `json:"link-sets,omitempty"`
@@ -304,12 +304,8 @@ type Tenant struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	DefaultNetwork string `json:"defaultNetwork,omitempty"` //
-	SubnetLen      int    `json:"subnetLen,omitempty"`      //
-	SubnetPool     string `json:"subnetPool,omitempty"`     //
-	TenantName     string `json:"tenantName,omitempty"`     //
-	Vlans          string `json:"vlans,omitempty"`          //
-	Vxlans         string `json:"vxlans,omitempty"`         //
+	DefaultNetwork string `json:"defaultNetwork,omitempty"` // Network name
+	TenantName     string `json:"tenantName,omitempty"`     // Tenant Name
 
 	// add link-sets and links
 	LinkSets TenantLinkSets `json:"link-sets,omitempty"`

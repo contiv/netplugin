@@ -8,11 +8,11 @@
 			"properties": {
 				"instanceId": {
 					"type": "string",
-					"description": "Service instance id"
+					"title": "Service instance id"
 				},
 				"tenantName": {
 					"type": "string",
-					"description": "Tenant Name"
+					"title": "Tenant Name"
 				},
 				"appName": {
 					"type": "string"
