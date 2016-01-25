@@ -58,6 +58,10 @@ if ${run_in_vagrant}; then
     (CONTIV_NODES=1 vagrant ssh netplugin-node1 -c 'sudo -E PATH=$PATH $GOSRC/github.com/contiv/netplugin/'${0})
     ret=$?
     if [ ${ret} -ne 0 ]; then
+        if [ -f /var/log/contivk8s.log ]; then
+	    cat /var/log/contivk8s.log
+        fi
+
         (CONTIV_NODES=1 vagrant destroy -f)
         exit 1
     fi
