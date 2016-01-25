@@ -196,10 +196,10 @@ func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32, defaultGw st
 }
 
 // DeleteNetwork deletes a network/vlan
-func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32, Gw string) error {
+func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32, gateway string) error {
 	// Delete vlan/vni mapping
 	if sw.ofnetAgent != nil {
-		err := sw.ofnetAgent.RemoveNetwork(pktTag, extPktTag, Gw)
+		err := sw.ofnetAgent.RemoveNetwork(pktTag, extPktTag, gateway)
 		if err != nil {
 			log.Errorf("Error removing vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
 			return err

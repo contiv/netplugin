@@ -26,7 +26,7 @@ func (d *FakeNetEpDriver) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork is not implemented.
-func (d *FakeNetEpDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, Gw string) error {
+func (d *FakeNetEpDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string) error {
 	return core.Errorf("Not implemented")
 }
 
