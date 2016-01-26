@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/contiv/netplugin/version"
 )
 
 // DefaultMaster is the master to use when none is provided.
@@ -400,4 +401,19 @@ func dumpList(ctx *cli.Context, list []map[string]interface{}) {
 	}
 	os.Stdout.Write(content)
 	os.Stdout.WriteString("\n")
+}
+
+func showVersion(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	ver := version.Info{}
+	if err := getObject(ctx, versionURL(ctx), &ver); err != nil {
+		fmt.Printf("Unable to fetch version information")
+	} else {
+		fmt.Printf("Client Version:\n")
+		fmt.Printf(version.String())
+		fmt.Printf("\n")
+		fmt.Printf("Server Version:\n")
+		fmt.Printf(version.StringFromInfo(&ver))
+	}
 }

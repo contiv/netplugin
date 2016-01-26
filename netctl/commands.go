@@ -32,6 +32,11 @@ var NetmasterFlags = []cli.Flag{
 // These are represented as cli.Command objects.
 var Commands = []cli.Command{
 	{
+		Name:   "version",
+		Usage:  "Version Information",
+		Action: showVersion,
+	},
+	{
 		Name:  "group",
 		Usage: "Endpoint Group manipulation tools",
 		Subcommands: []cli.Command{

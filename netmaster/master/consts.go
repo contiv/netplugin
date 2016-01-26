@@ -35,4 +35,6 @@ const (
 	GetNetworkRESTEndpoint = "network"
 	//GetNetworksRESTEndpoint is the REST endpoint to request info of all networks
 	GetNetworksRESTEndpoint = "networks"
+	//GetVersionRESTEndpoint is the REST endpoint to get version info
+	GetVersionRESTEndpoint = "version"
 )

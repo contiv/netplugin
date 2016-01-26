@@ -18,9 +18,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	logger "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
-	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -30,6 +27,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	logger "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -194,12 +195,12 @@ func setupTestEnv() {
 func TestAddpod(m *testing.T) {
 	setupTestEnv()
 	os.Setenv("CNI_COMMAND", "ADD")
-	main()
+	mainfunc()
 }
 
 // TestAddpod tests the DeletePod interface
 func TestDelpod(m *testing.T) {
 	setupTestEnv()
 	os.Setenv("CNI_COMMAND", "DEL")
-	main()
+	mainfunc()
 }

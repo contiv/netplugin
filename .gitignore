@@ -43,3 +43,6 @@ cscope.*
 .contiv_k8s_inventory
 .out.vagrant
 .etc_hosts
+
+# version
+version/version_gen.go

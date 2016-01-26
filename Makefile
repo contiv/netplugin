@@ -37,6 +37,7 @@ checks:
 	./scripts/checks "$(PKGS)"
 
 run-build: deps checks clean
+	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
 	cd Godeps/_workspace/src/github.com/contiv/ && chmod -R 771 contivmodel/ && cd contivmodel/ && ./generate.sh && \
 	cd /opt/gopath/src/github.com/contiv/netplugin && \
 	godep go install -v $(TO_BUILD) 
@@ -121,11 +122,17 @@ host-short-sanity-test:
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -short true -nodes ${CLUSTER_NODE_IPS}
 
 host-cleanup:
-	@echo dev: cleaning up, restarting services...
+	@echo dev: cleaning up services...
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./cleanup.py -nodes ${CLUSTER_NODE_IPS}
 
+host-restart:
+	@echo dev: restarting services...
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./startPlugin.py -nodes ${CLUSTER_NODE_IPS}
+
+only-tar: 
+
 tar: clean-tar build
-	@echo "v0.0.0-`date -u +%m-%d-%Y.%H-%M-%S.UTC`" > $(VERSION_FILE)
+	@cat ${GOPATH}/src/github.com/contiv/netplugin/version/version_gen.go | grep versionStr | cut -f 4 -d " " | tr -d \" > $(VERSION_FILE)
 	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s
 
 clean-tar:

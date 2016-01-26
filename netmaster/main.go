@@ -35,6 +35,7 @@ import (
 	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/version"
 	"github.com/contiv/objdb"
 	"github.com/contiv/objdb/client"
 	"github.com/gorilla/mux"
@@ -48,6 +49,7 @@ type cliOpts struct {
 	storeURL    string
 	listenURL   string
 	clusterMode string
+	version     bool
 }
 
 type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
@@ -119,11 +121,14 @@ func (d *daemon) parseOpts() error {
 		"listen-url",
 		":9999",
 		"Url to listen http requests on")
-
 	flagSet.StringVar(&d.opts.clusterMode,
 		"cluster-mode",
 		"docker",
 		"{docker, kubernetes}")
+	flagSet.BoolVar(&d.opts.version,
+		"version",
+		false,
+		"prints current version")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return err
@@ -166,6 +171,11 @@ func (d *daemon) execOpts() {
 	if d.opts.help {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
 		flagSet.PrintDefaults()
+		os.Exit(0)
+	}
+
+	if d.opts.version {
+		fmt.Printf(version.String())
 		os.Exit(0)
 	}
 
@@ -229,6 +239,7 @@ func (d *daemon) ListenAndServe() {
 		get(false, d.networks))
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetNetworksRESTEndpoint),
 		get(true, d.networks))
+	s.HandleFunc(fmt.Sprintf("/%s", master.GetVersionRESTEndpoint), getVersion)
 
 	log.Infof("Netmaster listening on %s", d.opts.listenURL)
 
@@ -419,6 +430,20 @@ func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.Resp
 		w.Write(resp)
 		return
 	}
+}
+
+func getVersion(w http.ResponseWriter, r *http.Request) {
+	ver := version.Get()
+
+	resp, err := json.Marshal(ver)
+	if err != nil {
+		http.Error(w,
+			core.Errorf("marshalling json failed. Error: %s", err).Error(),
+			http.StatusInternalServerError)
+		return
+	}
+	w.Write(resp)
+	return
 }
 
 // XXX: This function should be returning logical state instead of driver state

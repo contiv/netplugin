@@ -26,6 +26,7 @@ echo "export http_proxy='$4'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
 echo "export no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 echo "export CLUSTER_NODE_IPS=192.168.2.10,192.168.2.11" >> /etc/profile.d/envvar.sh
+echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
 
 
 source /etc/profile.d/envvar.sh
@@ -48,8 +49,8 @@ sudo systemctl stop docker
 systemctl start docker-tcp.socket
 sudo systemctl start docker
 
-if [ $# -gt 5 ]; then
-    shift; shift; shift; shift; shift
+if [ $# -gt 6 ]; then
+    shift; shift; shift; shift; shift; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
@@ -132,7 +133,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
-                s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", *ENV['CONTIV_ENV']]
+                s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV']]
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config
