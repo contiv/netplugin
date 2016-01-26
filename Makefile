@@ -15,7 +15,7 @@ start: update
 stop:
 	vagrant destroy -f
 
-test: start
+test: start build
 	vagrant ssh node1 -c 'cd /opt/gopath/src/github.com/contiv/objdb && make host-test'
 
 host-build:
@@ -24,4 +24,4 @@ host-build:
 
 host-test:
 	godep go test -v ./ ./modeldb
-	go test -bench=. -run "Benchmark"
+	godep go test -bench=. -run "Benchmark"
