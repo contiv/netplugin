@@ -101,7 +101,7 @@ func main() {
 	var showVersion bool
 
 	// parse rest of the args that require creating state
-	flagSet := flag.NewFlagSet("netd", flag.ExitOnError)
+	flagSet := flag.NewFlagSet("contivk8s", flag.ExitOnError)
 
 	flagSet.BoolVar(&showVersion,
 		"version",
@@ -116,6 +116,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	mainfunc()
+}
+
+func mainfunc() {
 	pInfo := cniapi.CNIPodAttr{}
 	cniCmd := os.Getenv("CNI_COMMAND")
 
