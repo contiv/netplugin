@@ -64,7 +64,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 	// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
 	if netType == "vxlan" {
 		// Create an ofnet agent
-		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
+		sw.ofnetAgent, err = ofnet.NewOfnetAgent("vrouter", net.ParseIP(localIP),
 			ofnet.OFNET_AGENT_PORT, 6633)
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
@@ -88,7 +88,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string) (*OvsSwitch, error) {
 		// Wait for a while for OVS switch to connect to ofnet agent
 		sw.ofnetAgent.WaitForSwitchConnection()
 
-		log.Infof("Switch (vxlan) connected.")
+		log.Infof("Switch (vrouter) connected.")
 	}
 
 	return sw, nil
