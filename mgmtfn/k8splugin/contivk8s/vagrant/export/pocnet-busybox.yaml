@@ -4,8 +4,8 @@ metadata:
   name: busybox-poc-net
   labels:
     app: demo-labels
-    net-group: poc-epg
-    network: poc-net
+    io.contiv.net-group: poc-epg
+    io.contiv.network: poc-net
 spec:
   containers:
   - name: bbox
