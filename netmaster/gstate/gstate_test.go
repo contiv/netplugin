@@ -29,7 +29,6 @@ var (
 func TestGlobalConfigAutoVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Version" : "0.01",
             "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
@@ -83,7 +82,6 @@ func TestGlobalConfigAutoVLANs(t *testing.T) {
 func TestGlobalConfigAutoVXLAN(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Version" : "0.01",
             "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
@@ -138,7 +136,6 @@ func TestGlobalConfigAutoVXLAN(t *testing.T) {
 func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Version" : "0.01",
             "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
@@ -206,7 +203,6 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 func TestInvalidGlobalConfigMoreThan4KVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Version" : "0.01",
             "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",
@@ -229,7 +225,6 @@ func TestInvalidGlobalConfigMoreThan4KVLANs(t *testing.T) {
 func TestInvalidGlobalConfig(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Version" : "0.01",
             "Tenant"  : "default",
             "Auto" : {
                 "SubnetPool"        : "11.5.0.0",

@@ -19,8 +19,8 @@ type App struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName    string `json:"appName,omitempty"`    //
-	TenantName string `json:"tenantName,omitempty"` //
+	AppName    string `json:"appName,omitempty"`    // Application Name
+	TenantName string `json:"tenantName,omitempty"` // Tenant Name
 
 	// add link-sets and links
 	LinkSets AppLinkSets `json:"link-sets,omitempty"`
@@ -145,7 +145,7 @@ type Service struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName        string   `json:"appName,omitempty"` //
+	AppName        string   `json:"appName,omitempty"` // Application Name
 	Command        string   `json:"command,omitempty"` //
 	Cpu            string   `json:"cpu,omitempty"`     //
 	EndpointGroups []string `json:"endpointGroups,omitempty"`
@@ -154,8 +154,8 @@ type Service struct {
 	Memory         string   `json:"memory,omitempty"`    //
 	Networks       []string `json:"networks,omitempty"`
 	Scale          int      `json:"scale,omitempty"`         //
-	ServiceName    string   `json:"serviceName,omitempty"`   //
-	TenantName     string   `json:"tenantName,omitempty"`    //
+	ServiceName    string   `json:"serviceName,omitempty"`   // Service Name
+	TenantName     string   `json:"tenantName,omitempty"`    // Tenant Name
 	VolumeProfile  string   `json:"volumeProfile,omitempty"` //
 
 	// add link-sets and links
@@ -179,9 +179,9 @@ type ServiceInstance struct {
 	Key string `json:"key,omitempty"`
 
 	AppName     string   `json:"appName,omitempty"`     //
-	InstanceID  string   `json:"instanceId,omitempty"`  //
+	InstanceID  string   `json:"instanceId,omitempty"`  // Service instance id
 	ServiceName string   `json:"serviceName,omitempty"` //
-	TenantName  string   `json:"tenantName,omitempty"`  //
+	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
 	Volumes     []string `json:"volumes,omitempty"`
 
 	// add link-sets and links
@@ -225,8 +225,8 @@ type Volume struct {
 	MountPoint    string `json:"mountPoint,omitempty"`    //
 	PoolName      string `json:"poolName,omitempty"`      //
 	Size          string `json:"size,omitempty"`          //
-	TenantName    string `json:"tenantName,omitempty"`    //
-	VolumeName    string `json:"volumeName,omitempty"`    //
+	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
+	VolumeName    string `json:"volumeName,omitempty"`    // Volume Name
 
 	// add link-sets and links
 	LinkSets VolumeLinkSets `json:"link-sets,omitempty"`
@@ -249,8 +249,8 @@ type VolumeProfile struct {
 	MountPoint        string `json:"mountPoint,omitempty"`        //
 	PoolName          string `json:"poolName,omitempty"`          //
 	Size              string `json:"size,omitempty"`              //
-	TenantName        string `json:"tenantName,omitempty"`        //
-	VolumeProfileName string `json:"volumeProfileName,omitempty"` //
+	TenantName        string `json:"tenantName,omitempty"`        // Tenant Name
+	VolumeProfileName string `json:"volumeProfileName,omitempty"` // Volume profile Name
 
 	// add link-sets and links
 	LinkSets VolumeProfileLinkSets `json:"link-sets,omitempty"`

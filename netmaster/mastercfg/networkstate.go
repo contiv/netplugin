@@ -28,6 +28,8 @@ const (
 	StateBasePath = "/contiv.io/"
 	// StateConfigPath is the path to the root of the configuration state
 	StateConfigPath = StateBasePath + "state/"
+	// StateOperPath is the path for operational/runtime state
+	StateOperPath = StateBasePath + "oper/"
 
 	networkConfigPathPrefix  = StateConfigPath + "nets/"
 	networkConfigPath        = networkConfigPathPrefix + "%s"

@@ -103,7 +103,6 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 	// Setup global state
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
-	gCfg.Version = gstate.VersionBeta1
 	gCfg.Auto.VLANs = gc.VLANs
 	gCfg.Auto.VXLANs = gc.VXLANs
 

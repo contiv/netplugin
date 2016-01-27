@@ -21,6 +21,7 @@ import (
 	"github.com/jainvipin/bitset"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/utils/netutils"
 
@@ -28,17 +29,11 @@ import (
 )
 
 const (
-	baseGlobal          = "/contiv.io/"
-	cfgGlobalPrefix     = baseGlobal + "config/global/"
+	cfgGlobalPrefix     = mastercfg.StateConfigPath + "global/"
 	cfgGlobalPath       = cfgGlobalPrefix + "global"
-	operGlobalPrefix    = baseGlobal + "oper/global/"
+	operGlobalPrefix    = mastercfg.StateOperPath + "global/"
 	operGlobalPath      = operGlobalPrefix + "global"
 	vxlanLocalVlanRange = "1-4094"
-)
-
-// Version constants. Used in managing state variance.
-const (
-	VersionBeta1 = "0.01"
 )
 
 // AutoParams specifies various parameters for the auto allocation and resource
@@ -53,8 +48,7 @@ type AutoParams struct {
 // Cfg is the configuration of a tenant.
 type Cfg struct {
 	core.CommonState
-	Version string     `json:"version"`
-	Auto    AutoParams `json:"auto"`
+	Auto AutoParams `json:"auto"`
 }
 
 // Oper encapsulates operations on a tenant.
@@ -290,10 +284,6 @@ func (gc *Cfg) Process() error {
 	}
 
 	ra := core.ResourceManager(tempRm)
-
-	if gc.Version != VersionBeta1 {
-		return core.Errorf("unsupported version %s", gc.Version)
-	}
 
 	err = gc.checkErrors()
 	if err != nil {

@@ -359,9 +359,9 @@ func TestAutoVLANCfgResourceAllocateExhaustion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Vlan resource allocation succeeded, expected to fail!")
 	}
-	if !strings.Contains(err.Error(), "no vlans available.") {
+	if !strings.Contains(err.Error(), "no vlans available") {
 		t.Fatalf("Vlan resource allocation failure reason mismatch. Expected: %s, rcvd: %s",
-			"no vlans available.", err)
+			"no vlans available", err)
 	}
 }
 

@@ -37,7 +37,6 @@ import (
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/version"
 	"github.com/contiv/objdb"
-	"github.com/contiv/objdb/client"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/consul/api"
 )
@@ -139,12 +138,12 @@ func (d *daemon) parseOpts() error {
 
 func (d *daemon) registerService() {
 	// Create an objdb client
-	objdbClient := client.NewClient()
+	objdbClient := objdb.NewClient("")
 
 	// Get the address to be used for local communication
 	localIP, err := objdbClient.GetLocalAddr()
 	if err != nil {
-		log.Fatalf("Error getting locla IP address. Err: %v", err)
+		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}
 
 	// service info

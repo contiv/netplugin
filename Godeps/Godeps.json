@@ -7,8 +7,8 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.6.4-12-g467d9d5",
-			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
+			"Comment": "v0.8.3-92-gf7f79f7",
+			"Rev": "f7f79f729e0fbe2fcc061db48a9ba0263f588252"
 		},
 		{
 			"ImportPath": "github.com/cenkalti/backoff",
@@ -30,7 +30,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
-			"Rev": "1cde91e76a5abab40fb0debdf5489eb49f3e6116"
+			"Rev": "66fcd2bc5f147cbc68e65f2fa62c0d177464bcfb"
 		},
 		{
 			"ImportPath": "github.com/contiv/go-etcd/etcd",
@@ -44,11 +44,11 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/objdb",
-			"Rev": "34faf4d0cdb74e0e484cd674830dfb27378c1422"
+			"Rev": "ada37fdd29cfd1b6d0611acd136bcbc5511c0634"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "2cb22bcd4bba7ff687451d701c372c60af8af2c0"
+			"Rev": "9ec87d6c39033f049029f580b6c9801b42e58c69"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",

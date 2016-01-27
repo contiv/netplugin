@@ -20,11 +20,12 @@ package modeldb
 import (
 	"sync"
 
-	"github.com/contiv/objdb/client"
+	"github.com/contiv/objdb"
 
 	log "github.com/Sirupsen/logrus"
 )
 
+// ModelObj interface for all models
 type ModelObj interface {
 	GetType() string
 	GetKey() string
@@ -54,7 +55,7 @@ func RemoveLink(link *Link, obj ModelObj) {
 	link.ObjKey = ""
 }
 
-// Add a link into linkset. initialize the linkset if required
+// AddLinkSet Aadds a link into linkset. initialize the linkset if required
 func AddLinkSet(linkSet *(map[string]Link), obj ModelObj) error {
 	// Allocate the linkset if its nil
 	if *linkSet == nil {
@@ -70,6 +71,7 @@ func AddLinkSet(linkSet *(map[string]Link), obj ModelObj) error {
 	return nil
 }
 
+// RemoveLinkSet removes a link from linkset
 func RemoveLinkSet(linkSet *(map[string]Link), obj ModelObj) error {
 	// check is linkset is nil
 	if *linkSet == nil {
@@ -83,8 +85,9 @@ func RemoveLinkSet(linkSet *(map[string]Link), obj ModelObj) error {
 }
 
 // persistent database
-var cdb = client.NewClient()
+var cdb = objdb.NewClient("")
 
+// WriteObj writes the model to DB
 func WriteObj(objType, objKey string, value interface{}) error {
 	key := "/modeldb/" + objType + "/" + objKey
 	err := cdb.SetObj(key, value)
@@ -96,6 +99,7 @@ func WriteObj(objType, objKey string, value interface{}) error {
 	return nil
 }
 
+// ReadObj reads an object from DB
 func ReadObj(objType, objKey string, retVal interface{}) error {
 	key := "/modeldb/" + objType + "/" + objKey
 	err := cdb.GetObj(key, retVal)
@@ -106,6 +110,7 @@ func ReadObj(objType, objKey string, retVal interface{}) error {
 	return nil
 }
 
+// DeleteObj deletes and object from DB
 func DeleteObj(objType, objKey string) error {
 	key := "/modeldb/" + objType + "/" + objKey
 	err := cdb.DelObj(key)
@@ -116,6 +121,7 @@ func DeleteObj(objType, objKey string) error {
 	return nil
 }
 
+// ReadAllObj reads all objects of a type
 func ReadAllObj(objType string) ([]string, error) {
 	key := "/modeldb/" + objType + "/"
 	return cdb.ListDir(key)

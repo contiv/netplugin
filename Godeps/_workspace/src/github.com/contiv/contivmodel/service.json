@@ -8,15 +8,15 @@
 			"properties": {
 				"serviceName": {
 					"type": "string",
-					"description": "Service Name"
+					"title": "Service Name"
 				},
 				"appName": {
 					"type": "string",
-					"description": "Application Name"
+					"title": "Application Name"
 				},
 				"tenantName": {
 					"type": "string",
-					"description": "Tenant Name"
+					"title": "Tenant Name"
 				},
 				"imageName": {
 					"type": "string"

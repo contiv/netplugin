@@ -400,9 +400,9 @@ func TestAutoVXLANCfgResourceAllocateVXLANExhaustion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("VXLAN resource allocation succeeded, expected to fail!")
 	}
-	if !strings.Contains(err.Error(), "no vxlans available.") {
+	if !strings.Contains(err.Error(), "no vxlans available") {
 		t.Fatalf("VXLAN resource allocation failure reason mismatch. Expected: %s, rcvd: %s",
-			"no vxlans available.", err)
+			"no vxlans available", err)
 	}
 }
 
@@ -419,9 +419,9 @@ func TestAutoVXLANCfgResourceAllocateVLANExhaustion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("VXLAN resource allocation succeeded, expected to fail!")
 	}
-	if !strings.Contains(err.Error(), "no local vlans available.") {
+	if !strings.Contains(err.Error(), "no local vlans available") {
 		t.Fatalf("VXLAN resource allocation failure reason mismatch. Expected: %s, rcvd: %s",
-			"no local vlans available.", err)
+			"no local vlans available", err)
 	}
 }
 

@@ -20,10 +20,12 @@
 				},
 				"vlans": {
 					"type": "string",
+					"title": "Allowed vlan range",
 					"format": "^([0-9]{1,4}?-[0-9]{1,4}?)$"
 				},
 				"vxlans": {
 					"type": "string",
+					"title": "Allwed vxlan range",
 					"format": "^([0-9]{1,8}?-[0-9]{1,8}?)$"
 				}
 			}

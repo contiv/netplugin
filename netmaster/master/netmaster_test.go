@@ -48,7 +48,6 @@ func applyConfig(t *testing.T, cfgBytes []byte) {
 	// setup global state
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = fakeDriver
-	gCfg.Version = gstate.VersionBeta1
 	gCfg.Auto.VLANs = "1-4094"
 	gCfg.Auto.VXLANs = "1-10000"
 
@@ -430,7 +429,6 @@ func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 	// setup global state
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = fakeDriver
-	gCfg.Version = gstate.VersionBeta1
 	gCfg.Auto.VLANs = "11-1000"
 	gCfg.Auto.VXLANs = "1001-2000"
 
@@ -457,7 +455,7 @@ func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 		var expError string
 		network := tenant.Networks[0]
 		if network.PktTagType == "vlan" {
-			expError = "Requested vlan not available"
+			expError = "requested vlan not available"
 		} else {
 			expError = "requested vxlan not available"
 		}

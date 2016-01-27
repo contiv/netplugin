@@ -180,8 +180,6 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"encap": obj.encap, 
 			"gateway": obj.gateway, 
-			"isPrivate": obj.isPrivate, 
-			"isPublic": obj.isPublic, 
 			"networkName": obj.networkName, 
 			"pktTag": obj.pktTag, 
 			"subnet": obj.subnet, 

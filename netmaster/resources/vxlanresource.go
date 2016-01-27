@@ -17,10 +17,10 @@ package resources
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/jainvipin/bitset"
 )
@@ -33,7 +33,7 @@ const (
 const (
 	vXLANResourceConfigPathPrefix = mastercfg.StateConfigPath + AutoVXLANResource + "/"
 	vXLANResourceConfigPath       = vXLANResourceConfigPathPrefix + "%s"
-	vXLANResourceOperPathPrefix   = drivers.StateOperPath + AutoVXLANResource + "/"
+	vXLANResourceOperPathPrefix   = mastercfg.StateOperPath + AutoVXLANResource + "/"
 	vXLANResourceOperPath         = vXLANResourceOperPathPrefix + "%s"
 )
 
@@ -140,19 +140,19 @@ func (r *AutoVXLANCfgResource) Allocate(reqVal interface{}) (interface{}, error)
 	if (reqVal != nil) && (reqVal.(uint) != 0) {
 		vxlan = reqVal.(uint)
 		if !oper.FreeVXLANs.Test(vxlan) {
-			return nil, core.Errorf("requested vxlan not available")
+			return nil, errors.New("requested vxlan not available")
 		}
 	} else {
 		ok := false
 		vxlan, ok = oper.FreeVXLANs.NextSet(0)
 		if !ok {
-			return nil, core.Errorf("no vxlans available.")
+			return nil, errors.New("no vxlans available")
 		}
 	}
 
 	vlan, ok := oper.FreeLocalVLANs.NextSet(0)
 	if !ok {
-		return nil, core.Errorf("no local vlans available.")
+		return nil, errors.New("no local vlans available")
 	}
 
 	oper.FreeVXLANs.Clear(vxlan)

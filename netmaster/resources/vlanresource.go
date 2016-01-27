@@ -17,10 +17,10 @@ package resources
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/jainvipin/bitset"
 )
@@ -33,7 +33,7 @@ const (
 const (
 	vLANResourceConfigPathPrefix = mastercfg.StateConfigPath + AutoVLANResource + "/"
 	vLANResourceConfigPath       = vLANResourceConfigPathPrefix + "%s"
-	vLANResourceOperPathPrefix   = drivers.StateOperPath + AutoVLANResource + "/"
+	vLANResourceOperPathPrefix   = mastercfg.StateOperPath + AutoVLANResource + "/"
 	vLANResourceOperPath         = vLANResourceOperPathPrefix + "%s"
 )
 
@@ -132,13 +132,13 @@ func (r *AutoVLANCfgResource) Allocate(reqVal interface{}) (interface{}, error) 
 	if (reqVal != nil) && (reqVal.(uint) != 0) {
 		vlan = reqVal.(uint)
 		if !oper.FreeVLANs.Test(vlan) {
-			return nil, core.Errorf("Requested vlan not available")
+			return nil, errors.New("requested vlan not available")
 		}
 	} else {
 		ok := false
 		vlan, ok = oper.FreeVLANs.NextSet(0)
 		if !ok {
-			return nil, core.Errorf("no vlans available.")
+			return nil, errors.New("no vlans available")
 		}
 	}
 	oper.FreeVLANs.Clear(vlan)
