@@ -257,14 +257,6 @@ func createTenant(ctx *cli.Context) {
 	argCheck(1, ctx)
 
 	tenant := ctx.Args()[0]
-	subnetPool := ctx.String("subnet-pool")
-	subnetLen := ctx.Int("subnet-len")
-	vlans := ctx.String("vlans")
-	vxlans := ctx.String("vxlans")
-
-	if subnetPool == "" || vlans == "" || vxlans == "" {
-		errExit(ctx, exitHelp, "Invalid Arguments", true)
-	}
 
 	logrus.Infof("Creating tenant: %s", tenant)
 
@@ -272,10 +264,6 @@ func createTenant(ctx *cli.Context) {
 	args := map[string]interface{}{
 		"key":        tenant,
 		"tenantName": tenant,
-		"subnetPool": subnetPool,
-		"subnetLen":  subnetLen,
-		"vlans":      vlans,
-		"vxlans":     vxlans,
 	}
 
 	postMap(ctx, url, args)
@@ -302,17 +290,13 @@ func listTenants(ctx *cli.Context) {
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Name\tSubnet Pool\t\tSubnet Len\tvlans\t\tvxlans\n"))
-		writer.Write([]byte("------\t-----------\t\t----------\t-----\t\t------\n"))
+		writer.Write([]byte("Name\t\n"))
+		writer.Write([]byte("------\t\n"))
 
 		for _, tenant := range list {
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t\t%v\t%v\t\t%v\n",
+				[]byte(fmt.Sprintf("%v\t\n",
 					tenant["tenantName"],
-					tenant["subnetPool"],
-					tenant["subnetLen"],
-					tenant["vlans"],
-					tenant["vxlans"],
 				)))
 		}
 	}
@@ -392,6 +376,41 @@ func listEndpointGroups(ctx *cli.Context) {
 				)))
 		}
 	}
+}
+
+func showGlobal(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	list := getList(ctx, globalURL(ctx))
+
+	if ctx.Bool("json") {
+		dumpList(ctx, list)
+	} else {
+		writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		defer writer.Flush()
+		for _, gl := range list {
+			writer.Write([]byte(fmt.Sprintf("Fabric mode: %v\n", gl["network-infra-type"])))
+			writer.Write([]byte(fmt.Sprintf("Vlan Range: %v\n", gl["vlans"])))
+			writer.Write([]byte(fmt.Sprintf("Vxlan range: %v\n", gl["vxlans"])))
+		}
+	}
+}
+
+func setGlobal(ctx *cli.Context) {
+	url := fmt.Sprintf("%sglobal/", globalURL(ctx))
+
+	fabMode := ctx.String("fabric-mode")
+	vlans := ctx.String("vlan-range")
+	vxlans := ctx.String("vxlan-range")
+
+	out := map[string]interface{}{
+		"name":               "global",
+		"network-infra-type": fabMode,
+		"vlans":              vlans,
+		"vxlans":             vxlans,
+	}
+
+	postMap(ctx, url, out)
 }
 
 func dumpList(ctx *cli.Context, list []map[string]interface{}) {

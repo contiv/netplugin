@@ -49,6 +49,12 @@ func (self *OFSwitch) initFgraph() error {
 	sendToCtrler.portNo = openflow13.P_CONTROLLER
 	self.sendToCtrler = sendToCtrler
 
+	// Create normal lookup action.
+	normalLookup := new(Output)
+	normalLookup.outputType = "normal"
+	normalLookup.portNo = openflow13.P_NORMAL
+	self.normalLookup = normalLookup
+
 	// Clear all existing flood lists
 	groupMod := openflow13.NewGroupMod()
 	groupMod.GroupId = openflow13.OFPG_ALL
@@ -122,9 +128,14 @@ func (self *OFSwitch) DropAction() *Output {
 	return self.dropAction
 }
 
-// Return send to controller graph element
+// SendToController Return send to controller graph element
 func (self *OFSwitch) SendToController() *Output {
 	return self.sendToCtrler
+}
+
+// NormalLookup Return normal lookup graph element
+func (self *OFSwitch) NormalLookup() *Output {
+	return self.normalLookup
 }
 
 // FIXME: Unique group id for the flood entries

@@ -516,24 +516,24 @@ func (self *OvsDriver) IsControllerPresent(ipAddr string, portNo uint16) bool {
 }
 
 // Check if VTEP already exists
-func (self *OvsDriver) IsVtepPresent(remoteIp string) (bool, string) {
+func (self *OvsDriver) IsVtepPresent(remoteIP string) (bool, string) {
 	for tName, table := range self.ovsdbCache {
 		if tName == "Interface" {
 			for _, row := range table {
 				options := row.Fields["options"]
 				switch optMap := options.(type) {
 				case libovsdb.OvsMap:
-					if optMap.GoMap["remote_ip"] == remoteIp {
+					if optMap.GoMap["remote_ip"] == remoteIP {
 						value := row.Fields["name"]
 						switch t := value.(type) {
 						case string:
 							return true, t
 						default:
-							return false, ""
+							// return false, ""
 						}
 					}
 				default:
-					return false, ""
+					// return false, ""
 				}
 			}
 		}

@@ -132,6 +132,12 @@ func (self *Vrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 
 // Add a local endpoint and install associated local route
 func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
+	vni := self.agent.vlanVniMap[endpoint.Vlan]
+	if vni == nil {
+		log.Errorf("VNI for vlan %d is not known", endpoint.Vlan)
+		return errors.New("Unknown Vlan")
+	}
+
 	// Install a flow entry for vlan mapping and point it to IP table
 	portVlanFlow, err := self.vlanTable.NewFlow(ofctrl.FlowMatch{
 		Priority:  FLOW_MATCH_PRIORITY,
@@ -266,8 +272,16 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 	// Note that we bypass policy lookup on dest host.
 	portVlanFlow.Next(self.ipTable)
 
-	// FIXME: walk all the routes and see if we can install it
-	//        This could happen if a route made it to us before VTEP
+	// walk all routes and see if we need to install it
+	for _, endpoint := range self.agent.endpointDb {
+		if endpoint.OriginatorIp.String() == remoteIp.String() {
+			err := self.AddEndpoint(endpoint)
+			if err != nil {
+				log.Errorf("Error installing endpoint during vtep add(%v) EP: %+v. Err: %v", remoteIp, endpoint, err)
+				return err
+			}
+		}
+	}
 
 	return nil
 }
@@ -297,9 +311,10 @@ func (self *Vrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	// Lookup the VTEP for the endpoint
 	vtepPort := self.agent.vtepTable[endpoint.OriginatorIp.String()]
 	if vtepPort == nil {
-		log.Errorf("Could not find the VTEP for endpoint: %+v", endpoint)
+		log.Warnf("Could not find the VTEP for endpoint: %+v", endpoint)
 
-		return errors.New("VTEP not found")
+		// Return if VTEP is not found. We'll install the route when VTEP is added
+		return nil
 	}
 
 	// Install the endpoint in OVS
@@ -375,6 +390,18 @@ func (self *Vrouter) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 		return err
 	}
 
+	return nil
+}
+
+// AddUplink adds an uplink to the switch
+func (vr *Vrouter) AddUplink(portNo uint32) error {
+	// Nothing to do
+	return nil
+}
+
+// RemoveUplink remove an uplink to the switch
+func (vr *Vrouter) RemoveUplink(portNo uint32) error {
+	// Nothing to do
 	return nil
 }
 

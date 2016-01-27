@@ -26,8 +26,24 @@ import (
 // EpgPolicyExists is a well known exported error
 var EpgPolicyExists = core.Errorf("Epg policy exists")
 
+// isPolicyEnabled checks if policies needs to be installed in hosts
+func isPolicyEnabled() bool {
+	// Dont install policies in ACI mode
+	isAci, err := IsAciConfigured()
+	if err != nil {
+		return true
+	}
+
+	return !isAci
+}
+
 // PolicyAttach attaches a policy to an endpoint and adds associated rules to policyDB
 func PolicyAttach(epg *contivModel.EndpointGroup, policy *contivModel.Policy) error {
+	// Dont install policies in ACI mode
+	if !isPolicyEnabled() {
+		return nil
+	}
+
 	epgpKey := epg.Key + ":" + policy.Key
 
 	// See if it already exists
@@ -49,6 +65,11 @@ func PolicyAttach(epg *contivModel.EndpointGroup, policy *contivModel.Policy) er
 
 // PolicyDetach detaches policy from an endpoint and removes associated rules from policyDB
 func PolicyDetach(epg *contivModel.EndpointGroup, policy *contivModel.Policy) error {
+	// Dont install policies in ACI mode
+	if !isPolicyEnabled() {
+		return nil
+	}
+
 	epgpKey := epg.Key + ":" + policy.Key
 
 	// find the policy
@@ -82,6 +103,11 @@ func PolicyDetach(epg *contivModel.EndpointGroup, policy *contivModel.Policy) er
 
 // PolicyAddRule adds a rule to existing policy
 func PolicyAddRule(policy *contivModel.Policy, rule *contivModel.Rule) error {
+	// Dont install policies in ACI mode
+	if !isPolicyEnabled() {
+		return nil
+	}
+
 	// Walk all associated endpoint groups
 	for epgKey := range policy.LinkSets.EndpointGroups {
 		gpKey := epgKey + ":" + policy.Key
@@ -112,6 +138,11 @@ func PolicyAddRule(policy *contivModel.Policy, rule *contivModel.Rule) error {
 
 // PolicyDelRule removes a rule from existing policy
 func PolicyDelRule(policy *contivModel.Policy, rule *contivModel.Rule) error {
+	// Dont install policies in ACI mode
+	if !isPolicyEnabled() {
+		return nil
+	}
+
 	// Walk all associated endpoint groups
 	for epgKey := range policy.LinkSets.EndpointGroups {
 		gpKey := epgKey + ":" + policy.Key

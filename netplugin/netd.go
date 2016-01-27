@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"os/user"
+	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
@@ -164,10 +165,8 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			isDelete = true
 			eventStr = "delete"
 		} else if rsp.Prev != nil {
-			// XXX: late host binding modifies the ep-cfg state to update the host-label.
-			// Need to treat it as Create, revisit to see if we can prevent this
-			// by just triggering create once instead.
-			log.Debugf("Received a modify event, treating it as a 'create'")
+			log.Infof("Received a modify event, ignoring it")
+			continue
 		}
 
 		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
@@ -233,22 +232,10 @@ func main() {
 	var opts cliOpts
 	var flagSet *flag.FlagSet
 
-	svcplugin.QuitCh = make(chan struct{})
-	defer close(svcplugin.QuitCh)
-
 	defHostLabel, err := os.Hostname()
 	if err != nil {
 		log.Fatalf("Failed to fetch hostname. Error: %s", err)
 	}
-
-	// default to using local IP addr
-	localIP, err := cluster.GetLocalAddr()
-	if err != nil {
-		log.Fatalf("Error getting local address. Err: %v", err)
-	}
-	defCtrlIP := localIP
-	defVtepIP := localIP
-	defVlanIntf := "eth2"
 
 	// parse rest of the args that require creating state
 	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
@@ -278,15 +265,15 @@ func main() {
 		"plugin configuration. Use '-' to read configuration from stdin")
 	flagSet.StringVar(&opts.vtepIP,
 		"vtep-ip",
-		defVtepIP,
+		"",
 		"My VTEP ip address")
 	flagSet.StringVar(&opts.ctrlIP,
 		"ctrl-ip",
-		defCtrlIP,
+		"",
 		"Local ip address to be used for control communication")
 	flagSet.StringVar(&opts.vlanIntf,
 		"vlan-if",
-		defVlanIntf,
+		"",
 		"My VTEP ip address")
 	flagSet.BoolVar(&opts.version,
 		"version",
@@ -316,6 +303,8 @@ func main() {
 
 	if opts.jsonLog {
 		log.SetFormatter(&log.JSONFormatter{})
+	} else {
+		log.SetFormatter(&log.TextFormatter{FullTimestamp: true, TimestampFormat: time.StampNano})
 	}
 
 	if opts.syslog != "" {
@@ -324,6 +313,18 @@ func main() {
 
 	if flagSet.NFlag() < 1 {
 		log.Infof("host-label not specified, using default (%s)", opts.hostLabel)
+	}
+
+	// default to using local IP addr
+	localIP, err := cluster.GetLocalAddr()
+	if err != nil {
+		log.Fatalf("Error getting local address. Err: %v", err)
+	}
+	if opts.vtepIP == "" {
+		opts.vtepIP = localIP
+	}
+	if opts.ctrlIP == "" {
+		opts.ctrlIP = localIP
 	}
 
 	defConfigStr := fmt.Sprintf(`{
@@ -388,6 +389,9 @@ func main() {
 	if pluginConfig.Instance.VlanIntf == "" {
 		pluginConfig.Instance.VlanIntf = opts.vlanIntf
 	}
+
+	svcplugin.QuitCh = make(chan struct{})
+	defer close(svcplugin.QuitCh)
 
 	// Initialize appropriate plugin
 	switch opts.pluginMode {

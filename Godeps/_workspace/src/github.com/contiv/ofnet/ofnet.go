@@ -61,6 +61,12 @@ type OfnetDatapath interface {
 
 	// Remove a vlan
 	RemoveVlan(vlanId uint16, vni uint32) error
+
+	// Add an uplink to the switch
+	AddUplink(portNo uint32) error
+
+	// Remove an uplink
+	RemoveUplink(portNo uint32) error
 }
 
 // Default port numbers

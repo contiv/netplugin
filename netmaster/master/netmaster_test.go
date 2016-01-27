@@ -17,14 +17,15 @@ package master
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"strings"
 	"testing"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
-	"github.com/contiv/netplugin/resources"
+	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
 )
@@ -43,6 +44,23 @@ func applyConfig(t *testing.T, cfgBytes []byte) {
 		log.Fatalf("state store initialization failed. Error: %s", err)
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
+
+	// setup global state
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = fakeDriver
+	gCfg.Auto.VLANs = "1-4094"
+	gCfg.Auto.VXLANs = "1-10000"
+
+	// setup resources
+	err = gCfg.Process()
+	if err != nil {
+		t.Fatalf("Error updating the config %+v. Error: %s", gCfg, err)
+	}
+
+	err = gCfg.Write()
+	if err != nil {
+		t.Fatalf("error updating global config.Error: %s", err)
+	}
 
 	for _, tenant := range cfg.Tenants {
 		err = CreateTenant(fakeDriver, &tenant)
@@ -116,12 +134,10 @@ func TestVlanConfig(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                      : "tenant-one",
-        "DefaultNetType"            : "vlan",
-        "SubnetPool"                : "11.1.0.0/16",
-        "AllocSubnetLen"            : 24,
-        "Vlans"                     : "11-28",
         "Networks"  : [{
             "Name"                  : "orange",
+			"SubnetCIDR"			: "10.1.1.1/24",
+			"Gateway"				: "10.1.1.254",
             "Endpoints" : [{
                 "Container"         : "myContainer1"
             },
@@ -131,6 +147,8 @@ func TestVlanConfig(t *testing.T) {
         },
         {
             "Name"                  : "purple",
+			"SubnetCIDR"			: "10.1.2.1/24",
+			"Gateway"				: "10.1.2.254",
             "Endpoints" : [{
                 "Container"         : "myContainer3"
             },
@@ -155,12 +173,10 @@ func TestVlanWithUnderlayConfig(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                      : "tenant-one",
-        "DefaultNetType"          : "vlan",
-        "SubnetPool"              : "11.1.0.0/16",
-        "AllocSubnetLen"          : 24,
-        "Vlans"                   : "11-48",
         "Networks"  : [{
             "Name"                : "orange",
+			"SubnetCIDR"			: "10.1.1.1/24",
+			"Gateway"				: "10.1.1.254",
             "Endpoints" : [{
                 "Container"       : "myContainer1",
                 "Host"            : "host1"
@@ -172,6 +188,8 @@ func TestVlanWithUnderlayConfig(t *testing.T) {
         },
         {
             "Name"                : "purple",
+			"SubnetCIDR"			: "10.1.2.1/24",
+			"Gateway"				: "10.1.2.254",
             "Endpoints" : [{
                 "Container"       : "myContainer2",
                 "Host"            : "host1"
@@ -200,12 +218,10 @@ func TestVxlanConfig(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant-one",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vxlans"                : "10001-14000",
         "Networks"  : [{
             "Name"              : "orange",
+			"SubnetCIDR"			: "10.1.1.1/24",
+			"Gateway"				: "10.1.1.254",
             "Endpoints" : [
             {
                 "Container"     : "myContainer1",
@@ -219,6 +235,8 @@ func TestVxlanConfig(t *testing.T) {
         },
         {
             "Name"              : "purple",
+			"SubnetCIDR"			: "10.1.2.1/24",
+			"Gateway"				: "10.1.2.254",
             "Endpoints" : [{
                 "Container"     : "myContainer2",
                 "Host"          : "host1"
@@ -246,12 +264,10 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
 	cfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant-one",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vxlans"                : "10001-14000",
         "Networks"  : [{
             "Name"              : "orange",
+			"SubnetCIDR"			: "10.1.1.1/24",
+			"Gateway"				: "10.1.1.254",
             "Endpoints" : [
             {
                 "Container"     : "myContainer1"
@@ -263,6 +279,8 @@ func TestVxlanConfigWithLateHostBindings(t *testing.T) {
         },
         {
             "Name"              : "purple",
+			"SubnetCIDR"			: "10.1.2.1/24",
+			"Gateway"				: "10.1.2.254",
             "Endpoints" : [{
                 "Container"     : "myContainer2"
             },
@@ -315,13 +333,11 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes := []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant1",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net1",
-            "PktTag"            : 2000,
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
+            "PktTag"            : 2001,
             "PktTagType"        : "vxlan"
         }]
     }]}`)
@@ -330,28 +346,11 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant2",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net2",
-            "PktTag"            : 2001,
-            "PktTagType"        : "vxlan"
-        }]
-    }]}`)
-	applyVerifyRangeTag(t, CfgBytes, false)
-
-	CfgBytes = []byte(`{
-    "Tenants" : [{
-        "Name"                  : "tenant3",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vxlans"                : "2001-3000",
-        "Networks"  : [{
-            "Name"              : "net3",
-            "PktTag"            : 3000,
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
+            "PktTag"            : 2000,
             "PktTagType"        : "vxlan"
         }]
     }]}`)
@@ -360,12 +359,10 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant4",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net4",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 3001,
             "PktTagType"        : "vxlan"
         }]
@@ -375,13 +372,10 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant5",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vlans"                 : "1201-1500",
-        "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net5",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 1200,
             "PktTagType"        : "vlan"
         }]
@@ -391,30 +385,11 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant6",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vlans"                 : "1201-1500",
-        "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net6",
-            "PktTag"            : 1201,
-            "PktTagType"        : "vlan"
-        }]
-    }]}`)
-	applyVerifyRangeTag(t, CfgBytes, false)
-
-	CfgBytes = []byte(`{
-    "Tenants" : [{
-        "Name"                  : "tenant7",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vlans"                 : "1201-1500",
-        "Vxlans"                : "2001-3000",
-        "Networks"  : [{
-            "Name"              : "net7",
-            "PktTag"            : 1500,
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
+            "PktTag"            : 12,
             "PktTagType"        : "vlan"
         }]
     }]}`)
@@ -423,13 +398,10 @@ func TestConfigPktTagOutOfRange(t *testing.T) {
 	CfgBytes = []byte(`{
     "Tenants" : [{
         "Name"                  : "tenant8",
-        "DefaultNetType"        : "vxlan",
-        "SubnetPool"            : "11.1.0.0/16",
-        "AllocSubnetLen"        : 24,
-        "Vlans"                 : "1201-1500",
-        "Vxlans"                : "2001-3000",
         "Networks"  : [{
             "Name"              : "net8",
+			"SubnetCIDR"		: "10.1.1.1/24",
+			"Gateway"			: "10.1.1.254",
             "PktTag"            : 1501,
             "PktTagType"        : "vlan"
         }]
@@ -454,6 +426,23 @@ func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
 
+	// setup global state
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = fakeDriver
+	gCfg.Auto.VLANs = "11-1000"
+	gCfg.Auto.VXLANs = "1001-2000"
+
+	// setup resources
+	err = gCfg.Process()
+	if err != nil {
+		t.Fatalf("Error updating the config %+v. Error: %s", gCfg, err)
+	}
+
+	err = gCfg.Write()
+	if err != nil {
+		t.Fatalf("error updating global config.Error: %s", err)
+	}
+
 	tenant := cfg.Tenants[0]
 	err = CreateTenant(fakeDriver, &tenant)
 	if err != nil {
@@ -466,14 +455,14 @@ func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 		var expError string
 		network := tenant.Networks[0]
 		if network.PktTagType == "vlan" {
-			expError = fmt.Sprintf("vlan %d does not adhere to tenant's vlan range %s", network.PktTag, tenant.VLANs)
+			expError = "requested vlan not available"
 		} else {
-			expError = fmt.Sprintf("vxlan %d does not adhere to tenant's vxlan range %s", network.PktTag, tenant.VXLANs)
+			expError = "requested vxlan not available"
 		}
 
 		if err == nil {
 			t.Fatalf("CreateNetworks did not return error\n")
-		} else if err.Error() != expError {
+		} else if !strings.Contains(err.Error(), expError) {
 			t.Fatalf("CreateNetworks did not return error for OutOfRange\n")
 		}
 	} else if err != nil {

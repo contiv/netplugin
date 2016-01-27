@@ -28,6 +28,8 @@ const (
 	StateBasePath = "/contiv.io/"
 	// StateConfigPath is the path to the root of the configuration state
 	StateConfigPath = StateBasePath + "state/"
+	// StateOperPath is the path for operational/runtime state
+	StateOperPath = StateBasePath + "oper/"
 
 	networkConfigPathPrefix  = StateConfigPath + "nets/"
 	networkConfigPath        = networkConfigPathPrefix + "%s"
@@ -41,18 +43,17 @@ const (
 // vlans with ovs. The state is stored as Json objects.
 type CfgNetworkState struct {
 	core.CommonState
-	Tenant            string        `json:"tenant"`
-	NetworkName       string        `json:"networkName"`
-	PktTagType        string        `json:"pktTagType"`
-	PktTag            int           `json:"pktTag"`
-	ExtPktTag         int           `json:"extPktTag"`
-	SubnetIP          string        `json:"subnetIP"`
-	SubnetLen         uint          `json:"subnetLen"`
-	Gateway           string        `json:"gateway"`
-	EpCount           int           `json:"epCount"`
-	IPAllocMap        bitset.BitSet `json:"ipAllocMap"`
-	SubnetIsAllocated bool          `json:"subnetIsAllocated"`
-	DNSServer         string        `json:"dnsServer"`
+	Tenant      string        `json:"tenant"`
+	NetworkName string        `json:"networkName"`
+	PktTagType  string        `json:"pktTagType"`
+	PktTag      int           `json:"pktTag"`
+	ExtPktTag   int           `json:"extPktTag"`
+	SubnetIP    string        `json:"subnetIP"`
+	SubnetLen   uint          `json:"subnetLen"`
+	Gateway     string        `json:"gateway"`
+	EpCount     int           `json:"epCount"`
+	IPAllocMap  bitset.BitSet `json:"ipAllocMap"`
+	DNSServer   string        `json:"dnsServer"`
 }
 
 // Write the state.

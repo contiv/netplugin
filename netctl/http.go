@@ -47,6 +47,10 @@ func versionURL(ctx *cli.Context) string {
 	return fmt.Sprintf("%s/version", baseURL(ctx))
 }
 
+func globalURL(ctx *cli.Context) string {
+	return fmt.Sprintf("%s/api/globals/", baseURL(ctx))
+}
+
 func writeBody(resp *http.Response, ctx *cli.Context) {
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

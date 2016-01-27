@@ -22,9 +22,8 @@ import (
 
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/gstate"
+	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/resources"
 	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
@@ -91,13 +90,6 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 		}
 	}
 
-	// Get resource manager
-	tempRm, err := resources.GetStateResourceManager()
-	if err != nil {
-		return err
-	}
-	rm := core.ResourceManager(tempRm)
-
 	// Create epGroup state
 	epgCfg := &mastercfg.EndpointGroupState{
 		Name:        groupName,
@@ -125,7 +117,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 			return errors.New("Network type must be VLAN for ACI mode")
 		}
 
-		pktTag, err := gCfg.AllocVLAN(rm)
+		pktTag, err := gCfg.AllocVLAN(0)
 		if err != nil {
 			return err
 		}
@@ -173,13 +165,8 @@ func DeleteEndpointGroup(epgID int) error {
 	}
 
 	if aciMode {
-		tempRm, rErr := resources.GetStateResourceManager()
-		if rErr != nil {
-			return rErr
-		}
-		rm := core.ResourceManager(tempRm)
 		if epgCfg.PktTagType == "vlan" {
-			err = gCfg.FreeVLAN(rm, uint(epgCfg.PktTag))
+			err = gCfg.FreeVLAN(uint(epgCfg.PktTag))
 			if err != nil {
 				return err
 			}

@@ -33,6 +33,7 @@ import (
 // AddressAllocRequest is the address request from netplugin
 type AddressAllocRequest struct {
 	NetworkID            string // Unique identifier for the network
+	AddressPool          string // Address pool from which to allocate the address
 	PreferredIPv4Address string // Preferred address
 }
 
@@ -102,26 +103,32 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 		return nil, err
 	}
 
-	// FIXME: hack alert. this needs to be fixed
-	subnetIP := strings.Split(allocReq.NetworkID, "/")[0]
-	subnetLen := strings.Split(allocReq.NetworkID, "/")[1]
 	networkID := ""
 
-	// find the network from networkID
-	readNet := &mastercfg.CfgNetworkState{}
-	readNet.StateDriver = stateDriver
-	netList, err := readNet.ReadAll()
-	if err != nil {
-		if !strings.Contains(err.Error(), "Key not found") {
-			log.Errorf("error reading keys during host create. Error: %s", err)
-			return nil, err
-		}
-	}
+	// Determine the network id to use
+	if allocReq.NetworkID != "" {
+		networkID = allocReq.NetworkID
+	} else {
+		// find the network from address pool
+		subnetIP := strings.Split(allocReq.AddressPool, "/")[0]
+		subnetLen := strings.Split(allocReq.AddressPool, "/")[1]
 
-	for _, ncfg := range netList {
-		nw := ncfg.(*mastercfg.CfgNetworkState)
-		if nw.SubnetIP == subnetIP && fmt.Sprintf("%d", nw.SubnetLen) == subnetLen {
-			networkID = nw.ID
+		// find the network from networkID
+		readNet := &mastercfg.CfgNetworkState{}
+		readNet.StateDriver = stateDriver
+		netList, err := readNet.ReadAll()
+		if err != nil {
+			if !strings.Contains(err.Error(), "Key not found") {
+				log.Errorf("error reading keys during host create. Error: %s", err)
+				return nil, err
+			}
+		}
+
+		for _, ncfg := range netList {
+			nw := ncfg.(*mastercfg.CfgNetworkState)
+			if nw.SubnetIP == subnetIP && fmt.Sprintf("%d", nw.SubnetLen) == subnetLen {
+				networkID = nw.ID
+			}
 		}
 	}
 

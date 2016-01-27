@@ -17,7 +17,7 @@ package ofctrl
 // This file defines the forwarding graph API
 
 import (
-    "github.com/shaleman/libOpenflow/openflow13"
+	"github.com/shaleman/libOpenflow/openflow13"
 )
 
 // This implements a forwarding graph.
@@ -126,11 +126,11 @@ import (
 //
 
 type FgraphElem interface {
-    // Returns the type of fw graph element
-    Type() string
+	// Returns the type of fw graph element
+	Type() string
 
-    // Returns the formatted instruction set.
-    // This is used by the previous Fgraph element to install instruction set
-    // in the flow entry
-    GetFlowInstr() openflow13.Instruction
+	// Returns the formatted instruction set.
+	// This is used by the previous Fgraph element to install instruction set
+	// in the flow entry
+	GetFlowInstr() openflow13.Instruction
 }

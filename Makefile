@@ -38,9 +38,8 @@ checks:
 
 run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
-	cd Godeps/_workspace/src/github.com/contiv/ && chmod -R 771 contivmodel/ && cd contivmodel/ && ./generate.sh && \
 	cd /opt/gopath/src/github.com/contiv/netplugin && \
-	godep go install -v $(TO_BUILD) 
+	godep go install -v $(TO_BUILD)
 
 build:
 	make start
@@ -79,8 +78,8 @@ stop:
 demo:
 	vagrant up
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	vagrant ssh netplugin-node1 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -plugin-mode docker 2>&1> /tmp/netplugin.log &"'
-	vagrant ssh netplugin-node2 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -plugin-mode docker 2>&1> /tmp/netplugin.log &"'
+	vagrant ssh netplugin-node1 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -plugin-mode docker -vlan-if eth2 2>&1> /tmp/netplugin.log &"'
+	vagrant ssh netplugin-node2 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -plugin-mode docker -vlan-if eth2 2>&1> /tmp/netplugin.log &"'
 	sleep 10
 	vagrant ssh netplugin-node1 -c 'nohup bash -lc "/opt/gopath/bin/netmaster 2>&1> /tmp/netmaster.log &"'
 	sleep 10

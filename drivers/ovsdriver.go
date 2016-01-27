@@ -19,13 +19,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 )
 
 type oper int
+
+const maxIntfRetry = 100
 
 // OvsDriverConfig defines the configuration required to initialize the
 // OvsDriver.
@@ -74,8 +79,26 @@ type OvsDriver struct {
 	switchDb map[string]*OvsSwitch // OVS switch instances
 }
 
-func (d *OvsDriver) getIntfName() string {
-	return fmt.Sprintf(portNameFmt, d.oper.CurrPortNum)
+func (d *OvsDriver) getIntfName() (string, error) {
+	// get the next available port number
+	for i := 0; i < maxIntfRetry; i++ {
+		// Pick next port number
+		d.oper.CurrPortNum++
+		intfName := fmt.Sprintf("vport%d", d.oper.CurrPortNum)
+
+		// check if the port name is already in use
+		_, err := netlink.LinkByName(intfName)
+		if err != nil && strings.Contains(err.Error(), "not found") {
+			// save the new state
+			err = d.oper.Write()
+			if err != nil {
+				return "", err
+			}
+			return intfName, nil
+		}
+	}
+
+	return "", core.Errorf("Could not get intf name. Max retry exceeded")
 }
 
 // Init initializes the OVS driver.
@@ -159,7 +182,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		log.Errorf("Failed to read net %s \n", cfgNw.ID)
 		return err
 	}
-	log.Infof("create net %s \n", cfgNw.ID)
+	log.Infof("create net %+v \n", cfgNw)
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
@@ -174,7 +197,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 
 // DeleteNetwork deletes a network by named identifier
 func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int) error {
-	log.Infof("delete net %s \n", id)
+	log.Infof("delete net %s, encap %s, tags: %d/%d", id, encap, pktTag, extPktTag)
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
@@ -258,17 +281,11 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		d.DeleteEndpoint(operEp.ID)
 	}
 
-	// add an internal ovs port with vlan-tag information from the state
-
-	// XXX: revisit, the port name might need to come from user. Also revisit
-	// the algorithm to take care of port being deleted and reuse unused port
-	// numbers
-	d.oper.CurrPortNum++
-	err = d.oper.Write()
+	// Get the interface name to use
+	intfName, err = d.getIntfName()
 	if err != nil {
 		return err
 	}
-	intfName = d.getIntfName()
 
 	// Ask the switch to create the port
 	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag)
@@ -369,7 +386,7 @@ func (d *OvsDriver) DeletePeerHost(node core.ServiceInfo) error {
 
 	log.Infof("DeletePeerHost for %+v", node)
 
-	// Add the VTEP for the peer in vxlan switch.
+	// Remove VTEP from vxlan switch
 	err := d.switchDb["vxlan"].DeleteVtep(node.HostAddr)
 	if err != nil {
 		log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
@@ -389,6 +406,11 @@ func (d *OvsDriver) AddMaster(node core.ServiceInfo) error {
 		return err
 	}
 
+	// Add master to vlan and vxlan datapaths
+	err = d.switchDb["vlan"].AddMaster(node)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -398,6 +420,12 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 
 	// Delete master from vlan and vxlan datapaths
 	err := d.switchDb["vxlan"].DeleteMaster(node)
+	if err != nil {
+		return err
+	}
+
+	// Delete master from vlan and vxlan datapaths
+	err = d.switchDb["vlan"].DeleteMaster(node)
 	if err != nil {
 		return err
 	}

@@ -290,7 +290,15 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 	defer func() { driver.Deinit() }()
 	id := createEpID
 
-	err := driver.CreateEndpoint(id)
+	// create network
+	err := driver.CreateNetwork(testOvsNwID)
+	if err != nil {
+		t.Fatalf("network creation failed. Error: %s", err)
+	}
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag) }()
+
+	// create endpoint
+	err = driver.CreateEndpoint(id)
 	if err != nil {
 		t.Fatalf("endpoint creation failed. Error: %s", err)
 	}
@@ -316,7 +324,15 @@ func TestOvsDriverCreateEndpointStateful(t *testing.T) {
 	defer func() { driver.Deinit() }()
 	id := createEpIDStateful
 
-	err := driver.CreateEndpoint(id)
+	// create network
+	err := driver.CreateNetwork(testOvsNwIDStateful)
+	if err != nil {
+		t.Fatalf("network creation failed. Error: %s", err)
+	}
+	defer func() { driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag) }()
+
+	// Create endpoint
+	err = driver.CreateEndpoint(id)
 	if err != nil {
 		t.Fatalf("endpoint creation failed. Error: %s", err)
 	}
@@ -347,7 +363,15 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 	defer func() { driver.Deinit() }()
 	id := createEpIDStatefulMismatch
 
-	err := driver.CreateEndpoint(id)
+	// create network
+	err := driver.CreateNetwork(testOvsNwID)
+	if err != nil {
+		t.Fatalf("network creation failed. Error: %s", err)
+	}
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag) }()
+
+	// create endpoint
+	err = driver.CreateEndpoint(id)
 	if err != nil {
 		t.Fatalf("endpoint creation failed. Error: %s", err)
 	}
@@ -391,7 +415,15 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	defer func() { driver.Deinit() }()
 	id := deleteEpID
 
-	err := driver.CreateEndpoint(id)
+	// create network
+	err := driver.CreateNetwork(testOvsNwID)
+	if err != nil {
+		t.Fatalf("network creation failed. Error: %s", err)
+	}
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag) }()
+
+	// create endpoint
+	err = driver.CreateEndpoint(id)
 	if err != nil {
 		t.Fatalf("endpoint Creation failed. Error: %s", err)
 	}

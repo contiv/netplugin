@@ -16,12 +16,12 @@ const (
 	LockLost                  // We lost the lock
 )
 
-// Lock Event notifications
+// LockEvent Lock Event notifications
 type LockEvent struct {
 	EventType uint // Type of event
 }
 
-// Lock interface
+// LockInterface Lock interface
 type LockInterface interface {
 	// Acquire a lock.
 	// Give up acquiring lock after timeout seconds. if timeout is 0, wait forever
@@ -45,7 +45,7 @@ type LockInterface interface {
 	GetHolder() string
 }
 
-// Information about a service
+// ServiceInfo hash Information about a service
 // Notes:
 //      There could be multiple instances of a service. hostname:port uniquely
 //      identify an instance of a service
@@ -55,19 +55,21 @@ type ServiceInfo struct {
 	Port        int    // Port number where its listening
 }
 
+// Watch events
 const (
 	WatchServiceEventAdd   = iota // New Service endpoint added
 	WatchServiceEventDel          // A service endpoint was deleted
 	WatchServiceEventError        // Error occurred while watching for service
 )
 
+// WatchServiceEvent : watch event on services
 type WatchServiceEvent struct {
 	EventType   uint        // event type
 	ServiceInfo ServiceInfo // Information about the service
 }
 
-// Plugin API
-type ObjdbApi interface {
+// API Plugin API
+type API interface {
 	// Initialize the plugin, only called once
 	Init(seedHosts []string) error
 
@@ -87,7 +89,7 @@ type ObjdbApi interface {
 	ListDir(key string) ([]string, error)
 
 	// Create a new lock
-	NewLock(name string, holderId string, ttl uint64) (LockInterface, error)
+	NewLock(name string, holderID string, ttl uint64) (LockInterface, error)
 
 	// Register a service
 	// Service is registered with a ttl for 60sec and a goroutine is created
@@ -107,12 +109,12 @@ type ObjdbApi interface {
 
 var (
 	// List of plugins available
-	pluginList  = make(map[string]ObjdbApi)
+	pluginList  = make(map[string]API)
 	pluginMutex = new(sync.Mutex)
 )
 
-// Register a plugin
-func RegisterPlugin(name string, plugin ObjdbApi) error {
+// RegisterPlugin Register a plugin
+func RegisterPlugin(name string, plugin API) error {
 	pluginMutex.Lock()
 	defer pluginMutex.Unlock()
 	pluginList[name] = plugin
@@ -120,8 +122,8 @@ func RegisterPlugin(name string, plugin ObjdbApi) error {
 	return nil
 }
 
-// Return the plugin by name
-func GetPlugin(name string) ObjdbApi {
+// GetPlugin returns the plugin by name
+func GetPlugin(name string) API {
 	// Find the conf store
 	pluginMutex.Lock()
 	defer pluginMutex.Unlock()

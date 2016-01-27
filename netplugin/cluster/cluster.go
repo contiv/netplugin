@@ -27,7 +27,6 @@ import (
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
-	"github.com/contiv/objdb/client"
 	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
@@ -122,7 +121,7 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 }
 
 // Register netplugin with service registry
-func registerService(objdbClient objdb.ObjdbApi, localIP string) error {
+func registerService(objdbClient objdb.API, localIP string) error {
 	// service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netplugin",
@@ -142,7 +141,7 @@ func registerService(objdbClient objdb.ObjdbApi, localIP string) error {
 }
 
 // Main loop to discover peer hosts and masters
-func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi, localIP string) {
+func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, localIP string) {
 	// Create channels for watch thread
 	nodeEventCh := make(chan objdb.WatchServiceEvent, 1)
 	watchStopCh := make(chan bool, 1)
@@ -279,7 +278,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.ObjdbApi, 
 // GetLocalAddr gets local address to be used
 func GetLocalAddr() (string, error) {
 	// Get objdb's client IP
-	clientIP, err := client.NewClient().GetLocalAddr()
+	clientIP, err := objdb.NewClient("").GetLocalAddr()
 	if err != nil {
 		log.Warnf("Error getting local address from objdb. Returning first local address. Err: %v", err)
 
@@ -298,7 +297,7 @@ func GetLocalAddr() (string, error) {
 // Init initializes the cluster module
 func Init(netplugin *plugin.NetPlugin, localIP string) error {
 	// Create an objdb client
-	objdbClient := client.NewClient()
+	objdbClient := objdb.NewClient("")
 
 	// Register ourselves
 	registerService(objdbClient, localIP)

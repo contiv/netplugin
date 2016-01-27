@@ -8,11 +8,11 @@
 			"properties": {
 				"appName": {
 					"type": "string",
-					"description": "Application Name"
+					"title": "Application Name"
 				},
 				"tenantName": {
 					"type": "string",
-					"description": "Tenant Name"
+					"title": "Tenant Name"
 				}
 			},
 			"link-sets": {
