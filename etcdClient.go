@@ -175,17 +175,17 @@ func (ep *etcdPlugin) GetLocalAddr() (string, error) {
 	}
 
 	// Get ep state from etcd
-	if _, err := httpGetJSON("http://localhost:2379/v2/stats/ep", &epData); err != nil {
-		log.Errorf("Error getting ep state. Err: %v", err)
-		return "", errors.New("Error getting ep state")
+	if _, err := httpGetJSON("http://localhost:2379/v2/stats/self", &epData); err != nil {
+		log.Errorf("Error getting self state. Err: %v", err)
+		return "", errors.New("Error getting self state")
 	}
 
 	var memData memData
 
 	// Get member list from etcd
 	if _, err := httpGetJSON("http://localhost:2379/v2/members", &memData); err != nil {
-		log.Errorf("Error getting ep state. Err: %v", err)
-		return "", errors.New("Error getting ep state")
+		log.Errorf("Error getting members state. Err: %v", err)
+		return "", errors.New("Error getting members state")
 	}
 
 	myName := epData.Name
