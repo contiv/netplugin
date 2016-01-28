@@ -29,14 +29,14 @@ const (
 // CfgBgpState is the router Bgp configuration for the host
 type CfgBgpState struct {
 	core.CommonState
-	Name     string `json:"name"`
+	Hostname string `json:"hostname"`
 	As       string `json:"as"`
 	Neighbor string `json:"neighbor"`
 }
 
 // Write the state
 func (s *CfgBgpState) Write() error {
-	key := fmt.Sprintf(bgpConfigPath, s.Name)
+	key := fmt.Sprintf(bgpConfigPath, s.Hostname)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
@@ -53,7 +53,7 @@ func (s *CfgBgpState) ReadAll() ([]core.State, error) {
 
 // Clear removes the configuration from the state store.
 func (s *CfgBgpState) Clear() error {
-	key := fmt.Sprintf(bgpConfigPath, s.Name)
+	key := fmt.Sprintf(bgpConfigPath, s.Hostname)
 	return s.StateDriver.ClearState(key)
 }
 

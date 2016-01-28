@@ -93,8 +93,8 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 	if err == nil {
 		for idx, bgpCfg := range bgpCfgs {
 			bgp := bgpCfg.(*mastercfg.CfgBgpState)
-			log.Debugf("read bgp key[%d] %s, populating state \n", idx, bgp.Name)
-			processBgpEvent(netPlugin, opts, bgp.Name, false)
+			log.Debugf("read bgp key[%d] %s, populating state \n", idx, bgp.Hostname)
+			processBgpEvent(netPlugin, opts, bgp.Hostname, false)
 		}
 	}
 
@@ -186,8 +186,8 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			processNetEvent(netPlugin, nwCfg, isDelete)
 		}
 		if bgpCfg, ok := currentState.(*mastercfg.CfgBgpState); ok {
-			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Name)
-			processBgpEvent(netPlugin, opts, bgpCfg.Name, isDelete)
+			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
+			processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
 		}
 	}
 }

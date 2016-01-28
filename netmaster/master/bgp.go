@@ -27,11 +27,11 @@ func AddBgpNeighbors(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) err
 
 	log.Infof("Adding bgp neighbor {%v}", bgpCfg)
 	bgpState := &mastercfg.CfgBgpState{}
-	bgpState.Name = bgpCfg.Name
+	bgpState.Hostname = bgpCfg.Hostname
 	bgpState.As = bgpCfg.As
 	bgpState.Neighbor = bgpCfg.Neighbor
 	bgpState.StateDriver = stateDriver
-	bgpState.ID = bgpCfg.Name
+	bgpState.ID = bgpCfg.Hostname
 	err := bgpState.Write()
 
 	if err != nil {

@@ -59,7 +59,7 @@ type ConfigTenant struct {
 
 //ConfigBgp keeps bgp specific configs
 type ConfigBgp struct {
-	Name     string
+	Hostname string
 	As       string
 	Neighbor string
 }
