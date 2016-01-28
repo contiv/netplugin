@@ -5,6 +5,7 @@ GLOBAL_COMMANDS="\
     network\
     tenant\
     policy\
+    global\
     help"
 
 GLOBAL_OPTIONS="\
@@ -105,6 +106,19 @@ _netctl() {
                     ;;
                 *)
                     COMPREPLY=( $( compgen -W "create rm ls help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        global)
+            case "${secondword}" in
+                set)
+                    _netctl_global_set
+                    ;;
+                info)
+                    _netctl_global_info
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "set info help" -- "$cur" ) )
                     ;;
             esac
             ;;
@@ -514,6 +528,38 @@ _netctl_rule_ls() {
     esac
 }
 
+
+_netctl_global_set() {
+    case "$prev" in
+        --fabric-mode|-f)
+            COMPREPLY=( $( compgen -W "aci default" -- "$cur" ) )
+            return
+            ;;
+    esac
+
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_global_info() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+
+}
 
 # Parses the help output of cli to tokenize all strings
 # Then filter out the ones that start with "-" or "--"
