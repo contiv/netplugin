@@ -39,18 +39,36 @@
 					"title": "Priority",
 					"showSummary": true
 				},
-				"endpointGroup": {
+				"fromEndpointGroup": {
 					"type": "string",
 					"length": 64,
-					"title": "Group",
+					"title": "From Endpoint Group",
 					"showSummary": true
 				},
-				"network": {
+				"toEndpointGroup": {
 					"type": "string",
 					"length": 64,
-					"title": "Network Name"
+					"title": "To Endpoint Group",
+					"showSummary": true
 				},
-				"ipAddress": {
+				"fromNetwork": {
+					"type": "string",
+					"length": 64,
+					"title": "From Network",
+					"showSummary": true
+				},
+				"toNetwork": {
+					"type": "string",
+					"length": 64,
+					"title": "To Network",
+					"showSummary": true
+				},
+				"fromIpAddress": {
+					"type": "string",
+					"title": "IP Address",
+					"showSummary": true
+				},
+				"toIpAddress": {
 					"type": "string",
 					"title": "IP Address",
 					"showSummary": true

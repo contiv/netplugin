@@ -234,17 +234,20 @@ type Rule struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Action        string `json:"action,omitempty"`        // Action
-	Direction     string `json:"direction,omitempty"`     // Direction
-	EndpointGroup string `json:"endpointGroup,omitempty"` // Group
-	IpAddress     string `json:"ipAddress,omitempty"`     // IP Address
-	Network       string `json:"network,omitempty"`       // Network Name
-	PolicyName    string `json:"policyName,omitempty"`    // Policy Name
-	Port          int    `json:"port,omitempty"`          // Port No
-	Priority      int    `json:"priority,omitempty"`      // Priority
-	Protocol      string `json:"protocol,omitempty"`      // Protocol
-	RuleID        string `json:"ruleId,omitempty"`        // Rule Id
-	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
+	Action            string `json:"action,omitempty"`            // Action
+	Direction         string `json:"direction,omitempty"`         // Direction
+	FromEndpointGroup string `json:"fromEndpointGroup,omitempty"` // From Endpoint Group
+	FromIpAddress     string `json:"fromIpAddress,omitempty"`     // IP Address
+	FromNetwork       string `json:"fromNetwork,omitempty"`       // From Network
+	PolicyName        string `json:"policyName,omitempty"`        // Policy Name
+	Port              int    `json:"port,omitempty"`              // Port No
+	Priority          int    `json:"priority,omitempty"`          // Priority
+	Protocol          string `json:"protocol,omitempty"`          // Protocol
+	RuleID            string `json:"ruleId,omitempty"`            // Rule Id
+	TenantName        string `json:"tenantName,omitempty"`        // Tenant Name
+	ToEndpointGroup   string `json:"toEndpointGroup,omitempty"`   // To Endpoint Group
+	ToIpAddress       string `json:"toIpAddress,omitempty"`       // IP Address
+	ToNetwork         string `json:"toNetwork,omitempty"`         // To Network
 
 	// add link-sets and links
 	LinkSets RuleLinkSets `json:"link-sets,omitempty"`

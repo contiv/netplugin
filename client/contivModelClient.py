@@ -281,15 +281,18 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"action": obj.action, 
 			"direction": obj.direction, 
-			"endpointGroup": obj.endpointGroup, 
-			"ipAddress": obj.ipAddress, 
-			"network": obj.network, 
+			"fromEndpointGroup": obj.fromEndpointGroup, 
+			"fromIpAddress": obj.fromIpAddress, 
+			"fromNetwork": obj.fromNetwork, 
 			"policyName": obj.policyName, 
 			"port": obj.port, 
 			"priority": obj.priority, 
 			"protocol": obj.protocol, 
 			"ruleId": obj.ruleId, 
 			"tenantName": obj.tenantName, 
+			"toEndpointGroup": obj.toEndpointGroup, 
+			"toIpAddress": obj.toIpAddress, 
+			"toNetwork": obj.toNetwork, 
 	    })
 
 	    # Post the data

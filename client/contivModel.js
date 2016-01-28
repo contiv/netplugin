@@ -389,6 +389,12 @@ var PolicyModalView = React.createClass({
 			
 				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
+				<Input type='text' label='To Endpoint Group' ref='toEndpointGroup' defaultValue={obj.toEndpointGroup} placeholder='To Endpoint Group' />
+			
+				<Input type='text' label='IP Address' ref='toIpAddress' defaultValue={obj.toIpAddress} placeholder='IP Address' />
+			
+				<Input type='text' label='To Network' ref='toNetwork' defaultValue={obj.toNetwork} placeholder='To Network' />
+			
 			</div>
 	        <div className='modal-footer'>
 				<Button onClick={this.props.onRequestHide}>Close</Button>
@@ -415,10 +421,12 @@ var RuleSummaryView = React.createClass({
 						 
 						<td>{ rule.direction }</td>
 						 
-						<td>{ rule.endpointGroup }</td>
+						<td>{ rule.fromEndpointGroup }</td>
 						 
-						<td>{ rule.ipAddress }</td>
-						  
+						<td>{ rule.fromIpAddress }</td>
+						 
+						<td>{ rule.fromNetwork }</td>
+						 
 						<td>{ rule.policyName }</td>
 						 
 						<td>{ rule.port }</td>
@@ -430,6 +438,12 @@ var RuleSummaryView = React.createClass({
 						<td>{ rule.ruleId }</td>
 						 
 						<td>{ rule.tenantName }</td>
+						 
+						<td>{ rule.toEndpointGroup }</td>
+						 
+						<td>{ rule.toIpAddress }</td>
+						 
+						<td>{ rule.toNetwork }</td>
 						
 					</tr>
 				</ModalTrigger>
@@ -445,14 +459,18 @@ var RuleSummaryView = React.createClass({
 					 
 						<th> Action </th>  
 						<th> Direction </th>  
-						<th> Group </th>  
-						<th> IP Address </th>   
+						<th> From Endpoint Group </th>  
+						<th> IP Address </th>  
+						<th> From Network </th>  
 						<th> Policy Name </th>  
 						<th> Port No </th>  
 						<th> Priority </th>  
 						<th> Protocol </th>  
 						<th> Rule Id </th>  
-						<th> Tenant Name </th> 
+						<th> Tenant Name </th>  
+						<th> To Endpoint Group </th>  
+						<th> IP Address </th>  
+						<th> To Network </th> 
 					</tr>
 				</thead>
 				<tbody>
@@ -476,11 +494,11 @@ var RuleModalView = React.createClass({
 			
 				<Input type='text' label='Direction' ref='direction' defaultValue={obj.direction} placeholder='Direction' />
 			
-				<Input type='text' label='Group' ref='endpointGroup' defaultValue={obj.endpointGroup} placeholder='Group' />
+				<Input type='text' label='From Endpoint Group' ref='fromEndpointGroup' defaultValue={obj.fromEndpointGroup} placeholder='From Endpoint Group' />
 			
-				<Input type='text' label='IP Address' ref='ipAddress' defaultValue={obj.ipAddress} placeholder='IP Address' />
+				<Input type='text' label='IP Address' ref='fromIpAddress' defaultValue={obj.fromIpAddress} placeholder='IP Address' />
 			
-				<Input type='text' label='Network Name' ref='network' defaultValue={obj.network} placeholder='Network Name' />
+				<Input type='text' label='From Network' ref='fromNetwork' defaultValue={obj.fromNetwork} placeholder='From Network' />
 			
 				<Input type='text' label='Policy Name' ref='policyName' defaultValue={obj.policyName} placeholder='Policy Name' />
 			
