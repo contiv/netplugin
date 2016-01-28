@@ -61,6 +61,12 @@ func listPolicies(ctx *cli.Context) {
 
 		if ctx.Bool("json") {
 			dumpList(ctx, filtered)
+		} else if ctx.Bool("quiet") {
+			policies := ""
+			for _, policy := range filtered {
+				policies += policy["policyName"].(string) + "\n"
+			}
+			os.Stdout.WriteString(policies)
 		} else {
 			writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 			defer writer.Flush()
@@ -149,6 +155,12 @@ func listRules(ctx *cli.Context) {
 
 	if ctx.Bool("json") {
 		dumpList(ctx, results)
+	} else if ctx.Bool("quiet") {
+		rules := ""
+		for _, rule := range results {
+			rules += rule["ruleId"].(string) + "\n"
+		}
+		os.Stdout.WriteString(rules)
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
@@ -233,6 +245,12 @@ func listNetworks(ctx *cli.Context) {
 
 	if ctx.Bool("json") {
 		dumpList(ctx, filtered)
+	} else if ctx.Bool("quiet") {
+		networks := ""
+		for _, network := range filtered {
+			networks += network["networkName"].(string) + "\n"
+		}
+		os.Stdout.WriteString(networks)
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
@@ -287,6 +305,12 @@ func listTenants(ctx *cli.Context) {
 
 	if ctx.Bool("json") {
 		dumpList(ctx, list)
+	} else if ctx.Bool("quiet") {
+		tenants := ""
+		for _, tenant := range list {
+			tenants += tenant["tenantName"].(string) + "\n"
+		}
+		os.Stdout.WriteString(tenants)
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 		defer writer.Flush()
@@ -352,6 +376,12 @@ func listEndpointGroups(ctx *cli.Context) {
 
 	if ctx.Bool("json") {
 		dumpList(ctx, filtered)
+	} else if ctx.Bool("quiet") {
+		epgs := ""
+		for _, epg := range filtered {
+			epgs += epg["groupName"].(string) + "\n"
+		}
+		os.Stdout.WriteString(epgs)
 	} else {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)

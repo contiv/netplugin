@@ -1,0 +1,654 @@
+#! /bin/bash
+
+GLOBAL_COMMANDS="\
+    group\
+    network\
+    tenant\
+    policy\
+    global\
+    help"
+
+GLOBAL_OPTIONS="\
+    --netmaster\
+    --help\
+    --version"
+
+# Fetch all tenant names
+_netctl_complete_tenants() {
+    fields='$1'
+    COMPREPLY=( $(compgen -W '$(netctl tenant ls -q)' -- "$cur") )
+}
+
+# Fetch all network names in the tenant
+_netctl_complete_networks() {
+   local tenant
+   tenant=$(_netctl_fetch_tenant_value)
+   COMPREPLY=( $(compgen -W '$(netctl network ls --tenant $tenant -q)' -- "$cur") )
+}
+
+# Fetch all policy names in the tenant
+_netctl_complete_policies() {
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    COMPREPLY=( $(compgen -W '$(netctl policy ls --tenant $tenant -q) $1' -- "$cur") )
+}
+
+# Fetch all group names in the tenant
+_netctl_complete_groups() {
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    COMPREPLY=( $(compgen -W '$(netctl group ls --tenant $tenant -q)' -- "$cur") )
+}
+
+_netctl_complete_rules() {
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    policy="$1"
+    if [ -z "$policy" ]; then
+        _netctl_fetch_options
+        return
+    fi
+    COMPREPLY=( $(compgen -W '$(netctl policy rule-ls $policy --tenant $tenant -q)' -- "$cur") )
+}
+
+
+_netctl() {
+    local cur prev firstword secondword complete_words complete_options
+
+    cur=${COMP_WORDS[COMP_CWORD]}
+    prev=${COMP_WORDS[COMP_CWORD-1]}
+    firstword=$(_netctl_get_firstword)
+    secondword=$(_netctl_get_secondword)
+
+    #echo -e "\nprev = $prev, cur = $cur, firstword = $firstword, secondword = $secondword \n"
+    case "${firstword}" in
+        group)
+            case "${secondword}" in
+                create)
+                    _netctl_group_create
+                    ;;
+                rm|delete)
+                    _netctl_group_rm
+                    ;;
+                ls|list)
+                    _netctl_group_ls
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create rm ls help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        network|net)
+            case "${secondword}" in
+                create)
+                    _netctl_network_create
+                    ;;
+                rm|delete)
+                    _netctl_network_rm
+                    ;;
+                ls|list)
+                    _netctl_network_ls
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create rm ls help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        tenant)
+            case "${secondword}" in
+                create)
+                    _netctl_tenant_create
+                    ;;
+                rm|delete)
+                    _netctl_tenant_rm
+                    ;;
+                ls|list)
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create rm ls help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        global)
+            case "${secondword}" in
+                set)
+                    _netctl_global_set
+                    ;;
+                info)
+                    _netctl_global_info
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "set info help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        policy)
+            case "${secondword}" in
+                create)
+                    _netctl_policy_create
+                    ;;
+                rm|delete)
+                    _netctl_policy_rm
+                    ;;
+                ls|list)
+                    _netctl_policy_ls
+                    ;;
+                rule-add)
+                    _netctl_rule_create
+                    ;;
+                rule-rm)
+                    _netctl_rule_rm
+                    ;;
+                rule-ls)
+                    _netctl_rule_ls
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create rm ls rule-add rule-rm rule-ls help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        *)
+            if [[ $cur == -* ]]; then
+                COMPREPLY=( $( compgen -W "$GLOBAL_OPTIONS" -- "$cur" ) )
+            else
+                COMPREPLY=( $( compgen -W "$GLOBAL_COMMANDS" -- "$cur" ) )
+            fi
+            ;;
+    esac
+}
+
+# Get the first word that is not an option flag.
+# Usually the command
+_netctl_get_firstword() {
+    local firstword i
+
+    firstword=
+    for ((i = 1; i < ${#COMP_WORDS[@]}; ++i)); do
+        if [[ ${COMP_WORDS[i]} != -* ]]; then
+            firstword=${COMP_WORDS[i]}
+            break
+        fi
+    done
+
+    echo $firstword
+}
+
+# Get the second word that is not an option flag.
+# Usually the sub-command
+_netctl_get_secondword() {
+    local secondword i
+
+    secondword=
+    for ((i = 2; i < ${#COMP_WORDS[@]}; ++i)); do
+        if [[ ${COMP_WORDS[i]} != -* ]]; then
+            secondword=${COMP_WORDS[i]}
+            break
+        fi
+    done
+
+    echo $secondword
+}
+
+
+# will return count of arguments without considering the
+# options/flags and their values. 
+# does not account for boolean flag for now.
+# netctl policy rule-add web_prod rule
+# will return 2
+# netctl policy rule-add --tenant demo web_prod rule
+# will return 2
+_netctl_get_argcount() {
+    local count
+    count=0
+    for ((i = 3; i < ${#COMP_WORDS[@]}; ++i)); do
+        if [[ ${COMP_WORDS[i]} == *"="* ]]; then
+            # value is a part of the flag.
+            # --flag=val
+            continue
+        fi
+
+        if [[ ${COMP_WORDS[i]} != -* ]]; then
+            count=$[count + 1]
+        else
+            # value is specified after a space
+            # --flag val
+            # so count should be skipped for the next element
+            # we decrement to the count here to offset for it
+            count=$[count - 1]
+        fi
+    done
+    echo $count
+}
+
+_netctl_get_arg() {
+    local arg_num count
+    arg_num="$1"
+    count=0
+    for ((i = 3; i < ${#COMP_WORDS[@]}; ++i)); do
+        if [[ ${COMP_WORDS[i]} == *"="* ]]; then
+            # value is a part of the flag.
+            # --flag=val
+            continue
+        fi
+
+        if [[ ${COMP_WORDS[i]} != -* ]]; then
+            count=$[count + 1]
+        else
+            # value is specified after a space
+            # --flag val
+            # so count should be skipped for the next element
+            # we decrement to the count here to offset for it
+            count=$[count - 1]
+        fi
+
+        if [ $arg_num -eq $count ];then
+            echo ${COMP_WORDS[i]}
+        fi
+    done
+}
+
+
+
+_netctl_network_create() {
+    case "$prev" in
+        --encap|-e)
+            COMPREPLY=( $( compgen -W "vlan vxlan" -- "$cur" ) )
+            return
+            ;;
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            return
+            ;;
+    esac
+}
+
+_netctl_network_rm() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+   esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_networks
+            ;;
+    esac
+}
+
+_netctl_network_ls() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+   esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_tenant_create() {
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            return
+            ;;
+    esac
+}
+
+_netctl_tenant_rm() {
+    case "$cur" in
+        *)
+            _netctl_complete_tenants
+            ;;
+    esac
+}
+
+_netctl_policy_create() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            return
+            ;;
+    esac
+}
+
+_netctl_policy_rm() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+   esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_policies
+            ;;
+    esac
+}
+
+_netctl_policy_ls() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+   esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_group_create() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+        --policy|-p)
+            _netctl_complete_policies
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            return
+            ;;
+    esac
+}
+
+_netctl_group_rm() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+   esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_groups
+            ;;
+    esac
+}
+
+_netctl_group_ls() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+   esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_rule_create() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+        --direction|-d)
+            COMPREPLY=( $( compgen -W "in out both" -- "$cur" ) )
+            return
+            ;;
+        --group|-g)
+            _netctl_complete_groups
+            return
+            ;;
+        --network|-n)
+            _netctl_complete_networks
+            return
+            ;;
+        --action|-a)
+            COMPREPLY=( $( compgen -W "accept deny" -- "$cur" ) )
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            return
+            ;;
+        *)
+            local argcount
+            argcount=$(_netctl_get_argcount)
+            if [ $argcount -eq 1 ]; then
+                _netctl_complete_policies
+            else
+                _netctl_fetch_options
+            fi
+            return
+            ;;
+    esac
+}
+
+_netctl_rule_rm() {
+    local policy argcount is_tenant_specified words
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            return
+            ;;
+
+        *)
+            argcount=$(_netctl_get_argcount)
+            is_tenant_specified=$(_netctl_cmd_tenant_is_specified)
+
+            if [ "$is_tenant_specified" == false ]; then 
+                words=$(_netctl_fetch_options true)
+            fi
+
+            if [ $argcount -eq 1 ]; then
+               _netctl_complete_policies $words
+                words=""
+            elif [ $argcount -eq 2 ]; then
+                policy=$(_netctl_get_arg 1)
+                _netctl_complete_rules $policy 
+            else
+                _netctl_fetch_options
+            fi
+
+            return
+            ;;
+    esac
+}
+
+_netctl_rule_ls() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+
+        *)
+            local argcount
+            argcount=$(_netctl_get_argcount)
+            if [ $argcount -eq 1 ]; then
+                _netctl_complete_policies
+            else
+                _netctl_fetch_options
+            fi
+            return
+
+            ;;
+    esac
+}
+
+
+_netctl_global_set() {
+    case "$prev" in
+        --fabric-mode|-f)
+            COMPREPLY=( $( compgen -W "aci default" -- "$cur" ) )
+            return
+            ;;
+    esac
+
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_global_info() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+
+}
+
+# Parses the help output of cli to tokenize all strings
+# Then filter out the ones that start with "-" or "--"
+_netctl_fetch_options() {
+    local cmdhelp word words ret_words 
+    ret_words="$1"
+    cmdhelp=`netctl ${firstword} ${secondword} --help`
+    IFS=" " read -ra parts <<< ${cmdhelp}
+    for i in $(seq 0 ${#parts[@]})
+    do
+        # Flags start with a - or --
+        grep "^-" <<< ${parts[i]} >> /dev/null
+        if [ $? -eq 0 ] && [ ${parts[i]} != "-" ]
+        then
+            # Remove any commas
+            word=${parts[i]//,/}
+            words="$words $word"
+        fi
+    done
+
+    if [ "$ret_words" = true ]; then
+        echo $words
+    else
+        COMPREPLY=( $( compgen -W "$words" -- "$cur" ) )
+    fi
+}
+
+_netctl_cmd_tenant_is_specified() {
+    local tenant
+    tenant=$(_netctl_option_val_get '--tenant')
+    if [ -z $tenant ]; then
+        tenant=$(_netctl_option_val_get '-t')
+
+        if [ -z $tenant ]
+        then
+            echo false
+            return
+        fi
+    fi
+    echo true 
+}
+
+
+_netctl_fetch_tenant_value() {
+    local is_specified tenant
+    is_specified=$(_netctl_cmd_tenant_is_specified)
+    if [ $is_specified == false ]; then
+        tenant="default"
+    else
+        tenant=$(_netctl_option_val_get '--tenant')
+        if [ -z $tenant ]; then
+            tenant=$(_netctl_option_val_get '-t')
+        fi
+    fi
+    
+    echo $tenant
+}
+
+_netctl_fetch_policy_value() {
+    local policy
+    policy=$(_netctl_option_val_get '--policy')
+    if [ -z $policy ]; then
+        policy=$(_netctl_option_val_get '-p')
+
+        if [ -z $policy]
+        then
+            policy=""
+        fi
+    fi
+    echo $policy
+}
+
+
+# Parses the entire command for the option that is requested
+# and returns the next pattern as value
+_netctl_option_val_get() {
+    local option_prop option_val i
+
+    option_prop="$1"
+
+    option_val=
+    for ((i = 1; i < ${#COMP_WORDS[@]}; ++i)); do
+        if [[ ${COMP_WORDS[i]} == "$option_prop" ]] && [[ -n ${COMP_WORDS[i+1]} ]]; then
+            option_val=${COMP_WORDS[i+1]}
+        fi
+    done
+
+    echo $option_val
+}
+
+
+complete -F _netctl netctl

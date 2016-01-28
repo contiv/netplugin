@@ -18,6 +18,11 @@ var jsonFlag = cli.BoolFlag{
 	Usage: "Output list in JSON format",
 }
 
+var quietFlag = cli.BoolFlag{
+	Name:  "quiet, q",
+	Usage: "Only display name field",
+}
+
 // NetmasterFlags encapsulates the flags required for talking to the netmaster.
 var NetmasterFlags = []cli.Flag{
 	cli.StringFlag{
@@ -66,7 +71,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List endpoint groups",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
 				Action:    listEndpointGroups,
 			},
 		},
@@ -81,7 +86,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List networks",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
 				Action:    listNetworks,
 			},
 			{
@@ -129,6 +134,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List tenants",
 				ArgsUsage: " ",
+				Flags:     []cli.Flag{quietFlag},
 				Action:    listTenants,
 			},
 			{
@@ -147,29 +153,49 @@ var Commands = []cli.Command{
 		},
 	},
 	{
-		Name:  "rule",
-		Usage: "Rule manipulation tools",
+		Name:  "policy",
+		Usage: "Policy manipulation tools",
 		Subcommands: []cli.Command{
 			{
-				Name:      "ls",
-				Aliases:   []string{"list"},
-				Usage:     "List rules for a given tenant/policy",
+				Name:      "create",
+				Usage:     "Create a new policy",
 				ArgsUsage: "[policy]",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
-				Action:    listRules,
+				Flags:     []cli.Flag{tenantFlag},
+				Action:    createPolicy,
 			},
 			{
 				Name:      "rm",
 				Aliases:   []string{"delete"},
-				Usage:     "Delete an existing rule.",
+				Usage:     "Delete a policy",
+				ArgsUsage: "[policy]",
+				Flags:     []cli.Flag{tenantFlag},
+				Action:    deletePolicy,
+			},
+			{
+				Name:      "ls",
+				Aliases:   []string{"list"},
+				Usage:     "List policies",
+				ArgsUsage: " ",
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
+				Action:    listPolicies,
+			},
+			{
+				Name:      "rule-ls",
+				Usage:     "List rules for a given tenant,policy",
+				ArgsUsage: "[policy]",
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
+				Action:    listRules,
+			},
+			{
+				Name:      "rule-rm",
+				Usage:     "Delete a rule from the policy",
 				ArgsUsage: "[policy] [rule id]",
 				Flags:     []cli.Flag{tenantFlag},
 				Action:    deleteRule,
 			},
 			{
-				Name:      "create",
-				Aliases:   []string{"add"},
-				Usage:     "Add a new rule.",
+				Name:      "rule-add",
+				Usage:     "Add a new rule to the policy",
 				ArgsUsage: "[policy] [rule id]",
 				Flags: []cli.Flag{
 					tenantFlag,
@@ -210,35 +236,6 @@ var Commands = []cli.Command{
 					},
 				},
 				Action: addRule,
-			},
-		},
-	},
-	{
-		Name:  "policy",
-		Usage: "Policy manipulation tools",
-		Subcommands: []cli.Command{
-			{
-				Name:      "create",
-				Usage:     "Create a new policy",
-				ArgsUsage: "[policy]",
-				Flags:     []cli.Flag{tenantFlag},
-				Action:    createPolicy,
-			},
-			{
-				Name:      "rm",
-				Aliases:   []string{"delete"},
-				Usage:     "Delete a policy",
-				ArgsUsage: "[policy]",
-				Flags:     []cli.Flag{tenantFlag},
-				Action:    deletePolicy,
-			},
-			{
-				Name:      "ls",
-				Aliases:   []string{"list"},
-				Usage:     "List policies",
-				ArgsUsage: " ",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
-				Action:    listPolicies,
 			},
 		},
 	},
