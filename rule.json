@@ -11,6 +11,7 @@
 					"title": "Rule Name",
 					"length": 64,
 					"title": "Rule Id",
+					"description": "Rule identifier, unique string to identify the rule within policy",
 					"showSummary": true
 				},
 				"policyName": {
@@ -27,7 +28,7 @@
 				},
 				"direction": {
 					"type": "string",
-					"format": "^(in|out|both)$",
+					"format": "^(in|out)$",
 					"title": "Direction",
 					"showSummary": true
 				},
@@ -37,40 +38,47 @@
 					"max": 100,
 					"default": "1",
 					"title": "Priority",
+					"description": "Priority of the rule. Higher the number, higher the priority",
 					"showSummary": true
 				},
 				"fromEndpointGroup": {
 					"type": "string",
 					"length": 64,
 					"title": "From Endpoint Group",
+					"description": "Match from endpoint group. Valid only in incoming direction",
 					"showSummary": true
 				},
 				"toEndpointGroup": {
 					"type": "string",
 					"length": 64,
 					"title": "To Endpoint Group",
+					"description": "Match to endpoint group. Valid only in outoing direction",
 					"showSummary": true
 				},
 				"fromNetwork": {
 					"type": "string",
 					"length": 64,
 					"title": "From Network",
+					"description": "Match from network. Valid only in incoming direction",
 					"showSummary": true
 				},
 				"toNetwork": {
 					"type": "string",
 					"length": 64,
 					"title": "To Network",
+					"description": "Match to network. Valid only in outgoing direction",
 					"showSummary": true
 				},
 				"fromIpAddress": {
 					"type": "string",
 					"title": "IP Address",
+					"description": "Match from IP address. Valid only in incoming direction",
 					"showSummary": true
 				},
 				"toIpAddress": {
 					"type": "string",
 					"title": "IP Address",
+					"description": "Match to IP address. Valid only in outgoing direction",
 					"showSummary": true
 				},
 				"protocol": {
