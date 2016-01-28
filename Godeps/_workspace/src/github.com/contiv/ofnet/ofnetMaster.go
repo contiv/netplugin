@@ -126,6 +126,8 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 
 // Add an Endpoint
 func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
+
+	log.Infof("Received Endpoint CReate from Remote netplugin")
 	// Check if we have the endpoint already and which is more recent
 	oldEp := self.endpointDb[ep.EndpointID]
 	if oldEp != nil {

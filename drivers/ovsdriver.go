@@ -369,14 +369,7 @@ func (d *OvsDriver) AddPeerHost(node core.ServiceInfo) error {
 	log.Infof("CreatePeerHost for %+v", node)
 
 	// Add the VTEP for the peer in vxlan switch.
-	err := d.switchDb["vlan"].CreateVtep(node.HostAddr)
-	if err != nil {
-		log.Errorf("Error adding the VTEP %s. Err: %s", node.HostAddr, err)
-		return err
-	}
-
-	// Add the VTEP for the peer in vxlan switch.
-	err = d.switchDb["vxlan"].CreateVtep(node.HostAddr)
+	err := d.switchDb["vxlan"].CreateVtep(node.HostAddr)
 	if err != nil {
 		log.Errorf("Error adding the VTEP %s. Err: %s", node.HostAddr, err)
 		return err
@@ -394,15 +387,8 @@ func (d *OvsDriver) DeletePeerHost(node core.ServiceInfo) error {
 
 	log.Infof("DeletePeerHost for %+v", node)
 
-	// Remove the VTEP for the peer in vlan switch.
-	err := d.switchDb["vlan"].DeleteVtep(node.HostAddr)
-	if err != nil {
-		log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
-		return err
-	}
-
 	// Remove the VTEP for the peer in vxlan switch.
-	err = d.switchDb["vxlan"].DeleteVtep(node.HostAddr)
+	err := d.switchDb["vxlan"].DeleteVtep(node.HostAddr)
 	if err != nil {
 		log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
 		return err
@@ -455,18 +441,18 @@ func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	log.Info("Reading from etcd State %s", id)
 	err := cfg.Read(id)
 	if err != nil {
-		log.Errorf("Failed to read router state %s \n", cfg.Name)
+		log.Errorf("Failed to read router state %s \n", cfg.Hostname)
 		return err
 	}
-	log.Infof("create Bgp Server %s \n", cfg.Name)
+	log.Infof("create Bgp Server %s \n", cfg.Hostname)
 
 	// Find the switch based on network type
 	sw = d.switchDb["vlan"]
 
-	return sw.AddBgpNeighbors(cfg.Name, cfg.As, cfg.Neighbor)
+	return sw.AddBgpNeighbors(cfg.Hostname, cfg.As, cfg.Neighbor)
 }
 
-// DeleteBgpNeightbor deletes a bgp neighbor by named identifier
+// DeleteBgpNeighbors deletes a bgp neighbor by named identifier
 func (d *OvsDriver) DeleteBgpNeighbors(id string) error {
 	log.Infof("delete Bgp Neighbor %s \n", id)
 	//FixME: We are not maintaining oper state for Bgp

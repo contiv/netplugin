@@ -62,16 +62,42 @@ type OfnetDatapath interface {
 	// Remove a vlan
 	RemoveVlan(vlanId uint16, vni uint32) error
 
-	// Add an uplink to the switch
+	//Add uplink port
 	AddUplink(portNo uint32) error
 
-	// Remove an uplink
+	//Delete uplink port
 	RemoveUplink(portNo uint32) error
+}
+
+// Interface implemented by each control protocol.
+type OfnetProto interface {
+
+	//Create a protocol server
+	StartProtoServer(routerInfo OfnetProtoRouterInfo) error
+
+	//Add a Protocol Neighbor
+	AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) error
+
+	//Delete a Protocol Neighbor
+	DeleteProtoNeighbor() error
+
+	//Get Protocol router info
+	GetRouterInfo() *OfnetProtoRouterInfo
+
+	//Add Local Route
+	AddLocalProtoRoute(path *OfnetProtoRouteInfo) error
+
+	//Delete Local Route
+	DeleteLocalProtoRoute(path *OfnetProtoRouteInfo) error
+
+	//Modify protocol Rib (Could be used for testing)
+	ModifyProtoRib(path interface{})
 }
 
 // Default port numbers
 const OFNET_MASTER_PORT = 9001
-const OFNET_AGENT_PORT = 9002
+const OFNET_AGENT_VXLAN_PORT = 9002
+const OFNET_AGENT_VLAN_PORT = 9010
 
 // Information about each node
 type OfnetNode struct {
@@ -85,6 +111,7 @@ type OfnetEndpoint struct {
 	EndpointType  string    // Type of the endpoint "internal", "external" or "externalRoute"
 	EndpointGroup int       // Endpoint group identifier for policies.
 	IpAddr        net.IP    // IP address of the end point
+	IpMask        net.IP    // IP mask for the end point
 	VrfId         uint16    // IP address namespace
 	MacAddrStr    string    // Mac address of the end point(in string format)
 	Vlan          uint16    // Vlan Id for the endpoint
@@ -107,4 +134,22 @@ type OfnetPolicyRule struct {
 	DstPort          uint16 // destination port
 	TcpFlags         string // TCP flags to match: syn || syn,ack || ack || syn,!ack || !syn,ack;
 	Action           string // rule action: 'accept' or 'deny'
+}
+
+type OfnetProtoNeighborInfo struct {
+	ProtocolType string // type of protocol
+	NeighborIP   string // ip address of the neighbor
+	As           string // As of neighbor if applicable
+}
+
+type OfnetProtoRouterInfo struct {
+	ProtocolType string // type of protocol
+	RouterIP     string // ip address of the neighbor
+	VlanIntf     string // uplink L2 intf
+}
+
+type OfnetProtoRouteInfo struct {
+	ProtocolType string // type of protocol
+	localEpIP    string
+	nextHopIP    string
 }

@@ -68,7 +68,7 @@ func TestPolicyAddDelete(t *testing.T) {
 	ofnetAgent.WaitForSwitchConnection()
 
 	// Create a vlan for the endpoint
-	ofnetAgent.AddVlan(1, 1)
+	ofnetAgent.AddNetwork(1, 1, "")
 
 	macAddr, _ := net.ParseMAC("00:01:02:03:04:05")
 	endpoint := EndpointInfo{

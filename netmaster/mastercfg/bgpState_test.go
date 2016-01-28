@@ -99,7 +99,7 @@ func TestCfgBgpStateWrite(t *testing.T) {
 
 	bgpCfg := &CfgBgpState{}
 	bgpCfg.StateDriver = bgpStateDriver
-	bgpCfg.Name = testhostID
+	bgpCfg.Hostname = testhostID
 
 	err := bgpCfg.Write()
 	if err != nil {
@@ -110,7 +110,7 @@ func TestCfgBgpStateWrite(t *testing.T) {
 func TestCfgBgpStateClear(t *testing.T) {
 	bgpCfg := &CfgBgpState{}
 	bgpCfg.StateDriver = bgpStateDriver
-	bgpCfg.Name = testhostID
+	bgpCfg.Hostname = testhostID
 
 	err := bgpCfg.Clear()
 	if err != nil {

@@ -4,9 +4,9 @@
                 {
                         "name": "Bgp",
                         "type": "object",
-                        "key": ["name"],
+                        "key": ["hostname"],
       "properties": {
-        "name": {
+        "hostname": {
           "type": "string",
           "title": "host name",
           "length": 256

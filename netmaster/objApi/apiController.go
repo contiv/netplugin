@@ -783,7 +783,6 @@ func (ac *APIController) TenantDelete(tenant *contivModel.Tenant) error {
 }
 
 //BgpCreate add bgp neighbor
-
 func (ac *APIController) BgpCreate(bgpNeighborCfg *contivModel.Bgp) error {
 	log.Infof("Received BgpCreate: %+v", bgpNeighborCfg)
 

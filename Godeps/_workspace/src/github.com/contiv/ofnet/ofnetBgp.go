@@ -17,22 +17,21 @@ package ofnet
 import (
 	"errors"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"io"
 	"net"
 	"os/exec"
 	"strconv"
 	"time"
 
-	"container/list"
-	log "github.com/Sirupsen/logrus"
-
 	api "github.com/osrg/gobgp/api"
 	bgpconf "github.com/osrg/gobgp/config"
 	"github.com/osrg/gobgp/packet"
 	bgpserver "github.com/osrg/gobgp/server"
+	"github.com/shaleman/libOpenflow/openflow13"
+	"github.com/shaleman/libOpenflow/protocol"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
-
 	"google.golang.org/grpc"
 )
 
@@ -47,10 +46,9 @@ type OfnetBgp struct {
 	bgpServer  *bgpserver.BgpServer // bgp server instance
 	grpcServer *bgpserver.Server    // grpc server to talk to gobgp
 
-	myRouterMac   net.HardwareAddr //Router mac used for external proxy
-	myBgpPeer     string           // bgp neighbor
-	unresolvedEPs *list.List       // unresolved endpoint list
-	cc            *grpc.ClientConn //grpc client connection
+	myRouterMac net.HardwareAddr //Router mac used for external proxy
+	myBgpPeer   string           // bgp neighbor
+	cc          *grpc.ClientConn //grpc client connection
 
 }
 
@@ -138,7 +136,6 @@ func (self *OfnetBgp) StartProtoServer(routerInfo OfnetProtoRouterInfo) error {
 	err = self.agent.ovsDriver.CreatePort("inb01", "internal", 1)
 	if err != nil {
 		log.Errorf("Error creating the port", err)
-		return err
 	}
 
 	cmd := exec.Command("ifconfig", "inb01", routerInfo.RouterIP+"/24")
@@ -168,9 +165,6 @@ func (self *OfnetBgp) StartProtoServer(routerInfo OfnetProtoRouterInfo) error {
 	self.agent.localEndpointDb[epreg.PortNo] = epreg
 	fmt.Println(epreg)
 	err = self.agent.datapath.AddLocalEndpoint(*epreg)
-
-	uplink, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
-	self.agent.AddUplink(uplink)
 
 	//Add bgp router id as well
 	bgpGlobalCfg := &bgpconf.Global{}
@@ -238,6 +232,7 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 	bgpEndpoint := self.agent.getEndpointByIp(net.ParseIP(self.myBgpPeer))
 	self.agent.datapath.RemoveEndpoint(bgpEndpoint)
 	delete(self.agent.endpointDb, self.myBgpPeer)
+	self.myBgpPeer = ""
 
 	uplink, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
 
@@ -311,6 +306,7 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 		return err
 	}
 	self.myBgpPeer = neighborInfo.NeighborIP
+	go self.sendArp()
 
 	return nil
 }
@@ -506,7 +502,13 @@ func (self *OfnetBgp) monitorPeer() error {
 				 2) mark routes pointing to the bgp nexthop as unresolved
 				 3) mark the bgp peer reachbility as unresolved
 			*/
-			for _, endpoint := range self.agent.endpointDb {
+			endpoint := self.agent.getEndpointByIp(net.ParseIP(self.myBgpPeer))
+			self.agent.datapath.RemoveEndpoint(endpoint)
+			endpoint.PortNo = 0
+			self.agent.endpointDb[endpoint.EndpointID] = endpoint
+			self.agent.datapath.AddEndpoint(endpoint)
+
+			for _, endpoint = range self.agent.endpointDb {
 				if endpoint.PortNo == uplink {
 					self.agent.datapath.RemoveEndpoint(endpoint)
 					if endpoint.EndpointType == "internal" {
@@ -517,11 +519,6 @@ func (self *OfnetBgp) monitorPeer() error {
 						self.agent.datapath.AddEndpoint(endpoint)
 					} else if endpoint.EndpointType == "external" {
 						delete(self.agent.endpointDb, endpoint.EndpointID)
-					} else if endpoint.EndpointType == "external-bgp" {
-						// bgp peer endpoint
-						endpoint.PortNo = 0
-						self.agent.endpointDb[endpoint.EndpointID] = endpoint
-						self.agent.datapath.AddEndpoint(endpoint)
 					}
 				}
 			}
@@ -679,4 +676,56 @@ func setNeighborConfigValues(neighbor *bgpconf.Neighbor) error {
 	neighbor.NeighborConfig.PeerType = bgpconf.PEER_TYPE_EXTERNAL
 	neighbor.Transport.TransportConfig.PassiveMode = false
 	return nil
+}
+
+func (self *OfnetBgp) sendArp() {
+
+	//Get the Mac of the vlan intf
+	//Get the portno of the uplink
+	//Build an arp packet and send on portno of uplink
+	time.Sleep(5 * time.Second)
+	for {
+		if self.myBgpPeer == "" {
+			return
+		}
+
+		intf, _ := net.InterfaceByName(self.vlanIntf)
+		ofPortno, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
+		bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
+		zeroMac, _ := net.ParseMAC("00:00:00:00:00:00")
+
+		srcIP := net.ParseIP(self.routerIP)
+		dstIP := net.ParseIP(self.myBgpPeer)
+		arpReq, _ := protocol.NewARP(protocol.Type_Request)
+		arpReq.HWSrc = intf.HardwareAddr
+		arpReq.IPSrc = srcIP
+		arpReq.HWDst = zeroMac
+		arpReq.IPDst = dstIP
+
+		log.Infof("Sending ARP Request: %+v", arpReq)
+
+		// build the ethernet packet
+		ethPkt := protocol.NewEthernet()
+		ethPkt.HWDst = bMac
+		ethPkt.HWSrc = arpReq.HWSrc
+		ethPkt.Ethertype = 0x0806
+		ethPkt.Data = arpReq
+
+		log.Infof("Sending ARP Request Ethernet: %+v", ethPkt)
+
+		// Packet out
+		pktOut := openflow13.NewPacketOut()
+		pktOut.Data = ethPkt
+		pktOut.AddAction(openflow13.NewActionOutput(ofPortno))
+
+		log.Infof("Sending ARP Request packet: %+v", pktOut)
+
+		// Send it out
+		self.agent.ofSwitch.Send(pktOut)
+		time.Sleep(1800 * time.Second)
+	}
+}
+
+func (self *OfnetBgp) ModifyProtoRib(path interface{}) {
+	self.modRibCh <- path.(*api.Path)
 }

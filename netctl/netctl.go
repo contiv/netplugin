@@ -465,6 +465,7 @@ func showVersion(ctx *cli.Context) {
 		fmt.Printf("Server Version:\n")
 		fmt.Printf(version.StringFromInfo(&ver))
 	}
+}
 
 //addBgpNeighbors is a netctl interface routine to add
 //bgp neighbor
@@ -478,7 +479,7 @@ func addBgpNeighbors(ctx *cli.Context) {
 	url := fmt.Sprintf("%s%s/", bgpURL(ctx), hostname)
 
 	out := map[string]interface{}{
-		"Name":     hostname,
+		"Hostname": hostname,
 		"as":       asid,
 		"neighbor": neighbor,
 	}
@@ -507,7 +508,7 @@ func listBgpNeighbors(ctx *cli.Context) {
 	filtered := []map[string]interface{}{}
 
 	for _, group := range list {
-		if group["name"] == hostname || ctx.Bool("all") {
+		if group["hostname"] == hostname || ctx.Bool("all") {
 			filtered = append(filtered, group)
 		}
 	}
@@ -524,7 +525,7 @@ func listBgpNeighbors(ctx *cli.Context) {
 			fmt.Println(group)
 			writer.Write(
 				[]byte(fmt.Sprintf("%v\t%v\t%v\t\n",
-					group["name"],
+					group["host"],
 					group["neighbor"],
 					group["AS"],
 				)))

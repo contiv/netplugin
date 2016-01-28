@@ -271,3 +271,4 @@ func (vl *VlanBridge) initFgraph() error {
 	// Drop all
 	return nil
 }
+

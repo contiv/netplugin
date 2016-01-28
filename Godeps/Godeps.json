@@ -6,9 +6,18 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.1.0-21-g056c9bc",
+			"Rev": "056c9bc7be7190eaa7715723883caffa5f8fa3e4"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.8.3-92-gf7f79f7",
 			"Rev": "f7f79f729e0fbe2fcc061db48a9ba0263f588252"
+		},
+		{
+			"ImportPath": "github.com/armon/go-radix",
+			"Rev": "fbd82e84e2b13651f3abc5ffd26b65ba71bc8f93"
 		},
 		{
 			"ImportPath": "github.com/cenkalti/backoff",
@@ -111,6 +120,10 @@
 			"Rev": "2559410949b7200a81f63e0333ae768fe7a73d71"
 		},
 		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "221834dcb89c96e4b057ed8bb878bfe569dfacf4"
+		},
+		{
 			"ImportPath": "github.com/gorilla/context",
 			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
 		},
@@ -132,6 +145,36 @@
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",
 			"Comment": "v0.0.3-14-g9be9157",
 			"Rev": "9be9157fc5cd9cf59c155fe194a0acc5f1e6f926"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/api",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/config",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/packet",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/server",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/table",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/zebra",
+			"Comment": "v1.2",
+			"Rev": "e84989706157ffd7b895f42e4057e3f8ca382b3d"
 		},
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
@@ -161,6 +204,30 @@
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "4b5dce31de6d42af5bb9811c6d265472199e0fec"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/http2",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/internal/timeseries",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/trace",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc",
+			"Rev": "a202995ce9a99c7d65875ba9f0cf04ff43169dd5"
+		},
+		{
+			"ImportPath": "gopkg.in/tomb.v2",
+			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
 		}
 	]
 }

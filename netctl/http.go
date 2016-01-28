@@ -49,6 +49,7 @@ func versionURL(ctx *cli.Context) string {
 
 func globalURL(ctx *cli.Context) string {
 	return fmt.Sprintf("%s/api/globals/", baseURL(ctx))
+}
 
 func bgpURL(ctx *cli.Context) string {
 	return fmt.Sprintf("%s/api/Bgps/", baseURL(ctx))
