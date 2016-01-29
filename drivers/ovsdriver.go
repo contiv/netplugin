@@ -459,7 +459,6 @@ func (d *OvsDriver) DeleteBgpNeighbors(id string) error {
 	//Need to Revisit again
 	// Find the switch based on network type
 	var sw *OvsSwitch
-
 	sw = d.switchDb["vlan"]
 	return sw.DeleteBgpNeighbors()
 
