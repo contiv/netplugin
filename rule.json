@@ -95,7 +95,7 @@
 				},
 				"action": {
 					"type": "string",
-					"format": "^(accept|deny)$",
+					"format": "^(allow|deny)$",
 					"title": "Action",
 					"showSummary": true
 				}

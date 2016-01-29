@@ -2318,7 +2318,7 @@ func ValidateRule(obj *Rule) error {
 
 	// Validate each field
 
-	actionMatch := regexp.MustCompile("^(accept|deny)$")
+	actionMatch := regexp.MustCompile("^(allow|deny)$")
 	if actionMatch.MatchString(obj.Action) == false {
 		return errors.New("action string invalid format")
 	}
