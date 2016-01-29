@@ -100,6 +100,16 @@ func (self *etcdPlugin) GetService(name string) ([]ServiceInfo, error) {
 	return srvcList, nil
 }
 
+func (self *etcdPlugin) getCurrentIndex(key string) (uint64, error) {
+	// Get the object from etcd client
+	resp, err := self.client.Get(key, true, false)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.Node.ModifiedIndex, nil
+}
+
 // Watch for a service
 func (self *etcdPlugin) WatchService(name string,
 	eventCh chan WatchServiceEvent, stopCh chan bool) error {
@@ -111,9 +121,16 @@ func (self *etcdPlugin) WatchService(name string,
 
 	// Start the watch thread
 	go func() {
-		log.Infof("Watching for service: %s", keyName)
+		// Watch from current index to force a read of the initial state
+		watchIndex, err := self.getCurrentIndex(keyName)
+		if (err != nil) {
+			log.Fatalf("Unable to watch service key: %s - %v", keyName,
+				err)
+		}
+
+		log.Infof("Watching for service: %s at index %v", keyName, watchIndex)
 		// Start the watch
-		_, err := self.client.Watch(keyName, 0, true, watchCh, watchStopCh)
+		_, err = self.client.Watch(keyName, watchIndex, true, watchCh, watchStopCh)
 		if (err != nil) && (err != etcd.ErrWatchStoppedByUser) {
 			log.Errorf("Error watching service %s. Err: %v", keyName, err)
 
