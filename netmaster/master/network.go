@@ -126,11 +126,11 @@ func createDockNet(tenantName string, nwCfg *mastercfg.CfgNetworkState, serviceN
 	}
 
 	netPluginOptions := make(map[string]string)
-	netPluginOptions["tenant"] = nwCfg.Tenant
 	netPluginOptions["encap"] = nwCfg.PktTagType
-	netPluginOptions["pkt-tag"] = strconv.Itoa(nwCfg.PktTag)
 	if nwCfg.PktTagType == "vxlan" {
-		netPluginOptions["pkt-tag-ext"] = strconv.Itoa(nwCfg.ExtPktTag)
+		netPluginOptions["pkt-tag"] = strconv.Itoa(nwCfg.ExtPktTag)
+	} else {
+		netPluginOptions["pkt-tag"] = strconv.Itoa(nwCfg.PktTag)
 	}
 
 	// Build network parameters
