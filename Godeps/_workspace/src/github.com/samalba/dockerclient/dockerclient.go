@@ -21,7 +21,9 @@ const (
 )
 
 var (
-	ErrNotFound = errors.New("Not found")
+	ErrImageNotFound     = errors.New("Image not found")
+	ErrNotFound          = errors.New("Not found")
+	ErrConnectionRefused = errors.New("Cannot connect to the docker engine endpoint")
 
 	defaultTimeout = 30 * time.Second
 )
@@ -45,10 +47,10 @@ func (e Error) Error() string {
 }
 
 func NewDockerClient(daemonUrl string, tlsConfig *tls.Config) (*DockerClient, error) {
-	return NewDockerClientTimeout(daemonUrl, tlsConfig, time.Duration(defaultTimeout))
+	return NewDockerClientTimeout(daemonUrl, tlsConfig, time.Duration(defaultTimeout), nil)
 }
 
-func NewDockerClientTimeout(daemonUrl string, tlsConfig *tls.Config, timeout time.Duration) (*DockerClient, error) {
+func NewDockerClientTimeout(daemonUrl string, tlsConfig *tls.Config, timeout time.Duration, setUserTimeout tcpFunc) (*DockerClient, error) {
 	u, err := url.Parse(daemonUrl)
 	if err != nil {
 		return nil, err
@@ -60,7 +62,7 @@ func NewDockerClientTimeout(daemonUrl string, tlsConfig *tls.Config, timeout tim
 			u.Scheme = "https"
 		}
 	}
-	httpClient := newHTTPClient(u, tlsConfig, timeout)
+	httpClient := newHTTPClient(u, tlsConfig, timeout, setUserTimeout)
 	return &DockerClient{u, httpClient, tlsConfig, 0, nil}, nil
 }
 
@@ -99,10 +101,24 @@ func (client *DockerClient) doStreamRequest(method string, path string, in io.Re
 		if !strings.Contains(err.Error(), "connection refused") && client.TLSConfig == nil {
 			return nil, fmt.Errorf("%v. Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
+		if strings.Contains(err.Error(), "connection refused") {
+			return nil, ErrConnectionRefused
+		}
 		return nil, err
 	}
 	if resp.StatusCode == 404 {
 		defer resp.Body.Close()
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, ErrNotFound
+		}
+		if len(data) > 0 {
+			// check if is image not found error
+			if strings.Index(string(data), "No such image") != -1 {
+				return nil, ErrImageNotFound
+			}
+			return nil, errors.New(string(data))
+		}
 		return nil, ErrNotFound
 	}
 	if resp.StatusCode >= 400 {
@@ -172,7 +188,7 @@ func (client *DockerClient) InspectContainer(id string) (*ContainerInfo, error) 
 	return info, nil
 }
 
-func (client *DockerClient) CreateContainer(config *ContainerConfig, name string) (string, error) {
+func (client *DockerClient) CreateContainer(config *ContainerConfig, name string, auth *AuthConfig) (string, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
 		return "", err
@@ -183,14 +199,22 @@ func (client *DockerClient) CreateContainer(config *ContainerConfig, name string
 		v.Set("name", name)
 		uri = fmt.Sprintf("%s?%s", uri, v.Encode())
 	}
-	data, err = client.doRequest("POST", uri, data, nil)
+	headers := map[string]string{}
+	if auth != nil {
+		encoded_auth, err := auth.encode()
+		if err != nil {
+			return "", err
+		}
+		headers["X-Registry-Auth"] = encoded_auth
+	}
+	data, err = client.doRequest("POST", uri, data, headers)
 	if err != nil {
 		return "", err
 	}
 	result := &RespContainersCreate{}
 	err = json.Unmarshal(data, result)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf(string(data))
 	}
 	return result.Id, nil
 }
@@ -321,6 +345,29 @@ func (client *DockerClient) ExecResize(id string, width, height int) error {
 	}
 
 	return nil
+}
+
+func (client *DockerClient) AttachContainer(id string, options *AttachOptions) (io.ReadCloser, error) {
+	v := url.Values{}
+	if options != nil {
+		if options.Logs {
+			v.Set("logs", "1")
+		}
+		if options.Stream {
+			v.Set("stream", "1")
+		}
+		if options.Stdin {
+			v.Set("stdin", "1")
+		}
+		if options.Stdout {
+			v.Set("stdout", "1")
+		}
+		if options.Stderr {
+			v.Set("stderr", "1")
+		}
+	}
+	uri := fmt.Sprintf("/%s/containers/%s/attach?%s", APIVersion, id, v.Encode())
+	return client.doStreamRequest("POST", uri, nil, nil)
 }
 
 func (client *DockerClient) StartContainer(id string, config *HostConfig) error {
@@ -466,6 +513,9 @@ func (client *DockerClient) StartMonitorEvents(cb Callback, ec chan error, args 
 }
 
 func (client *DockerClient) StopAllMonitorEvents() {
+	if client.eventStopChan == nil {
+		return
+	}
 	close(client.eventStopChan)
 }
 
@@ -613,17 +663,9 @@ func (client *DockerClient) InspectImage(id string) (*ImageInfo, error) {
 }
 
 func (client *DockerClient) LoadImage(reader io.Reader) error {
-	data, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return err
-	}
-
 	uri := fmt.Sprintf("/%s/images/load", APIVersion)
-	_, err = client.doRequest("POST", uri, data, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := client.doStreamRequest("POST", uri, reader, nil)
+	return err
 }
 
 func (client *DockerClient) RemoveContainer(id string, force, volumes bool) error {
@@ -760,6 +802,13 @@ func (client *DockerClient) BuildImage(image *BuildImage) (io.ReadCloser, error)
 	v.Set("cpusetcpus", image.CpuSetCpus)
 	v.Set("cpusetmems", image.CpuSetMems)
 	v.Set("cgroupparent", image.CgroupParent)
+	if image.BuildArgs != nil {
+		buildArgsJSON, err := json.Marshal(image.BuildArgs)
+		if err != nil {
+			return nil, err
+		}
+		v.Set("buildargs", string(buildArgsJSON))
+	}
 
 	headers := make(map[string]string)
 	if image.Config != nil {
@@ -871,8 +920,8 @@ func (client *DockerClient) ConnectNetwork(id, container string) error {
 	return err
 }
 
-func (client *DockerClient) DisconnectNetwork(id, container string) error {
-	data, err := json.Marshal(NetworkDisconnect{Container: container})
+func (client *DockerClient) DisconnectNetwork(id, container string, force bool) error {
+	data, err := json.Marshal(NetworkDisconnect{Container: container, Force: force})
 	if err != nil {
 		return err
 	}

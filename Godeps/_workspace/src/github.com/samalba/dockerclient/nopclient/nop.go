@@ -34,7 +34,7 @@ func (client *NopClient) InspectImage(id string) (*dockerclient.ImageInfo, error
 	return nil, ErrNoEngine
 }
 
-func (client *NopClient) CreateContainer(config *dockerclient.ContainerConfig, name string) (string, error) {
+func (client *NopClient) CreateContainer(config *dockerclient.ContainerConfig, name string, authConfig *dockerclient.AuthConfig) (string, error) {
 	return "", ErrNoEngine
 }
 
@@ -43,6 +43,10 @@ func (client *NopClient) ContainerLogs(id string, options *dockerclient.LogOptio
 }
 
 func (client *NopClient) ContainerChanges(id string) ([]*dockerclient.ContainerChanges, error) {
+	return nil, ErrNoEngine
+}
+
+func (client *NopClient) AttachContainer(id string, options *dockerclient.AttachOptions) (io.ReadCloser, error) {
 	return nil, ErrNoEngine
 }
 
@@ -178,7 +182,7 @@ func (client *NopClient) ConnectNetwork(id, container string) error {
 	return ErrNoEngine
 }
 
-func (client *NopClient) DisconnectNetwork(id, container string) error {
+func (client *NopClient) DisconnectNetwork(id, container string, force bool) error {
 	return ErrNoEngine
 }
 

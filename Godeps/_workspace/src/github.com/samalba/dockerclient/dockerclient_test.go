@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,6 +30,40 @@ func testDockerClient(t *testing.T) *DockerClient {
 		t.Fatal("Cannot init the docker client")
 	}
 	return client
+}
+
+func ExampleDockerClient_AttachContainer() {
+	docker, err := NewDockerClient("unix:///var/run/docker.sock", nil)
+	if err != nil {
+		panic(err)
+	}
+	cID, err := docker.CreateContainer(&ContainerConfig{
+		Cmd:   []string{"echo", "hi"},
+		Image: "busybox",
+	}, "", nil)
+	if err != nil {
+		panic(err)
+	}
+	done := make(chan struct{})
+	if body, err := docker.AttachContainer(cID, &AttachOptions{
+		Stream: true,
+		Stdout: true,
+	}); err != nil {
+		panic(err)
+	} else {
+		go func() {
+			defer body.Close()
+			if _, err := stdcopy.StdCopy(os.Stdout, os.Stderr, body); err != nil {
+				panic(err)
+			}
+			close(done)
+		}()
+	}
+
+	if err := docker.StartContainer(cID, nil); err != nil {
+		panic(err)
+	}
+	<-done
 }
 
 func TestInfo(t *testing.T) {

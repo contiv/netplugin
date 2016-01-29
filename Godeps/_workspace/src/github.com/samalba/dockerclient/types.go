@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 )
 
 type ContainerConfig struct {
@@ -23,7 +23,6 @@ type ContainerConfig struct {
 	Cmd             []string
 	Image           string
 	Volumes         map[string]struct{}
-	VolumeDriver    string
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
@@ -31,6 +30,9 @@ type ContainerConfig struct {
 	OnBuild         []string
 	Labels          map[string]string
 	StopSignal      string
+
+	// FIXME: VolumeDriver have been removed since docker 1.9
+	VolumeDriver string
 
 	// FIXME: The following fields have been removed since API v1.18
 	Memory     int64
@@ -83,6 +85,7 @@ type HostConfig struct {
 	LogConfig         LogConfig
 	CgroupParent      string
 	ConsoleSize       [2]int
+	VolumeDriver      string
 }
 
 type DeviceMapping struct {
@@ -107,6 +110,14 @@ type LogOptions struct {
 	Stderr     bool
 	Timestamps bool
 	Tail       int64
+}
+
+type AttachOptions struct {
+	Logs   bool
+	Stream bool
+	Stdin  bool
+	Stdout bool
+	Stderr bool
 }
 
 type MonitorEventsFilters struct {
@@ -241,24 +252,49 @@ type Port struct {
 	Type        string
 }
 
+type EndpointSettings struct {
+	EndpointID          string
+	Gateway             string
+	IPAddress           string
+	IPPrefixLen         int
+	IPv6Gateway         string
+	GlobalIPv6Address   string
+	GlobalIPv6PrefixLen int
+	MacAddress          string
+}
+
 type Container struct {
-	Id         string
-	Names      []string
-	Image      string
-	Command    string
-	Created    int64
-	Status     string
-	Ports      []Port
-	SizeRw     int64
-	SizeRootFs int64
-	Labels     map[string]string
+	Id              string
+	Names           []string
+	Image           string
+	Command         string
+	Created         int64
+	Status          string
+	Ports           []Port
+	SizeRw          int64
+	SizeRootFs      int64
+	Labels          map[string]string
+	NetworkSettings struct {
+		Networks map[string]EndpointSettings
+	}
+}
+
+type Actor struct {
+	ID         string
+	Attributes map[string]string
 }
 
 type Event struct {
-	Id     string
-	Status string
-	From   string
-	Time   int64
+	Status string `json:"status,omitempty"`
+	ID     string `json:"id,omitempty"`
+	From   string `json:"from,omitempty"`
+
+	Type   string
+	Action string
+	Actor  Actor
+
+	Time     int64 `json:"time,omitempty"`
+	TimeNano int64 `json:"timeNano,omitempty"`
 }
 
 type Version struct {
@@ -450,6 +486,7 @@ type BuildImage struct {
 	CpuSetCpus     string
 	CpuSetMems     string
 	CgroupParent   string
+	BuildArgs      map[string]string
 }
 
 type Volume struct {
@@ -470,56 +507,60 @@ type VolumeCreateRequest struct {
 
 // IPAM represents IP Address Management
 type IPAM struct {
-	Driver string       `json:"driver"`
-	Config []IPAMConfig `json:"config"`
+	Driver string
+	Config []IPAMConfig
 }
 
 // IPAMConfig represents IPAM configurations
 type IPAMConfig struct {
-	Subnet     string            `json:"subnet,omitempty"`
-	IPRange    string            `json:"ip_range,omitempty"`
-	Gateway    string            `json:"gateway,omitempty"`
-	AuxAddress map[string]string `json:"auxiliary_address,omitempty"`
+	Subnet     string            `json:",omitempty"`
+	IPRange    string            `json:",omitempty"`
+	Gateway    string            `json:",omitempty"`
+	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
 }
 
 // NetworkResource is the body of the "get network" http response message
 type NetworkResource struct {
-	Name       string                      `json:"name"`
-	ID         string                      `json:"id"`
-	Scope      string                      `json:"scope"`
-	Driver     string                      `json:"driver"`
-	IPAM       IPAM                        `json:"ipam"`
-	Containers map[string]EndpointResource `json:"containers"`
+	Name       string
+	ID         string `json:"Id"`
+	Scope      string
+	Driver     string
+	IPAM       IPAM
+	Containers map[string]EndpointResource
+	Options    map[string]string
 }
 
-//EndpointResource contains network resources allocated and usd for a container in a network
+// EndpointResource contains network resources allocated and used for a container in a network
 type EndpointResource struct {
-	EndpointID  string `json:"EndpointID"`
-	MacAddress  string `json:"MacAddress"`
-	IPv4Address string `json:"IPv4Address"`
-	IPv6Address string `json:"IPv6Address"`
+	Name        string
+	EndpointID  string
+	MacAddress  string
+	IPv4Address string
+	IPv6Address string
 }
 
 // NetworkCreate is the expected body of the "create network" http request message
 type NetworkCreate struct {
-	Name           string `json:"name"`
-	CheckDuplicate bool   `json:"check_duplicate"`
-	Driver         string `json:"driver"`
-	IPAM           IPAM   `json:"ipam"`
+	Name           string
+	CheckDuplicate bool
+	Driver         string
+	IPAM           IPAM
+	Options        map[string]string
 }
 
 // NetworkCreateResponse is the response message sent by the server for network create call
 type NetworkCreateResponse struct {
-	ID      string `json:"id"`
-	Warning string `json:"warning"`
+	ID      string `json:"Id"`
+	Warning string
 }
 
 // NetworkConnect represents the data to be used to connect a container to the network
 type NetworkConnect struct {
-	Container string `json:"container"`
+	Container string
 }
 
 // NetworkDisconnect represents the data to be used to disconnect a container from the network
 type NetworkDisconnect struct {
-	Container string `json:"container"`
+	Container string
+	Force     bool
 }
