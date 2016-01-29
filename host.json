@@ -2,26 +2,26 @@
         "name": "contivModel",
         "objects": [
                 {
-                        "name": "Bgp",
-                        "type": "object",
-                        "key": ["hostname"],
-      "properties": {
-        "hostname": {
-          "type": "string",
-          "title": "host name",
-          "length": 256
-        },
-                                "AS": {
-                                        "type": "string",
-                                        "title": "AS id",
-                                        "length": 64
+                 "name": "Bgp",
+                 "type": "object",
+                 "key": ["hostname"],
+                 "properties": {
+                                "hostname": {
+                                             "type": "string",
+                                             "title": "host name",
+                                             "length": 256
+                                },
+                                "AS":       {
+                                             "type": "string",
+                                             "title": "AS id",
+                                             "length": 64
                                 },
                                 "neighbor":{
                                         "type": "string",
-          "title": "Bgp  neighbor",
-          "length": 15 
+                                        "title": "Bgp  neighbor",
+                                        "length": 15 
                                 }
-      }
-    }]
+                 }
+        }]
 }
 
