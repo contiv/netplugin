@@ -139,23 +139,23 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 			epg.ServPort = append(epg.ServPort, strconv.Itoa(rule.Port))
 			log.Debugf("Service port: %v", strconv.Itoa(rule.Port))
 
-			if rule.EndpointGroup == "" {
+			if rule.FromEndpointGroup == "" {
 				log.Debugf("User unspecified %v == exposed contract", ruleName)
 				continue
 			}
 
-			// rule.EndpointGroup uses this epg
-			uEpg, ok := eMap.Specs[rule.EndpointGroup]
+			// rule.FromEndpointGroup uses this epg
+			uEpg, ok := eMap.Specs[rule.FromEndpointGroup]
 			if ok {
 				uEpg.Uses = append(uEpg.Uses, epg.Name)
-				eMap.Specs[rule.EndpointGroup] = uEpg
+				eMap.Specs[rule.FromEndpointGroup] = uEpg
 			} else {
 				//not in the map - need to add
 				userEpg := epgSpec{}
 				userEpg.Uses = append(userEpg.Uses, epg.Name)
-				eMap.Specs[rule.EndpointGroup] = userEpg
+				eMap.Specs[rule.FromEndpointGroup] = userEpg
 			}
-			log.Debugf("==Used by %v", rule.EndpointGroup)
+			log.Debugf("==Used by %v", rule.FromEndpointGroup)
 		}
 
 	}

@@ -186,7 +186,7 @@ def testMultiTrigger(testbed, numIter, numTenants=1, numNetworksPerTenant=1, num
                 policy.addRule('1', direction="in", protocol="tcp", action="deny")
 
                 # Create allow port 8000 Rule
-                policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="accept")
+                policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="allow")
 
                 # create the EPG
                 group = network.newGroup(srvName, policies=[policyName])
@@ -194,7 +194,7 @@ def testMultiTrigger(testbed, numIter, numTenants=1, numNetworksPerTenant=1, num
                 groupNames.append(srvName + "." + netName + "/" + tenantName)
 
                 # Create allow from this epg rule
-                policy.addRule('3', direction="in", priority=100, endpointGroup=srvName, network=netName, protocol="tcp", port=8001, action="accept")
+                policy.addRule('3', direction="in", priority=100, endpointGroup=srvName, network=netName, protocol="tcp", port=8001, action="allow")
 
 
     # start containers in each network and each group

@@ -17,6 +17,7 @@ package gstate
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/jainvipin/bitset"
 
@@ -184,6 +185,10 @@ func (gc *Cfg) AllocVXLAN(reqVxlan uint) (vxlan uint, localVLAN uint, err error)
 	err = g.Read("")
 	if err != nil {
 		return 0, 0, err
+	}
+
+	if reqVxlan != 0 && reqVxlan <= g.FreeVXLANsStart {
+		return 0, 0, errors.New("Requested vxlan is out of range")
 	}
 
 	if (reqVxlan != 0) && (reqVxlan >= g.FreeVXLANsStart) {

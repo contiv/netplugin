@@ -16,6 +16,8 @@ limitations under the License.
 package master
 
 import (
+	"errors"
+
 	"github.com/cenkalti/backoff"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
@@ -91,11 +93,23 @@ func validateTenantConfig(tenant *intent.ConfigTenant) error {
 
 // CreateGlobal sets the global state
 func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
+	// check for valid values
+	if gc.NwInfraType != "default" && gc.NwInfraType != "aci" {
+		return errors.New("Invalid fabric mode")
+	}
+	_, err := netutils.ParseTagRanges(gc.VLANs, "vlan")
+	if err != nil {
+		return err
+	}
+	_, err = netutils.ParseTagRanges(gc.VXLANs, "vxlan")
+	if err != nil {
+		return err
+	}
 
 	masterGc := &mastercfg.GlobConfig{}
 	masterGc.StateDriver = stateDriver
 	masterGc.NwInfraType = gc.NwInfraType
-	err := masterGc.Write()
+	err = masterGc.Write()
 	if err != nil {
 		return err
 	}
@@ -133,17 +147,62 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 	return nil
 }
 
+// DeleteGlobal delete global state
+func DeleteGlobal(stateDriver core.StateDriver) error {
+	masterGc := &mastercfg.GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	err := masterGc.Read("")
+	if err == nil {
+		err = masterGc.Clear()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup global state
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	err = gCfg.Read("")
+	if err == nil {
+		err = gCfg.DeleteResources()
+		if err != nil {
+			return err
+		}
+
+		err = gCfg.Clear()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete old state
+	gOper := &gstate.Oper{}
+	gOper.StateDriver = stateDriver
+	err = gOper.Read("")
+	if err == nil {
+		err = gOper.Clear()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // CreateTenant sets the tenant's state according to the passed ConfigTenant.
 func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
 	err := validateTenantConfig(tenant)
 	if err != nil {
 		return err
 	}
-	// start skydns container
-	err = startServiceContainer(tenant.Name)
-	if err != nil {
-		log.Errorf("Error starting service container. Err: %v", err)
-		return err
+
+	if GetClusterMode() == "docker" {
+		// start skydns container
+		err = startServiceContainer(tenant.Name)
+		if err != nil {
+			log.Errorf("Error starting service container. Err: %v", err)
+			return err
+		}
 	}
 
 	return nil
@@ -229,13 +288,15 @@ func stopAndRemoveServiceContainer(tenantName string) error {
 
 // DeleteTenantID deletes a tenant from the state store, by ID.
 func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
-	err := stopAndRemoveServiceContainer(tenantID)
-	if err != nil {
-		log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
-		return err
+	if GetClusterMode() == "docker" {
+		err := stopAndRemoveServiceContainer(tenantID)
+		if err != nil {
+			log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
+			return err
+		}
 	}
 
-	return err
+	return nil
 }
 
 // DeleteTenant deletes a tenant from the state store based on its ConfigTenant.

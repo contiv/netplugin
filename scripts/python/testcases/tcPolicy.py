@@ -18,7 +18,7 @@ def testBasicPolicy(testbed, numContainer, numIter, encap="vxlan"):
 		policy.addRule('1', direction="in", protocol="tcp", action="deny")
 
 		# Create allow port 8000 Rule
-		policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="accept")
+		policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="allow")
 
 		# Add the policy to epg
 		groups = []
@@ -86,7 +86,7 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter, encap="vxlan"):
 	policy.addRule('1', direction="in", protocol="tcp", action="deny")
 
 	# Create allow port 8000 Rule
-	policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="accept")
+	policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="allow")
 
 	# Add the policy to epg
 	groups = []
@@ -111,7 +111,7 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter, encap="vxlan"):
 	for iter in range(numIter):
 
 		# Add a rule for port 8001
-		policy.addRule('3', direction="in", priority=100, protocol="tcp", port=8001, action="accept")
+		policy.addRule('3', direction="in", priority=100, protocol="tcp", port=8001, action="allow")
 
 		# now check connection passes
 		if testbed.checkConnections(containers, 8001, True) != True:
@@ -180,9 +180,9 @@ def testPolicyFromEpg(testbed, numContainer, numIter, encap="vxlan"):
 			policy.addRule('1', direction="in", protocol="tcp", action="deny")
 
 			# Create allow port 8000 Rule
-			policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="accept")
+			policy.addRule('2', direction="in", priority=100, protocol="tcp", port=8000, action="allow")
 			# Create allow from 'common' epg rule
-			policy.addRule('3', direction="in", priority=100, endpointGroup="common", network='private', protocol="tcp", port=8001, action="accept")
+			policy.addRule('3', direction="in", priority=100, endpointGroup="common", network='private', protocol="tcp", port=8001, action="allow")
 			group = network.newGroup(srvName, policies=[srvName])
 			groups.append(group)
 

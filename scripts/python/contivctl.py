@@ -294,7 +294,7 @@ def globalSet(args):
 
 # Set global config
 def globalGet(args):
-	print "Getting network type" 
+	print "Getting network type"
 
 	getUrl = 'http://netmaster:9999/api/globals/config/'
 	res = json.loads(httpGet(getUrl))
@@ -384,7 +384,7 @@ def addRuleParser(sub):
 	ruleAddParser.add_argument("-ipAddress", help="IP address/mask")
 	ruleAddParser.add_argument("-protocol", default="", choices=["tcp", "udp", "icmp", "igmp"], help="IP protocol")
 	ruleAddParser.add_argument("-port", default="0", help="tcp/udp port number")
-	ruleAddParser.add_argument("-action", default="accept", choices=["accept", "deny"], help="Accept or deny")
+	ruleAddParser.add_argument("-action", default="allow", choices=["allow", "deny"], help="Accept or deny")
 
 	# Handler functions
 	ruleAddParser.set_defaults(func=addRule)

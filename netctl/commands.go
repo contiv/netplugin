@@ -207,19 +207,31 @@ var Commands = []cli.Command{
 					cli.StringFlag{
 						Name:  "direction, d",
 						Usage: "Direction of traffic (in/out)",
-						Value: "both",
+						Value: "in",
 					},
 					cli.StringFlag{
-						Name:  "group, g",
-						Usage: "Endpoint Group Name",
+						Name:  "from-group, g",
+						Usage: "From Endpoint Group Name (Valid in incoming direction only)",
 					},
 					cli.StringFlag{
-						Name:  "network, n",
-						Usage: "Network name",
+						Name:  "to-group, e",
+						Usage: "To Endpoint Group Name (Valid in outgoing direction only)",
 					},
 					cli.StringFlag{
-						Name:  "ip-address, a",
-						Usage: "IP Address",
+						Name:  "from-network, n",
+						Usage: "From Network name (Valid in incoming direction only)",
+					},
+					cli.StringFlag{
+						Name:  "to-network, o",
+						Usage: "To Network name (Valid in outgoing direction only)",
+					},
+					cli.StringFlag{
+						Name:  "from-ip-address, i",
+						Usage: "From IP address/CIDR (Valid in incoming direction only)",
+					},
+					cli.StringFlag{
+						Name:  "to-ip-address, s",
+						Usage: "To IP address/CIDR (Valid in outgoing direction only)",
 					},
 					cli.StringFlag{
 						Name:  "protocol, l",

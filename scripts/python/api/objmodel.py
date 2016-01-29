@@ -86,8 +86,8 @@ class tenant:
         self.networks = {}
 
     # get a network
-    def network(self, networkName, pktTag, subnet, gateway, encap="vxlan"):
-        net = network(self.tenantName, networkName, pktTag, subnet, gateway, encap)
+    def network(self, networkName):
+        net = network(self.tenantName, networkName)
 
         # Store the network
         self.networks[networkName] = net
@@ -148,8 +148,8 @@ class policy:
         deletePolicy(self.tenantName, self.policyName)
 
     # create new rule
-    def addRule(self, ruleId, priority=1, direction='both',
-        endpointGroup="", network="", ipAddress="", protocol="", port=0, action="accept"):
+    def addRule(self, ruleId, priority=1, direction='in',
+        endpointGroup="", network="", ipAddress="", protocol="", port=0, action="allow"):
         rl = rule(self.tenantName, self.policyName, ruleId, priority, direction,
             endpointGroup, network, ipAddress, protocol, port, action)
 
@@ -302,23 +302,38 @@ def listPolicy():
 
 
 # Add rule to a policy
-def addRule(tenantName, policyName, ruleId, priority=1, direction='both',
-    endpointGroup="", network="", ipAddress="", protocol="", port=0, action="accept"):
+def addRule(tenantName, policyName, ruleId, priority=1, direction='in',
+    endpointGroup="", network="", ipAddress="", protocol="", port=0, action="allow"):
     print "Adding rule {2} to policy {0}:{1}".format(tenantName, policyName, ruleId)
 
-    jdata = json.dumps({
-      "tenantName": tenantName,
-      "policyName": policyName,
-      "ruleId": ruleId,
-      "priority": priority,
-      "direction": direction,
-      "endpointGroup": endpointGroup,
-      "network": network,
-      "ipAddress": ipAddress,
-      "protocol": protocol,
-      "port": port,
-      "action": action
-     })
+    if direction == 'in':
+        jdata = json.dumps({
+          "tenantName": tenantName,
+          "policyName": policyName,
+          "ruleId": ruleId,
+          "priority": priority,
+          "direction": direction,
+          "fromEndpointGroup": endpointGroup,
+          "fromNetwork": network,
+          "fromIpAddress": ipAddress,
+          "protocol": protocol,
+          "port": port,
+          "action": action
+         })
+    else:
+        jdata = json.dumps({
+          "tenantName": tenantName,
+          "policyName": policyName,
+          "ruleId": ruleId,
+          "priority": priority,
+          "direction": direction,
+          "toEndpointGroup": endpointGroup,
+          "toNetwork": network,
+          "toIpAddress": ipAddress,
+          "protocol": protocol,
+          "port": port,
+          "action": action
+         })
 
     #Post the data
     postUrl = 'http://localhost:9999/api/rules/' + tenantName + ':' + policyName + ':' + ruleId + '/'

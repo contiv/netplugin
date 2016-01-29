@@ -177,8 +177,19 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 
 	remoteEpgID := 0
 	// See if user specified an endpoint Group in the rule
-	if rule.EndpointGroup != "" {
-		epgKey := rule.TenantName + ":" + rule.Network + ":" + rule.EndpointGroup
+	if rule.FromEndpointGroup != "" {
+		epgKey := rule.TenantName + ":" + rule.FromNetwork + ":" + rule.FromEndpointGroup
+
+		// find the endpoint group
+		epg := contivModel.FindEndpointGroup(epgKey)
+		if epg == nil {
+			log.Errorf("Error finding endpoint group %s", epgKey)
+			return nil, core.Errorf("endpoint group not found")
+		}
+
+		remoteEpgID = epg.EndpointGroupID
+	} else if rule.ToEndpointGroup != "" {
+		epgKey := rule.TenantName + ":" + rule.ToNetwork + ":" + rule.ToEndpointGroup
 
 		// find the endpoint group
 		epg := contivModel.FindEndpointGroup(epgKey)
@@ -217,7 +228,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		ofnetRule.SrcEndpointGroup = remoteEpgID
 
 		// Set src/dest IP Address
-		ofnetRule.SrcIpAddr = rule.IpAddress
+		ofnetRule.SrcIpAddr = rule.FromIpAddress
 
 		// set port numbers
 		ofnetRule.DstPort = uint16(rule.Port)
@@ -232,7 +243,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		ofnetRule.DstEndpointGroup = remoteEpgID
 
 		// Set src/dest IP Address
-		ofnetRule.DstIpAddr = rule.IpAddress
+		ofnetRule.DstIpAddr = rule.FromIpAddress
 
 		// set port numbers
 		ofnetRule.SrcPort = uint16(rule.Port)
@@ -242,7 +253,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		ofnetRule.SrcEndpointGroup = remoteEpgID
 
 		// Set src/dest IP Address
-		ofnetRule.SrcIpAddr = rule.IpAddress
+		ofnetRule.SrcIpAddr = rule.ToIpAddress
 
 		// set port numbers
 		ofnetRule.SrcPort = uint16(rule.Port)
@@ -252,7 +263,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		ofnetRule.DstEndpointGroup = remoteEpgID
 
 		// Set src/dest IP Address
-		ofnetRule.DstIpAddr = rule.IpAddress
+		ofnetRule.DstIpAddr = rule.ToIpAddress
 
 		// set port numbers
 		ofnetRule.DstPort = uint16(rule.Port)
