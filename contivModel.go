@@ -19,8 +19,8 @@ type App struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName    string `json:"appName,omitempty"`    // Application Name
-	TenantName string `json:"tenantName,omitempty"` // Tenant Name
+	AppName    string `json:"appName,omitempty"`
+	TenantName string `json:"tenantName,omitempty"`
 
 	// add link-sets and links
 	LinkSets AppLinkSets `json:"link-sets,omitempty"`
@@ -39,11 +39,11 @@ type EndpointGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	EndpointGroupID int      `json:"endpointGroupId,omitempty"` // Group Identifier
-	GroupName       string   `json:"groupName,omitempty"`       // Group name
-	NetworkName     string   `json:"networkName,omitempty"`     // Network
+	EndpointGroupID int      `json:"endpointGroupId,omitempty"`
+	GroupName       string   `json:"groupName,omitempty"`
+	NetworkName     string   `json:"networkName,omitempty"`
 	Policies        []string `json:"policies,omitempty"`
-	TenantName      string   `json:"tenantName,omitempty"` // Tenant
+	TenantName      string   `json:"tenantName,omitempty"`
 
 	// add link-sets and links
 	LinkSets EndpointGroupLinkSets `json:"link-sets,omitempty"`
@@ -64,23 +64,31 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Name             string `json:"name,omitempty"`               // name of this block
-	NetworkInfraType string `json:"network-infra-type,omitempty"` // Network infrastructure type
-	Vlans            string `json:"vlans,omitempty"`              // Allowed vlan range
-	Vxlans           string `json:"vxlans,omitempty"`             // Allwed vxlan range
+	Name             string `json:"name,omitempty"`
+	NetworkInfraType string `json:"network-infra-type,omitempty"`
+	Vlans            string `json:"vlans,omitempty"`
+	Vxlans           string `json:"vxlans,omitempty"`
+}
 
+type Bgp struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	AS       string `json:"AS,omitempty"`
+	Hostname string `json:"hostname,omitempty"`
+	Neighbor string `json:"neighbor,omitempty"`
 }
 
 type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Encap       string `json:"encap,omitempty"`       // Encapsulation
-	Gateway     string `json:"gateway,omitempty"`     // Gateway
-	NetworkName string `json:"networkName,omitempty"` // Network name
-	PktTag      int    `json:"pktTag,omitempty"`      // Vlan/Vxlan Tag
-	Subnet      string `json:"subnet,omitempty"`      // Subnet
-	TenantName  string `json:"tenantName,omitempty"`  // Tenant Name
+	Encap       string `json:"encap,omitempty"`
+	Gateway     string `json:"gateway,omitempty"`
+	NetworkName string `json:"networkName,omitempty"`
+	PktTag      int    `json:"pktTag,omitempty"`
+	Subnet      string `json:"subnet,omitempty"`
+	TenantName  string `json:"tenantName,omitempty"`
 
 	// add link-sets and links
 	LinkSets NetworkLinkSets `json:"link-sets,omitempty"`
@@ -100,8 +108,8 @@ type Policy struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	PolicyName string `json:"policyName,omitempty"` // Policy Name
-	TenantName string `json:"tenantName,omitempty"` // Tenant Name
+	PolicyName string `json:"policyName,omitempty"`
+	TenantName string `json:"tenantName,omitempty"`
 
 	// add link-sets and links
 	LinkSets PolicyLinkSets `json:"link-sets,omitempty"`
@@ -121,17 +129,17 @@ type Rule struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Action        string `json:"action,omitempty"`        // Action
-	Direction     string `json:"direction,omitempty"`     // Direction
-	EndpointGroup string `json:"endpointGroup,omitempty"` // Group
-	IpAddress     string `json:"ipAddress,omitempty"`     // IP Address
-	Network       string `json:"network,omitempty"`       // Network Name
-	PolicyName    string `json:"policyName,omitempty"`    // Policy Name
-	Port          int    `json:"port,omitempty"`          // Port No
-	Priority      int    `json:"priority,omitempty"`      // Priority
-	Protocol      string `json:"protocol,omitempty"`      // Protocol
-	RuleID        string `json:"ruleId,omitempty"`        // Rule Id
-	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
+	Action        string `json:"action,omitempty"`
+	Direction     string `json:"direction,omitempty"`
+	EndpointGroup string `json:"endpointGroup,omitempty"`
+	IpAddress     string `json:"ipAddress,omitempty"`
+	Network       string `json:"network,omitempty"`
+	PolicyName    string `json:"policyName,omitempty"`
+	Port          int    `json:"port,omitempty"`
+	Priority      int    `json:"priority,omitempty"`
+	Protocol      string `json:"protocol,omitempty"`
+	RuleID        string `json:"ruleId,omitempty"`
+	TenantName    string `json:"tenantName,omitempty"`
 
 	// add link-sets and links
 	LinkSets RuleLinkSets `json:"link-sets,omitempty"`
@@ -145,18 +153,18 @@ type Service struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName        string   `json:"appName,omitempty"` // Application Name
-	Command        string   `json:"command,omitempty"` //
-	Cpu            string   `json:"cpu,omitempty"`     //
+	AppName        string   `json:"appName,omitempty"`
+	Command        string   `json:"command,omitempty"`
+	Cpu            string   `json:"cpu,omitempty"`
 	EndpointGroups []string `json:"endpointGroups,omitempty"`
 	Environment    []string `json:"environment,omitempty"`
-	ImageName      string   `json:"imageName,omitempty"` //
-	Memory         string   `json:"memory,omitempty"`    //
+	ImageName      string   `json:"imageName,omitempty"`
+	Memory         string   `json:"memory,omitempty"`
 	Networks       []string `json:"networks,omitempty"`
-	Scale          int      `json:"scale,omitempty"`         //
-	ServiceName    string   `json:"serviceName,omitempty"`   // Service Name
-	TenantName     string   `json:"tenantName,omitempty"`    // Tenant Name
-	VolumeProfile  string   `json:"volumeProfile,omitempty"` //
+	Scale          int      `json:"scale,omitempty"`
+	ServiceName    string   `json:"serviceName,omitempty"`
+	TenantName     string   `json:"tenantName,omitempty"`
+	VolumeProfile  string   `json:"volumeProfile,omitempty"`
 
 	// add link-sets and links
 	LinkSets ServiceLinkSets `json:"link-sets,omitempty"`
@@ -178,10 +186,10 @@ type ServiceInstance struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName     string   `json:"appName,omitempty"`     //
-	InstanceID  string   `json:"instanceId,omitempty"`  // Service instance id
-	ServiceName string   `json:"serviceName,omitempty"` //
-	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
+	AppName     string   `json:"appName,omitempty"`
+	InstanceID  string   `json:"instanceId,omitempty"`
+	ServiceName string   `json:"serviceName,omitempty"`
+	TenantName  string   `json:"tenantName,omitempty"`
 	Volumes     []string `json:"volumes,omitempty"`
 
 	// add link-sets and links
@@ -201,8 +209,8 @@ type Tenant struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	DefaultNetwork string `json:"defaultNetwork,omitempty"` // Network name
-	TenantName     string `json:"tenantName,omitempty"`     // Tenant Name
+	DefaultNetwork string `json:"defaultNetwork,omitempty"`
+	TenantName     string `json:"tenantName,omitempty"`
 
 	// add link-sets and links
 	LinkSets TenantLinkSets `json:"link-sets,omitempty"`
@@ -221,12 +229,12 @@ type Volume struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	DatastoreType string `json:"datastoreType,omitempty"` //
-	MountPoint    string `json:"mountPoint,omitempty"`    //
-	PoolName      string `json:"poolName,omitempty"`      //
-	Size          string `json:"size,omitempty"`          //
-	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
-	VolumeName    string `json:"volumeName,omitempty"`    // Volume Name
+	DatastoreType string `json:"datastoreType,omitempty"`
+	MountPoint    string `json:"mountPoint,omitempty"`
+	PoolName      string `json:"poolName,omitempty"`
+	Size          string `json:"size,omitempty"`
+	TenantName    string `json:"tenantName,omitempty"`
+	VolumeName    string `json:"volumeName,omitempty"`
 
 	// add link-sets and links
 	LinkSets VolumeLinkSets `json:"link-sets,omitempty"`
@@ -245,12 +253,12 @@ type VolumeProfile struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	DatastoreType     string `json:"datastoreType,omitempty"`     //
-	MountPoint        string `json:"mountPoint,omitempty"`        //
-	PoolName          string `json:"poolName,omitempty"`          //
-	Size              string `json:"size,omitempty"`              //
-	TenantName        string `json:"tenantName,omitempty"`        // Tenant Name
-	VolumeProfileName string `json:"volumeProfileName,omitempty"` // Volume profile Name
+	DatastoreType     string `json:"datastoreType,omitempty"`
+	MountPoint        string `json:"mountPoint,omitempty"`
+	PoolName          string `json:"poolName,omitempty"`
+	Size              string `json:"size,omitempty"`
+	TenantName        string `json:"tenantName,omitempty"`
+	VolumeProfileName string `json:"volumeProfileName,omitempty"`
 
 	// add link-sets and links
 	LinkSets VolumeProfileLinkSets `json:"link-sets,omitempty"`
@@ -269,6 +277,7 @@ type Collections struct {
 	apps             map[string]*App
 	endpointGroups   map[string]*EndpointGroup
 	globals          map[string]*Global
+	Bgps             map[string]*Bgp
 	networks         map[string]*Network
 	policys          map[string]*Policy
 	rules            map[string]*Rule
@@ -297,6 +306,12 @@ type GlobalCallbacks interface {
 	GlobalCreate(global *Global) error
 	GlobalUpdate(global, params *Global) error
 	GlobalDelete(global *Global) error
+}
+
+type BgpCallbacks interface {
+	BgpCreate(Bgp *Bgp) error
+	BgpUpdate(Bgp, params *Bgp) error
+	BgpDelete(Bgp *Bgp) error
 }
 
 type NetworkCallbacks interface {
@@ -351,6 +366,7 @@ type CallbackHandlers struct {
 	AppCb             AppCallbacks
 	EndpointGroupCb   EndpointGroupCallbacks
 	GlobalCb          GlobalCallbacks
+	BgpCb             BgpCallbacks
 	NetworkCb         NetworkCallbacks
 	PolicyCb          PolicyCallbacks
 	RuleCb            RuleCallbacks
@@ -367,6 +383,7 @@ func Init() {
 	collections.apps = make(map[string]*App)
 	collections.endpointGroups = make(map[string]*EndpointGroup)
 	collections.globals = make(map[string]*Global)
+	collections.Bgps = make(map[string]*Bgp)
 	collections.networks = make(map[string]*Network)
 	collections.policys = make(map[string]*Policy)
 	collections.rules = make(map[string]*Rule)
@@ -379,6 +396,7 @@ func Init() {
 	restoreApp()
 	restoreEndpointGroup()
 	restoreGlobal()
+	restoreBgp()
 	restoreNetwork()
 	restorePolicy()
 	restoreRule()
@@ -400,6 +418,10 @@ func RegisterEndpointGroupCallbacks(handler EndpointGroupCallbacks) {
 
 func RegisterGlobalCallbacks(handler GlobalCallbacks) {
 	objCallbackHandler.GlobalCb = handler
+}
+
+func RegisterBgpCallbacks(handler BgpCallbacks) {
+	objCallbackHandler.BgpCb = handler
 }
 
 func RegisterNetworkCallbacks(handler NetworkCallbacks) {
@@ -502,6 +524,16 @@ func AddRoutes(router *mux.Router) {
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateGlobal))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateGlobal))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteGlobal))
+
+	// Register Bgp
+	route = "/api/Bgps/{key}/"
+	listRoute = "/api/Bgps/"
+	log.Infof("Registering %s", route)
+	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListBgps))
+	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetBgp))
+	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateBgp))
+	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateBgp))
+	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteBgp))
 
 	// Register network
 	route = "/api/networks/{key}/"
@@ -1300,6 +1332,252 @@ func ValidateGlobal(obj *Global) error {
 	vxlansMatch := regexp.MustCompile("^([0-9]{1,8}?-[0-9]{1,8}?)$")
 	if vxlansMatch.MatchString(obj.Vxlans) == false {
 		return errors.New("vxlans string invalid format")
+	}
+
+	return nil
+}
+
+// LIST REST call
+func httpListBgps(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpListBgps: %+v", vars)
+
+	list := make([]*Bgp, 0)
+	for _, obj := range collections.Bgps {
+		list = append(list, obj)
+	}
+
+	// Return the list
+	return list, nil
+}
+
+// GET REST call
+func httpGetBgp(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetBgp: %+v", vars)
+
+	key := vars["key"]
+
+	obj := collections.Bgps[key]
+	if obj == nil {
+		log.Errorf("Bgp %s not found", key)
+		return nil, errors.New("Bgp not found")
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// CREATE REST call
+func httpCreateBgp(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetBgp: %+v", vars)
+
+	var obj Bgp
+	key := vars["key"]
+
+	// Get object from the request
+	err := json.NewDecoder(r.Body).Decode(&obj)
+	if err != nil {
+		log.Errorf("Error decoding Bgp create request. Err %v", err)
+		return nil, err
+	}
+
+	// set the key
+	obj.Key = key
+
+	// Create the object
+	err = CreateBgp(&obj)
+	if err != nil {
+		log.Errorf("CreateBgp error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// DELETE rest call
+func httpDeleteBgp(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpDeleteBgp: %+v", vars)
+
+	key := vars["key"]
+
+	// Delete the object
+	err := DeleteBgp(key)
+	if err != nil {
+		log.Errorf("DeleteBgp error for: %s. Err: %v", key, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return key, nil
+}
+
+// Create a Bgp object
+func CreateBgp(obj *Bgp) error {
+	// Validate parameters
+	err := ValidateBgp(obj)
+	if err != nil {
+		log.Errorf("ValidateBgp retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.BgpCb == nil {
+		log.Errorf("No callback registered for Bgp object")
+		return errors.New("Invalid object type")
+	}
+
+	// Check if object already exists
+	if collections.Bgps[obj.Key] != nil {
+		// Perform Update callback
+		err = objCallbackHandler.BgpCb.BgpUpdate(collections.Bgps[obj.Key], obj)
+		if err != nil {
+			log.Errorf("BgpUpdate retruned error for: %+v. Err: %v", obj, err)
+			return err
+		}
+	} else {
+		// save it in cache
+		collections.Bgps[obj.Key] = obj
+
+		// Perform Create callback
+		err = objCallbackHandler.BgpCb.BgpCreate(obj)
+		if err != nil {
+			log.Errorf("BgpCreate retruned error for: %+v. Err: %v", obj, err)
+			delete(collections.Bgps, obj.Key)
+			return err
+		}
+	}
+
+	// Write it to modeldb
+	err = obj.Write()
+	if err != nil {
+		log.Errorf("Error saving Bgp %s to db. Err: %v", obj.Key, err)
+		return err
+	}
+
+	return nil
+}
+
+// Return a pointer to Bgp from collection
+func FindBgp(key string) *Bgp {
+	obj := collections.Bgps[key]
+	if obj == nil {
+		return nil
+	}
+
+	return obj
+}
+
+// Delete a Bgp object
+func DeleteBgp(key string) error {
+	obj := collections.Bgps[key]
+	if obj == nil {
+		log.Errorf("Bgp %s not found", key)
+		return errors.New("Bgp not found")
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.BgpCb == nil {
+		log.Errorf("No callback registered for Bgp object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.BgpCb.BgpDelete(obj)
+	if err != nil {
+		log.Errorf("BgpDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// delete it from modeldb
+	err = obj.Delete()
+	if err != nil {
+		log.Errorf("Error deleting Bgp %s. Err: %v", obj.Key, err)
+	}
+
+	// delete it from cache
+	delete(collections.Bgps, key)
+
+	return nil
+}
+
+func (self *Bgp) GetType() string {
+	return "Bgp"
+}
+
+func (self *Bgp) GetKey() string {
+	return self.Key
+}
+
+func (self *Bgp) Read() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to read Bgp object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.ReadObj("Bgp", self.Key, self)
+}
+
+func (self *Bgp) Write() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Write Bgp object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.WriteObj("Bgp", self.Key, self)
+}
+
+func (self *Bgp) Delete() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Delete Bgp object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.DeleteObj("Bgp", self.Key)
+}
+
+func restoreBgp() error {
+	strList, err := modeldb.ReadAllObj("Bgp")
+	if err != nil {
+		log.Errorf("Error reading Bgp list. Err: %v", err)
+	}
+
+	for _, objStr := range strList {
+		// Parse the json model
+		var Bgp Bgp
+		err = json.Unmarshal([]byte(objStr), &Bgp)
+		if err != nil {
+			log.Errorf("Error parsing object %s, Err %v", objStr, err)
+			return err
+		}
+
+		// add it to the collection
+		collections.Bgps[Bgp.Key] = &Bgp
+	}
+
+	return nil
+}
+
+// Validate a Bgp object
+func ValidateBgp(obj *Bgp) error {
+	// Validate key is correct
+	keyStr := obj.Hostname
+	if obj.Key != keyStr {
+		log.Errorf("Expecting Bgp Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	if len(obj.AS) > 64 {
+		return errors.New("AS string too long")
+	}
+
+	if len(obj.Hostname) > 256 {
+		return errors.New("hostname string too long")
+	}
+
+	if len(obj.Neighbor) > 15 {
+		return errors.New("neighbor string too long")
 	}
 
 	return nil
