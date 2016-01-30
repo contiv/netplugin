@@ -173,6 +173,39 @@ class objmodelClient:
 	        errorExit("list Global failed")
 
 	    return json.loads(retData)
+	# Create Bgp
+	def createBgp(self, obj):
+	    postUrl = self.baseUrl + '/api/Bgps/' + obj.hostname  + '/'
+
+	    jdata = json.dumps({ 
+			"AS": obj.AS, 
+			"hostname": obj.hostname, 
+			"neighbor": obj.neighbor, 
+	    })
+
+	    # Post the data
+	    response = httpPost(postUrl, jdata)
+
+	    if response == "Error":
+	        errorExit("Bgp create failure")
+
+	# Delete Bgp
+	def deleteBgp(self, hostname):
+	    # Delete Bgp
+	    deleteUrl = self.baseUrl + '/api/Bgps/' + hostname  + '/'
+	    response = httpDelete(deleteUrl)
+
+	    if response == "Error":
+	        errorExit("Bgp create failure")
+
+	# List all Bgp objects
+	def listBgp(self):
+	    # Get a list of Bgp objects
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/Bgps/')
+	    if retData == "Error":
+	        errorExit("list Bgp failed")
+
+	    return json.loads(retData)
 	# Create network
 	def createNetwork(self, obj):
 	    postUrl = self.baseUrl + '/api/Networks/' + obj.tenantName + ":" + obj.networkName  + '/'

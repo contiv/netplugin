@@ -198,6 +198,65 @@ var GlobalModalView = React.createClass({
 
 module.exports.GlobalSummaryView = GlobalSummaryView
 module.exports.GlobalModalView = GlobalModalView
+var BgpSummaryView = React.createClass({
+  	render: function() {
+		var self = this
+
+		// Walk thru all objects
+		var BgpListView = self.props.Bgps.map(function(Bgp){
+			return (
+				<ModalTrigger modal={<BgpModalView Bgp={ Bgp }/>}>
+					<tr key={ Bgp.key } className="info">
+						
+						   
+					</tr>
+				</ModalTrigger>
+			);
+		});
+
+		return (
+        <div>
+			<Table hover>
+				<thead>
+					<tr>
+					
+					   
+					</tr>
+				</thead>
+				<tbody>
+            		{ BgpListView }
+				</tbody>
+			</Table>
+        </div>
+    	);
+	}
+});
+
+var BgpModalView = React.createClass({
+	render() {
+		var obj = this.props.Bgp
+	    return (
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Bgp' animation={false}>
+	        <div className='modal-body' style={ {margin: '5%',} }>
+			
+			
+				<Input type='text' label='AS id' ref='AS' defaultValue={obj.AS} placeholder='AS id' />
+			
+				<Input type='text' label='host name' ref='hostname' defaultValue={obj.hostname} placeholder='host name' />
+			
+				<Input type='text' label='Bgp  neighbor' ref='neighbor' defaultValue={obj.neighbor} placeholder='Bgp  neighbor' />
+			
+			</div>
+	        <div className='modal-footer'>
+				<Button onClick={this.props.onRequestHide}>Close</Button>
+	        </div>
+	      </Modal>
+	    );
+  	}
+});
+
+module.exports.BgpSummaryView = BgpSummaryView
+module.exports.BgpModalView = BgpModalView
 var NetworkSummaryView = React.createClass({
   	render: function() {
 		var self = this

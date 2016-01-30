@@ -19,8 +19,8 @@ type App struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName    string `json:"appName,omitempty"`
-	TenantName string `json:"tenantName,omitempty"`
+	AppName    string `json:"appName,omitempty"`    // Application Name
+	TenantName string `json:"tenantName,omitempty"` // Tenant Name
 
 	// add link-sets and links
 	LinkSets AppLinkSets `json:"link-sets,omitempty"`
@@ -39,11 +39,11 @@ type EndpointGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	EndpointGroupID int      `json:"endpointGroupId,omitempty"`
-	GroupName       string   `json:"groupName,omitempty"`
-	NetworkName     string   `json:"networkName,omitempty"`
+	EndpointGroupID int      `json:"endpointGroupId,omitempty"` // Group Identifier
+	GroupName       string   `json:"groupName,omitempty"`       // Group name
+	NetworkName     string   `json:"networkName,omitempty"`     // Network
 	Policies        []string `json:"policies,omitempty"`
-	TenantName      string   `json:"tenantName,omitempty"`
+	TenantName      string   `json:"tenantName,omitempty"` // Tenant
 
 	// add link-sets and links
 	LinkSets EndpointGroupLinkSets `json:"link-sets,omitempty"`
@@ -64,31 +64,33 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Name             string `json:"name,omitempty"`
-	NetworkInfraType string `json:"network-infra-type,omitempty"`
-	Vlans            string `json:"vlans,omitempty"`
-	Vxlans           string `json:"vxlans,omitempty"`
+	Name             string `json:"name,omitempty"`               // name of this block
+	NetworkInfraType string `json:"network-infra-type,omitempty"` // Network infrastructure type
+	Vlans            string `json:"vlans,omitempty"`              // Allowed vlan range
+	Vxlans           string `json:"vxlans,omitempty"`             // Allwed vxlan range
+
 }
 
 type Bgp struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AS       string `json:"AS,omitempty"`
-	Hostname string `json:"hostname,omitempty"`
-	Neighbor string `json:"neighbor,omitempty"`
+	AS       string `json:"AS,omitempty"`       // AS id
+	Hostname string `json:"hostname,omitempty"` // host name
+	Neighbor string `json:"neighbor,omitempty"` // Bgp  neighbor
+
 }
 
 type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Encap       string `json:"encap,omitempty"`
-	Gateway     string `json:"gateway,omitempty"`
-	NetworkName string `json:"networkName,omitempty"`
-	PktTag      int    `json:"pktTag,omitempty"`
-	Subnet      string `json:"subnet,omitempty"`
-	TenantName  string `json:"tenantName,omitempty"`
+	Encap       string `json:"encap,omitempty"`       // Encapsulation
+	Gateway     string `json:"gateway,omitempty"`     // Gateway
+	NetworkName string `json:"networkName,omitempty"` // Network name
+	PktTag      int    `json:"pktTag,omitempty"`      // Vlan/Vxlan Tag
+	Subnet      string `json:"subnet,omitempty"`      // Subnet
+	TenantName  string `json:"tenantName,omitempty"`  // Tenant Name
 
 	// add link-sets and links
 	LinkSets NetworkLinkSets `json:"link-sets,omitempty"`
@@ -108,8 +110,8 @@ type Policy struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	PolicyName string `json:"policyName,omitempty"`
-	TenantName string `json:"tenantName,omitempty"`
+	PolicyName string `json:"policyName,omitempty"` // Policy Name
+	TenantName string `json:"tenantName,omitempty"` // Tenant Name
 
 	// add link-sets and links
 	LinkSets PolicyLinkSets `json:"link-sets,omitempty"`
@@ -129,17 +131,17 @@ type Rule struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Action        string `json:"action,omitempty"`
-	Direction     string `json:"direction,omitempty"`
-	EndpointGroup string `json:"endpointGroup,omitempty"`
-	IpAddress     string `json:"ipAddress,omitempty"`
-	Network       string `json:"network,omitempty"`
-	PolicyName    string `json:"policyName,omitempty"`
-	Port          int    `json:"port,omitempty"`
-	Priority      int    `json:"priority,omitempty"`
-	Protocol      string `json:"protocol,omitempty"`
-	RuleID        string `json:"ruleId,omitempty"`
-	TenantName    string `json:"tenantName,omitempty"`
+	Action        string `json:"action,omitempty"`        // Action
+	Direction     string `json:"direction,omitempty"`     // Direction
+	EndpointGroup string `json:"endpointGroup,omitempty"` // Group
+	IpAddress     string `json:"ipAddress,omitempty"`     // IP Address
+	Network       string `json:"network,omitempty"`       // Network Name
+	PolicyName    string `json:"policyName,omitempty"`    // Policy Name
+	Port          int    `json:"port,omitempty"`          // Port No
+	Priority      int    `json:"priority,omitempty"`      // Priority
+	Protocol      string `json:"protocol,omitempty"`      // Protocol
+	RuleID        string `json:"ruleId,omitempty"`        // Rule Id
+	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
 
 	// add link-sets and links
 	LinkSets RuleLinkSets `json:"link-sets,omitempty"`
@@ -153,18 +155,18 @@ type Service struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName        string   `json:"appName,omitempty"`
-	Command        string   `json:"command,omitempty"`
-	Cpu            string   `json:"cpu,omitempty"`
+	AppName        string   `json:"appName,omitempty"` // Application Name
+	Command        string   `json:"command,omitempty"` //
+	Cpu            string   `json:"cpu,omitempty"`     //
 	EndpointGroups []string `json:"endpointGroups,omitempty"`
 	Environment    []string `json:"environment,omitempty"`
-	ImageName      string   `json:"imageName,omitempty"`
-	Memory         string   `json:"memory,omitempty"`
+	ImageName      string   `json:"imageName,omitempty"` //
+	Memory         string   `json:"memory,omitempty"`    //
 	Networks       []string `json:"networks,omitempty"`
-	Scale          int      `json:"scale,omitempty"`
-	ServiceName    string   `json:"serviceName,omitempty"`
-	TenantName     string   `json:"tenantName,omitempty"`
-	VolumeProfile  string   `json:"volumeProfile,omitempty"`
+	Scale          int      `json:"scale,omitempty"`         //
+	ServiceName    string   `json:"serviceName,omitempty"`   // Service Name
+	TenantName     string   `json:"tenantName,omitempty"`    // Tenant Name
+	VolumeProfile  string   `json:"volumeProfile,omitempty"` //
 
 	// add link-sets and links
 	LinkSets ServiceLinkSets `json:"link-sets,omitempty"`
@@ -186,10 +188,10 @@ type ServiceInstance struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName     string   `json:"appName,omitempty"`
-	InstanceID  string   `json:"instanceId,omitempty"`
-	ServiceName string   `json:"serviceName,omitempty"`
-	TenantName  string   `json:"tenantName,omitempty"`
+	AppName     string   `json:"appName,omitempty"`     //
+	InstanceID  string   `json:"instanceId,omitempty"`  // Service instance id
+	ServiceName string   `json:"serviceName,omitempty"` //
+	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
 	Volumes     []string `json:"volumes,omitempty"`
 
 	// add link-sets and links
@@ -209,8 +211,8 @@ type Tenant struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	DefaultNetwork string `json:"defaultNetwork,omitempty"`
-	TenantName     string `json:"tenantName,omitempty"`
+	DefaultNetwork string `json:"defaultNetwork,omitempty"` // Network name
+	TenantName     string `json:"tenantName,omitempty"`     // Tenant Name
 
 	// add link-sets and links
 	LinkSets TenantLinkSets `json:"link-sets,omitempty"`
@@ -229,12 +231,12 @@ type Volume struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	DatastoreType string `json:"datastoreType,omitempty"`
-	MountPoint    string `json:"mountPoint,omitempty"`
-	PoolName      string `json:"poolName,omitempty"`
-	Size          string `json:"size,omitempty"`
-	TenantName    string `json:"tenantName,omitempty"`
-	VolumeName    string `json:"volumeName,omitempty"`
+	DatastoreType string `json:"datastoreType,omitempty"` //
+	MountPoint    string `json:"mountPoint,omitempty"`    //
+	PoolName      string `json:"poolName,omitempty"`      //
+	Size          string `json:"size,omitempty"`          //
+	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
+	VolumeName    string `json:"volumeName,omitempty"`    // Volume Name
 
 	// add link-sets and links
 	LinkSets VolumeLinkSets `json:"link-sets,omitempty"`
@@ -253,12 +255,12 @@ type VolumeProfile struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	DatastoreType     string `json:"datastoreType,omitempty"`
-	MountPoint        string `json:"mountPoint,omitempty"`
-	PoolName          string `json:"poolName,omitempty"`
-	Size              string `json:"size,omitempty"`
-	TenantName        string `json:"tenantName,omitempty"`
-	VolumeProfileName string `json:"volumeProfileName,omitempty"`
+	DatastoreType     string `json:"datastoreType,omitempty"`     //
+	MountPoint        string `json:"mountPoint,omitempty"`        //
+	PoolName          string `json:"poolName,omitempty"`          //
+	Size              string `json:"size,omitempty"`              //
+	TenantName        string `json:"tenantName,omitempty"`        // Tenant Name
+	VolumeProfileName string `json:"volumeProfileName,omitempty"` // Volume profile Name
 
 	// add link-sets and links
 	LinkSets VolumeProfileLinkSets `json:"link-sets,omitempty"`
