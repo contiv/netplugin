@@ -154,7 +154,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 		log.Fatalf("Could not start a watch on netmaster service. Err: %v", err)
 	}
 
-	// Start a watch on netplugin service so that we dont miss any
+	// Start a watch on netplugin service
 	err = objdbClient.WatchService("netplugin", nodeEventCh, watchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
