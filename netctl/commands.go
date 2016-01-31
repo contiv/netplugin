@@ -293,16 +293,12 @@ var Commands = []cli.Command{
 		Subcommands: []cli.Command{
 			{
 				Name:      "delete",
-				Usage:     "Delete Bgp neighbor",
-				ArgsUsage: "[router]",
+				Usage:     "Delete Bgp Config",
+				ArgsUsage: "",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "host",
+						Name:  "hostname",
 						Usage: "host name",
-					},
-					cli.StringFlag{
-						Name:  "neighbors",
-						Usage: "Bgp neighbor to be deleted",
 					},
 				},
 				Action: deleteBgpNeighbors,
@@ -313,12 +309,20 @@ var Commands = []cli.Command{
 				ArgsUsage: " ",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "host",
+						Name:  "hostname",
 						Usage: "host name",
 					},
 					cli.StringFlag{
+						Name:  "router-ip",
+						Usage: "Bgp my router ip ",
+					},
+					cli.StringFlag{
 						Name:  "as",
-						Usage: "AS id",
+						Usage: "self AS id",
+					},
+					cli.StringFlag{
+						Name:  "neighbor-as",
+						Usage: "bgp neighbor AS id",
 					},
 					cli.StringFlag{
 						Name:  "neighbor",

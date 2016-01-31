@@ -59,9 +59,11 @@ type ConfigTenant struct {
 
 //ConfigBgp keeps bgp specific configs
 type ConfigBgp struct {
-	Hostname string
-	As       string
-	Neighbor string
+	Hostname   string
+	RouterIP   string
+	As         string
+	NeighborAs string
+	Neighbor   string
 }
 
 // Config is the top level configuration

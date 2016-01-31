@@ -49,8 +49,11 @@ type OvsSwitch struct {
 }
 
 // NewOvsSwitch Creates a new OVS switch instance
-func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string, routerInfo ...string) (*OvsSwitch, error) {
+func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
+	routerInfo ...string) (*OvsSwitch, error) {
 	var err error
+	var datapath string
+	var ofnetPort, ctrlrPort uint16
 
 	sw := new(OvsSwitch)
 	sw.bridgeName = bridgeName
@@ -62,76 +65,54 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string, routerInf
 		log.Fatalf("Error creating ovsdb driver. Err: %v", err)
 	}
 
-	// For Vxlan, initialize ofnet. For VLAN mode, we use OVS normal forwarding
 	if netType == "vxlan" {
-		// Create an ofnet agent
-		if fwdMode == "bridge" {
-			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vxlan", net.ParseIP(localIP),
-				vxlanOfnetPort, vxlanCtrlerPort)
-		} else if fwdMode == "routing" {
-			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vrouter", net.ParseIP(localIP),
-				vxlanOfnetPort, vxlanCtrlerPort)
-		} else {
-			log.Errorf("Invalid Forwarding mode")
+		ofnetPort = vxlanOfnetPort
+		ctrlrPort = vxlanCtrlerPort
+		switch fwdMode {
+		case "bridge":
+			datapath = "vxlan"
+		case "routing":
+			datapath = "vrouter"
+		default:
+			fmt.Errorf("Invalid datapath mode")
 			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
-		if err != nil {
-			log.Fatalf("Error initializing ofnet")
-			return nil, err
-		}
-
-		// Add controller to the OVS
-		ctrlerIP := "127.0.0.1"
-		target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, vxlanCtrlerPort)
-		if !sw.ovsdbDriver.IsControllerPresent(target) {
-			err = sw.ovsdbDriver.AddController(ctrlerIP, vxlanCtrlerPort)
-
-			log.Infof("Waiting for OVS switch(%s) to connect..", netType)
-
-			// Wait for a while for OVS switch to connect to ofnet agent
-			sw.ofnetAgent.WaitForSwitchConnection()
-
-			log.Infof("Switch (vxlan) connected.")
+	} else if netType == "vlan" {
+		ofnetPort = vlanOfnetPort
+		ctrlrPort = vlanCtrlerPort
+		switch fwdMode {
+		case "bridge":
+			datapath = "vlan"
+		case "routing":
+			datapath = "vlrouter"
+		default:
+			fmt.Errorf("Invalid datapath mode")
+			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
 	}
-	if netType == "vlan" {
-		// Create an ofnet agent
-		if fwdMode == "bridge" {
-			// Create an ofnet agent
-			sw.ofnetAgent, err = ofnet.NewOfnetAgent(netType, net.ParseIP(localIP), vlanOfnetPort, vlanCtrlerPort)
 
-		} else if fwdMode == "routing" {
-			sw.ofnetAgent, err = ofnet.NewOfnetAgent("vlrouter", net.ParseIP(localIP),
-				vlanOfnetPort, vlanCtrlerPort, routerInfo...)
-		} else {
-			log.Errorf("Invalid Forwarding mode")
-			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
-		}
+	// Create an ofnet agent
+	sw.ofnetAgent, err = ofnet.NewOfnetAgent(datapath, net.ParseIP(localIP),
+		ofnetPort, ctrlrPort, routerInfo...)
 
-		if err != nil {
-			log.Fatalf("Error initializing ofnet")
-			return nil, err
-		}
+	if err != nil {
+		log.Fatalf("Error initializing ofnet")
+		return nil, err
+	}
 
-		// Add controller to the OVS
-		ctrlerIP := "127.0.0.1"
-		target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, vlanCtrlerPort)
-		if !sw.ovsdbDriver.IsControllerPresent(target) {
-			err = sw.ovsdbDriver.AddController(ctrlerIP, vlanCtrlerPort)
-			if err != nil {
-				log.Fatalf("Error adding controller to OVS. Err: %v", err)
-				return nil, err
-			}
-		}
+	// Add controller to the OVS
+	ctrlerIP := "127.0.0.1"
+	target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, ctrlrPort)
+	if !sw.ovsdbDriver.IsControllerPresent(target) {
+		err = sw.ovsdbDriver.AddController(ctrlerIP, ctrlrPort)
 
-		log.Infof("Waiting for OVS switch to connect..")
+		log.Infof("Waiting for OVS switch(%s) to connect..", netType)
 
 		// Wait for a while for OVS switch to connect to ofnet agent
 		sw.ofnetAgent.WaitForSwitchConnection()
 
-		log.Infof("Switch (vlan) connected.")
+		log.Infof("Switch (%s) connected.", netType)
 	}
-
 	return sw, nil
 }
 
@@ -588,10 +569,11 @@ func (sw *OvsSwitch) DeleteMaster(node core.ServiceInfo) error {
 	return nil
 }
 
-// AddBgpNeighbors adds a bgp neighbor to host
-func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbor string) error {
+// AddBgpadds a bgp config to host
+func (sw *OvsSwitch) AddBgp(hostname string, routerIp string,
+	As string, neighborAs, neighbor string) error {
 	if sw.netType == "vlan" && sw.ofnetAgent != nil {
-		err := sw.ofnetAgent.AddBgpNeighbors(As, neighbor)
+		err := sw.ofnetAgent.AddBgp(routerIp, As, neighborAs, neighbor)
 		if err != nil {
 			log.Errorf("Error adding BGP server")
 			return err
@@ -601,11 +583,11 @@ func (sw *OvsSwitch) AddBgpNeighbors(hostname string, As string, neighbor string
 	return nil
 }
 
-// DeleteBgpNeighbors deletes bgp config for host
-func (sw *OvsSwitch) DeleteBgpNeighbors() error {
+// DeleteBgp deletes bgp config from host
+func (sw *OvsSwitch) DeleteBgp() error {
 	if sw.netType == "vlan" && sw.ofnetAgent != nil {
 		// Delete vlan/vni mapping
-		err := sw.ofnetAgent.DeleteBgpNeighbors()
+		err := sw.ofnetAgent.DeleteBgp()
 
 		if err != nil {
 			log.Errorf("Error removing bgp server Err: %v", err)

@@ -832,10 +832,10 @@ func (ac *APIController) TenantDelete(tenant *contivModel.Tenant) error {
 }
 
 //BgpCreate add bgp neighbor
-func (ac *APIController) BgpCreate(bgpNeighborCfg *contivModel.Bgp) error {
-	log.Infof("Received BgpCreate: %+v", bgpNeighborCfg)
+func (ac *APIController) BgpCreate(bgpCfg *contivModel.Bgp) error {
+	log.Infof("Received BgpCreate: %+v", bgpCfg)
 
-	if bgpNeighborCfg.Hostname == "" {
+	if bgpCfg.Hostname == "" {
 		return core.Errorf("Invalid host name")
 	}
 
@@ -846,32 +846,34 @@ func (ac *APIController) BgpCreate(bgpNeighborCfg *contivModel.Bgp) error {
 	}
 
 	// Build bgp config
-	bgpCfg := intent.ConfigBgp{
-		Hostname: bgpNeighborCfg.Hostname,
-		As:       bgpNeighborCfg.AS,
-		Neighbor: bgpNeighborCfg.Neighbor,
+	bgpIntentCfg := intent.ConfigBgp{
+		Hostname:   bgpCfg.Hostname,
+		RouterIP:   bgpCfg.Routerip,
+		As:         bgpCfg.As,
+		NeighborAs: bgpCfg.NeighborAs,
+		Neighbor:   bgpCfg.Neighbor,
 	}
 
 	// Add the Bgp neighbor
-	err = master.AddBgpNeighbors(stateDriver, &bgpCfg)
+	err = master.AddBgp(stateDriver, &bgpIntentCfg)
 	if err != nil {
-		log.Errorf("Error creating Bgp neighbor {%+v}. Err: %v", bgpNeighborCfg.Neighbor, err)
+		log.Errorf("Error creating Bgp neighbor {%+v}. Err: %v", bgpCfg.Neighbor, err)
 		return err
 	}
 	return nil
 }
 
 //BgpDelete deletes bgp neighbor
-func (ac *APIController) BgpDelete(bgpNeighborCfg *contivModel.Bgp) error {
+func (ac *APIController) BgpDelete(bgpCfg *contivModel.Bgp) error {
 
-	log.Infof("Received delete for Bgp config on {%+v} ", bgpNeighborCfg.Hostname)
+	log.Infof("Received delete for Bgp config on {%+v} ", bgpCfg.Hostname)
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return err
 	}
 
-	err = master.DeleteBgpNeighbors(stateDriver, bgpNeighborCfg.Hostname)
+	err = master.DeleteBgp(stateDriver, bgpCfg.Hostname)
 	if err != nil {
 		log.Errorf("Error Deleting Bgp neighbor. Err: %v", err)
 		return err
@@ -880,6 +882,6 @@ func (ac *APIController) BgpDelete(bgpNeighborCfg *contivModel.Bgp) error {
 }
 
 //BgpUpdate updates bgp config
-func (ac *APIController) BgpUpdate(oldbgpNeighborCfg *contivModel.Bgp, NewbgpNeighborCfg *contivModel.Bgp) error {
+func (ac *APIController) BgpUpdate(oldbgpCfg *contivModel.Bgp, NewbgpCfg *contivModel.Bgp) error {
 	return nil
 }

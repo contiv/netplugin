@@ -145,7 +145,7 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	}
 	// Create Vlan switch
 	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP,
-		info.FwdMode, info.RouterIP, info.VlanIntf)
+		info.FwdMode, info.VlanIntf)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
@@ -433,7 +433,7 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 }
 
 // AddBgpNeighbors adds bgp neighbor by named identifier
-func (d *OvsDriver) AddBgpNeighbors(id string) error {
+func (d *OvsDriver) AddBgp(id string) error {
 	var sw *OvsSwitch
 
 	cfg := mastercfg.CfgBgpState{}
@@ -449,17 +449,17 @@ func (d *OvsDriver) AddBgpNeighbors(id string) error {
 	// Find the switch based on network type
 	sw = d.switchDb["vlan"]
 
-	return sw.AddBgpNeighbors(cfg.Hostname, cfg.As, cfg.Neighbor)
+	return sw.AddBgp(cfg.Hostname, cfg.RouterIP, cfg.As, cfg.NeighborAs, cfg.Neighbor)
 }
 
 // DeleteBgpNeighbors deletes a bgp neighbor by named identifier
-func (d *OvsDriver) DeleteBgpNeighbors(id string) error {
+func (d *OvsDriver) DeleteBgp(id string) error {
 	log.Infof("delete Bgp Neighbor %s \n", id)
 	//FixME: We are not maintaining oper state for Bgp
 	//Need to Revisit again
 	// Find the switch based on network type
 	var sw *OvsSwitch
 	sw = d.switchDb["vlan"]
-	return sw.DeleteBgpNeighbors()
+	return sw.DeleteBgp()
 
 }

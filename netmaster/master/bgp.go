@@ -22,13 +22,15 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 )
 
-//AddBgpNeighbors adds to the etcd state
-func AddBgpNeighbors(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) error {
+//AddBgp adds to the etcd state
+func AddBgp(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) error {
 
 	log.Infof("Adding bgp neighbor {%v}", bgpCfg)
 	bgpState := &mastercfg.CfgBgpState{}
 	bgpState.Hostname = bgpCfg.Hostname
+	bgpState.RouterIP = bgpCfg.RouterIP
 	bgpState.As = bgpCfg.As
+	bgpState.NeighborAs = bgpCfg.NeighborAs
 	bgpState.Neighbor = bgpCfg.Neighbor
 	bgpState.StateDriver = stateDriver
 	bgpState.ID = bgpCfg.Hostname
@@ -40,8 +42,8 @@ func AddBgpNeighbors(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) err
 	return nil
 }
 
-//DeleteBgpNeighbors deletes from etcd state
-func DeleteBgpNeighbors(stateDriver core.StateDriver, hostname string) error {
+//DeleteBgp deletes from etcd state
+func DeleteBgp(stateDriver core.StateDriver, hostname string) error {
 	log.Infof("Deleting bgp neighbor for {%v}", hostname)
 	bgpState := &mastercfg.CfgBgpState{}
 	bgpState.StateDriver = stateDriver

@@ -488,10 +488,10 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string,
 
 	operStr := ""
 	if isDelete {
-		err = netPlugin.DeleteBgpNeighbors(hostID)
+		err = netPlugin.DeleteBgp(hostID)
 		operStr = "delete"
 	} else {
-		err = netPlugin.AddBgpNeighbors(hostID)
+		err = netPlugin.AddBgp(hostID)
 		operStr = "create"
 	}
 	if err != nil {

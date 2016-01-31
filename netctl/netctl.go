@@ -465,15 +465,22 @@ func listEndpointGroups(ctx *cli.Context) {
 func addBgpNeighbors(ctx *cli.Context) {
 	argCheck(0, ctx)
 
-	hostname := ctx.String("host")
+	hostname := ctx.String("hostname")
+	routerip := ctx.String("router-ip")
 	asid := ctx.String("as")
+	neighboras := ctx.String("neighbor-as")
 	neighbor := ctx.String("neighbor")
 
-	errCheck(ctx, getClient(ctx).BgpPost(&contivClient.Bgp{
-		Hostname: hostname,
-		AS:       asid,
-		Neighbor: neighbor,
-	}))
+	url := fmt.Sprintf("%s%s/", bgpURL(ctx), hostname)
+
+	out := map[string]interface{}{
+		"Hostname":    hostname,
+		"routerip":    routerip,
+		"as":          asid,
+		"neighbor-as": neighboras,
+		"neighbor":    neighbor,
+	}
+	postMap(ctx, url, out)
 }
 
 //deleteBgpNeighbors is a netctl interface routine to delete
@@ -481,8 +488,8 @@ func addBgpNeighbors(ctx *cli.Context) {
 func deleteBgpNeighbors(ctx *cli.Context) {
 	argCheck(0, ctx)
 
-	hostname := ctx.String("host")
-	logrus.Infof("Deleting router config %s:%s", hostname)
+	hostname := ctx.String("hostname")
+	logrus.Infof("Deleting Bgp router config %s:%s", hostname)
 
 	errCheck(ctx, getClient(ctx).BgpDelete(hostname))
 }
@@ -492,7 +499,7 @@ func deleteBgpNeighbors(ctx *cli.Context) {
 func listBgpNeighbors(ctx *cli.Context) {
 	argCheck(0, ctx)
 
-	hostname := ctx.String("host")
+	hostname := ctx.String("hostname")
 
 	bgpList, err := getClient(ctx).BgpList()
 	errCheck(ctx, err)
@@ -517,9 +524,9 @@ func listBgpNeighbors(ctx *cli.Context) {
 			fmt.Println(group)
 			writer.Write(
 				[]byte(fmt.Sprintf("%v\t%v\t%v\t\n",
-					group.Hostname,
-					group.Neighbor,
-					group.AS,
+					group["host"],
+					group["neighbor"],
+					group["neighbor-as"],
 				)))
 		}
 	}
