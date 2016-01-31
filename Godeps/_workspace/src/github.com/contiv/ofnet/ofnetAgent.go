@@ -26,14 +26,13 @@ package ofnet
 import (
 	"errors"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/ofnet/ofctrl"
+	"github.com/contiv/ofnet/ovsdbDriver"
+	"github.com/contiv/ofnet/rpcHub"
 	"net"
 	"net/rpc"
 	"time"
-
-	"github.com/contiv/ofnet/ofctrl"
-	"github.com/contiv/ofnet/rpcHub"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // OfnetAgent state
@@ -44,10 +43,10 @@ type OfnetAgent struct {
 	MyPort      uint16             // Port where the agent's RPC server is listening
 	MyAddr      string             // RPC server addr. same as localIp. different in testing environments
 	isConnected bool               // Is the switch connected
-
-	rpcServ     *rpc.Server   // jsonrpc server
-	rpcListener net.Listener  // Listener
-	datapath    OfnetDatapath // Configured datapath
+	rpcServ     *rpc.Server        // jsonrpc server
+	rpcListener net.Listener       // Listener
+	datapath    OfnetDatapath      // Configured datapath
+	protopath   OfnetProto         // Configured protopath
 
 	masterDb map[string]*OfnetNode // list of Masters
 
@@ -62,6 +61,8 @@ type OfnetAgent struct {
 	// Endpoint database
 	endpointDb      map[string]*OfnetEndpoint // all known endpoints
 	localEndpointDb map[uint32]*OfnetEndpoint // local port to endpoint map
+
+	ovsDriver *ovsdbDriver.OvsDriver
 }
 
 // local End point information
@@ -71,6 +72,7 @@ type EndpointInfo struct {
 	MacAddr       net.HardwareAddr
 	Vlan          uint16
 	IpAddr        net.IP
+	VrfId         uint16
 }
 
 const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
@@ -85,7 +87,11 @@ const IP_TBL_ID = 4
 const MAC_DEST_TBL_ID = 5
 
 // Create a new Ofnet agent and initialize it
-func NewOfnetAgent(dpName string, localIp net.IP, rpcPort uint16, ovsPort uint16) (*OfnetAgent, error) {
+/*routerInfo[0] - > IP of the router intf
+  routerInfo[1] -> Uplink nexthop interface
+*/
+func NewOfnetAgent(dpName string, localIp net.IP, rpcPort uint16,
+	ovsPort uint16, routerInfo ...string) (*OfnetAgent, error) {
 	agent := new(OfnetAgent)
 
 	// Init params
@@ -127,6 +133,11 @@ func NewOfnetAgent(dpName string, localIp net.IP, rpcPort uint16, ovsPort uint16
 		agent.datapath = NewVxlan(agent, rpcServ)
 	case "vlan":
 		agent.datapath = NewVlanBridge(agent, rpcServ)
+	case "vlrouter":
+		agent.datapath = NewVlrouter(agent, rpcServ)
+		agent.ovsDriver = ovsdbDriver.NewOvsDriver("contivVlanBridge")
+		agent.protopath = NewOfnetBgp(agent, routerInfo)
+
 	default:
 		log.Fatalf("Unknown Datapath %s", dpName)
 	}
@@ -279,7 +290,7 @@ func (self *OfnetAgent) RemoveMaster(masterInfo *OfnetNode) error {
 }
 
 // Add a local endpoint.
-// This takes ofp port number, mac address, vlan and IP address of the port.
+// This takes ofp port number, mac address, vlan , VrfId and IP address of the port.
 func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	// Add port vlan mapping
 	self.portVlanMap[endpoint.PortNo] = &endpoint.Vlan
@@ -305,7 +316,8 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		EndpointType:  "internal",
 		EndpointGroup: endpoint.EndpointGroup,
 		IpAddr:        endpoint.IpAddr,
-		VrfId:         0, // FIXME set VRF correctly
+		IpMask:        net.ParseIP("255.255.255.255"),
+		VrfId:         endpoint.Vlan, //This has to be changed to vrfId when there is multi network per vrf support
 		MacAddrStr:    endpoint.MacAddr.String(),
 		Vlan:          endpoint.Vlan,
 		Vni:           *vni,
@@ -420,27 +432,38 @@ func (self *OfnetAgent) RemoveVtepPort(portNo uint32, remoteIp net.IP) error {
 	return self.datapath.RemoveVtepPort(portNo, remoteIp)
 }
 
-// Add a vlan.
-// This is mainly used for mapping vlan id to Vxlan VNI
-func (self *OfnetAgent) AddVlan(vlanId uint16, vni uint32) error {
+// Add a Network.
+// This is mainly used for mapping vlan id to Vxlan VNI and add gateway for network
+func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string) error {
 	// if nothing changed, ignore the message
 	oldVni, ok := self.vlanVniMap[vlanId]
 	if ok && *oldVni == vni {
 		return nil
 	}
-
 	log.Infof("ofnet Adding Vlan %d. Vni %d", vlanId, vni)
 
 	// store it in DB
 	self.vlanVniMap[vlanId] = &vni
 	self.vniVlanMap[vni] = &vlanId
-
-	// Call the datapath
+	if Gw != "" {
+		// Call the datapath
+		epreg := &OfnetEndpoint{
+			EndpointID:   Gw,
+			EndpointType: "internal",
+			IpAddr:       net.ParseIP(Gw),
+			IpMask:       net.ParseIP("255.255.255.255"),
+			VrfId:        0, // FIXME set VRF correctly
+			Vlan:         1,
+			PortNo:       0,
+			Timestamp:    time.Now(),
+		}
+		self.endpointDb[Gw] = epreg
+	}
 	return self.datapath.AddVlan(vlanId, vni)
 }
 
 // Remove a vlan from datapath
-func (self *OfnetAgent) RemoveVlan(vlanId uint16, vni uint32) error {
+func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string) error {
 	// Clear the database
 	delete(self.vlanVniMap, vlanId)
 	delete(self.vniVlanMap, vni)
@@ -451,6 +474,7 @@ func (self *OfnetAgent) RemoveVlan(vlanId uint16, vni uint32) error {
 			log.Fatalf("Vlan %d still has routes. Route: %+v", vlanId, endpoint)
 		}
 	}
+	delete(self.endpointDb, Gw)
 
 	// Call the datapath
 	return self.datapath.RemoveVlan(vlanId, vni)
@@ -539,4 +563,35 @@ func (self *OfnetAgent) EndpointDel(epreg *OfnetEndpoint, ret *bool) error {
 func (self *OfnetAgent) DummyRpc(arg *string, ret *bool) error {
 	log.Infof("Received dummy route RPC call")
 	return nil
+}
+
+//AddBgpNeighbors add bgp neighbor
+func (self *OfnetAgent) AddBgpNeighbors(As string, peer string) error {
+
+	neighborInfo := &OfnetProtoNeighborInfo{
+		ProtocolType: "bgp",
+		NeighborIP:   peer,
+		As:           As,
+	}
+	return self.protopath.AddProtoNeighbor(neighborInfo)
+}
+
+func (self *OfnetAgent) DeleteBgpNeighbors() error {
+	return self.protopath.DeleteProtoNeighbor()
+}
+
+func (self *OfnetAgent) GetRouterInfo() *OfnetProtoRouterInfo {
+	return self.protopath.GetRouterInfo()
+}
+
+func (self *OfnetAgent) AddLocalProtoRoute(path *OfnetProtoRouteInfo) {
+	if self.protopath != nil {
+		self.protopath.AddLocalProtoRoute(path)
+	}
+}
+
+func (self *OfnetAgent) DeleteLocalProtoRoute(path *OfnetProtoRouteInfo) {
+	if self.protopath != nil {
+		self.protopath.DeleteLocalProtoRoute(path)
+	}
 }

@@ -26,7 +26,7 @@ func (d *FakeNetEpDriver) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork is not implemented.
-func (d *FakeNetEpDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int) error {
+func (d *FakeNetEpDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string) error {
 	return core.Errorf("Not implemented")
 }
 
@@ -57,5 +57,15 @@ func (d *FakeNetEpDriver) AddMaster(node core.ServiceInfo) error {
 
 // DeleteMaster is not implemented
 func (d *FakeNetEpDriver) DeleteMaster(node core.ServiceInfo) error {
+	return core.Errorf("Not implemented")
+}
+
+// AddBgpNeighbors is not implemented.
+func (d *FakeNetEpDriver) AddBgpNeighbors(id string) (err error) {
+	return core.Errorf("Not implemented")
+}
+
+// DeleteBgpNeighbors is not implemented.
+func (d *FakeNetEpDriver) DeleteBgpNeighbors(id string) (err error) {
 	return core.Errorf("Not implemented")
 }

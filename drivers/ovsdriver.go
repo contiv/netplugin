@@ -138,13 +138,14 @@ func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
 	d.switchDb = make(map[string]*OvsSwitch)
 
 	// Create Vxlan switch
-	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP)
+	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP,
+		info.FwdMode)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
-
 	// Create Vlan switch
-	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP)
+	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP,
+		info.FwdMode, info.RouterIP, info.VlanIntf)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
@@ -192,11 +193,11 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		sw = d.switchDb["vlan"]
 	}
 
-	return sw.CreateNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag))
+	return sw.CreateNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag), cfgNw.Gateway)
 }
 
 // DeleteNetwork deletes a network by named identifier
-func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int) error {
+func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string) error {
 	log.Infof("delete net %s, encap %s, tags: %d/%d", id, encap, pktTag, extPktTag)
 
 	// Find the switch based on network type
@@ -207,7 +208,7 @@ func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int) error
 		sw = d.switchDb["vlan"]
 	}
 
-	return sw.DeleteNetwork(uint16(pktTag), uint32(extPktTag))
+	return sw.DeleteNetwork(uint16(pktTag), uint32(extPktTag), gateway)
 }
 
 // CreateEndpoint creates an endpoint by named identifier
@@ -386,7 +387,7 @@ func (d *OvsDriver) DeletePeerHost(node core.ServiceInfo) error {
 
 	log.Infof("DeletePeerHost for %+v", node)
 
-	// Remove VTEP from vxlan switch
+	// Remove the VTEP for the peer in vxlan switch.
 	err := d.switchDb["vxlan"].DeleteVtep(node.HostAddr)
 	if err != nil {
 		log.Errorf("Error deleting the VTEP %s. Err: %s", node.HostAddr, err)
@@ -401,13 +402,12 @@ func (d *OvsDriver) AddMaster(node core.ServiceInfo) error {
 	log.Infof("AddMaster for %+v", node)
 
 	// Add master to vlan and vxlan datapaths
-	err := d.switchDb["vxlan"].AddMaster(node)
+	err := d.switchDb["vlan"].AddMaster(node)
 	if err != nil {
 		return err
 	}
+	err = d.switchDb["vxlan"].AddMaster(node)
 
-	// Add master to vlan and vxlan datapaths
-	err = d.switchDb["vlan"].AddMaster(node)
 	if err != nil {
 		return err
 	}
@@ -419,16 +419,47 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 	log.Infof("DeleteMaster for %+v", node)
 
 	// Delete master from vlan and vxlan datapaths
-	err := d.switchDb["vxlan"].DeleteMaster(node)
+	err := d.switchDb["vlan"].DeleteMaster(node)
 	if err != nil {
 		return err
 	}
+	err = d.switchDb["vxlan"].DeleteMaster(node)
 
-	// Delete master from vlan and vxlan datapaths
-	err = d.switchDb["vlan"].DeleteMaster(node)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// AddBgpNeighbors adds bgp neighbor by named identifier
+func (d *OvsDriver) AddBgpNeighbors(id string) error {
+	var sw *OvsSwitch
+
+	cfg := mastercfg.CfgBgpState{}
+	cfg.StateDriver = d.oper.StateDriver
+	log.Info("Reading from etcd State %s", id)
+	err := cfg.Read(id)
+	if err != nil {
+		log.Errorf("Failed to read router state %s \n", cfg.Hostname)
+		return err
+	}
+	log.Infof("create Bgp Server %s \n", cfg.Hostname)
+
+	// Find the switch based on network type
+	sw = d.switchDb["vlan"]
+
+	return sw.AddBgpNeighbors(cfg.Hostname, cfg.As, cfg.Neighbor)
+}
+
+// DeleteBgpNeighbors deletes a bgp neighbor by named identifier
+func (d *OvsDriver) DeleteBgpNeighbors(id string) error {
+	log.Infof("delete Bgp Neighbor %s \n", id)
+	//FixME: We are not maintaining oper state for Bgp
+	//Need to Revisit again
+	// Find the switch based on network type
+	var sw *OvsSwitch
+	sw = d.switchDb["vlan"]
+	return sw.DeleteBgpNeighbors()
+
 }

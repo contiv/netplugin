@@ -122,7 +122,7 @@ def triggerNetpluginRestart(testbed):
         node.startNetplugin()
 
         # Wait a little
-        time.sleep(5)
+        time.sleep(10)
 
 
 # Trigger netmaster restart

@@ -174,6 +174,16 @@ type Global struct {
 
 }
 
+type Bgp struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	AS       string `json:"AS,omitempty"`       // AS id
+	Hostname string `json:"hostname,omitempty"` // host name
+	Neighbor string `json:"neighbor,omitempty"` // Bgp  neighbor
+
+}
+
 type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -384,6 +394,22 @@ func (c *ContivClient) AppPost(obj *App) error {
 	return nil
 }
 
+// AppList lists all app objects
+func (c *ContivClient) AppList() (*[]App, error) {
+	// build key and URL
+	url := c.baseURL + "/api/apps/"
+
+	// http get the object
+	var objList []App
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting apps. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
 // AppGet gets the app object
 func (c *ContivClient) AppGet(tenantName string, appName string) (*App, error) {
 	// build key and URL
@@ -431,6 +457,22 @@ func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 	}
 
 	return nil
+}
+
+// EndpointGroupList lists all endpointGroup objects
+func (c *ContivClient) EndpointGroupList() (*[]EndpointGroup, error) {
+	// build key and URL
+	url := c.baseURL + "/api/endpointGroups/"
+
+	// http get the object
+	var objList []EndpointGroup
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting endpointGroups. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
 }
 
 // EndpointGroupGet gets the endpointGroup object
@@ -482,6 +524,22 @@ func (c *ContivClient) GlobalPost(obj *Global) error {
 	return nil
 }
 
+// GlobalList lists all global objects
+func (c *ContivClient) GlobalList() (*[]Global, error) {
+	// build key and URL
+	url := c.baseURL + "/api/globals/"
+
+	// http get the object
+	var objList []Global
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting globals. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
 // GlobalGet gets the global object
 func (c *ContivClient) GlobalGet(name string) (*Global, error) {
 	// build key and URL
@@ -515,6 +573,71 @@ func (c *ContivClient) GlobalDelete(name string) error {
 	return nil
 }
 
+// BgpPost posts the Bgp object
+func (c *ContivClient) BgpPost(obj *Bgp) error {
+	// build key and URL
+	keyStr := obj.Hostname
+	url := c.baseURL + "/api/Bgps/" + keyStr + "/"
+
+	// http post the object
+	err := httpPost(url, obj)
+	if err != nil {
+		log.Errorf("Error creating Bgp %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
+}
+
+// BgpList lists all Bgp objects
+func (c *ContivClient) BgpList() (*[]Bgp, error) {
+	// build key and URL
+	url := c.baseURL + "/api/Bgps/"
+
+	// http get the object
+	var objList []Bgp
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting Bgps. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
+// BgpGet gets the Bgp object
+func (c *ContivClient) BgpGet(hostname string) (*Bgp, error) {
+	// build key and URL
+	keyStr := hostname
+	url := c.baseURL + "/api/Bgps/" + keyStr + "/"
+
+	// http get the object
+	var obj Bgp
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Errorf("Error getting Bgp %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// BgpDelete deletes the Bgp object
+func (c *ContivClient) BgpDelete(hostname string) error {
+	// build key and URL
+	keyStr := hostname
+	url := c.baseURL + "/api/Bgps/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Errorf("Error deleting Bgp %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // NetworkPost posts the network object
 func (c *ContivClient) NetworkPost(obj *Network) error {
 	// build key and URL
@@ -529,6 +652,22 @@ func (c *ContivClient) NetworkPost(obj *Network) error {
 	}
 
 	return nil
+}
+
+// NetworkList lists all network objects
+func (c *ContivClient) NetworkList() (*[]Network, error) {
+	// build key and URL
+	url := c.baseURL + "/api/networks/"
+
+	// http get the object
+	var objList []Network
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting networks. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
 }
 
 // NetworkGet gets the network object
@@ -580,6 +719,22 @@ func (c *ContivClient) PolicyPost(obj *Policy) error {
 	return nil
 }
 
+// PolicyList lists all policy objects
+func (c *ContivClient) PolicyList() (*[]Policy, error) {
+	// build key and URL
+	url := c.baseURL + "/api/policys/"
+
+	// http get the object
+	var objList []Policy
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting policys. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
 // PolicyGet gets the policy object
 func (c *ContivClient) PolicyGet(tenantName string, policyName string) (*Policy, error) {
 	// build key and URL
@@ -627,6 +782,22 @@ func (c *ContivClient) RulePost(obj *Rule) error {
 	}
 
 	return nil
+}
+
+// RuleList lists all rule objects
+func (c *ContivClient) RuleList() (*[]Rule, error) {
+	// build key and URL
+	url := c.baseURL + "/api/rules/"
+
+	// http get the object
+	var objList []Rule
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting rules. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
 }
 
 // RuleGet gets the rule object
@@ -678,6 +849,22 @@ func (c *ContivClient) ServicePost(obj *Service) error {
 	return nil
 }
 
+// ServiceList lists all service objects
+func (c *ContivClient) ServiceList() (*[]Service, error) {
+	// build key and URL
+	url := c.baseURL + "/api/services/"
+
+	// http get the object
+	var objList []Service
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting services. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
 // ServiceGet gets the service object
 func (c *ContivClient) ServiceGet(tenantName string, appName string, serviceName string) (*Service, error) {
 	// build key and URL
@@ -725,6 +912,22 @@ func (c *ContivClient) ServiceInstancePost(obj *ServiceInstance) error {
 	}
 
 	return nil
+}
+
+// ServiceInstanceList lists all serviceInstance objects
+func (c *ContivClient) ServiceInstanceList() (*[]ServiceInstance, error) {
+	// build key and URL
+	url := c.baseURL + "/api/serviceInstances/"
+
+	// http get the object
+	var objList []ServiceInstance
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting serviceInstances. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
 }
 
 // ServiceInstanceGet gets the serviceInstance object
@@ -776,6 +979,22 @@ func (c *ContivClient) TenantPost(obj *Tenant) error {
 	return nil
 }
 
+// TenantList lists all tenant objects
+func (c *ContivClient) TenantList() (*[]Tenant, error) {
+	// build key and URL
+	url := c.baseURL + "/api/tenants/"
+
+	// http get the object
+	var objList []Tenant
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting tenants. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
 // TenantGet gets the tenant object
 func (c *ContivClient) TenantGet(tenantName string) (*Tenant, error) {
 	// build key and URL
@@ -825,6 +1044,22 @@ func (c *ContivClient) VolumePost(obj *Volume) error {
 	return nil
 }
 
+// VolumeList lists all volume objects
+func (c *ContivClient) VolumeList() (*[]Volume, error) {
+	// build key and URL
+	url := c.baseURL + "/api/volumes/"
+
+	// http get the object
+	var objList []Volume
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting volumes. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
 // VolumeGet gets the volume object
 func (c *ContivClient) VolumeGet(tenantName string, volumeName string) (*Volume, error) {
 	// build key and URL
@@ -872,6 +1107,22 @@ func (c *ContivClient) VolumeProfilePost(obj *VolumeProfile) error {
 	}
 
 	return nil
+}
+
+// VolumeProfileList lists all volumeProfile objects
+func (c *ContivClient) VolumeProfileList() (*[]VolumeProfile, error) {
+	// build key and URL
+	url := c.baseURL + "/api/volumeProfiles/"
+
+	// http get the object
+	var objList []VolumeProfile
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Errorf("Error getting volumeProfiles. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
 }
 
 // VolumeProfileGet gets the volumeProfile object

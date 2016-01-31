@@ -126,7 +126,7 @@ func registerService(objdbClient objdb.API, localIP string) error {
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netplugin",
 		HostAddr:    localIP,
-		Port:        ofnet.OFNET_AGENT_PORT,
+		Port:        ofnet.OFNET_AGENT_VXLAN_PORT,
 	}
 
 	// Register the node with service registry
@@ -177,7 +177,15 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 		// add the node
 		err := netplugin.AddPeerHost(core.ServiceInfo{
 			HostAddr: node.HostAddr,
-			Port:     ofnet.OFNET_AGENT_PORT,
+			Port:     ofnet.OFNET_AGENT_VXLAN_PORT,
+		})
+		if err != nil {
+			log.Errorf("Error adding node {%+v}. Err: %v", node, err)
+		}
+		// add the node
+		err = netplugin.AddPeerHost(core.ServiceInfo{
+			HostAddr: node.HostAddr,
+			Port:     ofnet.OFNET_AGENT_VLAN_PORT,
 		})
 		if err != nil {
 			log.Errorf("Error adding node {%+v}. Err: %v", node, err)
@@ -224,18 +232,35 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 				// add the node
 				err := netplugin.AddPeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
-					Port:     ofnet.OFNET_AGENT_PORT,
+					Port:     ofnet.OFNET_AGENT_VXLAN_PORT,
 				})
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
 				}
+				// add the node
+				err = netplugin.AddPeerHost(core.ServiceInfo{
+					HostAddr: nodeInfo.HostAddr,
+					Port:     ofnet.OFNET_AGENT_VLAN_PORT,
+				})
+				if err != nil {
+					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
+				}
+
 			} else if srvEvent.EventType == objdb.WatchServiceEventDel {
 				log.Infof("Node delete event for {%+v}", nodeInfo)
 
 				// remove the node
 				err := netplugin.DeletePeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
-					Port:     ofnet.OFNET_AGENT_PORT,
+					Port:     ofnet.OFNET_AGENT_VXLAN_PORT,
+				})
+				if err != nil {
+					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
+				}
+				// remove the node
+				err = netplugin.DeletePeerHost(core.ServiceInfo{
+					HostAddr: nodeInfo.HostAddr,
+					Port:     ofnet.OFNET_AGENT_VLAN_PORT,
 				})
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)

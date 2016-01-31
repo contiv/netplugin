@@ -54,8 +54,14 @@ type ConfigTenant struct {
 	DefaultNetwork string
 	VLANs          string
 	VXLANs         string
+	Networks       []ConfigNetwork
+}
 
-	Networks []ConfigNetwork
+//ConfigBgp keeps bgp specific configs
+type ConfigBgp struct {
+	Hostname string
+	As       string
+	Neighbor string
 }
 
 // Config is the top level configuration
@@ -63,4 +69,5 @@ type Config struct {
 	Tenants []ConfigTenant
 	// (optional) host bindings
 	HostBindings []ConfigEP
+	RouterInfo   []ConfigBgp
 }

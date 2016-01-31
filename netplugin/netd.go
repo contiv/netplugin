@@ -55,6 +55,8 @@ type cliOpts struct {
 	vtepIP     string // IP address to be used by the VTEP
 	vlanIntf   string // Uplink interface for VLAN switching
 	version    bool
+	routerIP   string // myrouter ip to start a protocol like Bgp
+	fwdMode    string // default "bridge". Values: "routing" , "bridge"
 }
 
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
@@ -85,6 +87,17 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 		}
 	}
 
+	readBgp := &mastercfg.CfgBgpState{}
+	readBgp.StateDriver = netPlugin.StateDriver
+	bgpCfgs, err := readBgp.ReadAll()
+	if err == nil {
+		for idx, bgpCfg := range bgpCfgs {
+			bgp := bgpCfg.(*mastercfg.CfgBgpState)
+			log.Debugf("read bgp key[%d] %s, populating state \n", idx, bgp.Hostname)
+			processBgpEvent(netPlugin, opts, bgp.Hostname, false)
+		}
+	}
+
 	return nil
 }
 
@@ -99,7 +112,7 @@ func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkSta
 
 	operStr := ""
 	if isDelete {
-		err = netPlugin.DeleteNetwork(nwCfg.ID, nwCfg.PktTagType, nwCfg.PktTag, nwCfg.ExtPktTag)
+		err = netPlugin.DeleteNetwork(nwCfg.ID, nwCfg.PktTagType, nwCfg.PktTag, nwCfg.ExtPktTag, nwCfg.Gateway)
 		operStr = "delete"
 	} else {
 		err = netPlugin.CreateNetwork(nwCfg.ID)
@@ -127,11 +140,11 @@ func processEpState(netPlugin *plugin.NetPlugin, opts cliOpts, epID string) erro
 	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = netPlugin.StateDriver
 	err := epCfg.Read(epID)
+
 	if err != nil {
 		log.Errorf("Failed to read config for ep '%s' \n", epID)
 		return err
 	}
-
 	// if the endpoint is not for this host, ignore it
 	if skipHost(epCfg.VtepIP, epCfg.HomingHost, opts.hostLabel) {
 		log.Infof("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
@@ -168,10 +181,13 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			log.Infof("Received a modify event, ignoring it")
 			continue
 		}
-
 		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
 			processNetEvent(netPlugin, nwCfg, isDelete)
+		}
+		if bgpCfg, ok := currentState.(*mastercfg.CfgBgpState); ok {
+			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
+			processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
 		}
 	}
 }
@@ -185,9 +201,22 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, opts cliOpts, retErr chan 
 	return
 }
 
+func handleBgpEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvErr chan error) {
+
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, opts, rsps)
+	cfg := mastercfg.CfgBgpState{}
+	cfg.StateDriver = netPlugin.StateDriver
+	recvErr <- cfg.WatchAll(rsps)
+	return
+}
+
 func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
+
 	recvErr := make(chan error, 1)
 	go handleNetworkEvents(netPlugin, opts, recvErr)
+
+	go handleBgpEvents(netPlugin, opts, recvErr)
 
 	err := <-recvErr
 	if err != nil {
@@ -279,6 +308,14 @@ func main() {
 		"version",
 		false,
 		"Show version")
+	flagSet.StringVar(&opts.routerIP,
+		"router-ip",
+		"",
+		"My Router ip address")
+	flagSet.StringVar(&opts.fwdMode,
+		"fwd-mode",
+		"bridge",
+		"Forwarding Mode")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
@@ -311,6 +348,11 @@ func main() {
 		configureSyslog(opts.syslog)
 	}
 
+	if opts.fwdMode != "bridge" && opts.fwdMode != "routing" {
+		log.Infof("Invalid forwarding mode. Setting the mode to bridge ")
+		opts.fwdMode = "bridge"
+	}
+
 	if flagSet.NFlag() < 1 {
 		log.Infof("host-label not specified, using default (%s)", opts.hostLabel)
 	}
@@ -335,7 +377,9 @@ func main() {
                     "plugin-instance": {
                        "host-label": %q,
 						"vtep-ip": %q,
-						"vlan-if": %q
+						"vlan-if": %q,
+						"router-ip":%q,
+						"fwdMode":%q
                     },
                     %q : {
                        "dbip": "127.0.0.1",
@@ -348,7 +392,7 @@ func main() {
                         "socket" : "unix:///var/run/docker.sock"
                     }
                   }`, utils.OvsNameStr, opts.hostLabel, opts.vtepIP,
-		opts.vlanIntf, utils.OvsNameStr)
+		opts.vlanIntf, opts.routerIP, opts.fwdMode, utils.OvsNameStr)
 
 	netPlugin := &plugin.NetPlugin{}
 
@@ -389,6 +433,12 @@ func main() {
 	if pluginConfig.Instance.VlanIntf == "" {
 		pluginConfig.Instance.VlanIntf = opts.vlanIntf
 	}
+	if pluginConfig.Instance.RouterIP == "" {
+		pluginConfig.Instance.RouterIP = opts.routerIP
+	}
+	if pluginConfig.Instance.FwdMode == "" {
+		pluginConfig.Instance.FwdMode = opts.fwdMode
+	}
 
 	svcplugin.QuitCh = make(chan struct{})
 	defer close(svcplugin.QuitCh)
@@ -423,4 +473,31 @@ func main() {
 	if err := handleEvents(netPlugin, opts); err != nil {
 		os.Exit(1)
 	}
+}
+
+//processBgpEvent processes Bgp neighbor add/delete events
+func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string,
+	isDelete bool) (err error) {
+
+	if opts.hostLabel != hostID {
+		log.Errorf("Skipping deleting neighbor on this host")
+		return
+	}
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+
+	operStr := ""
+	if isDelete {
+		err = netPlugin.DeleteBgpNeighbors(hostID)
+		operStr = "delete"
+	} else {
+		err = netPlugin.AddBgpNeighbors(hostID)
+		operStr = "create"
+	}
+	if err != nil {
+		log.Errorf("Bgp operation %s failed. Error: %s", operStr, err)
+	} else {
+		log.Infof("Bgp operation %s succeeded", operStr)
+	}
+	return
 }

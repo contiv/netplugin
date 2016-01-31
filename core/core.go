@@ -79,6 +79,8 @@ type InstanceInfo struct {
 	HostLabel   string      `json:"host-label"`
 	VtepIP      string      `json:"vtep-ip"`
 	VlanIntf    string      `json:"vlan-if"`
+	RouterIP    string      `json:"router-ip"`
+	FwdMode     string      `json:"fwd-mode"`
 }
 
 // Driver implements the programming logic
@@ -90,13 +92,15 @@ type NetworkDriver interface {
 	Init(config *Config, info *InstanceInfo) error
 	Deinit()
 	CreateNetwork(id string) error
-	DeleteNetwork(id, encap string, pktTag, extPktTag int) error
+	DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string) error
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
 	AddPeerHost(node ServiceInfo) error
 	DeletePeerHost(node ServiceInfo) error
 	AddMaster(node ServiceInfo) error
 	DeleteMaster(node ServiceInfo) error
+	AddBgpNeighbors(id string) error
+	DeleteBgpNeighbors(id string) error
 }
 
 // WatchState is used to provide a difference between core.State structs by

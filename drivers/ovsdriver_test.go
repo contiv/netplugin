@@ -50,6 +50,7 @@ const (
 	testHostLabelStateful      = "testHostStateful"
 	testCurrPortNum            = 10
 	testVlanUplinkPort         = "eth2"
+	testGateway                = "10.1.1.254"
 )
 
 func createCommonState(stateDriver core.StateDriver) error {
@@ -166,11 +167,12 @@ func initOvsDriver(t *testing.T) *OvsDriver {
 	ovsConfig := &OvsDriverConfig{}
 	ovsConfig.Ovs.DbIP = ""
 	ovsConfig.Ovs.DbPort = 0
+	fMode := "bridge"
 	config := &core.Config{V: ovsConfig}
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabel,
-		StateDriver: stateDriver}
+		StateDriver: stateDriver, FwdMode: fMode}
 
 	err := createCommonState(stateDriver)
 	if err != nil {
@@ -195,11 +197,12 @@ func TestOvsDriverInitStatefulStart(t *testing.T) {
 	ovsConfig := &OvsDriverConfig{}
 	ovsConfig.Ovs.DbIP = ""
 	ovsConfig.Ovs.DbPort = 0
+	fMode := "bridge"
 	config := &core.Config{V: ovsConfig}
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabelStateful,
-		StateDriver: stateDriver}
+		StateDriver: stateDriver, FwdMode: fMode}
 
 	operOvs := &OvsDriverOperState{CurrPortNum: 10}
 	operOvs.StateDriver = stateDriver
@@ -248,8 +251,10 @@ func TestOvsDriverInitInvalidState(t *testing.T) {
 	ovsConfig := &OvsDriverConfig{}
 	ovsConfig.Ovs.DbIP = ""
 	ovsConfig.Ovs.DbPort = 0
+	fMode := "bridge"
 	config := &core.Config{V: ovsConfig}
-	instInfo := &core.InstanceInfo{HostLabel: testHostLabel, StateDriver: nil}
+	instInfo := &core.InstanceInfo{HostLabel: testHostLabel, StateDriver: nil,
+		FwdMode: fMode}
 
 	err := driver.Init(config, instInfo)
 	if err == nil {
@@ -295,7 +300,7 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway) }()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)
@@ -329,7 +334,7 @@ func TestOvsDriverCreateEndpointStateful(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag) }()
+	defer func() { driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag, testGateway) }()
 
 	// Create endpoint
 	err = driver.CreateEndpoint(id)
@@ -368,7 +373,7 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway) }()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)
@@ -420,7 +425,7 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway) }()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)

@@ -466,3 +466,69 @@ func showVersion(ctx *cli.Context) {
 		fmt.Printf(version.StringFromInfo(&ver))
 	}
 }
+
+//addBgpNeighbors is a netctl interface routine to add
+//bgp neighbor
+func addBgpNeighbors(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	hostname := ctx.String("host")
+	asid := ctx.String("as")
+
+	neighbor := ctx.String("neighbor")
+	url := fmt.Sprintf("%s%s/", bgpURL(ctx), hostname)
+
+	out := map[string]interface{}{
+		"Hostname": hostname,
+		"as":       asid,
+		"neighbor": neighbor,
+	}
+	postMap(ctx, url, out)
+}
+
+//deleteBgpNeighbors is a netctl interface routine to delete
+//bgp neighbor
+func deleteBgpNeighbors(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	hostname := ctx.String("host")
+	logrus.Infof("Deleting router config %s:%s", hostname)
+
+	deleteURL(ctx, fmt.Sprintf("%s%s/", bgpURL(ctx), hostname))
+}
+
+//listBgpNeighbors is netctl interface routine to list
+//Bgp neighbor configs for a given host
+func listBgpNeighbors(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	hostname := ctx.String("host")
+
+	list := getList(ctx, bgpURL(ctx))
+	filtered := []map[string]interface{}{}
+
+	for _, group := range list {
+		if group["hostname"] == hostname || ctx.Bool("all") {
+			filtered = append(filtered, group)
+		}
+	}
+
+	if ctx.Bool("json") {
+		dumpList(ctx, filtered)
+	} else {
+
+		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+		defer writer.Flush()
+		writer.Write([]byte("HostName\tNeighbor\tAS\n"))
+		writer.Write([]byte("---------\t--------\t-------\n"))
+		for _, group := range filtered {
+			fmt.Println(group)
+			writer.Write(
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t\n",
+					group["host"],
+					group["neighbor"],
+					group["AS"],
+				)))
+		}
+	}
+}
