@@ -301,7 +301,7 @@ var Commands = []cli.Command{
 						Usage: "host name",
 					},
 				},
-				Action: deleteBgpNeighbors,
+				Action: deleteBgp,
 			},
 			{
 				Name:      "add",
@@ -329,7 +329,7 @@ var Commands = []cli.Command{
 						Usage: "Bgp neighbor to be added",
 					},
 				},
-				Action: addBgpNeighbors,
+				Action: addBgp,
 			},
 		},
 	},

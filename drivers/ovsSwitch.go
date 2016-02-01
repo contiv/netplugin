@@ -74,7 +74,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 		case "routing":
 			datapath = "vrouter"
 		default:
-			fmt.Errorf("Invalid datapath mode")
+			log.Errorf("Invalid datapath mode")
 			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
 	} else if netType == "vlan" {
@@ -86,13 +86,13 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 		case "routing":
 			datapath = "vlrouter"
 		default:
-			fmt.Errorf("Invalid datapath mode")
+			log.Errorf("Invalid datapath mode")
 			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
 	}
 
 	// Create an ofnet agent
-	sw.ofnetAgent, err = ofnet.NewOfnetAgent(datapath, net.ParseIP(localIP),
+	sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
 		ofnetPort, ctrlrPort, routerInfo...)
 
 	if err != nil {
@@ -569,11 +569,11 @@ func (sw *OvsSwitch) DeleteMaster(node core.ServiceInfo) error {
 	return nil
 }
 
-// AddBgpadds a bgp config to host
-func (sw *OvsSwitch) AddBgp(hostname string, routerIp string,
+// AddBgp adds a bgp config to host
+func (sw *OvsSwitch) AddBgp(hostname string, routerIP string,
 	As string, neighborAs, neighbor string) error {
 	if sw.netType == "vlan" && sw.ofnetAgent != nil {
-		err := sw.ofnetAgent.AddBgp(routerIp, As, neighborAs, neighbor)
+		err := sw.ofnetAgent.AddBgp(routerIP, As, neighborAs, neighbor)
 		if err != nil {
 			log.Errorf("Error adding BGP server")
 			return err

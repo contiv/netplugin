@@ -460,9 +460,9 @@ func listEndpointGroups(ctx *cli.Context) {
 	}
 }
 
-//addBgpNeighbors is a netctl interface routine to add
-//bgp neighbor
-func addBgpNeighbors(ctx *cli.Context) {
+//addBgp is a netctl interface routine to add
+//bgp config
+func addBgp(ctx *cli.Context) {
 	argCheck(0, ctx)
 
 	hostname := ctx.String("hostname")
@@ -483,9 +483,9 @@ func addBgpNeighbors(ctx *cli.Context) {
 	postMap(ctx, url, out)
 }
 
-//deleteBgpNeighbors is a netctl interface routine to delete
-//bgp neighbor
-func deleteBgpNeighbors(ctx *cli.Context) {
+//deleteBgp is a netctl interface routine to delete
+//bgp config
+func deleteBgp(ctx *cli.Context) {
 	argCheck(0, ctx)
 
 	hostname := ctx.String("hostname")

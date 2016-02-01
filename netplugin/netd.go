@@ -480,7 +480,7 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string,
 	isDelete bool) (err error) {
 
 	if opts.hostLabel != hostID {
-		log.Errorf("Skipping deleting neighbor on this host")
+		log.Errorf("Ignoring Bgp Event on this host")
 		return
 	}
 	netPlugin.Lock()

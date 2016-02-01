@@ -432,7 +432,7 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 	return nil
 }
 
-// AddBgpNeighbors adds bgp neighbor by named identifier
+// AddBgp adds bgp config by named identifier
 func (d *OvsDriver) AddBgp(id string) error {
 	var sw *OvsSwitch
 
@@ -452,7 +452,7 @@ func (d *OvsDriver) AddBgp(id string) error {
 	return sw.AddBgp(cfg.Hostname, cfg.RouterIP, cfg.As, cfg.NeighborAs, cfg.Neighbor)
 }
 
-// DeleteBgpNeighbors deletes a bgp neighbor by named identifier
+// DeleteBgp deletes bgp config by named identifier
 func (d *OvsDriver) DeleteBgp(id string) error {
 	log.Infof("delete Bgp Neighbor %s \n", id)
 	//FixME: We are not maintaining oper state for Bgp

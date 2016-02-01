@@ -60,12 +60,12 @@ func (d *FakeNetEpDriver) DeleteMaster(node core.ServiceInfo) error {
 	return core.Errorf("Not implemented")
 }
 
-// AddBgpNeighbors is not implemented.
-func (d *FakeNetEpDriver) AddBgpNeighbors(id string) (err error) {
+// AddBgp is not implemented.
+func (d *FakeNetEpDriver) AddBgp(id string) (err error) {
 	return core.Errorf("Not implemented")
 }
 
-// DeleteBgpNeighbors is not implemented.
-func (d *FakeNetEpDriver) DeleteBgpNeighbors(id string) (err error) {
+// DeleteBgp is not implemented.
+func (d *FakeNetEpDriver) DeleteBgp(id string) (err error) {
 	return core.Errorf("Not implemented")
 }
