@@ -10,7 +10,9 @@ Ofnet Controller supports multiple Software Defined Networking paradigms. They a
   2. **vxlan bridge**
     - In this mode each OVS acts as a VXLAN switch and together they emulate multiple bridge domains. This mode requires OVS 2.3.1 or higher.
   3. **vlan bridge**
-    - Still in development
+    - In this mode OVS acts as a VLAN bridge
+  4. **vlan router**
+    - In this mode OVS acts as an IP Router. Control plane protocol like BGP is used to exchange routing information with physical switches
 
 
 # High level Architecture

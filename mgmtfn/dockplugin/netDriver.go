@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -412,6 +413,13 @@ func netdGetNetwork(networkID string) (*mastercfg.CfgNetworkState, error) {
 
 // GetDockerNetworkName gets network name from network UUID
 func GetDockerNetworkName(nwID string) (string, string, string, error) {
+	// first see if we can find the network in docknet oper state
+	dnetOper, err := docknet.FindDocknetByUUID(nwID)
+	if err == nil {
+		return dnetOper.TenantName, dnetOper.NetworkName, dnetOper.ServiceName, nil
+	}
+
+	// create docker client
 	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)

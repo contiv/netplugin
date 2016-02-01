@@ -209,11 +209,6 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 }
 
 func startServiceContainer(tenantName string) error {
-	// do nothing in test mode
-	if testMode {
-		return nil
-	}
-
 	var err error
 	docker, err := utils.GetDockerClient()
 	if err != nil {

@@ -26,13 +26,14 @@ package ofnet
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/rpc"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/contiv/ofnet/ovsdbDriver"
 	"github.com/contiv/ofnet/rpcHub"
-	"net"
-	"net/rpc"
-	"time"
 )
 
 // OfnetAgent state
@@ -45,6 +46,7 @@ type OfnetAgent struct {
 	isConnected bool               // Is the switch connected
 	rpcServ     *rpc.Server        // jsonrpc server
 	rpcListener net.Listener       // Listener
+	dpName      string             // Datapath type
 	datapath    OfnetDatapath      // Configured datapath
 	protopath   OfnetProto         // Configured protopath
 
@@ -98,6 +100,7 @@ func NewOfnetAgent(dpName string, localIp net.IP, rpcPort uint16,
 	agent.localIp = localIp
 	agent.MyPort = rpcPort
 	agent.MyAddr = localIp.String()
+	agent.dpName = dpName
 
 	agent.masterDb = make(map[string]*OfnetNode)
 	agent.portVlanMap = make(map[uint32]*uint16)
@@ -209,9 +212,11 @@ func (self *OfnetAgent) WaitForSwitchConnection() {
 	for i := 0; i < 20; i++ {
 		time.Sleep(1 * time.Second)
 		if self.IsSwitchConnected() {
-			break
+			return
 		}
 	}
+
+	log.Fatalf("OVS switch %s Failed to connect", self.dpName)
 }
 
 // Receive a packet from the switch.

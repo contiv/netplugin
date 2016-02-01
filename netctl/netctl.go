@@ -103,16 +103,28 @@ func addRule(ctx *cli.Context) {
 		if ctx.String("to-ip-address") != "" {
 			errExit(ctx, exitHelp, "Cant specify to-ip-address for incoming rule", false)
 		}
+
+		// If from EPG is specified, make sure from network is specified too
+		if ctx.String("from-group") != "" && ctx.String("from-network") == "" {
+			errExit(ctx, exitHelp, "from-group argument requires -from-network too", false)
+		}
 	} else if dir == "out" {
 		if ctx.String("from-group") != "" {
-			errExit(ctx, exitHelp, "Cant specify from-group for incoming rule", false)
+			errExit(ctx, exitHelp, "Cant specify from-group for outgoing rule", false)
 		}
 		if ctx.String("from-network") != "" {
-			errExit(ctx, exitHelp, "Cant specify from-network for incoming rule", false)
+			errExit(ctx, exitHelp, "Cant specify from-network for outgoing rule", false)
 		}
 		if ctx.String("from-ip-address") != "" {
-			errExit(ctx, exitHelp, "Cant specify from-ip-address for incoming rule", false)
+			errExit(ctx, exitHelp, "Cant specify from-ip-address for outgoing rule", false)
 		}
+
+		// If to EPG is specified, make sure to network is specified too
+		if ctx.String("to-group") != "" && ctx.String("to-network") == "" {
+			errExit(ctx, exitHelp, "-to-group argument requires -to-network too", false)
+		}
+	} else {
+		errExit(ctx, exitHelp, "Unknown direction", false)
 	}
 
 	errCheck(ctx, getClient(ctx).RulePost(&contivClient.Rule{
@@ -152,7 +164,7 @@ func listRules(ctx *cli.Context) {
 	rules, err := getClient(ctx).RuleList()
 	errCheck(ctx, err)
 
-	var writeRules map[int][]*contivClient.Rule
+	writeRules := map[int][]*contivClient.Rule{}
 
 	var writePrio []int
 
@@ -184,14 +196,14 @@ func listRules(ctx *cli.Context) {
 	} else if ctx.Bool("quiet") {
 		rules := ""
 		for _, rule := range results {
-			rules += rule["ruleId"].(string) + "\n"
+			rules += rule.RuleID + "\n"
 		}
 		os.Stdout.WriteString(rules)
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
 		writer.Write([]byte("Incoming Rules:\n"))
-		writer.Write([]byte("Rule\tPriority\tFrom EndpointGroup\tFrom Network\tIpAddress\tProtocol\tPort\tAction\n"))
+		writer.Write([]byte("Rule\tPriority\tFrom EndpointGroup\tFrom Network\tFrom IpAddress\tProtocol\tPort\tAction\n"))
 		writer.Write([]byte("----\t--------\t------------------\t------------\t---------\t--------\t----\t------\n"))
 
 		for _, rule := range results {
@@ -211,7 +223,7 @@ func listRules(ctx *cli.Context) {
 		}
 
 		writer.Write([]byte("Outgoing Rules:\n"))
-		writer.Write([]byte("Rule\tPriority\tTo EndpointGroup\tTo Network\tIpAddress\tProtocol\tPort\tAction\n"))
+		writer.Write([]byte("Rule\tPriority\tTo EndpointGroup\tTo Network\tTo IpAddress\tProtocol\tPort\tAction\n"))
 		writer.Write([]byte("----\t--------\t----------------\t----------\t---------\t--------\t----\t------\n"))
 
 		for _, rule := range results {
@@ -294,7 +306,7 @@ func listNetworks(ctx *cli.Context) {
 	} else if ctx.Bool("quiet") {
 		networks := ""
 		for _, network := range filtered {
-			networks += network["networkName"].(string) + "\n"
+			networks += network.NetworkName + "\n"
 		}
 		os.Stdout.WriteString(networks)
 	} else {
@@ -349,8 +361,8 @@ func listTenants(ctx *cli.Context) {
 		dumpJSONList(ctx, tenantList)
 	} else if ctx.Bool("quiet") {
 		tenants := ""
-		for _, tenant := range list {
-			tenants += tenant["tenantName"].(string) + "\n"
+		for _, tenant := range *tenantList {
+			tenants += tenant.TenantName + "\n"
 		}
 		os.Stdout.WriteString(tenants)
 	} else {
@@ -419,7 +431,7 @@ func listEndpointGroups(ctx *cli.Context) {
 	} else if ctx.Bool("quiet") {
 		epgs := ""
 		for _, epg := range filtered {
-			epgs += epg["groupName"].(string) + "\n"
+			epgs += epg.GroupName + "\n"
 		}
 		os.Stdout.WriteString(epgs)
 	} else {
@@ -443,6 +455,71 @@ func listEndpointGroups(ctx *cli.Context) {
 					group.GroupName,
 					group.NetworkName,
 					policies,
+				)))
+		}
+	}
+}
+
+//addBgpNeighbors is a netctl interface routine to add
+//bgp neighbor
+func addBgpNeighbors(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	hostname := ctx.String("host")
+	asid := ctx.String("as")
+	neighbor := ctx.String("neighbor")
+
+	errCheck(ctx, getClient(ctx).BgpPost(&contivClient.Bgp{
+		Hostname: hostname,
+		AS:       asid,
+		Neighbor: neighbor,
+	}))
+}
+
+//deleteBgpNeighbors is a netctl interface routine to delete
+//bgp neighbor
+func deleteBgpNeighbors(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	hostname := ctx.String("host")
+	logrus.Infof("Deleting router config %s:%s", hostname)
+
+	errCheck(ctx, getClient(ctx).BgpDelete(hostname))
+}
+
+//listBgpNeighbors is netctl interface routine to list
+//Bgp neighbor configs for a given host
+func listBgpNeighbors(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	hostname := ctx.String("host")
+
+	bgpList, err := getClient(ctx).BgpList()
+	errCheck(ctx, err)
+
+	filtered := []*contivClient.Bgp{}
+
+	for _, host := range *bgpList {
+		if host.Hostname == hostname || ctx.Bool("all") {
+			filtered = append(filtered, host)
+		}
+	}
+
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, filtered)
+	} else {
+
+		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+		defer writer.Flush()
+		writer.Write([]byte("HostName\tNeighbor\tAS\n"))
+		writer.Write([]byte("---------\t--------\t-------\n"))
+		for _, group := range filtered {
+			fmt.Println(group)
+			writer.Write(
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t\n",
+					group.Hostname,
+					group.Neighbor,
+					group.AS,
 				)))
 		}
 	}
@@ -501,71 +578,5 @@ func showVersion(ctx *cli.Context) {
 		fmt.Printf("\n")
 		fmt.Printf("Server Version:\n")
 		fmt.Printf(version.StringFromInfo(&ver))
-	}
-}
-
-//addBgpNeighbors is a netctl interface routine to add
-//bgp neighbor
-func addBgpNeighbors(ctx *cli.Context) {
-	argCheck(0, ctx)
-
-	hostname := ctx.String("host")
-	asid := ctx.String("as")
-
-	neighbor := ctx.String("neighbor")
-	url := fmt.Sprintf("%s%s/", bgpURL(ctx), hostname)
-
-	out := map[string]interface{}{
-		"Hostname": hostname,
-		"as":       asid,
-		"neighbor": neighbor,
-	}
-	postMap(ctx, url, out)
-}
-
-//deleteBgpNeighbors is a netctl interface routine to delete
-//bgp neighbor
-func deleteBgpNeighbors(ctx *cli.Context) {
-	argCheck(0, ctx)
-
-	hostname := ctx.String("host")
-	logrus.Infof("Deleting router config %s:%s", hostname)
-
-	deleteURL(ctx, fmt.Sprintf("%s%s/", bgpURL(ctx), hostname))
-}
-
-//listBgpNeighbors is netctl interface routine to list
-//Bgp neighbor configs for a given host
-func listBgpNeighbors(ctx *cli.Context) {
-	argCheck(0, ctx)
-
-	hostname := ctx.String("host")
-
-	list := getList(ctx, bgpURL(ctx))
-	filtered := []map[string]interface{}{}
-
-	for _, group := range list {
-		if group["hostname"] == hostname || ctx.Bool("all") {
-			filtered = append(filtered, group)
-		}
-	}
-
-	if ctx.Bool("json") {
-		dumpList(ctx, filtered)
-	} else {
-
-		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-		defer writer.Flush()
-		writer.Write([]byte("HostName\tNeighbor\tAS\n"))
-		writer.Write([]byte("---------\t--------\t-------\n"))
-		for _, group := range filtered {
-			fmt.Println(group)
-			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t\n",
-					group["host"],
-					group["neighbor"],
-					group["AS"],
-				)))
-		}
 	}
 }

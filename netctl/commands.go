@@ -235,7 +235,7 @@ var Commands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name:  "protocol, l",
-						Usage: "Protocol (e.g., tcp)",
+						Usage: "Protocol (e.g., tcp, udp, icmp)",
 					},
 					cli.IntFlag{
 						Name:  "port, P",
@@ -243,8 +243,8 @@ var Commands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name:  "action, j",
-						Usage: "Action to take (e.g., deny)",
-						Value: "accept",
+						Usage: "Action to take (allow or deny)",
+						Value: "allow",
 					},
 				},
 				Action: addRule,
@@ -269,7 +269,7 @@ var Commands = []cli.Command{
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "fabric-mode, f",
-						Usage: "Fabric mode (Aci or default)",
+						Usage: "Fabric mode (aci or default)",
 						Value: "default",
 					},
 					cli.StringFlag{

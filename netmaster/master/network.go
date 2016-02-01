@@ -19,43 +19,18 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
-	"github.com/samalba/dockerclient"
 
 	log "github.com/Sirupsen/logrus"
 )
-
-const (
-	driverName        = "netplugin"
-	defaultTenantName = "default"
-)
-
-var testMode = false
-
-// Trim default tenant from network name
-func getDocknetName(tenantName, networkName, serviceName string) string {
-	if tenantName == defaultTenantName {
-		if serviceName == "" {
-			return fmt.Sprintf("%s", networkName)
-		}
-
-		return fmt.Sprintf("%s.%s", serviceName, networkName)
-	}
-
-	if serviceName == "" {
-		return fmt.Sprintf("%s/%s", networkName, tenantName)
-	}
-
-	return fmt.Sprintf("%s.%s/%s", serviceName, networkName, tenantName)
-}
 
 func checkPktTagType(pktTagType string) error {
 	if pktTagType != "" && pktTagType != "vlan" && pktTagType != "vxlan" {
@@ -97,100 +72,6 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 	}
 
 	return err
-}
-
-// createDockNet Creates a network in docker daemon
-func createDockNet(tenantName string, nwCfg *mastercfg.CfgNetworkState, serviceName, subnetCIDR, gateway string) error {
-	// do nothing in test mode
-	if testMode {
-		return nil
-	}
-
-	// Trim default tenant name
-	docknetName := getDocknetName(tenantName, nwCfg.NetworkName, serviceName)
-
-	// connect to docker
-	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
-	if err != nil {
-		log.Errorf("Unable to connect to docker. Error %v", err)
-		return errors.New("Unable to connect to docker")
-	}
-
-	// Check if the network already exists
-	nw, err := docker.InspectNetwork(docknetName)
-	if err == nil && nw.Driver == driverName {
-		return nil
-	} else if err == nil && nw.Driver != driverName {
-		log.Errorf("Network name %s used by another driver %s", docknetName, nw.Driver)
-		return errors.New("Network name used by another driver")
-	}
-
-	netPluginOptions := make(map[string]string)
-	netPluginOptions["tenant"] = nwCfg.Tenant
-	netPluginOptions["encap"] = nwCfg.PktTagType
-	if nwCfg.PktTagType == "vxlan" {
-		netPluginOptions["pkt-tag"] = strconv.Itoa(nwCfg.ExtPktTag)
-	} else {
-		netPluginOptions["pkt-tag"] = strconv.Itoa(nwCfg.PktTag)
-	}
-
-	// Build network parameters
-	nwCreate := dockerclient.NetworkCreate{
-		Name:           docknetName,
-		CheckDuplicate: true,
-		Driver:         driverName,
-		IPAM: dockerclient.IPAM{
-			Driver: driverName,
-			Config: []dockerclient.IPAMConfig{
-				dockerclient.IPAMConfig{
-					Subnet:  subnetCIDR,
-					Gateway: gateway,
-				},
-			},
-		},
-		Options: netPluginOptions,
-	}
-
-	log.Infof("Creating docker network: %+v", nwCreate)
-
-	// Create network
-	_, err = docker.CreateNetwork(&nwCreate)
-	if err != nil {
-		log.Errorf("Error creating network %s. Err: %v", docknetName, err)
-		return err
-	}
-
-	return nil
-}
-
-// deleteDockNet deletes a network in docker daemon
-func deleteDockNet(tenantName, networkName, serviceName string) error {
-	// do nothing in test mode
-	if testMode {
-		return nil
-	}
-
-	// Trim default tenant name
-	docknetName := getDocknetName(tenantName, networkName, serviceName)
-
-	// connect to docker
-	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
-	if err != nil {
-		log.Errorf("Unable to connect to docker. Error %v", err)
-		return errors.New("Unable to connect to docker")
-	}
-
-	log.Infof("Deleting docker network: %+v", docknetName)
-
-	// Delete network
-	err = docker.RemoveNetwork(docknetName)
-	if err != nil {
-		log.Errorf("Error deleting network %s. Err: %v", docknetName, err)
-		// FIXME: Ignore errors till we fully move to docker 1.9
-		return nil
-	}
-
-	return nil
 }
 
 // CreateNetwork creates a network from intent
@@ -262,8 +143,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 
 	if GetClusterMode() == "docker" {
 		// Create the network in docker
-		subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
-		err = createDockNet(tenantName, nwCfg, "", subnetCIDR, nwCfg.Gateway)
+		err = docknet.CreateDockNet(tenantName, network.Name, "", nwCfg)
 		if err != nil {
 			log.Errorf("Error creating network %s in docker. Err: %v", nwCfg.ID, err)
 			return err
@@ -282,11 +162,6 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 }
 
 func attachServiceContainer(tenantName, networkName string, stateDriver core.StateDriver) error {
-	// do nothing in test mode
-	if testMode {
-		return nil
-	}
-
 	contName := tenantName + "dns"
 	docker, err := utils.GetDockerClient()
 	if err != nil {
@@ -295,7 +170,7 @@ func attachServiceContainer(tenantName, networkName string, stateDriver core.Sta
 	}
 
 	// Trim default tenant
-	dnetName := getDocknetName(tenantName, networkName, "")
+	dnetName := docknet.GetDocknetName(tenantName, networkName, "")
 
 	err = docker.ConnectNetwork(dnetName, contName)
 	if err != nil {
@@ -369,7 +244,7 @@ func detachServiceContainer(tenantName, networkName string) error {
 	}
 
 	// Trim default tenant
-	dnetName := getDocknetName(tenantName, networkName, "")
+	dnetName := docknet.GetDocknetName(tenantName, networkName, "")
 
 	// inspect docker network
 	nwState, err := docker.InspectNetwork(dnetName)
@@ -471,7 +346,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		}
 
 		// Delete the docker network
-		err = deleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
+		err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
 		if err != nil {
 			log.Errorf("Error deleting network %s. Err: %v", netID, err)
 		}

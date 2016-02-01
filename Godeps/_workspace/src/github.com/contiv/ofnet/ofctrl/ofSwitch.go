@@ -121,7 +121,8 @@ func (self *OFSwitch) receive() {
 			// stream.
 			self.handleMessages(self.dpid, msg)
 		case err := <-self.stream.Error:
-			log.Warnf("Received Error message from switch %v. Err: %v", self.dpid, err)
+			log.Warnf("Received ERROR message from switch %v. Err: %v", self.dpid, err)
+
 			// send Switch disconnected callback
 			self.switchDisconnected()
 
@@ -173,7 +174,6 @@ func (self *OFSwitch) handleMessages(dpid net.HardwareAddr, msg util.Message) {
 		}
 	case *openflow13.ErrorMsg:
 		log.Errorf("Received ofp1.3 error msg: %+v", *t)
-		self.stream.Shutdown <- true
 	case *openflow13.VendorHeader:
 
 	case *openflow13.SwitchFeatures:
