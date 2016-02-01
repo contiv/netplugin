@@ -389,12 +389,6 @@ var PolicyModalView = React.createClass({
 			
 				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
-				<Input type='text' label='To Endpoint Group' ref='toEndpointGroup' defaultValue={obj.toEndpointGroup} placeholder='To Endpoint Group' />
-			
-				<Input type='text' label='IP Address' ref='toIpAddress' defaultValue={obj.toIpAddress} placeholder='IP Address' />
-			
-				<Input type='text' label='To Network' ref='toNetwork' defaultValue={obj.toNetwork} placeholder='To Network' />
-			
 			</div>
 	        <div className='modal-footer'>
 				<Button onClick={this.props.onRequestHide}>Close</Button>
@@ -511,6 +505,12 @@ var RuleModalView = React.createClass({
 				<Input type='text' label='Rule Id' ref='ruleId' defaultValue={obj.ruleId} placeholder='Rule Id' />
 			
 				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
+			
+				<Input type='text' label='To Endpoint Group' ref='toEndpointGroup' defaultValue={obj.toEndpointGroup} placeholder='To Endpoint Group' />
+			
+				<Input type='text' label='IP Address' ref='toIpAddress' defaultValue={obj.toIpAddress} placeholder='IP Address' />
+			
+				<Input type='text' label='To Network' ref='toNetwork' defaultValue={obj.toNetwork} placeholder='To Network' />
 			
 			</div>
 	        <div className='modal-footer'>

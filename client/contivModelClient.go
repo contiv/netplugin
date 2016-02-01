@@ -593,12 +593,12 @@ func (c *ContivClient) BgpPost(obj *Bgp) error {
 }
 
 // BgpList lists all Bgp objects
-func (c *ContivClient) BgpList() (*[]Bgp, error) {
+func (c *ContivClient) BgpList() (*[]*Bgp, error) {
 	// build key and URL
 	url := c.baseURL + "/api/Bgps/"
 
 	// http get the object
-	var objList []Bgp
+	var objList []*Bgp
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting Bgps. Err: %v", err)

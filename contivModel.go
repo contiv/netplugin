@@ -1842,14 +1842,6 @@ func ValidateNetwork(obj *Network) error {
 		return errors.New("tenantName string too long")
 	}
 
-	if len(obj.ToEndpointGroup) > 64 {
-		return errors.New("toEndpointGroup string too long")
-	}
-
-	if len(obj.ToNetwork) > 64 {
-		return errors.New("toNetwork string too long")
-	}
-
 	return nil
 }
 
@@ -2367,6 +2359,14 @@ func ValidateRule(obj *Rule) error {
 
 	if len(obj.TenantName) > 64 {
 		return errors.New("tenantName string too long")
+	}
+
+	if len(obj.ToEndpointGroup) > 64 {
+		return errors.New("toEndpointGroup string too long")
+	}
+
+	if len(obj.ToNetwork) > 64 {
+		return errors.New("toNetwork string too long")
 	}
 
 	return nil
