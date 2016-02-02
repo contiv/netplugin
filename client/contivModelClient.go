@@ -29,6 +29,14 @@ func httpGet(url string, jdata interface{}) error {
 		return errors.New("Page not found!")
 	case r.StatusCode == int(403):
 		return errors.New("Access denied!")
+	case r.StatusCode == int(500):
+		response, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return err
+		}
+
+		return errors.New(string(response))
+
 	case r.StatusCode != int(200):
 		log.Debugf("GET Status '%s' status code %d \n", r.Status, r.StatusCode)
 		return errors.New(r.Status)
@@ -64,6 +72,14 @@ func httpDelete(url string) error {
 		return nil
 	case r.StatusCode == int(403):
 		return errors.New("Access denied!")
+	case r.StatusCode == int(500):
+		response, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return err
+		}
+
+		return errors.New(string(response))
+
 	case r.StatusCode != int(200):
 		log.Debugf("DELETE Status '%s' status code %d \n", r.Status, r.StatusCode)
 		return errors.New(r.Status)
@@ -90,6 +106,14 @@ func httpPost(url string, jdata interface{}) error {
 		return errors.New("Page not found!")
 	case r.StatusCode == int(403):
 		return errors.New("Access denied!")
+	case r.StatusCode == int(500):
+		response, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return err
+		}
+
+		return errors.New(string(response))
+
 	case r.StatusCode != int(200):
 		log.Debugf("POST Status '%s' status code %d \n", r.Status, r.StatusCode)
 		return errors.New(r.Status)
@@ -390,7 +414,7 @@ func (c *ContivClient) AppPost(obj *App) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating app %+v. Err: %v", obj, err)
+		log.Debugf("Error creating app %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -406,7 +430,7 @@ func (c *ContivClient) AppList() (*[]*App, error) {
 	var objList []*App
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting apps. Err: %v", err)
+		log.Debugf("Error getting apps. Err: %v", err)
 		return nil, err
 	}
 
@@ -423,7 +447,7 @@ func (c *ContivClient) AppGet(tenantName string, appName string) (*App, error) {
 	var obj App
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting app %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting app %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -439,7 +463,7 @@ func (c *ContivClient) AppDelete(tenantName string, appName string) error {
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting app %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting app %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -455,7 +479,7 @@ func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating endpointGroup %+v. Err: %v", obj, err)
+		log.Debugf("Error creating endpointGroup %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -471,7 +495,7 @@ func (c *ContivClient) EndpointGroupList() (*[]*EndpointGroup, error) {
 	var objList []*EndpointGroup
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting endpointGroups. Err: %v", err)
+		log.Debugf("Error getting endpointGroups. Err: %v", err)
 		return nil, err
 	}
 
@@ -488,7 +512,7 @@ func (c *ContivClient) EndpointGroupGet(tenantName string, networkName string, g
 	var obj EndpointGroup
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting endpointGroup %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting endpointGroup %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -504,7 +528,7 @@ func (c *ContivClient) EndpointGroupDelete(tenantName string, networkName string
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting endpointGroup %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting endpointGroup %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -520,7 +544,7 @@ func (c *ContivClient) GlobalPost(obj *Global) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating global %+v. Err: %v", obj, err)
+		log.Debugf("Error creating global %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -536,7 +560,7 @@ func (c *ContivClient) GlobalList() (*[]*Global, error) {
 	var objList []*Global
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting globals. Err: %v", err)
+		log.Debugf("Error getting globals. Err: %v", err)
 		return nil, err
 	}
 
@@ -553,7 +577,7 @@ func (c *ContivClient) GlobalGet(name string) (*Global, error) {
 	var obj Global
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting global %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting global %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -569,7 +593,7 @@ func (c *ContivClient) GlobalDelete(name string) error {
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting global %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting global %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -585,7 +609,7 @@ func (c *ContivClient) BgpPost(obj *Bgp) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating Bgp %+v. Err: %v", obj, err)
+		log.Debugf("Error creating Bgp %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -601,7 +625,7 @@ func (c *ContivClient) BgpList() (*[]*Bgp, error) {
 	var objList []*Bgp
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting Bgps. Err: %v", err)
+		log.Debugf("Error getting Bgps. Err: %v", err)
 		return nil, err
 	}
 
@@ -618,7 +642,7 @@ func (c *ContivClient) BgpGet(hostname string) (*Bgp, error) {
 	var obj Bgp
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting Bgp %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting Bgp %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -634,7 +658,7 @@ func (c *ContivClient) BgpDelete(hostname string) error {
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting Bgp %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting Bgp %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -650,7 +674,7 @@ func (c *ContivClient) NetworkPost(obj *Network) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating network %+v. Err: %v", obj, err)
+		log.Debugf("Error creating network %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -666,7 +690,7 @@ func (c *ContivClient) NetworkList() (*[]*Network, error) {
 	var objList []*Network
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting networks. Err: %v", err)
+		log.Debugf("Error getting networks. Err: %v", err)
 		return nil, err
 	}
 
@@ -683,7 +707,7 @@ func (c *ContivClient) NetworkGet(tenantName string, networkName string) (*Netwo
 	var obj Network
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting network %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting network %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -699,7 +723,7 @@ func (c *ContivClient) NetworkDelete(tenantName string, networkName string) erro
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting network %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting network %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -715,7 +739,7 @@ func (c *ContivClient) PolicyPost(obj *Policy) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating policy %+v. Err: %v", obj, err)
+		log.Debugf("Error creating policy %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -731,7 +755,7 @@ func (c *ContivClient) PolicyList() (*[]*Policy, error) {
 	var objList []*Policy
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting policys. Err: %v", err)
+		log.Debugf("Error getting policys. Err: %v", err)
 		return nil, err
 	}
 
@@ -748,7 +772,7 @@ func (c *ContivClient) PolicyGet(tenantName string, policyName string) (*Policy,
 	var obj Policy
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting policy %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting policy %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -764,7 +788,7 @@ func (c *ContivClient) PolicyDelete(tenantName string, policyName string) error 
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting policy %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting policy %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -780,7 +804,7 @@ func (c *ContivClient) RulePost(obj *Rule) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating rule %+v. Err: %v", obj, err)
+		log.Debugf("Error creating rule %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -796,7 +820,7 @@ func (c *ContivClient) RuleList() (*[]*Rule, error) {
 	var objList []*Rule
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting rules. Err: %v", err)
+		log.Debugf("Error getting rules. Err: %v", err)
 		return nil, err
 	}
 
@@ -813,7 +837,7 @@ func (c *ContivClient) RuleGet(tenantName string, policyName string, ruleId stri
 	var obj Rule
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting rule %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting rule %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -829,7 +853,7 @@ func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId s
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting rule %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting rule %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -845,7 +869,7 @@ func (c *ContivClient) ServicePost(obj *Service) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating service %+v. Err: %v", obj, err)
+		log.Debugf("Error creating service %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -861,7 +885,7 @@ func (c *ContivClient) ServiceList() (*[]*Service, error) {
 	var objList []*Service
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting services. Err: %v", err)
+		log.Debugf("Error getting services. Err: %v", err)
 		return nil, err
 	}
 
@@ -878,7 +902,7 @@ func (c *ContivClient) ServiceGet(tenantName string, appName string, serviceName
 	var obj Service
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting service %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting service %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -894,7 +918,7 @@ func (c *ContivClient) ServiceDelete(tenantName string, appName string, serviceN
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting service %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting service %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -910,7 +934,7 @@ func (c *ContivClient) ServiceInstancePost(obj *ServiceInstance) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating serviceInstance %+v. Err: %v", obj, err)
+		log.Debugf("Error creating serviceInstance %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -926,7 +950,7 @@ func (c *ContivClient) ServiceInstanceList() (*[]*ServiceInstance, error) {
 	var objList []*ServiceInstance
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting serviceInstances. Err: %v", err)
+		log.Debugf("Error getting serviceInstances. Err: %v", err)
 		return nil, err
 	}
 
@@ -943,7 +967,7 @@ func (c *ContivClient) ServiceInstanceGet(tenantName string, appName string, ser
 	var obj ServiceInstance
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting serviceInstance %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting serviceInstance %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -959,7 +983,7 @@ func (c *ContivClient) ServiceInstanceDelete(tenantName string, appName string, 
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting serviceInstance %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting serviceInstance %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -975,7 +999,7 @@ func (c *ContivClient) TenantPost(obj *Tenant) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating tenant %+v. Err: %v", obj, err)
+		log.Debugf("Error creating tenant %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -991,7 +1015,7 @@ func (c *ContivClient) TenantList() (*[]*Tenant, error) {
 	var objList []*Tenant
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting tenants. Err: %v", err)
+		log.Debugf("Error getting tenants. Err: %v", err)
 		return nil, err
 	}
 
@@ -1008,7 +1032,7 @@ func (c *ContivClient) TenantGet(tenantName string) (*Tenant, error) {
 	var obj Tenant
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting tenant %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting tenant %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -1024,7 +1048,7 @@ func (c *ContivClient) TenantDelete(tenantName string) error {
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting tenant %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting tenant %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -1040,7 +1064,7 @@ func (c *ContivClient) VolumePost(obj *Volume) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating volume %+v. Err: %v", obj, err)
+		log.Debugf("Error creating volume %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -1056,7 +1080,7 @@ func (c *ContivClient) VolumeList() (*[]*Volume, error) {
 	var objList []*Volume
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting volumes. Err: %v", err)
+		log.Debugf("Error getting volumes. Err: %v", err)
 		return nil, err
 	}
 
@@ -1073,7 +1097,7 @@ func (c *ContivClient) VolumeGet(tenantName string, volumeName string) (*Volume,
 	var obj Volume
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting volume %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting volume %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -1089,7 +1113,7 @@ func (c *ContivClient) VolumeDelete(tenantName string, volumeName string) error 
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting volume %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting volume %s. Err: %v", keyStr, err)
 		return err
 	}
 
@@ -1105,7 +1129,7 @@ func (c *ContivClient) VolumeProfilePost(obj *VolumeProfile) error {
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Errorf("Error creating volumeProfile %+v. Err: %v", obj, err)
+		log.Debugf("Error creating volumeProfile %+v. Err: %v", obj, err)
 		return err
 	}
 
@@ -1121,7 +1145,7 @@ func (c *ContivClient) VolumeProfileList() (*[]*VolumeProfile, error) {
 	var objList []*VolumeProfile
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Errorf("Error getting volumeProfiles. Err: %v", err)
+		log.Debugf("Error getting volumeProfiles. Err: %v", err)
 		return nil, err
 	}
 
@@ -1138,7 +1162,7 @@ func (c *ContivClient) VolumeProfileGet(tenantName string, volumeProfileName str
 	var obj VolumeProfile
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Errorf("Error getting volumeProfile %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting volumeProfile %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
@@ -1154,7 +1178,7 @@ func (c *ContivClient) VolumeProfileDelete(tenantName string, volumeProfileName 
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Errorf("Error deleting volumeProfile %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting volumeProfile %s. Err: %v", keyStr, err)
 		return err
 	}
 
