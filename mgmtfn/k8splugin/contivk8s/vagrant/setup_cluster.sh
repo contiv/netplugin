@@ -52,7 +52,7 @@ function GetContiv {
 : ${k8sVer:=v1.1.4}
 
 # contiv version
-: ${contivVer:=v0.0.0-01-21-2016.10-26-24.UTC}
+: ${contivVer:=v0.1-01-28-2016.03-55-05.UTC}
 
 top_dir=$(git rev-parse --show-toplevel | sed 's|/[^/]*$||')
 

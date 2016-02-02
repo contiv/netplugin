@@ -8,15 +8,15 @@ Networking and Policy can be used for Pod inter-connectivity in a Kubernetes clu
 This step-by-step procedure will guide you through a minimal experience of creating
 a Kubernetes cluster with Contiv networking and applying policy between pods.
 
-#### Pre-requisites
+##### Pre-requisites
 
 Before starting, please be sure to set http/https proxies if your network requires it.
 *(Note that https_proxy should be set to point to a http:// URL (not https://).
 This is an ansible requirement.)*
 
-The setup scripts use python modules *parse* and *netaddr*. If they are not installed
-on your machine, you should install them before proceeding.
-*(E.g. pip install parse; pip install netaddr)*
+The setup scripts use python modules *parse* and *netaddr*. If these modules are not
+installed on the machine where you are executing these steps, you should install them
+before proceeding. *(E.g. pip install parse; pip install netaddr)*
 
 #### Step 1: Clone contrib and netplugin repos
 
