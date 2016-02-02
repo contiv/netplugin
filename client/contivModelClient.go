@@ -234,17 +234,20 @@ type Rule struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	Action        string `json:"action,omitempty"`        // Action
-	Direction     string `json:"direction,omitempty"`     // Direction
-	EndpointGroup string `json:"endpointGroup,omitempty"` // Group
-	IpAddress     string `json:"ipAddress,omitempty"`     // IP Address
-	Network       string `json:"network,omitempty"`       // Network Name
-	PolicyName    string `json:"policyName,omitempty"`    // Policy Name
-	Port          int    `json:"port,omitempty"`          // Port No
-	Priority      int    `json:"priority,omitempty"`      // Priority
-	Protocol      string `json:"protocol,omitempty"`      // Protocol
-	RuleID        string `json:"ruleId,omitempty"`        // Rule Id
-	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
+	Action            string `json:"action,omitempty"`            // Action
+	Direction         string `json:"direction,omitempty"`         // Direction
+	FromEndpointGroup string `json:"fromEndpointGroup,omitempty"` // From Endpoint Group
+	FromIpAddress     string `json:"fromIpAddress,omitempty"`     // IP Address
+	FromNetwork       string `json:"fromNetwork,omitempty"`       // From Network
+	PolicyName        string `json:"policyName,omitempty"`        // Policy Name
+	Port              int    `json:"port,omitempty"`              // Port No
+	Priority          int    `json:"priority,omitempty"`          // Priority
+	Protocol          string `json:"protocol,omitempty"`          // Protocol
+	RuleID            string `json:"ruleId,omitempty"`            // Rule Id
+	TenantName        string `json:"tenantName,omitempty"`        // Tenant Name
+	ToEndpointGroup   string `json:"toEndpointGroup,omitempty"`   // To Endpoint Group
+	ToIpAddress       string `json:"toIpAddress,omitempty"`       // IP Address
+	ToNetwork         string `json:"toNetwork,omitempty"`         // To Network
 
 	// add link-sets and links
 	LinkSets RuleLinkSets `json:"link-sets,omitempty"`
@@ -395,12 +398,12 @@ func (c *ContivClient) AppPost(obj *App) error {
 }
 
 // AppList lists all app objects
-func (c *ContivClient) AppList() (*[]App, error) {
+func (c *ContivClient) AppList() (*[]*App, error) {
 	// build key and URL
 	url := c.baseURL + "/api/apps/"
 
 	// http get the object
-	var objList []App
+	var objList []*App
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting apps. Err: %v", err)
@@ -460,12 +463,12 @@ func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 }
 
 // EndpointGroupList lists all endpointGroup objects
-func (c *ContivClient) EndpointGroupList() (*[]EndpointGroup, error) {
+func (c *ContivClient) EndpointGroupList() (*[]*EndpointGroup, error) {
 	// build key and URL
 	url := c.baseURL + "/api/endpointGroups/"
 
 	// http get the object
-	var objList []EndpointGroup
+	var objList []*EndpointGroup
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting endpointGroups. Err: %v", err)
@@ -525,12 +528,12 @@ func (c *ContivClient) GlobalPost(obj *Global) error {
 }
 
 // GlobalList lists all global objects
-func (c *ContivClient) GlobalList() (*[]Global, error) {
+func (c *ContivClient) GlobalList() (*[]*Global, error) {
 	// build key and URL
 	url := c.baseURL + "/api/globals/"
 
 	// http get the object
-	var objList []Global
+	var objList []*Global
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting globals. Err: %v", err)
@@ -590,12 +593,12 @@ func (c *ContivClient) BgpPost(obj *Bgp) error {
 }
 
 // BgpList lists all Bgp objects
-func (c *ContivClient) BgpList() (*[]Bgp, error) {
+func (c *ContivClient) BgpList() (*[]*Bgp, error) {
 	// build key and URL
 	url := c.baseURL + "/api/Bgps/"
 
 	// http get the object
-	var objList []Bgp
+	var objList []*Bgp
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting Bgps. Err: %v", err)
@@ -655,12 +658,12 @@ func (c *ContivClient) NetworkPost(obj *Network) error {
 }
 
 // NetworkList lists all network objects
-func (c *ContivClient) NetworkList() (*[]Network, error) {
+func (c *ContivClient) NetworkList() (*[]*Network, error) {
 	// build key and URL
 	url := c.baseURL + "/api/networks/"
 
 	// http get the object
-	var objList []Network
+	var objList []*Network
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting networks. Err: %v", err)
@@ -720,12 +723,12 @@ func (c *ContivClient) PolicyPost(obj *Policy) error {
 }
 
 // PolicyList lists all policy objects
-func (c *ContivClient) PolicyList() (*[]Policy, error) {
+func (c *ContivClient) PolicyList() (*[]*Policy, error) {
 	// build key and URL
 	url := c.baseURL + "/api/policys/"
 
 	// http get the object
-	var objList []Policy
+	var objList []*Policy
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting policys. Err: %v", err)
@@ -785,12 +788,12 @@ func (c *ContivClient) RulePost(obj *Rule) error {
 }
 
 // RuleList lists all rule objects
-func (c *ContivClient) RuleList() (*[]Rule, error) {
+func (c *ContivClient) RuleList() (*[]*Rule, error) {
 	// build key and URL
 	url := c.baseURL + "/api/rules/"
 
 	// http get the object
-	var objList []Rule
+	var objList []*Rule
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting rules. Err: %v", err)
@@ -850,12 +853,12 @@ func (c *ContivClient) ServicePost(obj *Service) error {
 }
 
 // ServiceList lists all service objects
-func (c *ContivClient) ServiceList() (*[]Service, error) {
+func (c *ContivClient) ServiceList() (*[]*Service, error) {
 	// build key and URL
 	url := c.baseURL + "/api/services/"
 
 	// http get the object
-	var objList []Service
+	var objList []*Service
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting services. Err: %v", err)
@@ -915,12 +918,12 @@ func (c *ContivClient) ServiceInstancePost(obj *ServiceInstance) error {
 }
 
 // ServiceInstanceList lists all serviceInstance objects
-func (c *ContivClient) ServiceInstanceList() (*[]ServiceInstance, error) {
+func (c *ContivClient) ServiceInstanceList() (*[]*ServiceInstance, error) {
 	// build key and URL
 	url := c.baseURL + "/api/serviceInstances/"
 
 	// http get the object
-	var objList []ServiceInstance
+	var objList []*ServiceInstance
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting serviceInstances. Err: %v", err)
@@ -980,12 +983,12 @@ func (c *ContivClient) TenantPost(obj *Tenant) error {
 }
 
 // TenantList lists all tenant objects
-func (c *ContivClient) TenantList() (*[]Tenant, error) {
+func (c *ContivClient) TenantList() (*[]*Tenant, error) {
 	// build key and URL
 	url := c.baseURL + "/api/tenants/"
 
 	// http get the object
-	var objList []Tenant
+	var objList []*Tenant
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting tenants. Err: %v", err)
@@ -1045,12 +1048,12 @@ func (c *ContivClient) VolumePost(obj *Volume) error {
 }
 
 // VolumeList lists all volume objects
-func (c *ContivClient) VolumeList() (*[]Volume, error) {
+func (c *ContivClient) VolumeList() (*[]*Volume, error) {
 	// build key and URL
 	url := c.baseURL + "/api/volumes/"
 
 	// http get the object
-	var objList []Volume
+	var objList []*Volume
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting volumes. Err: %v", err)
@@ -1110,12 +1113,12 @@ func (c *ContivClient) VolumeProfilePost(obj *VolumeProfile) error {
 }
 
 // VolumeProfileList lists all volumeProfile objects
-func (c *ContivClient) VolumeProfileList() (*[]VolumeProfile, error) {
+func (c *ContivClient) VolumeProfileList() (*[]*VolumeProfile, error) {
 	// build key and URL
 	url := c.baseURL + "/api/volumeProfiles/"
 
 	// http get the object
-	var objList []VolumeProfile
+	var objList []*VolumeProfile
 	err := httpGet(url, &objList)
 	if err != nil {
 		log.Errorf("Error getting volumeProfiles. Err: %v", err)
