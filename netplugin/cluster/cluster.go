@@ -148,68 +148,16 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 	masterEventCh := make(chan objdb.WatchServiceEvent, 1)
 	masterWatchStopCh := make(chan bool, 1)
 
-	// Start a watch on netplugin service so that we dont miss any
-	err := objdbClient.WatchService("netplugin", nodeEventCh, watchStopCh)
-	if err != nil {
-		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
-	}
-
-	// Start a watch on netmaster too
-	err = objdbClient.WatchService("netmaster", masterEventCh, masterWatchStopCh)
+	// Start a watch on netmaster
+	err := objdbClient.WatchService("netmaster", masterEventCh, masterWatchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netmaster service. Err: %v", err)
 	}
 
-	// Get a list of all existing netplugin nodes
-	nodeList, err := objdbClient.GetService("netplugin")
+	// Start a watch on netplugin service
+	err = objdbClient.WatchService("netplugin", nodeEventCh, watchStopCh)
 	if err != nil {
-		log.Errorf("Error getting node list from objdb. Err: %v", err)
-	}
-
-	log.Infof("Got netplugin service list: %+v", nodeList)
-
-	// walk each node and add it as a PeerHost
-	for _, node := range nodeList {
-		// Ignore if its our own info
-		if node.HostAddr == localIP {
-			continue
-		}
-		// add the node
-		err := netplugin.AddPeerHost(core.ServiceInfo{
-			HostAddr: node.HostAddr,
-			Port:     ofnet.OFNET_AGENT_VXLAN_PORT,
-		})
-		if err != nil {
-			log.Errorf("Error adding node {%+v}. Err: %v", node, err)
-		}
-		// add the node
-		err = netplugin.AddPeerHost(core.ServiceInfo{
-			HostAddr: node.HostAddr,
-			Port:     ofnet.OFNET_AGENT_VLAN_PORT,
-		})
-		if err != nil {
-			log.Errorf("Error adding node {%+v}. Err: %v", node, err)
-		}
-	}
-
-	// Get a list of all existing netmasters
-	masterList, err := objdbClient.GetService("netmaster")
-	if err != nil {
-		log.Errorf("Error getting master list from objdb. Err: %v", err)
-	}
-
-	log.Infof("Got netmaster service list: %+v", masterList)
-
-	// Walk each master and add it
-	for _, master := range masterList {
-		// Add the master
-		err := addMaster(netplugin, core.ServiceInfo{
-			HostAddr: master.HostAddr,
-			Port:     ofnet.OFNET_MASTER_PORT,
-		})
-		if err != nil {
-			log.Errorf("Error adding master {%+v}. Err: %v", master, err)
-		}
+		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
 	}
 
 	for {
