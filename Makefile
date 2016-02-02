@@ -62,11 +62,11 @@ start: update
 
 #kubernetes demo targets
 k8s-cluster:
-	cd mgmtfn/k8splugin/contivk8s/vagrant && setup_cluster.sh
+	cd mgmtfn/k8splugin/contivk8s/vagrant && ./setup_cluster.sh
 k8s-demo:
-	cd mgmtfn/k8splugin/contivk8s/vagrant && copy_demo.sh
+	cd mgmtfn/k8splugin/contivk8s/vagrant && ./copy_demo.sh
 k8s-demo-start:
-	cd mgmtfn/k8splugin/contivk8s/vagrant && restart_cluster.sh && vagrant ssh k8master
+	cd mgmtfn/k8splugin/contivk8s/vagrant && ./restart_cluster.sh && vagrant ssh k8master
 k8s-destroy:
 	cd mgmtfn/k8splugin/contivk8s/vagrant && vagrant destroy -f
 

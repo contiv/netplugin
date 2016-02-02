@@ -8,9 +8,15 @@ Networking and Policy can be used for Pod inter-connectivity in a Kubernetes clu
 This step-by-step procedure will guide you through a minimal experience of creating
 a Kubernetes cluster with Contiv networking and applying policy between pods.
 
+#### Pre-requisites
+
 Before starting, please be sure to set http/https proxies if your network requires it.
 *(Note that https_proxy should be set to point to a http:// URL (not https://).
 This is an ansible requirement.)*
+
+The setup scripts use python modules *parse* and *netaddr*. If they are not installed
+on your machine, you should install them before proceeding.
+*(E.g. pip install parse; pip install netaddr)*
 
 #### Step 1: Clone contrib and netplugin repos
 
@@ -96,7 +102,7 @@ and two epgs. Lets try some examples.
 ## Example 1: No network labels = Pod placed in default network
 
 cd to /shared directory to find some pod specs. Create defaultnet-busybox1 and
-busybox-default2.
+defaultnet-busybox2.
 
 ```
 [root@k8master ~]# cd /shared
@@ -104,9 +110,9 @@ busybox-default2.
 defaultnet-busybox1.yaml  noping-busybox.yaml  pocnet-busybox.yaml
 defaultnet-busybox2.yaml  pingme-busybox.yaml  policy.sh
 
-[root@k8master shared]# kubectl create -f busybox-default1.yaml 
+[root@k8master shared]# kubectl create -f defaultnet-busybox1.yaml 
 pod "defaultnet-busybox1" created
-[root@k8master shared]# kubectl create -f busybox-default2.yaml 
+[root@k8master shared]# kubectl create -f defaultnet-busybox2.yaml 
 pod "defaultnet-busybox2" created
 
 [root@k8master shared]# kubectl get pods
@@ -151,7 +157,7 @@ they can ping each other.
 
 ## Example 2: Use network labels to specify a network and epg for the Pod
 
-Now let's create Pod with poc-net and poc-epg specified as network and epg
+Now let's create a Pod with poc-net and poc-epg specified as network and epg
 respectively. Examine pocnet-busybox.yaml. There are two additional labels:
 **io.contiv.network:** *poc-net* and **io.contiv.net-group:** *poc-epg* specified
 in this pod spec.

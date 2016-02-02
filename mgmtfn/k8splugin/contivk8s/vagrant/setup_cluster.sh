@@ -73,7 +73,7 @@ set -e
 vagrant up
 
 # generate inventory
-vagrant_cluster.py
+./vagrant_cluster.py
 
 # run ansible
 ansible-playbook -i .contiv_k8s_inventory ../../../../../contrib/ansible/cluster.yml --skip-tags "contiv_restart,ovs_install" -e "networking=contiv localBuildOutput=$top_dir/k8s-$k8sVer/kubernetes/server/bin contiv_bin_path=$top_dir/contiv_bin"
