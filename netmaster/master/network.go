@@ -301,7 +301,9 @@ func attachServiceContainer(tenantName, networkName string, stateDriver core.Sta
 	if err != nil {
 		log.Errorf("Could not attach container(%s) to network %s. Error: %s",
 			contName, dnetName, err)
-		return err
+		return fmt.Errorf("Could not attach container(%s) to network %s."+
+			"Please make sure %s container is up.",
+			contName, dnetName, contName)
 	}
 
 	// inspect the container
