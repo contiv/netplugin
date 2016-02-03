@@ -95,9 +95,9 @@
 			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/units",
-			"Comment": "v1.4.1-5404-gc471b7a",
-			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+			"ImportPath": "github.com/docker/go-units",
+			"Comment": "v0.1.0-23-g5d2041e",
+			"Rev": "5d2041e26a699eaca682e2ea41c8f891e1060444"
 		},
 		{
 			"ImportPath": "github.com/docker/libnetwork/driverapi",
@@ -137,31 +137,9 @@
 			"Rev": "26d15e6f07af180e35bdd694d40ecf71d4929656"
 		},
 		{
-			"ImportPath": "github.com/hashicorp/hcl",
-			"Rev": "578dd9746824a54637686b51a41bad457a56bcef"
-		},
-		{
 			"ImportPath": "github.com/jainvipin/bitset",
 			"Comment": "v1.0.0-12-g1f0c6de",
 			"Rev": "1f0c6de81a62732e75f6c97f1e28e5a009b5df68"
-		},
-		{
-			"ImportPath": "github.com/kr/pretty",
-			"Comment": "go.weekly.2011-12-22-27-ge6ac2fc",
-			"Rev": "e6ac2fc51e89a3249e82157fa0bb7a18ef9dd5bb"
-		},
-		{
-			"ImportPath": "github.com/kr/text",
-			"Rev": "bb797dc4fb8320488f47bf11de07a733d7233e1f"
-		},
-		{
-			"ImportPath": "github.com/magiconair/properties",
-			"Comment": "v1.6.0-1-gc81f9d7",
-			"Rev": "c81f9d71af8f8cba1466501d30326b99a4e56c19"
-		},
-		{
-			"ImportPath": "github.com/mitchellh/mapstructure",
-			"Rev": "281073eb9eb092240d33ef253c404f1cca550309"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",
@@ -200,11 +178,7 @@
 		},
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
-			"Rev": "9ca0fce3c63569ee27457cd8bcf1f4f08e6d9459"
-		},
-		{
-			"ImportPath": "github.com/satori/go.uuid",
-			"Rev": "d41af8bb6a7704f00bc3b7cba9355ae6a5a80048"
+			"Rev": "cbaabee855285ae1d5b1cde4fda8b035e77d3a76"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
@@ -221,22 +195,6 @@
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
 			"Rev": "cb1496185a815d2d7b4eafab3bae29d8c6fc8ac1"
-		},
-		{
-			"ImportPath": "github.com/spf13/cast",
-			"Rev": "ee7b3e0353166ab1f3a605294ac8cd2b77953778"
-		},
-		{
-			"ImportPath": "github.com/spf13/jwalterweatherman",
-			"Rev": "d00654080cddbd2b082acaa74007cb94a2b40866"
-		},
-		{
-			"ImportPath": "github.com/spf13/pflag",
-			"Rev": "7f60f83a2c81bc3c3c0d5297f61ddfa68da9d3b7"
-		},
-		{
-			"ImportPath": "github.com/spf13/viper",
-			"Rev": "a212099cbe6fbe8d07476bfda8d2d39b6ff8f325"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
@@ -272,17 +230,8 @@
 			"Rev": "a202995ce9a99c7d65875ba9f0cf04ff43169dd5"
 		},
 		{
-			"ImportPath": "gopkg.in/fsnotify.v1",
-			"Comment": "v1.2.9",
-			"Rev": "8611c35ab31c1c28aa903d33cf8b6e44a399b09e"
-		},
-		{
 			"ImportPath": "gopkg.in/tomb.v2",
 			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
-		},
-		{
-			"ImportPath": "gopkg.in/yaml.v2",
-			"Rev": "f7716cbe52baa25d2e9b0d0da546fcf909fc16b4"
 		}
 	]
 }

@@ -35,8 +35,8 @@ func (client *MockClient) InspectImage(id string) (*dockerclient.ImageInfo, erro
 	return args.Get(0).(*dockerclient.ImageInfo), args.Error(1)
 }
 
-func (client *MockClient) CreateContainer(config *dockerclient.ContainerConfig, name string) (string, error) {
-	args := client.Mock.Called(config, name)
+func (client *MockClient) CreateContainer(config *dockerclient.ContainerConfig, name string, authConfig *dockerclient.AuthConfig) (string, error) {
+	args := client.Mock.Called(config, name, authConfig)
 	return args.String(0), args.Error(1)
 }
 
@@ -48,6 +48,11 @@ func (client *MockClient) ContainerLogs(id string, options *dockerclient.LogOpti
 func (client *MockClient) ContainerChanges(id string) ([]*dockerclient.ContainerChanges, error) {
 	args := client.Mock.Called(id)
 	return args.Get(0).([]*dockerclient.ContainerChanges), args.Error(1)
+}
+
+func (client *MockClient) AttachContainer(id string, options *dockerclient.AttachOptions) (io.ReadCloser, error) {
+	args := client.Mock.Called(id, options)
+	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
 func (client *MockClient) StartContainer(id string, config *dockerclient.HostConfig) error {
@@ -136,6 +141,11 @@ func (client *MockClient) RemoveImage(name string, force bool) ([]*dockerclient.
 	return args.Get(0).([]*dockerclient.ImageDelete), args.Error(1)
 }
 
+func (client *MockClient) SearchImages(query, registry string, authConfig *dockerclient.AuthConfig) ([]dockerclient.ImageSearch, error) {
+	args := client.Mock.Called(query, registry, authConfig)
+	return args.Get(0).([]dockerclient.ImageSearch), args.Error(1)
+}
+
 func (client *MockClient) PauseContainer(name string) error {
 	args := client.Mock.Called(name)
 	return args.Error(0)
@@ -211,8 +221,8 @@ func (client *MockClient) ConnectNetwork(id, container string) error {
 	return args.Error(0)
 }
 
-func (client *MockClient) DisconnectNetwork(id, container string) error {
-	args := client.Mock.Called(id, container)
+func (client *MockClient) DisconnectNetwork(id, container string, force bool) error {
+	args := client.Mock.Called(id, container, force)
 	return args.Error(0)
 }
 

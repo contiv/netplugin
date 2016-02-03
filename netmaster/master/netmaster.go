@@ -189,7 +189,7 @@ func startServiceContainer(tenantName string) error {
 			"SKYDNS_ADDR=0.0.0.0:53",
 			"SKYDNS_DOMAIN=" + tenantName}}
 
-	containerID, err := docker.CreateContainer(containerConfig, tenantName+"dns")
+	containerID, err := docker.CreateContainer(containerConfig, tenantName+"dns", nil)
 	if err != nil {
 		log.Errorf("Error creating DNS container for tenant: %s. Error: %s", tenantName, err)
 	}
