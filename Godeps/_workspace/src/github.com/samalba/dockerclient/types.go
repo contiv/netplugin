@@ -43,6 +43,9 @@ type ContainerConfig struct {
 
 	// This is used only by the create command
 	HostConfig HostConfig
+
+	// Network configuration support
+	NetworkingConfig NetworkingConfig
 }
 
 type HostConfig struct {
@@ -217,6 +220,14 @@ type ImageInfo struct {
 	VirtualSize     int64
 }
 
+type ImageSearch struct {
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	IsOfficial  bool   `json:"is_official,omitempty" yaml:"is_official,omitempty"`
+	IsAutomated bool   `json:"is_automated,omitempty" yaml:"is_automated,omitempty"`
+	Name        string `json:"name,omitempty" yaml:"name,omitempty"`
+	StarCount   int    `json:"star_count,omitempty" yaml:"star_count,omitempty"`
+}
+
 type ContainerInfo struct {
 	Id              string
 	Created         string
@@ -233,6 +244,7 @@ type ContainerInfo struct {
 		Gateway     string
 		Bridge      string
 		Ports       map[string][]PortBinding
+		Networks    map[string]*EndpointSettings
 	}
 	SysInitPath    string
 	ResolvConfPath string
@@ -252,7 +264,14 @@ type Port struct {
 	Type        string
 }
 
+// EndpointSettings stores the network endpoint details
 type EndpointSettings struct {
+	// Configurations
+	IPAMConfig *EndpointIPAMConfig
+	Links      []string
+	Aliases    []string
+	// Operational data
+	NetworkID           string
 	EndpointID          string
 	Gateway             string
 	IPAddress           string
@@ -261,6 +280,12 @@ type EndpointSettings struct {
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
 	MacAddress          string
+}
+
+// NetworkingConfig represents the container's networking configuration for each of its interfaces
+// Carries the networink configs specified in the `docker run` and `docker network connect` commands
+type NetworkingConfig struct {
+	EndpointsConfig map[string]*EndpointSettings // Endpoint configs for each conencting network
 }
 
 type Container struct {
@@ -507,8 +532,9 @@ type VolumeCreateRequest struct {
 
 // IPAM represents IP Address Management
 type IPAM struct {
-	Driver string
-	Config []IPAMConfig
+	Driver  string
+	Options map[string]string //Per network IPAM driver options
+	Config  []IPAMConfig
 }
 
 // IPAMConfig represents IPAM configurations
@@ -519,13 +545,20 @@ type IPAMConfig struct {
 	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
 }
 
+// EndpointIPAMConfig represents IPAM configurations for the endpoint
+type EndpointIPAMConfig struct {
+	IPv4Address string `json:",omitempty"`
+	IPv6Address string `json:",omitempty"`
+}
+
 // NetworkResource is the body of the "get network" http response message
 type NetworkResource struct {
-	Name       string
-	ID         string `json:"Id"`
-	Scope      string
-	Driver     string
-	IPAM       IPAM
+	Name   string
+	ID     string `json:"Id"`
+	Scope  string
+	Driver string
+	IPAM   IPAM
+	//Internal   bool
 	Containers map[string]EndpointResource
 	Options    map[string]string
 }
@@ -545,6 +578,7 @@ type NetworkCreate struct {
 	CheckDuplicate bool
 	Driver         string
 	IPAM           IPAM
+	Internal       bool
 	Options        map[string]string
 }
 

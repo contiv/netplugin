@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+var _ Client = (*DockerClient)(nil)
+
 const (
 	APIVersion = "v1.15"
 )
@@ -503,7 +505,7 @@ func (client *DockerClient) StartMonitorEvents(cb Callback, ec chan error, args 
 		for e := range eventErrChan {
 			if e.Error != nil {
 				if ec != nil {
-					ec <- err
+					ec <- e.Error
 				}
 				return
 			}
@@ -717,6 +719,31 @@ func (client *DockerClient) RemoveImage(name string, force bool) ([]*ImageDelete
 		return nil, err
 	}
 	return imageDelete, nil
+}
+
+func (client *DockerClient) SearchImages(query, registry string, auth *AuthConfig) ([]ImageSearch, error) {
+	term := query
+	if registry != "" {
+		term = registry + "/" + term
+	}
+	uri := fmt.Sprintf("/%s/images/search?term=%s", APIVersion, term)
+	headers := map[string]string{}
+	if auth != nil {
+		if encodedAuth, err := auth.encode(); err != nil {
+			return nil, err
+		} else {
+			headers["X-Registry-Auth"] = encodedAuth
+		}
+	}
+	data, err := client.doRequest("GET", uri, nil, headers)
+	if err != nil {
+		return nil, err
+	}
+	var imageSearches []ImageSearch
+	if err := json.Unmarshal(data, &imageSearches); err != nil {
+		return nil, err
+	}
+	return imageSearches, nil
 }
 
 func (client *DockerClient) PauseContainer(id string) error {
