@@ -682,9 +682,9 @@
 		        React.createElement("div", {className: "modal-body", style:  {margin: '5%',} }, 
 				
 				
-					React.createElement(Input, {type: "text", label: "", ref: "appName", defaultValue: obj.appName, placeholder: ""}), 
+					React.createElement(Input, {type: "text", label: "Application Name", ref: "appName", defaultValue: obj.appName, placeholder: "Application Name"}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "tenantName", defaultValue: obj.tenantName, placeholder: ""})
+					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"})
 				
 				), 
 		        React.createElement("div", {className: "modal-footer"}, 
@@ -783,7 +783,7 @@
 							React.createElement("td", null,  global.name), 
 							 
 							React.createElement("td", null,  global.network-infra-type)
-							
+							  
 						)
 					)
 				);
@@ -819,7 +819,11 @@
 				
 					React.createElement(Input, {type: "text", label: "name of this block", ref: "name", defaultValue: obj.name, placeholder: "name of this block"}), 
 				
-					React.createElement(Input, {type: "text", label: "Network infrastructure type", ref: "network-infra-type", defaultValue: obj.network-infra-type, placeholder: "Network infrastructure type"})
+					React.createElement(Input, {type: "text", label: "Network infrastructure type", ref: "network-infra-type", defaultValue: obj.network-infra-type, placeholder: "Network infrastructure type"}), 
+				
+					React.createElement(Input, {type: "text", label: "Allowed vlan range", ref: "vlans", defaultValue: obj.vlans, placeholder: "Allowed vlan range"}), 
+				
+					React.createElement(Input, {type: "text", label: "Allwed vxlan range", ref: "vxlans", defaultValue: obj.vxlans, placeholder: "Allwed vxlan range"})
 				
 				), 
 		        React.createElement("div", {className: "modal-footer"}, 
@@ -832,6 +836,65 @@
 
 	module.exports.GlobalSummaryView = GlobalSummaryView
 	module.exports.GlobalModalView = GlobalModalView
+	var BgpSummaryView = React.createClass({displayName: "BgpSummaryView",
+	  	render: function() {
+			var self = this
+
+			// Walk thru all objects
+			var BgpListView = self.props.Bgps.map(function(Bgp){
+				return (
+					React.createElement(ModalTrigger, {modal: React.createElement(BgpModalView, {Bgp:  Bgp })}, 
+						React.createElement("tr", {key:  Bgp.key, className: "info"}
+							
+							   
+						)
+					)
+				);
+			});
+
+			return (
+	        React.createElement("div", null, 
+				React.createElement(Table, {hover: true}, 
+					React.createElement("thead", null, 
+						React.createElement("tr", null
+						
+						   
+						)
+					), 
+					React.createElement("tbody", null, 
+	            		 BgpListView 
+					)
+				)
+	        )
+	    	);
+		}
+	});
+
+	var BgpModalView = React.createClass({displayName: "BgpModalView",
+		render:function() {
+			var obj = this.props.Bgp
+		    return (
+		      React.createElement(Modal, React.__spread({},  this.props, {bsStyle: "primary", bsSize: "large", title: "Bgp", animation: false}), 
+		        React.createElement("div", {className: "modal-body", style:  {margin: '5%',} }, 
+				
+				
+					React.createElement(Input, {type: "text", label: "AS id", ref: "AS", defaultValue: obj.AS, placeholder: "AS id"}), 
+				
+					React.createElement(Input, {type: "text", label: "host name", ref: "hostname", defaultValue: obj.hostname, placeholder: "host name"}), 
+				
+					React.createElement(Input, {type: "text", label: "Bgp  neighbor", ref: "neighbor", defaultValue: obj.neighbor, placeholder: "Bgp  neighbor"})
+				
+				), 
+		        React.createElement("div", {className: "modal-footer"}, 
+					React.createElement(Button, {onClick: this.props.onRequestHide}, "Close")
+		        )
+		      )
+		    );
+	  	}
+	});
+
+	module.exports.BgpSummaryView = BgpSummaryView
+	module.exports.BgpModalView = BgpModalView
 	var NetworkSummaryView = React.createClass({displayName: "NetworkSummaryView",
 	  	render: function() {
 			var self = this
@@ -846,7 +909,7 @@
 							React.createElement("td", null,  network.encap), 
 							 
 							React.createElement("td", null,  network.gateway), 
-							   
+							 
 							React.createElement("td", null,  network.networkName), 
 							 
 							React.createElement("td", null,  network.pktTag), 
@@ -892,10 +955,6 @@
 					React.createElement(Input, {type: "text", label: "Encapsulation", ref: "encap", defaultValue: obj.encap, placeholder: "Encapsulation"}), 
 				
 					React.createElement(Input, {type: "text", label: "Gateway", ref: "gateway", defaultValue: obj.gateway, placeholder: "Gateway"}), 
-				
-					React.createElement(Input, {type: "text", label: "Private network", ref: "isPrivate", defaultValue: obj.isPrivate, placeholder: "Private network"}), 
-				
-					React.createElement(Input, {type: "text", label: "Public network", ref: "isPublic", defaultValue: obj.isPublic, placeholder: "Public network"}), 
 				
 					React.createElement(Input, {type: "text", label: "Network name", ref: "networkName", defaultValue: obj.networkName, placeholder: "Network name"}), 
 				
@@ -994,10 +1053,12 @@
 							 
 							React.createElement("td", null,  rule.direction), 
 							 
-							React.createElement("td", null,  rule.endpointGroup), 
+							React.createElement("td", null,  rule.fromEndpointGroup), 
 							 
-							React.createElement("td", null,  rule.ipAddress), 
-							  
+							React.createElement("td", null,  rule.fromIpAddress), 
+							 
+							React.createElement("td", null,  rule.fromNetwork), 
+							 
 							React.createElement("td", null,  rule.policyName), 
 							 
 							React.createElement("td", null,  rule.port), 
@@ -1008,7 +1069,13 @@
 							 
 							React.createElement("td", null,  rule.ruleId), 
 							 
-							React.createElement("td", null,  rule.tenantName)
+							React.createElement("td", null,  rule.tenantName), 
+							 
+							React.createElement("td", null,  rule.toEndpointGroup), 
+							 
+							React.createElement("td", null,  rule.toIpAddress), 
+							 
+							React.createElement("td", null,  rule.toNetwork)
 							
 						)
 					)
@@ -1024,14 +1091,18 @@
 						 
 							React.createElement("th", null, " Action "), 
 							React.createElement("th", null, " Direction "), 
-							React.createElement("th", null, " Group "), 
+							React.createElement("th", null, " From Endpoint Group "), 
 							React.createElement("th", null, " IP Address "), 
+							React.createElement("th", null, " From Network "), 
 							React.createElement("th", null, " Policy Name "), 
 							React.createElement("th", null, " Port No "), 
 							React.createElement("th", null, " Priority "), 
 							React.createElement("th", null, " Protocol "), 
 							React.createElement("th", null, " Rule Id "), 
-							React.createElement("th", null, " Tenant Name ")
+							React.createElement("th", null, " Tenant Name "), 
+							React.createElement("th", null, " To Endpoint Group "), 
+							React.createElement("th", null, " IP Address "), 
+							React.createElement("th", null, " To Network ")
 						)
 					), 
 					React.createElement("tbody", null, 
@@ -1055,11 +1126,11 @@
 				
 					React.createElement(Input, {type: "text", label: "Direction", ref: "direction", defaultValue: obj.direction, placeholder: "Direction"}), 
 				
-					React.createElement(Input, {type: "text", label: "Group", ref: "endpointGroup", defaultValue: obj.endpointGroup, placeholder: "Group"}), 
+					React.createElement(Input, {type: "text", label: "From Endpoint Group", ref: "fromEndpointGroup", defaultValue: obj.fromEndpointGroup, placeholder: "From Endpoint Group"}), 
 				
-					React.createElement(Input, {type: "text", label: "IP Address", ref: "ipAddress", defaultValue: obj.ipAddress, placeholder: "IP Address"}), 
+					React.createElement(Input, {type: "text", label: "IP Address", ref: "fromIpAddress", defaultValue: obj.fromIpAddress, placeholder: "IP Address"}), 
 				
-					React.createElement(Input, {type: "text", label: "Network Name", ref: "network", defaultValue: obj.network, placeholder: "Network Name"}), 
+					React.createElement(Input, {type: "text", label: "From Network", ref: "fromNetwork", defaultValue: obj.fromNetwork, placeholder: "From Network"}), 
 				
 					React.createElement(Input, {type: "text", label: "Policy Name", ref: "policyName", defaultValue: obj.policyName, placeholder: "Policy Name"}), 
 				
@@ -1071,7 +1142,13 @@
 				
 					React.createElement(Input, {type: "text", label: "Rule Id", ref: "ruleId", defaultValue: obj.ruleId, placeholder: "Rule Id"}), 
 				
-					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"})
+					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"}), 
+				
+					React.createElement(Input, {type: "text", label: "To Endpoint Group", ref: "toEndpointGroup", defaultValue: obj.toEndpointGroup, placeholder: "To Endpoint Group"}), 
+				
+					React.createElement(Input, {type: "text", label: "IP Address", ref: "toIpAddress", defaultValue: obj.toIpAddress, placeholder: "IP Address"}), 
+				
+					React.createElement(Input, {type: "text", label: "To Network", ref: "toNetwork", defaultValue: obj.toNetwork, placeholder: "To Network"})
 				
 				), 
 		        React.createElement("div", {className: "modal-footer"}, 
@@ -1126,7 +1203,7 @@
 		        React.createElement("div", {className: "modal-body", style:  {margin: '5%',} }, 
 				
 				
-					React.createElement(Input, {type: "text", label: "", ref: "appName", defaultValue: obj.appName, placeholder: ""}), 
+					React.createElement(Input, {type: "text", label: "Application Name", ref: "appName", defaultValue: obj.appName, placeholder: "Application Name"}), 
 				
 					React.createElement(Input, {type: "text", label: "", ref: "command", defaultValue: obj.command, placeholder: ""}), 
 				
@@ -1144,9 +1221,9 @@
 				
 					React.createElement(Input, {type: "text", label: "", ref: "scale", defaultValue: obj.scale, placeholder: ""}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "serviceName", defaultValue: obj.serviceName, placeholder: ""}), 
+					React.createElement(Input, {type: "text", label: "Service Name", ref: "serviceName", defaultValue: obj.serviceName, placeholder: "Service Name"}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "tenantName", defaultValue: obj.tenantName, placeholder: ""}), 
+					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"}), 
 				
 					React.createElement(Input, {type: "text", label: "", ref: "volumeProfile", defaultValue: obj.volumeProfile, placeholder: ""})
 				
@@ -1205,11 +1282,11 @@
 				
 					React.createElement(Input, {type: "text", label: "", ref: "appName", defaultValue: obj.appName, placeholder: ""}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "instanceId", defaultValue: obj.instanceId, placeholder: ""}), 
+					React.createElement(Input, {type: "text", label: "Service instance id", ref: "instanceId", defaultValue: obj.instanceId, placeholder: "Service instance id"}), 
 				
 					React.createElement(Input, {type: "text", label: "", ref: "serviceName", defaultValue: obj.serviceName, placeholder: ""}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "tenantName", defaultValue: obj.tenantName, placeholder: ""}), 
+					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"}), 
 				
 					React.createElement(Input, {type: "text", label: "", ref: "volumes", defaultValue: obj.volumes, placeholder: ""})
 				
@@ -1234,7 +1311,7 @@
 					React.createElement(ModalTrigger, {modal: React.createElement(TenantModalView, {tenant:  tenant })}, 
 						React.createElement("tr", {key:  tenant.key, className: "info"}
 							
-							      
+							  
 						)
 					)
 				);
@@ -1246,7 +1323,7 @@
 					React.createElement("thead", null, 
 						React.createElement("tr", null
 						
-						      
+						  
 						)
 					), 
 					React.createElement("tbody", null, 
@@ -1268,15 +1345,7 @@
 				
 					React.createElement(Input, {type: "text", label: "Network name", ref: "defaultNetwork", defaultValue: obj.defaultNetwork, placeholder: "Network name"}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "subnetLen", defaultValue: obj.subnetLen, placeholder: ""}), 
-				
-					React.createElement(Input, {type: "text", label: "", ref: "subnetPool", defaultValue: obj.subnetPool, placeholder: ""}), 
-				
-					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"}), 
-				
-					React.createElement(Input, {type: "text", label: "", ref: "vlans", defaultValue: obj.vlans, placeholder: ""}), 
-				
-					React.createElement(Input, {type: "text", label: "", ref: "vxlans", defaultValue: obj.vxlans, placeholder: ""})
+					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"})
 				
 				), 
 		        React.createElement("div", {className: "modal-footer"}, 
@@ -1339,9 +1408,9 @@
 				
 					React.createElement(Input, {type: "text", label: "", ref: "size", defaultValue: obj.size, placeholder: ""}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "tenantName", defaultValue: obj.tenantName, placeholder: ""}), 
+					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "volumeName", defaultValue: obj.volumeName, placeholder: ""})
+					React.createElement(Input, {type: "text", label: "Volume Name", ref: "volumeName", defaultValue: obj.volumeName, placeholder: "Volume Name"})
 				
 				), 
 		        React.createElement("div", {className: "modal-footer"}, 
@@ -1404,9 +1473,9 @@
 				
 					React.createElement(Input, {type: "text", label: "", ref: "size", defaultValue: obj.size, placeholder: ""}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "tenantName", defaultValue: obj.tenantName, placeholder: ""}), 
+					React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"}), 
 				
-					React.createElement(Input, {type: "text", label: "", ref: "volumeProfileName", defaultValue: obj.volumeProfileName, placeholder: ""})
+					React.createElement(Input, {type: "text", label: "Volume profile Name", ref: "volumeProfileName", defaultValue: obj.volumeProfileName, placeholder: "Volume profile Name"})
 				
 				), 
 		        React.createElement("div", {className: "modal-footer"}, 
