@@ -148,7 +148,9 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 			log.Errorf("Error creating network %s in docker. Err: %v", nwCfg.ID, err)
 			return err
 		}
+	}
 
+	if IsDNSEnabled() {
 		// Attach service container endpoint to the network
 		err = attachServiceContainer(tenantName, network.Name, stateDriver)
 		if err != nil {
@@ -162,7 +164,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 }
 
 func attachServiceContainer(tenantName, networkName string, stateDriver core.StateDriver) error {
-	contName := tenantName + "dns"
+	contName := getDNSName(tenantName)
 	docker, err := utils.GetDockerClient()
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
@@ -236,7 +238,7 @@ func detachServiceContainer(tenantName, networkName string) error {
 		return errors.New("Unable to connect to docker")
 	}
 
-	dnsContName := tenantName + "dns"
+	dnsContName := getDNSName(tenantName)
 	cinfo, err := docker.InspectContainer(dnsContName)
 	if err != nil {
 		log.Errorf("Error inspecting the container %s. Err: %v", dnsContName, err)
@@ -338,18 +340,20 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
+	if IsDNSEnabled() {
+		// detach Dns container
+		err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
+		if err != nil {
+			log.Errorf("Error detaching service container. Err: %v", err)
+		}
+	}
+
 	// Check if there are any active endpoints
 	if hasActiveEndpoints(nwCfg) {
 		return core.Errorf("Error: Network has active endpoints")
 	}
 
 	if GetClusterMode() == "docker" {
-		// detach Dns container
-		err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
-		if err != nil {
-			log.Errorf("Error detaching service container. Err: %v", err)
-		}
-
 		// Delete the docker network
 		err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
 		if err != nil {
@@ -499,9 +503,5 @@ func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) e
 }
 
 func hasActiveEndpoints(nwCfg *mastercfg.CfgNetworkState) bool {
-	// Uncomment the below after https://github.com/contiv/netplugin/pull/269 is merged
-	// We spin a dns container if IsDNSEnabled() == true
-	// We need to exlude that from Active EPs check.
-	//return (IsDNSEnabled() && nwCfg.EpCount > 1) || ((!IsDNSEnabled()) && nwCfg.EpCount > 0)
-	return nwCfg.EpCount > 1
+	return nwCfg.EpCount > 0
 }

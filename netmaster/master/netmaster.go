@@ -38,6 +38,7 @@ const (
 // Run Time config of netmaster
 type nmRunTimeConf struct {
 	clusterMode string
+	dnsEnabled  bool
 }
 
 var masterRTCfg nmRunTimeConf
@@ -53,12 +54,29 @@ func SetClusterMode(cm string) error {
 	}
 
 	masterRTCfg.clusterMode = cm
+	SetDNSEnabled(false)
 	return nil
 }
 
 // GetClusterMode gets the cluster mode of the contiv plugin
 func GetClusterMode() string {
 	return masterRTCfg.clusterMode
+}
+
+// IsDNSEnabled gets the status of whether DNS is enabled
+func IsDNSEnabled() bool {
+	return masterRTCfg.dnsEnabled
+}
+
+// SetDNSEnabled sets the status of DNS Enable
+func SetDNSEnabled(dnsEnableFlag bool) error {
+	log.Infof("Setting dns flag to %s", dnsEnableFlag)
+	masterRTCfg.dnsEnabled = dnsEnableFlag
+	return nil
+}
+
+func getDNSName(tenantName string) string {
+	return tenantName + "dns"
 }
 
 func getEpName(networkName string, ep *intent.ConfigEP) string {
@@ -196,12 +214,12 @@ func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) err
 		return err
 	}
 
-	if GetClusterMode() == "docker" {
+	if IsDNSEnabled() {
 		// start skydns container
 		err = startServiceContainer(tenant.Name)
 		if err != nil {
-			log.Errorf("Error starting service container. Err: %v", err)
-			return err
+			log.Errorf("Error starting service container. Err: %v. Disabling DNS option.", err)
+			SetDNSEnabled(false)
 		}
 	}
 
@@ -243,7 +261,7 @@ func startServiceContainer(tenantName string) error {
 			"SKYDNS_ADDR=0.0.0.0:53",
 			"SKYDNS_DOMAIN=" + tenantName}}
 
-	containerID, err := docker.CreateContainer(containerConfig, tenantName+"dns", nil)
+	containerID, err := docker.CreateContainer(containerConfig, getDNSName(tenantName), nil)
 	if err != nil {
 		log.Errorf("Error creating DNS container for tenant: %s. Error: %s", tenantName, err)
 	}
@@ -268,7 +286,7 @@ func stopAndRemoveServiceContainer(tenantName string) error {
 		return err
 	}
 
-	dnsContName := tenantName + "dns"
+	dnsContName := getDNSName(tenantName)
 	// Stop the container
 	err = docker.StopContainer(dnsContName, 10)
 	if err != nil {
@@ -286,15 +304,17 @@ func stopAndRemoveServiceContainer(tenantName string) error {
 
 // DeleteTenantID deletes a tenant from the state store, by ID.
 func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
-	if GetClusterMode() == "docker" {
-		err := stopAndRemoveServiceContainer(tenantID)
+	var err error
+
+	if IsDNSEnabled() {
+		err = stopAndRemoveServiceContainer(tenantID)
 		if err != nil {
 			log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
 			return err
 		}
 	}
 
-	return nil
+	return err
 }
 
 // DeleteTenant deletes a tenant from the state store based on its ConfigTenant.
