@@ -51,8 +51,6 @@ type cliOpts struct {
 	version     bool
 }
 
-type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
-
 var flagSet *flag.FlagSet
 
 func usage() {
@@ -292,149 +290,9 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	newReq := *r
 	newReq.URL = url
 
-	log.Infof("Proxying request(%v): %+v", url, newReq)
+	// store the listen URL
+	d.listenURL = opts.listenURL
 
-	// Serve http
-	proxy.ServeHTTP(w, &newReq)
-}
-
-// Simple Wrapper for http handlers
-func makeHTTPHandler(handlerFunc httpAPIFunc) http.HandlerFunc {
-	// Create a closure and return an anonymous function
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Call the handler
-		resp, err := handlerFunc(w, r, mux.Vars(r))
-		if err != nil {
-			// Log error
-			log.Errorf("Handler for %s %s returned error: %s", r.Method, r.URL, err)
-
-			// Send HTTP response
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			// Send HTTP response as Json
-			err = writeJSON(w, http.StatusOK, resp)
-			if err != nil {
-				log.Errorf("Error generating json. Err: %v", err)
-			}
-		}
-	}
-}
-
-// writeJSON: writes the value v to the http response stream as json with standard
-// json encoding.
-func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
-	// Set content type as json
-	w.Header().Set("Content-Type", "application/json")
-
-	// write the HTTP status code
-	w.WriteHeader(code)
-
-	// Write the Json output
-	return json.NewEncoder(w).Encode(v)
-}
-
-func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			idStr  string
-			states []core.State
-			resp   []byte
-			ok     bool
-			err    error
-		)
-
-		if getAll {
-			idStr = "all"
-		} else if idStr, ok = mux.Vars(r)["id"]; !ok {
-			http.Error(w,
-				core.Errorf("Failed to find the id string in the request.").Error(),
-				http.StatusInternalServerError)
-		}
-
-		if states, err = hook(idStr); err != nil {
-			http.Error(w,
-				err.Error(),
-				http.StatusInternalServerError)
-			return
-		}
-
-		if resp, err = json.Marshal(states); err != nil {
-			http.Error(w,
-				core.Errorf("marshalling json failed. Error: %s", err).Error(),
-				http.StatusInternalServerError)
-			return
-		}
-
-		w.Write(resp)
-		return
-	}
-}
-
-func getVersion(w http.ResponseWriter, r *http.Request) {
-	ver := version.Get()
-
-	resp, err := json.Marshal(ver)
-	if err != nil {
-		http.Error(w,
-			core.Errorf("marshalling json failed. Error: %s", err).Error(),
-			http.StatusInternalServerError)
-		return
-	}
-	w.Write(resp)
-	return
-}
-
-// XXX: This function should be returning logical state instead of driver state
-func (d *daemon) endpoints(id string) ([]core.State, error) {
-	var (
-		err error
-		ep  *drivers.OvsOperEndpointState
-	)
-
-	ep = &drivers.OvsOperEndpointState{}
-	if ep.StateDriver, err = utils.GetStateDriver(); err != nil {
-		return nil, err
-	}
-
-	if id == "all" {
-		eps, err := ep.ReadAll()
-		if err != nil {
-			return []core.State{}, nil
-		}
-		return eps, nil
-	}
-
-	err = ep.Read(id)
-	if err == nil {
-		return []core.State{core.State(ep)}, nil
-	}
-
-	return nil, core.Errorf("Unexpected code path. Recieved error during read: %v", err)
-}
-
-// XXX: This function should be returning logical state instead of driver state
-func (d *daemon) networks(id string) ([]core.State, error) {
-	var (
-		err error
-		nw  *mastercfg.CfgNetworkState
-	)
-
-	nw = &mastercfg.CfgNetworkState{}
-	if nw.StateDriver, err = utils.GetStateDriver(); err != nil {
-		return nil, err
-	}
-
-	if id == "all" {
-		return nw.ReadAll()
-	} else if err := nw.Read(id); err == nil {
-		return []core.State{core.State(nw)}, nil
-	}
-
-	return nil, core.Errorf("Unexpected code path")
-}
-
-func main() {
-	d := &daemon{}
-	d.execOpts()
-	d.ListenAndServe()
+	// Run daemon FSM
+	d.runMasterFsm()
 }

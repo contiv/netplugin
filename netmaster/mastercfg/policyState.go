@@ -56,13 +56,10 @@ var ofnetMaster *ofnet.OfnetMaster
 var stateStore core.StateDriver
 
 // InitPolicyMgr initializes the policy manager
-func InitPolicyMgr(stateDriver core.StateDriver) error {
-	ofnetMaster = ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
-	if ofnetMaster == nil {
-		log.Fatalf("Error creating ofnet master")
-	}
-
+func InitPolicyMgr(stateDriver core.StateDriver, ofm *ofnet.OfnetMaster) error {
+	// save statestore and ofnet masters
 	stateStore = stateDriver
+	ofnetMaster = ofm
 
 	// restore all existing epg policies
 	err := restoreEpgPolicies(stateDriver)

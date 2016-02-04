@@ -40,8 +40,9 @@ class Testbed:
         time.sleep(3)
 
         # Start netmaster in the end
-        print "Starting netmaster"
-        self.nodes[0].startNetmaster()
+        for node in self.nodes:
+            print "Starting netmaster"
+            node.startNetmaster()
 
     # Cleanup a testbed once test is done
     def cleanup(self):
@@ -51,8 +52,9 @@ class Testbed:
             node.cleanupContainers()
 
         # Stop netmaster and remove networks
-        self.nodes[0].stopNetmaster()
-        self.nodes[0].cleanupDockerNetwork()
+        for node in self.nodes:
+            node.stopNetmaster()
+            node.cleanupDockerNetwork()
 
         for node in self.nodes:
             print "Cleaning up node " + node.addr

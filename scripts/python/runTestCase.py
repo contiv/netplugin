@@ -10,7 +10,6 @@ import testcases.tcBasic
 import testcases.tcPolicy
 import testcases.tcNetwork
 import testcases.tcTrigger
-import testcases.tcAci
 import argparse
 import os
 import exceptions
@@ -59,33 +58,8 @@ try:
 
     testbed.chekForNetpluginErrors()
 
-    # Run vlan tests
-    testcases.tcNetwork.testAddDeleteTenant(testbed, numCntr, numIteration, encap="vlan")
-    testcases.tcNetwork.testAddDeleteNetwork(testbed, (numCntr * 3), numIteration, encap="vlan")
-    testcases.tcBasic.startRemoveContainer(testbed, numCntr, numIteration, encap="vlan")
-    testcases.tcBasic.startStopContainer(testbed, numCntr, numIteration, encap="vlan")
-
-    # Run policy tests. in vlan mode
-    testcases.tcPolicy.testBasicPolicy(testbed, numCntr, numIteration, encap="vlan")
-    testcases.tcPolicy.testPolicyAddDeleteRule(testbed, numCntr, numIteration, encap="vlan")
-    testcases.tcPolicy.testPolicyFromEpg(testbed, numCntr, numIteration, encap="vlan")
-
-    # Run vxlan tests
-    testcases.tcNetwork.testAddDeleteTenant(testbed, numCntr, numIteration, encap="vxlan")
-    testcases.tcNetwork.testAddDeleteNetwork(testbed, (numCntr * 3), numIteration, encap="vxlan")
-    testcases.tcBasic.startRemoveContainer(testbed, numCntr, numIteration, encap="vxlan")
-    testcases.tcBasic.startStopContainer(testbed, numCntr, numIteration, encap="vxlan")
-
-    # Run policy tests. in vxlan mode
-    testcases.tcPolicy.testBasicPolicy(testbed, numCntr, numIteration, encap="vxlan")
-    testcases.tcPolicy.testPolicyAddDeleteRule(testbed, numCntr, numIteration, encap="vxlan")
-    testcases.tcPolicy.testPolicyFromEpg(testbed, numCntr, numIteration, encap="vxlan")
-
-    # Run multiple triggers on the Testbed
-    testcases.tcTrigger.testMultiTrigger(testbed, (numIteration * numTriggerTests))
-
-    # Run ACI mode sanity
-    testcases.tcAci.testACIMode(testbed)
+    # Run single test case
+    testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration, encap="vxlan")
 
     # Cleanup testbed
     testbed.cleanup()
@@ -102,7 +76,7 @@ try:
 
     api.tutils.info("Sanity passed")
     os._exit(1)
-    
+
 except exceptions.KeyboardInterrupt:
     print "\n\n Keyboard interrupt.... Exiting\n"
     os._exit(1)
