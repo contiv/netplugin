@@ -13,7 +13,7 @@
                                 },
                                 "routerip": {
                                              "type": "string",
-                                             "title": "Bgp  neighbor",
+                                             "title": "Bgp router intf ip",
                                              "length": 15
                                 },
                                 "as":       {

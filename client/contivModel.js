@@ -248,7 +248,7 @@ var BgpModalView = React.createClass({
 			
 				<Input type='text' label='AS id' ref='neighbor-as' defaultValue={obj.neighbor-as} placeholder='AS id' />
 			
-				<Input type='text' label='Bgp  neighbor' ref='routerip' defaultValue={obj.routerip} placeholder='Bgp  neighbor' />
+				<Input type='text' label='Bgp router intf ip' ref='routerip' defaultValue={obj.routerip} placeholder='Bgp router intf ip' />
 			
 			</div>
 	        <div className='modal-footer'>

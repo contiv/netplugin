@@ -182,7 +182,7 @@ type Bgp struct {
 	Hostname   string `json:"hostname,omitempty"`    // host name
 	Neighbor   string `json:"neighbor,omitempty"`    // Bgp  neighbor
 	NeighborAs string `json:"neighbor-as,omitempty"` // AS id
-	Routerip   string `json:"routerip,omitempty"`    // Bgp  neighbor
+	Routerip   string `json:"routerip,omitempty"`    // Bgp router intf ip
 
 }
 
