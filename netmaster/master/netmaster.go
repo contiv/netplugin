@@ -248,8 +248,11 @@ func startServiceContainer(tenantName string) error {
 		log.Errorf("Error creating DNS container for tenant: %s. Error: %s", tenantName, err)
 	}
 
+	hostConfig := &dockerclient.HostConfig{
+		RestartPolicy: dockerclient.RestartPolicy{Name: "always"}}
+
 	// Start the container
-	err = docker.StartContainer(containerID, nil)
+	err = docker.StartContainer(containerID, hostConfig)
 	if err != nil {
 		log.Errorf("Error starting DNS container for tenant: %s. Error: %s", tenantName, err)
 	}
