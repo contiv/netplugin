@@ -17,7 +17,6 @@ package master
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"strings"
 
@@ -171,26 +170,47 @@ func attachServiceContainer(tenantName, networkName string, stateDriver core.Sta
 		return err
 	}
 
+	cinfo, err := docker.InspectContainer(contName)
+	if err != nil {
+		if strings.Contains(err.Error(), "no such id") {
+			// DNS container not started for this tenant. Start skydns container
+			err = startServiceContainer(tenantName)
+			if err != nil {
+				log.Warnf("Error starting service container. "+
+					"Continuing without DNS provider. Error: %v", err)
+				return nil
+			}
+		}
+	}
+
+	// If it's not in running state, restart the container.
+	// This case can occur if the host is reloaded
+	if !cinfo.State.Running {
+		log.Debugf("Container %s not running. Restarting the conttainer", contName)
+		err = docker.RestartContainer(contName, 0)
+		if err != nil {
+			log.Warnf("Error restarting service container %s. "+
+				"Continuing without DNS provider. Error: %v",
+				contName, err)
+			return nil
+		}
+
+		// Refetch container info after restart
+		cinfo, err = docker.InspectContainer(contName)
+	}
+
+	log.Debugf("Container info: %+v\n Hostconfig: %+v", cinfo, cinfo.HostConfig)
+
 	// Trim default tenant
 	dnetName := docknet.GetDocknetName(tenantName, networkName, "")
 
 	err = docker.ConnectNetwork(dnetName, contName)
 	if err != nil {
-		log.Errorf("Could not attach container(%s) to network %s. Error: %s",
+		log.Warnf("Could not attach container(%s) to network %s. "+
+			"Continuing with DNS provider. Error: %s",
 			contName, dnetName, err)
-		return fmt.Errorf("Could not attach container(%s) to network %s."+
-			"Please make sure %s container is up.",
-			contName, dnetName, contName)
+		return nil
 	}
-
-	// inspect the container
-	cinfo, err := docker.InspectContainer(contName)
-	if err != nil {
-		log.Errorf("Error inspecting the container %s. Err: %v", contName, err)
-		return err
-	}
-
-	log.Debugf("Container info: %+v\n Hostconfig: %+v", cinfo, cinfo.HostConfig)
 
 	ninfo, err := docker.InspectNetwork(dnetName)
 	if err != nil {
