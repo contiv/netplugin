@@ -225,24 +225,22 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 
+	// Get the nw config.
+	cfgNw := mastercfg.CfgNetworkState{}
+	cfgNw.StateDriver = d.oper.StateDriver
+	err = cfgNw.Read(cfgEp.NetID)
+	if err != nil {
+		log.Errorf("Unable to get network %s. Err: %v", cfgEp.NetID, err)
+		return err
+	}
+
 	cfgEpGroup := &mastercfg.EndpointGroupState{}
 	cfgEpGroup.StateDriver = d.oper.StateDriver
 	err = cfgEpGroup.Read(strconv.Itoa(cfgEp.EndpointGroupID))
 	if err == nil {
 		log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
 	} else if core.ErrIfKeyExists(err) == nil {
-		// FIXME: this should be deprecated once we remove old style intent
-		// In case EpGroup is not specified, get the tag from nw.
-		// this is mainly for the intent based system tests
-		log.Warnf("%v will use network based tag ", err)
-		cfgNw := mastercfg.CfgNetworkState{}
-		cfgNw.StateDriver = d.oper.StateDriver
-		err1 := cfgNw.Read(cfgEp.NetID)
-		if err1 != nil {
-			log.Errorf("Unable to get tag neither epg nor nw")
-			return err1
-		}
-
+		log.Infof("%v will use network based tag ", err)
 		cfgEpGroup.PktTagType = cfgNw.PktTagType
 		cfgEpGroup.PktTag = cfgNw.PktTag
 	} else {
@@ -289,7 +287,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}
 
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag)
+	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag, cfgNw.PktTag)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err

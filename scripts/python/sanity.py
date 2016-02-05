@@ -10,6 +10,7 @@ import testcases.tcBasic
 import testcases.tcPolicy
 import testcases.tcNetwork
 import testcases.tcTrigger
+import testcases.tcAci
 import argparse
 import os
 import exceptions
@@ -82,6 +83,9 @@ try:
 
     # Run multiple triggers on the Testbed
     testcases.tcTrigger.testMultiTrigger(testbed, (numIteration * numTriggerTests))
+
+    # Run ACI mode sanity
+    testcases.tcAci.testACIMode(testbed)
 
     # Cleanup testbed
     testbed.cleanup()
