@@ -521,10 +521,11 @@ func listBgpNeighbors(ctx *cli.Context) {
 		writer.Write([]byte("HostName\tNeighbor\tAS\n"))
 		writer.Write([]byte("---------\t--------\t-------\n"))
 		for _, group := range filtered {
-			fmt.Println(group)
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t\n",
-					group["host"],
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\n",
+					group["hostname"],
+					group["routerip"],
+					group["as"],
 					group["neighbor"],
 					group["neighbor-as"],
 				)))

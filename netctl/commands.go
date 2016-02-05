@@ -292,21 +292,25 @@ var Commands = []cli.Command{
 		Usage: "router capability configuration",
 		Subcommands: []cli.Command{
 			{
-				Name:      "delete",
-				Usage:     "Delete Bgp Config",
-				ArgsUsage: "",
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "hostname",
-						Usage: "host name",
-					},
-				},
-				Action: deleteBgp,
+				Name:      "ls",
+				Aliases:   []string{"list"},
+				Usage:     "List BGP configuration",
+				ArgsUsage: "[hostname]",
+				Flags:     []cli.Flag{jsonFlag, quietFlag},
+				Action:    listBgp,
 			},
 			{
-				Name:      "add",
-				Usage:     "Add router capability configuration.",
-				ArgsUsage: " ",
+				Name:      "rm",
+				Aliases:   []string{"delete"},
+				Usage:     "Delete BGP configuration",
+				ArgsUsage: "[hostname]",
+				Flags:     []cli.Flag{},
+				Action:    deleteBgp,
+			},
+			{
+				Name:      "create",
+				Usage:     "Add BGP configuration.",
+				ArgsUsage: "[hostname]",
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "hostname",
@@ -314,19 +318,19 @@ var Commands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name:  "router-ip",
-						Usage: "Bgp my router ip ",
+						Usage: "BGP my-router ip ",
 					},
 					cli.StringFlag{
 						Name:  "as",
-						Usage: "self AS id",
+						Usage: "Self AS id",
 					},
 					cli.StringFlag{
 						Name:  "neighbor-as",
-						Usage: "bgp neighbor AS id",
+						Usage: "BGP neighbor AS id",
 					},
 					cli.StringFlag{
 						Name:  "neighbor",
-						Usage: "Bgp neighbor to be added",
+						Usage: "BGP neighbor to be added",
 					},
 				},
 				Action: addBgp,
