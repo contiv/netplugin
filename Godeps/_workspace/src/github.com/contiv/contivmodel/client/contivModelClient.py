@@ -178,9 +178,11 @@ class objmodelClient:
 	    postUrl = self.baseUrl + '/api/Bgps/' + obj.hostname  + '/'
 
 	    jdata = json.dumps({ 
-			"AS": obj.AS, 
+			"as": obj.as, 
 			"hostname": obj.hostname, 
 			"neighbor": obj.neighbor, 
+			"neighbor-as": obj.neighbor-as, 
+			"routerip": obj.routerip, 
 	    })
 
 	    # Post the data

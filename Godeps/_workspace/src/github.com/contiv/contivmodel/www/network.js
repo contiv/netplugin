@@ -30,7 +30,7 @@ var NetworkSummaryView = React.createClass({
                         <td>{ network.networkName }</td>
                         <td>{ network.encap }</td>
                         <td>{ network.subnet }</td>
-                        <td>{ network.defaultGw }</td>
+                        <td>{ network.gateway }</td>
 
 					</tr>
 				</ModalTrigger>
@@ -66,10 +66,8 @@ var NetworkModalView = React.createClass({
                 <Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
                 <Input type='text' label='Network name' ref='networkName' defaultValue={obj.networkName} placeholder='Network name' />
 				<Input type='text' label='Encapsulation' ref='encap' defaultValue={obj.encap} placeholder='Encapsulation' />
-				<Input type='text' label='Private network' ref='isPrivate' defaultValue={obj.isPrivate} placeholder='Private network' />
-				<Input type='text' label='Public network' ref='isPublic' defaultValue={obj.isPublic} placeholder='Public network' />
 				<Input type='text' label='Subnet' ref='subnet' defaultValue={obj.subnet} placeholder='Subnet' />
-                <Input type='text' label='Gateway' ref='defaultGw' defaultValue={obj.defaultGw} placeholder='Gateway' />
+                <Input type='text' label='Gateway' ref='defaultGw' defaultValue={obj.gateway} placeholder='Gateway' />
 			</div>
 	        <div className='modal-footer'>
 				<Button onClick={this.props.onRequestHide}>Close</Button>

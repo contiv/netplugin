@@ -208,7 +208,7 @@ var BgpSummaryView = React.createClass({
 				<ModalTrigger modal={<BgpModalView Bgp={ Bgp }/>}>
 					<tr key={ Bgp.key } className="info">
 						
-						   
+						     
 					</tr>
 				</ModalTrigger>
 			);
@@ -220,7 +220,7 @@ var BgpSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					   
+					     
 					</tr>
 				</thead>
 				<tbody>
@@ -240,11 +240,15 @@ var BgpModalView = React.createClass({
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
-				<Input type='text' label='AS id' ref='AS' defaultValue={obj.AS} placeholder='AS id' />
+				<Input type='text' label='AS id' ref='as' defaultValue={obj.as} placeholder='AS id' />
 			
 				<Input type='text' label='host name' ref='hostname' defaultValue={obj.hostname} placeholder='host name' />
 			
 				<Input type='text' label='Bgp  neighbor' ref='neighbor' defaultValue={obj.neighbor} placeholder='Bgp  neighbor' />
+			
+				<Input type='text' label='AS id' ref='neighbor-as' defaultValue={obj.neighbor-as} placeholder='AS id' />
+			
+				<Input type='text' label='Bgp router intf ip' ref='routerip' defaultValue={obj.routerip} placeholder='Bgp router intf ip' />
 			
 			</div>
 	        <div className='modal-footer'>

@@ -147,7 +147,16 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		log.Errorf("Error creating portvlan entry. Err: %v", err)
 		return err
 	}
-	err = portVlanFlow.Next(self.ipTable)
+
+	// Set source endpoint group if specified
+	if endpoint.EndpointGroup != 0 {
+		metadata, metadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
+		portVlanFlow.SetMetadata(metadata, metadataMask)
+	}
+
+	// Point it to dst group table for policy lookups
+	dstGrpTbl := self.ofSwitch.GetTable(DST_GRP_TBL_ID)
+	err = portVlanFlow.Next(dstGrpTbl)
 	if err != nil {
 		log.Errorf("Error installing portvlan entry. Err: %v", err)
 		return err
@@ -156,9 +165,6 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	// save the flow entry
 	self.portVlanFlowDb[endpoint.PortNo] = portVlanFlow
 
-	// Set the vlan and install it
-	// FIXME: Dont set the vlan till multi-vrf support. We cant pop vlan unless flow matches on vlan
-	// portVlanFlow.SetVlan(endpoint.Vlan)
 	outPort, err := self.ofSwitch.OutputPort(endpoint.PortNo)
 	if err != nil {
 		log.Errorf("Error creating output port %d. Err: %v", endpoint.PortNo, err)
@@ -197,12 +203,18 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		return nil
 	}
 
+	// Install dst group entry for the endpoint
+	err = self.policyAgent.AddEndpoint(&endpoint)
+	if err != nil {
+		log.Errorf("Error adding endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+		return err
+	}
+
 	path := &OfnetProtoRouteInfo{
 		ProtocolType: "bgp",
 		localEpIP:    endpoint.IpAddr.String(),
 		nextHopIP:    self.agent.GetRouterInfo().RouterIP,
 	}
-	log.Infof("ADDING LOCAL ROUTE AND PASSING TO BGP")
 	self.agent.AddLocalProtoRoute(path)
 
 	return nil
@@ -236,6 +248,14 @@ func (self *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
 	}
 
+	// Remove the endpoint from policy tables
+	if endpoint.EndpointType != "internal-bgp" {
+		err = self.policyAgent.DelEndpoint(&endpoint)
+		if err != nil {
+			log.Errorf("Error deleting endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+	}
 	path := &OfnetProtoRouteInfo{
 		ProtocolType: "bgp",
 		localEpIP:    endpoint.IpAddr.String(),
@@ -325,6 +345,14 @@ func (self *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 		return err
 	}
 
+	// Install dst group entry for the endpoint
+	if endpoint.EndpointType == "internal" {
+		err = self.policyAgent.AddEndpoint(endpoint)
+		if err != nil {
+			log.Errorf("Error adding endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+	}
 	// Store it in flow db
 	self.flowDb[endpoint.IpAddr.String()] = ipFlow
 
@@ -350,12 +378,14 @@ func (self *Vlrouter) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 		log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
 	}
 
-	// Remove the endpoint from policy tables
-	//	err = self.policyAgent.DelEndpoint(endpoint)
-	//	if err != nil {
-	//		log.Errorf("Error deleting endpoint to policy agent{%+v}. Err: %v", endpoint, err)
-	//		return err
-	//	}
+	//Remove the endpoint from policy tables
+	if endpoint.EndpointType == "internal" {
+		err = self.policyAgent.DelEndpoint(endpoint)
+		if err != nil {
+			log.Errorf("Error deleting endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+	}
 
 	return nil
 }
@@ -368,6 +398,13 @@ func (self *Vlrouter) initFgraph() error {
 	self.inputTable = sw.DefaultTable()
 	self.vlanTable, _ = sw.NewTable(VLAN_TBL_ID)
 	self.ipTable, _ = sw.NewTable(IP_TBL_ID)
+
+	// Init policy tables
+	err := self.policyAgent.InitTables(IP_TBL_ID)
+	if err != nil {
+		log.Fatalf("Error installing policy table. Err: %v", err)
+		return err
+	}
 
 	//Create all drop entries
 	// Drop mcast source mac

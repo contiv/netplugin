@@ -73,7 +73,9 @@ type OfnetDatapath interface {
 type OfnetProto interface {
 
 	//Create a protocol server
-	StartProtoServer(routerInfo OfnetProtoRouterInfo) error
+	StartProtoServer(routerInfo *OfnetProtoRouterInfo) error
+
+	StopProtoServer() error
 
 	//Add a Protocol Neighbor
 	AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) error
@@ -144,8 +146,9 @@ type OfnetProtoNeighborInfo struct {
 
 type OfnetProtoRouterInfo struct {
 	ProtocolType string // type of protocol
-	RouterIP     string // ip address of the neighbor
+	RouterIP     string // ip address of the router
 	VlanIntf     string // uplink L2 intf
+	As           string // As for Bgp protocol
 }
 
 type OfnetProtoRouteInfo struct {
