@@ -124,7 +124,17 @@ func (ep *Lock) IsAcquired() bool {
 func (ep *Lock) GetHolder() string {
 	ep.mutex.Lock()
 	defer ep.mutex.Unlock()
-	return ep.holderID
+
+	keyName := "/contiv.io/lock/" + ep.name
+
+	// Get the current value
+	resp, err := ep.client.Get(keyName, false, false)
+	if err != nil {
+		log.Warnf("Could not get current holder for lock %s", ep.name)
+		return ""
+	}
+
+	return resp.Node.Value
 }
 
 // *********************** Internal functions *************
