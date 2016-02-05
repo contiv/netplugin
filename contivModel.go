@@ -75,9 +75,11 @@ type Bgp struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AS       string `json:"AS,omitempty"`       // AS id
-	Hostname string `json:"hostname,omitempty"` // host name
-	Neighbor string `json:"neighbor,omitempty"` // Bgp  neighbor
+	As         string `json:"as,omitempty"`          // AS id
+	Hostname   string `json:"hostname,omitempty"`    // host name
+	Neighbor   string `json:"neighbor,omitempty"`    // Bgp  neighbor
+	NeighborAs string `json:"neighbor-as,omitempty"` // AS id
+	Routerip   string `json:"routerip,omitempty"`    // Bgp router intf ip
 
 }
 
@@ -1573,8 +1575,8 @@ func ValidateBgp(obj *Bgp) error {
 
 	// Validate each field
 
-	if len(obj.AS) > 64 {
-		return errors.New("AS string too long")
+	if len(obj.As) > 64 {
+		return errors.New("as string too long")
 	}
 
 	if len(obj.Hostname) > 256 {
@@ -1583,6 +1585,14 @@ func ValidateBgp(obj *Bgp) error {
 
 	if len(obj.Neighbor) > 15 {
 		return errors.New("neighbor string too long")
+	}
+
+	if len(obj.NeighborAs) > 64 {
+		return errors.New("neighbor-as string too long")
+	}
+
+	if len(obj.Routerip) > 15 {
+		return errors.New("routerip string too long")
 	}
 
 	return nil
