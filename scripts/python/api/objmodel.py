@@ -475,3 +475,20 @@ def deleteTenant(tenantName):
 def listTenant():
     # Get the list of Tenants
     return json.loads(urllib2.urlopen('http://localhost:9999/api/tenants/').read())
+
+# Configure ACI Mode
+def setFabricMode(mode):
+    postUrl = 'http://netmaster:9999/api/globals/global/'
+    jdata = json.dumps({
+      "name": "global",
+      "network-infra-type": mode,
+      "vlans": "1-4094",
+      "vxlans": "1-10000",
+     })
+    response = httpPost(postUrl, jdata)
+
+    # Check for error
+    if response == "Error":
+        print response
+        errorExit("setFabricMode failed")
+

@@ -122,7 +122,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 		cfgEp := &mastercfg.CfgEndpointState{}
 		cfgEp.ID = createEpIDStateful
 		cfgEp.EndpointGroupID = testOvsEpgHandleStateful
-		cfgEp.NetID = testOvsNwID
+		cfgEp.NetID = testOvsNwIDStateful
 		cfgEp.IntfName = ""
 		cfgEp.IPAddress = testEpAddress
 		cfgEp.MacAddress = testEpMacAddress
@@ -374,6 +374,13 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
 	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway) }()
+
+	// create second network
+	err = driver.CreateNetwork(testOvsNwIDStateful)
+	if err != nil {
+		t.Fatalf("network creation failed. Error: %s", err)
+	}
+	defer func() { driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag, testGateway) }()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)

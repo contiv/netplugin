@@ -231,7 +231,7 @@ func getOvsPostName(intfName string) string {
 }
 
 // CreatePort creates a port in ovs switch
-func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag int) error {
+func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag int) error {
 	var ovsIntfType string
 
 	// Get OVS port name
@@ -303,7 +303,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 	endpoint := ofnet.EndpointInfo{
 		PortNo:        ofpPort,
 		MacAddr:       macAddr,
-		Vlan:          uint16(pktTag),
+		Vlan:          uint16(nwPktTag),
 		IpAddr:        net.ParseIP(cfgEp.IPAddress),
 		EndpointGroup: cfgEp.EndpointGroupID,
 	}

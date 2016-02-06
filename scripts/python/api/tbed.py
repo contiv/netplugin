@@ -121,6 +121,13 @@ class Testbed:
 
         return containers
 
+    # Start a container on the specified node
+    def runContainerOnNode(self, nodeIdx, group):
+        netName = group.split(".")[1]
+        svcName = group.split('.')[0]
+        cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName=netName, serviceName=svcName)
+        return cnt
+
     # Remove containers
     def removeContainers(self, containers):
         # remove containers
