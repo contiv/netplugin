@@ -334,7 +334,7 @@
 	                        React.createElement("td", null,  network.networkName), 
 	                        React.createElement("td", null,  network.encap), 
 	                        React.createElement("td", null,  network.subnet), 
-	                        React.createElement("td", null,  network.defaultGw)
+	                        React.createElement("td", null,  network.gateway)
 
 						)
 					)
@@ -370,10 +370,8 @@
 	                React.createElement(Input, {type: "text", label: "Tenant Name", ref: "tenantName", defaultValue: obj.tenantName, placeholder: "Tenant Name"}), 
 	                React.createElement(Input, {type: "text", label: "Network name", ref: "networkName", defaultValue: obj.networkName, placeholder: "Network name"}), 
 					React.createElement(Input, {type: "text", label: "Encapsulation", ref: "encap", defaultValue: obj.encap, placeholder: "Encapsulation"}), 
-					React.createElement(Input, {type: "text", label: "Private network", ref: "isPrivate", defaultValue: obj.isPrivate, placeholder: "Private network"}), 
-					React.createElement(Input, {type: "text", label: "Public network", ref: "isPublic", defaultValue: obj.isPublic, placeholder: "Public network"}), 
 					React.createElement(Input, {type: "text", label: "Subnet", ref: "subnet", defaultValue: obj.subnet, placeholder: "Subnet"}), 
-	                React.createElement(Input, {type: "text", label: "Gateway", ref: "defaultGw", defaultValue: obj.defaultGw, placeholder: "Gateway"})
+	                React.createElement(Input, {type: "text", label: "Gateway", ref: "defaultGw", defaultValue: obj.gateway, placeholder: "Gateway"})
 				), 
 		        React.createElement("div", {className: "modal-footer"}, 
 					React.createElement(Button, {onClick: this.props.onRequestHide}, "Close")
@@ -516,19 +514,36 @@
 	            if (rule.action == "deny") {
 	                action = "deny"
 	            }
-				return (
-					React.createElement(ModalTrigger, {modal: React.createElement(RuleModalView, {rule:  rule })}, 
-						React.createElement("tr", {key:  rule.key, className: "info"}, 
-	                        React.createElement("td", null,  rule.ruleId), 
-	                        React.createElement("td", null,  rule.priority), 
-							React.createElement("td", null,  action ), 
-							React.createElement("td", null,  rule.endpointGroup), 
-	                        React.createElement("td", null,  rule.ipAddress), 
-	                        React.createElement("td", null,  rule.protocol), 
-							React.createElement("td", null,  rule.port)
-						)
-					)
-				);
+	            if (self.props.direction == "out") {
+	                return (
+	    				React.createElement(ModalTrigger, {modal: React.createElement(RuleModalView, {rule:  rule })}, 
+	    					React.createElement("tr", {key:  rule.key, className: "info"}, 
+	                            React.createElement("td", null,  rule.ruleId), 
+	                            React.createElement("td", null,  rule.priority), 
+	    						React.createElement("td", null,  action ), 
+	    						React.createElement("td", null,  rule.toEndpointGroup), 
+	                            React.createElement("td", null,  rule.toIpAddress), 
+	                            React.createElement("td", null,  rule.protocol), 
+	    						React.createElement("td", null,  rule.port)
+	    					)
+	    				)
+	    			);
+	            } else {
+	                return (
+	    				React.createElement(ModalTrigger, {modal: React.createElement(RuleModalView, {rule:  rule })}, 
+	    					React.createElement("tr", {key:  rule.key, className: "info"}, 
+	                            React.createElement("td", null,  rule.ruleId), 
+	                            React.createElement("td", null,  rule.priority), 
+	    						React.createElement("td", null,  action ), 
+	    						React.createElement("td", null,  rule.fromEndpointGroup), 
+	                            React.createElement("td", null,  rule.fromIpAddress), 
+	                            React.createElement("td", null,  rule.protocol), 
+	    						React.createElement("td", null,  rule.port)
+	    					)
+	    				)
+	    			);
+	            }
+
 			});
 
 	        // Set appropriate heading based on direction

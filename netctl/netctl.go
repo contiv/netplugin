@@ -3,6 +3,7 @@ package netctl
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"sort"
 	"strings"
@@ -460,39 +461,59 @@ func listEndpointGroups(ctx *cli.Context) {
 	}
 }
 
-//addBgpNeighbors is a netctl interface routine to add
-//bgp neighbor
-func addBgpNeighbors(ctx *cli.Context) {
-	argCheck(0, ctx)
+//addBgp is a netctl interface routine to add
+//bgp config
+func addBgp(ctx *cli.Context) {
+	argCheck(1, ctx)
 
-	hostname := ctx.String("host")
+	hostname := ctx.Args()[0]
+	routerip := ctx.String("router-ip")
 	asid := ctx.String("as")
+	neighboras := ctx.String("neighbor-as")
 	neighbor := ctx.String("neighbor")
 
+	//Error checks
+	_, _, err := net.ParseCIDR(routerip)
+	if err != nil {
+		errExit(ctx, exitHelp, "Wrong CIDR format. Enter in x.x.x.x/len format", true)
+	}
+
+	ip := net.ParseIP(neighbor)
+	if ip == nil {
+		errExit(ctx, exitHelp, "Wrong IP format. Enter in x.x.x.x format", true)
+	}
+
+	if routerip == "" || asid == "" || neighbor == "" || neighboras == "" {
+		errExit(ctx, exitHelp, "Missing attributes", true)
+	}
+
 	errCheck(ctx, getClient(ctx).BgpPost(&contivClient.Bgp{
-		Hostname: hostname,
-		AS:       asid,
-		Neighbor: neighbor,
+		As:         asid,
+		Hostname:   hostname,
+		Neighbor:   neighbor,
+		NeighborAs: neighboras,
+		Routerip:   routerip,
 	}))
+
 }
 
-//deleteBgpNeighbors is a netctl interface routine to delete
-//bgp neighbor
-func deleteBgpNeighbors(ctx *cli.Context) {
-	argCheck(0, ctx)
+//deleteBgp is a netctl interface routine to delete
+//bgp config
+func deleteBgp(ctx *cli.Context) {
+	argCheck(1, ctx)
 
-	hostname := ctx.String("host")
-	logrus.Infof("Deleting router config %s:%s", hostname)
+	hostname := ctx.Args()[0]
+	logrus.Infof("Deleting Bgp router config %s:%s", hostname)
 
 	errCheck(ctx, getClient(ctx).BgpDelete(hostname))
 }
 
 //listBgpNeighbors is netctl interface routine to list
 //Bgp neighbor configs for a given host
-func listBgpNeighbors(ctx *cli.Context) {
-	argCheck(0, ctx)
+func listBgp(ctx *cli.Context) {
+	argCheck(1, ctx)
 
-	hostname := ctx.String("host")
+	hostname := ctx.Args()[0]
 
 	bgpList, err := getClient(ctx).BgpList()
 	errCheck(ctx, err)
@@ -511,15 +532,16 @@ func listBgpNeighbors(ctx *cli.Context) {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("HostName\tNeighbor\tAS\n"))
-		writer.Write([]byte("---------\t--------\t-------\n"))
+		writer.Write([]byte("HostName\tRouterIP\tAS\tNeighbor\tNeighborAS\n"))
+		writer.Write([]byte("---------\t--------\t-------\t--------\t-------\n"))
 		for _, group := range filtered {
-			fmt.Println(group)
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\n",
+					group.As,
 					group.Hostname,
 					group.Neighbor,
-					group.AS,
+					group.NeighborAs,
+					group.Routerip,
 				)))
 		}
 	}

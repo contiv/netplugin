@@ -11,7 +11,17 @@
                                              "title": "host name",
                                              "length": 256
                                 },
-                                "AS":       {
+                                "routerip": {
+                                             "type": "string",
+                                             "title": "Bgp router intf ip",
+                                             "length": 15
+                                },
+                                "as":       {
+                                             "type": "string",
+                                             "title": "AS id",
+                                             "length": 64
+                                },
+                                "neighbor-as":       {
                                              "type": "string",
                                              "title": "AS id",
                                              "length": 64
@@ -19,9 +29,8 @@
                                 "neighbor":{
                                         "type": "string",
                                         "title": "Bgp  neighbor",
-                                        "length": 15 
+                                        "length": 15
                                 }
                  }
         }]
 }
-

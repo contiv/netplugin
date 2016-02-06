@@ -148,12 +148,12 @@ func (p *NetPlugin) DeleteMaster(node core.ServiceInfo) error {
 	return p.NetworkDriver.DeleteMaster(node)
 }
 
-//AddBgpNeighbors adds bgp neigbor
-func (p *NetPlugin) AddBgpNeighbors(id string) error {
-	return p.NetworkDriver.AddBgpNeighbors(id)
+//AddBgp adds bgp configs
+func (p *NetPlugin) AddBgp(id string) error {
+	return p.NetworkDriver.AddBgp(id)
 }
 
-//DeleteBgpNeighbors deletes bgp neigbor
-func (p *NetPlugin) DeleteBgpNeighbors(id string) error {
-	return p.NetworkDriver.DeleteBgpNeighbors(id)
+//DeleteBgp deletes bgp configs
+func (p *NetPlugin) DeleteBgp(id string) error {
+	return p.NetworkDriver.DeleteBgp(id)
 }

@@ -89,10 +89,9 @@ const IP_TBL_ID = 4
 const MAC_DEST_TBL_ID = 5
 
 // Create a new Ofnet agent and initialize it
-/*routerInfo[0] - > IP of the router intf
-  routerInfo[1] -> Uplink nexthop interface
-*/
-func NewOfnetAgent(dpName string, localIp net.IP, rpcPort uint16,
+/*  routerInfo[0] -> Uplink nexthop interface
+ */
+func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uint16,
 	ovsPort uint16, routerInfo ...string) (*OfnetAgent, error) {
 	agent := new(OfnetAgent)
 
@@ -138,7 +137,7 @@ func NewOfnetAgent(dpName string, localIp net.IP, rpcPort uint16,
 		agent.datapath = NewVlanBridge(agent, rpcServ)
 	case "vlrouter":
 		agent.datapath = NewVlrouter(agent, rpcServ)
-		agent.ovsDriver = ovsdbDriver.NewOvsDriver("contivVlanBridge")
+		agent.ovsDriver = ovsdbDriver.NewOvsDriver(bridgeName)
 		agent.protopath = NewOfnetBgp(agent, routerInfo)
 
 	default:
@@ -571,18 +570,38 @@ func (self *OfnetAgent) DummyRpc(arg *string, ret *bool) error {
 }
 
 //AddBgpNeighbors add bgp neighbor
-func (self *OfnetAgent) AddBgpNeighbors(As string, peer string) error {
+func (self *OfnetAgent) AddBgp(routerIP string, As string, neighborAs string, peer string) error {
 
+	log.Infof("Received request add bgp config: RouterIp:%v,As:%v,NeighborAs:%v,PeerIP:%v", routerIP, As, neighborAs, peer)
+	routerInfo := &OfnetProtoRouterInfo{
+		ProtocolType: "bgp",
+		RouterIP:     routerIP,
+		As:           As,
+	}
 	neighborInfo := &OfnetProtoNeighborInfo{
 		ProtocolType: "bgp",
 		NeighborIP:   peer,
-		As:           As,
+		As:           neighborAs,
 	}
-	return self.protopath.AddProtoNeighbor(neighborInfo)
+
+	go self.protopath.StartProtoServer(routerInfo)
+
+	err := self.protopath.AddProtoNeighbor(neighborInfo)
+	if err != nil {
+		log.Errorf("Error adding protocol neighbor")
+		return err
+	}
+	return nil
 }
 
-func (self *OfnetAgent) DeleteBgpNeighbors() error {
-	return self.protopath.DeleteProtoNeighbor()
+func (self *OfnetAgent) DeleteBgp() error {
+	err := self.protopath.DeleteProtoNeighbor()
+	if err != nil {
+		log.Errorf("Error deleting protocol neighbor")
+		return err
+	}
+	self.protopath.StopProtoServer()
+	return nil
 }
 
 func (self *OfnetAgent) GetRouterInfo() *OfnetProtoRouterInfo {

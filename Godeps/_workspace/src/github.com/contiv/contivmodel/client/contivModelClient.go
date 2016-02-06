@@ -202,9 +202,11 @@ type Bgp struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AS       string `json:"AS,omitempty"`       // AS id
-	Hostname string `json:"hostname,omitempty"` // host name
-	Neighbor string `json:"neighbor,omitempty"` // Bgp  neighbor
+	As         string `json:"as,omitempty"`          // AS id
+	Hostname   string `json:"hostname,omitempty"`    // host name
+	Neighbor   string `json:"neighbor,omitempty"`    // Bgp  neighbor
+	NeighborAs string `json:"neighbor-as,omitempty"` // AS id
+	Routerip   string `json:"routerip,omitempty"`    // Bgp router intf ip
 
 }
 
