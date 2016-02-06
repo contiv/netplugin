@@ -94,8 +94,8 @@ unit-test: stop clean build
 centos-tests:
 	CONTIV_NODE_OS=centos make clean build unit-test sanity-test stop
 
-sanity-test: start
-	vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
+system-test: start
+	godep go test -v -timeout 60m ./systemtests -check.v
 
 host-build:
 	@echo "dev: making binaries..."
