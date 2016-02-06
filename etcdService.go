@@ -224,7 +224,7 @@ func (self *etcdPlugin) DeregisterService(serviceInfo ServiceInfo) error {
 	// Find it in the database
 	srvState := self.serviceDb[keyName]
 	if srvState == nil {
-		log.Errorf("Could not find the service in db %s", keyName)
+		log.Warnf("Could not find the service in db %s", keyName)
 		return errors.New("Service not found")
 	}
 
