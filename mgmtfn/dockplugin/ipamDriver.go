@@ -27,6 +27,19 @@ import (
 	"github.com/docker/libnetwork/ipams/remote/api"
 )
 
+// getIpamCapability
+func getIpamCapability(w http.ResponseWriter, r *http.Request) {
+	logEvent("getIpamCapability")
+
+	content, err := json.Marshal(api.GetCapabilityResponse{RequiresMACAddress: true})
+	if err != nil {
+		httpError(w, "Could not generate getCapability response", err)
+		return
+	}
+
+	w.Write(content)
+}
+
 // getDefaultAddressSpaces
 func getDefaultAddressSpaces(w http.ResponseWriter, r *http.Request) {
 	logEvent("getDefaultAddressSpaces")

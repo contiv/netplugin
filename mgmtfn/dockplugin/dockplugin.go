@@ -72,6 +72,7 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 		"/IpamDriver.ReleasePool":             releasePool,
 		"/IpamDriver.RequestAddress":          requestAddress,
 		"/IpamDriver.ReleaseAddress":          releaseAddress,
+		"/IpamDriver.GetCapabilities":         getIpamCapability,
 	}
 
 	for dispatchPath, dispatchFunc := range dispatchMap {
