@@ -10,6 +10,7 @@ import api.objmodel
 # create lot of policies
 def createPolicies(numPolicy, numRulesPerPolicy):
 	tenant = api.objmodel.tenant('default')
+	network = tenant.newNetwork('private', pktTag=10, subnet="20.1.0.0/16", gateway="20.1.1.254", encap="vlan")
 
 	for pid in range(numPolicy):
 		pname = 'policy' + str(pid + 1)
@@ -22,11 +23,11 @@ def createPolicies(numPolicy, numRulesPerPolicy):
 		# Create Rules
 		for rid in range(numRulesPerPolicy):
 			# Create allow port xxx Rule
-			policy.addRule(str(2 + rid), direction="in", priority=10, protocol="tcp", port=(8000 + rid), action="accept")
+			policy.addRule(str(2 + rid), direction="in", priority=10, protocol="tcp", port=(8000 + rid), action="allow")
 
 		# Add the policy to epg
-		epgName = "srv" + str(pid) + ".private"
-		group = tenant.newGroup(epgName, policies=[pname])
+		epgName = "srv" + str(pid)
+		group = network.newGroup(epgName, policies=[pname])
 
 # Test connections
 def testConnections(testbed, numContainer):
@@ -52,14 +53,14 @@ def testConnections(testbed, numContainer):
 # Cleanup all policies
 def cleanupPolicies(numPolicy, numRulesPerPolicy):
 	tenant = api.objmodel.tenant('default')
+	network = tenant.network('private')
 	for pid in range(numPolicy):
 		pname = 'policy' + str(pid + 1)
 		policy = tenant.newPolicy(pname)
 
 		# Remove policy from epg and delete epg
-		epgName = "srv" + str(pid) + ".private"
-		group = tenant.newGroup(epgName, policies=[])
-		tenant.deleteGroup(epgName)
+		epgName = "srv" + str(pid)
+		network.deleteGroup(epgName)
 
 		# Remove the policy and rules
 		tenant.deletePolicy(pname)

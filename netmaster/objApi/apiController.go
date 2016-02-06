@@ -16,6 +16,7 @@ limitations under the License.
 package objApi
 
 import (
+	"errors"
 	"time"
 
 	"github.com/contiv/contivmodel"
@@ -61,7 +62,7 @@ func NewAPIController(router *mux.Router) *APIController {
 	// Init global state
 	gc := contivModel.FindGlobal("default")
 	if gc == nil {
-		log.Infof("Creating default tenant")
+		log.Infof("Creating default global config")
 		err := contivModel.CreateGlobal(&contivModel.Global{
 			Key:              "global",
 			Name:             "global",
@@ -167,6 +168,19 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 // GlobalDelete is not supported
 func (ac *APIController) GlobalDelete(global *contivModel.Global) error {
 	log.Infof("Received GlobalDelete: %+v", global)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Delete global state
+	err = master.DeleteGlobal(stateDriver)
+	if err != nil {
+		log.Errorf("Error deleting global config. Err: %v", err)
+		return err
+	}
 	return nil
 }
 
@@ -480,6 +494,28 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 // PolicyCreate creates policy
 func (ac *APIController) PolicyCreate(policy *contivModel.Policy) error {
 	log.Infof("Received PolicyCreate: %+v", policy)
+
+	// Make sure tenant exists
+	if policy.TenantName == "" {
+		return core.Errorf("Invalid tenant name")
+	}
+
+	tenant := contivModel.FindTenant(policy.TenantName)
+	if tenant == nil {
+		return core.Errorf("Tenant not found")
+	}
+
+	// Setup links
+	modeldb.AddLink(&policy.Links.Tenant, tenant)
+	modeldb.AddLinkSet(&tenant.LinkSets.Policies, policy)
+
+	// Save the tenant too since we added the links
+	err := tenant.Write()
+	if err != nil {
+		log.Errorf("Error updating tenant state(%+v). Err: %v", tenant, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -514,6 +550,19 @@ func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 	log.Infof("Received RuleCreate: %+v", rule)
 
+	// verify parameter values
+	if rule.Direction == "in" {
+		if rule.ToNetwork != "" || rule.ToEndpointGroup != "" || rule.ToIpAddress != "" {
+			return errors.New("Can not specify 'to' parameters in incoming rule")
+		}
+	} else if rule.Direction == "out" {
+		if rule.FromNetwork != "" || rule.FromEndpointGroup != "" || rule.FromIpAddress != "" {
+			return errors.New("Can not specify 'from' parameters in outgoing rule")
+		}
+	} else {
+		return errors.New("Invalid direction for the rule")
+	}
+
 	policyKey := rule.TenantName + ":" + rule.PolicyName
 
 	// find the policy
@@ -523,18 +572,18 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		return core.Errorf("Policy not found")
 	}
 
-	// link the rule to policy
-	modeldb.AddLinkSet(&rule.LinkSets.Policies, policy)
-	modeldb.AddLinkSet(&policy.LinkSets.Rules, rule)
-	err := policy.Write()
+	// Trigger policyDB Update
+	err := master.PolicyAddRule(policy, rule)
 	if err != nil {
+		log.Errorf("Error adding rule %s to policy %s. Err: %v", rule.Key, policy.Key, err)
 		return err
 	}
 
-	// Trigger policyDB Update
-	err = master.PolicyAddRule(policy, rule)
+	// link the rule to policy
+	modeldb.AddLinkSet(&rule.LinkSets.Policies, policy)
+	modeldb.AddLinkSet(&policy.LinkSets.Rules, rule)
+	err = policy.Write()
 	if err != nil {
-		log.Errorf("Error adding rule %s to policy %s. Err: %v", rule.Key, policy.Key, err)
 		return err
 	}
 
@@ -544,7 +593,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 // RuleUpdate updates the rule within a policy
 func (ac *APIController) RuleUpdate(rule, params *contivModel.Rule) error {
 	log.Infof("Received RuleUpdate: %+v, params: %+v", rule, params)
-	return nil
+	return errors.New("Can not update a rule after its created")
 }
 
 // RuleDelete deletes the rule within a policy

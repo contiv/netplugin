@@ -41,3 +41,9 @@ func respCheck(resp *http.Response, ctx *cli.Context) {
 		errExit(ctx, exitInvalid, fmt.Sprintf("Status %d in request response", resp.StatusCode), false)
 	}
 }
+
+func errCheck(ctx *cli.Context, err error) {
+	if err != nil {
+		errExit(ctx, exitInvalid, err.Error(), false)
+	}
+}

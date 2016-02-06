@@ -39,7 +39,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
-			"Rev": "1b5c36a4635f0e51c4b07519d1aea8392d97b547"
+			"Rev": "d65dea21cec76479ef1bf239cf428ffe78b653dc"
 		},
 		{
 			"ImportPath": "github.com/contiv/go-etcd/etcd",
@@ -57,7 +57,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "14333c0fcf0a5f991c5827782d2b46c497054459"
+			"Rev": "3a258615978a694e7ca7aa14f511fc8663bb6bc0"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",

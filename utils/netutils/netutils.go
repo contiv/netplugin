@@ -195,6 +195,10 @@ func ParseTagRanges(ranges string, tagType string) ([]TagRange, error) {
 			return nil, core.Errorf("invalid range %s, min is greater than max",
 				oneRangeStr)
 		}
+		if tagRanges[idx].Min < 1 {
+			return nil, core.Errorf("invalid range %s, values less than 1",
+				oneRangeStr)
+		}
 		if tagType == "vlan" && tagRanges[idx].Max > 4095 {
 			return nil, core.Errorf("invalid range %s, vlan values exceed 4095 max allowed",
 				oneRangeStr)

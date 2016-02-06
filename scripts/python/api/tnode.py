@@ -147,7 +147,8 @@ class Node:
     def chekForNetpluginErrors(self):
         out, err, exitCode = self.runCmd('grep "error\|fatal" /tmp/net*')
         if out != [] or err != []:
-            print "Error: ".join(out).join(err)
+            print "\n\n\n\n\n\n"
+            tutils.log("Error:\n" + ''.join(out) + ''.join(err))
             tutils.log("Errors seen in log files on: " + self.hostname)
             return False
 

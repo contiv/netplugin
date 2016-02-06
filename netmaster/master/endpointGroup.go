@@ -17,11 +17,11 @@ package master
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
@@ -80,10 +80,8 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 
 	// params for docker network
 	if GetClusterMode() == "docker" {
-		subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
-
 		// Create each EPG as a docker network
-		err = createDockNet(tenantName, nwCfg, groupName, subnetCIDR, nwCfg.Gateway)
+		err = docknet.CreateDockNet(tenantName, networkName, groupName, nwCfg)
 		if err != nil {
 			log.Errorf("Error creating docker network for group %s.%s. Err: %v", networkName, groupName, err)
 			return err
@@ -181,5 +179,5 @@ func DeleteEndpointGroup(epgID int) error {
 		return err
 	}
 
-	return deleteDockNet(epgCfg.Tenant, epgCfg.NetworkName, epgCfg.Name)
+	return docknet.DeleteDockNet(epgCfg.Tenant, epgCfg.NetworkName, epgCfg.Name)
 }

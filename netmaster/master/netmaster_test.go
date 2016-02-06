@@ -122,12 +122,10 @@ func initFakeStateDriver(t *testing.T) {
 	}
 
 	fakeDriver = d.(*state.FakeStateDriver)
-	testMode = true
 }
 
 func deinitFakeStateDriver() {
 	utils.ReleaseStateDriver()
-	testMode = false
 }
 
 func TestVlanConfig(t *testing.T) {
