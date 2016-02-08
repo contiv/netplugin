@@ -32,6 +32,11 @@ func (self *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
 
 	log.Infof("Registering service key: %s, value: %+v", keyName, serviceInfo)
 
+	// if there is a previously registered service, de-register it
+	if self.serviceDb[keyName] != nil {
+		self.DeregisterService(serviceInfo)
+	}
+
 	// JSON format the object
 	jsonVal, err := json.Marshal(serviceInfo)
 	if err != nil {
@@ -224,7 +229,7 @@ func (self *etcdPlugin) DeregisterService(serviceInfo ServiceInfo) error {
 	// Find it in the database
 	srvState := self.serviceDb[keyName]
 	if srvState == nil {
-		log.Warnf("Could not find the service in db %s", keyName)
+		log.Errorf("Could not find the service in db %s", keyName)
 		return errors.New("Service not found")
 	}
 

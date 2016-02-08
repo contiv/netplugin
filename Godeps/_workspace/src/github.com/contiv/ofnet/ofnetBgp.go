@@ -17,13 +17,13 @@ package ofnet
 import (
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"io"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	api "github.com/osrg/gobgp/api"
 	bgpconf "github.com/osrg/gobgp/config"
@@ -772,20 +772,4 @@ func (self *OfnetBgp) sendArp() {
 
 func (self *OfnetBgp) ModifyProtoRib(path interface{}) {
 	self.modRibCh <- path.(*api.Path)
-}
-
-// ParseCIDR parses a CIDR string into a gateway IP and length.
-func ParseCIDR(cidrStr string) (string, uint, error) {
-	strs := strings.Split(cidrStr, "/")
-	if len(strs) != 2 {
-		return "", 0, errors.New("invalid cidr format")
-	}
-
-	subnetStr := strs[0]
-	subnetLen, err := strconv.Atoi(strs[1])
-	if subnetLen > 32 || err != nil {
-		return "", 0, errors.New("invalid mask in gateway/mask specification ")
-	}
-
-	return subnetStr, uint(subnetLen), nil
 }

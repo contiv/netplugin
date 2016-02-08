@@ -66,9 +66,6 @@ func (d *daemon) registerService() {
 		Role:        d.currState,
 	}
 
-	// First deregister the service from previous role
-	d.objdbClient.DeregisterService(srvInfo)
-
 	// Register the node with service registry
 	err = d.objdbClient.RegisterService(srvInfo)
 	if err != nil {

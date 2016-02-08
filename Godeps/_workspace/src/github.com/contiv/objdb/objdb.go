@@ -52,7 +52,7 @@ type LockInterface interface {
 type ServiceInfo struct {
 	ServiceName string // Name of the service
 	Role        string // Role of the service. (leader, follower etc)
-	Version     string // Version number for the service
+	Version     string // Version string for the service
 	HostAddr    string // Host name or IP address where its running
 	Port        int    // Port number where its listening
 }

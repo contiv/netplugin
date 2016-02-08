@@ -84,7 +84,7 @@ try:
     testcases.tcPolicy.testPolicyFeatures(testbed, encap="vxlan")
 
     # Run netmaster switchover test
-    testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration, encap="vxlan")
+    testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration)
 
     # Run multiple triggers on the Testbed
     testcases.tcTrigger.testMultiTrigger(testbed, (numIteration * numTriggerTests))
