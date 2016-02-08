@@ -24,12 +24,28 @@ import (
 	"strings"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/version"
 	"github.com/gorilla/mux"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
+
+// get current version
+func getVersion(w http.ResponseWriter, r *http.Request) {
+	ver := version.Get()
+
+	resp, err := json.Marshal(ver)
+	if err != nil {
+		http.Error(w,
+			core.Errorf("marshalling json failed. Error: %s", err).Error(),
+			http.StatusInternalServerError)
+		return
+	}
+	w.Write(resp)
+	return
+}
 
 // proxyHandler acts as a simple reverse proxy to access containers via http
 func proxyHandler(w http.ResponseWriter, r *http.Request) {

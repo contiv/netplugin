@@ -19,25 +19,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/master"
-	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/netmaster/objApi"
 	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/version"
-	"github.com/contiv/objdb"
-	"github.com/gorilla/mux"
 	"github.com/hashicorp/consul/api"
 )
 
@@ -56,12 +47,6 @@ var flagSet *flag.FlagSet
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
 	flagSet.PrintDefaults()
-}
-
-type daemon struct {
-	opts          cliOpts
-	apiController *objApi.APIController
-	stateDriver   core.StateDriver
 }
 
 func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
@@ -96,33 +81,33 @@ func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
 	return utils.NewStateDriver(opts.stateStore, string(cfgBytes))
 }
 
-func (d *daemon) parseOpts() error {
+func parseOpts(opts *cliOpts) error {
 	flagSet = flag.NewFlagSet("netm", flag.ExitOnError)
-	flagSet.BoolVar(&d.opts.help,
+	flagSet.BoolVar(&opts.help,
 		"help",
 		false,
 		"prints this message")
-	flagSet.BoolVar(&d.opts.debug,
+	flagSet.BoolVar(&opts.debug,
 		"debug",
 		false,
 		"Turn on debugging information")
-	flagSet.StringVar(&d.opts.stateStore,
+	flagSet.StringVar(&opts.stateStore,
 		"state-store",
 		utils.EtcdNameStr,
 		"State store to use")
-	flagSet.StringVar(&d.opts.storeURL,
+	flagSet.StringVar(&opts.storeURL,
 		"store-url",
 		"",
 		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
-	flagSet.StringVar(&d.opts.listenURL,
+	flagSet.StringVar(&opts.listenURL,
 		"listen-url",
 		":9999",
 		"Url to listen http requests on")
-	flagSet.StringVar(&d.opts.clusterMode,
+	flagSet.StringVar(&opts.clusterMode,
 		"cluster-mode",
 		"docker",
 		"{docker, kubernetes}")
-	flagSet.BoolVar(&d.opts.version,
+	flagSet.BoolVar(&opts.version,
 		"version",
 		false,
 		"prints current version")
@@ -134,59 +119,30 @@ func (d *daemon) parseOpts() error {
 	return nil
 }
 
-func (d *daemon) registerService() {
-	// Create an objdb client
-	objdbClient := objdb.NewClient("")
+func execOpts(opts *cliOpts) core.StateDriver {
 
-	// Get the address to be used for local communication
-	localIP, err := objdbClient.GetLocalAddr()
-	if err != nil {
-		log.Fatalf("Error getting local IP address. Err: %v", err)
-	}
-
-	// service info
-	srvInfo := objdb.ServiceInfo{
-		ServiceName: "netmaster",
-		HostAddr:    localIP,
-		Port:        9999,
-	}
-
-	// Register the node with service registry
-	err = objdbClient.RegisterService(srvInfo)
-	if err != nil {
-		log.Fatalf("Error registering service. Err: %v", err)
-	}
-
-	log.Infof("Registered netmaster service with registry")
-}
-
-func (d *daemon) execOpts() {
-	if err := d.parseOpts(); err != nil {
-		log.Fatalf("Failed to parse cli options. Error: %s", err)
-	}
-
-	if d.opts.help {
+	if opts.help {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
 		flagSet.PrintDefaults()
 		os.Exit(0)
 	}
 
-	if d.opts.version {
+	if opts.version {
 		fmt.Printf(version.String())
 		os.Exit(0)
 	}
 
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true, TimestampFormat: time.StampNano})
 
-	if d.opts.debug {
+	if opts.debug {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	if err := master.SetClusterMode(d.opts.clusterMode); err != nil {
+	if err := master.SetClusterMode(opts.clusterMode); err != nil {
 		log.Fatalf("Failed to set cluster-mode. Error: %s", err)
 	}
 
-	sd, err := initStateDriver(&d.opts)
+	sd, err := initStateDriver(opts)
 	if err != nil {
 		log.Fatalf("Failed to init state-store. Error: %s", err)
 	}
@@ -195,100 +151,19 @@ func (d *daemon) execOpts() {
 		log.Fatalf("Failed to init resource manager. Error: %s", err)
 	}
 
-	d.stateDriver = sd
+	return sd
 }
 
-func (d *daemon) ListenAndServe() {
-	router := mux.NewRouter()
+func main() {
+	d := &daemon{}
+	opts := cliOpts{}
 
-	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router)
-
-	// initialize policy manager
-	mastercfg.InitPolicyMgr(d.stateDriver)
-
-	// Register netmaster service
-	d.registerService()
-
-	// register web ui handlers
-	registerWebuiHandler(router)
-
-	// Add REST routes
-	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
-
-	s.HandleFunc("/plugin/allocAddress", makeHTTPHandler(master.AllocAddressHandler))
-	s.HandleFunc("/plugin/releaseAddress", makeHTTPHandler(master.ReleaseAddressHandler))
-	s.HandleFunc("/plugin/createEndpoint", makeHTTPHandler(master.CreateEndpointHandler))
-	s.HandleFunc("/plugin/deleteEndpoint", makeHTTPHandler(master.DeleteEndpointHandler))
-
-	s = router.Methods("Get").Subrouter()
-	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetEndpointRESTEndpoint, "{id}"),
-		get(false, d.endpoints))
-	s.HandleFunc(fmt.Sprintf("/%s", master.GetEndpointsRESTEndpoint),
-		get(true, d.endpoints))
-	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetNetworkRESTEndpoint, "{id}"),
-		get(false, d.networks))
-	s.HandleFunc(fmt.Sprintf("/%s", master.GetNetworksRESTEndpoint),
-		get(true, d.networks))
-	s.HandleFunc(fmt.Sprintf("/%s", master.GetVersionRESTEndpoint), getVersion)
-
-	log.Infof("Netmaster listening on %s", d.opts.listenURL)
-
-	go objApi.CreateDefaultTenant()
-
-	if err := http.ListenAndServe(d.opts.listenURL, router); err != nil {
-		log.Fatalf("Error listening for http requests. Error: %s", err)
+	if err := parseOpts(&opts); err != nil {
+		log.Fatalf("Failed to parse cli options. Error: %s", err)
 	}
 
-}
-
-// registerWebuiHandler registers handlers for serving web UI
-func registerWebuiHandler(router *mux.Router) {
-	// Setup the router to serve the web UI
-	goPath := os.Getenv("GOPATH")
-	if goPath != "" {
-		webPath := goPath + "/src/github.com/contiv/contivmodel/www/"
-
-		// Make sure we have the web UI files
-		_, err := os.Stat(webPath)
-		if err != nil {
-			webPath = goPath + "/src/github.com/contiv/netplugin/" +
-				"Godeps/_workspace/src/github.com/contiv/contivmodel/www/"
-			_, err := os.Stat(webPath)
-			if err != nil {
-				log.Errorf("Can not find the web UI directory")
-			}
-		}
-
-		log.Infof("Using webPath: %s", webPath)
-
-		// serve static files
-		router.PathPrefix("/web/").Handler(http.StripPrefix("/web/", http.FileServer(http.Dir(webPath))))
-
-		// Special case to serve main index.html
-		router.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
-			http.ServeFile(rw, req, webPath+"index.html")
-		})
-	}
-
-	// proxy Handler
-	router.PathPrefix("/proxy/").HandlerFunc(proxyHandler)
-}
-
-// proxyHandler acts as a simple reverse proxy to access containers via http
-func proxyHandler(w http.ResponseWriter, r *http.Request) {
-	proxyURL := strings.TrimPrefix(r.URL.Path, "/proxy/")
-	log.Infof("proxy handler for %q : %s", r.URL.Path, proxyURL)
-
-	// build the proxy url
-	url, _ := url.Parse("http://" + proxyURL)
-
-	// Create a proxy for the URL
-	proxy := httputil.NewSingleHostReverseProxy(url)
-
-	// modify the request url
-	newReq := *r
-	newReq.URL = url
+	// execute options
+	d.stateDriver = execOpts(&opts)
 
 	// store the listen URL
 	d.listenURL = opts.listenURL
