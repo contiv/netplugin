@@ -556,9 +556,15 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		if rule.ToNetwork != "" || rule.ToEndpointGroup != "" || rule.ToIpAddress != "" {
 			return errors.New("Can not specify 'to' parameters in incoming rule")
 		}
+		if rule.FromNetwork != "" && rule.FromIpAddress != "" {
+			return errors.New("Can not specify both from network and from ip address")
+		}
 	} else if rule.Direction == "out" {
 		if rule.FromNetwork != "" || rule.FromEndpointGroup != "" || rule.FromIpAddress != "" {
 			return errors.New("Can not specify 'from' parameters in outgoing rule")
+		}
+		if rule.ToNetwork != "" && rule.ToIpAddress != "" {
+			return errors.New("Can not specify both to-network and to-ip address")
 		}
 	} else {
 		return errors.New("Invalid direction for the rule")

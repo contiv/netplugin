@@ -69,6 +69,7 @@ try:
     testcases.tcPolicy.testBasicPolicy(testbed, numCntr, numIteration, encap="vlan")
     testcases.tcPolicy.testPolicyAddDeleteRule(testbed, numCntr, numIteration, encap="vlan")
     testcases.tcPolicy.testPolicyFromEpg(testbed, numCntr, numIteration, encap="vlan")
+    testcases.tcPolicy.testPolicyFeatures(testbed, encap="vlan")
 
     # Run vxlan tests
     testcases.tcNetwork.testAddDeleteTenant(testbed, numCntr, numIteration, encap="vxlan")
@@ -80,6 +81,10 @@ try:
     testcases.tcPolicy.testBasicPolicy(testbed, numCntr, numIteration, encap="vxlan")
     testcases.tcPolicy.testPolicyAddDeleteRule(testbed, numCntr, numIteration, encap="vxlan")
     testcases.tcPolicy.testPolicyFromEpg(testbed, numCntr, numIteration, encap="vxlan")
+    testcases.tcPolicy.testPolicyFeatures(testbed, encap="vxlan")
+
+    # Run netmaster switchover test
+    testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration, encap="vxlan")
 
     # Run multiple triggers on the Testbed
     testcases.tcTrigger.testMultiTrigger(testbed, (numIteration * numTriggerTests))
@@ -102,7 +107,7 @@ try:
 
     api.tutils.info("Sanity passed")
     os._exit(1)
-    
+
 except exceptions.KeyboardInterrupt:
     print "\n\n Keyboard interrupt.... Exiting\n"
     os._exit(1)

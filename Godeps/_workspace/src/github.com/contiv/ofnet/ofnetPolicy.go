@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/rpc"
 	"reflect"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/ofnet/ofctrl"
@@ -200,28 +201,53 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 
 	// Parse dst ip
 	if rule.DstIpAddr != "" {
-		ipDav, ipNet, err := net.ParseCIDR(rule.DstIpAddr)
-		if err != nil {
-			log.Errorf("Error parsing dst ip %s. Err: %v", rule.DstIpAddr, err)
-			return err
+		if strings.Contains(rule.DstIpAddr, "/") {
+			ipDav, ipNet, err := net.ParseCIDR(rule.DstIpAddr)
+			if err != nil {
+				log.Errorf("Error parsing dst ip %s. Err: %v", rule.DstIpAddr, err)
+				return err
+			}
+
+			ipDa = &ipDav
+			ipMask := net.ParseIP("255.255.255.255").Mask(ipNet.Mask)
+			ipDaMask = &ipMask
+		} else {
+			ipDav := net.ParseIP(rule.DstIpAddr)
+			if ipDav == nil {
+				log.Errorf("Error parsing dst ip %s.", rule.DstIpAddr)
+				return errors.New("Error parsing dst ip address")
+			}
+
+			ipDa = &ipDav
+			ipMask := net.ParseIP("255.255.255.255")
+			ipDaMask = &ipMask
 		}
 
-		ipDa = &ipDav
-		ipMask := net.ParseIP("255.255.255.255").Mask(ipNet.Mask)
-		ipDaMask = &ipMask
 	}
 
 	// parse src ip
 	if rule.SrcIpAddr != "" {
-		ipSav, ipNet, err := net.ParseCIDR(rule.SrcIpAddr)
-		if err != nil {
-			log.Errorf("Error parsing src ip %s. Err: %v", rule.SrcIpAddr, err)
-			return err
-		}
+		if strings.Contains(rule.SrcIpAddr, "/") {
+			ipSav, ipNet, err := net.ParseCIDR(rule.SrcIpAddr)
+			if err != nil {
+				log.Errorf("Error parsing src ip %s. Err: %v", rule.SrcIpAddr, err)
+				return err
+			}
 
-		ipSa = &ipSav
-		ipMask := net.ParseIP("255.255.255.255").Mask(ipNet.Mask)
-		ipSaMask = &ipMask
+			ipSa = &ipSav
+			ipMask := net.ParseIP("255.255.255.255").Mask(ipNet.Mask)
+			ipSaMask = &ipMask
+		} else {
+			ipSav := net.ParseIP(rule.SrcIpAddr)
+			if ipSav == nil {
+				log.Errorf("Error parsing dst ip %s.", rule.DstIpAddr)
+				return errors.New("Error parsing src ip address")
+			}
+
+			ipSa = &ipSav
+			ipMask := net.ParseIP("255.255.255.255")
+			ipSaMask = &ipMask
+		}
 	}
 
 	// parse source/dst endpoint groups
