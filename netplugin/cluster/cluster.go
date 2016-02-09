@@ -228,7 +228,6 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
 				}
-
 			} else if srvEvent.EventType == objdb.WatchServiceEventDel {
 				log.Infof("Node delete event for {%+v}", nodeInfo)
 

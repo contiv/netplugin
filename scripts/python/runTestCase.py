@@ -59,8 +59,7 @@ try:
     testbed.chekForNetpluginErrors()
 
     # Run single test case
-    testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration, encap="vxlan")
-    testcases.tcPolicy.testPolicyFeatures(testbed, encap="vxlan")
+    testcases.tcTrigger.netpluginDisconnectTest(testbed, numCntr, numIteration, encap="vxlan")
 
     # Cleanup testbed
     testbed.cleanup()

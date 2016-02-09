@@ -125,6 +125,27 @@ def triggerNetpluginRestart(testbed):
         # Wait a little
         time.sleep(10)
 
+# Trigger netplugin disconnect/connect
+def triggerNetpluginDisconectConnect(testbed):
+    for node in testbed.nodes:
+        api.tutils.info("Stopping netplugin on " + node.hostname)
+        node.stopNetplugin()
+
+        # Wait for netplugin service to expire
+        time.sleep(90)
+
+        # Move old log file
+        currTime = time.strftime("%H:%M:%S", time.localtime())
+        node.runCmd("mv /tmp/netplugin.log /tmp/netplugin-" + currTime + ".log")
+
+        api.tutils.info("Restarting netplugin on " + node.hostname)
+        node.startNetplugin()
+
+        # Wait a little
+        time.sleep(10)
+
+        # Check for errors
+        testbed.chekForNetpluginErrors()
 
 # Trigger netmaster restart
 def triggerNetmasterRestart(testbed):
@@ -153,7 +174,7 @@ def triggerNetmasterSwitchover(testbed):
             api.tutils.info("Switching over netmaster from " + node.hostname)
             node.stopNetmaster()
             # Wit till leader lock times out
-            time.sleep(15)
+            time.sleep(45)
 
             currTime = time.strftime("%H:%M:%S", time.localtime())
             node.runCmd("mv /tmp/netmaster.log /tmp/netmaster-" + currTime + ".log")
@@ -332,3 +353,39 @@ def netmasterSwitchoverTest(testbed, numContainer, numIter, encap="vxlan"):
 
     # Test is done
     api.tutils.info("netmasterSwitchoverTest Test passed")
+
+# Test netplugin disconnect/connect
+def netpluginDisconnectTest(testbed, numContainer, numIter, encap="vxlan"):
+    api.tutils.info("netpluginDisconnectTest starting")
+
+    tenant = api.objmodel.tenant('default')
+    network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254", encap=encap)
+
+    for iter in range(numIter):
+        # Start the containers
+        containers = testbed.runContainers(numContainer)
+
+        # Perform netplugin disconnect/connect
+        triggerNetpluginDisconectConnect(testbed)
+
+        # Perform ping test on the containers
+        testbed.pingTest(containers)
+
+        # remove containers
+        for cnt in containers:
+            cnt.remove()
+
+        # Check for errors
+        testbed.chekForNetpluginErrors()
+
+        # Iteration is done
+        api.tutils.info("netpluginDisconnectTest iteration " + str(iter) + " Passed")
+
+    # Delete the network we created
+    tenant.deleteNetwork('private')
+
+    # Check for errors
+    testbed.chekForNetpluginErrors()
+
+    # Test is done
+    api.tutils.info("netpluginDisconnectTest Test passed")

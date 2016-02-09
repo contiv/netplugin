@@ -35,7 +35,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const leaderLockTTL = 10
+const leaderLockTTL = 30
 
 type daemon struct {
 	listenURL        string                // URL where netmaster needs to listen
