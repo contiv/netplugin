@@ -349,6 +349,12 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
 		if err != nil {
 			log.Errorf("Error deleting network %s. Err: %v", netID, err)
+			// DeleteDockNet will fail when network has active endpoints.
+			// No damage is done yet. It is safe to fail.
+			// We do not have to call attachServiceContainer here,
+			// as detachServiceContainer detaches only when there are no
+			// endpoints remaining.
+			return err
 		}
 	}
 
@@ -363,6 +369,9 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	// Free resource associated with the network
 	err = freeNetworkResources(stateDriver, nwCfg, gCfg)
 	if err != nil {
+		// Error while freeing up vlan/vxlan/subnet/gateway resources
+		// This can only happen because of defects in code
+		// No need of any corrective handling here
 		return err
 	}
 

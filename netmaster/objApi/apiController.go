@@ -486,6 +486,7 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	err = master.DeleteNetworkID(stateDriver, networkID)
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", network.NetworkName, err)
+		return err
 	}
 
 	return nil

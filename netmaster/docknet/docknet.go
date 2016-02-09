@@ -201,8 +201,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	err = docker.RemoveNetwork(docknetName)
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", docknetName, err)
-		// FIXME: Ignore errors till we fully move to docker 1.9
-		return nil
+		return err
 	}
 
 	// Get the state driver
