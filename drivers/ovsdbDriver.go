@@ -574,7 +574,7 @@ func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
 	for {
 		row, err := d.ovs.Transact(ovsDataBase, selectOp)
 
-		if err == nil {
+		if err == nil && len(row) > 0 && len(row[0].Rows) > 0 {
 			value := row[0].Rows[0]["ofport"]
 			if reflect.TypeOf(value).Kind() == reflect.Float64 {
 				//retry few more time. Due to asynchronous call between

@@ -185,14 +185,6 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
 				}
-				// add the node
-				err = netplugin.AddPeerHost(core.ServiceInfo{
-					HostAddr: nodeInfo.HostAddr,
-					Port:     ofnet.OFNET_AGENT_VLAN_PORT,
-				})
-				if err != nil {
-					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
-				}
 
 			} else if srvEvent.EventType == objdb.WatchServiceEventDel {
 				log.Infof("Node delete event for {%+v}", nodeInfo)
@@ -201,14 +193,6 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 				err := netplugin.DeletePeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
 					Port:     ofnet.OFNET_AGENT_VXLAN_PORT,
-				})
-				if err != nil {
-					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
-				}
-				// remove the node
-				err = netplugin.DeletePeerHost(core.ServiceInfo{
-					HostAddr: nodeInfo.HostAddr,
-					Port:     ofnet.OFNET_AGENT_VLAN_PORT,
 				})
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
