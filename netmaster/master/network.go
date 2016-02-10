@@ -338,6 +338,11 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
+	// Check if there are any active endpoints
+	if nwCfg.EpCount > 0 {
+		return core.Errorf("Error: Network has active endpoints")
+	}
+
 	if GetClusterMode() == "docker" {
 		// detach Dns container
 		err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
@@ -402,27 +407,9 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 	}
 
 	for _, network := range tenant.Networks {
-		if len(network.Endpoints) > 0 {
-			continue
-		}
-
 		networkID := network.Name + "." + tenant.Name
-		nwCfg := &mastercfg.CfgNetworkState{}
-		nwCfg.StateDriver = stateDriver
-		err = nwCfg.Read(networkID)
+		err = DeleteNetworkID(stateDriver, networkID)
 		if err != nil {
-			log.Infof("network %q is not operational", network.Name)
-			continue
-		}
-
-		err = freeNetworkResources(stateDriver, nwCfg, gCfg)
-		if err != nil {
-			return err
-		}
-
-		err = nwCfg.Clear()
-		if err != nil {
-			log.Errorf("error when writing nw config. Error: %s", err)
 			return err
 		}
 	}
