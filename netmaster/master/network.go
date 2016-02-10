@@ -339,7 +339,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	}
 
 	// Check if there are any active endpoints
-	if nwCfg.EpCount > 0 {
+	if hasActiveEndpoints(nwCfg) {
 		return core.Errorf("Error: Network has active endpoints")
 	}
 
@@ -440,6 +440,15 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 			log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
 			return "", err
 		}
+
+		// Docker, Mesos issue a Alloc Address first, followed by a CreateEndpoint
+		// Kubernetes issues a create endpoint directly
+		// since networkAllocAddress is called from both AllocAddressHandler and CreateEndpointHandler,
+		// we need to make sure that the EpCount is incremented only when we are allocating
+		// a new IP. In case of Docker, Mesos CreateEndPoint will already request a IP that
+		// allocateAddress had allocated in the earlier call.
+		nwCfg.EpCount++
+
 	} else if reqAddr != "" && nwCfg.SubnetIP != "" {
 		ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
 		if err != nil {
@@ -472,8 +481,27 @@ func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) e
 		return err
 	}
 
+	// networkReleaseAddress is called from multiple places
+	// Make sure we decrement the EpCount only if the IPAddress
+	// was not already freed earlier
+	if nwCfg.IPAllocMap.Test(ipAddrValue) {
+		nwCfg.EpCount--
+	}
 	nwCfg.IPAllocMap.Clear(ipAddrValue)
-	nwCfg.EpCount--
+
+	err = nwCfg.Write()
+	if err != nil {
+		log.Errorf("error writing nw config. Error: %s", err)
+		return err
+	}
 
 	return nil
+}
+
+func hasActiveEndpoints(nwCfg *mastercfg.CfgNetworkState) bool {
+	// Uncomment the below after https://github.com/contiv/netplugin/pull/269 is merged
+	// We spin a dns container if IsDNSEnabled() == true
+	// We need to exlude that from Active EPs check.
+	//return (IsDNSEnabled() && nwCfg.EpCount > 1) || ((!IsDNSEnabled()) && nwCfg.EpCount > 0)
+	return nwCfg.EpCount > 1
 }

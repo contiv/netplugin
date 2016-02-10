@@ -142,8 +142,6 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 				log.Errorf("Error creating endpoint %+v. Err: %v", ep, err)
 				return err
 			}
-
-			nwCfg.EpCount++
 		}
 
 		err = nwCfg.Write()
