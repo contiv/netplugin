@@ -440,7 +440,7 @@ _netctl_rule_create() {
             return
             ;;
         --action|-a)
-            COMPREPLY=( $( compgen -W "accept deny" -- "$cur" ) )
+            COMPREPLY=( $( compgen -W "allow deny" -- "$cur" ) )
             return
             ;;
     esac
