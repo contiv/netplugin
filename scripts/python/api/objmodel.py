@@ -431,10 +431,9 @@ def setFabricMode(mode):
       "vlans": "1-4094",
       "vxlans": "1-10000",
      })
-    response = httpPost(postUrl, jdata)
+    response = http.httpPost(postUrl, jdata)
 
     # Check for error
     if response == "Error":
         print response
         errorExit("setFabricMode failed")
-

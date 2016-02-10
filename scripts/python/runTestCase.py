@@ -10,6 +10,7 @@ import testcases.tcBasic
 import testcases.tcPolicy
 import testcases.tcNetwork
 import testcases.tcTrigger
+import testcases.tcAci
 import argparse
 import os
 import exceptions
@@ -59,7 +60,7 @@ try:
     testbed.chekForNetpluginErrors()
 
     # Run single test case
-    testcases.tcTrigger.netpluginDisconnectTest(testbed, numCntr, numIteration, encap="vxlan")
+    testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration)
 
     # Cleanup testbed
     testbed.cleanup()
@@ -75,7 +76,7 @@ try:
         api.tutils.log("Tests took " + str(elapsedTime) + " seconds")
 
     api.tutils.info("testcase passed")
-    os._exit(1)
+    os._exit(0)
 
 except exceptions.KeyboardInterrupt:
     print "\n\n Keyboard interrupt.... Exiting\n"

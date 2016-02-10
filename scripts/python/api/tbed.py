@@ -33,16 +33,18 @@ class Testbed:
 
         # Start netplugin on all nodes
         for node in self.nodes:
-            print "Starting netplugin on " + node.addr
+            print "Starting netplugin on " + node.hostname
             node.startNetplugin()
 
         # Wait few seconds before starting netmaster
         time.sleep(3)
 
         # Start netmaster in the end
-        for node in self.nodes:
-            print "Starting netmaster"
-            node.startNetmaster()
+        for nidx, node in enumerate(self.nodes):
+            # Start netmaster only on first three nodes
+            if nidx < 3:
+                print "Starting netmaster on " + node.hostname
+                node.startNetmaster()
 
     # Cleanup a testbed once test is done
     def cleanup(self):

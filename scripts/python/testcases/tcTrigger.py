@@ -325,6 +325,8 @@ def netmasterSwitchoverTest(testbed, numContainer, numIter, encap="vxlan"):
     tenant = api.objmodel.tenant('default')
     network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254", encap=encap)
 
+    # Always run even number of iterations so that mastership comes back to original node
+    numIter = numIter + (numIter % 2)
     for iter in range(numIter):
         # Start the containers
         containers = testbed.runContainers(numContainer)

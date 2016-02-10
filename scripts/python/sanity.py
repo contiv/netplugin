@@ -109,7 +109,7 @@ try:
         api.tutils.log("Tests took " + str(elapsedTime) + " seconds")
 
     api.tutils.info("Sanity passed")
-    os._exit(1)
+    os._exit(0)
 
 except exceptions.KeyboardInterrupt:
     print "\n\n Keyboard interrupt.... Exiting\n"
