@@ -338,6 +338,11 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
+	// Check if there are any active endpoints
+	if hasActiveEndpoints(nwCfg) {
+		return core.Errorf("Error: Network has active endpoints")
+	}
+
 	if GetClusterMode() == "docker" {
 		// detach Dns container
 		err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
@@ -349,6 +354,12 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
 		if err != nil {
 			log.Errorf("Error deleting network %s. Err: %v", netID, err)
+			// DeleteDockNet will fail when network has active endpoints.
+			// No damage is done yet. It is safe to fail.
+			// We do not have to call attachServiceContainer here,
+			// as detachServiceContainer detaches only when there are no
+			// endpoints remaining.
+			return err
 		}
 	}
 
@@ -363,6 +374,9 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	// Free resource associated with the network
 	err = freeNetworkResources(stateDriver, nwCfg, gCfg)
 	if err != nil {
+		// Error while freeing up vlan/vxlan/subnet/gateway resources
+		// This can only happen because of defects in code
+		// No need of any corrective handling here
 		return err
 	}
 
@@ -393,27 +407,9 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 	}
 
 	for _, network := range tenant.Networks {
-		if len(network.Endpoints) > 0 {
-			continue
-		}
-
 		networkID := network.Name + "." + tenant.Name
-		nwCfg := &mastercfg.CfgNetworkState{}
-		nwCfg.StateDriver = stateDriver
-		err = nwCfg.Read(networkID)
+		err = DeleteNetworkID(stateDriver, networkID)
 		if err != nil {
-			log.Infof("network %q is not operational", network.Name)
-			continue
-		}
-
-		err = freeNetworkResources(stateDriver, nwCfg, gCfg)
-		if err != nil {
-			return err
-		}
-
-		err = nwCfg.Clear()
-		if err != nil {
-			log.Errorf("error when writing nw config. Error: %s", err)
 			return err
 		}
 	}
@@ -444,6 +440,15 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 			log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
 			return "", err
 		}
+
+		// Docker, Mesos issue a Alloc Address first, followed by a CreateEndpoint
+		// Kubernetes issues a create endpoint directly
+		// since networkAllocAddress is called from both AllocAddressHandler and CreateEndpointHandler,
+		// we need to make sure that the EpCount is incremented only when we are allocating
+		// a new IP. In case of Docker, Mesos CreateEndPoint will already request a IP that
+		// allocateAddress had allocated in the earlier call.
+		nwCfg.EpCount++
+
 	} else if reqAddr != "" && nwCfg.SubnetIP != "" {
 		ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
 		if err != nil {
@@ -476,8 +481,27 @@ func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) e
 		return err
 	}
 
+	// networkReleaseAddress is called from multiple places
+	// Make sure we decrement the EpCount only if the IPAddress
+	// was not already freed earlier
+	if nwCfg.IPAllocMap.Test(ipAddrValue) {
+		nwCfg.EpCount--
+	}
 	nwCfg.IPAllocMap.Clear(ipAddrValue)
-	nwCfg.EpCount--
+
+	err = nwCfg.Write()
+	if err != nil {
+		log.Errorf("error writing nw config. Error: %s", err)
+		return err
+	}
 
 	return nil
+}
+
+func hasActiveEndpoints(nwCfg *mastercfg.CfgNetworkState) bool {
+	// Uncomment the below after https://github.com/contiv/netplugin/pull/269 is merged
+	// We spin a dns container if IsDNSEnabled() == true
+	// We need to exlude that from Active EPs check.
+	//return (IsDNSEnabled() && nwCfg.EpCount > 1) || ((!IsDNSEnabled()) && nwCfg.EpCount > 0)
+	return nwCfg.EpCount > 1
 }

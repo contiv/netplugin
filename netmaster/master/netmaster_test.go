@@ -468,3 +468,70 @@ func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 	}
 
 }
+
+// TestNetworkDeleteWithEPs
+// This test creates a network and adds endpoints to it.
+// It then tries to delete the network, while it has
+// active endpoints and expects them to fail
+func TestNetworkDeleteWithEPs(t *testing.T) {
+	cfgBytes := []byte(`{
+    "Tenants" : [{
+        "Name"                  : "tenant-one",
+        "Networks"  : [{
+            "Name"              : "orange",
+            "SubnetCIDR"        : "10.1.1.1/24",
+            "Gateway"           : "10.1.1.254",
+            "Endpoints" : [
+            {
+                "Container"     : "myContainer1"
+            },
+            {
+                "Container"     : "myContainer3"
+            }
+            ]
+        }]
+    }]}`)
+
+	initFakeStateDriver(t)
+	defer deinitFakeStateDriver()
+
+	applyConfig(t, cfgBytes)
+
+	epBindings := []intent.ConfigEP{{
+		Container: "myContainer1",
+		Host:      "host1",
+	}, {
+		Container: "myContainer2",
+		Host:      "host1",
+	}, {
+		Container: "myContainer3",
+		Host:      "host2",
+	}, {
+		Container: "myContainer4",
+		Host:      "host2",
+	}}
+
+	err := CreateEpBindings(&epBindings)
+	if err != nil {
+		t.Fatalf("error '%s' creating tenant\n", err)
+	}
+
+	cfg := &intent.Config{}
+	err = json.Unmarshal(cfgBytes, cfg)
+	if err != nil {
+		t.Fatalf("error '%s' parsing config '%s'\n", err, cfgBytes)
+	}
+
+	_, err = resources.NewStateResourceManager(fakeDriver)
+	if err != nil {
+		log.Fatalf("state store initialization failed. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
+
+	for _, tenant := range cfg.Tenants {
+		err = DeleteNetworks(fakeDriver, &tenant)
+		if err == nil || (err != nil && !strings.Contains(err.Error(), "Error: Network has active endpoints")) {
+			t.Fatalf("Network delete did not Fail with Active EPs.")
+		}
+	}
+}
