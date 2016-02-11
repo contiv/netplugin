@@ -53,8 +53,7 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 	log.Debugf("Configuring router")
 
 	router := mux.NewRouter()
-	s := router.Headers("Accept", "application/vnd.docker.plugins.v1.2+json").
-		Methods("POST").Subrouter()
+	s := router.Methods("POST").Subrouter()
 
 	dispatchMap := map[string]func(http.ResponseWriter, *http.Request){
 		"/Plugin.Activate":                    activate(hostname),
