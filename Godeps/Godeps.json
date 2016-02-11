@@ -100,24 +100,34 @@
 			"Rev": "5d2041e26a699eaca682e2ea41c8f891e1060444"
 		},
 		{
+			"ImportPath": "github.com/docker/libnetwork/discoverapi",
+			"Comment": "v0.5.6-45-g7586649",
+			"Rev": "7586649195296528de75fd26a61666b26f493b20"
+		},
+		{
 			"ImportPath": "github.com/docker/libnetwork/driverapi",
-			"Comment": "v0.2-654-g2559410",
-			"Rev": "2559410949b7200a81f63e0333ae768fe7a73d71"
+			"Comment": "v0.5.6-45-g7586649",
+			"Rev": "7586649195296528de75fd26a61666b26f493b20"
 		},
 		{
 			"ImportPath": "github.com/docker/libnetwork/drivers/remote/api",
-			"Comment": "v0.2-654-g2559410",
-			"Rev": "2559410949b7200a81f63e0333ae768fe7a73d71"
+			"Comment": "v0.5.6-45-g7586649",
+			"Rev": "7586649195296528de75fd26a61666b26f493b20"
+		},
+		{
+			"ImportPath": "github.com/docker/libnetwork/ipamapi",
+			"Comment": "v0.5.6-45-g7586649",
+			"Rev": "7586649195296528de75fd26a61666b26f493b20"
 		},
 		{
 			"ImportPath": "github.com/docker/libnetwork/ipams/remote/api",
-			"Comment": "v0.2-654-g2559410",
-			"Rev": "2559410949b7200a81f63e0333ae768fe7a73d71"
+			"Comment": "v0.5.6-45-g7586649",
+			"Rev": "7586649195296528de75fd26a61666b26f493b20"
 		},
 		{
 			"ImportPath": "github.com/docker/libnetwork/types",
-			"Comment": "v0.2-654-g2559410",
-			"Rev": "2559410949b7200a81f63e0333ae768fe7a73d71"
+			"Comment": "v0.5.6-45-g7586649",
+			"Rev": "7586649195296528de75fd26a61666b26f493b20"
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
@@ -220,10 +230,6 @@
 		{
 			"ImportPath": "golang.org/x/net/trace",
 			"Rev": "195180cfebf7362bd243a52477697895128c8777"
-		},
-		{
-			"ImportPath": "golang.org/x/sys/unix",
-			"Rev": "eb2c74142fd19a79b3f237334c7384d5167b1b46"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc",
