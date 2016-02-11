@@ -381,26 +381,28 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 		err = sw.ofnetAgent.RemoveLocalEndpoint(ofpPort)
 		if err != nil {
 			log.Errorf("Error removing port %s from ofnet. Err: %v", ovsPortName, err)
+			// continue with further cleanup
 		}
 	}
 
 	// Delete it from ovsdb
 	err = sw.ovsdbDriver.DeletePort(ovsPortName)
 	if err != nil {
-		return err
+		log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
+		// continue with further cleanup
 	}
 
 	// Delete the Veth pairs if required
 	if useVethPair {
 		// Delete a Veth pair
-		err := deleteVethPair(ovsPortName, epOper.PortName)
-		if err != nil {
-			log.Errorf("Error creating veth pairs. Err: %v", err)
-			return err
+		verr := deleteVethPair(ovsPortName, epOper.PortName)
+		if verr != nil {
+			log.Errorf("Error creating veth pairs. Err: %v", verr)
+			return verr
 		}
 	}
 
-	return nil
+	return err
 }
 
 // vxlanIfName returns formatted vxlan interface name
