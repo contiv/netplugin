@@ -365,21 +365,10 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 
 	// Get the OVS port name
 	ovsPortName := getOvsPostName(epOper.PortName)
-
-	// Delete the Veth pairs if required
-	if useVethPair {
-		// Delete a Veth pair
-		err := deleteVethPair(ovsPortName, epOper.PortName)
-		if err != nil {
-			log.Errorf("Error creating veth pairs. Err: %v", err)
-			// Continue to cleanup remaining state
-		}
-
-	} else {
+	if !useVethPair {
 		ovsPortName = epOper.PortName
 	}
 
-	// Remove info from ofnet
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
 	if err != nil {
@@ -387,6 +376,7 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 		return err
 	}
 
+	// Remove info from ofnet
 	if sw.ofnetAgent != nil {
 		err = sw.ofnetAgent.RemoveLocalEndpoint(ofpPort)
 		if err != nil {
@@ -398,6 +388,16 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState) error {
 	err = sw.ovsdbDriver.DeletePort(ovsPortName)
 	if err != nil {
 		return err
+	}
+
+	// Delete the Veth pairs if required
+	if useVethPair {
+		// Delete a Veth pair
+		err := deleteVethPair(ovsPortName, epOper.PortName)
+		if err != nil {
+			log.Errorf("Error creating veth pairs. Err: %v", err)
+			return err
+		}
 	}
 
 	return nil
