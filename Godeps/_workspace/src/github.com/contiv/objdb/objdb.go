@@ -51,6 +51,8 @@ type LockInterface interface {
 //      identify an instance of a service
 type ServiceInfo struct {
 	ServiceName string // Name of the service
+	Role        string // Role of the service. (leader, follower etc)
+	Version     string // Version string for the service
 	HostAddr    string // Host name or IP address where its running
 	Port        int    // Port number where its listening
 }

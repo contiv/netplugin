@@ -2,6 +2,7 @@ import api.tutils
 import time
 import sys
 import api.objmodel
+import api.etcd
 import random
 
 # Check ping between all containers in the same network
@@ -124,20 +125,85 @@ def triggerNetpluginRestart(testbed):
         # Wait a little
         time.sleep(10)
 
+# Trigger netplugin disconnect/connect
+def triggerNetpluginDisconectConnect(testbed):
+    for node in testbed.nodes:
+        api.tutils.info("Stopping netplugin on " + node.hostname)
+        node.stopNetplugin()
+
+        # Wait for netplugin service to expire
+        time.sleep(90)
+
+        # Move old log file
+        currTime = time.strftime("%H:%M:%S", time.localtime())
+        node.runCmd("mv /tmp/netplugin.log /tmp/netplugin-" + currTime + ".log")
+
+        api.tutils.info("Restarting netplugin on " + node.hostname)
+        node.startNetplugin()
+
+        # Wait a little
+        time.sleep(10)
+
+        # Check for errors
+        testbed.chekForNetpluginErrors()
 
 # Trigger netmaster restart
 def triggerNetmasterRestart(testbed):
-    api.tutils.info("Restarting netmaster on " + testbed.nodes[0].hostname)
-    testbed.nodes[0].stopNetmaster()
-    time.sleep(1)
+    for node in testbed.nodes:
+        api.tutils.info("Restarting netmaster on " + testbed.nodes[0].hostname)
+        node.stopNetmaster()
+        time.sleep(1)
 
-    currTime = time.strftime("%H:%M:%S", time.localtime())
-    testbed.nodes[0].runCmd("mv /tmp/netmaster.log /tmp/netmaster-" + currTime + ".log")
+        currTime = time.strftime("%H:%M:%S", time.localtime())
+        node.runCmd("mv /tmp/netmaster.log /tmp/netmaster-" + currTime + ".log")
 
-    testbed.nodes[0].startNetmaster()
+        node.startNetmaster()
 
-    # Wait a little
-    time.sleep(10)
+        # Wait a little
+        time.sleep(10)
+
+# Trigger netmaster restart
+def triggerNetmasterSwitchover(testbed):
+    for node in testbed.nodes:
+        # Read netmaster service info
+        srvKey = '/contiv.io/service/netmaster/' + node.addr + ':9999'
+        srvInfo = api.etcd.etcdClient('http://localhost:4001').getKey(srvKey)
+
+        # Check if its the leader
+        if srvInfo['Role'] == "leader":
+            api.tutils.info("Switching over netmaster from " + node.hostname)
+            node.stopNetmaster()
+            # Wit till leader lock times out
+            time.sleep(45)
+
+            currTime = time.strftime("%H:%M:%S", time.localtime())
+            node.runCmd("mv /tmp/netmaster.log /tmp/netmaster-" + currTime + ".log")
+
+            node.startNetmaster()
+
+            # Wait a little
+            time.sleep(10)
+
+            # re-read netmaster service list and make sure someone else is leader
+            foundLeader = False
+            srvList = api.etcd.etcdClient('http://localhost:4001').listKey('/contiv.io/service/netmaster/')
+            for srv in srvList:
+                if srv['Role'] == "leader":
+                    foundLeader = True
+                    api.tutils.log(srv['HostAddr'] + " is the new leader")
+                    # Make sure new leader is not same as old leader
+                    if srv['HostAddr'] == node.addr:
+                        api.tutils.exit("Netmaster switchover failed (old host is still leader)")
+
+            # Make sure we found atleast one leader
+            if foundLeader == False:
+                api.tutils.exit("No Leader found after switchover")
+
+            # Switchover trigger is done
+            return
+
+    # If we reached here, we found no leader
+    api.tutils.exit("No Leader found to perform switchover")
 
 # Trigger removal/add of all containers
 def triggerRestartContainers(testbed, netContainers, grpContainers, netNames, groupNames):
@@ -251,3 +317,77 @@ def testMultiTrigger(testbed, numIter, numTenants=1, numNetworksPerTenant=1, num
 
     # Done
     api.tutils.info("testMultiTrigger PASSED")
+
+# Test netmaster switchover tests
+def netmasterSwitchoverTest(testbed, numContainer, numIter, encap="vxlan"):
+    api.tutils.info("netmasterSwitchoverTest starting")
+
+    tenant = api.objmodel.tenant('default')
+    network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254", encap=encap)
+
+    # Always run even number of iterations so that mastership comes back to original node
+    numIter = numIter + (numIter % 2)
+    for iter in range(numIter):
+        # Start the containers
+        containers = testbed.runContainers(numContainer)
+
+        # Perform netmaster switchover
+        triggerNetmasterSwitchover(testbed)
+
+        # Perform ping test on the containers
+        testbed.pingTest(containers)
+
+        # remove containers
+        for cnt in containers:
+            cnt.remove()
+
+        # Check for errors
+        testbed.chekForNetpluginErrors()
+
+        # Iteration is done
+        api.tutils.info("netmasterSwitchoverTest iteration " + str(iter) + " Passed")
+
+    # Delete the network we created
+    tenant.deleteNetwork('private')
+
+    # Check for errors
+    testbed.chekForNetpluginErrors()
+
+    # Test is done
+    api.tutils.info("netmasterSwitchoverTest Test passed")
+
+# Test netplugin disconnect/connect
+def netpluginDisconnectTest(testbed, numContainer, numIter, encap="vxlan"):
+    api.tutils.info("netpluginDisconnectTest starting")
+
+    tenant = api.objmodel.tenant('default')
+    network = tenant.newNetwork('private', pktTag=1001, subnet="10.1.0.0/16", gateway="10.1.1.254", encap=encap)
+
+    for iter in range(numIter):
+        # Start the containers
+        containers = testbed.runContainers(numContainer)
+
+        # Perform netplugin disconnect/connect
+        triggerNetpluginDisconectConnect(testbed)
+
+        # Perform ping test on the containers
+        testbed.pingTest(containers)
+
+        # remove containers
+        for cnt in containers:
+            cnt.remove()
+
+        # Check for errors
+        testbed.chekForNetpluginErrors()
+
+        # Iteration is done
+        api.tutils.info("netpluginDisconnectTest iteration " + str(iter) + " Passed")
+
+    # Delete the network we created
+    tenant.deleteNetwork('private')
+
+    # Check for errors
+    testbed.chekForNetpluginErrors()
+
+    # Test is done
+    api.tutils.info("netpluginDisconnectTest Test passed")

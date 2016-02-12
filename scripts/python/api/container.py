@@ -85,7 +85,7 @@ class Container:
         tutils.log("Checking ping from " + self.myId() + " to " + ipAddr)
         out, err, exitCode = self.execCmd("ping -c 5 -i 0.2 " + ipAddr)
         if err != [] or exitCode != 0:
-            print "ping exit(" + str(exitCode) + ") Output: " + pingOutput
+            print "ping exit(" + str(exitCode) + ") Output: " + ''.join(out)
             print "Error during ping"
             print err
             tutils.exit("Ping failed")
@@ -119,7 +119,7 @@ class Container:
     # Start netcast listener on container
     def startListener(self, port, protocol="tcp"):
         protoStr = "-u " if protocol == "udp" else " "
-        out, err, exitCode = self.execBgndCmd("netcat -k -l -p " + protoStr + str(port))
+        out, err, exitCode = self.execBgndCmd("netcat -k -l " + protoStr + "-p " + str(port))
         if exitCode != 0:
             self.errorExit("Error starting netcat", out, err)
 

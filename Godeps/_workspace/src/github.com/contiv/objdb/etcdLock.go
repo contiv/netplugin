@@ -17,20 +17,19 @@ const EtcdErrorCodeKeyExists = 105
 
 // Lock object
 type Lock struct {
-	name          string
-	myID          string
-	isAcquired    bool
-	isReleased    bool
-	holderID      string
-	ttl           uint64
-	timeout       uint64
-	modifiedIndex uint64
-	eventChan     chan LockEvent
-	stopChan      chan bool
-	watchCh       chan *etcd.Response
-	watchStopCh   chan bool
-	client        *etcd.Client
-	mutex         *sync.Mutex
+	name        string
+	myID        string
+	isAcquired  bool
+	isReleased  bool
+	holderID    string
+	ttl         uint64
+	timeout     uint64
+	eventChan   chan LockEvent
+	stopChan    chan bool
+	watchCh     chan *etcd.Response
+	watchStopCh chan bool
+	client      *etcd.Client
+	mutex       *sync.Mutex
 }
 
 // Create a new lock
@@ -77,14 +76,11 @@ func (ep *Lock) Release() error {
 	// If the lock was acquired, release it
 	if ep.isAcquired {
 		// Update TTL on the lock
-		resp, err := ep.client.CompareAndDelete(keyName, ep.myID, ep.modifiedIndex)
+		resp, err := ep.client.CompareAndDelete(keyName, ep.myID, 0)
 		if err != nil {
 			log.Errorf("Error Deleting key. Err: %v", err)
 		} else {
 			log.Infof("Deleted key lock %s, Resp: %+v", keyName, resp)
-
-			// Update modifiedIndex
-			ep.modifiedIndex = resp.Node.ModifiedIndex
 		}
 	}
 
@@ -124,7 +120,17 @@ func (ep *Lock) IsAcquired() bool {
 func (ep *Lock) GetHolder() string {
 	ep.mutex.Lock()
 	defer ep.mutex.Unlock()
-	return ep.holderID
+
+	keyName := "/contiv.io/lock/" + ep.name
+
+	// Get the current value
+	resp, err := ep.client.Get(keyName, false, false)
+	if err != nil {
+		log.Warnf("Could not get current holder for lock %s", ep.name)
+		return ""
+	}
+
+	return resp.Node.Value
 }
 
 // *********************** Internal functions *************
@@ -163,7 +169,6 @@ func (ep *Lock) acquireLock() {
 				// Successfully acquired the lock
 				ep.isAcquired = true
 				ep.holderID = ep.myID
-				ep.modifiedIndex = resp.Node.ModifiedIndex
 				ep.mutex.Unlock()
 
 				// Send acquired message to event channel
@@ -187,7 +192,6 @@ func (ep *Lock) acquireLock() {
 			// We have already acquired the lock. just keep refreshing it
 			ep.isAcquired = true
 			ep.holderID = ep.myID
-			ep.modifiedIndex = resp.Node.ModifiedIndex
 			ep.mutex.Unlock()
 
 			// Send acquired message to event channel
@@ -290,8 +294,7 @@ func (ep *Lock) refreshLock() {
 		select {
 		case <-time.After(refreshIntvl):
 			// Update TTL on the lock
-			resp, err := ep.client.CompareAndSwap(keyName, ep.myID, ep.ttl,
-				ep.myID, ep.modifiedIndex)
+			resp, err := ep.client.CompareAndSwap(keyName, ep.myID, ep.ttl, ep.myID, 0)
 			if err != nil {
 				log.Errorf("Error updating TTl. Err: %v", err)
 
@@ -307,11 +310,6 @@ func (ep *Lock) refreshLock() {
 				return
 			} else {
 				log.Debugf("Refreshed TTL on lock %s, Resp: %+v", keyName, resp)
-
-				ep.mutex.Lock()
-				// Update modifiedIndex
-				ep.modifiedIndex = resp.Node.ModifiedIndex
-				ep.mutex.Unlock()
 			}
 		case watchResp := <-ep.watchCh:
 			// Since we already acquired the lock, nothing to do here

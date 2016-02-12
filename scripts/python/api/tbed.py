@@ -33,15 +33,18 @@ class Testbed:
 
         # Start netplugin on all nodes
         for node in self.nodes:
-            print "Starting netplugin on " + node.addr
+            print "Starting netplugin on " + node.hostname
             node.startNetplugin()
 
         # Wait few seconds before starting netmaster
         time.sleep(3)
 
         # Start netmaster in the end
-        print "Starting netmaster"
-        self.nodes[0].startNetmaster()
+        for nidx, node in enumerate(self.nodes):
+            # Start netmaster only on first three nodes
+            if nidx < 3:
+                print "Starting netmaster on " + node.hostname
+                node.startNetmaster()
 
     # Cleanup a testbed once test is done
     def cleanup(self):
@@ -51,8 +54,9 @@ class Testbed:
             node.cleanupContainers()
 
         # Stop netmaster and remove networks
-        self.nodes[0].stopNetmaster()
-        self.nodes[0].cleanupDockerNetwork()
+        for node in self.nodes:
+            node.stopNetmaster()
+            node.cleanupDockerNetwork()
 
         for node in self.nodes:
             print "Cleaning up node " + node.addr

@@ -32,6 +32,11 @@ func (self *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
 
 	log.Infof("Registering service key: %s, value: %+v", keyName, serviceInfo)
 
+	// if there is a previously registered service, de-register it
+	if self.serviceDb[keyName] != nil {
+		self.DeregisterService(serviceInfo)
+	}
+
 	// JSON format the object
 	jsonVal, err := json.Marshal(serviceInfo)
 	if err != nil {

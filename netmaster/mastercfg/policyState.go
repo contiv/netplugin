@@ -17,6 +17,7 @@ package mastercfg
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -56,13 +57,10 @@ var ofnetMaster *ofnet.OfnetMaster
 var stateStore core.StateDriver
 
 // InitPolicyMgr initializes the policy manager
-func InitPolicyMgr(stateDriver core.StateDriver) error {
-	ofnetMaster = ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
-	if ofnetMaster == nil {
-		log.Fatalf("Error creating ofnet master")
-	}
-
+func InitPolicyMgr(stateDriver core.StateDriver, ofm *ofnet.OfnetMaster) error {
+	// save statestore and ofnet masters
 	stateStore = stateDriver
+	ofnetMaster = ofm
 
 	// restore all existing epg policies
 	err := restoreEpgPolicies(stateDriver)
@@ -199,6 +197,26 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		}
 
 		remoteEpgID = epg.EndpointGroupID
+	} else if rule.FromNetwork != "" {
+		netKey := rule.TenantName + ":" + rule.FromNetwork
+
+		net := contivModel.FindNetwork(netKey)
+		if net == nil {
+			log.Errorf("Network %s not found", netKey)
+			return nil, errors.New("FromNetwork not found")
+		}
+
+		rule.FromIpAddress = net.Subnet
+	} else if rule.ToNetwork != "" {
+		netKey := rule.TenantName + ":" + rule.ToNetwork
+
+		net := contivModel.FindNetwork(netKey)
+		if net == nil {
+			log.Errorf("Network %s not found", netKey)
+			return nil, errors.New("ToNetwork not found")
+		}
+
+		rule.ToIpAddress = net.Subnet
 	}
 
 	// Set protocol

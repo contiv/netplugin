@@ -31,6 +31,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
 )
 
@@ -82,8 +83,13 @@ func TestMain(m *testing.M) {
 	// Create a new api controller
 	apiController = NewAPIController(router)
 
+	ofnetMaster := ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
+	if ofnetMaster == nil {
+		log.Fatalf("Error creating ofnet master")
+	}
+
 	// initialize policy manager
-	mastercfg.InitPolicyMgr(stateStore)
+	mastercfg.InitPolicyMgr(stateStore, ofnetMaster)
 
 	// Create HTTP server
 	go http.ListenAndServe(netmasterTestListenURL, router)
@@ -591,27 +597,29 @@ func TestPolicyRules(t *testing.T) {
 	checkCreatePolicy(t, true, "tenant1", "policy1")
 
 	// add rules
-	checkCreateRule(t, false, "default", "policy1", "1", "in", "contiv", "", "10.1.1.1/24", "", "", "", "tcp", "allow", 1, 80)
-	checkCreateRule(t, false, "default", "policy1", "2", "in", "contiv", "", "10.1.1.1/24", "", "", "", "", "deny", 1, 0)
-	checkCreateRule(t, false, "default", "policy1", "3", "out", "", "", "", "contiv", "", "10.1.1.1/24", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "1", "in", "contiv", "", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "2", "in", "contiv", "", "", "", "", "", "", "deny", 1, 0)
+	checkCreateRule(t, false, "default", "policy1", "3", "out", "", "", "", "contiv", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "4", "in", "", "", "10.1.1.1/24", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "5", "out", "", "", "", "", "", "10.1.1.1/24", "tcp", "allow", 1, 80)
 
 	// verify duplicate rule id fails
-	checkCreateRule(t, true, "default", "policy1", "1", "in", "contiv", "", "10.1.1.1/24", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "1", "in", "contiv", "", "", "", "", "", "tcp", "allow", 1, 80)
 
 	// verify unknown directions fail
 	checkCreateRule(t, true, "default", "policy1", "100", "both", "", "", "", "", "", "", "tcp", "allow", 1, 0)
 	checkCreateRule(t, true, "default", "policy1", "100", "xyz", "", "", "", "", "", "", "tcp", "allow", 1, 0)
 
 	// verify unknown protocol fails
-	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "10.1.1.1/24", "", "", "", "xyz", "allow", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "", "", "", "", "xyz", "allow", 1, 80)
 
 	// verify unknown action fails
-	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "10.1.1.1/24", "", "", "", "tcp", "xyz", 1, 80)
-	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "10.1.1.1/24", "", "", "", "tcp", "accept", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "", "", "", "", "tcp", "xyz", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "", "", "", "", "tcp", "accept", 1, 80)
 
 	// verify rule on unknown tenant/policy fails
-	checkCreateRule(t, true, "default", "policy2", "1", "in", "", "", "", "", "", "", "", "allow", 1, 0)
-	checkCreateRule(t, true, "tenant", "policy1", "1", "in", "", "", "", "", "", "", "", "allow", 1, 0)
+	checkCreateRule(t, true, "default", "policy2", "100", "in", "", "", "", "", "", "", "", "allow", 1, 0)
+	checkCreateRule(t, true, "tenant", "policy1", "100", "in", "", "", "", "", "", "", "", "allow", 1, 0)
 
 	// verify invalid to/from and direction combos fail
 	checkCreateRule(t, true, "default", "policy1", "100", "in", "", "", "", "invalid", "", "", "tcp", "allow", 1, 80)
@@ -621,12 +629,18 @@ func TestPolicyRules(t *testing.T) {
 	checkCreateRule(t, true, "default", "policy1", "100", "out", "", "invalid", "", "", "", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, true, "default", "policy1", "100", "out", "", "", "invalid", "", "", "", "tcp", "allow", 1, 80)
 
+	// verify cant specify both from/to network and from/to ip addresses
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "10.1.1.1/24", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "out", "", "", "", "contiv", "", "10.1.1.1/24", "tcp", "allow", 1, 80)
+
 	// checkCreateRule(t, true, tenant, policy, ruleID, dir, fnet, fepg, fip, tnet, tepg, tip, proto, prio, port)
 
 	// delete rules
 	checkDeleteRule(t, false, "default", "policy1", "1")
 	checkDeleteRule(t, false, "default", "policy1", "2")
 	checkDeleteRule(t, false, "default", "policy1", "3")
+	checkDeleteRule(t, false, "default", "policy1", "4")
+	checkDeleteRule(t, false, "default", "policy1", "5")
 
 	// verify cant delete a rule and policy that doesnt exist
 	checkDeleteRule(t, true, "default", "policy1", "100")
@@ -645,9 +659,9 @@ func TestEpgPolicies(t *testing.T) {
 	checkCreatePolicy(t, false, "default", "policy1")
 
 	// add rules
-	checkCreateRule(t, false, "default", "policy1", "1", "in", "contiv", "", "10.1.1.1/24", "", "", "", "tcp", "allow", 1, 80)
-	checkCreateRule(t, false, "default", "policy1", "2", "in", "contiv", "", "10.1.1.1/24", "", "", "", "", "deny", 1, 0)
-	checkCreateRule(t, false, "default", "policy1", "3", "out", "", "", "", "contiv", "", "10.1.1.1/24", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "1", "in", "contiv", "", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "2", "in", "contiv", "", "", "", "", "", "", "deny", 1, 0)
+	checkCreateRule(t, false, "default", "policy1", "3", "out", "", "", "", "contiv", "", "", "tcp", "allow", 1, 80)
 
 	// create EPG and attach policy to it
 	checkCreateEpg(t, false, "default", "contiv", "group1", []string{"policy1"})

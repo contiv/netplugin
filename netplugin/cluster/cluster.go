@@ -35,28 +35,34 @@ import (
 // This file implements netplugin <-> netmaster clustering
 
 // Database of master nodes
-var masterDB = make(map[string]*core.ServiceInfo)
+var masterDB = make(map[string]*objdb.ServiceInfo)
 
-func masterKey(srvInfo core.ServiceInfo) string {
+func masterKey(srvInfo objdb.ServiceInfo) string {
 	return srvInfo.HostAddr + ":" + fmt.Sprintf("%d", srvInfo.Port)
 }
 
 // Add a master node
-func addMaster(netplugin *plugin.NetPlugin, srvInfo core.ServiceInfo) error {
+func addMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 	// save it in db
 	masterDB[masterKey(srvInfo)] = &srvInfo
 
 	// tell the plugin about the master
-	return netplugin.AddMaster(srvInfo)
+	return netplugin.AddMaster(core.ServiceInfo{
+		HostAddr: srvInfo.HostAddr,
+		Port:     ofnet.OFNET_MASTER_PORT,
+	})
 }
 
 // delete master node
-func deleteMaster(netplugin *plugin.NetPlugin, srvInfo core.ServiceInfo) error {
+func deleteMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 	// delete from the db
 	delete(masterDB, masterKey(srvInfo))
 
 	// tel plugin about it
-	return netplugin.DeleteMaster(srvInfo)
+	return netplugin.DeleteMaster(core.ServiceInfo{
+		HostAddr: srvInfo.HostAddr,
+		Port:     srvInfo.Port,
+	})
 }
 
 // httpPost performs http POST operation
@@ -100,8 +106,45 @@ func httpPost(url string, req interface{}, resp interface{}) error {
 	return nil
 }
 
+// getMasterLockHolder returns the IP of current master lock hoder
+func getMasterLockHolder() (string, error) {
+	// Create an objdb client
+	objdbClient := objdb.NewClient("")
+
+	// Create the lock
+	leaderLock, err := objdbClient.NewLock("netmaster/leader", "", 0)
+	if err != nil {
+		log.Fatalf("Could not create leader lock. Err: %v", err)
+	}
+
+	// get current holder of leader lock
+	masterNode := leaderLock.GetHolder()
+	if masterNode == "" {
+		log.Errorf("No leader node found")
+		return "", errors.New("No leader node")
+	}
+
+	return masterNode, nil
+}
+
 // MasterPostReq makes a POST request to master node
 func MasterPostReq(path string, req interface{}, resp interface{}) error {
+	// first find the holder of master lock
+	masterNode, err := getMasterLockHolder()
+	if err == nil {
+		url := "http://" + masterNode + ":9999" + path
+		log.Infof("Making REST request to url: %s", url)
+
+		// Make the REST call to master
+		err := httpPost(url, req, resp)
+		if err != nil {
+			log.Errorf("Error making POST request: Err: %v", err)
+		}
+
+		return err
+	}
+
+	// Walk all netmasters and see if any of them respond
 	for _, master := range masterDB {
 		url := "http://" + master.HostAddr + ":9999" + path
 
@@ -185,7 +228,6 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
 				}
-
 			} else if srvEvent.EventType == objdb.WatchServiceEventDel {
 				log.Infof("Node delete event for {%+v}", nodeInfo)
 
@@ -209,10 +251,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 				log.Infof("Master add event for {%+v}", nodeInfo)
 
 				// Add the master
-				err := addMaster(netplugin, core.ServiceInfo{
-					HostAddr: nodeInfo.HostAddr,
-					Port:     ofnet.OFNET_MASTER_PORT,
-				})
+				err := addMaster(netplugin, nodeInfo)
 				if err != nil {
 					log.Errorf("Error adding master {%+v}. Err: %v", nodeInfo, err)
 				}
@@ -220,10 +259,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 				log.Infof("Master delete event for {%+v}", nodeInfo)
 
 				// Delete the master
-				err := deleteMaster(netplugin, core.ServiceInfo{
-					HostAddr: nodeInfo.HostAddr,
-					Port:     nodeInfo.Port,
-				})
+				err := deleteMaster(netplugin, nodeInfo)
 				if err != nil {
 					log.Errorf("Error deleting master {%+v}. Err: %v", nodeInfo, err)
 				}

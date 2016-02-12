@@ -27,6 +27,9 @@ import (
 
 // This file has security policy rule implementation
 
+const TCP_FLAG_ACK = 0x10
+const TCP_FLAG_SYN = 0x2
+
 // PolicyRule has info about single rule
 type PolicyRule struct {
 	rule *OfnetPolicyRule // rule definition
@@ -183,6 +186,7 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 	var mdm *uint64 = nil
 	var flag, flagMask uint16
 	var flagPtr, flagMaskPtr *uint16
+	var err error
 
 	// check if we already have the rule
 	if self.Rules[rule.RuleId] != nil {
@@ -200,28 +204,20 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 
 	// Parse dst ip
 	if rule.DstIpAddr != "" {
-		ipDav, ipNet, err := net.ParseCIDR(rule.DstIpAddr)
+		ipDa, ipDaMask, err = ParseIPAddrMaskString(rule.DstIpAddr)
 		if err != nil {
 			log.Errorf("Error parsing dst ip %s. Err: %v", rule.DstIpAddr, err)
 			return err
 		}
-
-		ipDa = &ipDav
-		ipMask := net.ParseIP("255.255.255.255").Mask(ipNet.Mask)
-		ipDaMask = &ipMask
 	}
 
 	// parse src ip
 	if rule.SrcIpAddr != "" {
-		ipSav, ipNet, err := net.ParseCIDR(rule.SrcIpAddr)
+		ipSa, ipSaMask, err = ParseIPAddrMaskString(rule.SrcIpAddr)
 		if err != nil {
 			log.Errorf("Error parsing src ip %s. Err: %v", rule.SrcIpAddr, err)
 			return err
 		}
-
-		ipSa = &ipSav
-		ipMask := net.ParseIP("255.255.255.255").Mask(ipNet.Mask)
-		ipSaMask = &ipMask
 	}
 
 	// parse source/dst endpoint groups
@@ -242,8 +238,6 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 		mdm = &dstMetadataMask
 	}
 
-	const TCP_FLAG_ACK = 0x10
-	const TCP_FLAG_SYN = 0x2
 	// Setup TCP flags
 	if rule.IpProtocol == 6 && rule.TcpFlags != "" {
 		switch rule.TcpFlags {
