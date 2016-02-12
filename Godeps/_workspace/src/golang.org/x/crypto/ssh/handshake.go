@@ -59,14 +59,7 @@ type handshakeTransport struct {
 	serverVersion []byte
 	clientVersion []byte
 
-	// hostKeys is non-empty if we are the server. In that case,
-	// it contains all host keys that can be used to sign the
-	// connection.
-	hostKeys []Signer
-
-	// hostKeyAlgorithms is non-empty if we are the client. In that case,
-	// we accept these key types from the server as host key.
-	hostKeyAlgorithms []string
+	hostKeys []Signer // If hostKeys are given, we are the server.
 
 	// On read error, incoming is closed, and readError is set.
 	incoming  chan []byte
@@ -105,11 +98,6 @@ func newClientTransport(conn keyingTransport, clientVersion, serverVersion []byt
 	t.dialAddress = dialAddr
 	t.remoteAddr = addr
 	t.hostKeyCallback = config.HostKeyCallback
-	if config.HostKeyAlgorithms != nil {
-		t.hostKeyAlgorithms = config.HostKeyAlgorithms
-	} else {
-		t.hostKeyAlgorithms = supportedHostKeyAlgos
-	}
 	go t.readLoop()
 	return t
 }
@@ -246,7 +234,7 @@ func (t *handshakeTransport) sendKexInitLocked() (*kexInitMsg, []byte, error) {
 				msg.ServerHostKeyAlgos, k.PublicKey().Type())
 		}
 	} else {
-		msg.ServerHostKeyAlgos = t.hostKeyAlgorithms
+		msg.ServerHostKeyAlgos = supportedHostKeyAlgos
 	}
 	packet := Marshal(msg)
 
@@ -265,8 +253,6 @@ func (t *handshakeTransport) sendKexInitLocked() (*kexInitMsg, []byte, error) {
 
 func (t *handshakeTransport) writePacket(p []byte) error {
 	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if t.writtenSinceKex > t.config.RekeyThreshold {
 		t.sendKexInitLocked()
 	}
@@ -278,14 +264,17 @@ func (t *handshakeTransport) writePacket(p []byte) error {
 	}
 	t.writtenSinceKex += uint64(len(p))
 
+	var err error
 	switch p[0] {
 	case msgKexInit:
-		return errors.New("ssh: only handshakeTransport can send kexInit")
+		err = errors.New("ssh: only handshakeTransport can send kexInit")
 	case msgNewKeys:
-		return errors.New("ssh: only handshakeTransport can send newKeys")
+		err = errors.New("ssh: only handshakeTransport can send newKeys")
 	default:
-		return t.conn.writePacket(p)
+		err = t.conn.writePacket(p)
 	}
+	t.mu.Unlock()
+	return err
 }
 
 func (t *handshakeTransport) Close() error {
