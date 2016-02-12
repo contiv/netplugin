@@ -180,13 +180,19 @@ func attachServiceContainer(tenantName, networkName string, stateDriver core.Sta
 					"Continuing without DNS provider. Error: %v", err)
 				return nil
 			}
+			cinfo, err = docker.InspectContainer(contName)
+			if err != nil {
+				log.Warnf("Error fetching container info after starting %s"+
+					"Continuing without DNS provider. Error: %s", contName, err)
+				return nil
+			}
 		}
 	}
 
 	// If it's not in running state, restart the container.
 	// This case can occur if the host is reloaded
 	if !cinfo.State.Running {
-		log.Debugf("Container %s not running. Restarting the conttainer", contName)
+		log.Debugf("Container %s not running. Restarting the container", contName)
 		err = docker.RestartContainer(contName, 0)
 		if err != nil {
 			log.Warnf("Error restarting service container %s. "+
@@ -197,6 +203,11 @@ func attachServiceContainer(tenantName, networkName string, stateDriver core.Sta
 
 		// Refetch container info after restart
 		cinfo, err = docker.InspectContainer(contName)
+		if err != nil {
+			log.Warnf("Error fetching container info after restarting %s"+
+				"Continuing without DNS provider. Error: %s", contName, err)
+			return nil
+		}
 	}
 
 	log.Debugf("Container info: %+v\n Hostconfig: %+v", cinfo, cinfo.HostConfig)
@@ -207,7 +218,7 @@ func attachServiceContainer(tenantName, networkName string, stateDriver core.Sta
 	err = docker.ConnectNetwork(dnetName, contName)
 	if err != nil {
 		log.Warnf("Could not attach container(%s) to network %s. "+
-			"Continuing with DNS provider. Error: %s",
+			"Continuing without DNS provider. Error: %s",
 			contName, dnetName, err)
 		return nil
 	}

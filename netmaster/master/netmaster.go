@@ -54,7 +54,6 @@ func SetClusterMode(cm string) error {
 	}
 
 	masterRTCfg.clusterMode = cm
-	SetDNSEnabled(false)
 	return nil
 }
 
@@ -305,17 +304,15 @@ func stopAndRemoveServiceContainer(tenantName string) error {
 
 // DeleteTenantID deletes a tenant from the state store, by ID.
 func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
-	var err error
-
 	if IsDNSEnabled() {
-		err = stopAndRemoveServiceContainer(tenantID)
+		err := stopAndRemoveServiceContainer(tenantID)
 		if err != nil {
 			log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
 			return err
 		}
 	}
 
-	return err
+	return nil
 }
 
 // DeleteTenant deletes a tenant from the state store based on its ConfigTenant.
