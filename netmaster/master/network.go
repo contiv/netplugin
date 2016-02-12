@@ -371,17 +371,17 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
+	// Check if there are any active endpoints
+	if hasActiveEndpoints(nwCfg) {
+		return core.Errorf("Error: Network has active endpoints")
+	}
+
 	if IsDNSEnabled() {
 		// detach Dns container
 		err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
 		if err != nil {
 			log.Errorf("Error detaching service container. Err: %v", err)
 		}
-	}
-
-	// Check if there are any active endpoints
-	if hasActiveEndpoints(nwCfg) {
-		return core.Errorf("Error: Network has active endpoints")
 	}
 
 	if GetClusterMode() == "docker" {
@@ -534,5 +534,7 @@ func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) e
 }
 
 func hasActiveEndpoints(nwCfg *mastercfg.CfgNetworkState) bool {
-	return nwCfg.EpCount > 0
+	// We spin a dns container if IsDNSEnabled() == true
+	// We need to exlude that from Active EPs check.
+	return (IsDNSEnabled() && nwCfg.EpCount > 1) || ((!IsDNSEnabled()) && nwCfg.EpCount > 0)
 }
