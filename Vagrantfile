@@ -118,6 +118,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 v.customize ['modifyvm', :id, '--nictype3', 'virtio']
                 v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
+                v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
             end
 
             # mount the host directories
