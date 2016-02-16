@@ -48,6 +48,7 @@ type epSpec struct {
 type epAttr struct {
 	IPAddress string
 	PortName  string
+	Gateway   string
 }
 
 // netdGetEndpoint is a utility that reads the EP oper state
@@ -168,6 +169,7 @@ func createEP(req *epSpec) (*epAttr, error) {
 	epResponse := epAttr{}
 	epResponse.PortName = ep.PortName
 	epResponse.IPAddress = ep.IPAddress + "/" + strconv.Itoa(int(nw.SubnetLen))
+	epResponse.Gateway = nw.Gateway
 
 	return &epResponse, nil
 }
@@ -206,13 +208,7 @@ func nsToPID(ns string) (int, error) {
 }
 
 // setIfAttrs sets the required attributes for the container interface
-func setIfAttrs(ifname, netns, cidr, newname string) error {
-
-	// convert netns to pid that netlink needs
-	pid, err := nsToPID(netns)
-	if err != nil {
-		return err
-	}
+func setIfAttrs(pid int, ifname, cidr, newname string) error {
 
 	nsenterPath, err := osexec.LookPath("nsenter")
 	if err != nil {
@@ -269,9 +265,31 @@ func setIfAttrs(ifname, netns, cidr, newname string) error {
 			cidr, newname, err)
 		return nil
 	}
-	log.Infof("Output from ip assign: %v", bringUp)
+	log.Debugf("Output from ip assign: %v", bringUp)
 	return nil
 
+}
+
+// setDefGw sets the default gateway for the container namespace
+func setDefGw(pid int, gw, intfName string) error {
+	nsenterPath, err := osexec.LookPath("nsenter")
+	if err != nil {
+		return err
+	}
+	routePath, err := osexec.LookPath("route")
+	if err != nil {
+		return err
+	}
+	// set default gw
+	nsPid := fmt.Sprintf("%d", pid)
+	_, err = osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", routePath, "add",
+		"default", "gw", gw, intfName).CombinedOutput()
+	if err != nil {
+		log.Errorf("unable to set default gw %s. Error: %s",
+			gw, err)
+		return nil
+	}
+	return nil
 }
 
 // getEPSpec gets the EP spec using the pod attributes
@@ -331,10 +349,23 @@ func addPod(r *http.Request) (interface{}, error) {
 		return resp, err
 	}
 
+	// convert netns to pid that netlink needs
+	pid, err := nsToPID(pInfo.NwNameSpace)
+	if err != nil {
+		return resp, err
+	}
+
 	// Set interface attributes for the new port
-	err = setIfAttrs(ep.PortName, pInfo.NwNameSpace, ep.IPAddress, pInfo.IntfName)
+	err = setIfAttrs(pid, ep.PortName, ep.IPAddress, pInfo.IntfName)
 	if err != nil {
 		log.Errorf("Error setting interface attributes. Err: %v", err)
+		return resp, err
+	}
+
+	// Set default gateway
+	err = setDefGw(pid, ep.Gateway, pInfo.IntfName)
+	if err != nil {
+		log.Errorf("Error setting default gateway. Err: %v", err)
 		return resp, err
 	}
 
