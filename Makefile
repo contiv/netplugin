@@ -38,13 +38,13 @@ checks:
 
 run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
-	cd /opt/gopath/src/github.com/contiv/netplugin && \
+	cd /$(GOPATH)/src/github.com/contiv/netplugin && \
 	godep go install -v $(TO_BUILD) && \
 	sudo cp contrib/completion/bash/netctl /etc/bash_completion.d/netctl
 
 build:
 	make start
-	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /$(GOPATH)/src/github.com/contiv/netplugin && make run-build"'
 	make stop
 
 clean: deps
@@ -78,15 +78,15 @@ stop:
 
 demo:
 	vagrant up
-	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	vagrant ssh netplugin-node1 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -plugin-mode docker -vlan-if eth2 2>&1> /tmp/netplugin.log &"'
-	vagrant ssh netplugin-node2 -c 'nohup bash -lc "sudo /opt/gopath/bin/netplugin -plugin-mode docker -vlan-if eth2 2>&1> /tmp/netplugin.log &"'
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /$(GOPATH)/src/github.com/contiv/netplugin && make run-build"'
+	vagrant ssh netplugin-node1 -c 'nohup bash -lc "sudo /$(GOPATH)/bin/netplugin -plugin-mode docker -vlan-if eth2 2>&1> /tmp/netplugin.log &"'
+	vagrant ssh netplugin-node2 -c 'nohup bash -lc "sudo /$(GOPATH)/bin/netplugin -plugin-mode docker -vlan-if eth2 2>&1> /tmp/netplugin.log &"'
 	sleep 10
-	vagrant ssh netplugin-node1 -c 'nohup bash -lc "/opt/gopath/bin/netmaster 2>&1> /tmp/netmaster.log &"'
+	vagrant ssh netplugin-node1 -c 'nohup bash -lc "/$(GOPATH)/bin/netmaster 2>&1> /tmp/netmaster.log &"'
 	sleep 10
 
 ssh:
-	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
+	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /$(GOPATH)/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
 
 unit-test: stop clean build
 	./scripts/unittests -vagrant
@@ -95,7 +95,7 @@ centos-tests:
 	CONTIV_NODE_OS=centos make clean build unit-test sanity-test stop
 
 sanity-test: start
-	vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
+	vagrant ssh netplugin-node1 -c 'bash -lc "cd /$(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
 
 host-build:
 	@echo "dev: making binaries..."
