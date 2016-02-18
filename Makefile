@@ -38,7 +38,7 @@ checks:
 
 run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
-	cd /opt/gopath/src/github.com/contiv/netplugin && \
+	cd $(GOPATH)/src/github.com/contiv/netplugin && \
 	godep go install -v $(TO_BUILD) && \
 	sudo cp contrib/completion/bash/netctl /etc/bash_completion.d/netctl
 
