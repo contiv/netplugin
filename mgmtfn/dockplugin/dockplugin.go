@@ -92,7 +92,9 @@ func InitDockPlugin(netplugin *plugin.NetPlugin) error {
 		}
 
 		log.Infof("docker plugin listening on %s", driverPath)
-		http.Serve(l, router)
+		server := &http.Server{Handler: router}
+		server.SetKeepAlivesEnabled(false)
+		server.Serve(l)
 		l.Close()
 		log.Infof("docker plugin closing %s", driverPath)
 	}()
