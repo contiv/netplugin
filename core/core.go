@@ -21,6 +21,10 @@ limitations under the License.
 // hardware/kernel/device specific programming implementation, if any.
 package core
 
+import (
+	"github.com/contiv/ofnet"
+)
+
 // Address is a string represenation of a network address (mac, ip, dns-name, url etc)
 type Address struct {
 	addr string
@@ -101,6 +105,12 @@ type NetworkDriver interface {
 	DeleteMaster(node ServiceInfo) error
 	AddBgp(id string) error
 	DeleteBgp(id string) error
+	// Add a service spec to proxy
+	AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error
+	// Remove a service spec from proxy
+	DelSvcSpec(svcName string, spec *ofnet.ServiceSpec)
+	// Service Proxy Back End update
+	SvcProviderUpdate(svcName string, providers []string)
 }
 
 // WatchState is used to provide a difference between core.State structs by

@@ -470,6 +470,10 @@ func main() {
 	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
 	//etcd.SetLogger(logger)
 
+	if opts.pluginMode == "kubernetes" {
+		k8splugin.InitKubServiceWatch(netPlugin)
+	}
+
 	if err := handleEvents(netPlugin, opts); err != nil {
 		os.Exit(1)
 	}

@@ -17,11 +17,13 @@ package drivers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/ofnet"
 	"github.com/vishvananda/netlink"
 
 	"github.com/contiv/netplugin/core"
@@ -460,4 +462,37 @@ func (d *OvsDriver) DeleteBgp(id string) error {
 	sw = d.switchDb["vlan"]
 	return sw.DeleteBgp()
 
+}
+
+// AddSvcSpec invokes switch api
+func (d *OvsDriver) AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+	log.Infof("AddSvcSpec: %s", svcName)
+	errs := ""
+	for _, sw := range d.switchDb {
+		log.Infof("sw AddSvcSpec: %s", svcName)
+		err := sw.AddSvcSpec(svcName, spec)
+		if err != nil {
+			errs += err.Error()
+		}
+	}
+
+	if errs != "" {
+		return errors.New(errs)
+	}
+
+	return nil
+}
+
+// DelSvcSpec invokes switch api
+func (d *OvsDriver) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) {
+	for _, sw := range d.switchDb {
+		sw.DelSvcSpec(svcName, spec)
+	}
+}
+
+// SvcProviderUpdate invokes switch api
+func (d *OvsDriver) SvcProviderUpdate(svcName string, providers []string) {
+	for _, sw := range d.switchDb {
+		sw.SvcProviderUpdate(svcName, providers)
+	}
 }
