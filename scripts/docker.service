@@ -6,7 +6,7 @@ Requires=docker.socket
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/docker daemon -H fd:// --cluster-store=etcd://localhost:2379 --exec-opt native.cgroupdriver=cgroupfs
+ExecStart=/usr/bin/docker daemon -s overlay -H fd:// --cluster-store=etcd://localhost:2379 --exec-opt native.cgroupdriver=cgroupfs
 MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
