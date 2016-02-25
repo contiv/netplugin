@@ -16,7 +16,7 @@ import (
 )
 
 // DefaultMaster is the master to use when none is provided.
-const DefaultMaster = "http://localhost:9999"
+const DefaultMaster = "http://netmaster:9999"
 
 func getClient(ctx *cli.Context) *contivClient.ContivClient {
 	cl, err := contivClient.NewContivClient(ctx.GlobalString("netmaster"))
