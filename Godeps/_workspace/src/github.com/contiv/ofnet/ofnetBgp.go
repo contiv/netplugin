@@ -147,23 +147,30 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	linkIP, err := netlink.ParseAddr(intfIP)
 	if err != nil {
 		log.Errorf("invalid ip ", intfIP)
-                return err
+		return err
 	}
 	netlink.AddrAdd(link, linkIP)
-        netlink.LinkSetUp(link)
+	netlink.LinkSetUp(link)
 	if link == nil || ofPortno == 0 {
 		log.Errorf("Error fetching %v information", self.intfName, link, ofPortno)
 		return errors.New("Unable to fetch inb01 info")
 	}
 
 	intf, _ := net.InterfaceByName(self.intfName)
+	epid := self.agent.getEndpointIdByIpVrf(net.ParseIP(self.routerIP), "default")
+
+	_, ok := self.agent.createVrf("default")
+	if !ok {
+		log.Errorf("Error Creating default vrf for Bgp")
+		return errors.New("Error creating default vrf")
+	}
 
 	epreg := &OfnetEndpoint{
-		EndpointID:   self.routerIP,
+		EndpointID:   epid,
 		EndpointType: "internal-bgp",
 		IpAddr:       net.ParseIP(self.routerIP),
 		IpMask:       net.ParseIP("255.255.255.255"),
-		VrfId:        0,                          // FIXME set VRF correctly
+		Vrf:          "default",                  // FIXME set VRF correctly
 		MacAddrStr:   intf.HardwareAddr.String(), //link.Attrs().HardwareAddr.String(),
 		Vlan:         1,
 		PortNo:       ofPortno,
@@ -171,7 +178,8 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	}
 
 	// Add the endpoint to local routing table
-	self.agent.endpointDb[self.routerIP] = epreg
+
+	self.agent.endpointDb[epid] = epreg
 	self.agent.localEndpointDb[epreg.PortNo] = epreg
 	fmt.Println(epreg)
 	err = self.agent.datapath.AddLocalEndpoint(*epreg)
@@ -213,14 +221,15 @@ func (self *OfnetBgp) StopProtoServer() error {
 	}
 
 	// Delete the endpoint from local routing table
-	epreg := self.agent.getEndpointByIp(net.ParseIP(self.routerIP))
+	epreg := self.agent.getEndpointByIpVrf(net.ParseIP(self.routerIP), "default")
 	if epreg != nil {
-		delete(self.agent.endpointDb, self.routerIP)
+		delete(self.agent.endpointDb, epreg.EndpointID)
 		delete(self.agent.localEndpointDb, epreg.PortNo)
 		err = self.agent.datapath.RemoveLocalEndpoint(*epreg)
 	}
 	self.routerIP = ""
 	self.myBgpAs = 0
+	self.agent.deleteVrf("default")
 	self.stop <- true
 	return nil
 }
@@ -263,9 +272,9 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 
 	self.bgpServer.PeerDelete(p)
 
-	bgpEndpoint := self.agent.getEndpointByIp(net.ParseIP(self.myBgpPeer))
+	bgpEndpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
 	self.agent.datapath.RemoveEndpoint(bgpEndpoint)
-	delete(self.agent.endpointDb, self.myBgpPeer)
+	delete(self.agent.endpointDb, bgpEndpoint.EndpointID)
 	self.myBgpPeer = ""
 
 	uplink, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
@@ -313,13 +322,13 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 	self.bgpServer.SetPolicy(policyConfig)
 
 	log.Infof("Peer %v is added", p.NeighborConfig.NeighborAddress)
-
+	epid := self.agent.getEndpointIdByIpVrf(net.ParseIP(neighborInfo.NeighborIP), "default")
 	epreg := &OfnetEndpoint{
-		EndpointID:   neighborInfo.NeighborIP,
+		EndpointID:   epid,
 		EndpointType: "external-bgp",
 		IpAddr:       net.ParseIP(neighborInfo.NeighborIP),
 		IpMask:       net.ParseIP("255.255.255.255"),
-		VrfId:        0, // FIXME set VRF correctly
+		Vrf:          "default", // FIXME set VRF correctly
 		Vlan:         1,
 		Timestamp:    time.Now(),
 	}
@@ -546,7 +555,7 @@ func (self *OfnetBgp) monitorPeer() {
 				 2) mark routes pointing to the bgp nexthop as unresolved
 				 3) mark the bgp peer reachbility as unresolved
 			*/
-			endpoint := self.agent.getEndpointByIp(net.ParseIP(self.myBgpPeer))
+			endpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
 			self.agent.datapath.RemoveEndpoint(endpoint)
 			endpoint.PortNo = 0
 			self.agent.endpointDb[endpoint.EndpointID] = endpoint
@@ -616,7 +625,7 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 		endpointIPNet, nextHop)
 
 	//check if bgp published a route local to the host
-	epid := endpointIPNet.IP.Mask(endpointIPNet.Mask).String()
+	epid := self.agent.getEndpointIdByIpVrf(endpointIPNet.IP.Mask(endpointIPNet.Mask), "default")
 
 	//Check if the route is local
 	if nextHop == self.routerIP {
@@ -628,14 +637,14 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 			return nil
 		}
 	}
-
-	if self.agent.endpointDb[nextHop] == nil {
+	nhEpid := self.agent.getEndpointIdByIpVrf(net.ParseIP(nextHop), "default")
+	if self.agent.endpointDb[nhEpid] == nil {
 		//the nexthop is not the directly connected eBgp peer
 		macAddrStr = ""
 		portNo = 0
 	} else {
-		macAddrStr = self.agent.endpointDb[nextHop].MacAddrStr
-		portNo = self.agent.endpointDb[nextHop].PortNo
+		macAddrStr = self.agent.endpointDb[nhEpid].MacAddrStr
+		portNo = self.agent.endpointDb[nhEpid].PortNo
 	}
 
 	ipmask := net.ParseIP("255.255.255.255").Mask(endpointIPNet.Mask)
@@ -646,7 +655,7 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 			EndpointType: "external",
 			IpAddr:       endpointIPNet.IP,
 			IpMask:       ipmask,
-			VrfId:        0, // FIXME set VRF correctly
+			Vrf:          "default", // FIXME set VRF correctly
 			MacAddrStr:   macAddrStr,
 			Vlan:         1,
 			OriginatorIp: self.agent.localIp,
@@ -664,7 +673,7 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 		}
 	} else {
 		log.Info("Received route withdraw from BGP for ", endpointIPNet)
-		endpoint := self.agent.getEndpointByIp(endpointIPNet.IP)
+		endpoint := self.agent.getEndpointByIpVrf(endpointIPNet.IP, "default")
 		if endpoint != nil {
 			self.agent.datapath.RemoveEndpoint(endpoint)
 			delete(self.agent.endpointDb, endpoint.EndpointID)

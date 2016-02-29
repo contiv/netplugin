@@ -18,8 +18,8 @@ package ofctrl
 
 import (
 	"encoding/json"
-	"net"
 	"errors"
+	"net"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/shaleman/libOpenflow/openflow13"

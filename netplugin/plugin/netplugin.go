@@ -104,8 +104,8 @@ func (p *NetPlugin) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork deletes a network provided by the ID.
-func (p *NetPlugin) DeleteNetwork(id, encap string, pktTag, extPktTag int, Gw string) error {
-	return p.NetworkDriver.DeleteNetwork(id, encap, pktTag, extPktTag, Gw)
+func (p *NetPlugin) DeleteNetwork(id, encap string, pktTag, extPktTag int, Gw string, tenant string) error {
+	return p.NetworkDriver.DeleteNetwork(id, encap, pktTag, extPktTag, Gw, tenant)
 }
 
 // FetchNetwork retrieves a network's state given an ID.

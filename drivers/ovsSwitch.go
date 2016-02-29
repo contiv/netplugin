@@ -130,10 +130,10 @@ func (sw *OvsSwitch) Delete() {
 }
 
 // CreateNetwork creates a new network/vlan
-func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32, defaultGw string) error {
+func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32, defaultGw string, Vrf string) error {
 	// Add the vlan/vni to ofnet
 	if sw.ofnetAgent != nil {
-		err := sw.ofnetAgent.AddNetwork(pktTag, extPktTag, defaultGw)
+		err := sw.ofnetAgent.AddNetwork(pktTag, extPktTag, defaultGw, Vrf)
 		if err != nil {
 			log.Errorf("Error adding vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
 			return err
@@ -143,10 +143,10 @@ func (sw *OvsSwitch) CreateNetwork(pktTag uint16, extPktTag uint32, defaultGw st
 }
 
 // DeleteNetwork deletes a network/vlan
-func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32, gateway string) error {
+func (sw *OvsSwitch) DeleteNetwork(pktTag uint16, extPktTag uint32, gateway string, Vrf string) error {
 	// Delete vlan/vni mapping
 	if sw.ofnetAgent != nil {
-		err := sw.ofnetAgent.RemoveNetwork(pktTag, extPktTag, gateway)
+		err := sw.ofnetAgent.RemoveNetwork(pktTag, extPktTag, gateway, Vrf)
 		if err != nil {
 			log.Errorf("Error removing vlan/vni %d/%d. Err: %v", pktTag, extPktTag, err)
 			return err

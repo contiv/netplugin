@@ -112,6 +112,11 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 		// find the network from address pool
 		subnetIP := strings.Split(allocReq.AddressPool, "/")[0]
 		subnetLen := strings.Split(allocReq.AddressPool, "/")[1]
+		tenant := ""
+		if strings.Contains(subnetLen, ":") {
+			tenant = strings.Split(subnetLen, ":")[1]
+			subnetLen = strings.Split(subnetLen, ":")[0]
+		}
 
 		// find the network from networkID
 		readNet := &mastercfg.CfgNetworkState{}
@@ -127,7 +132,9 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 		for _, ncfg := range netList {
 			nw := ncfg.(*mastercfg.CfgNetworkState)
 			if nw.SubnetIP == subnetIP && fmt.Sprintf("%d", nw.SubnetLen) == subnetLen {
-				networkID = nw.ID
+				if tenant == "" || nw.Tenant == tenant {
+					networkID = nw.ID
+				}
 			}
 		}
 	}

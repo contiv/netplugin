@@ -19,7 +19,7 @@ package ofnet
 import (
 	"net"
 	"net/rpc"
-
+        "fmt"
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"github.com/shaleman/libOpenflow/protocol"
@@ -120,11 +120,17 @@ func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		return err
 	}
 
-	// Set source endpoint group if specified
+	vrfid := vl.agent.vrfNameIdMap[endpoint.Vrf]
+	//set vrf id as METADATA
+	metadata, metadataMask := Vrfmetadata(*vrfid)
+
 	if endpoint.EndpointGroup != 0 {
-		metadata, metadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
-		portVlanFlow.SetMetadata(metadata, metadataMask)
+		srcMetadata, srcMetadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
+		metadata = metadata | srcMetadata
+		metadataMask = metadataMask | srcMetadataMask
+
 	}
+	portVlanFlow.SetMetadata(metadata, metadataMask)
 
 	// Set the vlan and install it
 	// FIXME: portVlanFlow.SetVlan(endpoint.Vlan)
@@ -188,17 +194,26 @@ func (vl *VlanBridge) RemoveVtepPort(portNo uint32, remoteIP net.IP) error {
 }
 
 // AddVlan Add a vlan.
-func (vl *VlanBridge) AddVlan(vlanID uint16, vni uint32) error {
+func (vl *VlanBridge) AddVlan(vlanID uint16, vni uint32, vrf string) error {
+	vl.agent.vlanVrf[vlanID] = &vrf
+	vl.agent.createVrf(vrf)
 	return nil
 }
 
 // RemoveVlan Remove a vlan
-func (vl *VlanBridge) RemoveVlan(vlanID uint16, vni uint32) error {
+func (vl *VlanBridge) RemoveVlan(vlanID uint16, vni uint32, vrf string) error {
+	delete(vl.agent.vlanVrf, vlanID)
+	vl.agent.deleteVrf(vrf)
 	return nil
 }
 
 // AddEndpoint Add an endpoint to the datapath
 func (vl *VlanBridge) AddEndpoint(endpoint *OfnetEndpoint) error {
+
+	if endpoint.Vni != 0 {
+		return nil
+	}
+
 	log.Infof("Received endpoint: %+v", endpoint)
 
 	// Install dst group entry for the endpoint
@@ -214,6 +229,10 @@ func (vl *VlanBridge) AddEndpoint(endpoint *OfnetEndpoint) error {
 // RemoveEndpoint removes an endpoint from the datapath
 func (vl *VlanBridge) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 	log.Infof("Received DELETE endpoint: %+v", endpoint)
+
+	if endpoint.Vni != 0 {
+		return nil
+	}
 
 	// Remove the endpoint from policy tables
 	err := vl.policyAgent.DelEndpoint(endpoint)
@@ -338,7 +357,7 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 	case *protocol.ARP:
 		log.Debugf("Processing ARP packet on port %d: %+v", inPort, *t)
 		var arpIn protocol.ARP = *t
-
+             
 		switch arpIn.Operation {
 		case protocol.Type_Request:
 			// If it's a GARP packet, ignore processing
@@ -348,8 +367,25 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 			}
 
 			// Lookup the Source and Dest IP in the endpoint table
-			srcEp := vl.agent.getEndpointByIp(arpIn.IPSrc)
-			dstEp := vl.agent.getEndpointByIp(arpIn.IPDst)
+			//Vrf derivation logic :
+                        var vlan uint16
+			if vl.uplinkDb[inPort] != 0 {
+				//arp packet came in from uplink hence tagged
+				fmt.Println("the vlan id is ", pkt.VLANID.VID)
+				vlan = pkt.VLANID.VID
+			} else {
+				//arp packet came from local endpoints - derive vrf from inport
+                                if vl.agent.portVlanMap[inPort] != nil {
+				   vlan = *(vl.agent.portVlanMap[inPort])
+                                }else {
+                                   log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
+                                   return
+                                } 
+			}
+			srcEp := vl.agent.getEndpointByIpVlan(arpIn.IPSrc, vlan)
+			dstEp := vl.agent.getEndpointByIpVlan(arpIn.IPDst, vlan)
+
+			fmt.Println("The src and des ep are", srcEp, dstEp)
 
 			// No information about the src or dest EP. Ignore processing.
 			if srcEp == nil && dstEp == nil {

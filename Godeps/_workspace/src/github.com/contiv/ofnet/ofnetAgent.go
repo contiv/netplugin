@@ -34,6 +34,7 @@ import (
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/contiv/ofnet/ovsdbDriver"
 	"github.com/contiv/ofnet/rpcHub"
+	"github.com/jainvipin/bitset"
 )
 
 // OfnetAgent state
@@ -65,6 +66,14 @@ type OfnetAgent struct {
 	localEndpointDb map[uint32]*OfnetEndpoint // local port to endpoint map
 
 	ovsDriver *ovsdbDriver.OvsDriver
+
+	//Vrf information
+	vrfIdBmp     *bitset.BitSet           //bit map to generate a vrf id
+	vrfNameIdMap map[string]*uint16       // Map vrf name to vrf Id
+	vrfIdNameMap map[uint16]*string       // Map vrf id to vrf Name
+	vrfDb        map[string]*OfnetVrfInfo // Db of all the global vrfs
+	vlanVrf      map[uint16]*string       //vlan to vrf mapping
+
 }
 
 // local End point information
@@ -74,7 +83,7 @@ type EndpointInfo struct {
 	MacAddr       net.HardwareAddr
 	Vlan          uint16
 	IpAddr        net.IP
-	VrfId         uint16
+	Vrf           string
 }
 
 const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
@@ -117,6 +126,13 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	agent.endpointDb = make(map[string]*OfnetEndpoint)
 	agent.localEndpointDb = make(map[uint32]*OfnetEndpoint)
 
+	// Initialize vrf database
+	agent.vrfDb = make(map[string]*OfnetVrfInfo)
+	agent.vrfIdNameMap = make(map[uint16]*string)
+	agent.vrfNameIdMap = make(map[string]*uint16)
+	agent.vrfIdBmp = bitset.New(256)
+	agent.vlanVrf = make(map[uint16]*string)
+
 	// Create an openflow controller
 	agent.ctrler = ofctrl.NewController(agent)
 
@@ -132,6 +148,7 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	rpcServ.Register(agent)
 
 	// Create the datapath
+
 	switch dpName {
 	case "vrouter":
 		agent.datapath = NewVrouter(agent, rpcServ)
@@ -153,13 +170,33 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 }
 
 // getEndpointId Get a unique identifier for the endpoint.
-// FIXME: This needs to be VRF, IP address.
 func (self *OfnetAgent) getEndpointId(endpoint EndpointInfo) string {
-	return endpoint.IpAddr.String()
+	vrf := self.vlanVrf[endpoint.Vlan]
+	return endpoint.IpAddr.String() + ":" + *vrf
 }
 
-func (self *OfnetAgent) getEndpointByIp(ipAddr net.IP) *OfnetEndpoint {
-	return self.endpointDb[ipAddr.String()]
+func (self *OfnetAgent) getEndpointIdByIpVlan(ipAddr net.IP, vlan uint16) string {
+	vrf := self.vlanVrf[vlan]
+	return ipAddr.String() + ":" + *vrf
+}
+
+func (self *OfnetAgent) getEndpointIdByIpVrf(ipAddr net.IP, vrf string) string {
+	return ipAddr.String() + ":" + vrf
+}
+
+func (self *OfnetAgent) getEndpointByIpVlan(ipAddr net.IP, vlan uint16) *OfnetEndpoint {
+	vrf := self.vlanVrf[vlan]
+	if self.endpointDb != nil && vrf != nil {
+		return self.endpointDb[ipAddr.String()+":"+*vrf]
+	}
+	return nil
+}
+
+func (self *OfnetAgent) getEndpointByIpVrf(ipAddr net.IP, vrf string) *OfnetEndpoint {
+	if self.endpointDb != nil && vrf != "" {
+		return self.endpointDb[ipAddr.String()+":"+vrf]
+	}
+	return nil
 }
 
 // Delete cleans up an ofnet agent
@@ -310,7 +347,7 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		return errors.New("Unknown Vlan")
 	}
 
-	epId := self.getEndpointId(endpoint)
+	epId := self.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
 
 	// ignore duplicate adds
 	if (self.localEndpointDb[endpoint.PortNo] != nil) &&
@@ -318,6 +355,11 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		return nil
 	}
 
+	vrf := self.vlanVrf[endpoint.Vlan]
+	if vrf == nil {
+		log.Errorf("Invalid vlan to vrf mapping for %v", endpoint.Vlan)
+		return errors.New("Invalid vlan to vrf mapping")
+	}
 	// Build endpoint registry info
 	epreg := &OfnetEndpoint{
 		EndpointID:    epId,
@@ -325,7 +367,7 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		EndpointGroup: endpoint.EndpointGroup,
 		IpAddr:        endpoint.IpAddr,
 		IpMask:        net.ParseIP("255.255.255.255"),
-		VrfId:         endpoint.Vlan, //This has to be changed to vrfId when there is multi network per vrf support
+		Vrf:           *vrf,
 		MacAddrStr:    endpoint.MacAddr.String(),
 		Vlan:          endpoint.Vlan,
 		Vni:           *vni,
@@ -442,7 +484,8 @@ func (self *OfnetAgent) RemoveVtepPort(portNo uint32, remoteIp net.IP) error {
 
 // Add a Network.
 // This is mainly used for mapping vlan id to Vxlan VNI and add gateway for network
-func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string) error {
+func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf string) error {
+
 	// if nothing changed, ignore the message
 	oldVni, ok := self.vlanVniMap[vlanId]
 	if ok && *oldVni == vni {
@@ -451,27 +494,46 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string) error {
 	log.Infof("ofnet Adding Vlan %d. Vni %d", vlanId, vni)
 
 	// store it in DB
+
 	self.vlanVniMap[vlanId] = &vni
 	self.vniVlanMap[vni] = &vlanId
+
+	// Call the datapath
+	err := self.datapath.AddVlan(vlanId, vni, Vrf)
+	if err != nil {
+		return err
+	}
+
+	vrf := self.vlanVrf[vlanId]
+	gwEpid := self.getEndpointIdByIpVrf(net.ParseIP(Gw), *vrf)
+
 	if Gw != "" {
 		// Call the datapath
 		epreg := &OfnetEndpoint{
-			EndpointID:   Gw,
+			EndpointID:   gwEpid,
 			EndpointType: "internal",
 			IpAddr:       net.ParseIP(Gw),
 			IpMask:       net.ParseIP("255.255.255.255"),
-			VrfId:        0, // FIXME set VRF correctly
-			Vlan:         1,
+			Vrf:          *vrf,
+			Vni:          vni,
+			Vlan:         vlanId,
 			PortNo:       0,
 			Timestamp:    time.Now(),
 		}
-		self.endpointDb[Gw] = epreg
+		self.endpointDb[gwEpid] = epreg
 	}
-	return self.datapath.AddVlan(vlanId, vni)
+
+	return nil
 }
 
 // Remove a vlan from datapath
-func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string) error {
+func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf string) error {
+
+	vrf := self.vlanVrf[vlanId]
+	gwEpid := self.getEndpointIdByIpVrf(net.ParseIP(Gw), *vrf)
+
+	delete(self.endpointDb, gwEpid)
+
 	// Clear the database
 	delete(self.vlanVniMap, vlanId)
 	delete(self.vniVlanMap, vni)
@@ -482,10 +544,8 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string) erro
 			log.Fatalf("Vlan %d still has routes. Route: %+v", vlanId, endpoint)
 		}
 	}
-	delete(self.endpointDb, Gw)
-
 	// Call the datapath
-	return self.datapath.RemoveVlan(vlanId, vni)
+	return self.datapath.RemoveVlan(vlanId, vni, Vrf)
 }
 
 // AddUplink adds an uplink to the switch
@@ -536,13 +596,14 @@ func (self *OfnetAgent) EndpointAdd(epreg *OfnetEndpoint, ret *bool) error {
 		// If old endpoint has more recent timestamp, nothing to do
 		if !epreg.Timestamp.After(oldEp.Timestamp) {
 			return nil
+		} else {
+			// Uninstall the old endpoint from datapath
+			err := self.datapath.RemoveEndpoint(oldEp)
+			if err != nil {
+				log.Errorf("Error deleting old endpoint: {%+v}. Err: %v", oldEp, err)
+			}
 		}
 
-		// Uninstall the old endpoint from datapath
-		err := self.datapath.RemoveEndpoint(oldEp)
-		if err != nil {
-			log.Errorf("Error deleting old endpoint: {%+v}. Err: %v", oldEp, err)
-		}
 	}
 
 	// First, add the endpoint to local routing table
@@ -641,4 +702,49 @@ func (self *OfnetAgent) DeleteLocalProtoRoute(path *OfnetProtoRouteInfo) {
 	if self.protopath != nil {
 		self.protopath.DeleteLocalProtoRoute(path)
 	}
+}
+
+func (self *OfnetAgent) createVrf(Vrf string) (uint16, bool) {
+
+	log.Infof("Received create vrf for %v \n", Vrf)
+
+	if vrfid, ok := self.vrfNameIdMap[Vrf]; ok {
+		log.Infof("Received create for existing vrf returnin %v", *vrfid)
+		self.vrfDb[Vrf].NumNetworks++
+		return *vrfid, ok
+	}
+
+	vrfid, ok := self.vrfIdBmp.NextClear(1)
+
+	log.Infof("Allocating vrf id %v to Vrf \n", vrfid, Vrf)
+
+	if !ok {
+		log.Errorf("Error allocation vrfid")
+		return 0, ok
+	}
+	self.vrfIdBmp.Set(vrfid)
+
+	vrfInfo := &OfnetVrfInfo{
+		NumNetworks: 1,
+		VrfName:     Vrf,
+		VrfId:       uint16(vrfid),
+	}
+	self.vrfIdNameMap[vrfInfo.VrfId] = &Vrf
+	self.vrfNameIdMap[Vrf] = &vrfInfo.VrfId
+	self.vrfDb[Vrf] = vrfInfo
+	return vrfInfo.VrfId, ok
+}
+
+func (self *OfnetAgent) deleteVrf(Vrf string) error {
+
+	if vrfid, ok := self.vrfNameIdMap[Vrf]; ok {
+		self.vrfDb[Vrf].NumNetworks--
+		if self.vrfDb[Vrf].NumNetworks == 0 {
+			self.vrfIdBmp.Clear(uint(*vrfid))
+			delete(self.vrfNameIdMap, Vrf)
+			delete(self.vrfIdNameMap, *vrfid)
+		}
+		return nil
+	}
+	return errors.New("Unknown Vrf")
 }

@@ -114,6 +114,7 @@ func ruleIsSame(r1, r2 *OfnetPolicyRule) bool {
 
 // AddEndpoint adds an endpoint to dst group lookup
 func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
+
 	if self.DstGrpFlow[endpoint.EndpointID] != nil {
 		// FIXME: handle this as Update
 		log.Warnf("DstGroup for endpoint %+v already exists", endpoint)
@@ -121,12 +122,19 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	log.Infof("Adding dst group entry for endpoint: %+v", endpoint)
+	vrf := self.agent.vlanVrf[endpoint.Vlan]
 
+	log.Infof("Recevied add endpoint for vrf %v", *vrf)
+
+	vrfid := self.agent.vrfNameIdMap[*vrf]
+	vrfMetadata, vrfMetadataMask := Vrfmetadata(*vrfid)
 	// Install the Dst group lookup flow
 	dstGrpFlow, err := self.dstGrpTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY,
-		Ethertype: 0x0800,
-		IpDa:      &endpoint.IpAddr,
+		Priority:     FLOW_MATCH_PRIORITY,
+		Ethertype:    0x0800,
+		IpDa:         &endpoint.IpAddr,
+		Metadata:     &vrfMetadata,
+		MetadataMask: &vrfMetadataMask,
 	})
 	if err != nil {
 		log.Errorf("Error adding dstGroup flow for %v. Err: %v", endpoint.IpAddr, err)
@@ -159,6 +167,7 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 // DelEndpoint deletes an endpoint from dst group lookup
 func (self *PolicyAgent) DelEndpoint(endpoint *OfnetEndpoint) error {
 	// find the dst group flow
+
 	dstGrp := self.DstGrpFlow[endpoint.EndpointID]
 	if dstGrp == nil {
 		return errors.New("Dst Group not found")

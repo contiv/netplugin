@@ -195,11 +195,11 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		sw = d.switchDb["vlan"]
 	}
 
-	return sw.CreateNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag), cfgNw.Gateway)
+	return sw.CreateNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag), cfgNw.Gateway, cfgNw.Tenant)
 }
 
 // DeleteNetwork deletes a network by named identifier
-func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string) error {
+func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string, tenant string) error {
 	log.Infof("delete net %s, encap %s, tags: %d/%d", id, encap, pktTag, extPktTag)
 
 	// Find the switch based on network type
@@ -210,7 +210,7 @@ func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, gatew
 		sw = d.switchDb["vlan"]
 	}
 
-	return sw.DeleteNetwork(uint16(pktTag), uint32(extPktTag), gateway)
+	return sw.DeleteNetwork(uint16(pktTag), uint32(extPktTag), gateway, tenant)
 }
 
 // CreateEndpoint creates an endpoint by named identifier

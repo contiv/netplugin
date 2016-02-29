@@ -51,6 +51,7 @@ const (
 	testCurrPortNum            = 10
 	testVlanUplinkPort         = "eth2"
 	testGateway                = "10.1.1.254"
+	testTenant                 = "default"
 )
 
 func createCommonState(stateDriver core.StateDriver) error {
@@ -63,6 +64,8 @@ func createCommonState(stateDriver core.StateDriver) error {
 		cfgNw.ExtPktTag = testExtPktTag
 		cfgNw.SubnetIP = testSubnetIP
 		cfgNw.SubnetLen = testSubnetLen
+		cfgNw.Gateway = testGateway
+		cfgNw.Tenant = testTenant
 		cfgNw.StateDriver = stateDriver
 		if err := cfgNw.Write(); err != nil {
 			return err
@@ -76,6 +79,8 @@ func createCommonState(stateDriver core.StateDriver) error {
 		cfgNw.ExtPktTag = testExtPktTag
 		cfgNw.SubnetIP = testSubnetIP
 		cfgNw.SubnetLen = testSubnetLen
+		cfgNw.Gateway = testGateway
+		cfgNw.Tenant = testTenant
 		cfgNw.StateDriver = stateDriver
 		if err := cfgNw.Write(); err != nil {
 			return err
@@ -300,7 +305,7 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway, testTenant) }()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)
@@ -334,7 +339,9 @@ func TestOvsDriverCreateEndpointStateful(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag, testGateway) }()
+	defer func() {
+		driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag, testGateway, testTenant)
+	}()
 
 	// Create endpoint
 	err = driver.CreateEndpoint(id)
@@ -373,14 +380,16 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway, testTenant) }()
 
 	// create second network
 	err = driver.CreateNetwork(testOvsNwIDStateful)
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag, testGateway) }()
+	defer func() {
+		driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag, testGateway, testTenant)
+	}()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)
@@ -432,7 +441,7 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway, testTenant) }()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)

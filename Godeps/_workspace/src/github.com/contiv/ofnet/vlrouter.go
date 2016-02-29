@@ -148,11 +148,24 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		return err
 	}
 
+	//since only default vrf is supported in bgp.
+
+	vrfid := self.agent.vrfNameIdMap[endpoint.Vrf]
+
+	if vrfid == nil || *vrfid == 0 {
+		log.Errorf("Invalid vrf name:%v", endpoint.Vrf)
+		return errors.New("Invalid vrf name")
+	}
+	//set vrf id as METADATA
+	metadata, metadataMask := Vrfmetadata(*vrfid)
+
 	// Set source endpoint group if specified
 	if endpoint.EndpointGroup != 0 {
-		metadata, metadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
-		portVlanFlow.SetMetadata(metadata, metadataMask)
+		srcMetadata, srcMetadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
+		metadata = metadata | srcMetadata
+		metadataMask = metadataMask | srcMetadataMask
 	}
+	portVlanFlow.SetMetadata(metadata, metadataMask)
 
 	// Point it to dst group table for policy lookups
 	dstGrpTbl := self.ofSwitch.GetTable(DST_GRP_TBL_ID)
@@ -269,14 +282,19 @@ func (self *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 
 // Add a vlan.
 // This is mainly used for mapping vlan id to Vxlan VNI
-func (self *Vlrouter) AddVlan(vlanId uint16, vni uint32) error {
-	// FIXME: Add this for multiple VRF support
+func (self *Vlrouter) AddVlan(vlanId uint16, vni uint32, vrf string) error {
+
+	vrf = "default"
+	self.agent.vlanVrf[vlanId] = &vrf
+	self.agent.createVrf(vrf)
 	return nil
 }
 
 // Remove a vlan
-func (self *Vlrouter) RemoveVlan(vlanId uint16, vni uint32) error {
+func (self *Vlrouter) RemoveVlan(vlanId uint16, vni uint32, vrf string) error {
 	// FIXME: Add this for multiple VRF support
+	delete(self.agent.vlanVrf, vlanId)
+        self.agent.deleteVrf(vrf)
 	return nil
 }
 
@@ -289,7 +307,11 @@ func (self *Vlrouter) RemoveVlan(vlanId uint16, vni uint32) error {
 */
 func (self *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 
-	nexthopEp := self.agent.getEndpointByIp(net.ParseIP(self.myBgpPeer))
+	if endpoint.Vni != 0 {
+		return nil
+	}
+
+	nexthopEp := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
 	if nexthopEp != nil && nexthopEp.PortNo != 0 {
 		endpoint.MacAddrStr = nexthopEp.MacAddrStr
 		endpoint.PortNo = nexthopEp.PortNo
@@ -309,6 +331,15 @@ func (self *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 		self.myBgpPeer = endpoint.IpAddr.String()
 	}
 	log.Infof("AddEndpoint call for endpoint: %+v", endpoint)
+
+	vrfid := self.agent.vrfNameIdMap[endpoint.Vrf]
+	if *vrfid == 0 {
+		log.Errorf("Invalid vrf name:%v", endpoint.Vrf)
+		return errors.New("Invalid vrf name")
+	}
+
+	//set vrf id as METADATA
+	//metadata, metadataMask := Vrfmetadata(*vrfid)
 
 	outPort, err := self.ofSwitch.OutputPort(endpoint.PortNo)
 	if err != nil {
@@ -333,11 +364,6 @@ func (self *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	ipFlow.SetMacDa(DAMac)
 	ipFlow.SetMacSa(self.myRouterMac)
 
-	// Set VNI
-	// FIXME: hardcode VNI for default VRF.
-	// FIXME: We need to use fabric VNI per VRF
-	// FIXME: Cant pop vlan tag till the flow matches on vlan.
-
 	// Point it to output port
 	err = ipFlow.Next(outPort)
 	if err != nil {
@@ -361,6 +387,10 @@ func (self *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 
 // RemoveEndpoint removes an endpoint from the datapath
 func (self *Vlrouter) RemoveEndpoint(endpoint *OfnetEndpoint) error {
+
+	if endpoint.Vni != 0 {
+		return nil
+	}
 
 	//Delete the endpoint if it is in the cache
 	delete(self.unresolvedEPs, endpoint.EndpointID)
@@ -473,7 +503,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		switch arpHdr.Operation {
 		case protocol.Type_Request:
 			// Lookup the Dest IP in the endpoint table
-			endpoint := self.agent.getEndpointByIp(arpHdr.IPDst)
+			endpoint := self.agent.getEndpointByIpVrf(arpHdr.IPDst, "default")
 			if endpoint == nil {
 				//If we dont know the IP address, dont send an ARP response
 				log.Infof("Received ARP request for unknown IP: %v ", arpHdr.IPDst)
@@ -484,7 +514,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 					intf, _ = net.InterfaceByName(self.agent.GetRouterInfo().VlanIntf)
 					srcMac = intf.HardwareAddr
 				} else if endpoint.EndpointType == "external" || endpoint.EndpointType == "external-bgp" {
-					endpoint = self.agent.getEndpointByIp(arpHdr.IPSrc)
+					endpoint = self.agent.getEndpointByIpVrf(arpHdr.IPSrc, "default")
 					if endpoint != nil {
 						if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
 							srcMac = self.myRouterMac
@@ -500,7 +530,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 			}
 
 			//Check if source endpoint is learnt.
-			endpoint = self.agent.getEndpointByIp(arpHdr.IPSrc)
+			endpoint = self.agent.getEndpointByIpVrf(arpHdr.IPSrc, "default")
 			if endpoint != nil && endpoint.EndpointType == "external-bgp" {
 				//endpoint exists from where the arp is received.
 				if endpoint.PortNo == 0 {
@@ -544,7 +574,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 			// Send it out
 			self.ofSwitch.Send(pktOut)
 		case protocol.Type_Reply:
-			endpoint := self.agent.getEndpointByIp(arpHdr.IPSrc)
+			endpoint := self.agent.getEndpointByIpVrf(arpHdr.IPSrc, "default")
 			if endpoint != nil && endpoint.EndpointType == "external-bgp" {
 				//endpoint exists from where the arp is received.
 				if endpoint.PortNo == 0 {
