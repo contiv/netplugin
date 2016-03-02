@@ -165,6 +165,7 @@ func (self *etcdPlugin) WatchService(name string,
 
 	// handle messages from watch service
 	go func() {
+	restart:
 		for {
 			select {
 			case watchResp := <-watchCh:
@@ -172,10 +173,22 @@ func (self *etcdPlugin) WatchService(name string,
 
 				// derive service info from key
 				srvKey := strings.TrimPrefix(watchResp.Node.Key, "/contiv.io/service/")
-				srvName := strings.Split(srvKey, "/")[0]
-				hostInfo := strings.Split(srvKey, "/")[1]
-				hostAddr := strings.Split(hostInfo, ":")[0]
-				portNum, _ := strconv.Atoi(strings.Split(hostInfo, ":")[1])
+				parts := strings.Split(srvKey, "/")
+				if len(parts) < 2 {
+					log.Warnf("Recieved event for key %q, could not parse service key", srvKey)
+					goto restart
+				}
+
+				srvName := parts[0]
+				hostAddr := parts[1]
+
+				parts = strings.Split(hostAddr, ":")
+				if len(parts) != 2 {
+					log.Warnf("Recieved event for key %q, could not parse hostinfo", srvKey)
+					goto restart
+				}
+
+				portNum, _ := strconv.Atoi(parts[1])
 
 				// Build service info
 				srvInfo := ServiceInfo{
