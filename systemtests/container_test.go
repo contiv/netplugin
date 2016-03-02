@@ -43,9 +43,6 @@ func (c *container) checkPingFailure(ipaddr string) error {
 func (c *container) checkPing(ipaddr string) error {
 	logrus.Infof("Checking ping from %v to %s", c, ipaddr)
 	out, err := c.exec("ping -c 1 " + ipaddr)
-	if err != nil {
-		return err
-	}
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %v to %s FAILED: %q - %v", c, ipaddr, out, err)
