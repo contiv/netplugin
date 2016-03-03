@@ -263,6 +263,8 @@ type ActionMplsTtl struct {
     pad     []byte  // 3bytes
 }
 
+
+
 type ActionNwTtl struct {
     ActionHeader
     NwTtl uint8
@@ -291,6 +293,8 @@ func NewActionPushMpls(etherType uint16) *ActionPush {
     return a
 }
 
+
+
 func (a *ActionPush) Len() (n uint16) {
     return a.ActionHeader.Len() + 4
 }
@@ -314,6 +318,37 @@ func (a *ActionPush) UnmarshalBinary(data []byte) error {
 type ActionPopVlan struct {
     ActionHeader
     pad     []byte  // 4bytes
+}
+
+
+func NewActionPopMpls(etherType uint16) *ActionPopMpls {
+    act := new(ActionPopMpls)
+    act.Type = ActionType_PopMpls
+    act.EtherType = etherType
+    act.Length = 8
+
+    return act
+}
+
+func (a *ActionPopMpls) Len() (n uint16) {
+    return a.ActionHeader.Len() + 4
+}
+
+func (a *ActionPopMpls) MarshalBinary() (data []byte, err error) {
+    data, err = a.ActionHeader.MarshalBinary()
+
+    // Padding
+    bytes := make([]byte, 4)
+    binary.BigEndian.PutUint16(bytes[0:], a.EtherType)
+
+    data = append(data, bytes...)
+    return
+}
+
+func (a *ActionPopMpls) UnmarshalBinary(data []byte) error {
+    a.ActionHeader.UnmarshalBinary(data[:4])
+    a.EtherType = binary.BigEndian.Uint16(data[4:])
+    return nil
 }
 
 func NewActionPopVlan() *ActionPopVlan {
@@ -348,6 +383,7 @@ type ActionPopMpls struct {
     EtherType uint16
     pad     []byte  // 2bytes
 }
+
 
 type ActionSetField struct {
     ActionHeader

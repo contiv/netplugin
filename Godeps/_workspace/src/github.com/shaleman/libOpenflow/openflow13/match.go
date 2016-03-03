@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"log"
 	"net"
+	log1 "github.com/Sirupsen/logrus"
 
 	"github.com/shaleman/libOpenflow/util"
 )
@@ -217,8 +218,10 @@ func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 		case OXM_FIELD_IPV6_ND_SLL:
 		case OXM_FIELD_IPV6_ND_TLL:
 		case OXM_FIELD_MPLS_LABEL:
+			val = new(MplsLabelField)
 		case OXM_FIELD_MPLS_TC:
 		case OXM_FIELD_MPLS_BOS:
+			val = new(MplsBosField)
 		case OXM_FIELD_PBB_ISID:
 		case OXM_FIELD_TUNNEL_ID:
 			val = new(TunnelIdField)
@@ -472,7 +475,7 @@ func (m *VlanIdField) UnmarshalBinary(data []byte) error {
 }
 
 // Return a MatchField for vlan id matching
-func NewVlanIdField(vlanId uint16) *MatchField {
+func NewVlanIdField(vlanId uint16, mask bool) *MatchField {
 	f := new(MatchField)
 	f.Class = OXM_CLASS_OPENFLOW_BASIC
 	f.Field = OXM_FIELD_VLAN_VID
@@ -482,9 +485,91 @@ func NewVlanIdField(vlanId uint16) *MatchField {
 	vlanIdField.VlanId = vlanId | OFPVID_PRESENT
 	f.Value = vlanIdField
 	f.Length = uint8(vlanIdField.Len())
+	
+	if mask == true { 
+		mask := new(VlanIdField)
+		mask.VlanId = OFPVID_PRESENT
+		f.Mask = mask
+		f.HasMask = true
+		f.Length += uint8(mask.Len())
+	}
 
 	return f
 }
+
+// MplsLabel field 
+type MplsLabelField struct {
+	MplsLabel uint32
+}
+
+func (m *MplsLabelField) Len() uint16 {
+	return 4
+}
+
+func (m *MplsLabelField) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 4)
+
+	binary.BigEndian.PutUint32(data, m.MplsLabel)
+	return
+}
+func (m *MplsLabelField) UnmarshalBinary(data []byte) error {
+	m.MplsLabel = binary.BigEndian.Uint32(data)
+	return nil
+}
+
+// Return a MatchField for mpls Label matching 
+func NewMplsLabelField(mplsLabel uint32) *MatchField {
+	f := new(MatchField)
+	f.Class = OXM_CLASS_OPENFLOW_BASIC
+	f.Field = OXM_FIELD_MPLS_LABEL
+	f.HasMask = false
+
+	mplsLabelField := new(MplsLabelField)
+	mplsLabelField.MplsLabel = mplsLabel 
+	f.Value = mplsLabelField
+	f.Length = uint8(mplsLabelField.Len())
+
+	return f
+}
+
+
+// MplsBos field 
+type MplsBosField struct {
+	MplsBos uint8
+}
+
+func (m *MplsBosField) Len() uint16 {
+	return 1
+}
+
+func (m *MplsBosField) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 1)
+	data[0] = m.MplsBos
+	log1.Infof("MPLS BOS: %+v  ,data[0]: %+v", data , data[0])
+	
+	
+	return
+}
+func (m *MplsBosField) UnmarshalBinary(data []byte) error {
+	m.MplsBos = data[0]
+	log1.Infof("MPLS BOS m.MplsBos: %+v  ,data[0]: %+v", m.MplsBos , data[0])
+	return nil
+}
+
+// Return a MatchField for mpls Bos matching 
+func NewMplsBosField(mplsBos uint8) *MatchField {
+	f := new(MatchField)
+	f.Class = OXM_CLASS_OPENFLOW_BASIC
+	f.Field = OXM_FIELD_MPLS_BOS
+	f.HasMask = false
+
+	mplsBosField := new(MplsBosField)
+	mplsBosField.MplsBos = mplsBos
+	f.Value = mplsBosField
+	f.Length = uint8(mplsBosField.Len())
+	return f
+}
+
 
 // IPV4_SRC field
 type Ipv4SrcField struct {
