@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"log"
 	"net"
-	log1 "github.com/Sirupsen/logrus"
-
 	"github.com/shaleman/libOpenflow/util"
 )
 
@@ -545,14 +543,10 @@ func (m *MplsBosField) Len() uint16 {
 func (m *MplsBosField) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 1)
 	data[0] = m.MplsBos
-	log1.Infof("MPLS BOS: %+v  ,data[0]: %+v", data , data[0])
-	
-	
 	return
 }
 func (m *MplsBosField) UnmarshalBinary(data []byte) error {
 	m.MplsBos = data[0]
-	log1.Infof("MPLS BOS m.MplsBos: %+v  ,data[0]: %+v", m.MplsBos , data[0])
 	return nil
 }
 
