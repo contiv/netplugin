@@ -39,6 +39,7 @@ type cliOpts struct {
 	storeURL    string
 	listenURL   string
 	clusterMode string
+	dnsEnabled  bool
 	version     bool
 }
 
@@ -107,6 +108,10 @@ func parseOpts(opts *cliOpts) error {
 		"cluster-mode",
 		"docker",
 		"{docker, kubernetes}")
+	flagSet.BoolVar(&opts.dnsEnabled,
+		"dns-enable",
+		true,
+		"Turn on DNS {true, false}")
 	flagSet.BoolVar(&opts.version,
 		"version",
 		false,
@@ -140,6 +145,10 @@ func execOpts(opts *cliOpts) core.StateDriver {
 
 	if err := master.SetClusterMode(opts.clusterMode); err != nil {
 		log.Fatalf("Failed to set cluster-mode. Error: %s", err)
+	}
+
+	if err := master.SetDNSEnabled(opts.dnsEnabled); err != nil {
+		log.Fatalf("Failed to set dns-enable. Error: %s", err)
 	}
 
 	sd, err := initStateDriver(opts)

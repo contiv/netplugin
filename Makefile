@@ -19,14 +19,14 @@ TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
 TAR_LOC := .
 TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
 
-all: build unit-test sanity-test centos-tests
+all: build unit-test system-test centos-tests
 
 # 'all-CI' target is used by the scripts/CI.sh that passes appropriate set of
 # ENV variables (from the jenkins job) to run OS (centos, ubuntu etc) and
 # sandbox specific(vagrant, docker-in-docker)
-all-CI: build unit-test sanity-test
+all-CI: build unit-test system-test
 
-test: build unit-test sanity-test centos-tests
+test: build unit-test system-test centos-tests
 
 default: build
 
@@ -92,10 +92,10 @@ unit-test: stop clean build
 	./scripts/unittests -vagrant
 
 centos-tests:
-	CONTIV_NODE_OS=centos make clean build unit-test sanity-test stop
+	CONTIV_NODE_OS=centos make clean build unit-test system-test stop
 
-sanity-test: start
-	vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes 192.168.2.10,192.168.2.11"'
+system-test: start
+	godep go test -v -timeout 120m ./systemtests -check.v
 
 host-build:
 	@echo "dev: making binaries..."

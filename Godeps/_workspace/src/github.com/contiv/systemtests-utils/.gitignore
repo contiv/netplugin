@@ -1,0 +1,5 @@
+#ide files
+*.swp
+
+# tags
+cscope.*
