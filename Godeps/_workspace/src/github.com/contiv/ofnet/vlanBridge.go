@@ -232,6 +232,21 @@ func (vl *VlanBridge) RemoveUplink(portNo uint32) error {
 	return nil
 }
 
+// AddSvcSpec adds a service spec to proxy
+func (vl *VlanBridge) AddSvcSpec(svcName string, spec *ServiceSpec) error {
+        return nil
+}
+
+// DelSvcSpec removes a service spec from proxy
+func (vl *VlanBridge) DelSvcSpec(svcName string, spec *ServiceSpec) error {
+        return nil
+}
+
+// SvcProviderUpdate Service Proxy Back End update
+func (vl *VlanBridge) SvcProviderUpdate(svcName string, providers []string) {
+}
+
+
 // initialize Fgraph on the switch
 func (vl *VlanBridge) initFgraph() error {
 	sw := vl.ofSwitch

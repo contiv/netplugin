@@ -625,3 +625,18 @@ func (self *Vlrouter) AddUplink(portNo uint32) error {
 func (self *Vlrouter) RemoveUplink(portNo uint32) error {
 	return nil
 }
+
+// AddSvcSpec adds a service spec to proxy
+func (self *Vlrouter) AddSvcSpec(svcName string, spec *ServiceSpec) error {
+        return nil
+}
+
+// DelSvcSpec removes a service spec from proxy
+func (self *Vlrouter) DelSvcSpec(svcName string, spec *ServiceSpec) error {
+        return nil
+}
+
+// SvcProviderUpdate Service Proxy Back End update
+func (self *Vlrouter) SvcProviderUpdate(svcName string, providers []string) {
+}
+

@@ -46,6 +46,7 @@ type Vrouter struct {
 	agent       *OfnetAgent      // Pointer back to ofnet agent that owns this
 	ofSwitch    *ofctrl.OFSwitch // openflow switch we are talking to
 	policyAgent *PolicyAgent     // Policy agent
+	svcProxy    *ServiceProxy    // Service proxy
 
 	// Fgraph tables
 	inputTable *ofctrl.Table // Packet lookup starts here
@@ -69,6 +70,7 @@ func NewVrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vrouter {
 
 	// Create policy agent
 	vrouter.policyAgent = NewPolicyAgent(agent, rpcServ)
+	vrouter.svcProxy = NewServiceProxy()
 
 	// Create a flow dbs and my router mac
 	vrouter.flowDb = make(map[string]*ofctrl.Flow)
@@ -91,6 +93,7 @@ func (self *Vrouter) SwitchConnected(sw *ofctrl.OFSwitch) {
 
 	log.Infof("Switch connected(vrouter). installing flows")
 
+	self.svcProxy.SwitchConnected(sw)
 	// Tell the policy agent about the switch
 	self.policyAgent.SwitchConnected(sw)
 
@@ -105,6 +108,12 @@ func (self *Vrouter) SwitchDisconnected(sw *ofctrl.OFSwitch) {
 
 // Handle incoming packet
 func (self *Vrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
+	if pkt.TableId == SRV_PROXY_SNAT_TBL_ID || pkt.TableId == SRV_PROXY_DNAT_TBL_ID {
+		// these are destined to service proxy
+		self.svcProxy.HandlePkt(pkt)
+		return
+	}
+
 	switch pkt.Data.Ethertype {
 	case 0x0806:
 		if (pkt.Match.Type == openflow13.MatchType_OXM) &&
@@ -156,9 +165,9 @@ func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		portVlanFlow.SetMetadata(metadata, metadataMask)
 	}
 
-	// Point it to dst group table for policy lookups
-	dstGrpTbl := self.ofSwitch.GetTable(DST_GRP_TBL_ID)
-	err = portVlanFlow.Next(dstGrpTbl)
+	// Point it to dnat table
+	dNATTbl := self.ofSwitch.GetTable(SRV_PROXY_DNAT_TBL_ID)
+	err = portVlanFlow.Next(dNATTbl)
 	if err != nil {
 		log.Errorf("Error installing portvlan entry. Err: %v", err)
 		return err
@@ -236,6 +245,7 @@ func (self *Vrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
 	}
 
+	self.svcProxy.DelEndpoint(&endpoint)
 	// Remove the endpoint from policy tables
 	err = self.policyAgent.DelEndpoint(&endpoint)
 	if err != nil {
@@ -268,7 +278,8 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 
 	// Point it to next table.
 	// Note that we bypass policy lookup on dest host.
-	portVlanFlow.Next(self.ipTable)
+	sNATTbl := self.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
+	portVlanFlow.Next(sNATTbl)
 
 	// walk all routes and see if we need to install it
 	for _, endpoint := range self.agent.endpointDb {
@@ -403,6 +414,21 @@ func (vr *Vrouter) RemoveUplink(portNo uint32) error {
 	return nil
 }
 
+// AddSvcSpec adds a service spec to proxy
+func (vr *Vrouter) AddSvcSpec(svcName string, spec *ServiceSpec) error {
+	return vr.svcProxy.AddSvcSpec(svcName, spec)
+}
+
+// DelSvcSpec removes a service spec from proxy
+func (vr *Vrouter) DelSvcSpec(svcName string, spec *ServiceSpec) error {
+	return vr.svcProxy.DelSvcSpec(svcName, spec)
+}
+
+// SvcProviderUpdate Service Proxy Back End update
+func (vr *Vrouter) SvcProviderUpdate(svcName string, providers []string) {
+	vr.svcProxy.ProviderUpdate(svcName, providers)
+}
+
 // initialize Fgraph on the switch
 func (self *Vrouter) initFgraph() error {
 	sw := self.ofSwitch
@@ -412,12 +438,19 @@ func (self *Vrouter) initFgraph() error {
 	self.vlanTable, _ = sw.NewTable(VLAN_TBL_ID)
 	self.ipTable, _ = sw.NewTable(IP_TBL_ID)
 
+	// setup SNAT table
+	// Matches in SNAT table (i.e. incoming) go to IP look up
+	self.svcProxy.InitSNATTable(IP_TBL_ID)
+
 	// Init policy tables
-	err := self.policyAgent.InitTables(IP_TBL_ID)
+	err := self.policyAgent.InitTables(SRV_PROXY_SNAT_TBL_ID)
 	if err != nil {
 		log.Fatalf("Error installing policy table. Err: %v", err)
 		return err
 	}
+
+	// Matches in DNAT go to Policy
+	self.svcProxy.InitDNATTable(DST_GRP_TBL_ID)
 
 	//Create all drop entries
 	// Drop mcast source mac

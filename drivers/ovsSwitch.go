@@ -606,8 +606,8 @@ func (sw *OvsSwitch) AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
 }
 
 // DelSvcSpec invokes ofnetAgent api
-func (sw *OvsSwitch) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) {
-	sw.ofnetAgent.DelSvcSpec(svcName, spec)
+func (sw *OvsSwitch) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+	return sw.ofnetAgent.DelSvcSpec(svcName, spec)
 }
 
 // SvcProviderUpdate invokes ofnetAgent api

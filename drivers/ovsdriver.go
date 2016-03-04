@@ -484,10 +484,20 @@ func (d *OvsDriver) AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
 }
 
 // DelSvcSpec invokes switch api
-func (d *OvsDriver) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) {
+func (d *OvsDriver) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+	errs := ""
 	for _, sw := range d.switchDb {
-		sw.DelSvcSpec(svcName, spec)
+		err := sw.DelSvcSpec(svcName, spec)
+		if err != nil {
+			errs += err.Error()
+		}
 	}
+
+	if errs != "" {
+		return errors.New(errs)
+	}
+
+	return nil
 }
 
 // SvcProviderUpdate invokes switch api

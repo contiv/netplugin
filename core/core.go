@@ -108,7 +108,7 @@ type NetworkDriver interface {
 	// Add a service spec to proxy
 	AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error
 	// Remove a service spec from proxy
-	DelSvcSpec(svcName string, spec *ofnet.ServiceSpec)
+	DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error
 	// Service Proxy Back End update
 	SvcProviderUpdate(svcName string, providers []string)
 }
