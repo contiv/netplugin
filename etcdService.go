@@ -188,6 +188,7 @@ func (self *etcdPlugin) WatchService(name string,
 					goto restart
 				}
 
+				hostAddr = parts[0]
 				portNum, _ := strconv.Atoi(parts[1])
 
 				// Build service info
