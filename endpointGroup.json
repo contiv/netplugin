@@ -48,6 +48,9 @@
 				},
 				"network": {
 					"ref": "network"
+				},
+				"appProfile": {
+					"ref": "appProfile"
 				}
 			}
 		}

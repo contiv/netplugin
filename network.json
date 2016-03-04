@@ -45,6 +45,9 @@
 				"services": {
 					"ref": "service"
 				},
+				"appProfiles": {
+					"ref": "appProfile"
+				},
 				"endpointGroups": {
 					"ref": "endpointGroup"
 				}
