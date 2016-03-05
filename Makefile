@@ -117,10 +117,6 @@ host-sanity-test:
 	@echo dev: running sanity tests...
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -nodes ${CLUSTER_NODE_IPS}
 
-host-short-sanity-test:
-	@echo dev: running sanity tests...
-	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./sanity.py -short true -nodes ${CLUSTER_NODE_IPS}
-
 host-cleanup:
 	@echo dev: cleaning up services...
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./cleanup.py -nodes ${CLUSTER_NODE_IPS}
