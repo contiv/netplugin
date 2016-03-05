@@ -72,12 +72,14 @@ def httpGet(url):
 class objmodelClient:
 	def __init__(self, baseUrl):
 		self.baseUrl = baseUrl
-	# Create app
-	def createApp(self, obj):
-	    postUrl = self.baseUrl + '/api/Apps/' + obj.tenantName + ":" + obj.appName  + '/'
+	# Create appProfile
+	def createAppProfile(self, obj):
+	    postUrl = self.baseUrl + '/api/AppProfiles/' + obj.tenantName + ":" + obj.networkName + ":" + obj.appProfileName  + '/'
 
 	    jdata = json.dumps({ 
-			"appName": obj.appName, 
+			"appProfileName": obj.appProfileName, 
+			"endpointGroups": obj.endpointGroups, 
+			"networkName": obj.networkName, 
 			"tenantName": obj.tenantName, 
 	    })
 
@@ -85,23 +87,23 @@ class objmodelClient:
 	    response = httpPost(postUrl, jdata)
 
 	    if response == "Error":
-	        errorExit("App create failure")
+	        errorExit("AppProfile create failure")
 
-	# Delete app
-	def deleteApp(self, tenantName, appName):
-	    # Delete App
-	    deleteUrl = self.baseUrl + '/api/apps/' + tenantName + ":" + appName  + '/'
+	# Delete appProfile
+	def deleteAppProfile(self, tenantName, networkName, appProfileName):
+	    # Delete AppProfile
+	    deleteUrl = self.baseUrl + '/api/appProfiles/' + tenantName + ":" + networkName + ":" + appProfileName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
-	        errorExit("App create failure")
+	        errorExit("AppProfile create failure")
 
-	# List all app objects
-	def listApp(self):
-	    # Get a list of app objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/apps/')
+	# List all appProfile objects
+	def listAppProfile(self):
+	    # Get a list of appProfile objects
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/appProfiles/')
 	    if retData == "Error":
-	        errorExit("list App failed")
+	        errorExit("list AppProfile failed")
 
 	    return json.loads(retData)
 	# Create endpointGroup

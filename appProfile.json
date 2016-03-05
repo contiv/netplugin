@@ -1,0 +1,42 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "appProfile",
+			"type": "object",
+			"key": [ "tenantName", "networkName", "appProfileName" ],
+			"properties": {
+				"appProfileName": {
+					"type": "string",
+					"title": "Application Profile Name"
+				},
+				"endpointGroups": {
+					"type": "array",
+					"items": "string",
+					"title": "Member groups of the appProf"
+				},
+				"networkName": {
+					"type": "string",
+					"title": "Network of App Prof"
+				},
+				"tenantName": {
+					"type": "string",
+					"title": "Tenant Name"
+				}
+			},
+			"link-sets": {
+				"endpointGroups": {
+					"ref": "endpointGroup"
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				},
+				"network": {
+					"ref": "network"
+				}
+			}
+		}
+	]
+}
