@@ -270,7 +270,13 @@ func refreshService(client *etcd.Client, keyName string, keyVal string, stopChan
 
 			_, err := client.Update(keyName, keyVal, SERVICE_TTL)
 			if err != nil {
-				log.Errorf("Error updating key %s, Err: %v", keyName, err)
+				log.Warnf("Error updating key %s, Err: %v", keyName, err)
+				// In case of a TTL expiry, this key may have been deleted
+				// from the etcd db. Hence use of Set instead of Update
+				_, err := client.Set(keyName, keyVal, SERVICE_TTL)
+				if err != nil {
+					log.Errorf("Error setting key %s, Err: %v", keyName, err)
+				}
 			}
 
 		case <-stopChan:

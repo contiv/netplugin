@@ -285,8 +285,8 @@ func (ep *Lock) waitForLock() {
 
 // Refresh lock
 func (ep *Lock) refreshLock() {
-	// Refresh interval is 40% of TTL
-	refreshIntvl := time.Second * time.Duration(ep.ttl*3/10)
+	// Refresh interval is 1/3rd of TTL
+	refreshIntvl := time.Second * time.Duration(ep.ttl/3)
 	keyName := "/contiv.io/lock/" + ep.name
 
 	// Loop forever
