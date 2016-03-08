@@ -214,7 +214,7 @@ func (d *daemon) runLeader() {
 
 	log.Infof("Netmaster listening on %s", d.listenURL)
 
-	listener = ListenWrapper(listener)
+	listener = utils.ListenWrapper(listener)
 
 	// start server
 	go server.Serve(listener)
@@ -243,7 +243,7 @@ func (d *daemon) runFollower() {
 		log.Fatalln(err)
 	}
 
-	listener = ListenWrapper(listener)
+	listener = utils.ListenWrapper(listener)
 
 	// start server
 	go server.Serve(listener)
