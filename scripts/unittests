@@ -8,6 +8,10 @@
 USAGE="${0} -vagrant"
 PATH=$PATH:/usr/local/go/bin
 
+# time for vagrant folder sync
+sleep 2
+# copy certificates used for kubeclient UT
+cp -rf $GOSRC/github.com/contiv/netplugin/mgmtfn/k8splugin/certs /tmp
 run_in_vagrant=false
 coverage_basic=false
 coverage_detail=false
@@ -23,9 +27,9 @@ test_packages="github.com/contiv/netplugin/drivers \
     github.com/contiv/netplugin/netmaster/resources \
     github.com/contiv/netplugin/core \
     github.com/contiv/netplugin/utils \
+    github.com/contiv/netplugin/mgmtfn/k8splugin \
     github.com/contiv/netplugin/mgmtfn/k8splugin/contivk8s \
     "
-
 while [ "${#}" -gt 0 ]
 do
     case "${1}" in

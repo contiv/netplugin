@@ -21,10 +21,6 @@ limitations under the License.
 // hardware/kernel/device specific programming implementation, if any.
 package core
 
-import (
-	"github.com/contiv/ofnet"
-)
-
 // Address is a string represenation of a network address (mac, ip, dns-name, url etc)
 type Address struct {
 	addr string
@@ -87,6 +83,19 @@ type InstanceInfo struct {
 	FwdMode     string      `json:"fwd-mode"`
 }
 
+// PortSpec defines protocol/port info required to host the service
+type PortSpec struct {
+	Protocol string
+	SvcPort  uint16 // advertised port
+	ProvPort uint16 // actual port of provider
+}
+
+// ServiceSpec defines a service to be proxied
+type ServiceSpec struct {
+	IPAddress string
+	Ports     []PortSpec
+}
+
 // Driver implements the programming logic
 type Driver interface{}
 
@@ -106,9 +115,9 @@ type NetworkDriver interface {
 	AddBgp(id string) error
 	DeleteBgp(id string) error
 	// Add a service spec to proxy
-	AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error
+	AddSvcSpec(svcName string, spec *ServiceSpec) error
 	// Remove a service spec from proxy
-	DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error
+	DelSvcSpec(svcName string, spec *ServiceSpec) error
 	// Service Proxy Back End update
 	SvcProviderUpdate(svcName string, providers []string)
 }

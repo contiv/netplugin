@@ -1,7 +1,6 @@
 package drivers
 
 import "github.com/contiv/netplugin/core"
-import "github.com/contiv/ofnet"
 
 // FakeNetEpDriverConfig represents the configuration of the fakedriver,
 // which is an empty struct.
@@ -72,12 +71,12 @@ func (d *FakeNetEpDriver) DeleteBgp(id string) (err error) {
 }
 
 // AddSvcSpec is not implemented.
-func (d *FakeNetEpDriver) AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+func (d *FakeNetEpDriver) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
 	return core.Errorf("Not implemented")
 }
 
 // DelSvcSpec is not implemented.
-func (d *FakeNetEpDriver) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+func (d *FakeNetEpDriver) DelSvcSpec(svcName string, spec *core.ServiceSpec) error {
 	return core.Errorf("Not implemented")
 }
 

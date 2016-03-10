@@ -119,11 +119,13 @@ func InitKubServiceWatch(np *plugin.NetPlugin) {
 			case svcEvent := <-svcCh:
 				switch svcEvent.opcode {
 				case "WARN":
+					log.Debugf("epWatch : %s", svcEvent.errStr)
 					break
 				case "FATAL":
+					log.Errorf("epWatch : %s", svcEvent.errStr)
 					break
 				case "ERROR":
-					log.Errorf("svcWatch : %s", svcEvent.errStr)
+					log.Warnf("svcWatch : %s", svcEvent.errStr)
 					watchClient.WatchServices(svcCh)
 					break
 
@@ -136,11 +138,13 @@ func InitKubServiceWatch(np *plugin.NetPlugin) {
 			case epEvent := <-epCh:
 				switch epEvent.opcode {
 				case "WARN":
+					log.Debugf("epWatch : %s", epEvent.errStr)
 					break
 				case "FATAL":
+					log.Errorf("epWatch : %s", epEvent.errStr)
 					break
 				case "ERROR":
-					log.Errorf("epWatch : %s", epEvent.errStr)
+					log.Warnf("epWatch : %s", epEvent.errStr)
 					watchClient.WatchSvcEps(epCh)
 					break
 

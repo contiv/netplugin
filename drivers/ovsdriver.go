@@ -464,13 +464,30 @@ func (d *OvsDriver) DeleteBgp(id string) error {
 
 }
 
+// convSvcSpec converts core.ServiceSpec to ofnet.ServiceSpec
+func convSvcSpec(spec *core.ServiceSpec) *ofnet.ServiceSpec {
+	pSpec := make([]ofnet.PortSpec, len(spec.Ports))
+	for ix, p := range spec.Ports {
+		pSpec[ix].Protocol = p.Protocol
+		pSpec[ix].SvcPort = p.SvcPort
+		pSpec[ix].ProvPort = p.ProvPort
+	}
+
+	ofnetSS := ofnet.ServiceSpec{
+		IpAddress: spec.IPAddress,
+		Ports:     pSpec,
+	}
+	return &ofnetSS
+}
+
 // AddSvcSpec invokes switch api
-func (d *OvsDriver) AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+func (d *OvsDriver) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
 	log.Infof("AddSvcSpec: %s", svcName)
+	ss := convSvcSpec(spec)
 	errs := ""
 	for _, sw := range d.switchDb {
 		log.Infof("sw AddSvcSpec: %s", svcName)
-		err := sw.AddSvcSpec(svcName, spec)
+		err := sw.AddSvcSpec(svcName, ss)
 		if err != nil {
 			errs += err.Error()
 		}
@@ -484,10 +501,11 @@ func (d *OvsDriver) AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
 }
 
 // DelSvcSpec invokes switch api
-func (d *OvsDriver) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+func (d *OvsDriver) DelSvcSpec(svcName string, spec *core.ServiceSpec) error {
+	ss := convSvcSpec(spec)
 	errs := ""
 	for _, sw := range d.switchDb {
-		err := sw.DelSvcSpec(svcName, spec)
+		err := sw.DelSvcSpec(svcName, ss)
 		if err != nil {
 			errs += err.Error()
 		}

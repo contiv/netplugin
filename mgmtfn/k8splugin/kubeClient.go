@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/ofnet"
+	"github.com/contiv/netplugin/core"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
 	"io/ioutil"
@@ -46,7 +46,7 @@ type SvcWatchResp struct {
 	opcode  string
 	errStr  string
 	svcName string
-	svcSpec ofnet.ServiceSpec
+	svcSpec core.ServiceSpec
 }
 
 // EpWatchResp is the response to service endpoints watch
@@ -222,11 +222,12 @@ func (c *APIClient) WatchServices(respCh chan SvcWatchResp) {
 			return
 		}
 		res, err := ctxhttp.Do(ctx, c.client, req)
-		defer res.Body.Close()
 		if err != nil {
+			log.Errorf("Watch error: %v", err)
 			respCh <- SvcWatchResp{opcode: "FATAL", errStr: fmt.Sprintf("Do %v", err)}
 			return
 		}
+		defer res.Body.Close()
 
 		var wss watchSvcStatus
 		reader := bufio.NewReader(res.Body)
@@ -261,11 +262,11 @@ func (c *APIClient) WatchServices(respCh chan SvcWatchResp) {
 			//}
 			resp := SvcWatchResp{opcode: wss.Type}
 			resp.svcName = wss.Object.ObjectMeta.Name
-			sSpec := ofnet.ServiceSpec{}
-			sSpec.Ports = make([]ofnet.PortSpec, 0, 1)
-			sSpec.IpAddress = wss.Object.Spec.ClusterIP
+			sSpec := core.ServiceSpec{}
+			sSpec.Ports = make([]core.PortSpec, 0, 1)
+			sSpec.IPAddress = wss.Object.Spec.ClusterIP
 			for _, port := range wss.Object.Spec.Ports {
-				ps := ofnet.PortSpec{Protocol: string(port.Protocol),
+				ps := core.PortSpec{Protocol: string(port.Protocol),
 					SvcPort:  uint16(port.Port),
 					ProvPort: uint16(port.TargetPort),
 				}
@@ -293,11 +294,12 @@ func (c *APIClient) WatchSvcEps(respCh chan EpWatchResp) {
 			return
 		}
 		res, err := ctxhttp.Do(ctx, c.client, req)
-		defer res.Body.Close()
 		if err != nil {
+			log.Errorf("EP Watch error: %v", err)
 			respCh <- EpWatchResp{opcode: "FATAL", errStr: fmt.Sprintf("Do %v", err)}
 			return
 		}
+		defer res.Body.Close()
 
 		var weps watchSvcEpStatus
 		reader := bufio.NewReader(res.Body)
