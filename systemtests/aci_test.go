@@ -6,6 +6,9 @@ import (
 )
 
 func (s *systemtestSuite) TestACIMode(c *C) {
+	if s.fwdMode == "routing" {
+		return
+	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
 		NetworkInfraType: "aci",

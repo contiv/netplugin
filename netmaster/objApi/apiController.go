@@ -1054,5 +1054,33 @@ func (ac *APIController) BgpDelete(bgpCfg *contivModel.Bgp) error {
 
 //BgpUpdate updates bgp config
 func (ac *APIController) BgpUpdate(oldbgpCfg *contivModel.Bgp, NewbgpCfg *contivModel.Bgp) error {
+	log.Infof("Received BgpUpdate: %+v", NewbgpCfg)
+
+	if NewbgpCfg.Hostname == "" {
+		return core.Errorf("Invalid host name")
+	}
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Build bgp config
+	bgpIntentCfg := intent.ConfigBgp{
+		Hostname:   NewbgpCfg.Hostname,
+		RouterIP:   NewbgpCfg.Routerip,
+		As:         NewbgpCfg.As,
+		NeighborAs: NewbgpCfg.NeighborAs,
+		Neighbor:   NewbgpCfg.Neighbor,
+	}
+
+	// Add the Bgp neighbor
+	err = master.AddBgp(stateDriver, &bgpIntentCfg)
+	if err != nil {
+		log.Errorf("Error creating Bgp neighbor {%+v}. Err: %v", NewbgpCfg.Neighbor, err)
+		return err
+	}
+
 	return nil
 }

@@ -179,7 +179,14 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			eventStr = "delete"
 		} else if rsp.Prev != nil {
 			log.Infof("Received a modify event, ignoring it")
+			if bgpCfg, ok := currentState.(*mastercfg.CfgBgpState); ok {
+				log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
+				processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
+				continue
+			}
+			log.Infof("Received a modify event, ignoring it")
 			continue
+
 		}
 		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)

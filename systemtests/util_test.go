@@ -431,3 +431,50 @@ func (s *systemtestSuite) etcdList(path string, recursive bool) ([]map[string]in
 
 	return retval, nil
 }
+func (s *systemtestSuite) pingFailureTestDifferentNode(containers1 []*container, containers2 []*container) error {
+
+	count := 0
+
+	for _, cont1 := range containers1 {
+		for _, cont2 := range containers2 {
+			if cont1.node != cont2.node {
+				count++
+			}
+		}
+	}
+	errChan := make(chan error, count)
+
+	for _, cont1 := range containers1 {
+		for _, cont2 := range containers2 {
+			if cont1.node != cont2.node {
+				go func(cont1 *container, cont2 *container) { errChan <- cont1.checkPingFailure(cont2.eth0) }(cont1, cont2)
+			}
+		}
+	}
+
+	for i := 0; i < count; i++ {
+		if err := <-errChan; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *systemtestSuite) pingTestToNonContainer(containers []*container, nonContIps []string) error {
+
+	errChan := make(chan error, len(containers)*len(nonContIps))
+
+	for _, cont := range containers {
+		for _, ip := range nonContIps {
+			go func(cont *container, ip string) { errChan <- cont.checkPing(ip) }(cont, ip)
+		}
+	}
+
+	for i := 0; i < len(containers)*len(nonContIps); i++ {
+		if err := <-errChan; err != nil {
+			return err
+		}
+	}
+	return nil
+}
