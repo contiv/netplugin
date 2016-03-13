@@ -252,7 +252,12 @@ func createNetwork(ctx *cli.Context) {
 	gateway := ctx.String("gateway")
 
 	if subnet == "" {
-		errExit(ctx, exitHelp, "Subnet and gateway are required", true)
+		errExit(ctx, exitHelp, "Subnet is required", true)
+	}
+	if gateway != "" {
+		if ok := net.ParseIP(gateway); ok == nil {
+			errExit(ctx, exitHelp, "Invalid gateway - Enter in A.B.C.D format", true)
+		}
 	}
 
 	tenant := ctx.String("tenant")
