@@ -251,7 +251,7 @@ func createNetwork(ctx *cli.Context) {
 	subnet := ctx.String("subnet")
 	gateway := ctx.String("gateway")
 
-	if subnet == "" || gateway == "" {
+	if subnet == "" {
 		errExit(ctx, exitHelp, "Subnet and gateway are required", true)
 	}
 

@@ -103,7 +103,6 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		PktTagType:  network.PktTagType,
 		SubnetIP:    subnetIP,
 		SubnetLen:   subnetLen,
-		Gateway:     network.Gateway,
 	}
 
 	nwCfg.ID = networkID
@@ -126,13 +125,15 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	nwCfg.ExtPktTag = int(extPktTag)
 	nwCfg.PktTag = int(pktTag)
 
-	// Reserve gateway IP address
-	ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, nwCfg.Gateway)
-	if err != nil {
-		log.Errorf("Error parsing gateway address %s. Err: %v", nwCfg.Gateway, err)
-		return err
+	if network.Gateway != "" {
+		// Reserve gateway IP address
+		ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, nwCfg.Gateway)
+		if err != nil {
+			log.Errorf("Error parsing gateway address %s. Err: %v", nwCfg.Gateway, err)
+			return err
+		}
+		nwCfg.IPAllocMap.Set(ipAddrValue)
 	}
-	nwCfg.IPAllocMap.Set(ipAddrValue)
 
 	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
 	err = nwCfg.Write()

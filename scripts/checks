@@ -32,37 +32,6 @@ if [ -n "${fmtRes}" ]; then
     exit 1
 fi
 
-echo "+++ golint tree..."
-for i in ${BUILD_PKGS}
-do
-    tmp="$(golint ${i})"
-    if [ -n "$tmp" ]
-    then
-      lintOutput="${lintOutput}\n${tmp}" # golint has no exit codes
-    fi
-done
-
-if [ -n "${lintOutput}" ]
-then
-    echo -e "!!! golint checking failed:\n${lintOutput}\n"
-    exit 1
-fi
-
-echo "+++ go vet tree..."
-for i in ${BUILD_PKGS}
-do
-    tmp="$(go vet ${i} 2>&1)"
-    if [ -n "$tmp" ]
-    then
-      vetOutput="${vetOutput}\n${tmp}"
-    fi
-done
-
-if [ -n "${vetOutput}" ]
-then
-    echo -e "!!! go vet checking failed:\n${vetOutput}\n"
-    exit 1
-fi
 
 echo "+++ All checks passed!!"
 exit 0
