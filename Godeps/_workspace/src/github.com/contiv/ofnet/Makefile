@@ -25,3 +25,4 @@ host-build:
 host-test:
 	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./
 	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./ofctrl
+	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./pqueue

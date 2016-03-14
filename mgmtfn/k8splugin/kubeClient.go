@@ -16,11 +16,15 @@ limitations under the License.
 package k8splugin
 
 import (
+	"bufio"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/core"
+	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 	"io/ioutil"
 	"net/http"
 )
@@ -29,11 +33,42 @@ const (
 	nsURL = "/api/v1/namespaces/"
 )
 
-// APIClient defines informatio needed for the k8s api client
+// APIClient defines information needed for the k8s api client
 type APIClient struct {
-	baseURL  string
-	client   *http.Client
-	podCache podInfo
+	baseURL   string
+	watchBase string
+	client    *http.Client
+	podCache  podInfo
+}
+
+// SvcWatchResp is the response to a service watch
+type SvcWatchResp struct {
+	opcode  string
+	errStr  string
+	svcName string
+	svcSpec core.ServiceSpec
+}
+
+// EpWatchResp is the response to service endpoints watch
+type EpWatchResp struct {
+	opcode    string
+	errStr    string
+	svcName   string
+	providers []string
+}
+
+type watchSvcStatus struct {
+	// The type of watch update contained in the message
+	Type string `json:"type"`
+	// Pod details
+	Object Service `json:"object"`
+}
+
+type watchSvcEpStatus struct {
+	// The type of watch update contained in the message
+	Type string `json:"type"`
+	// Pod details
+	Object Endpoints `json:"object"`
 }
 
 type podInfo struct {
@@ -46,6 +81,7 @@ type podInfo struct {
 func NewAPIClient(serverURL, caFile, keyFile, certFile string) *APIClient {
 	c := APIClient{}
 	c.baseURL = serverURL + "/api/v1/namespaces/"
+	c.watchBase = serverURL + "/api/v1/watch/"
 
 	// Read client cert
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
@@ -171,4 +207,143 @@ func (c *APIClient) GetPodLabel(ns, name, label string) (string, error) {
 
 	log.Infof("label %s not found in podSpec for %s.%s", label, ns, name)
 	return "", nil
+}
+
+// WatchServices watches the services object on the api server
+func (c *APIClient) WatchServices(respCh chan SvcWatchResp) {
+	ctx, _ := context.WithCancel(context.Background())
+
+	go func() {
+		// Make request to Kubernetes API
+		getURL := c.watchBase + "services"
+		req, err := http.NewRequest("GET", getURL, nil)
+		if err != nil {
+			respCh <- SvcWatchResp{opcode: "FATAL", errStr: fmt.Sprintf("Req %v", err)}
+			return
+		}
+		res, err := ctxhttp.Do(ctx, c.client, req)
+		if err != nil {
+			log.Errorf("Watch error: %v", err)
+			respCh <- SvcWatchResp{opcode: "FATAL", errStr: fmt.Sprintf("Do %v", err)}
+			return
+		}
+		defer res.Body.Close()
+
+		var wss watchSvcStatus
+		reader := bufio.NewReader(res.Body)
+
+		// bufio.Reader.ReadBytes is blocking, so we watch for
+		// context timeout or cancellation in a goroutine
+		// and close the response body when see see it. The
+		// response body is also closed via defer when the
+		// request is made, but closing twice is OK.
+		go func() {
+			<-ctx.Done()
+			res.Body.Close()
+		}()
+
+		for {
+			line, err := reader.ReadBytes('\n')
+			if ctx.Err() != nil {
+				respCh <- SvcWatchResp{opcode: "ERROR", errStr: fmt.Sprintf("ctx %v", err)}
+				return
+			}
+			if err != nil {
+				respCh <- SvcWatchResp{opcode: "ERROR", errStr: fmt.Sprintf("read %v", err)}
+				return
+			}
+			if err := json.Unmarshal(line, &wss); err != nil {
+				respCh <- SvcWatchResp{opcode: "WARN", errStr: fmt.Sprintf("unmarshal %v", err)}
+				continue
+			}
+
+			//if wss.Object.ObjectMeta.Namespace != "default" {
+			//	continue
+			//}
+			resp := SvcWatchResp{opcode: wss.Type}
+			resp.svcName = wss.Object.ObjectMeta.Name
+			sSpec := core.ServiceSpec{}
+			sSpec.Ports = make([]core.PortSpec, 0, 1)
+			sSpec.IPAddress = wss.Object.Spec.ClusterIP
+			for _, port := range wss.Object.Spec.Ports {
+				ps := core.PortSpec{Protocol: string(port.Protocol),
+					SvcPort:  uint16(port.Port),
+					ProvPort: uint16(port.TargetPort),
+				}
+				sSpec.Ports = append(sSpec.Ports, ps)
+			}
+
+			resp.svcSpec = sSpec
+			log.Infof("resp: %+v", resp)
+
+			respCh <- resp
+		}
+	}()
+}
+
+// WatchSvcEps watches the service endpoints object
+func (c *APIClient) WatchSvcEps(respCh chan EpWatchResp) {
+	ctx, _ := context.WithCancel(context.Background())
+
+	go func() {
+		// Make request to Kubernetes API
+		getURL := c.watchBase + "endpoints"
+		req, err := http.NewRequest("GET", getURL, nil)
+		if err != nil {
+			respCh <- EpWatchResp{opcode: "FATAL", errStr: fmt.Sprintf("Req %v", err)}
+			return
+		}
+		res, err := ctxhttp.Do(ctx, c.client, req)
+		if err != nil {
+			log.Errorf("EP Watch error: %v", err)
+			respCh <- EpWatchResp{opcode: "FATAL", errStr: fmt.Sprintf("Do %v", err)}
+			return
+		}
+		defer res.Body.Close()
+
+		var weps watchSvcEpStatus
+		reader := bufio.NewReader(res.Body)
+
+		// bufio.Reader.ReadBytes is blocking, so we watch for
+		// context timeout or cancellation in a goroutine
+		// and close the response body when see see it. The
+		// response body is also closed via defer when the
+		// request is made, but closing twice is OK.
+		go func() {
+			<-ctx.Done()
+			res.Body.Close()
+		}()
+
+		for {
+			line, err := reader.ReadBytes('\n')
+			if ctx.Err() != nil {
+				respCh <- EpWatchResp{opcode: "ERROR", errStr: fmt.Sprintf("ctx %v", err)}
+				return
+			}
+			if err != nil {
+				respCh <- EpWatchResp{opcode: "ERROR", errStr: fmt.Sprintf("read %v", err)}
+				return
+			}
+			if err := json.Unmarshal(line, &weps); err != nil {
+				respCh <- EpWatchResp{opcode: "WARN", errStr: fmt.Sprintf("unmarshal %v", err)}
+				continue
+			}
+			//if weps.Object.ObjectMeta.Namespace != "default" {
+			//	continue
+			//}
+
+			resp := EpWatchResp{opcode: weps.Type}
+			resp.svcName = weps.Object.ObjectMeta.Name
+			resp.providers = make([]string, 0, 1)
+			for _, subset := range weps.Object.Subsets {
+				// TODO: handle partially ready providers
+				for _, addr := range subset.Addresses {
+					resp.providers = append(resp.providers, addr.IP)
+				}
+			}
+
+			log.Infof("kube ep watch: %v", resp)
+			respCh <- resp
+		}
+	}()
 }

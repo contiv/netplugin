@@ -17,11 +17,13 @@ package drivers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/ofnet"
 	"github.com/vishvananda/netlink"
 
 	"github.com/contiv/netplugin/core"
@@ -460,4 +462,65 @@ func (d *OvsDriver) DeleteBgp(id string) error {
 	sw = d.switchDb["vlan"]
 	return sw.DeleteBgp()
 
+}
+
+// convSvcSpec converts core.ServiceSpec to ofnet.ServiceSpec
+func convSvcSpec(spec *core.ServiceSpec) *ofnet.ServiceSpec {
+	pSpec := make([]ofnet.PortSpec, len(spec.Ports))
+	for ix, p := range spec.Ports {
+		pSpec[ix].Protocol = p.Protocol
+		pSpec[ix].SvcPort = p.SvcPort
+		pSpec[ix].ProvPort = p.ProvPort
+	}
+
+	ofnetSS := ofnet.ServiceSpec{
+		IpAddress: spec.IPAddress,
+		Ports:     pSpec,
+	}
+	return &ofnetSS
+}
+
+// AddSvcSpec invokes switch api
+func (d *OvsDriver) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
+	log.Infof("AddSvcSpec: %s", svcName)
+	ss := convSvcSpec(spec)
+	errs := ""
+	for _, sw := range d.switchDb {
+		log.Infof("sw AddSvcSpec: %s", svcName)
+		err := sw.AddSvcSpec(svcName, ss)
+		if err != nil {
+			errs += err.Error()
+		}
+	}
+
+	if errs != "" {
+		return errors.New(errs)
+	}
+
+	return nil
+}
+
+// DelSvcSpec invokes switch api
+func (d *OvsDriver) DelSvcSpec(svcName string, spec *core.ServiceSpec) error {
+	ss := convSvcSpec(spec)
+	errs := ""
+	for _, sw := range d.switchDb {
+		err := sw.DelSvcSpec(svcName, ss)
+		if err != nil {
+			errs += err.Error()
+		}
+	}
+
+	if errs != "" {
+		return errors.New(errs)
+	}
+
+	return nil
+}
+
+// SvcProviderUpdate invokes switch api
+func (d *OvsDriver) SvcProviderUpdate(svcName string, providers []string) {
+	for _, sw := range d.switchDb {
+		sw.SvcProviderUpdate(svcName, providers)
+	}
 }

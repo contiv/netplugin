@@ -598,3 +598,19 @@ func (sw *OvsSwitch) DeleteBgp() error {
 	}
 	return nil
 }
+
+// AddSvcSpec invokes ofnetAgent api
+func (sw *OvsSwitch) AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+	log.Infof("OvsSwitch AddSvcSpec %s", svcName)
+	return sw.ofnetAgent.AddSvcSpec(svcName, spec)
+}
+
+// DelSvcSpec invokes ofnetAgent api
+func (sw *OvsSwitch) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
+	return sw.ofnetAgent.DelSvcSpec(svcName, spec)
+}
+
+// SvcProviderUpdate invokes ofnetAgent api
+func (sw *OvsSwitch) SvcProviderUpdate(svcName string, providers []string) {
+	sw.ofnetAgent.SvcProviderUpdate(svcName, providers)
+}

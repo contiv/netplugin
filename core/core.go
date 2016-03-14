@@ -83,6 +83,19 @@ type InstanceInfo struct {
 	FwdMode     string      `json:"fwd-mode"`
 }
 
+// PortSpec defines protocol/port info required to host the service
+type PortSpec struct {
+	Protocol string
+	SvcPort  uint16 // advertised port
+	ProvPort uint16 // actual port of provider
+}
+
+// ServiceSpec defines a service to be proxied
+type ServiceSpec struct {
+	IPAddress string
+	Ports     []PortSpec
+}
+
 // Driver implements the programming logic
 type Driver interface{}
 
@@ -101,6 +114,12 @@ type NetworkDriver interface {
 	DeleteMaster(node ServiceInfo) error
 	AddBgp(id string) error
 	DeleteBgp(id string) error
+	// Add a service spec to proxy
+	AddSvcSpec(svcName string, spec *ServiceSpec) error
+	// Remove a service spec from proxy
+	DelSvcSpec(svcName string, spec *ServiceSpec) error
+	// Service Proxy Back End update
+	SvcProviderUpdate(svcName string, providers []string)
 }
 
 // WatchState is used to provide a difference between core.State structs by

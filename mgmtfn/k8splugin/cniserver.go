@@ -103,6 +103,62 @@ func makeHTTPHandler(handlerFunc restAPIFunc) http.HandlerFunc {
 	}
 }
 
+// InitKubServiceWatch initializes the k8s service watch
+func InitKubServiceWatch(np *plugin.NetPlugin) {
+
+	watchClient := setUpAPIClient()
+	if watchClient == nil {
+		log.Fatalf("Could not init kubernetes API client")
+	}
+
+	svcCh := make(chan SvcWatchResp, 1)
+	epCh := make(chan EpWatchResp, 1)
+	go func() {
+		for {
+			select {
+			case svcEvent := <-svcCh:
+				switch svcEvent.opcode {
+				case "WARN":
+					log.Debugf("epWatch : %s", svcEvent.errStr)
+					break
+				case "FATAL":
+					log.Errorf("epWatch : %s", svcEvent.errStr)
+					break
+				case "ERROR":
+					log.Warnf("svcWatch : %s", svcEvent.errStr)
+					watchClient.WatchServices(svcCh)
+					break
+
+				case "DELETED":
+					np.NetworkDriver.DelSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
+					break
+				default:
+					np.NetworkDriver.AddSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
+				}
+			case epEvent := <-epCh:
+				switch epEvent.opcode {
+				case "WARN":
+					log.Debugf("epWatch : %s", epEvent.errStr)
+					break
+				case "FATAL":
+					log.Errorf("epWatch : %s", epEvent.errStr)
+					break
+				case "ERROR":
+					log.Warnf("epWatch : %s", epEvent.errStr)
+					watchClient.WatchSvcEps(epCh)
+					break
+
+				default:
+					np.NetworkDriver.SvcProviderUpdate(epEvent.svcName, epEvent.providers)
+				}
+			}
+		}
+	}()
+
+	watchClient.WatchServices(svcCh)
+	watchClient.WatchSvcEps(epCh)
+}
+
 // InitCNIServer initializes the k8s cni server
 func InitCNIServer(netplugin *plugin.NetPlugin) error {
 
@@ -146,6 +202,7 @@ func InitCNIServer(netplugin *plugin.NetPlugin) error {
 		log.Infof("k8s plugin closing %s", driverPath)
 	}()
 
+	//InitKubServiceWatch(netplugin)
 	return nil
 }
 

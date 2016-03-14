@@ -19,6 +19,7 @@ package ofctrl
 import (
 	"encoding/json"
 	"net"
+	"errors"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/shaleman/libOpenflow/openflow13"
@@ -55,6 +56,8 @@ type FlowAction struct {
 	actionType   string           // Type of action "setVlan", "setMetadata"
 	vlanId       uint16           // Vlan Id in case of "setVlan"
 	macAddr      net.HardwareAddr // Mac address to set
+	ipAddr       net.IP           // IP address to be set
+	l4Port       uint16           // Transport port to be set
 	tunnelId     uint64           // Tunnel Id (used for setting VNI)
 	metadata     uint64           // Metadata in case of "setMetadata"
 	metadataMask uint64           // Metadata mask
@@ -295,6 +298,72 @@ func (self *Flow) installFlowActions(flowMod *openflow13.FlowMod,
 			// Add the instruction to flowmod
 			flowMod.AddInstruction(metadataInstr)
 
+		case "setIPSa":
+			// Set IP src
+			ipSaField := openflow13.NewIpv4SrcField(flowAction.ipAddr, nil)
+			setIPSaAction := openflow13.NewActionSetField(*ipSaField)
+
+			// Add set action to the instruction
+			actInstr.AddAction(setIPSaAction, true)
+			addActn = true
+
+			log.Debugf("flow install. Added setIPSa Action: %+v", setIPSaAction)
+
+		case "setIPDa":
+			// Set IP dst
+			ipDaField := openflow13.NewIpv4DstField(flowAction.ipAddr, nil)
+			setIPDaAction := openflow13.NewActionSetField(*ipDaField)
+
+			// Add set action to the instruction
+			actInstr.AddAction(setIPDaAction, true)
+			addActn = true
+
+			log.Debugf("flow install. Added setIPDa Action: %+v", setIPDaAction)
+
+		case "setTCPSrc":
+			// Set TCP src
+			tcpSrcField := openflow13.NewTcpSrcField(flowAction.l4Port)
+			setTCPSrcAction := openflow13.NewActionSetField(*tcpSrcField)
+
+			// Add set action to the instruction
+			actInstr.AddAction(setTCPSrcAction, true)
+			addActn = true
+
+			log.Debugf("flow install. Added setTCPSrc Action: %+v", setTCPSrcAction)
+
+		case "setTCPDst":
+			// Set TCP dst
+			tcpDstField := openflow13.NewTcpDstField(flowAction.l4Port)
+			setTCPDstAction := openflow13.NewActionSetField(*tcpDstField)
+
+			// Add set action to the instruction
+			actInstr.AddAction(setTCPDstAction, true)
+			addActn = true
+
+			log.Debugf("flow install. Added setTCPDst Action: %+v", setTCPDstAction)
+
+		case "setUDPSrc":
+			// Set UDP src
+			udpSrcField := openflow13.NewUdpSrcField(flowAction.l4Port)
+			setUDPSrcAction := openflow13.NewActionSetField(*udpSrcField)
+
+			// Add set action to the instruction
+			actInstr.AddAction(setUDPSrcAction, true)
+			addActn = true
+
+			log.Debugf("flow install. Added setUDPSrc Action: %+v", setUDPSrcAction)
+
+		case "setUDPDst":
+			// Set UDP dst
+			udpDstField := openflow13.NewUdpDstField(flowAction.l4Port)
+			setUDPDstAction := openflow13.NewActionSetField(*udpDstField)
+
+			// Add set action to the instruction
+			actInstr.AddAction(setUDPDstAction, true)
+			addActn = true
+
+			log.Debugf("flow install. Added setUDPDst Action: %+v", setUDPDstAction)
+
 		default:
 			log.Fatalf("Unknown action type %s", flowAction.actionType)
 		}
@@ -445,6 +514,62 @@ func (self *Flow) SetMacSa(macSa net.HardwareAddr) error {
 
 	// Add to the action list
 	// FIXME: detect duplicates
+	self.flowActions = append(self.flowActions, action)
+
+	// If the flow entry was already installed, re-install it
+	if self.isInstalled {
+		self.install()
+	}
+
+	return nil
+}
+
+// Special action on the flow to set an ip field
+func (self *Flow) SetIPField(ip net.IP, field string) error {
+	action := new(FlowAction)
+	if field == "Src" {
+		action.actionType = "setIPSa"
+	} else if field == "Dst" {
+		action.actionType = "setIPDa"
+	} else {
+		return errors.New("field not supported")
+	}
+
+	action.ipAddr = ip
+	// Add to the action list
+	self.flowActions = append(self.flowActions, action)
+
+	// If the flow entry was already installed, re-install it
+	if self.isInstalled {
+		self.install()
+	}
+
+	return nil
+}
+
+// Special action on the flow to set a L4 field
+func (self *Flow) SetL4Field(port uint16, field string) error {
+	action := new(FlowAction)
+
+	switch field {
+	case "TCPSrc":
+		action.actionType = "setTCPSrc"
+		break
+	case "TCPDst":
+		action.actionType = "setTCPDst"
+		break
+	case "UDPSrc":
+		action.actionType = "setUDPSrc"
+		break
+	case "UDPDst":
+		action.actionType = "setUDPDst"
+		break
+	default:
+		return errors.New("field not supported")
+	}
+
+	action.l4Port = port
+	// Add to the action list
 	self.flowActions = append(self.flowActions, action)
 
 	// If the flow entry was already installed, re-install it

@@ -69,3 +69,17 @@ func (d *FakeNetEpDriver) AddBgp(id string) (err error) {
 func (d *FakeNetEpDriver) DeleteBgp(id string) (err error) {
 	return core.Errorf("Not implemented")
 }
+
+// AddSvcSpec is not implemented.
+func (d *FakeNetEpDriver) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
+	return core.Errorf("Not implemented")
+}
+
+// DelSvcSpec is not implemented.
+func (d *FakeNetEpDriver) DelSvcSpec(svcName string, spec *core.ServiceSpec) error {
+	return core.Errorf("Not implemented")
+}
+
+// SvcProviderUpdate is not implemented.
+func (d *FakeNetEpDriver) SvcProviderUpdate(svcName string, providers []string) {
+}

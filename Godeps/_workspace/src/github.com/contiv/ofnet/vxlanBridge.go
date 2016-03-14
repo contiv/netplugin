@@ -565,6 +565,20 @@ func (vx *Vxlan) RemoveUplink(portNo uint32) error {
 	return nil
 }
 
+// AddSvcSpec adds a service spec to proxy
+func (vx *Vxlan) AddSvcSpec(svcName string, spec *ServiceSpec) error {
+        return nil
+}
+
+// DelSvcSpec removes a service spec from proxy
+func (vx *Vxlan) DelSvcSpec(svcName string, spec *ServiceSpec) error {
+        return nil
+}
+
+// SvcProviderUpdate Service Proxy Back End update
+func (vx *Vxlan) SvcProviderUpdate(svcName string, providers []string) {
+}
+
 // initialize Fgraph on the switch
 func (self *Vxlan) initFgraph() error {
 	sw := self.ofSwitch

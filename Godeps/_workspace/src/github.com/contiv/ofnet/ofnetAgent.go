@@ -82,11 +82,15 @@ const FLOW_FLOOD_PRIORITY = 10         // Priority for flood entries
 const FLOW_MISS_PRIORITY = 1           // priority for table miss flow
 const FLOW_POLICY_PRIORITY_OFFSET = 10 // Priority offset for policy rules
 
-const VLAN_TBL_ID = 1
-const DST_GRP_TBL_ID = 2
-const POLICY_TBL_ID = 3
-const IP_TBL_ID = 4
-const MAC_DEST_TBL_ID = 5
+const (
+	VLAN_TBL_ID = 1
+	SRV_PROXY_DNAT_TBL_ID = 2
+	DST_GRP_TBL_ID = 3
+	POLICY_TBL_ID = 4
+	SRV_PROXY_SNAT_TBL_ID = 5
+	IP_TBL_ID = 6
+	MAC_DEST_TBL_ID = 7
+)
 
 // Create a new Ofnet agent and initialize it
 /*  routerInfo[0] -> Uplink nexthop interface
@@ -221,7 +225,7 @@ func (self *OfnetAgent) WaitForSwitchConnection() {
 // Receive a packet from the switch.
 func (self *OfnetAgent) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 	log.Infof("Packet received from switch %v. Packet: %+v", sw.DPID(), pkt)
-	log.Infof("Input Port: %+v", pkt.Match.Fields[0].Value)
+	//log.Infof("Input Port: %+v", pkt.Match.Fields[0].Value)
 
 	// Inform the datapath
 	self.datapath.PacketRcvd(sw, pkt)
@@ -495,6 +499,22 @@ func (self *OfnetAgent) RemoveUplink(portNo uint32) error {
 	// Call the datapath
 	return self.datapath.RemoveUplink(portNo)
 }
+
+// AddSvcSpec adds a service spec to proxy
+func (self *OfnetAgent) AddSvcSpec(svcName string, spec *ServiceSpec) error {
+        return self.datapath.AddSvcSpec(svcName, spec)
+}
+
+// DelSvcSpec removes a service spec from proxy
+func (self *OfnetAgent) DelSvcSpec(svcName string, spec *ServiceSpec) error {
+        return self.datapath.DelSvcSpec(svcName, spec)
+}
+
+// SvcProviderUpdate Service Proxy Back End update
+func (self *OfnetAgent) SvcProviderUpdate(svcName string, providers []string) {
+        self.datapath.SvcProviderUpdate(svcName, providers)
+}
+
 
 // Add remote endpoint RPC call from master
 func (self *OfnetAgent) EndpointAdd(epreg *OfnetEndpoint, ret *bool) error {

@@ -67,6 +67,15 @@ type OfnetDatapath interface {
 
 	//Delete uplink port
 	RemoveUplink(portNo uint32) error
+
+	// Add a service spec to proxy
+	AddSvcSpec(svcName string, spec *ServiceSpec) error
+
+	// Remove a service spec from proxy
+	DelSvcSpec(svcName string, spec *ServiceSpec) error
+
+	// Service Proxy Back End update
+	SvcProviderUpdate(svcName string, providers []string)
 }
 
 // Interface implemented by each control protocol.

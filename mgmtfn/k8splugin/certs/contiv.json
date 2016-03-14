@@ -1,0 +1,6 @@
+{
+  "K8S_API_SERVER": "https://10.0.2.15:443",
+  "K8S_CA": "/tmp/certs/ca.crt",
+  "K8S_KEY": "/tmp/certs/kubecfg.key",
+  "K8S_CERT": "/tmp/certs/kubecfg.crt"
+}
