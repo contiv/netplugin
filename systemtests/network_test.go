@@ -99,6 +99,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantVLAN(c *C) {
 }
 
 func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
+	mutex := sync.Mutex{}
 	for i := 0; i < s.iterations; i++ {
 		var (
 			tenantNames = map[string][]string{}
@@ -141,7 +142,9 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 			for _, network := range networks {
 				go func(network, tenant string, containers map[string][]*container) {
 					var err error
+					mutex.Lock()
 					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil)
+					mutest.Unlock()
 					endChan <- err
 					endChan <- s.pingTest(containers[network])
 				}(network, tenant, containers)
