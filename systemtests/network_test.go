@@ -6,6 +6,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	. "gopkg.in/check.v1"
+	"sync"
 )
 
 func (s *systemtestSuite) TestNetworkAddDeleteVXLAN(c *C) {
@@ -144,7 +145,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 					var err error
 					mutex.Lock()
 					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil)
-					mutest.Unlock()
+					mutex.Unlock()
 					endChan <- err
 					endChan <- s.pingTest(containers[network])
 				}(network, tenant, containers)
