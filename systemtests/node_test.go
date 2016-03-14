@@ -147,7 +147,7 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 	}
 
 	if spec.commandName == "" {
-		spec.commandName = "sleep 10m"
+		spec.commandName = "sleep 60m"
 	}
 
 	if spec.name != "" {
