@@ -94,19 +94,36 @@ var RuleSummaryView = React.createClass({
             if (rule.action == "deny") {
                 action = "deny"
             }
-			return (
-				<ModalTrigger modal={<RuleModalView rule={ rule }/>}>
-					<tr key={ rule.key } className="info">
-                        <td>{ rule.ruleId }</td>
-                        <td>{ rule.priority }</td>
-						<td>{ action }</td>
-						<td>{ rule.endpointGroup }</td>
-                        <td>{ rule.ipAddress }</td>
-                        <td>{ rule.protocol }</td>
-						<td>{ rule.port }</td>
-					</tr>
-				</ModalTrigger>
-			);
+            if (self.props.direction == "out") {
+                return (
+    				<ModalTrigger modal={<RuleModalView rule={ rule }/>}>
+    					<tr key={ rule.key } className="info">
+                            <td>{ rule.ruleId }</td>
+                            <td>{ rule.priority }</td>
+    						<td>{ action }</td>
+    						<td>{ rule.toEndpointGroup }</td>
+                            <td>{ rule.toIpAddress }</td>
+                            <td>{ rule.protocol }</td>
+    						<td>{ rule.port }</td>
+    					</tr>
+    				</ModalTrigger>
+    			);
+            } else {
+                return (
+    				<ModalTrigger modal={<RuleModalView rule={ rule }/>}>
+    					<tr key={ rule.key } className="info">
+                            <td>{ rule.ruleId }</td>
+                            <td>{ rule.priority }</td>
+    						<td>{ action }</td>
+    						<td>{ rule.fromEndpointGroup }</td>
+                            <td>{ rule.fromIpAddress }</td>
+                            <td>{ rule.protocol }</td>
+    						<td>{ rule.port }</td>
+    					</tr>
+    				</ModalTrigger>
+    			);
+            }
+
 		});
 
         // Set appropriate heading based on direction
