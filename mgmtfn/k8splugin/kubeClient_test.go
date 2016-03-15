@@ -475,7 +475,7 @@ func TestKubeWatch(m *testing.T) {
 	m.Logf("--CLOSE--")
 	maxEPResp = 6
 	maxSvcResp = 4
-	for ix := 0; ix < 6; ix++ {
+	for ix := 0; ix < 8; ix++ {
 		time.Sleep(time.Second)
 	}
 	m.Logf("Drv: %+v", drv)
