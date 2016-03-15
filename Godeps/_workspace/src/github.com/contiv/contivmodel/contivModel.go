@@ -15,24 +15,27 @@ import (
 )
 
 type HttpApiFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
-type App struct {
+type AppProfile struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName    string `json:"appName,omitempty"`    // Application Name
-	TenantName string `json:"tenantName,omitempty"` // Tenant Name
+	AppProfileName string   `json:"appProfileName,omitempty"` // Application Profile Name
+	EndpointGroups []string `json:"endpointGroups,omitempty"`
+	NetworkName    string   `json:"networkName,omitempty"` // Network of App Prof
+	TenantName     string   `json:"tenantName,omitempty"`  // Tenant Name
 
 	// add link-sets and links
-	LinkSets AppLinkSets `json:"link-sets,omitempty"`
-	Links    AppLinks    `json:"links,omitempty"`
+	LinkSets AppProfileLinkSets `json:"link-sets,omitempty"`
+	Links    AppProfileLinks    `json:"links,omitempty"`
 }
 
-type AppLinkSets struct {
-	Services map[string]modeldb.Link `json:"Services,omitempty"`
+type AppProfileLinkSets struct {
+	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
 }
 
-type AppLinks struct {
-	Tenant modeldb.Link `json:"Tenant,omitempty"`
+type AppProfileLinks struct {
+	Network modeldb.Link `json:"Network,omitempty"`
+	Tenant  modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type EndpointGroup struct {
@@ -56,8 +59,9 @@ type EndpointGroupLinkSets struct {
 }
 
 type EndpointGroupLinks struct {
-	Network modeldb.Link `json:"Network,omitempty"`
-	Tenant  modeldb.Link `json:"Tenant,omitempty"`
+	AppProfile modeldb.Link `json:"AppProfile,omitempty"`
+	Network    modeldb.Link `json:"Network,omitempty"`
+	Tenant     modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type Global struct {
@@ -100,6 +104,7 @@ type Network struct {
 }
 
 type NetworkLinkSets struct {
+	AppProfiles    map[string]modeldb.Link `json:"AppProfiles,omitempty"`
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
 	Services       map[string]modeldb.Link `json:"Services,omitempty"`
 }
@@ -224,7 +229,7 @@ type Tenant struct {
 }
 
 type TenantLinkSets struct {
-	Apps           map[string]modeldb.Link `json:"Apps,omitempty"`
+	AppProfiles    map[string]modeldb.Link `json:"AppProfiles,omitempty"`
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
 	Networks       map[string]modeldb.Link `json:"Networks,omitempty"`
 	Policies       map[string]modeldb.Link `json:"Policies,omitempty"`
@@ -281,7 +286,7 @@ type VolumeProfileLinks struct {
 }
 
 type Collections struct {
-	apps             map[string]*App
+	appProfiles      map[string]*AppProfile
 	endpointGroups   map[string]*EndpointGroup
 	globals          map[string]*Global
 	Bgps             map[string]*Bgp
@@ -297,10 +302,10 @@ type Collections struct {
 
 var collections Collections
 
-type AppCallbacks interface {
-	AppCreate(app *App) error
-	AppUpdate(app, params *App) error
-	AppDelete(app *App) error
+type AppProfileCallbacks interface {
+	AppProfileCreate(appProfile *AppProfile) error
+	AppProfileUpdate(appProfile, params *AppProfile) error
+	AppProfileDelete(appProfile *AppProfile) error
 }
 
 type EndpointGroupCallbacks interface {
@@ -370,7 +375,7 @@ type VolumeProfileCallbacks interface {
 }
 
 type CallbackHandlers struct {
-	AppCb             AppCallbacks
+	AppProfileCb      AppProfileCallbacks
 	EndpointGroupCb   EndpointGroupCallbacks
 	GlobalCb          GlobalCallbacks
 	BgpCb             BgpCallbacks
@@ -387,7 +392,7 @@ type CallbackHandlers struct {
 var objCallbackHandler CallbackHandlers
 
 func Init() {
-	collections.apps = make(map[string]*App)
+	collections.appProfiles = make(map[string]*AppProfile)
 	collections.endpointGroups = make(map[string]*EndpointGroup)
 	collections.globals = make(map[string]*Global)
 	collections.Bgps = make(map[string]*Bgp)
@@ -400,7 +405,7 @@ func Init() {
 	collections.volumes = make(map[string]*Volume)
 	collections.volumeProfiles = make(map[string]*VolumeProfile)
 
-	restoreApp()
+	restoreAppProfile()
 	restoreEndpointGroup()
 	restoreGlobal()
 	restoreBgp()
@@ -415,8 +420,8 @@ func Init() {
 
 }
 
-func RegisterAppCallbacks(handler AppCallbacks) {
-	objCallbackHandler.AppCb = handler
+func RegisterAppProfileCallbacks(handler AppProfileCallbacks) {
+	objCallbackHandler.AppProfileCb = handler
 }
 
 func RegisterEndpointGroupCallbacks(handler EndpointGroupCallbacks) {
@@ -502,15 +507,15 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 func AddRoutes(router *mux.Router) {
 	var route, listRoute string
 
-	// Register app
-	route = "/api/apps/{key}/"
-	listRoute = "/api/apps/"
+	// Register appProfile
+	route = "/api/appProfiles/{key}/"
+	listRoute = "/api/appProfiles/"
 	log.Infof("Registering %s", route)
-	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListApps))
-	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetApp))
-	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateApp))
-	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateApp))
-	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteApp))
+	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListAppProfiles))
+	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetAppProfile))
+	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateAppProfile))
+	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateAppProfile))
+	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteAppProfile))
 
 	// Register endpointGroup
 	route = "/api/endpointGroups/{key}/"
@@ -625,11 +630,11 @@ func AddRoutes(router *mux.Router) {
 }
 
 // LIST REST call
-func httpListApps(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
-	log.Debugf("Received httpListApps: %+v", vars)
+func httpListAppProfiles(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpListAppProfiles: %+v", vars)
 
-	list := make([]*App, 0)
-	for _, obj := range collections.apps {
+	list := make([]*AppProfile, 0)
+	for _, obj := range collections.appProfiles {
 		list = append(list, obj)
 	}
 
@@ -638,15 +643,15 @@ func httpListApps(w http.ResponseWriter, r *http.Request, vars map[string]string
 }
 
 // GET REST call
-func httpGetApp(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
-	log.Debugf("Received httpGetApp: %+v", vars)
+func httpGetAppProfile(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetAppProfile: %+v", vars)
 
 	key := vars["key"]
 
-	obj := collections.apps[key]
+	obj := collections.appProfiles[key]
 	if obj == nil {
-		log.Errorf("app %s not found", key)
-		return nil, errors.New("app not found")
+		log.Errorf("appProfile %s not found", key)
+		return nil, errors.New("appProfile not found")
 	}
 
 	// Return the obj
@@ -654,16 +659,16 @@ func httpGetApp(w http.ResponseWriter, r *http.Request, vars map[string]string) 
 }
 
 // CREATE REST call
-func httpCreateApp(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
-	log.Debugf("Received httpGetApp: %+v", vars)
+func httpCreateAppProfile(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetAppProfile: %+v", vars)
 
-	var obj App
+	var obj AppProfile
 	key := vars["key"]
 
 	// Get object from the request
 	err := json.NewDecoder(r.Body).Decode(&obj)
 	if err != nil {
-		log.Errorf("Error decoding app create request. Err %v", err)
+		log.Errorf("Error decoding appProfile create request. Err %v", err)
 		return nil, err
 	}
 
@@ -671,9 +676,9 @@ func httpCreateApp(w http.ResponseWriter, r *http.Request, vars map[string]strin
 	obj.Key = key
 
 	// Create the object
-	err = CreateApp(&obj)
+	err = CreateAppProfile(&obj)
 	if err != nil {
-		log.Errorf("CreateApp error for: %+v. Err: %v", obj, err)
+		log.Errorf("CreateAppProfile error for: %+v. Err: %v", obj, err)
 		return nil, err
 	}
 
@@ -682,15 +687,15 @@ func httpCreateApp(w http.ResponseWriter, r *http.Request, vars map[string]strin
 }
 
 // DELETE rest call
-func httpDeleteApp(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
-	log.Debugf("Received httpDeleteApp: %+v", vars)
+func httpDeleteAppProfile(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpDeleteAppProfile: %+v", vars)
 
 	key := vars["key"]
 
 	// Delete the object
-	err := DeleteApp(key)
+	err := DeleteAppProfile(key)
 	if err != nil {
-		log.Errorf("DeleteApp error for: %s. Err: %v", key, err)
+		log.Errorf("DeleteAppProfile error for: %s. Err: %v", key, err)
 		return nil, err
 	}
 
@@ -698,38 +703,38 @@ func httpDeleteApp(w http.ResponseWriter, r *http.Request, vars map[string]strin
 	return key, nil
 }
 
-// Create a app object
-func CreateApp(obj *App) error {
+// Create a appProfile object
+func CreateAppProfile(obj *AppProfile) error {
 	// Validate parameters
-	err := ValidateApp(obj)
+	err := ValidateAppProfile(obj)
 	if err != nil {
-		log.Errorf("ValidateApp retruned error for: %+v. Err: %v", obj, err)
+		log.Errorf("ValidateAppProfile retruned error for: %+v. Err: %v", obj, err)
 		return err
 	}
 
 	// Check if we handle this object
-	if objCallbackHandler.AppCb == nil {
-		log.Errorf("No callback registered for app object")
+	if objCallbackHandler.AppProfileCb == nil {
+		log.Errorf("No callback registered for appProfile object")
 		return errors.New("Invalid object type")
 	}
 
 	// Check if object already exists
-	if collections.apps[obj.Key] != nil {
+	if collections.appProfiles[obj.Key] != nil {
 		// Perform Update callback
-		err = objCallbackHandler.AppCb.AppUpdate(collections.apps[obj.Key], obj)
+		err = objCallbackHandler.AppProfileCb.AppProfileUpdate(collections.appProfiles[obj.Key], obj)
 		if err != nil {
-			log.Errorf("AppUpdate retruned error for: %+v. Err: %v", obj, err)
+			log.Errorf("AppProfileUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
 	} else {
 		// save it in cache
-		collections.apps[obj.Key] = obj
+		collections.appProfiles[obj.Key] = obj
 
 		// Perform Create callback
-		err = objCallbackHandler.AppCb.AppCreate(obj)
+		err = objCallbackHandler.AppProfileCb.AppProfileCreate(obj)
 		if err != nil {
-			log.Errorf("AppCreate retruned error for: %+v. Err: %v", obj, err)
-			delete(collections.apps, obj.Key)
+			log.Errorf("AppProfileCreate retruned error for: %+v. Err: %v", obj, err)
+			delete(collections.appProfiles, obj.Key)
 			return err
 		}
 	}
@@ -737,16 +742,16 @@ func CreateApp(obj *App) error {
 	// Write it to modeldb
 	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving app %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving appProfile %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
 	return nil
 }
 
-// Return a pointer to app from collection
-func FindApp(key string) *App {
-	obj := collections.apps[key]
+// Return a pointer to appProfile from collection
+func FindAppProfile(key string) *AppProfile {
+	obj := collections.appProfiles[key]
 	if obj == nil {
 		return nil
 	}
@@ -754,102 +759,102 @@ func FindApp(key string) *App {
 	return obj
 }
 
-// Delete a app object
-func DeleteApp(key string) error {
-	obj := collections.apps[key]
+// Delete a appProfile object
+func DeleteAppProfile(key string) error {
+	obj := collections.appProfiles[key]
 	if obj == nil {
-		log.Errorf("app %s not found", key)
-		return errors.New("app not found")
+		log.Errorf("appProfile %s not found", key)
+		return errors.New("appProfile not found")
 	}
 
 	// Check if we handle this object
-	if objCallbackHandler.AppCb == nil {
-		log.Errorf("No callback registered for app object")
+	if objCallbackHandler.AppProfileCb == nil {
+		log.Errorf("No callback registered for appProfile object")
 		return errors.New("Invalid object type")
 	}
 
 	// Perform callback
-	err := objCallbackHandler.AppCb.AppDelete(obj)
+	err := objCallbackHandler.AppProfileCb.AppProfileDelete(obj)
 	if err != nil {
-		log.Errorf("AppDelete retruned error for: %+v. Err: %v", obj, err)
+		log.Errorf("AppProfileDelete retruned error for: %+v. Err: %v", obj, err)
 		return err
 	}
 
 	// delete it from modeldb
 	err = obj.Delete()
 	if err != nil {
-		log.Errorf("Error deleting app %s. Err: %v", obj.Key, err)
+		log.Errorf("Error deleting appProfile %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
-	delete(collections.apps, key)
+	delete(collections.appProfiles, key)
 
 	return nil
 }
 
-func (self *App) GetType() string {
-	return "app"
+func (self *AppProfile) GetType() string {
+	return "appProfile"
 }
 
-func (self *App) GetKey() string {
+func (self *AppProfile) GetKey() string {
 	return self.Key
 }
 
-func (self *App) Read() error {
+func (self *AppProfile) Read() error {
 	if self.Key == "" {
-		log.Errorf("Empty key while trying to read app object")
+		log.Errorf("Empty key while trying to read appProfile object")
 		return errors.New("Empty key")
 	}
 
-	return modeldb.ReadObj("app", self.Key, self)
+	return modeldb.ReadObj("appProfile", self.Key, self)
 }
 
-func (self *App) Write() error {
+func (self *AppProfile) Write() error {
 	if self.Key == "" {
-		log.Errorf("Empty key while trying to Write app object")
+		log.Errorf("Empty key while trying to Write appProfile object")
 		return errors.New("Empty key")
 	}
 
-	return modeldb.WriteObj("app", self.Key, self)
+	return modeldb.WriteObj("appProfile", self.Key, self)
 }
 
-func (self *App) Delete() error {
+func (self *AppProfile) Delete() error {
 	if self.Key == "" {
-		log.Errorf("Empty key while trying to Delete app object")
+		log.Errorf("Empty key while trying to Delete appProfile object")
 		return errors.New("Empty key")
 	}
 
-	return modeldb.DeleteObj("app", self.Key)
+	return modeldb.DeleteObj("appProfile", self.Key)
 }
 
-func restoreApp() error {
-	strList, err := modeldb.ReadAllObj("app")
+func restoreAppProfile() error {
+	strList, err := modeldb.ReadAllObj("appProfile")
 	if err != nil {
-		log.Errorf("Error reading app list. Err: %v", err)
+		log.Errorf("Error reading appProfile list. Err: %v", err)
 	}
 
 	for _, objStr := range strList {
 		// Parse the json model
-		var app App
-		err = json.Unmarshal([]byte(objStr), &app)
+		var appProfile AppProfile
+		err = json.Unmarshal([]byte(objStr), &appProfile)
 		if err != nil {
 			log.Errorf("Error parsing object %s, Err %v", objStr, err)
 			return err
 		}
 
 		// add it to the collection
-		collections.apps[app.Key] = &app
+		collections.appProfiles[appProfile.Key] = &appProfile
 	}
 
 	return nil
 }
 
-// Validate a app object
-func ValidateApp(obj *App) error {
+// Validate a appProfile object
+func ValidateAppProfile(obj *AppProfile) error {
 	// Validate key is correct
-	keyStr := obj.TenantName + ":" + obj.AppName
+	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.AppProfileName
 	if obj.Key != keyStr {
-		log.Errorf("Expecting App Key: %s. Got: %s", keyStr, obj.Key)
+		log.Errorf("Expecting AppProfile Key: %s. Got: %s", keyStr, obj.Key)
 		return errors.New("Invalid Key")
 	}
 
@@ -1832,11 +1837,6 @@ func ValidateNetwork(obj *Network) error {
 	encapMatch := regexp.MustCompile("^(vlan|vxlan)$")
 	if encapMatch.MatchString(obj.Encap) == false {
 		return errors.New("encap string invalid format")
-	}
-
-	gatewayMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$")
-	if gatewayMatch.MatchString(obj.Gateway) == false {
-		return errors.New("gateway string invalid format")
 	}
 
 	if len(obj.NetworkName) > 64 {

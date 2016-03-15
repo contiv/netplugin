@@ -36,7 +36,6 @@
 				},
 				"gateway": {
 					"type": "string",
-					"format": "^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$",
 					"title": "Gateway",
 					"showSummary": true
 				}
@@ -44,6 +43,9 @@
 			"link-sets": {
 				"services": {
 					"ref": "service"
+				},
+				"appProfiles": {
+					"ref": "appProfile"
 				},
 				"endpointGroups": {
 					"ref": "endpointGroup"
