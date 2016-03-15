@@ -126,7 +126,8 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	nwCfg.PktTag = int(pktTag)
 
 	if network.Gateway != "" {
-		// Reserve gateway IP address
+		nwCfg.Gateway = network.Gateway
+		// Reserve gateway IP address if gateway is specified
 		ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, nwCfg.Gateway)
 		if err != nil {
 			log.Errorf("Error parsing gateway address %s. Err: %v", nwCfg.Gateway, err)
