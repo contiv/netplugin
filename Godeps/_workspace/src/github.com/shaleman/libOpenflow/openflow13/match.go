@@ -204,6 +204,7 @@ func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 		case OXM_FIELD_ICMPV4_TYPE:
 		case OXM_FIELD_ICMPV4_CODE:
 		case OXM_FIELD_ARP_OP:
+			val = new(ArpOperField)
 		case OXM_FIELD_ARP_SPA:
 		case OXM_FIELD_ARP_TPA:
 		case OXM_FIELD_ARP_SHA:
@@ -804,5 +805,36 @@ func NewTcpFlagsField(tcpFlag uint16, tcpFlagMask *uint16) *MatchField {
 	return f
 }
 
-// FIXME: Need to add following fields
-// ARP_OP
+// ARP Oper type field
+type ArpOperField struct {
+	ArpOper uint16
+}
+
+func (m *ArpOperField) Len() uint16 {
+	return 2
+}
+func (m *ArpOperField) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 2)
+
+	binary.BigEndian.PutUint16(data, m.ArpOper)
+	return
+}
+func (m *ArpOperField) UnmarshalBinary(data []byte) error {
+	m.ArpOper = binary.BigEndian.Uint16(data)
+	return nil
+}
+
+// Return a MatchField for arp operation type matching
+func NewArpOperField(arpOper uint16) *MatchField {
+	f := new(MatchField)
+	f.Class = OXM_CLASS_OPENFLOW_BASIC
+	f.Field = OXM_FIELD_ARP_OP
+	f.HasMask = false
+
+	arpOperField := new(ArpOperField)
+	arpOperField.ArpOper = arpOper
+	f.Value = arpOperField
+	f.Length = uint8(arpOperField.Len())
+
+	return f
+}
