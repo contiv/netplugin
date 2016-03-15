@@ -602,3 +602,127 @@ func showVersion(ctx *cli.Context) {
 		fmt.Printf(version.StringFromInfo(&ver))
 	}
 }
+
+func createAppProfile(ctx *cli.Context) {
+	argCheck(2, ctx)
+
+	tenant := ctx.String("tenant")
+	network := ctx.Args()[0]
+	prof := ctx.Args()[1]
+
+	groups := strings.Split(ctx.String("group"), ",")
+	if ctx.String("group") == "" {
+		groups = []string{}
+	}
+
+	errCheck(ctx, getClient(ctx).AppProfilePost(&contivClient.AppProfile{
+		TenantName:     tenant,
+		NetworkName:    network,
+		AppProfileName: prof,
+		EndpointGroups: groups,
+	}))
+}
+
+func updateAppProfile(ctx *cli.Context) {
+	argCheck(2, ctx)
+
+	tenant := ctx.String("tenant")
+	network := ctx.Args()[0]
+	prof := ctx.Args()[1]
+
+	groups := strings.Split(ctx.String("group"), ",")
+	if ctx.String("group") == "" {
+		groups = []string{}
+	}
+
+	errCheck(ctx, getClient(ctx).AppProfilePost(&contivClient.AppProfile{
+		TenantName:     tenant,
+		NetworkName:    network,
+		AppProfileName: prof,
+		EndpointGroups: groups,
+	}))
+}
+
+func deleteAppProfile(ctx *cli.Context) {
+	argCheck(2, ctx)
+
+	tenant := ctx.String("tenant")
+	network := ctx.Args()[0]
+	prof := ctx.Args()[1]
+
+	errCheck(ctx, getClient(ctx).AppProfileDelete(tenant, network, prof))
+}
+
+func listAppProfiles(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	tenant := ctx.String("tenant")
+
+	profList, err := getClient(ctx).AppProfileList()
+	errCheck(ctx, err)
+
+	filtered := []*contivClient.AppProfile{}
+
+	for _, prof := range *profList {
+		if prof.TenantName == tenant || ctx.Bool("all") {
+			filtered = append(filtered, prof)
+		}
+	}
+
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, filtered)
+	} else if ctx.Bool("quiet") {
+		profiles := ""
+		for _, p := range filtered {
+			profiles += p.AppProfileName + "\n"
+		}
+		os.Stdout.WriteString(profiles)
+	} else {
+
+		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+		defer writer.Flush()
+		writer.Write([]byte("Tenant\tAppProfile\tNetwork\tGroups\n"))
+		writer.Write([]byte("------\t-----\t-------\t--------\n"))
+		for _, p := range filtered {
+			groups := ""
+			if p.EndpointGroups != nil {
+				groupList := []string{}
+				for _, epg := range p.EndpointGroups {
+					groupList = append(groupList, epg)
+				}
+				groups = strings.Join(groupList, ",")
+			}
+			writer.Write(
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\n",
+					p.TenantName,
+					p.AppProfileName,
+					p.NetworkName,
+					groups,
+				)))
+		}
+	}
+}
+
+func listAppProfEpgs(ctx *cli.Context) {
+	argCheck(2, ctx)
+
+	tenant := ctx.String("tenant")
+	network := ctx.Args()[0]
+	prof := ctx.Args()[1]
+
+	p, err := getClient(ctx).AppProfileGet(tenant, network, prof)
+	errCheck(ctx, err)
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, p)
+	} else {
+		groups := ""
+		if p.EndpointGroups != nil {
+			groupList := []string{}
+			for _, epg := range p.EndpointGroups {
+				groupList = append(groupList, epg)
+			}
+			groups = strings.Join(groupList, ",")
+		}
+		os.Stdout.WriteString(groups)
+	}
+}

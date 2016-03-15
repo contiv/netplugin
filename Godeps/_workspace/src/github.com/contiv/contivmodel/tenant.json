@@ -21,8 +21,8 @@
 				"networks": {
 					"ref": "network"
 				},
-				"apps": {
-					"ref": "app"
+				"appProfiles": {
+					"ref": "appProfile"
 				},
 				"endpointGroups": {
 					"ref": "endpointGroup"

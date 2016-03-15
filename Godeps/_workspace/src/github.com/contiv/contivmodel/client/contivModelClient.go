@@ -142,24 +142,27 @@ func NewContivClient(baseURL string) (*ContivClient, error) {
 	return &client, nil
 }
 
-type App struct {
+type AppProfile struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	AppName    string `json:"appName,omitempty"`    // Application Name
-	TenantName string `json:"tenantName,omitempty"` // Tenant Name
+	AppProfileName string   `json:"appProfileName,omitempty"` // Application Profile Name
+	EndpointGroups []string `json:"endpointGroups,omitempty"`
+	NetworkName    string   `json:"networkName,omitempty"` // Network of App Prof
+	TenantName     string   `json:"tenantName,omitempty"`  // Tenant Name
 
 	// add link-sets and links
-	LinkSets AppLinkSets `json:"link-sets,omitempty"`
-	Links    AppLinks    `json:"links,omitempty"`
+	LinkSets AppProfileLinkSets `json:"link-sets,omitempty"`
+	Links    AppProfileLinks    `json:"links,omitempty"`
 }
 
-type AppLinkSets struct {
-	Services map[string]modeldb.Link `json:"Services,omitempty"`
+type AppProfileLinkSets struct {
+	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
 }
 
-type AppLinks struct {
-	Tenant modeldb.Link `json:"Tenant,omitempty"`
+type AppProfileLinks struct {
+	Network modeldb.Link `json:"Network,omitempty"`
+	Tenant  modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type EndpointGroup struct {
@@ -183,8 +186,9 @@ type EndpointGroupLinkSets struct {
 }
 
 type EndpointGroupLinks struct {
-	Network modeldb.Link `json:"Network,omitempty"`
-	Tenant  modeldb.Link `json:"Tenant,omitempty"`
+	AppProfile modeldb.Link `json:"AppProfile,omitempty"`
+	Network    modeldb.Link `json:"Network,omitempty"`
+	Tenant     modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type Global struct {
@@ -227,6 +231,7 @@ type Network struct {
 }
 
 type NetworkLinkSets struct {
+	AppProfiles    map[string]modeldb.Link `json:"AppProfiles,omitempty"`
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
 	Services       map[string]modeldb.Link `json:"Services,omitempty"`
 }
@@ -351,7 +356,7 @@ type Tenant struct {
 }
 
 type TenantLinkSets struct {
-	Apps           map[string]modeldb.Link `json:"Apps,omitempty"`
+	AppProfiles    map[string]modeldb.Link `json:"AppProfiles,omitempty"`
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
 	Networks       map[string]modeldb.Link `json:"Networks,omitempty"`
 	Policies       map[string]modeldb.Link `json:"Policies,omitempty"`
@@ -407,65 +412,65 @@ type VolumeProfileLinks struct {
 	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
-// AppPost posts the app object
-func (c *ContivClient) AppPost(obj *App) error {
+// AppProfilePost posts the appProfile object
+func (c *ContivClient) AppProfilePost(obj *AppProfile) error {
 	// build key and URL
-	keyStr := obj.TenantName + ":" + obj.AppName
-	url := c.baseURL + "/api/apps/" + keyStr + "/"
+	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.AppProfileName
+	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
 	if err != nil {
-		log.Debugf("Error creating app %+v. Err: %v", obj, err)
+		log.Debugf("Error creating appProfile %+v. Err: %v", obj, err)
 		return err
 	}
 
 	return nil
 }
 
-// AppList lists all app objects
-func (c *ContivClient) AppList() (*[]*App, error) {
+// AppProfileList lists all appProfile objects
+func (c *ContivClient) AppProfileList() (*[]*AppProfile, error) {
 	// build key and URL
-	url := c.baseURL + "/api/apps/"
+	url := c.baseURL + "/api/appProfiles/"
 
 	// http get the object
-	var objList []*App
+	var objList []*AppProfile
 	err := httpGet(url, &objList)
 	if err != nil {
-		log.Debugf("Error getting apps. Err: %v", err)
+		log.Debugf("Error getting appProfiles. Err: %v", err)
 		return nil, err
 	}
 
 	return &objList, nil
 }
 
-// AppGet gets the app object
-func (c *ContivClient) AppGet(tenantName string, appName string) (*App, error) {
+// AppProfileGet gets the appProfile object
+func (c *ContivClient) AppProfileGet(tenantName string, networkName string, appProfileName string) (*AppProfile, error) {
 	// build key and URL
-	keyStr := tenantName + ":" + appName
-	url := c.baseURL + "/api/apps/" + keyStr + "/"
+	keyStr := tenantName + ":" + networkName + ":" + appProfileName
+	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
 
 	// http get the object
-	var obj App
+	var obj AppProfile
 	err := httpGet(url, &obj)
 	if err != nil {
-		log.Debugf("Error getting app %+v. Err: %v", keyStr, err)
+		log.Debugf("Error getting appProfile %+v. Err: %v", keyStr, err)
 		return nil, err
 	}
 
 	return &obj, nil
 }
 
-// AppDelete deletes the app object
-func (c *ContivClient) AppDelete(tenantName string, appName string) error {
+// AppProfileDelete deletes the appProfile object
+func (c *ContivClient) AppProfileDelete(tenantName string, networkName string, appProfileName string) error {
 	// build key and URL
-	keyStr := tenantName + ":" + appName
-	url := c.baseURL + "/api/apps/" + keyStr + "/"
+	keyStr := tenantName + ":" + networkName + ":" + appProfileName
+	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
 	if err != nil {
-		log.Debugf("Error deleting app %s. Err: %v", keyStr, err)
+		log.Debugf("Error deleting appProfile %s. Err: %v", keyStr, err)
 		return err
 	}
 
