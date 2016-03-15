@@ -337,4 +337,60 @@ var Commands = []cli.Command{
 			},
 		},
 	},
+	{
+		Name:  "app-profile",
+		Usage: "Application Profile manipulation tools",
+		Subcommands: []cli.Command{
+			{
+				Name:      "create",
+				Usage:     "Create an application profile",
+				ArgsUsage: "[network] [app-profile]",
+				Flags: []cli.Flag{
+					tenantFlag,
+					cli.StringFlag{
+						Name:  "group, g",
+						Usage: "Endpoint Group List (separated by commas)",
+					},
+				},
+				Action: createAppProfile,
+			},
+			{
+				Name:      "update",
+				Usage:     "Update an application profile",
+				ArgsUsage: "[network] [app-profile]",
+				Flags: []cli.Flag{
+					tenantFlag,
+					cli.StringFlag{
+						Name:  "group, g",
+						Usage: "Endpoint Group List (separated by commas)",
+					},
+				},
+				Action: updateAppProfile,
+			},
+			{
+				Name:      "rm",
+				Aliases:   []string{"delete"},
+				Usage:     "Delete an application profile",
+				ArgsUsage: "[network] [app-profile]",
+				Flags:     []cli.Flag{tenantFlag},
+				Action:    deleteAppProfile,
+			},
+			{
+				Name:      "ls",
+				Aliases:   []string{"list"},
+				Usage:     "List Application Profiles",
+				ArgsUsage: " ",
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
+				Action:    listAppProfiles,
+			},
+			{
+				Name:      "group-ls",
+				Aliases:   []string{"group-list"},
+				Usage:     "List groups in an app-profile",
+				ArgsUsage: "[network] [app-profile]",
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
+				Action:    listAppProfEpgs,
+			},
+		},
+	},
 }

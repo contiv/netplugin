@@ -170,7 +170,7 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 }
 
 //CreateAppNw Fill in the Nw spec and launch the nw infra
-func CreateAppNw(app *contivModel.App) error {
+func CreateAppNw(app *contivModel.AppProfile) error {
 	aciPresent, aErr := master.IsAciConfigured()
 	if aErr != nil {
 		log.Errorf("Couldn't read global config %v", aErr)
@@ -194,10 +194,10 @@ func CreateAppNw(app *contivModel.App) error {
 	ans := &appNwSpec{}
 
 	ans.TenantName = app.TenantName
-	ans.AppName = app.AppName
+	ans.AppName = app.AppProfileName
 
 	// Gather all basic epg info into the epg map
-	for epgKey := range app.LinkSets.Services {
+	for epgKey := range app.LinkSets.EndpointGroups {
 		epgObj := contivModel.FindEndpointGroup(epgKey)
 		if epgObj == nil {
 			err := fmt.Sprintf("Epg %v does not exist", epgKey)
@@ -236,7 +236,7 @@ func CreateAppNw(app *contivModel.App) error {
 }
 
 //DeleteAppNw deletes the app profile from infra
-func DeleteAppNw(app *contivModel.App) error {
+func DeleteAppNw(app *contivModel.AppProfile) error {
 	aciPresent, aErr := master.IsAciConfigured()
 	if aErr != nil {
 		log.Errorf("Couldn't read global config %v", aErr)
@@ -250,7 +250,7 @@ func DeleteAppNw(app *contivModel.App) error {
 
 	ans := &appNwSpec{}
 	ans.TenantName = "CONTIV-" + app.TenantName
-	ans.AppName = app.AppName
+	ans.AppName = app.AppProfileName
 
 	url := proxyURL + "deleteAppProf"
 	if err := httpPost(url, ans); err != nil {
