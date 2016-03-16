@@ -118,7 +118,7 @@ var Commands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name:  "gateway, g",
-						Usage: "Gateway - REQUIRED",
+						Usage: "Gateway",
 					},
 				},
 				Action: createNetwork,

@@ -1536,7 +1536,6 @@ func ValidateNetwork(obj *Network) error {
 
 	gatewayMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?)$")
 	if gatewayMatch.MatchString(obj.Gateway) == false {
-		return errors.New("gateway string invalid format")
 	}
 
 	if len(obj.NetworkName) > 64 {
