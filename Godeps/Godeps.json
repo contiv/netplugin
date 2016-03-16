@@ -53,7 +53,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/objdb",
-			"Rev": "cf50b1625fcaccf25ed0fd70ecaba6d11262b81c"
+			"Rev": "26ca13052130613588a9b1a3a1691b7b59f41103"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
