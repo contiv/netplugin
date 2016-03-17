@@ -21,6 +21,8 @@ import (
 	"net/rpc"
 
 	"github.com/contiv/ofnet/ofctrl"
+	"github.com/shaleman/libOpenflow/openflow13"
+	"github.com/shaleman/libOpenflow/protocol"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -40,7 +42,7 @@ type VlanBridge struct {
 	nmlTable   *ofctrl.Table // OVS normal lookup table
 
 	portVlanFlowDb map[uint32]*ofctrl.Flow // Database of flow entries
-
+	uplinkDb       map[uint32]uint32       // Database of uplink ports
 }
 
 // NewVlanBridge Create a new vlan instance
@@ -52,6 +54,7 @@ func NewVlanBridge(agent *OfnetAgent, rpcServ *rpc.Server) *VlanBridge {
 
 	// init maps
 	vlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
+	vlan.uplinkDb = make(map[uint32]uint32)
 
 	// Create policy agent
 	vlan.policyAgent = NewPolicyAgent(agent, rpcServ)
@@ -86,7 +89,21 @@ func (vl *VlanBridge) SwitchDisconnected(sw *ofctrl.OFSwitch) {
 
 // PacketRcvd Handle incoming packet
 func (vl *VlanBridge) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
-	// Ignore all incoming packets for now
+	switch pkt.Data.Ethertype {
+	case 0x0806:
+		if (pkt.Match.Type == openflow13.MatchType_OXM) &&
+			(pkt.Match.Fields[0].Class == openflow13.OXM_CLASS_OPENFLOW_BASIC) &&
+			(pkt.Match.Fields[0].Field == openflow13.OXM_FIELD_IN_PORT) {
+			// Get the input port number
+			switch t := pkt.Match.Fields[0].Value.(type) {
+			case *openflow13.InPortField:
+				var inPortFld openflow13.InPortField
+				inPortFld = *t
+
+				vl.processArp(pkt.Data, inPortFld.InPort)
+			}
+		}
+	}
 }
 
 // AddLocalEndpoint Add a local endpoint and install associated local route
@@ -223,29 +240,30 @@ func (vl *VlanBridge) AddUplink(portNo uint32) error {
 
 	// save the flow entry
 	vl.portVlanFlowDb[portNo] = portVlanFlow
+	vl.uplinkDb[portNo] = portNo
 
 	return nil
 }
 
 // RemoveUplink remove an uplink to the switch
 func (vl *VlanBridge) RemoveUplink(portNo uint32) error {
+	delete(vl.uplinkDb, portNo)
 	return nil
 }
 
 // AddSvcSpec adds a service spec to proxy
 func (vl *VlanBridge) AddSvcSpec(svcName string, spec *ServiceSpec) error {
-        return nil
+	return nil
 }
 
 // DelSvcSpec removes a service spec from proxy
 func (vl *VlanBridge) DelSvcSpec(svcName string, spec *ServiceSpec) error {
-        return nil
+	return nil
 }
 
 // SvcProviderUpdate Service Proxy Back End update
 func (vl *VlanBridge) SvcProviderUpdate(svcName string, providers []string) {
 }
-
 
 // initialize Fgraph on the switch
 func (vl *VlanBridge) initFgraph() error {
@@ -277,6 +295,14 @@ func (vl *VlanBridge) initFgraph() error {
 	})
 	vlanMissFlow.Next(sw.DropAction())
 
+	// Redirect ARP Request packets to controller
+	arpFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:  FLOW_MATCH_PRIORITY,
+		Ethertype: 0x0806,
+		ArpOper:   protocol.Type_Request,
+	})
+	arpFlow.Next(sw.SendToController())
+
 	// All packets that have gone thru policy lookup go thru normal OVS switching
 	normalLookupFlow, _ := vl.nmlTable.NewFlow(ofctrl.FlowMatch{
 		Priority: FLOW_MISS_PRIORITY,
@@ -287,3 +313,126 @@ func (vl *VlanBridge) initFgraph() error {
 	return nil
 }
 
+/*
+ * Process incoming ARP packets
+ * ARP request handling in various scenarios:
+ * Src and Dest EP known:
+ *      - Proxy ARP if Dest EP is present locally on the host
+ * Src EP known, Dest EP not known:
+ *      - ARP Request to a router/VM scenario. Reinject ARP request to uplinks
+ * Src EP not known, Dest EP known:
+ *      - Proxy ARP if Dest EP is present locally on the host
+ * Src and Dest EP not known:
+ *      - Ignore processing the request
+ */
+func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
+	switch t := pkt.Data.(type) {
+	case *protocol.ARP:
+		log.Debugf("Processing ARP packet on port %d: %+v", inPort, *t)
+		var arpIn protocol.ARP = *t
+
+		switch arpIn.Operation {
+		case protocol.Type_Request:
+			// Lookup the Source and Dest IP in the endpoint table
+			srcEp := vl.agent.getEndpointByIp(arpIn.IPSrc)
+			dstEp := vl.agent.getEndpointByIp(arpIn.IPDst)
+
+			// No information about the src or dest EP. Ignore processing.
+			if srcEp == nil && dstEp == nil {
+				log.Debugf("No information on source/destination. Ignoring ARP request.")
+				return
+			}
+			// If we know the dstEp to be present locally, send the Proxy ARP response
+			if dstEp != nil {
+				// Container to Container communication. Send proxy ARP response.
+				// Unknown node to Container communication
+				//   -> Send proxy ARP response only if Endpoint is local.
+				//   -> This is to avoid sending ARP responses from ofnet agent on multiple hosts
+				if srcEp != nil ||
+					(srcEp == nil && dstEp.OriginatorIp.String() == vl.agent.localIp.String()) {
+					// Form an ARP response
+					arpPkt, _ := protocol.NewARP(protocol.Type_Reply)
+					arpPkt.HWSrc, _ = net.ParseMAC(dstEp.MacAddrStr)
+					arpPkt.IPSrc = arpIn.IPDst
+					arpPkt.HWDst = arpIn.HWSrc
+					arpPkt.IPDst = arpIn.IPSrc
+					log.Debugf("Sending Proxy ARP response: %+v", arpPkt)
+
+					// Build the ethernet packet
+					ethPkt := protocol.NewEthernet()
+					ethPkt.VLANID.VID = pkt.VLANID.VID
+					ethPkt.HWDst = arpPkt.HWDst
+					ethPkt.HWSrc = arpPkt.HWSrc
+					ethPkt.Ethertype = 0x0806
+					ethPkt.Data = arpPkt
+					log.Debugf("Sending Proxy ARP response Ethernet: %+v", ethPkt)
+
+					// Construct Packet out
+					pktOut := openflow13.NewPacketOut()
+					pktOut.Data = ethPkt
+					pktOut.AddAction(openflow13.NewActionOutput(inPort))
+
+					// Send the packet out
+					vl.ofSwitch.Send(pktOut)
+
+					return
+				}
+			}
+			if srcEp != nil && dstEp == nil {
+				// If the ARP request was received from uplink
+				// Ignore processing the packet
+				for _, portNo := range vl.uplinkDb {
+					if portNo == inPort {
+						log.Debugf("Ignore processing ARP packet from uplink")
+						return
+					}
+				}
+
+				// ARP request from local container to unknown IP
+				// Reinject ARP to uplinks
+				ethPkt := protocol.NewEthernet()
+				ethPkt.VLANID.VID = srcEp.Vlan
+				ethPkt.HWDst = pkt.HWDst
+				ethPkt.HWSrc = pkt.HWSrc
+				ethPkt.Ethertype = 0x0806
+				ethPkt.Data = &arpIn
+
+				log.Infof("Received ARP request for unknown IP: %v. "+
+					"Reinjecting ARP request Ethernet to uplinks: %+v", arpIn.IPDst, ethPkt)
+
+				// Packet out
+				pktOut := openflow13.NewPacketOut()
+				pktOut.InPort = inPort
+				pktOut.Data = ethPkt
+				for _, portNo := range vl.uplinkDb {
+					log.Debugf("Sending to uplink: %+v", portNo)
+					pktOut.AddAction(openflow13.NewActionOutput(portNo))
+				}
+
+				// Send the packet out
+				vl.ofSwitch.Send(pktOut)
+			}
+
+		case protocol.Type_Reply:
+			log.Debugf("Received ARP response packet: %+v from port %d", arpIn, inPort)
+
+			ethPkt := protocol.NewEthernet()
+			ethPkt.VLANID = pkt.VLANID
+			ethPkt.HWDst = pkt.HWDst
+			ethPkt.HWSrc = pkt.HWSrc
+			ethPkt.Ethertype = 0x0806
+			ethPkt.Data = &arpIn
+			log.Debugf("Sending ARP response Ethernet: %+v", ethPkt)
+
+			// Packet out
+			pktOut := openflow13.NewPacketOut()
+			pktOut.InPort = inPort
+			pktOut.Data = ethPkt
+			pktOut.AddAction(openflow13.NewActionOutput(openflow13.P_NORMAL))
+
+			log.Debugf("Reinjecting ARP reply packet: %+v", pktOut)
+			// Send it out
+			vl.ofSwitch.Send(pktOut)
+		}
+	}
+}
