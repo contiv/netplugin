@@ -83,13 +83,13 @@ const FLOW_MISS_PRIORITY = 1           // priority for table miss flow
 const FLOW_POLICY_PRIORITY_OFFSET = 10 // Priority offset for policy rules
 
 const (
-	VLAN_TBL_ID = 1
+	VLAN_TBL_ID           = 1
 	SRV_PROXY_DNAT_TBL_ID = 2
-	DST_GRP_TBL_ID = 3
-	POLICY_TBL_ID = 4
+	DST_GRP_TBL_ID        = 3
+	POLICY_TBL_ID         = 4
 	SRV_PROXY_SNAT_TBL_ID = 5
-	IP_TBL_ID = 6
-	MAC_DEST_TBL_ID = 7
+	IP_TBL_ID             = 6
+	MAC_DEST_TBL_ID       = 7
 )
 
 // Create a new Ofnet agent and initialize it
@@ -502,19 +502,18 @@ func (self *OfnetAgent) RemoveUplink(portNo uint32) error {
 
 // AddSvcSpec adds a service spec to proxy
 func (self *OfnetAgent) AddSvcSpec(svcName string, spec *ServiceSpec) error {
-        return self.datapath.AddSvcSpec(svcName, spec)
+	return self.datapath.AddSvcSpec(svcName, spec)
 }
 
 // DelSvcSpec removes a service spec from proxy
 func (self *OfnetAgent) DelSvcSpec(svcName string, spec *ServiceSpec) error {
-        return self.datapath.DelSvcSpec(svcName, spec)
+	return self.datapath.DelSvcSpec(svcName, spec)
 }
 
 // SvcProviderUpdate Service Proxy Back End update
 func (self *OfnetAgent) SvcProviderUpdate(svcName string, providers []string) {
-        self.datapath.SvcProviderUpdate(svcName, providers)
+	self.datapath.SvcProviderUpdate(svcName, providers)
 }
-
 
 // Add remote endpoint RPC call from master
 func (self *OfnetAgent) EndpointAdd(epreg *OfnetEndpoint, ret *bool) error {
@@ -602,6 +601,10 @@ func (self *OfnetAgent) AddBgp(routerIP string, As string, neighborAs string, pe
 		ProtocolType: "bgp",
 		NeighborIP:   peer,
 		As:           neighborAs,
+	}
+	rinfo := self.protopath.GetRouterInfo()
+	if rinfo != nil && rinfo.RouterIP != "" {
+		self.DeleteBgp()
 	}
 
 	go self.protopath.StartProtoServer(routerInfo)

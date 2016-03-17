@@ -37,7 +37,7 @@ resolv.conf
 *.pyc
 
 # cscope db
-cscope.*
+cscope*
 
 # k8s vagrant and ansible temp files
 .contiv_k8s_inventory
