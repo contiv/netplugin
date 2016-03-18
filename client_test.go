@@ -16,14 +16,14 @@ type JSONObj struct {
 }
 
 // New objdb client
-var client API
+var etcdClient API
 var consulClient API
 
 func TestMain(m *testing.M) {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Init clients
-	client = NewClient("")
+	etcdClient = NewClient("")
 	consulClient = NewClient("consul")
 
 	os.Exit(m.Run())
@@ -36,14 +36,14 @@ func TestSetGet(t *testing.T) {
 		Value: "test1",
 	}
 
-	if err := client.SetObj("/contiv.io/test", setVal); err != nil {
+	if err := etcdClient.SetObj("/contiv.io/test", setVal); err != nil {
 		fmt.Printf("Fatal setting key. Err: %v\n", err)
 		t.Fatalf("Fatal setting key")
 	}
 
 	var retVal JSONObj
 
-	if err := client.GetObj("/contiv.io/test", &retVal); err != nil {
+	if err := etcdClient.GetObj("/contiv.io/test", &retVal); err != nil {
 		fmt.Printf("Fatal getting key. Err: %v\n", err)
 		t.Fatalf("Fatal getting key")
 	}
@@ -53,7 +53,7 @@ func TestSetGet(t *testing.T) {
 		t.Fatalf("Got invalid response")
 	}
 
-	if err := client.DelObj("/contiv.io/test"); err != nil {
+	if err := etcdClient.DelObj("/contiv.io/test"); err != nil {
 		t.Fatalf("Fatal deleting test object. Err: %v", err)
 	}
 
@@ -65,7 +65,7 @@ func BenchmarkEtcdSet(b *testing.B) {
 		Value: "test1",
 	}
 	for n := 0; n < b.N; n++ {
-		if err := client.SetObj("/contiv.io/test"+strconv.Itoa(n), setVal); err != nil {
+		if err := etcdClient.SetObj("/contiv.io/test"+strconv.Itoa(n), setVal); err != nil {
 			b.Fatalf("Fatal setting key. Err: %v", err)
 		}
 	}
@@ -78,7 +78,7 @@ func BenchmarkEtcdGet(b *testing.B) {
 	}
 
 	for n := 0; n < b.N; n++ {
-		if err := client.SetObj("/contiv.io/test"+strconv.Itoa(n), setVal); err != nil {
+		if err := etcdClient.SetObj("/contiv.io/test"+strconv.Itoa(n), setVal); err != nil {
 			b.Fatalf("Fatal setting key. Err: %v", err)
 		}
 	}
@@ -87,7 +87,7 @@ func BenchmarkEtcdGet(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		if err := client.GetObj("/contiv.io/test"+strconv.Itoa(n), &retVal); err != nil {
+		if err := etcdClient.GetObj("/contiv.io/test"+strconv.Itoa(n), &retVal); err != nil {
 			b.Fatalf("Fatal getting key. Err: %v\n", err)
 		}
 
@@ -103,7 +103,7 @@ func BenchmarkEtcdDel(b *testing.B) {
 	}
 
 	for n := 0; n < b.N; n++ {
-		if err := client.SetObj("/contiv.io/test"+strconv.Itoa(n), setVal); err != nil {
+		if err := etcdClient.SetObj("/contiv.io/test"+strconv.Itoa(n), setVal); err != nil {
 			b.Fatalf("Fatal setting key. Err: %v", err)
 		}
 	}
@@ -112,7 +112,7 @@ func BenchmarkEtcdDel(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		if err := client.DelObj("/contiv.io/test" + strconv.Itoa(n)); err != nil {
+		if err := etcdClient.DelObj("/contiv.io/test" + strconv.Itoa(n)); err != nil {
 			b.Fatalf("Fatal deleting test object. Err: %v", err)
 		}
 	}
@@ -207,12 +207,12 @@ func BenchmarkConsulDel(b *testing.B) {
 
 func TestLockAcquireRelease(t *testing.T) {
 	// Create a lock
-	lock1, err := client.NewLock("master", "hostname1", 10)
+	lock1, err := etcdClient.NewLock("master", "hostname1", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	lock2, err := client.NewLock("master", "hostname2", 10)
+	lock2, err := etcdClient.NewLock("master", "hostname2", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,6 +223,11 @@ func TestLockAcquireRelease(t *testing.T) {
 	}
 
 	time.Sleep(100 * time.Millisecond)
+
+	// Make sure lock1 is acquired
+	if !lock1.IsAcquired() {
+		t.Fatalf("Lock1 is not in acquired state")
+	}
 
 	// Try to acquire the same lock again. This should fail
 	if err := lock2.Acquire(0); err != nil {
@@ -274,12 +279,12 @@ func TestLockAcquireRelease(t *testing.T) {
 func TestLockAcquireTimeout(t *testing.T) {
 	fmt.Printf("\n\n\n =========================================================== \n\n\n")
 	// Create a lock
-	lock1, err := client.NewLock("master", "hostname1", 10)
+	lock1, err := etcdClient.NewLock("master", "hostname1", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	lock2, err := client.NewLock("master", "hostname2", 10)
+	lock2, err := etcdClient.NewLock("master", "hostname2", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,17 +342,17 @@ func TestServiceRegister(t *testing.T) {
 	}
 
 	// register it
-	if err := client.RegisterService(service1Info); err != nil {
+	if err := etcdClient.RegisterService(service1Info); err != nil {
 		t.Fatalf("Fatal registering service. Err: %+v\n", err)
 	}
 	log.Infof("Registered service: %+v", service1Info)
 
-	if err := client.RegisterService(service2Info); err != nil {
+	if err := etcdClient.RegisterService(service2Info); err != nil {
 		t.Fatalf("Fatal registering service. Err: %+v\n", err)
 	}
 	log.Infof("Registered service: %+v", service2Info)
 
-	resp, err := client.GetService("athena")
+	resp, err := etcdClient.GetService("athena")
 	if err != nil {
 		t.Fatalf("Fatal getting service. Err: %+v\n", err)
 	}
@@ -361,7 +366,7 @@ func TestServiceRegister(t *testing.T) {
 	// Wait a while to make sure background refresh is working correctly
 	time.Sleep(5 * time.Millisecond)
 
-	resp, err = client.GetService("athena")
+	resp, err = etcdClient.GetService("athena")
 	if err != nil {
 		t.Fatalf("Fatal getting service. Err: %+v\n", err)
 	}
@@ -387,11 +392,11 @@ func TestServiceDeregister(t *testing.T) {
 	}
 
 	// register it
-	if err := client.DeregisterService(service1Info); err != nil {
+	if err := etcdClient.DeregisterService(service1Info); err != nil {
 		t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
 	}
 
-	if err := client.DeregisterService(service2Info); err != nil {
+	if err := etcdClient.DeregisterService(service2Info); err != nil {
 		t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
 	}
 
@@ -407,7 +412,7 @@ func TestServiceWatch(t *testing.T) {
 
 	// register it
 
-	if err := client.RegisterService(service1Info); err != nil {
+	if err := etcdClient.RegisterService(service1Info); err != nil {
 		t.Fatalf("Fatal registering service. Err: %+v\n", err)
 	}
 	log.Infof("Registered service: %+v", service1Info)
@@ -418,7 +423,7 @@ func TestServiceWatch(t *testing.T) {
 
 	// Start watching for service
 
-	if err := client.WatchService("athena", eventChan, stopChan); err != nil {
+	if err := etcdClient.WatchService("athena", eventChan, stopChan); err != nil {
 		t.Fatalf("Fatal watching service. Err %v", err)
 	}
 
@@ -435,13 +440,13 @@ func TestServiceWatch(t *testing.T) {
 			}
 			if cnt == 1 {
 				// register it
-				if err := client.RegisterService(service2Info); err != nil {
+				if err := etcdClient.RegisterService(service2Info); err != nil {
 					t.Fatalf("Fatal registering service. Err: %+v\n", err)
 				}
 				log.Infof("Registered service: %+v", service2Info)
 			} else if cnt == 5 {
 				// deregister it
-				if err := client.DeregisterService(service2Info); err != nil {
+				if err := etcdClient.DeregisterService(service2Info); err != nil {
 					t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
 				}
 				log.Infof("Deregistered service: %+v", service2Info)

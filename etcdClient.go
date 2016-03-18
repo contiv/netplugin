@@ -8,12 +8,15 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/go-etcd/etcd"
+	"github.com/coreos/etcd/client"
 )
 
 type etcdPlugin struct {
-	client *etcd.Client // etcd client
+	client client.Client // etcd client
+	kapi   client.KeysAPI
 
 	serviceDb map[string]*serviceState
 	mutex     *sync.Mutex
@@ -34,18 +37,30 @@ func init() {
 }
 
 // Initialize the etcd client
-func (ep *etcdPlugin) Init(machines []string) error {
+func (ep *etcdPlugin) Init(endpoints []string) error {
+	var err error
+
 	ep.mutex.Lock()
 	defer ep.mutex.Unlock()
-	// Create a new client
-	ep.client = etcd.NewClient(machines)
-	if ep.client == nil {
-		log.Fatal("Error creating etcd client.")
-		return errors.New("Error creating etcd client")
+
+	// Setup default url
+	if len(endpoints) == 0 {
+		endpoints = []string{"http://127.0.0.1:2379"}
 	}
 
-	// Set strong consistency
-	ep.client.SetConsistency(etcd.STRONG_CONSISTENCY)
+	etcdConfig := client.Config{
+		Endpoints: endpoints,
+	}
+
+	// Create a new client
+	ep.client, err = client.New(etcdConfig)
+	if err != nil {
+		log.Fatal("Error creating etcd client. Err: %v", err)
+		return err
+	}
+
+	// create keys api
+	ep.kapi = client.NewKeysAPI(ep.client)
 
 	// Initialize service DB
 	ep.serviceDb = make(map[string]*serviceState)
@@ -58,7 +73,7 @@ func (ep *etcdPlugin) GetObj(key string, retVal interface{}) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// Get the object from etcd client
-	resp, err := ep.client.Get(keyName, false, false)
+	resp, err := ep.kapi.Get(context.Background(), keyName, nil)
 	if err != nil {
 		log.Errorf("Error getting key %s. Err: %v", keyName, err)
 		return err
@@ -74,7 +89,7 @@ func (ep *etcdPlugin) GetObj(key string, retVal interface{}) error {
 }
 
 // Recursive function to look thru each directory and get the files
-func recursAddNode(node *etcd.Node, list []string) []string {
+func recursAddNode(node *client.Node, list []string) []string {
 	for _, innerNode := range node.Nodes {
 		// add only the files.
 		if !innerNode.Dir {
@@ -92,7 +107,7 @@ func (ep *etcdPlugin) ListDir(key string) ([]string, error) {
 	keyName := "/contiv.io/obj/" + key
 
 	// Get the object from etcd client
-	resp, err := ep.client.Get(keyName, true, true)
+	resp, err := ep.kapi.Get(context.Background(), keyName, &client.GetOptions{Recursive: true, Sort: true})
 	if err != nil {
 		return nil, nil
 	}
@@ -124,7 +139,7 @@ func (ep *etcdPlugin) SetObj(key string, value interface{}) error {
 	}
 
 	// Set it via etcd client
-	if _, err := ep.client.Set(keyName, string(jsonVal[:]), 0); err != nil {
+	if _, err := ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), nil); err != nil {
 		log.Errorf("Error setting key %s, Err: %v", keyName, err)
 		return err
 	}
@@ -137,7 +152,7 @@ func (ep *etcdPlugin) DelObj(key string) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// Remove it via etcd client
-	if _, err := ep.client.Delete(keyName, false); err != nil {
+	if _, err := ep.kapi.Delete(context.Background(), keyName, nil); err != nil {
 		log.Errorf("Error removing key %s, Err: %v", keyName, err)
 		return err
 	}

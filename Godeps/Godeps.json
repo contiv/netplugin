@@ -11,28 +11,19 @@
 			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
 		},
 		{
-			"ImportPath": "github.com/contiv/go-etcd/etcd",
-			"Comment": "v0.4.6-6-g4734e7a",
-			"Rev": "4734e7aca379f0d7fcdf04fbb2101696a4b45ce8"
+			"ImportPath": "github.com/coreos/etcd/client",
+			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
+			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
 		},
 		{
-			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
-			"Comment": "v2.1.0-alpha.0-51-gb24dd8e",
-			"Rev": "b24dd8e4e67d7203c5a68cd43de4f6ffcfff5e66"
+			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
+			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
+			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/types",
-			"Comment": "v2.1.0-alpha.0-51-gb24dd8e",
-			"Rev": "b24dd8e4e67d7203c5a68cd43de4f6ffcfff5e66"
-		},
-		{
-			"ImportPath": "github.com/coreos/go-systemd/journal",
-			"Comment": "v4-40-g2ed5b50",
-			"Rev": "2ed5b5012ccde5f057c197890a2c801295941149"
-		},
-		{
-			"ImportPath": "github.com/coreos/pkg/capnslog",
-			"Rev": "fa92df939cff437b00010275644a10882beaeca8"
+			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
+			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
@@ -41,12 +32,20 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-cleanhttp",
-			"Rev": "ce617e79981a8fff618bb643d155133a8f38db96"
+			"Rev": "875fb671b3ddc66f8e2f0acc33829c8cb989a38d"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/serf/coordinate",
-			"Comment": "v0.7.0-10-g64d10e9",
-			"Rev": "64d10e9428bd70dbcd831ad087573b66731c014b"
+			"Comment": "v0.7.0-47-g598c548",
+			"Rev": "598c54895cc5a7b1a24a398d635e8c0ea0959870"
+		},
+		{
+			"ImportPath": "github.com/ugorji/go/codec",
+			"Rev": "c062049c1793b01a3cc3fe786108edabbaf7756b"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",

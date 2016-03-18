@@ -7,11 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/go-etcd/etcd"
+	"github.com/coreos/etcd/client"
 )
 
-const SERVICE_TTL = 60
+const serviceTTL = 30
 
 // Service state
 type serviceState struct {
@@ -26,15 +28,15 @@ type serviceState struct {
 // Register a service
 // Service is registered with a ttl for 60sec and a goroutine is created
 // to refresh the ttl.
-func (self *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
+func (ep *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
 	keyName := "/contiv.io/service/" + serviceInfo.ServiceName + "/" +
 		serviceInfo.HostAddr + ":" + strconv.Itoa(serviceInfo.Port)
 
 	log.Infof("Registering service key: %s, value: %+v", keyName, serviceInfo)
 
 	// if there is a previously registered service, de-register it
-	if self.serviceDb[keyName] != nil {
-		self.DeregisterService(serviceInfo)
+	if ep.serviceDb[keyName] != nil {
+		ep.DeregisterService(serviceInfo)
 	}
 
 	// JSON format the object
@@ -45,7 +47,7 @@ func (self *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
 	}
 
 	// Set it via etcd client
-	_, err = self.client.Set(keyName, string(jsonVal[:]), SERVICE_TTL)
+	_, err = ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), &client.SetOptions{TTL: serviceTTL})
 	if err != nil {
 		log.Errorf("Error setting key %s, Err: %v", keyName, err)
 		return err
@@ -53,10 +55,10 @@ func (self *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
 
 	// Run refresh in background
 	stopChan := make(chan bool, 1)
-	go refreshService(self.client, keyName, string(jsonVal[:]), stopChan)
+	go refreshService(ep.kapi, keyName, string(jsonVal[:]), stopChan)
 
 	// Store it in DB
-	self.serviceDb[keyName] = &serviceState{
+	ep.serviceDb[keyName] = &serviceState{
 		ServiceName: serviceInfo.ServiceName,
 		HostAddr:    serviceInfo.HostAddr,
 		Port:        serviceInfo.Port,
@@ -67,33 +69,31 @@ func (self *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
 }
 
 // GetService lists all end points for a service
-func (self *etcdPlugin) GetService(name string) ([]ServiceInfo, error) {
+func (ep *etcdPlugin) GetService(name string) ([]ServiceInfo, error) {
 	keyName := "/contiv.io/service/" + name + "/"
 
-	_, srvcList, err := self.getServiceState(keyName)
+	_, srvcList, err := ep.getServiceState(keyName)
 	return srvcList, err
 }
 
-func (self *etcdPlugin) getServiceState(key string) (uint64, []ServiceInfo, error) {
+func (ep *etcdPlugin) getServiceState(key string) (uint64, []ServiceInfo, error) {
+	var srvcList []ServiceInfo
 
 	// Get the object from etcd client
-	resp, err := self.client.Get(key, true, true)
+	resp, err := ep.kapi.Get(context.Background(), key, &client.GetOptions{Recursive: true, Sort: true})
 	if err != nil {
 		if strings.Contains(err.Error(), "Key not found") {
 			return 0, nil, nil
-		} else {
-			log.Errorf("Error getting key %s. Err: %v", key, err)
-			return 0, nil, err
 		}
 
+		log.Errorf("Error getting key %s. Err: %v", key, err)
+		return 0, nil, err
 	}
 
 	if !resp.Node.Dir {
 		log.Errorf("Err. Response is not a directory: %+v", resp.Node)
 		return 0, nil, errors.New("Invalid Response from etcd")
 	}
-
-	srvcList := make([]ServiceInfo, 0)
 
 	// Parse each node in the directory
 	for _, node := range resp.Node.Nodes {
@@ -108,14 +108,14 @@ func (self *etcdPlugin) getServiceState(key string) (uint64, []ServiceInfo, erro
 		srvcList = append(srvcList, respSrvc)
 	}
 
-	watchIndex := resp.EtcdIndex + 1
+	watchIndex := resp.Index + 1
 	return watchIndex, srvcList, nil
 }
 
 // initServiceState reads the current state and injects it to the channel
 // additionally, it returns the next index to watch
-func (self *etcdPlugin) initServiceState(key string, eventCh chan WatchServiceEvent) (uint64, error) {
-	mIndex, srvcList, err := self.getServiceState(key)
+func (ep *etcdPlugin) initServiceState(key string, eventCh chan WatchServiceEvent) (uint64, error) {
+	mIndex, srvcList, err := ep.getServiceState(key)
 	if err != nil {
 		return mIndex, err
 	}
@@ -134,18 +134,20 @@ func (self *etcdPlugin) initServiceState(key string, eventCh chan WatchServiceEv
 }
 
 // Watch for a service
-func (self *etcdPlugin) WatchService(name string,
+func (ep *etcdPlugin) WatchService(name string,
 	eventCh chan WatchServiceEvent, stopCh chan bool) error {
 	keyName := "/contiv.io/service/" + name + "/"
 
 	// Create channels
-	watchCh := make(chan *etcd.Response, 1)
-	watchStopCh := make(chan bool, 1)
+	watchCh := make(chan *client.Response, 1)
+
+	// Create watch context
+	watchCtx, watchCancel := context.WithCancel(context.Background())
 
 	// Start the watch thread
 	go func() {
 		// Get current state and etcd index to watch
-		watchIndex, err := self.initServiceState(keyName, eventCh)
+		watchIndex, err := ep.initServiceState(keyName, eventCh)
 		if err != nil {
 			log.Fatalf("Unable to watch service key: %s - %v", keyName,
 				err)
@@ -153,19 +155,33 @@ func (self *etcdPlugin) WatchService(name string,
 
 		log.Infof("Watching for service: %s at index %v", keyName, watchIndex)
 		// Start the watch
-		_, err = self.client.Watch(keyName, watchIndex, true, watchCh, watchStopCh)
-		if (err != nil) && (err != etcd.ErrWatchStoppedByUser) {
-			log.Errorf("Error watching service %s. Err: %v", keyName, err)
+		watcher := ep.kapi.Watcher(keyName, &client.WatcherOptions{AfterIndex: watchIndex, Recursive: true})
+		if watcher == nil {
+			log.Errorf("Error watching service %s. Etcd returned invalid watcher", keyName)
 
 			// Emit the event
 			eventCh <- WatchServiceEvent{EventType: WatchServiceEventError}
 		}
-		log.Infof("Watch thread exiting..")
+
+		// Keep getting next event
+		for {
+			// Block till next watch event
+			etcdRsp, err := watcher.Next(watchCtx)
+			if err != nil && err.Error() == client.ErrClusterUnavailable.Error() {
+				log.Infof("Stopping watch on key %s", keyName)
+				return
+			} else if err != nil {
+				log.Errorf("Error %v during watch. Watch thread exiting", err)
+				return
+			}
+
+			// Send it to watch channel
+			watchCh <- etcdRsp
+		}
 	}()
 
 	// handle messages from watch service
 	go func() {
-	restart:
 		for {
 			select {
 			case watchResp := <-watchCh:
@@ -176,7 +192,7 @@ func (self *etcdPlugin) WatchService(name string,
 				parts := strings.Split(srvKey, "/")
 				if len(parts) < 2 {
 					log.Warnf("Recieved event for key %q, could not parse service key", srvKey)
-					goto restart
+					break
 				}
 
 				srvName := parts[0]
@@ -185,7 +201,7 @@ func (self *etcdPlugin) WatchService(name string,
 				parts = strings.Split(hostAddr, ":")
 				if len(parts) != 2 {
 					log.Warnf("Recieved event for key %q, could not parse hostinfo", srvKey)
-					goto restart
+					break
 				}
 
 				hostAddr = parts[0]
@@ -224,7 +240,7 @@ func (self *etcdPlugin) WatchService(name string,
 				if stopReq {
 					// Stop watch and return
 					log.Infof("Stopping watch on %s", keyName)
-					watchStopCh <- true
+					watchCancel()
 					return
 				}
 			}
@@ -236,12 +252,12 @@ func (self *etcdPlugin) WatchService(name string,
 
 // Deregister a service
 // This removes the service from the registry and stops the refresh groutine
-func (self *etcdPlugin) DeregisterService(serviceInfo ServiceInfo) error {
+func (ep *etcdPlugin) DeregisterService(serviceInfo ServiceInfo) error {
 	keyName := "/contiv.io/service/" + serviceInfo.ServiceName + "/" +
 		serviceInfo.HostAddr + ":" + strconv.Itoa(serviceInfo.Port)
 
 	// Find it in the database
-	srvState := self.serviceDb[keyName]
+	srvState := ep.serviceDb[keyName]
 	if srvState == nil {
 		log.Errorf("Could not find the service in db %s", keyName)
 		return errors.New("Service not found")
@@ -249,12 +265,12 @@ func (self *etcdPlugin) DeregisterService(serviceInfo ServiceInfo) error {
 
 	// stop the refresh thread and delete service
 	srvState.stopChan <- true
-	delete(self.serviceDb, keyName)
+	delete(ep.serviceDb, keyName)
 
 	// Delete the service instance
-	_, err := self.client.Delete(keyName, false)
+	_, err := ep.kapi.Delete(context.Background(), keyName, nil)
 	if err != nil {
-		log.Errorf("Error getting key %s. Err: %v", keyName, err)
+		log.Errorf("Error deleting key %s. Err: %v", keyName, err)
 		return err
 	}
 
@@ -262,18 +278,18 @@ func (self *etcdPlugin) DeregisterService(serviceInfo ServiceInfo) error {
 }
 
 // Keep refreshing the service every 30sec
-func refreshService(client *etcd.Client, keyName string, keyVal string, stopChan chan bool) {
+func refreshService(kapi client.KeysAPI, keyName string, keyVal string, stopChan chan bool) {
 	for {
 		select {
-		case <-time.After(time.Second * time.Duration(SERVICE_TTL/3)):
+		case <-time.After(time.Second * time.Duration(serviceTTL/3)):
 			log.Debugf("Refreshing key: %s", keyName)
 
-			_, err := client.Update(keyName, keyVal, SERVICE_TTL)
+			_, err := kapi.Set(context.Background(), keyName, keyVal, &client.SetOptions{TTL: serviceTTL})
 			if err != nil {
 				log.Warnf("Error updating key %s, Err: %v", keyName, err)
 				// In case of a TTL expiry, this key may have been deleted
 				// from the etcd db. Hence use of Set instead of Update
-				_, err := client.Set(keyName, keyVal, SERVICE_TTL)
+				_, err := kapi.Set(context.Background(), keyName, keyVal, &client.SetOptions{TTL: serviceTTL})
 				if err != nil {
 					log.Errorf("Error setting key %s, Err: %v", keyName, err)
 				}
