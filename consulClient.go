@@ -13,10 +13,12 @@ import (
 
 // consulPlugin contains consul plugin specific state
 type consulPlugin struct {
+	mutex *sync.Mutex
+}
+
+type ConsulClient struct {
 	client       *api.Client // consul client
 	consulConfig api.Config
-
-	mutex *sync.Mutex
 }
 
 // init Register the plugin
@@ -25,20 +27,32 @@ func init() {
 }
 
 // Init initializes the consul client
-func (cp *consulPlugin) Init(machines []string) error {
+func (cp *consulPlugin) NewClient(endpoints []string) (API, error) {
+	cc := new(ConsulClient)
+
+	if len(endpoints) == 0 {
+		endpoints = []string{"127.0.0.1:8500"}
+	}
 	// default consul config
-	cp.consulConfig = api.Config{Address: "127.0.0.1:8500"}
+	cc.consulConfig = api.Config{Address: strings.TrimPrefix(endpoints[0], "http://")}
 
 	// Init consul client
-	client, err := api.NewClient(&cp.consulConfig)
+	client, err := api.NewClient(&cc.consulConfig)
 	if err != nil {
 		log.Fatalf("Error initializing consul client")
-		return err
+		return nil, err
 	}
 
-	cp.client = client
+	cc.client = client
 
-	return nil
+	// verify we can reach the consul
+	_, _, err = client.KV().List("/", nil)
+	if err != nil {
+		log.Errorf("Error connecting to consul. Err: %v", err)
+		return nil, err
+	}
+
+	return cc, nil
 }
 
 func processKey(inKey string) string {
@@ -47,7 +61,7 @@ func processKey(inKey string) string {
 }
 
 // GetObj reads the object
-func (cp *consulPlugin) GetObj(key string, retVal interface{}) error {
+func (cp *ConsulClient) GetObj(key string, retVal interface{}) error {
 	key = processKey("/contiv.io/obj/" + processKey(key))
 
 	resp, _, err := cp.client.KV().Get(key, &api.QueryOptions{RequireConsistent: true})
@@ -70,7 +84,7 @@ func (cp *consulPlugin) GetObj(key string, retVal interface{}) error {
 }
 
 // ListDir returns a list of keys in a directory
-func (cp *consulPlugin) ListDir(key string) ([]string, error) {
+func (cp *ConsulClient) ListDir(key string) ([]string, error) {
 	key = processKey("/contiv.io/obj/" + processKey(key))
 
 	kvs, _, err := cp.client.KV().List(key, nil)
@@ -92,7 +106,7 @@ func (cp *consulPlugin) ListDir(key string) ([]string, error) {
 }
 
 // SetObj writes an object
-func (cp *consulPlugin) SetObj(key string, value interface{}) error {
+func (cp *ConsulClient) SetObj(key string, value interface{}) error {
 	key = processKey("/contiv.io/obj/" + processKey(key))
 
 	// JSON format the object
@@ -108,38 +122,38 @@ func (cp *consulPlugin) SetObj(key string, value interface{}) error {
 }
 
 // DelObj deletes an object
-func (cp *consulPlugin) DelObj(key string) error {
+func (cp *ConsulClient) DelObj(key string) error {
 	key = processKey("/contiv.io/obj/" + processKey(key))
 	_, err := cp.client.KV().Delete(key, nil)
 	return err
 }
 
 // GetLocalAddr gets local address of the host
-func (cp *consulPlugin) GetLocalAddr() (string, error) {
+func (cp *ConsulClient) GetLocalAddr() (string, error) {
 	return "", nil
 }
 
 // NewLock returns a new lock instance
-func (cp *consulPlugin) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
+func (cp *ConsulClient) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
 	return nil, nil
 }
 
 // RegisterService registers a service
-func (cp *consulPlugin) RegisterService(serviceInfo ServiceInfo) error {
+func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
 	return nil
 }
 
 // GetService gets all instances of a service
-func (cp *consulPlugin) GetService(name string) ([]ServiceInfo, error) {
+func (cp *ConsulClient) GetService(name string) ([]ServiceInfo, error) {
 	return nil, nil
 }
 
 // WatchService watches for service instance changes
-func (cp *consulPlugin) WatchService(name string, eventCh chan WatchServiceEvent, stopCh chan bool) error {
+func (cp *ConsulClient) WatchService(name string, eventCh chan WatchServiceEvent, stopCh chan bool) error {
 	return nil
 }
 
 // DeregisterService deregisters a service instance
-func (cp *consulPlugin) DeregisterService(serviceInfo ServiceInfo) error {
+func (cp *ConsulClient) DeregisterService(serviceInfo ServiceInfo) error {
 	return nil
 }

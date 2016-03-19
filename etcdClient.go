@@ -15,11 +15,14 @@ import (
 )
 
 type etcdPlugin struct {
+	mutex *sync.Mutex
+}
+
+type EtcdClient struct {
 	client client.Client // etcd client
 	kapi   client.KeysAPI
 
 	serviceDb map[string]*serviceState
-	mutex     *sync.Mutex
 }
 
 type member struct {
@@ -37,8 +40,9 @@ func init() {
 }
 
 // Initialize the etcd client
-func (ep *etcdPlugin) Init(endpoints []string) error {
+func (ep *etcdPlugin) NewClient(endpoints []string) (API, error) {
 	var err error
+	var ec = new(EtcdClient)
 
 	ep.mutex.Lock()
 	defer ep.mutex.Unlock()
@@ -53,27 +57,34 @@ func (ep *etcdPlugin) Init(endpoints []string) error {
 	}
 
 	// Create a new client
-	ep.client, err = client.New(etcdConfig)
+	ec.client, err = client.New(etcdConfig)
 	if err != nil {
-		log.Fatal("Error creating etcd client. Err: %v", err)
-		return err
+		log.Fatalf("Error creating etcd client. Err: %v", err)
+		return nil, err
 	}
 
 	// create keys api
-	ep.kapi = client.NewKeysAPI(ep.client)
+	ec.kapi = client.NewKeysAPI(ec.client)
 
 	// Initialize service DB
-	ep.serviceDb = make(map[string]*serviceState)
+	ec.serviceDb = make(map[string]*serviceState)
 
-	return nil
+	// Make sure we can read from etcd
+	_, err = ec.kapi.Get(context.Background(), "/", &client.GetOptions{Recursive: true, Sort: true})
+	if err != nil {
+		log.Errorf("Failed to connect to etcd. Err: %v", err)
+		return nil, err
+	}
+
+	return ec, nil
 }
 
 // Get an object
-func (ep *etcdPlugin) GetObj(key string, retVal interface{}) error {
+func (ep *EtcdClient) GetObj(key string, retVal interface{}) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// Get the object from etcd client
-	resp, err := ep.kapi.Get(context.Background(), keyName, nil)
+	resp, err := ep.kapi.Get(context.Background(), keyName, &client.GetOptions{Quorum: true})
 	if err != nil {
 		log.Errorf("Error getting key %s. Err: %v", keyName, err)
 		return err
@@ -103,11 +114,17 @@ func recursAddNode(node *client.Node, list []string) []string {
 }
 
 // Get a list of objects in a directory
-func (ep *etcdPlugin) ListDir(key string) ([]string, error) {
+func (ep *EtcdClient) ListDir(key string) ([]string, error) {
 	keyName := "/contiv.io/obj/" + key
 
+	getOpts := client.GetOptions{
+		Recursive: true,
+		Sort:      true,
+		Quorum:    true,
+	}
+
 	// Get the object from etcd client
-	resp, err := ep.kapi.Get(context.Background(), keyName, &client.GetOptions{Recursive: true, Sort: true})
+	resp, err := ep.kapi.Get(context.Background(), keyName, &getOpts)
 	if err != nil {
 		return nil, nil
 	}
@@ -128,7 +145,7 @@ func (ep *etcdPlugin) ListDir(key string) ([]string, error) {
 }
 
 // Save an object, create if it doesnt exist
-func (ep *etcdPlugin) SetObj(key string, value interface{}) error {
+func (ep *EtcdClient) SetObj(key string, value interface{}) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// JSON format the object
@@ -148,7 +165,7 @@ func (ep *etcdPlugin) SetObj(key string, value interface{}) error {
 }
 
 // Remove an object
-func (ep *etcdPlugin) DelObj(key string) error {
+func (ep *EtcdClient) DelObj(key string) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// Remove it via etcd client
@@ -184,7 +201,7 @@ func httpGetJSON(url string, data interface{}) (interface{}, error) {
 }
 
 // Return the local address where etcd is listening
-func (ep *etcdPlugin) GetLocalAddr() (string, error) {
+func (ep *EtcdClient) GetLocalAddr() (string, error) {
 	var epData struct {
 		Name string `json:"name"`
 	}

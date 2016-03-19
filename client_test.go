@@ -20,13 +20,59 @@ var etcdClient API
 var consulClient API
 
 func TestMain(m *testing.M) {
+	var err error
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Init clients
-	etcdClient = NewClient("")
-	consulClient = NewClient("consul")
+	etcdClient, err = NewClient("")
+	if err != nil {
+		log.Fatalf("Error creating etcd client. Err: %v", err)
+	}
+
+	consulClient, err = NewClient("consul://localhost:8500")
+	if err != nil {
+		log.Fatalf("Error creating consul client. Err: %v", err)
+	}
 
 	os.Exit(m.Run())
+}
+
+// Verify only valid DB urls are accepted
+func TestDbUrl(t *testing.T) {
+	_, err := NewClient("invalid")
+	if err == nil {
+		t.Fatalf("Invalid URL accepted")
+	}
+
+	_, err = NewClient("invalid://localhost:2379")
+	if err == nil {
+		t.Fatalf("Invalid URL accepted")
+	}
+
+	_, err = NewClient("etcd:/localhost:2379")
+	if err == nil {
+		t.Fatalf("Invalid URL accepted")
+	}
+
+	_, err = NewClient("etcd://localhost")
+	if err == nil {
+		t.Fatalf("Invalid URL accepted")
+	}
+
+	_, err = NewClient("etcd://localhost:5000")
+	if err == nil {
+		t.Fatalf("Invalid URL accepted")
+	}
+
+	_, err = NewClient("consul://localhost")
+	if err == nil {
+		t.Fatalf("Invalid URL accepted")
+	}
+
+	_, err = NewClient("consul://localhost:5000")
+	if err == nil {
+		t.Fatalf("Invalid URL accepted")
+	}
 }
 
 // Perform Set/Get operation on default conf store
@@ -422,7 +468,6 @@ func TestServiceWatch(t *testing.T) {
 	stopChan := make(chan bool, 1)
 
 	// Start watching for service
-
 	if err := etcdClient.WatchService("athena", eventChan, stopChan); err != nil {
 		t.Fatalf("Fatal watching service. Err %v", err)
 	}

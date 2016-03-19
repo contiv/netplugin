@@ -2,6 +2,7 @@ package modeldb
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -38,9 +39,19 @@ func (obj *dummyModel) Write() error {
 	return WriteObj("dummyModel", obj.Key, obj)
 }
 
-func TestSetGetDel(t *testing.T) {
+func TestMain(m *testing.M) {
+	// init modeldb
+	Init("")
+
+	os.Exit(m.Run())
+}
+
+func testSetGetDel(t *testing.T, dbURL string) {
 	var testObj = dummyModel{Key: "testKey", Name: "testName"}
 	var readObj = dummyModel{Key: "testKey"}
+
+	// init modeldb
+	Init(dbURL)
 
 	// test write
 	err := testObj.Write()
@@ -64,4 +75,16 @@ func TestSetGetDel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error deleting test object. Err: %v", err)
 	}
+}
+
+func TestSetGetDel(t *testing.T) {
+	testSetGetDel(t, "")
+}
+
+func TestSetGetDelEtcd(t *testing.T) {
+	testSetGetDel(t, "etcd://localhost:2379")
+}
+
+func TestSetGetDelConsul(t *testing.T) {
+	testSetGetDel(t, "consul://localhost:8500")
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/coreos/etcd/client"
 )
 
-const serviceTTL = 30
+const serviceTTL = time.Duration(30 * time.Second)
 
 // Service state
 type serviceState struct {
@@ -25,10 +25,10 @@ type serviceState struct {
 	stopChan chan bool
 }
 
-// Register a service
+// RegisterService Register a service
 // Service is registered with a ttl for 60sec and a goroutine is created
 // to refresh the ttl.
-func (ep *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
+func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 	keyName := "/contiv.io/service/" + serviceInfo.ServiceName + "/" +
 		serviceInfo.HostAddr + ":" + strconv.Itoa(serviceInfo.Port)
 
@@ -69,14 +69,14 @@ func (ep *etcdPlugin) RegisterService(serviceInfo ServiceInfo) error {
 }
 
 // GetService lists all end points for a service
-func (ep *etcdPlugin) GetService(name string) ([]ServiceInfo, error) {
+func (ep *EtcdClient) GetService(name string) ([]ServiceInfo, error) {
 	keyName := "/contiv.io/service/" + name + "/"
 
 	_, srvcList, err := ep.getServiceState(keyName)
 	return srvcList, err
 }
 
-func (ep *etcdPlugin) getServiceState(key string) (uint64, []ServiceInfo, error) {
+func (ep *EtcdClient) getServiceState(key string) (uint64, []ServiceInfo, error) {
 	var srvcList []ServiceInfo
 
 	// Get the object from etcd client
@@ -114,7 +114,7 @@ func (ep *etcdPlugin) getServiceState(key string) (uint64, []ServiceInfo, error)
 
 // initServiceState reads the current state and injects it to the channel
 // additionally, it returns the next index to watch
-func (ep *etcdPlugin) initServiceState(key string, eventCh chan WatchServiceEvent) (uint64, error) {
+func (ep *EtcdClient) initServiceState(key string, eventCh chan WatchServiceEvent) (uint64, error) {
 	mIndex, srvcList, err := ep.getServiceState(key)
 	if err != nil {
 		return mIndex, err
@@ -122,7 +122,7 @@ func (ep *etcdPlugin) initServiceState(key string, eventCh chan WatchServiceEven
 
 	// walk each service and inject it as an add event
 	for _, srvInfo := range srvcList {
-		log.Infof("Sending service add event: %+v", srvInfo)
+		log.Debugf("Sending service add event: %+v", srvInfo)
 		// Send Add event
 		eventCh <- WatchServiceEvent{
 			EventType:   WatchServiceEventAdd,
@@ -133,8 +133,8 @@ func (ep *etcdPlugin) initServiceState(key string, eventCh chan WatchServiceEven
 	return mIndex, nil
 }
 
-// Watch for a service
-func (ep *etcdPlugin) WatchService(name string,
+// WatchService Watch for a service
+func (ep *EtcdClient) WatchService(name string,
 	eventCh chan WatchServiceEvent, stopCh chan bool) error {
 	keyName := "/contiv.io/service/" + name + "/"
 
@@ -219,7 +219,7 @@ func (ep *etcdPlugin) WatchService(name string,
 				// If a service restarts and re-registers before it expired, we'll
 				// receive set again. receivers need to handle this case
 				if watchResp.Action == "set" {
-					log.Infof("Sending service add event: %+v", srvInfo)
+					log.Debugf("Sending service add event: %+v", srvInfo)
 					// Send Add event
 					eventCh <- WatchServiceEvent{
 						EventType:   WatchServiceEventAdd,
@@ -250,9 +250,9 @@ func (ep *etcdPlugin) WatchService(name string,
 	return nil
 }
 
-// Deregister a service
+// DeregisterService Deregister a service
 // This removes the service from the registry and stops the refresh groutine
-func (ep *etcdPlugin) DeregisterService(serviceInfo ServiceInfo) error {
+func (ep *EtcdClient) DeregisterService(serviceInfo ServiceInfo) error {
 	keyName := "/contiv.io/service/" + serviceInfo.ServiceName + "/" +
 		serviceInfo.HostAddr + ":" + strconv.Itoa(serviceInfo.Port)
 
@@ -281,7 +281,7 @@ func (ep *etcdPlugin) DeregisterService(serviceInfo ServiceInfo) error {
 func refreshService(kapi client.KeysAPI, keyName string, keyVal string, stopChan chan bool) {
 	for {
 		select {
-		case <-time.After(time.Second * time.Duration(serviceTTL/3)):
+		case <-time.After(serviceTTL / 3):
 			log.Debugf("Refreshing key: %s", keyName)
 
 			_, err := kapi.Set(context.Background(), keyName, keyVal, &client.SetOptions{TTL: serviceTTL})

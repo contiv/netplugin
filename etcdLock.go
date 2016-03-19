@@ -28,8 +28,8 @@ type Lock struct {
 	mutex       *sync.Mutex
 }
 
-// Create a new lock
-func (ep *etcdPlugin) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
+// NewLock Create a new lock
+func (ep *EtcdClient) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
 	watchCtx, watchCancel := context.WithCancel(context.Background())
 	// Create a lock
 	return &Lock{
@@ -157,7 +157,7 @@ func (lk *Lock) acquireLock() {
 			// Try to acquire the lock
 			resp, err := lk.kapi.Set(context.Background(), keyName, lk.myID, &client.SetOptions{PrevExist: client.PrevNoExist, TTL: lk.ttl})
 			if err != nil {
-				if err.(*client.Error).Code != client.ErrorCodeNodeExist {
+				if err.(client.Error).Code != client.ErrorCodeNodeExist {
 					log.Errorf("Error creating key %s. Err: %v", keyName, err)
 				} else {
 					log.Infof("Lock %s acquired by someone else", keyName)
@@ -342,7 +342,7 @@ func (lk *Lock) watchLock() {
 		} else if err != nil {
 			log.Errorf("Error watching the key %s, Err %v.", keyName, err)
 		} else {
-			log.Infof("Got Watch Resp: %+v", resp)
+			log.Debugf("Got Watch Resp: %+v", resp)
 
 			// send the event to watch channel
 			lk.watchCh <- resp
