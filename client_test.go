@@ -21,7 +21,9 @@ var consulClient API
 
 func TestMain(m *testing.M) {
 	var err error
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	runtime.GOMAXPROCS(4)
+
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true, TimestampFormat: time.StampNano})
 
 	// Init clients
 	etcdClient, err = NewClient("")
@@ -251,14 +253,26 @@ func BenchmarkConsulDel(b *testing.B) {
 	}
 }
 
-func TestLockAcquireRelease(t *testing.T) {
+func TestEtcdLockAcquireRelease(t *testing.T) {
+	for i := 0; i < 3; i++ {
+		testLockAcquireRelease(t, etcdClient)
+	}
+}
+
+func TestConsulLockAcquireRelease(t *testing.T) {
+	for i := 0; i < 3; i++ {
+		testLockAcquireRelease(t, consulClient)
+	}
+}
+
+func testLockAcquireRelease(t *testing.T, dbclient API) {
 	// Create a lock
-	lock1, err := etcdClient.NewLock("master", "hostname1", 10)
+	lock1, err := dbclient.NewLock("master", "hostname1", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	lock2, err := etcdClient.NewLock("master", "hostname2", 10)
+	lock2, err := dbclient.NewLock("master", "hostname2", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +282,7 @@ func TestLockAcquireRelease(t *testing.T) {
 		t.Fatalf("Fatal acquiring lock1")
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 
 	// Make sure lock1 is acquired
 	if !lock1.IsAcquired() {
@@ -280,57 +294,72 @@ func TestLockAcquireRelease(t *testing.T) {
 		t.Fatalf("Fatal acquiring lock2")
 	}
 
-	cnt := 1
-	for {
-		select {
-		case event := <-lock1.EventChan():
-			fmt.Printf("Event on Lock1: %+v\n\n", event)
-			if event.EventType == LockAcquired {
-				fmt.Printf("Master lock acquired by Lock1\n")
-			}
-		case event := <-lock2.EventChan():
-			fmt.Printf("Event on Lock2: %+v\n\n", event)
-			if event.EventType == LockAcquired {
-				fmt.Printf("Master lock acquired by Lock2\n")
-			}
-		case <-time.After(100 * time.Millisecond):
-			if cnt == 1 {
-				fmt.Printf("100 ms timer. releasing Lock1\n\n")
-				// At this point, lock1 should be holding the lock
-				if !lock1.IsAcquired() {
-					t.Fatalf("Lock1 failed to acquire lock\n\n")
+	go func() {
+		for {
+			select {
+			case event := <-lock1.EventChan():
+				log.Infof("Event on Lock1: %+v", event)
+				if event.EventType == LockAcquired {
+					log.Infof("Master lock acquired by Lock1")
 				}
-
-				// Release lock1 so that lock2 can acquire it
-				lock1.Release()
-				cnt++
-			} else {
-				fmt.Printf("200 ms timer. checking if lock2 is acquired\n\n")
-
-				// At this point, lock2 should be holding the lock
-				if !lock2.IsAcquired() {
-					t.Fatalf("Lock2 failed to acquire lock\n\n")
+			case event := <-lock2.EventChan():
+				log.Infof("Event on Lock2: %+v", event)
+				if event.EventType == LockAcquired {
+					log.Infof("Master lock acquired by Lock2")
 				}
-
-				fmt.Printf("Success. Lock2 Successfully acquired. releasing it\n")
-				// we are done with the test
-				lock2.Release()
-
-				return
 			}
 		}
+	}()
+
+	time.Sleep(time.Second * 2)
+
+	log.Infof("2 timer. releasing Lock1")
+	// At this point, lock1 should be holding the lock
+	if !lock1.IsAcquired() {
+		t.Fatalf("Lock1 failed to acquire lock")
+	}
+
+	// Release lock1 so that lock2 can acquire it
+	err = lock1.Release()
+	if err != nil {
+		t.Fatalf("Error releasing lock")
+	}
+
+	time.Sleep(time.Second * 2)
+
+	log.Infof("4s timer. checking if lock2 is acquired")
+
+	// At this point, lock2 should be holding the lock
+	if !lock2.IsAcquired() {
+		t.Fatalf("Lock2 failed to acquire lock")
+	}
+
+	log.Infof("Success. Lock2 Successfully acquired. releasing it")
+
+	// we are done with the test
+	err = lock2.Release()
+	if err != nil {
+		t.Fatalf("Error releasing lock")
 	}
 }
 
-func TestLockAcquireTimeout(t *testing.T) {
-	fmt.Printf("\n\n\n =========================================================== \n\n\n")
+func TestEtcdLockAcquireTimeout(t *testing.T) {
+	testLockAcquireTimeout(t, etcdClient)
+}
+
+func TestConsulLockAcquireTimeout(t *testing.T) {
+	testLockAcquireTimeout(t, consulClient)
+}
+
+func testLockAcquireTimeout(t *testing.T, dbClient API) {
+	log.Infof("\n=========================================================== \n")
 	// Create a lock
-	lock1, err := etcdClient.NewLock("master", "hostname1", 10)
+	lock1, err := dbClient.NewLock("master", "hostnamet1", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	lock2, err := etcdClient.NewLock("master", "hostname2", 10)
+	lock2, err := dbClient.NewLock("master", "hostnamet2", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -347,34 +376,152 @@ func TestLockAcquireTimeout(t *testing.T) {
 		t.Fatalf("Fatal acquiring lock2")
 	}
 
-	for {
-		select {
-		case event := <-lock1.EventChan():
-			fmt.Printf("Event on Lock1: %+v\n\n", event)
-			if event.EventType == LockAcquired {
-				fmt.Printf("Master lock acquired by Lock1\n")
-			}
-		case event := <-lock2.EventChan():
-			fmt.Printf("Event on Lock2: %+v\n\n", event)
-			if event.EventType != LockAcquireTimeout {
-				fmt.Printf("Invalid event on Lock2\n")
-			} else {
-				fmt.Printf("Lock2 timeout as expected")
-			}
-		case <-time.After(1 * time.Millisecond):
-			fmt.Printf("1sec timer. releasing Lock1\n\n")
-			// At this point, lock1 should be holding the lock
-			if !lock1.IsAcquired() {
-				t.Fatalf("Lock1 failed to acquire lock\n\n")
-			}
-			lock1.Release()
+	lock1AcquiredEvent := false
+	lock2TimeoutEvent := false
 
-			return
+	go func() {
+		for {
+			select {
+			case event := <-lock1.EventChan():
+				log.Infof("Event on Lock1: %+v\n\n", event)
+				if event.EventType == LockAcquired {
+					log.Infof("Master lock acquired by Lock1\n")
+					lock1AcquiredEvent = true
+				}
+			case event := <-lock2.EventChan():
+				log.Infof("Event on Lock2: %+v\n\n", event)
+				if event.EventType != LockAcquireTimeout {
+					t.Fatalf("Invalid event on Lock2\n")
+				} else {
+					log.Infof("Lock2 timeout as expected")
+					lock2TimeoutEvent = true
+				}
+			}
 		}
+	}()
+
+	time.Sleep(5 * time.Second)
+
+	log.Infof("5sec timer. releasing Lock1\n\n")
+	// At this point, lock1 should be holding the lock
+	if !lock1.IsAcquired() {
+		t.Fatalf("Lock1 failed to acquire lock\n\n")
+	}
+
+	if !lock1AcquiredEvent {
+		t.Fatalf("Never received lock1 acquired event")
+	}
+
+	if !lock2TimeoutEvent {
+		t.Fatalf("Never received lock2 timeout event")
+	}
+
+	err = lock1.Release()
+	if err != nil {
+		t.Fatalf("Error releasing lock1")
 	}
 }
 
-func TestServiceRegister(t *testing.T) {
+func TestEtcdLockAcquireKill(t *testing.T) {
+	testLockAcquireKill(t, etcdClient)
+}
+
+func TestConsulLockAcquireKill(t *testing.T) {
+	testLockAcquireKill(t, consulClient)
+}
+
+func testLockAcquireKill(t *testing.T, dbclient API) {
+	// Create a lock
+	lock1, err := dbclient.NewLock("master", "hostnamek1", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lock2, err := dbclient.NewLock("master", "hostnamek2", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Acquire the master lock
+	if err := lock1.Acquire(0); err != nil {
+		t.Fatalf("Fatal acquiring lock1")
+	}
+
+	time.Sleep(time.Second)
+
+	// Make sure lock1 is acquired
+	if !lock1.IsAcquired() {
+		t.Fatalf("Lock1 is not in acquired state")
+	}
+
+	// Try to acquire the same lock again. This should fail
+	if err := lock2.Acquire(0); err != nil {
+		t.Fatalf("Fatal acquiring lock2")
+	}
+
+	go func() {
+		for {
+			select {
+			case event := <-lock1.EventChan():
+				log.Infof("Event on Lock1: %+v", event)
+				if event.EventType == LockAcquired {
+					log.Infof("Master lock acquired by Lock1")
+				} else {
+					t.Fatalf("Unexpected event %d on lock1", event.EventType)
+				}
+			case event := <-lock2.EventChan():
+				log.Infof("Event on Lock2: %+v", event)
+				if event.EventType == LockAcquired {
+					log.Infof("Master lock acquired by Lock2")
+				} else {
+					t.Fatalf("Unexpected event %d on lock2", event.EventType)
+				}
+			}
+		}
+	}()
+
+	time.Sleep(time.Second * 15)
+
+	log.Infof("20s timer. killing Lock1")
+	// At this point, lock1 should be holding the lock
+	if !lock1.IsAcquired() {
+		t.Fatalf("Lock1 failed to acquire lock")
+	}
+
+	// Release lock1 so that lock2 can acquire it
+	err = lock1.Kill()
+	if err != nil {
+		t.Fatalf("Error releasing lock")
+	}
+
+	time.Sleep(time.Second * 15)
+
+	log.Infof("40s timer. checking if lock2 is acquired")
+
+	// At this point, lock2 should be holding the lock
+	if !lock2.IsAcquired() {
+		t.Fatalf("Lock2 failed to acquire lock")
+	}
+
+	log.Infof("Success. Lock2 Successfully acquired. releasing it")
+
+	// we are done with the test
+	err = lock2.Release()
+	if err != nil {
+		t.Fatalf("Error releasing lock")
+	}
+
+}
+
+func TestEtcdServiceRegisterDeregister(t *testing.T) {
+	testServiceRegisterDeregister(t, etcdClient)
+}
+
+func TestConsulServiceRegisterDeregister(t *testing.T) {
+	testServiceRegisterDeregister(t, consulClient)
+}
+
+func testServiceRegisterDeregister(t *testing.T, dbClient API) {
 	// Service info
 	service1Info := ServiceInfo{
 		ServiceName: "athena",
@@ -388,17 +535,17 @@ func TestServiceRegister(t *testing.T) {
 	}
 
 	// register it
-	if err := etcdClient.RegisterService(service1Info); err != nil {
+	if err := dbClient.RegisterService(service1Info); err != nil {
 		t.Fatalf("Fatal registering service. Err: %+v\n", err)
 	}
 	log.Infof("Registered service: %+v", service1Info)
 
-	if err := etcdClient.RegisterService(service2Info); err != nil {
+	if err := dbClient.RegisterService(service2Info); err != nil {
 		t.Fatalf("Fatal registering service. Err: %+v\n", err)
 	}
 	log.Infof("Registered service: %+v", service2Info)
 
-	resp, err := etcdClient.GetService("athena")
+	resp, err := dbClient.GetService("athena")
 	if err != nil {
 		t.Fatalf("Fatal getting service. Err: %+v\n", err)
 	}
@@ -412,7 +559,7 @@ func TestServiceRegister(t *testing.T) {
 	// Wait a while to make sure background refresh is working correctly
 	time.Sleep(5 * time.Millisecond)
 
-	resp, err = etcdClient.GetService("athena")
+	resp, err = dbClient.GetService("athena")
 	if err != nil {
 		t.Fatalf("Fatal getting service. Err: %+v\n", err)
 	}
@@ -422,62 +569,75 @@ func TestServiceRegister(t *testing.T) {
 	if (len(resp) < 2) || (resp[0] != service1Info) || (resp[1] != service2Info) {
 		t.Fatalf("Resp service list did not match input")
 	}
+
+	// deregister it
+	if err := dbClient.DeregisterService(service1Info); err != nil {
+		t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
+	}
+
+	if err := dbClient.DeregisterService(service2Info); err != nil {
+		t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
+	}
+
+	// Wait a while to make sure background refresh is working correctly
+	time.Sleep(5 * time.Millisecond)
+
+	resp, err = dbClient.GetService("athena")
+	if err != nil {
+		t.Fatalf("Fatal getting service. Err: %+v\n", err)
+	}
+
+	log.Infof("Got service list: %+v\n", resp)
+
+	if len(resp) != 0 {
+		t.Fatalf("Service still in list after deregister")
+	}
 }
 
-func TestServiceDeregister(t *testing.T) {
-	// Service info
+func TestEtcdServiceWatch(t *testing.T) {
+	testServiceWatch(t, etcdClient)
+}
+
+func TestConsulServiceWatch(t *testing.T) {
+	testServiceWatch(t, consulClient)
+}
+
+func testServiceWatch(t *testing.T, dbClient API) {
 	service1Info := ServiceInfo{
 		ServiceName: "athena",
 		HostAddr:    "10.10.10.10",
 		Port:        4567,
 	}
-	service2Info := ServiceInfo{
-		ServiceName: "athena",
-		HostAddr:    "10.10.10.10",
-		Port:        4568,
+
+	// Create event channel
+	eventChan := make(chan WatchServiceEvent, 10)
+	stopChan := make(chan bool, 1)
+
+	// Start watching for service
+	if err := dbClient.WatchService("athena", eventChan, stopChan); err != nil {
+		t.Fatalf("Fatal watching service. Err %v", err)
 	}
 
 	// register it
-	if err := etcdClient.DeregisterService(service1Info); err != nil {
-		t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
-	}
-
-	if err := etcdClient.DeregisterService(service2Info); err != nil {
-		t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
-	}
-
-	time.Sleep(time.Millisecond * 1)
-}
-
-func TestServiceWatch(t *testing.T) {
-	service1Info := ServiceInfo{
-		ServiceName: "athena",
-		HostAddr:    "10.10.10.10",
-		Port:        4567,
-	}
-
-	// register it
-
-	if err := etcdClient.RegisterService(service1Info); err != nil {
+	if err := dbClient.RegisterService(service1Info); err != nil {
 		t.Fatalf("Fatal registering service. Err: %+v\n", err)
 	}
 	log.Infof("Registered service: %+v", service1Info)
 
-	// Create event channel
-	eventChan := make(chan WatchServiceEvent, 1)
-	stopChan := make(chan bool, 1)
-
-	// Start watching for service
-	if err := etcdClient.WatchService("athena", eventChan, stopChan); err != nil {
-		t.Fatalf("Fatal watching service. Err %v", err)
-	}
-
 	cnt := 1
+	regCount := 0
+	deregCount := 0
 	for {
 		select {
 		case srvEvent := <-eventChan:
 			log.Infof("\n----\nReceived event: %+v\n----", srvEvent)
-		case <-time.After(time.Millisecond * time.Duration(10)):
+			if srvEvent.EventType == WatchServiceEventAdd {
+				regCount++
+			}
+			if srvEvent.EventType == WatchServiceEventDel {
+				deregCount++
+			}
+		case <-time.After(time.Millisecond * time.Duration(100)):
 			service2Info := ServiceInfo{
 				ServiceName: "athena",
 				HostAddr:    "10.10.10.11",
@@ -485,19 +645,27 @@ func TestServiceWatch(t *testing.T) {
 			}
 			if cnt == 1 {
 				// register it
-				if err := etcdClient.RegisterService(service2Info); err != nil {
+				if err := dbClient.RegisterService(service2Info); err != nil {
 					t.Fatalf("Fatal registering service. Err: %+v\n", err)
 				}
 				log.Infof("Registered service: %+v", service2Info)
 			} else if cnt == 5 {
 				// deregister it
-				if err := etcdClient.DeregisterService(service2Info); err != nil {
+				if err := dbClient.DeregisterService(service2Info); err != nil {
 					t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
 				}
 				log.Infof("Deregistered service: %+v", service2Info)
-			} else if cnt == 7 {
+			} else if cnt == 10 {
 				// Stop the watch
 				stopChan <- true
+
+				if regCount != 2 {
+					t.Fatalf("Did not receive expected number of reg watch event for service")
+				}
+
+				if deregCount != 1 {
+					t.Fatalf("Did not receive expected number of dereg watch event for service")
+				}
 
 				// wait a little and exit
 				time.Sleep(time.Millisecond)

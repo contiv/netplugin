@@ -1,3 +1,18 @@
+/***
+Copyright 2014 Cisco Systems Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package objdb
 
 import (
@@ -16,9 +31,12 @@ type consulPlugin struct {
 	mutex *sync.Mutex
 }
 
+// ConsulClient has consul client state
 type ConsulClient struct {
 	client       *api.Client // consul client
 	consulConfig api.Config
+
+	serviceDb map[string]*consulServiceState
 }
 
 // init Register the plugin
@@ -33,8 +51,12 @@ func (cp *consulPlugin) NewClient(endpoints []string) (API, error) {
 	if len(endpoints) == 0 {
 		endpoints = []string{"127.0.0.1:8500"}
 	}
+
 	// default consul config
 	cc.consulConfig = api.Config{Address: strings.TrimPrefix(endpoints[0], "http://")}
+
+	// Initialize service DB
+	cc.serviceDb = make(map[string]*consulServiceState)
 
 	// Init consul client
 	client, err := api.NewClient(&cc.consulConfig)
@@ -94,7 +116,7 @@ func (cp *ConsulClient) ListDir(key string) ([]string, error) {
 	// Consul returns success and a nil kv when a key is not found,
 	// translate it to 'Key not found' error
 	if kvs == nil {
-		return nil, errors.New("Key not found")
+		return []string{}, nil
 	}
 
 	var keys []string
@@ -131,29 +153,4 @@ func (cp *ConsulClient) DelObj(key string) error {
 // GetLocalAddr gets local address of the host
 func (cp *ConsulClient) GetLocalAddr() (string, error) {
 	return "", nil
-}
-
-// NewLock returns a new lock instance
-func (cp *ConsulClient) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
-	return nil, nil
-}
-
-// RegisterService registers a service
-func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
-	return nil
-}
-
-// GetService gets all instances of a service
-func (cp *ConsulClient) GetService(name string) ([]ServiceInfo, error) {
-	return nil, nil
-}
-
-// WatchService watches for service instance changes
-func (cp *ConsulClient) WatchService(name string, eventCh chan WatchServiceEvent, stopCh chan bool) error {
-	return nil
-}
-
-// DeregisterService deregisters a service instance
-func (cp *ConsulClient) DeregisterService(serviceInfo ServiceInfo) error {
-	return nil
 }

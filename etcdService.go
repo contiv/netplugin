@@ -1,3 +1,18 @@
+/***
+Copyright 2014 Cisco Systems Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package objdb
 
 import (
@@ -16,7 +31,7 @@ import (
 const serviceTTL = time.Duration(30 * time.Second)
 
 // Service state
-type serviceState struct {
+type etcdServiceState struct {
 	ServiceName string // Name of the service
 	HostAddr    string // Host name or IP address where its running
 	Port        int    // Port number where its listening
@@ -34,9 +49,9 @@ func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 
 	log.Infof("Registering service key: %s, value: %+v", keyName, serviceInfo)
 
-	// if there is a previously registered service, de-register it
+	// if there is a previously registered service, stop refreshing it
 	if ep.serviceDb[keyName] != nil {
-		ep.DeregisterService(serviceInfo)
+		ep.serviceDb[keyName].stopChan <- true
 	}
 
 	// JSON format the object
@@ -55,10 +70,10 @@ func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 
 	// Run refresh in background
 	stopChan := make(chan bool, 1)
-	go refreshService(ep.kapi, keyName, string(jsonVal[:]), stopChan)
+	go ep.refreshService(keyName, string(jsonVal[:]), stopChan)
 
 	// Store it in DB
-	ep.serviceDb[keyName] = &serviceState{
+	ep.serviceDb[keyName] = &etcdServiceState{
 		ServiceName: serviceInfo.ServiceName,
 		HostAddr:    serviceInfo.HostAddr,
 		Port:        serviceInfo.Port,
@@ -108,7 +123,7 @@ func (ep *EtcdClient) getServiceState(key string) (uint64, []ServiceInfo, error)
 		srvcList = append(srvcList, respSrvc)
 	}
 
-	watchIndex := resp.Index + 1
+	watchIndex := resp.Index
 	return watchIndex, srvcList, nil
 }
 
@@ -134,8 +149,7 @@ func (ep *EtcdClient) initServiceState(key string, eventCh chan WatchServiceEven
 }
 
 // WatchService Watch for a service
-func (ep *EtcdClient) WatchService(name string,
-	eventCh chan WatchServiceEvent, stopCh chan bool) error {
+func (ep *EtcdClient) WatchService(name string, eventCh chan WatchServiceEvent, stopCh chan bool) error {
 	keyName := "/contiv.io/service/" + name + "/"
 
 	// Create channels
@@ -182,51 +196,45 @@ func (ep *EtcdClient) WatchService(name string,
 
 	// handle messages from watch service
 	go func() {
+		var srvMap = make(map[string]ServiceInfo)
 		for {
 			select {
 			case watchResp := <-watchCh:
-				log.Debugf("Received event %#v\n Node: %#v", watchResp, watchResp.Node)
+				var srvInfo ServiceInfo
+
+				log.Debugf("Received event {%#v}\n Node: {%#v}\n PrevNade: {%#v}", watchResp, watchResp.Node, watchResp.PrevNode)
 
 				// derive service info from key
 				srvKey := strings.TrimPrefix(watchResp.Node.Key, "/contiv.io/service/")
-				parts := strings.Split(srvKey, "/")
-				if len(parts) < 2 {
-					log.Warnf("Recieved event for key %q, could not parse service key", srvKey)
-					break
-				}
-
-				srvName := parts[0]
-				hostAddr := parts[1]
-
-				parts = strings.Split(hostAddr, ":")
-				if len(parts) != 2 {
-					log.Warnf("Recieved event for key %q, could not parse hostinfo", srvKey)
-					break
-				}
-
-				hostAddr = parts[0]
-				portNum, _ := strconv.Atoi(parts[1])
-
-				// Build service info
-				srvInfo := ServiceInfo{
-					ServiceName: srvName,
-					HostAddr:    hostAddr,
-					Port:        portNum,
-				}
 
 				// We ignore all events except Set/Delete/Expire
 				// Note that Set event doesnt exactly mean new service end point.
 				// If a service restarts and re-registers before it expired, we'll
 				// receive set again. receivers need to handle this case
-				if watchResp.Action == "set" {
-					log.Debugf("Sending service add event: %+v", srvInfo)
+				if _, ok := srvMap[srvKey]; !ok && watchResp.Action == "set" {
+					// Parse JSON response
+					err := json.Unmarshal([]byte(watchResp.Node.Value), &srvInfo)
+					if err != nil {
+						log.Errorf("Error parsing object %s, Err %v", watchResp.Node.Value, err)
+						break
+					}
+
+					log.Infof("Sending service add event: %+v", srvInfo)
 					// Send Add event
 					eventCh <- WatchServiceEvent{
 						EventType:   WatchServiceEventAdd,
 						ServiceInfo: srvInfo,
 					}
-				} else if (watchResp.Action == "delete") ||
-					(watchResp.Action == "expire") {
+
+					// save it in cache
+					srvMap[srvKey] = srvInfo
+				} else if (watchResp.Action == "delete") || (watchResp.Action == "expire") {
+					// Parse JSON response
+					err := json.Unmarshal([]byte(watchResp.PrevNode.Value), &srvInfo)
+					if err != nil {
+						log.Errorf("Error parsing object %s, Err %v", watchResp.Node.Value, err)
+						break
+					}
 
 					log.Infof("Sending service del event: %+v", srvInfo)
 
@@ -235,6 +243,9 @@ func (ep *EtcdClient) WatchService(name string,
 						EventType:   WatchServiceEventDel,
 						ServiceInfo: srvInfo,
 					}
+
+					// remove it from cache
+					delete(srvMap, srvKey)
 				}
 			case stopReq := <-stopCh:
 				if stopReq {
@@ -278,21 +289,15 @@ func (ep *EtcdClient) DeregisterService(serviceInfo ServiceInfo) error {
 }
 
 // Keep refreshing the service every 30sec
-func refreshService(kapi client.KeysAPI, keyName string, keyVal string, stopChan chan bool) {
+func (ep *EtcdClient) refreshService(keyName string, keyVal string, stopChan chan bool) {
 	for {
 		select {
 		case <-time.After(serviceTTL / 3):
 			log.Debugf("Refreshing key: %s", keyName)
 
-			_, err := kapi.Set(context.Background(), keyName, keyVal, &client.SetOptions{TTL: serviceTTL})
+			_, err := ep.kapi.Set(context.Background(), keyName, keyVal, &client.SetOptions{TTL: serviceTTL})
 			if err != nil {
-				log.Warnf("Error updating key %s, Err: %v", keyName, err)
-				// In case of a TTL expiry, this key may have been deleted
-				// from the etcd db. Hence use of Set instead of Update
-				_, err := kapi.Set(context.Background(), keyName, keyVal, &client.SetOptions{TTL: serviceTTL})
-				if err != nil {
-					log.Errorf("Error setting key %s, Err: %v", keyName, err)
-				}
+				log.Errorf("Error setting key %s, Err: %v", keyName, err)
 			}
 
 		case <-stopChan:

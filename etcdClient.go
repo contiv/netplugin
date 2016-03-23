@@ -1,3 +1,18 @@
+/***
+Copyright 2014 Cisco Systems Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package objdb
 
 import (
@@ -22,7 +37,7 @@ type EtcdClient struct {
 	client client.Client // etcd client
 	kapi   client.KeysAPI
 
-	serviceDb map[string]*serviceState
+	serviceDb map[string]*etcdServiceState
 }
 
 type member struct {
@@ -67,7 +82,7 @@ func (ep *etcdPlugin) NewClient(endpoints []string) (API, error) {
 	ec.kapi = client.NewKeysAPI(ec.client)
 
 	// Initialize service DB
-	ec.serviceDb = make(map[string]*serviceState)
+	ec.serviceDb = make(map[string]*etcdServiceState)
 
 	// Make sure we can read from etcd
 	_, err = ec.kapi.Get(context.Background(), "/", &client.GetOptions{Recursive: true, Sort: true})

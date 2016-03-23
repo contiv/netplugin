@@ -11,7 +11,7 @@ import (
 )
 
 // Lock object
-type Lock struct {
+type etcdLock struct {
 	name        string
 	myID        string
 	isAcquired  bool
@@ -32,7 +32,7 @@ type Lock struct {
 func (ep *EtcdClient) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
 	watchCtx, watchCancel := context.WithCancel(context.Background())
 	// Create a lock
-	return &Lock{
+	return &etcdLock{
 		name:        name,
 		myID:        myID,
 		ttl:         time.Duration(ttl) * time.Second,
@@ -47,7 +47,7 @@ func (ep *EtcdClient) NewLock(name string, myID string, ttl uint64) (LockInterfa
 }
 
 // Acquire a lock
-func (lk *Lock) Acquire(timeout uint64) error {
+func (lk *etcdLock) Acquire(timeout uint64) error {
 	lk.mutex.Lock()
 	defer lk.mutex.Unlock()
 	lk.timeout = timeout
@@ -59,7 +59,7 @@ func (lk *Lock) Acquire(timeout uint64) error {
 }
 
 // Release a lock
-func (lk *Lock) Release() error {
+func (lk *etcdLock) Release() error {
 	keyName := "/contiv.io/lock/" + lk.name
 
 	lk.mutex.Lock()
@@ -73,7 +73,7 @@ func (lk *Lock) Release() error {
 
 	// If the lock was acquired, release it
 	if lk.isAcquired {
-		// Update TTL on the lock
+		// Delete the lock entry
 		resp, err := lk.kapi.Delete(context.Background(), keyName, &client.DeleteOptions{PrevValue: lk.myID})
 		if err != nil {
 			log.Errorf("Error Deleting key. Err: %v", err)
@@ -90,7 +90,7 @@ func (lk *Lock) Release() error {
 // Kill Stops a lock without releasing it.
 // Let the etcd TTL expiry release it
 // Note: This is for debug/test purposes only
-func (lk *Lock) Kill() error {
+func (lk *etcdLock) Kill() error {
 	lk.mutex.Lock()
 	defer lk.mutex.Unlock()
 	// Mark this as released
@@ -103,21 +103,21 @@ func (lk *Lock) Kill() error {
 }
 
 // EventChan Returns event channel
-func (lk *Lock) EventChan() <-chan LockEvent {
+func (lk *etcdLock) EventChan() <-chan LockEvent {
 	lk.mutex.Lock()
 	defer lk.mutex.Unlock()
 	return lk.eventChan
 }
 
 // IsAcquired Checks if the lock is acquired
-func (lk *Lock) IsAcquired() bool {
+func (lk *etcdLock) IsAcquired() bool {
 	lk.mutex.Lock()
 	defer lk.mutex.Unlock()
 	return lk.isAcquired
 }
 
 // GetHolder Gets current lock holder's ID
-func (lk *Lock) GetHolder() string {
+func (lk *etcdLock) GetHolder() string {
 	lk.mutex.Lock()
 	defer lk.mutex.Unlock()
 
@@ -136,7 +136,7 @@ func (lk *Lock) GetHolder() string {
 // *********************** Internal functions *************
 // Try acquiring a lock.
 // This assumes its called in its own go routine
-func (lk *Lock) acquireLock() {
+func (lk *etcdLock) acquireLock() {
 	keyName := "/contiv.io/lock/" + lk.name
 
 	// Start a watch on the lock first so that we dont loose any notifications
@@ -163,7 +163,7 @@ func (lk *Lock) acquireLock() {
 					log.Infof("Lock %s acquired by someone else", keyName)
 				}
 			} else {
-				log.Infof("Acquired lock %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
+				log.Debugf("Acquired lock %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
 
 				lk.mutex.Lock()
 				// Successfully acquired the lock
@@ -186,7 +186,7 @@ func (lk *Lock) acquireLock() {
 				lk.mutex.Unlock()
 			}
 		} else if resp.Node.Value == lk.myID {
-			log.Infof("Already Acquired key %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
+			log.Debugf("Already Acquired key %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
 
 			lk.mutex.Lock()
 			// We have already acquired the lock. just keep refreshing it
@@ -208,7 +208,7 @@ func (lk *Lock) acquireLock() {
 			}
 			lk.mutex.Unlock()
 		} else if resp.Node.Value != lk.myID {
-			log.Infof("Lock already acquired by someone else. Resp: %+v, Node: %+v", resp, resp.Node)
+			log.Debugf("Lock already acquired by someone else. Resp: %+v, Node: %+v", resp, resp.Node)
 
 			lk.mutex.Lock()
 			// Set the current holder's ID
@@ -229,7 +229,7 @@ func (lk *Lock) acquireLock() {
 }
 
 // We couldnt acquire lock, Wait for changes on the lock
-func (lk *Lock) waitForLock() {
+func (lk *etcdLock) waitForLock() {
 	// If timeout is not specified, set it to high value
 	timeoutIntvl := time.Second * time.Duration(20000)
 	if lk.timeout != 0 {
@@ -283,9 +283,9 @@ func (lk *Lock) waitForLock() {
 }
 
 // Refresh lock
-func (lk *Lock) refreshLock() {
+func (lk *etcdLock) refreshLock() {
 	// Refresh interval is 1/3rd of TTL
-	refreshIntvl := time.Second * (lk.ttl / 3)
+	refreshIntvl := lk.ttl / 3
 	keyName := "/contiv.io/lock/" + lk.name
 
 	// Loop forever
@@ -305,17 +305,30 @@ func (lk *Lock) refreshLock() {
 				// Send lock lost event
 				lk.eventChan <- LockEvent{EventType: LockLost}
 
-				// FIXME: trigger a lock lost event
 				return
 			}
 
 			log.Debugf("Refreshed TTL on lock %s, Resp: %+v", keyName, resp)
 		case watchResp := <-lk.watchCh:
 			// Since we already acquired the lock, nothing to do here
-			// FIXME: see if we lost the lock
 			if watchResp != nil {
 				log.Debugf("Received watch notification for(%s/%s): %+v",
 					lk.name, lk.myID, watchResp)
+
+				// See if we lost the lock
+				if string(watchResp.Node.Value) != lk.myID {
+					log.Infof("Holder %s lost the lock %s", lk.myID, lk.name)
+
+					lk.mutex.Lock()
+					// We are not master anymore
+					lk.isAcquired = false
+					lk.mutex.Unlock()
+
+					// Send lock lost event
+					lk.eventChan <- LockEvent{EventType: LockLost}
+
+					return
+				}
 			}
 		case <-lk.stopChan:
 			log.Infof("Stopping lock")
@@ -326,7 +339,7 @@ func (lk *Lock) refreshLock() {
 }
 
 // Watch for changes on the lock
-func (lk *Lock) watchLock() {
+func (lk *etcdLock) watchLock() {
 	keyName := "/contiv.io/lock/" + lk.name
 
 	watcher := lk.kapi.Watcher(keyName, nil)
