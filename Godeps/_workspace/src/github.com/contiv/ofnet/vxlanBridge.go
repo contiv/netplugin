@@ -17,13 +17,14 @@ package ofnet
 // This file implements the vxlan bridging datapath
 
 import (
-	//"fmt"
 	"errors"
 	"net"
 	"net/rpc"
 	"strings"
 
 	"github.com/contiv/ofnet/ofctrl"
+	"github.com/shaleman/libOpenflow/openflow13"
+	"github.com/shaleman/libOpenflow/protocol"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -78,6 +79,7 @@ type Vlan struct {
 }
 
 const METADATA_RX_VTEP = 0x1
+const VXLAN_GARP_SUPPORTED = false
 
 // Create a new vxlan instance
 func NewVxlan(agent *OfnetAgent, rpcServ *rpc.Server) *Vxlan {
@@ -124,7 +126,21 @@ func (self *Vxlan) SwitchDisconnected(sw *ofctrl.OFSwitch) {
 
 // Handle incoming packet
 func (self *Vxlan) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
-	// Ignore all incoming packets for now
+	switch pkt.Data.Ethertype {
+	case 0x0806:
+		if (pkt.Match.Type == openflow13.MatchType_OXM) &&
+			(pkt.Match.Fields[0].Class == openflow13.OXM_CLASS_OPENFLOW_BASIC) &&
+			(pkt.Match.Fields[0].Field == openflow13.OXM_FIELD_IN_PORT) {
+			// Get the input port number
+			switch t := pkt.Match.Fields[0].Value.(type) {
+			case *openflow13.InPortField:
+				var inPortFld openflow13.InPortField
+				inPortFld = *t
+
+				self.processArp(pkt.Data, inPortFld.InPort)
+			}
+		}
+	}
 }
 
 // Add a local endpoint and install associated local route
@@ -205,6 +221,13 @@ func (self *Vxlan) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 	// Save the flow in DB
 	self.macFlowDb[endpoint.MacAddrStr] = macFlow
+
+	// Send GARP
+	err = self.sendGARP(endpoint.IpAddr, macAddr, uint64(endpoint.Vni))
+	if err != nil {
+		log.Warnf("Error in sending GARP packet for (%s,%s) in vlan %d. Err: %+v",
+			endpoint.IpAddr.String(), endpoint.MacAddrStr, endpoint.Vlan, err)
+	}
 
 	return nil
 }
@@ -567,12 +590,12 @@ func (vx *Vxlan) RemoveUplink(portNo uint32) error {
 
 // AddSvcSpec adds a service spec to proxy
 func (vx *Vxlan) AddSvcSpec(svcName string, spec *ServiceSpec) error {
-        return nil
+	return nil
 }
 
 // DelSvcSpec removes a service spec from proxy
 func (vx *Vxlan) DelSvcSpec(svcName string, spec *ServiceSpec) error {
-        return nil
+	return nil
 }
 
 // SvcProviderUpdate Service Proxy Back End update
@@ -627,6 +650,14 @@ func (self *Vxlan) initFgraph() error {
 	})
 	vlanMissFlow.Next(sw.DropAction())
 
+	// Redirect ARP Request packets to controller
+	arpFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:  FLOW_MATCH_PRIORITY,
+		Ethertype: 0x0806,
+		ArpOper:   protocol.Type_Request,
+	})
+	arpFlow.Next(sw.SendToController())
+
 	// Drop all packets that miss mac dest lookup AND vlan flood lookup
 	floodMissFlow, _ := self.macDestTable.NewFlow(ofctrl.FlowMatch{
 		Priority: FLOW_MISS_PRIORITY,
@@ -634,5 +665,167 @@ func (self *Vxlan) initFgraph() error {
 	floodMissFlow.Next(sw.DropAction())
 
 	// Drop all
+	return nil
+}
+
+/*
+ * Process incoming ARP packets
+ * ARP request handling in various scenarios:
+ * Src and Dest EP known:
+ *      - Proxy ARP if Dest EP is present locally on the host
+ * Src EP known, Dest EP not known:
+ *      - ARP Request to a router/VM scenario. Reinject ARP request to VTEPs
+ * Src EP not known, Dest EP known:
+ *      - Proxy ARP if Dest EP is present locally on the host
+ * Src and Dest EP not known:
+ *      - Ignore processing the request
+ */
+func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
+	switch t := pkt.Data.(type) {
+	case *protocol.ARP:
+		log.Debugf("Processing ARP packet on port %d: %+v", inPort, *t)
+		var arpIn protocol.ARP = *t
+
+		switch arpIn.Operation {
+		case protocol.Type_Request:
+			// If it's a GARP packet, ignore processing
+			if arpIn.IPSrc.String() == arpIn.IPDst.String() {
+				log.Debugf("Ignoring GARP packet")
+				return
+			}
+
+			// Lookup the Source and Dest IP in the endpoint table
+			srcEp := self.agent.getEndpointByIp(arpIn.IPSrc)
+			dstEp := self.agent.getEndpointByIp(arpIn.IPDst)
+
+			// No information about the src or dest EP. Ignore processing.
+			if srcEp == nil && dstEp == nil {
+				log.Debugf("No information on source/destination. Ignoring ARP request.")
+				return
+			}
+			// If we know the dstEp to be present locally, send the Proxy ARP response
+			if dstEp != nil {
+				// Container to Container communication. Send proxy ARP response.
+				// Unknown node to Container communication
+				//   -> Send proxy ARP response only if Endpoint is local.
+				//   -> This is to avoid sending ARP responses from ofnet agent on multiple hosts
+				if srcEp != nil ||
+					(srcEp == nil && dstEp.OriginatorIp.String() == self.agent.localIp.String()) {
+					// Form an ARP response
+					arpPkt, _ := protocol.NewARP(protocol.Type_Reply)
+					arpPkt.HWSrc, _ = net.ParseMAC(dstEp.MacAddrStr)
+					arpPkt.IPSrc = arpIn.IPDst
+					arpPkt.HWDst = arpIn.HWSrc
+					arpPkt.IPDst = arpIn.IPSrc
+					log.Debugf("Sending Proxy ARP response: %+v", arpPkt)
+
+					// Build the ethernet packet
+					ethPkt := protocol.NewEthernet()
+					ethPkt.VLANID.VID = pkt.VLANID.VID
+					ethPkt.HWDst = arpPkt.HWDst
+					ethPkt.HWSrc = arpPkt.HWSrc
+					ethPkt.Ethertype = 0x0806
+					ethPkt.Data = arpPkt
+					log.Debugf("Sending Proxy ARP response Ethernet: %+v", ethPkt)
+
+					// Construct Packet out
+					pktOut := openflow13.NewPacketOut()
+					pktOut.Data = ethPkt
+					pktOut.AddAction(openflow13.NewActionOutput(inPort))
+
+					// Send the packet out
+					self.ofSwitch.Send(pktOut)
+
+					return
+				}
+			}
+			if srcEp != nil && dstEp == nil {
+				// If the ARP request was received from VTEP port
+				// Ignore processing the packet
+				for _, vtepPort := range self.agent.vtepTable {
+					if *vtepPort == inPort {
+						log.Debugf("Received packet from VTEP port. Ignore processing")
+						return
+					}
+				}
+
+				// ARP request from local container to unknown IP
+				// Reinject ARP to VTEP ports
+				ethPkt := protocol.NewEthernet()
+				ethPkt.HWDst = pkt.HWDst
+				ethPkt.HWSrc = pkt.HWSrc
+				ethPkt.Ethertype = 0x0806
+				ethPkt.Data = &arpIn
+
+				log.Infof("Received ARP request for unknown IP: %v. "+
+					"Reinjecting ARP request Ethernet to VTEP ports: %+v", arpIn.IPDst, ethPkt)
+
+				// Packet out
+				pktOut := openflow13.NewPacketOut()
+				pktOut.InPort = inPort
+				pktOut.Data = ethPkt
+
+				tunnelIdField := openflow13.NewTunnelIdField(uint64(srcEp.Vni))
+				setTunnelAction := openflow13.NewActionSetField(*tunnelIdField)
+
+				// Add set tunnel action to the instruction
+				pktOut.AddAction(setTunnelAction)
+
+				for _, vtepPort := range self.agent.vtepTable {
+					log.Debugf("Sending to VTEP port: %+v", *vtepPort)
+					pktOut.AddAction(openflow13.NewActionOutput(*vtepPort))
+				}
+
+				// Send the packet out
+				self.ofSwitch.Send(pktOut)
+			}
+
+		case protocol.Type_Reply:
+			log.Debugf("Received ARP response packet: %+v from port %d", arpIn, inPort)
+
+			ethPkt := protocol.NewEthernet()
+			ethPkt.VLANID = pkt.VLANID
+			ethPkt.HWDst = pkt.HWDst
+			ethPkt.HWSrc = pkt.HWSrc
+			ethPkt.Ethertype = 0x0806
+			ethPkt.Data = &arpIn
+			log.Debugf("Sending ARP response Ethernet: %+v", ethPkt)
+
+			// Packet out
+			pktOut := openflow13.NewPacketOut()
+			pktOut.InPort = inPort
+			pktOut.Data = ethPkt
+			pktOut.AddAction(openflow13.NewActionOutput(openflow13.P_NORMAL))
+
+			log.Debugf("Reinjecting ARP reply packet: %+v", pktOut)
+			// Send it out
+			self.ofSwitch.Send(pktOut)
+		}
+	}
+}
+
+// sendGARP sends GARP for the specified IP, MAC
+func (self *Vxlan) sendGARP(ip net.IP, mac net.HardwareAddr, vni uint64) error {
+
+	// NOTE: Enable this when EVPN support is added.
+	if !VXLAN_GARP_SUPPORTED {
+		return nil
+	}
+
+    pktOut := BuildGarpPkt(ip, mac, 0)
+
+	tunnelIdField := openflow13.NewTunnelIdField(vni)
+	setTunnelAction := openflow13.NewActionSetField(*tunnelIdField)
+
+	// Add set tunnel action to the instruction
+	pktOut.AddAction(setTunnelAction)
+
+	for _, vtepPort := range self.agent.vtepTable {
+		log.Debugf("Sending to Vtep port: %+v", *vtepPort)
+		pktOut.AddAction(openflow13.NewActionOutput(*vtepPort))
+	}
+
+	// Send it out
+	self.ofSwitch.Send(pktOut)
 	return nil
 }

@@ -21,6 +21,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/shaleman/libOpenflow/openflow13"
+	"github.com/shaleman/libOpenflow/protocol"
+
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -64,4 +67,31 @@ func ParseIPAddrMaskString(ipAddr string) (*net.IP, *net.IP, error) {
 
 	return &ipDav, &ipMask, nil
 
+}
+
+// BuildGarpPkt builds a Gratuitous ARP packet
+func BuildGarpPkt(ip net.IP, mac net.HardwareAddr, vlanID uint16) *openflow13.PacketOut {
+
+    zMac, _ := net.ParseMAC("00:00:00:00:00:00")
+    bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
+
+	garpPkt, _ := protocol.NewARP(protocol.Type_Request)
+	garpPkt.HWSrc = mac
+	garpPkt.IPSrc = ip
+	garpPkt.HWDst = zMac
+	garpPkt.IPDst = ip
+
+	// Build the ethernet packet
+	ethPkt := protocol.NewEthernet()
+	ethPkt.VLANID.VID = vlanID
+	ethPkt.HWDst = bMac
+	ethPkt.HWSrc = mac
+	ethPkt.Ethertype = 0x0806
+	ethPkt.Data = garpPkt
+
+	// Construct Packet out
+	pktOut := openflow13.NewPacketOut()
+	pktOut.Data = ethPkt
+
+    return pktOut
 }
