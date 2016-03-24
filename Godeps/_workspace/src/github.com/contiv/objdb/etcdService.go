@@ -72,7 +72,10 @@ func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 	// create service state
 	srvState := etcdServiceState{
 		ServiceName: serviceInfo.ServiceName,
+<<<<<<< 352f93363e19c229c6691fca404c03b1beb69b18
 		KeyName:     keyName,
+=======
+>>>>>>> Godep import latest pkgs
 		TTL:         ttl,
 		HostAddr:    serviceInfo.HostAddr,
 		Port:        serviceInfo.Port,

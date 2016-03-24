@@ -62,7 +62,11 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/objdb",
+<<<<<<< 352f93363e19c229c6691fca404c03b1beb69b18
 			"Rev": "3ed0b89243f7704bc39421288f927098b92b0a36"
+=======
+			"Rev": "606217c3cee066f7cd181cc833d8d2f2621ffcec"
+>>>>>>> Godep import latest pkgs
 		},
 		{
 			"ImportPath": "github.com/contiv/objdb/modeldb",
