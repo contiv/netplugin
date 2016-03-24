@@ -1,3 +1,18 @@
+/***
+Copyright 2014 Cisco Systems Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package objdb
 
 import (
@@ -8,15 +23,21 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/go-etcd/etcd"
+	"github.com/coreos/etcd/client"
 )
 
 type etcdPlugin struct {
-	client *etcd.Client // etcd client
+	mutex *sync.Mutex
+}
 
-	serviceDb map[string]*serviceState
-	mutex     *sync.Mutex
+type EtcdClient struct {
+	client client.Client // etcd client
+	kapi   client.KeysAPI
+
+	serviceDb map[string]*etcdServiceState
 }
 
 type member struct {
@@ -34,31 +55,51 @@ func init() {
 }
 
 // Initialize the etcd client
-func (ep *etcdPlugin) Init(machines []string) error {
+func (ep *etcdPlugin) NewClient(endpoints []string) (API, error) {
+	var err error
+	var ec = new(EtcdClient)
+
 	ep.mutex.Lock()
 	defer ep.mutex.Unlock()
-	// Create a new client
-	ep.client = etcd.NewClient(machines)
-	if ep.client == nil {
-		log.Fatal("Error creating etcd client.")
-		return errors.New("Error creating etcd client")
+
+	// Setup default url
+	if len(endpoints) == 0 {
+		endpoints = []string{"http://127.0.0.1:2379"}
 	}
 
-	// Set strong consistency
-	ep.client.SetConsistency(etcd.STRONG_CONSISTENCY)
+	etcdConfig := client.Config{
+		Endpoints: endpoints,
+	}
+
+	// Create a new client
+	ec.client, err = client.New(etcdConfig)
+	if err != nil {
+		log.Fatalf("Error creating etcd client. Err: %v", err)
+		return nil, err
+	}
+
+	// create keys api
+	ec.kapi = client.NewKeysAPI(ec.client)
 
 	// Initialize service DB
-	ep.serviceDb = make(map[string]*serviceState)
+	ec.serviceDb = make(map[string]*etcdServiceState)
 
-	return nil
+	// Make sure we can read from etcd
+	_, err = ec.kapi.Get(context.Background(), "/", &client.GetOptions{Recursive: true, Sort: true})
+	if err != nil {
+		log.Errorf("Failed to connect to etcd. Err: %v", err)
+		return nil, err
+	}
+
+	return ec, nil
 }
 
 // Get an object
-func (ep *etcdPlugin) GetObj(key string, retVal interface{}) error {
+func (ep *EtcdClient) GetObj(key string, retVal interface{}) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// Get the object from etcd client
-	resp, err := ep.client.Get(keyName, false, false)
+	resp, err := ep.kapi.Get(context.Background(), keyName, &client.GetOptions{Quorum: true})
 	if err != nil {
 		log.Errorf("Error getting key %s. Err: %v", keyName, err)
 		return err
@@ -74,7 +115,7 @@ func (ep *etcdPlugin) GetObj(key string, retVal interface{}) error {
 }
 
 // Recursive function to look thru each directory and get the files
-func recursAddNode(node *etcd.Node, list []string) []string {
+func recursAddNode(node *client.Node, list []string) []string {
 	for _, innerNode := range node.Nodes {
 		// add only the files.
 		if !innerNode.Dir {
@@ -88,11 +129,17 @@ func recursAddNode(node *etcd.Node, list []string) []string {
 }
 
 // Get a list of objects in a directory
-func (ep *etcdPlugin) ListDir(key string) ([]string, error) {
+func (ep *EtcdClient) ListDir(key string) ([]string, error) {
 	keyName := "/contiv.io/obj/" + key
 
+	getOpts := client.GetOptions{
+		Recursive: true,
+		Sort:      true,
+		Quorum:    true,
+	}
+
 	// Get the object from etcd client
-	resp, err := ep.client.Get(keyName, true, true)
+	resp, err := ep.kapi.Get(context.Background(), keyName, &getOpts)
 	if err != nil {
 		return nil, nil
 	}
@@ -113,7 +160,7 @@ func (ep *etcdPlugin) ListDir(key string) ([]string, error) {
 }
 
 // Save an object, create if it doesnt exist
-func (ep *etcdPlugin) SetObj(key string, value interface{}) error {
+func (ep *EtcdClient) SetObj(key string, value interface{}) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// JSON format the object
@@ -124,7 +171,7 @@ func (ep *etcdPlugin) SetObj(key string, value interface{}) error {
 	}
 
 	// Set it via etcd client
-	if _, err := ep.client.Set(keyName, string(jsonVal[:]), 0); err != nil {
+	if _, err := ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), nil); err != nil {
 		log.Errorf("Error setting key %s, Err: %v", keyName, err)
 		return err
 	}
@@ -133,11 +180,11 @@ func (ep *etcdPlugin) SetObj(key string, value interface{}) error {
 }
 
 // Remove an object
-func (ep *etcdPlugin) DelObj(key string) error {
+func (ep *EtcdClient) DelObj(key string) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// Remove it via etcd client
-	if _, err := ep.client.Delete(keyName, false); err != nil {
+	if _, err := ep.kapi.Delete(context.Background(), keyName, nil); err != nil {
 		log.Errorf("Error removing key %s, Err: %v", keyName, err)
 		return err
 	}
@@ -169,10 +216,12 @@ func httpGetJSON(url string, data interface{}) (interface{}, error) {
 }
 
 // Return the local address where etcd is listening
-func (ep *etcdPlugin) GetLocalAddr() (string, error) {
+func (ep *EtcdClient) GetLocalAddr() (string, error) {
 	var epData struct {
 		Name string `json:"name"`
 	}
+
+	log.Panic("Calling unsupported API")
 
 	// Get ep state from etcd
 	if _, err := httpGetJSON("http://localhost:2379/v2/stats/self", &epData); err != nil {

@@ -1,0 +1,55 @@
+{
+	"ImportPath": "github.com/contiv/objdb",
+	"GoVersion": "go1.5",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.8.7-55-gf7f79f7",
+			"Rev": "f7f79f729e0fbe2fcc061db48a9ba0263f588252"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/client",
+			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
+			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
+			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
+			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/types",
+			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
+			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/api",
+			"Comment": "v0.6.3-19-gc353aa9",
+			"Rev": "c353aa9260b695987d45e4e975be52f60da348ed"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-cleanhttp",
+			"Rev": "875fb671b3ddc66f8e2f0acc33829c8cb989a38d"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/serf/coordinate",
+			"Comment": "v0.7.0-47-g598c548",
+			"Rev": "598c54895cc5a7b1a24a398d635e8c0ea0959870"
+		},
+		{
+			"ImportPath": "github.com/ugorji/go/codec",
+			"Rev": "c062049c1793b01a3cc3fe786108edabbaf7756b"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "20457ee8ea8546920d3f4e19e405da45250dc5a5"
+		}
+	]
+}

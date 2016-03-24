@@ -4,129 +4,129 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/go-etcd/etcd"
+	"github.com/coreos/etcd/client"
 )
 
-// Etcd error codes
-// Not found
-const EtcdErrorCodeNotFound = 100
-
-// Key already exists
-const EtcdErrorCodeKeyExists = 105
-
 // Lock object
-type Lock struct {
+type etcdLock struct {
 	name        string
 	myID        string
 	isAcquired  bool
 	isReleased  bool
 	holderID    string
-	ttl         uint64
+	ttl         time.Duration
 	timeout     uint64
 	eventChan   chan LockEvent
 	stopChan    chan bool
-	watchCh     chan *etcd.Response
-	watchStopCh chan bool
-	client      *etcd.Client
+	watchCh     chan *client.Response
+	watchCtx    context.Context
+	watchCancel context.CancelFunc
+	kapi        client.KeysAPI
 	mutex       *sync.Mutex
 }
 
-// Create a new lock
-func (ep *etcdPlugin) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
+// NewLock Create a new lock
+func (ep *EtcdClient) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
+	watchCtx, watchCancel := context.WithCancel(context.Background())
 	// Create a lock
-	return &Lock{
+	return &etcdLock{
 		name:        name,
 		myID:        myID,
-		ttl:         ttl,
-		client:      ep.client,
+		ttl:         time.Duration(ttl) * time.Second,
+		kapi:        ep.kapi,
 		eventChan:   make(chan LockEvent, 1),
 		stopChan:    make(chan bool, 1),
-		watchCh:     make(chan *etcd.Response, 1),
-		watchStopCh: make(chan bool, 1),
+		watchCh:     make(chan *client.Response, 1),
+		watchCtx:    watchCtx,
+		watchCancel: watchCancel,
 		mutex:       new(sync.Mutex),
 	}, nil
 }
 
 // Acquire a lock
-func (ep *Lock) Acquire(timeout uint64) error {
-	ep.mutex.Lock()
-	defer ep.mutex.Unlock()
-	ep.timeout = timeout
+func (lk *etcdLock) Acquire(timeout uint64) error {
+	lk.mutex.Lock()
+	defer lk.mutex.Unlock()
+	lk.timeout = timeout
 
 	// Acquire in background
-	go ep.acquireLock()
+	go lk.acquireLock()
 
 	return nil
 }
 
 // Release a lock
-func (ep *Lock) Release() error {
-	keyName := "/contiv.io/lock/" + ep.name
+func (lk *etcdLock) Release() error {
+	keyName := "/contiv.io/lock/" + lk.name
 
-	ep.mutex.Lock()
-	defer ep.mutex.Unlock()
+	lk.mutex.Lock()
+	defer lk.mutex.Unlock()
 
 	// Mark this as released
-	ep.isReleased = true
+	lk.isReleased = true
 
 	// Send stop signal on stop channel
-	ep.stopChan <- true
+	lk.stopChan <- true
 
 	// If the lock was acquired, release it
-	if ep.isAcquired {
-		// Update TTL on the lock
-		resp, err := ep.client.CompareAndDelete(keyName, ep.myID, 0)
+	if lk.isAcquired {
+		// Delete the lock entry
+		resp, err := lk.kapi.Delete(context.Background(), keyName, &client.DeleteOptions{PrevValue: lk.myID})
 		if err != nil {
 			log.Errorf("Error Deleting key. Err: %v", err)
 		} else {
 			log.Infof("Deleted key lock %s, Resp: %+v", keyName, resp)
 		}
+
+		lk.isAcquired = false
 	}
 
 	return nil
 }
 
-// Note: This is for debug/test purposes only
-// Stop a lock without releasing it.
+// Kill Stops a lock without releasing it.
 // Let the etcd TTL expiry release it
-func (ep *Lock) Kill() error {
-	ep.mutex.Lock()
-	defer ep.mutex.Unlock()
+// Note: This is for debug/test purposes only
+func (lk *etcdLock) Kill() error {
+	lk.mutex.Lock()
+	defer lk.mutex.Unlock()
 	// Mark this as released
-	ep.isReleased = true
+	lk.isReleased = true
 
 	// Send stop signal on stop channel
-	ep.stopChan <- true
+	lk.stopChan <- true
 
 	return nil
 }
 
-// Return event channel
-func (ep *Lock) EventChan() <-chan LockEvent {
-	ep.mutex.Lock()
-	defer ep.mutex.Unlock()
-	return ep.eventChan
+// EventChan Returns event channel
+func (lk *etcdLock) EventChan() <-chan LockEvent {
+	lk.mutex.Lock()
+	defer lk.mutex.Unlock()
+	return lk.eventChan
 }
 
-// Check if the lock is acquired
-func (ep *Lock) IsAcquired() bool {
-	ep.mutex.Lock()
-	defer ep.mutex.Unlock()
-	return ep.isAcquired
+// IsAcquired Checks if the lock is acquired
+func (lk *etcdLock) IsAcquired() bool {
+	lk.mutex.Lock()
+	defer lk.mutex.Unlock()
+	return lk.isAcquired
 }
 
-// Get current lock holder's ID
-func (ep *Lock) GetHolder() string {
-	ep.mutex.Lock()
-	defer ep.mutex.Unlock()
+// GetHolder Gets current lock holder's ID
+func (lk *etcdLock) GetHolder() string {
+	lk.mutex.Lock()
+	defer lk.mutex.Unlock()
 
-	keyName := "/contiv.io/lock/" + ep.name
+	keyName := "/contiv.io/lock/" + lk.name
 
 	// Get the current value
-	resp, err := ep.client.Get(keyName, false, false)
+	resp, err := lk.kapi.Get(context.Background(), keyName, nil)
 	if err != nil {
-		log.Warnf("Could not get current holder for lock %s", ep.name)
+		log.Warnf("Could not get current holder for lock %s", lk.name)
 		return ""
 	}
 
@@ -136,107 +136,107 @@ func (ep *Lock) GetHolder() string {
 // *********************** Internal functions *************
 // Try acquiring a lock.
 // This assumes its called in its own go routine
-func (ep *Lock) acquireLock() {
-	keyName := "/contiv.io/lock/" + ep.name
+func (lk *etcdLock) acquireLock() {
+	keyName := "/contiv.io/lock/" + lk.name
 
 	// Start a watch on the lock first so that we dont loose any notifications
-	go ep.watchLock()
+	go lk.watchLock()
 
 	// Wait in this loop forever till lock times out or released
 	for {
 		log.Infof("Getting the lock %s to see if its acquired", keyName)
 		// Get the key and see if we or someone else has already acquired the lock
-		resp, err := ep.client.Get(keyName, false, false)
+		resp, err := lk.kapi.Get(context.Background(), keyName, nil)
 		if err != nil {
-			if err.(*etcd.EtcdError).ErrorCode != EtcdErrorCodeNotFound {
+			if !client.IsKeyNotFound(err) {
 				log.Errorf("Error getting the key %s. Err: %v", keyName, err)
 			} else {
 				log.Infof("Lock %s does not exist. trying to acquire it", keyName)
 			}
 
 			// Try to acquire the lock
-			resp, err := ep.client.Create(keyName, ep.myID, ep.ttl)
+			resp, err := lk.kapi.Set(context.Background(), keyName, lk.myID, &client.SetOptions{PrevExist: client.PrevNoExist, TTL: lk.ttl})
 			if err != nil {
-				if err.(*etcd.EtcdError).ErrorCode != EtcdErrorCodeKeyExists {
+				if err.(client.Error).Code != client.ErrorCodeNodeExist {
 					log.Errorf("Error creating key %s. Err: %v", keyName, err)
 				} else {
 					log.Infof("Lock %s acquired by someone else", keyName)
 				}
 			} else {
-				log.Infof("Acquired lock %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
+				log.Debugf("Acquired lock %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
 
-				ep.mutex.Lock()
+				lk.mutex.Lock()
 				// Successfully acquired the lock
-				ep.isAcquired = true
-				ep.holderID = ep.myID
-				ep.mutex.Unlock()
+				lk.isAcquired = true
+				lk.holderID = lk.myID
+				lk.mutex.Unlock()
 
 				// Send acquired message to event channel
-				ep.eventChan <- LockEvent{EventType: LockAcquired}
+				lk.eventChan <- LockEvent{EventType: LockAcquired}
 
 				// refresh it
-				ep.refreshLock()
+				lk.refreshLock()
 
-				ep.mutex.Lock()
+				lk.mutex.Lock()
 				// If lock is released, we are done, else go back and try to acquire it
-				if ep.isReleased {
-					ep.mutex.Unlock()
+				if lk.isReleased {
+					lk.mutex.Unlock()
 					return
 				}
-				ep.mutex.Unlock()
+				lk.mutex.Unlock()
 			}
-		} else if resp.Node.Value == ep.myID {
-			log.Infof("Already Acquired key %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
+		} else if resp.Node.Value == lk.myID {
+			log.Debugf("Already Acquired key %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
 
-			ep.mutex.Lock()
+			lk.mutex.Lock()
 			// We have already acquired the lock. just keep refreshing it
-			ep.isAcquired = true
-			ep.holderID = ep.myID
-			ep.mutex.Unlock()
+			lk.isAcquired = true
+			lk.holderID = lk.myID
+			lk.mutex.Unlock()
 
 			// Send acquired message to event channel
-			ep.eventChan <- LockEvent{EventType: LockAcquired}
+			lk.eventChan <- LockEvent{EventType: LockAcquired}
 
 			// Refresh lock
-			ep.refreshLock()
+			lk.refreshLock()
 
-			ep.mutex.Lock()
+			lk.mutex.Lock()
 			// If lock is released, we are done, else go back and try to acquire it
-			if ep.isReleased {
-				ep.mutex.Unlock()
+			if lk.isReleased {
+				lk.mutex.Unlock()
 				return
 			}
-			ep.mutex.Unlock()
-		} else if resp.Node.Value != ep.myID {
-			log.Infof("Lock already acquired by someone else. Resp: %+v, Node: %+v", resp, resp.Node)
+			lk.mutex.Unlock()
+		} else if resp.Node.Value != lk.myID {
+			log.Debugf("Lock already acquired by someone else. Resp: %+v, Node: %+v", resp, resp.Node)
 
-			ep.mutex.Lock()
+			lk.mutex.Lock()
 			// Set the current holder's ID
-			ep.holderID = resp.Node.Value
-			ep.mutex.Unlock()
+			lk.holderID = resp.Node.Value
+			lk.mutex.Unlock()
 
 			// Wait for changes on the lock
-			ep.waitForLock()
+			lk.waitForLock()
 
-			ep.mutex.Lock()
-			if ep.isReleased {
-				ep.mutex.Unlock()
+			lk.mutex.Lock()
+			if lk.isReleased {
+				lk.mutex.Unlock()
 				return
 			}
-			ep.mutex.Unlock()
+			lk.mutex.Unlock()
 		}
 	}
 }
 
 // We couldnt acquire lock, Wait for changes on the lock
-func (ep *Lock) waitForLock() {
+func (lk *etcdLock) waitForLock() {
 	// If timeout is not specified, set it to high value
 	timeoutIntvl := time.Second * time.Duration(20000)
-	if ep.timeout != 0 {
-		timeoutIntvl = time.Second * time.Duration(ep.timeout)
+	if lk.timeout != 0 {
+		timeoutIntvl = time.Second * time.Duration(lk.timeout)
 	}
 
-	log.Infof("Waiting to acquire lock (%s/%s)", ep.name, ep.myID)
+	log.Infof("Waiting to acquire lock (%s/%s)", lk.name, lk.myID)
 
 	// Create a timer
 	timer := time.NewTimer(timeoutIntvl)
@@ -247,26 +247,26 @@ func (ep *Lock) waitForLock() {
 		// wait on watch channel for holder to release the lock
 		select {
 		case <-timer.C:
-			ep.mutex.Lock()
-			if ep.timeout != 0 {
-				ep.mutex.Unlock()
-				log.Infof("Lock timeout on lock %s/%s", ep.name, ep.myID)
+			lk.mutex.Lock()
+			if lk.timeout != 0 {
+				lk.mutex.Unlock()
+				log.Infof("Lock timeout on lock %s/%s", lk.name, lk.myID)
 
-				ep.eventChan <- LockEvent{EventType: LockAcquireTimeout}
+				lk.eventChan <- LockEvent{EventType: LockAcquireTimeout}
 
 				log.Infof("Lock acquire timed out. Stopping lock")
 
-				ep.watchStopCh <- true
+				lk.watchCancel()
 
 				// Release the lock
-				ep.Release()
+				lk.Release()
 
 				return
 			}
-			ep.mutex.Unlock()
-		case watchResp := <-ep.watchCh:
+			lk.mutex.Unlock()
+		case watchResp := <-lk.watchCh:
 			if watchResp != nil {
-				log.Debugf("Received watch notification(%s/%s): %+v", ep.name, ep.myID, watchResp)
+				log.Debugf("Received watch notification(%s/%s): %+v", lk.name, lk.myID, watchResp)
 
 				if watchResp.Action == "expire" || watchResp.Action == "delete" ||
 					watchResp.Action == "compareAndDelete" {
@@ -274,83 +274,99 @@ func (ep *Lock) waitForLock() {
 					return
 				}
 			}
-		case <-ep.stopChan:
+		case <-lk.stopChan:
 			log.Infof("Stopping lock")
-			ep.watchStopCh <- true
-
+			lk.watchCancel()
 			return
 		}
 	}
 }
 
 // Refresh lock
-func (ep *Lock) refreshLock() {
+func (lk *etcdLock) refreshLock() {
 	// Refresh interval is 1/3rd of TTL
-	refreshIntvl := time.Second * time.Duration(ep.ttl/3)
-	keyName := "/contiv.io/lock/" + ep.name
+	refreshIntvl := lk.ttl / 3
+	keyName := "/contiv.io/lock/" + lk.name
 
 	// Loop forever
 	for {
 		select {
 		case <-time.After(refreshIntvl):
 			// Update TTL on the lock
-			resp, err := ep.client.CompareAndSwap(keyName, ep.myID, ep.ttl, ep.myID, 0)
+			resp, err := lk.kapi.Set(context.Background(), keyName, lk.myID, &client.SetOptions{PrevExist: client.PrevExist, PrevValue: lk.myID, TTL: lk.ttl})
 			if err != nil {
 				log.Errorf("Error updating TTl. Err: %v", err)
 
-				ep.mutex.Lock()
+				lk.mutex.Lock()
 				// We are not master anymore
-				ep.isAcquired = false
-				ep.mutex.Unlock()
+				lk.isAcquired = false
+				lk.mutex.Unlock()
 
 				// Send lock lost event
-				ep.eventChan <- LockEvent{EventType: LockLost}
+				lk.eventChan <- LockEvent{EventType: LockLost}
 
-				// FIXME: trigger a lock lost event
 				return
-			} else {
-				log.Debugf("Refreshed TTL on lock %s, Resp: %+v", keyName, resp)
 			}
-		case watchResp := <-ep.watchCh:
+
+			log.Debugf("Refreshed TTL on lock %s, Resp: %+v", keyName, resp)
+		case watchResp := <-lk.watchCh:
 			// Since we already acquired the lock, nothing to do here
-			// FIXME: see if we lost the lock
 			if watchResp != nil {
 				log.Debugf("Received watch notification for(%s/%s): %+v",
-					ep.name, ep.myID, watchResp)
+					lk.name, lk.myID, watchResp)
+
+				// See if we lost the lock
+				if string(watchResp.Node.Value) != lk.myID {
+					log.Infof("Holder %s lost the lock %s", lk.myID, lk.name)
+
+					lk.mutex.Lock()
+					// We are not master anymore
+					lk.isAcquired = false
+					lk.mutex.Unlock()
+
+					// Send lock lost event
+					lk.eventChan <- LockEvent{EventType: LockLost}
+
+					return
+				}
 			}
-		case <-ep.stopChan:
+		case <-lk.stopChan:
 			log.Infof("Stopping lock")
-			ep.watchStopCh <- true
+			lk.watchCancel()
 			return
 		}
 	}
 }
 
 // Watch for changes on the lock
-func (ep *Lock) watchLock() {
-	keyName := "/contiv.io/lock/" + ep.name
+func (lk *etcdLock) watchLock() {
+	keyName := "/contiv.io/lock/" + lk.name
 
+	watcher := lk.kapi.Watcher(keyName, nil)
+	if watcher == nil {
+		log.Errorf("Error creating the watcher")
+		return
+	}
 	for {
-		resp, err := ep.client.Watch(keyName, 0, false, ep.watchCh, ep.watchStopCh)
-		if err != nil {
-			if err != etcd.ErrWatchStoppedByUser {
-				log.Errorf("Error watching the key %s, Err %v", keyName, err)
-			} else {
-				log.Infof("Watch stopped for lock %s", keyName)
-			}
+		resp, err := watcher.Next(lk.watchCtx)
+		if err != nil && err.Error() == client.ErrClusterUnavailable.Error() {
+			log.Infof("Stopping watch on key %s", keyName)
+			return
+		} else if err != nil {
+			log.Errorf("Error watching the key %s, Err %v.", keyName, err)
 		} else {
-			log.Infof("Got Watch Resp: %+v", resp)
+			log.Debugf("Got Watch Resp: %+v", resp)
+
+			// send the event to watch channel
+			lk.watchCh <- resp
 		}
 
-		ep.mutex.Lock()
+		lk.mutex.Lock()
 		// If the lock is released, we are done
-		if ep.isReleased {
-			ep.mutex.Unlock()
+		if lk.isReleased {
+			lk.mutex.Unlock()
 			return
 		}
-		ep.mutex.Unlock()
-
-		// Wait for a second and go back to watching
-		time.Sleep(1 * time.Second)
+		lk.mutex.Unlock()
 	}
 }
