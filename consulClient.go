@@ -97,8 +97,8 @@ func (cp *ConsulClient) GetObj(key string, retVal interface{}) error {
 	}
 
 	// Parse JSON response
-	if err := json.Unmarshal([]byte(resp.Value), retVal); err != nil {
-		log.Errorf("Error parsing object %s, Err %v", resp.Value, err)
+	if err := json.Unmarshal(resp.Value, retVal); err != nil {
+		log.Errorf("Error parsing object %v, Err %v", resp.Value, err)
 		return err
 	}
 
@@ -121,7 +121,7 @@ func (cp *ConsulClient) ListDir(key string) ([]string, error) {
 
 	var keys []string
 	for _, kv := range kvs {
-		keys = append(keys, kv.Key)
+		keys = append(keys, string(kv.Value))
 	}
 
 	return keys, nil
@@ -152,5 +152,6 @@ func (cp *ConsulClient) DelObj(key string) error {
 
 // GetLocalAddr gets local address of the host
 func (cp *ConsulClient) GetLocalAddr() (string, error) {
+	log.Panic("Calling unsupported API")
 	return "", nil
 }

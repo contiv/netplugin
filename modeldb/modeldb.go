@@ -108,6 +108,7 @@ func ReadObj(objType, objKey string, retVal interface{}) error {
 	err := cdb.GetObj(key, retVal)
 	if err != nil {
 		log.Errorf("Error reading object: %s. Err: %v", key, err)
+		return err
 	}
 
 	return nil

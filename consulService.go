@@ -44,9 +44,23 @@ func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
 
 	log.Infof("Registering service key: %s, value: %+v", keyName, serviceInfo)
 
-	// if there is a previously registered service, stop refreshing it
+	// if there is a previously registered service, no need to register it again..
 	if cp.serviceDb[keyName] != nil {
-		close(cp.serviceDb[keyName].stopChan)
+		srvState := cp.serviceDb[keyName]
+		if (srvState.ServiceName == serviceInfo.ServiceName) && (srvState.HostAddr == serviceInfo.HostAddr) &&
+			(srvState.Port == serviceInfo.Port) {
+			return nil
+		}
+
+		// stop and release the old key
+		close(srvState.stopChan)
+
+		// Delete the service instance
+		_, err := cp.client.KV().Delete(keyName, nil)
+		if err != nil {
+			log.Errorf("Error deleting key %s. Err: %v", keyName, err)
+			return err
+		}
 	}
 
 	// JSON format the object

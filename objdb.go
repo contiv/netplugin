@@ -78,9 +78,6 @@ type Plugin interface {
 
 // API Plugin API
 type API interface {
-	// Return local address used by conf store
-	GetLocalAddr() (string, error)
-
 	// Get a Key from conf store
 	GetObj(key string, retValue interface{}) error
 

@@ -221,6 +221,8 @@ func (ep *EtcdClient) GetLocalAddr() (string, error) {
 		Name string `json:"name"`
 	}
 
+	log.Panic("Calling unsupported API")
+
 	// Get ep state from etcd
 	if _, err := httpGetJSON("http://localhost:2379/v2/stats/self", &epData); err != nil {
 		log.Errorf("Error getting self state. Err: %v", err)

@@ -557,7 +557,7 @@ func testServiceRegisterDeregister(t *testing.T, dbClient API) {
 	}
 
 	// Wait a while to make sure background refresh is working correctly
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(serviceTTL * 2)
 
 	resp, err = dbClient.GetService("athena")
 	if err != nil {
@@ -579,8 +579,60 @@ func testServiceRegisterDeregister(t *testing.T, dbClient API) {
 		t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
 	}
 
-	// Wait a while to make sure background refresh is working correctly
-	time.Sleep(5 * time.Millisecond)
+	resp, err = dbClient.GetService("athena")
+	if err != nil {
+		t.Fatalf("Fatal getting service. Err: %+v\n", err)
+	}
+
+	log.Infof("Got service list: %+v\n", resp)
+
+	if len(resp) != 0 {
+		t.Fatalf("Service still in list after deregister")
+	}
+}
+
+func TestEtcdServiceRegisterMultiple(t *testing.T) {
+	testServiceMultipleRegister(t, etcdClient)
+}
+
+func TestConsulServiceRegisterMultiple(t *testing.T) {
+	testServiceMultipleRegister(t, consulClient)
+}
+
+func testServiceMultipleRegister(t *testing.T, dbClient API) {
+	// Service info
+	service1Info := ServiceInfo{
+		ServiceName: "athena",
+		HostAddr:    "10.10.10.10",
+		Port:        4567,
+	}
+
+	// register it multiple times
+	for i := 0; i < 5; i++ {
+		if err := dbClient.RegisterService(service1Info); err != nil {
+			t.Fatalf("Fatal registering service. Err: %+v\n", err)
+		}
+		log.Infof("Registered service: %+v", service1Info)
+
+		// sleep for a second
+		time.Sleep(time.Second)
+	}
+
+	resp, err := dbClient.GetService("athena")
+	if err != nil {
+		t.Fatalf("Fatal getting service. Err: %+v\n", err)
+	}
+
+	log.Infof("Got service list: %+v\n", resp)
+
+	if (len(resp) != 1) || (resp[0] != service1Info) {
+		t.Fatalf("Resp service list did not match input")
+	}
+
+	// deregister it
+	if err := dbClient.DeregisterService(service1Info); err != nil {
+		t.Fatalf("Fatal deregistering service. Err: %+v\n", err)
+	}
 
 	resp, err = dbClient.GetService("athena")
 	if err != nil {
