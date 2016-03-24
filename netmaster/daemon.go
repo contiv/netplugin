@@ -86,6 +86,20 @@ func (d *daemon) registerService() {
 		log.Fatalf("Error registering service. Err: %v", err)
 	}
 
+	// service info
+	srvInfo = objdb.ServiceInfo{
+		ServiceName: "netmaster.rpc",
+		HostAddr:    localIP,
+		Port:        ofnet.OFNET_MASTER_PORT,
+		Role:        d.currState,
+	}
+
+	// Register the node with service registry
+	err = d.objdbClient.RegisterService(srvInfo)
+	if err != nil {
+		log.Fatalf("Error registering service. Err: %v", err)
+	}
+
 	log.Infof("Registered netmaster service with registry")
 }
 

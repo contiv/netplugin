@@ -27,12 +27,17 @@ import (
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
-	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 // This file implements netplugin <-> netmaster clustering
+
+const (
+	netmasterRPCPort = 9001
+	netpluginRPCPort = 9002
+	vxlanUDPPort     = 4789
+)
 
 // objdb client
 var objdbClient objdb.API
@@ -52,7 +57,7 @@ func addMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 	// tell the plugin about the master
 	return netplugin.AddMaster(core.ServiceInfo{
 		HostAddr: srvInfo.HostAddr,
-		Port:     ofnet.OFNET_MASTER_PORT,
+		Port:     netmasterRPCPort,
 	})
 }
 
@@ -164,16 +169,30 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 }
 
 // Register netplugin with service registry
-func registerService(objClient objdb.API, localIP string) error {
-	// service info
+func registerService(objClient objdb.API, ctrlIP, vtepIP string) error {
+	// netplugin service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netplugin",
-		HostAddr:    localIP,
-		Port:        ofnet.OFNET_AGENT_VXLAN_PORT,
+		HostAddr:    ctrlIP,
+		Port:        netpluginRPCPort,
 	}
 
 	// Register the node with service registry
 	err := objClient.RegisterService(srvInfo)
+	if err != nil {
+		log.Fatalf("Error registering service. Err: %v", err)
+		return err
+	}
+
+	// netplugn VTEP service info
+	srvInfo = objdb.ServiceInfo{
+		ServiceName: "netplugin.vtep",
+		HostAddr:    vtepIP,
+		Port:        vxlanUDPPort,
+	}
+
+	// Register the node with service registry
+	err = objClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 		return err
@@ -184,7 +203,7 @@ func registerService(objClient objdb.API, localIP string) error {
 }
 
 // Main loop to discover peer hosts and masters
-func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, localIP string) {
+func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, ctrlIP, vtepIP string) {
 	// Create channels for watch thread
 	nodeEventCh := make(chan objdb.WatchServiceEvent, 1)
 	watchStopCh := make(chan bool, 1)
@@ -192,13 +211,13 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, localIP
 	masterWatchStopCh := make(chan bool, 1)
 
 	// Start a watch on netmaster
-	err := objClient.WatchService("netmaster", masterEventCh, masterWatchStopCh)
+	err := objClient.WatchService("netmaster.rpc", masterEventCh, masterWatchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netmaster service. Err: %v", err)
 	}
 
 	// Start a watch on netplugin service
-	err = objClient.WatchService("netplugin", nodeEventCh, watchStopCh)
+	err = objClient.WatchService("netplugin.vtep", nodeEventCh, watchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
 	}
@@ -212,7 +231,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, localIP
 			nodeInfo := srvEvent.ServiceInfo
 
 			// check if its our own info coming back to us
-			if nodeInfo.HostAddr == localIP {
+			if nodeInfo.HostAddr == vtepIP {
 				break
 			}
 
@@ -223,7 +242,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, localIP
 				// add the node
 				err := netplugin.AddPeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
-					Port:     ofnet.OFNET_AGENT_VXLAN_PORT,
+					Port:     vxlanUDPPort,
 				})
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
@@ -234,7 +253,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, localIP
 				// remove the node
 				err := netplugin.DeletePeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
-					Port:     ofnet.OFNET_AGENT_VXLAN_PORT,
+					Port:     vxlanUDPPort,
 				})
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
@@ -281,7 +300,7 @@ func GetLocalAddr() (string, error) {
 }
 
 // Init initializes the cluster module
-func Init(netplugin *plugin.NetPlugin, localIP, storeURL string) error {
+func Init(netplugin *plugin.NetPlugin, ctrlIP, vtepIP, storeURL string) error {
 	var err error
 
 	// Create an objdb client
@@ -291,10 +310,10 @@ func Init(netplugin *plugin.NetPlugin, localIP, storeURL string) error {
 	}
 
 	// Register ourselves
-	registerService(objdbClient, localIP)
+	registerService(objdbClient, ctrlIP, vtepIP)
 
 	// Start peer discovery loop
-	go peerDiscoveryLoop(netplugin, objdbClient, localIP)
+	go peerDiscoveryLoop(netplugin, objdbClient, ctrlIP, vtepIP)
 
 	return nil
 }
