@@ -28,13 +28,13 @@ import (
 	"github.com/coreos/etcd/client"
 )
 
-const serviceTTL = time.Duration(30 * time.Second)
-
 // Service state
 type etcdServiceState struct {
-	ServiceName string // Name of the service
-	HostAddr    string // Host name or IP address where its running
-	Port        int    // Port number where its listening
+	ServiceName string        // Name of the service
+	KeyName     string        // Service key name
+	TTL         time.Duration // TTL for the service
+	HostAddr    string        // Host name or IP address where its running
+	Port        int           // Port number where its listening
 
 	// Channel to stop ttl refresh
 	stopChan chan bool
@@ -46,6 +46,7 @@ type etcdServiceState struct {
 func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 	keyName := "/contiv.io/service/" + serviceInfo.ServiceName + "/" +
 		serviceInfo.HostAddr + ":" + strconv.Itoa(serviceInfo.Port)
+	ttl := time.Duration(serviceInfo.TTL) * time.Second
 
 	log.Infof("Registering service key: %s, value: %+v", keyName, serviceInfo)
 
@@ -62,23 +63,26 @@ func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 	}
 
 	// Set it via etcd client
-	_, err = ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), &client.SetOptions{TTL: serviceTTL})
+	_, err = ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), &client.SetOptions{TTL: ttl})
 	if err != nil {
 		log.Errorf("Error setting key %s, Err: %v", keyName, err)
 		return err
 	}
 
-	// Run refresh in background
-	stopChan := make(chan bool, 1)
-	go ep.refreshService(keyName, string(jsonVal[:]), stopChan)
-
-	// Store it in DB
-	ep.serviceDb[keyName] = &etcdServiceState{
+	// create service state
+	srvState := etcdServiceState{
 		ServiceName: serviceInfo.ServiceName,
+		TTL:         ttl,
 		HostAddr:    serviceInfo.HostAddr,
 		Port:        serviceInfo.Port,
-		stopChan:    stopChan,
+		stopChan:    make(chan bool, 1),
 	}
+
+	// Run refresh in background
+	go ep.refreshService(&srvState, string(jsonVal[:]))
+
+	// Store it in DB
+	ep.serviceDb[keyName] = &srvState
 
 	return nil
 }
@@ -289,19 +293,19 @@ func (ep *EtcdClient) DeregisterService(serviceInfo ServiceInfo) error {
 }
 
 // Keep refreshing the service every 30sec
-func (ep *EtcdClient) refreshService(keyName string, keyVal string, stopChan chan bool) {
+func (ep *EtcdClient) refreshService(srvState *etcdServiceState, keyVal string) {
 	for {
 		select {
-		case <-time.After(serviceTTL / 3):
-			log.Debugf("Refreshing key: %s", keyName)
+		case <-time.After(srvState.TTL / 3):
+			log.Debugf("Refreshing key: %s", srvState.KeyName)
 
-			_, err := ep.kapi.Set(context.Background(), keyName, keyVal, &client.SetOptions{TTL: serviceTTL})
+			_, err := ep.kapi.Set(context.Background(), srvState.KeyName, keyVal, &client.SetOptions{TTL: srvState.TTL})
 			if err != nil {
-				log.Errorf("Error setting key %s, Err: %v", keyName, err)
+				log.Errorf("Error setting key %s, Err: %v", srvState.KeyName, err)
 			}
 
-		case <-stopChan:
-			log.Infof("Stop refreshing key: %s", keyName)
+		case <-srvState.stopChan:
+			log.Infof("Stop refreshing key: %s", srvState.KeyName)
 			return
 		}
 	}
