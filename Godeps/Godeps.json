@@ -65,7 +65,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/vagrantssh",
-			"Rev": "772f193af15fb2f70b5b054edf195c80ec566034"
+			"Rev": "fb8b1ff7dab65ba25104c62594c2c0e6f6e2c85d"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",

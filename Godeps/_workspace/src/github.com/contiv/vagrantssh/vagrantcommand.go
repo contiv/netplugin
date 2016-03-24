@@ -16,7 +16,6 @@ limitations under the License.
 package vagrantssh
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 )
@@ -31,11 +30,9 @@ func (c *VagrantCommand) getCmd(cmd string, args ...string) *exec.Cmd {
 	newArgs := append([]string{cmd}, args...)
 	osCmd := exec.Command("vagrant", newArgs...)
 	osCmd.Env = os.Environ()
-	if c.ContivNodes != 0 {
-		osCmd.Env = append(osCmd.Env, fmt.Sprintf("CONTIV_NODES=%d", c.ContivNodes))
-	}
+
 	if c.ContivEnv != "" {
-		osCmd.Env = append(osCmd.Env, fmt.Sprintf("CONTIV_ENV=%s", c.ContivEnv))
+		osCmd.Env = append(osCmd.Env, c.ContivEnv)
 	}
 
 	return osCmd
