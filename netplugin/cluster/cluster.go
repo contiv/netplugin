@@ -173,6 +173,7 @@ func registerService(objClient objdb.API, ctrlIP, vtepIP string) error {
 	// netplugin service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netplugin",
+		TTL:         10,
 		HostAddr:    ctrlIP,
 		Port:        netpluginRPCPort,
 	}
@@ -187,6 +188,7 @@ func registerService(objClient objdb.API, ctrlIP, vtepIP string) error {
 	// netplugn VTEP service info
 	srvInfo = objdb.ServiceInfo{
 		ServiceName: "netplugin.vtep",
+		TTL:         10,
 		HostAddr:    vtepIP,
 		Port:        vxlanUDPPort,
 	}

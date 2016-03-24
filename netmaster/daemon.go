@@ -75,6 +75,7 @@ func (d *daemon) registerService() {
 	// service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netmaster",
+		TTL:         10,
 		HostAddr:    localIP,
 		Port:        9999,
 		Role:        d.currState,
@@ -89,6 +90,7 @@ func (d *daemon) registerService() {
 	// service info
 	srvInfo = objdb.ServiceInfo{
 		ServiceName: "netmaster.rpc",
+		TTL:         10,
 		HostAddr:    localIP,
 		Port:        ofnet.OFNET_MASTER_PORT,
 		Role:        d.currState,
