@@ -80,9 +80,9 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 	}
 
 	s.nodes = []*node{}
-          
+
 	if s.fwdMode == "routing" {
-                contivL3Nodes := 2
+		contivL3Nodes := 2
 		c.Assert(s.vagrant.Setup(false, "CONTIV_NODES=3 CONTIV_L3=2", contivNodes+contivL3Nodes), IsNil)
 	} else {
 		c.Assert(s.vagrant.Setup(false, "", contivNodes), IsNil)
