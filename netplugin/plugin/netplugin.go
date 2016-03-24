@@ -24,13 +24,16 @@ import (
 
 // implements the generic Plugin interface
 
+// Drivers has driver config
+type Drivers struct {
+	Network  string `json:"network"`
+	Endpoint string `json:"endpoint"`
+	State    string `json:"state"`
+}
+
 // Config has the configuration for the plugin
 type Config struct {
-	Drivers struct {
-		Network  string `json:"network"`
-		Endpoint string `json:"endpoint"`
-		State    string `json:"state"`
-	}
+	Drivers
 	Instance core.InstanceInfo `json:"plugin-instance"`
 }
 
@@ -45,14 +48,14 @@ type NetPlugin struct {
 }
 
 // Init initializes the NetPlugin instance via the configuration string passed.
-func (p *NetPlugin) Init(pluginConfig Config, configStr string) error {
+func (p *NetPlugin) Init(pluginConfig Config) error {
 	var err error
 	if pluginConfig.Instance.HostLabel == "" {
 		return core.Errorf("empty host-label passed")
 	}
 
 	// initialize state driver
-	p.StateDriver, err = utils.NewStateDriver(pluginConfig.Drivers.State, configStr)
+	p.StateDriver, err = utils.NewStateDriver(pluginConfig.Drivers.State, &pluginConfig.Instance)
 	if err != nil {
 		return err
 	}
@@ -62,18 +65,11 @@ func (p *NetPlugin) Init(pluginConfig Config, configStr string) error {
 		}
 	}()
 
-	instanceInfo := &core.InstanceInfo{
-		HostLabel:   pluginConfig.Instance.HostLabel,
-		VtepIP:      pluginConfig.Instance.VtepIP,
-		VlanIntf:    pluginConfig.Instance.VlanIntf,
-		RouterIP:    pluginConfig.Instance.RouterIP,
-		FwdMode:     pluginConfig.Instance.FwdMode,
-		StateDriver: p.StateDriver,
-	}
+	// set state driver in instance info
+	pluginConfig.Instance.StateDriver = p.StateDriver
 
 	// initialize network driver
-	p.NetworkDriver, err = utils.NewNetworkDriver(pluginConfig.Drivers.Network,
-		configStr, instanceInfo)
+	p.NetworkDriver, err = utils.NewNetworkDriver(pluginConfig.Drivers.Network, &pluginConfig.Instance)
 	if err != nil {
 		return err
 	}

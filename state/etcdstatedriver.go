@@ -16,10 +16,15 @@ limitations under the License.
 package state
 
 import (
+	"errors"
 	"reflect"
+	"strings"
+	"time"
 
-	"github.com/contiv/go-etcd/etcd"
+	"golang.org/x/net/context"
+
 	"github.com/contiv/netplugin/core"
+	"github.com/coreos/etcd/client"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -39,25 +44,26 @@ type EtcdStateDriverConfig struct {
 // EtcdStateDriver implements the StateDriver interface for an etcd based distributed
 // key-value store used to store config and runtime state for the netplugin.
 type EtcdStateDriver struct {
-	Client *etcd.Client
+	Client  client.Client
+	KeysAPI client.KeysAPI
 }
 
 // Init the driver with a core.Config.
-func (d *EtcdStateDriver) Init(config *core.Config) error {
-	if config == nil {
-		return core.Errorf("Invalid arguments. cfg: %v", config)
+func (d *EtcdStateDriver) Init(instInfo *core.InstanceInfo) error {
+	var err error
+
+	etcdURL := strings.Replace(instInfo.DbURL, "etcd://", "http://", 1)
+	etcdConfig := client.Config{
+		Endpoints: []string{etcdURL},
 	}
 
-	cfg, ok := config.V.(*EtcdStateDriverConfig)
-
-	if !ok {
-		return core.Errorf("Invalid config type passed!")
+	d.Client, err = client.New(etcdConfig)
+	if err != nil {
+		log.Fatalf("Error creating etcd client. Err: %v", err)
 	}
 
-	d.Client = etcd.NewClient(cfg.Etcd.Machines)
-
-	// Set strong consistency
-	d.Client.SetConsistency(etcd.STRONG_CONSISTENCY)
+	// Create keys api
+	d.KeysAPI = client.NewKeysAPI(d.Client)
 
 	return nil
 }
@@ -67,14 +73,20 @@ func (d *EtcdStateDriver) Deinit() {}
 
 // Write state to key with value.
 func (d *EtcdStateDriver) Write(key string, value []byte) error {
-	_, err := d.Client.Set(key, string(value[:]), 0)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := d.KeysAPI.Set(ctx, key, string(value[:]), nil)
 
 	return err
 }
 
 // Read state from key.
 func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
-	resp, err := d.Client.Get(key, false, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
 	if err != nil {
 		return []byte{}, err
 	}
@@ -84,7 +96,10 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 
 // ReadAll state from baseKey.
 func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	resp, err := d.Client.Get(baseKey, true, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := d.KeysAPI.Get(ctx, baseKey, &client.GetOptions{Recursive: true, Quorum: true})
 	if err != nil {
 		return nil, err
 	}
@@ -97,11 +112,13 @@ func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return values, nil
 }
 
-func (d *EtcdStateDriver) channelEtcdEvents(etcdRsps chan *etcd.Response,
-	rsps chan [2][]byte) {
+func (d *EtcdStateDriver) channelEtcdEvents(watcher client.Watcher, rsps chan [2][]byte) {
 	for {
 		// block on change notifications
-		etcdRsp := <-etcdRsps
+		etcdRsp, err := watcher.Next(context.Background())
+		if err != nil {
+			log.Errorf("Error %v during watch", err)
+		}
 
 		// XXX: The logic below assumes that the node returned is always a node
 		// of interest. Eg: If we set a watch on /a/b/c, then we are mostly
@@ -131,25 +148,23 @@ func (d *EtcdStateDriver) channelEtcdEvents(etcdRsps chan *etcd.Response,
 
 // WatchAll state transitions from baseKey
 func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	etcdRsps := make(chan *etcd.Response)
-	stop := make(chan bool, 1)
-	recvErr := make(chan error, 1)
-
-	go d.channelEtcdEvents(etcdRsps, rsps)
-
-	_, err := d.Client.Watch(baseKey, 0, recursive, etcdRsps, stop)
-	if err != nil && err != etcd.ErrWatchStoppedByUser {
-		log.Errorf("etcd watch failed. Error: %s", err)
-		return err
+	watcher := d.KeysAPI.Watcher(baseKey, &client.WatcherOptions{Recursive: recursive})
+	if watcher == nil {
+		log.Errorf("etcd watch failed.")
+		return errors.New("Etcd watch failed")
 	}
 
-	err = <-recvErr
-	return err
+	go d.channelEtcdEvents(watcher, rsps)
+
+	return nil
 }
 
-// ClearState removes key from etcd.
+// ClearState removes key from etcd
 func (d *EtcdStateDriver) ClearState(key string) error {
-	_, err := d.Client.Delete(key, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := d.KeysAPI.Delete(ctx, key, nil)
 	return err
 }
 

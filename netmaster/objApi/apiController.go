@@ -38,9 +38,12 @@ type APIController struct {
 var apiCtrler *APIController
 
 // NewAPIController creates a new controller
-func NewAPIController(router *mux.Router) *APIController {
+func NewAPIController(router *mux.Router, storeURL string) *APIController {
 	ctrler := new(APIController)
 	ctrler.router = router
+
+	// init modeldb
+	modeldb.Init(storeURL)
 
 	// initialize the model objects
 	contivModel.Init()

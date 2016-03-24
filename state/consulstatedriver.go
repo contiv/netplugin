@@ -37,20 +37,14 @@ type ConsulStateDriver struct {
 }
 
 // Init the driver with a core.Config.
-func (d *ConsulStateDriver) Init(config *core.Config) error {
+func (d *ConsulStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var err error
 
-	if config == nil {
-		return core.Errorf("Invalid arguments. cfg: %v", config)
+	cfg := api.Config{
+		Address: strings.TrimPrefix(instInfo.DbURL, "consul://"),
 	}
 
-	cfg, ok := config.V.(*ConsulStateDriverConfig)
-
-	if !ok {
-		return core.Errorf("Invalid config type passed!")
-	}
-
-	d.Client, err = api.NewClient(&cfg.Consul)
+	d.Client, err = api.NewClient(&cfg)
 	if err != nil {
 		return err
 	}

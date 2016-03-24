@@ -34,6 +34,9 @@ import (
 
 // This file implements netplugin <-> netmaster clustering
 
+// objdb client
+var objdbClient objdb.API
+
 // Database of master nodes
 var masterDB = make(map[string]*objdb.ServiceInfo)
 
@@ -108,9 +111,6 @@ func httpPost(url string, req interface{}, resp interface{}) error {
 
 // getMasterLockHolder returns the IP of current master lock hoder
 func getMasterLockHolder() (string, error) {
-	// Create an objdb client
-	objdbClient := objdb.NewClient("")
-
 	// Create the lock
 	leaderLock, err := objdbClient.NewLock("netmaster/leader", "", 0)
 	if err != nil {
@@ -164,7 +164,7 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 }
 
 // Register netplugin with service registry
-func registerService(objdbClient objdb.API, localIP string) error {
+func registerService(objClient objdb.API, localIP string) error {
 	// service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netplugin",
@@ -173,7 +173,7 @@ func registerService(objdbClient objdb.API, localIP string) error {
 	}
 
 	// Register the node with service registry
-	err := objdbClient.RegisterService(srvInfo)
+	err := objClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 		return err
@@ -184,7 +184,7 @@ func registerService(objdbClient objdb.API, localIP string) error {
 }
 
 // Main loop to discover peer hosts and masters
-func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, localIP string) {
+func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, localIP string) {
 	// Create channels for watch thread
 	nodeEventCh := make(chan objdb.WatchServiceEvent, 1)
 	watchStopCh := make(chan bool, 1)
@@ -192,13 +192,13 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 	masterWatchStopCh := make(chan bool, 1)
 
 	// Start a watch on netmaster
-	err := objdbClient.WatchService("netmaster", masterEventCh, masterWatchStopCh)
+	err := objClient.WatchService("netmaster", masterEventCh, masterWatchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netmaster service. Err: %v", err)
 	}
 
 	// Start a watch on netplugin service
-	err = objdbClient.WatchService("netplugin", nodeEventCh, watchStopCh)
+	err = objClient.WatchService("netplugin", nodeEventCh, watchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
 	}
@@ -206,7 +206,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 	for {
 		select {
 		case srvEvent := <-nodeEventCh:
-			log.Infof("Received netplugin service watch event: %+v", srvEvent)
+			log.Debugf("Received netplugin service watch event: %+v", srvEvent)
 
 			// collect the info about the node
 			nodeInfo := srvEvent.ServiceInfo
@@ -270,27 +270,25 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objdbClient objdb.API, local
 
 // GetLocalAddr gets local address to be used
 func GetLocalAddr() (string, error) {
-	// Get objdb's client IP
-	clientIP, err := objdb.NewClient("").GetLocalAddr()
-	if err != nil {
-		log.Warnf("Error getting local address from objdb. Returning first local address. Err: %v", err)
-
-		return netutils.GetFirstLocalAddr()
+	// get the ip address by local hostname
+	localIP, err := netutils.GetMyAddr()
+	if err == nil && netutils.IsAddrLocal(localIP) {
+		return localIP, nil
 	}
 
-	// Make sure the ip address is local
-	if netutils.IsAddrLocal(clientIP) {
-		return clientIP, nil
-	}
-
-	// Return first available address if client IP is not local
+	// Return first available address if we could not find by hostname
 	return netutils.GetFirstLocalAddr()
 }
 
 // Init initializes the cluster module
-func Init(netplugin *plugin.NetPlugin, localIP string) error {
+func Init(netplugin *plugin.NetPlugin, localIP, storeURL string) error {
+	var err error
+
 	// Create an objdb client
-	objdbClient := objdb.NewClient("")
+	objdbClient, err = objdb.NewClient(storeURL)
+	if err != nil {
+		return err
+	}
 
 	// Register ourselves
 	registerService(objdbClient, localIP)

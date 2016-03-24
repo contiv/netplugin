@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"reflect"
 
 	"github.com/contiv/netplugin/core"
@@ -60,29 +59,20 @@ var (
 
 // initHelper initializes the NetPlugin by mapping driver names to
 // configuration, then it imports the configuration.
-func initHelper(driverRegistry map[string]driverConfigTypes,
-	driverName string, configStr string) (core.Driver, *core.Config, error) {
+func initHelper(driverRegistry map[string]driverConfigTypes, driverName string) (core.Driver, error) {
 	if _, ok := driverRegistry[driverName]; ok {
-		configType := driverRegistry[driverName].ConfigType
 		driverType := driverRegistry[driverName].DriverType
 
-		driverConfig := reflect.New(configType).Interface()
-		err := json.Unmarshal([]byte(configStr), driverConfig)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		config := &core.Config{V: driverConfig}
 		driver := reflect.New(driverType).Interface()
-		return driver, config, nil
+		return driver, nil
 	}
 
-	return nil, nil, core.Errorf("Failed to find a registered driver for: %s", driverName)
+	return nil, core.Errorf("Failed to find a registered driver for: %s", driverName)
 }
 
 // NewStateDriver instantiates a 'named' state-driver with specified configuration
-func NewStateDriver(name, configStr string) (core.StateDriver, error) {
-	if name == "" || configStr == "" {
+func NewStateDriver(name string, instInfo *core.InstanceInfo) (core.StateDriver, error) {
+	if name == "" {
 		return nil, core.Errorf("invalid driver name or configuration passed.")
 	}
 
@@ -90,13 +80,13 @@ func NewStateDriver(name, configStr string) (core.StateDriver, error) {
 		return nil, core.Errorf("statedriver instance already exists.")
 	}
 
-	driver, drvConfig, err := initHelper(stateDriverRegistry, name, configStr)
+	driver, err := initHelper(stateDriverRegistry, name)
 	if err != nil {
 		return nil, err
 	}
 
 	d := driver.(core.StateDriver)
-	err = d.Init(drvConfig)
+	err = d.Init(instInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -123,18 +113,18 @@ func ReleaseStateDriver() {
 }
 
 // NewNetworkDriver instantiates a 'named' network-driver with specified configuration
-func NewNetworkDriver(name, configStr string, instInfo *core.InstanceInfo) (core.NetworkDriver, error) {
-	if name == "" || configStr == "" {
+func NewNetworkDriver(name string, instInfo *core.InstanceInfo) (core.NetworkDriver, error) {
+	if name == "" {
 		return nil, core.Errorf("invalid driver name or configuration passed.")
 	}
 
-	driver, drvConfig, err := initHelper(networkDriverRegistry, name, configStr)
+	driver, err := initHelper(networkDriverRegistry, name)
 	if err != nil {
 		return nil, err
 	}
 
 	d := driver.(core.NetworkDriver)
-	err = d.Init(drvConfig, instInfo)
+	err = d.Init(instInfo)
 	if err != nil {
 		return nil, err
 	}

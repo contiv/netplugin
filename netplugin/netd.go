@@ -16,15 +16,13 @@ limitations under the License.
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log/syslog"
 	"net/url"
 	"os"
 	"os/user"
+	"strings"
 	"time"
 
 	"github.com/contiv/netplugin/core"
@@ -34,7 +32,6 @@ import (
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/svcplugin"
-	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/version"
 
 	log "github.com/Sirupsen/logrus"
@@ -47,7 +44,6 @@ import (
 type cliOpts struct {
 	hostLabel  string
 	pluginMode string // plugin could be docker | kubernetes
-	cfgFile    string
 	debug      bool
 	syslog     string
 	jsonLog    bool
@@ -57,6 +53,7 @@ type cliOpts struct {
 	version    bool
 	routerIP   string // myrouter ip to start a protocol like Bgp
 	fwdMode    string // default "bridge". Values: "routing" , "bridge"
+	dbURL      string // state store URL
 }
 
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
@@ -296,10 +293,6 @@ func main() {
 		"plugin-mode",
 		"docker",
 		"plugin mode docker|kubernetes")
-	flagSet.StringVar(&opts.cfgFile,
-		"config",
-		"",
-		"plugin configuration. Use '-' to read configuration from stdin")
 	flagSet.StringVar(&opts.vtepIP,
 		"vtep-ip",
 		"",
@@ -324,6 +317,10 @@ func main() {
 		"fwd-mode",
 		"bridge",
 		"Forwarding Mode")
+	flagSet.StringVar(&opts.dbURL,
+		"store-url",
+		"etcd://127.0.0.1:2379",
+		"state store url")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
@@ -370,82 +367,36 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error getting local address. Err: %v", err)
 	}
-	if opts.vtepIP == "" {
-		opts.vtepIP = localIP
-	}
 	if opts.ctrlIP == "" {
 		opts.ctrlIP = localIP
 	}
+	if opts.vtepIP == "" {
+		opts.vtepIP = opts.ctrlIP
+	}
 
-	defConfigStr := fmt.Sprintf(`{
-                    "drivers" : {
-                       "network": %q,
-                       "state": "etcd"
-                    },
-                    "plugin-instance": {
-                       "host-label": %q,
-						"vtep-ip": %q,
-						"vlan-if": %q,
-						"router-ip":%q,
-						"fwdMode":%q
-                    },
-                    %q : {
-                       "dbip": "127.0.0.1",
-                       "dbport": 6640
-                    },
-                    "etcd" : {
-                        "machines": ["http://127.0.0.1:4001"]
-                    },
-                    "docker" : {
-                        "socket" : "unix:///var/run/docker.sock"
-                    }
-                  }`, utils.OvsNameStr, opts.hostLabel, opts.vtepIP,
-		opts.vlanIntf, opts.routerIP, opts.fwdMode, utils.OvsNameStr)
+	// parse store URL
+	parts := strings.Split(opts.dbURL, "://")
+	if len(parts) < 2 {
+		log.Fatalf("Invalid store-url %s", opts.dbURL)
+	}
+	stateStore := parts[0]
 
 	netPlugin := &plugin.NetPlugin{}
 
-	config := []byte{}
-	if opts.cfgFile == "" {
-		log.Infof("config not specified, using default config")
-		config = []byte(defConfigStr)
-	} else if opts.cfgFile == "-" {
-		reader := bufio.NewReader(os.Stdin)
-		config, err = ioutil.ReadAll(reader)
-		if err != nil {
-			log.Fatalf("reading config from stdin failed. Error: %s", err)
-		}
-	} else {
-		config, err = ioutil.ReadFile(opts.cfgFile)
-		if err != nil {
-			log.Fatalf("reading config from file failed. Error: %s", err)
-		}
-	}
-
-	// Parse the config
-	pluginConfig := plugin.Config{}
-	err = json.Unmarshal([]byte(config), &pluginConfig)
-	if err != nil {
-		log.Fatalf("Error parsing config. Err: %v", err)
-	}
-
-	// extract host-label from the configuration
-	if pluginConfig.Instance.HostLabel == "" {
-		log.Fatalf("Empty host-label passed in configuration")
-	}
-	opts.hostLabel = pluginConfig.Instance.HostLabel
-
-	// Use default values when config options are not specified
-	if pluginConfig.Instance.VtepIP == "" {
-		pluginConfig.Instance.VtepIP = opts.vtepIP
-	}
-	if pluginConfig.Instance.VlanIntf == "" {
-		pluginConfig.Instance.VlanIntf = opts.vlanIntf
-	}
-	if pluginConfig.Instance.RouterIP == "" {
-		pluginConfig.Instance.RouterIP = opts.routerIP
-	}
-	if pluginConfig.Instance.FwdMode == "" {
-		pluginConfig.Instance.FwdMode = opts.fwdMode
+	// initialize the config
+	pluginConfig := plugin.Config{
+		Drivers: plugin.Drivers{
+			Network: "ovs",
+			State:   stateStore,
+		},
+		Instance: core.InstanceInfo{
+			HostLabel: opts.hostLabel,
+			VtepIP:    opts.vtepIP,
+			VlanIntf:  opts.vlanIntf,
+			RouterIP:  opts.routerIP,
+			FwdMode:   opts.fwdMode,
+			DbURL:     opts.dbURL,
+		},
 	}
 
 	svcplugin.QuitCh = make(chan struct{})
@@ -464,7 +415,7 @@ func main() {
 	}
 
 	// Init the driver plugins..
-	err = netPlugin.Init(pluginConfig, string(config))
+	err = netPlugin.Init(pluginConfig)
 	if err != nil {
 		log.Fatalf("Failed to initialize the plugin. Error: %s", err)
 	}
@@ -473,7 +424,7 @@ func main() {
 	processCurrentState(netPlugin, opts)
 
 	// Initialize clustering
-	cluster.Init(netPlugin, opts.ctrlIP)
+	cluster.Init(netPlugin, opts.ctrlIP, opts.dbURL)
 
 	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
 	//etcd.SetLogger(logger)

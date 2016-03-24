@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/core"
@@ -72,7 +74,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Error initializing state store. Err: %v", err)
 	}
 	// little hack to clear all state from etcd
-	stateStore.(*state.EtcdStateDriver).Client.Delete("/contiv.io", true)
+	stateStore.(*state.EtcdStateDriver).KeysAPI.Delete(context.Background(), "/contiv.io", nil)
 
 	// Setup resource manager
 	if _, err = resources.NewStateResourceManager(stateStore); err != nil {

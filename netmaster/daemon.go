@@ -28,6 +28,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
 	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
@@ -40,6 +41,7 @@ const leaderLockTTL = 30
 type daemon struct {
 	listenURL        string                // URL where netmaster needs to listen
 	currState        string                // Current state of the daemon
+	storeURL         string                // state store URL
 	apiController    *objApi.APIController // API controller for contiv model
 	stateDriver      core.StateDriver      // KV store
 	objdbClient      objdb.API             // Objdb client
@@ -51,9 +53,21 @@ type daemon struct {
 
 var leaderLock objdb.LockInterface // leader lock
 
+// GetLocalAddr gets local address to be used
+func GetLocalAddr() (string, error) {
+	// get the ip address by local hostname
+	localIP, err := netutils.GetMyAddr()
+	if err == nil && netutils.IsAddrLocal(localIP) {
+		return localIP, nil
+	}
+
+	// Return first available address if we could not find by hostname
+	return netutils.GetFirstLocalAddr()
+}
+
 func (d *daemon) registerService() {
 	// Get the address to be used for local communication
-	localIP, err := d.objdbClient.GetLocalAddr()
+	localIP, err := GetLocalAddr()
 	if err != nil {
 		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}
@@ -194,7 +208,7 @@ func (d *daemon) runLeader() {
 	defer d.listenerMutex.Unlock()
 
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router)
+	d.apiController = objApi.NewAPIController(router, d.storeURL)
 
 	// initialize policy manager
 	mastercfg.InitPolicyMgr(d.stateDriver, d.ofnetMaster)
@@ -286,6 +300,8 @@ func (d *daemon) becomeFollower() {
 
 // runMasterFsm runs netmaster FSM
 func (d *daemon) runMasterFsm() {
+	var err error
+
 	// create new ofnet master
 	d.ofnetMaster = ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
 	if d.ofnetMaster == nil {
@@ -293,10 +309,13 @@ func (d *daemon) runMasterFsm() {
 	}
 
 	// Create an objdb client
-	d.objdbClient = objdb.NewClient("")
+	d.objdbClient, err = objdb.NewClient(d.storeURL)
+	if err != nil {
+		log.Fatalf("Error connecting to state store: %v. Err: %v", d.storeURL, err)
+	}
 
 	// Get the address to be used for local communication
-	localIP, err := d.objdbClient.GetLocalAddr()
+	localIP, err := GetLocalAddr()
 	if err != nil {
 		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}

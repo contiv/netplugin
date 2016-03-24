@@ -65,7 +65,7 @@ type Clustering interface {
 // state drivers. Along with implementing north-bound interfaces for
 // network and endpoint operations
 type Plugin interface {
-	Init(configStr string) error
+	Init(instInfo InstanceInfo) error
 	Deinit()
 	Network
 	Endpoint
@@ -81,6 +81,7 @@ type InstanceInfo struct {
 	VlanIntf    string      `json:"vlan-if"`
 	RouterIP    string      `json:"router-ip"`
 	FwdMode     string      `json:"fwd-mode"`
+	DbURL       string      `json:"db-url"`
 }
 
 // PortSpec defines protocol/port info required to host the service
@@ -102,7 +103,7 @@ type Driver interface{}
 // NetworkDriver implements the programming logic for network and endpoints
 type NetworkDriver interface {
 	Driver
-	Init(config *Config, info *InstanceInfo) error
+	Init(instInfo *InstanceInfo) error
 	Deinit()
 	CreateNetwork(id string) error
 	DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string, tenant string) error
@@ -136,7 +137,7 @@ type WatchState struct {
 // high-level(consumer) interface.
 type StateDriver interface {
 	Driver
-	Init(config *Config) error
+	Init(instInfo *InstanceInfo) error
 	Deinit()
 
 	// XXX: the following raw versions of Read, Write, ReadAll and WatchAll

@@ -62,7 +62,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	newReq := *r
 	newReq.URL = url
 
-	log.Infof("Proxying request(%v): %+v", url, newReq)
+	log.Debugf("Proxying request(%v): %+v", url, newReq)
 
 	// Serve http
 	proxy.ServeHTTP(w, &newReq)
