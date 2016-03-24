@@ -18,6 +18,7 @@ package objdb
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -25,12 +26,10 @@ import (
 	"github.com/hashicorp/consul/api"
 )
 
-var errKeyNotFound = errors.New("Key not found")
-var sessionTTL = "30s"
-
 // Service state
 type consulServiceState struct {
 	ServiceName string        // Name of the service
+	TTL         string        // Service TTL
 	HostAddr    string        // Host name or IP address where its running
 	Port        int           // Port number where its listening
 	SessionID   string        // session id assigned by consul
@@ -75,7 +74,7 @@ func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
 		Name:      keyName,
 		Behavior:  "delete",
 		LockDelay: 10 * time.Millisecond,
-		TTL:       sessionTTL,
+		TTL:       fmt.Sprintf("%ds", serviceInfo.TTL),
 	}
 
 	// Create consul session
@@ -116,11 +115,12 @@ func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
 
 	// Run refresh in background
 	stopChan := make(chan struct{})
-	go cp.client.Session().RenewPeriodic(sessionTTL, sessionID, nil, stopChan)
+	go cp.client.Session().RenewPeriodic(sessCfg.TTL, sessionID, nil, stopChan)
 
 	// Store it in DB
 	cp.serviceDb[keyName] = &consulServiceState{
 		ServiceName: serviceInfo.ServiceName,
+		TTL:         sessCfg.TTL,
 		HostAddr:    serviceInfo.HostAddr,
 		Port:        serviceInfo.Port,
 		SessionID:   sessionID,
@@ -148,7 +148,7 @@ func (cp *ConsulClient) WatchService(srvName string, eventCh chan WatchServiceEv
 
 		// Get current list of services
 		srvList, lastIdx, err := cp.getServiceInstances(keyName, 0)
-		if err != nil && err != errKeyNotFound {
+		if err != nil {
 			log.Errorf("Error getting service instances for (%s): Err: %v", srvName, err)
 		} else {
 			// for each instance trigger an add event
@@ -174,7 +174,7 @@ func (cp *ConsulClient) WatchService(srvName string, eventCh chan WatchServiceEv
 			}
 
 			srvList, lastIdx, err = cp.getServiceInstances(keyName, lastIdx)
-			if err != nil && err != errKeyNotFound {
+			if err != nil {
 				log.Errorf("Error getting service instances for (%s): Err: %v", srvName, err)
 			} else {
 				log.Debugf("Got consul srv list: {%+v}. Curr: {%+v}", srvList, currSrvMap)

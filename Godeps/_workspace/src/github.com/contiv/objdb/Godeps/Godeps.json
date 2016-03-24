@@ -12,23 +12,23 @@
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
-			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
-			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
+			"Comment": "v2.3.0-alpha.0-1349-g7d2545c",
+			"Rev": "7d2545c72e5cbf1f072e99537dafc3883c73740e"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
-			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
-			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
+			"Comment": "v2.3.0-alpha.0-1349-g7d2545c",
+			"Rev": "7d2545c72e5cbf1f072e99537dafc3883c73740e"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/types",
-			"Comment": "v2.3.0-alpha.0-1250-gef135d5",
-			"Rev": "ef135d52ad1a95e2e1fd8102525ccae72ca633c8"
+			"Comment": "v2.3.0-alpha.0-1349-g7d2545c",
+			"Rev": "7d2545c72e5cbf1f072e99537dafc3883c73740e"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
-			"Comment": "v0.6.3-19-gc353aa9",
-			"Rev": "c353aa9260b695987d45e4e975be52f60da348ed"
+			"Comment": "v0.6.3-293-g3340d7c",
+			"Rev": "3340d7ccd74d4185b1c126833988457da5e414c8"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-cleanhttp",
