@@ -1,6 +1,7 @@
 package objdb
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -349,7 +350,8 @@ func (lk *etcdLock) watchLock() {
 	}
 	for {
 		resp, err := watcher.Next(lk.watchCtx)
-		if err != nil && err.Error() == client.ErrClusterUnavailable.Error() {
+		if err != nil && (err.Error() == client.ErrClusterUnavailable.Error() ||
+			strings.Contains(err.Error(), "context canceled")) {
 			log.Infof("Stopping watch on key %s", keyName)
 			return
 		} else if err != nil {

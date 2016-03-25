@@ -72,6 +72,7 @@ func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 	// create service state
 	srvState := etcdServiceState{
 		ServiceName: serviceInfo.ServiceName,
+		KeyName:     keyName,
 		TTL:         ttl,
 		HostAddr:    serviceInfo.HostAddr,
 		Port:        serviceInfo.Port,

@@ -61,7 +61,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/objdb",
-			"Rev": "606217c3cee066f7cd181cc833d8d2f2621ffcec"
+			"Rev": "aae4e15bc3314fe0d32a7321478f723ec38828f7"
 		},
 		{
 			"ImportPath": "github.com/contiv/objdb/modeldb",
