@@ -485,9 +485,9 @@ func testLockAcquireKill(t *testing.T, dbclient API) {
 		}
 	}()
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * time.Duration(lockTTL*2))
 
-	log.Infof("2s timer. killing Lock1")
+	log.Infof("%ds timer. killing Lock1", (2 * lockTTL))
 	// At this point, lock1 should be holding the lock
 	if !lock1.IsAcquired() {
 		t.Fatalf("Lock1 failed to acquire lock")
@@ -566,7 +566,7 @@ func testServiceRegisterDeregister(t *testing.T, dbClient API) {
 	}
 
 	// Wait a while to make sure background refresh is working correctly
-	time.Sleep(time.Duration(srvTTL * 2))
+	time.Sleep(time.Duration(srvTTL*2) * time.Second)
 
 	resp, err = dbClient.GetService("athena")
 	if err != nil {
