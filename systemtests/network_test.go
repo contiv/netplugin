@@ -140,7 +140,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 			for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
 				network := &client.Network{
 					TenantName:  tenantName,
-					NetworkName: fmt.Sprintf("net%d-%d-%d", networkNum, i, tenantNum),
+					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
 					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
 					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
 					PktTag:      pktTag + 1000,
