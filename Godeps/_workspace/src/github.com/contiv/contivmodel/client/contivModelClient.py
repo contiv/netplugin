@@ -74,7 +74,7 @@ class objmodelClient:
 		self.baseUrl = baseUrl
 	# Create appProfile
 	def createAppProfile(self, obj):
-	    postUrl = self.baseUrl + '/api/AppProfiles/' + obj.tenantName + ":" + obj.networkName + ":" + obj.appProfileName  + '/'
+	    postUrl = self.baseUrl + '/api/appProfiles/' + obj.tenantName + ":" + obj.networkName + ":" + obj.appProfileName  + '/'
 
 	    jdata = json.dumps({ 
 			"appProfileName": obj.appProfileName, 
@@ -108,7 +108,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create endpointGroup
 	def createEndpointGroup(self, obj):
-	    postUrl = self.baseUrl + '/api/EndpointGroups/' + obj.tenantName + ":" + obj.networkName + ":" + obj.groupName  + '/'
+	    postUrl = self.baseUrl + '/api/endpointGroups/' + obj.tenantName + ":" + obj.networkName + ":" + obj.groupName  + '/'
 
 	    jdata = json.dumps({ 
 			"endpointGroupId": obj.endpointGroupId, 
@@ -143,7 +143,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create global
 	def createGlobal(self, obj):
-	    postUrl = self.baseUrl + '/api/Globals/' + obj.name  + '/'
+	    postUrl = self.baseUrl + '/api/globals/' + obj.name  + '/'
 
 	    jdata = json.dumps({ 
 			"name": obj.name, 
@@ -212,7 +212,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create network
 	def createNetwork(self, obj):
-	    postUrl = self.baseUrl + '/api/Networks/' + obj.tenantName + ":" + obj.networkName  + '/'
+	    postUrl = self.baseUrl + '/api/networks/' + obj.tenantName + ":" + obj.networkName  + '/'
 
 	    jdata = json.dumps({ 
 			"encap": obj.encap, 
@@ -248,7 +248,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create policy
 	def createPolicy(self, obj):
-	    postUrl = self.baseUrl + '/api/Policys/' + obj.tenantName + ":" + obj.policyName  + '/'
+	    postUrl = self.baseUrl + '/api/policys/' + obj.tenantName + ":" + obj.policyName  + '/'
 
 	    jdata = json.dumps({ 
 			"policyName": obj.policyName, 
@@ -280,7 +280,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create rule
 	def createRule(self, obj):
-	    postUrl = self.baseUrl + '/api/Rules/' + obj.tenantName + ":" + obj.policyName + ":" + obj.ruleId  + '/'
+	    postUrl = self.baseUrl + '/api/rules/' + obj.tenantName + ":" + obj.policyName + ":" + obj.ruleId  + '/'
 
 	    jdata = json.dumps({ 
 			"action": obj.action, 
@@ -324,7 +324,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create service
 	def createService(self, obj):
-	    postUrl = self.baseUrl + '/api/Services/' + obj.tenantName + ":" + obj.appName + ":" + obj.serviceName  + '/'
+	    postUrl = self.baseUrl + '/api/services/' + obj.tenantName + ":" + obj.appName + ":" + obj.serviceName  + '/'
 
 	    jdata = json.dumps({ 
 			"appName": obj.appName, 
@@ -366,7 +366,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create serviceInstance
 	def createServiceInstance(self, obj):
-	    postUrl = self.baseUrl + '/api/ServiceInstances/' + obj.tenantName + ":" + obj.appName + ":" + obj.serviceName + ":" + obj.instanceId  + '/'
+	    postUrl = self.baseUrl + '/api/serviceInstances/' + obj.tenantName + ":" + obj.appName + ":" + obj.serviceName + ":" + obj.instanceId  + '/'
 
 	    jdata = json.dumps({ 
 			"appName": obj.appName, 
@@ -401,7 +401,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create tenant
 	def createTenant(self, obj):
-	    postUrl = self.baseUrl + '/api/Tenants/' + obj.tenantName  + '/'
+	    postUrl = self.baseUrl + '/api/tenants/' + obj.tenantName  + '/'
 
 	    jdata = json.dumps({ 
 			"defaultNetwork": obj.defaultNetwork, 
@@ -433,7 +433,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create volume
 	def createVolume(self, obj):
-	    postUrl = self.baseUrl + '/api/Volumes/' + obj.tenantName + ":" + obj.volumeName  + '/'
+	    postUrl = self.baseUrl + '/api/volumes/' + obj.tenantName + ":" + obj.volumeName  + '/'
 
 	    jdata = json.dumps({ 
 			"datastoreType": obj.datastoreType, 
@@ -469,7 +469,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create volumeProfile
 	def createVolumeProfile(self, obj):
-	    postUrl = self.baseUrl + '/api/VolumeProfiles/' + obj.tenantName + ":" + obj.volumeProfileName  + '/'
+	    postUrl = self.baseUrl + '/api/volumeProfiles/' + obj.tenantName + ":" + obj.volumeProfileName  + '/'
 
 	    jdata = json.dumps({ 
 			"datastoreType": obj.datastoreType, 

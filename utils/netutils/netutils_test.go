@@ -77,6 +77,61 @@ func TestGetIPNumber(t *testing.T) {
 	}
 }
 
+var testValidNetParams = []testSubnetInfo{
+	{subnetIP: "11.2.1.10-100", subnetLen: 24},
+	{subnetIP: "10.123.16.0", subnetLen: 26},
+	{subnetIP: "10.123.16.66", subnetLen: 26},
+	{subnetIP: "10.123.16.10-100", subnetLen: 22},
+}
+
+func TestValidNetworkRangeParams(t *testing.T) {
+	for _, tvnp := range testValidNetParams {
+		err := ValidateNetworkRangeParams(tvnp.subnetIP, tvnp.subnetLen)
+		if err != nil {
+			t.Fatalf("Error validating network params for subnet: %s/%d",
+				tvnp.subnetIP, tvnp.subnetLen)
+		}
+	}
+}
+
+var testInvalidNetParams = []testSubnetInfo{
+	{subnetIP: "10.123.16.10-100", subnetLen: 26},
+	{subnetIP: "10.123.16.60-100", subnetLen: 26},
+}
+
+func TestInvalidNetworkRangeParams(t *testing.T) {
+	for _, tinp := range testInvalidNetParams {
+		err := ValidateNetworkRangeParams(tinp.subnetIP, tinp.subnetLen)
+		if err == nil {
+			t.Fatalf("Expected error for invalid network params for subnet: %s/%d",
+				tinp.subnetIP, tinp.subnetLen)
+		}
+	}
+}
+
+type testSubnetAddrInfo struct {
+	ipRange        string
+	subnetLen      uint
+	expectedSubnet string
+}
+
+var testSubnetAddr = []testSubnetAddrInfo{
+	{ipRange: "10.1.1.10", subnetLen: 16, expectedSubnet: "10.1.0.0"},
+	{ipRange: "10.1.1.10-20", subnetLen: 24, expectedSubnet: "10.1.1.0"},
+	{ipRange: "10.1.1.100", subnetLen: 26, expectedSubnet: "10.1.1.64"},
+	{ipRange: "10.1.1.70-100", subnetLen: 26, expectedSubnet: "10.1.1.64"},
+}
+
+func TestGetSubnetAddr(t *testing.T) {
+	for _, addr := range testSubnetAddr {
+		subnetAddr := GetSubnetAddr(addr.ipRange, addr.subnetLen)
+		if subnetAddr != addr.expectedSubnet {
+			t.Fatalf("Invalid subnet address %s obtained for IPRange: %s/%d. Expected: %s",
+				subnetAddr, addr.ipRange, addr.subnetLen, addr.expectedSubnet)
+		}
+	}
+}
+
 func TestValidRange(t *testing.T) {
 	rangeStr := "5-100, 101-200"
 	_, err := ParseTagRanges(rangeStr, "vlan")
