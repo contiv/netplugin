@@ -1864,11 +1864,16 @@ func ValidateNetwork(obj *Network) error {
 		return errors.New("encap string invalid format")
 	}
 
+	gatewayMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})?$")
+	if gatewayMatch.MatchString(obj.Gateway) == false {
+		return errors.New("gateway string invalid format")
+	}
+
 	if len(obj.NetworkName) > 64 {
 		return errors.New("networkName string too long")
 	}
 
-	subnetMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?/[0-9]{1,2}?)$")
+	subnetMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?/(3[0-1]|2[0-9]|1[0-9]|[1-9])$")
 	if subnetMatch.MatchString(obj.Subnet) == false {
 		return errors.New("subnet string invalid format")
 	}
