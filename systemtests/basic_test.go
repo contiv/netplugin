@@ -25,7 +25,8 @@ func (s *systemtestSuite) TestBasicStartRemoveContainerVLAN(c *C) {
 func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 
 	if s.fwdMode == "routing" && encap == "vlan" {
-		c.Skip("Skipping test")
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
 	}
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		PktTag:      1001,
@@ -56,7 +57,9 @@ func (s *systemtestSuite) TestBasicStartStopContainerVLAN(c *C) {
 
 func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 	if s.fwdMode == "routing" && encap == "vlan" {
-		c.Skip("Skipping test")
+
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
 	}
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		PktTag:      1001,

@@ -7,6 +7,8 @@ require 'fileutils'
 gopath_folder="/opt/gopath"
 FileUtils.cp "/etc/resolv.conf", Dir.pwd
 
+$cluster_ip_nodes = ""
+
 provision_common = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
@@ -24,11 +26,9 @@ echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
 echo "export http_proxy='$4'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
-echo "export no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster,192.168.2.12" >> /etc/profile.d/envvar.sh
-echo "export CLUSTER_NODE_IPS=192.168.2.10,192.168.2.11,192.168.2.12" >> /etc/profile.d/envvar.sh
 echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
-
-
+echo "export no_proxy=$7,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
+echo "export CLUSTER_NODE_IPS=$7" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
 mv /etc/resolv.conf /etc/resolv.conf.bak
@@ -43,14 +43,14 @@ systemctl enable docker-tcp.socket
 
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
-echo "Environment=\\\"no_proxy=192.168.2.10,192.168.2.11,192.168.2.12,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
+echo "Environment=\\\"no_proxy=$7,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
 sudo systemctl stop docker
 systemctl start docker-tcp.socket
 sudo systemctl start docker
 
-if [ $# -gt 6 ]; then
-    shift; shift; shift; shift; shift; shift
+if [ $# -gt 7 ]; then
+    shift; shift; shift; shift; shift; shifti; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
@@ -90,6 +90,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
     base_ip = "192.168.2."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
+    $cluster_ip_nodes = node_ips.join(",")
+ 
     node_names = num_nodes.times.collect { |n| "netplugin-node#{n+1}" }
     node_peers = []
     if ENV['CONTIV_L3'] then
@@ -130,8 +132,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         end
       end
     end
-
-    num_nodes.times do |n|
+   
+     num_nodes.times do |n|
         node_name = node_names[n]
         node_addr = node_ips[n]
         node_peers += ["#{node_name}=http://#{node_addr}:2380,#{node_name}=http://#{node_addr}:7001"]
@@ -195,7 +197,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
-                s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV']]
+                s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV'],$cluster_ip_nodes]
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config
