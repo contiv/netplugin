@@ -57,7 +57,8 @@ fi
 # Get swarm binary
 # (wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
 # chmod +x /usr/bin/swarm) || exit 1
-
+#Get gobgp binary
+wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp && chmod +x #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp 
 # remove duplicate docker key
 rm /etc/docker/key.json
 
