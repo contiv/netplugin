@@ -29,13 +29,11 @@ const (
 )
 
 func setupEtcdDriver(t *testing.T) *EtcdStateDriver {
-	etcdConfig := &EtcdStateDriverConfig{}
-	etcdConfig.Etcd.Machines = []string{"http://127.0.0.1:4001"}
-	config := &core.Config{V: etcdConfig}
+	instInfo := core.InstanceInfo{DbURL: "etcd://127.0.0.1:2379"}
 
 	driver := &EtcdStateDriver{}
 
-	err := driver.Init(config)
+	err := driver.Init(&instInfo)
 	if err != nil {
 		t.Fatalf("driver init failed. Error: %s", err)
 		return nil
@@ -49,8 +47,8 @@ func TestEtcdStateDriverInit(t *testing.T) {
 }
 
 func commonTestStateDriverInitInvalidConfig(t *testing.T, d core.StateDriver) {
-	config := &core.Config{}
-	err := d.Init(config)
+	instInfo := core.InstanceInfo{DbURL: "xyz://127.0.0.1:2379"}
+	err := d.Init(&instInfo)
 	if err == nil {
 		t.Fatalf("d init succeeded, should have failed.")
 	}

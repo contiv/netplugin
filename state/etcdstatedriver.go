@@ -52,6 +52,10 @@ type EtcdStateDriver struct {
 func (d *EtcdStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var err error
 
+	if instInfo == nil || !strings.Contains(instInfo.DbURL, "etcd://") {
+		return errors.New("Invalid etcd config")
+	}
+
 	etcdURL := strings.Replace(instInfo.DbURL, "etcd://", "http://", 1)
 	etcdConfig := client.Config{
 		Endpoints: []string{etcdURL},

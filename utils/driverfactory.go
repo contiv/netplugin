@@ -72,7 +72,7 @@ func initHelper(driverRegistry map[string]driverConfigTypes, driverName string) 
 
 // NewStateDriver instantiates a 'named' state-driver with specified configuration
 func NewStateDriver(name string, instInfo *core.InstanceInfo) (core.StateDriver, error) {
-	if name == "" {
+	if name == "" || instInfo == nil {
 		return nil, core.Errorf("invalid driver name or configuration passed.")
 	}
 
@@ -114,7 +114,7 @@ func ReleaseStateDriver() {
 
 // NewNetworkDriver instantiates a 'named' network-driver with specified configuration
 func NewNetworkDriver(name string, instInfo *core.InstanceInfo) (core.NetworkDriver, error) {
-	if name == "" {
+	if name == "" || instInfo == nil {
 		return nil, core.Errorf("invalid driver name or configuration passed.")
 	}
 

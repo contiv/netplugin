@@ -12,7 +12,7 @@ type FakeNetEpDriver struct {
 }
 
 // Init is not implemented.
-func (d *FakeNetEpDriver) Init(config *core.Config, info *core.InstanceInfo) error {
+func (d *FakeNetEpDriver) Init(info *core.InstanceInfo) error {
 	return nil
 }
 

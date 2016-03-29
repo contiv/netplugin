@@ -19,17 +19,14 @@ import (
 	"testing"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/hashicorp/consul/api"
 )
 
 func setupConsulDriver(t *testing.T) *ConsulStateDriver {
-	consulConfig := &ConsulStateDriverConfig{}
-	consulConfig.Consul = api.Config{Address: "127.0.0.1:8500"}
-	config := &core.Config{V: consulConfig}
+	instInfo := core.InstanceInfo{DbURL: "consul://127.0.0.1:8500"}
 
 	driver := &ConsulStateDriver{}
 
-	err := driver.Init(config)
+	err := driver.Init(&instInfo)
 	if err != nil {
 		t.Fatalf("driver init failed. Error: %s", err)
 		return nil

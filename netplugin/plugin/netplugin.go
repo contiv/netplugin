@@ -33,7 +33,7 @@ type Drivers struct {
 
 // Config has the configuration for the plugin
 type Config struct {
-	Drivers
+	Drivers  Drivers           `json:"drivers"`
 	Instance core.InstanceInfo `json:"plugin-instance"`
 }
 

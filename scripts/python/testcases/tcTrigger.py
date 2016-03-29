@@ -123,7 +123,7 @@ def triggerNetpluginRestart(testbed):
         node.startNetplugin()
 
         # Wait a little
-        time.sleep(10)
+        time.sleep(20)
 
 # Trigger netplugin disconnect/connect
 def triggerNetpluginDisconectConnect(testbed):
@@ -132,7 +132,7 @@ def triggerNetpluginDisconectConnect(testbed):
         node.stopNetplugin()
 
         # Wait for netplugin service to expire
-        time.sleep(90)
+        time.sleep(50)
 
         # Move old log file
         currTime = time.strftime("%H:%M:%S", time.localtime())
@@ -142,7 +142,7 @@ def triggerNetpluginDisconectConnect(testbed):
         node.startNetplugin()
 
         # Wait a little
-        time.sleep(10)
+        time.sleep(20)
 
         # Check for errors
         testbed.chekForNetpluginErrors()

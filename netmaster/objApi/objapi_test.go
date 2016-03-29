@@ -16,7 +16,6 @@ limitations under the License.
 package objApi
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -49,19 +48,9 @@ var stateStore core.StateDriver
 
 // initStateDriver initialize etcd state driver
 func initStateDriver() (core.StateDriver, error) {
-	var cfg *core.Config
+	instInfo := core.InstanceInfo{DbURL: "etcd://127.0.0.1:2379"}
 
-	url := "http://127.0.0.1:4001"
-	etcdCfg := &state.EtcdStateDriverConfig{}
-	etcdCfg.Etcd.Machines = []string{url}
-	cfg = &core.Config{V: etcdCfg}
-
-	cfgBytes, err := json.Marshal(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return utils.NewStateDriver(utils.EtcdNameStr, string(cfgBytes))
+	return utils.NewStateDriver(utils.EtcdNameStr, &instInfo)
 }
 
 // setup the test netmaster REST server and client
@@ -84,7 +73,7 @@ func TestMain(m *testing.M) {
 	router := mux.NewRouter()
 
 	// Create a new api controller
-	apiController = NewAPIController(router)
+	apiController = NewAPIController(router, "etcd://127.0.0.1:4001")
 
 	ofnetMaster := ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
 	if ofnetMaster == nil {
@@ -723,4 +712,6 @@ func TestEpgPolicies(t *testing.T) {
 	checkDeletePolicy(t, false, "default", "policy1")
 	checkDeletePolicy(t, false, "default", "policy2")
 
+	// delete the network
+	checkDeleteNetwork(t, false, "default", "contiv")
 }
