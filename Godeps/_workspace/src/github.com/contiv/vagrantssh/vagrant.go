@@ -135,6 +135,7 @@ func (v *Vagrant) setup(start bool, env string, numNodes int) error {
 		nodeName := strings.Fields(string(nodeNameByte))[0]
 		nodeNames = append(nodeNames, nodeName)
 	}
+
 	if len(nodeNames) != numNodes {
 		err = fmt.Errorf("Number of running node(s) (%d) is not equal to number of expected node(s) (%d) in vagrant status output: \n%s\n",
 			len(nodeNames), numNodes, output)
@@ -214,6 +215,7 @@ func (v *Vagrant) Setup(args ...interface{}) error {
 	if _, ok := args[2].(int); !ok {
 		return unexpectedSetupArgError("bool, string, int", args...)
 	}
+
 	return v.setup(args[0].(bool), args[1].(string), args[2].(int))
 }
 

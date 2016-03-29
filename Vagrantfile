@@ -7,6 +7,8 @@ require 'fileutils'
 gopath_folder="/opt/gopath"
 FileUtils.cp "/etc/resolv.conf", Dir.pwd
 
+$cluster_ip_nodes = ""
+
 provision_common = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
@@ -24,11 +26,9 @@ echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
 echo "export http_proxy='$4'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
-echo "export no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
-echo "export CLUSTER_NODE_IPS=192.168.2.10,192.168.2.11" >> /etc/profile.d/envvar.sh
 echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
-
-
+echo "export no_proxy=$7,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
+echo "export CLUSTER_NODE_IPS=$7" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
 mv /etc/resolv.conf /etc/resolv.conf.bak
@@ -43,21 +43,22 @@ systemctl enable docker-tcp.socket
 
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
-echo "Environment=\\\"no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
+echo "Environment=\\\"no_proxy=$7,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
 sudo systemctl stop docker
 systemctl start docker-tcp.socket
 sudo systemctl start docker
 
-if [ $# -gt 6 ]; then
-    shift; shift; shift; shift; shift; shift
+if [ $# -gt 7 ]; then
+    shift; shift; shift; shift; shift; shifti; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
 # Get swarm binary
 # (wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
 # chmod +x /usr/bin/swarm) || exit 1
-
+#Get gobgp binary
+wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp && chmod +x #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp 
 # remove duplicate docker key
 rm /etc/docker/key.json
 
@@ -69,14 +70,20 @@ rm /etc/docker/key.json
 docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
 SCRIPT
 
+provision_bird = <<SCRIPT
+## setup the environment file. Export the env-vars passed as args to 'vagrant up'
+echo Args passed: [[ $@ ]]
+echo "export http_proxy='$1'" >> /etc/profile.d/envvar.sh
+echo "export https_proxy='$2'" >> /etc/profile.d/envvar.sh
+source /etc/profile.d/envvar.sh
+SCRIPT
+
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "centos" then
         config.vm.box = "contiv/centos71-netplugin"
-        config.vm.box_version = "0.3.1"
     else
         config.vm.box = "contiv/ubuntu1504-netplugin"
-        config.vm.box_version = "0.3.1"
     end
     num_nodes = 2
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
@@ -84,10 +91,50 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
     base_ip = "192.168.2."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
+    $cluster_ip_nodes = node_ips.join(",")
+ 
     node_names = num_nodes.times.collect { |n| "netplugin-node#{n+1}" }
     node_peers = []
+    if ENV['CONTIV_L3'] then
+      config.vm.define "quagga1" do |quagga1|
 
-    num_nodes.times do |n|
+        quagga1.vm.box = "contiv/quagga1"
+        quagga1.vm.host_name = "quagga1"
+        quagga1.vm.network :private_network, ip: "192.168.1.50", virtualbox__intnet: "true", auto_config: false
+        quagga1.vm.network "private_network",
+                         ip: "80.1.1.200",
+                         virtualbox__intnet: "contiv_orange"
+        quagga1.vm.network "private_network",
+                         ip: "70.1.1.2",
+                         virtualbox__intnet: "contiv_blue"
+        quagga1.vm.provision "shell" do |s|
+          s.inline = provision_bird
+          s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+        end
+      end
+      config.vm.define "quagga2" do |quagga2|
+
+        quagga2.vm.box = "contiv/quagga2"
+        quagga2.vm.host_name = "quagga2"
+        quagga2.vm.network :private_network, ip: "192.168.1.50", virtualbox__intnet: "true", auto_config: false
+        quagga2.vm.network "private_network",
+                         ip: "70.1.1.1",
+                         virtualbox__intnet: "contiv_blue"
+        quagga2.vm.network "private_network",
+                         ip: "60.1.1.200",
+                         virtualbox__intnet: "contiv_green"
+        quagga2.vm.network "private_network",
+                         ip: "50.1.1.200",
+                         virtualbox__intnet: "contiv_yellow"
+
+        quagga2.vm.provision "shell" do |s|
+          s.inline = provision_bird
+          s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+        end
+      end
+    end
+   
+     num_nodes.times do |n|
         node_name = node_names[n]
         node_addr = node_ips[n]
         node_peers += ["#{node_name}=http://#{node_addr}:2380,#{node_name}=http://#{node_addr}:7001"]
@@ -103,12 +150,29 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 swarm_flag = "slave"
             end
         end
+        net_num = (n+1)%3
+        if net_num == 0 then
+           network_name = "contiv_orange"
+        else 
+           if net_num == 1 then
+              network_name = "contiv_yellow"
+           else 
+              network_name = "contiv_green"
+           end
+        end
         config.vm.define node_name do |node|
+            node.vm.box_version = "0.3.1"
+
             # node.vm.hostname = node_name
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
             # create an interface for bridged network
-            node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true", auto_config: false
+            if ENV['CONTIV_L3'] then
+              # create an interface for bridged network
+              node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: network_name, auto_config: false
+            else
+              node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true", auto_config: false
+            end
             node.vm.provider "virtualbox" do |v|
                 # make all nics 'virtio' to take benefit of builtin vlan tag
                 # support, which otherwise needs to be enabled in Intel drivers,
@@ -134,7 +198,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
-                s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV']]
+                s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV'],$cluster_ip_nodes]
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config

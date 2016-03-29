@@ -100,8 +100,14 @@ unit-test: stop clean build
 centos-tests:
 	CONTIV_NODE_OS=centos make clean build unit-test system-test stop
 
-system-test: start
-	godep go test -v -timeout 120m ./systemtests -check.v
+system-test:start
+	godep go test -v -timeout 240m ./systemtests -check.v 
+
+l3-test:
+	CONTIV_L3=2 CONTIV_NODES=3 vagrant destroy -f 
+	CONTIV_L3=2 CONTIV_NODES=3 vagrant up
+	CONTIV_L3=2 CONTIV_NODES=3 godep go test -v -timeout 240m ./systemtests -check.v 
+	CONTIV_L3=2 CONTIV_NODES=3 vagrant destroy -f 
 
 host-build:
 	@echo "dev: making binaries..."

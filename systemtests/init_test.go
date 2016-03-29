@@ -2,16 +2,15 @@ package systemtests
 
 import (
 	"flag"
-	"os"
-	"strconv"
-	. "testing"
-	"time"
-
-	. "gopkg.in/check.v1"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/vagrantssh"
+	. "gopkg.in/check.v1"
+	"os"
+	"strconv"
+	"strings"
+	. "testing"
+	"time"
 )
 
 type systemtestSuite struct {
@@ -23,6 +22,7 @@ type systemtestSuite struct {
 	iterations int
 	vlanIf     string
 	nodes      []*node
+	fwdMode    string
 	// user       string
 	// password   string
 	// nodes      []string
@@ -44,6 +44,11 @@ func TestMain(m *M) {
 	flag.StringVar(&sts.binpath, "binpath", "/opt/gopath/bin", "netplugin/netmaster binary path")
 	flag.IntVar(&sts.containers, "containers", 3, "Number of containers to use")
 	flag.BoolVar(&sts.short, "short", false, "Do a quick validation run instead of the full test suite")
+	if os.Getenv("CONTIV_L3") == "" {
+		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
+	} else {
+		flag.StringVar(&sts.fwdMode, "fwd-mode", "routing", "forwarding mode to start the test ")
+	}
 	flag.Parse()
 
 	os.Exit(m.Run())
@@ -62,12 +67,13 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 	s.vagrant = vagrantssh.Vagrant{}
 	nodesStr := os.Getenv("CONTIV_NODES")
-	var nodes int
+	var contivNodes int
+
 	if nodesStr == "" {
-		nodes = 2
+		contivNodes = 2
 	} else {
 		var err error
-		nodes, err = strconv.Atoi(nodesStr)
+		contivNodes, err = strconv.Atoi(nodesStr)
 		if err != nil {
 			c.Fatal(err)
 		}
@@ -75,10 +81,17 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 	s.nodes = []*node{}
 
-	c.Assert(s.vagrant.Setup(false, "", nodes), IsNil)
-
+	if s.fwdMode == "routing" {
+		contivL3Nodes := 2
+		c.Assert(s.vagrant.Setup(false, "CONTIV_NODES=3 CONTIV_L3=2", contivNodes+contivL3Nodes), IsNil)
+	} else {
+		c.Assert(s.vagrant.Setup(false, "", contivNodes), IsNil)
+	}
 	for _, nodeObj := range s.vagrant.GetNodes() {
-		s.nodes = append(s.nodes, &node{tbnode: nodeObj, suite: s})
+		nodeName := nodeObj.GetName()
+		if strings.Contains(nodeName, "netplugin-node") {
+			s.nodes = append(s.nodes, &node{tbnode: nodeObj, suite: s})
+		}
 	}
 
 	logrus.Info("Pulling alpine on all nodes")
@@ -90,6 +103,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 }
 
 func (s *systemtestSuite) SetUpTest(c *C) {
+
 	for _, node := range s.nodes {
 		node.cleanupContainers()
 		node.cleanupDockerNetwork()
@@ -99,13 +113,20 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 
 	for _, node := range s.nodes {
 		node.stopNetmaster()
+
+	}
+	for _, node := range s.nodes {
+		node.cleanupMaster()
 	}
 
-	s.getNodeByName("netplugin-node1").cleanupMaster()
-
 	for _, node := range s.nodes {
-		c.Assert(node.startNetplugin(""), IsNil)
-		c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+		if s.fwdMode == "bridge" {
+			c.Assert(node.startNetplugin(""), IsNil)
+			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+		} else if s.fwdMode == "routing" {
+			c.Assert(node.startNetplugin("-fwd-mode=routing -vlan-if=eth2"), IsNil)
+			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+		}
 	}
 
 	for _, node := range s.nodes {

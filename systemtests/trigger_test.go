@@ -99,7 +99,11 @@ func (s *systemtestSuite) TestNetpluginDisconnect(c *C) {
 			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
 			time.Sleep(2 * time.Minute)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
-			c.Assert(node.startNetplugin(""), IsNil)
+			if s.fwdMode == "routing" {
+				c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
+			} else {
+				c.Assert(node.startNetplugin(""), IsNil)
+			}
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 			time.Sleep(15 * time.Second)
 
@@ -111,6 +115,7 @@ func (s *systemtestSuite) TestNetpluginDisconnect(c *C) {
 }
 
 func (s *systemtestSuite) TestTriggers(c *C) {
+
 	groupNames := []string{}
 	network := &client.Network{
 		TenantName:  "default",
@@ -204,7 +209,11 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 			for _, node := range s.nodes {
 				c.Assert(node.stopNetplugin(), IsNil)
 				c.Assert(node.rotateLog("netplugin"), IsNil)
-				c.Assert(node.startNetplugin(""), IsNil)
+				if s.fwdMode == "routing" {
+					c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
+				} else {
+					c.Assert(node.startNetplugin(""), IsNil)
+				}
 				c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 			}
 		case 1:

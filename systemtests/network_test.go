@@ -7,6 +7,7 @@ import (
 	"github.com/contiv/contivmodel/client"
 	. "gopkg.in/check.v1"
 	"sync"
+	"time"
 )
 
 func (s *systemtestSuite) TestNetworkAddDeleteVXLAN(c *C) {
@@ -18,6 +19,13 @@ func (s *systemtestSuite) TestNetworkAddDeleteVLAN(c *C) {
 }
 
 func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
+
+	if s.fwdMode == "routing" {
+
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
+	}
+
 	for i := 0; i < s.iterations; i++ {
 		var (
 			netNames   = []string{}
@@ -48,6 +56,7 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 			containers[name], err = s.runContainers(numContainer, false, name, nil)
 			c.Assert(err, IsNil)
 		}
+		time.Sleep(5 * time.Second)
 
 		endChan := make(chan error)
 
@@ -62,19 +71,21 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 
 		count := 0
 
-		for key := range containers {
-			for key2 := range containers {
-				if key == key2 {
-					continue
+		if s.fwdMode != "routing" {
+			for key := range containers {
+				for key2 := range containers {
+					if key == key2 {
+						continue
+					}
+
+					count++
+					go func(conts1, conts2 []*container) { endChan <- s.pingFailureTest(conts1, conts2) }(containers[key], containers[key2])
 				}
-
-				count++
-				go func(conts1, conts2 []*container) { endChan <- s.pingFailureTest(conts1, conts2) }(containers[key], containers[key2])
 			}
-		}
 
-		for i := 0; i < count; i++ {
-			c.Assert(<-endChan, IsNil)
+			for i := 0; i < count; i++ {
+				c.Assert(<-endChan, IsNil)
+			}
 		}
 
 		for name := range containers {
@@ -101,6 +112,13 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantVLAN(c *C) {
 
 func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 	mutex := sync.Mutex{}
+
+	if encap == "vlan" && s.fwdMode == "routing" {
+
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
+	}
+
 	for i := 0; i < s.iterations; i++ {
 		var (
 			tenantNames = map[string][]string{}
@@ -147,6 +165,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil)
 					mutex.Unlock()
 					endChan <- err
+					time.Sleep(5 * time.Second)
 					endChan <- s.pingTest(containers[network])
 				}(network, tenant, containers)
 			}
