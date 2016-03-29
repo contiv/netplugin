@@ -3,12 +3,8 @@
   remote_user: vagrant
   become: yes
   become_method: sudo
+  environment: '{{ env }}'
   tasks:
-#      - name: upgrade system (redhat)
-#        yum:
-#          update_cache: true
-#          name: '*'
-#          state: latest
       - name: install mesosphere yum repo
         yum: name=http://repos.mesosphere.com/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm state=present
       - name: install zookeeper yum repo
@@ -36,12 +32,8 @@
   remote_user: vagrant
   become: yes
   become_method: sudo
+  environment: '{{ env }}'
   tasks:
-#      - name: upgrade system (redhat)
-#        yum:
-#          update_cache: true
-#          name: '*'
-#          state: latest
       - name: install mesosphere yum repo
         yum: name=http://repos.mesosphere.com/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm state=present
       - name: install mesos packages

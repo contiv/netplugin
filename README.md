@@ -35,7 +35,7 @@ $ vagrant ssh netplugin-node1
 #### Step 2: Create a network
 
 ```
-$ netctl net create contiv-net --subnet=20.1.1.0/24 --gateway=20.1.1.254 --pkt-tag=1001
+$ netctl net create contiv-net --subnet=20.1.1.0/24
 ```
 
 #### Step 3: Run your containers and enjoy the networking!

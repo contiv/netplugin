@@ -11,7 +11,7 @@ function GetKubernetes {
     rm -rf $top_dir/k8s-$k8sVer/kubernetes
     rm -rf $top_dir/k8s-$k8sVer/bin
   else
-    cd $top_dir/k8s-$k8sVer 
+    cd $top_dir/k8s-$k8sVer
     wget https://github.com/kubernetes/kubernetes/releases/download/$k8sVer/kubernetes.tar.gz
   fi
 
@@ -76,4 +76,4 @@ vagrant up
 ./vagrant_cluster.py
 
 # run ansible
-ansible-playbook -i .contiv_k8s_inventory ../../../../../contrib/ansible/cluster.yml --skip-tags "contiv_restart,ovs_install" -e "networking=contiv localBuildOutput=$top_dir/k8s-$k8sVer/kubernetes/server/bin contiv_bin_path=$top_dir/contiv_bin"
+ansible-playbook -i .contiv_k8s_inventory ../../../contrib/ansible/cluster.yml --skip-tags "contiv_restart,ovs_install" -e "networking=contiv localBuildOutput=$top_dir/k8s-$k8sVer/kubernetes/server/bin contiv_bin_path=$top_dir/contiv_bin"

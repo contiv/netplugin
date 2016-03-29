@@ -3,8 +3,8 @@
 
 # find all verifiable packages.
 # XXX: explore a better way that doesn't need multiple 'find'
-PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin|contrib|demo'`
-PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts|bin|contrib|demo'`
+PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin|demo'`
+PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts|bin|demo'`
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
@@ -40,7 +40,7 @@ run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
 	godep go install -v $(TO_BUILD) && \
-	sudo cp contrib/completion/bash/netctl /etc/bash_completion.d/netctl
+	sudo cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
 
 build:
 	make start
@@ -139,7 +139,7 @@ only-tar:
 
 tar: clean-tar build
 	@cat ${GOPATH}/src/github.com/contiv/netplugin/version/version_gen.go | grep versionStr | cut -f 4 -d " " | tr -d \" > $(VERSION_FILE)
-	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s -C $(GOPATH)/src/github.com/contiv/netplugin contrib/completion/bash/netctl
+	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s -C $(GOPATH)/src/github.com/contiv/netplugin/scripts contrib/completion/bash/netctl
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)

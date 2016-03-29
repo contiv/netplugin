@@ -6,6 +6,26 @@ require 'fileutils'
 # netplugin_synced_gopath="/opt/golang"
 gopath_folder="/opt/gopath"
 
+# Get env setting for http proxies
+host_env = { }
+host_env["no_proxy"] =  "192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster"
+if ENV['CONTIV_ENV'] then
+    ENV['CONTIV_ENV'].split(" ").each do |env|
+        e = env.split("=")
+        host_env[e[0]]=e[1]
+    end
+end
+
+if ENV["http_proxy"]
+  host_env["HTTP_PROXY"]  = host_env["http_proxy"]  = ENV["http_proxy"]
+  host_env["HTTPS_PROXY"] = host_env["https_proxy"] = ENV["https_proxy"]
+end
+
+ansible_extra_vars = {
+    "env" => host_env,
+    "validate_certs" => "no",
+}
+
 ANSIBLE_GROUPS = {
               "master" => ["node1"],
               "nodes" => ["node2"],
@@ -156,6 +176,7 @@ SCRIPT
                   ansible.playbook = "playbook.yml"
                   ansible.groups = ANSIBLE_GROUPS
                   ansible.limit = "all"
+                  ansible.extra_vars = ansible_extra_vars
               end
             end
             # forward netmaster port
