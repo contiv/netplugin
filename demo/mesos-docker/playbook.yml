@@ -1,0 +1,46 @@
+---
+- hosts: master
+  remote_user: vagrant
+  become: yes
+  become_method: sudo
+  environment: '{{ env }}'
+  tasks:
+      - name: install mesosphere yum repo
+        yum: name=http://repos.mesosphere.com/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm state=present
+      - name: install zookeeper yum repo
+        yum: name=http://archive.cloudera.com/cdh4/one-click-install/redhat/6/x86_64/cloudera-cdh-4-0.x86_64.rpm state=present
+      - name: install zookeeper
+        yum: pkg=zookeeper,zookeeper-server state=latest
+      - name: configure zookeeper ID
+        become_user: zookeeper
+        shell: zookeeper-server-initialize --force --myid=1
+      - name: install mesos and marathon packages
+        yum: pkg=device-mapper-event-libs,mesos-0.27.0,marathon-0.14.0 state=latest
+      - name: configure containerizers
+        lineinfile: dest=/etc/mesos-slave/containerizers create=yes line="docker,mesos"
+      - name: start zookeeper
+        service: name=zookeeper-server state=started enabled=yes
+      - name: start mesos-master
+        service: name=mesos-master state=started enabled=yes
+      - name: start mesos-slave
+        service: name=mesos-slave state=started enabled=yes
+      - name: start marathon
+        service: name=marathon state=started enabled=yes
+
+
+- hosts: nodes
+  remote_user: vagrant
+  become: yes
+  become_method: sudo
+  environment: '{{ env }}'
+  tasks:
+      - name: install mesosphere yum repo
+        yum: name=http://repos.mesosphere.com/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm state=present
+      - name: install mesos packages
+        yum: pkg=device-mapper-event-libs,mesos-0.27.0 state=latest
+      - name: configure containerizers
+        lineinfile: dest=/etc/mesos-slave/containerizers create=yes line="docker,mesos"
+      - name: set zookeeper master
+        replace: dest=/etc/mesos/zk regexp="localhost" replace="192.168.33.10"
+      - name: start mesos-slave
+        service: name=mesos-slave state=started enabled=yes
