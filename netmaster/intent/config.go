@@ -68,6 +68,16 @@ type ConfigBgp struct {
 	Neighbor   string
 }
 
+//ConfigServiceLB keeps servicelb specific configs
+type ConfigServiceLB struct {
+	ServiceName string
+	Tenant      string
+	Labels      map[string]string
+	Network     string
+	Ports       []string
+	IPAddress   string
+}
+
 // Config is the top level configuration
 type Config struct {
 	Tenants []ConfigTenant

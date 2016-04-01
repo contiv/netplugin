@@ -550,6 +550,7 @@ func (vr *Vrouter) RemoveUplink(portNo uint32) error {
 
 // AddSvcSpec adds a service spec to proxy
 func (vr *Vrouter) AddSvcSpec(svcName string, spec *ServiceSpec) error {
+        log.Infof("Vrouter AddSvcSpect: %s , %#v",svcName,spec)
 	return vr.svcProxy.AddSvcSpec(svcName, spec)
 }
 

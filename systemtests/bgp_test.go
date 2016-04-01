@@ -52,7 +52,7 @@ func (s *systemtestSuite) TestBgpContainerToContainerPing(c *C) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
@@ -115,7 +115,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 		c.Assert(err, IsNil)
 	}
 
@@ -179,7 +179,7 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -240,7 +240,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
@@ -312,7 +312,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 	endChan := make(chan error)
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -399,7 +399,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
@@ -493,7 +493,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -579,7 +579,7 @@ func (s *systemtestSuite) TestBgpTriggerNetmasterRestart(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, nil,nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -671,7 +671,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
@@ -747,7 +747,7 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -802,7 +802,7 @@ func (s *systemtestSuite) TestBgpMisconfigRecovery(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}

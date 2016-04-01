@@ -218,6 +218,19 @@ type ServiceInstanceLinks struct {
 	Service modeldb.Link `json:"Service,omitempty"`
 }
 
+type ServiceLB struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	IpAddress   string   `json:"ipAddress,omitempty"` // Service ip
+	Labels      []string `json:"labels,omitempty"`
+	Network     string   `json:"network,omitempty"` // Service subnet
+	Ports       []string `json:"ports,omitempty"`
+	ServiceName string   `json:"serviceName,omitempty"` // service name
+	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
+
+}
+
 type Tenant struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -296,6 +309,7 @@ type Collections struct {
 	rules            map[string]*Rule
 	services         map[string]*Service
 	serviceInstances map[string]*ServiceInstance
+	ServiceLBs       map[string]*ServiceLB
 	tenants          map[string]*Tenant
 	volumes          map[string]*Volume
 	volumeProfiles   map[string]*VolumeProfile
@@ -357,6 +371,12 @@ type ServiceInstanceCallbacks interface {
 	ServiceInstanceDelete(serviceInstance *ServiceInstance) error
 }
 
+type ServiceLBCallbacks interface {
+	ServiceLBCreate(ServiceLB *ServiceLB) error
+	ServiceLBUpdate(ServiceLB, params *ServiceLB) error
+	ServiceLBDelete(ServiceLB *ServiceLB) error
+}
+
 type TenantCallbacks interface {
 	TenantCreate(tenant *Tenant) error
 	TenantUpdate(tenant, params *Tenant) error
@@ -385,6 +405,7 @@ type CallbackHandlers struct {
 	RuleCb            RuleCallbacks
 	ServiceCb         ServiceCallbacks
 	ServiceInstanceCb ServiceInstanceCallbacks
+	ServiceLBCb       ServiceLBCallbacks
 	TenantCb          TenantCallbacks
 	VolumeCb          VolumeCallbacks
 	VolumeProfileCb   VolumeProfileCallbacks
@@ -402,6 +423,7 @@ func Init() {
 	collections.rules = make(map[string]*Rule)
 	collections.services = make(map[string]*Service)
 	collections.serviceInstances = make(map[string]*ServiceInstance)
+	collections.ServiceLBs = make(map[string]*ServiceLB)
 	collections.tenants = make(map[string]*Tenant)
 	collections.volumes = make(map[string]*Volume)
 	collections.volumeProfiles = make(map[string]*VolumeProfile)
@@ -415,6 +437,7 @@ func Init() {
 	restoreRule()
 	restoreService()
 	restoreServiceInstance()
+	restoreServiceLB()
 	restoreTenant()
 	restoreVolume()
 	restoreVolumeProfile()
@@ -455,6 +478,10 @@ func RegisterServiceCallbacks(handler ServiceCallbacks) {
 
 func RegisterServiceInstanceCallbacks(handler ServiceInstanceCallbacks) {
 	objCallbackHandler.ServiceInstanceCb = handler
+}
+
+func RegisterServiceLBCallbacks(handler ServiceLBCallbacks) {
+	objCallbackHandler.ServiceLBCb = handler
 }
 
 func RegisterTenantCallbacks(handler TenantCallbacks) {
@@ -598,6 +625,16 @@ func AddRoutes(router *mux.Router) {
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateServiceInstance))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteServiceInstance))
 
+	// Register ServiceLB
+	route = "/api/ServiceLBs/{key}/"
+	listRoute = "/api/ServiceLBs/"
+	log.Infof("Registering %s", route)
+	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListServiceLBs))
+	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetServiceLB))
+	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateServiceLB))
+	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateServiceLB))
+	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteServiceLB))
+
 	// Register tenant
 	route = "/api/tenants/{key}/"
 	listRoute = "/api/tenants/"
@@ -719,8 +756,6 @@ func CreateAppProfile(obj *AppProfile) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.appProfiles[obj.Key] != nil {
 		// Perform Update callback
@@ -729,9 +764,6 @@ func CreateAppProfile(obj *AppProfile) error {
 			log.Errorf("AppProfileUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.appProfiles[obj.Key]
 	} else {
 		// save it in cache
 		collections.appProfiles[obj.Key] = obj
@@ -746,9 +778,9 @@ func CreateAppProfile(obj *AppProfile) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving appProfile %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving appProfile %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -958,8 +990,6 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.endpointGroups[obj.Key] != nil {
 		// Perform Update callback
@@ -968,9 +998,6 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 			log.Errorf("EndpointGroupUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.endpointGroups[obj.Key]
 	} else {
 		// save it in cache
 		collections.endpointGroups[obj.Key] = obj
@@ -985,9 +1012,9 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving endpointGroup %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving endpointGroup %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -1197,8 +1224,6 @@ func CreateGlobal(obj *Global) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.globals[obj.Key] != nil {
 		// Perform Update callback
@@ -1207,9 +1232,6 @@ func CreateGlobal(obj *Global) error {
 			log.Errorf("GlobalUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.globals[obj.Key]
 	} else {
 		// save it in cache
 		collections.globals[obj.Key] = obj
@@ -1224,9 +1246,9 @@ func CreateGlobal(obj *Global) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving global %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving global %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -1454,8 +1476,6 @@ func CreateBgp(obj *Bgp) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.Bgps[obj.Key] != nil {
 		// Perform Update callback
@@ -1464,9 +1484,6 @@ func CreateBgp(obj *Bgp) error {
 			log.Errorf("BgpUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.Bgps[obj.Key]
 	} else {
 		// save it in cache
 		collections.Bgps[obj.Key] = obj
@@ -1481,9 +1498,9 @@ func CreateBgp(obj *Bgp) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving Bgp %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving Bgp %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -1713,8 +1730,6 @@ func CreateNetwork(obj *Network) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.networks[obj.Key] != nil {
 		// Perform Update callback
@@ -1723,9 +1738,6 @@ func CreateNetwork(obj *Network) error {
 			log.Errorf("NetworkUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.networks[obj.Key]
 	} else {
 		// save it in cache
 		collections.networks[obj.Key] = obj
@@ -1740,9 +1752,9 @@ func CreateNetwork(obj *Network) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving network %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving network %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -1984,8 +1996,6 @@ func CreatePolicy(obj *Policy) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.policys[obj.Key] != nil {
 		// Perform Update callback
@@ -1994,9 +2004,6 @@ func CreatePolicy(obj *Policy) error {
 			log.Errorf("PolicyUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.policys[obj.Key]
 	} else {
 		// save it in cache
 		collections.policys[obj.Key] = obj
@@ -2011,9 +2018,9 @@ func CreatePolicy(obj *Policy) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving policy %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving policy %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -2223,8 +2230,6 @@ func CreateRule(obj *Rule) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.rules[obj.Key] != nil {
 		// Perform Update callback
@@ -2233,9 +2238,6 @@ func CreateRule(obj *Rule) error {
 			log.Errorf("RuleUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.rules[obj.Key]
 	} else {
 		// save it in cache
 		collections.rules[obj.Key] = obj
@@ -2250,9 +2252,9 @@ func CreateRule(obj *Rule) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving rule %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving rule %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -2521,8 +2523,6 @@ func CreateService(obj *Service) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.services[obj.Key] != nil {
 		// Perform Update callback
@@ -2531,9 +2531,6 @@ func CreateService(obj *Service) error {
 			log.Errorf("ServiceUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.services[obj.Key]
 	} else {
 		// save it in cache
 		collections.services[obj.Key] = obj
@@ -2548,9 +2545,9 @@ func CreateService(obj *Service) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving service %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving service %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -2760,8 +2757,6 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.serviceInstances[obj.Key] != nil {
 		// Perform Update callback
@@ -2770,9 +2765,6 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 			log.Errorf("ServiceInstanceUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.serviceInstances[obj.Key]
 	} else {
 		// save it in cache
 		collections.serviceInstances[obj.Key] = obj
@@ -2787,9 +2779,9 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving serviceInstance %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving serviceInstance %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -2911,6 +2903,256 @@ func ValidateServiceInstance(obj *ServiceInstance) error {
 }
 
 // LIST REST call
+func httpListServiceLBs(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpListServiceLBs: %+v", vars)
+
+	list := make([]*ServiceLB, 0)
+	for _, obj := range collections.ServiceLBs {
+		list = append(list, obj)
+	}
+
+	// Return the list
+	return list, nil
+}
+
+// GET REST call
+func httpGetServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetServiceLB: %+v", vars)
+
+	key := vars["key"]
+
+	obj := collections.ServiceLBs[key]
+	if obj == nil {
+		log.Errorf("ServiceLB %s not found", key)
+		return nil, errors.New("ServiceLB not found")
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// CREATE REST call
+func httpCreateServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetServiceLB: %+v", vars)
+
+	var obj ServiceLB
+	key := vars["key"]
+
+	// Get object from the request
+	err := json.NewDecoder(r.Body).Decode(&obj)
+	if err != nil {
+		log.Errorf("Error decoding ServiceLB create request. Err %v", err)
+		return nil, err
+	}
+
+	// set the key
+	obj.Key = key
+
+	// Create the object
+	err = CreateServiceLB(&obj)
+	if err != nil {
+		log.Errorf("CreateServiceLB error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// DELETE rest call
+func httpDeleteServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpDeleteServiceLB: %+v", vars)
+
+	key := vars["key"]
+
+	// Delete the object
+	err := DeleteServiceLB(key)
+	if err != nil {
+		log.Errorf("DeleteServiceLB error for: %s. Err: %v", key, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return key, nil
+}
+
+// Create a ServiceLB object
+func CreateServiceLB(obj *ServiceLB) error {
+	// Validate parameters
+	err := ValidateServiceLB(obj)
+	if err != nil {
+		log.Errorf("ValidateServiceLB retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.ServiceLBCb == nil {
+		log.Errorf("No callback registered for ServiceLB object")
+		return errors.New("Invalid object type")
+	}
+
+	// Check if object already exists
+	if collections.ServiceLBs[obj.Key] != nil {
+		// Perform Update callback
+		err = objCallbackHandler.ServiceLBCb.ServiceLBUpdate(collections.ServiceLBs[obj.Key], obj)
+		if err != nil {
+			log.Errorf("ServiceLBUpdate retruned error for: %+v. Err: %v", obj, err)
+			return err
+		}
+	} else {
+		// save it in cache
+		collections.ServiceLBs[obj.Key] = obj
+
+		// Perform Create callback
+		err = objCallbackHandler.ServiceLBCb.ServiceLBCreate(obj)
+		if err != nil {
+			log.Errorf("ServiceLBCreate retruned error for: %+v. Err: %v", obj, err)
+			delete(collections.ServiceLBs, obj.Key)
+			return err
+		}
+	}
+
+	// Write it to modeldb
+	err = obj.Write()
+	if err != nil {
+		log.Errorf("Error saving ServiceLB %s to db. Err: %v", obj.Key, err)
+		return err
+	}
+
+	return nil
+}
+
+// Return a pointer to ServiceLB from collection
+func FindServiceLB(key string) *ServiceLB {
+	obj := collections.ServiceLBs[key]
+	if obj == nil {
+		return nil
+	}
+
+	return obj
+}
+
+// Delete a ServiceLB object
+func DeleteServiceLB(key string) error {
+	obj := collections.ServiceLBs[key]
+	if obj == nil {
+		log.Errorf("ServiceLB %s not found", key)
+		return errors.New("ServiceLB not found")
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.ServiceLBCb == nil {
+		log.Errorf("No callback registered for ServiceLB object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.ServiceLBCb.ServiceLBDelete(obj)
+	if err != nil {
+		log.Errorf("ServiceLBDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// delete it from modeldb
+	err = obj.Delete()
+	if err != nil {
+		log.Errorf("Error deleting ServiceLB %s. Err: %v", obj.Key, err)
+	}
+
+	// delete it from cache
+	delete(collections.ServiceLBs, key)
+
+	return nil
+}
+
+func (self *ServiceLB) GetType() string {
+	return "ServiceLB"
+}
+
+func (self *ServiceLB) GetKey() string {
+	return self.Key
+}
+
+func (self *ServiceLB) Read() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to read ServiceLB object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.ReadObj("ServiceLB", self.Key, self)
+}
+
+func (self *ServiceLB) Write() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Write ServiceLB object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.WriteObj("ServiceLB", self.Key, self)
+}
+
+func (self *ServiceLB) Delete() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Delete ServiceLB object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.DeleteObj("ServiceLB", self.Key)
+}
+
+func restoreServiceLB() error {
+	strList, err := modeldb.ReadAllObj("ServiceLB")
+	if err != nil {
+		log.Errorf("Error reading ServiceLB list. Err: %v", err)
+	}
+
+	for _, objStr := range strList {
+		// Parse the json model
+		var ServiceLB ServiceLB
+		err = json.Unmarshal([]byte(objStr), &ServiceLB)
+		if err != nil {
+			log.Errorf("Error parsing object %s, Err %v", objStr, err)
+			return err
+		}
+
+		// add it to the collection
+		collections.ServiceLBs[ServiceLB.Key] = &ServiceLB
+	}
+
+	return nil
+}
+
+// Validate a ServiceLB object
+func ValidateServiceLB(obj *ServiceLB) error {
+	// Validate key is correct
+	keyStr := obj.ServiceName + ":" + obj.TenantName
+	if obj.Key != keyStr {
+		log.Errorf("Expecting ServiceLB Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	if len(obj.IpAddress) > 15 {
+		return errors.New("ipAddress string too long")
+	}
+
+	if len(obj.Network) > 15 {
+		return errors.New("network string too long")
+	}
+
+	if len(obj.ServiceName) > 256 {
+		return errors.New("serviceName string too long")
+	}
+
+	if len(obj.TenantName) > 64 {
+		return errors.New("tenantName string too long")
+	}
+
+	return nil
+}
+
+// LIST REST call
 func httpListTenants(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	log.Debugf("Received httpListTenants: %+v", vars)
 
@@ -2999,8 +3241,6 @@ func CreateTenant(obj *Tenant) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.tenants[obj.Key] != nil {
 		// Perform Update callback
@@ -3009,9 +3249,6 @@ func CreateTenant(obj *Tenant) error {
 			log.Errorf("TenantUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.tenants[obj.Key]
 	} else {
 		// save it in cache
 		collections.tenants[obj.Key] = obj
@@ -3026,9 +3263,9 @@ func CreateTenant(obj *Tenant) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving tenant %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving tenant %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -3246,8 +3483,6 @@ func CreateVolume(obj *Volume) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.volumes[obj.Key] != nil {
 		// Perform Update callback
@@ -3256,9 +3491,6 @@ func CreateVolume(obj *Volume) error {
 			log.Errorf("VolumeUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.volumes[obj.Key]
 	} else {
 		// save it in cache
 		collections.volumes[obj.Key] = obj
@@ -3273,9 +3505,9 @@ func CreateVolume(obj *Volume) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving volume %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving volume %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 
@@ -3485,8 +3717,6 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 		return errors.New("Invalid object type")
 	}
 
-	saveObj := obj
-
 	// Check if object already exists
 	if collections.volumeProfiles[obj.Key] != nil {
 		// Perform Update callback
@@ -3495,9 +3725,6 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 			log.Errorf("VolumeProfileUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
-
-		// save the original object after update
-		saveObj = collections.volumeProfiles[obj.Key]
 	} else {
 		// save it in cache
 		collections.volumeProfiles[obj.Key] = obj
@@ -3512,9 +3739,9 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 	}
 
 	// Write it to modeldb
-	err = saveObj.Write()
+	err = obj.Write()
 	if err != nil {
-		log.Errorf("Error saving volumeProfile %s to db. Err: %v", saveObj.Key, err)
+		log.Errorf("Error saving volumeProfile %s to db. Err: %v", obj.Key, err)
 		return err
 	}
 

@@ -84,7 +84,7 @@ func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
 			groupNames = append(groupNames, epgName)
 		}
 
-		containers, err := s.runContainers(s.containers, true, "private", groupNames)
+		containers, err := s.runContainers(s.containers, true, "private", groupNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
 			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
@@ -182,7 +182,7 @@ func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 		groupNames = append(groupNames, epgName)
 	}
 
-	containers, err := s.runContainers(s.containers, true, "private", groupNames)
+	containers, err := s.runContainers(s.containers, true, "private", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
@@ -319,7 +319,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 			policyNames = append(policyNames, policyName)
 		}
 
-		containers, err := s.runContainers(s.containers, true, "private", policyNames)
+		containers, err := s.runContainers(s.containers, true, "private", policyNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
 			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)

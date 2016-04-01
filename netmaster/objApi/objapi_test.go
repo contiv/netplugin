@@ -16,18 +16,21 @@ limitations under the License.
 package objApi
 
 import (
+	"encoding/json"
+	"golang.org/x/net/context"
 	"log"
 	"net/http"
 	"os"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
+	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/state"
@@ -71,6 +74,9 @@ func TestMain(m *testing.M) {
 	}
 
 	router := mux.NewRouter()
+	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
+	s.HandleFunc("/plugin/svcProviderUpdate", makeHTTPHandler(master.ServiceProviderUpdateHandler))
+	s = router.Methods("Get").Subrouter()
 
 	// Create a new api controller
 	apiController = NewAPIController(router, "etcd://127.0.0.1:4001")
@@ -702,3 +708,291 @@ func TestEpgPolicies(t *testing.T) {
 	// delete the network
 	checkDeleteNetwork(t, false, "default", "contiv")
 }
+
+func TestServiceProviderUpdate(t *testing.T) {
+
+	labels := []string{"key1=value1", "key2=value2"}
+	port := []string{"80:8080:TCP"}
+
+	createNetwork(t, "yellow", "default", "vxlan", "10.1.1.0/24", "10.1.1.254")
+	createNetwork(t, "orange", "default", "vxlan", "11.1.1.0/24", "11.1.1.254")
+
+	checkServiceCreate(t, "default", "yellow", "redis", port, labels, "")
+	verifyServiceCreate(t, "default", "yellow", "redis", port, labels, "")
+
+	containerID := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+
+	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", labels)
+	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", "redis", labels)
+	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", labels)
+	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", "redis", labels)
+	checkServiceDelete(t, "default", "redis")
+	verifyServiceDelete(t, "default", "redis")
+	deleteNetwork(t, "orange", "default")
+	deleteNetwork(t, "yellow", "default")
+}
+
+func TestServiceProviderUpdateServiceAdd(t *testing.T) {
+
+	labels := []string{"key1=value1", "key2=value2"}
+	port := []string{"80:8080:TCP"}
+
+	containerID := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+
+	createNetwork(t, "orange", "default", "vxlan", "11.1.1.0/24", "11.1.1.254")
+	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", labels)
+
+	createNetwork(t, "yellow", "default", "vxlan", "10.1.1.0/24", "10.1.1.254")
+	checkServiceCreate(t, "default", "yellow", "redis", port, labels, "")
+	verifyServiceCreate(t, "default", "yellow", "redis", port, labels, "")
+
+	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", "redis", labels)
+	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", labels)
+	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", "redis", labels)
+	checkServiceDelete(t, "default", "redis")
+	verifyServiceDelete(t, "default", "redis")
+	deleteNetwork(t, "orange", "default")
+	deleteNetwork(t, "yellow", "default")
+}
+
+func TestServicePreferredIP(t *testing.T) {
+
+	labels := []string{"key1=value1", "key2=value2"}
+	port := []string{"80:8080:TCP"}
+
+	createNetwork(t, "yellow", "default", "vxlan", "10.1.1.0/24", "10.1.1.254")
+	checkServiceCreate(t, "default", "yellow", "redis", port, labels, "10.1.1.3")
+	verifyServiceCreate(t, "default", "yellow", "redis", port, labels, "10.1.1.3")
+	checkServiceDelete(t, "default", "redis")
+	deleteNetwork(t, "yellow", "default")
+}
+func checkServiceCreate(t *testing.T, tenant, network, serviceName string, port []string, label []string,
+	preferredIP string) {
+
+	serviceLB := &client.ServiceLB{
+		TenantName:  tenant,
+		Network:     network,
+		ServiceName: serviceName,
+	}
+	if preferredIP != "" {
+		serviceLB.IpAddress = preferredIP
+	}
+	serviceLB.Labels = append(serviceLB.Labels, label...)
+
+	serviceLB.Ports = append(serviceLB.Ports, port...)
+
+	err := contivClient.ServiceLBPost(serviceLB)
+	if err != nil {
+		log.Fatalf("Error creating Service. Err: %v", err)
+	}
+
+}
+
+func verifyServiceCreate(t *testing.T, tenant, network, serviceName string, port []string, label []string,
+	preferredIP string) {
+	service, err := contivClient.ServiceLBGet(serviceName, tenant)
+	if err != nil {
+		t.Fatalf("Error retrieving the service created %s ", serviceName)
+	}
+
+	if service.Network != network {
+		t.Fatalf("Service Created does not have a valid network")
+	}
+	if !reflect.DeepEqual(service.Labels, label) || !reflect.DeepEqual(service.Ports, port) {
+		t.Fatalf("Service Created has mismatched labels or port information")
+	}
+
+	serviceLbState := mastercfg.CfgServiceLBState{}
+	serviceLbState.StateDriver = stateStore
+	serviceLbState.ID = serviceName + "\\" + tenant
+
+	err = serviceLbState.Read(serviceLbState.ID)
+	if err != nil {
+		t.Fatalf("Error reading from service load balancer state")
+	}
+
+	if serviceLbState.IPAddress == "" {
+		t.Fatalf("Service Created does not have an ip addres allocated")
+	}
+
+	if preferredIP != "" && serviceLbState.IPAddress != preferredIP {
+		t.Fatalf("Service Created does not have preferred ip addres allocated")
+	}
+
+}
+
+func checkServiceDelete(t *testing.T, tenant, serviceName string) {
+
+	err := contivClient.ServiceLBDelete(serviceName, tenant)
+	if err != nil {
+		log.Fatalf("Error creating Service. Err: %v", err)
+	}
+
+}
+
+func verifyServiceDelete(t *testing.T, tenant, serviceName string) {
+
+	serviceLbState := mastercfg.CfgServiceLBState{}
+	serviceLbState.StateDriver = stateStore
+	serviceLbState.ID = serviceName + "\\" + tenant
+
+	err := serviceLbState.Read(serviceLbState.ID)
+	if err == nil {
+		t.Fatalf("Servicer Load balancer state not cleared after delete")
+	}
+}
+
+func triggerProviderUpdate(t *testing.T, providerIP, network, containerID,
+	tenant, event string, labels []string) {
+
+	providerUpdReq := master.SvcProvUpdateRequest{}
+	providerUpdReq.IPAddress = providerIP
+	providerUpdReq.ContainerID = containerID
+	providerUpdReq.Tenant = tenant
+	providerUpdReq.Network = network
+	providerUpdReq.Event = event
+	providerUpdReq.Labels = make(map[string]string)
+
+	for _, v := range labels {
+		key := strings.Split(v, "=")[0]
+		value := strings.Split(v, "=")[1]
+		providerUpdReq.Labels[key] = value
+	}
+	//var svcProvResp master.SvcProvUpdateResponse
+
+	jsonStr, err := json.Marshal(providerUpdReq)
+	if err != nil {
+		t.Fatalf("Error converting request data(%#v) to Json. Err: %v", providerUpdReq, err)
+	}
+	url := netmasterTestURL + "/plugin/svcProviderUpdate"
+	// Perform HTTP POST operation
+	res, err := http.Post(url, "application/json", strings.NewReader(string(jsonStr)))
+	if err != nil {
+		t.Fatalf("Error during http get. Err: %v", err)
+	}
+
+	// Check the response code
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
+	}
+
+}
+func verifyProviderUpdate(t *testing.T, providerIP, network, containerID,
+	tenant, event, service string, labels []string) {
+
+	svcProvider := &mastercfg.SvcProvider{}
+	svcProvider.StateDriver = stateStore
+	svcProvider.ID = service + "\\" + tenant
+	svcProvider.ServiceName = service + "\\" + tenant
+	err := svcProvider.Read(svcProvider.ID)
+	if err != nil {
+		t.Fatalf("Error reading from service provider state %s", err)
+	}
+
+	found := false
+	for _, ipAddress := range svcProvider.Providers {
+		if ipAddress == providerIP {
+			found = true
+			break
+		}
+	}
+	if found == false && event == "start" {
+		t.Fatalf("Service Provider update failed to update the new provider %s", providerIP)
+	} else if found == true && event == "die" {
+		t.Fatalf("Service Provider update failed to delete the provider %s", providerIP)
+	}
+}
+
+func createNetwork(t *testing.T, network, tenant, encap, subnet, gw string) {
+	net := client.Network{
+		TenantName:  tenant,
+		NetworkName: network,
+		Encap:       encap,
+		Subnet:      subnet,
+		Gateway:     gw,
+	}
+	err := contivClient.NetworkPost(&net)
+	if err != nil {
+		t.Fatalf("Error creating network {%+v}. Err: %v", net, err)
+	}
+
+}
+
+func deleteNetwork(t *testing.T, network, tenant string) {
+	err := contivClient.NetworkDelete(tenant, network)
+	if err != nil {
+		t.Fatalf("Error deleting network {%+v}. Err: %v", network, err)
+	}
+}
+
+// Simple Wrapper for http handlers
+func makeHTTPHandler(handlerFunc httpAPIFunc) http.HandlerFunc {
+	// Create a closure and return an anonymous function
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Call the handler
+		resp, err := handlerFunc(w, r, mux.Vars(r))
+		if err != nil {
+			// Log error
+
+			// Send HTTP response
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			// Send HTTP response as Json
+			err = writeJSON(w, http.StatusOK, resp)
+			if err != nil {
+			}
+		}
+	}
+}
+
+// writeJSON: writes the value v to the http response stream as json with standard
+// json encoding.
+func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
+	// Set content type as json
+	w.Header().Set("Content-Type", "application/json")
+
+	// write the HTTP status code
+	w.WriteHeader(code)
+
+	// Write the Json output
+	return json.NewEncoder(w).Encode(v)
+}
+
+func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			idStr  string
+			states []core.State
+			resp   []byte
+			ok     bool
+			err    error
+		)
+
+		if getAll {
+			idStr = "all"
+		} else if idStr, ok = mux.Vars(r)["id"]; !ok {
+			http.Error(w,
+				core.Errorf("Failed to find the id string in the request.").Error(),
+				http.StatusInternalServerError)
+		}
+
+		if states, err = hook(idStr); err != nil {
+			http.Error(w,
+				err.Error(),
+				http.StatusInternalServerError)
+			return
+		}
+
+		if resp, err = json.Marshal(states); err != nil {
+			http.Error(w,
+				core.Errorf("marshalling json failed. Error: %s", err).Error(),
+				http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(resp)
+		return
+	}
+}
+
+type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)

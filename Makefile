@@ -107,6 +107,7 @@ ubuntu-tests:
 
 system-test:start
 	godep go test -v -timeout 240m ./systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACI"
+	godep go test -v -timeout 500m ./systemtests -check.v -check.f TestService*
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop

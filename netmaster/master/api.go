@@ -23,11 +23,10 @@ import (
 	"strings"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // AddressAllocRequest is the address request from netplugin
@@ -70,6 +69,21 @@ type DeleteEndpointRequest struct {
 	ServiceName string // service name
 	EndpointID  string // Unique identifier for the endpoint
 	IPv4Address string // Allocated IPv4 address for the endpoint
+}
+
+//SvcProvUpdateRequest is service provider update request from netplugin
+type SvcProvUpdateRequest struct {
+	IPAddress   string            // provider IP
+	ContainerID string            // container id
+	Labels      map[string]string // lables
+	Tenant      string
+	Network     string
+	Event       string
+}
+
+//SvcProvUpdateResponse is service provider update request from netplugin
+type SvcProvUpdateResponse struct {
+	IPAddress string // provider IP
 }
 
 // DeleteEndpointResponse is the delete endpoint response from netmaster
@@ -295,4 +309,113 @@ func DeleteEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 
 	// done. return resp
 	return delResp, nil
+}
+
+//ServiceProviderUpdateHandler handles service provider update event from netplugin
+func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+
+	var svcProvUpdReq SvcProvUpdateRequest
+
+	// Get object from the request
+	err := json.NewDecoder(r.Body).Decode(&svcProvUpdReq)
+
+	if err != nil {
+		log.Errorf("Error decoding ServiceUpdateRequest. Err %v", err)
+		return nil, err
+	}
+
+	log.Infof("Recieved ServiceProviderUpdate {%+v}", svcProvUpdReq)
+
+	if svcProvUpdReq.Event == "start" {
+		//Received container start event from netplugin. Check if the Provider
+		//matches any service and perform service provider update if there is a matching
+		//service.
+		provider := &mastercfg.Provider{}
+		provider.IPAddress = svcProvUpdReq.IPAddress
+		provider.Tenant = svcProvUpdReq.Tenant
+		provider.Network = svcProvUpdReq.Network
+		provider.ContainerID = svcProvUpdReq.ContainerID
+		provider.Labels = make(map[string]string)
+		for k, v := range svcProvUpdReq.Labels {
+			provider.Labels[k] = v
+		}
+		providerID := getProviderID(provider)
+		providerDbID := getProviderDbID(provider)
+		if providerID == "" || providerDbID == "" {
+			return nil, fmt.Errorf("Invalid ProviderID from providerInfo:{%v}", provider)
+		}
+		//update provider db
+		mastercfg.ProviderDb[providerDbID] = provider
+		for serviceID, service := range mastercfg.ServiceLBDb {
+			count := 0
+			if service.Tenant == svcProvUpdReq.Tenant {
+				//Label matches calling service provider update
+				for key, value := range svcProvUpdReq.Labels {
+					if val := service.Labels[key]; val == value {
+						count++
+					}
+
+					if count == len(service.Labels) {
+						//Container corresponds to the service since it
+						//matches all service labels
+						mastercfg.ProviderDb[providerDbID].Services =
+							append(mastercfg.ProviderDb[providerDbID].Services, serviceID)
+							//Update ServiceDB
+						mastercfg.ServiceLBDb[serviceID].Providers[providerID] = provider
+						stateDriver, err := utils.GetStateDriver()
+						if err != nil {
+							return nil, err
+						}
+						serviceLbState := &mastercfg.CfgServiceLBState{}
+						serviceLbState.StateDriver = stateDriver
+						err = serviceLbState.Read(serviceID)
+						if err != nil {
+							return nil, err
+						}
+						serviceLbState.Providers[providerID] = provider
+						serviceLbState.Write()
+						SvcProviderUpdate(serviceID, false)
+					}
+				}
+			}
+		}
+
+	} else if svcProvUpdReq.Event == "die" {
+		//Received a container die event. If it was a service provider -
+		//clear the provider db and the service db and change the etcd state
+		providerDbID := svcProvUpdReq.ContainerID
+		if providerDbID == "" {
+			return nil, fmt.Errorf("Invalid containerID in SvcProvUpdateRequest:(nil)")
+		}
+
+		provider := mastercfg.ProviderDb[providerDbID]
+		for _, serviceID := range provider.Services {
+			service := mastercfg.ServiceLBDb[serviceID]
+			providerID := getProviderID(provider)
+			if providerID == "" {
+				return nil, fmt.Errorf("Invalid ProviderID from providerInfp:{%v}", provider)
+			}
+			delete(service.Providers, providerID)
+
+			stateDriver, err := utils.GetStateDriver()
+			if err != nil {
+				return nil, err
+			}
+			serviceLbState := &mastercfg.CfgServiceLBState{}
+			serviceLbState.StateDriver = stateDriver
+			err = serviceLbState.Read(serviceID)
+			if err != nil {
+				return nil, err
+			}
+			delete(serviceLbState.Providers, providerID)
+			serviceLbState.Write()
+			delete(mastercfg.ProviderDb, providerDbID)
+			SvcProviderUpdate(serviceID, false)
+		}
+
+	}
+	srvUpdResp := &SvcProvUpdateResponse{
+		IPAddress: svcProvUpdReq.IPAddress,
+	}
+	return srvUpdResp, nil
 }

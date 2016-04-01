@@ -14,7 +14,7 @@ BUILD_PKGS=$1
 echo "+++ Checking Go version..."
 ver=$(go version | awk '{print $3}')
 minVer="go1.5.1"
-maxVer="go1.5.1"
+maxVer="go1.6.1"
 if [[ ${ver} < ${minVer} ]]; then
     echo "!!! Go version check failed. Expected >=${minVer} but found ${ver}"
     exit 1

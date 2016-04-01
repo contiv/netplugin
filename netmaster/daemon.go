@@ -177,6 +177,7 @@ func (d *daemon) registerRoutes(router *mux.Router) {
 	s.HandleFunc("/plugin/releaseAddress", makeHTTPHandler(master.ReleaseAddressHandler))
 	s.HandleFunc("/plugin/createEndpoint", makeHTTPHandler(master.CreateEndpointHandler))
 	s.HandleFunc("/plugin/deleteEndpoint", makeHTTPHandler(master.DeleteEndpointHandler))
+	s.HandleFunc("/plugin/svcProviderUpdate", makeHTTPHandler(master.ServiceProviderUpdateHandler))
 
 	s = router.Methods("Get").Subrouter()
 	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetEndpointRESTEndpoint, "{id}"),
@@ -188,6 +189,13 @@ func (d *daemon) registerRoutes(router *mux.Router) {
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetNetworksRESTEndpoint),
 		get(true, d.networks))
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetVersionRESTEndpoint), getVersion)
+	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetServiceRESTEndpoint, "{id}"),
+		get(false, d.services))
+	s.HandleFunc(fmt.Sprintf("/%s", master.GetServicesRESTEndpoint),
+		get(true, d.services))
+
+	// See if we need to create the default tenant
+	go objApi.CreateDefaultTenant()
 }
 
 // XXX: This function should be returning logical state instead of driver state
@@ -250,11 +258,13 @@ func (d *daemon) runLeader() {
 	// Create a new api controller
 	d.apiController = objApi.NewAPIController(router, d.clusterStore)
 
+	// Register netmaster service
+	d.registerService()
+
 	// initialize policy manager
 	mastercfg.InitPolicyMgr(d.stateDriver, d.ofnetMaster)
 
-	// Register netmaster service
-	d.registerService()
+	d.restoreCache()
 
 	// setup HTTP routes
 	d.registerRoutes(router)
@@ -404,4 +414,32 @@ func (d *daemon) runMasterFsm() {
 			}
 		}
 	}
+}
+
+func (d *daemon) restoreCache() {
+
+	//Restore ServiceLBDb and ProviderDb
+	master.RestoreServiceProviderLBDb()
+
+}
+
+// services: This function should be returning logical state instead of driver state
+func (d *daemon) services(id string) ([]core.State, error) {
+	var (
+		err error
+		svc *mastercfg.CfgServiceLBState
+	)
+
+	svc = &mastercfg.CfgServiceLBState{}
+	if svc.StateDriver, err = utils.GetStateDriver(); err != nil {
+		return nil, err
+	}
+
+	if id == "all" {
+		return svc.ReadAll()
+	} else if err := svc.Read(id); err == nil {
+		return []core.State{core.State(svc)}, nil
+	}
+
+	return nil, core.Errorf("Unexpected code path")
 }

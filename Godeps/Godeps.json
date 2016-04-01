@@ -12,6 +12,11 @@
 			"Rev": "056c9bc7be7190eaa7715723883caffa5f8fa3e4"
 		},
 		{
+			"ImportPath": "github.com/Microsoft/go-winio",
+			"Comment": "v0.3.2",
+			"Rev": "862b6557927a5c5c81e411c12aa6de7e566cbb7a"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.8.7-55-gf7f79f7",
 			"Rev": "f7f79f729e0fbe2fcc061db48a9ba0263f588252"
@@ -117,6 +122,16 @@
 			"Rev": "73a8ef737e8ea002281a28b4cb92a1de121ad4c6"
 		},
 		{
+			"ImportPath": "github.com/docker/distribution/digest",
+			"Comment": "v2.4.0-rc.1-36-g9d49169",
+			"Rev": "9d491698ccf3eba4e87213350518dbaacf8e9650"
+		},
+		{
+			"ImportPath": "github.com/docker/distribution/reference",
+			"Comment": "v2.4.0-rc.1-36-g9d49169",
+			"Rev": "9d491698ccf3eba4e87213350518dbaacf8e9650"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/listenbuffer",
 			"Comment": "v1.4.1-5404-gc471b7a",
 			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
@@ -135,6 +150,31 @@
 			"ImportPath": "github.com/docker/docker/pkg/tlsconfig",
 			"Comment": "v1.4.1-5404-gc471b7a",
 			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
+		},
+		{
+			"ImportPath": "github.com/docker/engine-api/client",
+			"Comment": "v0.3.1-52-g9b12a76",
+			"Rev": "9b12a765bbcbfbb9ab937fde4f6082bca48e97db"
+		},
+		{
+			"ImportPath": "github.com/docker/engine-api/types",
+			"Comment": "v0.3.1-52-g9b12a76",
+			"Rev": "9b12a765bbcbfbb9ab937fde4f6082bca48e97db"
+		},
+		{
+			"ImportPath": "github.com/docker/go-connections/nat",
+			"Comment": "v0.2.0-4-g5b7154b",
+			"Rev": "5b7154ba2efe13ff86ae8830a9e7cb120b080d6e"
+		},
+		{
+			"ImportPath": "github.com/docker/go-connections/sockets",
+			"Comment": "v0.2.0-4-g5b7154b",
+			"Rev": "5b7154ba2efe13ff86ae8830a9e7cb120b080d6e"
+		},
+		{
+			"ImportPath": "github.com/docker/go-connections/tlsconfig",
+			"Comment": "v0.2.0-4-g5b7154b",
+			"Rev": "5b7154ba2efe13ff86ae8830a9e7cb120b080d6e"
 		},
 		{
 			"ImportPath": "github.com/docker/go-units",
@@ -239,7 +279,7 @@
 		},
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
-			"Rev": "cbaabee855285ae1d5b1cde4fda8b035e77d3a76"
+			"Rev": "91d7393ff85980ba3a8966405871a3d446ca28f2"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
@@ -296,6 +336,10 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/internal/timeseries",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/proxy",
 			"Rev": "195180cfebf7362bd243a52477697895128c8777"
 		},
 		{

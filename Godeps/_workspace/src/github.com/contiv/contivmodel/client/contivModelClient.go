@@ -349,6 +349,19 @@ type ServiceInstanceLinks struct {
 	Service Link `json:"Service,omitempty"`
 }
 
+type ServiceLB struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	IpAddress   string   `json:"ipAddress,omitempty"` // Service ip
+	Labels      []string `json:"labels,omitempty"`
+	Network     string   `json:"network,omitempty"` // Service subnet
+	Ports       []string `json:"ports,omitempty"`
+	ServiceName string   `json:"serviceName,omitempty"` // service name
+	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
+
+}
+
 type Tenant struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -996,6 +1009,71 @@ func (c *ContivClient) ServiceInstanceDelete(tenantName string, appName string, 
 	err := httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting serviceInstance %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
+// ServiceLBPost posts the ServiceLB object
+func (c *ContivClient) ServiceLBPost(obj *ServiceLB) error {
+	// build key and URL
+	keyStr := obj.ServiceName + ":" + obj.TenantName
+	url := c.baseURL + "/api/ServiceLBs/" + keyStr + "/"
+
+	// http post the object
+	err := httpPost(url, obj)
+	if err != nil {
+		log.Debugf("Error creating ServiceLB %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
+}
+
+// ServiceLBList lists all ServiceLB objects
+func (c *ContivClient) ServiceLBList() (*[]*ServiceLB, error) {
+	// build key and URL
+	url := c.baseURL + "/api/ServiceLBs/"
+
+	// http get the object
+	var objList []*ServiceLB
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Debugf("Error getting ServiceLBs. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
+// ServiceLBGet gets the ServiceLB object
+func (c *ContivClient) ServiceLBGet(serviceName string, tenantName string) (*ServiceLB, error) {
+	// build key and URL
+	keyStr := serviceName + ":" + tenantName
+	url := c.baseURL + "/api/ServiceLBs/" + keyStr + "/"
+
+	// http get the object
+	var obj ServiceLB
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting ServiceLB %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// ServiceLBDelete deletes the ServiceLB object
+func (c *ContivClient) ServiceLBDelete(serviceName string, tenantName string) error {
+	// build key and URL
+	keyStr := serviceName + ":" + tenantName
+	url := c.baseURL + "/api/ServiceLBs/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting ServiceLB %s. Err: %v", keyStr, err)
 		return err
 	}
 
