@@ -269,7 +269,7 @@ var Commands = []cli.Command{
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "fabric-mode, f",
-						Usage: "Fabric mode (aci or default)",
+						Usage: "Fabric mode (aci, aci-opflex or default)",
 						Value: "default",
 					},
 					cli.StringFlag{
