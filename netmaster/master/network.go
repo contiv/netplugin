@@ -95,6 +95,10 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	}
 
 	subnetIP, subnetLen, _ := netutils.ParseCIDR(network.SubnetCIDR)
+	err = netutils.ValidateNetworkRangeParams(subnetIP, subnetLen)
+	if err != nil {
+		return err
+	}
 
 	// construct and update network state
 	nwCfg = &mastercfg.CfgNetworkState{
@@ -125,10 +129,14 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	nwCfg.ExtPktTag = int(extPktTag)
 	nwCfg.PktTag = int(pktTag)
 
+	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
+	subnetAddr := netutils.GetSubnetAddr(nwCfg.SubnetIP, nwCfg.SubnetLen)
+
 	if network.Gateway != "" {
 		nwCfg.Gateway = network.Gateway
+
 		// Reserve gateway IP address if gateway is specified
-		ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, nwCfg.Gateway)
+		ipAddrValue, err := netutils.GetIPNumber(subnetAddr, nwCfg.SubnetLen, 32, nwCfg.Gateway)
 		if err != nil {
 			log.Errorf("Error parsing gateway address %s. Err: %v", nwCfg.Gateway, err)
 			return err
@@ -136,7 +144,11 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		nwCfg.IPAllocMap.Set(ipAddrValue)
 	}
 
-	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
+	if strings.Contains(subnetIP, "-") {
+		netutils.SetBitsOutsideRange(&nwCfg.IPAllocMap, subnetIP, subnetLen)
+	}
+	nwCfg.SubnetIP = subnetAddr
+
 	err = nwCfg.Write()
 	if err != nil {
 		return err

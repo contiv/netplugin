@@ -718,6 +718,8 @@ func CreateAppProfile(obj *AppProfile) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.appProfiles[obj.Key] != nil {
 		// Perform Update callback
@@ -726,6 +728,9 @@ func CreateAppProfile(obj *AppProfile) error {
 			log.Errorf("AppProfileUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.appProfiles[obj.Key]
 	} else {
 		// save it in cache
 		collections.appProfiles[obj.Key] = obj
@@ -740,9 +745,9 @@ func CreateAppProfile(obj *AppProfile) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving appProfile %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving appProfile %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -952,6 +957,8 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.endpointGroups[obj.Key] != nil {
 		// Perform Update callback
@@ -960,6 +967,9 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 			log.Errorf("EndpointGroupUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.endpointGroups[obj.Key]
 	} else {
 		// save it in cache
 		collections.endpointGroups[obj.Key] = obj
@@ -974,9 +984,9 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving endpointGroup %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving endpointGroup %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -1186,6 +1196,8 @@ func CreateGlobal(obj *Global) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.globals[obj.Key] != nil {
 		// Perform Update callback
@@ -1194,6 +1206,9 @@ func CreateGlobal(obj *Global) error {
 			log.Errorf("GlobalUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.globals[obj.Key]
 	} else {
 		// save it in cache
 		collections.globals[obj.Key] = obj
@@ -1208,9 +1223,9 @@ func CreateGlobal(obj *Global) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving global %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving global %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -1438,6 +1453,8 @@ func CreateBgp(obj *Bgp) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.Bgps[obj.Key] != nil {
 		// Perform Update callback
@@ -1446,6 +1463,9 @@ func CreateBgp(obj *Bgp) error {
 			log.Errorf("BgpUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.Bgps[obj.Key]
 	} else {
 		// save it in cache
 		collections.Bgps[obj.Key] = obj
@@ -1460,9 +1480,9 @@ func CreateBgp(obj *Bgp) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving Bgp %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving Bgp %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -1692,6 +1712,8 @@ func CreateNetwork(obj *Network) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.networks[obj.Key] != nil {
 		// Perform Update callback
@@ -1700,6 +1722,9 @@ func CreateNetwork(obj *Network) error {
 			log.Errorf("NetworkUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.networks[obj.Key]
 	} else {
 		// save it in cache
 		collections.networks[obj.Key] = obj
@@ -1714,9 +1739,9 @@ func CreateNetwork(obj *Network) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving network %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving network %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -1839,11 +1864,16 @@ func ValidateNetwork(obj *Network) error {
 		return errors.New("encap string invalid format")
 	}
 
+	gatewayMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})?$")
+	if gatewayMatch.MatchString(obj.Gateway) == false {
+		return errors.New("gateway string invalid format")
+	}
+
 	if len(obj.NetworkName) > 64 {
 		return errors.New("networkName string too long")
 	}
 
-	subnetMatch := regexp.MustCompile("^([0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?.[0-9]{1,3}?/[0-9]{1,2}?)$")
+	subnetMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?/(3[0-1]|2[0-9]|1[0-9]|[1-9])$")
 	if subnetMatch.MatchString(obj.Subnet) == false {
 		return errors.New("subnet string invalid format")
 	}
@@ -1944,6 +1974,8 @@ func CreatePolicy(obj *Policy) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.policys[obj.Key] != nil {
 		// Perform Update callback
@@ -1952,6 +1984,9 @@ func CreatePolicy(obj *Policy) error {
 			log.Errorf("PolicyUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.policys[obj.Key]
 	} else {
 		// save it in cache
 		collections.policys[obj.Key] = obj
@@ -1966,9 +2001,9 @@ func CreatePolicy(obj *Policy) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving policy %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving policy %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -2178,6 +2213,8 @@ func CreateRule(obj *Rule) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.rules[obj.Key] != nil {
 		// Perform Update callback
@@ -2186,6 +2223,9 @@ func CreateRule(obj *Rule) error {
 			log.Errorf("RuleUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.rules[obj.Key]
 	} else {
 		// save it in cache
 		collections.rules[obj.Key] = obj
@@ -2200,9 +2240,9 @@ func CreateRule(obj *Rule) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving rule %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving rule %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -2471,6 +2511,8 @@ func CreateService(obj *Service) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.services[obj.Key] != nil {
 		// Perform Update callback
@@ -2479,6 +2521,9 @@ func CreateService(obj *Service) error {
 			log.Errorf("ServiceUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.services[obj.Key]
 	} else {
 		// save it in cache
 		collections.services[obj.Key] = obj
@@ -2493,9 +2538,9 @@ func CreateService(obj *Service) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving service %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving service %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -2705,6 +2750,8 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.serviceInstances[obj.Key] != nil {
 		// Perform Update callback
@@ -2713,6 +2760,9 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 			log.Errorf("ServiceInstanceUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.serviceInstances[obj.Key]
 	} else {
 		// save it in cache
 		collections.serviceInstances[obj.Key] = obj
@@ -2727,9 +2777,9 @@ func CreateServiceInstance(obj *ServiceInstance) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving serviceInstance %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving serviceInstance %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -2939,6 +2989,8 @@ func CreateTenant(obj *Tenant) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.tenants[obj.Key] != nil {
 		// Perform Update callback
@@ -2947,6 +2999,9 @@ func CreateTenant(obj *Tenant) error {
 			log.Errorf("TenantUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.tenants[obj.Key]
 	} else {
 		// save it in cache
 		collections.tenants[obj.Key] = obj
@@ -2961,9 +3016,9 @@ func CreateTenant(obj *Tenant) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving tenant %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving tenant %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -3181,6 +3236,8 @@ func CreateVolume(obj *Volume) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.volumes[obj.Key] != nil {
 		// Perform Update callback
@@ -3189,6 +3246,9 @@ func CreateVolume(obj *Volume) error {
 			log.Errorf("VolumeUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.volumes[obj.Key]
 	} else {
 		// save it in cache
 		collections.volumes[obj.Key] = obj
@@ -3203,9 +3263,9 @@ func CreateVolume(obj *Volume) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving volume %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving volume %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 
@@ -3415,6 +3475,8 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 		return errors.New("Invalid object type")
 	}
 
+	saveObj := obj
+
 	// Check if object already exists
 	if collections.volumeProfiles[obj.Key] != nil {
 		// Perform Update callback
@@ -3423,6 +3485,9 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 			log.Errorf("VolumeProfileUpdate retruned error for: %+v. Err: %v", obj, err)
 			return err
 		}
+
+		// save the original object after update
+		saveObj = collections.volumeProfiles[obj.Key]
 	} else {
 		// save it in cache
 		collections.volumeProfiles[obj.Key] = obj
@@ -3437,9 +3502,9 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 	}
 
 	// Write it to modeldb
-	err = obj.Write()
+	err = saveObj.Write()
 	if err != nil {
-		log.Errorf("Error saving volumeProfile %s to db. Err: %v", obj.Key, err)
+		log.Errorf("Error saving volumeProfile %s to db. Err: %v", saveObj.Key, err)
 		return err
 	}
 

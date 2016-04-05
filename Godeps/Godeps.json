@@ -39,7 +39,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
-			"Rev": "e96dfafd17ecab8cd6ab3ffc1dd39a86344b101e"
+			"Rev": "12422da891c2ad18c1e3fb57ec541929d25fcff0"
 		},
 		{
 			"ImportPath": "github.com/contiv/go-etcd/etcd",
