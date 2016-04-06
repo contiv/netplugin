@@ -62,22 +62,22 @@ start: update
 
 #kubernetes demo targets
 k8s-cluster:
-	cd demo/k8s/ && ./setup_cluster.sh
+	cd vagrant/k8s/ && ./setup_cluster.sh
 k8s-demo:
-	cd demo/k8s/ && ./copy_demo.sh
+	cd vagrant/k8s/ && ./copy_demo.sh
 k8s-demo-start:
-	cd demo/k8s/ && ./restart_cluster.sh && vagrant ssh k8master
+	cd vagrant/k8s/ && ./restart_cluster.sh && vagrant ssh k8master
 k8s-destroy:
-	cd demo/k8s/ && vagrant destroy -f
+	cd vagrant/k8s/ && vagrant destroy -f
 
 # Mesos demo targets
 mesos-docker-demo:
-	cd demo/mesos-docker && vagrant up
-	cd demo/mesos-docker && vagrant ssh node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	cd demo/mesos-docker && vagrant ssh node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && ./scripts/python/startPlugin.py -nodes 192.168.33.10,192.168.33.11"'
+	cd vagrant/mesos-docker && vagrant up
+	cd vagrant/mesos-docker && vagrant ssh node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
+	cd vagrant/mesos-docker && vagrant ssh node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && ./scripts/python/startPlugin.py -nodes 192.168.33.10,192.168.33.11"'
 
 mesos-docker-destroy:
-	cd demo/mesos-docker && vagrant destroy -f
+	cd vagrant/mesos-docker && vagrant destroy -f
 
 
 demo-centos:

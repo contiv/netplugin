@@ -6,6 +6,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	. "gopkg.in/check.v1"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -183,3 +185,104 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 		}
 	}
 }
+
+/*
+func (s *systemtestSuite) TestNetworkAddDeleteMultiTenantVXLAN(c *C) {
+	s.testNetworkAddDeleteMultiTenant(c, "vxlan")
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteMultiTenantVLAN(c *C) {
+	s.testNetworkAddDeleteMultiTenant(c, "vlan")
+}
+
+func (s *systemtestSuite) testNetworkAddDeleteMultiTenant(c *C, encap string) {
+	mutex := sync.Mutex{}
+	tenantPort := map[string]int{}
+
+	if encap == "vlan" && s.fwdMode == "routing" {
+
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
+	}
+
+	for i := 0; i < s.iterations; i++ {
+		var (
+			tenantNames = map[string][]string{}
+			netNames    = []string{}
+			containers  = map[string][]*container{}
+			pktTag      = 0
+		)
+
+		numContainer := s.containers
+		if numContainer < 4 {
+			numContainer = 4
+		}
+
+		for tenantNum := 0; tenantNum < (s.containers / 2); tenantNum++ {
+			tenantName := fmt.Sprintf("tenant%d", tenantNum)
+			tenantPort[tenantName], _ = strconv.Atoi(fmt.Sprintf("800%d", tenantNum))
+			c.Assert(s.cli.TenantPost(&client.Tenant{TenantName: tenantName}), IsNil)
+			tenantNames[tenantName] = []string{}
+
+			for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+				network := &client.Network{
+					TenantName:  tenantName,
+					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
+					Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
+					Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
+					PktTag:      pktTag + 1000,
+					Encap:       encap,
+				}
+
+				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
+
+				c.Assert(s.cli.NetworkPost(network), IsNil)
+				netNames = append(netNames, network.NetworkName)
+				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
+				pktTag++
+			}
+		}
+
+		for tenant, networks := range tenantNames {
+			endChan := make(chan error)
+			for _, network := range networks {
+
+				go func(network, tenant string, containers map[string][]*container) {
+					var err error
+					mutex.Lock()
+					containers[tenant+":"+network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil)
+					mutex.Unlock()
+					endChan <- err
+				}(network, tenant, containers)
+			}
+			for i := 0; i < len(networks); i++ {
+				c.Assert(<-endChan, IsNil)
+			}
+		}
+
+		for networkTenant, containerList := range containers {
+			tenant := strings.Split(networkTenant, ":")[0]
+			c.Assert(s.startListeners(containerList, []int{tenantPort[tenant]}), IsNil)
+			c.Assert(s.checkConnections(containerList, tenantPort[tenant]), IsNil)
+		}
+		if s.fwdMode != "routing" && encap != "vlan" {
+			for networkTenant, containerList := range containers {
+				tenant := strings.Split(networkTenant, ":")[0]
+				for networkTenant, _ := range containers {
+					diffTenant := strings.Split(networkTenant, ":")[0]
+					if tenant != diffTenant {
+						c.Assert(s.checkNoConnections(containerList, tenantPort[tenant]), IsNil)
+					}
+				}
+			}
+		}
+		for tenant, networks := range tenantNames {
+			for _, network := range networks {
+				c.Assert(s.removeContainers(containers[tenant+":"+network]), IsNil)
+				c.Assert(s.cli.NetworkDelete(tenant, network), IsNil)
+			}
+			c.Assert(s.cli.TenantDelete(tenant), IsNil)
+		}
+
+	}
+}*/
