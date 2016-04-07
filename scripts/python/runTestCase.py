@@ -60,7 +60,7 @@ try:
     testbed.chekForNetpluginErrors()
 
     # Run single test case
-    # testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration)
+    testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration)
 
     # Test netplugin disconnect/connect
     testcases.tcTrigger.netpluginDisconnectTest(testbed, numCntr, numIteration)

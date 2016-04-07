@@ -363,7 +363,6 @@ func (d *daemon) runMasterFsm() {
 		log.Fatalf("Error connecting to state store: %v. Err: %v", d.storeURL, err)
 	}
 
-
 	// Register all existing netplugins in the background
 	go d.registerNetpluginNodes()
 

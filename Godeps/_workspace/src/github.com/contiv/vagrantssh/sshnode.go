@@ -37,6 +37,7 @@ type SSHNode struct {
 	sshAddr   string
 	sshPort   string
 	config    *ssh.ClientConfig
+	client    *ssh.Client
 }
 
 // NewSSHNode intializes a ssh-client based node in a testbed
@@ -128,13 +129,17 @@ func (n *SSHNode) RunCommand(cmd string) error {
 func (n *SSHNode) RunCommandWithOutput(cmd string) (string, error) {
 	client, s, err := n.getClientAndSession()
 	if err != nil {
-		return "", err
+		fmt.Printf("\nSSH client error: %v\n", err)
+		return "\nSSH client error\n", err
 	}
 
 	defer client.Close()
 	defer s.Close()
 
 	output, err := s.CombinedOutput(newCmdStrWithSource(cmd))
+	if err != nil {
+		fmt.Printf("\nSSH command execution error: %v\n", err)
+	}
 	return string(output), err
 }
 
