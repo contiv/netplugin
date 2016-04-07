@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -50,6 +51,7 @@ type OfnetAgent struct {
 	dpName      string             // Datapath type
 	datapath    OfnetDatapath      // Configured datapath
 	protopath   OfnetProto         // Configured protopath
+	mutex       sync.Mutex         // Sync mutext when we need to lock
 
 	masterDb map[string]*OfnetNode // list of Masters
 
@@ -172,6 +174,16 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 
 	// Return it
 	return agent, nil
+}
+
+func (self *OfnetAgent) lockDB() {
+	log.Infof("Locking endpoint db")
+	self.mutex.Lock()
+}
+
+func (self *OfnetAgent) unlockDB() {
+	log.Infof("Unlocking endpoint db")
+	self.mutex.Unlock()
 }
 
 // getEndpointId Get a unique identifier for the endpoint.
@@ -458,6 +470,10 @@ func (self *OfnetAgent) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 
 	log.Infof("Adding VTEP port(%d), Remote IP: %v", portNo, remoteIp)
 
+	// Dont handle endpointDB operations during this time
+	self.lockDB()
+	defer self.unlockDB()
+
 	// Store the vtep IP to port number mapping
 	self.vtepTable[remoteIp.String()] = &portNo
 
@@ -595,6 +611,10 @@ func (self *OfnetAgent) EndpointAdd(epreg *OfnetEndpoint, ret *bool) error {
 		return nil
 	}
 
+	// Dont handle other endpointDB operations during this time
+	self.lockDB()
+	defer self.unlockDB()
+
 	// Check if we have the endpoint already and which is more recent
 	oldEp := self.endpointDb[epreg.EndpointID]
 	if oldEp != nil {
@@ -636,6 +656,10 @@ func (self *OfnetAgent) EndpointDel(epreg *OfnetEndpoint, ret *bool) error {
 	if self.endpointDb[epreg.EndpointID] == nil {
 		return nil
 	}
+
+	// Dont handle endpointDB operations during this time
+	self.lockDB()
+	defer self.unlockDB()
 
 	// Uninstall the endpoint from datapath
 	err := self.datapath.RemoveEndpoint(epreg)

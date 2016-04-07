@@ -316,11 +316,12 @@ func (vl *VlanBridge) initFgraph() error {
 	})
 	validPktFlow.Next(vl.vlanTable)
 
-	// Drop all packets that miss Vlan lookup
+	// If we miss Vlan lookup, continue to next lookup
 	vlanMissFlow, _ := vl.vlanTable.NewFlow(ofctrl.FlowMatch{
 		Priority: FLOW_MISS_PRIORITY,
 	})
-	vlanMissFlow.Next(sw.DropAction())
+	dstGrpTbl := vl.ofSwitch.GetTable(DST_GRP_TBL_ID)
+	vlanMissFlow.Next(dstGrpTbl)
 
 	// Redirect ARP Request packets to controller
 	arpFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
@@ -489,7 +490,7 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 
 // sendGARP sends GARP for the specified IP, MAC
 func (vl *VlanBridge) sendGARP(ip net.IP, mac net.HardwareAddr, vlanID uint16) error {
-    pktOut := BuildGarpPkt(ip, mac, vlanID)
+	pktOut := BuildGarpPkt(ip, mac, vlanID)
 
 	for _, portNo := range vl.uplinkDb {
 		log.Debugf("Sending to uplink: %+v", portNo)

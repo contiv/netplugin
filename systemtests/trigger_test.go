@@ -97,7 +97,7 @@ func (s *systemtestSuite) TestNetpluginDisconnect(c *C) {
 		for _, node := range s.nodes {
 			c.Assert(node.stopNetplugin(), IsNil)
 			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
-			time.Sleep(2 * time.Minute)
+			time.Sleep(50 * time.Second)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
 			if s.fwdMode == "routing" {
 				c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
@@ -105,7 +105,7 @@ func (s *systemtestSuite) TestNetpluginDisconnect(c *C) {
 				c.Assert(node.startNetplugin(""), IsNil)
 			}
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
-			time.Sleep(15 * time.Second)
+			time.Sleep(20 * time.Second)
 
 			c.Assert(s.pingTest(containers), IsNil)
 		}
@@ -215,6 +215,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 					c.Assert(node.startNetplugin(""), IsNil)
 				}
 				c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+				time.Sleep(20 * time.Second)
 			}
 		case 1:
 			logrus.Info("Triggering netmaster restart")

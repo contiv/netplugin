@@ -69,7 +69,7 @@ func IsDNSEnabled() bool {
 
 // SetDNSEnabled sets the status of DNS Enable
 func SetDNSEnabled(dnsEnableFlag bool) error {
-	log.Infof("Setting dns flag to %s", dnsEnableFlag)
+	log.Infof("Setting dns flag to %v", dnsEnableFlag)
 	masterRTCfg.dnsEnabled = dnsEnableFlag
 	return nil
 }

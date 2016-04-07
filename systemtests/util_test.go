@@ -286,7 +286,7 @@ func (s *systemtestSuite) checkNoConnections(containers []*container, port int) 
 	return nil
 }
 
-func (s *systemtestSuite) checkConnectionsAcrossGroup(containers map[*container]string, port int) error {
+func (s *systemtestSuite) checkConnectionsAcrossGroup(containers map[*container]string, port int, expFail bool) error {
 	groups := map[string][]*container{}
 
 	for cont1, group := range containers {
@@ -301,7 +301,8 @@ func (s *systemtestSuite) checkConnectionsAcrossGroup(containers map[*container]
 		for group2, conts := range groups {
 			if group != group2 {
 				for _, cont := range conts {
-					if err := cont1.checkConnection(cont.eth0, "tcp", port); err != nil {
+					err := cont1.checkConnection(cont.eth0, "tcp", port)
+					if !expFail && err != nil {
 						return err
 					}
 				}
@@ -377,11 +378,11 @@ func (s *systemtestSuite) checkAllConnection(netContainers map[*container]string
 		return err
 	}
 
-	if err := s.checkConnectionsAcrossGroup(groupContainers, 8000); err != nil {
+	if err := s.checkConnectionsAcrossGroup(groupContainers, 8000, false); err != nil {
 		return err
 	}
 
-	if err := s.checkConnectionsAcrossGroup(groupContainers, 8001); err == nil {
+	if err := s.checkConnectionsAcrossGroup(groupContainers, 8001, true); err != nil {
 		return fmt.Errorf("Connections across group achieved for port 8001")
 	}
 

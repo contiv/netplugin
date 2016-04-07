@@ -105,6 +105,33 @@ func (d *daemon) registerService() {
 	log.Infof("Registered netmaster service with registry")
 }
 
+// Find all netplugin nodes and register them
+func (d *daemon) registerNetpluginNodes() error {
+	// Get all netplugin services
+	srvList, err := d.objdbClient.GetService("netplugin")
+	if err != nil {
+		log.Errorf("Error getting netplugin nodes. Err: %v", err)
+		return err
+	}
+
+	// Add each node
+	for _, srv := range srvList {
+		// build host info
+		nodeInfo := ofnet.OfnetNode{
+			HostAddr: srv.HostAddr,
+			HostPort: uint16(srv.Port),
+		}
+
+		// Add the node
+		err = d.ofnetMaster.AddNode(nodeInfo)
+		if err != nil {
+			log.Errorf("Error adding node %v. Err: %v", srv, err)
+		}
+	}
+
+	return nil
+}
+
 // registerWebuiHandler registers handlers for serving web UI
 func (d *daemon) registerWebuiHandler(router *mux.Router) {
 	// Setup the router to serve the web UI
@@ -318,8 +345,14 @@ func (d *daemon) becomeFollower() {
 func (d *daemon) runMasterFsm() {
 	var err error
 
+	// Get the address to be used for local communication
+	localIP, err := GetLocalAddr()
+	if err != nil {
+		log.Fatalf("Error getting local IP address. Err: %v", err)
+	}
+
 	// create new ofnet master
-	d.ofnetMaster = ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
+	d.ofnetMaster = ofnet.NewOfnetMaster(localIP, ofnet.OFNET_MASTER_PORT)
 	if d.ofnetMaster == nil {
 		log.Fatalf("Error creating ofnet master")
 	}
@@ -330,11 +363,8 @@ func (d *daemon) runMasterFsm() {
 		log.Fatalf("Error connecting to state store: %v. Err: %v", d.storeURL, err)
 	}
 
-	// Get the address to be used for local communication
-	localIP, err := GetLocalAddr()
-	if err != nil {
-		log.Fatalf("Error getting local IP address. Err: %v", err)
-	}
+	// Register all existing netplugins in the background
+	go d.registerNetpluginNodes()
 
 	// Create the lock
 	leaderLock, err = d.objdbClient.NewLock("netmaster/leader", localIP, leaderLockTTL)

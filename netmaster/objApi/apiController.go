@@ -63,7 +63,7 @@ func NewAPIController(router *mux.Router, storeURL string) *APIController {
 	contivModel.AddRoutes(router)
 
 	// Init global state
-	gc := contivModel.FindGlobal("default")
+	gc := contivModel.FindGlobal("global")
 	if gc == nil {
 		log.Infof("Creating default global config")
 		err := contivModel.CreateGlobal(&contivModel.Global{
