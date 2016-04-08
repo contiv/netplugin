@@ -85,6 +85,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     else
         config.vm.box = "contiv/ubuntu1504-netplugin"
     end
+    config.vm.provider 'virtualbox' do |v|
+        v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
+    end
+
     num_nodes = 2
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i
