@@ -73,6 +73,7 @@ type OfnetAgent struct {
 	vrfIdNameMap map[uint16]*string       // Map vrf id to vrf Name
 	vrfDb        map[string]*OfnetVrfInfo // Db of all the global vrfs
 	vlanVrf      map[uint16]*string       //vlan to vrf mapping
+	fwdMode      string                   ///forwarding mode routing or bridge
 
 }
 
@@ -152,12 +153,16 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	switch dpName {
 	case "vrouter":
 		agent.datapath = NewVrouter(agent, rpcServ)
+		agent.fwdMode = "routing"
 	case "vxlan":
 		agent.datapath = NewVxlan(agent, rpcServ)
+		agent.fwdMode = "bridge"
 	case "vlan":
 		agent.datapath = NewVlanBridge(agent, rpcServ)
+		agent.fwdMode = "bridge"
 	case "vlrouter":
 		agent.datapath = NewVlrouter(agent, rpcServ)
+		agent.fwdMode = "routing"
 		agent.ovsDriver = ovsdbDriver.NewOvsDriver(bridgeName)
 		agent.protopath = NewOfnetBgp(agent, routerInfo)
 
@@ -507,7 +512,7 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 	vrf := self.vlanVrf[vlanId]
 	gwEpid := self.getEndpointIdByIpVrf(net.ParseIP(Gw), *vrf)
 
-	if Gw != "" {
+	if Gw != "" && self.fwdMode == "routing" {
 		// Call the datapath
 		epreg := &OfnetEndpoint{
 			EndpointID:   gwEpid,
