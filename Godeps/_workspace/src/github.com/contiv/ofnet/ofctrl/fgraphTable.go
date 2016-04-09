@@ -54,17 +54,16 @@ func (self *Table) NewFlow(match FlowMatch) (*Flow, error) {
 	globalFlowId += 1
 	flow.flowActions = make([]*FlowAction, 0)
 
-	log.Infof("Creating new flow for match: %+v", match)
+	log.Debugf("Creating new flow for match: %+v", match)
 
 	// See if the flow already exists
 	flowKey := flow.flowKey()
-
 	if self.flowDb[flowKey] != nil {
 		log.Errorf("Flow %s already exists", flowKey)
 		return nil, errors.New("Flow already exists")
 	}
 
-	log.Infof("Added flow: %s", flowKey)
+	log.Debugf("Added flow: %s", flowKey)
 
 	// Save it in DB. We dont install the flow till its next graph elem is set
 	self.flowDb[flowKey] = flow

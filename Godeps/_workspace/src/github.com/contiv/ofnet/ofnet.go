@@ -57,10 +57,10 @@ type OfnetDatapath interface {
 	RemoveVtepPort(portNo uint32, remoteIp net.IP) error
 
 	// Add a vlan
-	AddVlan(vlanId uint16, vni uint32) error
+	AddVlan(vlanId uint16, vni uint32, vrf string) error
 
 	// Remove a vlan
-	RemoveVlan(vlanId uint16, vni uint32) error
+	RemoveVlan(vlanId uint16, vni uint32, vrf string) error
 
 	//Add uplink port
 	AddUplink(portNo uint32) error
@@ -123,7 +123,7 @@ type OfnetEndpoint struct {
 	EndpointGroup int       // Endpoint group identifier for policies.
 	IpAddr        net.IP    // IP address of the end point
 	IpMask        net.IP    // IP mask for the end point
-	VrfId         uint16    // IP address namespace
+	Vrf           string    // IP address namespace
 	MacAddrStr    string    // Mac address of the end point(in string format)
 	Vlan          uint16    // Vlan Id for the endpoint
 	Vni           uint32    // Vxlan VNI
@@ -164,4 +164,10 @@ type OfnetProtoRouteInfo struct {
 	ProtocolType string // type of protocol
 	localEpIP    string
 	nextHopIP    string
+}
+
+type OfnetVrfInfo struct {
+	VrfName     string //vrf name
+	VrfId       uint16 //local vrf id
+	NumNetworks uint16 //ref count of networks in the vrf
 }

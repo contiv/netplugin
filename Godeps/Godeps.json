@@ -57,7 +57,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "eb47c65bff01b5bc926a0c86f002c3e00f0d4651"
+			"Rev": "ccb7345b3fe3a356e96c472fdbc57a3f8616bbc0"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",
@@ -200,19 +200,19 @@
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "a0fe038945ccf5c6d3e949d1607f0d47dc64ef60"
+			"Rev": "b692b84c96349d6f30d0cd2114196ef508847f9a"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "a0fe038945ccf5c6d3e949d1607f0d47dc64ef60"
+			"Rev": "b692b84c96349d6f30d0cd2114196ef508847f9a"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "a0fe038945ccf5c6d3e949d1607f0d47dc64ef60"
+			"Rev": "b692b84c96349d6f30d0cd2114196ef508847f9a"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "a0fe038945ccf5c6d3e949d1607f0d47dc64ef60"
+			"Rev": "b692b84c96349d6f30d0cd2114196ef508847f9a"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",

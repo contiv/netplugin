@@ -12,14 +12,11 @@ $cluster_ip_nodes = ""
 provision_common = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
-
 echo -n "$1" > /etc/hostname
 hostname -F /etc/hostname
-
 /sbin/ip addr add "$3/24" dev eth1
 /sbin/ip link set eth1 up
 /sbin/ip link set eth2 up
-
 echo 'export GOPATH=#{gopath_folder}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
@@ -30,17 +27,13 @@ echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
 echo "export no_proxy=$7,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 echo "export CLUSTER_NODE_IPS=$7" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
-
 mv /etc/resolv.conf /etc/resolv.conf.bak
 cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
-
 # setup docker cluster store
 cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service /lib/systemd/system/docker.service
-
 # setup docker remote api
 cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
 systemctl enable docker-tcp.socket
-
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 echo "Environment=\\\"no_proxy=$7,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
@@ -53,7 +46,6 @@ if [ $# -gt 7 ]; then
     shift; shift; shift; shift; shift; shifti; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
-
 # Get swarm binary
 # (wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
 # chmod +x /usr/bin/swarm) || exit 1
@@ -61,12 +53,9 @@ fi
 wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp && chmod +x #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp 
 # remove duplicate docker key
 rm /etc/docker/key.json
-
 (service docker restart) || exit 1
-
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
-
 docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
 SCRIPT
 
@@ -210,14 +199,11 @@ set -x
  --listen-peer-urls http://#{node_addr}:2380 \
  --initial-cluster #{node_peers.join(",")} --initial-cluster-state new \
   0<&- &>/tmp/etcd.log &) || exit 1
-
 ## start consul
 (nohup consul agent -server #{consul_join_flag} #{consul_bootstrap_flag} \
  -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
-
 # start swarm
 (nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} #{swarm_flag}> /tmp/start-swarm.log &) || exit 1
-
 SCRIPT
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_node

@@ -43,6 +43,7 @@ type ConfigNetwork struct {
 	PktTag     int
 	SubnetCIDR string
 	Gateway    string
+	Vrf        string
 
 	// eps associated with the network
 	Endpoints []ConfigEP

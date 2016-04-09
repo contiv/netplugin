@@ -169,11 +169,13 @@ func (m *MatchField) UnmarshalBinary(data []byte) error {
 func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 	if class == OXM_CLASS_OPENFLOW_BASIC {
 		var val util.Message
+		val = nil
 		switch field {
 		case OXM_FIELD_IN_PORT:
 			val = new(InPortField)
 		case OXM_FIELD_IN_PHY_PORT:
 		case OXM_FIELD_METADATA:
+			val = new(MetadataField)
 		case OXM_FIELD_ETH_DST:
 			val = new(EthDstField)
 		case OXM_FIELD_ETH_SRC:
@@ -232,6 +234,11 @@ func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 			log.Printf("Unhandled Field: %d in Class: %d", field, class)
 		}
 
+		if val == nil {
+			log.Printf("Bad pkt class: %v field: %v data: %v", class, field, data)
+			return nil
+		}
+
 		val.UnmarshalBinary(data)
 		return val
 	} else if class == OXM_CLASS_NXM_1 {
@@ -243,6 +250,7 @@ func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 			val = new(TunnelIpv4DstField)
 		default:
 			log.Printf("Unhandled Field: %d in Class: %d", field, class)
+			return nil
 		}
 
 		val.UnmarshalBinary(data)

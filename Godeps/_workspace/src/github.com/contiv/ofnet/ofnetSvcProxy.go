@@ -642,7 +642,6 @@ func (proxy *ServiceProxy) InitSNATTable(nextIDsNAT uint8) error {
 	proxy.sNATNext = nextTbl
 	// Create table
 	proxy.sNATTable, _ = sw.NewTable(SRV_PROXY_SNAT_TBL_ID)
-
 	// Packets that didnt match any rule go to next table
 	proxyMissFlow, _ := proxy.sNATTable.NewFlow(ofctrl.FlowMatch{
 		Priority: FLOW_MISS_PRIORITY,

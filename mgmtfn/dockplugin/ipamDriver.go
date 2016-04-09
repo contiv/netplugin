@@ -77,8 +77,12 @@ func requestPool(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Received RequestPoolRequest: %+v", preq)
 
 	// build response
+	PoolID := preq.Pool
+	if tenant, ok := preq.Options["tenant"]; ok {
+		PoolID = preq.Pool + ":" + tenant
+	}
 	presp := api.RequestPoolResponse{
-		PoolID: preq.Pool,
+		PoolID: PoolID,
 		Pool:   preq.Pool,
 	}
 
@@ -155,7 +159,11 @@ func requestAddress(w http.ResponseWriter, r *http.Request) {
 		PreferredIPv4Address: areq.Address,
 	}
 
+	//If docker enginer is 1.10+version PoolID will also have
 	subnetLen := strings.Split(areq.PoolID, "/")[1]
+	if strings.Contains(areq.PoolID, ":") {
+		subnetLen = strings.Split(subnetLen, ":")[0]
+	}
 
 	var addr string
 	if areq.Address != "" {

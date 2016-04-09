@@ -128,6 +128,10 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 
 		subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
 
+		ipamOptions := make(map[string]string)
+		ipamOptions["tenant"] = nwCfg.Tenant
+		ipamOptions["network"] = nwCfg.NetworkName
+
 		// Build network parameters
 		nwCreate := dockerclient.NetworkCreate{
 			Name:           docknetName,
@@ -141,6 +145,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 						Gateway: nwCfg.Gateway,
 					},
 				},
+				Options: ipamOptions,
 			},
 			Options: netPluginOptions,
 		}
