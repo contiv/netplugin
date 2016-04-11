@@ -149,7 +149,7 @@ func unknownAction(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Unknown networkdriver action at %q", r.URL.Path)
 	content, _ := ioutil.ReadAll(r.Body)
 	log.Infof("Body content: %s", string(content))
-	w.WriteHeader(503)
+	http.NotFound(w, r)
 }
 
 // deactivate the plugin
