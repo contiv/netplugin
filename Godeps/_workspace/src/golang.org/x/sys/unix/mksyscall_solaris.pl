@@ -12,7 +12,7 @@
 #	* The parameter lists must give a type for each argument:
 #	  the (x, y, z int) shorthand is not allowed.
 #	* If the return parameter is an error number, it must be named err.
-#	* If go func name needs to be different than its libc name,
+#	* If go func name needs to be different than its libc name, 
 #	* or the function is not in libc, name could be specified
 #	* at the end, after "=" sign, like
 #	  //sys getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) = libsocket.getsockopt
@@ -173,7 +173,7 @@ while(<>) {
 				push @args, "uintptr($name)", "uintptr($name >> 32)";
 			}
 		} elsif($type eq "bool") {
-			$text .= "\tvar _p$n uint32\n";
+ 			$text .= "\tvar _p$n uint32\n";
 			$text .= "\tif $name {\n\t\t_p$n = 1\n\t} else {\n\t\t_p$n = 0\n\t}\n";
 			push @args, "uintptr(_p$n)";
 			$n++;

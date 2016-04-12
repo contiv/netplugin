@@ -4,7 +4,7 @@ Instructions
 Install the package with:
 
     go get gopkg.in/check.v1
-
+    
 Import it with:
 
     import "gopkg.in/check.v1"
