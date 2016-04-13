@@ -75,7 +75,7 @@ func TestMain(m *testing.M) {
 	// Create a new api controller
 	apiController = NewAPIController(router, "etcd://127.0.0.1:4001")
 
-	ofnetMaster := ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
+	ofnetMaster := ofnet.NewOfnetMaster("127.0.0.1", ofnet.OFNET_MASTER_PORT)
 	if ofnetMaster == nil {
 		log.Fatalf("Error creating ofnet master")
 	}
