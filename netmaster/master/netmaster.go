@@ -111,7 +111,10 @@ func validateTenantConfig(tenant *intent.ConfigTenant) error {
 // CreateGlobal sets the global state
 func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 	// check for valid values
-	if gc.NwInfraType != "default" && gc.NwInfraType != "aci" {
+	switch gc.NwInfraType {
+	case "default", "aci", "aci-opflex":
+		// These values are acceptable.
+	default:
 		return errors.New("Invalid fabric mode")
 	}
 	_, err := netutils.ParseTagRanges(gc.VLANs, "vlan")
