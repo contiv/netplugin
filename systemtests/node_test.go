@@ -25,8 +25,9 @@ type node struct {
 }
 
 func (n *node) rotateLog(prefix string) error {
-	prefix = fmt.Sprintf("/tmp/%s", prefix)
-	_, err := n.runCommand(fmt.Sprintf("mv %s.log %s-`date +%%s`.log", prefix, prefix))
+	oldPrefix := fmt.Sprintf("/tmp/%s", prefix)
+	newPrefix := fmt.Sprintf("/tmp/_%s", prefix)
+	_, err := n.runCommand(fmt.Sprintf("mv %s.log %s-`date +%%s`.log", oldPrefix, newPrefix))
 	return err
 }
 
@@ -98,7 +99,6 @@ func (n *node) cleanupSlave() {
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
 	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
 	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
-	vNode.RunCommand("sudo rm /tmp/net*")
 	vNode.RunCommand("sudo service docker restart")
 }
 

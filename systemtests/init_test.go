@@ -96,6 +96,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 	logrus.Info("Pulling alpine on all nodes")
 	s.vagrant.IterateNodes(func(node vagrantssh.TestbedNode) error {
+		node.RunCommand("sudo rm /tmp/net*")
 		return node.RunCommand("docker pull alpine")
 	})
 
@@ -134,6 +135,7 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
 	}
 
+	time.Sleep(5 * time.Second)
 	for {
 		_, err := s.cli.TenantGet("default")
 		if err == nil {

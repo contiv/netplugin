@@ -423,11 +423,10 @@ func (s *systemtestSuite) etcdList(path string, recursive bool) ([]map[string]in
 		}
 
 		ret, err := s.etcdGet(line)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			retval = append(retval, ret)
 		}
 
-		retval = append(retval, ret)
 	}
 
 	return retval, nil
