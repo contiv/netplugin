@@ -105,14 +105,19 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 	target := fmt.Sprintf("tcp:%s:%d", ctrlerIP, ctrlrPort)
 	if !sw.ovsdbDriver.IsControllerPresent(target) {
 		err = sw.ovsdbDriver.AddController(ctrlerIP, ctrlrPort)
-
-		log.Infof("Waiting for OVS switch(%s) to connect..", netType)
-
-		// Wait for a while for OVS switch to connect to ofnet agent
-		sw.ofnetAgent.WaitForSwitchConnection()
-
-		log.Infof("Switch (%s) connected.", netType)
+		if err != nil {
+			log.Fatalf("Error adding controller to OVS %s", bridgeName)
+			return nil, err
+		}
 	}
+
+	log.Infof("Waiting for OVS switch(%s) to connect..", netType)
+
+	// Wait for a while for OVS switch to connect to ofnet agent
+	sw.ofnetAgent.WaitForSwitchConnection()
+
+	log.Infof("Switch (%s) connected.", netType)
+
 	return sw, nil
 }
 
