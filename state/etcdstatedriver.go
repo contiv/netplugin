@@ -30,7 +30,8 @@ import (
 )
 
 const (
-	recursive = true
+	recursive  = true
+	ctxTimeout = 20 * time.Second
 )
 
 // EtcdStateDriverConfig encapsulates the etcd endpoints used to communicate
@@ -77,7 +78,7 @@ func (d *EtcdStateDriver) Deinit() {}
 
 // Write state to key with value.
 func (d *EtcdStateDriver) Write(key string, value []byte) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
 	_, err := d.KeysAPI.Set(ctx, key, string(value[:]), nil)
@@ -87,7 +88,7 @@ func (d *EtcdStateDriver) Write(key string, value []byte) error {
 
 // Read state from key.
 func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
 	resp, err := d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
@@ -100,7 +101,7 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 
 // ReadAll state from baseKey.
 func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
 	resp, err := d.KeysAPI.Get(ctx, baseKey, &client.GetOptions{Recursive: true, Quorum: true})
@@ -165,7 +166,7 @@ func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 
 // ClearState removes key from etcd
 func (d *EtcdStateDriver) ClearState(key string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
 	_, err := d.KeysAPI.Delete(ctx, key, nil)
