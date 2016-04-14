@@ -879,7 +879,7 @@ func (s *systemtestSuite) CheckBgpConnection(c *C) error {
 		count = 0
 		time.Sleep(5 * time.Second)
 		for _, node := range s.nodes {
-			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp neighbor")
+			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 			fmt.Println(out)
 			if strings.Contains(out, "Establ") {
 				count++
@@ -898,7 +898,7 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 		count = 0
 		time.Sleep(2 * time.Second)
 		for _, node := range s.nodes {
-			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp neighbor")
+			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 			fmt.Println(out)
 			if !strings.Contains(out, "Establ") {
 				count++
@@ -910,7 +910,7 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node vagrantssh.TestbedNode) error {
 	for {
 		time.Sleep(2 * time.Second)
-		out, _ := node.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp neighbor")
+		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 		fmt.Println(out)
 		if strings.Contains(out, "Establ") {
 			return nil
@@ -921,7 +921,7 @@ func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node vagrantssh.Testb
 func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node vagrantssh.TestbedNode) error {
 	for {
 		time.Sleep(2 * time.Second)
-		out, _ := node.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp neighbor")
+		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 		fmt.Println(out)
 		if !strings.Contains(out, "Establ") {
 			return nil

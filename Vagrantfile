@@ -42,21 +42,21 @@ sudo systemctl stop docker
 systemctl start docker-tcp.socket
 sudo systemctl start docker
 
-if [ $# -gt 6 ]; then
+if [[ $# -gt 6 ]] && [[ $7 != "" ]]; then
     shift; shift; shift; shift; shift; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
-# Get swarm binary
-# (wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
-# chmod +x /usr/bin/swarm) || exit 1
-#Get gobgp binary
-wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp && chmod +x #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp 
 # remove duplicate docker key
 rm /etc/docker/key.json
 (service docker restart) || exit 1
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
 docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
+SCRIPT
+
+provision_gobgp = <<SCRIPT
+#Get gobgp binary
+wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp 
 SCRIPT
 
 provision_bird = <<SCRIPT
@@ -191,7 +191,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
-                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV'] || "" ]
+                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV']]
+            end
+            if ENV['CONTIV_L3'] then
+                node.vm.provision "shell" do |s|
+                    s.inline = provision_gobgp
+                end
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config
