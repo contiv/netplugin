@@ -250,7 +250,7 @@ func (s *systemtestSuite) checkConnections(containers []*container, port int) er
 		}
 	}
 
-	for range containers {
+	for i := 0; i < len(containers)*(len(ips)-1); i++ {
 		if err := <-endChan; err != nil {
 			return err
 		}
@@ -277,7 +277,7 @@ func (s *systemtestSuite) checkNoConnections(containers []*container, port int) 
 		}
 	}
 
-	for range containers {
+	for i := 0; i < len(containers)*(len(ips)-1); i++ {
 		if err := <-endChan; err != nil {
 			return err
 		}
