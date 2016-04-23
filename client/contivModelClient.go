@@ -225,6 +225,7 @@ type Network struct {
 	Encap       string `json:"encap,omitempty"`       // Encapsulation
 	Gateway     string `json:"gateway,omitempty"`     // Gateway
 	NetworkName string `json:"networkName,omitempty"` // Network name
+	NwType      string `json:"nwType,omitempty"`      // Network Type
 	PktTag      int    `json:"pktTag,omitempty"`      // Vlan/Vxlan Tag
 	Subnet      string `json:"subnet,omitempty"`      // Subnet
 	TenantName  string `json:"tenantName,omitempty"`  // Tenant Name

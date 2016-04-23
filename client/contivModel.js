@@ -282,6 +282,8 @@ var NetworkSummaryView = React.createClass({
 						 
 						<td>{ network.networkName }</td>
 						 
+						<td>{ network.nwType }</td>
+						 
 						<td>{ network.pktTag }</td>
 						 
 						<td>{ network.subnet }</td>
@@ -301,6 +303,7 @@ var NetworkSummaryView = React.createClass({
 						<th> Encapsulation </th>  
 						<th> Gateway </th>  
 						<th> Network name </th>  
+						<th> Network Type </th>  
 						<th> Vlan/Vxlan Tag </th>  
 						<th> Subnet </th>  
 					</tr>
@@ -327,6 +330,8 @@ var NetworkModalView = React.createClass({
 				<Input type='text' label='Gateway' ref='gateway' defaultValue={obj.gateway} placeholder='Gateway' />
 			
 				<Input type='text' label='Network name' ref='networkName' defaultValue={obj.networkName} placeholder='Network name' />
+			
+				<Input type='text' label='Network Type' ref='nwType' defaultValue={obj.nwType} placeholder='Network Type' />
 			
 				<Input type='text' label='Vlan/Vxlan Tag' ref='pktTag' defaultValue={obj.pktTag} placeholder='Vlan/Vxlan Tag' />
 			

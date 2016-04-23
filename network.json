@@ -17,6 +17,12 @@
 					"title": "Tenant Name",
 					"length": 64
 				},
+				"nwType": {
+					"type": "string",
+					"format": "^(infra|data)$",
+					"title": "Network Type",
+					"showSummary": true
+				},
 				"encap": {
 					"type": "string",
 					"format": "^(vlan|vxlan)$",
