@@ -144,7 +144,7 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(15 * time.Second)
 }
 
 func (s *systemtestSuite) TearDownTest(c *C) {

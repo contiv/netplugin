@@ -52,6 +52,10 @@ rm /etc/docker/key.json
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
 docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
+
+# Drop cache to workaround vboxsf problem
+echo 3 > /proc/sys/vm/drop_caches
+
 SCRIPT
 
 provision_gobgp = <<SCRIPT
@@ -202,6 +206,7 @@ provision_node = <<SCRIPT
 ## start etcd with generated config
 set -x
 (nohup etcd --name #{node_name} --data-dir /tmp/etcd \
+ -heartbeat-interval=600 -election-timeout=3000 \
  --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
  --advertise-client-urls http://#{node_addr}:2379,http://#{node_addr}:4001 \
  --initial-advertise-peer-urls http://#{node_addr}:2380,http://#{node_addr}:7001 \
@@ -213,6 +218,7 @@ set -x
  -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
 # start swarm
 (nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} #{swarm_flag}> /tmp/start-swarm.log &) || exit 1
+
 SCRIPT
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_node

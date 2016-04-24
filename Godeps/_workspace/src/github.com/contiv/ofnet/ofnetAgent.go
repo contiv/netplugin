@@ -249,6 +249,11 @@ func (self *OfnetAgent) SwitchConnected(sw *ofctrl.OFSwitch) {
 
 // Handle switch disconnect event
 func (self *OfnetAgent) SwitchDisconnected(sw *ofctrl.OFSwitch) {
+	// Ignore if this error was not for current switch
+	if sw.DPID().String() != self.ofSwitch.DPID().String() {
+		return
+	}
+
 	log.Infof("Switch %v disconnected", sw.DPID())
 
 	// Inform the datapath
