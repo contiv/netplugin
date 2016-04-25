@@ -24,7 +24,7 @@ import (
 type Item struct {
 	value    string // The value of the item; arbitrary.
 	priority int    // The priority of the item in the queue.
-	index int       // index of the item in pq
+	index    int    // index of the item in pq
 }
 
 // A MinPQueue implements heap.Interface and holds Items.
@@ -117,11 +117,11 @@ func (pq *MinPQueue) PushItem(item *Item) {
 
 // NewItem creates and initializes an item
 func NewItem(val string) *Item {
-	item := &Item {
-		  value: val,
-		  priority : 0,
-		  index : -1,
-		}
+	item := &Item{
+		value:    val,
+		priority: 0,
+		index:    -1,
+	}
 
 	return item
 }
@@ -132,4 +132,3 @@ func NewMinPQueue() *MinPQueue {
 	heap.Init(&pq)
 	return &pq
 }
-

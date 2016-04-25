@@ -725,12 +725,12 @@ func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
 				return
 			}
 
-                        if self.agent.portVlanMap[inPort] == nil{
-                            log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
-                            return
-                        }
-                        vlan := self.agent.portVlanMap[inPort]
-                           
+			if self.agent.portVlanMap[inPort] == nil {
+				log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
+				return
+			}
+			vlan := self.agent.portVlanMap[inPort]
+
 			// Lookup the Source and Dest IP in the endpoint table
 			srcEp := self.agent.getEndpointByIpVlan(arpIn.IPSrc, *vlan)
 			dstEp := self.agent.getEndpointByIpVlan(arpIn.IPDst, *vlan)
