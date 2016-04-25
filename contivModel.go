@@ -1874,6 +1874,10 @@ func ValidateNetwork(obj *Network) error {
 		return errors.New("networkName string too long")
 	}
 
+	if obj.NwType == "" {
+		obj.NwType = "data"
+	}
+
 	nwTypeMatch := regexp.MustCompile("^(infra|data)$")
 	if nwTypeMatch.MatchString(obj.NwType) == false {
 		return errors.New("nwType string invalid format")

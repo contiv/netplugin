@@ -20,6 +20,7 @@
 				"nwType": {
 					"type": "string",
 					"format": "^(infra|data)$",
+					"default": "\"data\"",
 					"title": "Network Type",
 					"showSummary": true
 				},
