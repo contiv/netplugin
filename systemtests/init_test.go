@@ -136,12 +136,14 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 	}
 
 	time.Sleep(5 * time.Second)
-	for {
+	for i := 0; i < 11; i++ {
 		_, err := s.cli.TenantGet("default")
 		if err == nil {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
+		// Fail if we reached last iteration
+		c.Assert((i < 10), Equals, true)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	time.Sleep(15 * time.Second)
