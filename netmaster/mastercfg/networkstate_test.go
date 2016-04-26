@@ -30,7 +30,7 @@ type testNwStateDriver struct{}
 
 var nwStateDriver = &testNwStateDriver{}
 
-func (d *testNwStateDriver) Init(config *core.Config) error {
+func (d *testNwStateDriver) Init(instInfo *core.InstanceInfo) error {
 	return core.Errorf("Shouldn't be called!")
 }
 

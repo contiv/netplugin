@@ -28,6 +28,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
 	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
@@ -40,6 +41,7 @@ const leaderLockTTL = 30
 type daemon struct {
 	listenURL        string                // URL where netmaster needs to listen
 	currState        string                // Current state of the daemon
+	storeURL         string                // state store URL
 	apiController    *objApi.APIController // API controller for contiv model
 	stateDriver      core.StateDriver      // KV store
 	objdbClient      objdb.API             // Objdb client
@@ -51,9 +53,21 @@ type daemon struct {
 
 var leaderLock objdb.LockInterface // leader lock
 
+// GetLocalAddr gets local address to be used
+func GetLocalAddr() (string, error) {
+	// get the ip address by local hostname
+	localIP, err := netutils.GetMyAddr()
+	if err == nil && netutils.IsAddrLocal(localIP) {
+		return localIP, nil
+	}
+
+	// Return first available address if we could not find by hostname
+	return netutils.GetFirstLocalAddr()
+}
+
 func (d *daemon) registerService() {
 	// Get the address to be used for local communication
-	localIP, err := d.objdbClient.GetLocalAddr()
+	localIP, err := GetLocalAddr()
 	if err != nil {
 		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}
@@ -61,6 +75,7 @@ func (d *daemon) registerService() {
 	// service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netmaster",
+		TTL:         10,
 		HostAddr:    localIP,
 		Port:        9999,
 		Role:        d.currState,
@@ -72,7 +87,49 @@ func (d *daemon) registerService() {
 		log.Fatalf("Error registering service. Err: %v", err)
 	}
 
+	// service info
+	srvInfo = objdb.ServiceInfo{
+		ServiceName: "netmaster.rpc",
+		TTL:         10,
+		HostAddr:    localIP,
+		Port:        ofnet.OFNET_MASTER_PORT,
+		Role:        d.currState,
+	}
+
+	// Register the node with service registry
+	err = d.objdbClient.RegisterService(srvInfo)
+	if err != nil {
+		log.Fatalf("Error registering service. Err: %v", err)
+	}
+
 	log.Infof("Registered netmaster service with registry")
+}
+
+// Find all netplugin nodes and register them
+func (d *daemon) registerNetpluginNodes() error {
+	// Get all netplugin services
+	srvList, err := d.objdbClient.GetService("netplugin")
+	if err != nil {
+		log.Errorf("Error getting netplugin nodes. Err: %v", err)
+		return err
+	}
+
+	// Add each node
+	for _, srv := range srvList {
+		// build host info
+		nodeInfo := ofnet.OfnetNode{
+			HostAddr: srv.HostAddr,
+			HostPort: uint16(srv.Port),
+		}
+
+		// Add the node
+		err = d.ofnetMaster.AddNode(nodeInfo)
+		if err != nil {
+			log.Errorf("Error adding node %v. Err: %v", srv, err)
+		}
+	}
+
+	return nil
 }
 
 // registerWebuiHandler registers handlers for serving web UI
@@ -194,7 +251,7 @@ func (d *daemon) runLeader() {
 	defer d.listenerMutex.Unlock()
 
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router)
+	d.apiController = objApi.NewAPIController(router, d.storeURL)
 
 	// initialize policy manager
 	mastercfg.InitPolicyMgr(d.stateDriver, d.ofnetMaster)
@@ -286,20 +343,28 @@ func (d *daemon) becomeFollower() {
 
 // runMasterFsm runs netmaster FSM
 func (d *daemon) runMasterFsm() {
+	var err error
+
+	// Get the address to be used for local communication
+	localIP, err := GetLocalAddr()
+	if err != nil {
+		log.Fatalf("Error getting local IP address. Err: %v", err)
+	}
+
 	// create new ofnet master
-	d.ofnetMaster = ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
+	d.ofnetMaster = ofnet.NewOfnetMaster(localIP, ofnet.OFNET_MASTER_PORT)
 	if d.ofnetMaster == nil {
 		log.Fatalf("Error creating ofnet master")
 	}
 
 	// Create an objdb client
-	d.objdbClient = objdb.NewClient("")
-
-	// Get the address to be used for local communication
-	localIP, err := d.objdbClient.GetLocalAddr()
+	d.objdbClient, err = objdb.NewClient(d.storeURL)
 	if err != nil {
-		log.Fatalf("Error getting local IP address. Err: %v", err)
+		log.Fatalf("Error connecting to state store: %v. Err: %v", d.storeURL, err)
 	}
+
+	// Register all existing netplugins in the background
+	go d.registerNetpluginNodes()
 
 	// Create the lock
 	leaderLock, err = d.objdbClient.NewLock("netmaster/leader", localIP, leaderLockTTL)

@@ -169,11 +169,7 @@ func createCommonState(stateDriver core.StateDriver) error {
 
 func initOvsDriver(t *testing.T) *OvsDriver {
 	driver := &OvsDriver{}
-	ovsConfig := &OvsDriverConfig{}
-	ovsConfig.Ovs.DbIP = ""
-	ovsConfig.Ovs.DbPort = 0
 	fMode := "bridge"
-	config := &core.Config{V: ovsConfig}
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabel,
@@ -184,7 +180,7 @@ func initOvsDriver(t *testing.T) *OvsDriver {
 		t.Fatalf("common state creation failed. Error: %s", err)
 	}
 
-	err = driver.Init(config, instInfo)
+	err = driver.Init(instInfo)
 	if err != nil {
 		t.Fatalf("driver init failed. Error: %s", err)
 	}
@@ -199,11 +195,7 @@ func TestOvsDriverInit(t *testing.T) {
 
 func TestOvsDriverInitStatefulStart(t *testing.T) {
 	driver := &OvsDriver{}
-	ovsConfig := &OvsDriverConfig{}
-	ovsConfig.Ovs.DbIP = ""
-	ovsConfig.Ovs.DbPort = 0
 	fMode := "bridge"
-	config := &core.Config{V: ovsConfig}
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabelStateful,
@@ -217,7 +209,7 @@ func TestOvsDriverInitStatefulStart(t *testing.T) {
 		t.Fatalf("writing driver oper state failed. Error: %s", err)
 	}
 
-	err = driver.Init(config, instInfo)
+	err = driver.Init(instInfo)
 	if err != nil {
 		t.Fatalf("driver init failed. Error: %s", err)
 	}
@@ -232,18 +224,15 @@ func TestOvsDriverInitStatefulStart(t *testing.T) {
 
 func TestOvsDriverInitInvalidConfig(t *testing.T) {
 	driver := &OvsDriver{}
-	config := &core.Config{V: nil}
-	stateDriver := &state.FakeStateDriver{}
-	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabel,
-		StateDriver: stateDriver}
+		StateDriver: nil, FwdMode: "bridge"}
 
-	err := driver.Init(config, instInfo)
+	err := driver.Init(nil)
 	if err == nil {
 		t.Fatalf("driver init succeeded. Should have failed!")
 	}
 
-	err = driver.Init(nil, instInfo)
+	err = driver.Init(instInfo)
 	if err == nil {
 		t.Fatalf("driver init succeeded. Should have failed!")
 	}
@@ -253,15 +242,11 @@ func TestOvsDriverInitInvalidConfig(t *testing.T) {
 
 func TestOvsDriverInitInvalidState(t *testing.T) {
 	driver := &OvsDriver{}
-	ovsConfig := &OvsDriverConfig{}
-	ovsConfig.Ovs.DbIP = ""
-	ovsConfig.Ovs.DbPort = 0
 	fMode := "bridge"
-	config := &core.Config{V: ovsConfig}
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabel, StateDriver: nil,
 		FwdMode: fMode}
 
-	err := driver.Init(config, instInfo)
+	err := driver.Init(instInfo)
 	if err == nil {
 		t.Fatalf("driver init succeeded. Should have failed!")
 	}
@@ -270,12 +255,8 @@ func TestOvsDriverInitInvalidState(t *testing.T) {
 
 func TestOvsDriverInitInvalidInstanceInfo(t *testing.T) {
 	driver := &OvsDriver{}
-	ovsConfig := &OvsDriverConfig{}
-	ovsConfig.Ovs.DbIP = ""
-	ovsConfig.Ovs.DbPort = 0
-	config := &core.Config{V: ovsConfig}
 
-	err := driver.Init(config, nil)
+	err := driver.Init(nil)
 	if err == nil {
 		t.Fatalf("driver init succeeded. Should have failed!")
 	}

@@ -72,8 +72,8 @@ func ParseIPAddrMaskString(ipAddr string) (*net.IP, *net.IP, error) {
 // BuildGarpPkt builds a Gratuitous ARP packet
 func BuildGarpPkt(ip net.IP, mac net.HardwareAddr, vlanID uint16) *openflow13.PacketOut {
 
-    zMac, _ := net.ParseMAC("00:00:00:00:00:00")
-    bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
+	zMac, _ := net.ParseMAC("00:00:00:00:00:00")
+	bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
 
 	garpPkt, _ := protocol.NewARP(protocol.Type_Request)
 	garpPkt.HWSrc = mac
@@ -93,5 +93,5 @@ func BuildGarpPkt(ip net.IP, mac net.HardwareAddr, vlanID uint16) *openflow13.Pa
 	pktOut := openflow13.NewPacketOut()
 	pktOut.Data = ethPkt
 
-    return pktOut
+	return pktOut
 }

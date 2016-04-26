@@ -16,12 +16,13 @@ limitations under the License.
 package objApi
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/contivmodel/client"
@@ -47,19 +48,9 @@ var stateStore core.StateDriver
 
 // initStateDriver initialize etcd state driver
 func initStateDriver() (core.StateDriver, error) {
-	var cfg *core.Config
+	instInfo := core.InstanceInfo{DbURL: "etcd://127.0.0.1:2379"}
 
-	url := "http://127.0.0.1:4001"
-	etcdCfg := &state.EtcdStateDriverConfig{}
-	etcdCfg.Etcd.Machines = []string{url}
-	cfg = &core.Config{V: etcdCfg}
-
-	cfgBytes, err := json.Marshal(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return utils.NewStateDriver(utils.EtcdNameStr, string(cfgBytes))
+	return utils.NewStateDriver(utils.EtcdNameStr, &instInfo)
 }
 
 // setup the test netmaster REST server and client
@@ -72,7 +63,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Error initializing state store. Err: %v", err)
 	}
 	// little hack to clear all state from etcd
-	stateStore.(*state.EtcdStateDriver).Client.Delete("/contiv.io", true)
+	stateStore.(*state.EtcdStateDriver).KeysAPI.Delete(context.Background(), "/contiv.io", nil)
 
 	// Setup resource manager
 	if _, err = resources.NewStateResourceManager(stateStore); err != nil {
@@ -82,9 +73,9 @@ func TestMain(m *testing.M) {
 	router := mux.NewRouter()
 
 	// Create a new api controller
-	apiController = NewAPIController(router)
+	apiController = NewAPIController(router, "etcd://127.0.0.1:4001")
 
-	ofnetMaster := ofnet.NewOfnetMaster(ofnet.OFNET_MASTER_PORT)
+	ofnetMaster := ofnet.NewOfnetMaster("127.0.0.1", ofnet.OFNET_MASTER_PORT)
 	if ofnetMaster == nil {
 		log.Fatalf("Error creating ofnet master")
 	}
@@ -721,4 +712,6 @@ func TestEpgPolicies(t *testing.T) {
 	checkDeletePolicy(t, false, "default", "policy1")
 	checkDeletePolicy(t, false, "default", "policy2")
 
+	// delete the network
+	checkDeleteNetwork(t, false, "default", "contiv")
 }

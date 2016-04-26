@@ -46,6 +46,7 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 		}
 
 		c.Assert(leader.stopNetmaster(), IsNil)
+		c.Assert(leader.rotateLog("netmaster"), IsNil)
 
 		for x := 0; x < 30; x++ {
 			logrus.Info("Waiting 1s for leader to change...")
@@ -70,10 +71,10 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 		}
 
 	finished:
-		c.Assert(s.pingTest(containers), IsNil)
-
 		c.Assert(oldLeader.startNetmaster(), IsNil)
 		time.Sleep(5 * time.Second)
+
+		c.Assert(s.pingTest(containers), IsNil)
 
 		c.Assert(s.removeContainers(containers), IsNil)
 	}
@@ -97,7 +98,7 @@ func (s *systemtestSuite) TestNetpluginDisconnect(c *C) {
 		for _, node := range s.nodes {
 			c.Assert(node.stopNetplugin(), IsNil)
 			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
-			time.Sleep(2 * time.Minute)
+			time.Sleep(50 * time.Second)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
 			if s.fwdMode == "routing" {
 				c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
@@ -105,7 +106,7 @@ func (s *systemtestSuite) TestNetpluginDisconnect(c *C) {
 				c.Assert(node.startNetplugin(""), IsNil)
 			}
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
-			time.Sleep(15 * time.Second)
+			time.Sleep(20 * time.Second)
 
 			c.Assert(s.pingTest(containers), IsNil)
 		}
@@ -202,7 +203,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(s.checkAllConnection(netMapContainers, groupMapContainers), IsNil)
 
-	for i := 0; i < 18; i++ {
+	for i := 0; i < (s.iterations * 6); i++ {
 		switch rand.Int() % 3 {
 		case 0:
 			logrus.Info("Triggering netplugin restart")
@@ -215,6 +216,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 					c.Assert(node.startNetplugin(""), IsNil)
 				}
 				c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+				time.Sleep(20 * time.Second)
 			}
 		case 1:
 			logrus.Info("Triggering netmaster restart")

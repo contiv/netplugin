@@ -110,13 +110,8 @@ func verifyKeysDoNotExist(t *testing.T, keys []string) {
 }
 
 func initFakeStateDriver(t *testing.T) {
-	config := &core.Config{V: &state.FakeStateDriverConfig{}}
-	cfgBytes, err := json.Marshal(config)
-	if err != nil {
-		t.Fatalf("marshalling configuration failed. Error: %s", err)
-	}
-
-	d, err := utils.NewStateDriver("fakedriver", string(cfgBytes))
+	instInfo := core.InstanceInfo{}
+	d, err := utils.NewStateDriver("fakedriver", &instInfo)
 	if err != nil {
 		t.Fatalf("failed to init statedriver. Error: %s", err)
 	}

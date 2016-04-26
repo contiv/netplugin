@@ -16,6 +16,7 @@ limitations under the License.
 package state
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/contiv/netplugin/core"
@@ -37,20 +38,18 @@ type ConsulStateDriver struct {
 }
 
 // Init the driver with a core.Config.
-func (d *ConsulStateDriver) Init(config *core.Config) error {
+func (d *ConsulStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var err error
 
-	if config == nil {
-		return core.Errorf("Invalid arguments. cfg: %v", config)
+	if instInfo == nil || !strings.Contains(instInfo.DbURL, "consul://") {
+		return errors.New("Invalid consul config")
 	}
 
-	cfg, ok := config.V.(*ConsulStateDriverConfig)
-
-	if !ok {
-		return core.Errorf("Invalid config type passed!")
+	cfg := api.Config{
+		Address: strings.TrimPrefix(instInfo.DbURL, "consul://"),
 	}
 
-	d.Client, err = api.NewClient(&cfg.Consul)
+	d.Client, err = api.NewClient(&cfg)
 	if err != nil {
 		return err
 	}

@@ -38,11 +38,11 @@ $ make host-build
 ```
 
 ### 4. Run Unit tests. `Estimated time: 2 minutes`
-Note: All this is done from inside the VM. Technically the VM is 
+Note: All this is done from inside the VM. Technically the VM is
 the development environment including unit testing
 ```
 $ cd $GOPATH/src/github.com/contiv/netplugin
-# make sure to clean up any remnants from prior runs; note that cleanup may 
+# make sure to clean up any remnants from prior runs; note that cleanup may
 # throw some harmless errors if things are already clean (so feel free to ignore them)
 $ make host-cleanup
 $ make host-unit-test
@@ -51,12 +51,10 @@ $ make host-unit-test
 ```
 
 ### 5. Run system tests `Estimated Time: 90 mins`
-Note: Again, this is also done from inside the VM. System tests would run across multiple 
-hosts (vm1 and vm2). Therefore it is important to keep both VMs (spun up from make-demo) running 
-otherwise it may not run multi-host networking tests well enough. The time taken to run
-system tests will be higher first time because the tests will download some containers for testing
+Note: This is done outside the VMs. System tests would start the vagrant VMs if
+they are not already running and run the tests on two VMs
 ```
-$ make host-sanity-test
+$ make system-test
 ```
 
 ### 6. Commit changes to your fork; submit PR

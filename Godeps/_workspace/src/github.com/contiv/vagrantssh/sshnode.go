@@ -19,9 +19,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
+
+// MaxSSHRetries is the number of times we'll retry SSH connection
+var MaxSSHRetries = 3
+
+// SSHRetryDelay is the delay between SSH connection retries
+var SSHRetryDelay = time.Second
 
 // SSHNode implements a node with ssh connectivity in a testbed
 type SSHNode struct {
@@ -78,22 +85,29 @@ func newCmdStrWithSource(cmd string) string {
 }
 
 func (n *SSHNode) getClientAndSession() (*ssh.Client, *ssh.Session, error) {
-	client, err := n.dial()
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() {
+	var client *ssh.Client
+	var s *ssh.Session
+	var err error
+
+	// Retry few times if ssh connection fails
+	for i := 0; i < MaxSSHRetries; i++ {
+		client, err = n.dial()
+		if err != nil {
+			time.Sleep(SSHRetryDelay)
+			continue
+		}
+
+		s, err = client.NewSession()
 		if err != nil {
 			client.Close()
+			time.Sleep(SSHRetryDelay)
+			continue
 		}
-	}()
 
-	s, err := client.NewSession()
-	if err != nil {
-		return nil, nil, err
+		return client, s, nil
 	}
 
-	return client, s, nil
+	return nil, nil, err
 }
 
 // RunCommand runs a shell command in a vagrant node and returns it's exit status

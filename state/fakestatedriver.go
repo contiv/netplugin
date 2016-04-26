@@ -23,7 +23,7 @@ type FakeStateDriver struct {
 }
 
 // Init the driver
-func (d *FakeStateDriver) Init(config *core.Config) error {
+func (d *FakeStateDriver) Init(instInfo *core.InstanceInfo) error {
 	d.TestState = make(map[string]valueData)
 
 	return nil

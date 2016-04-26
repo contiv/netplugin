@@ -96,6 +96,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 	logrus.Info("Pulling alpine on all nodes")
 	s.vagrant.IterateNodes(func(node vagrantssh.TestbedNode) error {
+		node.RunCommand("sudo rm /tmp/net*")
 		return node.RunCommand("docker pull alpine")
 	})
 
@@ -134,20 +135,25 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
 	}
 
-	for {
+	time.Sleep(5 * time.Second)
+	for i := 0; i < 11; i++ {
 		_, err := s.cli.TenantGet("default")
 		if err == nil {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
+		// Fail if we reached last iteration
+		c.Assert((i < 10), Equals, true)
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(15 * time.Second)
 }
 
 func (s *systemtestSuite) TearDownTest(c *C) {
 	for _, node := range s.nodes {
 		c.Assert(node.checkForNetpluginErrors(), IsNil)
+		c.Assert(node.rotateLog("netplugin"), IsNil)
+		c.Assert(node.rotateLog("netmaster"), IsNil)
 	}
 }
 

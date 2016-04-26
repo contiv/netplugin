@@ -104,16 +104,10 @@ func (d *OvsDriver) getIntfName() (string, error) {
 }
 
 // Init initializes the OVS driver.
-func (d *OvsDriver) Init(config *core.Config, info *core.InstanceInfo) error {
+func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 
-	if config == nil || info == nil || info.StateDriver == nil {
-		return core.Errorf("Invalid arguments. cfg: %+v, instance-info: %+v",
-			config, info)
-	}
-
-	_, ok := config.V.(*OvsDriverConfig)
-	if !ok {
-		return core.Errorf("Invalid type passed")
+	if info == nil || info.StateDriver == nil {
+		return core.Errorf("Invalid arguments. instance-info: %+v", info)
 	}
 
 	d.oper.StateDriver = info.StateDriver

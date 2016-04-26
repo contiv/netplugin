@@ -7,14 +7,14 @@ require 'fileutils'
 gopath_folder="/opt/gopath"
 FileUtils.cp "/etc/resolv.conf", Dir.pwd
 
-$cluster_ip_nodes = ""
+cluster_ip_nodes = ""
 
 provision_common = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
 echo -n "$1" > /etc/hostname
 hostname -F /etc/hostname
-/sbin/ip addr add "$3/24" dev eth1
+/sbin/ip addr add "$2/24" dev eth1
 /sbin/ip link set eth1 up
 /sbin/ip link set eth2 up
 echo 'export GOPATH=#{gopath_folder}' > /etc/profile.d/envvar.sh
@@ -24,8 +24,8 @@ echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
 echo "export http_proxy='$4'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
 echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
-echo "export no_proxy=$7,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
-echo "export CLUSTER_NODE_IPS=$7" >> /etc/profile.d/envvar.sh
+echo "export no_proxy=$3,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
+echo "export CLUSTER_NODE_IPS=$3" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 mv /etc/resolv.conf /etc/resolv.conf.bak
 cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
@@ -36,27 +36,31 @@ cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /e
 systemctl enable docker-tcp.socket
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
-echo "Environment=\\\"no_proxy=$7,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
+echo "Environment=\\\"no_proxy=$3,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
 sudo systemctl stop docker
 systemctl start docker-tcp.socket
 sudo systemctl start docker
 
-if [ $# -gt 7 ]; then
-    shift; shift; shift; shift; shift; shifti; shift
+if [[ $# -gt 6 ]] && [[ $7 != "" ]]; then
+    shift; shift; shift; shift; shift; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
-# Get swarm binary
-# (wget https://cisco.box.com/shared/static/0txiq5h7282hraujk09eleoevptd5jpl -q -O /usr/bin/swarm &&
-# chmod +x /usr/bin/swarm) || exit 1
-#Get gobgp binary
-wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp && chmod +x #{gopath_folder}/src/github.com/contiv/netplugin/scripts/gobgp 
 # remove duplicate docker key
 rm /etc/docker/key.json
 (service docker restart) || exit 1
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
 docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
+
+# Drop cache to workaround vboxsf problem
+echo 3 > /proc/sys/vm/drop_caches
+
+SCRIPT
+
+provision_gobgp = <<SCRIPT
+#Get gobgp binary
+wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp 
 SCRIPT
 
 provision_bird = <<SCRIPT
@@ -84,7 +88,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
     base_ip = "192.168.2."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
-    $cluster_ip_nodes = node_ips.join(",")
+    cluster_ip_nodes = node_ips.join(",")
  
     node_names = num_nodes.times.collect { |n| "netplugin-node#{n+1}" }
     node_peers = []
@@ -191,12 +195,18 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
-                s.args = [node_name, ENV["CONTIV_NODE_OS"] || "", node_addr, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV'],$cluster_ip_nodes]
+                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV']]
+            end
+            if ENV['CONTIV_L3'] then
+                node.vm.provision "shell" do |s|
+                    s.inline = provision_gobgp
+                end
             end
 provision_node = <<SCRIPT
 ## start etcd with generated config
 set -x
 (nohup etcd --name #{node_name} --data-dir /tmp/etcd \
+ -heartbeat-interval=600 -election-timeout=3000 \
  --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
  --advertise-client-urls http://#{node_addr}:2379,http://#{node_addr}:4001 \
  --initial-advertise-peer-urls http://#{node_addr}:2380,http://#{node_addr}:7001 \
@@ -208,6 +218,7 @@ set -x
  -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
 # start swarm
 (nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} #{swarm_flag}> /tmp/start-swarm.log &) || exit 1
+
 SCRIPT
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_node

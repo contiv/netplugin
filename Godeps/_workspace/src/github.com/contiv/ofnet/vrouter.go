@@ -312,10 +312,6 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 			return errors.New("Invalid vrf name")
 		}
 
-		// Point it to next table.
-		// Note that we bypass policy lookup on dest host.
-		sNATTbl := self.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
-		portVlanFlow.Next(sNATTbl)
 		//set vrf id as METADATA
 		vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
 
@@ -323,7 +319,13 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 		metadataMask := METADATA_RX_VTEP | vrfmetadataMask
 
 		portVlanFlow.SetMetadata(metadata, metadataMask)
+
+		// Point it to next table.
+		// Note that we bypass policy lookup on dest host.
+		sNATTbl := self.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
+		portVlanFlow.Next(sNATTbl)
 	}
+
 	// walk all routes and see if we need to install it
 	for _, endpoint := range self.agent.endpointDb {
 		if endpoint.OriginatorIp.String() == remoteIp.String() {
@@ -388,6 +390,7 @@ func (self *Vrouter) AddVlan(vlanId uint16, vni uint32, vrf string) error {
 			log.Errorf("Invalid vrf name:%v", *vrf)
 			return errors.New("Invalid vrf name")
 		}
+
 		//set vrf id as METADATA
 		vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
 
