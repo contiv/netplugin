@@ -33,6 +33,7 @@ type etcdPlugin struct {
 	mutex *sync.Mutex
 }
 
+// EtcdClient has etcd client state
 type EtcdClient struct {
 	client client.Client // etcd client
 	kapi   client.KeysAPI
@@ -94,7 +95,7 @@ func (ep *etcdPlugin) NewClient(endpoints []string) (API, error) {
 	return ec, nil
 }
 
-// Get an object
+// GetObj Get an object
 func (ep *EtcdClient) GetObj(key string, retVal interface{}) error {
 	keyName := "/contiv.io/obj/" + key
 
@@ -128,7 +129,7 @@ func recursAddNode(node *client.Node, list []string) []string {
 	return list
 }
 
-// Get a list of objects in a directory
+// ListDir Get a list of objects in a directory
 func (ep *EtcdClient) ListDir(key string) ([]string, error) {
 	keyName := "/contiv.io/obj/" + key
 
@@ -159,7 +160,7 @@ func (ep *EtcdClient) ListDir(key string) ([]string, error) {
 	return retList, nil
 }
 
-// Save an object, create if it doesnt exist
+// SetObj Save an object, create if it doesnt exist
 func (ep *EtcdClient) SetObj(key string, value interface{}) error {
 	keyName := "/contiv.io/obj/" + key
 
@@ -179,7 +180,7 @@ func (ep *EtcdClient) SetObj(key string, value interface{}) error {
 	return nil
 }
 
-// Remove an object
+// DelObj Remove an object
 func (ep *EtcdClient) DelObj(key string) error {
 	keyName := "/contiv.io/obj/" + key
 
@@ -215,7 +216,7 @@ func httpGetJSON(url string, data interface{}) (interface{}, error) {
 	return data, nil
 }
 
-// Return the local address where etcd is listening
+// GetLocalAddr Return the local address where etcd is listening
 func (ep *EtcdClient) GetLocalAddr() (string, error) {
 	var epData struct {
 		Name string `json:"name"`

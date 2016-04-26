@@ -19,6 +19,7 @@ test: start build
 	vagrant ssh node1 -c 'cd /opt/gopath/src/github.com/contiv/objdb && make host-test'
 
 host-build:
+	./checks "./*.go ./modeldb"
 	go get github.com/tools/godep
 	godep go install ./ ./modeldb
 
