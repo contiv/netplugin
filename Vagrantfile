@@ -73,10 +73,10 @@ SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-    if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "centos" then
-        config.vm.box = "contiv/centos71-netplugin"
-    else
+    if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
         config.vm.box = "contiv/ubuntu1504-netplugin"
+    else
+        config.vm.box = "contiv/centos71-netplugin"
     end
     config.vm.provider 'virtualbox' do |v|
         v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
