@@ -80,9 +80,9 @@ class Testbed:
             nodeIdx = cntIdx % self.numNodes()
             srvName = "srv" + str(cntIdx)
             if withService:
-                cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private", serviceName=srvName, cntName=srvName)
+                cnt = self.nodes[nodeIdx].runContainer("ubuntu:14.04", networkName="private", serviceName=srvName, cntName=srvName)
             else:
-                cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName="private", cntName=srvName)
+                cnt = self.nodes[nodeIdx].runContainer("ubuntu:14.04", networkName="private", cntName=srvName)
 
             containers.append(cnt)
 
@@ -94,7 +94,7 @@ class Testbed:
         # Start the containers
         for cntIdx in range(numContainer):
             nodeIdx = cntIdx % self.numNodes()
-            cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName=networkName, serviceName=serviceName)
+            cnt = self.nodes[nodeIdx].runContainer("ubuntu:14.04", networkName=networkName, serviceName=serviceName)
             containers.append(cnt)
 
         return containers
@@ -106,7 +106,7 @@ class Testbed:
         for cntIdx in range(numContainer):
             nodeIdx = cntIdx % self.numNodes()
             netIdx = cntIdx % len(networks)
-            cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName=networks[netIdx])
+            cnt = self.nodes[nodeIdx].runContainer("ubuntu:14.04", networkName=networks[netIdx])
             containers.append(cnt)
 
         return containers
@@ -120,7 +120,7 @@ class Testbed:
             gidx = cntIdx % len(groups)
             netName = groups[gidx].split(".")[1]
             svcName = groups[gidx].split('.')[0]
-            cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName=netName, serviceName=svcName)
+            cnt = self.nodes[nodeIdx].runContainer("ubuntu:14.04", networkName=netName, serviceName=svcName)
             containers.append(cnt)
 
         return containers
@@ -129,7 +129,7 @@ class Testbed:
     def runContainerOnNode(self, nodeIdx, group):
         netName = group.split(".")[1]
         svcName = group.split('.')[0]
-        cnt = self.nodes[nodeIdx].runContainer("ubuntu", networkName=netName, serviceName=svcName)
+        cnt = self.nodes[nodeIdx].runContainer("ubuntu:14.04", networkName=netName, serviceName=svcName)
         return cnt
 
     # Remove containers

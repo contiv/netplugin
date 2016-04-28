@@ -30,7 +30,12 @@ source /etc/profile.d/envvar.sh
 mv /etc/resolv.conf /etc/resolv.conf.bak
 cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
 # setup docker cluster store
-cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service /lib/systemd/system/docker.service
+if [[ $7 == *"consul:"* ]]
+then
+    cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service.consul /lib/systemd/system/docker.service
+else
+    cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service /lib/systemd/system/docker.service
+fi
 # setup docker remote api
 cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
 systemctl enable docker-tcp.socket
@@ -42,8 +47,8 @@ sudo systemctl stop docker
 systemctl start docker-tcp.socket
 sudo systemctl start docker
 
-if [[ $# -gt 6 ]] && [[ $7 != "" ]]; then
-    shift; shift; shift; shift; shift; shift
+if [[ $# -gt 7 ]] && [[ $8 != "" ]]; then
+    shift; shift; shift; shift; shift; shift; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 # remove duplicate docker key
@@ -60,7 +65,7 @@ SCRIPT
 
 provision_gobgp = <<SCRIPT
 #Get gobgp binary
-wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp 
+wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp
 SCRIPT
 
 provision_gobgp = <<SCRIPT
@@ -99,7 +104,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     base_ip = "192.168.2."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
     cluster_ip_nodes = node_ips.join(",")
- 
+
     node_names = num_nodes.times.collect { |n| "netplugin-node#{n+1}" }
     node_peers = []
     if ENV['CONTIV_L3'] then
@@ -140,7 +145,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         end
       end
     end
-   
+
      num_nodes.times do |n|
         node_name = node_names[n]
         node_addr = node_ips[n]
@@ -160,10 +165,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         net_num = (n+1)%3
         if net_num == 0 then
            network_name = "contiv_orange"
-        else 
+        else
            if net_num == 1 then
               network_name = "contiv_yellow"
-           else 
+           else
               network_name = "contiv_green"
            end
         end
@@ -205,7 +210,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
-                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", *ENV['CONTIV_ENV']]
+                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", *ENV['CONTIV_ENV']]
             end
             if ENV['CONTIV_L3'] then
                 node.vm.provision "shell" do |s|

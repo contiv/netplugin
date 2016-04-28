@@ -64,7 +64,7 @@ func (s *systemtestSuite) getNodeByName(name string) *node {
 
 func (n *node) startNetplugin(args string) error {
 	logrus.Infof("Starting netplugin on %s", n.Name())
-	return n.tbnode.RunCommandBackground("sudo " + n.suite.binpath + "/netplugin -plugin-mode docker -vlan-if " + n.suite.vlanIf + " " + args + "&> /tmp/netplugin.log")
+	return n.tbnode.RunCommandBackground("sudo " + n.suite.binpath + "/netplugin -plugin-mode docker -vlan-if " + n.suite.vlanIf + " --cluster-store " + n.suite.clusterStore + " " + args + "&> /tmp/netplugin.log")
 }
 
 func (n *node) stopNetplugin() error {
@@ -79,7 +79,7 @@ func (n *node) stopNetmaster() error {
 
 func (n *node) startNetmaster() error {
 	logrus.Infof("Starting netmaster on %s", n.Name())
-	return n.tbnode.RunCommandBackground(n.suite.binpath + "/netmaster &> /tmp/netmaster.log")
+	return n.tbnode.RunCommandBackground(n.suite.binpath + "/netmaster " + " --cluster-store " + n.suite.clusterStore + " &> /tmp/netmaster.log")
 }
 
 func (n *node) cleanupDockerNetwork() error {
@@ -109,6 +109,8 @@ func (n *node) cleanupMaster() {
 	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
 	vNode.RunCommand("etcdctl rm --recursive /docker")
 	vNode.RunCommand("etcdctl rm --recursive /skydns")
+	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
+	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 }
 
 func (n *node) runCommand(cmd string) (string, error) {

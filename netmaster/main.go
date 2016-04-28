@@ -31,13 +31,13 @@ import (
 )
 
 type cliOpts struct {
-	help        bool
-	debug       bool
-	storeURL    string
-	listenURL   string
-	clusterMode string
-	dnsEnabled  bool
-	version     bool
+	help         bool
+	debug        bool
+	clusterStore string
+	listenURL    string
+	clusterMode  string
+	dnsEnabled   bool
+	version      bool
 }
 
 var flagSet *flag.FlagSet
@@ -49,9 +49,9 @@ func usage() {
 
 func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
 	// parse the state store URL
-	parts := strings.Split(opts.storeURL, "://")
+	parts := strings.Split(opts.clusterStore, "://")
 	if len(parts) < 2 {
-		return nil, core.Errorf("Invalid state-store URL %q", opts.storeURL)
+		return nil, core.Errorf("Invalid state-store URL %q", opts.clusterStore)
 	}
 	stateStore := parts[0]
 
@@ -65,7 +65,7 @@ func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
 
 	// Setup instance info
 	instInfo := core.InstanceInfo{
-		DbURL: opts.storeURL,
+		DbURL: opts.clusterStore,
 	}
 
 	return utils.NewStateDriver(stateStore, &instInfo)
@@ -81,8 +81,8 @@ func parseOpts(opts *cliOpts) error {
 		"debug",
 		false,
 		"Turn on debugging information")
-	flagSet.StringVar(&opts.storeURL,
-		"store-url",
+	flagSet.StringVar(&opts.clusterStore,
+		"cluster-store",
 		"etcd://127.0.0.1:2379",
 		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
 	flagSet.StringVar(&opts.listenURL,
@@ -161,7 +161,7 @@ func main() {
 
 	// store the URLs
 	d.listenURL = opts.listenURL
-	d.storeURL = opts.storeURL
+	d.clusterStore = opts.clusterStore
 
 	// Run daemon FSM
 	d.runMasterFsm()

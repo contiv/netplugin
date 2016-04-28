@@ -246,8 +246,8 @@ def testPolicyFeatures(testbed, encap="vxlan"):
     group2 = network.newGroup("srv2", policies=["second"])
 
     # start containers
-    cnt1 = testbed.nodes[0].runContainer("ubuntu", networkName='private', serviceName='srv1')
-    cnt2 = testbed.nodes[0].runContainer("ubuntu", networkName='private', serviceName='srv2')
+    cnt1 = testbed.nodes[0].runContainer("ubuntu:14.04", networkName='private', serviceName='srv1')
+    cnt2 = testbed.nodes[0].runContainer("ubuntu:14.04", networkName='private', serviceName='srv2')
 
     # start netcast listeners
     cnt1.startListener(8000)
