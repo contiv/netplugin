@@ -31,6 +31,8 @@ import (
 
 // Ofnet master state
 type OfnetMaster struct {
+	myAddr      string       // Address where we are listening
+	myPort      uint16       // port where we are listening
 	rpcServer   *rpc.Server  // json-rpc server
 	rpcListener net.Listener // Listener
 	masterMutex sync.Mutex   // Mutex to lock master datastructures
@@ -46,11 +48,13 @@ type OfnetMaster struct {
 }
 
 // Create new Ofnet master
-func NewOfnetMaster(portNo uint16) *OfnetMaster {
+func NewOfnetMaster(myAddr string, portNo uint16) *OfnetMaster {
 	// Create the master
 	master := new(OfnetMaster)
 
 	// Init params
+	master.myAddr = myAddr
+	master.myPort = portNo
 	master.agentDb = make(map[string]*OfnetNode)
 	master.endpointDb = make(map[string]*OfnetEndpoint)
 	master.policyDb = make(map[string]*OfnetPolicyRule)
@@ -72,6 +76,25 @@ func NewOfnetMaster(portNo uint16) *OfnetMaster {
 func (self *OfnetMaster) Delete() error {
 	self.rpcListener.Close()
 	time.Sleep(100 * time.Millisecond)
+
+	return nil
+}
+
+// AddNode adds a node by calling MasterAdd rpc call on the node
+func (self *OfnetMaster) AddNode(hostInfo OfnetNode) error {
+	var resp bool
+
+	// my info
+	myInfo := new(OfnetNode)
+	myInfo.HostAddr = self.myAddr
+	myInfo.HostPort = self.myPort
+
+	client := rpcHub.Client(hostInfo.HostAddr, hostInfo.HostPort)
+	err := client.Call("OfnetAgent.AddMaster", myInfo, &resp)
+	if err != nil {
+		log.Errorf("Error calling AddMaster rpc call on node %v. Err: %v", hostInfo, err)
+		return err
+	}
 
 	return nil
 }
@@ -165,6 +188,7 @@ func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 	// Check if we have the endpoint, if we dont have the endpoint, nothing to do
 	oldEp := self.endpointDb[ep.EndpointID]
 	if oldEp == nil {
+		log.Errorf("Received endpoint DELETE on a non existing endpoint %+v", ep)
 		return nil
 	}
 

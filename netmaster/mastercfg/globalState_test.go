@@ -29,7 +29,7 @@ type testglobalStateDriver struct{}
 
 var gcStateDriver = &testglobalStateDriver{}
 
-func (d *testglobalStateDriver) Init(config *core.Config) error {
+func (d *testglobalStateDriver) Init(instInfo *core.InstanceInfo) error {
 	return core.Errorf("Shouldn't be called!")
 }
 

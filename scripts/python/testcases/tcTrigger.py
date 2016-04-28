@@ -123,7 +123,7 @@ def triggerNetpluginRestart(testbed):
         node.startNetplugin()
 
         # Wait a little
-        time.sleep(10)
+        time.sleep(30)
 
 # Trigger netplugin disconnect/connect
 def triggerNetpluginDisconectConnect(testbed):
@@ -132,7 +132,7 @@ def triggerNetpluginDisconectConnect(testbed):
         node.stopNetplugin()
 
         # Wait for netplugin service to expire
-        time.sleep(90)
+        time.sleep(50)
 
         # Move old log file
         currTime = time.strftime("%H:%M:%S", time.localtime())
@@ -142,7 +142,7 @@ def triggerNetpluginDisconectConnect(testbed):
         node.startNetplugin()
 
         # Wait a little
-        time.sleep(10)
+        time.sleep(30)
 
         # Check for errors
         testbed.chekForNetpluginErrors()
@@ -150,17 +150,19 @@ def triggerNetpluginDisconectConnect(testbed):
 # Trigger netmaster restart
 def triggerNetmasterRestart(testbed):
     for node in testbed.nodes:
-        api.tutils.info("Restarting netmaster on " + testbed.nodes[0].hostname)
+        api.tutils.info("Restarting netmaster on " + node.hostname)
         node.stopNetmaster()
         time.sleep(1)
 
+    for node in testbed.nodes:
         currTime = time.strftime("%H:%M:%S", time.localtime())
         node.runCmd("mv /tmp/netmaster.log /tmp/netmaster-" + currTime + ".log")
 
         node.startNetmaster()
+        time.sleep(1)
 
-        # Wait a little
-        time.sleep(10)
+    # Wait a little
+    time.sleep(10)
 
 # Trigger netmaster restart
 def triggerNetmasterSwitchover(testbed):

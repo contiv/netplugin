@@ -3,9 +3,11 @@ package api
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -14,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 // QueryOptions are used to parameterize a query
@@ -36,12 +40,18 @@ type QueryOptions struct {
 	WaitIndex uint64
 
 	// WaitTime is used to bound the duration of a wait.
-	// Defaults to that of the Config, but can be overriden.
+	// Defaults to that of the Config, but can be overridden.
 	WaitTime time.Duration
 
 	// Token is used to provide a per-request ACL token
 	// which overrides the agent's default token.
 	Token string
+
+	// Near is used to provide a node name that will sort the results
+	// in ascending order based on the estimated round trip time from
+	// that node. Setting this to "_agent" will use the agent's node
+	// for the sort.
+	Near string
 }
 
 // WriteOptions are used to parameterize a write
@@ -114,12 +124,58 @@ type Config struct {
 	Token string
 }
 
-// DefaultConfig returns a default configuration for the client
+// TLSConfig is used to generate a TLSClientConfig that's useful for talking to
+// Consul using TLS.
+type TLSConfig struct {
+	// Address is the optional address of the Consul server. The port, if any
+	// will be removed from here and this will be set to the ServerName of the
+	// resulting config.
+	Address string
+
+	// CAFile is the optional path to the CA certificate used for Consul
+	// communication, defaults to the system bundle if not specified.
+	CAFile string
+
+	// CertFile is the optional path to the certificate for Consul
+	// communication. If this is set then you need to also set KeyFile.
+	CertFile string
+
+	// KeyFile is the optional path to the private key for Consul communication.
+	// If this is set then you need to also set CertFile.
+	KeyFile string
+
+	// InsecureSkipVerify if set to true will disable TLS host verification.
+	InsecureSkipVerify bool
+}
+
+// DefaultConfig returns a default configuration for the client. By default this
+// will pool and reuse idle connections to Consul. If you have a long-lived
+// client object, this is the desired behavior and should make the most efficient
+// use of the connections to Consul. If you don't reuse a client object , which
+// is not recommended, then you may notice idle connections building up over
+// time. To avoid this, use the DefaultNonPooledConfig() instead.
 func DefaultConfig() *Config {
+	return defaultConfig(cleanhttp.DefaultPooledTransport)
+}
+
+// DefaultNonPooledConfig returns a default configuration for the client which
+// does not pool connections. This isn't a recommended configuration because it
+// will reconnect to Consul on every request, but this is useful to avoid the
+// accumulation of idle connections if you make many client objects during the
+// lifetime of your application.
+func DefaultNonPooledConfig() *Config {
+	return defaultConfig(cleanhttp.DefaultTransport)
+}
+
+// defaultConfig returns the default configuration for the client, using the
+// given function to make the transport.
+func defaultConfig(transportFn func() *http.Transport) *Config {
 	config := &Config{
-		Address:    "127.0.0.1:8500",
-		Scheme:     "http",
-		HttpClient: http.DefaultClient,
+		Address: "127.0.0.1:8500",
+		Scheme:  "http",
+		HttpClient: &http.Client{
+			Transport: transportFn(),
+		},
 	}
 
 	if addr := os.Getenv("CONSUL_HTTP_ADDR"); addr != "" {
@@ -164,15 +220,68 @@ func DefaultConfig() *Config {
 		}
 
 		if !doVerify {
-			config.HttpClient.Transport = &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
+			tlsClientConfig, err := SetupTLSConfig(&TLSConfig{
+				InsecureSkipVerify: true,
+			})
+
+			// We don't expect this to fail given that we aren't
+			// parsing any of the input, but we panic just in case
+			// since this doesn't have an error return.
+			if err != nil {
+				panic(err)
 			}
+
+			transport := transportFn()
+			transport.TLSClientConfig = tlsClientConfig
+			config.HttpClient.Transport = transport
 		}
 	}
 
 	return config
+}
+
+// TLSConfig is used to generate a TLSClientConfig that's useful for talking to
+// Consul using TLS.
+func SetupTLSConfig(tlsConfig *TLSConfig) (*tls.Config, error) {
+	tlsClientConfig := &tls.Config{
+		InsecureSkipVerify: tlsConfig.InsecureSkipVerify,
+	}
+
+	if tlsConfig.Address != "" {
+		server := tlsConfig.Address
+		hasPort := strings.LastIndex(server, ":") > strings.LastIndex(server, "]")
+		if hasPort {
+			var err error
+			server, _, err = net.SplitHostPort(server)
+			if err != nil {
+				return nil, err
+			}
+		}
+		tlsClientConfig.ServerName = server
+	}
+
+	if tlsConfig.CertFile != "" && tlsConfig.KeyFile != "" {
+		tlsCert, err := tls.LoadX509KeyPair(tlsConfig.CertFile, tlsConfig.KeyFile)
+		if err != nil {
+			return nil, err
+		}
+		tlsClientConfig.Certificates = []tls.Certificate{tlsCert}
+	}
+
+	if tlsConfig.CAFile != "" {
+		data, err := ioutil.ReadFile(tlsConfig.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read CA file: %v", err)
+		}
+
+		caPool := x509.NewCertPool()
+		if !caPool.AppendCertsFromPEM(data) {
+			return nil, fmt.Errorf("failed to parse CA certificate")
+		}
+		tlsClientConfig.RootCAs = caPool
+	}
+
+	return tlsClientConfig, nil
 }
 
 // Client provides a client to the Consul API
@@ -198,12 +307,12 @@ func NewClient(config *Config) (*Client, error) {
 	}
 
 	if parts := strings.SplitN(config.Address, "unix://", 2); len(parts) == 2 {
+		trans := cleanhttp.DefaultTransport()
+		trans.Dial = func(_, _ string) (net.Conn, error) {
+			return net.Dial("unix", parts[1])
+		}
 		config.HttpClient = &http.Client{
-			Transport: &http.Transport{
-				Dial: func(_, _ string) (net.Conn, error) {
-					return net.Dial("unix", parts[1])
-				},
-			},
+			Transport: trans,
 		}
 		config.Address = parts[1]
 	}
@@ -248,11 +357,36 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Token != "" {
 		r.params.Set("token", q.Token)
 	}
+	if q.Near != "" {
+		r.params.Set("near", q.Near)
+	}
 }
 
-// durToMsec converts a duration to a millisecond specified string
+// durToMsec converts a duration to a millisecond specified string. If the
+// user selected a positive value that rounds to 0 ms, then we will use 1 ms
+// so they get a short delay, otherwise Consul will translate the 0 ms into
+// a huge default delay.
 func durToMsec(dur time.Duration) string {
-	return fmt.Sprintf("%dms", dur/time.Millisecond)
+	ms := dur / time.Millisecond
+	if dur > 0 && ms == 0 {
+		ms = 1
+	}
+	return fmt.Sprintf("%dms", ms)
+}
+
+// serverError is a string we look for to detect 500 errors.
+const serverError = "Unexpected response code: 500"
+
+// IsServerError returns true for 500 errors from the Consul servers, these are
+// usually retryable at a later time.
+func IsServerError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// TODO (slackpad) - Make a real error type here instead of using
+	// a string check.
+	return strings.Contains(err.Error(), serverError)
 }
 
 // setWriteOptions is used to annotate the request with

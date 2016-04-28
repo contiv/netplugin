@@ -53,6 +53,7 @@ type ServiceInfo struct {
 	ServiceName string // Name of the service
 	Role        string // Role of the service. (leader, follower etc)
 	Version     string // Version string for the service
+	TTL         int    // TTL for this service
 	HostAddr    string // Host name or IP address where its running
 	Port        int    // Port number where its listening
 }
@@ -70,14 +71,14 @@ type WatchServiceEvent struct {
 	ServiceInfo ServiceInfo // Information about the service
 }
 
+// Plugin interface
+type Plugin interface {
+	// Initialize the plugin, only called once
+	NewClient(endpoints []string) (API, error)
+}
+
 // API Plugin API
 type API interface {
-	// Initialize the plugin, only called once
-	Init(seedHosts []string) error
-
-	// Return local address used by conf store
-	GetLocalAddr() (string, error)
-
 	// Get a Key from conf store
 	GetObj(key string, retValue interface{}) error
 
@@ -111,12 +112,12 @@ type API interface {
 
 var (
 	// List of plugins available
-	pluginList  = make(map[string]API)
+	pluginList  = make(map[string]Plugin)
 	pluginMutex = new(sync.Mutex)
 )
 
 // RegisterPlugin Register a plugin
-func RegisterPlugin(name string, plugin API) error {
+func RegisterPlugin(name string, plugin Plugin) error {
 	pluginMutex.Lock()
 	defer pluginMutex.Unlock()
 	pluginList[name] = plugin
@@ -125,13 +126,13 @@ func RegisterPlugin(name string, plugin API) error {
 }
 
 // GetPlugin returns the plugin by name
-func GetPlugin(name string) API {
+func GetPlugin(name string) Plugin {
 	// Find the conf store
 	pluginMutex.Lock()
 	defer pluginMutex.Unlock()
 	if pluginList[name] == nil {
-		log.Errorf("Confstore Plugin %s not registered", name)
-		log.Fatal("Confstore plugin not registered")
+		log.Errorf("Objdb Plugin %s not registered", name)
+		return nil
 	}
 
 	return pluginList[name]

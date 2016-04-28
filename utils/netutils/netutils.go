@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -454,4 +455,29 @@ func getLastAddrInRange(ipRange string, subnetLen uint) string {
 // isSubnetIPRange returns a boolean indication if it's an IP range
 func isSubnetIPRange(ipRange string) bool {
 	return strings.Contains(ipRange, "-")
+}
+
+// GetMyAddr returns ip address of current host
+func GetMyAddr() (string, error) {
+	host, err := os.Hostname()
+	if err != nil {
+		return "", err
+	}
+
+	if host == "localhost" {
+		return "", errors.New("Could not get hostname")
+	}
+
+	addrs, err := net.LookupIP(host)
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		if ipv4 := addr.To4(); ipv4 != nil && !ipv4.IsLoopback() {
+			return ipv4.String(), nil
+		}
+	}
+
+	return "", errors.New("Could not find ip addr")
 }

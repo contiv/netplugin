@@ -272,7 +272,7 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 type testVXLANRsrcStateDriver struct {
 }
 
-func (d *testVXLANRsrcStateDriver) Init(config *core.Config) error {
+func (d *testVXLANRsrcStateDriver) Init(instInfo *core.InstanceInfo) error {
 	return core.Errorf("Shouldn't be called!")
 }
 

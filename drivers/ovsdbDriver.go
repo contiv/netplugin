@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/contiv/libovsdb"
@@ -33,6 +34,7 @@ type OvsdbDriver struct {
 	bridgeName string // Name of the bridge we are operating on
 	ovs        *libovsdb.OvsdbClient
 	cache      map[string]map[libovsdb.UUID]libovsdb.Row
+	cacheLock  sync.Mutex
 }
 
 // NewOvsdbDriver creates a new OVSDB driver instance.
@@ -107,6 +109,9 @@ func (d *OvsdbDriver) getRootUUID() libovsdb.UUID {
 }
 
 func (d *OvsdbDriver) populateCache(updates libovsdb.TableUpdates) {
+	d.cacheLock.Lock()
+	defer func() { d.cacheLock.Unlock() }()
+
 	for table, tableUpdate := range updates.Updates {
 		if _, ok := d.cache[table]; !ok {
 			d.cache[table] = make(map[libovsdb.UUID]libovsdb.Row)

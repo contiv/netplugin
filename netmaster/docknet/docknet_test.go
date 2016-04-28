@@ -16,14 +16,12 @@ limitations under the License.
 package docknet
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 
@@ -32,19 +30,9 @@ import (
 
 // initStateDriver initialize etcd state driver
 func initStateDriver() (core.StateDriver, error) {
-	var cfg *core.Config
+	instInfo := core.InstanceInfo{DbURL: "etcd://127.0.0.1:2379"}
 
-	url := "http://127.0.0.1:4001"
-	etcdCfg := &state.EtcdStateDriverConfig{}
-	etcdCfg.Etcd.Machines = []string{url}
-	cfg = &core.Config{V: etcdCfg}
-
-	cfgBytes, err := json.Marshal(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return utils.NewStateDriver(utils.EtcdNameStr, string(cfgBytes))
+	return utils.NewStateDriver(utils.EtcdNameStr, &instInfo)
 }
 
 // getDocknetState gets docknet oper state

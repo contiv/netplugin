@@ -725,12 +725,12 @@ func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
 				return
 			}
 
-                        if self.agent.portVlanMap[inPort] == nil{
-                            log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
-                            return
-                        }
-                        vlan := self.agent.portVlanMap[inPort]
-                           
+			if self.agent.portVlanMap[inPort] == nil {
+				log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
+				return
+			}
+			vlan := self.agent.portVlanMap[inPort]
+
 			// Lookup the Source and Dest IP in the endpoint table
 			srcEp := self.agent.getEndpointByIpVlan(arpIn.IPSrc, *vlan)
 			dstEp := self.agent.getEndpointByIpVlan(arpIn.IPDst, *vlan)
@@ -849,7 +849,7 @@ func (self *Vxlan) sendGARP(ip net.IP, mac net.HardwareAddr, vni uint64) error {
 		return nil
 	}
 
-    pktOut := BuildGarpPkt(ip, mac, 0)
+	pktOut := BuildGarpPkt(ip, mac, 0)
 
 	tunnelIdField := openflow13.NewTunnelIdField(vni)
 	setTunnelAction := openflow13.NewActionSetField(*tunnelIdField)

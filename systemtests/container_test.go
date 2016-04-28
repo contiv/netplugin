@@ -71,7 +71,13 @@ func (c *container) getIPAddr(dev string) (string, error) {
 }
 
 func (c *container) exec(args string) (string, error) {
-	return c.node.runCommand(fmt.Sprintf("docker exec %s %s", c.containerID, args))
+	out, err := c.node.runCommand(fmt.Sprintf("docker exec %s %s", c.containerID, args))
+	if err != nil {
+		logrus.Println(out)
+		return out, err
+	}
+
+	return out, nil
 }
 
 func (c *container) execBG(args string) (string, error) {

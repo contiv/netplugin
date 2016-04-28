@@ -79,7 +79,16 @@ func RemoveLinkSet(linkSet *(map[string]Link), obj ModelObj) error {
 }
 
 // persistent database
-var cdb = objdb.NewClient("")
+var cdb objdb.API
+
+// Init initializes the modeldb
+func Init(dbURL string) {
+	var err error
+	cdb, err = objdb.NewClient(dbURL)
+	if err != nil {
+		log.Fatalf("Error creating db client to URL: %s", dbURL)
+	}
+}
 
 // WriteObj writes the model to DB
 func WriteObj(objType, objKey string, value interface{}) error {
@@ -99,6 +108,7 @@ func ReadObj(objType, objKey string, retVal interface{}) error {
 	err := cdb.GetObj(key, retVal)
 	if err != nil {
 		log.Errorf("Error reading object: %s. Err: %v", key, err)
+		return err
 	}
 
 	return nil

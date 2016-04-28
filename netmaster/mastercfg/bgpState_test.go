@@ -16,8 +16,9 @@ limitations under the License.
 package mastercfg
 
 import (
-	"github.com/contiv/netplugin/core"
 	"testing"
+
+	"github.com/contiv/netplugin/core"
 )
 
 const (
@@ -29,7 +30,7 @@ type testBgpStateDriver struct{}
 
 var bgpStateDriver = &testBgpStateDriver{}
 
-func (d *testBgpStateDriver) Init(config *core.Config) error {
+func (d *testBgpStateDriver) Init(instInfo *core.InstanceInfo) error {
 	return core.Errorf("Shouldn't be called!")
 }
 

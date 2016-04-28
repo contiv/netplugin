@@ -16,26 +16,23 @@ limitations under the License.
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/resources"
-	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/version"
-	"github.com/hashicorp/consul/api"
 )
 
 type cliOpts struct {
 	help        bool
 	debug       bool
-	stateStore  string
 	storeURL    string
 	listenURL   string
 	clusterMode string
@@ -51,35 +48,27 @@ func usage() {
 }
 
 func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
-	var cfg *core.Config
+	// parse the state store URL
+	parts := strings.Split(opts.storeURL, "://")
+	if len(parts) < 2 {
+		return nil, core.Errorf("Invalid state-store URL %q", opts.storeURL)
+	}
+	stateStore := parts[0]
 
-	switch opts.stateStore {
+	// Make sure we support the statestore type
+	switch stateStore {
 	case utils.EtcdNameStr:
-		url := "http://127.0.0.1:4001"
-		if opts.storeURL != "" {
-			url = opts.storeURL
-		}
-		etcdCfg := &state.EtcdStateDriverConfig{}
-		etcdCfg.Etcd.Machines = []string{url}
-		cfg = &core.Config{V: etcdCfg}
 	case utils.ConsulNameStr:
-		url := "http://127.0.0.1:8500"
-		if opts.storeURL != "" {
-			url = opts.storeURL
-		}
-		consulCfg := &state.ConsulStateDriverConfig{}
-		consulCfg.Consul = api.Config{Address: url}
-		cfg = &core.Config{V: consulCfg}
 	default:
-		return nil, core.Errorf("Unsupported state-store %q", opts.stateStore)
+		return nil, core.Errorf("Unsupported state-store %q", stateStore)
 	}
 
-	cfgBytes, err := json.Marshal(cfg)
-	if err != nil {
-		return nil, err
+	// Setup instance info
+	instInfo := core.InstanceInfo{
+		DbURL: opts.storeURL,
 	}
 
-	return utils.NewStateDriver(opts.stateStore, string(cfgBytes))
+	return utils.NewStateDriver(stateStore, &instInfo)
 }
 
 func parseOpts(opts *cliOpts) error {
@@ -92,13 +81,9 @@ func parseOpts(opts *cliOpts) error {
 		"debug",
 		false,
 		"Turn on debugging information")
-	flagSet.StringVar(&opts.stateStore,
-		"state-store",
-		utils.EtcdNameStr,
-		"State store to use")
 	flagSet.StringVar(&opts.storeURL,
 		"store-url",
-		"",
+		"etcd://127.0.0.1:2379",
 		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
 	flagSet.StringVar(&opts.listenURL,
 		"listen-url",
@@ -174,8 +159,9 @@ func main() {
 	// execute options
 	d.stateDriver = execOpts(&opts)
 
-	// store the listen URL
+	// store the URLs
 	d.listenURL = opts.listenURL
+	d.storeURL = opts.storeURL
 
 	// Run daemon FSM
 	d.runMasterFsm()

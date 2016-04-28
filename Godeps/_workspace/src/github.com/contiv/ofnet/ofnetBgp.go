@@ -131,7 +131,7 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	log.Debugf("Creating the loopback port ")
 	err = self.agent.ovsDriver.CreatePort(self.intfName, "internal", 1)
 	if err != nil {
-		log.Errorf("Error creating the port", err)
+		log.Errorf("Error creating the port: %v", err)
 	}
 	defer self.agent.ovsDriver.DeletePort(self.intfName)
 
@@ -146,13 +146,13 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	}
 	linkIP, err := netlink.ParseAddr(intfIP)
 	if err != nil {
-		log.Errorf("invalid ip ", intfIP)
+		log.Errorf("invalid ip: %s", intfIP)
 		return err
 	}
 	netlink.AddrAdd(link, linkIP)
 	netlink.LinkSetUp(link)
 	if link == nil || ofPortno == 0 {
-		log.Errorf("Error fetching %v information", self.intfName, link, ofPortno)
+		log.Errorf("Error fetching %v/%v/%v information", self.intfName, link, ofPortno)
 		return errors.New("Unable to fetch inb01 info")
 	}
 
@@ -209,14 +209,13 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 			return nil
 		}
 	}
-	return nil
 }
 func (self *OfnetBgp) StopProtoServer() error {
 
 	log.Info("Received stop bgp server")
 	err := self.agent.ovsDriver.DeletePort(self.intfName)
 	if err != nil {
-		log.Errorf("Error deleting the port", err)
+		log.Errorf("Error deleting the port: %v", err)
 		return err
 	}
 
@@ -253,7 +252,7 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 
 	peer, err := client.GetNeighbor(context.Background(), arg)
 	if err != nil {
-		log.Errorf("GetNeighbor failed ", err)
+		log.Errorf("GetNeighbor failed: %v", err)
 		return err
 	}
 	log.Infof("Deleteing Bgp peer from Bgp server")
@@ -410,12 +409,12 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
 
 	stream, err := client.ModPath(context.Background())
 	if err != nil {
-		log.Errorf("Fail to enforce Modpath", err)
+		log.Errorf("Fail to enforce Modpath: %v", err)
 		return err
 	}
 	err = stream.Send(arg)
 	if err != nil {
-		log.Errorf("Failed to send strean", err)
+		log.Errorf("Failed to send strean: %v", err)
 		return err
 	}
 	stream.CloseSend()
@@ -467,13 +466,13 @@ func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error
 
 	stream, err := client.ModPath(context.Background())
 	if err != nil {
-		log.Errorf("Fail to enforce Modpathi", err)
+		log.Errorf("Fail to enforce Modpathi: %v", err)
 		return err
 	}
 
 	err = stream.Send(arg)
 	if err != nil {
-		log.Errorf("Failed to send strean", err)
+		log.Errorf("Failed to send strean: %v", err)
 		return err
 	}
 	stream.CloseSend()
@@ -535,7 +534,7 @@ func (self *OfnetBgp) monitorPeer() {
 
 	stream, err := client.MonitorPeerState(context.Background(), arg)
 	if err != nil {
-		log.Errorf("MonitorPeerState failed ", err)
+		log.Errorf("MonitorPeerState failed: %v", err)
 		return
 	}
 	for {

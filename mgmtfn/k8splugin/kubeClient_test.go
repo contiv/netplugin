@@ -19,10 +19,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/netplugin/plugin"
-	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -31,6 +27,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -74,7 +75,7 @@ type KubeTestNetDrv struct {
 type restFunc func(r *http.Request, iter int) (interface{}, bool, error)
 
 // Init is not implemented.
-func (d *KubeTestNetDrv) Init(config *core.Config, info *core.InstanceInfo) error {
+func (d *KubeTestNetDrv) Init(nfo *core.InstanceInfo) error {
 	d.services = make(map[string]*core.ServiceSpec)
 	d.providers = make(map[string][]string)
 	return nil
@@ -429,7 +430,7 @@ func TestKubeWatch(m *testing.T) {
 	np := &plugin.NetPlugin{
 		NetworkDriver: drv,
 	}
-	drv.Init(nil, nil)
+	drv.Init(nil)
 	totalSvcResp = 0
 	totalEPResp = 0
 
