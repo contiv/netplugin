@@ -81,12 +81,13 @@ type OfnetAgent struct {
 
 // local End point information
 type EndpointInfo struct {
-	PortNo        uint32
-	EndpointGroup int
-	MacAddr       net.HardwareAddr
-	Vlan          uint16
-	IpAddr        net.IP
-	Vrf           string
+	PortNo            uint32
+	EndpointGroup     int
+	MacAddr           net.HardwareAddr
+	Vlan              uint16
+	IpAddr            net.IP
+	Vrf               string
+	EndpointGroupVlan uint16
 }
 
 const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
@@ -384,18 +385,19 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	}
 	// Build endpoint registry info
 	epreg := &OfnetEndpoint{
-		EndpointID:    epId,
-		EndpointType:  "internal",
-		EndpointGroup: endpoint.EndpointGroup,
-		IpAddr:        endpoint.IpAddr,
-		IpMask:        net.ParseIP("255.255.255.255"),
-		Vrf:           *vrf,
-		MacAddrStr:    endpoint.MacAddr.String(),
-		Vlan:          endpoint.Vlan,
-		Vni:           *vni,
-		OriginatorIp:  self.localIp,
-		PortNo:        endpoint.PortNo,
-		Timestamp:     time.Now(),
+		EndpointID:        epId,
+		EndpointType:      "internal",
+		EndpointGroup:     endpoint.EndpointGroup,
+		IpAddr:            endpoint.IpAddr,
+		IpMask:            net.ParseIP("255.255.255.255"),
+		Vrf:               *vrf,
+		MacAddrStr:        endpoint.MacAddr.String(),
+		Vlan:              endpoint.Vlan,
+		Vni:               *vni,
+		OriginatorIp:      self.localIp,
+		PortNo:            endpoint.PortNo,
+		Timestamp:         time.Now(),
+		EndpointGroupVlan: endpoint.EndpointGroupVlan,
 	}
 
 	// Call the datapath

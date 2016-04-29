@@ -306,11 +306,12 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 
 	// Build the endpoint info
 	endpoint := ofnet.EndpointInfo{
-		PortNo:        ofpPort,
-		MacAddr:       macAddr,
-		Vlan:          uint16(nwPktTag),
-		IpAddr:        net.ParseIP(cfgEp.IPAddress),
-		EndpointGroup: cfgEp.EndpointGroupID,
+		PortNo:            ofpPort,
+		MacAddr:           macAddr,
+		Vlan:              uint16(nwPktTag),
+		IpAddr:            net.ParseIP(cfgEp.IPAddress),
+		EndpointGroup:     cfgEp.EndpointGroupID,
+		EndpointGroupVlan: uint16(pktTag),
 	}
 
 	log.Infof("Adding local endpoint: {%+v}", endpoint)
