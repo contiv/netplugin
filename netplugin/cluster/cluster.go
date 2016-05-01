@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netplugin/plugin"
@@ -286,6 +287,9 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, ctrlIP,
 				}
 			}
 		}
+
+		// Dont process next peer event for another 100ms
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

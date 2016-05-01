@@ -72,8 +72,19 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 func slaveProxyHandler(w http.ResponseWriter, r *http.Request) {
 	log.Infof("proxy handler for %q ", r.URL.Path)
 
+	localIP, err := GetLocalAddr()
+	if err != nil {
+		log.Fatalf("Error getting local IP address. Err: %v", err)
+	}
+
 	// get current holder of master lock
 	masterNode := leaderLock.GetHolder()
+
+	// If we are the master, return
+	if localIP == masterNode {
+		http.Error(w, "Self proxying error", http.StatusInternalServerError)
+		return
+	}
 
 	// build the proxy url
 	url, _ := url.Parse(fmt.Sprintf("http://%s:9999", masterNode))
@@ -84,8 +95,6 @@ func slaveProxyHandler(w http.ResponseWriter, r *http.Request) {
 	// modify the request url
 	newReq := *r
 	// newReq.URL = url
-
-	log.Infof("Proxying request(%v): %+v", url, newReq)
 
 	// Serve http
 	proxy.ServeHTTP(w, &newReq)

@@ -79,7 +79,7 @@ func (n *node) stopNetmaster() error {
 
 func (n *node) startNetmaster() error {
 	logrus.Infof("Starting netmaster on %s", n.Name())
-	return n.tbnode.RunCommandBackground(n.suite.binpath + "/netmaster " + " --cluster-store " + n.suite.clusterStore + " &> /tmp/netmaster.log")
+	return n.tbnode.RunCommandBackground(n.suite.binpath + "/netmaster -dns-enable=false" + " --cluster-store " + n.suite.clusterStore + " &> /tmp/netmaster.log")
 }
 
 func (n *node) cleanupDockerNetwork() error {

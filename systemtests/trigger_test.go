@@ -219,7 +219,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 				c.Assert(node.startNetmaster(), IsNil)
 				c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(30 * time.Second)
 		case 2:
 			logrus.Info("Reloading containers")
 			c.Assert(s.removeContainers(containers), IsNil)

@@ -24,9 +24,9 @@ all: build unit-test system-test ubuntu-tests
 # 'all-CI' target is used by the scripts/CI.sh that passes appropriate set of
 # ENV variables (from the jenkins job) to run OS (centos, ubuntu etc) and
 # sandbox specific(vagrant, docker-in-docker)
-all-CI: start
+all-CI: stop clean start
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	./scripts/unittests -vagrant
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-unit-test"'
 	make system-test
 
 test: build unit-test system-test ubuntu-tests
@@ -104,7 +104,7 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
-	godep go test -v -timeout 240m ./systemtests -check.v
+	godep go test -v -timeout 240m ./systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACI"
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 vagrant destroy -f

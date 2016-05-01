@@ -264,6 +264,7 @@ func (d *daemon) runLeader() {
 
 	// Create HTTP server and listener
 	server := &http.Server{Handler: router}
+	server.SetKeepAlivesEnabled(false)
 	listener, err := net.Listen("tcp", d.listenURL)
 	if nil != err {
 		log.Fatalln(err)
@@ -295,6 +296,7 @@ func (d *daemon) runFollower() {
 
 	// start server
 	server := &http.Server{Handler: router}
+	server.SetKeepAlivesEnabled(false)
 	listener, err := net.Listen("tcp", d.listenURL)
 	if nil != err {
 		log.Fatalln(err)

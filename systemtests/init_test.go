@@ -139,6 +139,8 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		}
 	}
 
+	time.Sleep(15 * time.Second)
+
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(), IsNil)
 		c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
@@ -155,7 +157,6 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	time.Sleep(15 * time.Second)
 }
 
 func (s *systemtestSuite) TearDownTest(c *C) {

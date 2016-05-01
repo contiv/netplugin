@@ -84,7 +84,7 @@ func parseOpts(opts *cliOpts) error {
 	flagSet.StringVar(&opts.clusterStore,
 		"cluster-store",
 		"etcd://127.0.0.1:2379",
-		"Etcd or Consul cluster url. Empty string resolves to respective state-store's default URL.")
+		"Etcd or Consul cluster store url.")
 	flagSet.StringVar(&opts.listenURL,
 		"listen-url",
 		":9999",
