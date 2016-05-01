@@ -462,7 +462,7 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 				// ARP request from local container to unknown IP
 				// Reinject ARP to uplinks
 				ethPkt := protocol.NewEthernet()
-				ethPkt.VLANID.VID = srcEp.Vlan
+				ethPkt.VLANID.VID = srcEp.EndpointGroupVlan
 				ethPkt.HWDst = pkt.HWDst
 				ethPkt.HWSrc = pkt.HWSrc
 				ethPkt.Ethertype = 0x0806
