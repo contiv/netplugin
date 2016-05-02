@@ -221,7 +221,7 @@ provision_node = <<SCRIPT
 ## start etcd with generated config
 set -x
 (nohup etcd --name #{node_name} --data-dir /tmp/etcd \
- -heartbeat-interval=600 -election-timeout=3000 \
+ -heartbeat-interval=100 -election-timeout=5000 \
  --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
  --advertise-client-urls http://#{node_addr}:2379,http://#{node_addr}:4001 \
  --initial-advertise-peer-urls http://#{node_addr}:2380,http://#{node_addr}:7001 \
