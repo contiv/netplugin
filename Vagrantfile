@@ -65,16 +65,6 @@ SCRIPT
 
 provision_gobgp = <<SCRIPT
 #Get gobgp binary
-wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp
-SCRIPT
-
-provision_gobgp = <<SCRIPT
-#Get gobgp binary
-wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp 
-SCRIPT
-
-provision_gobgp = <<SCRIPT
-#Get gobgp binary
 wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp 
 SCRIPT
 
