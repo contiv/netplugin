@@ -8,8 +8,6 @@
 USAGE="${0} -vagrant"
 PATH=$PATH:/usr/local/go/bin
 
-# time for vagrant folder sync
-sleep 2
 # copy certificates used for kubeclient UT
 cp -rf $GOSRC/github.com/contiv/netplugin/mgmtfn/k8splugin/certs /tmp
 run_in_vagrant=false
@@ -58,6 +56,9 @@ if ${run_in_vagrant}; then
         exit 1
     fi
 
+    # time for vagrant folder sync
+    sleep 2
+
     # XXX: running unit-tests require root permission due to dependence on ovs
     # utilities. Need to find a way without 'sudo'.
     (CONTIV_NODES=1 vagrant ssh netplugin-node1 -c 'sudo -E PATH=$PATH $GOSRC/github.com/contiv/netplugin/'${0})
@@ -75,6 +76,9 @@ if ${run_in_vagrant}; then
     echo "Host: Tests succeeded!"
     exit 0
 fi
+
+cd $GOSRC/github.com/contiv/netplugin
+find . -follow -type f -exec tail -1 {} \; >& /dev/null
 
 for pkg in ${test_packages}
 do
