@@ -42,6 +42,12 @@ systemctl enable docker-tcp.socket
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 echo "Environment=\\\"no_proxy=$3,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
+which yum > /dev/null 2>&1
+if [ "$?" = "0" ]; then
+    sudo systemctl enable openvswitch.service
+    sudo systemctl start openvswitch
+    sudo usermod -G docker vagrant
+fi
 sudo systemctl daemon-reload
 sudo systemctl stop docker
 systemctl start docker-tcp.socket
@@ -99,8 +105,10 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
         config.vm.box = "contiv/ubuntu1504-netplugin"
+        config.vm.box_version = "0.3.1"
     else
-        config.vm.box = "contiv/centos71-netplugin"
+        config.vm.box = "contiv/centos72"
+        config.vm.box_version = "0.4.4"
     end
     config.vm.provider 'virtualbox' do |v|
         v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
@@ -183,7 +191,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
            end
         end
         config.vm.define node_name do |node|
-            node.vm.box_version = "0.3.1"
 
             # node.vm.hostname = node_name
             # create an interface for etcd cluster
