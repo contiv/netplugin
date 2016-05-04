@@ -63,6 +63,25 @@ echo 3 > /proc/sys/vm/drop_caches
 
 SCRIPT
 
+provision_node = <<SCRIPT
+## start etcd with generated config
+set -x
+(nohup etcd --name $1 --data-dir /tmp/etcd \
+ -heartbeat-interval=100 -election-timeout=5000 \
+ --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+ --advertise-client-urls http://$2:2379,http://$2:4001 \
+ --initial-advertise-peer-urls http://$2:2380,http://$2:7001 \
+ --listen-peer-urls http://$2:2380 \
+ --initial-cluster $3 --initial-cluster-state new \
+  0<&- &>/tmp/etcd.log &) || exit 1
+## start consul
+(nohup consul agent -server $4 $5 \
+ -bind=$2 -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
+# start swarm
+(nohup $6/src/github.com/contiv/netplugin/scripts/start-swarm.sh $2 $7> /tmp/start-swarm.log &) || exit 1
+
+SCRIPT
+
 provision_gobgp = <<SCRIPT
 #Get gobgp binary
 wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp 
@@ -140,6 +159,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node_name = node_names[n]
         node_addr = node_ips[n]
         node_peers += ["#{node_name}=http://#{node_addr}:2380,#{node_name}=http://#{node_addr}:7001"]
+        node_peers_joined = node_peers.join(",")
         consul_join_flag = if n > 0 then "-join #{node_ips[0]}" else "" end
         consul_bootstrap_flag = "-bootstrap-expect=3"
         swarm_flag = "slave"
@@ -207,26 +227,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                     s.inline = provision_gobgp
                 end
             end
-provision_node = <<SCRIPT
-## start etcd with generated config
-set -x
-(nohup etcd --name #{node_name} --data-dir /tmp/etcd \
- -heartbeat-interval=100 -election-timeout=5000 \
- --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
- --advertise-client-urls http://#{node_addr}:2379,http://#{node_addr}:4001 \
- --initial-advertise-peer-urls http://#{node_addr}:2380,http://#{node_addr}:7001 \
- --listen-peer-urls http://#{node_addr}:2380 \
- --initial-cluster #{node_peers.join(",")} --initial-cluster-state new \
-  0<&- &>/tmp/etcd.log &) || exit 1
-## start consul
-(nohup consul agent -server #{consul_join_flag} #{consul_bootstrap_flag} \
- -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1
-# start swarm
-(nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} #{swarm_flag}> /tmp/start-swarm.log &) || exit 1
 
-SCRIPT
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_node
+                s.args = [node_name, node_addr, node_peers_joined, consul_join_flag, consul_bootstrap_flag, gopath_folder, swarm_flag]
             end
 
             # forward netmaster port
