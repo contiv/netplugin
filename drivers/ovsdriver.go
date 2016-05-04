@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -193,8 +194,8 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork deletes a network by named identifier
-func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string, tenant string) error {
-	log.Infof("delete net %s, encap %s, tags: %d/%d", id, encap, pktTag, extPktTag)
+func (d *OvsDriver) DeleteNetwork(id, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error {
+	log.Infof("delete net %s, nwType %s, encap %s, tags: %d/%d", id, nwType, encap, pktTag, extPktTag)
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
@@ -202,6 +203,23 @@ func (d *OvsDriver) DeleteNetwork(id, encap string, pktTag, extPktTag int, gatew
 		sw = d.switchDb["vxlan"]
 	} else {
 		sw = d.switchDb["vlan"]
+	}
+
+	// Delete infra nw endpoint if present
+	if nwType == "infra" {
+		hostName, _ := os.Hostname()
+		epID := id + "-" + hostName
+
+		epOper := OvsOperEndpointState{}
+		epOper.StateDriver = d.oper.StateDriver
+		err := epOper.Read(epID)
+		if err == nil {
+			err = sw.DeletePort(&epOper, true)
+			if err != nil {
+				log.Errorf("Error deleting endpoint: %+v. Err: %v", epOper, err)
+			}
+			epOper.Clear()
+		}
 	}
 
 	return sw.DeleteNetwork(uint16(pktTag), uint32(extPktTag), gateway, tenant)
@@ -251,6 +269,9 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		sw = d.switchDb["vlan"]
 	}
 
+	// Skip Veth pair creation for infra nw endpoints
+	skipVethPair := (cfgNw.NwType == "infra")
+
 	operEp := &OvsOperEndpointState{}
 	operEp.StateDriver = d.oper.StateDriver
 	err = operEp.Read(id)
@@ -263,7 +284,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			log.Printf("Found matching oper state for ep %s, noop", id)
 
 			// Ask the switch to update the port
-			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgEpGroup.PktTag)
+			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgEpGroup.PktTag, skipVethPair)
 			if err != nil {
 				log.Errorf("Error creating port %s. Err: %v", intfName, err)
 				return err
@@ -276,14 +297,19 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		d.DeleteEndpoint(operEp.ID)
 	}
 
-	// Get the interface name to use
-	intfName, err = d.getIntfName()
-	if err != nil {
-		return err
+	if cfgNw.NwType == "infra" {
+		// For infra nw, port name is network name
+		intfName = cfgNw.NetworkName
+	} else {
+		// Get the interface name to use
+		intfName, err = d.getIntfName()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag, cfgNw.PktTag)
+	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag, cfgNw.PktTag, skipVethPair)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err
@@ -345,7 +371,8 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 		sw = d.switchDb["vlan"]
 	}
 
-	err = sw.DeletePort(&epOper)
+	skipVethPair := (cfgNw.NwType == "infra")
+	err = sw.DeletePort(&epOper, skipVethPair)
 	if err != nil {
 		log.Errorf("Error deleting endpoint: %+v. Err: %v", epOper, err)
 	}

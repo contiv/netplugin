@@ -104,6 +104,11 @@ var Commands = []cli.Command{
 				Flags: []cli.Flag{
 					tenantFlag,
 					cli.StringFlag{
+						Name:  "nw-type, n",
+						Usage: "Network Type (infra or data)",
+						Value: "data",
+					},
+					cli.StringFlag{
 						Name:  "encap, e",
 						Usage: "Encap type (vlan or vxlan)",
 						Value: "vxlan",

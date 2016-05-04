@@ -292,6 +292,20 @@ func GetInterfaceIP(linkName string) (string, error) {
 	return localIPAddr, err
 }
 
+// SetInterfaceIP : Set IP address of an interface
+func SetInterfaceIP(name string, ipstr string) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	ipaddr, err := netlink.ParseAddr(ipstr)
+	if err != nil {
+		return err
+	}
+	netlink.LinkSetUp(iface)
+	return netlink.AddrAdd(iface, ipaddr)
+}
+
 // SetInterfaceMac : Set mac address of an interface
 func SetInterfaceMac(name string, macaddr string) error {
 	iface, err := netlink.LinkByName(name)

@@ -45,6 +45,7 @@ type CfgNetworkState struct {
 	core.CommonState
 	Tenant      string        `json:"tenant"`
 	NetworkName string        `json:"networkName"`
+	NwType      string        `json:"nwType"`
 	PktTagType  string        `json:"pktTagType"`
 	PktTag      int           `json:"pktTag"`
 	ExtPktTag   int           `json:"extPktTag"`

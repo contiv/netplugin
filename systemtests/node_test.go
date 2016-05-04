@@ -203,3 +203,16 @@ func (n *node) runCommandUntilNoError(cmd string) error {
 	_, err := utils.WaitForDone(runCmd, 10*time.Millisecond, 10*time.Second, timeoutMessage)
 	return err
 }
+
+func (n *node) checkPing(ipaddr string) error {
+	logrus.Infof("Checking ping from %s to %s", n.Name(), ipaddr)
+	out, err := n.tbnode.RunCommandWithOutput("ping -c 1 " + ipaddr)
+
+	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
+		logrus.Errorf("Ping from %s to %s FAILED: %q - %v", n.Name(), ipaddr, out, err)
+		return fmt.Errorf("Ping failed from %s to %s: %q - %v", n.Name(), ipaddr, out, err)
+	}
+
+	logrus.Infof("Ping from %s to %s SUCCEEDED", n.Name(), ipaddr)
+	return nil
+}

@@ -286,7 +286,7 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway, testTenant) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", "", testPktTag, testExtPktTag, testGateway, testTenant) }()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)
@@ -321,7 +321,7 @@ func TestOvsDriverCreateEndpointStateful(t *testing.T) {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
 	defer func() {
-		driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag, testGateway, testTenant)
+		driver.DeleteNetwork(testOvsNwIDStateful, "", "", testPktTagStateful, testExtPktTag, testGateway, testTenant)
 	}()
 
 	// Create endpoint
@@ -361,7 +361,7 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway, testTenant) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", "", testPktTag, testExtPktTag, testGateway, testTenant) }()
 
 	// create second network
 	err = driver.CreateNetwork(testOvsNwIDStateful)
@@ -369,7 +369,7 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
 	defer func() {
-		driver.DeleteNetwork(testOvsNwIDStateful, "", testPktTagStateful, testExtPktTag, testGateway, testTenant)
+		driver.DeleteNetwork(testOvsNwIDStateful, "", "", testPktTagStateful, testExtPktTag, testGateway, testTenant)
 	}()
 
 	// create endpoint
@@ -422,7 +422,7 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("network creation failed. Error: %s", err)
 	}
-	defer func() { driver.DeleteNetwork(testOvsNwID, "", testPktTag, testExtPktTag, testGateway, testTenant) }()
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", "", testPktTag, testExtPktTag, testGateway, testTenant) }()
 
 	// create endpoint
 	err = driver.CreateEndpoint(id)

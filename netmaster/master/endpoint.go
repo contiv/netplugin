@@ -103,10 +103,13 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 	}
 
 	// Set endpoint group
-	epCfg.EndpointGroupID, err = getEndpointGroupID(ep.ServiceName, nwCfg.NetworkName, nwCfg.Tenant)
-	if err != nil {
-		log.Errorf("Error getting endpoint group for %s.%s. Err: %v", ep.ServiceName, nwCfg.ID, err)
-		return nil, err
+	// Skip for infra nw
+	if nwCfg.NwType != "infra" {
+		epCfg.EndpointGroupID, err = getEndpointGroupID(ep.ServiceName, nwCfg.NetworkName, nwCfg.Tenant)
+		if err != nil {
+			log.Errorf("Error getting endpoint group for %s.%s. Err: %v", ep.ServiceName, nwCfg.ID, err)
+			return nil, err
+		}
 	}
 
 	err = epCfg.Write()
@@ -175,24 +178,26 @@ func DeleteEndpointID(stateDriver core.StateDriver, epID string) (*mastercfg.Cfg
 	nwCfg := &mastercfg.CfgNetworkState{}
 	nwCfg.StateDriver = stateDriver
 	err = nwCfg.Read(epCfg.NetID)
-	if err != nil {
-		return nil, err
+
+	// Network may already be deleted if infra nw
+	// If network present, free up nw resources
+	if err == nil {
+		err = freeEndpointResources(epCfg, nwCfg)
+		if err != nil {
+			return nil, err
+		}
+
+		err = nwCfg.Write()
+		if err != nil {
+			log.Errorf("error writing nw config. Error: %s", err)
+			return nil, err
+		}
 	}
 
-	err = freeEndpointResources(epCfg, nwCfg)
-	if err != nil {
-		return nil, err
-	}
-
+	// Even if network not present (already deleted), cleanup ep cfg
 	err = epCfg.Clear()
 	if err != nil {
-		log.Errorf("error writing nw config. Error: %s", err)
-		return nil, err
-	}
-
-	err = nwCfg.Write()
-	if err != nil {
-		log.Errorf("error writing nw config. Error: %s", err)
+		log.Errorf("error writing ep config. Error: %s", err)
 		return nil, err
 	}
 
