@@ -190,11 +190,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 		sw = d.switchDb["vlan"]
 	}
 
-	err = sw.CreateNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag), cfgNw.Gateway, cfgNw.Tenant)
-	if err != nil {
-		return err
-	}
-	return nil
+	return sw.CreateNetwork(uint16(cfgNw.PktTag), uint32(cfgNw.ExtPktTag), cfgNw.Gateway, cfgNw.Tenant)
 }
 
 // DeleteNetwork deletes a network by named identifier
@@ -218,7 +214,7 @@ func (d *OvsDriver) DeleteNetwork(id, nwType, encap string, pktTag, extPktTag in
 		epOper.StateDriver = d.oper.StateDriver
 		err := epOper.Read(epID)
 		if err == nil {
-			err = sw.DeletePort(&epOper, nwType)
+			err = sw.DeletePort(&epOper, true)
 			if err != nil {
 				log.Errorf("Error deleting endpoint: %+v. Err: %v", epOper, err)
 			}
@@ -273,6 +269,9 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		sw = d.switchDb["vlan"]
 	}
 
+	// Skip Veth pair creation for infra nw endpoints
+	skipVethPair := (cfgNw.NwType == "infra")
+
 	operEp := &OvsOperEndpointState{}
 	operEp.StateDriver = d.oper.StateDriver
 	err = operEp.Read(id)
@@ -285,7 +284,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			log.Printf("Found matching oper state for ep %s, noop", id)
 
 			// Ask the switch to update the port
-			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgEpGroup.PktTag, cfgNw.NwType)
+			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgEpGroup.PktTag, skipVethPair)
 			if err != nil {
 				log.Errorf("Error creating port %s. Err: %v", intfName, err)
 				return err
@@ -310,7 +309,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}
 
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag, cfgNw.PktTag, cfgNw.NwType)
+	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag, cfgNw.PktTag, skipVethPair)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err
@@ -372,7 +371,8 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 		sw = d.switchDb["vlan"]
 	}
 
-	err = sw.DeletePort(&epOper, cfgNw.NwType)
+	skipVethPair := (cfgNw.NwType == "infra")
+	err = sw.DeletePort(&epOper, skipVethPair)
 	if err != nil {
 		log.Errorf("Error deleting endpoint: %+v. Err: %v", epOper, err)
 	}

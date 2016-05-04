@@ -10,6 +10,68 @@ import (
 	"time"
 )
 
+func (s *systemtestSuite) TestInfraNetworkAddDeleteVXLAN(c *C) {
+	s.testInfraNetworkAddDelete(c, "vxlan")
+}
+
+func (s *systemtestSuite) TestInfraNetworkAddDeleteVLAN(c *C) {
+	s.testInfraNetworkAddDelete(c, "vlan")
+}
+
+func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
+
+	if s.fwdMode == "routing" {
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
+	}
+
+	for i := 0; i < s.iterations; i++ {
+		var (
+			netNames = []string{}
+		)
+
+		numInfraNw := 3
+		for networkNum := 0; networkNum < numInfraNw; networkNum++ {
+			network := &client.Network{
+				TenantName:  "default",
+				NwType:      "infra",
+				NetworkName: fmt.Sprintf("net%d", networkNum),
+				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
+				Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
+				PktTag:      1001 + networkNum,
+				Encap:       encap,
+			}
+
+			c.Assert(s.cli.NetworkPost(network), IsNil)
+
+			// TBD: Need to fix timing issue 
+			// where endpoint create is received on non-master node
+			// before network create is received
+			time.Sleep(5 * time.Second)
+
+			netNames = append(netNames, network.NetworkName)
+		}
+
+		node1 := s.nodes[0]
+
+		for networkNum := 0; networkNum < numInfraNw; networkNum++ {
+			// From first node, ping every node on this network
+			for nodeNum := 1; nodeNum <= len(s.nodes); nodeNum++ {
+				logrus.Infof("Running ping test for network %q node %d", netNames[networkNum], nodeNum)
+				ipaddr := fmt.Sprintf("10.1.%d.%d", networkNum, nodeNum)
+				c.Assert(node1.checkPing(ipaddr), IsNil)
+
+			}
+		}
+
+		for _, netName := range netNames {
+			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+}
+
 func (s *systemtestSuite) TestNetworkAddDeleteVXLAN(c *C) {
 	s.testNetworkAddDelete(c, "vxlan")
 }

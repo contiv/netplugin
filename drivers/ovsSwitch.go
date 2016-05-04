@@ -224,10 +224,10 @@ func setLinkMtu(name string, mtu int) error {
 
 // getOvsPortName returns OVS port name depending on if we use Veth pairs
 // For infra nw, dont use Veth pair
-func getOvsPortName(intfName, nwType string) string {
+func getOvsPortName(intfName string, skipVethPair bool) string {
 	var ovsPortName string
 
-	if useVethPair && nwType != "infra" {
+	if useVethPair && !skipVethPair {
 		ovsPortName = strings.Replace(intfName, "port", "vport", 1)
 	} else {
 		ovsPortName = intfName
@@ -237,14 +237,14 @@ func getOvsPortName(intfName, nwType string) string {
 }
 
 // CreatePort creates a port in ovs switch
-func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag int, nwType string) error {
+func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag int, skipVethPair bool) error {
 	var ovsIntfType string
 
 	// Get OVS port name
-	ovsPortName := getOvsPortName(intfName, nwType)
+	ovsPortName := getOvsPortName(intfName, skipVethPair)
 
 	// Create Veth pairs if required
-	if useVethPair && nwType != "infra" {
+	if useVethPair && !skipVethPair {
 		ovsIntfType = ""
 
 		// Create a Veth pair
@@ -327,10 +327,10 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 }
 
 // UpdatePort updates an OVS port without creating it
-func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag int, nwType string) error {
+func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag int, skipVethPair bool) error {
 
 	// Get OVS port name
-	ovsPortName := getOvsPortName(intfName, nwType)
+	ovsPortName := getOvsPortName(intfName, skipVethPair)
 
 	// Add the endpoint to ofnet
 	// Get the openflow port number for the interface
@@ -365,14 +365,14 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 }
 
 // DeletePort removes a port from OVS
-func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState, nwType string) error {
+func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState, skipVethPair bool) error {
 
 	if epOper.VtepIP != "" {
 		return nil
 	}
 
 	// Get the OVS port name
-	ovsPortName := getOvsPortName(epOper.PortName, nwType)
+	ovsPortName := getOvsPortName(epOper.PortName, skipVethPair)
 
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
@@ -398,7 +398,7 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState, nwType string) err
 	}
 
 	// Delete the Veth pairs if required
-	if useVethPair && nwType != "infra" {
+	if useVethPair && !skipVethPair {
 		// Delete a Veth pair
 		verr := deleteVethPair(ovsPortName, epOper.PortName)
 		if verr != nil {
