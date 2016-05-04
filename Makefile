@@ -24,7 +24,10 @@ all: build unit-test system-test ubuntu-tests
 # 'all-CI' target is used by the scripts/CI.sh that passes appropriate set of
 # ENV variables (from the jenkins job) to run OS (centos, ubuntu etc) and
 # sandbox specific(vagrant, docker-in-docker)
-all-CI: build unit-test system-test
+all-CI: stop clean start
+	make ssh-build
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-unit-test"'
+	make system-test
 
 test: build unit-test system-test ubuntu-tests
 
@@ -44,7 +47,7 @@ run-build: deps checks clean
 
 build:
 	make start
-	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
+	make ssh-build
 	make stop
 
 clean: deps
@@ -87,12 +90,14 @@ stop:
 	CONTIV_NODES=$${CONTIV_NODES:-2} vagrant destroy -f
 
 demo:
-	vagrant up
-	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
+	make ssh-build
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
 
 ssh:
 	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
+
+ssh-build: start
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 
 unit-test: stop clean build
 	./scripts/unittests -vagrant
@@ -101,13 +106,14 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
-	godep go test -v -timeout 240m ./systemtests -check.v 
+	godep go test -v -timeout 240m ./systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACI"
 
 l3-test:
-	CONTIV_L3=2 CONTIV_NODES=3 vagrant destroy -f 
-	CONTIV_L3=2 CONTIV_NODES=3 vagrant up
-	CONTIV_L3=2 CONTIV_NODES=3 godep go test -v -timeout 240m ./systemtests -check.v 
-	CONTIV_L3=2 CONTIV_NODES=3 vagrant destroy -f 
+	CONTIV_L3=2 CONTIV_NODES=3 make stop
+	CONTIV_L3=2 CONTIV_NODES=3 make start
+	CONTIV_L3=2 CONTIV_NODES=3 make ssh-build
+	CONTIV_L3=2 CONTIV_NODES=3 godep go test -v -timeout 240m ./systemtests -check.v
+	CONTIV_L3=2 CONTIV_NODES=3 make stop
 
 host-build:
 	@echo "dev: making binaries..."

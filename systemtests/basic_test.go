@@ -73,9 +73,11 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 		TenantName:  "default",
 	}), IsNil)
 
+	containers, err := s.runContainers(s.containers, false, "private", nil)
+	c.Assert(err, IsNil)
+
 	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", nil)
-		c.Assert(err, IsNil)
+		c.Assert(s.pingTest(containers), IsNil)
 
 		errChan := make(chan error)
 		for _, cont := range containers {
@@ -98,9 +100,8 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 			time.Sleep(5 * time.Second)
 		}
 
-		c.Assert(s.pingTest(containers), IsNil)
-		c.Assert(s.removeContainers(containers), IsNil)
 	}
 
+	c.Assert(s.removeContainers(containers), IsNil)
 	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
 }

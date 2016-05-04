@@ -2,27 +2,29 @@ package systemtests
 
 import (
 	"flag"
-	"github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel/client"
-	"github.com/contiv/vagrantssh"
-	. "gopkg.in/check.v1"
 	"os"
 	"strconv"
 	"strings"
 	. "testing"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/vagrantssh"
+	. "gopkg.in/check.v1"
 )
 
 type systemtestSuite struct {
-	vagrant    vagrantssh.Vagrant
-	cli        *client.ContivClient
-	short      bool
-	containers int
-	binpath    string
-	iterations int
-	vlanIf     string
-	nodes      []*node
-	fwdMode    string
+	vagrant      vagrantssh.Vagrant
+	cli          *client.ContivClient
+	short        bool
+	containers   int
+	binpath      string
+	iterations   int
+	vlanIf       string
+	nodes        []*node
+	fwdMode      string
+	clusterStore string
 	// user       string
 	// password   string
 	// nodes      []string
@@ -44,12 +46,19 @@ func TestMain(m *M) {
 	flag.StringVar(&sts.binpath, "binpath", "/opt/gopath/bin", "netplugin/netmaster binary path")
 	flag.IntVar(&sts.containers, "containers", 3, "Number of containers to use")
 	flag.BoolVar(&sts.short, "short", false, "Do a quick validation run instead of the full test suite")
+	if os.Getenv("CONTIV_CLUSTER_STORE") == "" {
+		flag.StringVar(&sts.clusterStore, "cluster-store", "etcd://localhost:2379", "cluster store URL")
+	} else {
+		flag.StringVar(&sts.clusterStore, "cluster-store", os.Getenv("CONTIV_CLUSTER_STORE"), "cluster store URL")
+	}
 	if os.Getenv("CONTIV_L3") == "" {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
 	} else {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "routing", "forwarding mode to start the test ")
 	}
 	flag.Parse()
+
+	logrus.Infof("Running system test with params: %+v", sts)
 
 	os.Exit(m.Run())
 }
@@ -130,6 +139,8 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		}
 	}
 
+	time.Sleep(15 * time.Second)
+
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(), IsNil)
 		c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
@@ -146,7 +157,6 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	time.Sleep(15 * time.Second)
 }
 
 func (s *systemtestSuite) TearDownTest(c *C) {

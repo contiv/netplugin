@@ -1,10 +1,14 @@
 package systemtests
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/Sirupsen/logrus"
 )
 
 func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*container, port int) error {
@@ -389,48 +393,6 @@ func (s *systemtestSuite) checkAllConnection(netContainers map[*container]string
 	return nil
 }
 
-func (s *systemtestSuite) etcdGet(path string) (map[string]interface{}, error) {
-	content, err := s.nodes[0].runCommand(fmt.Sprintf("etcdctl get '%s'", path))
-	if err != nil {
-		return nil, err
-	}
-
-	retval := map[string]interface{}{}
-	if err := json.Unmarshal([]byte(content), &retval); err != nil {
-		return nil, err
-	}
-
-	return retval, nil
-}
-
-func (s *systemtestSuite) etcdList(path string, recursive bool) ([]map[string]interface{}, error) {
-	recStr := ""
-	if recursive {
-		recStr = "--recursive"
-	}
-
-	content, err := s.nodes[0].runCommand(fmt.Sprintf("etcdctl ls %s %s", recStr, path))
-	if err != nil {
-		return nil, err
-	}
-
-	retval := []map[string]interface{}{}
-	lines := strings.Split(content, "\n")
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		ret, err := s.etcdGet(line)
-		if err == nil {
-			retval = append(retval, ret)
-		}
-
-	}
-
-	return retval, nil
-}
 func (s *systemtestSuite) pingFailureTestDifferentNode(containers1 []*container, containers2 []*container) error {
 
 	count := 0
@@ -477,4 +439,64 @@ func (s *systemtestSuite) pingTestToNonContainer(containers []*container, nonCon
 		}
 	}
 	return nil
+}
+
+func (s *systemtestSuite) getJSON(url string, target interface{}) error {
+	content, err := s.nodes[0].runCommand(fmt.Sprintf("curl -s %s", url))
+	if err != nil {
+		logrus.Errorf("Error getting curl output: Err %v", err)
+		return err
+	}
+	return json.Unmarshal([]byte(content), target)
+}
+
+func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
+	if strings.Contains(s.clusterStore, "etcd://") {
+		var etcdKv map[string]interface{}
+
+		// Get from etcd
+		etcdURL := strings.Replace(s.clusterStore, "etcd://", "http://", 1)
+		etcdURL = etcdURL + "/v2/keys" + path
+
+		// get json from etcd
+		err := s.getJSON(etcdURL, &etcdKv)
+		if err != nil {
+			logrus.Errorf("Error getting json from host. Err: %v", err)
+			return "", err
+		}
+
+		node, ok := etcdKv["node"]
+		if !ok {
+			return "", errors.New("node not found")
+		}
+		value, ok := node.(map[string]interface{})["value"]
+		if !ok {
+			return "", errors.New("Value not found")
+		}
+
+		return value.(string), nil
+	} else if strings.Contains(s.clusterStore, "consul://") {
+		var consulKv []map[string]interface{}
+
+		// Get from consul
+		consulURL := strings.Replace(s.clusterStore, "consul://", "http://", 1)
+		consulURL = consulURL + "/v1/kv" + path
+
+		// get kv json from consul
+		err := s.getJSON(consulURL, &consulKv)
+		if err != nil {
+			return "", err
+		}
+
+		value, ok := consulKv[0]["Value"]
+		if !ok {
+			return "", errors.New("Value not found")
+		}
+
+		retVal, err := base64.StdEncoding.DecodeString(value.(string))
+		return string(retVal), err
+	} else {
+		// Unknown cluster store
+		return "", errors.New("Unknown cluster store")
+	}
 }

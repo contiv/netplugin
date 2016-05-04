@@ -41,7 +41,7 @@ const leaderLockTTL = 30
 type daemon struct {
 	listenURL        string                // URL where netmaster needs to listen
 	currState        string                // Current state of the daemon
-	storeURL         string                // state store URL
+	clusterStore     string                // state store URL
 	apiController    *objApi.APIController // API controller for contiv model
 	stateDriver      core.StateDriver      // KV store
 	objdbClient      objdb.API             // Objdb client
@@ -251,7 +251,7 @@ func (d *daemon) runLeader() {
 	defer d.listenerMutex.Unlock()
 
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router, d.storeURL)
+	d.apiController = objApi.NewAPIController(router, d.clusterStore)
 
 	// initialize policy manager
 	mastercfg.InitPolicyMgr(d.stateDriver, d.ofnetMaster)
@@ -264,6 +264,7 @@ func (d *daemon) runLeader() {
 
 	// Create HTTP server and listener
 	server := &http.Server{Handler: router}
+	server.SetKeepAlivesEnabled(false)
 	listener, err := net.Listen("tcp", d.listenURL)
 	if nil != err {
 		log.Fatalln(err)
@@ -295,6 +296,7 @@ func (d *daemon) runFollower() {
 
 	// start server
 	server := &http.Server{Handler: router}
+	server.SetKeepAlivesEnabled(false)
 	listener, err := net.Listen("tcp", d.listenURL)
 	if nil != err {
 		log.Fatalln(err)
@@ -358,9 +360,9 @@ func (d *daemon) runMasterFsm() {
 	}
 
 	// Create an objdb client
-	d.objdbClient, err = objdb.NewClient(d.storeURL)
+	d.objdbClient, err = objdb.NewClient(d.clusterStore)
 	if err != nil {
-		log.Fatalf("Error connecting to state store: %v. Err: %v", d.storeURL, err)
+		log.Fatalf("Error connecting to state store: %v. Err: %v", d.clusterStore, err)
 	}
 
 	// Register all existing netplugins in the background

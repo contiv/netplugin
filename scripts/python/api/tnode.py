@@ -118,9 +118,10 @@ class Node:
         self.runCmd("etcdctl rm --recursive /docker")
         self.runCmd("etcdctl rm --recursive /skydns")
         self.runCmd("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
+        self.runCmd("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 
     # Run container on a node
-    def runContainer(self, imgName="ubuntu", cmdName="sh", networkName=None, serviceName=None, cntName=""):
+    def runContainer(self, imgName="ubuntu:14.04", cmdName="sh", networkName=None, serviceName=None, cntName=""):
         netSrt = ""
         if networkName != None:
             netSrt = "--net=" + networkName

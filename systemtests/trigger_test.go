@@ -27,47 +27,39 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 		c.Assert(err, IsNil)
 
 		var leader, oldLeader *node
-		var leaderIP string
 
-		list, err := s.etcdList("/contiv.io/service/netmaster/", false)
+		leaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 		c.Assert(err, IsNil)
 
-		for _, item := range list {
-			if item["Role"] == "leader" {
-				for _, node := range s.nodes {
-					res, err := node.getIPAddr("eth1")
-					c.Assert(err, IsNil)
-					if res == item["HostAddr"] {
-						leader = node
-						leaderIP = res
-					}
-				}
+		for _, node := range s.nodes {
+			res, err := node.getIPAddr("eth1")
+			c.Assert(err, IsNil)
+			if leaderIP == res {
+				leader = node
+				logrus.Infof("Found leader %s/%s", node.Name(), leaderIP)
 			}
 		}
 
 		c.Assert(leader.stopNetmaster(), IsNil)
 		c.Assert(leader.rotateLog("netmaster"), IsNil)
 
-		for x := 0; x < 30; x++ {
-			logrus.Info("Waiting 1s for leader to change...")
-			list, err := s.etcdList("/contiv.io/service/netmaster/", false)
+		for x := 0; x < 15; x++ {
+			logrus.Info("Waiting 5s for leader to change...")
+			newLeaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 			c.Assert(err, IsNil)
 
-			for _, item := range list {
-				if item["Role"] == "leader" {
-					for _, node := range s.nodes {
-						res, err := node.getIPAddr("eth1")
-						c.Assert(err, IsNil)
-						if res == item["HostAddr"] && res != leaderIP {
-							oldLeader = leader
-							leader = node
-							goto finished
-						}
-					}
+			for _, node := range s.nodes {
+				res, err := node.getIPAddr("eth1")
+				c.Assert(err, IsNil)
+				if res == newLeaderIP && res != leaderIP {
+					oldLeader = leader
+					leader = node
+					logrus.Infof("Leader switched to %s/%s", node.Name(), newLeaderIP)
+					goto finished
 				}
 			}
 
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 
 	finished:
@@ -80,7 +72,7 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 	}
 }
 
-func (s *systemtestSuite) TestNetpluginDisconnect(c *C) {
+func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 	network := &client.Network{
 		TenantName:  "default",
 		NetworkName: "private",
@@ -227,7 +219,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 				c.Assert(node.startNetmaster(), IsNil)
 				c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(30 * time.Second)
 		case 2:
 			logrus.Info("Reloading containers")
 			c.Assert(s.removeContainers(containers), IsNil)

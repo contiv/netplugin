@@ -318,7 +318,7 @@ func main() {
 		"bridge",
 		"Forwarding Mode")
 	flagSet.StringVar(&opts.dbURL,
-		"store-url",
+		"cluster-store",
 		"etcd://127.0.0.1:2379",
 		"state store url")
 
@@ -377,7 +377,7 @@ func main() {
 	// parse store URL
 	parts := strings.Split(opts.dbURL, "://")
 	if len(parts) < 2 {
-		log.Fatalf("Invalid store-url %s", opts.dbURL)
+		log.Fatalf("Invalid cluster-store-url %s", opts.dbURL)
 	}
 	stateStore := parts[0]
 
