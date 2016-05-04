@@ -570,6 +570,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	// Build networ config
 	networkCfg := intent.ConfigNetwork{
 		Name:       network.NetworkName,
+		NwType:     network.NwType,
 		PktTagType: network.Encap,
 		PktTag:     network.PktTag,
 		SubnetCIDR: network.Subnet,

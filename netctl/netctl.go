@@ -264,6 +264,7 @@ func createNetwork(ctx *cli.Context) {
 	network := ctx.Args()[0]
 	encap := ctx.String("encap")
 	pktTag := ctx.Int("pkt-tag")
+	nwType := ctx.String("nw-type")
 
 	errCheck(ctx, getClient(ctx).NetworkPost(&contivClient.Network{
 		TenantName:  tenant,
@@ -272,6 +273,7 @@ func createNetwork(ctx *cli.Context) {
 		Subnet:      subnet,
 		Gateway:     gateway,
 		PktTag:      pktTag,
+		NwType:      nwType,
 	}))
 }
 
@@ -318,14 +320,15 @@ func listNetworks(ctx *cli.Context) {
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tNetwork\tEncap type\tPacket tag\tSubnet\tGateway\n"))
-		writer.Write([]byte("------\t-------\t----------\t----------\t-------\t------\n"))
+		writer.Write([]byte("Tenant\tNetwork\tNw Type\tEncap type\tPacket tag\tSubnet\tGateway\n"))
+		writer.Write([]byte("------\t-------\t-------\t----------\t----------\t-------\t------\n"))
 
 		for _, net := range filtered {
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 					net.TenantName,
 					net.NetworkName,
+					net.NwType,
 					net.Encap,
 					net.PktTag,
 					net.Subnet,

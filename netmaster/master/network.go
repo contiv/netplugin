@@ -104,6 +104,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	nwCfg = &mastercfg.CfgNetworkState{
 		Tenant:      tenantName,
 		NetworkName: network.Name,
+		NwType:      network.NwType,
 		PktTagType:  network.PktTagType,
 		SubnetIP:    subnetIP,
 		SubnetLen:   subnetLen,
@@ -152,6 +153,11 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	err = nwCfg.Write()
 	if err != nil {
 		return err
+	}
+
+	// Skip docker and service container configs for infra nw
+	if network.NwType == "infra" {
+		return nil
 	}
 
 	if GetClusterMode() == "docker" {
@@ -385,30 +391,33 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
-	// Check if there are any active endpoints
-	if hasActiveEndpoints(nwCfg) {
-		return core.Errorf("Error: Network has active endpoints")
-	}
-
-	if IsDNSEnabled() {
-		// detach Dns container
-		err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
-		if err != nil {
-			log.Errorf("Error detaching service container. Err: %v", err)
+	if nwCfg.NwType != "infra" {
+		// For Infra nw, endpoint delete initiated by netplugin
+		// Check if there are any active endpoints
+		if hasActiveEndpoints(nwCfg) {
+			return core.Errorf("Error: Network has active endpoints")
 		}
-	}
 
-	if GetClusterMode() == "docker" {
-		// Delete the docker network
-		err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
-		if err != nil {
-			log.Errorf("Error deleting network %s. Err: %v", netID, err)
-			// DeleteDockNet will fail when network has active endpoints.
-			// No damage is done yet. It is safe to fail.
-			// We do not have to call attachServiceContainer here,
-			// as detachServiceContainer detaches only when there are no
-			// endpoints remaining.
-			return err
+		if IsDNSEnabled() {
+			// detach Dns container
+			err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
+			if err != nil {
+				log.Errorf("Error detaching service container. Err: %v", err)
+			}
+		}
+
+		if GetClusterMode() == "docker" {
+			// Delete the docker network
+			err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
+			if err != nil {
+				log.Errorf("Error deleting network %s. Err: %v", netID, err)
+				// DeleteDockNet will fail when network has active endpoints.
+				// No damage is done yet. It is safe to fail.
+				// We do not have to call attachServiceContainer here,
+				// as detachServiceContainer detaches only when there are no
+				// endpoints remaining.
+				return err
+			}
 		}
 	}
 

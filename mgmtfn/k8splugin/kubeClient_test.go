@@ -91,7 +91,7 @@ func (d *KubeTestNetDrv) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork is not implemented.
-func (d *KubeTestNetDrv) DeleteNetwork(id, encap string, pktTag, extPktTag int, gateway string, tenant string) error {
+func (d *KubeTestNetDrv) DeleteNetwork(id, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error {
 	return nil
 }
 

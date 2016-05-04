@@ -28,10 +28,13 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin"
+	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/svcplugin"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/netplugin/version"
 
 	log "github.com/Sirupsen/logrus"
@@ -70,6 +73,9 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 			net := netCfg.(*mastercfg.CfgNetworkState)
 			log.Debugf("read net key[%d] %s, populating state \n", idx, net.ID)
 			processNetEvent(netPlugin, net, false)
+			if net.NwType == "infra" {
+				processInfraNwCreate(netPlugin, net, opts)
+			}
 		}
 	}
 
@@ -98,6 +104,80 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 	return nil
 }
 
+// Process Infra Nw Create
+// Auto allocate an endpoint for this node
+func processInfraNwCreate(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkState, opts cliOpts) (err error) {
+	pluginHost := opts.hostLabel
+
+	// Build endpoint request
+	mreq := master.CreateEndpointRequest{
+		TenantName:  nwCfg.Tenant,
+		NetworkName: nwCfg.NetworkName,
+		EndpointID:  pluginHost,
+		ConfigEP: intent.ConfigEP{
+			Container: pluginHost,
+			Host:      pluginHost,
+		},
+	}
+
+	var mresp master.CreateEndpointResponse
+	err = cluster.MasterPostReq("/plugin/createEndpoint", &mreq, &mresp)
+	if err != nil {
+		log.Errorf("master failed to create endpoint %s", err)
+		return err
+	}
+
+	log.Infof("Got endpoint create resp from master: %+v", mresp)
+
+	// Take lock to ensure netPlugin processes only one cmd at a time
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+
+	// Ask netplugin to create the endpoint
+	netID := nwCfg.NetworkName + "." + nwCfg.Tenant
+	err = netPlugin.CreateEndpoint(netID + "-" + pluginHost)
+	if err != nil {
+		log.Errorf("Endpoint creation failed. Error: %s", err)
+		return err
+	}
+
+	// Assign IP to interface
+	ipCIDR := fmt.Sprintf("%s/%d", mresp.EndpointConfig.IPAddress, nwCfg.SubnetLen)
+	err = netutils.SetInterfaceIP(nwCfg.NetworkName, ipCIDR)
+	if err != nil {
+		log.Errorf("Could not assign ip: %s", err)
+		return err
+	}
+
+	return nil
+}
+
+// Process Infra Nw Delete
+// Delete the auto allocated endpoint
+func processInfraNwDelete(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkState, opts cliOpts) (err error) {
+	pluginHost := opts.hostLabel
+
+	// Build endpoint request
+	mreq := master.DeleteEndpointRequest{
+		TenantName:  nwCfg.Tenant,
+		NetworkName: nwCfg.NetworkName,
+		EndpointID:  pluginHost,
+	}
+
+	var mresp master.DeleteEndpointResponse
+	err = cluster.MasterPostReq("/plugin/deleteEndpoint", &mreq, &mresp)
+	if err != nil {
+		log.Errorf("master failed to delete endpoint %s", err)
+		return err
+	}
+
+	log.Infof("Got endpoint create resp from master: %+v", mresp)
+
+	// Network delete will take care of infra nw EP delete in plugin
+
+	return
+}
+
 func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkState,
 	isDelete bool) (err error) {
 	// take a lock to ensure we are programming one event at a time.
@@ -109,7 +189,7 @@ func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkSta
 
 	operStr := ""
 	if isDelete {
-		err = netPlugin.DeleteNetwork(nwCfg.ID, nwCfg.PktTagType, nwCfg.PktTag, nwCfg.ExtPktTag,
+		err = netPlugin.DeleteNetwork(nwCfg.ID, nwCfg.NwType, nwCfg.PktTagType, nwCfg.PktTag, nwCfg.ExtPktTag,
 			nwCfg.Gateway, nwCfg.Tenant)
 		operStr = "delete"
 	} else {
@@ -188,7 +268,17 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 		}
 		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
-			processNetEvent(netPlugin, nwCfg, isDelete)
+			if isDelete != true {
+				processNetEvent(netPlugin, nwCfg, isDelete)
+				if nwCfg.NwType == "infra" {
+					processInfraNwCreate(netPlugin, nwCfg, opts)
+				}
+			} else {
+				if nwCfg.NwType == "infra" {
+					processInfraNwDelete(netPlugin, nwCfg, opts)
+				}
+				processNetEvent(netPlugin, nwCfg, isDelete)
+			}
 		}
 		if bgpCfg, ok := currentState.(*mastercfg.CfgBgpState); ok {
 			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)

@@ -39,6 +39,7 @@ type ConfigNetwork struct {
 	Name string
 
 	// overrides for various functions when auto allocation is not desired
+	NwType     string
 	PktTagType string
 	PktTag     int
 	SubnetCIDR string
