@@ -44,7 +44,7 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 
 			c.Assert(s.cli.NetworkPost(network), IsNil)
 
-			// TBD: Need to fix timing issue 
+			// TBD: Need to fix timing issue
 			// where endpoint create is received on non-master node
 			// before network create is received
 			time.Sleep(5 * time.Second)
