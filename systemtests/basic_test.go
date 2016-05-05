@@ -70,7 +70,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 		TenantName:  "default",
 	}), IsNil)
 
-	containers, err := s.runContainers(s.containers, false, "private", nil,nil)
+	containers, err := s.runContainers(s.containers, false, "private", nil, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)

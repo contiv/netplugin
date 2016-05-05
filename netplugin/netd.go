@@ -16,16 +16,9 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"log/syslog"
-	"net/url"
-	"os"
-	"os/user"
-	"strconv"
-	"strings"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/Sirupsen/logrus/hooks/syslog"
 	"github.com/contiv/netplugin/core"
@@ -43,6 +36,13 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/samalba/dockerclient"
 	"golang.org/x/net/context"
+	"log/syslog"
+	"net/url"
+	"os"
+	"os/user"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
