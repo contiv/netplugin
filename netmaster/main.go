@@ -92,7 +92,7 @@ func parseOpts(opts *cliOpts) error {
 	flagSet.StringVar(&opts.clusterMode,
 		"cluster-mode",
 		"docker",
-		"{docker, kubernetes}")
+		"{docker, kubernetes, mesos}")
 	flagSet.BoolVar(&opts.dnsEnabled,
 		"dns-enable",
 		true,
