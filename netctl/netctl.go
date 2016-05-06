@@ -545,11 +545,11 @@ func listBgp(ctx *cli.Context) {
 		for _, group := range filtered {
 			writer.Write(
 				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\n",
-					group.As,
 					group.Hostname,
+					group.Routerip,
+					group.As,
 					group.Neighbor,
 					group.NeighborAs,
-					group.Routerip,
 				)))
 		}
 	}
