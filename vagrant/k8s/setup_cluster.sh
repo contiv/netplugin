@@ -48,11 +48,11 @@ function GetContiv {
   fi
 }
 
-# kubernetes version to use -- defaults to v1.1.4
-: ${k8sVer:=v1.1.4}
+# kubernetes version to use -- defaults to v1.2.3
+: ${k8sVer:=v1.2.3}
 
 # contiv version
-: ${contivVer:=v0.1-01-28-2016.03-55-05.UTC}
+: ${contivVer:=v0.1-05-05-2016.18-38-56.UTC}
 
 top_dir=$(git rev-parse --show-toplevel | sed 's|/[^/]*$||')
 

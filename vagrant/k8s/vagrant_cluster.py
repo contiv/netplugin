@@ -56,7 +56,7 @@ def writeHostLine(outFd, hostInfo, hConfig, comVars):
     for attr in hostAttr:
         outFd.write(" {}={}".format(attr, info[attr]))
 
-    outFd.write(" contiv_control_ip={}".format(hConfig['control-ip']))
+    outFd.write(" contiv_control_ip={}".format(hConfig['contiv_control_ip']))
     outFd.write(" contiv_network_if=enp0s9") # might need to change if box changes
     outFd.write(comVars)
     outFd.write("\n")
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     # Make sure all hosts are reported
     for mInfo in clusterConf['master']:
         validateHostInfo(hostInfo, mInfo['name'])
-        service_ip = mInfo['control-ip']
+        service_ip = mInfo['contiv_control_ip']
 
     for nInfo in clusterConf['nodes']:
         validateHostInfo(hostInfo, nInfo['name'])
