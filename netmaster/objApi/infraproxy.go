@@ -31,13 +31,13 @@ type appNwSpec struct {
 }
 
 type epgSpec struct {
-	Name       string         `json:"name,omitempty"`
-	VlanTag    string         `json:"vlantag,omitempty"`
-	ProtoPorts []protoPortSet `json:"protoports,omitempty"`
-	Uses       []string       `json:"uses,omitempty"`
+	Name    string       `json:"name,omitempty"`
+	VlanTag string       `json:"vlantag,omitempty"`
+	Filters []filterInfo `json:"filterinfo,omitempty"`
+	Uses    []string     `json:"uses,omitempty"`
 }
 
-type protoPortSet struct {
+type filterInfo struct {
 	Protocol string `json:"protocol,omitempty"`
 	ServPort string `json:"servport,omitempty"`
 }
@@ -139,9 +139,9 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 				log.Debugf("==Ignoring deny rule %v", ruleName)
 				continue
 			}
-			protocolPort := protoPortSet{Protocol: rule.Protocol, ServPort: strconv.Itoa(rule.Port)}
-			epg.ProtoPorts = append(epg.ProtoPorts, protocolPort)
-			log.Debugf("Protocol Port set: %v", protocolPort)
+			singleFilter := filterInfo{Protocol: rule.Protocol, ServPort: strconv.Itoa(rule.Port)}
+			epg.Filters = append(epg.Filters, singleFilter)
+			log.Debugf("Filter information: %v", singleFilter)
 
 			if rule.FromEndpointGroup == "" {
 				log.Debugf("User unspecified %v == exposed contract", ruleName)
