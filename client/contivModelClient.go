@@ -240,6 +240,7 @@ type Network struct {
 type NetworkLinkSets struct {
 	AppProfiles    map[string]Link `json:"AppProfiles,omitempty"`
 	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
+	Servicelbs     map[string]Link `json:"Servicelbs,omitempty"`
 	Services       map[string]Link `json:"Services,omitempty"`
 }
 
@@ -351,6 +352,25 @@ type ServiceInstanceLinks struct {
 	Service Link `json:"Service,omitempty"`
 }
 
+type ServiceLB struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	IpAddress   string   `json:"ipAddress,omitempty"` // Service ip
+	Network     string   `json:"network,omitempty"`   // Service network name
+	Ports       []string `json:"ports,omitempty"`
+	Selectors   []string `json:"selectors,omitempty"`
+	ServiceName string   `json:"serviceName,omitempty"` // service name
+	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
+
+	Links ServiceLBLinks `json:"links,omitempty"`
+}
+
+type ServiceLBLinks struct {
+	Network Link `json:"Network,omitempty"`
+	Tenant  Link `json:"Tenant,omitempty"`
+}
+
 type Tenant struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -367,6 +387,7 @@ type TenantLinkSets struct {
 	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
 	Networks       map[string]Link `json:"Networks,omitempty"`
 	Policies       map[string]Link `json:"Policies,omitempty"`
+	Servicelbs     map[string]Link `json:"Servicelbs,omitempty"`
 	VolumeProfiles map[string]Link `json:"VolumeProfiles,omitempty"`
 	Volumes        map[string]Link `json:"Volumes,omitempty"`
 }
@@ -998,6 +1019,71 @@ func (c *ContivClient) ServiceInstanceDelete(tenantName string, appName string, 
 	err := httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting serviceInstance %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
+// ServiceLBPost posts the serviceLB object
+func (c *ContivClient) ServiceLBPost(obj *ServiceLB) error {
+	// build key and URL
+	keyStr := obj.ServiceName + ":" + obj.TenantName
+	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
+
+	// http post the object
+	err := httpPost(url, obj)
+	if err != nil {
+		log.Debugf("Error creating serviceLB %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
+}
+
+// ServiceLBList lists all serviceLB objects
+func (c *ContivClient) ServiceLBList() (*[]*ServiceLB, error) {
+	// build key and URL
+	url := c.baseURL + "/api/serviceLBs/"
+
+	// http get the object
+	var objList []*ServiceLB
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Debugf("Error getting serviceLBs. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
+// ServiceLBGet gets the serviceLB object
+func (c *ContivClient) ServiceLBGet(serviceName string, tenantName string) (*ServiceLB, error) {
+	// build key and URL
+	keyStr := serviceName + ":" + tenantName
+	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
+
+	// http get the object
+	var obj ServiceLB
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting serviceLB %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// ServiceLBDelete deletes the serviceLB object
+func (c *ContivClient) ServiceLBDelete(serviceName string, tenantName string) error {
+	// build key and URL
+	keyStr := serviceName + ":" + tenantName
+	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting serviceLB %s. Err: %v", keyStr, err)
 		return err
 	}
 
