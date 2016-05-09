@@ -93,6 +93,8 @@ type Network struct {
 
 	Encap       string `json:"encap,omitempty"`       // Encapsulation
 	Gateway     string `json:"gateway,omitempty"`     // Gateway
+	Ipv6Gateway string `json:"ipv6Gateway,omitempty"` // IPv6Gateway
+	Ipv6Subnet  string `json:"ipv6Subnet,omitempty"`  // IPv6Subnet
 	NetworkName string `json:"networkName,omitempty"` // Network name
 	NwType      string `json:"nwType,omitempty"`      // Network Type
 	PktTag      int    `json:"pktTag,omitempty"`      // Vlan/Vxlan Tag
@@ -1868,6 +1870,16 @@ func ValidateNetwork(obj *Network) error {
 	gatewayMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})?$")
 	if gatewayMatch.MatchString(obj.Gateway) == false {
 		return errors.New("gateway string invalid format")
+	}
+
+	ipv6GatewayMatch := regexp.MustCompile("^(((([0-9]|[a-f]|[A-F]){1,4})((\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\:){0,6}|\\:)((\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\:)))?$")
+	if ipv6GatewayMatch.MatchString(obj.Ipv6Gateway) == false {
+		return errors.New("ipv6Gateway string invalid format")
+	}
+
+	ipv6SubnetMatch := regexp.MustCompile("^((((([0-9]|[a-f]|[A-F]){1,4})((\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\:){0,6}|\\:)((\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\:)))/(1[0-2][0-7]|[1-9][0-9]|[1-9]))$")
+	if ipv6SubnetMatch.MatchString(obj.Ipv6Subnet) == false {
+		return errors.New("ipv6Subnet string invalid format")
 	}
 
 	if len(obj.NetworkName) > 64 {

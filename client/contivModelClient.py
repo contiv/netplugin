@@ -217,6 +217,8 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"encap": obj.encap, 
 			"gateway": obj.gateway, 
+			"ipv6Gateway": obj.ipv6Gateway, 
+			"ipv6Subnet": obj.ipv6Subnet, 
 			"networkName": obj.networkName, 
 			"pktTag": obj.pktTag, 
 			"subnet": obj.subnet, 
