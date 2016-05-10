@@ -118,7 +118,10 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 			containers[name], err = s.runContainers(numContainer, false, name, nil)
 			c.Assert(err, IsNil)
 		}
-		time.Sleep(5 * time.Second)
+
+		if s.fwdMode == "routing" {
+			time.Sleep(15 * time.Second)
+		}
 
 		endChan := make(chan error)
 
@@ -227,7 +230,9 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil)
 					mutex.Unlock()
 					endChan <- err
-					time.Sleep(5 * time.Second)
+					if s.fwdMode == "routing" {
+						time.Sleep(15 * time.Second)
+					}
 					endChan <- s.pingTest(containers[network])
 				}(network, tenant, containers)
 			}
