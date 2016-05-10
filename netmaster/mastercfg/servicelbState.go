@@ -37,7 +37,7 @@ type ServiceLBInfo struct {
 	Providers   map[string]*Provider //map of providers for a service keyed by provider ip
 }
 
-//ServiceLBInfo is map of all services
+//ServiceLBDb is map of all services
 var ServiceLBDb = make(map[string]*ServiceLBInfo) //DB for all services keyed by servicename.tenant
 
 // CfgServiceLBState is the service object configuration
