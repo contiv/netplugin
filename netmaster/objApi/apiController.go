@@ -1099,8 +1099,8 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 		serviceCfg.TenantName = "default"
 	}
 
-	if len(serviceCfg.Labels) == 0 {
-		return core.Errorf("Invalid label options")
+	if len(serviceCfg.Selectors) == 0 {
+		return core.Errorf("Invalid selector options")
 	}
 
 	if !validatePorts(serviceCfg.Ports) {
@@ -1122,15 +1122,15 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 	}
 	serviceIntentCfg.Ports = append(serviceIntentCfg.Ports, serviceCfg.Ports...)
 
-	serviceIntentCfg.Labels = make(map[string]string)
+	serviceIntentCfg.Selectors = make(map[string]string)
 
-	for _, label := range serviceCfg.Labels {
-		if validateLabels(label) {
-			key := strings.Split(label, "=")[0]
-			value := strings.Split(label, "=")[1]
-			serviceIntentCfg.Labels[key] = value
+	for _, selector := range serviceCfg.Selectors {
+		if validateSelectors(selector) {
+			key := strings.Split(selector, "=")[0]
+			value := strings.Split(selector, "=")[1]
+			serviceIntentCfg.Selectors[key] = value
 		} else {
-			return core.Errorf("Invalid label %s. Label format is key1=value1", label)
+			return core.Errorf("Invalid selector %s. selector format is key1=value1", selector)
 		}
 	}
 	// Add the service object
@@ -1175,8 +1175,8 @@ func (ac *APIController) ServiceLBDelete(serviceCfg *contivModel.ServiceLB) erro
 
 }
 
-func validateLabels(label string) bool {
-	if strings.Count(label, "=") == 1 {
+func validateSelectors(selector string) bool {
+	if strings.Count(selector, "=") == 1 {
 		return true
 	}
 	return false

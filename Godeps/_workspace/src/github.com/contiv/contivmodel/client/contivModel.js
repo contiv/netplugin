@@ -681,10 +681,10 @@ var ServiceLBSummaryView = React.createClass({
 		var self = this
 
 		// Walk thru all objects
-		var ServiceLBListView = self.props.ServiceLBs.map(function(ServiceLB){
+		var serviceLBListView = self.props.serviceLBs.map(function(serviceLB){
 			return (
-				<ModalTrigger modal={<ServiceLBModalView ServiceLB={ ServiceLB }/>}>
-					<tr key={ ServiceLB.key } className="info">
+				<ModalTrigger modal={<ServiceLBModalView serviceLB={ serviceLB }/>}>
+					<tr key={ serviceLB.key } className="info">
 						
 						      
 					</tr>
@@ -702,7 +702,7 @@ var ServiceLBSummaryView = React.createClass({
 					</tr>
 				</thead>
 				<tbody>
-            		{ ServiceLBListView }
+            		{ serviceLBListView }
 				</tbody>
 			</Table>
         </div>
@@ -712,7 +712,7 @@ var ServiceLBSummaryView = React.createClass({
 
 var ServiceLBModalView = React.createClass({
 	render() {
-		var obj = this.props.ServiceLB
+		var obj = this.props.serviceLB
 	    return (
 	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='ServiceLB' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
@@ -720,11 +720,11 @@ var ServiceLBModalView = React.createClass({
 			
 				<Input type='text' label='Service ip' ref='ipAddress' defaultValue={obj.ipAddress} placeholder='Service ip' />
 			
-				<Input type='text' label='labels key value pair' ref='labels' defaultValue={obj.labels} placeholder='labels key value pair' />
-			
 				<Input type='text' label='Service subnet' ref='network' defaultValue={obj.network} placeholder='Service subnet' />
 			
 				<Input type='text' label='service provider port' ref='ports' defaultValue={obj.ports} placeholder='service provider port' />
+			
+				<Input type='text' label='labels key value pair' ref='selectors' defaultValue={obj.selectors} placeholder='labels key value pair' />
 			
 				<Input type='text' label='service name' ref='serviceName' defaultValue={obj.serviceName} placeholder='service name' />
 			

@@ -35,7 +35,7 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 	if oldServiceInfo != nil {
 		//ServiceInfo Exists
 		if reflect.DeepEqual(oldServiceInfo.Ports, serviceLbCfg.Ports) &&
-			reflect.DeepEqual(oldServiceInfo.Labels, serviceLbCfg.Labels) &&
+			reflect.DeepEqual(oldServiceInfo.Selectors, serviceLbCfg.Selectors) &&
 			serviceLbCfg.Tenant == oldServiceInfo.Tenant {
 			return nil
 		}
@@ -49,10 +49,10 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 	serviceLbState.StateDriver = stateDriver
 	serviceLbState.ID = serviceLbCfg.ServiceName + "\\" + serviceLbCfg.Tenant
 	serviceLbState.Ports = append(serviceLbState.Ports, serviceLbCfg.Ports...)
-	serviceLbState.Labels = make(map[string]string)
+	serviceLbState.Selectors = make(map[string]string)
 	serviceLbState.Providers = make(map[string]*mastercfg.Provider)
-	for k, v := range serviceLbCfg.Labels {
-		serviceLbState.Labels[k] = v
+	for k, v := range serviceLbCfg.Selectors {
+		serviceLbState.Selectors[k] = v
 	}
 
 	// find the network from network id
@@ -88,18 +88,18 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 		Network:     serviceLbState.Network,
 	}
 	mastercfg.ServiceLBDb[serviceID].Ports = append(mastercfg.ServiceLBDb[serviceID].Ports, serviceLbState.Ports...)
-	mastercfg.ServiceLBDb[serviceID].Labels = make(map[string]string)
+	mastercfg.ServiceLBDb[serviceID].Selectors = make(map[string]string)
 	mastercfg.ServiceLBDb[serviceID].Providers = make(map[string]*mastercfg.Provider)
 
-	for k, v := range serviceLbCfg.Labels {
-		mastercfg.ServiceLBDb[serviceID].Labels[k] = v
+	for k, v := range serviceLbCfg.Selectors {
+		mastercfg.ServiceLBDb[serviceID].Selectors[k] = v
 	}
 
-	//Check for containers in the tenant matching service labels
+	//Check for containers in the tenant matching service selectors
 	for _, providerInfo := range mastercfg.ProviderDb {
 		if providerInfo.Tenant == serviceLbState.Tenant {
-			if eq := reflect.DeepEqual(providerInfo.Labels, mastercfg.ServiceLBDb[serviceID].Labels); eq {
-				//provider matches service labels
+			if eq := reflect.DeepEqual(providerInfo.Labels, mastercfg.ServiceLBDb[serviceID].Selectors); eq {
+				//provider matches service selectors
 				providerID := getProviderID(providerInfo)
 				providerDbID := getProviderDbID(providerInfo)
 				providerInfo.Services = append(providerInfo.Services, serviceID)
@@ -211,11 +211,11 @@ func RestoreServiceProviderLBDb() {
 			}
 			mastercfg.ServiceLBDb[serviceID].Ports = append(mastercfg.ServiceLBDb[serviceID].Ports, svcLB.Ports...)
 
-			mastercfg.ServiceLBDb[serviceID].Labels = make(map[string]string)
+			mastercfg.ServiceLBDb[serviceID].Selectors = make(map[string]string)
 			mastercfg.ServiceLBDb[serviceID].Providers = make(map[string]*mastercfg.Provider)
 
-			for k, v := range svcLB.Labels {
-				mastercfg.ServiceLBDb[serviceID].Labels[k] = v
+			for k, v := range svcLB.Selectors {
+				mastercfg.ServiceLBDb[serviceID].Selectors[k] = v
 			}
 
 			for providerID, providerInfo := range svcLB.Providers {

@@ -72,7 +72,7 @@ type ConfigBgp struct {
 type ConfigServiceLB struct {
 	ServiceName string
 	Tenant      string
-	Labels      map[string]string
+	Selectors   map[string]string
 	Network     string
 	Ports       []string
 	IPAddress   string

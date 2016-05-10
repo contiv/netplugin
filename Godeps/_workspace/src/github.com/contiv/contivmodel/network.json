@@ -57,7 +57,10 @@
 				},
 				"endpointGroups": {
 					"ref": "endpointGroup"
-				}
+				},
+                                "servicelbs":{
+					"ref": "servicelb"
+                                }
 			},
 			"links": {
 				"tenant": {

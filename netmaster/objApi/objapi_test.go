@@ -777,7 +777,7 @@ func checkServiceCreate(t *testing.T, tenant, network, serviceName string, port 
 	if preferredIP != "" {
 		serviceLB.IpAddress = preferredIP
 	}
-	serviceLB.Labels = append(serviceLB.Labels, label...)
+	serviceLB.Selectors = append(serviceLB.Selectors, label...)
 
 	serviceLB.Ports = append(serviceLB.Ports, port...)
 
@@ -798,8 +798,8 @@ func verifyServiceCreate(t *testing.T, tenant, network, serviceName string, port
 	if service.Network != network {
 		t.Fatalf("Service Created does not have a valid network")
 	}
-	if !reflect.DeepEqual(service.Labels, label) || !reflect.DeepEqual(service.Ports, port) {
-		t.Fatalf("Service Created has mismatched labels or port information")
+	if !reflect.DeepEqual(service.Selectors, label) || !reflect.DeepEqual(service.Ports, port) {
+		t.Fatalf("Service Created has mismatched Selectors or port information")
 	}
 
 	serviceLbState := mastercfg.CfgServiceLBState{}

@@ -349,15 +349,14 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 		for serviceID, service := range mastercfg.ServiceLBDb {
 			count := 0
 			if service.Tenant == svcProvUpdReq.Tenant {
-				//Label matches calling service provider update
 				for key, value := range svcProvUpdReq.Labels {
-					if val := service.Labels[key]; val == value {
+					if val := service.Selectors[key]; val == value {
 						count++
 					}
 
-					if count == len(service.Labels) {
+					if count == len(service.Selectors) {
 						//Container corresponds to the service since it
-						//matches all service labels
+						//matches all service Selectors
 						mastercfg.ProviderDb[providerDbID].Services =
 							append(mastercfg.ProviderDb[providerDbID].Services, serviceID)
 							//Update ServiceDB

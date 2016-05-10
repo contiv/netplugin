@@ -437,8 +437,8 @@ var Commands = []cli.Command{
 						Usage: "service subnet",
 					},
 					cli.StringSliceFlag{
-						Name:  "label,l",
-						Usage: "service labs.Usage- --label=key1=value1 --label=key2=value2",
+						Name:  "selector,l",
+						Usage: "service selector .Usage: --selector=key1=value1 --selector=key2=value2",
 					},
 					cli.StringSliceFlag{
 						Name:  "port,p",

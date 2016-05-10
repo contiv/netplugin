@@ -2,7 +2,7 @@
         "name": "contivModel",
         "objects": [
                 {
-                 "name": "ServiceLB",
+                 "name": "serviceLB",
                  "type": "object",
                  "key": ["serviceName","tenantName"],
                  "properties": {
@@ -27,7 +27,7 @@
                                             "title":"Service ip",
                                             "length": 15
                                 },
-                                "labels":       {
+                                "selectors":       {
                                              "type": "array",
                                              "title": "labels key value pair",
                                              "length": 512,

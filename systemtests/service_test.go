@@ -113,7 +113,7 @@ func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
 			for _, network := range tenantNames[tenant] {
 				for _, svc := range service {
 					serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
-						s.addProviders(c, svc.Labels, numContainer, tenant, network)...)
+						s.addProviders(c, svc.Selectors, numContainer, tenant, network)...)
 				}
 				servicesPerTenant[tenant] = serviceContainers
 			}
@@ -258,7 +258,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 
 		for tenant, service := range services {
 			for _, svc := range service {
-				serviceContainers[svc.ServiceName] = s.addProviders(c, svc.Labels, numContainer, tenant, svc.Network)
+				serviceContainers[svc.ServiceName] = s.addProviders(c, svc.Selectors, numContainer, tenant, svc.Network)
 			}
 			servicesPerTenant[tenant] = serviceContainers
 		}
@@ -317,7 +317,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 						c.Assert(<-endChan, IsNil)
 					}
 					serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
-						s.addProviders(c, svc.Labels, numContainer, tenant, svc.Network)...)
+						s.addProviders(c, svc.Selectors, numContainer, tenant, svc.Network)...)
 					servicesPerTenant[tenant] = serviceContainers
 
 					s.startListenersOnProviders(serviceContainers[svc.ServiceName], svc.Ports)
@@ -527,7 +527,6 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 		)
 
 		var leader, oldLeader *node
-		var leaderIP string
 
 		numContainer := s.containers
 		if numContainer < 4 {
@@ -598,7 +597,7 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 				for _, network := range tenantNames[tenant] {
 					for _, svc := range service {
 						serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
-							s.addProviders(c, svc.Labels, numContainer, tenant, network)...)
+							s.addProviders(c, svc.Selectors, numContainer, tenant, network)...)
 					}
 					servicesPerTenant[tenant] = serviceContainers
 				}
@@ -630,47 +629,43 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 				}
 			}
 
-			list, err := s.etcdList("/contiv.io/service/netmaster/", false)
+			leaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 			c.Assert(err, IsNil)
 
-			for _, item := range list {
-				if item["Role"] == "leader" {
-					for _, node := range s.nodes {
-						res, err := node.getIPAddr("eth1")
-						c.Assert(err, IsNil)
-						if res == item["HostAddr"] {
-							leader = node
-							leaderIP = res
-						}
-					}
+			for _, node := range s.nodes {
+				res, err := node.getIPAddr("eth1")
+				c.Assert(err, IsNil)
+				if res == leaderIP {
+					leader = node
+					leaderIP = res
+					logrus.Infof("Found leader %s/%s", node.Name(), leaderIP)
 				}
 			}
 
 			c.Assert(leader.stopNetmaster(), IsNil)
-			for x := 0; x < 30; x++ {
-				logrus.Info("Waiting 1s for leader to change...")
-				list, err := s.etcdList("/contiv.io/service/netmaster/", false)
+			c.Assert(leader.rotateLog("netmaster"), IsNil)
+
+			for x := 0; x < 15; x++ {
+				logrus.Info("Waiting 5s for leader to change...")
+				newLeaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 				c.Assert(err, IsNil)
 
-				for _, item := range list {
-					if item["Role"] == "leader" {
-						for _, node := range s.nodes {
-							res, err := node.getIPAddr("eth1")
-							c.Assert(err, IsNil)
-							if res == item["HostAddr"] && res != leaderIP {
-								oldLeader = leader
-								leader = node
-								goto finished
-							}
-						}
+				for _, node := range s.nodes {
+					res, err := node.getIPAddr("eth1")
+					c.Assert(err, IsNil)
+					if res == newLeaderIP && res != leaderIP {
+						oldLeader = leader
+						leader = node
+						logrus.Infof("Leader switched to %s/%s", node.Name(), newLeaderIP)
+						goto finished
 					}
 				}
 
-				time.Sleep(1 * time.Second)
+				time.Sleep(5 * time.Second)
 			}
 		finished:
 			c.Assert(oldLeader.startNetmaster(), IsNil)
-			time.Sleep(20 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			for tenant, serviceContainers := range servicesPerTenant {
 				for name, containers := range serviceContainers {
@@ -695,6 +690,168 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 				c.Assert(s.removeContainers(containers[network+tenant]), IsNil)
 				c.Assert(s.cli.NetworkDelete(tenant, network), IsNil)
 			}
+		}
+	}
+}
+
+/*TestServiceAddDeleteProviders does the following:
+1) Creates networks in each tenant
+2) Creates Service Networks in each tenant
+3) Runs containers (consumers) in each network per tenant
+4) Adds Providers with labels
+5) Creates Service
+6) Restarts netplugin one by one on every node and creates/deletes service,providers
+and verfies the reachability.
+*/
+func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
+
+	if s.fwdMode != "routing" {
+		c.Skip("Skipping test")
+	}
+
+	mutex := sync.Mutex{}
+
+	for i := 0; i < s.iterations; i++ {
+		var (
+			netNames          = []string{}
+			containers        = map[string][]*container{}
+			serviceContainers = map[string][]*container{}
+			services          = map[string][]*client.ServiceLB{}
+			serviceIPs        = map[string][]string{}
+			serviceNetworks   = map[string][]string{}
+			tenantNames       = map[string][]string{}
+			servicesPerTenant = map[string]map[string][]*container{}
+		)
+
+		numContainer := s.containers
+		if numContainer < 4 {
+			numContainer = 4
+		}
+
+		numSvcNet := 1 //numContainer / len(s.nodes)
+		numLabels := 4
+		numSvcs := 1
+		numTenant := 1 //numContainer / len(s.nodes)
+
+		for tenantNum := 0; tenantNum < numTenant; tenantNum++ {
+			tenantName := fmt.Sprintf("tenant%d", tenantNum)
+			if tenantNum == 0 {
+				tenantName = "default"
+			} else {
+				c.Assert(s.cli.TenantPost(&client.Tenant{TenantName: tenantName}), IsNil)
+			}
+			tenantNames[tenantName] = []string{}
+
+			for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+				network := &client.Network{
+					TenantName:  tenantName,
+					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
+					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
+					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
+					Encap:       "vxlan",
+				}
+
+				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
+
+				c.Assert(s.cli.NetworkPost(network), IsNil)
+				netNames = append(netNames, network.NetworkName)
+				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
+			}
+			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName)
+		}
+
+		for tenant, networks := range tenantNames {
+			endChan := make(chan error)
+			for _, network := range networks {
+				go func(network, tenant string, containers map[string][]*container) {
+					net := network
+					if tenant != "default" {
+						net = network + "/" + tenant
+					}
+					var err error
+					mutex.Lock()
+					c, err := s.runContainers(numContainer, false, net, nil, nil)
+					containers[network+tenant] = append(containers[network+tenant], c...)
+					mutex.Unlock()
+					endChan <- err
+				}(network, tenant, containers)
+			}
+		}
+
+		for _, node := range s.nodes {
+			for tenant, networks := range serviceNetworks {
+				ips := []string{}
+				sv := []*client.ServiceLB{}
+				for _, network := range networks {
+					sv, ips = s.createServices(c, numSvcs, tenant, network, numLabels)
+					services[tenant] = append(services[tenant], sv...)
+					serviceIPs[tenant] = append(serviceIPs[tenant], ips...)
+				}
+			}
+
+			for tenant, service := range services {
+				for _, network := range tenantNames[tenant] {
+					for _, svc := range service {
+						serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
+							s.addProviders(c, svc.Selectors, numContainer, tenant, network)...)
+					}
+					servicesPerTenant[tenant] = serviceContainers
+				}
+			}
+
+			for tenant, serviceContainers := range servicesPerTenant {
+				for serviceName, svcContainers := range serviceContainers {
+					serviceInfo := &client.ServiceLB{}
+					for _, service := range services[tenant] {
+						if service.ServiceName == serviceName {
+							serviceInfo = service
+						}
+					}
+					s.startListenersOnProviders(svcContainers, serviceInfo.Ports)
+				}
+			}
+			c.Assert(node.stopNetplugin(), IsNil)
+			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
+			time.Sleep(2 * time.Minute)
+			c.Assert(node.rotateLog("netplugin"), IsNil)
+			c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
+			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+			time.Sleep(20 * time.Second)
+			for _, ips := range serviceIPs {
+				endChan := make(chan error)
+				for _, conts := range containers {
+					go func(c *C, conts []*container, ip []string, port int, protocol string) {
+						endChan <- s.checkConnectionToService(conts, ips, port, "tcp")
+					}(c, conts, ips, 80, "tcp")
+				}
+				for _ = range containers {
+					c.Assert(<-endChan, IsNil)
+				}
+			}
+			for tenant, serviceContainers := range servicesPerTenant {
+				for name, containers := range serviceContainers {
+					s.deleteProviders(c, containers)
+					serviceContainers[name] = nil
+				}
+				servicesPerTenant[tenant] = nil
+			}
+
+			for tenant, serviceList := range services {
+				s.deleteServices(c, tenant, serviceList)
+				services[tenant] = nil
+			}
+		}
+
+		for tenant, networks := range serviceNetworks {
+			s.deleteServiceNetworks(c, tenant, networks)
+		}
+
+		for tenant, networks := range tenantNames {
+			for _, network := range networks {
+				c.Assert(s.removeContainers(containers[network+tenant]), IsNil)
+				c.Assert(s.cli.NetworkDelete(tenant, network), IsNil)
+			}
+
 		}
 	}
 }
@@ -730,11 +887,11 @@ func (s *systemtestSuite) createServices(c *C, numServices int, tenant string, s
 			Ports:       []string{"80:8080:TCP", "643:7070:UDP"},
 		}
 		for index := serviceNum; index < serviceNum+numLabels; index++ {
-			service.Labels = append(service.Labels, fmt.Sprintf("key%d=value%d", index, index+1))
+			service.Selectors = append(service.Selectors, fmt.Sprintf("key%d=value%d", index, index+1))
 		}
 
 		c.Assert(s.cli.ServiceLBPost(service), IsNil)
-		logrus.Infof("Creating service %s tenant %s on network %s with label %v", service.ServiceName, tenant, svcNetwork, service.Labels)
+		logrus.Infof("Creating service %s tenant %s on network %s with label %v", service.ServiceName, tenant, svcNetwork, service.Selectors)
 		services = append(services, service)
 	}
 

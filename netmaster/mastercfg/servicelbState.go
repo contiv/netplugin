@@ -33,7 +33,7 @@ type ServiceLBInfo struct {
 	Tenant      string               //Tenant name of the service
 	Network     string               // service network
 	Ports       []string             //Service_port:Provider_port:protocol
-	Labels      map[string]string    // Labels associated with a service
+	Selectors   map[string]string    // selector labels associated with a service
 	Providers   map[string]*Provider //map of providers for a service keyed by provider ip
 }
 
@@ -47,7 +47,7 @@ type CfgServiceLBState struct {
 	Tenant      string               `json:"tenantname"`
 	Network     string               `json:"subnet"`
 	Ports       []string             `json:"ports"`
-	Labels      map[string]string    `json:"labels"`
+	Selectors   map[string]string    `json:"selectors"`
 	IPAddress   string               `json:"ipaddress"`
 	Providers   map[string]*Provider `json:"providers"`
 }
