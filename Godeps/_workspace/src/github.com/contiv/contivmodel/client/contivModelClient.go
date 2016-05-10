@@ -224,6 +224,8 @@ type Network struct {
 
 	Encap       string `json:"encap,omitempty"`       // Encapsulation
 	Gateway     string `json:"gateway,omitempty"`     // Gateway
+	Ipv6Gateway string `json:"ipv6Gateway,omitempty"` // IPv6Gateway
+	Ipv6Subnet  string `json:"ipv6Subnet,omitempty"`  // IPv6Subnet
 	NetworkName string `json:"networkName,omitempty"` // Network name
 	NwType      string `json:"nwType,omitempty"`      // Network Type
 	PktTag      int    `json:"pktTag,omitempty"`      // Vlan/Vxlan Tag
@@ -355,12 +357,18 @@ type ServiceLB struct {
 	Key string `json:"key,omitempty"`
 
 	IpAddress   string   `json:"ipAddress,omitempty"` // Service ip
-	Network     string   `json:"network,omitempty"`   // Service subnet
+	Network     string   `json:"network,omitempty"`   // Service network name
 	Ports       []string `json:"ports,omitempty"`
 	Selectors   []string `json:"selectors,omitempty"`
 	ServiceName string   `json:"serviceName,omitempty"` // service name
 	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
 
+	Links ServiceLBLinks `json:"links,omitempty"`
+}
+
+type ServiceLBLinks struct {
+	Network Link `json:"Network,omitempty"`
+	Tenant  Link `json:"Tenant,omitempty"`
 }
 
 type Tenant struct {

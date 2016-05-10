@@ -280,6 +280,10 @@ var NetworkSummaryView = React.createClass({
 						 
 						<td>{ network.gateway }</td>
 						 
+						<td>{ network.ipv6Gateway }</td>
+						 
+						<td>{ network.ipv6Subnet }</td>
+						 
 						<td>{ network.networkName }</td>
 						 
 						<td>{ network.nwType }</td>
@@ -302,6 +306,8 @@ var NetworkSummaryView = React.createClass({
 					 
 						<th> Encapsulation </th>  
 						<th> Gateway </th>  
+						<th> IPv6Gateway </th>  
+						<th> IPv6Subnet </th>  
 						<th> Network name </th>  
 						<th> Network Type </th>  
 						<th> Vlan/Vxlan Tag </th>  
@@ -328,6 +334,10 @@ var NetworkModalView = React.createClass({
 				<Input type='text' label='Encapsulation' ref='encap' defaultValue={obj.encap} placeholder='Encapsulation' />
 			
 				<Input type='text' label='Gateway' ref='gateway' defaultValue={obj.gateway} placeholder='Gateway' />
+			
+				<Input type='text' label='IPv6Gateway' ref='ipv6Gateway' defaultValue={obj.ipv6Gateway} placeholder='IPv6Gateway' />
+			
+				<Input type='text' label='IPv6Subnet' ref='ipv6Subnet' defaultValue={obj.ipv6Subnet} placeholder='IPv6Subnet' />
 			
 				<Input type='text' label='Network name' ref='networkName' defaultValue={obj.networkName} placeholder='Network name' />
 			
@@ -720,7 +730,7 @@ var ServiceLBModalView = React.createClass({
 			
 				<Input type='text' label='Service ip' ref='ipAddress' defaultValue={obj.ipAddress} placeholder='Service ip' />
 			
-				<Input type='text' label='Service subnet' ref='network' defaultValue={obj.network} placeholder='Service subnet' />
+				<Input type='text' label='Service network name' ref='network' defaultValue={obj.network} placeholder='Service network name' />
 			
 				<Input type='text' label='service provider port' ref='ports' defaultValue={obj.ports} placeholder='service provider port' />
 			

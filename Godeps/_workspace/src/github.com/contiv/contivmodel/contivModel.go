@@ -93,6 +93,8 @@ type Network struct {
 
 	Encap       string `json:"encap,omitempty"`       // Encapsulation
 	Gateway     string `json:"gateway,omitempty"`     // Gateway
+	Ipv6Gateway string `json:"ipv6Gateway,omitempty"` // IPv6Gateway
+	Ipv6Subnet  string `json:"ipv6Subnet,omitempty"`  // IPv6Subnet
 	NetworkName string `json:"networkName,omitempty"` // Network name
 	NwType      string `json:"nwType,omitempty"`      // Network Type
 	PktTag      int    `json:"pktTag,omitempty"`      // Vlan/Vxlan Tag
@@ -224,12 +226,18 @@ type ServiceLB struct {
 	Key string `json:"key,omitempty"`
 
 	IpAddress   string   `json:"ipAddress,omitempty"` // Service ip
-	Network     string   `json:"network,omitempty"`   // Service subnet
+	Network     string   `json:"network,omitempty"`   // Service network name
 	Ports       []string `json:"ports,omitempty"`
 	Selectors   []string `json:"selectors,omitempty"`
 	ServiceName string   `json:"serviceName,omitempty"` // service name
 	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
 
+	Links ServiceLBLinks `json:"links,omitempty"`
+}
+
+type ServiceLBLinks struct {
+	Network modeldb.Link `json:"Network,omitempty"`
+	Tenant  modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type Tenant struct {
@@ -1909,6 +1917,16 @@ func ValidateNetwork(obj *Network) error {
 		return errors.New("gateway string invalid format")
 	}
 
+	ipv6GatewayMatch := regexp.MustCompile("^(((([0-9]|[a-f]|[A-F]){1,4})((\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\:){0,6}|\\:)((\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\:)))?$")
+	if ipv6GatewayMatch.MatchString(obj.Ipv6Gateway) == false {
+		return errors.New("ipv6Gateway string invalid format")
+	}
+
+	ipv6SubnetMatch := regexp.MustCompile("^((((([0-9]|[a-f]|[A-F]){1,4})((\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\:){0,6}|\\:)((\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\:)))/(1[0-2][0-7]|[1-9][0-9]|[1-9]))$")
+	if ipv6SubnetMatch.MatchString(obj.Ipv6Subnet) == false {
+		return errors.New("ipv6Subnet string invalid format")
+	}
+
 	if len(obj.NetworkName) > 64 {
 		return errors.New("networkName string too long")
 	}
@@ -3189,7 +3207,7 @@ func ValidateServiceLB(obj *ServiceLB) error {
 		return errors.New("ipAddress string too long")
 	}
 
-	if len(obj.Network) > 15 {
+	if len(obj.Network) > 64 {
 		return errors.New("network string too long")
 	}
 
