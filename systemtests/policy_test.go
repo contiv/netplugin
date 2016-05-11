@@ -332,7 +332,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 
 		cmnContainers, err := s.runContainersInService(s.containers, "common", "private", commonNames)
 		c.Assert(err, IsNil)
-		if s.fwdMode == "routing" {
+		if s.fwdMode == "routing" && encap =="vlan" {
 			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), cmnContainers)
 		}
 
