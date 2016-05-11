@@ -7,7 +7,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	. "gopkg.in/check.v1"
-	"time"
 )
 
 func (s *systemtestSuite) TestPolicyBasicVXLAN(c *C) {
@@ -88,7 +87,7 @@ func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
 		containers, err := s.runContainers(s.containers, true, "private", groupNames)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" {
-			time.Sleep(15 * time.Second)
+			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
 		}
 
 		c.Assert(s.startListeners(containers, []int{8000, 8001}), IsNil)
@@ -186,7 +185,7 @@ func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 	containers, err := s.runContainers(s.containers, true, "private", groupNames)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" {
-		time.Sleep(15 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
 	}
 	c.Assert(s.startListeners(containers, []int{8000, 8001}), IsNil)
 	c.Assert(s.checkConnections(containers, 8000), IsNil)
@@ -323,7 +322,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 		containers, err := s.runContainers(s.containers, true, "private", policyNames)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" {
-			time.Sleep(15 * time.Second)
+			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
 		}
 
 		commonNames := []string{}
@@ -334,7 +333,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 		cmnContainers, err := s.runContainersInService(s.containers, "common", "private", commonNames)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" {
-			time.Sleep(15 * time.Second)
+			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), cmnContainers)
 		}
 
 		c.Assert(s.startListeners(containers, []int{8000, 8001}), IsNil)
@@ -428,7 +427,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 	container2, err := s.nodes[0].runContainer(containerSpec{serviceName: "srv2", networkName: "private"})
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" {
-		time.Sleep(15 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), []*container{container1})
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), []*container{container2})
 	}
 	c.Assert(container1.startListener(8000, "tcp"), IsNil)
 	c.Assert(container1.startListener(8001, "tcp"), IsNil)

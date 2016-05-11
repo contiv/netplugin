@@ -3,7 +3,6 @@ package systemtests
 import (
 	"github.com/contiv/contivmodel/client"
 	. "gopkg.in/check.v1"
-	"time"
 )
 
 var privateNetwork = &client.Network{
@@ -41,7 +40,7 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 	for i := 0; i < s.iterations; i++ {
 		containers, err := s.runContainers(s.containers, false, "private", nil)
 		if s.fwdMode == "routing" && encap == "vlan" {
-			time.Sleep(15 * time.Second)
+			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
 		}
 		c.Assert(err, IsNil)
 		c.Assert(s.pingTest(containers), IsNil)
@@ -97,7 +96,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 		}
 
 		if s.fwdMode == "routing" && encap == "vlan" {
-			time.Sleep(15 * time.Second)
+			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
 		}
 
 	}
