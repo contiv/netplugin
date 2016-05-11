@@ -48,8 +48,7 @@ type Provider struct {
 
 // Write the state
 func (s *SvcProvider) Write() error {
-	id := s.ServiceName
-	key := fmt.Sprintf(svcProviderPath, id)
+	key := fmt.Sprintf(svcProviderPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
@@ -66,8 +65,7 @@ func (s *SvcProvider) ReadAll() ([]core.State, error) {
 
 // Clear removes the configuration from the state store.
 func (s *SvcProvider) Clear() error {
-	id := s.ServiceName
-	key := fmt.Sprintf(svcProviderPath, id)
+	key := fmt.Sprintf(svcProviderPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }
 
