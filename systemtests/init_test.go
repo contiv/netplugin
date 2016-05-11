@@ -25,6 +25,7 @@ type systemtestSuite struct {
 	nodes        []*node
 	fwdMode      string
 	clusterStore string
+	enableDNS    bool
 	// user       string
 	// password   string
 	// nodes      []string
@@ -46,6 +47,7 @@ func TestMain(m *M) {
 	flag.StringVar(&sts.binpath, "binpath", "/opt/gopath/bin", "netplugin/netmaster binary path")
 	flag.IntVar(&sts.containers, "containers", 3, "Number of containers to use")
 	flag.BoolVar(&sts.short, "short", false, "Do a quick validation run instead of the full test suite")
+	flag.BoolVar(&sts.enableDNS, "dns-enable", true, "Enable DNS service discovery")
 	if os.Getenv("CONTIV_CLUSTER_STORE") == "" {
 		flag.StringVar(&sts.clusterStore, "cluster-store", "etcd://localhost:2379", "cluster store URL")
 	} else {
@@ -143,6 +145,7 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(), IsNil)
+		time.Sleep(1 * time.Second)
 		c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
 	}
 
@@ -161,7 +164,7 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 
 func (s *systemtestSuite) TearDownTest(c *C) {
 	for _, node := range s.nodes {
-		c.Assert(node.checkForNetpluginErrors(), IsNil)
+		c.Check(node.checkForNetpluginErrors(), IsNil)
 		c.Assert(node.rotateLog("netplugin"), IsNil)
 		c.Assert(node.rotateLog("netmaster"), IsNil)
 	}
@@ -171,6 +174,15 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 	for _, node := range s.nodes {
 		node.cleanupContainers()
 	}
+
+	// Print all errors and fatal messages
+	for _, node := range s.nodes {
+		out, _ := node.runCommand(`for i in /tmp/_net*; do grep "error\|fatal" $i; done`)
+		if out != "" {
+			logrus.Errorf("Errors in logfiles on %s: \n%v\n==========================\n\n", node.Name(), out)
+		}
+	}
+
 }
 
 func (s *systemtestSuite) Test00SSH(c *C) {

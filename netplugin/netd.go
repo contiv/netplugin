@@ -242,6 +242,34 @@ func processEpState(netPlugin *plugin.NetPlugin, opts cliOpts, epID string) erro
 	return err
 }
 
+//processBgpEvent processes Bgp neighbor add/delete events
+func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string, isDelete bool) error {
+	var err error
+
+	if opts.hostLabel != hostID {
+		log.Errorf("Ignoring Bgp Event on this host")
+		return err
+	}
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+
+	operStr := ""
+	if isDelete {
+		err = netPlugin.DeleteBgp(hostID)
+		operStr = "delete"
+	} else {
+		err = netPlugin.AddBgp(hostID)
+		operStr = "create"
+	}
+	if err != nil {
+		log.Errorf("Bgp operation %s failed. Error: %s", operStr, err)
+	} else {
+		log.Infof("Bgp operation %s succeeded", operStr)
+	}
+
+	return err
+}
+
 func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core.WatchState) {
 	for {
 		// block on change notifications
@@ -489,13 +517,17 @@ func main() {
 		},
 	}
 
-	svcplugin.QuitCh = make(chan struct{})
-	defer close(svcplugin.QuitCh)
+	// Initialize service registry plugin
+	svcPlugin, quitCh, err := svcplugin.NewSvcregPlugin(opts.dbURL, nil)
+	if err != nil {
+		log.Fatalf("Error initializing service registry plugin")
+	}
+	defer close(quitCh)
 
 	// Initialize appropriate plugin
 	switch opts.pluginMode {
 	case "docker":
-		dockplugin.InitDockPlugin(netPlugin)
+		dockplugin.InitDockPlugin(netPlugin, svcPlugin)
 
 	case "kubernetes":
 		k8splugin.InitCNIServer(netPlugin)
@@ -526,31 +558,4 @@ func main() {
 	if err := handleEvents(netPlugin, opts); err != nil {
 		os.Exit(1)
 	}
-}
-
-//processBgpEvent processes Bgp neighbor add/delete events
-func processBgpEvent(netPlugin *plugin.NetPlugin, opts cliOpts, hostID string,
-	isDelete bool) (err error) {
-
-	if opts.hostLabel != hostID {
-		log.Errorf("Ignoring Bgp Event on this host")
-		return
-	}
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
-
-	operStr := ""
-	if isDelete {
-		err = netPlugin.DeleteBgp(hostID)
-		operStr = "delete"
-	} else {
-		err = netPlugin.AddBgp(hostID)
-		operStr = "create"
-	}
-	if err != nil {
-		log.Errorf("Bgp operation %s failed. Error: %s", operStr, err)
-	} else {
-		log.Infof("Bgp operation %s succeeded", operStr)
-	}
-	return
 }

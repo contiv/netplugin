@@ -1,26 +1,35 @@
 package svcplugin
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/contiv/netplugin/svcplugin/bridge"
 )
 
-// QuitCh maintains the status of netplugin
-var QuitCh chan struct{}
+// SvcregPlugin Service plugin interface
+type SvcregPlugin interface {
+	AddService(srvID string, srvName string, nwName string, tenantName string, srvIP string)
+	RemoveService(srvID string, srvName string, nwName string, tenantName string, srvIP string)
+}
 
-// InitServicePlugin creates a new bridge to Service plugin
-func InitServicePlugin(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.Bridge, error) {
+// NewSvcregPlugin creates a new bridge to Service plugin
+func NewSvcregPlugin(adapterURI string, bridgeCfg *bridge.Config) (SvcregPlugin, chan struct{}, error) {
+	// quitCh is the channel to stop svc plugin
+	var quitCh = make(chan struct{})
 
 	log.Printf("Initing service plugin")
 	var bConfig bridge.Config
-
 	defaultBridgeConfig := bridge.DefaultBridgeConfig()
-	if len(bridgeCfg) == 0 {
+
+	// Check if we got a bridge config
+	if bridgeCfg == nil {
 		bConfig = defaultBridgeConfig
+		bConfig.RefreshTTL = 15
+		bConfig.RefreshInterval = 10
 	} else {
-		bConfig = bridgeCfg[0]
+		bConfig = *bridgeCfg
 		if bConfig.HostIP != "" {
 			log.Println("Forcing host IP to", bConfig.HostIP)
 		}
@@ -82,16 +91,16 @@ func InitServicePlugin(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.B
 		}
 	}
 
-	log.Info("Creating a new bridge: ", bridgeType)
+	log.Info("Creating a new bridge: ", adapterURI)
 
-	b, err := bridge.New(bridgeType, bConfig)
+	b, err := bridge.New(adapterURI, bConfig)
 
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err,
 		}).Error("Bridge creation errored out. ",
 			"Service registration will not work.")
-		return nil, err
+		return nil, nil, err
 	}
 
 	// TODO: Add proper checks for retryInterval, retryAttempts
@@ -121,7 +130,7 @@ func InitServicePlugin(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.B
 				select {
 				case <-ticker.C:
 					b.Refresh()
-				case <-QuitCh:
+				case <-quitCh:
 					log.Infof("Quit service plugin")
 					ticker.Stop()
 					return
@@ -130,5 +139,5 @@ func InitServicePlugin(bridgeType string, bridgeCfg ...bridge.Config) (*bridge.B
 		}()
 	}
 
-	return b, nil
+	return b, quitCh, nil
 }

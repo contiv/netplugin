@@ -93,38 +93,11 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Error creating contiv client. Err: %v", err)
 	}
 
-	// Create default tenant
-	createDefaultTenant()
-
 	exitCode := m.Run()
 	if exitCode == 0 {
 		cleanupState()
 	}
 	os.Exit(exitCode)
-}
-
-// createDefaultTenant creates the default tenant
-func createDefaultTenant() {
-	// tenant params
-	tenant := client.Tenant{
-		TenantName: "default",
-	}
-
-	// create a tenant
-	err := contivClient.TenantPost(&tenant)
-	if err != nil {
-		log.Fatalf("Error creating default tenant. Err: %v", err)
-	}
-
-	// Get the tenant and verify it exists
-	gotTenant, err := contivClient.TenantGet("default")
-	if err != nil {
-		log.Fatalf("Error getting default tenant. Err: %v", err)
-	}
-
-	if gotTenant.TenantName != tenant.TenantName {
-		log.Fatalf("Got invalid tenant name. expecting %s. Got %s", tenant.TenantName, gotTenant.TenantName)
-	}
 }
 
 // cleanupState cleans up default tenant and other global state

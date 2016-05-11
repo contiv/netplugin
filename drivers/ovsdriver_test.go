@@ -473,3 +473,42 @@ func TestOvsDriverAddUplink(t *testing.T) {
 			err, testVlanUplinkPort, output)
 	}
 }
+
+func TestOvsDriverVethNameConflict(t *testing.T) {
+	driver := initOvsDriver(t)
+	defer func() { driver.Deinit() }()
+
+	// Create conflicting Veth interface pairs
+	intfNum := driver.oper.CurrPortNum + 1
+	createVethPair(fmt.Sprintf("vport%d", intfNum), fmt.Sprintf("vvport%d", intfNum))
+	createVethPair(fmt.Sprintf("vport%d", intfNum+1), fmt.Sprintf("vvport%d", intfNum+1))
+	createVethPair(fmt.Sprintf("uport%d", intfNum+2), fmt.Sprintf("vvport%d", intfNum+2))
+	defer func() { deleteVethPair(fmt.Sprintf("vport%d", intfNum), fmt.Sprintf("vvport%d", intfNum)) }()
+	defer func() { deleteVethPair(fmt.Sprintf("vport%d", intfNum+1), fmt.Sprintf("vvport%d", intfNum+1)) }()
+	defer func() { deleteVethPair(fmt.Sprintf("uport%d", intfNum+2), fmt.Sprintf("vvport%d", intfNum+2)) }()
+
+	// add a duplicate interface entry into OVS bridge
+	exec.Command("sudo", "ovs-vsctl", "add-port", "contivVlanBridge", fmt.Sprintf("vvport%d", intfNum+3)).CombinedOutput()
+
+	// create network
+	err := driver.CreateNetwork(testOvsNwID)
+	if err != nil {
+		t.Fatalf("network creation failed. Error: %s", err)
+	}
+	defer func() { driver.DeleteNetwork(testOvsNwID, "", "", testPktTag, testExtPktTag, testGateway, testTenant) }()
+
+	// create endpoint
+	err = driver.CreateEndpoint(createEpID)
+	if err != nil {
+		t.Fatalf("endpoint creation failed. Error: %s", err)
+	}
+	defer func() { driver.DeleteEndpoint(createEpID) }()
+
+	// verify interface got creates
+	output, err := exec.Command("ovs-vsctl", "list", "Interface").CombinedOutput()
+	if err != nil || !strings.Contains(string(output), fmt.Sprintf("vport%d", intfNum+3)) ||
+		strings.Contains(string(output), fmt.Sprintf("tag                 : %d", testPktTag)) {
+		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
+			err, fmt.Sprintf("vport%d", intfNum+3), output)
+	}
+}

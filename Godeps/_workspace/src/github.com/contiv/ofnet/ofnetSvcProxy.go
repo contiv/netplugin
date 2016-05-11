@@ -146,6 +146,20 @@ func getNATKey(epIP, natT string, p *PortSpec) string {
 // natT must be "Src" or "Dst"
 func (svcOp *proxyOper) addNATFlow(this, next *ofctrl.Table, p *PortSpec,
 	ipSa, ipDa, ipNew *net.IP, natT string) {
+
+	// Check if we already installed this flow
+	key := ""
+	if natT == "Dst" {
+		key = getNATKey(ipSa.String(), natT, p)
+	} else {
+		key = getNATKey(ipDa.String(), natT, p)
+	}
+	f, found := svcOp.natFlows[key]
+	if found && f != nil {
+		log.Infof("Flow already exists for %v", key)
+		return
+	}
+
 	match := ofctrl.FlowMatch{
 		Priority:  FLOW_MATCH_PRIORITY,
 		Ethertype: 0x0800,
@@ -185,12 +199,6 @@ func (svcOp *proxyOper) addNATFlow(this, next *ofctrl.Table, p *PortSpec,
 		natFlow.SetL4Field(p.SvcPort, l4field)
 	}
 	natFlow.Next(next)
-	key := ""
-	if natT == "Dst" {
-		key = getNATKey(ipSa.String(), natT, p)
-	} else {
-		key = getNATKey(ipDa.String(), natT, p)
-	}
 	svcOp.natFlows[key] = natFlow
 	log.Infof("Added NAT %s to %s", key, ipNew.String())
 }

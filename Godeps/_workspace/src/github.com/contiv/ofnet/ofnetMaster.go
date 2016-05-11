@@ -126,6 +126,7 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 			err := client.Call("OfnetAgent.EndpointAdd", endpoint, &resp)
 			if err != nil {
 				log.Errorf("Error adding endpoint to %s. Err: %v", node.HostAddr, err)
+				// continue sending other endpoints
 			}
 		}
 	}
@@ -140,7 +141,7 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 		err := client.Call("PolicyAgent.AddRule", rule, &resp)
 		if err != nil {
 			log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
-			return err
+			// continue sending other rules
 		}
 	}
 
@@ -174,7 +175,7 @@ func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 			err := client.Call("OfnetAgent.EndpointAdd", ep, &resp)
 			if err != nil {
 				log.Errorf("Error adding endpoint to %s. Err: %v", node.HostAddr, err)
-				return err
+				// Continue sending the message to other nodes
 			}
 		}
 	}
@@ -211,7 +212,7 @@ func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 			err := client.Call("OfnetAgent.EndpointDel", ep, &resp)
 			if err != nil {
 				log.Errorf("Error sending DELERE endpoint to %s. Err: %v", node.HostAddr, err)
-				return err
+				// Continue sending the message to other nodes
 			}
 		}
 	}
@@ -240,7 +241,7 @@ func (self *OfnetMaster) AddRule(rule *OfnetPolicyRule) error {
 		err := client.Call("PolicyAgent.AddRule", rule, &resp)
 		if err != nil {
 			log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
-			return err
+			// Continue sending the message to other nodes
 		}
 	}
 
@@ -267,7 +268,7 @@ func (self *OfnetMaster) DelRule(rule *OfnetPolicyRule) error {
 		err := client.Call("PolicyAgent.DelRule", rule, &resp)
 		if err != nil {
 			log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
-			return err
+			// Continue sending the message to other nodes
 		}
 	}
 
@@ -287,7 +288,7 @@ func (self *OfnetMaster) MakeDummyRpcCall() error {
 		err := client.Call("OfnetAgent.DummyRpc", &dummyArg, &resp)
 		if err != nil {
 			log.Errorf("Error making dummy rpc call to %+v. Err: %v", node, err)
-			return err
+			// Continue sending the message to other nodes
 		}
 	}
 

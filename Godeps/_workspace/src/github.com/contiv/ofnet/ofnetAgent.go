@@ -178,12 +178,12 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 }
 
 func (self *OfnetAgent) lockDB() {
-	log.Infof("Locking endpoint db")
+	log.Infof("Locking endpoint db %s", self.dpName)
 	self.mutex.Lock()
 }
 
 func (self *OfnetAgent) unlockDB() {
-	log.Infof("Unlocking endpoint db")
+	log.Infof("Unlocking endpoint db %s", self.dpName)
 	self.mutex.Unlock()
 }
 
@@ -250,13 +250,6 @@ func (self *OfnetAgent) SwitchConnected(sw *ofctrl.OFSwitch) {
 
 // Handle switch disconnect event
 func (self *OfnetAgent) SwitchDisconnected(sw *ofctrl.OFSwitch) {
-	log.Infof("Switch %v disconnected", sw.DPID())
-
-	// Ignore if this error was not for current switch
-	if sw.DPID().String() != self.ofSwitch.DPID().String() {
-		return
-	}
-
 	log.Infof("Switch %v disconnected", sw.DPID())
 
 	// Ignore if this error was not for current switch
@@ -428,7 +421,7 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		err := rpcHub.Client(master.HostAddr, master.HostPort).Call("OfnetMaster.EndpointAdd", epreg, &resp)
 		if err != nil {
 			log.Errorf("Failed to add endpoint %+v to master %+v. Err: %v", epreg, master, err)
-			return err
+			// Continue sending the message to other masters.
 		}
 	}
 
@@ -563,6 +556,9 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 
 // Remove a vlan from datapath
 func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf string) error {
+	// Dont handle endpointDB operations during this time
+	self.lockDB()
+	self.unlockDB()
 
 	vrf := self.vlanVrf[vlanId]
 	gwEpid := self.getEndpointIdByIpVrf(net.ParseIP(Gw), *vrf)
@@ -576,13 +572,15 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 				log.Fatalf("Vlan %d still has routes. Route: %+v", vlanId, endpoint)
 			} else {
 				// Network delete arrived before other hosts cleanup endpoint
-				var resp bool
 				log.Warnf("Vlan %d still has routes, cleaning up. Route: %+v", vlanId, endpoint)
-				err := self.EndpointDel(endpoint, &resp)
+				// Uninstall the endpoint from datapath
+				err := self.datapath.RemoveEndpoint(endpoint)
 				if err != nil {
-					log.Errorf("Error uninstalling endpoint %+v. Err: %v", endpoint, err)
+					log.Errorf("Error deleting endpoint: {%+v}. Err: %v", endpoint, err)
 				}
 
+				// Remove it from endpoint table
+				delete(self.endpointDb, endpoint.EndpointID)
 			}
 		}
 	}

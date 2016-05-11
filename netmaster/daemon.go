@@ -188,9 +188,6 @@ func (d *daemon) registerRoutes(router *mux.Router) {
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetNetworksRESTEndpoint),
 		get(true, d.networks))
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetVersionRESTEndpoint), getVersion)
-
-	// See if we need to create the default tenant
-	go objApi.CreateDefaultTenant()
 }
 
 // XXX: This function should be returning logical state instead of driver state

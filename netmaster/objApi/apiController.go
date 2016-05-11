@@ -17,7 +17,6 @@ package objApi
 
 import (
 	"errors"
-	"time"
 
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
@@ -78,14 +77,6 @@ func NewAPIController(router *mux.Router, storeURL string) *APIController {
 		}
 	}
 
-	return ctrler
-}
-
-// CreateDefaultTenant creates the default tenant
-func CreateDefaultTenant() {
-	// Wait for netmaster to start listening to port 9999
-	time.Sleep(time.Second)
-
 	// Add default tenant if it doesnt exist
 	tenant := contivModel.FindTenant("default")
 	if tenant == nil {
@@ -98,6 +89,8 @@ func CreateDefaultTenant() {
 			log.Fatalf("Error creating default tenant. Err: %v", err)
 		}
 	}
+
+	return ctrler
 }
 
 // Utility function to check if string exists in a slice
