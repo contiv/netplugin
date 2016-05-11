@@ -86,7 +86,7 @@ func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
 
 		containers, err := s.runContainers(s.containers, true, "private", groupNames)
 		c.Assert(err, IsNil)
-		if s.fwdMode == "routing" {
+		if s.fwdMode == "routing" && encap == "vlan" {
 			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
 		}
 
@@ -184,7 +184,7 @@ func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 
 	containers, err := s.runContainers(s.containers, true, "private", groupNames)
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" {
+	if s.fwdMode == "routing" && encap == "vlan" {
 		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
 	}
 	c.Assert(s.startListeners(containers, []int{8000, 8001}), IsNil)
@@ -321,7 +321,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 
 		containers, err := s.runContainers(s.containers, true, "private", policyNames)
 		c.Assert(err, IsNil)
-		if s.fwdMode == "routing" {
+		if s.fwdMode == "routing" && encap == "vlan" {
 			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
 		}
 
@@ -426,7 +426,7 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 	c.Assert(err, IsNil)
 	container2, err := s.nodes[0].runContainer(containerSpec{serviceName: "srv2", networkName: "private"})
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" {
+	if s.fwdMode == "routing" && encap == "vlan" {
 		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), []*container{container1})
 		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), []*container{container2})
 	}
