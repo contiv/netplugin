@@ -804,7 +804,7 @@ func verifyServiceCreate(t *testing.T, tenant, network, serviceName string, port
 
 	serviceLbState := mastercfg.CfgServiceLBState{}
 	serviceLbState.StateDriver = stateStore
-	serviceLbState.ID = serviceName + "\\" + tenant
+	serviceLbState.ID = serviceName + ":" + tenant
 
 	err = serviceLbState.Read(serviceLbState.ID)
 	if err != nil {
@@ -834,7 +834,7 @@ func verifyServiceDelete(t *testing.T, tenant, serviceName string) {
 
 	serviceLbState := mastercfg.CfgServiceLBState{}
 	serviceLbState.StateDriver = stateStore
-	serviceLbState.ID = serviceName + "\\" + tenant
+	serviceLbState.ID = serviceName + ":" + tenant
 
 	err := serviceLbState.Read(serviceLbState.ID)
 	if err == nil {
@@ -882,8 +882,8 @@ func verifyProviderUpdate(t *testing.T, providerIP, network, containerID,
 
 	svcProvider := &mastercfg.SvcProvider{}
 	svcProvider.StateDriver = stateStore
-	svcProvider.ID = service + "\\" + tenant
-	svcProvider.ServiceName = service + "\\" + tenant
+	svcProvider.ID = service + ":" + tenant
+	svcProvider.ServiceName = service + ":" + tenant
 	err := svcProvider.Read(svcProvider.ID)
 	if err != nil {
 		t.Fatalf("Error reading from service provider state %s", err)

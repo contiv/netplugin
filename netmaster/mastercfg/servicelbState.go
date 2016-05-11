@@ -54,8 +54,7 @@ type CfgServiceLBState struct {
 
 // Write the state
 func (s *CfgServiceLBState) Write() error {
-	id := s.ServiceName + "\\" + s.Tenant
-	key := fmt.Sprintf(serviceLBConfigPath, id)
+	key := fmt.Sprintf(serviceLBConfigPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
@@ -72,8 +71,7 @@ func (s *CfgServiceLBState) ReadAll() ([]core.State, error) {
 
 // Clear removes the configuration from the state store.
 func (s *CfgServiceLBState) Clear() error {
-	id := s.ServiceName + "\\" + s.Tenant
-	key := fmt.Sprintf(serviceLBConfigPath, id)
+	key := fmt.Sprintf(serviceLBConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }
 
