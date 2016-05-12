@@ -364,10 +364,6 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		return core.Errorf("Tenant not found")
 	}
 
-	// Setup links
-	modeldb.AddLink(&endpointGroup.Links.Tenant, tenant)
-	modeldb.AddLinkSet(&tenant.LinkSets.EndpointGroups, endpointGroup)
-
 	// Save the tenant too since we added the links
 	err := tenant.Write()
 	if err != nil {
@@ -381,6 +377,10 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
 		return err
 	}
+
+	// Setup links
+	modeldb.AddLink(&endpointGroup.Links.Tenant, tenant)
+	modeldb.AddLinkSet(&tenant.LinkSets.EndpointGroups, endpointGroup)
 
 	// for each policy create an epg policy Instance
 	for _, policyName := range endpointGroup.Policies {
@@ -550,10 +550,6 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 		return core.Errorf("Tenant not found")
 	}
 
-	// Setup links
-	modeldb.AddLink(&network.Links.Tenant, tenant)
-	modeldb.AddLinkSet(&tenant.LinkSets.Networks, network)
-
 	// Save the tenant too since we added the links
 	err := tenant.Write()
 	if err != nil {
@@ -582,6 +578,10 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 		log.Errorf("Error creating network {%+v}. Err: %v", network, err)
 		return err
 	}
+
+	// Setup links
+	modeldb.AddLink(&network.Links.Tenant, tenant)
+	modeldb.AddLinkSet(&tenant.LinkSets.Networks, network)
 
 	return nil
 }
