@@ -57,7 +57,7 @@ def writeHostLine(outFd, hostInfo, hConfig, comVars):
         outFd.write(" {}={}".format(attr, info[attr]))
 
     outFd.write(" contiv_control_ip={}".format(hConfig['contiv_control_ip']))
-    outFd.write(" contiv_control_ip={}".format(hConfig['contiv_network_if']))
+    outFd.write(" contiv_network_if={}".format(hConfig['contiv_network_if']))
     outFd.write(comVars)
     outFd.write("\n")
 
