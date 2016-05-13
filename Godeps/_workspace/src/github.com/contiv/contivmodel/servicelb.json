@@ -4,7 +4,7 @@
                 {
                  "name": "serviceLB",
                  "type": "object",
-                 "key": ["serviceName","tenantName"],
+                 "key": ["tenantName","serviceName"],
                  "properties": {
                                 "serviceName": {
                                              "type": "string",
@@ -17,7 +17,7 @@
                                         "length": 64
                                 },
 
-                                "network": {
+                                "networkName": {
                                              "type": "string",
                                              "title": "Service network name",
                                              "length": 64 

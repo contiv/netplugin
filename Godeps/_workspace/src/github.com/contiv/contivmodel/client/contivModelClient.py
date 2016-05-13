@@ -404,11 +404,11 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create serviceLB
 	def createServiceLB(self, obj):
-	    postUrl = self.baseUrl + '/api/serviceLBs/' + obj.serviceName + ":" + obj.tenantName  + '/'
+	    postUrl = self.baseUrl + '/api/serviceLBs/' + obj.tenantName + ":" + obj.serviceName  + '/'
 
 	    jdata = json.dumps({ 
 			"ipAddress": obj.ipAddress, 
-			"network": obj.network, 
+			"networkName": obj.networkName, 
 			"ports": obj.ports, 
 			"selectors": obj.selectors, 
 			"serviceName": obj.serviceName, 
@@ -422,9 +422,9 @@ class objmodelClient:
 	        errorExit("ServiceLB create failure")
 
 	# Delete serviceLB
-	def deleteServiceLB(self, serviceName, tenantName):
+	def deleteServiceLB(self, tenantName, serviceName):
 	    # Delete ServiceLB
-	    deleteUrl = self.baseUrl + '/api/serviceLBs/' + serviceName + ":" + tenantName  + '/'
+	    deleteUrl = self.baseUrl + '/api/serviceLBs/' + tenantName + ":" + serviceName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":

@@ -750,7 +750,7 @@ func createServiceLB(ctx *cli.Context) {
 	errCheck(ctx, getClient(ctx).ServiceLBPost(&contivClient.ServiceLB{
 		ServiceName: serviceName,
 		TenantName:  tenantName,
-		Network:     serviceSubnet,
+		NetworkName: serviceSubnet,
 		Selectors:   selectors,
 		Ports:       ports,
 		IpAddress:   ipAddress,
@@ -795,13 +795,14 @@ func listServiceLB(ctx *cli.Context) {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("ServiceName\tTenant\tselectors\n"))
-		writer.Write([]byte("---------\t--------\t-------\n"))
+		writer.Write([]byte("ServiceName\tTenant\tNetwork\tSelectors\n"))
+		writer.Write([]byte("---------\t--------\t-------\t-------\n"))
 		for _, group := range filtered {
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t\n",
 					group.ServiceName,
 					group.TenantName,
+					group.NetworkName,
 					group.Selectors,
 				)))
 		}

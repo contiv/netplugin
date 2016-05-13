@@ -356,8 +356,8 @@ type ServiceLB struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	IpAddress   string   `json:"ipAddress,omitempty"` // Service ip
-	Network     string   `json:"network,omitempty"`   // Service network name
+	IpAddress   string   `json:"ipAddress,omitempty"`   // Service ip
+	NetworkName string   `json:"networkName,omitempty"` // Service network name
 	Ports       []string `json:"ports,omitempty"`
 	Selectors   []string `json:"selectors,omitempty"`
 	ServiceName string   `json:"serviceName,omitempty"` // service name
@@ -1028,7 +1028,7 @@ func (c *ContivClient) ServiceInstanceDelete(tenantName string, appName string, 
 // ServiceLBPost posts the serviceLB object
 func (c *ContivClient) ServiceLBPost(obj *ServiceLB) error {
 	// build key and URL
-	keyStr := obj.ServiceName + ":" + obj.TenantName
+	keyStr := obj.TenantName + ":" + obj.ServiceName
 	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
 
 	// http post the object
@@ -1058,9 +1058,9 @@ func (c *ContivClient) ServiceLBList() (*[]*ServiceLB, error) {
 }
 
 // ServiceLBGet gets the serviceLB object
-func (c *ContivClient) ServiceLBGet(serviceName string, tenantName string) (*ServiceLB, error) {
+func (c *ContivClient) ServiceLBGet(tenantName string, serviceName string) (*ServiceLB, error) {
 	// build key and URL
-	keyStr := serviceName + ":" + tenantName
+	keyStr := tenantName + ":" + serviceName
 	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
 
 	// http get the object
@@ -1075,9 +1075,9 @@ func (c *ContivClient) ServiceLBGet(serviceName string, tenantName string) (*Ser
 }
 
 // ServiceLBDelete deletes the serviceLB object
-func (c *ContivClient) ServiceLBDelete(serviceName string, tenantName string) error {
+func (c *ContivClient) ServiceLBDelete(tenantName string, serviceName string) error {
 	// build key and URL
-	keyStr := serviceName + ":" + tenantName
+	keyStr := tenantName + ":" + serviceName
 	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
 
 	// http get the object

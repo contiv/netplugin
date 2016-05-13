@@ -1117,7 +1117,7 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 	serviceIntentCfg := intent.ConfigServiceLB{
 		ServiceName: serviceCfg.ServiceName,
 		Tenant:      serviceCfg.TenantName,
-		Network:     serviceCfg.Network,
+		Network:     serviceCfg.NetworkName,
 		IPAddress:   serviceCfg.IpAddress,
 	}
 	serviceIntentCfg.Ports = append(serviceIntentCfg.Ports, serviceCfg.Ports...)

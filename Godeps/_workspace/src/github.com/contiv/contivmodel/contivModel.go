@@ -225,8 +225,8 @@ type ServiceLB struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	IpAddress   string   `json:"ipAddress,omitempty"` // Service ip
-	Network     string   `json:"network,omitempty"`   // Service network name
+	IpAddress   string   `json:"ipAddress,omitempty"`   // Service ip
+	NetworkName string   `json:"networkName,omitempty"` // Service network name
 	Ports       []string `json:"ports,omitempty"`
 	Selectors   []string `json:"selectors,omitempty"`
 	ServiceName string   `json:"serviceName,omitempty"` // service name
@@ -1922,7 +1922,7 @@ func ValidateNetwork(obj *Network) error {
 		return errors.New("ipv6Gateway string invalid format")
 	}
 
-	ipv6SubnetMatch := regexp.MustCompile("^((((([0-9]|[a-f]|[A-F]){1,4})((\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\:){0,6}|\\:)((\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\:)))/(1[0-2][0-7]|[1-9][0-9]|[1-9]))$")
+	ipv6SubnetMatch := regexp.MustCompile("^((((([0-9]|[a-f]|[A-F]){1,4})((\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\:){0,6}|\\:)((\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\:)))/(1[0-2][0-7]|[1-9][0-9]|[1-9]))?$")
 	if ipv6SubnetMatch.MatchString(obj.Ipv6Subnet) == false {
 		return errors.New("ipv6Subnet string invalid format")
 	}
@@ -3195,7 +3195,7 @@ func restoreServiceLB() error {
 // Validate a serviceLB object
 func ValidateServiceLB(obj *ServiceLB) error {
 	// Validate key is correct
-	keyStr := obj.ServiceName + ":" + obj.TenantName
+	keyStr := obj.TenantName + ":" + obj.ServiceName
 	if obj.Key != keyStr {
 		log.Errorf("Expecting ServiceLB Key: %s. Got: %s", keyStr, obj.Key)
 		return errors.New("Invalid Key")
@@ -3207,8 +3207,8 @@ func ValidateServiceLB(obj *ServiceLB) error {
 		return errors.New("ipAddress string too long")
 	}
 
-	if len(obj.Network) > 64 {
-		return errors.New("network string too long")
+	if len(obj.NetworkName) > 64 {
+		return errors.New("networkName string too long")
 	}
 
 	if len(obj.ServiceName) > 256 {
