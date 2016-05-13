@@ -1,6 +1,7 @@
 package systemtests
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
@@ -872,12 +873,12 @@ func (s *systemtestSuite) TearDownBgp(c *C) {
 func (s *systemtestSuite) CheckBgpConnection(c *C) error {
 
 	count := 0
-	for {
+	for i := 0; i < 100; i++ {
 		if count == len(s.nodes) {
 			return nil
 		}
 		count = 0
-		time.Sleep(5 * time.Second)
+		time.Sleep(3 * time.Second)
 		for _, node := range s.nodes {
 			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 			fmt.Println(out)
@@ -886,17 +887,18 @@ func (s *systemtestSuite) CheckBgpConnection(c *C) error {
 			}
 		}
 	}
+	return errors.New("BGP connection not established")
 }
 
 func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 
 	count := 0
-	for {
+	for i := 0; i < 100; i++ {
 		if count == len(s.nodes) {
 			return nil
 		}
 		count = 0
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 		for _, node := range s.nodes {
 			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 			fmt.Println(out)
@@ -905,34 +907,37 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 			}
 		}
 	}
+	return errors.New("BGP connection persists")
 }
 
 func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node vagrantssh.TestbedNode) error {
-	for {
-		time.Sleep(2 * time.Second)
+	for i := 0; i < 100; i++ {
+		time.Sleep(3 * time.Second)
 		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 		fmt.Println(out)
 		if strings.Contains(out, "Establ") {
 			return nil
 		}
 	}
+	return errors.New("BGP connection not established")
 }
 
 func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node vagrantssh.TestbedNode) error {
-	for {
-		time.Sleep(2 * time.Second)
+	for i := 0; i < 100; i++ {
+		time.Sleep(3 * time.Second)
 		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 		fmt.Println(out)
 		if !strings.Contains(out, "Establ") {
 			return nil
 		}
 	}
+	return errors.New("BGP connection persists")
 }
 
 func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, node vagrantssh.TestbedNode, containers []*container) error {
 	count := 0
-	for {
-		time.Sleep(5 * time.Second)
+	for i := 0; i < 10; i++ {
+		time.Sleep(2 * time.Second)
 		logrus.Infof("Checking Bgp container route distribution")
 		out, _ := node.RunCommandWithOutput("ip route")
 		for _, cont := range containers {
@@ -943,5 +948,7 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, node vagrantssh.Testbe
 				return nil
 			}
 		}
+		time.Sleep(2 * time.Second)
 	}
+	return errors.New("Routes not distributed by BGP")
 }
