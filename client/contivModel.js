@@ -730,7 +730,7 @@ var ServiceLBModalView = React.createClass({
 			
 				<Input type='text' label='Service ip' ref='ipAddress' defaultValue={obj.ipAddress} placeholder='Service ip' />
 			
-				<Input type='text' label='Service network name' ref='network' defaultValue={obj.network} placeholder='Service network name' />
+				<Input type='text' label='Service network name' ref='networkName' defaultValue={obj.networkName} placeholder='Service network name' />
 			
 				<Input type='text' label='service provider port' ref='ports' defaultValue={obj.ports} placeholder='service provider port' />
 			
