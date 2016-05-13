@@ -20,10 +20,16 @@
 # docker run --net=host <image> -host-label=<label>
 ##
 
-FROM golang:1.4
+FROM golang:1.5.1
 MAINTAINER Madhav Puri <mapuri@cisco.com> (@mapuri)
 
+
+ENV http_proxy "http://proxy.esl.cisco.com:8080"
+ENV https_proxy "https://proxy.esl.cisco.com:8080"
 ENV GOPATH /go/
+
+ENV SUDO ""
+ENV VAGRANT_SUPPORT 0
 
 COPY ./ /go/src/github.com/contiv/netplugin/
 
