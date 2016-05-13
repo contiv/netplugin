@@ -64,7 +64,7 @@ func SvcProviderUpdate(serviceID string, isDelete bool) error {
 }
 
 func getProviderID(provider *mastercfg.Provider) string {
-	return provider.IPAddress + "\\" + provider.Tenant
+	return provider.IPAddress + ":" + provider.Tenant
 }
 
 func getProviderDbID(provider *mastercfg.Provider) string {

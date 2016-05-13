@@ -30,8 +30,8 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 	var providersPresent bool
 	serviceIP := serviceLbCfg.IPAddress
 	log.Infof("Recevied Create Service Load Balancer config {%v}", serviceLbCfg)
-
-	oldServiceInfo := mastercfg.ServiceLBDb[serviceLbCfg.ServiceName+"\\"+serviceLbCfg.Tenant]
+	svcID := getServiceID(serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
+	oldServiceInfo := mastercfg.ServiceLBDb[svcID]
 	if oldServiceInfo != nil {
 		//ServiceInfo Exists
 		if reflect.DeepEqual(oldServiceInfo.Ports, serviceLbCfg.Ports) &&
@@ -47,7 +47,7 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 	serviceLbState.Tenant = serviceLbCfg.Tenant
 	serviceLbState.Network = serviceLbCfg.Network
 	serviceLbState.StateDriver = stateDriver
-	serviceLbState.ID = serviceLbCfg.ServiceName + "\\" + serviceLbCfg.Tenant
+	serviceLbState.ID = getServiceID(serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
 	serviceLbState.Ports = append(serviceLbState.Ports, serviceLbCfg.Ports...)
 	serviceLbState.Selectors = make(map[string]string)
 	serviceLbState.Providers = make(map[string]*mastercfg.Provider)
@@ -132,7 +132,7 @@ func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantNam
 	log.Infof("Receiver Delete Service Load Balancer %s on %s", serviceName, tenantName)
 	serviceLBState := &mastercfg.CfgServiceLBState{}
 	serviceLBState.StateDriver = stateDriver
-	serviceLBState.ID = serviceName + "\\" + tenantName
+	serviceLBState.ID = getServiceID(serviceName, tenantName)
 
 	err := serviceLBState.Read(serviceLBState.ID)
 	if err != nil {
@@ -182,7 +182,7 @@ func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantNam
 }
 
 func getServiceID(servicename string, tenantname string) string {
-	return servicename + "\\" + tenantname
+	return servicename + ":" + tenantname
 }
 
 //RestoreServiceProviderLBDb restores provider and servicelb db
@@ -202,7 +202,7 @@ func RestoreServiceProviderLBDb() {
 		for _, svcLBCfg := range svcLBCfgs {
 			svcLB := svcLBCfg.(*mastercfg.CfgServiceLBState)
 			//mastercfg.ServiceLBDb = make(map[string]*mastercfg.ServiceLBInfo)
-			serviceID := svcLB.ServiceName + "\\" + svcLB.Tenant
+			serviceID := getServiceID(svcLB.ServiceName, svcLB.Tenant)
 			mastercfg.ServiceLBDb[serviceID] = &mastercfg.ServiceLBInfo{
 				IPAddress:   svcLB.IPAddress,
 				Tenant:      svcLB.Tenant,

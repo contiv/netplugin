@@ -808,7 +808,7 @@ func verifyServiceCreate(t *testing.T, tenant, network, serviceName string, port
 
 	err = serviceLbState.Read(serviceLbState.ID)
 	if err != nil {
-		t.Fatalf("Error reading from service load balancer state")
+		t.Fatalf("Error reading from service load balancer state:%s", err)
 	}
 
 	if serviceLbState.IPAddress == "" {
