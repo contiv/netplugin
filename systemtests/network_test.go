@@ -20,7 +20,7 @@ func (s *systemtestSuite) TestInfraNetworkAddDeleteVLAN(c *C) {
 
 func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 
-	if s.fwdMode == "routing" {
+	if s.fwdMode == "routing" && encap == "vlan" {
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
 	}
@@ -82,7 +82,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteVLAN(c *C) {
 
 func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 
-	if s.fwdMode == "routing" {
+	if s.fwdMode == "routing" && encap == "vlan" {
 
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
@@ -118,7 +118,12 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 			containers[name], err = s.runContainers(numContainer, false, name, nil)
 			c.Assert(err, IsNil)
 		}
-		time.Sleep(5 * time.Second)
+
+		if s.fwdMode == "routing" && encap == "vlan" {
+			for _, name := range netNames {
+				s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers[name])
+			}
+		}
 
 		endChan := make(chan error)
 
@@ -227,7 +232,9 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil)
 					mutex.Unlock()
 					endChan <- err
-					time.Sleep(5 * time.Second)
+					if s.fwdMode == "routing" && encap == "vlan" {
+						s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers[network])
+					}
 					endChan <- s.pingTest(containers[network])
 				}(network, tenant, containers)
 			}

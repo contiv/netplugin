@@ -1,6 +1,7 @@
 package systemtests
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
@@ -56,7 +57,7 @@ func (s *systemtestSuite) TestBgpContainerToContainerPing(c *C) {
 			allcontainers = append(allcontainers, containers[name]...)
 		}
 
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 		endChan := make(chan error)
 
 		logrus.Infof("Running ping test ")
@@ -118,7 +119,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(15 * time.Second)
 	endChan := make(chan error)
 
 	//FIXME make it variable number of quagga instances
@@ -187,7 +188,7 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 	for i := 0; i < s.iterations; i++ {
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
 
@@ -243,7 +244,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 		endChan := make(chan error)
 
 		logrus.Infof("Running ping test")
@@ -253,7 +254,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 		s.CheckBgpNoConnectionForaNode(c, s.vagrant.GetNode("netplugin-node1"))
 		s.vagrant.GetNode("netplugin-node1").RunCommand("sudo ip link set eth2 up")
 		s.CheckBgpConnectionForaNode(c, s.vagrant.GetNode("netplugin-node1"))
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
 
@@ -320,7 +321,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
 
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
@@ -331,7 +332,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 		s.vagrant.GetNode("netplugin-node1").RunCommand("sudo ip link set inb01 up")
 		s.vagrant.GetNode("netplugin-node1").RunCommand("sudo ip addr add 50.1.1.2/24 dev inb01")
 		s.CheckBgpConnectionForaNode(c, s.vagrant.GetNode("netplugin-node1"))
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
@@ -403,7 +404,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 			allcontainers = append(allcontainers, containers[name]...)
 		}
 
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 
 		endChan := make(chan error)
 
@@ -434,7 +435,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 			}
 		}
 
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
@@ -497,7 +498,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 		allcontainers = append(allcontainers, containers[name]...)
 	}
 
-	time.Sleep(5 * time.Second)
+	s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 
 	endChan := make(chan error)
 
@@ -514,7 +515,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 		c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 		time.Sleep(15 * time.Second)
 		s.CheckBgpConnection(c)
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
@@ -675,7 +676,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 			allcontainers = append(allcontainers, containers[name]...)
 		}
 
-		time.Sleep(5 * time.Second)
+		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 
 		endChan := make(chan error)
 
@@ -750,7 +751,7 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
-	time.Sleep(5 * time.Second)
+	s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 
 	logrus.Infof("Running ping test")
 	c.Assert(s.pingTest(allcontainers), IsNil)
@@ -805,7 +806,7 @@ func (s *systemtestSuite) TestBgpMisconfigRecovery(c *C) {
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
-	time.Sleep(5 * time.Second)
+	s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), allcontainers)
 	endChan := make(chan error)
 
 	logrus.Infof("Running ping test")
@@ -872,12 +873,12 @@ func (s *systemtestSuite) TearDownBgp(c *C) {
 func (s *systemtestSuite) CheckBgpConnection(c *C) error {
 
 	count := 0
-	for {
+	for i := 0; i < 100; i++ {
 		if count == len(s.nodes) {
 			return nil
 		}
 		count = 0
-		time.Sleep(5 * time.Second)
+		time.Sleep(3 * time.Second)
 		for _, node := range s.nodes {
 			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 			fmt.Println(out)
@@ -886,17 +887,18 @@ func (s *systemtestSuite) CheckBgpConnection(c *C) error {
 			}
 		}
 	}
+	return errors.New("BGP connection not established")
 }
 
 func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 
 	count := 0
-	for {
+	for i := 0; i < 100; i++ {
 		if count == len(s.nodes) {
 			return nil
 		}
 		count = 0
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 		for _, node := range s.nodes {
 			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 			fmt.Println(out)
@@ -905,26 +907,48 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 			}
 		}
 	}
+	return errors.New("BGP connection persists")
 }
 
 func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node vagrantssh.TestbedNode) error {
-	for {
-		time.Sleep(2 * time.Second)
+	for i := 0; i < 100; i++ {
+		time.Sleep(3 * time.Second)
 		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 		fmt.Println(out)
 		if strings.Contains(out, "Establ") {
 			return nil
 		}
 	}
+	return errors.New("BGP connection not established")
 }
 
 func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node vagrantssh.TestbedNode) error {
-	for {
-		time.Sleep(2 * time.Second)
+	for i := 0; i < 100; i++ {
+		time.Sleep(3 * time.Second)
 		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
 		fmt.Println(out)
 		if !strings.Contains(out, "Establ") {
 			return nil
 		}
 	}
+	return errors.New("BGP connection persists")
+}
+
+func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, node vagrantssh.TestbedNode, containers []*container) error {
+	count := 0
+	for i := 0; i < 10; i++ {
+		time.Sleep(2 * time.Second)
+		logrus.Infof("Checking Bgp container route distribution")
+		out, _ := node.RunCommandWithOutput("ip route")
+		for _, cont := range containers {
+			if strings.Contains(out, cont.eth0) {
+				count++
+			}
+			if count == len(containers) {
+				return nil
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return errors.New("Routes not distributed by BGP")
 }
