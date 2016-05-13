@@ -771,7 +771,7 @@ func checkServiceCreate(t *testing.T, tenant, network, serviceName string, port 
 
 	serviceLB := &client.ServiceLB{
 		TenantName:  tenant,
-		Network:     network,
+		NetworkName: network,
 		ServiceName: serviceName,
 	}
 	if preferredIP != "" {
@@ -790,12 +790,12 @@ func checkServiceCreate(t *testing.T, tenant, network, serviceName string, port 
 
 func verifyServiceCreate(t *testing.T, tenant, network, serviceName string, port []string, label []string,
 	preferredIP string) {
-	service, err := contivClient.ServiceLBGet(serviceName, tenant)
+	service, err := contivClient.ServiceLBGet(tenant, serviceName)
 	if err != nil {
 		t.Fatalf("Error retrieving the service created %s ", serviceName)
 	}
 
-	if service.Network != network {
+	if service.NetworkName != network {
 		t.Fatalf("Service Created does not have a valid network")
 	}
 	if !reflect.DeepEqual(service.Selectors, label) || !reflect.DeepEqual(service.Ports, port) {
@@ -823,7 +823,7 @@ func verifyServiceCreate(t *testing.T, tenant, network, serviceName string, port
 
 func checkServiceDelete(t *testing.T, tenant, serviceName string) {
 
-	err := contivClient.ServiceLBDelete(serviceName, tenant)
+	err := contivClient.ServiceLBDelete(tenant, serviceName)
 	if err != nil {
 		log.Fatalf("Error creating Service. Err: %v", err)
 	}
