@@ -258,7 +258,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 
 		for tenant, service := range services {
 			for _, svc := range service {
-				serviceContainers[svc.ServiceName] = s.addProviders(c, svc.Selectors, numContainer, tenant, svc.Network)
+				serviceContainers[svc.ServiceName] = s.addProviders(c, svc.Selectors, numContainer, tenant, svc.NetworkName)
 			}
 			servicesPerTenant[tenant] = serviceContainers
 		}
@@ -317,7 +317,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 						c.Assert(<-endChan, IsNil)
 					}
 					serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
-						s.addProviders(c, svc.Selectors, numContainer, tenant, svc.Network)...)
+						s.addProviders(c, svc.Selectors, numContainer, tenant, svc.NetworkName)...)
 					servicesPerTenant[tenant] = serviceContainers
 
 					s.startListenersOnProviders(serviceContainers[svc.ServiceName], svc.Ports)
@@ -883,7 +883,7 @@ func (s *systemtestSuite) createServices(c *C, numServices int, tenant string, s
 		service := &client.ServiceLB{
 			ServiceName: fmt.Sprintf("svc-%d-%s", serviceNum, tenant),
 			TenantName:  tenant,
-			Network:     svcNetwork,
+			NetworkName: svcNetwork,
 			Ports:       []string{"80:8080:TCP", "643:7070:UDP"},
 		}
 		for index := serviceNum; index < serviceNum+numLabels; index++ {
@@ -944,7 +944,7 @@ func (s *systemtestSuite) deleteServiceNetworks(c *C, tenant string, networks []
 func (s *systemtestSuite) deleteServices(c *C, tenant string, services []*client.ServiceLB) {
 	for _, service := range services {
 		logrus.Infof("Deleting service %s on tenant %s , len(%d)", service.ServiceName, tenant, len(services))
-		c.Assert(s.cli.ServiceLBDelete(service.ServiceName, tenant), IsNil)
+		c.Assert(s.cli.ServiceLBDelete(tenant, service.ServiceName), IsNil)
 	}
 }
 
