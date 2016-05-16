@@ -726,11 +726,11 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 			return
 		}
 		if event.ID != "" {
-			labelMap := getLabelsFromContainerInspect(event.ID, &containerInfo)
+			labelMap := getLabelsFromContainerInspect(&containerInfo)
 
-			containerTenant := getTenantFromContainerInspect(event.ID, &containerInfo)
-			network, ipAddress := getEpNetworkInfoFromContainerInspect(event.ID, &containerInfo)
-			container:= getContainerFromContainerInspect(event.ID,&containerInfo)
+			containerTenant := getTenantFromContainerInspect(&containerInfo)
+			network, ipAddress := getEpNetworkInfoFromContainerInspect(&containerInfo)
+			container := getContainerFromContainerInspect(&containerInfo)
 			if ipAddress != "" {
 				//Create provider info
 				networkname := strings.Split(network, "/")[0]
@@ -740,7 +740,7 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 				providerUpdReq.Network = networkname
 				providerUpdReq.Event = "start"
 				providerUpdReq.Container = container
-				providerUpdReq.Labels = make(map[string]string) 
+				providerUpdReq.Labels = make(map[string]string)
 
 				for k, v := range labelMap {
 					providerUpdReq.Labels[k] = v
@@ -774,7 +774,7 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 }
 
 //getLabelsFromContainerInspect returns the labels associated with the container
-func getLabelsFromContainerInspect(containerID string, containerInfo *types.ContainerJSON) map[string]string {
+func getLabelsFromContainerInspect(containerInfo *types.ContainerJSON) map[string]string {
 	if containerInfo != nil && containerInfo.Config != nil {
 		return containerInfo.Config.Labels
 	}
@@ -782,7 +782,7 @@ func getLabelsFromContainerInspect(containerID string, containerInfo *types.Cont
 }
 
 //getTenantFromContainerInspect returns the tenant the container belongs to.
-func getTenantFromContainerInspect(containerID string, containerInfo *types.ContainerJSON) string {
+func getTenantFromContainerInspect(containerInfo *types.ContainerJSON) string {
 	tenant := "default"
 	if containerInfo != nil && containerInfo.NetworkSettings != nil {
 		for network := range containerInfo.NetworkSettings.Networks {
@@ -796,7 +796,7 @@ func getTenantFromContainerInspect(containerID string, containerInfo *types.Cont
 }
 
 /*getEpNetworkInfoFromContainerInspect inspects the network info from containerinfo returned by dockerclient*/
-func getEpNetworkInfoFromContainerInspect(containerID string, containerInfo *types.ContainerJSON) (string, string) {
+func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (string, string) {
 	var networkName string
 	var IPAddress string
 
@@ -813,12 +813,13 @@ func getEpNetworkInfoFromContainerInspect(containerID string, containerInfo *typ
 	return networkName, IPAddress
 }
 
-func getContainerFromContainerInspect(event.ID,&containerInfo) string {
+func getContainerFromContainerInspect(containerInfo *types.ContainerJSON) string {
+
 	container := ""
 	if containerInfo != nil && containerInfo.NetworkSettings != nil {
-		for _ , endpoint := range containerInfo.NetworkSettings.Networks {
-          container = endpoint.EndpointID
-	  }
+		for _, endpoint := range containerInfo.NetworkSettings.Networks {
+			container = endpoint.EndpointID
+		}
 	}
 	return container
 

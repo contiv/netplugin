@@ -79,6 +79,7 @@ type SvcProvUpdateRequest struct {
 	Tenant      string
 	Network     string
 	Event       string
+	Container   string
 }
 
 //SvcProvUpdateResponse is service provider update request from netplugin
@@ -326,24 +327,55 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 
 	log.Infof("Recieved ServiceProviderUpdate {%+v}", svcProvUpdReq)
 
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return nil, err
+	}
+
 	if svcProvUpdReq.Event == "start" {
 		//Received container start event from netplugin. Check if the Provider
 		//matches any service and perform service provider update if there is a matching
 		//service.
+
+		epCfg := &mastercfg.CfgEndpointState{}
+		epCfg.StateDriver = stateDriver
+		nwID := svcProvUpdReq.Network + "." + svcProvUpdReq.Tenant
+		epCfg.ID = getEpName(nwID, &intent.ConfigEP{Container: svcProvUpdReq.Container})
+
+		err = epCfg.Read(epCfg.ID)
+		if err != nil {
+			return nil, err
+		}
+
 		provider := &mastercfg.Provider{}
 		provider.IPAddress = svcProvUpdReq.IPAddress
 		provider.Tenant = svcProvUpdReq.Tenant
 		provider.Network = svcProvUpdReq.Network
 		provider.ContainerID = svcProvUpdReq.ContainerID
 		provider.Labels = make(map[string]string)
+
+		if epCfg.Labels == nil {
+			//endpoint cfg doesnt have labels
+			epCfg.Labels = make(map[string]string)
+		}
+
 		for k, v := range svcProvUpdReq.Labels {
 			provider.Labels[k] = v
+			epCfg.Labels[k] = v
 		}
+
+		err = epCfg.Write()
+		if err != nil {
+			log.Errorf("error writing ep config. Error: %s", err)
+			return nil, err
+		}
+
 		providerID := getProviderID(provider)
 		providerDbID := getProviderDbID(provider)
 		if providerID == "" || providerDbID == "" {
 			return nil, fmt.Errorf("Invalid ProviderID from providerInfo:{%v}", provider)
 		}
+
 		//update provider db
 		mastercfg.ProviderDb[providerDbID] = provider
 		for serviceID, service := range mastercfg.ServiceLBDb {
@@ -396,10 +428,6 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 			}
 			delete(service.Providers, providerID)
 
-			stateDriver, err := utils.GetStateDriver()
-			if err != nil {
-				return nil, err
-			}
 			serviceLbState := &mastercfg.CfgServiceLBState{}
 			serviceLbState.StateDriver = stateDriver
 			err = serviceLbState.Read(serviceID)
