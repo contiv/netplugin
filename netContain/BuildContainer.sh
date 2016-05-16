@@ -41,5 +41,6 @@ fi
 docker tag $imgId contivbase
 
 sudo mkdir -p /var/log/contiv
+sudo mkdir -p /var/run/openvswitch
 
-docker run -itd --net=host --name=contivBase  --privileged   -v /etc/openvswitch:/etc/openvswitch -v /var/run/:/var/run -v /var/log/contiv:/var/log/contiv contivbase bash
+docker run -itd --net=host --name=contivNet  --privileged   -v /etc/openvswitch:/etc/openvswitch -v /var/run/:/var/run -v /var/log/contiv:/var/log/contiv contivbase bash

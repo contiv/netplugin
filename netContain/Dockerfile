@@ -36,11 +36,9 @@ RUN mkdir -p /contiv/scripts
 
 COPY ./netplugin /contiv/bin/
 COPY ./netmaster /contiv/bin/
-COPY ./initovs /contiv/scripts/
-COPY ./contivinit /contiv/scripts/
-
-#RUN /contiv/scripts/initovs
-
-#RUN /contiv/scripts/contivinit
+COPY ./ovsInit.sh /contiv/scripts/
+COPY ./contivInit.sh /contiv/scripts/
+COPY ./contivNet.sh /contiv/scripts/
 
 
+ENTRYPOINT ["/contiv/scripts/contivNet.sh"]
