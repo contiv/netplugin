@@ -364,18 +364,8 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		return core.Errorf("Tenant not found")
 	}
 
-	// Setup links
-	modeldb.AddLink(&endpointGroup.Links.Tenant, tenant)
-	modeldb.AddLinkSet(&tenant.LinkSets.EndpointGroups, endpointGroup)
-
-	// Save the tenant too since we added the links
-	err := tenant.Write()
-	if err != nil {
-		return err
-	}
-
 	// create the endpoint group state
-	err = master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName,
+	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName,
 		endpointGroup.GroupName, endpointGroup.EndpointGroupID)
 	if err != nil {
 		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
@@ -408,6 +398,16 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		if err != nil {
 			return err
 		}
+	}
+
+	// Setup links
+	modeldb.AddLink(&endpointGroup.Links.Tenant, tenant)
+	modeldb.AddLinkSet(&tenant.LinkSets.EndpointGroups, endpointGroup)
+
+	// Save the tenant too since we added the links
+	err = tenant.Write()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -550,17 +550,6 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 		return core.Errorf("Tenant not found")
 	}
 
-	// Setup links
-	modeldb.AddLink(&network.Links.Tenant, tenant)
-	modeldb.AddLinkSet(&tenant.LinkSets.Networks, network)
-
-	// Save the tenant too since we added the links
-	err := tenant.Write()
-	if err != nil {
-		log.Errorf("Error updating tenant state(%+v). Err: %v", tenant, err)
-		return err
-	}
-
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
@@ -581,6 +570,17 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	err = master.CreateNetwork(networkCfg, stateDriver, network.TenantName)
 	if err != nil {
 		log.Errorf("Error creating network {%+v}. Err: %v", network, err)
+		return err
+	}
+
+	// Setup links
+	modeldb.AddLink(&network.Links.Tenant, tenant)
+	modeldb.AddLinkSet(&tenant.LinkSets.Networks, network)
+
+	// Save the tenant too since we added the links
+	err = tenant.Write()
+	if err != nil {
+		log.Errorf("Error updating tenant state(%+v). Err: %v", tenant, err)
 		return err
 	}
 
