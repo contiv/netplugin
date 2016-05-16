@@ -2,11 +2,7 @@
 #Initialize contiv Net Plugin and Net Master as required
 # Values below need to be tailored as per needs
 
-IS_NETMASTER=0
-NETMASTER_IP="172.28.11.253"
-VTEP_IP="172.28.11.252"
-VLAN_IF="ens32"
-CONTIV_FWD_MODE="routing"
+source contivRc
 
 if [ $IS_NETMASTER == 1 ]
 then
