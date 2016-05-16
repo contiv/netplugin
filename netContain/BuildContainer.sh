@@ -13,6 +13,18 @@ function dockerBuildIt {
 
 set -x 
 
+eexists=`docker images contivbase | grep -w "contivbase" | wc -l`
+if [ $eexists != 0 ]; then
+    echo "An image by name contivbase already exists"
+    echo "Remove contivbase (docker rmi contivbase) and retry"
+    exit
+fi
+
+if [ $1 == "reinit" ]; then
+   etcdctl rm -recursive /contiv.io
+   etcdctl rm -recursive /docker/network
+fi
+
 sudo modprobe openvswitch
 
 imgId="Contiv"
@@ -21,7 +33,8 @@ if [ $? != 0 ]; then
    echo "Failed building Contiv Image Bailing out Err $?"
    exit
 fi
-docker run --name=$imgId $imgId 
+
+docker run --name=$imgId $imgId  2> /dev/null
 
 echo "Copying the Contiv Binaries from the built container"
 docker cp $imgId:/go/bin/netplugin netContain/
@@ -45,4 +58,4 @@ docker tag $imgId contivbase
 sudo mkdir -p /var/log/contiv
 sudo mkdir -p /var/run/openvswitch
 
-docker run -itd --net=host --name=contivNet  --privileged   -v /etc/openvswitch:/etc/openvswitch -v /var/run/:/var/run -v /var/log/contiv:/var/log/contiv contivbase bash
+docker run -itd --net=host --name=contivNet  --privileged   -v /etc/openvswitch:/etc/openvswitch -v /var/run/:/var/run -v /var/log/contiv:/var/log/contiv contivbase
