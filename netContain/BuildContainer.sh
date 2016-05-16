@@ -13,7 +13,7 @@ function dockerBuildIt {
 
 set -x 
 
-modprobe openvswitch
+sudo modprobe openvswitch
 
 imgId="Contiv"
 dockerBuildIt . $imgId
