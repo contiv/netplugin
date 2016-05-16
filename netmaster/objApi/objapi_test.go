@@ -721,11 +721,14 @@ func TestServiceProviderUpdate(t *testing.T) {
 	verifyServiceCreate(t, "default", "yellow", "redis", port, labels, "")
 
 	containerID := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	container := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
 
-	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", labels)
+	createEP(t, "20.1.1.1", "orange", containerID, "default", container, labels)
+	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, container, "default", "start", labels)
 	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", "redis", labels)
-	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", labels)
+	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, container, "default", "die", labels)
 	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", "redis", labels)
+	deleteEP(t, "orange", "default", container)
 	checkServiceDelete(t, "default", "redis")
 	verifyServiceDelete(t, "default", "redis")
 	deleteNetwork(t, "orange", "default")
@@ -738,17 +741,19 @@ func TestServiceProviderUpdateServiceAdd(t *testing.T) {
 	port := []string{"80:8080:TCP"}
 
 	containerID := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	container := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
 
 	createNetwork(t, "orange", "default", "vxlan", "11.1.1.0/24", "11.1.1.254")
-	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", labels)
-
+	createEP(t, "20.1.1.1", "orange", containerID, "default", container, labels)
+	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, container, "default", "start", labels)
 	createNetwork(t, "yellow", "default", "vxlan", "10.1.1.0/24", "10.1.1.254")
 	checkServiceCreate(t, "default", "yellow", "redis", port, labels, "")
 	verifyServiceCreate(t, "default", "yellow", "redis", port, labels, "")
 
 	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", "redis", labels)
-	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", labels)
+	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, container, "default", "die", labels)
 	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", "redis", labels)
+	deleteEP(t, "orange", "default", container)
 	checkServiceDelete(t, "default", "redis")
 	verifyServiceDelete(t, "default", "redis")
 	deleteNetwork(t, "orange", "default")
@@ -842,7 +847,7 @@ func verifyServiceDelete(t *testing.T, tenant, serviceName string) {
 	}
 }
 
-func triggerProviderUpdate(t *testing.T, providerIP, network, containerID,
+func triggerProviderUpdate(t *testing.T, providerIP, network, containerID, container,
 	tenant, event string, labels []string) {
 
 	providerUpdReq := master.SvcProvUpdateRequest{}
@@ -852,6 +857,7 @@ func triggerProviderUpdate(t *testing.T, providerIP, network, containerID,
 	providerUpdReq.Network = network
 	providerUpdReq.Event = event
 	providerUpdReq.Labels = make(map[string]string)
+	providerUpdReq.Container = container
 
 	for _, v := range labels {
 		key := strings.Split(v, "=")[0]
@@ -992,6 +998,39 @@ func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.Resp
 
 		w.Write(resp)
 		return
+	}
+}
+
+func createEP(t *testing.T, providerIP, network, containerID, tenant, container string, labels []string) {
+
+	epCfg := &mastercfg.CfgEndpointState{
+		NetID:      network,
+		ContName:   containerID,
+		AttachUUID: container,
+		IPAddress:  providerIP,
+	}
+	epCfg.Labels = make(map[string]string)
+	for _, v := range labels {
+		key := strings.Split(v, "=")[0]
+		value := strings.Split(v, "=")[1]
+		epCfg.Labels[key] = value
+	}
+	epCfg.StateDriver = stateStore
+	netID := network + "." + tenant
+	epCfg.ID = netID + "-" + container
+	err := epCfg.Write()
+	if err != nil {
+		t.Errorf("Error creating Ep :%s", err)
+	}
+}
+func deleteEP(t *testing.T, network, tenant, container string) {
+	epCfg := &mastercfg.CfgEndpointState{}
+	epCfg.StateDriver = stateStore
+	netID := network + "." + tenant
+	epCfg.ID = netID + "-" + container
+	err := epCfg.Clear()
+	if err != nil {
+		t.Errorf("Error deleting Ep :%s", err)
 	}
 }
 
