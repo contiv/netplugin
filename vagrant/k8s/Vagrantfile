@@ -18,7 +18,7 @@ def create_etc_hosts(cluster)
   
   cluster.each do |role, member_list|
     member_list.each do |member_info|
-      etc_file.write("#{member_info['control-ip']}   #{member_info['name']}\n")
+      etc_file.write("#{member_info['contiv_control_ip']}   #{member_info['name']}\n")
     end
   end
 
@@ -43,6 +43,7 @@ Vagrant.configure(2) do |config|
   config.vm.box_version = "0.0.6"
 
   config.ssh.password = 'vagrant'
+
   config.vm.synced_folder "./export", "/shared", disabled: false
   config.vm.synced_folder ".", "/vagrant", disabled: true
  
@@ -55,18 +56,19 @@ Vagrant.configure(2) do |config|
         # Customize VM for better performance
         config.vm.provider "virtualbox" do |v|
           customize_vm(v)
+        end # v
 
         # configure ip address etc
         c.vm.hostname = vm_name
-        c.vm.network :private_network, ip: member_info["control-ip"]
-        c.vm.network :private_network, ip: member_info["contiv-network-ip"]
+        c.vm.network :private_network, ip: member_info["contiv_control_ip"]
+        c.vm.network :private_network, ip: member_info["contiv_network_ip"]
+
         c.vm.provision "shell", inline: <<-EOS
           sudo setenforce 0
           sudo systemctl stop firewalld
           #copy the etc_hosts file we created
           sudo cp /shared/.etc_hosts /etc/hosts
           EOS
-        end # shell
       end # c
     end # member_info
   end #role
