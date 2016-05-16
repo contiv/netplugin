@@ -44,6 +44,7 @@ type Provider struct {
 	Tenant      string
 	Network     string
 	Services    []string
+	Container   string //container endpoint id
 }
 
 // Write the state

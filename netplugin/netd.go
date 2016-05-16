@@ -730,6 +730,7 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 
 			containerTenant := getTenantFromContainerInspect(event.ID, &containerInfo)
 			network, ipAddress := getEpNetworkInfoFromContainerInspect(event.ID, &containerInfo)
+			container:= getContainerFromContainerInspect(event.ID,&containerInfo)
 			if ipAddress != "" {
 				//Create provider info
 				networkname := strings.Split(network, "/")[0]
@@ -738,7 +739,8 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 				providerUpdReq.Tenant = containerTenant
 				providerUpdReq.Network = networkname
 				providerUpdReq.Event = "start"
-				providerUpdReq.Labels = make(map[string]string)
+				providerUpdReq.Container = container
+				providerUpdReq.Labels = make(map[string]string) 
 
 				for k, v := range labelMap {
 					providerUpdReq.Labels[k] = v
@@ -809,4 +811,15 @@ func getEpNetworkInfoFromContainerInspect(containerID string, containerInfo *typ
 		}
 	}
 	return networkName, IPAddress
+}
+
+func getContainerFromContainerInspect(event.ID,&containerInfo) string {
+	container := ""
+	if containerInfo != nil && containerInfo.NetworkSettings != nil {
+		for _ , endpoint := range containerInfo.NetworkSettings.Networks {
+          container = endpoint.EndpointID
+	  }
+	}
+	return container
+
 }
