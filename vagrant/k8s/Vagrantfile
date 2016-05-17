@@ -11,6 +11,18 @@ def customize_vm(v)
   v.customize ["modifyvm", :id, "--cpus", cpus]
 end
 
+# method to set up network attributes
+def customize_vm_network(v)
+  # make all nics 'virtio' to take benefit of builtin vlan tag
+  # support, which otherwise needs to be enabled in Intel drivers,
+  # which are used by default by virtualbox
+  v.customize ['modifyvm', :id, '--nictype1', 'virtio']
+  v.customize ['modifyvm', :id, '--nictype2', 'virtio']
+  v.customize ['modifyvm', :id, '--nictype3', 'virtio']
+  v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
+  v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
+end
+
 # method to create an etc_hosts file based on the cluster info
 def create_etc_hosts(cluster)
   etc_file = open("./export/.etc_hosts", "w")
@@ -61,7 +73,12 @@ Vagrant.configure(2) do |config|
         # configure ip address etc
         c.vm.hostname = vm_name
         c.vm.network :private_network, ip: member_info["contiv_control_ip"]
-        c.vm.network :private_network, ip: member_info["contiv_network_ip"]
+        c.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true"
+
+        # Customize VM network settings
+        config.vm.provider "virtualbox" do |v|
+          customize_vm_network(v)
+        end # v
 
         c.vm.provision "shell", inline: <<-EOS
           sudo setenforce 0
