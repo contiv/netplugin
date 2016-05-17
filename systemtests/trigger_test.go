@@ -215,11 +215,9 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 			for _, node := range s.nodes {
 				c.Assert(node.stopNetmaster(), IsNil)
 				c.Assert(node.rotateLog("netmaster"), IsNil)
-			}
 
-			time.Sleep(15 * time.Second)
+				time.Sleep(1 * time.Second)
 
-			for _, node := range s.nodes {
 				c.Assert(node.startNetmaster(), IsNil)
 				time.Sleep(1 * time.Second)
 				c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)

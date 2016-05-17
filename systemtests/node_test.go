@@ -196,7 +196,7 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 func (n *node) checkForNetpluginErrors() error {
 	out, _ := n.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "error|fatal" $i; done`)
 	if out != "" {
-		logrus.Errorf("error output in netplugin logs on %s: \n%v\n", n.Name(), out)
+		logrus.Errorf("error output in netplugin logs on %s: \n%s\n", n.Name(), out)
 		return fmt.Errorf("error output in netplugin logs")
 	}
 

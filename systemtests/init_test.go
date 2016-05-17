@@ -47,7 +47,7 @@ func TestMain(m *M) {
 	flag.StringVar(&sts.binpath, "binpath", "/opt/gopath/bin", "netplugin/netmaster binary path")
 	flag.IntVar(&sts.containers, "containers", 3, "Number of containers to use")
 	flag.BoolVar(&sts.short, "short", false, "Do a quick validation run instead of the full test suite")
-	flag.BoolVar(&sts.enableDNS, "dns-enable", true, "Enable DNS service discovery")
+	flag.BoolVar(&sts.enableDNS, "dns-enable", false, "Enable DNS service discovery")
 	if os.Getenv("CONTIV_CLUSTER_STORE") == "" {
 		flag.StringVar(&sts.clusterStore, "cluster-store", "etcd://localhost:2379", "cluster store URL")
 	} else {
@@ -177,9 +177,10 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 
 	// Print all errors and fatal messages
 	for _, node := range s.nodes {
+		logrus.Infof("Checking for errors on %v", node.Name())
 		out, _ := node.runCommand(`for i in /tmp/_net*; do grep "error\|fatal" $i; done`)
 		if out != "" {
-			logrus.Errorf("Errors in logfiles on %s: \n%v\n==========================\n\n", node.Name(), out)
+			logrus.Errorf("Errors in logfiles on %s: \n%s\n==========================\n\n", node.Name(), out)
 		}
 	}
 
