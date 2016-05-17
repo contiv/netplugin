@@ -72,7 +72,7 @@ Vagrant.configure(2) do |config|
 
         # configure ip address etc
         c.vm.hostname = vm_name
-        c.vm.network :private_network, ip: member_info["contiv_control_ip"], virtualbox__intnet: "true"
+        c.vm.network :private_network, ip: member_info["contiv_control_ip"]
         c.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true"
 
         # Customize VM network settings
