@@ -214,9 +214,12 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 			logrus.Info("Triggering netmaster restart")
 			for _, node := range s.nodes {
 				c.Assert(node.stopNetmaster(), IsNil)
-				time.Sleep(1 * time.Second)
 				c.Assert(node.rotateLog("netmaster"), IsNil)
+
+				time.Sleep(1 * time.Second)
+
 				c.Assert(node.startNetmaster(), IsNil)
+				time.Sleep(1 * time.Second)
 				c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
 			}
 			time.Sleep(30 * time.Second)

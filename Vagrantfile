@@ -61,11 +61,14 @@ docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dns
 # Drop cache to workaround vboxsf problem
 echo 3 > /proc/sys/vm/drop_caches
 
+# Change ownership for gopath folder
+chown vagrant #{gopath_folder}
+
 SCRIPT
 
 provision_gobgp = <<SCRIPT
 #Get gobgp binary
-wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp 
+wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp
 SCRIPT
 
 provision_bird = <<SCRIPT
@@ -218,6 +221,7 @@ set -x
  --listen-peer-urls http://#{node_addr}:2380 \
  --initial-cluster #{node_peers.join(",")} --initial-cluster-state new \
   0<&- &>/tmp/etcd.log &) || exit 1
+
 ## start consul
 (nohup consul agent -server #{consul_join_flag} #{consul_bootstrap_flag} \
  -bind=#{node_addr} -data-dir /opt/consul 0<&- &>/tmp/consul.log &) || exit 1

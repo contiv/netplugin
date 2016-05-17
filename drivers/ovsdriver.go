@@ -88,10 +88,13 @@ func (d *OvsDriver) getIntfName() (string, error) {
 		// Pick next port number
 		d.oper.CurrPortNum++
 		intfName := fmt.Sprintf("vport%d", d.oper.CurrPortNum)
+		ovsIntfName := getOvsPortName(intfName, false)
 
 		// check if the port name is already in use
 		_, err := netlink.LinkByName(intfName)
-		if err != nil && strings.Contains(err.Error(), "not found") {
+		_, err2 := netlink.LinkByName(ovsIntfName)
+		if err != nil && strings.Contains(err.Error(), "not found") &&
+			err2 != nil && strings.Contains(err2.Error(), "not found") {
 			// save the new state
 			err = d.oper.Write()
 			if err != nil {

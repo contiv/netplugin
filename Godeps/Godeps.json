@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/contiv/netplugin",
 	"GoVersion": "go1.5.1",
-	"GodepVersion": "v62",
+	"GodepVersion": "v68",
 	"Packages": [
 		"./..."
 	],
@@ -70,23 +70,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "bc37eaef88c241864b9782f356a43305535cf3c0"
+			"Rev": "43df083da25e1af2b67586376629908ac836ee63"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "bc37eaef88c241864b9782f356a43305535cf3c0"
+			"Rev": "43df083da25e1af2b67586376629908ac836ee63"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "bc37eaef88c241864b9782f356a43305535cf3c0"
+			"Rev": "43df083da25e1af2b67586376629908ac836ee63"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "bc37eaef88c241864b9782f356a43305535cf3c0"
+			"Rev": "43df083da25e1af2b67586376629908ac836ee63"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "bc37eaef88c241864b9782f356a43305535cf3c0"
+			"Rev": "43df083da25e1af2b67586376629908ac836ee63"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",
@@ -337,6 +337,21 @@
 		{
 			"ImportPath": "gopkg.in/tomb.v2",
 			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
+		},
+		{
+			"ImportPath": "github.com/socketplane/libovsdb/Godeps/_workspace/src/github.com/cenkalti/rpc2",
+			"Comment": "v0.1-2-g58cf012",
+			"Rev": "58cf01279880d621a67c5f929af9ed59ab409373"
+		},
+		{
+			"ImportPath": "github.com/socketplane/libovsdb/Godeps/_workspace/src/github.com/cenkalti/rpc2/jsonrpc",
+			"Comment": "v0.1-2-g58cf012",
+			"Rev": "58cf01279880d621a67c5f929af9ed59ab409373"
+		},
+		{
+			"ImportPath": "github.com/socketplane/libovsdb/Godeps/_workspace/src/github.com/cenkalti/hub",
+			"Comment": "v0.1-2-g58cf012",
+			"Rev": "58cf01279880d621a67c5f929af9ed59ab409373"
 		}
 	]
 }

@@ -17,6 +17,7 @@ type containerSpec struct {
 	networkName string
 	serviceName string
 	name        string
+	dnsServer   string
 }
 
 type node struct {
@@ -79,7 +80,11 @@ func (n *node) stopNetmaster() error {
 
 func (n *node) startNetmaster() error {
 	logrus.Infof("Starting netmaster on %s", n.Name())
-	return n.tbnode.RunCommandBackground(n.suite.binpath + "/netmaster -dns-enable=false" + " --cluster-store " + n.suite.clusterStore + " &> /tmp/netmaster.log")
+	dnsOpt := " --dns-enable=false "
+	if n.suite.enableDNS {
+		dnsOpt = " --dns-enable=true "
+	}
+	return n.tbnode.RunCommandBackground(n.suite.binpath + "/netmaster" + dnsOpt + " --cluster-store " + n.suite.clusterStore + " &> /tmp/netmaster.log")
 }
 
 func (n *node) cleanupDockerNetwork() error {
@@ -132,7 +137,7 @@ func (n *node) runCommand(cmd string) (string, error) {
 }
 
 func (n *node) runContainer(spec containerSpec) (*container, error) {
-	var namestr, netstr string
+	var namestr, netstr, dnsStr string
 
 	if spec.networkName != "" {
 		netstr = spec.networkName
@@ -156,9 +161,14 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 		namestr = "--name=" + spec.name
 	}
 
+	if spec.dnsServer != "" {
+		dnsStr = "--dns=" + spec.dnsServer
+	}
 	logrus.Infof("Starting a container running %q on %s", spec.commandName, n.Name())
 
-	cmd := fmt.Sprintf("docker run -itd %s %s %s %s", namestr, netstr, spec.imageName, spec.commandName)
+	cmd := fmt.Sprintf("docker run -itd %s %s %s %s %s", namestr, netstr, dnsStr, spec.imageName, spec.commandName)
+
+	logrus.Infof("Starting container on %s with: %s", n.Name(), cmd)
 
 	out, err := n.tbnode.RunCommandWithOutput(cmd)
 	if err != nil {
@@ -186,7 +196,8 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 func (n *node) checkForNetpluginErrors() error {
 	out, _ := n.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "error|fatal" $i; done`)
 	if out != "" {
-		return fmt.Errorf("error output in netplugin logs: %q", out)
+		logrus.Errorf("error output in netplugin logs on %s: \n%s\n", n.Name(), out)
+		return fmt.Errorf("error output in netplugin logs")
 	}
 
 	return nil

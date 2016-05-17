@@ -265,6 +265,17 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		ovsIntfType = "internal"
 	}
 
+	// If the port already exists in OVS, remove it first
+	if sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
+		log.Debugf("Removing existing interface entry %s from OVS", ovsPortName)
+
+		// Delete it from ovsdb
+		err := sw.ovsdbDriver.DeletePort(ovsPortName)
+		if err != nil {
+			log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
+		}
+	}
+
 	// Ask OVSDB driver to add the port
 	err := sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag)
 	if err != nil {

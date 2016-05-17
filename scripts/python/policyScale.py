@@ -53,7 +53,7 @@ def testConnections(testbed, numContainer):
 # Cleanup all policies
 def cleanupPolicies(numPolicy, numRulesPerPolicy):
 	tenant = api.objmodel.tenant('default')
-	network = tenant.network('private')
+	network = tenant.newNetwork('private', pktTag=10, subnet="20.1.0.0/16", gateway="20.1.1.254", encap="vlan")
 	for pid in range(numPolicy):
 		pname = 'policy' + str(pid + 1)
 		policy = tenant.newPolicy(pname)
