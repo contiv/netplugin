@@ -31,7 +31,7 @@ import (
 func getIpamCapability(w http.ResponseWriter, r *http.Request) {
 	logEvent("getIpamCapability")
 
-	content, err := json.Marshal(api.GetCapabilityResponse{RequiresMACAddress: true})
+	content, err := json.Marshal(api.GetCapabilityResponse{})
 	if err != nil {
 		httpError(w, "Could not generate getCapability response", err)
 		return

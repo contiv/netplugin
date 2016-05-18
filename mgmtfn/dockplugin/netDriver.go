@@ -240,7 +240,9 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 		log.Debug(ep)
 
 		epResponse := api.CreateEndpointResponse{
-			Interface: &api.EndpointInterface{},
+			Interface: &api.EndpointInterface{
+				MacAddress: mresp.EndpointConfig.MacAddress,
+			},
 		}
 
 		// Add the service information using Service plugin
