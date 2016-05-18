@@ -685,7 +685,6 @@ func processServiceLBEvent(netPlugin *plugin.NetPlugin, opts cliOpts, svcLBCfg *
 	} else {
 		err = netPlugin.AddServiceLB(serviceID, spec)
 		operStr = "create"
-		dockplugin.DNSBridge.AddService(serviceID, svcLBCfg.ServiceName, svcLBCfg.Network, svcLBCfg.Tenant, svcLBCfg.IPAddress)
 	}
 	if err != nil {
 		log.Errorf("Service Load Balancer %s failed.Error:%s", operStr, err)

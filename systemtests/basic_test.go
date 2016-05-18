@@ -34,7 +34,7 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 	}), IsNil)
 
 	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", nil)
+		containers, err := s.runContainers(s.containers, false, "private", nil, nil)
 		c.Assert(err, IsNil)
 
 		if s.fwdMode == "routing" && encap == "vlan" {

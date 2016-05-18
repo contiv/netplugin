@@ -25,7 +25,6 @@ import (
 	"github.com/contiv/objdb/modeldb"
 	"strconv"
 	"strings"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
