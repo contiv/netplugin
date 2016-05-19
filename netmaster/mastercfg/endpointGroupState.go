@@ -18,6 +18,7 @@ package mastercfg
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
