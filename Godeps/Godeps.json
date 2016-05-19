@@ -112,11 +112,6 @@
 			"Rev": "7d2545c72e5cbf1f072e99537dafc3883c73740e"
 		},
 		{
-			"ImportPath": "github.com/coreos/go-etcd/etcd",
-			"Comment": "v2.0.0-7-g73a8ef7",
-			"Rev": "73a8ef737e8ea002281a28b4cb92a1de121ad4c6"
-		},
-		{
 			"ImportPath": "github.com/docker/docker/pkg/listenbuffer",
 			"Comment": "v1.4.1-5404-gc471b7a",
 			"Rev": "c471b7aba50f5034bf44853b1dd3520bd02391ac"
@@ -337,21 +332,6 @@
 		{
 			"ImportPath": "gopkg.in/tomb.v2",
 			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
-		},
-		{
-			"ImportPath": "github.com/socketplane/libovsdb/Godeps/_workspace/src/github.com/cenkalti/rpc2",
-			"Comment": "v0.1-2-g58cf012",
-			"Rev": "58cf01279880d621a67c5f929af9ed59ab409373"
-		},
-		{
-			"ImportPath": "github.com/socketplane/libovsdb/Godeps/_workspace/src/github.com/cenkalti/rpc2/jsonrpc",
-			"Comment": "v0.1-2-g58cf012",
-			"Rev": "58cf01279880d621a67c5f929af9ed59ab409373"
-		},
-		{
-			"ImportPath": "github.com/socketplane/libovsdb/Godeps/_workspace/src/github.com/cenkalti/hub",
-			"Comment": "v0.1-2-g58cf012",
-			"Rev": "58cf01279880d621a67c5f929af9ed59ab409373"
 		}
 	]
 }
