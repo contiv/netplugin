@@ -710,7 +710,7 @@ func processSvcProviderUpdEvent(netPlugin *plugin.NetPlugin, opts cliOpts,
   container start and die event*/
 func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interface{}) {
 
-	log.Printf("Received Docker event: %#v\n", *event)
+	log.Printf("Received Docker event: {%#v}\n", *event)
 	providerUpdReq := &master.SvcProvUpdateRequest{}
 	switch event.Status {
 	case "start":
@@ -755,7 +755,7 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 
 			err := cluster.MasterPostReq("/plugin/svcProviderUpdate", providerUpdReq, &svcProvResp)
 			if err != nil {
-				log.Errorf("Http post Error:%s", err)
+				log.Errorf("Event: 'start' , Http error posting service provider update, Error:%s", err)
 			}
 		} else {
 			log.Errorf("Unable to fetch container labels for container %s ", event.ID)
@@ -767,7 +767,7 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 		log.Infof("Sending Provider delete request to master: {%+v}", providerUpdReq)
 		err := cluster.MasterPostReq("/plugin/svcProviderUpdate", providerUpdReq, &svcProvResp)
 		if err != nil {
-			log.Errorf("Http post Error:%s", err)
+			log.Errorf("Event:'die' Http error posting service provider update, Error:%s", err)
 		}
 	}
 }
