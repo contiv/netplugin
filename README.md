@@ -18,11 +18,7 @@ Full, comprehensive documentation is available on the website:
 
 http://docs.contiv.io
 
-<<<<<<< HEAD
 Getting-started videos are available on [YouTube](https://www.youtube.com/watch?v=KzansAxCBQE&list=PL2k86RlAekM_g6csRwSRQAWvln5SmgicN).
-=======
-Getting-started videos are available on (YouTube)[https://www.youtube.com/watch?v=KzansAxCBQE&list=PL2k86RlAekM_g6csRwSRQAWvln5SmgicN].
->>>>>>> 0bf8baa992e6bc5cb41b704102ed73372f8fd8be
 
 Members of Cisco DevNet can also view the videos on the [Developer Network](https://developer.cisco.com/site/contiv/videos/index.gsp).
 
