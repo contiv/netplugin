@@ -229,6 +229,7 @@ func (svcOp *proxyOper) addProvHdl(provIP string) {
 
 func (proxy *ServiceProxy) addService(svcName string) error {
 	// make sure we have a spec and at least one provider
+        log.Infof("ServiceProxy addService")
 	services := proxy.catalogue.svcMap
 	spec, found := services[svcName]
 	if !found {

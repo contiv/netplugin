@@ -199,7 +199,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
 
             node.vm.provision "shell" do |s|
-                s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_addr} #{node_name}' >> /etc/hosts"
+                s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_ips[1]} netmaster' >> /etc/hosts;	echo '#{node_addr} #{node_name}' >> /etc/hosts"
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common

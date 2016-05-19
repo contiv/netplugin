@@ -621,7 +621,8 @@ func (vx *Vxlan) RemoveUplink(portNo uint32) error {
 
 // AddSvcSpec adds a service spec to proxy
 func (vx *Vxlan) AddSvcSpec(svcName string, spec *ServiceSpec) error {
-	return nil
+    log.Infof("VxlanBridge")	
+    return nil
 }
 
 // DelSvcSpec removes a service spec from proxy

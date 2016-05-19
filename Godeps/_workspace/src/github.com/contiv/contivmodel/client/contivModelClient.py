@@ -217,7 +217,10 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"encap": obj.encap, 
 			"gateway": obj.gateway, 
+			"ipv6Gateway": obj.ipv6Gateway, 
+			"ipv6Subnet": obj.ipv6Subnet, 
 			"networkName": obj.networkName, 
+			"nwType": obj.nwType, 
 			"pktTag": obj.pktTag, 
 			"subnet": obj.subnet, 
 			"tenantName": obj.tenantName, 
@@ -397,6 +400,42 @@ class objmodelClient:
 	    retDate = urllib2.urlopen(self.baseUrl + '/api/serviceInstances/')
 	    if retData == "Error":
 	        errorExit("list ServiceInstance failed")
+
+	    return json.loads(retData)
+	# Create serviceLB
+	def createServiceLB(self, obj):
+	    postUrl = self.baseUrl + '/api/serviceLBs/' + obj.tenantName + ":" + obj.serviceName  + '/'
+
+	    jdata = json.dumps({ 
+			"ipAddress": obj.ipAddress, 
+			"networkName": obj.networkName, 
+			"ports": obj.ports, 
+			"selectors": obj.selectors, 
+			"serviceName": obj.serviceName, 
+			"tenantName": obj.tenantName, 
+	    })
+
+	    # Post the data
+	    response = httpPost(postUrl, jdata)
+
+	    if response == "Error":
+	        errorExit("ServiceLB create failure")
+
+	# Delete serviceLB
+	def deleteServiceLB(self, tenantName, serviceName):
+	    # Delete ServiceLB
+	    deleteUrl = self.baseUrl + '/api/serviceLBs/' + tenantName + ":" + serviceName  + '/'
+	    response = httpDelete(deleteUrl)
+
+	    if response == "Error":
+	        errorExit("ServiceLB create failure")
+
+	# List all serviceLB objects
+	def listServiceLB(self):
+	    # Get a list of serviceLB objects
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/serviceLBs/')
+	    if retData == "Error":
+	        errorExit("list ServiceLB failed")
 
 	    return json.loads(retData)
 	# Create tenant

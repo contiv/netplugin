@@ -115,7 +115,7 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
 			c.Assert(err, IsNil)
 		}
 
@@ -229,7 +229,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 				go func(network, tenant string, containers map[string][]*container) {
 					var err error
 					mutex.Lock()
-					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil)
+					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil, nil)
 					mutex.Unlock()
 					endChan <- err
 					if s.fwdMode == "routing" && encap == "vlan" {

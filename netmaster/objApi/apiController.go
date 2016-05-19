@@ -17,13 +17,14 @@ package objApi
 
 import (
 	"errors"
-
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/objdb/modeldb"
+	"strconv"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -58,6 +59,9 @@ func NewAPIController(router *mux.Router, storeURL string) *APIController {
 	contivModel.RegisterServiceInstanceCallbacks(ctrler)
 	contivModel.RegisterTenantCallbacks(ctrler)
 	contivModel.RegisterBgpCallbacks(ctrler)
+	contivModel.RegisterBgpCallbacks(ctrler)
+	contivModel.RegisterServiceLBCallbacks(ctrler)
+
 	// Register routes
 	contivModel.AddRoutes(router)
 
@@ -1080,4 +1084,130 @@ func (ac *APIController) BgpUpdate(oldbgpCfg *contivModel.Bgp, NewbgpCfg *contiv
 	}
 
 	return nil
+}
+
+//ServiceLBCreate creates service object
+func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) error {
+
+	log.Infof("Received Service Load Balancer create: %+v", serviceCfg)
+
+	if serviceCfg.ServiceName == "" {
+		return core.Errorf("Invalid service name")
+	}
+	if serviceCfg.TenantName == "" {
+		serviceCfg.TenantName = "default"
+	}
+
+	if len(serviceCfg.Selectors) == 0 {
+		return core.Errorf("Invalid selector options")
+	}
+
+	if !validatePorts(serviceCfg.Ports) {
+		return core.Errorf("Invalid Port maping . Port format is - Port:TargetPort:Protocol")
+	}
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Build service config
+	serviceIntentCfg := intent.ConfigServiceLB{
+		ServiceName: serviceCfg.ServiceName,
+		Tenant:      serviceCfg.TenantName,
+		Network:     serviceCfg.NetworkName,
+		IPAddress:   serviceCfg.IpAddress,
+	}
+	serviceIntentCfg.Ports = append(serviceIntentCfg.Ports, serviceCfg.Ports...)
+
+	serviceIntentCfg.Selectors = make(map[string]string)
+
+	for _, selector := range serviceCfg.Selectors {
+		if validateSelectors(selector) {
+			key := strings.Split(selector, "=")[0]
+			value := strings.Split(selector, "=")[1]
+			serviceIntentCfg.Selectors[key] = value
+		} else {
+			return core.Errorf("Invalid selector %s. selector format is key1=value1", selector)
+		}
+	}
+	// Add the service object
+	err = master.CreateServiceLB(stateDriver, &serviceIntentCfg)
+	if err != nil {
+		log.Errorf("Error creating service  {%+v}. Err: %v", serviceIntentCfg.ServiceName, err)
+		return err
+	}
+	return nil
+
+}
+
+//ServiceLBUpdate updates service object
+func (ac *APIController) ServiceLBUpdate(oldServiceCfg *contivModel.ServiceLB, serviceCfg *contivModel.ServiceLB) error {
+	return ac.ServiceLBCreate(serviceCfg)
+}
+
+//ServiceLBDelete deletes service object
+func (ac *APIController) ServiceLBDelete(serviceCfg *contivModel.ServiceLB) error {
+
+	log.Info("Received Service Load Balancer delete : {%+v}", serviceCfg)
+
+	if serviceCfg.ServiceName == "" {
+		return core.Errorf("Invalid service name")
+	}
+	if serviceCfg.TenantName == "" {
+		serviceCfg.TenantName = "default"
+	}
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// Add the service object
+	err = master.DeleteServiceLB(stateDriver, serviceCfg.ServiceName, serviceCfg.TenantName)
+	if err != nil {
+		log.Errorf("Error deleting Service Load Balancer object {%+v}. Err: %v", serviceCfg.ServiceName, err)
+		return err
+	}
+	return nil
+
+}
+
+func validateSelectors(selector string) bool {
+	if strings.Count(selector, "=") == 1 {
+		return true
+	}
+	return false
+}
+
+func validatePorts(ports []string) bool {
+	for _, x := range ports {
+		svcPort := strings.Split(x, ":")[0]
+		provPort := strings.Split(x, ":")[1]
+		protocol := strings.Split(x, ":")[2]
+
+		if provPort == "" || protocol == "" || svcPort == "" {
+			return false
+		}
+
+		_, err := strconv.Atoi(provPort)
+		if err != nil {
+			return false
+		}
+		_, err = strconv.Atoi(svcPort)
+		if err != nil {
+			return false
+		}
+
+		switch protocol {
+		case "TCP":
+			return true
+		case "UDP":
+			return true
+		default:
+			return false
+		}
+	}
+	return true
 }

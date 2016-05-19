@@ -34,4 +34,8 @@ const (
 	GetNetworksRESTEndpoint = "networks"
 	//GetVersionRESTEndpoint is the REST endpoint to get version info
 	GetVersionRESTEndpoint = "version"
+	//GetServiceRESTEndpoint is the REST endpoint to get service info of a service
+	GetServiceRESTEndpoint = "service"
+	//GetServicesRESTEndpoint is the REST endpoint to request info of all services
+	GetServicesRESTEndpoint = "services"
 )

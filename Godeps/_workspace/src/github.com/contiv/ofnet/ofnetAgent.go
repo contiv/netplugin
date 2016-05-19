@@ -305,8 +305,9 @@ func (self *OfnetAgent) AddMaster(masterInfo *OfnetNode, ret *bool) error {
 	masterKey := fmt.Sprintf("%s:%d", masterInfo.HostAddr, masterInfo.HostPort)
 
 	// Save it in DB
+        
 	self.masterDb[masterKey] = master
-
+        log.Infof("MASTERDB AFTER ADD {%#v} , KEY:%s",self.masterDb,masterKey)
 	// My info to send to master
 	myInfo := new(OfnetNode)
 	myInfo.HostAddr = self.MyAddr
@@ -350,9 +351,10 @@ func (self *OfnetAgent) RemoveMaster(masterInfo *OfnetNode) error {
 	log.Infof("Deleting master: %+v", masterInfo)
 
 	masterKey := fmt.Sprintf("%s:%d", masterInfo.HostAddr, masterInfo.HostPort)
-
+        log.Infof("DELETING MASTER: %#v , key:%s",self.masterDb,masterKey)
 	// Remove it from DB
 	delete(self.masterDb, masterKey)
+        log.Infof("AFTER DELETING MASTER: %#v",self.masterDb)
 
 	return nil
 }
@@ -411,6 +413,7 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	self.endpointDb[epId] = epreg
 	self.localEndpointDb[endpoint.PortNo] = epreg
 
+        log.Infof("MASTERDB HAS %#v",self.masterDb)
 	// Send the endpoint to all known masters
 	for _, master := range self.masterDb {
 		var resp bool
