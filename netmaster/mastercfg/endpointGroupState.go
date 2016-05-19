@@ -18,7 +18,9 @@ package mastercfg
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 )
 
@@ -26,12 +28,13 @@ import (
 // vlans with ovs. The state is stored as Json objects.
 type EndpointGroupState struct {
 	core.CommonState
-	Name        string `json:"name"`
-	Tenant      string `json:"tenant"`
-	NetworkName string `json:"networkName"`
-	PktTagType  string `json:"pktTagType"`
-	PktTag      int    `json:"pktTag"`
-	ExtPktTag   int    `json:"extPktTag"`
+	GroupName       string `json:"groupName"`
+	TenantName      string `json:"tenantName"`
+	NetworkName     string `json:"networkName"`
+	EndpointGroupID int    `json:"endpointGroupId"`
+	PktTagType      string `json:"pktTagType"`
+	PktTag          int    `json:"pktTag"`
+	ExtPktTag       int    `json:"extPktTag"`
 }
 
 // Write the state.
@@ -61,4 +64,34 @@ func (s *EndpointGroupState) WatchAll(rsps chan core.WatchState) error {
 func (s *EndpointGroupState) Clear() error {
 	key := fmt.Sprintf(epGroupConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
+}
+
+// GetEndpointGroupID returns endpoint group Id for a service
+// It autocreates the endpoint group if it doesnt exist
+func GetEndpointGroupID(stateDriver core.StateDriver, groupName, networkName, tenantName string) (int, error) {
+	// If service name is not specified, we are done
+	if groupName == "" {
+		return 0, nil
+	}
+
+	readEpg := &EndpointGroupState{}
+	readEpg.StateDriver = stateDriver
+	epgList, err := readEpg.ReadAll()
+	if err != nil && !strings.Contains(err.Error(), "Key not found") {
+		log.Errorf("error reading EPG keys. Error: %s", err)
+		return 0, err
+	}
+
+	// find the EPG that matches group/network/tenant
+	for _, epgState := range epgList {
+		epg := epgState.(*EndpointGroupState)
+		if epg.GroupName == groupName && epg.NetworkName == networkName && epg.TenantName == tenantName {
+			// return endpoint group id
+			return epg.EndpointGroupID, nil
+		}
+	}
+
+	log.Errorf("EPG not found for group: %s, network: %s, tenant: %s", groupName, networkName, tenantName)
+
+	return 0, core.Errorf("EPG not found")
 }

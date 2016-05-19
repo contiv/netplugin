@@ -9,12 +9,14 @@
 				"tenantName": {
 					"type": "string",
 					"title": "Tenant Name",
-					"length": 64
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
 				},
 				"defaultNetwork": {
 					"type" : "string",
 					"title": "Network name",
-					"length": 64
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$"
 				}
 			},
 			"link-sets": {
@@ -35,7 +37,10 @@
 				},
 				"volumeProfiles": {
 					"ref": "volumeProfile"
-				}
+				},
+				"servicelbs":{
+                    "ref": "servicelb"
+                }
 			}
 		}
 	]
