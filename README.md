@@ -18,6 +18,10 @@ Full, comprehensive documentation is available on the website:
 
 http://docs.contiv.io
 
+Getting-started videos are available on [YouTube](https://www.youtube.com/watch?v=KzansAxCBQE&list=PL2k86RlAekM_g6csRwSRQAWvln5SmgicN).
+
+Members of Cisco DevNet can also view the videos on the [Developer Network](https://developer.cisco.com/site/contiv/videos/index.gsp).
+
 ### Getting Started
 
 This will provide you with a minimal experience of uploading the intent and
