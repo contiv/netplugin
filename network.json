@@ -10,17 +10,19 @@
 					"type": "string",
 					"title": "Network name",
 					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
 					"showSummary": true
 				},
 				"tenantName": {
 					"type": "string",
 					"title": "Tenant Name",
-					"length": 64
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
 				},
 				"nwType": {
 					"type": "string",
 					"format": "^(infra|data)$",
-					"default": "\"data\"",
+					"default": "data",
 					"title": "Network Type",
 					"showSummary": true
 				},
@@ -33,7 +35,8 @@
 				"pktTag": {
 					"type": "int",
 					"title": "Vlan/Vxlan Tag",
-					"showSummary": true
+					"showSummary": true,
+					"max": 4094
 				},
 				"subnet": {
 					"type": "string",
@@ -70,9 +73,9 @@
 				"endpointGroups": {
 					"ref": "endpointGroup"
 				},
-                                "servicelbs":{
+                "servicelbs":{
 					"ref": "servicelb"
-                                }
+                }
 			},
 			"links": {
 				"tenant": {

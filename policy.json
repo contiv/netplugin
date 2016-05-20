@@ -10,12 +10,16 @@
 					"type": "string",
 					"description": "Policy Name",
 					"title": "Policy Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
 					"showSummary": true
 				},
 				"tenantName": {
 					"type": "string",
 					"description": "Tenant Name",
 					"title": "Tenant Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
 					"showSummary": true
 				}
 			},
