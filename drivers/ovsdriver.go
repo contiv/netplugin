@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -253,7 +252,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 	cfgEpGroup := &mastercfg.EndpointGroupState{}
 	cfgEpGroup.StateDriver = d.oper.StateDriver
-	err = cfgEpGroup.Read(strconv.Itoa(cfgEp.EndpointGroupID))
+	err = cfgEpGroup.Read(cfgEp.EndpointGroupKey)
 	if err == nil {
 		log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
 	} else if core.ErrIfKeyExists(err) == nil {

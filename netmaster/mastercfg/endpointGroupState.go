@@ -18,7 +18,6 @@ package mastercfg
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
@@ -66,6 +65,15 @@ func (s *EndpointGroupState) Clear() error {
 	return s.StateDriver.ClearState(key)
 }
 
+// GetEndpointGroupKey returns endpoint group key
+func GetEndpointGroupKey(groupName, networkName, tenantName string) string {
+	if groupName == "" || networkName == "" || tenantName == "" {
+		return ""
+	}
+
+	return groupName + ":" + networkName + ":" + tenantName
+}
+
 // GetEndpointGroupID returns endpoint group Id for a service
 // It autocreates the endpoint group if it doesnt exist
 func GetEndpointGroupID(stateDriver core.StateDriver, groupName, networkName, tenantName string) (int, error) {
@@ -74,24 +82,15 @@ func GetEndpointGroupID(stateDriver core.StateDriver, groupName, networkName, te
 		return 0, nil
 	}
 
-	readEpg := &EndpointGroupState{}
-	readEpg.StateDriver = stateDriver
-	epgList, err := readEpg.ReadAll()
-	if err != nil && !strings.Contains(err.Error(), "Key not found") {
-		log.Errorf("error reading EPG keys. Error: %s", err)
-		return 0, err
+	epgKey := GetEndpointGroupKey(groupName, networkName, tenantName)
+	cfgEpGroup := &EndpointGroupState{}
+	cfgEpGroup.StateDriver = stateDriver
+	err := cfgEpGroup.Read(epgKey)
+	if err != nil {
+		log.Errorf("Error finding epg: %s. Err: %v", epgKey, err)
+		return 0, core.Errorf("EPG not found")
 	}
 
-	// find the EPG that matches group/network/tenant
-	for _, epgState := range epgList {
-		epg := epgState.(*EndpointGroupState)
-		if epg.GroupName == groupName && epg.NetworkName == networkName && epg.TenantName == tenantName {
-			// return endpoint group id
-			return epg.EndpointGroupID, nil
-		}
-	}
-
-	log.Errorf("EPG not found for group: %s, network: %s, tenant: %s", groupName, networkName, tenantName)
-
-	return 0, core.Errorf("EPG not found")
+	// return endpoint group id
+	return cfgEpGroup.EndpointGroupID, nil
 }

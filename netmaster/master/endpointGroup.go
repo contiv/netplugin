@@ -18,9 +18,7 @@ package master
 import (
 	"errors"
 	"strconv"
-	"strings"
 
-	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -101,7 +99,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 	}
 
 	epgCfg.StateDriver = stateDriver
-	epgCfg.ID = strconv.Itoa(epgID)
+	epgCfg.ID = mastercfg.GetEndpointGroupKey(groupName, networkName, tenantName)
 	log.Debugf("##Create EpGroup %v network %v tagtype %v", groupName, networkName, nwCfg.PktTagType)
 
 	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
@@ -142,53 +140,46 @@ func DeleteEndpointGroup(tenantName, networkName, groupName string) error {
 		return err
 	}
 
-	readEpg := &mastercfg.EndpointGroupState{}
-	readEpg.StateDriver = stateDriver
-	epgList, err := readEpg.ReadAll()
-	if err != nil && !strings.Contains(err.Error(), "Key not found") {
-		log.Errorf("error reading EPG keys. Error: %s", err)
+	epgKey := mastercfg.GetEndpointGroupKey(groupName, networkName, tenantName)
+	epgCfg := &mastercfg.EndpointGroupState{}
+	epgCfg.StateDriver = stateDriver
+	err = epgCfg.Read(epgKey)
+	if err != nil {
+		log.Errorf("error reading EPG key %s. Error: %s", epgKey, err)
 		return err
 	}
 
-	// find the EPG that matches group/network/tenant
-	for _, epgState := range epgList {
-		epgCfg := epgState.(*mastercfg.EndpointGroupState)
-		if epgCfg.GroupName == groupName && epgCfg.NetworkName == networkName && epgCfg.TenantName == tenantName {
-			// Delete the endpoint group state
-			gCfg := gstate.Cfg{}
-			gCfg.StateDriver = stateDriver
-			err = gCfg.Read(epgCfg.TenantName)
+	// Delete the endpoint group state
+	gCfg := gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	err = gCfg.Read(epgCfg.TenantName)
+	if err != nil {
+		log.Errorf("error reading tenant cfg state. Error: %s", err)
+		return err
+	}
+
+	// if aci mode we allocate per-epg vlan. free it here.
+	aciMode, aErr := IsAciConfigured()
+	if aErr != nil {
+		return aErr
+	}
+
+	if aciMode {
+		if epgCfg.PktTagType == "vlan" {
+			err = gCfg.FreeVLAN(uint(epgCfg.PktTag))
 			if err != nil {
-				log.Errorf("error reading tenant cfg state. Error: %s", err)
 				return err
 			}
-
-			// if aci mode we allocate per-epg vlan. free it here.
-			aciMode, aErr := IsAciConfigured()
-			if aErr != nil {
-				return aErr
-			}
-
-			if aciMode {
-				if epgCfg.PktTagType == "vlan" {
-					err = gCfg.FreeVLAN(uint(epgCfg.PktTag))
-					if err != nil {
-						return err
-					}
-					log.Debugf("Freed vlan %v\n", epgCfg.PktTag)
-				}
-			}
-
-			// Delete endpoint group
-			err = epgCfg.Clear()
-			if err != nil {
-				log.Errorf("error writing epGroup config. Error: %v", err)
-				return err
-			}
-
-			return docknet.DeleteDockNet(epgCfg.TenantName, epgCfg.NetworkName, epgCfg.GroupName)
+			log.Debugf("Freed vlan %v\n", epgCfg.PktTag)
 		}
 	}
 
-	return core.Errorf("EPG not found")
+	// Delete endpoint group
+	err = epgCfg.Clear()
+	if err != nil {
+		log.Errorf("error writing epGroup config. Error: %v", err)
+		return err
+	}
+
+	return docknet.DeleteDockNet(epgCfg.TenantName, epgCfg.NetworkName, epgCfg.GroupName)
 }
