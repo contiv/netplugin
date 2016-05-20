@@ -24,8 +24,10 @@ FROM golang:1.5.1
 MAINTAINER Madhav Puri <mapuri@cisco.com> (@mapuri)
 
 
-ENV http_proxy "http://proxy.esl.cisco.com:8080"
-ENV https_proxy "https://proxy.esl.cisco.com:8080"
+# Insert your proxy server settings if this build is running behind 
+# a proxy.
+#ENV http_proxy ""
+#ENV https_proxy ""
 ENV GOPATH /go/
 
 ENV NET_CONTAINER_BUILD 1
