@@ -25,6 +25,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/docker/libnetwork/ipams/remote/api"
+	"github.com/docker/libnetwork/netlabel"
 )
 
 // getIpamCapability
@@ -78,8 +79,14 @@ func requestPool(w http.ResponseWriter, r *http.Request) {
 
 	// build response
 	PoolID := preq.Pool
-	if tenant, ok := preq.Options["tenant"]; ok {
-		PoolID = preq.Pool + ":" + tenant
+
+	// Docker 1.10+ supports IPAM options. so, we pass the network id as pool-id
+	// In docker 1.9, we pass the address pool back as pool id
+	// HACK alert: This is very fragile. SImplify this when we stop supporting docker 1.9
+	tenant, okt := preq.Options["tenant"]
+	network, okn := preq.Options["network"]
+	if okt && okn {
+		PoolID = network + "." + tenant + ":" + preq.Pool
 	}
 	presp := api.RequestPoolResponse{
 		PoolID: PoolID,
@@ -153,20 +160,39 @@ func requestAddress(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("Received RequestAddressRequest: %+v", areq)
 
+	networkID := ""
+	addrPool := areq.PoolID
+	subnetLen := strings.Split(areq.PoolID, "/")[1]
+
+	// check if pool id contains address pool or network id
+	// HACK alert: This is very fragile. SImplify this when we stop supporting docker 1.9
+	if strings.Contains(areq.PoolID, ":") {
+		addrPool = strings.Split(areq.PoolID, ":")[1]
+		networkID = strings.Split(areq.PoolID, ":")[0]
+	}
+
 	// Build an alloc request to be sent to master
 	allocReq := master.AddressAllocRequest{
-		AddressPool:          areq.PoolID,
+		AddressPool:          addrPool,
+		NetworkID:            networkID,
 		PreferredIPv4Address: areq.Address,
 	}
 
-	//If docker enginer is 1.10+version PoolID will also have
-	subnetLen := strings.Split(areq.PoolID, "/")[1]
-	if strings.Contains(areq.PoolID, ":") {
-		subnetLen = strings.Split(subnetLen, ":")[0]
-	}
-
 	var addr string
-	if areq.Address != "" {
+
+	// check if this request is for gateway
+	reqType, ok := areq.Options["RequestAddressType"]
+	if ok && reqType == netlabel.Gateway {
+		if areq.Address != "" {
+			addr = areq.Address + "/" + subnetLen
+		} else {
+			// simply return a dummy address
+			addr = addrPool
+		}
+	} else if areq.Address != "" {
+		// This is a special case for docker 1.9 gateway request which does not
+		// come with 'RequestAddressType' label
+		// FIXME: Remove this hack when we stop supporting docker 1.9
 		addr = areq.Address + "/" + subnetLen
 	} else {
 		// Make a REST call to master
