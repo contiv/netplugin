@@ -30,8 +30,8 @@ source /etc/profile.d/envvar.sh
 mv /etc/resolv.conf /etc/resolv.conf.bak
 cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
 
-if [[ $# -gt 8 ]] && [[ $9 != "" ]]; then
-    shift; shift; shift; shift; shift; shift; shift; shift
+if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
+    shift; shift; shift; shift; shift; shift; shift; shift; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
@@ -48,7 +48,13 @@ fi
 # Install specific docker version if required
 if [[ $8 != "" ]]; then
     echo "Installing docker version " $8
-    curl https://get.docker.com | sed s/docker-engine/docker-engine-$8/ | bash
+    if [[ $9 == "ubuntu" ]]; then
+        curl https://get.docker.com | sed s/docker-engine/docker-engine=$8-0~vivid/ | bash
+    else
+        # cleanup openstack-kilo repo if required
+        yum-config-manager --disable openstack-kilo
+        curl https://get.docker.com | sed s/docker-engine/docker-engine-$8/ | bash
+    fi
 fi
 # setup docker cluster store
 if [[ $7 == *"consul:"* ]]
@@ -213,7 +219,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
-                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", *ENV['CONTIV_ENV']]
+                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
             end
             if ENV['CONTIV_L3'] then
                 node.vm.provision "shell" do |s|
