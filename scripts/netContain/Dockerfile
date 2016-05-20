@@ -39,6 +39,7 @@ COPY ./netmaster /contiv/bin/
 COPY ./ovsInit.sh /contiv/scripts/
 COPY ./contivInit.sh /contiv/scripts/
 COPY ./contivNet.sh /contiv/scripts/
+COPY ./contivRc /contiv/scripts/
 
 
 ENTRYPOINT ["/contiv/scripts/contivNet.sh"]

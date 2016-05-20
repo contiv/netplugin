@@ -20,7 +20,8 @@ if [ $eexists != 0 ]; then
     exit
 fi
 
-if [ $1 == "reinit" ]; then
+ARG1=${1:-none}
+if [ $ARG1 == "reinit" ]; then
    etcdctl rm -recursive /contiv.io
    etcdctl rm -recursive /docker/network
 fi
@@ -47,7 +48,7 @@ docker rm -f $imgId
 docker rmi -f $imgId
 
 
-dockerBuildIt netContain contivbase
+dockerBuildIt scripts/netContain contivbase
 if [ $? != 0 ]; then
    echo "Failed building Contiv OVS Container Image, Bailing out Err $?"
    exit

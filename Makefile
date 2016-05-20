@@ -39,11 +39,21 @@ deps:
 checks:
 	./scripts/checks "$(PKGS)"
 
+# We cannot perform sudo inside a golang, the only reason to split the rules
+# here
+ifdef NET_CONTAINER_BUILD
 run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
 	GOGC=1500 godep go install -v $(TO_BUILD) && \
-	$(SUDO)cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
+	cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
+else
+run-build: deps checks clean
+	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
+	cd $(GOPATH)/src/github.com/contiv/netplugin && \
+	GOGC=1500 godep go install -v $(TO_BUILD) && \
+	sudo cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
+endif
 
 build:
 	make start
@@ -61,11 +71,11 @@ update:
 
 # setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
 # up a cluster of <number> nodes. By default <number> = 1
-ifeq ($(VAGRANT_SUPPORT), 1)
+ifdef NET_CONTAINER_BUILD
+start:
+else
 start: update
 	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
-else
-start: 
 endif
 
 #kubernetes demo targets
@@ -91,11 +101,11 @@ mesos-docker-destroy:
 demo-ubuntu:
 	CONTIV_NODE_OS=ubuntu make demo
 
-ifeq ($(VAGRANT_SUPPORT), 1)
+ifdef NET_CONTAINER_BUILD
 stop:
-	CONTIV_NODES=$${CONTIV_NODES:-2} vagrant destroy -f
 else
 stop:
+	CONTIV_NODES=$${CONTIV_NODES:-2} vagrant destroy -f
 endif
 
 demo:
@@ -105,12 +115,12 @@ demo:
 ssh:
 	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
 
-ifeq ($(VAGRANT_SUPPORT), 1)
-ssh-build: start
-		vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-else
+ifdef NET_CONTAINER_BUILD
 ssh-build:
 	cd /go/src/github.com/contiv/netplugin && make run-build
+else
+ssh-build: start
+		vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 endif
 
 unit-test: stop clean build
