@@ -176,7 +176,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	remoteEpgID := 0
 	// See if user specified an endpoint Group in the rule
 	if rule.FromEndpointGroup != "" {
-		epgKey := rule.TenantName + ":" + rule.FromNetwork + ":" + rule.FromEndpointGroup
+		epgKey := rule.TenantName + ":" + rule.FromEndpointGroup
 
 		// find the endpoint group
 		epg := contivModel.FindEndpointGroup(epgKey)
@@ -187,7 +187,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 
 		remoteEpgID = epg.EndpointGroupID
 	} else if rule.ToEndpointGroup != "" {
-		epgKey := rule.TenantName + ":" + rule.ToNetwork + ":" + rule.ToEndpointGroup
+		epgKey := rule.TenantName + ":" + rule.ToEndpointGroup
 
 		// find the endpoint group
 		epg := contivModel.FindEndpointGroup(epgKey)

@@ -12,7 +12,7 @@ var AppProfileSummaryView = React.createClass({
 				<ModalTrigger modal={<AppProfileModalView appProfile={ appProfile }/>}>
 					<tr key={ appProfile.key } className="info">
 						
-						    
+						   
 					</tr>
 				</ModalTrigger>
 			);
@@ -24,7 +24,7 @@ var AppProfileSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					    
+					   
 					</tr>
 				</thead>
 				<tbody>
@@ -47,8 +47,6 @@ var AppProfileModalView = React.createClass({
 				<Input type='text' label='Application Profile Name' ref='appProfileName' defaultValue={obj.appProfileName} placeholder='Application Profile Name' />
 			
 				<Input type='text' label='Member groups of the appProf' ref='endpointGroups' defaultValue={obj.endpointGroups} placeholder='Member groups of the appProf' />
-			
-				<Input type='text' label='Network of App Prof' ref='networkName' defaultValue={obj.networkName} placeholder='Network of App Prof' />
 			
 				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			
@@ -280,6 +278,10 @@ var NetworkSummaryView = React.createClass({
 						 
 						<td>{ network.gateway }</td>
 						 
+						<td>{ network.ipv6Gateway }</td>
+						 
+						<td>{ network.ipv6Subnet }</td>
+						 
 						<td>{ network.networkName }</td>
 						 
 						<td>{ network.nwType }</td>
@@ -302,6 +304,8 @@ var NetworkSummaryView = React.createClass({
 					 
 						<th> Encapsulation </th>  
 						<th> Gateway </th>  
+						<th> IPv6Gateway </th>  
+						<th> IPv6Subnet </th>  
 						<th> Network name </th>  
 						<th> Network Type </th>  
 						<th> Vlan/Vxlan Tag </th>  
@@ -328,6 +332,10 @@ var NetworkModalView = React.createClass({
 				<Input type='text' label='Encapsulation' ref='encap' defaultValue={obj.encap} placeholder='Encapsulation' />
 			
 				<Input type='text' label='Gateway' ref='gateway' defaultValue={obj.gateway} placeholder='Gateway' />
+			
+				<Input type='text' label='IPv6Gateway' ref='ipv6Gateway' defaultValue={obj.ipv6Gateway} placeholder='IPv6Gateway' />
+			
+				<Input type='text' label='IPv6Subnet' ref='ipv6Subnet' defaultValue={obj.ipv6Subnet} placeholder='IPv6Subnet' />
 			
 				<Input type='text' label='Network name' ref='networkName' defaultValue={obj.networkName} placeholder='Network name' />
 			
@@ -676,6 +684,71 @@ var ServiceInstanceModalView = React.createClass({
 
 module.exports.ServiceInstanceSummaryView = ServiceInstanceSummaryView
 module.exports.ServiceInstanceModalView = ServiceInstanceModalView
+var ServiceLBSummaryView = React.createClass({
+  	render: function() {
+		var self = this
+
+		// Walk thru all objects
+		var serviceLBListView = self.props.serviceLBs.map(function(serviceLB){
+			return (
+				<ModalTrigger modal={<ServiceLBModalView serviceLB={ serviceLB }/>}>
+					<tr key={ serviceLB.key } className="info">
+						
+						      
+					</tr>
+				</ModalTrigger>
+			);
+		});
+
+		return (
+        <div>
+			<Table hover>
+				<thead>
+					<tr>
+					
+					      
+					</tr>
+				</thead>
+				<tbody>
+            		{ serviceLBListView }
+				</tbody>
+			</Table>
+        </div>
+    	);
+	}
+});
+
+var ServiceLBModalView = React.createClass({
+	render() {
+		var obj = this.props.serviceLB
+	    return (
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='ServiceLB' animation={false}>
+	        <div className='modal-body' style={ {margin: '5%',} }>
+			
+			
+				<Input type='text' label='Service ip' ref='ipAddress' defaultValue={obj.ipAddress} placeholder='Service ip' />
+			
+				<Input type='text' label='Service network name' ref='networkName' defaultValue={obj.networkName} placeholder='Service network name' />
+			
+				<Input type='text' label='service provider port' ref='ports' defaultValue={obj.ports} placeholder='service provider port' />
+			
+				<Input type='text' label='labels key value pair' ref='selectors' defaultValue={obj.selectors} placeholder='labels key value pair' />
+			
+				<Input type='text' label='service name' ref='serviceName' defaultValue={obj.serviceName} placeholder='service name' />
+			
+				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
+			
+			</div>
+	        <div className='modal-footer'>
+				<Button onClick={this.props.onRequestHide}>Close</Button>
+	        </div>
+	      </Modal>
+	    );
+  	}
+});
+
+module.exports.ServiceLBSummaryView = ServiceLBSummaryView
+module.exports.ServiceLBModalView = ServiceLBModalView
 var TenantSummaryView = React.createClass({
   	render: function() {
 		var self = this

@@ -4,7 +4,7 @@
 		{
 			"name": "endpointGroup",
 			"type": "object",
-			"key": [ "tenantName", "networkName", "groupName" ],
+			"key": [ "tenantName", "groupName" ],
 			"properties": {
 				"groupName": {
 					"type": "string",

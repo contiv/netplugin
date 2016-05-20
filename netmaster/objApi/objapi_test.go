@@ -357,7 +357,7 @@ func checkCreateEpg(t *testing.T, expError bool, tenant, network, group string, 
 		t.Fatalf("Create epg {%+v} succeded while expecing error", epg)
 	} else if err == nil {
 		// verify epg is created
-		_, err := contivClient.EndpointGroupGet(tenant, network, group)
+		_, err := contivClient.EndpointGroupGet(tenant, group)
 		if err != nil {
 			t.Fatalf("Error getting epg %s/%s/%s. Err: %v", tenant, network, group, err)
 		}
@@ -366,7 +366,7 @@ func checkCreateEpg(t *testing.T, expError bool, tenant, network, group string, 
 
 // verifyEpgPolicy verifies an EPG policy state
 func verifyEpgPolicy(t *testing.T, tenant, network, group, policy string) {
-	epgKey := tenant + ":" + network + ":" + group
+	epgKey := tenant + ":" + group
 	policyKey := tenant + ":" + policy
 	epgpKey := epgKey + ":" + policyKey
 
@@ -403,7 +403,7 @@ func verifyEpgPolicy(t *testing.T, tenant, network, group, policy string) {
 
 // checkEpgPolicyDeleted verifies EPG policy is deleted
 func checkEpgPolicyDeleted(t *testing.T, tenant, network, group, policy string) {
-	epgKey := tenant + ":" + network + ":" + group
+	epgKey := tenant + ":" + group
 	policyKey := tenant + ":" + policy
 	epgpKey := epgKey + ":" + policyKey
 
@@ -417,16 +417,83 @@ func checkEpgPolicyDeleted(t *testing.T, tenant, network, group, policy string) 
 
 // checkDeleteEpg deletes EPG
 func checkDeleteEpg(t *testing.T, expError bool, tenant, network, group string) {
-	err := contivClient.EndpointGroupDelete(tenant, network, group)
+	err := contivClient.EndpointGroupDelete(tenant, group)
 	if err != nil && !expError {
-		t.Fatalf("Error deleting epg %s/%s/%s. Err: %v", tenant, network, group, err)
+		t.Fatalf("Error deleting epg %s/%s. Err: %v", tenant, group, err)
 	} else if err == nil && expError {
-		t.Fatalf("Delete epg %s/%s/%s succeded while expecing error", tenant, network, group)
+		t.Fatalf("Delete epg %s/%s succeded while expecing error", tenant, group)
 	} else if err == nil {
 		// verify epg is gone
-		_, err := contivClient.EndpointGroupGet(tenant, network, group)
+		_, err := contivClient.EndpointGroupGet(tenant, group)
 		if err == nil {
 			t.Fatalf("EndpointGroup %s/%s/%s not deleted", tenant, network, group)
+		}
+	}
+}
+
+// checkCreateAppProfile creates app-profiles and checks for error
+func checkCreateAppProfile(t *testing.T, expError bool, tenant, profName string, epgs []string) {
+	prof := client.AppProfile{
+		TenantName:     tenant,
+		AppProfileName: profName,
+		EndpointGroups: epgs,
+	}
+	err := contivClient.AppProfilePost(&prof)
+	if err != nil && !expError {
+		t.Fatalf("Error creating AppProfile {%+v}. Err: %v", prof, err)
+	} else if err == nil && expError {
+		t.Fatalf("Create AppProfile {%+v} succeded while expecing error", prof)
+	} else if err == nil {
+		// verify AppProfile is created
+		_, err := contivClient.AppProfileGet(tenant, profName)
+		if err != nil {
+			t.Fatalf("Error getting AppProfile %s/%s. Err: %v", tenant, profName, err)
+		}
+	}
+}
+
+// verifyAppProfile creates app-profiles and checks for error
+func verifyAppProfile(t *testing.T, expError bool, tenant, profName string, epgs []string) {
+	profKey := tenant + ":" + profName
+	prof := contivModel.FindAppProfile(profKey)
+	if prof == nil {
+		if expError {
+			return
+		}
+		t.Fatalf("Error AppProfile %s/%s not found.", tenant, profName)
+	}
+
+	// Verify the epg map
+	if len(epgs) != len(prof.EndpointGroups) {
+		t.Fatalf("Error epgs %v dont match profile %v", epgs, prof.EndpointGroups)
+	}
+
+	epgMap := make(map[string]bool)
+	for _, epg := range epgs {
+		epgMap[epg] = true
+	}
+
+	for _, epg := range prof.EndpointGroups {
+		found, res := epgMap[epg]
+		if !found || !res {
+			t.Fatalf("Error epgs %v dont match profile %v", epgs, prof.EndpointGroups)
+		}
+	}
+
+}
+
+// checkDeleteAppProfile deletes AppProf and looks for error
+func checkDeleteAppProfile(t *testing.T, expError bool, tenant, prof string) {
+	err := contivClient.AppProfileDelete(tenant, prof)
+	if err != nil && !expError {
+		t.Fatalf("Error deleting AppProfile %s/%s. Err: %v", tenant, prof, err)
+	} else if err == nil && expError {
+		t.Fatalf("Delete AppProfile %s/%s succeded while expecing error", tenant, prof)
+	} else if err == nil {
+		// verify AppProfile is gone
+		_, err := contivClient.AppProfileGet(tenant, prof)
+		if err == nil {
+			t.Fatalf("AppProfile %s/%s not deleted", tenant, prof)
 		}
 	}
 }
@@ -593,6 +660,8 @@ func TestPolicyRules(t *testing.T) {
 	checkCreateRule(t, false, "default", "policy1", "3", "out", "", "", "", "contiv", "", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, false, "default", "policy1", "4", "in", "", "", "10.1.1.1/24", "", "", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, false, "default", "policy1", "5", "out", "", "", "", "", "", "10.1.1.1/24", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "6", "in", "", "group1", "", "", "", "", "", "deny", 1, 0)
+	checkCreateRule(t, false, "default", "policy1", "7", "out", "", "", "", "", "group1", "", "tcp", "allow", 1, 80)
 
 	// verify duplicate rule id fails
 	checkCreateRule(t, true, "default", "policy1", "1", "in", "contiv", "", "", "", "", "", "tcp", "allow", 1, 80)
@@ -624,6 +693,9 @@ func TestPolicyRules(t *testing.T) {
 	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "10.1.1.1/24", "", "", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, true, "default", "policy1", "100", "out", "", "", "", "contiv", "", "10.1.1.1/24", "tcp", "allow", 1, 80)
 
+	// verify specifying epg and network fails
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "group1", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "out", "", "", "", "contiv", "group1", "", "tcp", "allow", 1, 80)
 	// checkCreateRule(t, true, tenant, policy, ruleID, dir, fnet, fepg, fip, tnet, tepg, tip, proto, prio, port)
 
 	// delete rules
@@ -632,6 +704,8 @@ func TestPolicyRules(t *testing.T) {
 	checkDeleteRule(t, false, "default", "policy1", "3")
 	checkDeleteRule(t, false, "default", "policy1", "4")
 	checkDeleteRule(t, false, "default", "policy1", "5")
+	checkDeleteRule(t, false, "default", "policy1", "6")
+	checkDeleteRule(t, false, "default", "policy1", "7")
 
 	// verify cant delete a rule and policy that doesnt exist
 	checkDeleteRule(t, true, "default", "policy1", "100")
@@ -660,8 +734,10 @@ func TestEpgPolicies(t *testing.T) {
 
 	// create a policy and rule that matches on other policy
 	checkCreatePolicy(t, false, "default", "policy2")
-	checkCreateRule(t, false, "default", "policy2", "1", "in", "contiv", "group1", "", "", "", "", "tcp", "allow", 1, 80)
-	checkCreateRule(t, false, "default", "policy2", "2", "out", "", "", "", "contiv", "group1", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy2", "1", "in", "", "group1", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy2", "2", "out", "", "", "", "", "group1", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy2", "3", "in", "contiv", "", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy2", "4", "out", "", "", "", "contiv", "", "", "tcp", "allow", 1, 80)
 	checkCreateEpg(t, false, "default", "contiv", "group2", []string{"policy2"})
 	verifyEpgPolicy(t, "default", "contiv", "group2", "policy2")
 
@@ -701,4 +777,29 @@ func TestEpgPolicies(t *testing.T) {
 
 	// delete the network
 	checkDeleteNetwork(t, false, "default", "contiv")
+}
+
+// TestAppProfile tests app-profile REST objects
+func TestAppProfile(t *testing.T) {
+	// Create two networks and 3 epgs
+	checkCreateNetwork(t, false, "default", "net1", "data", "vlan", "10.1.1.1/16", "10.1.1.254", 1)
+	checkCreateNetwork(t, false, "default", "net2", "data", "vlan", "20.1.1.1/16", "20.1.1.254", 2)
+	checkCreateEpg(t, false, "default", "net1", "group1", []string{})
+	checkCreateEpg(t, false, "default", "net1", "group2", []string{})
+	checkCreateEpg(t, false, "default", "net2", "group3", []string{})
+	checkCreateAppProfile(t, false, "default", "profile1", []string{})
+	checkCreateAppProfile(t, false, "default", "profile2", []string{"group1"})
+	checkCreateAppProfile(t, false, "default", "profile3", []string{"group1", "group3"})
+	// Verify epg cant be deleted while part of app profile
+	checkDeleteEpg(t, true, "default", "net1", "group1")
+	verifyAppProfile(t, false, "default", "profile3", []string{"group1", "group3"})
+	checkCreateAppProfile(t, false, "default", "profile3", []string{"group1", "group2", "group3"})
+	verifyAppProfile(t, false, "default", "profile3", []string{"group1", "group2", "group3"})
+	checkCreateAppProfile(t, true, "default", "profile4", []string{"group1", "invalid"})
+	verifyAppProfile(t, true, "default", "profile4", []string{})
+	verifyAppProfile(t, false, "default", "profile2", []string{"group1"})
+	verifyAppProfile(t, false, "default", "profile1", []string{})
+	checkDeleteAppProfile(t, false, "default", "profile1")
+	checkDeleteAppProfile(t, false, "default", "profile2")
+	checkDeleteAppProfile(t, false, "default", "profile3")
 }

@@ -35,16 +35,16 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 		GroupName:   "epgB",
 	}), IsNil)
 
-	cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA.aciNet"})
+	cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA"})
 	c.Assert(err, IsNil)
 
-	cA2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA.aciNet"})
+	cA2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA"})
 	c.Assert(err, IsNil)
 
-	cB1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB.aciNet"})
+	cB1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB"})
 	c.Assert(err, IsNil)
 
-	cB2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB.aciNet"})
+	cB2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB"})
 	c.Assert(err, IsNil)
 
 	// Verify cA1 can ping cA2
@@ -55,7 +55,7 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	c.Assert(cA1.checkPingFailure(cB1.eth0), IsNil)
 
 	c.Assert(s.removeContainers([]*container{cA1, cA2, cB1, cB2}), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("default", "aciNet", "epgA"), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("default", "aciNet", "epgB"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("default", "epgA"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("default", "epgB"), IsNil)
 	c.Assert(s.cli.NetworkDelete("default", "aciNet"), IsNil)
 }

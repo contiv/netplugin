@@ -39,12 +39,12 @@ func getEndpointGroupID(serviceName, networkName, tenantName string) (int, error
 	}
 
 	// form the key based on network and service name.
-	epgKey := tenantName + ":" + networkName + ":" + serviceName
+	epgKey := tenantName + ":" + serviceName
 
 	// See if the epg exists
 	epg := contivModel.FindEndpointGroup(epgKey)
 	if epg == nil {
-		return 0, core.Errorf("EPG not created")
+		return 0, core.Errorf("EPG %s not created", epgKey)
 	}
 
 	// return endpoint group id

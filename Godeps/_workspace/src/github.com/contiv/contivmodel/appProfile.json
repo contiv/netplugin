@@ -4,7 +4,7 @@
 		{
 			"name": "appProfile",
 			"type": "object",
-			"key": [ "tenantName", "networkName", "appProfileName" ],
+			"key": [ "tenantName", "appProfileName" ],
 			"properties": {
 				"appProfileName": {
 					"type": "string",
@@ -14,10 +14,6 @@
 					"type": "array",
 					"items": "string",
 					"title": "Member groups of the appProf"
-				},
-				"networkName": {
-					"type": "string",
-					"title": "Network of App Prof"
 				},
 				"tenantName": {
 					"type": "string",
@@ -32,9 +28,6 @@
 			"links": {
 				"tenant": {
 					"ref": "tenant"
-				},
-				"network": {
-					"ref": "network"
 				}
 			}
 		}

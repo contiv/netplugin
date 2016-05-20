@@ -176,7 +176,6 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 				PolicyName:        srvName,
 				TenantName:        "default",
 				Priority:          100,
-				FromNetwork:       "other",
 				FromEndpointGroup: srvName,
 				Protocol:          "tcp",
 				Port:              8001,
@@ -236,7 +235,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 	c.Assert(s.removeContainers(containers), IsNil)
 
 	for _, group := range groupNames {
-		c.Assert(s.cli.EndpointGroupDelete("default", "other", group), IsNil)
+		c.Assert(s.cli.EndpointGroupDelete("default", group), IsNil)
 		c.Assert(s.cli.PolicyDelete("default", group), IsNil)
 	}
 

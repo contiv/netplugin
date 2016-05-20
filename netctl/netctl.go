@@ -413,10 +413,9 @@ func deleteEndpointGroup(ctx *cli.Context) {
 	argCheck(2, ctx)
 
 	tenant := ctx.String("tenant")
-	network := ctx.Args()[0]
-	group := ctx.Args()[1]
+	group := ctx.Args()[0]
 
-	errCheck(ctx, getClient(ctx).EndpointGroupDelete(tenant, network, group))
+	errCheck(ctx, getClient(ctx).EndpointGroupDelete(tenant, group))
 }
 
 func listEndpointGroups(ctx *cli.Context) {
@@ -615,8 +614,7 @@ func createAppProfile(ctx *cli.Context) {
 	argCheck(2, ctx)
 
 	tenant := ctx.String("tenant")
-	network := ctx.Args()[0]
-	prof := ctx.Args()[1]
+	prof := ctx.Args()[0]
 
 	groups := strings.Split(ctx.String("group"), ",")
 	if ctx.String("group") == "" {
@@ -625,7 +623,6 @@ func createAppProfile(ctx *cli.Context) {
 
 	errCheck(ctx, getClient(ctx).AppProfilePost(&contivClient.AppProfile{
 		TenantName:     tenant,
-		NetworkName:    network,
 		AppProfileName: prof,
 		EndpointGroups: groups,
 	}))
@@ -635,8 +632,7 @@ func updateAppProfile(ctx *cli.Context) {
 	argCheck(2, ctx)
 
 	tenant := ctx.String("tenant")
-	network := ctx.Args()[0]
-	prof := ctx.Args()[1]
+	prof := ctx.Args()[0]
 
 	groups := strings.Split(ctx.String("group"), ",")
 	if ctx.String("group") == "" {
@@ -645,7 +641,6 @@ func updateAppProfile(ctx *cli.Context) {
 
 	errCheck(ctx, getClient(ctx).AppProfilePost(&contivClient.AppProfile{
 		TenantName:     tenant,
-		NetworkName:    network,
 		AppProfileName: prof,
 		EndpointGroups: groups,
 	}))
@@ -655,10 +650,9 @@ func deleteAppProfile(ctx *cli.Context) {
 	argCheck(2, ctx)
 
 	tenant := ctx.String("tenant")
-	network := ctx.Args()[0]
-	prof := ctx.Args()[1]
+	prof := ctx.Args()[0]
 
-	errCheck(ctx, getClient(ctx).AppProfileDelete(tenant, network, prof))
+	errCheck(ctx, getClient(ctx).AppProfileDelete(tenant, prof))
 }
 
 func listAppProfiles(ctx *cli.Context) {
@@ -689,8 +683,8 @@ func listAppProfiles(ctx *cli.Context) {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tAppProfile\tNetwork\tGroups\n"))
-		writer.Write([]byte("------\t-----\t-------\t--------\n"))
+		writer.Write([]byte("Tenant\tAppProfile\tGroups\n"))
+		writer.Write([]byte("------\t-----\t---------\n"))
 		for _, p := range filtered {
 			groups := ""
 			if p.EndpointGroups != nil {
@@ -701,10 +695,9 @@ func listAppProfiles(ctx *cli.Context) {
 				groups = strings.Join(groupList, ",")
 			}
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\n",
 					p.TenantName,
 					p.AppProfileName,
-					p.NetworkName,
 					groups,
 				)))
 		}
@@ -715,10 +708,9 @@ func listAppProfEpgs(ctx *cli.Context) {
 	argCheck(2, ctx)
 
 	tenant := ctx.String("tenant")
-	network := ctx.Args()[0]
-	prof := ctx.Args()[1]
+	prof := ctx.Args()[0]
 
-	p, err := getClient(ctx).AppProfileGet(tenant, network, prof)
+	p, err := getClient(ctx).AppProfileGet(tenant, prof)
 	errCheck(ctx, err)
 	if ctx.Bool("json") {
 		dumpJSONList(ctx, p)

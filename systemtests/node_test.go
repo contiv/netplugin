@@ -143,7 +143,7 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 		netstr = spec.networkName
 
 		if spec.serviceName != "" {
-			netstr = spec.serviceName + "." + netstr
+			netstr = spec.serviceName
 		}
 
 		netstr = "--net=" + netstr

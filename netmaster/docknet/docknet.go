@@ -77,20 +77,22 @@ func (s *OperState) Clear() error {
 }
 
 // GetDocknetName trims default tenant from network name
-func GetDocknetName(tenantName, networkName, serviceName string) string {
-	if tenantName == defaultTenantName {
-		if serviceName == "" {
-			return fmt.Sprintf("%s", networkName)
-		}
+func GetDocknetName(tenantName, networkName, epgName string) string {
 
-		return fmt.Sprintf("%s.%s", serviceName, networkName)
+	netName := ""
+	// if epg is specified, always use that, else use nw
+	if epgName == "" {
+		netName = networkName
+	} else {
+		netName = epgName
 	}
 
-	if serviceName == "" {
-		return fmt.Sprintf("%s/%s", networkName, tenantName)
+	// add tenant suffix if not the default tenant
+	if tenantName != defaultTenantName {
+		netName = netName + "/" + tenantName
 	}
 
-	return fmt.Sprintf("%s.%s/%s", serviceName, networkName, tenantName)
+	return netName
 }
 
 // CreateDockNet Creates a network in docker daemon
