@@ -3,11 +3,12 @@ package systemtests
 import (
 	"fmt"
 
+	"sync"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	. "gopkg.in/check.v1"
-	"sync"
-	"time"
 )
 
 func (s *systemtestSuite) TestInfraNetworkAddDeleteVXLAN(c *C) {
@@ -153,6 +154,81 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 			for i := 0; i < count; i++ {
 				c.Assert(<-endChan, IsNil)
 			}
+		}
+
+		for name := range containers {
+			go func(conts []*container) { endChan <- s.removeContainers(conts) }(containers[name])
+		}
+
+		for range containers {
+			<-endChan
+		}
+
+		for _, netName := range netNames {
+			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
+		}
+	}
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteNoGatewayVXLAN(c *C) {
+	s.testNetworkAddDeleteNoGateway(c, "vxlan")
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteNoGatewayVLAN(c *C) {
+	s.testNetworkAddDeleteNoGateway(c, "vlan")
+}
+func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
+
+	if s.fwdMode == "routing" && encap == "vlan" {
+
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
+	}
+
+	for i := 0; i < s.iterations; i++ {
+		var (
+			netNames   = []string{}
+			containers = map[string][]*container{}
+		)
+
+		numContainer := s.containers
+		if numContainer < 4 {
+			numContainer = 4
+		}
+
+		for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+			network := &client.Network{
+				TenantName:  "default",
+				NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
+				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
+				Encap:       encap,
+			}
+
+			c.Assert(s.cli.NetworkPost(network), IsNil)
+			netNames = append(netNames, network.NetworkName)
+		}
+
+		for _, name := range netNames {
+			var err error
+			containers[name], err = s.runContainers(numContainer, false, name, nil)
+			c.Assert(err, IsNil)
+		}
+
+		if s.fwdMode == "routing" && encap == "vlan" {
+			for _, name := range netNames {
+				s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers[name])
+			}
+		}
+
+		endChan := make(chan error)
+
+		for key, conts := range containers {
+			logrus.Infof("Running ping test for network %q", key)
+			go func(c *C, conts []*container) { endChan <- s.pingTest(conts) }(c, conts)
+		}
+
+		for range containers {
+			c.Assert(<-endChan, IsNil)
 		}
 
 		for name := range containers {
