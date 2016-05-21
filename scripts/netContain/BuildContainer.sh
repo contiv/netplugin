@@ -38,9 +38,9 @@ fi
 docker run --name=$imgId $imgId  2> /dev/null
 
 echo "Copying the Contiv Binaries from the built container"
-docker cp $imgId:/go/bin/netplugin netContain/
-docker cp $imgId:/go/bin/netmaster netContain/
-docker cp $imgId:/go/bin/netctl netContain/
+docker cp $imgId:/go/bin/netplugin scripts/netContain/
+docker cp $imgId:/go/bin/netmaster scripts/netContain/
+docker cp $imgId:/go/bin/netctl scripts/netContain/
 
 
 echo "Removing Intermediate Contiv Container"
