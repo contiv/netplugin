@@ -184,10 +184,10 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 				rule.FromEndpointGroup, rule.FromNetwork, rule.TenantName, err)
 		}
 	} else if rule.ToEndpointGroup != "" {
-		remoteEpgID, err = GetEndpointGroupID(stateStore, rule.ToEndpointGroup, rule.FromNetwork, rule.TenantName)
+		remoteEpgID, err = GetEndpointGroupID(stateStore, rule.ToEndpointGroup, rule.ToNetwork, rule.TenantName)
 		if err != nil {
 			log.Errorf("Error finding endpoint group %s/%s/%s. Err: %v",
-				rule.ToEndpointGroup, rule.FromNetwork, rule.TenantName, err)
+				rule.ToEndpointGroup, rule.ToNetwork, rule.TenantName, err)
 		}
 	} else if rule.FromNetwork != "" {
 		netKey := rule.TenantName + ":" + rule.FromNetwork
