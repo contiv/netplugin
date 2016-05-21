@@ -284,8 +284,7 @@ func (self *OfnetAgent) WaitForSwitchConnection() {
 
 // Receive a packet from the switch.
 func (self *OfnetAgent) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
-	log.Infof("Packet received from switch %v. Packet: %+v", sw.DPID(), pkt)
-	//log.Infof("Input Port: %+v", pkt.Match.Fields[0].Value)
+	log.Debugf("Packet received from switch %v. Packet: %+v", sw.DPID(), pkt)
 
 	// Inform the datapath
 	self.datapath.PacketRcvd(sw, pkt)
