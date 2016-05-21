@@ -34,6 +34,7 @@ import (
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
+	etcdclient "github.com/coreos/etcd/client"
 	"github.com/gorilla/mux"
 )
 
@@ -63,7 +64,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Error initializing state store. Err: %v", err)
 	}
 	// little hack to clear all state from etcd
-	stateStore.(*state.EtcdStateDriver).KeysAPI.Delete(context.Background(), "/contiv.io", nil)
+	stateStore.(*state.EtcdStateDriver).KeysAPI.Delete(context.Background(), "/contiv.io", &etcdclient.DeleteOptions{Recursive: true})
 
 	// Setup resource manager
 	if _, err = resources.NewStateResourceManager(stateStore); err != nil {
@@ -73,7 +74,7 @@ func TestMain(m *testing.M) {
 	router := mux.NewRouter()
 
 	// Create a new api controller
-	apiController = NewAPIController(router, "etcd://127.0.0.1:4001")
+	apiController = NewAPIController(router, "etcd://127.0.0.1:2379")
 
 	ofnetMaster := ofnet.NewOfnetMaster("127.0.0.1", ofnet.OFNET_MASTER_PORT)
 	if ofnetMaster == nil {
@@ -388,11 +389,6 @@ func verifyEpgPolicy(t *testing.T, tenant, network, group, policy string) {
 		t.Fatalf("Error finding EPG policy %s", epgpKey)
 	}
 
-	// verify epg ids
-	if epg.EndpointGroupID != gp.EndpointGroupID {
-		t.Fatalf("EPG policy has incorrect epg-id %d. expecting %d", gp.EndpointGroupID, epg.EndpointGroupID)
-	}
-
 	// verify all rules exist in epg policy
 	for ruleKey := range pol.LinkSets.Rules {
 		if gp.RuleMaps[ruleKey] == nil {
@@ -508,6 +504,8 @@ func TestTenantAddDelete(t *testing.T) {
 	// create a tenant
 	err := contivClient.TenantPost(&tenant)
 	checkError(t, "create tenant", err)
+	err = contivClient.TenantPost(&client.Tenant{TenantName: "tenant-valid"})
+	checkError(t, "create tenant", err)
 
 	// Get the tenant and verify it exists
 	gotTenant, err := contivClient.TenantGet("tenant1")
@@ -517,8 +515,42 @@ func TestTenantAddDelete(t *testing.T) {
 		t.Fatalf("Got invalid tenant name. expecting %s. Got %s", tenant.TenantName, gotTenant.TenantName)
 	}
 
+	// Try creating invalid names and verify we get an error
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant:invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant|invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant\\invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant#invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "-tenant"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant@invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant!invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant~invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant*invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant^invalid"}) == nil {
+		t.Fatalf("tenant create succedded while expecting error")
+	}
+
 	// delete tenant
 	err = contivClient.TenantDelete("tenant1")
+	checkError(t, "delete tenant", err)
+	err = contivClient.TenantDelete("tenant-valid")
 	checkError(t, "delete tenant", err)
 
 	// find again and make sure its gone
@@ -540,12 +572,27 @@ func TestNetworkAddDelete(t *testing.T) {
 	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1)
 	checkDeleteNetwork(t, false, "default", "contiv")
 
+	// Basic network with '-' in the name
+	checkCreateNetwork(t, false, "default", "contiv-valid", "", "vxlan", "10.1.1.1/16", "10.1.1.254", 1)
+	verifyNetworkState(t, "default", "contiv-valid", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1)
+	checkDeleteNetwork(t, false, "default", "contiv-valid")
+
+	// Basic network without gateway
+	checkCreateNetwork(t, false, "default", "contiv-gw", "", "vxlan", "10.1.1.1/16", "", 1)
+	verifyNetworkState(t, "default", "contiv-gw", "data", "vxlan", "10.1.1.1", "", 16, 1, 1)
+	checkDeleteNetwork(t, false, "default", "contiv-gw")
+
 	// Infra vlan network create and delete
 	checkCreateNetwork(t, false, "default", "infraNw", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
 	time.Sleep(time.Second)
 	verifyNetworkState(t, "default", "infraNw", "infra", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0)
 	checkDeleteNetwork(t, false, "default", "infraNw")
 	time.Sleep(time.Second)
+
+	// Try creating network with invalid names
+	checkCreateNetwork(t, true, "default", "contiv:invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, true, "default", "contiv|invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, true, "default", "-invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
 
 	// Try creating network with invalid network type
 	checkCreateNetwork(t, true, "default", "infraNw", "infratest", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
@@ -655,27 +702,27 @@ func TestPolicyRules(t *testing.T) {
 	checkCreatePolicy(t, true, "tenant1", "policy1")
 
 	// add rules
-	checkCreateRule(t, false, "default", "policy1", "1", "in", "contiv", "", "", "", "", "", "tcp", "allow", 1, 80)
-	checkCreateRule(t, false, "default", "policy1", "2", "in", "contiv", "", "", "", "", "", "", "deny", 1, 0)
-	checkCreateRule(t, false, "default", "policy1", "3", "out", "", "", "", "contiv", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "1", "in", "", "", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "2", "in", "", "", "", "", "", "", "", "deny", 1, 0)
+	checkCreateRule(t, false, "default", "policy1", "3", "out", "", "", "", "", "", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, false, "default", "policy1", "4", "in", "", "", "10.1.1.1/24", "", "", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, false, "default", "policy1", "5", "out", "", "", "", "", "", "10.1.1.1/24", "tcp", "allow", 1, 80)
 	checkCreateRule(t, false, "default", "policy1", "6", "in", "", "group1", "", "", "", "", "", "deny", 1, 0)
 	checkCreateRule(t, false, "default", "policy1", "7", "out", "", "", "", "", "group1", "", "tcp", "allow", 1, 80)
 
 	// verify duplicate rule id fails
-	checkCreateRule(t, true, "default", "policy1", "1", "in", "contiv", "", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "1", "in", "", "", "", "", "", "", "tcp", "allow", 1, 80)
 
 	// verify unknown directions fail
 	checkCreateRule(t, true, "default", "policy1", "100", "both", "", "", "", "", "", "", "tcp", "allow", 1, 0)
 	checkCreateRule(t, true, "default", "policy1", "100", "xyz", "", "", "", "", "", "", "tcp", "allow", 1, 0)
 
 	// verify unknown protocol fails
-	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "", "", "", "", "xyz", "allow", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "", "", "", "", "", "", "xyz", "allow", 1, 80)
 
 	// verify unknown action fails
-	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "", "", "", "", "tcp", "xyz", 1, 80)
-	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "", "", "", "", "", "tcp", "accept", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "", "", "", "", "", "", "tcp", "xyz", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "", "", "", "", "", "", "tcp", "accept", 1, 80)
 
 	// verify rule on unknown tenant/policy fails
 	checkCreateRule(t, true, "default", "policy2", "100", "in", "", "", "", "", "", "", "", "allow", 1, 0)
@@ -696,6 +743,14 @@ func TestPolicyRules(t *testing.T) {
 	// verify specifying epg and network fails
 	checkCreateRule(t, true, "default", "policy1", "100", "in", "contiv", "group1", "", "", "", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, true, "default", "policy1", "100", "out", "", "", "", "contiv", "group1", "", "tcp", "allow", 1, 80)
+	// verify cant match on non-existing networks
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "invalid", "", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "out", "", "", "", "invalid", "", "", "tcp", "allow", 1, 80)
+
+	// verify cant match on non-existing EPGs
+	checkCreateRule(t, true, "default", "policy1", "100", "in", "", "invalid", "", "", "", "", "tcp", "allow", 1, 80)
+	checkCreateRule(t, true, "default", "policy1", "100", "out", "", "", "", "", "invalid", "", "tcp", "allow", 1, 80)
+
 	// checkCreateRule(t, true, tenant, policy, ruleID, dir, fnet, fepg, fip, tnet, tepg, tip, proto, prio, port)
 
 	// delete rules
@@ -740,12 +795,6 @@ func TestEpgPolicies(t *testing.T) {
 	checkCreateRule(t, false, "default", "policy2", "4", "out", "", "", "", "contiv", "", "", "tcp", "allow", 1, 80)
 	checkCreateEpg(t, false, "default", "contiv", "group2", []string{"policy2"})
 	verifyEpgPolicy(t, "default", "contiv", "group2", "policy2")
-
-	// verify cant match on non-existing EPGs
-	checkCreateRule(t, true, "default", "policy2", "100", "in", "invalid", "group1", "", "", "", "", "tcp", "allow", 1, 80)
-	checkCreateRule(t, true, "default", "policy2", "100", "in", "contiv", "invalid", "", "", "", "", "tcp", "allow", 1, 80)
-	checkCreateRule(t, true, "default", "policy2", "100", "out", "", "", "", "invalid", "group1", "", "tcp", "allow", 1, 80)
-	checkCreateRule(t, true, "default", "policy2", "100", "out", "", "", "", "contiv", "invalid", "", "tcp", "allow", 1, 80)
 
 	// verify cant create/update EPGs that uses non-existing policies
 	checkCreateEpg(t, true, "default", "contiv", "group3", []string{"invalid"})

@@ -19,6 +19,7 @@ import (
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/utils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -53,8 +54,20 @@ func PolicyAttach(epg *contivModel.EndpointGroup, policy *contivModel.Policy) er
 		return EpgPolicyExists
 	}
 
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		log.Errorf("Could not get StateDriver while attaching policy %+v", policy)
+		return err
+	}
+
+	epgID, err := mastercfg.GetEndpointGroupID(stateDriver, epg.GroupName, epg.NetworkName, epg.TenantName)
+	if err != nil {
+		log.Errorf("Error getting epgID for %s. Err: %v", epgpKey, err)
+		return err
+	}
+
 	// Create the epg policy
-	gp, err := mastercfg.NewEpgPolicy(epgpKey, epg.EndpointGroupID, policy)
+	gp, err = mastercfg.NewEpgPolicy(epgpKey, epgID, policy)
 	if err != nil {
 		log.Errorf("Error creating EPG policy. Err: %v", err)
 		return err

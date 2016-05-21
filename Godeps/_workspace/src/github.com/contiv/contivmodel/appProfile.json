@@ -6,18 +6,28 @@
 			"type": "object",
 			"key": [ "tenantName", "appProfileName" ],
 			"properties": {
+				"tenantName": {
+					"type": "string",
+					"title": "Tenant Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+				},
+				"networkName": {
+					"type": "string",
+					"title": "Network of App Prof",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+				},
 				"appProfileName": {
 					"type": "string",
-					"title": "Application Profile Name"
+					"title": "Application Profile Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
 				},
 				"endpointGroups": {
 					"type": "array",
 					"items": "string",
 					"title": "Member groups of the appProf"
-				},
-				"tenantName": {
-					"type": "string",
-					"title": "Tenant Name"
 				}
 			},
 			"link-sets": {

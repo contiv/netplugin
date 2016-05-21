@@ -6,24 +6,27 @@
 			"type": "object",
 			"key": [ "tenantName", "policyName", "ruleId" ],
 			"properties": {
-				"ruleId": {
+				"tenantName": {
 					"type": "string",
-					"title": "Rule Name",
+					"title": "Tenant Name",
 					"length": 64,
-					"title": "Rule Id",
-					"description": "Rule identifier, unique string to identify the rule within policy",
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
 					"showSummary": true
 				},
 				"policyName": {
 					"type": "string",
 					"title": "Policy Name",
 					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
 					"showSummary": true
 				},
-				"tenantName": {
+				"ruleId": {
 					"type": "string",
-					"title": "Tenant Name",
+					"title": "Rule Name",
 					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+					"title": "Rule Id",
+					"description": "Rule identifier, unique string to identify the rule within policy",
 					"showSummary": true
 				},
 				"direction": {
@@ -44,6 +47,7 @@
 				"fromEndpointGroup": {
 					"type": "string",
 					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$",
 					"title": "From Endpoint Group",
 					"description": "Match from endpoint group. Valid only in incoming direction",
 					"showSummary": true
@@ -51,6 +55,7 @@
 				"toEndpointGroup": {
 					"type": "string",
 					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$",
 					"title": "To Endpoint Group",
 					"description": "Match to endpoint group. Valid only in outoing direction",
 					"showSummary": true
@@ -58,6 +63,7 @@
 				"fromNetwork": {
 					"type": "string",
 					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$",
 					"title": "From Network",
 					"description": "Match from network. Valid only in incoming direction",
 					"showSummary": true
@@ -65,6 +71,7 @@
 				"toNetwork": {
 					"type": "string",
 					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$",
 					"title": "To Network",
 					"description": "Match to network. Valid only in outgoing direction",
 					"showSummary": true
@@ -73,12 +80,14 @@
 					"type": "string",
 					"title": "IP Address",
 					"description": "Match from IP address. Valid only in incoming direction",
+					"format": "^(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?(/(3[0-1]|2[0-9]|1[0-9]|[1-9]))?)?$",
 					"showSummary": true
 				},
 				"toIpAddress": {
 					"type": "string",
 					"title": "IP Address",
 					"description": "Match to IP address. Valid only in outgoing direction",
+					"format": "^(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?(/(3[0-1]|2[0-9]|1[0-9]|[1-9]))?)?$",
 					"showSummary": true
 				},
 				"protocol": {

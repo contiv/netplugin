@@ -105,12 +105,46 @@ class objmodelClient:
 	        errorExit("list AppProfile failed")
 
 	    return json.loads(retData)
+	# Create Bgp
+	def createBgp(self, obj):
+	    postUrl = self.baseUrl + '/api/Bgps/' + obj.hostname  + '/'
+
+	    jdata = json.dumps({ 
+			"as": obj.as, 
+			"hostname": obj.hostname, 
+			"neighbor": obj.neighbor, 
+			"neighbor-as": obj.neighbor-as, 
+			"routerip": obj.routerip, 
+	    })
+
+	    # Post the data
+	    response = httpPost(postUrl, jdata)
+
+	    if response == "Error":
+	        errorExit("Bgp create failure")
+
+	# Delete Bgp
+	def deleteBgp(self, hostname):
+	    # Delete Bgp
+	    deleteUrl = self.baseUrl + '/api/Bgps/' + hostname  + '/'
+	    response = httpDelete(deleteUrl)
+
+	    if response == "Error":
+	        errorExit("Bgp create failure")
+
+	# List all Bgp objects
+	def listBgp(self):
+	    # Get a list of Bgp objects
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/Bgps/')
+	    if retData == "Error":
+	        errorExit("list Bgp failed")
+
+	    return json.loads(retData)
 	# Create endpointGroup
 	def createEndpointGroup(self, obj):
 	    postUrl = self.baseUrl + '/api/endpointGroups/' + obj.tenantName + ":" + obj.groupName  + '/'
 
 	    jdata = json.dumps({ 
-			"endpointGroupId": obj.endpointGroupId, 
 			"groupName": obj.groupName, 
 			"networkName": obj.networkName, 
 			"policies": obj.policies, 
@@ -146,7 +180,7 @@ class objmodelClient:
 
 	    jdata = json.dumps({ 
 			"name": obj.name, 
-			"network-infra-type": obj.network-infra-type, 
+			"networkInfraType": obj.networkInfraType, 
 			"vlans": obj.vlans, 
 			"vxlans": obj.vxlans, 
 	    })
@@ -172,41 +206,6 @@ class objmodelClient:
 	    retDate = urllib2.urlopen(self.baseUrl + '/api/globals/')
 	    if retData == "Error":
 	        errorExit("list Global failed")
-
-	    return json.loads(retData)
-	# Create Bgp
-	def createBgp(self, obj):
-	    postUrl = self.baseUrl + '/api/Bgps/' + obj.hostname  + '/'
-
-	    jdata = json.dumps({ 
-			"as": obj.as, 
-			"hostname": obj.hostname, 
-			"neighbor": obj.neighbor, 
-			"neighbor-as": obj.neighbor-as, 
-			"routerip": obj.routerip, 
-	    })
-
-	    # Post the data
-	    response = httpPost(postUrl, jdata)
-
-	    if response == "Error":
-	        errorExit("Bgp create failure")
-
-	# Delete Bgp
-	def deleteBgp(self, hostname):
-	    # Delete Bgp
-	    deleteUrl = self.baseUrl + '/api/Bgps/' + hostname  + '/'
-	    response = httpDelete(deleteUrl)
-
-	    if response == "Error":
-	        errorExit("Bgp create failure")
-
-	# List all Bgp objects
-	def listBgp(self):
-	    # Get a list of Bgp objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/Bgps/')
-	    if retData == "Error":
-	        errorExit("list Bgp failed")
 
 	    return json.loads(retData)
 	# Create network
@@ -324,81 +323,40 @@ class objmodelClient:
 	        errorExit("list Rule failed")
 
 	    return json.loads(retData)
-	# Create service
-	def createService(self, obj):
-	    postUrl = self.baseUrl + '/api/services/' + obj.tenantName + ":" + obj.appName + ":" + obj.serviceName  + '/'
+	# Create serviceLB
+	def createServiceLB(self, obj):
+	    postUrl = self.baseUrl + '/api/serviceLBs/' + obj.tenantName + ":" + obj.serviceName  + '/'
 
 	    jdata = json.dumps({ 
-			"appName": obj.appName, 
-			"command": obj.command, 
-			"cpu": obj.cpu, 
-			"endpointGroups": obj.endpointGroups, 
-			"environment": obj.environment, 
-			"imageName": obj.imageName, 
-			"memory": obj.memory, 
-			"networks": obj.networks, 
-			"scale": obj.scale, 
+			"ipAddress": obj.ipAddress, 
+			"networkName": obj.networkName, 
+			"ports": obj.ports, 
+			"selectors": obj.selectors, 
 			"serviceName": obj.serviceName, 
 			"tenantName": obj.tenantName, 
-			"volumeProfile": obj.volumeProfile, 
 	    })
 
 	    # Post the data
 	    response = httpPost(postUrl, jdata)
 
 	    if response == "Error":
-	        errorExit("Service create failure")
+	        errorExit("ServiceLB create failure")
 
-	# Delete service
-	def deleteService(self, tenantName, appName, serviceName):
-	    # Delete Service
-	    deleteUrl = self.baseUrl + '/api/services/' + tenantName + ":" + appName + ":" + serviceName  + '/'
+	# Delete serviceLB
+	def deleteServiceLB(self, tenantName, serviceName):
+	    # Delete ServiceLB
+	    deleteUrl = self.baseUrl + '/api/serviceLBs/' + tenantName + ":" + serviceName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
-	        errorExit("Service create failure")
+	        errorExit("ServiceLB create failure")
 
-	# List all service objects
-	def listService(self):
-	    # Get a list of service objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/services/')
+	# List all serviceLB objects
+	def listServiceLB(self):
+	    # Get a list of serviceLB objects
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/serviceLBs/')
 	    if retData == "Error":
-	        errorExit("list Service failed")
-
-	    return json.loads(retData)
-	# Create serviceInstance
-	def createServiceInstance(self, obj):
-	    postUrl = self.baseUrl + '/api/serviceInstances/' + obj.tenantName + ":" + obj.appName + ":" + obj.serviceName + ":" + obj.instanceId  + '/'
-
-	    jdata = json.dumps({ 
-			"appName": obj.appName, 
-			"instanceId": obj.instanceId, 
-			"serviceName": obj.serviceName, 
-			"tenantName": obj.tenantName, 
-			"volumes": obj.volumes, 
-	    })
-
-	    # Post the data
-	    response = httpPost(postUrl, jdata)
-
-	    if response == "Error":
-	        errorExit("ServiceInstance create failure")
-
-	# Delete serviceInstance
-	def deleteServiceInstance(self, tenantName, appName, serviceName, instanceId):
-	    # Delete ServiceInstance
-	    deleteUrl = self.baseUrl + '/api/serviceInstances/' + tenantName + ":" + appName + ":" + serviceName + ":" + instanceId  + '/'
-	    response = httpDelete(deleteUrl)
-
-	    if response == "Error":
-	        errorExit("ServiceInstance create failure")
-
-	# List all serviceInstance objects
-	def listServiceInstance(self):
-	    # Get a list of serviceInstance objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/serviceInstances/')
-	    if retData == "Error":
-	        errorExit("list ServiceInstance failed")
+	        errorExit("list ServiceLB failed")
 
 	    return json.loads(retData)
 	# Create serviceLB

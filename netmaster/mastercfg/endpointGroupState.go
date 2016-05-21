@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 )
 
@@ -26,12 +27,13 @@ import (
 // vlans with ovs. The state is stored as Json objects.
 type EndpointGroupState struct {
 	core.CommonState
-	Name        string `json:"name"`
-	Tenant      string `json:"tenant"`
-	NetworkName string `json:"networkName"`
-	PktTagType  string `json:"pktTagType"`
-	PktTag      int    `json:"pktTag"`
-	ExtPktTag   int    `json:"extPktTag"`
+	GroupName       string `json:"groupName"`
+	TenantName      string `json:"tenantName"`
+	NetworkName     string `json:"networkName"`
+	EndpointGroupID int    `json:"endpointGroupId"`
+	PktTagType      string `json:"pktTagType"`
+	PktTag          int    `json:"pktTag"`
+	ExtPktTag       int    `json:"extPktTag"`
 }
 
 // Write the state.
@@ -61,4 +63,34 @@ func (s *EndpointGroupState) WatchAll(rsps chan core.WatchState) error {
 func (s *EndpointGroupState) Clear() error {
 	key := fmt.Sprintf(epGroupConfigPath, s.ID)
 	return s.StateDriver.ClearState(key)
+}
+
+// GetEndpointGroupKey returns endpoint group key
+func GetEndpointGroupKey(groupName, networkName, tenantName string) string {
+	if groupName == "" || networkName == "" || tenantName == "" {
+		return ""
+	}
+
+	return groupName + ":" + networkName + ":" + tenantName
+}
+
+// GetEndpointGroupID returns endpoint group Id for a service
+// It autocreates the endpoint group if it doesnt exist
+func GetEndpointGroupID(stateDriver core.StateDriver, groupName, networkName, tenantName string) (int, error) {
+	// If service name is not specified, we are done
+	if groupName == "" {
+		return 0, nil
+	}
+
+	epgKey := GetEndpointGroupKey(groupName, networkName, tenantName)
+	cfgEpGroup := &EndpointGroupState{}
+	cfgEpGroup.StateDriver = stateDriver
+	err := cfgEpGroup.Read(epgKey)
+	if err != nil {
+		log.Errorf("Error finding epg: %s. Err: %v", epgKey, err)
+		return 0, core.Errorf("EPG not found")
+	}
+
+	// return endpoint group id
+	return cfgEpGroup.EndpointGroupID, nil
 }

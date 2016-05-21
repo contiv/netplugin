@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/contiv/netplugin",
 	"GoVersion": "go1.5.1",
-	"GodepVersion": "v68",
+	"GodepVersion": "v66",
 	"Packages": [
 		"./..."
 	],
@@ -49,11 +49,11 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
-			"Rev": "1d248eda1a27121dce011656ecde3247827780dc"
+			"Rev": "951f48a871e9f8d19a74956397cebba78ccd6250"
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel/client",
-			"Rev": "1d248eda1a27121dce011656ecde3247827780dc"
+			"Rev": "951f48a871e9f8d19a74956397cebba78ccd6250"
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",

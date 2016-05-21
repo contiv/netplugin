@@ -54,8 +54,6 @@ func NewAPIController(router *mux.Router, storeURL string) *APIController {
 	contivModel.RegisterNetworkCallbacks(ctrler)
 	contivModel.RegisterPolicyCallbacks(ctrler)
 	contivModel.RegisterRuleCallbacks(ctrler)
-	contivModel.RegisterServiceCallbacks(ctrler)
-	contivModel.RegisterServiceInstanceCallbacks(ctrler)
 	contivModel.RegisterTenantCallbacks(ctrler)
 	contivModel.RegisterBgpCallbacks(ctrler)
 	// Register routes
@@ -362,10 +360,6 @@ var globalEpgID = 1
 func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupCreate: %+v", endpointGroup)
 
-	// assign unique endpoint group ids
-	endpointGroup.EndpointGroupID = globalEpgID
-	globalEpgID = globalEpgID + 1
-
 	// Find the tenant
 	tenant := contivModel.FindTenant(endpointGroup.TenantName)
 	if tenant == nil {
@@ -387,8 +381,7 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	}
 
 	// create the endpoint group state
-	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName,
-		endpointGroup.GroupName, endpointGroup.EndpointGroupID)
+	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
 	if err != nil {
 		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
 		return err
@@ -539,6 +532,12 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 	}
 
 	endpointGroupCleanup(endpointGroup)
+	// delete the endpoint group state
+	err := master.DeleteEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+	if err != nil {
+		log.Errorf("Error deleting endpoint group %+v. Err: %v", endpointGroup, err)
+	}
+
 	return nil
 }
 
@@ -761,6 +760,43 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		return errors.New("Invalid direction for the rule")
 	}
 
+	// Make sure endpoint groups and networks referred exists.
+	if rule.FromEndpointGroup != "" {
+		epgKey := rule.TenantName + ":" + rule.FromNetwork + ":" + rule.FromEndpointGroup
+
+		// find the endpoint group
+		epg := contivModel.FindEndpointGroup(epgKey)
+		if epg == nil {
+			log.Errorf("Error finding endpoint group %s", epgKey)
+			return errors.New("endpoint group not found")
+		}
+	} else if rule.ToEndpointGroup != "" {
+		epgKey := rule.TenantName + ":" + rule.ToNetwork + ":" + rule.ToEndpointGroup
+
+		// find the endpoint group
+		epg := contivModel.FindEndpointGroup(epgKey)
+		if epg == nil {
+			log.Errorf("Error finding endpoint group %s", epgKey)
+			return errors.New("endpoint group not found")
+		}
+	} else if rule.FromNetwork != "" {
+		netKey := rule.TenantName + ":" + rule.FromNetwork
+
+		net := contivModel.FindNetwork(netKey)
+		if net == nil {
+			log.Errorf("Network %s not found", netKey)
+			return errors.New("FromNetwork not found")
+		}
+	} else if rule.ToNetwork != "" {
+		netKey := rule.TenantName + ":" + rule.ToNetwork
+
+		net := contivModel.FindNetwork(netKey)
+		if net == nil {
+			log.Errorf("Network %s not found", netKey)
+			return errors.New("ToNetwork not found")
+		}
+	}
+
 	policyKey := rule.TenantName + ":" + rule.PolicyName
 
 	// find the policy
@@ -827,137 +863,6 @@ func (ac *APIController) RuleDelete(rule *contivModel.Rule) error {
 	// Update any affected app profiles
 	syncAppProfile(policy)
 
-	return nil
-}
-
-// ServiceCreate creates service
-func (ac *APIController) ServiceCreate(service *contivModel.Service) error {
-	log.Infof("Received ServiceCreate: %+v", service)
-
-	// check params
-	if (service.TenantName == "") || (service.AppName == "") {
-		return core.Errorf("Invalid parameters")
-	}
-
-	// Make sure tenant exists
-	tenant := contivModel.FindTenant(service.TenantName)
-	if tenant == nil {
-		return core.Errorf("Tenant not found")
-	}
-
-	// Check if user specified any networks
-	if len(service.Networks) == 0 {
-		service.Networks = append(service.Networks, "private")
-	}
-
-	// link service with network
-	for _, netName := range service.Networks {
-		netKey := service.TenantName + ":" + netName
-		network := contivModel.FindNetwork(netKey)
-		if network == nil {
-			log.Errorf("Service: %s could not find network %s", service.Key, netKey)
-			return core.Errorf("Network not found")
-		}
-
-		// Link the network
-		modeldb.AddLinkSet(&service.LinkSets.Networks, network)
-		modeldb.AddLinkSet(&network.LinkSets.Services, service)
-
-		// save the network
-		err := network.Write()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Check if user specified any endpoint group for the service
-	if len(service.EndpointGroups) == 0 {
-		// Create one default endpointGroup per network
-		for _, netName := range service.Networks {
-			// params for default endpoint group
-			dfltEpgName := service.AppName + "." + service.ServiceName + "." + netName
-			endpointGroup := contivModel.EndpointGroup{
-				Key:         service.TenantName + ":" + dfltEpgName,
-				TenantName:  service.TenantName,
-				NetworkName: netName,
-				GroupName:   dfltEpgName,
-			}
-
-			// Create default endpoint group for the service
-			err := contivModel.CreateEndpointGroup(&endpointGroup)
-			if err != nil {
-				log.Errorf("Error creating endpoint group: %+v, Err: %v", endpointGroup, err)
-				return err
-			}
-
-			// Add the endpoint group to the list
-			service.EndpointGroups = append(service.EndpointGroups, dfltEpgName)
-		}
-	}
-
-	// Link the service and endpoint group
-	for _, epgName := range service.EndpointGroups {
-		endpointGroup := contivModel.FindEndpointGroup(service.TenantName + ":" + epgName)
-		if endpointGroup == nil {
-			log.Errorf("Error: could not find endpoint group: %s", epgName)
-			return core.Errorf("could not find endpointGroup")
-		}
-
-		// setup links
-		modeldb.AddLinkSet(&service.LinkSets.EndpointGroups, endpointGroup)
-		modeldb.AddLinkSet(&endpointGroup.LinkSets.Services, service)
-
-		// save the endpointGroup
-		err := endpointGroup.Write()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ServiceUpdate updates service
-func (ac *APIController) ServiceUpdate(service, params *contivModel.Service) error {
-	log.Infof("Received ServiceUpdate: %+v, params: %+v", service, params)
-	return nil
-}
-
-// ServiceDelete deletes service
-func (ac *APIController) ServiceDelete(service *contivModel.Service) error {
-	log.Infof("Received ServiceDelete: %+v", service)
-	return nil
-}
-
-// ServiceInstanceCreate creates a service instance
-func (ac *APIController) ServiceInstanceCreate(serviceInstance *contivModel.ServiceInstance) error {
-	log.Infof("Received ServiceInstanceCreate: %+v", serviceInstance)
-	inst := serviceInstance
-
-	// Find the service
-	serviceKey := inst.TenantName + ":" + inst.AppName + ":" + inst.ServiceName
-	service := contivModel.FindService(serviceKey)
-	if service == nil {
-		log.Errorf("Service %s not found for instance: %+v", serviceKey, inst)
-		return core.Errorf("Service not found")
-	}
-
-	// Add links
-	modeldb.AddLinkSet(&service.LinkSets.Instances, inst)
-	modeldb.AddLink(&inst.Links.Service, service)
-
-	return nil
-}
-
-// ServiceInstanceUpdate updates a service instance
-func (ac *APIController) ServiceInstanceUpdate(serviceInstance, params *contivModel.ServiceInstance) error {
-	log.Infof("Received ServiceInstanceUpdate: %+v, params: %+v", serviceInstance, params)
-	return nil
-}
-
-// ServiceInstanceDelete deletes a service instance
-func (ac *APIController) ServiceInstanceDelete(serviceInstance *contivModel.ServiceInstance) error {
-	log.Infof("Received ServiceInstanceDelete: %+v", serviceInstance)
 	return nil
 }
 
