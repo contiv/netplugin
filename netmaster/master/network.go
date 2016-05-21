@@ -505,7 +505,7 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 		// we need to make sure that the EpCount is incremented only when we are allocating
 		// a new IP. In case of Docker, Mesos CreateEndPoint will already request a IP that
 		// allocateAddress had allocated in the earlier call.
-		nwCfg.EpCount++
+		nwCfg.EpAddrCount++
 
 	} else if reqAddr != "" && nwCfg.SubnetIP != "" {
 		ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
@@ -543,7 +543,7 @@ func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) e
 	// Make sure we decrement the EpCount only if the IPAddress
 	// was not already freed earlier
 	if nwCfg.IPAllocMap.Test(ipAddrValue) {
-		nwCfg.EpCount--
+		nwCfg.EpAddrCount--
 	}
 	nwCfg.IPAllocMap.Clear(ipAddrValue)
 
