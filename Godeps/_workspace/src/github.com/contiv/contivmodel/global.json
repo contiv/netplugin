@@ -8,14 +8,16 @@
 			"properties": {
 				"name": {
 					"type": "string",
-					"title": "name of this block",
+					"title": "name of this block(must be 'global')",
 					"length": 64,
+					"format": "^(global)$",
 					"ShowSummary": true
 				},
-				"network-infra-type": {
+				"networkInfraType": {
 					"type": "string",
 					"title": "Network infrastructure type",
 					"length": 64,
+					"format": "^(aci|aci-opflex|default)?$",
 					"ShowSummary": true
 				},
 				"vlans": {

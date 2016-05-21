@@ -19,8 +19,6 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/contiv/contivmodel"
-	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -29,30 +27,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// getEndpointGroupID returns endpoint group Id for a service
-// It autocreates the endpoint group if it doesnt exist
-func getEndpointGroupID(serviceName, networkName, tenantName string) (int, error) {
-	// If service name is not specified, we are done
-	if serviceName == "" {
-		// FIXME: Need a better way to handle default epg for the network
-		return 0, nil
-	}
+const maxEpgID = 65535
 
-	// form the key based on network and service name.
-	epgKey := tenantName + ":" + networkName + ":" + serviceName
-
-	// See if the epg exists
-	epg := contivModel.FindEndpointGroup(epgKey)
-	if epg == nil {
-		return 0, core.Errorf("EPG not created")
-	}
-
-	// return endpoint group id
-	return epg.EndpointGroupID, nil
-}
+// FIXME: hack to allocate unique endpoint group ids
+var globalEpgID = 1
 
 // CreateEndpointGroup handles creation of endpoint group
-func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) error {
+func CreateEndpointGroup(tenantName, networkName, groupName string) error {
+	var epgID int
+
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
@@ -88,18 +71,35 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 		}
 	}
 
+	// assign unique endpoint group ids
+	// FIXME: This is a hack. need to add a epgID resource
+	for i := 0; i < maxEpgID; i++ {
+		epgID = globalEpgID
+		globalEpgID = globalEpgID + 1
+		if globalEpgID > maxEpgID {
+			globalEpgID = 1
+		}
+		epgCfg := &mastercfg.EndpointGroupState{}
+		epgCfg.StateDriver = stateDriver
+		err = epgCfg.Read(strconv.Itoa(epgID))
+		if err != nil {
+			break
+		}
+	}
+
 	// Create epGroup state
 	epgCfg := &mastercfg.EndpointGroupState{
-		Name:        groupName,
-		Tenant:      tenantName,
-		NetworkName: networkName,
-		PktTagType:  nwCfg.PktTagType,
-		PktTag:      nwCfg.PktTag,
-		ExtPktTag:   nwCfg.ExtPktTag,
+		GroupName:       groupName,
+		TenantName:      tenantName,
+		NetworkName:     networkName,
+		EndpointGroupID: epgID,
+		PktTagType:      nwCfg.PktTagType,
+		PktTag:          nwCfg.PktTag,
+		ExtPktTag:       nwCfg.ExtPktTag,
 	}
 
 	epgCfg.StateDriver = stateDriver
-	epgCfg.ID = strconv.Itoa(epgID)
+	epgCfg.ID = mastercfg.GetEndpointGroupKey(groupName, networkName, tenantName)
 	log.Debugf("##Create EpGroup %v network %v tagtype %v", groupName, networkName, nwCfg.PktTagType)
 
 	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
@@ -133,24 +133,26 @@ func CreateEndpointGroup(tenantName, networkName, groupName string, epgID int) e
 }
 
 // DeleteEndpointGroup handles endpoint group deletes
-func DeleteEndpointGroup(epgID int) error {
+func DeleteEndpointGroup(tenantName, networkName, groupName string) error {
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return err
 	}
 
+	epgKey := mastercfg.GetEndpointGroupKey(groupName, networkName, tenantName)
 	epgCfg := &mastercfg.EndpointGroupState{}
 	epgCfg.StateDriver = stateDriver
-	err = epgCfg.Read(strconv.Itoa(epgID))
+	err = epgCfg.Read(epgKey)
 	if err != nil {
-		log.Errorf("EpGroup %v is not configured", epgID)
+		log.Errorf("error reading EPG key %s. Error: %s", epgKey, err)
 		return err
 	}
 
+	// Delete the endpoint group state
 	gCfg := gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
-	err = gCfg.Read(epgCfg.Tenant)
+	err = gCfg.Read(epgCfg.TenantName)
 	if err != nil {
 		log.Errorf("error reading tenant cfg state. Error: %s", err)
 		return err
@@ -179,5 +181,5 @@ func DeleteEndpointGroup(epgID int) error {
 		return err
 	}
 
-	return docknet.DeleteDockNet(epgCfg.Tenant, epgCfg.NetworkName, epgCfg.Name)
+	return docknet.DeleteDockNet(epgCfg.TenantName, epgCfg.NetworkName, epgCfg.GroupName)
 }

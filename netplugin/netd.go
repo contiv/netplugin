@@ -548,9 +548,6 @@ func main() {
 	// Initialize clustering
 	cluster.Init(netPlugin, opts.ctrlIP, opts.vtepIP, opts.dbURL)
 
-	//logger := log.New(os.Stdout, "go-etcd: ", log.LstdFlags)
-	//etcd.SetLogger(logger)
-
 	if opts.pluginMode == "kubernetes" {
 		k8splugin.InitKubServiceWatch(netPlugin)
 	}

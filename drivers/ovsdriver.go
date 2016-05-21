@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -251,22 +250,28 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 
-	cfgEpGroup := &mastercfg.EndpointGroupState{}
-	cfgEpGroup.StateDriver = d.oper.StateDriver
-	err = cfgEpGroup.Read(strconv.Itoa(cfgEp.EndpointGroupID))
-	if err == nil {
-		log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
-	} else if core.ErrIfKeyExists(err) == nil {
-		log.Infof("%v will use network based tag ", err)
-		cfgEpGroup.PktTagType = cfgNw.PktTagType
-		cfgEpGroup.PktTag = cfgNw.PktTag
-	} else {
-		return err
+	pktTagType := cfgNw.PktTagType
+	pktTag := cfgNw.PktTag
+
+	// Read pkt tags from endpoint group if available
+	if cfgEp.EndpointGroupKey != "" {
+		cfgEpGroup := &mastercfg.EndpointGroupState{}
+		cfgEpGroup.StateDriver = d.oper.StateDriver
+		err = cfgEpGroup.Read(cfgEp.EndpointGroupKey)
+		if err == nil {
+			log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
+			pktTagType = cfgEpGroup.PktTagType
+			pktTag = cfgEpGroup.PktTag
+		} else if core.ErrIfKeyExists(err) == nil {
+			log.Infof("EPG %s not found: %v. will use network based tag ", cfgEp.EndpointGroupKey, err)
+		} else {
+			return err
+		}
 	}
 
 	// Find the switch based on network type
 	var sw *OvsSwitch
-	if cfgEpGroup.PktTagType == "vxlan" {
+	if pktTagType == "vxlan" {
 		sw = d.switchDb["vxlan"]
 	} else {
 		sw = d.switchDb["vlan"]
@@ -287,7 +292,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			log.Printf("Found matching oper state for ep %s, noop", id)
 
 			// Ask the switch to update the port
-			err = sw.UpdatePort(operEp.PortName, cfgEp, cfgEpGroup.PktTag, skipVethPair)
+			err = sw.UpdatePort(operEp.PortName, cfgEp, pktTag, skipVethPair)
 			if err != nil {
 				log.Errorf("Error creating port %s. Err: %v", intfName, err)
 				return err
@@ -312,7 +317,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}
 
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, cfgEpGroup.PktTag, cfgNw.PktTag, skipVethPair)
+	err = sw.CreatePort(intfName, cfgEp, pktTag, cfgNw.PktTag, skipVethPair)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err

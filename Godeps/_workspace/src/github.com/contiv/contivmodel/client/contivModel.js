@@ -63,145 +63,6 @@ var AppProfileModalView = React.createClass({
 
 module.exports.AppProfileSummaryView = AppProfileSummaryView
 module.exports.AppProfileModalView = AppProfileModalView
-var EndpointGroupSummaryView = React.createClass({
-  	render: function() {
-		var self = this
-
-		// Walk thru all objects
-		var endpointGroupListView = self.props.endpointGroups.map(function(endpointGroup){
-			return (
-				<ModalTrigger modal={<EndpointGroupModalView endpointGroup={ endpointGroup }/>}>
-					<tr key={ endpointGroup.key } className="info">
-						
-						  
-						<td>{ endpointGroup.groupName }</td>
-						 
-						<td>{ endpointGroup.networkName }</td>
-						 
-						<td>{ endpointGroup.policies }</td>
-						 
-					</tr>
-				</ModalTrigger>
-			);
-		});
-
-		return (
-        <div>
-			<Table hover>
-				<thead>
-					<tr>
-					
-					  
-						<th> Group name </th>  
-						<th> Network </th>  
-						<th> Policies </th>  
-					</tr>
-				</thead>
-				<tbody>
-            		{ endpointGroupListView }
-				</tbody>
-			</Table>
-        </div>
-    	);
-	}
-});
-
-var EndpointGroupModalView = React.createClass({
-	render() {
-		var obj = this.props.endpointGroup
-	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='EndpointGroup' animation={false}>
-	        <div className='modal-body' style={ {margin: '5%',} }>
-			
-			
-				<Input type='text' label='Group Identifier' ref='endpointGroupId' defaultValue={obj.endpointGroupId} placeholder='Group Identifier' />
-			
-				<Input type='text' label='Group name' ref='groupName' defaultValue={obj.groupName} placeholder='Group name' />
-			
-				<Input type='text' label='Network' ref='networkName' defaultValue={obj.networkName} placeholder='Network' />
-			
-				<Input type='text' label='Policies' ref='policies' defaultValue={obj.policies} placeholder='Policies' />
-			
-				<Input type='text' label='Tenant' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant' />
-			
-			</div>
-	        <div className='modal-footer'>
-				<Button onClick={this.props.onRequestHide}>Close</Button>
-	        </div>
-	      </Modal>
-	    );
-  	}
-});
-
-module.exports.EndpointGroupSummaryView = EndpointGroupSummaryView
-module.exports.EndpointGroupModalView = EndpointGroupModalView
-var GlobalSummaryView = React.createClass({
-  	render: function() {
-		var self = this
-
-		// Walk thru all objects
-		var globalListView = self.props.globals.map(function(global){
-			return (
-				<ModalTrigger modal={<GlobalModalView global={ global }/>}>
-					<tr key={ global.key } className="info">
-						
-						 
-						<td>{ global.name }</td>
-						 
-						<td>{ global.network-infra-type }</td>
-						  
-					</tr>
-				</ModalTrigger>
-			);
-		});
-
-		return (
-        <div>
-			<Table hover>
-				<thead>
-					<tr>
-					
-					 
-						<th> name of this block </th>  
-						<th> Network infrastructure type </th>   
-					</tr>
-				</thead>
-				<tbody>
-            		{ globalListView }
-				</tbody>
-			</Table>
-        </div>
-    	);
-	}
-});
-
-var GlobalModalView = React.createClass({
-	render() {
-		var obj = this.props.global
-	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Global' animation={false}>
-	        <div className='modal-body' style={ {margin: '5%',} }>
-			
-			
-				<Input type='text' label='name of this block' ref='name' defaultValue={obj.name} placeholder='name of this block' />
-			
-				<Input type='text' label='Network infrastructure type' ref='network-infra-type' defaultValue={obj.network-infra-type} placeholder='Network infrastructure type' />
-			
-				<Input type='text' label='Allowed vlan range' ref='vlans' defaultValue={obj.vlans} placeholder='Allowed vlan range' />
-			
-				<Input type='text' label='Allwed vxlan range' ref='vxlans' defaultValue={obj.vxlans} placeholder='Allwed vxlan range' />
-			
-			</div>
-	        <div className='modal-footer'>
-				<Button onClick={this.props.onRequestHide}>Close</Button>
-	        </div>
-	      </Modal>
-	    );
-  	}
-});
-
-module.exports.GlobalSummaryView = GlobalSummaryView
-module.exports.GlobalModalView = GlobalModalView
 var BgpSummaryView = React.createClass({
   	render: function() {
 		var self = this
@@ -265,6 +126,143 @@ var BgpModalView = React.createClass({
 
 module.exports.BgpSummaryView = BgpSummaryView
 module.exports.BgpModalView = BgpModalView
+var EndpointGroupSummaryView = React.createClass({
+  	render: function() {
+		var self = this
+
+		// Walk thru all objects
+		var endpointGroupListView = self.props.endpointGroups.map(function(endpointGroup){
+			return (
+				<ModalTrigger modal={<EndpointGroupModalView endpointGroup={ endpointGroup }/>}>
+					<tr key={ endpointGroup.key } className="info">
+						
+						 
+						<td>{ endpointGroup.groupName }</td>
+						 
+						<td>{ endpointGroup.networkName }</td>
+						 
+						<td>{ endpointGroup.policies }</td>
+						 
+					</tr>
+				</ModalTrigger>
+			);
+		});
+
+		return (
+        <div>
+			<Table hover>
+				<thead>
+					<tr>
+					
+					 
+						<th> Group name </th>  
+						<th> Network </th>  
+						<th> Policies </th>  
+					</tr>
+				</thead>
+				<tbody>
+            		{ endpointGroupListView }
+				</tbody>
+			</Table>
+        </div>
+    	);
+	}
+});
+
+var EndpointGroupModalView = React.createClass({
+	render() {
+		var obj = this.props.endpointGroup
+	    return (
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='EndpointGroup' animation={false}>
+	        <div className='modal-body' style={ {margin: '5%',} }>
+			
+			
+				<Input type='text' label='Group name' ref='groupName' defaultValue={obj.groupName} placeholder='Group name' />
+			
+				<Input type='text' label='Network' ref='networkName' defaultValue={obj.networkName} placeholder='Network' />
+			
+				<Input type='text' label='Policies' ref='policies' defaultValue={obj.policies} placeholder='Policies' />
+			
+				<Input type='text' label='Tenant' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant' />
+			
+			</div>
+	        <div className='modal-footer'>
+				<Button onClick={this.props.onRequestHide}>Close</Button>
+	        </div>
+	      </Modal>
+	    );
+  	}
+});
+
+module.exports.EndpointGroupSummaryView = EndpointGroupSummaryView
+module.exports.EndpointGroupModalView = EndpointGroupModalView
+var GlobalSummaryView = React.createClass({
+  	render: function() {
+		var self = this
+
+		// Walk thru all objects
+		var globalListView = self.props.globals.map(function(global){
+			return (
+				<ModalTrigger modal={<GlobalModalView global={ global }/>}>
+					<tr key={ global.key } className="info">
+						
+						 
+						<td>{ global.name }</td>
+						 
+						<td>{ global.networkInfraType }</td>
+						  
+					</tr>
+				</ModalTrigger>
+			);
+		});
+
+		return (
+        <div>
+			<Table hover>
+				<thead>
+					<tr>
+					
+					 
+						<th> name of this block(must be 'global') </th>  
+						<th> Network infrastructure type </th>   
+					</tr>
+				</thead>
+				<tbody>
+            		{ globalListView }
+				</tbody>
+			</Table>
+        </div>
+    	);
+	}
+});
+
+var GlobalModalView = React.createClass({
+	render() {
+		var obj = this.props.global
+	    return (
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Global' animation={false}>
+	        <div className='modal-body' style={ {margin: '5%',} }>
+			
+			
+				<Input type='text' label='name of this block(must be 'global')' ref='name' defaultValue={obj.name} placeholder='name of this block(must be 'global')' />
+			
+				<Input type='text' label='Network infrastructure type' ref='networkInfraType' defaultValue={obj.networkInfraType} placeholder='Network infrastructure type' />
+			
+				<Input type='text' label='Allowed vlan range' ref='vlans' defaultValue={obj.vlans} placeholder='Allowed vlan range' />
+			
+				<Input type='text' label='Allwed vxlan range' ref='vxlans' defaultValue={obj.vxlans} placeholder='Allwed vxlan range' />
+			
+			</div>
+	        <div className='modal-footer'>
+				<Button onClick={this.props.onRequestHide}>Close</Button>
+	        </div>
+	      </Modal>
+	    );
+  	}
+});
+
+module.exports.GlobalSummaryView = GlobalSummaryView
+module.exports.GlobalModalView = GlobalModalView
 var NetworkSummaryView = React.createClass({
   	render: function() {
 		var self = this
@@ -279,6 +277,10 @@ var NetworkSummaryView = React.createClass({
 						<td>{ network.encap }</td>
 						 
 						<td>{ network.gateway }</td>
+						 
+						<td>{ network.ipv6Gateway }</td>
+						 
+						<td>{ network.ipv6Subnet }</td>
 						 
 						<td>{ network.networkName }</td>
 						 
@@ -302,6 +304,8 @@ var NetworkSummaryView = React.createClass({
 					 
 						<th> Encapsulation </th>  
 						<th> Gateway </th>  
+						<th> IPv6Gateway </th>  
+						<th> IPv6Subnet </th>  
 						<th> Network name </th>  
 						<th> Network Type </th>  
 						<th> Vlan/Vxlan Tag </th>  
@@ -328,6 +332,10 @@ var NetworkModalView = React.createClass({
 				<Input type='text' label='Encapsulation' ref='encap' defaultValue={obj.encap} placeholder='Encapsulation' />
 			
 				<Input type='text' label='Gateway' ref='gateway' defaultValue={obj.gateway} placeholder='Gateway' />
+			
+				<Input type='text' label='IPv6Gateway' ref='ipv6Gateway' defaultValue={obj.ipv6Gateway} placeholder='IPv6Gateway' />
+			
+				<Input type='text' label='IPv6Subnet' ref='ipv6Subnet' defaultValue={obj.ipv6Subnet} placeholder='IPv6Subnet' />
 			
 				<Input type='text' label='Network name' ref='networkName' defaultValue={obj.networkName} placeholder='Network name' />
 			
@@ -536,17 +544,17 @@ var RuleModalView = React.createClass({
 
 module.exports.RuleSummaryView = RuleSummaryView
 module.exports.RuleModalView = RuleModalView
-var ServiceSummaryView = React.createClass({
+var ServiceLBSummaryView = React.createClass({
   	render: function() {
 		var self = this
 
 		// Walk thru all objects
-		var serviceListView = self.props.services.map(function(service){
+		var serviceLBListView = self.props.serviceLBs.map(function(serviceLB){
 			return (
-				<ModalTrigger modal={<ServiceModalView service={ service }/>}>
-					<tr key={ service.key } className="info">
+				<ModalTrigger modal={<ServiceLBModalView serviceLB={ serviceLB }/>}>
+					<tr key={ serviceLB.key } className="info">
 						
-						            
+						      
 					</tr>
 				</ModalTrigger>
 			);
@@ -558,11 +566,11 @@ var ServiceSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					            
+					      
 					</tr>
 				</thead>
 				<tbody>
-            		{ serviceListView }
+            		{ serviceLBListView }
 				</tbody>
 			</Table>
         </div>
@@ -570,37 +578,25 @@ var ServiceSummaryView = React.createClass({
 	}
 });
 
-var ServiceModalView = React.createClass({
+var ServiceLBModalView = React.createClass({
 	render() {
-		var obj = this.props.service
+		var obj = this.props.serviceLB
 	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Service' animation={false}>
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='ServiceLB' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
-				<Input type='text' label='Application Name' ref='appName' defaultValue={obj.appName} placeholder='Application Name' />
+				<Input type='text' label='Service ip' ref='ipAddress' defaultValue={obj.ipAddress} placeholder='Service ip' />
 			
-				<Input type='text' label='' ref='command' defaultValue={obj.command} placeholder='' />
+				<Input type='text' label='Service network name' ref='networkName' defaultValue={obj.networkName} placeholder='Service network name' />
 			
-				<Input type='text' label='' ref='cpu' defaultValue={obj.cpu} placeholder='' />
+				<Input type='text' label='service provider port' ref='ports' defaultValue={obj.ports} placeholder='service provider port' />
 			
-				<Input type='text' label='' ref='endpointGroups' defaultValue={obj.endpointGroups} placeholder='' />
+				<Input type='text' label='labels key value pair' ref='selectors' defaultValue={obj.selectors} placeholder='labels key value pair' />
 			
-				<Input type='text' label='' ref='environment' defaultValue={obj.environment} placeholder='' />
-			
-				<Input type='text' label='' ref='imageName' defaultValue={obj.imageName} placeholder='' />
-			
-				<Input type='text' label='' ref='memory' defaultValue={obj.memory} placeholder='' />
-			
-				<Input type='text' label='' ref='networks' defaultValue={obj.networks} placeholder='' />
-			
-				<Input type='text' label='' ref='scale' defaultValue={obj.scale} placeholder='' />
-			
-				<Input type='text' label='Service Name' ref='serviceName' defaultValue={obj.serviceName} placeholder='Service Name' />
+				<Input type='text' label='service name' ref='serviceName' defaultValue={obj.serviceName} placeholder='service name' />
 			
 				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
-			
-				<Input type='text' label='' ref='volumeProfile' defaultValue={obj.volumeProfile} placeholder='' />
 			
 			</div>
 	        <div className='modal-footer'>
@@ -611,71 +607,8 @@ var ServiceModalView = React.createClass({
   	}
 });
 
-module.exports.ServiceSummaryView = ServiceSummaryView
-module.exports.ServiceModalView = ServiceModalView
-var ServiceInstanceSummaryView = React.createClass({
-  	render: function() {
-		var self = this
-
-		// Walk thru all objects
-		var serviceInstanceListView = self.props.serviceInstances.map(function(serviceInstance){
-			return (
-				<ModalTrigger modal={<ServiceInstanceModalView serviceInstance={ serviceInstance }/>}>
-					<tr key={ serviceInstance.key } className="info">
-						
-						     
-					</tr>
-				</ModalTrigger>
-			);
-		});
-
-		return (
-        <div>
-			<Table hover>
-				<thead>
-					<tr>
-					
-					     
-					</tr>
-				</thead>
-				<tbody>
-            		{ serviceInstanceListView }
-				</tbody>
-			</Table>
-        </div>
-    	);
-	}
-});
-
-var ServiceInstanceModalView = React.createClass({
-	render() {
-		var obj = this.props.serviceInstance
-	    return (
-	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='ServiceInstance' animation={false}>
-	        <div className='modal-body' style={ {margin: '5%',} }>
-			
-			
-				<Input type='text' label='' ref='appName' defaultValue={obj.appName} placeholder='' />
-			
-				<Input type='text' label='Service instance id' ref='instanceId' defaultValue={obj.instanceId} placeholder='Service instance id' />
-			
-				<Input type='text' label='' ref='serviceName' defaultValue={obj.serviceName} placeholder='' />
-			
-				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
-			
-				<Input type='text' label='' ref='volumes' defaultValue={obj.volumes} placeholder='' />
-			
-			</div>
-	        <div className='modal-footer'>
-				<Button onClick={this.props.onRequestHide}>Close</Button>
-	        </div>
-	      </Modal>
-	    );
-  	}
-});
-
-module.exports.ServiceInstanceSummaryView = ServiceInstanceSummaryView
-module.exports.ServiceInstanceModalView = ServiceInstanceModalView
+module.exports.ServiceLBSummaryView = ServiceLBSummaryView
+module.exports.ServiceLBModalView = ServiceLBModalView
 var TenantSummaryView = React.createClass({
   	render: function() {
 		var self = this
