@@ -162,6 +162,56 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 	return containers, nil
 }
 
+func (s *systemtestSuite) runContainersSerial(num int, withService bool, networkName string, names []string) ([]*container, error) {
+	containers := []*container{}
+	mutex := sync.Mutex{}
+
+	if networkName == "" {
+		networkName = "private"
+	}
+
+	for i := 0; i < num; i++ {
+		nodeNum := i % len(s.nodes)
+		var name string
+
+		mutex.Lock()
+		if len(names) > 0 {
+			name = names[0]
+			names = names[1:]
+		}
+		mutex.Unlock()
+
+		if name == "" {
+			name = fmt.Sprintf("%s-srv%d-%d", strings.Replace(networkName, "/", "-", -1), i, nodeNum)
+		}
+
+		var serviceName string
+
+		if withService {
+			serviceName = name
+		}
+
+		spec := containerSpec{
+			imageName:   "alpine",
+			networkName: networkName,
+			name:        name,
+			serviceName: serviceName,
+		}
+
+		cont, err := s.nodes[nodeNum].runContainer(spec)
+		if err != nil {
+			return nil, err
+		}
+
+		mutex.Lock()
+		containers = append(containers, cont)
+		mutex.Unlock()
+
+	}
+
+	return containers, nil
+}
+
 func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName, serviceName string) ([]*container, error) {
 	containers := []*container{}
 	mutex := sync.Mutex{}

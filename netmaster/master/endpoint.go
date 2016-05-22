@@ -113,6 +113,12 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 		}
 	}
 
+	err = nwCfg.IncrEpCount()
+	if err != nil {
+		log.Errorf("Error incrementing ep count. Err: %v", err)
+		return nil, err
+	}
+
 	err = epCfg.Write()
 	if err != nil {
 		log.Errorf("error writing ep config. Error: %s", err)
@@ -158,15 +164,6 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 	return err
 }
 
-func freeEndpointResources(epCfg *mastercfg.CfgEndpointState,
-	nwCfg *mastercfg.CfgNetworkState) error {
-	if epCfg.IPAddress == "" {
-		return nil
-	}
-
-	return networkReleaseAddress(nwCfg, epCfg.IPAddress)
-}
-
 // DeleteEndpointID deletes an endpoint by ID.
 func DeleteEndpointID(stateDriver core.StateDriver, epID string) (*mastercfg.CfgEndpointState, error) {
 	epCfg := &mastercfg.CfgEndpointState{}
@@ -182,16 +179,19 @@ func DeleteEndpointID(stateDriver core.StateDriver, epID string) (*mastercfg.Cfg
 
 	// Network may already be deleted if infra nw
 	// If network present, free up nw resources
-	if err == nil {
-		err = freeEndpointResources(epCfg, nwCfg)
+	if err == nil && epCfg.IPAddress != "" {
+		err = networkReleaseAddress(nwCfg, epCfg.IPAddress)
 		if err != nil {
-			return nil, err
+			log.Errorf("Error releasing endpoint state for: %s. Err: %v", epCfg.IPAddress, err)
 		}
 
+		// decrement ep count
+		nwCfg.EpCount--
+
+		// write modified nw state
 		err = nwCfg.Write()
 		if err != nil {
 			log.Errorf("error writing nw config. Error: %s", err)
-			return nil, err
 		}
 	}
 
@@ -203,57 +203,6 @@ func DeleteEndpointID(stateDriver core.StateDriver, epID string) (*mastercfg.Cfg
 	}
 
 	return epCfg, err
-}
-
-// DeleteEndpoints deletes the endpoints for the tenant.
-func DeleteEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-
-	err := validateEndpointConfig(stateDriver, tenant)
-	if err != nil {
-		log.Errorf("error validating endpoint config: Error: %s", err)
-		return err
-	}
-
-	for _, network := range tenant.Networks {
-		nwCfg := &mastercfg.CfgNetworkState{}
-		nwCfg.StateDriver = stateDriver
-		networkID := network.Name + "." + tenant.Name
-		err = nwCfg.Read(networkID)
-		if err != nil {
-			log.Errorf("error reading network state. Error: %s", err)
-			return err
-		}
-
-		for _, ep := range network.Endpoints {
-			epCfg := &mastercfg.CfgEndpointState{}
-			epCfg.StateDriver = stateDriver
-			epCfg.ID = getEpName(networkID, &ep)
-			err = epCfg.Read(epCfg.ID)
-			if err != nil {
-				log.Errorf("error getting cfg state of ep %s, Error: %s", epCfg.ID, err)
-				continue
-			}
-
-			err = freeEndpointResources(epCfg, nwCfg)
-			if err != nil {
-				continue
-			}
-
-			err = epCfg.Clear()
-			if err != nil {
-				log.Errorf("error writing ep config. Error: %s", err)
-				return err
-			}
-		}
-
-		err = nwCfg.Write()
-		if err != nil {
-			log.Errorf("error writing nw config. Error: %s", err)
-			return err
-		}
-	}
-
-	return err
 }
 
 func validateEpBindings(epBindings *[]intent.ConfigEP) error {
