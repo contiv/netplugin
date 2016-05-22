@@ -52,7 +52,7 @@ func (s *systemtestSuite) TestBgpContainerToContainerPing(c *C) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
@@ -116,7 +116,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 		c.Assert(err, IsNil)
 	}
 
@@ -180,7 +180,7 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -241,7 +241,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
@@ -315,7 +315,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 	endChan := make(chan error)
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -402,7 +402,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
@@ -416,7 +416,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 
 		for _, name := range netNames {
 			for _, cont := range containers[name] {
-				go func(cont *container) { endChan <- cont.stop() }(cont)
+				go func(cont *container) { endChan <- cont.node.exec.stop(cont) }(cont)
 			}
 		}
 
@@ -427,7 +427,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 		}
 		for _, name := range netNames {
 			for _, cont := range containers[name] {
-				go func(cont *container) { endChan <- cont.start() }(cont)
+				go func(cont *container) { endChan <- cont.node.exec.start(cont) }(cont)
 			}
 		}
 
@@ -495,7 +495,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -515,7 +515,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 		time.Sleep(30 * time.Second)
 		c.Assert(node.rotateLog("netplugin"), IsNil)
 		c.Assert(node.startNetplugin(""), IsNil)
-		c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 		time.Sleep(15 * time.Second)
 		s.CheckBgpConnection(c)
 		_, err = s.CheckBgpRouteDistribution(c, allcontainers)
@@ -662,7 +662,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 			c.Assert(err, IsNil)
 			allcontainers = append(allcontainers, containers[name]...)
 		}
@@ -738,7 +738,7 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}
@@ -793,7 +793,7 @@ func (s *systemtestSuite) TestBgpMisconfigRecovery(c *C) {
 
 	for _, name := range netNames {
 		var err error
-		containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+		containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 		c.Assert(err, IsNil)
 		allcontainers = append(allcontainers, containers[name]...)
 	}

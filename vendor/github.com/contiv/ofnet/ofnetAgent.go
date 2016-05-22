@@ -114,7 +114,6 @@ const (
 func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uint16,
 	ovsPort uint16, routerInfo ...string) (*OfnetAgent, error) {
 	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d,%v \n", bridgeName, dpName, localIp, rpcPort, ovsPort, routerInfo)
-
 	agent := new(OfnetAgent)
 
 	// Init params

@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/contiv/netplugin",
 	"GoVersion": "go1.6",
-	"GodepVersion": "v74",
+	"GodepVersion": "v71",
 	"Packages": [
 		"./..."
 	],
@@ -99,7 +99,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/vagrantssh",
-			"Rev": "b5e81e988e7222c887b7e07d8c5d7b8e47ce3afa"
+			"Rev": "873176beee0ae1cdcd5ecefb7009d979419138af"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
@@ -328,19 +328,19 @@
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "c84253c8da7c8146bc6f0e8a942cc8c1d61546d2"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "c84253c8da7c8146bc6f0e8a942cc8c1d61546d2"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "c84253c8da7c8146bc6f0e8a942cc8c1d61546d2"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "c84253c8da7c8146bc6f0e8a942cc8c1d61546d2"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",

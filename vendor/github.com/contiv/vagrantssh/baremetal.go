@@ -36,6 +36,7 @@ type HostInfo struct {
 	SSHPort     string
 	User        string
 	PrivKeyFile string
+	Env         []string
 }
 
 // Baremetal implements a host based testbed
@@ -54,7 +55,7 @@ func (b *Baremetal) setup(hosts []HostInfo) error {
 			node *SSHNode
 			err  error
 		)
-		if node, err = NewSSHNode(h.Name, h.User, h.SSHAddr, h.SSHPort, h.PrivKeyFile); err != nil {
+		if node, err = NewSSHNode(h.Name, h.User, h.Env, h.SSHAddr, h.SSHPort, h.PrivKeyFile); err != nil {
 			return err
 		}
 		b.nodes[node.GetName()] = TestbedNode(node)

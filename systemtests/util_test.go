@@ -17,19 +17,18 @@ import (
 func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*container, port int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
-			if err := cont.checkConnection(cont2.eth0.ip, "tcp", port); err != nil {
+			if err := cont.node.exec.checkConnection(cont, cont2.eth0.ip, "tcp", port); err != nil {
 				return err
 			}
 		}
 	}
-
 	return nil
 }
 
 func (s *systemtestSuite) checkConnectionPairRetry(containers1, containers2 []*container, port, delay, retries int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
-			if err := cont.checkConnectionRetry(cont2.eth0.ip, "tcp", port, delay, retries); err != nil {
+			if err := cont.node.exec.checkConnectionRetry(cont, cont2.eth0.ip, "tcp", port, delay, retries); err != nil {
 				return err
 			}
 		}
@@ -40,7 +39,7 @@ func (s *systemtestSuite) checkConnectionPairRetry(containers1, containers2 []*c
 func (s *systemtestSuite) checkNoConnectionPairRetry(containers1, containers2 []*container, port, delay, retries int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
-			if err := cont.checkNoConnectionRetry(cont2.eth0.ip, "tcp", port, delay, retries); err != nil {
+			if err := cont.node.exec.checkNoConnectionRetry(cont, cont2.eth0.ip, "tcp", port, delay, retries); err != nil {
 				return err
 			}
 		}
@@ -49,17 +48,17 @@ func (s *systemtestSuite) checkNoConnectionPairRetry(containers1, containers2 []
 	return nil
 }
 
-func (s *systemtestSuite) runContainersInGroups(num int, netName string, groupNames []string) (map[*container]string, error) {
+func (s *systemtestSuite) runContainersInGroups(num int, netName string, tenantName string, groupNames []string) (map[*container]string, error) {
 	containers := map[*container]string{}
 	for _, groupName := range groupNames {
 		names := []string{}
 
 		for i := 0; i < num; i++ {
-			names = append(names, fmt.Sprintf("%s-%d", groupName, i))
+			names = append(names, fmt.Sprintf("grp-%s-%d", groupName, i))
 		}
 
 		// XXX we don't use anything but private for this function right now
-		conts, err := s.runContainersInService(num, groupName, netName, names)
+		conts, err := s.runContainersInService(num, groupName, netName, tenantName, names)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +71,7 @@ func (s *systemtestSuite) runContainersInGroups(num int, netName string, groupNa
 	return containers, nil
 }
 
-func (s *systemtestSuite) runContainersInService(num int, serviceName, networkName string, names []string) ([]*container, error) {
+func (s *systemtestSuite) runContainersInService(num int, serviceName, networkName string, tenantName string, names []string) ([]*container, error) {
 	containers := []*container{}
 	mutex := sync.Mutex{}
 
@@ -103,9 +102,10 @@ func (s *systemtestSuite) runContainersInService(num int, serviceName, networkNa
 				networkName: networkName,
 				name:        name,
 				serviceName: serviceName,
+				tenantName:  tenantName,
 			}
 
-			cont, err := s.nodes[nodeNum].runContainer(spec)
+			cont, err := s.nodes[nodeNum].exec.runContainer(spec)
 			if err != nil {
 				errChan <- err
 			}
@@ -127,7 +127,7 @@ func (s *systemtestSuite) runContainersInService(num int, serviceName, networkNa
 	return containers, nil
 }
 
-func (s *systemtestSuite) runContainers(num int, withService bool, networkName string,
+func (s *systemtestSuite) runContainers(num int, withService bool, networkName string, tenantName string,
 	names []string, labels []string) ([]*container, error) {
 	containers := []*container{}
 	mutex := sync.Mutex{}
@@ -165,12 +165,13 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 				networkName: networkName,
 				name:        name,
 				serviceName: serviceName,
+				tenantName:  tenantName,
 			}
 			if len(labels) > 0 {
 				spec.labels = append(spec.labels, labels...)
 			}
 
-			cont, err := s.nodes[nodeNum].runContainer(spec)
+			cont, err := s.nodes[nodeNum].exec.runContainer(spec)
 			if err != nil {
 				errChan <- err
 			}
@@ -192,7 +193,7 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 	return containers, nil
 }
 
-func (s *systemtestSuite) runContainersSerial(num int, withService bool, networkName string, names []string) ([]*container, error) {
+func (s *systemtestSuite) runContainersSerial(num int, withService bool, networkName string, tenantName string, names []string) ([]*container, error) {
 	containers := []*container{}
 	mutex := sync.Mutex{}
 
@@ -226,9 +227,10 @@ func (s *systemtestSuite) runContainersSerial(num int, withService bool, network
 			networkName: networkName,
 			name:        name,
 			serviceName: serviceName,
+			tenantName:  tenantName,
 		}
 
-		cont, err := s.nodes[nodeNum].runContainer(spec)
+		cont, err := s.nodes[nodeNum].exec.runContainer(spec)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +253,7 @@ func randSeq(n int) string {
 	return string(b)
 }
 
-func (s *systemtestSuite) runContainersOnNode(num int, networkName string, n *node) ([]*container, error) {
+func (s *systemtestSuite) runContainersOnNode(num int, networkName, tenantName, groupname string, n *node) ([]*container, error) {
 	containers := []*container{}
 	mutex := sync.Mutex{}
 
@@ -262,10 +264,16 @@ func (s *systemtestSuite) runContainersOnNode(num int, networkName string, n *no
 			spec := containerSpec{
 				imageName:   "alpine",
 				networkName: networkName,
-				name:        fmt.Sprintf("%s-%d-%s", n.Name(), i, randSeq(16)),
+				tenantName:  tenantName,
+				serviceName: groupname,
+			}
+			if groupname == "" {
+				spec.name = strings.ToLower(fmt.Sprintf("%s-%d-%s", n.Name(), i, randSeq(16)))
+			} else {
+				spec.name = fmt.Sprintf("%s-%d-%s", n.Name(), i, groupname)
 			}
 
-			cont, err := n.runContainer(spec)
+			cont, err := n.exec.runContainer(spec)
 			if err != nil {
 				errChan <- err
 			}
@@ -316,13 +324,14 @@ func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName,
 
 			spec := containerSpec{
 				imageName:   "alpine",
-				networkName: docknetName,
+				networkName: networkName,
 				name:        name,
 				serviceName: serviceName,
 				dnsServer:   dnsServer,
+				tenantName:  tenantName,
 			}
 
-			cont, err := s.nodes[nodeNum].runContainer(spec)
+			cont, err := s.nodes[nodeNum].exec.runContainer(spec)
 			if err != nil {
 				errChan <- err
 			}
@@ -358,7 +367,7 @@ func (s *systemtestSuite) pingTest(containers []*container) error {
 
 	for _, cont := range containers {
 		for _, ip := range ips {
-			go func(cont *container, ip string) { errChan <- cont.checkPingWithCount(ip, 3) }(cont, ip)
+			go func(cont *container, ip string) { errChan <- cont.node.exec.checkPingWithCount(cont, ip, 3) }(cont, ip)
 		}
 	}
 
@@ -373,7 +382,7 @@ func (s *systemtestSuite) pingTest(containers []*container) error {
 
 		for _, cont := range containers {
 			for _, ipv6 := range v6ips {
-				go func(cont *container, ipv6 string) { v6errChan <- cont.checkPing6WithCount(ipv6, 2) }(cont, ipv6)
+				go func(cont *container, ipv6 string) { v6errChan <- cont.node.exec.checkPing6WithCount(cont, ipv6, 2) }(cont, ipv6)
 			}
 		}
 
@@ -392,7 +401,7 @@ func (s *systemtestSuite) pingTestByName(containers []*container, hostName strin
 	errChan := make(chan error, len(containers))
 
 	for _, cont := range containers {
-		go func(cont *container, hostName string) { errChan <- cont.checkPing(hostName) }(cont, hostName)
+		go func(cont *container, hostName string) { errChan <- cont.node.exec.checkPing(cont, hostName) }(cont, hostName)
 	}
 
 	for i := 0; i < len(containers); i++ {
@@ -409,7 +418,9 @@ func (s *systemtestSuite) pingFailureTest(containers1 []*container, containers2 
 
 	for _, cont1 := range containers1 {
 		for _, cont2 := range containers2 {
-			go func(cont1 *container, cont2 *container) { errChan <- cont1.checkPingFailure(cont2.eth0.ip) }(cont1, cont2)
+			go func(cont1 *container, cont2 *container) {
+				errChan <- cont1.node.exec.checkPingFailure(cont1, cont2.eth0.ip)
+			}(cont1, cont2)
 		}
 	}
 
@@ -425,7 +436,7 @@ func (s *systemtestSuite) pingFailureTest(containers1 []*container, containers2 
 func (s *systemtestSuite) removeContainers(containers []*container) error {
 	errChan := make(chan error, len(containers))
 	for _, cont := range containers {
-		go func(cont *container) { errChan <- cont.rm() }(cont)
+		go func(cont *container) { errChan <- cont.node.exec.rm(cont) }(cont)
 	}
 
 	for range containers {
@@ -442,7 +453,7 @@ func (s *systemtestSuite) startListeners(containers []*container, ports []int) e
 
 	for _, cont := range containers {
 		for _, port := range ports {
-			go func(cont *container, port int) { errChan <- cont.startListener(port, "tcp") }(cont, port)
+			go func(cont *container, port int) { errChan <- cont.node.exec.startListener(cont, port, "tcp") }(cont, port)
 		}
 	}
 
@@ -469,7 +480,9 @@ func (s *systemtestSuite) checkConnections(containers []*container, port int) er
 				continue
 			}
 
-			go func(cont *container, ip string, port int) { endChan <- cont.checkConnection(ip, "tcp", port) }(cont, ip, port)
+			go func(cont *container, ip string, port int) {
+				endChan <- cont.node.exec.checkConnection(cont, ip, "tcp", port)
+			}(cont, ip, port)
 		}
 	}
 
@@ -496,7 +509,9 @@ func (s *systemtestSuite) checkNoConnections(containers []*container, port int) 
 				continue
 			}
 
-			go func(cont *container, ip string, port int) { endChan <- cont.checkNoConnection(ip, "tcp", port) }(cont, ip, port)
+			go func(cont *container, ip string, port int) {
+				endChan <- cont.node.exec.checkNoConnection(cont, ip, "tcp", port)
+			}(cont, ip, port)
 		}
 	}
 
@@ -524,7 +539,7 @@ func (s *systemtestSuite) checkConnectionsAcrossGroup(containers map[*container]
 		for group2, conts := range groups {
 			if group != group2 {
 				for _, cont := range conts {
-					err := cont1.checkConnection(cont.eth0.ip, "tcp", port)
+					err := cont1.node.exec.checkConnection(cont1, cont.eth0.ip, "tcp", port)
 					if !expFail && err != nil {
 						return err
 					}
@@ -551,7 +566,7 @@ func (s *systemtestSuite) checkConnectionsWithinGroup(containers map[*container]
 		for group2, conts := range groups {
 			if group == group2 {
 				for _, cont := range conts {
-					if err := cont1.checkConnection(cont.eth0.ip, "tcp", port); err != nil {
+					if err := cont1.node.exec.checkConnection(cont1, cont.eth0.ip, "tcp", port); err != nil {
 						return err
 					}
 				}
@@ -577,7 +592,7 @@ func (s *systemtestSuite) checkPingContainersInNetworks(containers map[*containe
 		for network2, conts := range networks {
 			if network2 == network {
 				for _, cont := range conts {
-					if err := cont1.checkPing(cont.eth0.ip); err != nil {
+					if err := cont1.node.exec.checkPing(cont1, cont.eth0.ip); err != nil {
 						return err
 					}
 				}
@@ -628,7 +643,9 @@ func (s *systemtestSuite) pingFailureTestDifferentNode(containers1 []*container,
 	for _, cont1 := range containers1 {
 		for _, cont2 := range containers2 {
 			if cont1.node != cont2.node {
-				go func(cont1 *container, cont2 *container) { errChan <- cont1.checkPingFailure(cont2.eth0.ip) }(cont1, cont2)
+				go func(cont1 *container, cont2 *container) {
+					errChan <- cont1.node.exec.checkPingFailure(cont1, cont2.eth0.ip)
+				}(cont1, cont2)
 			}
 		}
 	}
@@ -648,7 +665,7 @@ func (s *systemtestSuite) pingTestToNonContainer(containers []*container, nonCon
 
 	for _, cont := range containers {
 		for _, ip := range nonContIps {
-			go func(cont *container, ip string) { errChan <- cont.checkPing(ip) }(cont, ip)
+			go func(cont *container, ip string) { errChan <- cont.node.exec.checkPingWithCount(cont, ip, 3) }(cont, ip)
 		}
 	}
 
@@ -760,7 +777,7 @@ func (s *systemtestSuite) checkConnectionToService(containers []*container, ips 
 
 	for _, cont := range containers {
 		for _, ip := range ips {
-			if err := cont.checkConnection(ip, "tcp", port); err != nil {
+			if err := cont.node.exec.checkConnection(cont, ip, "tcp", port); err != nil {
 				return err
 			}
 		}
@@ -783,7 +800,7 @@ func (s *systemtestSuite) startListenersOnProviders(containers []*container, por
 
 	for _, cont := range containers {
 		for _, port := range portList {
-			go func(cont *container, port int) { errChan <- cont.startListener(port, "tcp") }(cont, port)
+			go func(cont *container, port int) { errChan <- cont.node.exec.startListener(cont, port, "tcp") }(cont, port)
 		}
 	}
 
@@ -802,6 +819,9 @@ func (s *systemtestSuite) verifyVTEPs() error {
 
 	expVTEPs := make(map[string]bool)
 	for _, n := range s.nodes {
+		if s.scheduler == "k8" && n.Name() == "k8master" {
+			continue
+		}
 		vtep, err := n.getIPAddr("eth1")
 		if err != nil {
 			logrus.Errorf("Error getting eth1 IP address for node %s", n.Name())
@@ -816,6 +836,9 @@ func (s *systemtestSuite) verifyVTEPs() error {
 	dbgOut := ""
 	for try := 0; try < 20; try++ {
 		for _, n := range s.nodes {
+			if n.Name() == "k8master" {
+				continue
+			}
 			dbgOut, err = n.verifyVTEPs(expVTEPs)
 			if err != nil {
 				failNode = n.Name()
@@ -824,7 +847,6 @@ func (s *systemtestSuite) verifyVTEPs() error {
 		}
 
 		if err == nil {
-			logrus.Info("VTEPs %+v verified on all nodes", expVTEPs)
 			return nil
 		}
 		time.Sleep(1 * time.Second)
@@ -848,6 +870,9 @@ func (s *systemtestSuite) verifyEPs(containers []*container) error {
 	dbgOut := ""
 	for try := 0; try < 20; try++ {
 		for _, n := range s.nodes {
+			if n.Name() == "k8master" {
+				continue
+			}
 			dbgOut, err = n.verifyEPs(epList)
 			if err != nil {
 				break
