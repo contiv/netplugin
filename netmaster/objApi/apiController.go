@@ -311,7 +311,7 @@ func (ac *APIController) AppProfileDelete(prof *contivModel.AppProfile) error {
 // Cleans up state off endpointGroup and related objects.
 func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) {
 	// delete the endpoint group state
-	err := master.DeleteEndpointGroup(endpointGroup.EndpointGroupID)
+	err := master.DeleteEndpointGroup(endpointGroup.TenantName, endpointGroup.GroupName)
 	if err != nil {
 		log.Errorf("Error deleting endpoint group %+v. Err: %v", endpointGroup, err)
 	}
@@ -532,12 +532,6 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 	}
 
 	endpointGroupCleanup(endpointGroup)
-	// delete the endpoint group state
-	err := master.DeleteEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
-	if err != nil {
-		log.Errorf("Error deleting endpoint group %+v. Err: %v", endpointGroup, err)
-	}
-
 	return nil
 }
 
@@ -762,7 +756,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 
 	// Make sure endpoint groups and networks referred exists.
 	if rule.FromEndpointGroup != "" {
-		epgKey := rule.TenantName + ":" + rule.FromNetwork + ":" + rule.FromEndpointGroup
+		epgKey := rule.TenantName + ":" + rule.FromEndpointGroup
 
 		// find the endpoint group
 		epg := contivModel.FindEndpointGroup(epgKey)
@@ -771,7 +765,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 			return errors.New("endpoint group not found")
 		}
 	} else if rule.ToEndpointGroup != "" {
-		epgKey := rule.TenantName + ":" + rule.ToNetwork + ":" + rule.ToEndpointGroup
+		epgKey := rule.TenantName + ":" + rule.ToEndpointGroup
 
 		// find the endpoint group
 		epg := contivModel.FindEndpointGroup(epgKey)

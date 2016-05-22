@@ -180,25 +180,6 @@ type ServiceLBLinks struct {
 	Tenant  modeldb.Link `json:"Tenant,omitempty"`
 }
 
-type ServiceLB struct {
-	// every object has a key
-	Key string `json:"key,omitempty"`
-
-	IpAddress   string   `json:"ipAddress,omitempty"`   // Service ip
-	NetworkName string   `json:"networkName,omitempty"` // Service network name
-	Ports       []string `json:"ports,omitempty"`
-	Selectors   []string `json:"selectors,omitempty"`
-	ServiceName string   `json:"serviceName,omitempty"` // service name
-	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
-
-	Links ServiceLBLinks `json:"links,omitempty"`
-}
-
-type ServiceLBLinks struct {
-	Network modeldb.Link `json:"Network,omitempty"`
-	Tenant  modeldb.Link `json:"Tenant,omitempty"`
-}
-
 type Tenant struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -332,12 +313,6 @@ type ServiceLBCallbacks interface {
 	ServiceLBDelete(serviceLB *ServiceLB) error
 }
 
-type ServiceLBCallbacks interface {
-	ServiceLBCreate(serviceLB *ServiceLB) error
-	ServiceLBUpdate(serviceLB, params *ServiceLB) error
-	ServiceLBDelete(serviceLB *ServiceLB) error
-}
-
 type TenantCallbacks interface {
 	TenantCreate(tenant *Tenant) error
 	TenantUpdate(tenant, params *Tenant) error
@@ -425,10 +400,6 @@ func RegisterPolicyCallbacks(handler PolicyCallbacks) {
 
 func RegisterRuleCallbacks(handler RuleCallbacks) {
 	objCallbackHandler.RuleCb = handler
-}
-
-func RegisterServiceLBCallbacks(handler ServiceLBCallbacks) {
-	objCallbackHandler.ServiceLBCb = handler
 }
 
 func RegisterServiceLBCallbacks(handler ServiceLBCallbacks) {
@@ -555,16 +526,6 @@ func AddRoutes(router *mux.Router) {
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateRule))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateRule))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteRule))
-
-	// Register serviceLB
-	route = "/api/serviceLBs/{key}/"
-	listRoute = "/api/serviceLBs/"
-	log.Infof("Registering %s", route)
-	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListServiceLBs))
-	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetServiceLB))
-	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateServiceLB))
-	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateServiceLB))
-	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteServiceLB))
 
 	// Register serviceLB
 	route = "/api/serviceLBs/{key}/"
@@ -851,15 +812,6 @@ func ValidateAppProfile(obj *AppProfile) error {
 	appProfileNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
 	if appProfileNameMatch.MatchString(obj.AppProfileName) == false {
 		return errors.New("appProfileName string invalid format")
-	}
-
-	if len(obj.NetworkName) > 64 {
-		return errors.New("networkName string too long")
-	}
-
-	networkNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
-	if networkNameMatch.MatchString(obj.NetworkName) == false {
-		return errors.New("networkName string invalid format")
 	}
 
 	if len(obj.TenantName) > 64 {
@@ -1376,7 +1328,7 @@ func restoreEndpointGroup() error {
 // Validate a endpointGroup object
 func ValidateEndpointGroup(obj *EndpointGroup) error {
 	// Validate key is correct
-	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.GroupName
+	keyStr := obj.TenantName + ":" + obj.GroupName
 	if obj.Key != keyStr {
 		log.Errorf("Expecting EndpointGroup Key: %s. Got: %s", keyStr, obj.Key)
 		return errors.New("Invalid Key")
@@ -2846,261 +2798,6 @@ func ValidateServiceLB(obj *ServiceLB) error {
 	tenantNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
 	if tenantNameMatch.MatchString(obj.TenantName) == false {
 		return errors.New("tenantName string invalid format")
-	}
-
-	return nil
-}
-
-// LIST REST call
-func httpListServiceLBs(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
-	log.Debugf("Received httpListServiceLBs: %+v", vars)
-
-	list := make([]*ServiceLB, 0)
-	for _, obj := range collections.serviceLBs {
-		list = append(list, obj)
-	}
-
-	// Return the list
-	return list, nil
-}
-
-// GET REST call
-func httpGetServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
-	log.Debugf("Received httpGetServiceLB: %+v", vars)
-
-	key := vars["key"]
-
-	obj := collections.serviceLBs[key]
-	if obj == nil {
-		log.Errorf("serviceLB %s not found", key)
-		return nil, errors.New("serviceLB not found")
-	}
-
-	// Return the obj
-	return obj, nil
-}
-
-// CREATE REST call
-func httpCreateServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
-	log.Debugf("Received httpGetServiceLB: %+v", vars)
-
-	var obj ServiceLB
-	key := vars["key"]
-
-	// Get object from the request
-	err := json.NewDecoder(r.Body).Decode(&obj)
-	if err != nil {
-		log.Errorf("Error decoding serviceLB create request. Err %v", err)
-		return nil, err
-	}
-
-	// set the key
-	obj.Key = key
-
-	// Create the object
-	err = CreateServiceLB(&obj)
-	if err != nil {
-		log.Errorf("CreateServiceLB error for: %+v. Err: %v", obj, err)
-		return nil, err
-	}
-
-	// Return the obj
-	return obj, nil
-}
-
-// DELETE rest call
-func httpDeleteServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
-	log.Debugf("Received httpDeleteServiceLB: %+v", vars)
-
-	key := vars["key"]
-
-	// Delete the object
-	err := DeleteServiceLB(key)
-	if err != nil {
-		log.Errorf("DeleteServiceLB error for: %s. Err: %v", key, err)
-		return nil, err
-	}
-
-	// Return the obj
-	return key, nil
-}
-
-// Create a serviceLB object
-func CreateServiceLB(obj *ServiceLB) error {
-	// Validate parameters
-	err := ValidateServiceLB(obj)
-	if err != nil {
-		log.Errorf("ValidateServiceLB retruned error for: %+v. Err: %v", obj, err)
-		return err
-	}
-
-	// Check if we handle this object
-	if objCallbackHandler.ServiceLBCb == nil {
-		log.Errorf("No callback registered for serviceLB object")
-		return errors.New("Invalid object type")
-	}
-
-	saveObj := obj
-
-	// Check if object already exists
-	if collections.serviceLBs[obj.Key] != nil {
-		// Perform Update callback
-		err = objCallbackHandler.ServiceLBCb.ServiceLBUpdate(collections.serviceLBs[obj.Key], obj)
-		if err != nil {
-			log.Errorf("ServiceLBUpdate retruned error for: %+v. Err: %v", obj, err)
-			return err
-		}
-
-		// save the original object after update
-		saveObj = collections.serviceLBs[obj.Key]
-	} else {
-		// save it in cache
-		collections.serviceLBs[obj.Key] = obj
-
-		// Perform Create callback
-		err = objCallbackHandler.ServiceLBCb.ServiceLBCreate(obj)
-		if err != nil {
-			log.Errorf("ServiceLBCreate retruned error for: %+v. Err: %v", obj, err)
-			delete(collections.serviceLBs, obj.Key)
-			return err
-		}
-	}
-
-	// Write it to modeldb
-	err = saveObj.Write()
-	if err != nil {
-		log.Errorf("Error saving serviceLB %s to db. Err: %v", saveObj.Key, err)
-		return err
-	}
-
-	return nil
-}
-
-// Return a pointer to serviceLB from collection
-func FindServiceLB(key string) *ServiceLB {
-	obj := collections.serviceLBs[key]
-	if obj == nil {
-		return nil
-	}
-
-	return obj
-}
-
-// Delete a serviceLB object
-func DeleteServiceLB(key string) error {
-	obj := collections.serviceLBs[key]
-	if obj == nil {
-		log.Errorf("serviceLB %s not found", key)
-		return errors.New("serviceLB not found")
-	}
-
-	// Check if we handle this object
-	if objCallbackHandler.ServiceLBCb == nil {
-		log.Errorf("No callback registered for serviceLB object")
-		return errors.New("Invalid object type")
-	}
-
-	// Perform callback
-	err := objCallbackHandler.ServiceLBCb.ServiceLBDelete(obj)
-	if err != nil {
-		log.Errorf("ServiceLBDelete retruned error for: %+v. Err: %v", obj, err)
-		return err
-	}
-
-	// delete it from modeldb
-	err = obj.Delete()
-	if err != nil {
-		log.Errorf("Error deleting serviceLB %s. Err: %v", obj.Key, err)
-	}
-
-	// delete it from cache
-	delete(collections.serviceLBs, key)
-
-	return nil
-}
-
-func (self *ServiceLB) GetType() string {
-	return "serviceLB"
-}
-
-func (self *ServiceLB) GetKey() string {
-	return self.Key
-}
-
-func (self *ServiceLB) Read() error {
-	if self.Key == "" {
-		log.Errorf("Empty key while trying to read serviceLB object")
-		return errors.New("Empty key")
-	}
-
-	return modeldb.ReadObj("serviceLB", self.Key, self)
-}
-
-func (self *ServiceLB) Write() error {
-	if self.Key == "" {
-		log.Errorf("Empty key while trying to Write serviceLB object")
-		return errors.New("Empty key")
-	}
-
-	return modeldb.WriteObj("serviceLB", self.Key, self)
-}
-
-func (self *ServiceLB) Delete() error {
-	if self.Key == "" {
-		log.Errorf("Empty key while trying to Delete serviceLB object")
-		return errors.New("Empty key")
-	}
-
-	return modeldb.DeleteObj("serviceLB", self.Key)
-}
-
-func restoreServiceLB() error {
-	strList, err := modeldb.ReadAllObj("serviceLB")
-	if err != nil {
-		log.Errorf("Error reading serviceLB list. Err: %v", err)
-	}
-
-	for _, objStr := range strList {
-		// Parse the json model
-		var serviceLB ServiceLB
-		err = json.Unmarshal([]byte(objStr), &serviceLB)
-		if err != nil {
-			log.Errorf("Error parsing object %s, Err %v", objStr, err)
-			return err
-		}
-
-		// add it to the collection
-		collections.serviceLBs[serviceLB.Key] = &serviceLB
-	}
-
-	return nil
-}
-
-// Validate a serviceLB object
-func ValidateServiceLB(obj *ServiceLB) error {
-	// Validate key is correct
-	keyStr := obj.TenantName + ":" + obj.ServiceName
-	if obj.Key != keyStr {
-		log.Errorf("Expecting ServiceLB Key: %s. Got: %s", keyStr, obj.Key)
-		return errors.New("Invalid Key")
-	}
-
-	// Validate each field
-
-	if len(obj.IpAddress) > 15 {
-		return errors.New("ipAddress string too long")
-	}
-
-	if len(obj.NetworkName) > 64 {
-		return errors.New("networkName string too long")
-	}
-
-	if len(obj.ServiceName) > 256 {
-		return errors.New("serviceName string too long")
-	}
-
-	if len(obj.TenantName) > 64 {
-		return errors.New("tenantName string too long")
 	}
 
 	return nil

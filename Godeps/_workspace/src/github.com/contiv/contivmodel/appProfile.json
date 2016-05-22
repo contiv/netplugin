@@ -12,12 +12,6 @@
 					"length": 64,
 					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
 				},
-				"networkName": {
-					"type": "string",
-					"title": "Network of App Prof",
-					"length": 64,
-					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
-				},
 				"appProfileName": {
 					"type": "string",
 					"title": "Application Profile Name",

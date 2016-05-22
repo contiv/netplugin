@@ -66,23 +66,23 @@ func (s *EndpointGroupState) Clear() error {
 }
 
 // GetEndpointGroupKey returns endpoint group key
-func GetEndpointGroupKey(groupName, networkName, tenantName string) string {
-	if groupName == "" || networkName == "" || tenantName == "" {
+func GetEndpointGroupKey(groupName, tenantName string) string {
+	if groupName == "" || tenantName == "" {
 		return ""
 	}
 
-	return groupName + ":" + networkName + ":" + tenantName
+	return groupName + ":" + tenantName
 }
 
 // GetEndpointGroupID returns endpoint group Id for a service
 // It autocreates the endpoint group if it doesnt exist
-func GetEndpointGroupID(stateDriver core.StateDriver, groupName, networkName, tenantName string) (int, error) {
+func GetEndpointGroupID(stateDriver core.StateDriver, groupName, tenantName string) (int, error) {
 	// If service name is not specified, we are done
 	if groupName == "" {
 		return 0, nil
 	}
 
-	epgKey := GetEndpointGroupKey(groupName, networkName, tenantName)
+	epgKey := GetEndpointGroupKey(groupName, tenantName)
 	cfgEpGroup := &EndpointGroupState{}
 	cfgEpGroup.StateDriver = stateDriver
 	err := cfgEpGroup.Read(epgKey)

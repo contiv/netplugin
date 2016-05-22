@@ -311,25 +311,6 @@ type ServiceLBLinks struct {
 	Tenant  Link `json:"Tenant,omitempty"`
 }
 
-type ServiceLB struct {
-	// every object has a key
-	Key string `json:"key,omitempty"`
-
-	IpAddress   string   `json:"ipAddress,omitempty"`   // Service ip
-	NetworkName string   `json:"networkName,omitempty"` // Service network name
-	Ports       []string `json:"ports,omitempty"`
-	Selectors   []string `json:"selectors,omitempty"`
-	ServiceName string   `json:"serviceName,omitempty"` // service name
-	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
-
-	Links ServiceLBLinks `json:"links,omitempty"`
-}
-
-type ServiceLBLinks struct {
-	Network Link `json:"Network,omitempty"`
-	Tenant  Link `json:"Tenant,omitempty"`
-}
-
 type Tenant struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -532,7 +513,7 @@ func (c *ContivClient) BgpDelete(hostname string) error {
 // EndpointGroupPost posts the endpointGroup object
 func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 	// build key and URL
-	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.GroupName
+	keyStr := obj.TenantName + ":" + obj.GroupName
 	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
 
 	// http post the object
@@ -562,9 +543,9 @@ func (c *ContivClient) EndpointGroupList() (*[]*EndpointGroup, error) {
 }
 
 // EndpointGroupGet gets the endpointGroup object
-func (c *ContivClient) EndpointGroupGet(tenantName string, networkName string, groupName string) (*EndpointGroup, error) {
+func (c *ContivClient) EndpointGroupGet(tenantName string, groupName string) (*EndpointGroup, error) {
 	// build key and URL
-	keyStr := tenantName + ":" + networkName + ":" + groupName
+	keyStr := tenantName + ":" + groupName
 	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
 
 	// http get the object
@@ -579,9 +560,9 @@ func (c *ContivClient) EndpointGroupGet(tenantName string, networkName string, g
 }
 
 // EndpointGroupDelete deletes the endpointGroup object
-func (c *ContivClient) EndpointGroupDelete(tenantName string, networkName string, groupName string) error {
+func (c *ContivClient) EndpointGroupDelete(tenantName string, groupName string) error {
 	// build key and URL
-	keyStr := tenantName + ":" + networkName + ":" + groupName
+	keyStr := tenantName + ":" + groupName
 	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
 
 	// http get the object
@@ -848,71 +829,6 @@ func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId s
 	err := httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting rule %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
-}
-
-// ServiceLBPost posts the serviceLB object
-func (c *ContivClient) ServiceLBPost(obj *ServiceLB) error {
-	// build key and URL
-	keyStr := obj.TenantName + ":" + obj.ServiceName
-	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
-
-	// http post the object
-	err := httpPost(url, obj)
-	if err != nil {
-		log.Debugf("Error creating serviceLB %+v. Err: %v", obj, err)
-		return err
-	}
-
-	return nil
-}
-
-// ServiceLBList lists all serviceLB objects
-func (c *ContivClient) ServiceLBList() (*[]*ServiceLB, error) {
-	// build key and URL
-	url := c.baseURL + "/api/serviceLBs/"
-
-	// http get the object
-	var objList []*ServiceLB
-	err := httpGet(url, &objList)
-	if err != nil {
-		log.Debugf("Error getting serviceLBs. Err: %v", err)
-		return nil, err
-	}
-
-	return &objList, nil
-}
-
-// ServiceLBGet gets the serviceLB object
-func (c *ContivClient) ServiceLBGet(tenantName string, serviceName string) (*ServiceLB, error) {
-	// build key and URL
-	keyStr := tenantName + ":" + serviceName
-	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
-
-	// http get the object
-	var obj ServiceLB
-	err := httpGet(url, &obj)
-	if err != nil {
-		log.Debugf("Error getting serviceLB %+v. Err: %v", keyStr, err)
-		return nil, err
-	}
-
-	return &obj, nil
-}
-
-// ServiceLBDelete deletes the serviceLB object
-func (c *ContivClient) ServiceLBDelete(tenantName string, serviceName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + serviceName
-	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting serviceLB %s. Err: %v", keyStr, err)
 		return err
 	}
 

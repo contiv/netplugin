@@ -695,6 +695,8 @@ func TestNetworkPktRanges(t *testing.T) {
 
 // TestPolicyRules tests policy and rule REST objects
 func TestPolicyRules(t *testing.T) {
+	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1)
+	checkCreateEpg(t, false, "default", "contiv", "group1", []string{})
 	// create policy
 	checkCreatePolicy(t, false, "default", "policy1")
 
@@ -768,6 +770,10 @@ func TestPolicyRules(t *testing.T) {
 
 	// delete policy
 	checkDeletePolicy(t, false, "default", "policy1")
+	// delete the EPG
+	checkDeleteEpg(t, false, "default", "contiv", "group1")
+	// delete the network
+	checkDeleteNetwork(t, false, "default", "contiv")
 }
 
 // TestEpgPolicies tests attaching policy to EPG
