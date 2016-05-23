@@ -5,7 +5,6 @@ require 'fileutils'
 
 # netplugin_synced_gopath="/opt/golang"
 gopath_folder="/opt/gopath"
-FileUtils.cp "/etc/resolv.conf", Dir.pwd
 
 cluster_ip_nodes = ""
 
@@ -27,8 +26,6 @@ echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
 echo "export no_proxy=$3,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 echo "export CLUSTER_NODE_IPS=$3" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
-mv /etc/resolv.conf /etc/resolv.conf.bak
-cp #{gopath_folder}/src/github.com/contiv/netplugin/resolv.conf /etc/resolv.conf
 
 if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
     shift; shift; shift; shift; shift; shift; shift; shift; shift

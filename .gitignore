@@ -31,8 +31,6 @@ _testmain.go
 
 bin/*
 
-resolv.conf
-
 # python
 *.pyc
 
