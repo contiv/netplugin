@@ -17,12 +17,12 @@ package ofnet
 // This file implements the vlan bridging datapath
 
 import (
-	"fmt"
+	"net"
+	"net/rpc"
+
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"github.com/shaleman/libOpenflow/protocol"
-	"net"
-	"net/rpc"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -392,7 +392,6 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 			var vlan uint16
 			if vl.uplinkDb[inPort] != 0 {
 				//arp packet came in from uplink hence tagged
-				fmt.Println("the vlan id is ", pkt.VLANID.VID)
 				vlan = pkt.VLANID.VID
 			} else {
 				//arp packet came from local endpoints - derive vrf from inport
@@ -405,8 +404,6 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 			}
 			srcEp := vl.agent.getEndpointByIpVlan(arpIn.IPSrc, vlan)
 			dstEp := vl.agent.getEndpointByIpVlan(arpIn.IPDst, vlan)
-
-			fmt.Println("The src and des ep are", srcEp, dstEp)
 
 			// No information about the src or dest EP. Ignore processing.
 			if srcEp == nil && dstEp == nil {
