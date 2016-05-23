@@ -20,10 +20,17 @@
 # docker run --net=host <image> -host-label=<label>
 ##
 
-FROM golang:1.4
+FROM golang:1.5.1
 MAINTAINER Madhav Puri <mapuri@cisco.com> (@mapuri)
 
+
+# Insert your proxy server settings if this build is running behind 
+# a proxy.
+#ENV http_proxy ""
+#ENV https_proxy ""
 ENV GOPATH /go/
+
+ENV NET_CONTAINER_BUILD 1
 
 COPY ./ /go/src/github.com/contiv/netplugin/
 
