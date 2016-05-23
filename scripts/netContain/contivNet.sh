@@ -1,7 +1,9 @@
 #!/bin/bash
 #Initialize complete contiv container. Start OVS and Net Plugin
 
-if [ $1 == "reinit" ]; then
+ARG1=${1:-none}
+
+if [ $ARG1 == "reinit" ]; then
     ovs-vsctl del-br contivVlanBridge
     ovs-vsctl del-br contivVxlanBridge
 fi
