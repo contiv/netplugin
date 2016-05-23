@@ -22,6 +22,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 	"reflect"
+	"strings"
 )
 
 //CreateServiceLB adds to the etcd state
@@ -222,6 +223,30 @@ func RestoreServiceProviderLBDb() {
 				mastercfg.ServiceLBDb[serviceID].Providers[providerID] = providerInfo
 				providerDBId := providerInfo.ContainerID
 				mastercfg.ProviderDb[providerDBId] = providerInfo
+			}
+		}
+	}
+	//Recover from endpoint state as well .
+	epCfgState := mastercfg.CfgEndpointState{}
+	epCfgState.StateDriver = stateDriver
+	epCfgs, err := epCfgState.ReadAll()
+	if err == nil {
+		for _, epCfg := range epCfgs {
+			ep := epCfg.(*mastercfg.CfgEndpointState)
+			if ep.Labels != nil {
+				//Create provider info and store it in provider db
+				providerInfo := &mastercfg.Provider{}
+				providerInfo.ContainerID = ep.ContainerID
+				providerInfo.Network = strings.Split(ep.NetID, ".")[0]
+				providerInfo.Tenant = strings.Split(ep.NetID, ".")[1]
+				providerInfo.Labels = make(map[string]string)
+
+				for k, v := range ep.Labels {
+					providerInfo.Labels[k] = v
+				}
+				providerDBId := providerInfo.ContainerID
+				mastercfg.ProviderDb[providerDBId] = providerInfo
+
 			}
 		}
 	}
