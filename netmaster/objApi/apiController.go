@@ -444,6 +444,11 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupUpdate: %+v, params: %+v", endpointGroup, params)
 
+	// if the network association was changed, reject the update.
+	if endpointGroup.NetworkName != params.NetworkName {
+		return core.Errorf("Cannot change network association after epg is created.")
+	}
+
 	// Only update policy attachments
 
 	// Look for policy adds
