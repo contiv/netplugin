@@ -97,7 +97,7 @@ func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
 		c.Assert(s.removeContainers(containers), IsNil)
 
 		for _, group := range groups {
-			c.Assert(s.cli.EndpointGroupDelete(group.TenantName, group.NetworkName, group.GroupName), IsNil)
+			c.Assert(s.cli.EndpointGroupDelete(group.TenantName, group.GroupName), IsNil)
 		}
 
 		for _, rule := range rules {
@@ -217,7 +217,7 @@ func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 	}
 
 	for _, group := range groups {
-		c.Assert(s.cli.EndpointGroupDelete(group.TenantName, group.NetworkName, group.GroupName), IsNil)
+		c.Assert(s.cli.EndpointGroupDelete(group.TenantName, group.GroupName), IsNil)
 	}
 
 	c.Assert(s.cli.PolicyDelete("default", "policy"), IsNil)
@@ -298,7 +298,6 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 					Protocol:          "tcp",
 					Port:              8001,
 					Action:            "allow",
-					FromNetwork:       "private",
 					FromEndpointGroup: "common",
 				},
 			}
@@ -346,12 +345,12 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 		c.Assert(s.removeContainers(cmnContainers), IsNil)
 
 		for _, policy := range policies {
-			c.Assert(s.cli.EndpointGroupDelete("default", "private", policy.PolicyName), IsNil)
+			c.Assert(s.cli.EndpointGroupDelete("default", policy.PolicyName), IsNil)
 			c.Assert(s.cli.PolicyDelete("default", policy.PolicyName), IsNil)
 		}
 	}
 
-	c.Assert(s.cli.EndpointGroupDelete(group.TenantName, group.NetworkName, group.GroupName), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete(group.TenantName, group.GroupName), IsNil)
 	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
 }
 
@@ -464,7 +463,6 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:        "first",
-		FromNetwork:       "private",
 		FromEndpointGroup: "srv2",
 		TenantName:        "default",
 		RuleID:            "3",
@@ -568,7 +566,6 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		RuleID:          "3",
 		Priority:        100,
 		ToEndpointGroup: "srv2",
-		ToNetwork:       "private",
 		Direction:       "out",
 		Protocol:        "tcp",
 		Port:            8001,
@@ -670,8 +667,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 	c.Assert(container1.checkPing(container2.eth0), IsNil)
 
 	c.Assert(s.removeContainers([]*container{container1, container2}), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("default", "private", "srv1"), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("default", "private", "srv2"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("default", "srv1"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("default", "srv2"), IsNil)
 
 	c.Assert(s.cli.PolicyDelete("default", "first"), IsNil)
 	c.Assert(s.cli.PolicyDelete("default", "second"), IsNil)

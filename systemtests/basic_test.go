@@ -166,8 +166,8 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 
 		// cleanup
 		c.Assert(s.removeContainers(containers), IsNil)
-		c.Assert(s.cli.EndpointGroupDelete(group1.TenantName, group1.NetworkName, group1.GroupName), IsNil)
-		c.Assert(s.cli.EndpointGroupDelete(group2.TenantName, group2.NetworkName, group2.GroupName), IsNil)
+		c.Assert(s.cli.EndpointGroupDelete(group1.TenantName, group1.GroupName), IsNil)
+		c.Assert(s.cli.EndpointGroupDelete(group2.TenantName, group2.GroupName), IsNil)
 	}
 
 	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)

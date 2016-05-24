@@ -107,7 +107,7 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 	epg.Name = epgObj.GroupName
 
 	// Get EPG id for the endpoint group
-	epgID, err := mastercfg.GetEndpointGroupID(stateDriver, epgObj.GroupName, epgObj.NetworkName, epgObj.TenantName)
+	epgID, err := mastercfg.GetEndpointGroupID(stateDriver, epgObj.GroupName, epgObj.TenantName)
 	if err != nil {
 		log.Errorf("Error getting epgID for %+v. Err: %v", epgObj, err)
 		return err

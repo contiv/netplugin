@@ -99,7 +99,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 	}
 
 	epgCfg.StateDriver = stateDriver
-	epgCfg.ID = mastercfg.GetEndpointGroupKey(groupName, networkName, tenantName)
+	epgCfg.ID = mastercfg.GetEndpointGroupKey(groupName, tenantName)
 	log.Debugf("##Create EpGroup %v network %v tagtype %v", groupName, networkName, nwCfg.PktTagType)
 
 	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
@@ -133,14 +133,14 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 }
 
 // DeleteEndpointGroup handles endpoint group deletes
-func DeleteEndpointGroup(tenantName, networkName, groupName string) error {
+func DeleteEndpointGroup(tenantName, groupName string) error {
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return err
 	}
 
-	epgKey := mastercfg.GetEndpointGroupKey(groupName, networkName, tenantName)
+	epgKey := mastercfg.GetEndpointGroupKey(groupName, tenantName)
 	epgCfg := &mastercfg.EndpointGroupState{}
 	epgCfg.StateDriver = stateDriver
 	err = epgCfg.Read(epgKey)

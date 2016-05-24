@@ -12,7 +12,7 @@ var AppProfileSummaryView = React.createClass({
 				<ModalTrigger modal={<AppProfileModalView appProfile={ appProfile }/>}>
 					<tr key={ appProfile.key } className="info">
 						
-						    
+						   
 					</tr>
 				</ModalTrigger>
 			);
@@ -24,7 +24,7 @@ var AppProfileSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					    
+					   
 					</tr>
 				</thead>
 				<tbody>
@@ -47,8 +47,6 @@ var AppProfileModalView = React.createClass({
 				<Input type='text' label='Application Profile Name' ref='appProfileName' defaultValue={obj.appProfileName} placeholder='Application Profile Name' />
 			
 				<Input type='text' label='Member groups of the appProf' ref='endpointGroups' defaultValue={obj.endpointGroups} placeholder='Member groups of the appProf' />
-			
-				<Input type='text' label='Network of App Prof' ref='networkName' defaultValue={obj.networkName} placeholder='Network of App Prof' />
 			
 				<Input type='text' label='Tenant Name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant Name' />
 			

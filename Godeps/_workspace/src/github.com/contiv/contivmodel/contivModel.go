@@ -21,8 +21,7 @@ type AppProfile struct {
 
 	AppProfileName string   `json:"appProfileName,omitempty"` // Application Profile Name
 	EndpointGroups []string `json:"endpointGroups,omitempty"`
-	NetworkName    string   `json:"networkName,omitempty"` // Network of App Prof
-	TenantName     string   `json:"tenantName,omitempty"`  // Tenant Name
+	TenantName     string   `json:"tenantName,omitempty"` // Tenant Name
 
 	// add link-sets and links
 	LinkSets AppProfileLinkSets `json:"link-sets,omitempty"`
@@ -34,8 +33,7 @@ type AppProfileLinkSets struct {
 }
 
 type AppProfileLinks struct {
-	Network modeldb.Link `json:"Network,omitempty"`
-	Tenant  modeldb.Link `json:"Tenant,omitempty"`
+	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type Bgp struct {
@@ -106,7 +104,6 @@ type Network struct {
 }
 
 type NetworkLinkSets struct {
-	AppProfiles    map[string]modeldb.Link `json:"AppProfiles,omitempty"`
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
 	Servicelbs     map[string]modeldb.Link `json:"Servicelbs,omitempty"`
 	Services       map[string]modeldb.Link `json:"Services,omitempty"`
@@ -800,7 +797,7 @@ func restoreAppProfile() error {
 // Validate a appProfile object
 func ValidateAppProfile(obj *AppProfile) error {
 	// Validate key is correct
-	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.AppProfileName
+	keyStr := obj.TenantName + ":" + obj.AppProfileName
 	if obj.Key != keyStr {
 		log.Errorf("Expecting AppProfile Key: %s. Got: %s", keyStr, obj.Key)
 		return errors.New("Invalid Key")
@@ -815,15 +812,6 @@ func ValidateAppProfile(obj *AppProfile) error {
 	appProfileNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
 	if appProfileNameMatch.MatchString(obj.AppProfileName) == false {
 		return errors.New("appProfileName string invalid format")
-	}
-
-	if len(obj.NetworkName) > 64 {
-		return errors.New("networkName string too long")
-	}
-
-	networkNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
-	if networkNameMatch.MatchString(obj.NetworkName) == false {
-		return errors.New("networkName string invalid format")
 	}
 
 	if len(obj.TenantName) > 64 {
@@ -1340,7 +1328,7 @@ func restoreEndpointGroup() error {
 // Validate a endpointGroup object
 func ValidateEndpointGroup(obj *EndpointGroup) error {
 	// Validate key is correct
-	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.GroupName
+	keyStr := obj.TenantName + ":" + obj.GroupName
 	if obj.Key != keyStr {
 		log.Errorf("Expecting EndpointGroup Key: %s. Got: %s", keyStr, obj.Key)
 		return errors.New("Invalid Key")

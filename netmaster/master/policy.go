@@ -60,7 +60,7 @@ func PolicyAttach(epg *contivModel.EndpointGroup, policy *contivModel.Policy) er
 		return err
 	}
 
-	epgID, err := mastercfg.GetEndpointGroupID(stateDriver, epg.GroupName, epg.NetworkName, epg.TenantName)
+	epgID, err := mastercfg.GetEndpointGroupID(stateDriver, epg.GroupName, epg.TenantName)
 	if err != nil {
 		log.Errorf("Error getting epgID for %s. Err: %v", epgpKey, err)
 		return err

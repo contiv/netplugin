@@ -105,8 +105,8 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 	// Set endpoint group
 	// Skip for infra nw
 	if nwCfg.NwType != "infra" {
-		epCfg.EndpointGroupKey = mastercfg.GetEndpointGroupKey(ep.ServiceName, nwCfg.NetworkName, nwCfg.Tenant)
-		epCfg.EndpointGroupID, err = mastercfg.GetEndpointGroupID(stateDriver, ep.ServiceName, nwCfg.NetworkName, nwCfg.Tenant)
+		epCfg.EndpointGroupKey = mastercfg.GetEndpointGroupKey(ep.ServiceName, nwCfg.Tenant)
+		epCfg.EndpointGroupID, err = mastercfg.GetEndpointGroupID(stateDriver, ep.ServiceName, nwCfg.Tenant)
 		if err != nil {
 			log.Errorf("Error getting endpoint group for %s.%s. Err: %v", ep.ServiceName, nwCfg.ID, err)
 			return nil, err

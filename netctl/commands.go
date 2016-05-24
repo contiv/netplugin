@@ -62,7 +62,7 @@ var Commands = []cli.Command{
 				Name:      "rm",
 				Aliases:   []string{"delete"},
 				Usage:     "Delete an endpoint group",
-				ArgsUsage: "[network] [group]",
+				ArgsUsage: "[group]",
 				Flags:     []cli.Flag{tenantFlag},
 				Action:    deleteEndpointGroup,
 			},
@@ -349,7 +349,7 @@ var Commands = []cli.Command{
 			{
 				Name:      "create",
 				Usage:     "Create an application profile",
-				ArgsUsage: "[network] [app-profile]",
+				ArgsUsage: "[app-profile]",
 				Flags: []cli.Flag{
 					tenantFlag,
 					cli.StringFlag{
@@ -362,7 +362,7 @@ var Commands = []cli.Command{
 			{
 				Name:      "update",
 				Usage:     "Update an application profile",
-				ArgsUsage: "[network] [app-profile]",
+				ArgsUsage: "[app-profile]",
 				Flags: []cli.Flag{
 					tenantFlag,
 					cli.StringFlag{
@@ -376,7 +376,7 @@ var Commands = []cli.Command{
 				Name:      "rm",
 				Aliases:   []string{"delete"},
 				Usage:     "Delete an application profile",
-				ArgsUsage: "[network] [app-profile]",
+				ArgsUsage: "[app-profile]",
 				Flags:     []cli.Flag{tenantFlag},
 				Action:    deleteAppProfile,
 			},
