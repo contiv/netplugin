@@ -74,12 +74,11 @@ class objmodelClient:
 		self.baseUrl = baseUrl
 	# Create appProfile
 	def createAppProfile(self, obj):
-	    postUrl = self.baseUrl + '/api/appProfiles/' + obj.tenantName + ":" + obj.networkName + ":" + obj.appProfileName  + '/'
+	    postUrl = self.baseUrl + '/api/appProfiles/' + obj.tenantName + ":" + obj.appProfileName  + '/'
 
 	    jdata = json.dumps({ 
 			"appProfileName": obj.appProfileName, 
 			"endpointGroups": obj.endpointGroups, 
-			"networkName": obj.networkName, 
 			"tenantName": obj.tenantName, 
 	    })
 
@@ -90,9 +89,9 @@ class objmodelClient:
 	        errorExit("AppProfile create failure")
 
 	# Delete appProfile
-	def deleteAppProfile(self, tenantName, networkName, appProfileName):
+	def deleteAppProfile(self, tenantName, appProfileName):
 	    # Delete AppProfile
-	    deleteUrl = self.baseUrl + '/api/appProfiles/' + tenantName + ":" + networkName + ":" + appProfileName  + '/'
+	    deleteUrl = self.baseUrl + '/api/appProfiles/' + tenantName + ":" + appProfileName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -143,7 +142,7 @@ class objmodelClient:
 	    return json.loads(retData)
 	# Create endpointGroup
 	def createEndpointGroup(self, obj):
-	    postUrl = self.baseUrl + '/api/endpointGroups/' + obj.tenantName + ":" + obj.networkName + ":" + obj.groupName  + '/'
+	    postUrl = self.baseUrl + '/api/endpointGroups/' + obj.tenantName + ":" + obj.groupName  + '/'
 
 	    jdata = json.dumps({ 
 			"groupName": obj.groupName, 
@@ -159,9 +158,9 @@ class objmodelClient:
 	        errorExit("EndpointGroup create failure")
 
 	# Delete endpointGroup
-	def deleteEndpointGroup(self, tenantName, networkName, groupName):
+	def deleteEndpointGroup(self, tenantName, groupName):
 	    # Delete EndpointGroup
-	    deleteUrl = self.baseUrl + '/api/endpointGroups/' + tenantName + ":" + networkName + ":" + groupName  + '/'
+	    deleteUrl = self.baseUrl + '/api/endpointGroups/' + tenantName + ":" + groupName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":

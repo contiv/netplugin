@@ -152,8 +152,7 @@ type AppProfile struct {
 
 	AppProfileName string   `json:"appProfileName,omitempty"` // Application Profile Name
 	EndpointGroups []string `json:"endpointGroups,omitempty"`
-	NetworkName    string   `json:"networkName,omitempty"` // Network of App Prof
-	TenantName     string   `json:"tenantName,omitempty"`  // Tenant Name
+	TenantName     string   `json:"tenantName,omitempty"` // Tenant Name
 
 	// add link-sets and links
 	LinkSets AppProfileLinkSets `json:"link-sets,omitempty"`
@@ -165,8 +164,7 @@ type AppProfileLinkSets struct {
 }
 
 type AppProfileLinks struct {
-	Network Link `json:"Network,omitempty"`
-	Tenant  Link `json:"Tenant,omitempty"`
+	Tenant Link `json:"Tenant,omitempty"`
 }
 
 type Bgp struct {
@@ -237,7 +235,6 @@ type Network struct {
 }
 
 type NetworkLinkSets struct {
-	AppProfiles    map[string]Link `json:"AppProfiles,omitempty"`
 	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
 	Servicelbs     map[string]Link `json:"Servicelbs,omitempty"`
 	Services       map[string]Link `json:"Services,omitempty"`
@@ -386,7 +383,7 @@ type VolumeProfileLinks struct {
 // AppProfilePost posts the appProfile object
 func (c *ContivClient) AppProfilePost(obj *AppProfile) error {
 	// build key and URL
-	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.AppProfileName
+	keyStr := obj.TenantName + ":" + obj.AppProfileName
 	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
 
 	// http post the object
@@ -416,9 +413,9 @@ func (c *ContivClient) AppProfileList() (*[]*AppProfile, error) {
 }
 
 // AppProfileGet gets the appProfile object
-func (c *ContivClient) AppProfileGet(tenantName string, networkName string, appProfileName string) (*AppProfile, error) {
+func (c *ContivClient) AppProfileGet(tenantName string, appProfileName string) (*AppProfile, error) {
 	// build key and URL
-	keyStr := tenantName + ":" + networkName + ":" + appProfileName
+	keyStr := tenantName + ":" + appProfileName
 	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
 
 	// http get the object
@@ -433,9 +430,9 @@ func (c *ContivClient) AppProfileGet(tenantName string, networkName string, appP
 }
 
 // AppProfileDelete deletes the appProfile object
-func (c *ContivClient) AppProfileDelete(tenantName string, networkName string, appProfileName string) error {
+func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string) error {
 	// build key and URL
-	keyStr := tenantName + ":" + networkName + ":" + appProfileName
+	keyStr := tenantName + ":" + appProfileName
 	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
 
 	// http get the object
@@ -516,7 +513,7 @@ func (c *ContivClient) BgpDelete(hostname string) error {
 // EndpointGroupPost posts the endpointGroup object
 func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 	// build key and URL
-	keyStr := obj.TenantName + ":" + obj.NetworkName + ":" + obj.GroupName
+	keyStr := obj.TenantName + ":" + obj.GroupName
 	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
 
 	// http post the object
@@ -546,9 +543,9 @@ func (c *ContivClient) EndpointGroupList() (*[]*EndpointGroup, error) {
 }
 
 // EndpointGroupGet gets the endpointGroup object
-func (c *ContivClient) EndpointGroupGet(tenantName string, networkName string, groupName string) (*EndpointGroup, error) {
+func (c *ContivClient) EndpointGroupGet(tenantName string, groupName string) (*EndpointGroup, error) {
 	// build key and URL
-	keyStr := tenantName + ":" + networkName + ":" + groupName
+	keyStr := tenantName + ":" + groupName
 	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
 
 	// http get the object
@@ -563,9 +560,9 @@ func (c *ContivClient) EndpointGroupGet(tenantName string, networkName string, g
 }
 
 // EndpointGroupDelete deletes the endpointGroup object
-func (c *ContivClient) EndpointGroupDelete(tenantName string, networkName string, groupName string) error {
+func (c *ContivClient) EndpointGroupDelete(tenantName string, groupName string) error {
 	// build key and URL
-	keyStr := tenantName + ":" + networkName + ":" + groupName
+	keyStr := tenantName + ":" + groupName
 	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
 
 	// http get the object
