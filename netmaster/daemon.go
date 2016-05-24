@@ -256,13 +256,15 @@ func (d *daemon) runLeader() {
 	// Create a new api controller
 	d.apiController = objApi.NewAPIController(router, d.clusterStore)
 
+	//Restore state from clusterStore
+
+	d.restoreCache()
+
 	// Register netmaster service
 	d.registerService()
 
 	// initialize policy manager
 	mastercfg.InitPolicyMgr(d.stateDriver, d.ofnetMaster)
-
-	d.restoreCache()
 
 	// setup HTTP routes
 	d.registerRoutes(router)

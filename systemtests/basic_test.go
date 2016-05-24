@@ -38,7 +38,9 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 		c.Assert(err, IsNil)
 
 		if s.fwdMode == "routing" && encap == "vlan" {
-			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
+			var err error
+			_, err = s.CheckBgpRouteDistribution(c, containers)
+			c.Assert(err, IsNil)
 		}
 
 		c.Assert(s.pingTest(containers), IsNil)
@@ -73,7 +75,9 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 	containers, err := s.runContainers(s.containers, false, "private", nil, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
-		s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
+		var err error
+		_, err = s.CheckBgpRouteDistribution(c, containers)
+		c.Assert(err, IsNil)
 	}
 
 	for i := 0; i < s.iterations; i++ {
@@ -97,7 +101,9 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 		}
 
 		if s.fwdMode == "routing" && encap == "vlan" {
-			s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers)
+			var err error
+			_, err = s.CheckBgpRouteDistribution(c, containers)
+			c.Assert(err, IsNil)
 		}
 
 	}
@@ -156,6 +162,11 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		c.Assert(err, IsNil)
 
 		containers := append(containers1, containers2...)
+		if s.fwdMode == "routing" && encap == "vlan" {
+			var err error
+			_, err = s.CheckBgpRouteDistribution(c, containers)
+			c.Assert(err, IsNil)
+		}
 		if s.fwdMode == "routing" && encap == "vlan" {
 			time.Sleep(5 * time.Second)
 		}

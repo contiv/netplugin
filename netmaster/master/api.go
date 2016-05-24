@@ -422,6 +422,9 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 		}
 
 		provider := mastercfg.ProviderDb[providerDbID]
+		if provider == nil {
+			log.Errorf("Provider not present in Provider DB. Invalid state")
+		}
 		for _, serviceID := range provider.Services {
 			service := mastercfg.ServiceLBDb[serviceID]
 			providerID := getProviderID(provider)

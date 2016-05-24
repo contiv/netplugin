@@ -225,6 +225,8 @@ func RestoreServiceProviderLBDb() {
 				mastercfg.ProviderDb[providerDBId] = providerInfo
 			}
 		}
+	} else {
+		log.Errorf("Error reading service load balancer state from cluster store")
 	}
 	//Recover from endpoint state as well .
 	epCfgState := mastercfg.CfgEndpointState{}
@@ -233,21 +235,23 @@ func RestoreServiceProviderLBDb() {
 	if err == nil {
 		for _, epCfg := range epCfgs {
 			ep := epCfg.(*mastercfg.CfgEndpointState)
-			if ep.Labels != nil {
+			providerDBId := ep.ContainerID
+			if ep.Labels != nil && mastercfg.ProviderDb[providerDBId] == nil {
 				//Create provider info and store it in provider db
 				providerInfo := &mastercfg.Provider{}
 				providerInfo.ContainerID = ep.ContainerID
 				providerInfo.Network = strings.Split(ep.NetID, ".")[0]
 				providerInfo.Tenant = strings.Split(ep.NetID, ".")[1]
 				providerInfo.Labels = make(map[string]string)
+				providerInfo.IPAddress = ep.IPAddress
 
 				for k, v := range ep.Labels {
 					providerInfo.Labels[k] = v
 				}
-				providerDBId := providerInfo.ContainerID
 				mastercfg.ProviderDb[providerDBId] = providerInfo
-
 			}
 		}
+	} else {
+		log.Errorf("Error reading endpoint config during restore")
 	}
 }

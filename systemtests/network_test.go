@@ -59,6 +59,10 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 			for nodeNum := 1; nodeNum <= len(s.nodes); nodeNum++ {
 				logrus.Infof("Running ping test for network %q node %d", netNames[networkNum], nodeNum)
 				ipaddr := fmt.Sprintf("10.1.%d.%d", networkNum, nodeNum)
+				if s.fwdMode == "routing" && encap == "vlan" {
+					_, err := s.CheckBgpRouteDistributionIPList(c, []string{ipaddr})
+					c.Assert(err, IsNil)
+				}
 				c.Assert(node1.checkPing(ipaddr), IsNil)
 
 			}
@@ -120,8 +124,10 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 		}
 
 		if s.fwdMode == "routing" && encap == "vlan" {
+			var err error
 			for _, name := range netNames {
-				s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers[name])
+				_, err = s.CheckBgpRouteDistribution(c, containers[name])
+				c.Assert(err, IsNil)
 			}
 		}
 
@@ -232,8 +238,10 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil, nil)
 					mutex.Unlock()
 					endChan <- err
+
 					if s.fwdMode == "routing" && encap == "vlan" {
-						s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers[network])
+						_, err = s.CheckBgpRouteDistribution(c, containers[network])
+						c.Assert(err, IsNil)
 					}
 					endChan <- s.pingTest(containers[network])
 				}(network, tenant, containers)
