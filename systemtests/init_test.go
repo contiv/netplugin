@@ -3,6 +3,7 @@ package systemtests
 import (
 	"flag"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	. "testing"
@@ -26,6 +27,7 @@ type systemtestSuite struct {
 	fwdMode      string
 	clusterStore string
 	enableDNS    bool
+	scheduler    string
 	// user       string
 	// password   string
 	// nodes      []string
@@ -57,6 +59,9 @@ func TestMain(m *M) {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
 	} else {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "routing", "forwarding mode to start the test ")
+	}
+	if os.Getenv("CONTIV_K8") != "" {
+		flag.StringVar(&sts.scheduler, "scheduler", "k8", "scheduler used for testing")
 	}
 	flag.Parse()
 
@@ -91,6 +96,10 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 	}
 
 	s.nodes = []*node{}
+
+	if s.scheduler == "k8" {
+		s.KubeNodeSetup(c)
+	}
 
 	if s.fwdMode == "routing" {
 		contivL3Nodes := 2
@@ -190,4 +199,9 @@ func (s *systemtestSuite) Test00SSH(c *C) {
 	c.Assert(s.vagrant.IterateNodes(func(node vagrantssh.TestbedNode) error {
 		return node.RunCommand("true")
 	}), IsNil)
+}
+
+func (s *systemtestSuite) KubeNodeSetup(c *C) {
+	cmd := exec.Command("/bin/sh", "./vagrant/k8s/setup_cluster.sh")
+	c.Assert(cmd.Run(), IsNil)
 }

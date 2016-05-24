@@ -16,15 +16,11 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"log/syslog"
-	"net/url"
-	"os"
-	"os/user"
-	"strings"
-	"time"
-
+	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus/hooks/syslog"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin"
@@ -36,9 +32,17 @@ import (
 	"github.com/contiv/netplugin/svcplugin"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/netplugin/version"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/Sirupsen/logrus/hooks/syslog"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
+	"github.com/samalba/dockerclient"
+	"golang.org/x/net/context"
+	"log/syslog"
+	"net/url"
+	"os"
+	"os/user"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -47,6 +51,7 @@ import (
 type cliOpts struct {
 	hostLabel  string
 	pluginMode string // plugin could be docker | kubernetes
+	cfgFile    string
 	debug      bool
 	syslog     string
 	jsonLog    bool
@@ -98,6 +103,30 @@ func processCurrentState(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 			bgp := bgpCfg.(*mastercfg.CfgBgpState)
 			log.Debugf("read bgp key[%d] %s, populating state \n", idx, bgp.Hostname)
 			processBgpEvent(netPlugin, opts, bgp.Hostname, false)
+		}
+	}
+
+	readServiceLb := &mastercfg.CfgServiceLBState{}
+	readServiceLb.StateDriver = netPlugin.StateDriver
+	serviceLbCfgs, err := readServiceLb.ReadAll()
+	if err == nil {
+		for idx, serviceLbCfg := range serviceLbCfgs {
+			serviceLb := serviceLbCfg.(*mastercfg.CfgServiceLBState)
+			log.Debugf("read svc key[%d] %s for tenant %s, populating state \n", idx,
+				serviceLb.ServiceName, serviceLb.Tenant)
+			processServiceLBEvent(netPlugin, opts, serviceLb, false)
+		}
+	}
+
+	readSvcProviders := &mastercfg.SvcProvider{}
+	readSvcProviders.StateDriver = netPlugin.StateDriver
+	svcProviders, err := readSvcProviders.ReadAll()
+	if err == nil {
+		for idx, providers := range svcProviders {
+			svcProvider := providers.(*mastercfg.SvcProvider)
+			log.Infof("read svc provider[%d] %s , populating state \n", idx,
+				svcProvider.ServiceName)
+			processSvcProviderUpdEvent(netPlugin, opts, svcProvider, false)
 		}
 	}
 
@@ -289,11 +318,24 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 				log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
 				processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
 				continue
+			} /*
+				if serviceLbCfg, ok := currentState.(*mastercfg.CfgServiceLBState); ok {
+					log.Infof("Received %q for Service %s on tenant %s", eventStr,
+						serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
+					processServiceLBEvent(netPlugin, opts, serviceLbCfg, isDelete)
+				}*/
+
+			if svcProvider, ok := currentState.(*mastercfg.SvcProvider); ok {
+				log.Infof("Received %q for Service %s , provider:%#v", eventStr,
+					svcProvider.ServiceName, svcProvider.Providers)
+				processSvcProviderUpdEvent(netPlugin, opts, svcProvider, isDelete)
 			}
+
 			log.Infof("Received a modify event, ignoring it")
 			continue
 
 		}
+
 		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
 			if isDelete != true {
@@ -312,6 +354,17 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
 			processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
 		}
+		if serviceLbCfg, ok := currentState.(*mastercfg.CfgServiceLBState); ok {
+			log.Infof("Received %q for Service %s on tenant %s", eventStr,
+				serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
+			processServiceLBEvent(netPlugin, opts, serviceLbCfg, isDelete)
+		}
+		if svcProvider, ok := currentState.(*mastercfg.SvcProvider); ok {
+			log.Infof("Received %q for Service %s on tenant %s", eventStr,
+				svcProvider.ServiceName, svcProvider.Providers)
+			processSvcProviderUpdEvent(netPlugin, opts, svcProvider, isDelete)
+		}
+
 	}
 }
 
@@ -334,12 +387,39 @@ func handleBgpEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvErr chan err
 	return
 }
 
+func handleServiceLBEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvErr chan error) {
+
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, opts, rsps)
+	cfg := mastercfg.CfgServiceLBState{}
+	cfg.StateDriver = netPlugin.StateDriver
+	recvErr <- cfg.WatchAll(rsps)
+	return
+}
+
+func handleSvcProviderUpdEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvErr chan error) {
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, opts, rsps)
+	cfg := mastercfg.SvcProvider{}
+	cfg.StateDriver = netPlugin.StateDriver
+	recvErr <- cfg.WatchAll(rsps)
+	return
+}
+
 func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 
 	recvErr := make(chan error, 1)
+
 	go handleNetworkEvents(netPlugin, opts, recvErr)
 
 	go handleBgpEvents(netPlugin, opts, recvErr)
+
+	go handleServiceLBEvents(netPlugin, opts, recvErr)
+
+	go handleSvcProviderUpdEvents(netPlugin, opts, recvErr)
+
+	docker, _ := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	go docker.StartMonitorEvents(handleDockerEvents, recvErr, netPlugin, recvErr)
 
 	err := <-recvErr
 	if err != nil {
@@ -411,6 +491,10 @@ func main() {
 		"plugin-mode",
 		"docker",
 		"plugin mode docker|kubernetes")
+	flagSet.StringVar(&opts.cfgFile,
+		"config",
+		"",
+		"plugin configuration. Use '-' to read configuration from stdin")
 	flagSet.StringVar(&opts.vtepIP,
 		"vtep-ip",
 		"",
@@ -427,10 +511,6 @@ func main() {
 		"version",
 		false,
 		"Show version")
-	flagSet.StringVar(&opts.routerIP,
-		"router-ip",
-		"",
-		"My Router ip address")
 	flagSet.StringVar(&opts.fwdMode,
 		"fwd-mode",
 		"bridge",
@@ -472,8 +552,7 @@ func main() {
 	}
 
 	if opts.fwdMode != "bridge" && opts.fwdMode != "routing" {
-		log.Infof("Invalid forwarding mode. Setting the mode to bridge ")
-		opts.fwdMode = "bridge"
+		log.Fatalf("Invalid forwarding mode. Allowed modes are bridge,routing ")
 	}
 
 	if flagSet.NFlag() < 1 {
@@ -555,4 +634,189 @@ func main() {
 	if err := handleEvents(netPlugin, opts); err != nil {
 		os.Exit(1)
 	}
+}
+
+//processServiceLBEvent processes service load balancer object events
+
+func processServiceLBEvent(netPlugin *plugin.NetPlugin, opts cliOpts, svcLBCfg *mastercfg.CfgServiceLBState,
+	isDelete bool) error {
+	var err error
+	portSpecList := []core.PortSpec{}
+	portSpec := core.PortSpec{}
+
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+	serviceID := svcLBCfg.ID
+
+	log.Infof("Recevied Process Service load balancer event {%v}", svcLBCfg)
+
+	//create portspect list from state.
+	//Ports format: servicePort:ProviderPort:Protocol
+	for _, port := range svcLBCfg.Ports {
+
+		portInfo := strings.Split(port, ":")
+		if len(portInfo) != 3 {
+			return errors.New("Invalid Port Format")
+		}
+		svcPort := portInfo[0]
+		provPort := portInfo[1]
+		portSpec.Protocol = portInfo[2]
+
+		sPort, _ := strconv.ParseUint(svcPort, 10, 16)
+		portSpec.SvcPort = uint16(sPort)
+
+		pPort, _ := strconv.ParseUint(provPort, 10, 16)
+		portSpec.ProvPort = uint16(pPort)
+
+		portSpecList = append(portSpecList, portSpec)
+	}
+
+	spec := &core.ServiceSpec{
+		IPAddress: svcLBCfg.IPAddress,
+		Ports:     portSpecList,
+	}
+	operStr := ""
+	if isDelete {
+		err = netPlugin.DeleteServiceLB(serviceID, spec)
+		operStr = "delete"
+	} else {
+		err = netPlugin.AddServiceLB(serviceID, spec)
+		operStr = "create"
+	}
+	if err != nil {
+		log.Errorf("Service Load Balancer %s failed.Error:%s", operStr, err)
+		return err
+	}
+	log.Infof("Service Load Balancer %s succeeded", operStr)
+
+	return nil
+}
+
+//processSvcProviderUpdEvent updates service provider events
+func processSvcProviderUpdEvent(netPlugin *plugin.NetPlugin, opts cliOpts,
+	svcProvider *mastercfg.SvcProvider, isDelete bool) error {
+	if isDelete {
+		//ignore delete event since servicelb delete will take care of this.
+		return nil
+	}
+	netPlugin.SvcProviderUpdate(svcProvider.ServiceName, svcProvider.Providers)
+	return nil
+}
+
+/*Handles docker events monitored by dockerclient. Currently we only handle
+  container start and die event*/
+func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interface{}) {
+
+	log.Printf("Received Docker event: {%#v}\n", *event)
+	providerUpdReq := &master.SvcProvUpdateRequest{}
+	switch event.Status {
+	case "start":
+		defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+		cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.21", nil, defaultHeaders)
+		if err != nil {
+			panic(err)
+		}
+		containerInfo, err := cli.ContainerInspect(context.Background(), event.ID)
+		if err != nil {
+			log.Errorf("Container Inspect failed :%s", err)
+			return
+		}
+		if event.ID != "" {
+			labelMap := getLabelsFromContainerInspect(&containerInfo)
+
+			containerTenant := getTenantFromContainerInspect(&containerInfo)
+			network, ipAddress := getEpNetworkInfoFromContainerInspect(&containerInfo)
+			container := getContainerFromContainerInspect(&containerInfo)
+			if ipAddress != "" {
+				//Create provider info
+				networkname := strings.Split(network, "/")[0]
+				providerUpdReq.IPAddress = ipAddress
+				providerUpdReq.ContainerID = event.ID
+				providerUpdReq.Tenant = containerTenant
+				providerUpdReq.Network = networkname
+				providerUpdReq.Event = "start"
+				providerUpdReq.Container = container
+				providerUpdReq.Labels = make(map[string]string)
+
+				for k, v := range labelMap {
+					providerUpdReq.Labels[k] = v
+				}
+			}
+			if len(labelMap) == 0 {
+				//Ignore container without labels
+				return
+			}
+			var svcProvResp master.SvcProvUpdateResponse
+
+			log.Infof("Sending Provider create request to master: {%+v}", providerUpdReq)
+
+			err := cluster.MasterPostReq("/plugin/svcProviderUpdate", providerUpdReq, &svcProvResp)
+			if err != nil {
+				log.Errorf("Event: 'start' , Http error posting service provider update, Error:%s", err)
+			}
+		} else {
+			log.Errorf("Unable to fetch container labels for container %s ", event.ID)
+		}
+	case "die":
+		providerUpdReq.ContainerID = event.ID
+		providerUpdReq.Event = "die"
+		var svcProvResp master.SvcProvUpdateResponse
+		log.Infof("Sending Provider delete request to master: {%+v}", providerUpdReq)
+		err := cluster.MasterPostReq("/plugin/svcProviderUpdate", providerUpdReq, &svcProvResp)
+		if err != nil {
+			log.Errorf("Event:'die' Http error posting service provider update, Error:%s", err)
+		}
+	}
+}
+
+//getLabelsFromContainerInspect returns the labels associated with the container
+func getLabelsFromContainerInspect(containerInfo *types.ContainerJSON) map[string]string {
+	if containerInfo != nil && containerInfo.Config != nil {
+		return containerInfo.Config.Labels
+	}
+	return nil
+}
+
+//getTenantFromContainerInspect returns the tenant the container belongs to.
+func getTenantFromContainerInspect(containerInfo *types.ContainerJSON) string {
+	tenant := "default"
+	if containerInfo != nil && containerInfo.NetworkSettings != nil {
+		for network := range containerInfo.NetworkSettings.Networks {
+			if strings.Contains(network, "/") {
+				//network name is of the form networkname/tenantname for non default tenant
+				tenant = strings.Split(network, "/")[1]
+			}
+		}
+	}
+	return tenant
+}
+
+/*getEpNetworkInfoFromContainerInspect inspects the network info from containerinfo returned by dockerclient*/
+func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (string, string) {
+	var networkName string
+	var IPAddress string
+
+	if containerInfo != nil && containerInfo.NetworkSettings != nil {
+		for network, endpoint := range containerInfo.NetworkSettings.Networks {
+			networkName = network
+			if strings.Contains(network, "/") {
+				//network name is of the form networkname/tenantname for non default tenant
+				networkName = strings.Split(network, "/")[0]
+			}
+			IPAddress = endpoint.IPAddress
+		}
+	}
+	return networkName, IPAddress
+}
+
+func getContainerFromContainerInspect(containerInfo *types.ContainerJSON) string {
+
+	container := ""
+	if containerInfo != nil && containerInfo.NetworkSettings != nil {
+		for _, endpoint := range containerInfo.NetworkSettings.Networks {
+			container = endpoint.EndpointID
+		}
+	}
+	return container
+
 }

@@ -23,7 +23,7 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
 	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", nil)
+		containers, err := s.runContainers(s.containers, false, "private", nil, nil)
 		c.Assert(err, IsNil)
 
 		var leader, oldLeader *node
@@ -84,7 +84,7 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
 	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", nil)
+		containers, err := s.runContainers(s.containers, false, "private", nil, nil)
 		c.Assert(err, IsNil)
 
 		for _, node := range s.nodes {
@@ -244,7 +244,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 }
 
 func (s *systemtestSuite) runTriggerContainers(groupNames []string) (map[*container]string, map[*container]string, []*container, error) {
-	netContainers, err := s.runContainers(s.containers, false, "private", nil)
+	netContainers, err := s.runContainers(s.containers, false, "private", nil, nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}

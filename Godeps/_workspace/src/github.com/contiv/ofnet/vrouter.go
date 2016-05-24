@@ -638,6 +638,9 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		case protocol.Type_Request:
 			// Lookup the Dest IP in the endpoint table
 			vlan := self.agent.portVlanMap[inPort]
+			if vlan == nil {
+				return
+			}
 			endpointId := self.agent.getEndpointIdByIpVlan(arpHdr.IPDst, *vlan)
 			endpoint := self.agent.endpointDb[endpointId]
 			if endpoint == nil {
