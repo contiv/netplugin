@@ -936,7 +936,6 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 		for _, cont := range containers {
 			nodeCount = 0
 			for _, node := range s.nodes {
-				logrus.Infof("Checking on Node %s", node.Name)
 				out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp global rib")
 				fmt.Println(out)
 				if strings.Contains(out, cont.eth0) {
@@ -967,7 +966,6 @@ func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) ([
 		for _, ip := range ips {
 			nodeCount = 0
 			for _, node := range s.nodes {
-				logrus.Infof("Checking on Node %s", node.Name)
 				out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp global rib")
 				fmt.Println(out)
 				if strings.Contains(out, ip) {

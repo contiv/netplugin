@@ -423,26 +423,30 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 
 		provider := mastercfg.ProviderDb[providerDbID]
 		if provider == nil {
-			log.Errorf("Provider not present in Provider DB. Invalid state")
+			// It is not a provider . Ignore event
+			return nil, nil
 		}
+
 		for _, serviceID := range provider.Services {
 			service := mastercfg.ServiceLBDb[serviceID]
 			providerID := getProviderID(provider)
 			if providerID == "" {
-				return nil, fmt.Errorf("Invalid ProviderID from providerInfp:{%v}", provider)
+				return nil, fmt.Errorf("Invalid ProviderID from providerInfo:{%v}", provider)
 			}
-			delete(service.Providers, providerID)
+			if service.Providers[providerID] != nil {
+				delete(service.Providers, providerID)
 
-			serviceLbState := &mastercfg.CfgServiceLBState{}
-			serviceLbState.StateDriver = stateDriver
-			err = serviceLbState.Read(serviceID)
-			if err != nil {
-				return nil, err
+				serviceLbState := &mastercfg.CfgServiceLBState{}
+				serviceLbState.StateDriver = stateDriver
+				err = serviceLbState.Read(serviceID)
+				if err != nil {
+					return nil, err
+				}
+				delete(serviceLbState.Providers, providerID)
+				serviceLbState.Write()
+				delete(mastercfg.ProviderDb, providerDbID)
+				SvcProviderUpdate(serviceID, false)
 			}
-			delete(serviceLbState.Providers, providerID)
-			serviceLbState.Write()
-			delete(mastercfg.ProviderDb, providerDbID)
-			SvcProviderUpdate(serviceID, false)
 		}
 
 	}
