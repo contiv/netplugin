@@ -224,7 +224,7 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 
 		if s.fwdMode == "routing" && encap == "vlan" {
 			for _, name := range netNames {
-				s.CheckBgpRouteDistribution(c, s.vagrant.GetNode("quagga1"), containers[name])
+				s.CheckBgpRouteDistribution(c, containers[name])
 			}
 		}
 
