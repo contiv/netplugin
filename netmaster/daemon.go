@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"sync"
 
 	"github.com/contiv/netplugin/core"
@@ -132,44 +131,8 @@ func (d *daemon) registerNetpluginNodes() error {
 	return nil
 }
 
-// registerWebuiHandler registers handlers for serving web UI
-func (d *daemon) registerWebuiHandler(router *mux.Router) {
-	// Setup the router to serve the web UI
-	goPath := os.Getenv("GOPATH")
-	if goPath != "" {
-		webPath := goPath + "/src/github.com/contiv/contivmodel/www/"
-
-		// Make sure we have the web UI files
-		_, err := os.Stat(webPath)
-		if err != nil {
-			webPath = goPath + "/src/github.com/contiv/netplugin/" +
-				"Godeps/_workspace/src/github.com/contiv/contivmodel/www/"
-			_, err := os.Stat(webPath)
-			if err != nil {
-				log.Errorf("Can not find the web UI directory")
-			}
-		}
-
-		log.Infof("Using webPath: %s", webPath)
-
-		// serve static files
-		router.PathPrefix("/web/").Handler(http.StripPrefix("/web/", http.FileServer(http.Dir(webPath))))
-
-		// Special case to serve main index.html
-		router.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
-			http.ServeFile(rw, req, webPath+"index.html")
-		})
-	}
-
-	// proxy Handler
-	router.PathPrefix("/proxy/").HandlerFunc(proxyHandler)
-}
-
 // registerRoutes registers HTTP route handlers
 func (d *daemon) registerRoutes(router *mux.Router) {
-	// register web ui handlers
-	d.registerWebuiHandler(router)
-
 	// Add REST routes
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
 
@@ -218,7 +181,7 @@ func (d *daemon) endpoints(id string) ([]core.State, error) {
 	return nil, core.Errorf("Unexpected code path. Recieved error during read: %v", err)
 }
 
-// XXX: This function should be returning logical state instead of driver state
+// Returns state of networks
 func (d *daemon) networks(id string) ([]core.State, error) {
 	var (
 		err error

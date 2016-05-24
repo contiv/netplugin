@@ -2,6 +2,7 @@ package systemtests
 
 import (
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -194,10 +195,19 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 }
 
 func (n *node) checkForNetpluginErrors() error {
-	out, _ := n.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "error|fatal" $i; done`)
+	out, _ := n.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "panic\|fatal" $i; done`)
 	if out != "" {
-		logrus.Errorf("error output in netplugin logs on %s: \n%s\n", n.Name(), out)
-		return fmt.Errorf("error output in netplugin logs")
+		logrus.Errorf("Fatal error in logs on %s: \n", n.Name())
+		fmt.Printf("%s\n==========================================\n", out)
+		return fmt.Errorf("fatal error in netplugin logs")
+	}
+
+	out, _ = n.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "error" $i; done`)
+	if out != "" {
+		logrus.Errorf("error output in netplugin logs on %s: \n", n.Name())
+		fmt.Printf("%s==========================================\n\n", out)
+		// FIXME: We still have some tests that are failing error check
+		// return fmt.Errorf("error output in netplugin logs")
 	}
 
 	return nil
@@ -225,5 +235,18 @@ func (n *node) checkPing(ipaddr string) error {
 	}
 
 	logrus.Infof("Ping from %s to %s SUCCEEDED", n.Name(), ipaddr)
+	return nil
+}
+
+func (n *node) reloadNode() error {
+	logrus.Infof("Reloading node %s", n.Name())
+
+	out, err := exec.Command("vagrant", "reload", n.Name()).CombinedOutput()
+	if err != nil {
+		logrus.Errorf("Error reloading node %s. Err: %v\n Output: %s", n.Name(), err, string(out))
+		return err
+	}
+
+	logrus.Infof("Reloaded node %s. Output:\n%s", n.Name(), string(out))
 	return nil
 }

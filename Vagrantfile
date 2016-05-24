@@ -8,14 +8,12 @@ gopath_folder="/opt/gopath"
 
 cluster_ip_nodes = ""
 
-provision_common = <<SCRIPT
+provision_common_once = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
 echo -n "$1" > /etc/hostname
 hostname -F /etc/hostname
-/sbin/ip addr add "$2/24" dev eth1
-/sbin/ip link set eth1 up
-/sbin/ip link set eth2 up
+
 echo 'export GOPATH=#{gopath_folder}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
@@ -32,15 +30,8 @@ if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
-# Enable ovs mgmt port
-(ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
- ovs-vsctl set-manager ptcp:6640) || exit 1
-
- # Drop cache to workaround vboxsf problem
- echo 3 > /proc/sys/vm/drop_caches
-
- # Change ownership for gopath folder
- chown vagrant #{gopath_folder}
+# Change ownership for gopath folder
+chown vagrant #{gopath_folder}
 
 # Install specific docker version if required
 if [[ $8 != "" ]]; then
@@ -65,7 +56,7 @@ cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /e
 systemctl enable docker-tcp.socket
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
-echo "Environment=\\\"no_proxy=$3,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
+echo "Environment=\\\"no_proxy=$CLUSTER_NODE_IPS,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
 sudo systemctl stop docker
 systemctl start docker-tcp.socket
@@ -77,6 +68,19 @@ rm /etc/docker/key.json
 
 docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
 
+SCRIPT
+
+provision_common_always = <<SCRIPT
+/sbin/ip addr add "$2/24" dev eth1
+/sbin/ip link set eth1 up
+/sbin/ip link set eth2 up
+
+# Drop cache to workaround vboxsf problem
+echo 3 > /proc/sys/vm/drop_caches
+
+# Enable ovs mgmt port
+(ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
+ ovs-vsctl set-manager ptcp:6640) || exit 1
 SCRIPT
 
 provision_gobgp = <<SCRIPT
@@ -91,6 +95,7 @@ echo "export http_proxy='$1'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$2'" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 SCRIPT
+
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -108,6 +113,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         num_nodes = ENV['CONTIV_NODES'].to_i
     end
     base_ip = "192.168.2."
+    if ENV['CONTIV_IP_PREFIX'] && ENV['CONTIV_IP_PREFIX'] != "" then
+        base_ip = ENV['CONTIV_IP_PREFIX']
+    end
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
     cluster_ip_nodes = node_ips.join(",")
 
@@ -118,7 +126,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
         quagga1.vm.box = "contiv/quagga1"
         quagga1.vm.host_name = "quagga1"
-        quagga1.vm.network :private_network, ip: "192.168.1.50", virtualbox__intnet: "true", auto_config: false
+        quagga1.vm.network :private_network, ip: base_ip + "51", virtualbox__intnet: "true", auto_config: false
         quagga1.vm.network "private_network",
                          ip: "80.1.1.200",
                          virtualbox__intnet: "contiv_orange"
@@ -134,7 +142,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
         quagga2.vm.box = "contiv/quagga2"
         quagga2.vm.host_name = "quagga2"
-        quagga2.vm.network :private_network, ip: "192.168.1.50", virtualbox__intnet: "true", auto_config: false
+        quagga2.vm.network :private_network, ip: base_ip + "52", virtualbox__intnet: "true", auto_config: false
         quagga2.vm.network "private_network",
                          ip: "70.1.1.1",
                          virtualbox__intnet: "contiv_blue"
@@ -215,7 +223,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_addr} #{node_name}' >> /etc/hosts"
             end
             node.vm.provision "shell" do |s|
-                s.inline = provision_common
+                s.inline = provision_common_once
                 s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
             end
             if ENV['CONTIV_L3'] then
@@ -223,6 +231,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                     s.inline = provision_gobgp
                 end
             end
+            node.vm.provision "shell", run: "always" do |s|
+                s.inline = provision_common_always
+                s.args = [node_name, node_addr]
+            end
+
 provision_node = <<SCRIPT
 ## start etcd with generated config
 set -x

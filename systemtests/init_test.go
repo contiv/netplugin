@@ -2,6 +2,7 @@ package systemtests
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -115,6 +116,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 }
 
 func (s *systemtestSuite) SetUpTest(c *C) {
+	log.Infof("============================= %s starting ==========================", c.TestName())
 
 	for _, node := range s.nodes {
 		node.cleanupContainers()
@@ -143,6 +145,13 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 
 	time.Sleep(15 * time.Second)
 
+	// temporarily enable DNS for service discovery tests
+	prevDNSEnabled := s.enableDNS
+	if strings.Contains(c.TestName(), "SvcDiscovery") {
+		s.enableDNS = true
+	}
+	defer func() { s.enableDNS = prevDNSEnabled }()
+
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(), IsNil)
 		time.Sleep(1 * time.Second)
@@ -168,6 +177,7 @@ func (s *systemtestSuite) TearDownTest(c *C) {
 		c.Assert(node.rotateLog("netplugin"), IsNil)
 		c.Assert(node.rotateLog("netmaster"), IsNil)
 	}
+	log.Infof("============================= %s completed ==========================", c.TestName())
 }
 
 func (s *systemtestSuite) TearDownSuite(c *C) {
@@ -178,9 +188,10 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 	// Print all errors and fatal messages
 	for _, node := range s.nodes {
 		logrus.Infof("Checking for errors on %v", node.Name())
-		out, _ := node.runCommand(`for i in /tmp/_net*; do grep "error\|fatal" $i; done`)
+		out, _ := node.runCommand(`for i in /tmp/_net*; do grep "error\|fatal\|panic" $i; done`)
 		if out != "" {
-			logrus.Errorf("Errors in logfiles on %s: \n%s\n==========================\n\n", node.Name(), out)
+			logrus.Errorf("Errors in logfiles on %s: \n", node.Name())
+			fmt.Printf("%s\n==========================\n\n", out)
 		}
 	}
 

@@ -106,19 +106,15 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 	epg := epgSpec{}
 	epg.Name = epgObj.GroupName
 
-	// Get EPG id for the endpoint group
-	epgID, err := mastercfg.GetEndpointGroupID(stateDriver, epgObj.GroupName, epgObj.TenantName)
-	if err != nil {
-		log.Errorf("Error getting epgID for %+v. Err: %v", epgObj, err)
-		return err
-	}
+	// Get EPG key for the endpoint group
+	epgKey := mastercfg.GetEndpointGroupKey(epgObj.GroupName, epgObj.TenantName)
 
 	// update vlantag from EpGroupState
 	epgCfg := &mastercfg.EndpointGroupState{}
 	epgCfg.StateDriver = stateDriver
-	eErr := epgCfg.Read(strconv.Itoa(epgID))
+	eErr := epgCfg.Read(epgKey)
 	if eErr != nil {
-		log.Errorf("Error reading epg %v %v", epgObj.GroupName, eErr)
+		log.Errorf("Error reading epg %v %v", epgKey, eErr)
 		return eErr
 	}
 

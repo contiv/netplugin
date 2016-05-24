@@ -212,6 +212,41 @@ func (s *systemtestSuite) runContainersSerial(num int, withService bool, network
 	return containers, nil
 }
 
+func (s *systemtestSuite) runContainersOnNode(num int, networkName string, n *node) ([]*container, error) {
+	containers := []*container{}
+	mutex := sync.Mutex{}
+
+	errChan := make(chan error)
+
+	for i := 0; i < num; i++ {
+		go func(i int) {
+			spec := containerSpec{
+				imageName:   "alpine",
+				networkName: networkName,
+			}
+
+			cont, err := n.runContainer(spec)
+			if err != nil {
+				errChan <- err
+			}
+
+			mutex.Lock()
+			containers = append(containers, cont)
+			mutex.Unlock()
+
+			errChan <- nil
+		}(i)
+	}
+
+	for i := 0; i < num; i++ {
+		if err := <-errChan; err != nil {
+			return nil, err
+		}
+	}
+
+	return containers, nil
+}
+
 func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName, serviceName string) ([]*container, error) {
 	containers := []*container{}
 	mutex := sync.Mutex{}
@@ -591,10 +626,12 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 
 		node, ok := etcdKv["node"]
 		if !ok {
+			logrus.Errorf("Invalid json from etcd. %+v", etcdKv)
 			return "", errors.New("node not found")
 		}
 		value, ok := node.(map[string]interface{})["value"]
 		if !ok {
+			logrus.Errorf("Invalid json from etcd. %+v", etcdKv)
 			return "", errors.New("Value not found")
 		}
 
@@ -614,6 +651,7 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 
 		value, ok := consulKv[0]["Value"]
 		if !ok {
+			logrus.Errorf("Invalid json from consul. %+v", consulKv)
 			return "", errors.New("Value not found")
 		}
 
