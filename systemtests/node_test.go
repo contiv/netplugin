@@ -89,7 +89,7 @@ func (n *node) startNetmaster() error {
 
 func (n *node) cleanupDockerNetwork() error {
 	logrus.Infof("Cleaning up networks on %s", n.Name())
-	return n.tbnode.RunCommand("docker network ls | grep netplugin | awk '{print $2}'")
+	return n.tbnode.RunCommand("docker network rm $(docker network ls | grep netplugin | awk '{print $2}')")
 }
 
 func (n *node) cleanupContainers() error {
