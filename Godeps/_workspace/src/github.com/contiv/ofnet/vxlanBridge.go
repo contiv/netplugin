@@ -355,10 +355,11 @@ func (self *Vxlan) RemoveVtepPort(portNo uint32, remoteIp net.IP) error {
 	for _, vlan := range self.vlanDb {
 		// Walk all vlans and remove from flood lists
 		vlan.allFlood.RemoveOutput(output)
+
+		portVlanFlow := vlan.vtepVlanFlowDb[portNo]
+		portVlanFlow.Delete()
+		delete(vlan.vtepVlanFlowDb, portNo)
 	}
-
-	// FIXME: uninstall vlan-vni mapping.
-
 	return nil
 }
 

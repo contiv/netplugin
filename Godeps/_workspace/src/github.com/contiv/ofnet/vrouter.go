@@ -324,6 +324,9 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 		// Note that we bypass policy lookup on dest host.
 		sNATTbl := self.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
 		portVlanFlow.Next(sNATTbl)
+
+		// save the port vlan flow for cleaning up later
+		self.vlanDb[*vlan].vtepVlanFlowDb[portNo] = portVlanFlow
 	}
 
 	// walk all routes and see if we need to install it
@@ -341,6 +344,13 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 
 // Remove a VTEP port
 func (self *Vrouter) RemoveVtepPort(portNo uint32, remoteIp net.IP) error {
+
+	for _, vlan := range self.vlanDb {
+		portVlanFlow := vlan.vtepVlanFlowDb[portNo]
+		portVlanFlow.Delete()
+		delete(vlan.vtepVlanFlowDb, portNo)
+	}
+
 	return nil
 }
 
