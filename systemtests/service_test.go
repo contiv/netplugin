@@ -721,6 +721,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 			serviceNetworks   = map[string][]string{}
 			tenantNames       = map[string][]string{}
 			servicesPerTenant = map[string]map[string][]*container{}
+			pktTag            = 0
 		)
 
 		numContainer := s.containers
@@ -749,6 +750,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
 					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
 					Encap:       "vxlan",
+					PktTag:      pktTag + 1000,
 				}
 
 				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
@@ -756,6 +758,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 				c.Assert(s.cli.NetworkPost(network), IsNil)
 				netNames = append(netNames, network.NetworkName)
 				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
+				pktTag++
 			}
 			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName)
 		}
@@ -851,7 +854,9 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 				c.Assert(s.removeContainers(containers[network+tenant]), IsNil)
 				c.Assert(s.cli.NetworkDelete(tenant, network), IsNil)
 			}
-
+			if tenant != "default" {
+				c.Assert(s.cli.TenantDelete(tenant), IsNil)
+			}
 		}
 	}
 }
