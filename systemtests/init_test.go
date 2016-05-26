@@ -116,7 +116,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 }
 
 func (s *systemtestSuite) SetUpTest(c *C) {
-	log.Infof("============================= %s starting ==========================", c.TestName())
+	logrus.Infof("============================= %s starting ==========================", c.TestName())
 
 	for _, node := range s.nodes {
 		node.cleanupContainers()
@@ -177,7 +177,7 @@ func (s *systemtestSuite) TearDownTest(c *C) {
 		c.Assert(node.rotateLog("netplugin"), IsNil)
 		c.Assert(node.rotateLog("netmaster"), IsNil)
 	}
-	log.Infof("============================= %s completed ==========================", c.TestName())
+	logrus.Infof("============================= %s completed ==========================", c.TestName())
 }
 
 func (s *systemtestSuite) TearDownSuite(c *C) {
