@@ -19,7 +19,7 @@ type driverConfigTypes struct {
 var networkDriverRegistry = map[string]driverConfigTypes{
 	OvsNameStr: driverConfigTypes{
 		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
-		ConfigType: reflect.TypeOf(drivers.OvsDriverConfig{}),
+		ConfigType: reflect.TypeOf(drivers.OvsDriver{}),
 	},
 	// fakedriver is used for tests, so not exposing a public name for it.
 	"fakedriver": driverConfigTypes{

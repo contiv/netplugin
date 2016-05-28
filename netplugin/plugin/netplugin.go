@@ -200,3 +200,12 @@ func (p *NetPlugin) DeleteServiceLB(servicename string, spec *core.ServiceSpec) 
 func (p *NetPlugin) SvcProviderUpdate(servicename string, providers []string) {
 	p.NetworkDriver.SvcProviderUpdate(servicename, providers)
 }
+// GetEndpointStats returns all endpoint stats
+func (p *NetPlugin) GetEndpointStats() ([]byte, error) {
+	return p.NetworkDriver.GetEndpointStats()
+}
+
+// InspectState returns current state of the plugin
+func (p *NetPlugin) InspectState() ([]byte, error) {
+	return p.NetworkDriver.InspectState()
+}

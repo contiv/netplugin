@@ -135,7 +135,7 @@ func (self *Flood) install() error {
 		}
 	}
 
-	log.Infof("Installing Group entry: %+v", groupMod)
+	log.Debugf("Installing Group entry: %+v", groupMod)
 
 	// Send it to the switch
 	self.Switch.Send(groupMod)
@@ -154,7 +154,7 @@ func (self *Flood) Delete() error {
 		groupMod.GroupId = self.GroupId
 		groupMod.Command = openflow13.OFPGC_DELETE
 
-		log.Infof("Deleting Group entry: %+v", groupMod)
+		log.Debugf("Deleting Group entry: %+v", groupMod)
 
 		// Send it to the switch
 		self.Switch.Send(groupMod)

@@ -413,6 +413,15 @@ func (vl *VlanBridge) SvcProviderUpdate(svcName string, providers []string) {
 	vl.svcProxy.ProviderUpdate(svcName, providers)
 }
 
+// GetEndpointStats fetches ep stats
+func (vl *VlanBridge) GetEndpointStats() ([]*OfnetEndpointStats, error) {
+	return nil, nil
+}
+
+// MultipartReply handles stats reply
+func (vl *VlanBridge) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply) {
+}
+
 // initialize Fgraph on the switch
 func (vl *VlanBridge) initFgraph() error {
 	sw := vl.ofSwitch

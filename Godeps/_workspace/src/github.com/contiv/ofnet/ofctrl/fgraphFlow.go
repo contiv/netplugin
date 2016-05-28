@@ -74,7 +74,7 @@ type Flow struct {
 	Match       FlowMatch     // Fields to be matched
 	NextElem    FgraphElem    // Next fw graph element
 	isInstalled bool          // Is the flow installed in the switch
-	flowId      uint64        // Unique ID for the flow
+	FlowID      uint64        // Unique ID for the flow
 	flowActions []*FlowAction // List of flow actions
 }
 
@@ -417,7 +417,7 @@ func (self *Flow) install() error {
 	flowMod := openflow13.NewFlowMod()
 	flowMod.TableId = self.Table.TableId
 	flowMod.Priority = self.Match.Priority
-	flowMod.Cookie = self.flowId
+	flowMod.Cookie = self.FlowID
 
 	// Add or modify
 	if !self.isInstalled {
@@ -659,7 +659,7 @@ func (self *Flow) Delete() error {
 		flowMod.Command = openflow13.FC_DELETE
 		flowMod.TableId = self.Table.TableId
 		flowMod.Priority = self.Match.Priority
-		flowMod.Cookie = self.flowId
+		flowMod.Cookie = self.FlowID
 		flowMod.CookieMask = 0xffffffffffffffff
 		flowMod.OutPort = openflow13.P_ANY
 		flowMod.OutGroup = openflow13.OFPG_ANY

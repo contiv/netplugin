@@ -47,6 +47,9 @@ type AppInterface interface {
 
 	// Controller received a packet from the switch
 	PacketRcvd(sw *OFSwitch, pkt *PacketIn)
+
+	// Controller received a multi-part reply from the switch
+	MultipartReply(sw *OFSwitch, rep *openflow13.MultipartReply)
 }
 
 type Controller struct {

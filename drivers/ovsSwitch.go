@@ -632,3 +632,21 @@ func (sw *OvsSwitch) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
 func (sw *OvsSwitch) SvcProviderUpdate(svcName string, providers []string) {
 	sw.ofnetAgent.SvcProviderUpdate(svcName, providers)
 }
+
+// GetEndpointStats invokes ofnetAgent api
+func (sw *OvsSwitch) GetEndpointStats() ([]*ofnet.OfnetEndpointStats, error) {
+	stats, err := sw.ofnetAgent.GetEndpointStats()
+	if err != nil {
+		log.Errorf("Error: %v", err)
+		return nil, err
+	}
+
+	log.Debugf("stats: %+v", stats)
+
+	return stats, nil
+}
+
+// InspectState ireturns ofnet state in json form
+func (sw *OvsSwitch) InspectState() (interface{}, error) {
+	return sw.ofnetAgent.InspectState()
+}

@@ -17,6 +17,7 @@ package ofnet
 // This file contains the ofnet master implementation
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -307,5 +308,31 @@ func (self *OfnetMaster) InjectGARPs(epgID int) {
 			log.Errorf("Error triggering GARP on %s. Err: %v", node.HostAddr, err)
 		}
 	}
+}
 
+// InspectState returns current state as json
+func (self *OfnetMaster) InspectState() (string, error) {
+	// convert ofnet struct to an exported struct for json marshaling
+	ofnetExport := struct {
+		MyAddr     string                      // Address where we are listening
+		MyPort     uint16                      // port where we are listening
+		AgentDb    map[string]*OfnetNode       // Database of agent nodes
+		EndpointDb map[string]*OfnetEndpoint   // Endpoint database
+		PolicyDb   map[string]*OfnetPolicyRule // Policy database
+	}{
+		self.myAddr,
+		self.myPort,
+		self.agentDb,
+		self.endpointDb,
+		self.policyDb,
+	}
+
+	// convert struct to json
+	jsonStats, err := json.Marshal(ofnetExport)
+	if err != nil {
+		log.Errorf("Error encoding ofnet master state. Err: %v", err)
+		return "", err
+	}
+
+	return string(jsonStats), nil
 }

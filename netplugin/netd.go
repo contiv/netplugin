@@ -19,8 +19,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/Sirupsen/logrus/hooks/syslog"
+	"log/syslog"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"os/user"
+	"strings"
+	"time"
+
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin"
@@ -43,6 +50,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/gorilla/mux"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus/hooks/syslog"
 )
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
@@ -430,6 +441,45 @@ func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 	return nil
 }
 
+// serveRequests serve REST api requests
+func serveRequests(netPlugin *plugin.NetPlugin) {
+	listenURL := ":9090"
+	router := mux.NewRouter()
+
+	// Add REST routes
+	s := router.Methods("GET").Subrouter()
+	s.HandleFunc("/svcstats", func(w http.ResponseWriter, r *http.Request) {
+		stats, err := netPlugin.GetEndpointStats()
+		if err != nil {
+			log.Errorf("Error fetching stats from driver. Err: %v", err)
+			http.Error(w, "Error fetching stats from driver", http.StatusInternalServerError)
+			return
+		}
+		w.Write(stats)
+	})
+	s.HandleFunc("/inspect/driver", func(w http.ResponseWriter, r *http.Request) {
+		driverState, err := netPlugin.InspectState()
+		if err != nil {
+			log.Errorf("Error fetching driver state. Err: %v", err)
+			http.Error(w, "Error fetching driver state", http.StatusInternalServerError)
+			return
+		}
+		w.Write(driverState)
+	})
+
+	// Create HTTP server and listener
+	server := &http.Server{Handler: router}
+	listener, err := net.Listen("tcp", listenURL)
+	if nil != err {
+		log.Fatalln(err)
+	}
+
+	log.Infof("Netplugin listening on %s", listenURL)
+
+	// start server
+	go server.Serve(listener)
+}
+
 func configureSyslog(syslogParam string) {
 	var err error
 	var hook log.Hook
@@ -631,6 +681,10 @@ func main() {
 		k8splugin.InitKubServiceWatch(netPlugin)
 	}
 
+	// start service REST requests
+	serveRequests(netPlugin)
+
+	// handle events
 	if err := handleEvents(netPlugin, opts); err != nil {
 		os.Exit(1)
 	}

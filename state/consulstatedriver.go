@@ -130,9 +130,9 @@ func (d *ConsulStateDriver) channelConsulEvents(baseKey string, kvCache map[stri
 				rsp := [2][]byte{nil, nil}
 				rsp[0] = kv.Value
 				if kvSeen, ok := kvCache[kv.Key]; !ok {
-					log.Infof("Received create for key: %q, kv: %+v", kv.Key, kv)
+					log.Debugf("Received create for key: %q, kv: %+v", kv.Key, kv)
 				} else if kvSeen.ModifyIndex != kv.ModifyIndex {
-					log.Infof("Received modify for key: %q, kv: %+v", kv.Key, kv)
+					log.Debugf("Received modify for key: %q, kv: %+v", kv.Key, kv)
 					rsp[1] = kvSeen.Value
 				} else {
 					// no changes to the key, skipping

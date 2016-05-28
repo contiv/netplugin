@@ -674,6 +674,15 @@ func (vx *Vxlan) DelSvcSpec(svcName string, spec *ServiceSpec) error {
 func (vx *Vxlan) SvcProviderUpdate(svcName string, providers []string) {
 }
 
+// GetEndpointStats fetches ep stats
+func (vx *Vxlan) GetEndpointStats() ([]*OfnetEndpointStats, error) {
+	return nil, nil
+}
+
+// MultipartReply handles stats reply
+func (vx *Vxlan) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply) {
+}
+
 // initialize Fgraph on the switch
 func (self *Vxlan) initFgraph() error {
 	sw := self.ofSwitch
