@@ -492,7 +492,7 @@ func (c *ContivClient) AppProfileGet(tenantName string, appProfileName string) (
 	return &obj, nil
 }
 
-// AppProfileGetInspect gets the appProfileInspect object
+// AppProfileInspect gets the appProfileInspect object
 func (c *ContivClient) AppProfileInspect(tenantName string, appProfileName string) (*AppProfileInspect, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + appProfileName
@@ -574,7 +574,7 @@ func (c *ContivClient) BgpGet(hostname string) (*Bgp, error) {
 	return &obj, nil
 }
 
-// BgpGetInspect gets the BgpInspect object
+// BgpInspect gets the BgpInspect object
 func (c *ContivClient) BgpInspect(hostname string) (*BgpInspect, error) {
 	// build key and URL
 	keyStr := hostname
@@ -656,7 +656,7 @@ func (c *ContivClient) EndpointGroupGet(tenantName string, groupName string) (*E
 	return &obj, nil
 }
 
-// EndpointGroupGetInspect gets the endpointGroupInspect object
+// EndpointGroupInspect gets the endpointGroupInspect object
 func (c *ContivClient) EndpointGroupInspect(tenantName string, groupName string) (*EndpointGroupInspect, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + groupName
@@ -803,7 +803,7 @@ func (c *ContivClient) GlobalGet(name string) (*Global, error) {
 	return &obj, nil
 }
 
-// GlobalGetInspect gets the globalInspect object
+// GlobalInspect gets the globalInspect object
 func (c *ContivClient) GlobalInspect(name string) (*GlobalInspect, error) {
 	// build key and URL
 	keyStr := name
@@ -885,7 +885,7 @@ func (c *ContivClient) NetworkGet(tenantName string, networkName string) (*Netwo
 	return &obj, nil
 }
 
-// NetworkGetInspect gets the networkInspect object
+// NetworkInspect gets the networkInspect object
 func (c *ContivClient) NetworkInspect(tenantName string, networkName string) (*NetworkInspect, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + networkName
@@ -967,7 +967,7 @@ func (c *ContivClient) PolicyGet(tenantName string, policyName string) (*Policy,
 	return &obj, nil
 }
 
-// PolicyGetInspect gets the policyInspect object
+// PolicyInspect gets the policyInspect object
 func (c *ContivClient) PolicyInspect(tenantName string, policyName string) (*PolicyInspect, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + policyName
@@ -1049,7 +1049,7 @@ func (c *ContivClient) RuleGet(tenantName string, policyName string, ruleId stri
 	return &obj, nil
 }
 
-// RuleGetInspect gets the ruleInspect object
+// RuleInspect gets the ruleInspect object
 func (c *ContivClient) RuleInspect(tenantName string, policyName string, ruleId string) (*RuleInspect, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + policyName + ":" + ruleId
@@ -1131,7 +1131,7 @@ func (c *ContivClient) ServiceLBGet(tenantName string, serviceName string) (*Ser
 	return &obj, nil
 }
 
-// ServiceLBGetInspect gets the serviceLBInspect object
+// ServiceLBInspect gets the serviceLBInspect object
 func (c *ContivClient) ServiceLBInspect(tenantName string, serviceName string) (*ServiceLBInspect, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + serviceName
@@ -1213,7 +1213,7 @@ func (c *ContivClient) TenantGet(tenantName string) (*Tenant, error) {
 	return &obj, nil
 }
 
-// TenantGetInspect gets the tenantInspect object
+// TenantInspect gets the tenantInspect object
 func (c *ContivClient) TenantInspect(tenantName string) (*TenantInspect, error) {
 	// build key and URL
 	keyStr := tenantName
@@ -1295,7 +1295,7 @@ func (c *ContivClient) VolumeGet(tenantName string, volumeName string) (*Volume,
 	return &obj, nil
 }
 
-// VolumeGetInspect gets the volumeInspect object
+// VolumeInspect gets the volumeInspect object
 func (c *ContivClient) VolumeInspect(tenantName string, volumeName string) (*VolumeInspect, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + volumeName
@@ -1377,7 +1377,7 @@ func (c *ContivClient) VolumeProfileGet(tenantName string, volumeProfileName str
 	return &obj, nil
 }
 
-// VolumeProfileGetInspect gets the volumeProfileInspect object
+// VolumeProfileInspect gets the volumeProfileInspect object
 func (c *ContivClient) VolumeProfileInspect(tenantName string, volumeProfileName string) (*VolumeProfileInspect, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + volumeProfileName

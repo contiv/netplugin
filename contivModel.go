@@ -533,37 +533,43 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 
 // Add all routes for REST handlers
 func AddRoutes(router *mux.Router) {
-	var route, listRoute string
+	var route, listRoute, inspectRoute string
 
 	// Register appProfile
 	route = "/api/v1/appProfiles/{key}/"
 	listRoute = "/api/v1/appProfiles/"
+	inspectRoute = "/api/v1/inspect/appProfiles/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListAppProfiles))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetAppProfile))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateAppProfile))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateAppProfile))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteAppProfile))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectAppProfile))
 
 	// Register Bgp
 	route = "/api/v1/Bgps/{key}/"
 	listRoute = "/api/v1/Bgps/"
+	inspectRoute = "/api/v1/inspect/Bgps/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListBgps))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetBgp))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateBgp))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateBgp))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteBgp))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectBgp))
 
 	// Register endpointGroup
 	route = "/api/v1/endpointGroups/{key}/"
 	listRoute = "/api/v1/endpointGroups/"
+	inspectRoute = "/api/v1/inspect/endpointGroups/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListEndpointGroups))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetEndpointGroup))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateEndpointGroup))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateEndpointGroup))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteEndpointGroup))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectEndpointGroup))
 
 	// Register extContractsGroup
 	route = "/api/extContractsGroups/{key}/"
@@ -578,82 +584,98 @@ func AddRoutes(router *mux.Router) {
 	// Register global
 	route = "/api/v1/globals/{key}/"
 	listRoute = "/api/v1/globals/"
+	inspectRoute = "/api/v1/inspect/globals/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListGlobals))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetGlobal))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateGlobal))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateGlobal))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteGlobal))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectGlobal))
 
 	// Register network
 	route = "/api/v1/networks/{key}/"
 	listRoute = "/api/v1/networks/"
+	inspectRoute = "/api/v1/inspect/networks/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListNetworks))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetNetwork))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateNetwork))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateNetwork))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteNetwork))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectNetwork))
 
 	// Register policy
 	route = "/api/v1/policys/{key}/"
 	listRoute = "/api/v1/policys/"
+	inspectRoute = "/api/v1/inspect/policys/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListPolicys))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetPolicy))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreatePolicy))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreatePolicy))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeletePolicy))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectPolicy))
 
 	// Register rule
 	route = "/api/v1/rules/{key}/"
 	listRoute = "/api/v1/rules/"
+	inspectRoute = "/api/v1/inspect/rules/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListRules))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetRule))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateRule))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateRule))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteRule))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectRule))
 
 	// Register serviceLB
 	route = "/api/v1/serviceLBs/{key}/"
 	listRoute = "/api/v1/serviceLBs/"
+	inspectRoute = "/api/v1/inspect/serviceLBs/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListServiceLBs))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetServiceLB))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateServiceLB))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateServiceLB))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteServiceLB))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectServiceLB))
 
 	// Register tenant
 	route = "/api/v1/tenants/{key}/"
 	listRoute = "/api/v1/tenants/"
+	inspectRoute = "/api/v1/inspect/tenants/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListTenants))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetTenant))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateTenant))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateTenant))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteTenant))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectTenant))
 
 	// Register volume
 	route = "/api/v1/volumes/{key}/"
 	listRoute = "/api/v1/volumes/"
+	inspectRoute = "/api/v1/inspect/volumes/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListVolumes))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetVolume))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateVolume))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateVolume))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteVolume))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectVolume))
 
 	// Register volumeProfile
 	route = "/api/v1/volumeProfiles/{key}/"
 	listRoute = "/api/v1/volumeProfiles/"
+	inspectRoute = "/api/v1/inspect/volumeProfiles/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListVolumeProfiles))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetVolumeProfile))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateVolumeProfile))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateVolumeProfile))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteVolumeProfile))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectVolumeProfile))
 
 }
 
@@ -702,6 +724,17 @@ func httpInspectAppProfile(w http.ResponseWriter, r *http.Request, vars map[stri
 
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a appProfileOper object
+func GetOperAppProfile(key string) error {
+	obj := collections.appProfiles[key]
+	if obj == nil {
+		log.Errorf("appProfile %s not found", key)
+		return errors.New("appProfile not found")
+	}
+
+	return nil
 }
 
 // CREATE REST call
@@ -977,6 +1010,17 @@ func httpInspectBgp(w http.ResponseWriter, r *http.Request, vars map[string]stri
 
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a BgpOper object
+func GetOperBgp(key string) error {
+	obj := collections.Bgps[key]
+	if obj == nil {
+		log.Errorf("Bgp %s not found", key)
+		return errors.New("Bgp not found")
+	}
+
+	return nil
 }
 
 // CREATE REST call
@@ -1269,6 +1313,17 @@ func httpInspectEndpointGroup(w http.ResponseWriter, r *http.Request, vars map[s
 
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a endpointGroupOper object
+func GetOperEndpointGroup(key string) error {
+	obj := collections.endpointGroups[key]
+	if obj == nil {
+		log.Errorf("endpointGroup %s not found", key)
+		return errors.New("endpointGroup not found")
+	}
+
+	return nil
 }
 
 // CREATE REST call
@@ -1812,6 +1867,17 @@ func httpInspectGlobal(w http.ResponseWriter, r *http.Request, vars map[string]s
 	return &obj, nil
 }
 
+// Get a globalOper object
+func GetOperGlobal(key string) error {
+	obj := collections.globals[key]
+	if obj == nil {
+		log.Errorf("global %s not found", key)
+		return errors.New("global not found")
+	}
+
+	return nil
+}
+
 // CREATE REST call
 func httpCreateGlobal(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	log.Debugf("Received httpGetGlobal: %+v", vars)
@@ -2095,6 +2161,17 @@ func httpInspectNetwork(w http.ResponseWriter, r *http.Request, vars map[string]
 
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a networkOper object
+func GetOperNetwork(key string) error {
+	obj := collections.networks[key]
+	if obj == nil {
+		log.Errorf("network %s not found", key)
+		return errors.New("network not found")
+	}
+
+	return nil
 }
 
 // CREATE REST call
@@ -2410,6 +2487,17 @@ func httpInspectPolicy(w http.ResponseWriter, r *http.Request, vars map[string]s
 	return &obj, nil
 }
 
+// Get a policyOper object
+func GetOperPolicy(key string) error {
+	obj := collections.policys[key]
+	if obj == nil {
+		log.Errorf("policy %s not found", key)
+		return errors.New("policy not found")
+	}
+
+	return nil
+}
+
 // CREATE REST call
 func httpCreatePolicy(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	log.Debugf("Received httpGetPolicy: %+v", vars)
@@ -2683,6 +2771,17 @@ func httpInspectRule(w http.ResponseWriter, r *http.Request, vars map[string]str
 
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a ruleOper object
+func GetOperRule(key string) error {
+	obj := collections.rules[key]
+	if obj == nil {
+		log.Errorf("rule %s not found", key)
+		return errors.New("rule not found")
+	}
+
+	return nil
 }
 
 // CREATE REST call
@@ -3046,6 +3145,17 @@ func httpInspectServiceLB(w http.ResponseWriter, r *http.Request, vars map[strin
 	return &obj, nil
 }
 
+// Get a serviceLBOper object
+func GetOperServiceLB(key string) error {
+	obj := collections.serviceLBs[key]
+	if obj == nil {
+		log.Errorf("serviceLB %s not found", key)
+		return errors.New("serviceLB not found")
+	}
+
+	return nil
+}
+
 // CREATE REST call
 func httpCreateServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	log.Debugf("Received httpGetServiceLB: %+v", vars)
@@ -3339,6 +3449,17 @@ func httpInspectTenant(w http.ResponseWriter, r *http.Request, vars map[string]s
 	return &obj, nil
 }
 
+// Get a tenantOper object
+func GetOperTenant(key string) error {
+	obj := collections.tenants[key]
+	if obj == nil {
+		log.Errorf("tenant %s not found", key)
+		return errors.New("tenant not found")
+	}
+
+	return nil
+}
+
 // CREATE REST call
 func httpCreateTenant(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	log.Debugf("Received httpGetTenant: %+v", vars)
@@ -3614,6 +3735,17 @@ func httpInspectVolume(w http.ResponseWriter, r *http.Request, vars map[string]s
 	return &obj, nil
 }
 
+// Get a volumeOper object
+func GetOperVolume(key string) error {
+	obj := collections.volumes[key]
+	if obj == nil {
+		log.Errorf("volume %s not found", key)
+		return errors.New("volume not found")
+	}
+
+	return nil
+}
+
 // CREATE REST call
 func httpCreateVolume(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	log.Debugf("Received httpGetVolume: %+v", vars)
@@ -3869,6 +4001,17 @@ func httpInspectVolumeProfile(w http.ResponseWriter, r *http.Request, vars map[s
 
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a volumeProfileOper object
+func GetOperVolumeProfile(key string) error {
+	obj := collections.volumeProfiles[key]
+	if obj == nil {
+		log.Errorf("volumeProfile %s not found", key)
+		return errors.New("volumeProfile not found")
+	}
+
+	return nil
 }
 
 // CREATE REST call
