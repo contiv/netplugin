@@ -22,6 +22,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/extContracts"
 	"github.com/contiv/objdb/modeldb"
 	"strconv"
 	"strings"
@@ -57,9 +58,8 @@ func NewAPIController(router *mux.Router, storeURL string) *APIController {
 	contivModel.RegisterRuleCallbacks(ctrler)
 	contivModel.RegisterTenantCallbacks(ctrler)
 	contivModel.RegisterBgpCallbacks(ctrler)
-	contivModel.RegisterBgpCallbacks(ctrler)
 	contivModel.RegisterServiceLBCallbacks(ctrler)
-
+	contivModel.RegisterExtContractsGroupCallbacks(ctrler)
 	// Register routes
 	contivModel.AddRoutes(router)
 
@@ -343,6 +343,12 @@ func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) {
 		policy.Write()
 	}
 
+    // Cleanup any external contracts
+	err = extContracts.CleanupExternalContracts(endpointGroup)
+	if err != nil {
+		return err
+	}
+
 	// Remove the endpoint group from network and tenant link sets.
 	nwObjKey := endpointGroup.TenantName + ":" + endpointGroup.NetworkName
 	network := contivModel.FindNetwork(nwObjKey)
@@ -360,6 +366,107 @@ func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) {
 // FIXME: hack to allocate unique endpoint group ids
 var globalEpgID = 1
 
+/*
+// Some utility functions to work with the external contracts
+func extContractsGrpDeregister(epg *contivModel.EndpointGroup, contractsGrp *contivModel.ExtContractsGroup, contractType string) error {
+	if contractsGrp == nil {
+		errStr := fmt.Sprintf("%s External contracts group not found", contractType)
+		log.Errorf(errStr)
+		return core.Errorf(errStr)
+	}
+
+	modeldb.RemoveLinkSet(&contractsGrp.LinkSets.EndpointGroups, epg)
+	if contractType == "provided" {
+		modeldb.RemoveLinkSet(&epg.LinkSets.ProvExtContractsGrps, contractsGrp)
+	} else if contractType == "consumed" {
+		modeldb.RemoveLinkSet(&epg.LinkSets.ConsExtContractsGrps, contractsGrp)
+	}
+	// Links broken, update the contracts group object.
+	err := contractsGrp.Write()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func extContractsGrpValidateAndRegister(epg *contivModel.EndpointGroup, contractsGrp *contivModel.ExtContractsGroup, contractType string) error {
+	if contractsGrp == nil {
+		errStr := fmt.Sprintf("%s External contracts group not found", contractType)
+		log.Errorf(errStr)
+		return core.Errorf(errStr)
+	}
+
+	if strings.ToLower(contractsGrp.ContractsType) != contractType {
+		errStr := fmt.Sprintf("Incorrect type for contract group: %v", contractsGrp)
+		log.Errorf(errStr)
+		return core.Errorf(errStr)
+	}
+
+	// Establish the necessary links.
+	// TBD: Error handling. In the loop, we are bailing out
+	// on failure. How do we take care of already established
+	// links?
+	modeldb.AddLinkSet(&contractsGrp.LinkSets.EndpointGroups, epg)
+	if contractType == "provided" {
+		modeldb.AddLinkSet(&epg.LinkSets.ProvExtContractsGrps, contractsGrp)
+	} else if contractType == "consumed" {
+		modeldb.AddLinkSet(&epg.LinkSets.ConsExtContractsGrps, contractsGrp)
+	}
+
+	// Links made, write the policy set object.
+	err := contractsGrp.Write()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func cleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
+	// Cleanup consumed external contracts
+	for _, consExtContractsGrp := range endpointGroup.ConsExtContractsGrps {
+		contractsGrp := contivModel.FindExtContractsGroup(consExtContractsGrp)
+		err = extContractsGrpDeregister(endpointGroup, contractsGrp, "consumed")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Cleanup provided external contracts
+	for _, provExtContractsGrp := range endpointGroup.ProvExtContractsGrps {
+		contractsGrp := contivModel.FindExtContractsGroup(provExtContractsGrp)
+		err = extContractsGrpDeregister(endpointGroup, contractsGrp, "provided")
+		if err != nil {
+			return err
+		}
+	}
+
+    return nil
+}
+
+func setupExternalContracts(endpointGroup *contivModel.EndpointGroup, consContractsGrps, provContractsGrps string[]) error {
+	// Validate presence and register consumed external contracts
+	for _, consExtContractsGrp := range consContractsGrps {
+		contractsGrp := contivModel.FindExtContractsGroup(consExtContractsGrp)
+		err = extContractsGrpValidateAndRegister(endpointGroup, contractsGrp, "consumed")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Validate presence and register provided external contracts
+	for _, provExtContractsGrp := range provContractsGrps {
+		contractsGrp := contivModel.FindExtContractsGroup(provExtContractsGrp)
+		err = extContractsGrpValidateAndRegister(endpointGroup, contractsGrp, "provided")
+		if err != nil {
+			return err
+		}
+	}
+
+    return nil
+}
+*/
 // EndpointGroupCreate creates end point group
 func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupCreate: %+v", endpointGroup)
@@ -388,6 +495,12 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
 	if err != nil {
 		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
+		return err
+	}
+
+	// Setup external contracts this EPG might have.
+	err = extContracts.SetupExternalContracts(endpointGroup, endpointGroup.ConsExtContractsGrps, endpointGroup.ProvExtContractsGrps)
+	if err != nil {
 		return err
 	}
 
@@ -512,9 +625,26 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 			}
 		}
 	}
-
 	// Update the policy list
 	endpointGroup.Policies = params.Policies
+
+	// For the external contracts, we can keep the update simple. Remove
+	// all that we have now, and update the epg with the new list.
+	// Step 1: Cleanup existing external contracts.
+	err := extContracts.CleanupExternalContracts(endpointGroup)
+	if err != nil {
+		return err
+	}
+	// Step 2: Add contracts from the update.
+	// Consumed contracts
+	err = extContracts.SetupExternalContracts(endpointGroup, params.ConsExtContractsGrps, params.ProvExtContractsGrps)
+	if err != nil {
+		return err
+	}
+
+	// Update the epg itself with the new contracts groups.
+	endpointGroup.ConsExtContractsGrps = params.ConsExtContractsGrps
+	endpointGroup.ProvExtContractsGrps = params.ProvExtContractsGrps
 
 	// if there is an associated app profiles, update that as well
 	profKey := endpointGroup.Links.AppProfile.ObjKey
@@ -1134,4 +1264,41 @@ func validatePorts(ports []string) bool {
 		}
 	}
 	return true
+}
+
+func isExtContractsGroupUsed(contractsGroup *contivModel.ExtContractsGroup) bool {
+	if len(contractsGroup.LinkSets.EndpointGroups) > 0 {
+		return true
+	}
+
+	return false
+}
+
+// ExtContractsGroupCreate creates a new group of external contracts
+func (ac *APIController) ExtContractsGroupCreate(contractsGroup *contivModel.ExtContractsGroup) error {
+	log.Infof("Received ExtContractsGroupCreate: %+v", contractsGroup)
+
+	return nil
+}
+
+// ExtContractsGroupUpdate updates an existing group of contract sets
+func (ac *APIController) ExtContractsGroupUpdate(contractsGroup, params *contivModel.ExtContractsGroup) error {
+	log.Infof("Received ExtContractsGroupUpdate: %+v, params: %+v", contractsGroup, params)
+	log.Errorf("Error: external contracts update not supported: %s", contractsGroup.ContractsGroupName)
+
+	return core.Errorf("external contracts update not supported")
+}
+
+// ExtContractsGroupDelete deletes an existing external contracts group
+func (ac *APIController) ExtContractsGroupDelete(contractsGroup *contivModel.ExtContractsGroup) error {
+	log.Infof("Received ExtContractsGroupDelete: %+v", contractsGroup)
+
+	// At this moment, we let the external contracts to be deleted only
+	// if there are no consumers of this external contracts group
+	if isExtContractsGroupUsed(contractsGroup) == true {
+		log.Errorf("Error: External contracts groups is being used: %s", contractsGroup.ContractsGroupName)
+		return core.Errorf("External contracts group is in-use")
+	}
+
+	return nil
 }

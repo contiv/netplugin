@@ -55,6 +55,14 @@ var Commands = []cli.Command{
 						Name:  "policy, p",
 						Usage: "Policy List (separated by commas)",
 					},
+					cli.StringFlag{
+						Name:  "consumed-external-contracts, i",
+						Usage: "Consumed external contracts(separated by commas)",
+					},
+					cli.StringFlag{
+						Name:  "provided-external-contracts, e",
+						Usage: "Provided external contracts(separated by commas)",
+					},
 				},
 				Action: createEndpointGroup,
 			},
@@ -253,6 +261,44 @@ var Commands = []cli.Command{
 					},
 				},
 				Action: addRule,
+			},
+		},
+	},
+	{
+		Name:  "external-contracts",
+		Usage: "External contracts",
+		Subcommands: []cli.Command{
+			{
+				Name:    "ls",
+				Aliases: []string{"list"},
+				Usage:   "List external contracts",
+				Flags:   []cli.Flag{quietFlag, jsonFlag},
+				Action:  listExternalContracts,
+			},
+			{
+				Name:    "rm",
+				Aliases: []string{"delete"},
+				Usage:   "Delete external contracts",
+				Action:  deleteExternalContracts,
+			},
+			{
+				Name:  "create",
+				Usage: "Create external contracts",
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "consumed, c",
+						Usage: "External contracts type - consumed",
+					},
+					cli.BoolFlag{
+						Name:  "provided, p",
+						Usage: "External contracts type - provided",
+					},
+					cli.StringFlag{
+						Name:  "contracts, a",
+						Usage: "Contracts (separated by commas)",
+					},
+				},
+				Action: createExternalContracts,
 			},
 		},
 	},
