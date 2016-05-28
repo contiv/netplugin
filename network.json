@@ -64,6 +64,32 @@
 					"showSummary": true
 				}
 			},
+			"operProperties": {
+				"pktTag": {
+					"type": "int",
+					"title": "internal packet tag"
+				},
+				"externalPktTag": {
+					"type": "int",
+					"title": "external packet tag"
+				},
+				"numEndpoints": {
+					"type": "int",
+					"title": "external packet tag"
+				},
+				"allocatedAddressesCount": {
+					"type": "int",
+					"title": "Vlan/Vxlan Tag"
+				},
+				"allocatedIPAddresses": {
+					"type": "string",
+					"title": "allocated IP addresses"
+				},
+				"dnsServerIP": {
+					"type": "string",
+					"title": "dns IP for the network"
+				}
+			},
 			"link-sets": {
 				"services": {
 					"ref": "service"
