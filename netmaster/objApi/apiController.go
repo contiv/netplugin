@@ -343,10 +343,10 @@ func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) {
 		policy.Write()
 	}
 
-    // Cleanup any external contracts
+	// Cleanup any external contracts
 	err = extContracts.CleanupExternalContracts(endpointGroup)
 	if err != nil {
-		return err
+		log.Errorf("Error cleaning up external contracts for epg %s", endpointGroup.Key)
 	}
 
 	// Remove the endpoint group from network and tenant link sets.
@@ -397,12 +397,6 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		return err
 	}
 
-	// Setup external contracts this EPG might have.
-	err = extContracts.SetupExternalContracts(endpointGroup, endpointGroup.ConsExtContractsGrps, endpointGroup.ProvExtContractsGrps)
-	if err != nil {
-		return err
-	}
-
 	// for each policy create an epg policy Instance
 	for _, policyName := range endpointGroup.Policies {
 		policyKey := endpointGroup.TenantName + ":" + policyName
@@ -432,6 +426,14 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 			endpointGroupCleanup(endpointGroup)
 			return err
 		}
+	}
+
+	// Setup external contracts this EPG might have.
+	err = extContracts.SetupExternalContracts(endpointGroup, endpointGroup.ConsExtContractsGrps, endpointGroup.ProvExtContractsGrps)
+	if err != nil {
+		log.Errorf("Error setting up external contracts for epg %s", endpointGroup.Key)
+		endpointGroupCleanup(endpointGroup)
+		return err
 	}
 
 	// Setup links
@@ -1194,7 +1196,7 @@ func (ac *APIController) ExtContractsGroupDelete(contractsGroup *contivModel.Ext
 
 	// At this moment, we let the external contracts to be deleted only
 	// if there are no consumers of this external contracts group
-	if isExtContractsGroupUsed(contractsGroup) == true {
+	if extContracts.IsExtContractsGroupUsed(contractsGroup) == true {
 		log.Errorf("Error: External contracts groups is being used: %s", contractsGroup.ContractsGroupName)
 		return core.Errorf("External contracts group is in-use")
 	}

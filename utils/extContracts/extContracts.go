@@ -92,7 +92,10 @@ func CleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
 		contractsGrp := contivModel.FindExtContractsGroup(consExtContractsGrp)
 		err := extContractsGrpDeregister(endpointGroup, contractsGrp, "consumed")
 		if err != nil {
-			return err
+			if contractsGrp != nil {
+				log.Errorf("Error cleaning up consumed ext contract %s", contractsGrp.ContractsGroupName)
+			}
+			continue
 		}
 	}
 
@@ -101,7 +104,10 @@ func CleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
 		contractsGrp := contivModel.FindExtContractsGroup(provExtContractsGrp)
 		err := extContractsGrpDeregister(endpointGroup, contractsGrp, "provided")
 		if err != nil {
-			return err
+			if contractsGrp != nil {
+				log.Errorf("Error cleaning up provided ext contract %s", contractsGrp.ContractsGroupName)
+			}
+			continue
 		}
 	}
 
@@ -130,4 +136,13 @@ func SetupExternalContracts(endpointGroup *contivModel.EndpointGroup,
 	}
 
 	return nil
+}
+
+// Check if the external contracts are being used by any of the EPGs.
+func IsExtContractsGroupUsed(contractsGroup *contivModel.ExtContractsGroup) bool {
+	if len(contractsGroup.LinkSets.EndpointGroups) > 0 {
+		return true
+	}
+
+	return false
 }
