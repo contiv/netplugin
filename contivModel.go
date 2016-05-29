@@ -124,8 +124,19 @@ type Global struct {
 
 }
 
+type GlobalOper struct {
+	DefaultNetwork  string `json:"defaultNetwork,omitempty"`  //
+	FreeVXLANsStart int    `json:"freeVXLANsStart,omitempty"` //
+	NumNetworks     int    `json:"numNetworks,omitempty"`     //
+	VlansInUse      string `json:"vlansInUse,omitempty"`      //
+	VxlansInUse     string `json:"vxlansInUse,omitempty"`     //
+
+}
+
 type GlobalInspect struct {
 	Config Global
+
+	Oper GlobalOper
 }
 type Network struct {
 	// every object has a key
@@ -367,6 +378,7 @@ type ExtContractsGroupCallbacks interface {
 }
 
 type GlobalCallbacks interface {
+	GlobalGetOper(global *GlobalInspect) error
 	GlobalCreate(global *Global) error
 	GlobalUpdate(global, params *Global) error
 	GlobalDelete(global *Global) error
@@ -1843,8 +1855,31 @@ func httpInspectGlobal(w http.ResponseWriter, r *http.Request, vars map[string]s
 	}
 	obj.Config = *objConfig
 
+	if err := GetOperGlobal(&obj); err != nil {
+		log.Errorf("GetGlobal error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a globalOper object
+func GetOperGlobal(obj *GlobalInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.GlobalCb == nil {
+		log.Errorf("No callback registered for global object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.GlobalCb.GlobalGetOper(obj)
+	if err != nil {
+		log.Errorf("GlobalDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
 }
 
 // CREATE REST call

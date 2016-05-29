@@ -246,8 +246,19 @@ type Global struct {
 
 }
 
+type GlobalOper struct {
+	DefaultNetwork  string `json:"defaultNetwork,omitempty"`  //
+	FreeVXLANsStart int    `json:"freeVXLANsStart,omitempty"` //
+	NumNetworks     int    `json:"numNetworks,omitempty"`     //
+	VlansInUse      string `json:"vlansInUse,omitempty"`      //
+	VxlansInUse     string `json:"vxlansInUse,omitempty"`     //
+
+}
+
 type GlobalInspect struct {
 	Config Global
+
+	Oper GlobalOper
 }
 
 type Network struct {
