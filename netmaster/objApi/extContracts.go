@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package extContracts
+package objApi
 
 import (
 	"fmt"
@@ -86,10 +86,12 @@ func extContractsGrpValidateAndRegister(epg *contivModel.EndpointGroup,
 }
 
 // Cleanup external contracts from an epg.
-func CleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
+func cleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
 	// Cleanup consumed external contracts
+    tenant := endpointGroup.TenantName
 	for _, consExtContractsGrp := range endpointGroup.ConsExtContractsGrps {
-		contractsGrp := contivModel.FindExtContractsGroup(consExtContractsGrp)
+        contractsGrpKey := tenant + ":" + consExtContractsGrp
+		contractsGrp := contivModel.FindExtContractsGroup(contractsGrpKey)
 		err := extContractsGrpDeregister(endpointGroup, contractsGrp, "consumed")
 		if err != nil {
 			if contractsGrp != nil {
@@ -101,7 +103,8 @@ func CleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
 
 	// Cleanup provided external contracts
 	for _, provExtContractsGrp := range endpointGroup.ProvExtContractsGrps {
-		contractsGrp := contivModel.FindExtContractsGroup(provExtContractsGrp)
+        contractsGrpKey := tenant + ":" + provExtContractsGrp
+		contractsGrp := contivModel.FindExtContractsGroup(contractsGrpKey)
 		err := extContractsGrpDeregister(endpointGroup, contractsGrp, "provided")
 		if err != nil {
 			if contractsGrp != nil {
@@ -115,11 +118,13 @@ func CleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
 }
 
 // Setup external contracts for an epg.
-func SetupExternalContracts(endpointGroup *contivModel.EndpointGroup,
+func setupExternalContracts(endpointGroup *contivModel.EndpointGroup,
 	consContractsGrps, provContractsGrps []string) error {
 	// Validate presence and register consumed external contracts
+    tenant := endpointGroup.TenantName
 	for _, consExtContractsGrp := range consContractsGrps {
-		contractsGrp := contivModel.FindExtContractsGroup(consExtContractsGrp)
+        contractsGrpKey := tenant + ":" + consExtContractsGrp
+		contractsGrp := contivModel.FindExtContractsGroup(contractsGrpKey)
 		err := extContractsGrpValidateAndRegister(endpointGroup, contractsGrp, "consumed")
 		if err != nil {
 			return err
@@ -128,7 +133,8 @@ func SetupExternalContracts(endpointGroup *contivModel.EndpointGroup,
 
 	// Validate presence and register provided external contracts
 	for _, provExtContractsGrp := range provContractsGrps {
-		contractsGrp := contivModel.FindExtContractsGroup(provExtContractsGrp)
+        contractsGrpKey := tenant + ":" + provExtContractsGrp
+		contractsGrp := contivModel.FindExtContractsGroup(contractsGrpKey)
 		err := extContractsGrpValidateAndRegister(endpointGroup, contractsGrp, "provided")
 		if err != nil {
 			return err
@@ -139,10 +145,42 @@ func SetupExternalContracts(endpointGroup *contivModel.EndpointGroup,
 }
 
 // Check if the external contracts are being used by any of the EPGs.
-func IsExtContractsGroupUsed(contractsGroup *contivModel.ExtContractsGroup) bool {
+func isExtContractsGroupUsed(contractsGroup *contivModel.ExtContractsGroup) bool {
 	if len(contractsGroup.LinkSets.EndpointGroups) > 0 {
 		return true
 	}
 
 	return false
+}
+
+// ExtContractsGroupCreate creates a new group of external contracts
+func (ac *APIController) ExtContractsGroupCreate(contractsGroup *contivModel.ExtContractsGroup) error {
+    log.Infof("Received ExtContractsGroupCreate: %+v", contractsGroup)
+
+    // NOTE: Nothing more needs to be done here. This object 
+    // need not be created in the masterCfg. 
+
+    return nil
+}
+
+// ExtContractsGroupUpdate updates an existing group of contract sets
+func (ac *APIController) ExtContractsGroupUpdate(contractsGroup, params *contivModel.ExtContractsGroup) error {
+    log.Infof("Received ExtContractsGroupUpdate: %+v, params: %+v", contractsGroup, params)
+    log.Errorf("Error: external contracts update not supported: %s", contractsGroup.ContractsGroupName)
+
+    return core.Errorf("external contracts update not supported")
+}
+
+// ExtContractsGroupDelete deletes an existing external contracts group
+func (ac *APIController) ExtContractsGroupDelete(contractsGroup *contivModel.ExtContractsGroup) error {
+    log.Infof("Received ExtContractsGroupDelete: %+v", contractsGroup)
+
+    // At this moment, we let the external contracts to be deleted only
+    // if there are no consumers of this external contracts group
+    if isExtContractsGroupUsed(contractsGroup) == true {
+        log.Errorf("Error: External contracts groups is being used: %s", contractsGroup.ContractsGroupName)
+        return core.Errorf("External contracts group is in-use")
+    }
+
+    return nil
 }

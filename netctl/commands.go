@@ -272,19 +272,21 @@ var Commands = []cli.Command{
 				Name:    "ls",
 				Aliases: []string{"list"},
 				Usage:   "List external contracts",
-				Flags:   []cli.Flag{quietFlag, jsonFlag},
+				Flags:   []cli.Flag{quietFlag, jsonFlag, tenantFlag},
 				Action:  listExternalContracts,
 			},
 			{
 				Name:    "rm",
 				Aliases: []string{"delete"},
 				Usage:   "Delete external contracts",
+				Flags:     []cli.Flag{tenantFlag},
 				Action:  deleteExternalContracts,
 			},
 			{
 				Name:  "create",
 				Usage: "Create external contracts",
 				Flags: []cli.Flag{
+				    tenantFlag,
 					cli.BoolFlag{
 						Name:  "consumed, c",
 						Usage: "External contracts type - consumed",
