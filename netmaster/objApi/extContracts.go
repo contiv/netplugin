@@ -36,11 +36,8 @@ func extContractsGrpDeregister(epg *contivModel.EndpointGroup,
 	}
 
 	modeldb.RemoveLinkSet(&contractsGrp.LinkSets.EndpointGroups, epg)
-	if contractType == "provided" {
-		modeldb.RemoveLinkSet(&epg.LinkSets.ProvExtContractsGrps, contractsGrp)
-	} else if contractType == "consumed" {
-		modeldb.RemoveLinkSet(&epg.LinkSets.ConsExtContractsGrps, contractsGrp)
-	}
+	modeldb.RemoveLinkSet(&epg.LinkSets.ExtContractsGrps, contractsGrp)
+
 	// Links broken, update the contracts group object.
 	err := contractsGrp.Write()
 	if err != nil {
@@ -70,11 +67,7 @@ func extContractsGrpValidateAndRegister(epg *contivModel.EndpointGroup,
 
 	// Establish the necessary links.
 	modeldb.AddLinkSet(&contractsGrp.LinkSets.EndpointGroups, epg)
-	if contractType == "provided" {
-		modeldb.AddLinkSet(&epg.LinkSets.ProvExtContractsGrps, contractsGrp)
-	} else if contractType == "consumed" {
-		modeldb.AddLinkSet(&epg.LinkSets.ConsExtContractsGrps, contractsGrp)
-	}
+	modeldb.AddLinkSet(&epg.LinkSets.ExtContractsGrps, contractsGrp)
 
 	// Links made, write the policy set object.
 	err := contractsGrp.Write()
