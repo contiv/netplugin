@@ -279,14 +279,14 @@ var Commands = []cli.Command{
 				Name:    "rm",
 				Aliases: []string{"delete"},
 				Usage:   "Delete external contracts",
-				Flags:     []cli.Flag{tenantFlag},
+				Flags:   []cli.Flag{tenantFlag},
 				Action:  deleteExternalContracts,
 			},
 			{
 				Name:  "create",
 				Usage: "Create external contracts",
 				Flags: []cli.Flag{
-				    tenantFlag,
+					tenantFlag,
 					cli.BoolFlag{
 						Name:  "consumed, c",
 						Usage: "External contracts type - consumed",

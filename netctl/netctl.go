@@ -819,7 +819,7 @@ func listExternalContracts(ctx *cli.Context) {
 	extContractsGroups, err := getClient(ctx).ExtContractsGroupList()
 	errCheck(ctx, err)
 
-    tenant := ctx.String("tenant")
+	tenant := ctx.String("tenant")
 
 	if ctx.Bool("json") {
 		dumpJSONList(ctx, extContractsGroups)
@@ -833,9 +833,9 @@ func listExternalContracts(ctx *cli.Context) {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
 		for _, extContractsGroup := range *extContractsGroups {
-            if extContractsGroup.TenantName != tenant {
-                continue
-            }
+			if extContractsGroup.TenantName != tenant {
+				continue
+			}
 			writer.Write([]byte(fmt.Sprintf(" Name: %s\t\tType: %s\n", extContractsGroup.ContractsGroupName, extContractsGroup.ContractsType)))
 			writer.Write([]byte(fmt.Sprintf(" Contracts:\n")))
 			for _, contract := range extContractsGroup.Contracts {
@@ -848,7 +848,7 @@ func listExternalContracts(ctx *cli.Context) {
 func deleteExternalContracts(ctx *cli.Context) {
 	argCheck(1, ctx)
 	contractsGroupName := ctx.Args()[0]
-    tenant := ctx.String("tenant")
+	tenant := ctx.String("tenant")
 
 	logrus.Infof("Deleting external contracts group %s in tenant %s", contractsGroupName, tenant)
 	errCheck(ctx, getClient(ctx).ExtContractsGroupDelete(tenant, contractsGroupName))
@@ -868,8 +868,8 @@ func createExternalContracts(ctx *cli.Context) {
 	} else {
 		errExit(ctx, exitHelp, "Either provided or consumed must be specified", false)
 	}
-    
-    tenant := ctx.String("tenant")
+
+	tenant := ctx.String("tenant")
 
 	contracts := strings.Split(ctx.String("contracts"), ",")
 	if ctx.String("contracts") == "" {
@@ -879,7 +879,7 @@ func createExternalContracts(ctx *cli.Context) {
 	contractsGroupName := ctx.Args()[0]
 
 	errCheck(ctx, getClient(ctx).ExtContractsGroupPost(&contivClient.ExtContractsGroup{
-        TenantName:         tenant,
+		TenantName:         tenant,
 		ContractsGroupName: contractsGroupName,
 		ContractsType:      contractsType,
 		Contracts:          contracts,
