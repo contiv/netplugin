@@ -401,23 +401,17 @@ func createEndpointGroup(ctx *cli.Context) {
 		policies = []string{}
 	}
 
-	consExtContractsGrps := strings.Split(ctx.String("consumed-external-contracts"), ",")
-	if ctx.String("consumed-external-contracts") == "" {
-		consExtContractsGrps = []string{}
-	}
-
-	provExtContractsGrps := strings.Split(ctx.String("provided-external-contracts"), ",")
-	if ctx.String("provided-external-contracts") == "" {
-		provExtContractsGrps = []string{}
+	extContractsGrps := strings.Split(ctx.String("external-contracts"), ",")
+	if ctx.String("external-contracts") == "" {
+		extContractsGrps = []string{}
 	}
 
 	errCheck(ctx, getClient(ctx).EndpointGroupPost(&contivClient.EndpointGroup{
-		TenantName:           tenant,
-		NetworkName:          network,
-		GroupName:            group,
-		Policies:             policies,
-		ConsExtContractsGrps: consExtContractsGrps,
-		ProvExtContractsGrps: provExtContractsGrps,
+		TenantName:       tenant,
+		NetworkName:      network,
+		GroupName:        group,
+		Policies:         policies,
+		ExtContractsGrps: extContractsGrps,
 	}))
 }
 

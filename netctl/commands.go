@@ -56,12 +56,8 @@ var Commands = []cli.Command{
 						Usage: "Policy List (separated by commas)",
 					},
 					cli.StringFlag{
-						Name:  "consumed-external-contracts, i",
-						Usage: "Consumed external contracts(separated by commas)",
-					},
-					cli.StringFlag{
-						Name:  "provided-external-contracts, e",
-						Usage: "Provided external contracts(separated by commas)",
+						Name:  "external-contracts, e",
+						Usage: "External contracts(separated by commas)",
 					},
 				},
 				Action: createEndpointGroup,

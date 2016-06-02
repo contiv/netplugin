@@ -21,88 +21,29 @@ import (
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/objdb/modeldb"
-	"strings"
 )
 
 // Some utility functions to work with the external contracts
-// Severe the connections between EPGs and external contracts.
-func extContractsGrpDeregister(epg *contivModel.EndpointGroup,
-	contractsGrp *contivModel.ExtContractsGroup,
-	contractType string) error {
-	if contractsGrp == nil {
-		errStr := fmt.Sprintf("%s External contracts group not found", contractType)
-		log.Errorf(errStr)
-		return core.Errorf(errStr)
-	}
-
-	modeldb.RemoveLinkSet(&contractsGrp.LinkSets.EndpointGroups, epg)
-	modeldb.RemoveLinkSet(&epg.LinkSets.ExtContractsGrps, contractsGrp)
-
-	// Links broken, update the contracts group object.
-	err := contractsGrp.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Check for the presence of external contracts, and also make sure that
-// they are of the right type. If yes, establish necessary relationships
-// between the epg and the external contracts.
-func extContractsGrpValidateAndRegister(epg *contivModel.EndpointGroup,
-	contractsGrp *contivModel.ExtContractsGroup,
-	contractType string) error {
-	if contractsGrp == nil {
-		errStr := fmt.Sprintf("%s External contracts group not found", contractType)
-		log.Errorf(errStr)
-		return core.Errorf(errStr)
-	}
-
-	if strings.ToLower(contractsGrp.ContractsType) != contractType {
-		errStr := fmt.Sprintf("Incorrect type for contract group: %v", contractsGrp)
-		log.Errorf(errStr)
-		return core.Errorf(errStr)
-	}
-
-	// Establish the necessary links.
-	modeldb.AddLinkSet(&contractsGrp.LinkSets.EndpointGroups, epg)
-	modeldb.AddLinkSet(&epg.LinkSets.ExtContractsGrps, contractsGrp)
-
-	// Links made, write the policy set object.
-	err := contractsGrp.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 
 // Cleanup external contracts from an epg.
 func cleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
-	// Cleanup consumed external contracts
 	tenant := endpointGroup.TenantName
-	for _, consExtContractsGrp := range endpointGroup.ConsExtContractsGrps {
-		contractsGrpKey := tenant + ":" + consExtContractsGrp
-		contractsGrp := contivModel.FindExtContractsGroup(contractsGrpKey)
-		err := extContractsGrpDeregister(endpointGroup, contractsGrp, "consumed")
-		if err != nil {
-			if contractsGrp != nil {
-				log.Errorf("Error cleaning up consumed ext contract %s", contractsGrp.ContractsGroupName)
-			}
-			continue
-		}
-	}
+	for _, contractsGrp := range endpointGroup.ExtContractsGrps {
+		contractsGrpKey := tenant + ":" + contractsGrp
+		contractsGrpObj := contivModel.FindExtContractsGroup(contractsGrpKey)
 
-	// Cleanup provided external contracts
-	for _, provExtContractsGrp := range endpointGroup.ProvExtContractsGrps {
-		contractsGrpKey := tenant + ":" + provExtContractsGrp
-		contractsGrp := contivModel.FindExtContractsGroup(contractsGrpKey)
-		err := extContractsGrpDeregister(endpointGroup, contractsGrp, "provided")
-		if err != nil {
-			if contractsGrp != nil {
-				log.Errorf("Error cleaning up provided ext contract %s", contractsGrp.ContractsGroupName)
+		if contractsGrpObj != nil {
+			// Break any linkeage we might have set.
+			modeldb.RemoveLinkSet(&contractsGrpObj.LinkSets.EndpointGroups, endpointGroup)
+			modeldb.RemoveLinkSet(&endpointGroup.LinkSets.ExtContractsGrps, contractsGrpObj)
+
+			// Links broken, update the contracts group object.
+			err := contractsGrpObj.Write()
+			if err != nil {
+				return err
 			}
+		} else {
+			log.Errorf("Error cleaning up consumed ext contract %s", contractsGrp)
 			continue
 		}
 	}
@@ -111,24 +52,25 @@ func cleanupExternalContracts(endpointGroup *contivModel.EndpointGroup) error {
 }
 
 // Setup external contracts for an epg.
-func setupExternalContracts(endpointGroup *contivModel.EndpointGroup,
-	consContractsGrps, provContractsGrps []string) error {
+func setupExternalContracts(endpointGroup *contivModel.EndpointGroup, extContractsGrps []string) error {
 	// Validate presence and register consumed external contracts
 	tenant := endpointGroup.TenantName
-	for _, consExtContractsGrp := range consContractsGrps {
-		contractsGrpKey := tenant + ":" + consExtContractsGrp
-		contractsGrp := contivModel.FindExtContractsGroup(contractsGrpKey)
-		err := extContractsGrpValidateAndRegister(endpointGroup, contractsGrp, "consumed")
-		if err != nil {
-			return err
-		}
-	}
+	for _, contractsGrp := range extContractsGrps {
+		contractsGrpKey := tenant + ":" + contractsGrp
+		contractsGrpObj := contivModel.FindExtContractsGroup(contractsGrpKey)
 
-	// Validate presence and register provided external contracts
-	for _, provExtContractsGrp := range provContractsGrps {
-		contractsGrpKey := tenant + ":" + provExtContractsGrp
-		contractsGrp := contivModel.FindExtContractsGroup(contractsGrpKey)
-		err := extContractsGrpValidateAndRegister(endpointGroup, contractsGrp, "provided")
+		if contractsGrpObj == nil {
+			errStr := fmt.Sprintf("%External contracts group %s not found", contractsGrp)
+			log.Errorf(errStr)
+			return core.Errorf(errStr)
+		}
+
+		// Establish the necessary links.
+		modeldb.AddLinkSet(&contractsGrpObj.LinkSets.EndpointGroups, endpointGroup)
+		modeldb.AddLinkSet(&endpointGroup.LinkSets.ExtContractsGrps, contractsGrpObj)
+
+		// Links made, write the policy set object.
+		err := contractsGrpObj.Write()
 		if err != nil {
 			return err
 		}

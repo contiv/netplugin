@@ -169,26 +169,28 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 
 	}
 
-	// Append external consumed contracts.
-	for _, contractGrp := range epgObj.ConsExtContractsGrps {
-		contractGrpObj := contivModel.FindExtContractsGroup(contractGrp)
-		if contractGrpObj == nil {
-			errStr := fmt.Sprintf("Consumed contracts %v not found for epg: %v", contractGrp, epg.Name)
-			return errors.New(errStr)
-		}
-		epg.ConsContracts = append(epg.ConsContracts, contractGrpObj.Contracts...)
-	}
-	log.Debugf("Copied over %d externally defined consumed contracts", len(epg.ConsContracts))
+	// Append external contracts.
+	tenant := epgObj.TenantName
+	for _, contractsGrp := range epgObj.ExtContractsGrps {
+		contractsGrpKey := tenant + ":" + contractsGrp
+		contractsGrpObj := contivModel.FindExtContractsGroup(contractsGrpKey)
 
-	// Append external provided contracts.
-	for _, contractGrp := range epgObj.ProvExtContractsGrps {
-		contractGrpObj := contivModel.FindExtContractsGroup(contractGrp)
-		if contractGrpObj == nil {
-			errStr := fmt.Sprintf("Provided contracts %v not found for epg: %v", contractGrp, epg.Name)
+		if contractsGrpObj == nil {
+			errStr := fmt.Sprintf("Contracts %v not found for epg: %v", contractsGrp, epg.Name)
 			return errors.New(errStr)
 		}
-		epg.ProvContracts = append(epg.ProvContracts, contractGrpObj.Contracts...)
+		if contractsGrpObj.ContractsType == "consumed" {
+			epg.ConsContracts = append(epg.ConsContracts, contractsGrpObj.Contracts...)
+		} else if contractsGrpObj.ContractsType == "provided" {
+			epg.ProvContracts = append(epg.ProvContracts, contractsGrpObj.Contracts...)
+		} else {
+			// Should not be here.
+			errStr := fmt.Sprintf("Invalid contracts type %v", contractsGrp)
+			return errors.New(errStr)
+		}
 	}
+
+	log.Debugf("Copied over %d externally defined consumed contracts", len(epg.ConsContracts))
 	log.Debugf("Copied over %d externally defined provided contracts", len(epg.ProvContracts))
 
 	// add any saved uses info before overwriting

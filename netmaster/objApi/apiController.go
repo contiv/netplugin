@@ -428,7 +428,7 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	}
 
 	// Setup external contracts this EPG might have.
-	err = setupExternalContracts(endpointGroup, endpointGroup.ConsExtContractsGrps, endpointGroup.ProvExtContractsGrps)
+	err = setupExternalContracts(endpointGroup, endpointGroup.ExtContractsGrps)
 	if err != nil {
 		log.Errorf("Error setting up external contracts for epg %s", endpointGroup.Key)
 		endpointGroupCleanup(endpointGroup)
@@ -537,14 +537,13 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 	}
 	// Step 2: Add contracts from the update.
 	// Consumed contracts
-	err = setupExternalContracts(endpointGroup, params.ConsExtContractsGrps, params.ProvExtContractsGrps)
+	err = setupExternalContracts(endpointGroup, params.ExtContractsGrps)
 	if err != nil {
 		return err
 	}
 
 	// Update the epg itself with the new contracts groups.
-	endpointGroup.ConsExtContractsGrps = params.ConsExtContractsGrps
-	endpointGroup.ProvExtContractsGrps = params.ProvExtContractsGrps
+	endpointGroup.ExtContractsGrps = params.ExtContractsGrps
 
 	// if there is an associated app profiles, update that as well
 	profKey := endpointGroup.Links.AppProfile.ObjKey
