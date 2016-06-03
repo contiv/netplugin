@@ -877,6 +877,7 @@ func TestServiceProviderUpdate(t *testing.T) {
 
 	labels := []string{"key1=value1", "key2=value2"}
 	port := []string{"80:8080:TCP"}
+	ch := make(chan error, 1)
 
 	createNetwork(t, "yellow", "default", "vxlan", "10.1.1.0/24", "10.1.1.254")
 	createNetwork(t, "orange", "default", "vxlan", "11.1.1.0/24", "11.1.1.254")
@@ -884,15 +885,53 @@ func TestServiceProviderUpdate(t *testing.T) {
 	checkServiceCreate(t, "default", "yellow", "redis", port, labels, "")
 	verifyServiceCreate(t, "default", "yellow", "redis", port, labels, "")
 
-	containerID := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
-	container := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	containerID1 := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	containerID2 := "823e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	containerID3 := "023e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	containerID4 := "123e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	container1 := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	container2 := "757355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	container3 := "857355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	container4 := "957355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
 
-	createEP(t, "20.1.1.1", "orange", containerID, "default", container, labels)
-	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, container, "default", "start", labels)
-	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", "redis", labels)
-	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, container, "default", "die", labels)
-	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", "redis", labels)
-	deleteEP(t, "orange", "default", container)
+	createEP(t, "20.1.1.1", "orange", containerID1, "default", container1, labels)
+	createEP(t, "20.1.1.2", "orange", containerID2, "default", container2, labels)
+	createEP(t, "20.1.1.3", "orange", containerID3, "default", container3, labels)
+	createEP(t, "20.1.1.4", "orange", containerID4, "default", container4, labels)
+
+	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, container1, "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, container2, "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, container3, "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, container4, "default", "start", labels, ch)
+
+	for i := 0; i < 4; i++ {
+		<-ch
+	}
+
+	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID1, "default", "start", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.2", "orange", containerID2, "default", "start", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.3", "orange", containerID3, "default", "start", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.4", "orange", containerID4, "default", "start", "redis", labels)
+
+	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, container1, "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, container2, "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, container3, "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, container4, "default", "die", labels, ch)
+
+	for i := 0; i < 4; i++ {
+		<-ch
+	}
+
+	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID1, "default", "die", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.2", "orange", containerID2, "default", "die", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.3", "orange", containerID3, "default", "die", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.4", "orange", containerID4, "default", "die", "redis", labels)
+
+	deleteEP(t, "orange", "default", container1)
+	deleteEP(t, "orange", "default", container2)
+	deleteEP(t, "orange", "default", container3)
+	deleteEP(t, "orange", "default", container4)
+
 	checkServiceDelete(t, "default", "redis")
 	verifyServiceDelete(t, "default", "redis")
 	deleteNetwork(t, "orange", "default")
@@ -903,21 +942,60 @@ func TestServiceProviderUpdateServiceAdd(t *testing.T) {
 
 	labels := []string{"key1=value1", "key2=value2"}
 	port := []string{"80:8080:TCP"}
+	ch := make(chan error, 1)
 
-	containerID := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
-	container := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	containerID1 := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	containerID2 := "823e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	containerID3 := "023e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	containerID4 := "123e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	container1 := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	container2 := "757355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	container3 := "857355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	container4 := "957355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
 
 	createNetwork(t, "orange", "default", "vxlan", "11.1.1.0/24", "11.1.1.254")
-	createEP(t, "20.1.1.1", "orange", containerID, "default", container, labels)
-	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, container, "default", "start", labels)
+
+	createEP(t, "20.1.1.1", "orange", containerID1, "default", container1, labels)
+	createEP(t, "20.1.1.2", "orange", containerID2, "default", container2, labels)
+	createEP(t, "20.1.1.3", "orange", containerID3, "default", container3, labels)
+	createEP(t, "20.1.1.4", "orange", containerID4, "default", container4, labels)
+
+	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, container1, "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, container2, "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, container3, "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, container4, "default", "start", labels, ch)
+
+	for i := 0; i < 4; i++ {
+		<-ch
+	}
+
 	createNetwork(t, "yellow", "default", "vxlan", "10.1.1.0/24", "10.1.1.254")
 	checkServiceCreate(t, "default", "yellow", "redis", port, labels, "")
 	verifyServiceCreate(t, "default", "yellow", "redis", port, labels, "")
 
-	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "start", "redis", labels)
-	triggerProviderUpdate(t, "20.1.1.1", "orange", containerID, container, "default", "die", labels)
-	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID, "default", "die", "redis", labels)
-	deleteEP(t, "orange", "default", container)
+	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID1, "default", "start", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.2", "orange", containerID2, "default", "start", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.3", "orange", containerID3, "default", "start", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.4", "orange", containerID4, "default", "start", "redis", labels)
+
+	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, container1, "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, container2, "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, container3, "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, container4, "default", "die", labels, ch)
+	for i := 0; i < 4; i++ {
+		<-ch
+	}
+
+	verifyProviderUpdate(t, "20.1.1.1", "orange", containerID1, "default", "die", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.2", "orange", containerID2, "default", "die", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.3", "orange", containerID3, "default", "die", "redis", labels)
+	verifyProviderUpdate(t, "20.1.1.4", "orange", containerID4, "default", "die", "redis", labels)
+
+	deleteEP(t, "orange", "default", container1)
+	deleteEP(t, "orange", "default", container2)
+	deleteEP(t, "orange", "default", container3)
+	deleteEP(t, "orange", "default", container4)
+
 	checkServiceDelete(t, "default", "redis")
 	verifyServiceDelete(t, "default", "redis")
 	deleteNetwork(t, "orange", "default")
@@ -935,6 +1013,7 @@ func TestServicePreferredIP(t *testing.T) {
 	checkServiceDelete(t, "default", "redis")
 	deleteNetwork(t, "yellow", "default")
 }
+
 func checkServiceCreate(t *testing.T, tenant, network, serviceName string, port []string, label []string,
 	preferredIP string) {
 
@@ -1012,7 +1091,7 @@ func verifyServiceDelete(t *testing.T, tenant, serviceName string) {
 }
 
 func triggerProviderUpdate(t *testing.T, providerIP, network, containerID, container,
-	tenant, event string, labels []string) {
+	tenant, event string, labels []string, ch chan error) {
 
 	providerUpdReq := master.SvcProvUpdateRequest{}
 	providerUpdReq.IPAddress = providerIP
@@ -1032,6 +1111,7 @@ func triggerProviderUpdate(t *testing.T, providerIP, network, containerID, conta
 
 	jsonStr, err := json.Marshal(providerUpdReq)
 	if err != nil {
+		ch <- err
 		t.Fatalf("Error converting request data(%#v) to Json. Err: %v", providerUpdReq, err)
 	}
 	url := netmasterTestURL + "/plugin/svcProviderUpdate"
@@ -1039,12 +1119,16 @@ func triggerProviderUpdate(t *testing.T, providerIP, network, containerID, conta
 	res, err := http.Post(url, "application/json", strings.NewReader(string(jsonStr)))
 	if err != nil {
 		t.Fatalf("Error during http get. Err: %v", err)
+		ch <- err
 	}
 
 	// Check the response code
 	if res.StatusCode != http.StatusOK {
+		ch <- err
 		t.Fatalf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
 	}
+
+	ch <- nil
 
 }
 func verifyProviderUpdate(t *testing.T, providerIP, network, containerID,

@@ -129,7 +129,6 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 		mastercfg.SvcMutex.Unlock()
 		return err
 	}
-	mastercfg.SvcMutex.Unlock()
 
 	if providersPresent {
 		err = SvcProviderUpdate(serviceID, false)
@@ -138,6 +137,7 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 			return err
 		}
 	}
+	mastercfg.SvcMutex.Unlock()
 
 	return nil
 }
