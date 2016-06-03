@@ -363,6 +363,7 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 			provider.Labels[k] = v
 			epCfg.Labels[k] = v
 		}
+
 		//maintain the containerId in endpointstat for recovery
 		epCfg.ContainerID = svcProvUpdReq.ContainerID
 
@@ -379,7 +380,9 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 		}
 
 		//update provider db
+		mastercfg.SvcMutex.Lock()
 		mastercfg.ProviderDb[providerDbID] = provider
+
 		for serviceID, service := range mastercfg.ServiceLBDb {
 			count := 0
 			if service.Tenant == svcProvUpdReq.Tenant {
@@ -395,19 +398,18 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 							append(mastercfg.ProviderDb[providerDbID].Services, serviceID)
 							//Update ServiceDB
 						mastercfg.ServiceLBDb[serviceID].Providers[providerID] = provider
-						stateDriver, err := utils.GetStateDriver()
-						if err != nil {
-							return nil, err
-						}
+
 						serviceLbState := &mastercfg.CfgServiceLBState{}
 						serviceLbState.StateDriver = stateDriver
 						err = serviceLbState.Read(serviceID)
 						if err != nil {
+							mastercfg.SvcMutex.Unlock()
 							return nil, err
 						}
 						serviceLbState.Providers[providerID] = provider
 						serviceLbState.Write()
 						SvcProviderUpdate(serviceID, false)
+						break
 					}
 				}
 			}
@@ -416,13 +418,16 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 	} else if svcProvUpdReq.Event == "die" {
 		//Received a container die event. If it was a service provider -
 		//clear the provider db and the service db and change the etcd state
+
 		providerDbID := svcProvUpdReq.ContainerID
 		if providerDbID == "" {
 			return nil, fmt.Errorf("Invalid containerID in SvcProvUpdateRequest:(nil)")
 		}
 
+		mastercfg.SvcMutex.Lock()
 		provider := mastercfg.ProviderDb[providerDbID]
 		if provider == nil {
+			mastercfg.SvcMutex.Unlock()
 			// It is not a provider . Ignore event
 			return nil, nil
 		}
@@ -431,6 +436,7 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 			service := mastercfg.ServiceLBDb[serviceID]
 			providerID := getProviderID(provider)
 			if providerID == "" {
+				mastercfg.SvcMutex.Unlock()
 				return nil, fmt.Errorf("Invalid ProviderID from providerInfo:{%v}", provider)
 			}
 			if service.Providers[providerID] != nil {
@@ -440,16 +446,19 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 				serviceLbState.StateDriver = stateDriver
 				err = serviceLbState.Read(serviceID)
 				if err != nil {
+					mastercfg.SvcMutex.Unlock()
 					return nil, err
 				}
 				delete(serviceLbState.Providers, providerID)
 				serviceLbState.Write()
 				delete(mastercfg.ProviderDb, providerDbID)
 				SvcProviderUpdate(serviceID, false)
+
 			}
 		}
 
 	}
+	mastercfg.SvcMutex.Unlock()
 	srvUpdResp := &SvcProvUpdateResponse{
 		IPAddress: svcProvUpdReq.IPAddress,
 	}

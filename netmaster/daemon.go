@@ -441,5 +441,5 @@ func (d *daemon) services(id string) ([]core.State, error) {
 		return []core.State{core.State(svc)}, nil
 	}
 
-	return nil, core.Errorf("Unexpected code path")
+	return nil, err
 }

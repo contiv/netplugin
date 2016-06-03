@@ -45,18 +45,21 @@ type Provider struct {
 	Network     string
 	Services    []string
 	Container   string //container endpoint id
+
 }
 
 // Write the state
 func (s *SvcProvider) Write() error {
 	key := fmt.Sprintf(svcProviderPath, s.ID)
-	return s.StateDriver.WriteState(key, s, json.Marshal)
+	err := s.StateDriver.WriteState(key, s, json.Marshal)
+	return err
 }
 
 // Read the state in for a given ID.
 func (s *SvcProvider) Read(id string) error {
 	key := fmt.Sprintf(svcProviderPath, id)
-	return s.StateDriver.ReadState(key, s, json.Unmarshal)
+	err := s.StateDriver.ReadState(key, s, json.Unmarshal)
+	return err
 }
 
 // ReadAll reads all the state for master bgp configurations and returns it.
@@ -67,7 +70,8 @@ func (s *SvcProvider) ReadAll() ([]core.State, error) {
 // Clear removes the configuration from the state store.
 func (s *SvcProvider) Clear() error {
 	key := fmt.Sprintf(svcProviderPath, s.ID)
-	return s.StateDriver.ClearState(key)
+	err := s.StateDriver.ClearState(key)
+	return err
 }
 
 // WatchAll state transitions and send them through the channel.

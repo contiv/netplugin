@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/contiv/netplugin/core"
+	"sync"
 )
 
 const (
@@ -40,6 +41,9 @@ type ServiceLBInfo struct {
 //ServiceLBDb is map of all services
 var ServiceLBDb = make(map[string]*ServiceLBInfo) //DB for all services keyed by servicename.tenant
 
+//SvcDbMutex is mutex for service transaction
+var SvcMutex sync.RWMutex
+
 // CfgServiceLBState is the service object configuration
 type CfgServiceLBState struct {
 	core.CommonState
@@ -55,13 +59,15 @@ type CfgServiceLBState struct {
 // Write the state
 func (s *CfgServiceLBState) Write() error {
 	key := fmt.Sprintf(serviceLBConfigPath, s.ID)
-	return s.StateDriver.WriteState(key, s, json.Marshal)
+	err := s.StateDriver.WriteState(key, s, json.Marshal)
+	return err
 }
 
 // Read the state in for a given ID.
 func (s *CfgServiceLBState) Read(id string) error {
 	key := fmt.Sprintf(serviceLBConfigPath, id)
-	return s.StateDriver.ReadState(key, s, json.Unmarshal)
+	err := s.StateDriver.ReadState(key, s, json.Unmarshal)
+	return err
 }
 
 // ReadAll reads all the state for master bgp configurations and returns it.
@@ -72,7 +78,8 @@ func (s *CfgServiceLBState) ReadAll() ([]core.State, error) {
 // Clear removes the configuration from the state store.
 func (s *CfgServiceLBState) Clear() error {
 	key := fmt.Sprintf(serviceLBConfigPath, s.ID)
-	return s.StateDriver.ClearState(key)
+	err := s.StateDriver.ClearState(key)
+	return err
 }
 
 // WatchAll state transitions and send them through the channel.

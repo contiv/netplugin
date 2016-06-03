@@ -30,9 +30,16 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 
 	var providersPresent bool
 	serviceIP := serviceLbCfg.IPAddress
+
 	log.Infof("Recevied Create Service Load Balancer config {%v}", serviceLbCfg)
+
+	//Check if service already exists.
 	svcID := getServiceID(serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
+
+	mastercfg.SvcMutex.RLock()
 	oldServiceInfo := mastercfg.ServiceLBDb[svcID]
+	mastercfg.SvcMutex.RUnlock()
+
 	if oldServiceInfo != nil {
 		//ServiceInfo Exists
 		if reflect.DeepEqual(oldServiceInfo.Ports, serviceLbCfg.Ports) &&
@@ -43,6 +50,8 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 		serviceIP = oldServiceInfo.IPAddress
 		DeleteServiceLB(stateDriver, oldServiceInfo.ServiceName, oldServiceInfo.Tenant)
 	}
+
+	//New Service
 	serviceLbState := &mastercfg.CfgServiceLBState{}
 	serviceLbState.ServiceName = serviceLbCfg.ServiceName
 	serviceLbState.Tenant = serviceLbCfg.Tenant
@@ -73,10 +82,11 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 		return err
 	}
 	serviceLbState.IPAddress = addr
-
+	mastercfg.SvcMutex.Lock()
 	err = serviceLbState.Write()
 
 	if err != nil {
+		mastercfg.SvcMutex.Unlock()
 		return err
 	}
 
@@ -112,10 +122,14 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 		}
 	}
 
+	//Write into cluster store
 	err = serviceLbState.Write()
+
 	if err != nil {
+		mastercfg.SvcMutex.Unlock()
 		return err
 	}
+	mastercfg.SvcMutex.Unlock()
 
 	if providersPresent {
 		err = SvcProviderUpdate(serviceID, false)
@@ -130,16 +144,21 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 
 //DeleteServiceLB deletes from etcd state
 func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantName string) error {
-	log.Infof("Receiver Delete Service Load Balancer %s on %s", serviceName, tenantName)
+
+	log.Infof("Received Delete Service Load Balancer %s on %s", serviceName, tenantName)
 	serviceLBState := &mastercfg.CfgServiceLBState{}
 	serviceLBState.StateDriver = stateDriver
 	serviceLBState.ID = getServiceID(serviceName, tenantName)
 
+	mastercfg.SvcMutex.RLock()
 	err := serviceLBState.Read(serviceLBState.ID)
 	if err != nil {
+		mastercfg.SvcMutex.RUnlock()
 		log.Errorf("Error reading service lb config for service %s in tenant %s", serviceName, tenantName)
 		return err
 	}
+	mastercfg.SvcMutex.RUnlock()
+
 	// find the network from network id
 	nwCfg := &mastercfg.CfgNetworkState{}
 	nwCfg.StateDriver = stateDriver
@@ -156,6 +175,7 @@ func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantNam
 
 	serviceID := getServiceID(serviceLBState.ServiceName, serviceLBState.Tenant)
 
+	mastercfg.SvcMutex.Lock()
 	//Remove the service ID from the provider cache
 	for _, providerInfo := range mastercfg.ServiceLBDb[serviceID].Providers {
 		containerID := providerInfo.ContainerID
@@ -174,9 +194,12 @@ func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantNam
 
 	err = serviceLBState.Clear()
 	if err != nil {
+		mastercfg.SvcMutex.Unlock()
+
 		log.Errorf("Error deleing service lb config for service %s in tenant %s", serviceName, tenantName)
 		return err
 	}
+	mastercfg.SvcMutex.Unlock()
 
 	return nil
 
@@ -199,7 +222,9 @@ func RestoreServiceProviderLBDb() {
 	}
 	svcLBState.StateDriver = stateDriver
 	svcLBCfgs, err := svcLBState.ReadAll()
+
 	if err == nil {
+		mastercfg.SvcMutex.Lock()
 		for _, svcLBCfg := range svcLBCfgs {
 			svcLB := svcLBCfg.(*mastercfg.CfgServiceLBState)
 			//mastercfg.ServiceLBDb = make(map[string]*mastercfg.ServiceLBInfo)
@@ -225,9 +250,11 @@ func RestoreServiceProviderLBDb() {
 				mastercfg.ProviderDb[providerDBId] = providerInfo
 			}
 		}
+		mastercfg.SvcMutex.Unlock()
 	} else {
 		log.Errorf("Error reading service load balancer state from cluster store")
 	}
+
 	//Recover from endpoint state as well .
 	epCfgState := mastercfg.CfgEndpointState{}
 	epCfgState.StateDriver = stateDriver
@@ -248,7 +275,9 @@ func RestoreServiceProviderLBDb() {
 				for k, v := range ep.Labels {
 					providerInfo.Labels[k] = v
 				}
+				mastercfg.SvcMutex.Lock()
 				mastercfg.ProviderDb[providerDBId] = providerInfo
+				mastercfg.SvcMutex.Unlock()
 			}
 		}
 	} else {
