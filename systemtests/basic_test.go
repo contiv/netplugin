@@ -115,7 +115,7 @@ func (s *systemtestSuite) TestBasicSvcDiscoveryVLAN(c *C) {
 }
 
 func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
-	if !strings.Contains(s.clusterStore, "etcd") || !s.enableDNS {
+	if !strings.Contains(s.clusterStore, "etcd") {
 		c.Skip("Skipping test")
 	}
 

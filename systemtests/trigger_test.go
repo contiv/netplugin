@@ -3,6 +3,7 @@ package systemtests
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"time"
 
 	. "gopkg.in/check.v1"
@@ -100,6 +101,81 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 			time.Sleep(20 * time.Second)
 
+			c.Assert(s.pingTest(containers), IsNil)
+		}
+
+		c.Assert(s.removeContainers(containers), IsNil)
+	}
+}
+
+func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
+	if os.Getenv("CONTIV_DOCKER_VERSION") != "1.11.1" {
+		c.Skip("Skipping node reload test on older docker version")
+	}
+	network := &client.Network{
+		TenantName:  "default",
+		NetworkName: "private",
+		Subnet:      "10.1.0.0/16",
+		Gateway:     "10.1.1.254",
+		Encap:       "vxlan",
+	}
+	c.Assert(s.cli.NetworkPost(network), IsNil)
+
+	numContainers := s.containers
+	if numContainers < (len(s.nodes) * 2) {
+		numContainers = len(s.nodes) * 2
+	}
+	cntPerNode := numContainers / len(s.nodes)
+
+	for i := 0; i < s.iterations; i++ {
+		containers := []*container{}
+
+		// start containers on all nodes
+		for _, node := range s.nodes {
+			newContainers, err := s.runContainersOnNode(cntPerNode, "private", node)
+			c.Assert(err, IsNil)
+			containers = append(containers, newContainers...)
+		}
+
+		// test ping for all containers
+		c.Assert(s.pingTest(containers), IsNil)
+
+		// reload VMs one at a time
+		for _, node := range s.nodes {
+			c.Assert(node.reloadNode(), IsNil)
+			c.Assert(node.rotateLog("netplugin"), IsNil)
+			c.Assert(node.rotateLog("netmaster"), IsNil)
+
+			if s.fwdMode == "routing" {
+				c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
+			} else {
+				c.Assert(node.startNetplugin(""), IsNil)
+			}
+			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+			time.Sleep(20 * time.Second)
+			c.Assert(node.startNetmaster(), IsNil)
+			time.Sleep(1 * time.Second)
+			c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
+			time.Sleep(20 * time.Second)
+
+			// clear previous containers from reloaded node
+			node.cleanupContainers()
+
+			exContainers := []*container{}
+			for _, cont := range containers {
+				if cont.node != node {
+					exContainers = append(exContainers, cont)
+				} else {
+					logrus.Infof("Removing container %s", cont.containerID)
+				}
+			}
+
+			// start new containers on reloaded node
+			newContainers, err := s.runContainersOnNode(cntPerNode, "private", node)
+			c.Assert(err, IsNil)
+			containers = append(exContainers, newContainers...)
+
+			// test ping for all containers
 			c.Assert(s.pingTest(containers), IsNil)
 		}
 

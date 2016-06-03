@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/version"
@@ -45,27 +44,6 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(resp)
 	return
-}
-
-// proxyHandler acts as a simple reverse proxy to access containers via http
-func proxyHandler(w http.ResponseWriter, r *http.Request) {
-	proxyURL := strings.TrimPrefix(r.URL.Path, "/proxy/")
-	log.Infof("proxy handler for %q : %s", r.URL.Path, proxyURL)
-
-	// build the proxy url
-	url, _ := url.Parse("http://" + proxyURL)
-
-	// Create a proxy for the URL
-	proxy := httputil.NewSingleHostReverseProxy(url)
-
-	// modify the request url
-	newReq := *r
-	newReq.URL = url
-
-	log.Debugf("Proxying request(%v): %+v", url, newReq)
-
-	// Serve http
-	proxy.ServeHTTP(w, &newReq)
 }
 
 // slaveProxyHandler redirects to current master
