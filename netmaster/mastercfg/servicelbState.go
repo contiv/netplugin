@@ -41,7 +41,7 @@ type ServiceLBInfo struct {
 //ServiceLBDb is map of all services
 var ServiceLBDb = make(map[string]*ServiceLBInfo) //DB for all services keyed by servicename.tenant
 
-//SvcDbMutex is mutex for service transaction
+//SvcMutex is mutex for service transaction
 var SvcMutex sync.RWMutex
 
 // CfgServiceLBState is the service object configuration
