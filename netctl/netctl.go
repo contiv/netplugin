@@ -611,7 +611,7 @@ func showVersion(ctx *cli.Context) {
 }
 
 func createAppProfile(ctx *cli.Context) {
-	argCheck(2, ctx)
+	argCheck(1, ctx)
 
 	tenant := ctx.String("tenant")
 	prof := ctx.Args()[0]
@@ -629,7 +629,7 @@ func createAppProfile(ctx *cli.Context) {
 }
 
 func updateAppProfile(ctx *cli.Context) {
-	argCheck(2, ctx)
+	argCheck(1, ctx)
 
 	tenant := ctx.String("tenant")
 	prof := ctx.Args()[0]
@@ -647,7 +647,7 @@ func updateAppProfile(ctx *cli.Context) {
 }
 
 func deleteAppProfile(ctx *cli.Context) {
-	argCheck(2, ctx)
+	argCheck(1, ctx)
 
 	tenant := ctx.String("tenant")
 	prof := ctx.Args()[0]

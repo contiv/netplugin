@@ -303,7 +303,7 @@ func (ac *APIController) AppProfileDelete(prof *contivModel.AppProfile) error {
 		}
 	}
 
-	modeldb.AddLinkSet(&tenant.LinkSets.AppProfiles, prof)
+	modeldb.RemoveLinkSet(&tenant.LinkSets.AppProfiles, prof)
 	tenant.Write()
 	return nil
 }
