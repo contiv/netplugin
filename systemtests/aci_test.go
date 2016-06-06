@@ -48,11 +48,11 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	c.Assert(err, IsNil)
 
 	// Verify cA1 can ping cA2
-	c.Assert(cA1.checkPing(cA2.eth0), IsNil)
+	c.Assert(cA1.checkPing(cA2.eth0.ip), IsNil)
 	// Verify cB1 can ping cB2
-	c.Assert(cB1.checkPing(cB2.eth0), IsNil)
+	c.Assert(cB1.checkPing(cB2.eth0.ip), IsNil)
 	// Verify cA1 cannot ping cB1
-	c.Assert(cA1.checkPingFailure(cB1.eth0), IsNil)
+	c.Assert(cA1.checkPingFailure(cB1.eth0.ip), IsNil)
 
 	c.Assert(s.removeContainers([]*container{cA1, cA2, cB1, cB2}), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete("default", "epgA"), IsNil)

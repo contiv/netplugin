@@ -166,8 +166,8 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 
 // DelEndpoint deletes an endpoint from dst group lookup
 func (self *PolicyAgent) DelEndpoint(endpoint *OfnetEndpoint) error {
-	// find the dst group flow
 
+	// find the dst group flow
 	dstGrp := self.DstGrpFlow[endpoint.EndpointID]
 	if dstGrp == nil {
 		return errors.New("Dst Group not found")
@@ -181,6 +181,86 @@ func (self *PolicyAgent) DelEndpoint(endpoint *OfnetEndpoint) error {
 
 	// delete the cache
 	delete(self.DstGrpFlow, endpoint.EndpointID)
+
+	return nil
+}
+
+// AddIpv6Endpoint adds an endpoint to dst group lookup
+func (self *PolicyAgent) AddIpv6Endpoint(endpoint *OfnetEndpoint) error {
+
+	if endpoint.Ipv6Addr == nil {
+		log.Warnf("DstGroup for IPv6 endpoint %+v without Ipv6Addr", endpoint)
+		return nil
+	}
+
+	ipv6EpId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
+	if self.DstGrpFlow[ipv6EpId] != nil {
+		// FIXME: handle this as Update
+		log.Warnf("DstGroup for IPv6 endpoint %+v already exists", endpoint)
+		return nil
+	}
+
+	log.Infof("Adding dst group entry for endpoint: %+v", endpoint)
+	vrf := self.agent.vlanVrf[endpoint.Vlan]
+
+	log.Infof("Recevied add endpoint for vrf %v", *vrf)
+
+	vrfid := self.agent.vrfNameIdMap[*vrf]
+	vrfMetadata, vrfMetadataMask := Vrfmetadata(*vrfid)
+	// Install the Dst group lookup flow
+	dstGrpFlow, err := self.dstGrpTable.NewFlow(ofctrl.FlowMatch{
+		Priority:     FLOW_MATCH_PRIORITY,
+		Ethertype:    0x86DD,
+		Ipv6Da:       &endpoint.Ipv6Addr,
+		Metadata:     &vrfMetadata,
+		MetadataMask: &vrfMetadataMask,
+	})
+	if err != nil {
+		log.Errorf("Error adding dstGroup flow for %v. Err: %v", endpoint.IpAddr, err)
+		return err
+	}
+
+	// Format the metadata
+	metadata, metadataMask := DstGroupMetadata(endpoint.EndpointGroup)
+
+	// Set dst GroupId
+	err = dstGrpFlow.SetMetadata(metadata, metadataMask)
+	if err != nil {
+		log.Errorf("Error setting metadata %v for flow {%+v}. Err: %v", metadata, dstGrpFlow, err)
+		return err
+	}
+
+	// Go to policy Table
+	err = dstGrpFlow.Next(self.policyTable)
+	if err != nil {
+		log.Errorf("Error installing flow {%+v}. Err: %v", dstGrpFlow, err)
+		return err
+	}
+
+	// save the Flow
+	self.DstGrpFlow[ipv6EpId] = dstGrpFlow
+
+	return nil
+}
+
+// DelIpv6Endpoint deletes an endpoint from dst group lookup
+func (self *PolicyAgent) DelIpv6Endpoint(endpoint *OfnetEndpoint) error {
+
+	// find the dst group IPv6 flow
+	ipv6EpId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
+	dstGrp := self.DstGrpFlow[ipv6EpId]
+	if dstGrp == nil {
+		return errors.New("Dst Group IPv6 Flow not found")
+	}
+
+	// delete the Flow
+	err := dstGrp.Delete()
+	if err != nil {
+		log.Errorf("Error deleting dst group for IPv6 endpoint: %+v. Err: %v", endpoint, err)
+	}
+
+	// delete the cache
+	delete(self.DstGrpFlow, ipv6EpId)
 
 	return nil
 }

@@ -76,7 +76,7 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 	}
 
 	// Alloc addresses
-	addr, err := networkAllocAddress(nwCfg, serviceIP)
+	addr, err := networkAllocAddress(nwCfg, serviceIP, false)
 	if err != nil {
 		log.Errorf("Failed to allocate address. Err: %v", err)
 		return err

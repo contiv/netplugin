@@ -21,10 +21,14 @@ import (
 )
 
 type testSubnetInfo struct {
-	subnetIP  string
-	subnetLen uint
-	hostID    uint
-	hostIP    string
+	subnetIP      string
+	subnetLen     uint
+	hostID        uint
+	hostIP        string
+	ipv6Subnet    string
+	ipv6SubnetLen uint
+	ipv6HostID    string
+	ipv6HostIP    string
 }
 
 var testSubnets = []testSubnetInfo{
@@ -129,6 +133,82 @@ func TestGetSubnetAddr(t *testing.T) {
 			t.Fatalf("Invalid subnet address %s obtained for IPRange: %s/%d. Expected: %s",
 				subnetAddr, addr.ipRange, addr.subnetLen, addr.expectedSubnet)
 		}
+	}
+}
+
+var testv6Subnets = []testSubnetInfo{
+	{ipv6Subnet: "2016:430::", ipv6SubnetLen: 64, ipv6HostID: "::254", ipv6HostIP: "2016:430::254"},
+	{ipv6Subnet: "babe:face::80", ipv6SubnetLen: 121, ipv6HostID: "::45", ipv6HostIP: "babe:face::c5"},
+	{ipv6Subnet: "2001::", ipv6SubnetLen: 100, ipv6HostID: "::2", ipv6HostIP: "2001::2"},
+}
+
+func TestGetSubnetIPv6(t *testing.T) {
+	for _, te := range testv6Subnets {
+		ipv6HostIP, err := GetSubnetIPv6(te.ipv6Subnet, te.ipv6SubnetLen, 128, te.ipv6HostID)
+		if err != nil {
+			t.Fatalf("error getting host ip from ipv6Subnet %s/%d for hostid %s - err '%s'",
+				te.ipv6Subnet, te.ipv6SubnetLen, te.ipv6HostID, err)
+		}
+		if ipv6HostIP != te.ipv6HostIP {
+			t.Fatalf("obtained ip %s doesn't match expected ip %s for ipv6Subnet %s/%d\n",
+				ipv6HostIP, te.ipv6HostIP, te.ipv6Subnet, te.ipv6SubnetLen)
+		}
+	}
+}
+
+var testInvalidv6Subnets = []testSubnetInfo{
+	{ipv6Subnet: "2016:430::", ipv6SubnetLen: 128, ipv6HostID: "::254"},
+	{ipv6Subnet: "babe:face::80", ipv6SubnetLen: 121, ipv6HostID: "::c5"},
+	{ipv6Subnet: "babe:face::80", ipv6SubnetLen: 121, ipv6HostID: "::105"},
+	{ipv6Subnet: "2001::", ipv6SubnetLen: 130, ipv6HostID: "::2", ipv6HostIP: "2001::2"},
+}
+
+func TestInvalidGetSubnetIPv6(t *testing.T) {
+	for _, te := range testInvalidSubnets {
+		_, err := GetSubnetIPv6(te.ipv6Subnet, te.ipv6SubnetLen, 128, te.ipv6HostID)
+		if err == nil {
+			t.Fatalf("Expecting error on invalid config subnet %s/%d for hostid %s",
+				te.ipv6Subnet, te.ipv6SubnetLen, te.ipv6HostID)
+		}
+	}
+}
+
+type testHostID struct {
+	hostID     string
+	nextHostID string
+	subnetAddr string
+	subnetLen  uint
+}
+
+var testHostIDs = []testHostID{
+	// verify initial case
+	{hostID: "", nextHostID: "::1", subnetAddr: "1234::", subnetLen: 100},
+
+	// lasthost set to 0 and ::1 allocated above
+	{hostID: "::", nextHostID: "::2", subnetAddr: "1234::", subnetLen: 100},
+
+	// find next of 4
+	{hostID: "::4:FFFF:FFFF", nextHostID: "::5:0:0", subnetAddr: "1234::", subnetLen: 100},
+
+	// this time next of 4 should skip 5, as it was alloc'd above
+	{hostID: "::4:ffff:ffff", nextHostID: "::5:0:1", subnetAddr: "1234::", subnetLen: 100},
+
+	// verify the corner case
+	{hostID: "::FFFE", nextHostID: "::ffff", subnetAddr: "1234::", subnetLen: 100},
+
+	// verify the wrap around case, with subnetLen 124
+	{hostID: "::F", nextHostID: "::3", subnetAddr: "1234::", subnetLen: 124},
+}
+
+func TestGetNextIPv6HostID(t *testing.T) {
+	var allocMap map[string]bool
+	for _, te := range testHostIDs {
+		nextHostID, err := GetNextIPv6HostID(te.hostID, te.subnetAddr, te.subnetLen, 128, allocMap)
+		if nextHostID != te.nextHostID || err != nil {
+			t.Fatalf("obtained nextHostID %s doesn't match expected ID %s for %s\n",
+				nextHostID, te.nextHostID, te.hostID)
+		}
+		ReserveIPv6HostID(nextHostID, &allocMap)
 	}
 }
 

@@ -205,31 +205,35 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	// Point the route at output port
 	err = ipFlow.Next(outPort)
 	if err != nil {
-		log.Errorf("Error installing flow for endpoint: %+v. Err: %v", endpoint, err)
+		log.Errorf("Error installing IP flow for endpoint: %+v. Err: %v", endpoint, err)
 		return err
 	}
 
 	// Store the flow
-	self.flowDb[endpoint.IpAddr.String()] = ipFlow
+	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	self.flowDb[flowId] = ipFlow
 
-	if endpoint.EndpointType == "internal-bgp" {
-		return nil
+	if endpoint.EndpointType != "internal-bgp" {
+		// Install dst group entry for the endpoint
+		err = self.policyAgent.AddEndpoint(&endpoint)
+		if err != nil {
+			log.Errorf("Error adding endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+		path := &OfnetProtoRouteInfo{
+			ProtocolType: "bgp",
+			localEpIP:    endpoint.IpAddr.String(),
+			nextHopIP:    self.agent.GetRouterInfo().RouterIP,
+		}
+		self.agent.AddLocalProtoRoute(path)
 	}
 
-	// Install dst group entry for the endpoint
-	err = self.policyAgent.AddEndpoint(&endpoint)
-	if err != nil {
-		log.Errorf("Error adding endpoint to policy agent{%+v}. Err: %v", endpoint, err)
-		return err
+	if endpoint.Ipv6Addr != nil && endpoint.Ipv6Addr.String() != "" {
+		err = self.AddLocalIpv6Flow(endpoint)
+		if err != nil {
+			return err
+		}
 	}
-
-	path := &OfnetProtoRouteInfo{
-		ProtocolType: "bgp",
-		localEpIP:    endpoint.IpAddr.String(),
-		nextHopIP:    self.agent.GetRouterInfo().RouterIP,
-	}
-	self.agent.AddLocalProtoRoute(path)
-
 	return nil
 }
 
@@ -249,7 +253,8 @@ func (self *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	}
 
 	// Find the flow entry
-	ipFlow := self.flowDb[endpoint.IpAddr.String()]
+	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	ipFlow := self.flowDb[flowId]
 	if ipFlow == nil {
 		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
 		return errors.New("Flow not found")
@@ -274,7 +279,105 @@ func (self *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		localEpIP:    endpoint.IpAddr.String(),
 		nextHopIP:    self.agent.GetRouterInfo().RouterIP,
 	}
+	self.agent.DeleteLocalProtoRoute(path)
 
+	if endpoint.Ipv6Addr != nil && endpoint.Ipv6Addr.String() != "" {
+		err = self.RemoveLocalIpv6Flow(endpoint)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Add IPv6 flows
+func (self *Vlrouter) AddLocalIpv6Flow(endpoint OfnetEndpoint) error {
+
+	outPort, err := self.ofSwitch.OutputPort(endpoint.PortNo)
+	if err != nil {
+		log.Errorf("Error creating output port %d. Err: %v", endpoint.PortNo, err)
+		return err
+	}
+
+	// Install the IPv6 address
+	ipv6Flow, err := self.ipTable.NewFlow(ofctrl.FlowMatch{
+		Priority:  FLOW_MATCH_PRIORITY,
+		Ethertype: 0x86DD,
+		Ipv6Da:    &endpoint.Ipv6Addr,
+	})
+
+	if err != nil {
+		log.Errorf("Error creating IPv6 flow for endpoint: %+v. Err: %v", endpoint, err)
+		return err
+	}
+
+	destMacAddr, _ := net.ParseMAC(endpoint.MacAddrStr)
+
+	// Set Mac addresses
+	ipv6Flow.SetMacDa(destMacAddr)
+	ipv6Flow.SetMacSa(self.myRouterMac)
+
+	// Point the route at output port
+	err = ipv6Flow.Next(outPort)
+	if err != nil {
+		log.Errorf("Error installing IPv6 flow for endpoint: %+v. Err: %v", endpoint, err)
+		return err
+	}
+
+	// Store the flow
+	flowId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
+	self.flowDb[flowId] = ipv6Flow
+
+	if endpoint.EndpointType != "internal-bgp" {
+		// Install dst group entry for IPv6 endpoint
+		err = self.policyAgent.AddIpv6Endpoint(&endpoint)
+		if err != nil {
+			log.Errorf("Error adding IPv6 endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+
+		// Add IPv6 route in BGP
+		path := &OfnetProtoRouteInfo{
+			ProtocolType: "bgp",
+			localEpIP:    endpoint.Ipv6Addr.String(),
+			nextHopIP:    self.agent.GetRouterInfo().RouterIP,
+		}
+		self.agent.AddLocalProtoRoute(path)
+	}
+
+	return nil
+}
+
+// Remove the IPv6 flow
+func (self *Vlrouter) RemoveLocalIpv6Flow(endpoint OfnetEndpoint) error {
+
+	// Find the IPv6 flow entry
+	flowId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
+	ipv6Flow := self.flowDb[flowId]
+	if ipv6Flow == nil {
+		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
+		return errors.New("Flow not found")
+	}
+
+	// Delete the Fgraph entry
+	err := ipv6Flow.Delete()
+	if err != nil {
+		log.Errorf("Error deleting IPv6 endpoint: %+v. Err: %v", endpoint, err)
+	}
+
+	// Remove the endpoint from policy tables
+	if endpoint.EndpointType != "internal-bgp" {
+		err = self.policyAgent.DelIpv6Endpoint(&endpoint)
+		if err != nil {
+			log.Errorf("Error deleting IPv6 endpoint from policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+	}
+	path := &OfnetProtoRouteInfo{
+		ProtocolType: "bgp",
+		localEpIP:    endpoint.Ipv6Addr.String(),
+		nextHopIP:    self.agent.GetRouterInfo().RouterIP,
+	}
 	self.agent.DeleteLocalProtoRoute(path)
 
 	return nil
@@ -380,8 +483,16 @@ func (self *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 		}
 	}
 	// Store it in flow db
-	self.flowDb[endpoint.IpAddr.String()] = ipFlow
+	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	self.flowDb[flowId] = ipFlow
 
+	if endpoint.Ipv6Addr != nil && endpoint.Ipv6Addr.String() != "" {
+		err = self.AddRemoteIpv6Flow(endpoint)
+		if err != nil {
+			log.Errorf("Error adding IPv6 flow for remote endpoint {%+v}. Err: %v", endpoint, err)
+			return err
+		}
+	}
 	return nil
 }
 
@@ -396,7 +507,8 @@ func (self *Vlrouter) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 	delete(self.unresolvedEPs, endpoint.EndpointID)
 
 	// Find the flow entry
-	ipFlow := self.flowDb[endpoint.IpAddr.String()]
+	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	ipFlow := self.flowDb[flowId]
 	if ipFlow == nil {
 		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
 		return errors.New("Flow not found")
@@ -413,6 +525,123 @@ func (self *Vlrouter) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 		err = self.policyAgent.DelEndpoint(endpoint)
 		if err != nil {
 			log.Errorf("Error deleting endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+	}
+	if endpoint.Ipv6Addr != nil && endpoint.Ipv6Addr.String() != "" {
+		err = self.RemoveRemoteIpv6Flow(endpoint)
+		if err != nil {
+			log.Errorf("Error deleting IPv6 endpoint from policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Add IPv6 flow for the remote endpoint
+func (self *Vlrouter) AddRemoteIpv6Flow(endpoint *OfnetEndpoint) error {
+	ipv6EpId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
+
+	nexthopEp := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
+	if nexthopEp != nil && nexthopEp.PortNo != 0 {
+		endpoint.MacAddrStr = nexthopEp.MacAddrStr
+		endpoint.PortNo = nexthopEp.PortNo
+	} else {
+		endpoint.PortNo = 0
+		endpoint.MacAddrStr = " "
+		if endpoint.EndpointType != "external-bgp" {
+			//for the remote endpoints maintain a cache of
+			//routes that need to be resolved to next hop.
+			// bgp peer resolution happens via ARP and hence not
+			//maintainer in cache.
+			log.Info("Storing endpoint info in cache")
+			self.unresolvedEPs[ipv6EpId] = ipv6EpId
+		}
+	}
+	if endpoint.EndpointType == "external-bgp" {
+		self.myBgpPeer = endpoint.IpAddr.String()
+	}
+	log.Infof("AddRemoteIpv6Flow for endpoint: %+v", endpoint)
+
+	vrfid := self.agent.vrfNameIdMap[endpoint.Vrf]
+	if *vrfid == 0 {
+		log.Errorf("Invalid vrf name:%v", endpoint.Vrf)
+		return errors.New("Invalid vrf name")
+	}
+
+	//set vrf id as METADATA
+	//metadata, metadataMask := Vrfmetadata(*vrfid)
+
+	outPort, err := self.ofSwitch.OutputPort(endpoint.PortNo)
+	if err != nil {
+		log.Errorf("Error creating output port %d. Err: %v", endpoint.PortNo, err)
+		return err
+	}
+
+	// Install the IP address
+	ipv6Flow, err := self.ipTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   FLOW_MATCH_PRIORITY,
+		Ethertype:  0x86DD,
+		Ipv6Da:     &endpoint.Ipv6Addr,
+		Ipv6DaMask: &endpoint.Ipv6Mask,
+	})
+	if err != nil {
+		log.Errorf("Error creating flow for endpoint: %+v. Err: %v", endpoint, err)
+		return err
+	}
+
+	// Set Mac addresses
+	DAMac, _ := net.ParseMAC(endpoint.MacAddrStr)
+	ipv6Flow.SetMacDa(DAMac)
+	ipv6Flow.SetMacSa(self.myRouterMac)
+
+	// Point it to output port
+	err = ipv6Flow.Next(outPort)
+	if err != nil {
+		log.Errorf("Error installing flow for endpoint: %+v. Err: %v", endpoint, err)
+		return err
+	}
+
+	// Install dst group entry for the endpoint
+	if endpoint.EndpointType == "internal" {
+		err = self.policyAgent.AddIpv6Endpoint(endpoint)
+		if err != nil {
+			log.Errorf("Error adding IPv6 endpoint to policy agent{%+v}. Err: %v", endpoint, err)
+			return err
+		}
+	}
+	// Store it in flow db
+	self.flowDb[ipv6EpId] = ipv6Flow
+
+	return nil
+}
+
+// Remove IPv6 flow for the remote endpoint
+func (self *Vlrouter) RemoveRemoteIpv6Flow(endpoint *OfnetEndpoint) error {
+
+	//Delete the endpoint if it is in the cache
+	ipv6EpId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
+	delete(self.unresolvedEPs, ipv6EpId)
+
+	// Find the flow entry
+	ipv6Flow := self.flowDb[ipv6EpId]
+	if ipv6Flow == nil {
+		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
+		return errors.New("Flow not found")
+	}
+
+	// Delete the Fgraph entry
+	err := ipv6Flow.Delete()
+	if err != nil {
+		log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
+	}
+
+	//Remove the endpoint from policy tables
+	if endpoint.EndpointType == "internal" {
+		err = self.policyAgent.DelIpv6Endpoint(endpoint)
+		if err != nil {
+			log.Errorf("Error deleting IPv6 endpoint from policy agent{%+v}. Err: %v", endpoint, err)
 			return err
 		}
 	}

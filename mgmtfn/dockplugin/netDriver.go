@@ -209,6 +209,7 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 				Container:   cereq.EndpointID,
 				Host:        hostname,
 				IPAddress:   strings.Split(cereq.Interface.Address, "/")[0],
+				IPv6Address: strings.Split(cereq.Interface.AddressIPv6, "/")[0],
 				ServiceName: serviceName,
 			},
 		}

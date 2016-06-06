@@ -212,7 +212,9 @@ func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 		case OXM_FIELD_ARP_SHA:
 		case OXM_FIELD_ARP_THA:
 		case OXM_FIELD_IPV6_SRC:
+			val = new(Ipv6SrcField)
 		case OXM_FIELD_IPV6_DST:
+			val = new(Ipv6DstField)
 		case OXM_FIELD_IPV6_FLABEL:
 		case OXM_FIELD_ICMPV6_TYPE:
 		case OXM_FIELD_ICMPV6_CODE:
@@ -550,8 +552,8 @@ func NewVlanIdField(vlanId uint16, vlanMask *uint16) *MatchField {
 	vlanIdField.VlanId = vlanId | OFPVID_PRESENT
 	f.Value = vlanIdField
 	f.Length = uint8(vlanIdField.Len())
-	
-	if vlanMask != nil  { 
+
+	if vlanMask != nil {
 		mask := new(VlanIdField)
 		mask.VlanId = *vlanMask
 		f.Mask = mask
@@ -561,7 +563,7 @@ func NewVlanIdField(vlanId uint16, vlanMask *uint16) *MatchField {
 	return f
 }
 
-// MplsLabel field 
+// MplsLabel field
 type MplsLabelField struct {
 	MplsLabel uint32
 }
@@ -581,7 +583,7 @@ func (m *MplsLabelField) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Return a MatchField for mpls Label matching 
+// Return a MatchField for mpls Label matching
 func NewMplsLabelField(mplsLabel uint32) *MatchField {
 	f := new(MatchField)
 	f.Class = OXM_CLASS_OPENFLOW_BASIC
@@ -589,15 +591,14 @@ func NewMplsLabelField(mplsLabel uint32) *MatchField {
 	f.HasMask = false
 
 	mplsLabelField := new(MplsLabelField)
-	mplsLabelField.MplsLabel = mplsLabel 
+	mplsLabelField.MplsLabel = mplsLabel
 	f.Value = mplsLabelField
 	f.Length = uint8(mplsLabelField.Len())
 
 	return f
 }
 
-
-// MplsBos field 
+// MplsBos field
 type MplsBosField struct {
 	MplsBos uint8
 }
@@ -616,7 +617,7 @@ func (m *MplsBosField) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Return a MatchField for mpls Bos matching 
+// Return a MatchField for mpls Bos matching
 func NewMplsBosField(mplsBos uint8) *MatchField {
 	f := new(MatchField)
 	f.Class = OXM_CLASS_OPENFLOW_BASIC
@@ -708,6 +709,94 @@ func NewIpv4DstField(ipDst net.IP, ipDstMask *net.IP) *MatchField {
 	if ipDstMask != nil {
 		mask := new(Ipv4DstField)
 		mask.Ipv4Dst = *ipDstMask
+		f.Mask = mask
+		f.HasMask = true
+		f.Length += uint8(mask.Len())
+	}
+
+	return f
+}
+
+// IPV6_SRC field
+type Ipv6SrcField struct {
+	Ipv6Src net.IP
+}
+
+func (m *Ipv6SrcField) Len() uint16 {
+	return 16
+}
+func (m *Ipv6SrcField) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 16)
+	copy(data, m.Ipv6Src)
+	return
+}
+
+func (m *Ipv6SrcField) UnmarshalBinary(data []byte) error {
+	m.Ipv6Src = make([]byte, 16)
+	copy(m.Ipv6Src, data)
+	return nil
+}
+
+// Return a MatchField for ipv6 src addr
+func NewIpv6SrcField(ipSrc net.IP, ipSrcMask *net.IP) *MatchField {
+	f := new(MatchField)
+	f.Class = OXM_CLASS_OPENFLOW_BASIC
+	f.Field = OXM_FIELD_IPV6_SRC
+	f.HasMask = false
+
+	ipSrcField := new(Ipv6SrcField)
+	ipSrcField.Ipv6Src = ipSrc
+	f.Value = ipSrcField
+	f.Length = uint8(ipSrcField.Len())
+
+	// Add the mask
+	if ipSrcMask != nil {
+		mask := new(Ipv6SrcField)
+		mask.Ipv6Src = *ipSrcMask
+		f.Mask = mask
+		f.HasMask = true
+		f.Length += uint8(mask.Len())
+	}
+
+	return f
+}
+
+// IPV6_DST field
+type Ipv6DstField struct {
+	Ipv6Dst net.IP
+}
+
+func (m *Ipv6DstField) Len() uint16 {
+	return 16
+}
+func (m *Ipv6DstField) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 16)
+	copy(data, m.Ipv6Dst)
+	return
+}
+
+func (m *Ipv6DstField) UnmarshalBinary(data []byte) error {
+	m.Ipv6Dst = make([]byte, 16)
+	copy(m.Ipv6Dst, data)
+	return nil
+}
+
+// Return a MatchField for ipv6 dest addr
+func NewIpv6DstField(ipDst net.IP, ipDstMask *net.IP) *MatchField {
+	f := new(MatchField)
+	f.Class = OXM_CLASS_OPENFLOW_BASIC
+	f.Field = OXM_FIELD_IPV6_DST
+	f.HasMask = false
+
+	ipDstField := new(Ipv6DstField)
+	ipDstField.Ipv6Dst = ipDst
+	f.Value = ipDstField
+	f.Length = uint8(ipDstField.Len())
+
+	// Add the mask
+	if ipDstMask != nil {
+		mask := new(Ipv6DstField)
+		mask.Ipv6Dst = *ipDstMask
 		f.Mask = mask
 		f.HasMask = true
 		f.Length += uint8(mask.Len())

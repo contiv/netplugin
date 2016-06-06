@@ -112,6 +112,69 @@ func checkDocknetCreate(t *testing.T, tenantName, networkName, serviceName, subn
 	}
 }
 
+func checkDocknetCreateIPv6(t *testing.T, tenantName, networkName, serviceName, subnet, gw, ipv6subnet, ipv6gw string) {
+	docknetName := GetDocknetName(tenantName, networkName, serviceName)
+	subnetIP, subnetLen, _ := netutils.ParseCIDR(subnet)
+	ipv6subnetAddr, ipv6subnetLen, _ := netutils.ParseCIDR(ipv6subnet)
+
+	nwcfg := mastercfg.CfgNetworkState{
+		Tenant:        tenantName,
+		NetworkName:   networkName,
+		PktTagType:    "vlan",
+		PktTag:        1,
+		ExtPktTag:     1,
+		SubnetIP:      subnetIP,
+		SubnetLen:     subnetLen,
+		Gateway:       gw,
+		IPv6Subnet:    ipv6subnetAddr,
+		IPv6SubnetLen: ipv6subnetLen,
+		IPv6Gateway:   ipv6gw,
+	}
+
+	// create a docker network
+	err := CreateDockNet(tenantName, networkName, serviceName, &nwcfg)
+	if err != nil {
+		t.Fatalf("Error creating docker ntework. Err: %v", err)
+	}
+
+	// verify docknet state is created
+	dnetOper := getDocknetState(tenantName, networkName, serviceName)
+	if dnetOper == nil {
+		t.Fatalf("Error finding docknet state for %s", docknetName)
+	}
+
+	// check if docker has the state
+	docker, err := utils.GetDockerClient()
+	if err != nil {
+		t.Fatalf("Unable to connect to docker. Error %v", err)
+	}
+	ninfo, err := docker.InspectNetwork(docknetName)
+	if err != nil {
+		t.Fatalf("Error getting network info for %s. Err: %v", docknetName, err)
+	}
+
+	// verify params are correct
+	if ninfo.Scope != "local" || ninfo.Driver != netDriverName || ninfo.IPAM.Driver != ipamDriverName ||
+		ninfo.IPAM.Config[0].Subnet != subnet || ninfo.IPAM.Config[0].Gateway != gw {
+		t.Fatalf("Docker network {%+v} does not match expected values", ninfo)
+	}
+	// verify ipv6 params are correct
+	if ninfo.IPAM.Config[1].Subnet != ipv6subnet || ninfo.IPAM.Config[1].Gateway != ipv6gw {
+		t.Fatalf("Docker network {%+v} does not match expected values", ninfo)
+	}
+
+	// make sure FindDocknetByUUID returns correct UUID
+	tmpOper, err := FindDocknetByUUID(dnetOper.DocknetUUID)
+	if err != nil {
+		t.Fatalf("Error getting docknet by UUID")
+	}
+
+	if tmpOper.TenantName != tenantName || tmpOper.NetworkName != networkName ||
+		tmpOper.ServiceName != serviceName {
+		t.Fatalf("Got unexpected docknet oper state %+v for network UUID %s", tmpOper, dnetOper.DocknetUUID)
+	}
+}
+
 func checkDocknetDelete(t *testing.T, tenantName, networkName, serviceName string) {
 	docknetName := GetDocknetName(tenantName, networkName, serviceName)
 
@@ -151,6 +214,10 @@ func TestMain(m *testing.M) {
 func TestDocknetCreateDelete(t *testing.T) {
 	// test network creation
 	checkDocknetCreate(t, "unit-test", "net1", "", "10.1.1.1/24", "10.1.1.254")
+	checkDocknetDelete(t, "unit-test", "net1", "")
+
+	// test ipv6 network creation
+	checkDocknetCreateIPv6(t, "unit-test", "net1", "", "10.1.1.1/24", "10.1.1.254", "2016:0430::/100", "2016:0430::254")
 	checkDocknetDelete(t, "unit-test", "net1", "")
 
 	// test service names

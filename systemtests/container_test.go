@@ -8,11 +8,16 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+type intf struct {
+	ip   string
+	ipv6 string
+}
+
 type container struct {
 	node        *node
 	containerID string
 	name        string
-	eth0        string
+	eth0        intf
 }
 
 func newContainer(node *node, containerID, name string) (*container, error) {
@@ -22,13 +27,18 @@ func newContainer(node *node, containerID, name string) (*container, error) {
 	if err != nil {
 		return nil, err
 	}
-	cont.eth0 = out
+	cont.eth0.ip = out
+
+	out, err = cont.getIPv6Addr("eth0")
+	if err == nil {
+		cont.eth0.ipv6 = out
+	}
 
 	return cont, nil
 }
 
 func (c *container) String() string {
-	return fmt.Sprintf("(container: %s (name: %q ip: %s host: %s))", c.containerID, c.name, c.eth0, c.node.Name())
+	return fmt.Sprintf("(container: %s (name: %q ip: %s ipv6: %s host: %s))", c.containerID, c.name, c.eth0.ip, c.eth0.ipv6, c.node.Name())
 }
 
 func (c *container) checkPingFailure(ipaddr string) error {
@@ -67,6 +77,46 @@ func (c *container) getIPAddr(dev string) (string, error) {
 
 	parts = strings.Split(parts[1], "/")
 	out = strings.TrimSpace(parts[0])
+	return out, err
+}
+
+func (c *container) checkPing6Failure(ipaddr string) error {
+	logrus.Infof("Expecting ping6 failure from %v to %s", c, ipaddr)
+	if err := c.checkPing6(ipaddr); err == nil {
+		return fmt.Errorf("Ping6 succeeded when expected to fail from %v to %s", c, ipaddr)
+	}
+
+	return nil
+}
+
+func (c *container) checkPing6(ipaddr string) error {
+	logrus.Infof("Checking ping6 from %v to %s", c, ipaddr)
+	out, err := c.exec("ping6 -c 1 " + ipaddr)
+
+	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
+		logrus.Errorf("Ping6 from %v to %s FAILED: %q - %v", c, ipaddr, out, err)
+		return fmt.Errorf("Ping6 failed from %v to %s: %q - %v", c, ipaddr, out, err)
+	}
+
+	logrus.Infof("Ping6 from %v to %s SUCCEEDED", c, ipaddr)
+	return nil
+}
+
+func (c *container) getIPv6Addr(dev string) (string, error) {
+	out, err := c.exec(fmt.Sprintf("ip addr show dev %s | grep 'inet6.*scope.*global' | head -1", dev))
+	if err != nil {
+		logrus.Errorf("Failed to get IPv6 for container %q", c.containerID)
+		logrus.Println(out)
+	}
+
+	parts := regexp.MustCompile(`\s+`).Split(strings.TrimSpace(out), -1)
+	if len(parts) < 2 {
+		return "", fmt.Errorf("Invalid output from container %q: %s", c.containerID, out)
+	}
+
+	parts = strings.Split(parts[1], "/")
+	out = strings.TrimSpace(parts[0])
+	logrus.Infof("VK: getIPv6Addr dev: %s got addr: %s", dev, out)
 	return out, err
 }
 

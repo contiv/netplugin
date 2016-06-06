@@ -33,6 +33,7 @@ type CfgEndpointState struct {
 	EndpointGroupKey string            `json:"endpointGroupKey"`
 	AttachUUID       string            `json:"attachUUID"`
 	IPAddress        string            `json:"ipAddress"`
+	IPv6Address      string            `json:"ipv6Address"`
 	MacAddress       string            `json:"macAddress"`
 	HomingHost       string            `json:"homingHost"`
 	IntfName         string            `json:"intfName"`

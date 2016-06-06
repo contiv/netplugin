@@ -15,7 +15,7 @@ import (
 func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*container, port int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
-			if err := cont.checkConnection(cont2.eth0, "tcp", port); err != nil {
+			if err := cont.checkConnection(cont2.eth0.ip, "tcp", port); err != nil {
 				return err
 			}
 		}
@@ -311,8 +311,12 @@ func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName,
 
 func (s *systemtestSuite) pingTest(containers []*container) error {
 	ips := []string{}
+	v6ips := []string{}
 	for _, cont := range containers {
-		ips = append(ips, cont.eth0)
+		ips = append(ips, cont.eth0.ip)
+		if cont.eth0.ipv6 != "" {
+			v6ips = append(v6ips, cont.eth0.ipv6)
+		}
 	}
 
 	errChan := make(chan error, len(containers)*len(ips))
@@ -326,6 +330,22 @@ func (s *systemtestSuite) pingTest(containers []*container) error {
 	for i := 0; i < len(containers)*len(ips); i++ {
 		if err := <-errChan; err != nil {
 			return err
+		}
+	}
+
+	if len(v6ips) > 0 {
+		v6errChan := make(chan error, len(containers)*len(v6ips))
+
+		for _, cont := range containers {
+			for _, ipv6 := range v6ips {
+				go func(cont *container, ipv6 string) { v6errChan <- cont.checkPing6(ipv6) }(cont, ipv6)
+			}
+		}
+
+		for i := 0; i < len(containers)*len(v6ips); i++ {
+			if err := <-v6errChan; err != nil {
+				return err
+			}
 		}
 	}
 
@@ -354,7 +374,7 @@ func (s *systemtestSuite) pingFailureTest(containers1 []*container, containers2 
 
 	for _, cont1 := range containers1 {
 		for _, cont2 := range containers2 {
-			go func(cont1 *container, cont2 *container) { errChan <- cont1.checkPingFailure(cont2.eth0) }(cont1, cont2)
+			go func(cont1 *container, cont2 *container) { errChan <- cont1.checkPingFailure(cont2.eth0.ip) }(cont1, cont2)
 		}
 	}
 
@@ -403,14 +423,14 @@ func (s *systemtestSuite) startListeners(containers []*container, ports []int) e
 func (s *systemtestSuite) checkConnections(containers []*container, port int) error {
 	ips := []string{}
 	for _, cont := range containers {
-		ips = append(ips, cont.eth0)
+		ips = append(ips, cont.eth0.ip)
 	}
 
 	endChan := make(chan error, len(containers))
 
 	for _, cont := range containers {
 		for _, ip := range ips {
-			if cont.eth0 == ip {
+			if cont.eth0.ip == ip {
 				continue
 			}
 
@@ -430,14 +450,14 @@ func (s *systemtestSuite) checkConnections(containers []*container, port int) er
 func (s *systemtestSuite) checkNoConnections(containers []*container, port int) error {
 	ips := []string{}
 	for _, cont := range containers {
-		ips = append(ips, cont.eth0)
+		ips = append(ips, cont.eth0.ip)
 	}
 
 	endChan := make(chan error, len(containers))
 
 	for _, cont := range containers {
 		for _, ip := range ips {
-			if cont.eth0 == ip {
+			if cont.eth0.ip == ip {
 				continue
 			}
 
@@ -469,7 +489,7 @@ func (s *systemtestSuite) checkConnectionsAcrossGroup(containers map[*container]
 		for group2, conts := range groups {
 			if group != group2 {
 				for _, cont := range conts {
-					err := cont1.checkConnection(cont.eth0, "tcp", port)
+					err := cont1.checkConnection(cont.eth0.ip, "tcp", port)
 					if !expFail && err != nil {
 						return err
 					}
@@ -496,7 +516,7 @@ func (s *systemtestSuite) checkConnectionsWithinGroup(containers map[*container]
 		for group2, conts := range groups {
 			if group == group2 {
 				for _, cont := range conts {
-					if err := cont1.checkConnection(cont.eth0, "tcp", port); err != nil {
+					if err := cont1.checkConnection(cont.eth0.ip, "tcp", port); err != nil {
 						return err
 					}
 				}
@@ -522,7 +542,7 @@ func (s *systemtestSuite) checkPingContainersInNetworks(containers map[*containe
 		for network2, conts := range networks {
 			if network2 == network {
 				for _, cont := range conts {
-					if err := cont1.checkPing(cont.eth0); err != nil {
+					if err := cont1.checkPing(cont.eth0.ip); err != nil {
 						return err
 					}
 				}
@@ -573,7 +593,7 @@ func (s *systemtestSuite) pingFailureTestDifferentNode(containers1 []*container,
 	for _, cont1 := range containers1 {
 		for _, cont2 := range containers2 {
 			if cont1.node != cont2.node {
-				go func(cont1 *container, cont2 *container) { errChan <- cont1.checkPingFailure(cont2.eth0) }(cont1, cont2)
+				go func(cont1 *container, cont2 *container) { errChan <- cont1.checkPingFailure(cont2.eth0.ip) }(cont1, cont2)
 			}
 		}
 	}
