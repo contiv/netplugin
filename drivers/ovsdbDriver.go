@@ -28,6 +28,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// Max number of retries to get ofp port number
+const maxOfportRetry = 10
+
 // OvsdbDriver is responsible for programming OVS using ovsdb protocol. It also
 // implements the libovsdb.Notifier interface to keep cache of ovs table state.
 type OvsdbDriver struct {
@@ -535,37 +538,6 @@ func (d *OvsdbDriver) IsPortNamePresent(intfName string) bool {
 	return false
 }
 
-// GetOfpPortNoOld : original Return OFP port number for an interface
-func (d *OvsdbDriver) GetOfpPortNoOld(intfName string) (uint32, error) {
-	for i := 0; i < 10; i++ {
-		for tName, table := range d.cache {
-			if tName == "Interface" {
-				for _, row := range table {
-					if row.Fields["name"] == intfName {
-						value := row.Fields["ofport"]
-						switch t := value.(type) {
-						case uint32:
-							return t, nil
-						case float64:
-							ofpPort := uint32(t)
-							return ofpPort, nil
-						default:
-							// return 0, errors.New("Unknown field type")
-						}
-					}
-				}
-			}
-		}
-
-		log.Warnf("Failed to get ofport %s. Retrying", intfName)
-		// Wait if we didnt find the right ofport
-		time.Sleep(300 * time.Millisecond)
-	}
-
-	// We could not find the interface name
-	return 0, errors.New("Interface not found")
-}
-
 // GetOfpPortNo returns OFP port number for an interface
 func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
 	retryNo := 0
@@ -589,9 +561,9 @@ func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
 				return ofpPort, nil
 			}
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
-		if retryNo == 5 {
+		if retryNo == maxOfportRetry {
 			return 0, errors.New("ofPort not found")
 		}
 		retryNo++

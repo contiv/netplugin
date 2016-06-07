@@ -2,6 +2,8 @@ package check
 
 import (
 	"fmt"
+	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -171,6 +173,12 @@ func (c *C) Check(obtained interface{}, checker Checker, args ...interface{}) bo
 // problem when the matching fails.
 func (c *C) Assert(obtained interface{}, checker Checker, args ...interface{}) {
 	if !c.internalCheck("Assert", obtained, checker, args...) {
+		if os.Getenv("CONTIV_SOE") != "" {
+			fmt.Println("Test Failed. Stop On Error. Exiting..")
+			debug.PrintStack()
+			os.Exit(1)
+		}
+
 		c.stopNow()
 	}
 }

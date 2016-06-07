@@ -1,0 +1,12 @@
+[Unit]
+Description=Consul
+After=auditd.service systemd-user-sessions.service time-sync.target network.target
+
+[Service]
+Restart=on-failure
+RestartSec=10s
+ExecStart=/usr/bin/consul.sh
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target

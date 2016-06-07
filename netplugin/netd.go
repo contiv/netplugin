@@ -313,7 +313,6 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 			isDelete = true
 			eventStr = "delete"
 		} else if rsp.Prev != nil {
-			log.Infof("Received a modify event, ignoring it")
 			if bgpCfg, ok := currentState.(*mastercfg.CfgBgpState); ok {
 				log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
 				processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
@@ -331,7 +330,7 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 				processSvcProviderUpdEvent(netPlugin, opts, svcProvider, isDelete)
 			}
 
-			log.Infof("Received a modify event, ignoring it")
+			log.Debugf("Received a modify event, ignoring it")
 			continue
 
 		}
@@ -632,6 +631,7 @@ func main() {
 	}
 
 	if err := handleEvents(netPlugin, opts); err != nil {
+		log.Infof("Netplugin exiting due to error: %v", err)
 		os.Exit(1)
 	}
 }

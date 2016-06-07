@@ -70,7 +70,7 @@ class Node:
     # Start netplugin process on vagrant node
     def startNetplugin(self, args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "sudo " + self.binpath + "/netplugin -plugin-mode docker -vlan-if eth2 " + args + "> /tmp/netplugin.log 2>&1"
+        command = "sudo " + self.binpath + "/netplugin -plugin-mode docker -vlan-if eth2 -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " " + args + "> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()
@@ -78,7 +78,7 @@ class Node:
     # Start netmaster process
     def startNetmaster(self):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "GOPATH=/opt/gopath " + self.binpath + "/netmaster > /tmp/netmaster.log 2>&1"
+        command = "GOPATH=/opt/gopath " + self.binpath + "/netmaster -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " > /tmp/netmaster.log 2>&1"
         self.nmThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.nmThread.start()

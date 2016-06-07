@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	recursive  = true
-	ctxTimeout = 20 * time.Second
+	ctxTimeout     = 20 * time.Second // etcd timeout
+	maxEtcdRetries = 10               // Max times to retry in case of failure
 )
 
 // EtcdStateDriverConfig encapsulates the etcd endpoints used to communicate
@@ -82,6 +82,20 @@ func (d *EtcdStateDriver) Write(key string, value []byte) error {
 	defer cancel()
 
 	_, err := d.KeysAPI.Set(ctx, key, string(value[:]), nil)
+	if err != nil {
+		// Retry few times if cluster is unavailable
+		if err.Error() == client.ErrClusterUnavailable.Error() {
+			for i := 0; i < maxEtcdRetries; i++ {
+				_, err = d.KeysAPI.Set(ctx, key, string(value[:]), nil)
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+	}
 
 	return err
 }
@@ -93,7 +107,20 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 
 	resp, err := d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
 	if err != nil {
-		return []byte{}, err
+		// Retry few times if cluster is unavailable
+		if err.Error() == client.ErrClusterUnavailable.Error() {
+			for i := 0; i < maxEtcdRetries; i++ {
+				resp, err = d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		} else {
+			return []byte{}, err
+		}
 	}
 
 	return []byte(resp.Node.Value), err
@@ -123,6 +150,8 @@ func (d *EtcdStateDriver) channelEtcdEvents(watcher client.Watcher, rsps chan [2
 		etcdRsp, err := watcher.Next(context.Background())
 		if err != nil {
 			log.Errorf("Error %v during watch", err)
+			time.Sleep(time.Second)
+			continue
 		}
 
 		// XXX: The logic below assumes that the node returned is always a node
@@ -153,7 +182,7 @@ func (d *EtcdStateDriver) channelEtcdEvents(watcher client.Watcher, rsps chan [2
 
 // WatchAll state transitions from baseKey
 func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	watcher := d.KeysAPI.Watcher(baseKey, &client.WatcherOptions{Recursive: recursive})
+	watcher := d.KeysAPI.Watcher(baseKey, &client.WatcherOptions{Recursive: true})
 	if watcher == nil {
 		log.Errorf("etcd watch failed.")
 		return errors.New("Etcd watch failed")

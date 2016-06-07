@@ -250,7 +250,6 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 			node.cleanupContainers()
 			node.cleanupDockerNetwork()
 			node.stopNetplugin()
-			node.cleanupSlave()
 		}
 
 		for _, node := range s.nodes {
@@ -259,6 +258,7 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		}
 		for _, node := range s.nodes {
 			node.cleanupMaster()
+			node.cleanupSlave()
 		}
 
 		for _, node := range s.nodes {
@@ -302,8 +302,8 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 func (s *systemtestSuite) TearDownTest(c *C) {
 	for _, node := range s.nodes {
 		c.Check(node.checkForNetpluginErrors(), IsNil)
-		c.Assert(node.rotateLog("netplugin"), IsNil)
-		c.Assert(node.rotateLog("netmaster"), IsNil)
+		node.rotateLog("netplugin")
+		node.rotateLog("netmaster")
 	}
 	logrus.Infof("============================= %s completed ==========================", c.TestName())
 }

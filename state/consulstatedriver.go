@@ -18,12 +18,16 @@ package state
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/hashicorp/consul/api"
 
 	log "github.com/Sirupsen/logrus"
 )
+
+// Max times to retry in case of failure
+const maxConsulRetries = 10
 
 // ConsulStateDriverConfig encapsulates the configuration parameters to
 // initialize consul client
@@ -70,6 +74,18 @@ func processKey(inKey string) string {
 func (d *ConsulStateDriver) Write(key string, value []byte) error {
 	key = processKey(key)
 	_, err := d.Client.KV().Put(&api.KVPair{Key: key, Value: value}, nil)
+	if err != nil && (api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+		strings.Contains(err.Error(), "connection refused")) {
+		for i := 0; i < maxConsulRetries; i++ {
+			_, err = d.Client.KV().Put(&api.KVPair{Key: key, Value: value}, nil)
+			if err == nil {
+				break
+			}
+
+			// Retry after a delay
+			time.Sleep(time.Second)
+		}
+	}
 
 	return err
 }
@@ -79,7 +95,20 @@ func (d *ConsulStateDriver) Read(key string) ([]byte, error) {
 	key = processKey(key)
 	kv, _, err := d.Client.KV().Get(key, nil)
 	if err != nil {
-		return []byte{}, err
+		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+			strings.Contains(err.Error(), "connection refused") {
+			for i := 0; i < maxConsulRetries; i++ {
+				kv, _, err = d.Client.KV().Get(key, nil)
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		} else {
+			return []byte{}, err
+		}
 	}
 	// Consul returns success and a nil kv when a key is not found,
 	// translate it to 'Key not found' error
@@ -201,9 +230,15 @@ func (d *ConsulStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error 
 		default:
 			kvs, qm, err := d.Client.KV().List(baseKey, &api.QueryOptions{WaitIndex: waitIndex})
 			if err != nil {
-				log.Errorf("consul watch failed for key %q. Error: %s", baseKey, err)
-				stop <- true
-				return err
+				if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
+					log.Warnf("Consul watch: server error: %v for %s. Retrying..", err, baseKey)
+					time.Sleep(5 * time.Second)
+					continue
+				} else {
+					log.Errorf("consul watch failed for key %q. Error: %s. stopping watch..", baseKey, err)
+					stop <- true
+					return err
+				}
 			}
 			// Consul returns success and a nil kv when a key is not found.
 			// This shall translate into appropriate 'Delete' events or

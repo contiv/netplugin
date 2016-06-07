@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"math/rand"
 	"strings"
 	"sync"
 
@@ -217,6 +218,15 @@ func (s *systemtestSuite) runContainersSerial(num int, withService bool, network
 	return containers, nil
 }
 
+func randSeq(n int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
 func (s *systemtestSuite) runContainersOnNode(num int, networkName string, n *node) ([]*container, error) {
 	containers := []*container{}
 	mutex := sync.Mutex{}
@@ -228,6 +238,7 @@ func (s *systemtestSuite) runContainersOnNode(num int, networkName string, n *no
 			spec := containerSpec{
 				imageName:   "alpine",
 				networkName: networkName,
+				name:        fmt.Sprintf("%s-%d-%s", n.Name(), i, randSeq(16)),
 			}
 
 			cont, err := n.runContainer(spec)
