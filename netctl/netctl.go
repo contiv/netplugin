@@ -726,3 +726,77 @@ func listAppProfEpgs(ctx *cli.Context) {
 		os.Stdout.WriteString(groups)
 	}
 }
+
+//createServiceLB is a netctl interface routine to delete
+//service object
+func createServiceLB(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	serviceName := ctx.Args()[0]
+	serviceSubnet := ctx.String("network")
+	tenantName := ctx.String("tenant")
+
+	selectors := ctx.StringSlice("selector")
+	ports := ctx.StringSlice("port")
+	ipAddress := ctx.String("preferred-ip")
+	errCheck(ctx, getClient(ctx).ServiceLBPost(&contivClient.ServiceLB{
+		ServiceName: serviceName,
+		TenantName:  tenantName,
+		NetworkName: serviceSubnet,
+		Selectors:   selectors,
+		Ports:       ports,
+		IpAddress:   ipAddress,
+	}))
+}
+
+//deleteServiceLB is a netctl interface routine to delete
+//service object
+func deleteServiceLB(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	serviceName := ctx.Args()[0]
+	tenantName := ctx.String("tenant")
+
+	fmt.Printf("Deleting Service  %s,%s", serviceName, tenantName)
+
+	errCheck(ctx, getClient(ctx).ServiceLBDelete(serviceName, tenantName))
+}
+
+//listServiceLB is a netctl interface routine to delete
+//service object
+func listServiceLB(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	serviceName := ctx.Args()[0]
+	tenantName := ctx.String("tenantName")
+
+	svcList, err := getClient(ctx).ServiceLBList()
+	errCheck(ctx, err)
+
+	filtered := []*contivClient.ServiceLB{}
+
+	for _, svc := range *svcList {
+		if svc.ServiceName == serviceName || ctx.Bool("all") && svc.TenantName == tenantName {
+			filtered = append(filtered, svc)
+		}
+	}
+
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, filtered)
+	} else {
+
+		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+		defer writer.Flush()
+		writer.Write([]byte("ServiceName\tTenant\tNetwork\tSelectors\n"))
+		writer.Write([]byte("---------\t--------\t-------\t-------\n"))
+		for _, group := range filtered {
+			writer.Write(
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t\n",
+					group.ServiceName,
+					group.TenantName,
+					group.NetworkName,
+					group.Selectors,
+				)))
+		}
+	}
+}

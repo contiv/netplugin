@@ -19,6 +19,7 @@ type containerSpec struct {
 	serviceName string
 	name        string
 	dnsServer   string
+	labels      []string
 }
 
 type node struct {
@@ -138,7 +139,7 @@ func (n *node) runCommand(cmd string) (string, error) {
 }
 
 func (n *node) runContainer(spec containerSpec) (*container, error) {
-	var namestr, netstr, dnsStr string
+	var namestr, netstr, dnsStr, labelstr string
 
 	if spec.networkName != "" {
 		netstr = spec.networkName
@@ -165,11 +166,17 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 	if spec.dnsServer != "" {
 		dnsStr = "--dns=" + spec.dnsServer
 	}
+
+	if len(spec.labels) > 0 {
+		l := "--label="
+		for _, label := range spec.labels {
+			labelstr += l + label + " "
+		}
+	}
+
 	logrus.Infof("Starting a container running %q on %s", spec.commandName, n.Name())
 
-	cmd := fmt.Sprintf("docker run -itd %s %s %s %s %s", namestr, netstr, dnsStr, spec.imageName, spec.commandName)
-
-	logrus.Infof("Starting container on %s with: %s", n.Name(), cmd)
+	cmd := fmt.Sprintf("docker run -itd %s %s %s %s %s %s", namestr, netstr, dnsStr, labelstr, spec.imageName, spec.commandName)
 
 	out, err := n.tbnode.RunCommandWithOutput(cmd)
 	if err != nil {

@@ -37,6 +37,35 @@ type Config struct {
 	Instance core.InstanceInfo `json:"plugin-instance"`
 }
 
+/*
+//ProviderInfo has providers info
+type ProviderInfo struct {
+	IPAddress   string            // provider IP
+	ContainerID string            // container id
+	Labels      map[string]string // lables
+	Tenant      string
+	Network     string
+}
+*/
+/*
+//ServiceLBInfo holds service information
+type ServiceLBInfo struct {
+	ServiceName string //Service name
+	IPAddress   string //Service IP
+	Tenant      string //Tenant name of the service
+	SrvPort     uint16 //Service port
+	ProvPort    uint16
+	Labels      map[string]string        // Labels associated with a service
+	Providers   map[string]*ProviderInfo //map of providers for a service keyed by provider ip
+}
+*/
+//ServiceLBInfo is map of all services
+//var ServiceLBDb map[string]*ServiceLBInfo //DB for all services keyed by servicename.tenant
+//ProviderDb is map of all providers
+//var ProviderDb map[string]*ProviderInfo
+
+//
+
 // NetPlugin is the configuration struct for the plugin bus. Network and
 // Endpoint drivers are all present in `drivers/` and state drivers are present
 // in `state/`.
@@ -78,7 +107,10 @@ func (p *NetPlugin) Init(pluginConfig Config) error {
 			p.NetworkDriver.Deinit()
 		}
 	}()
-
+	/*
+		ServiceLBDb = make(map[string]*ServiceLBInfo)
+		ProviderDb = make(map[string]*ProviderInfo)
+	*/
 	return nil
 }
 
@@ -152,4 +184,19 @@ func (p *NetPlugin) AddBgp(id string) error {
 //DeleteBgp deletes bgp configs
 func (p *NetPlugin) DeleteBgp(id string) error {
 	return p.NetworkDriver.DeleteBgp(id)
+}
+
+//AddServiceLB adds service
+func (p *NetPlugin) AddServiceLB(servicename string, spec *core.ServiceSpec) error {
+	return p.NetworkDriver.AddSvcSpec(servicename, spec)
+}
+
+//DeleteServiceLB deletes service
+func (p *NetPlugin) DeleteServiceLB(servicename string, spec *core.ServiceSpec) error {
+	return p.NetworkDriver.DelSvcSpec(servicename, spec)
+}
+
+//SvcProviderUpdate hhhh
+func (p *NetPlugin) SvcProviderUpdate(servicename string, providers []string) {
+	p.NetworkDriver.SvcProviderUpdate(servicename, providers)
 }

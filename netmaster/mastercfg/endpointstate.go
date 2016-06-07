@@ -26,17 +26,19 @@ import (
 // vlans with ovs. The state is stored as Json objects.
 type CfgEndpointState struct {
 	core.CommonState
-	NetID            string `json:"netID"`
-	ContName         string `json:"contName"`
-	ServiceName      string `json:"serviceName"`
-	EndpointGroupID  int    `json:"endpointGroupId"`
-	EndpointGroupKey string `json:"endpointGroupKey"`
-	AttachUUID       string `json:"attachUUID"`
-	IPAddress        string `json:"ipAddress"`
-	MacAddress       string `json:"macAddress"`
-	HomingHost       string `json:"homingHost"`
-	IntfName         string `json:"intfName"`
-	VtepIP           string `json:"vtepIP"`
+	NetID            string            `json:"netID"`
+	ContName         string            `json:"contName"`
+	ServiceName      string            `json:"serviceName"`
+	EndpointGroupID  int               `json:"endpointGroupId"`
+	EndpointGroupKey string            `json:"endpointGroupKey"`
+	AttachUUID       string            `json:"attachUUID"`
+	IPAddress        string            `json:"ipAddress"`
+	MacAddress       string            `json:"macAddress"`
+	HomingHost       string            `json:"homingHost"`
+	IntfName         string            `json:"intfName"`
+	VtepIP           string            `json:"vtepIP"`
+	Labels           map[string]string `json:"labels"`
+	ContainerID      string            `json:"containerId"`
 }
 
 // Write the state.

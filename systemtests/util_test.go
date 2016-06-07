@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -101,7 +102,8 @@ func (s *systemtestSuite) runContainersInService(num int, serviceName, networkNa
 	return containers, nil
 }
 
-func (s *systemtestSuite) runContainers(num int, withService bool, networkName string, names []string) ([]*container, error) {
+func (s *systemtestSuite) runContainers(num int, withService bool, networkName string,
+	names []string, labels []string) ([]*container, error) {
 	containers := []*container{}
 	mutex := sync.Mutex{}
 
@@ -138,6 +140,9 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 				networkName: networkName,
 				name:        name,
 				serviceName: serviceName,
+			}
+			if len(labels) > 0 {
+				spec.labels = append(spec.labels, labels...)
 			}
 
 			cont, err := s.nodes[nodeNum].runContainer(spec)
@@ -695,4 +700,43 @@ func (s *systemtestSuite) getNetworkDNSServer(tenant, network string) (string, e
 	}
 
 	return "", errors.New("Network not found")
+}
+func (s *systemtestSuite) checkConnectionToService(containers []*container, ips []string, port int, protocol string) error {
+
+	for _, cont := range containers {
+		for _, ip := range ips {
+			if err := cont.checkConnection(ip, "tcp", port); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+//ports is of the form 80:8080:TCP
+func (s *systemtestSuite) startListenersOnProviders(containers []*container, ports []string) error {
+
+	portList := []int{}
+
+	for _, port := range ports {
+		p := strings.Split(port, ":")
+		providerPort, _ := strconv.Atoi(p[1])
+		portList = append(portList, providerPort)
+	}
+
+	errChan := make(chan error, len(containers)*len(portList))
+
+	for _, cont := range containers {
+		for _, port := range portList {
+			go func(cont *container, port int) { errChan <- cont.startListener(port, "tcp") }(cont, port)
+		}
+	}
+
+	for i := 0; i < len(containers)*len(portList); i++ {
+		if err := <-errChan; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

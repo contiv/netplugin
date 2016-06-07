@@ -70,7 +70,7 @@ func deleteMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error 
 	// tel plugin about it
 	return netplugin.DeleteMaster(core.ServiceInfo{
 		HostAddr: srvInfo.HostAddr,
-		Port:     srvInfo.Port,
+		Port:     netmasterRPCPort,
 	})
 }
 
