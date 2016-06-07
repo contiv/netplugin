@@ -92,6 +92,16 @@ func isExtContractsGroupUsed(contractsGroup *contivModel.ExtContractsGroup) bool
 func (ac *APIController) ExtContractsGroupCreate(contractsGroup *contivModel.ExtContractsGroup) error {
 	log.Infof("Received ExtContractsGroupCreate: %+v", contractsGroup)
 
+	// Validate contracts type
+	if contractsGroup.ContractsType != "provided" && contractsGroup.ContractsType != "consumed" {
+		return core.Errorf("Contracts group need to be either 'provided' or 'consumed'")
+	}
+	// Make sure the tenant exists
+	tenant := contivModel.FindTenant(contractsGroup.TenantName)
+	if tenant == nil {
+		return core.Errorf("Tenant %s not found", contractsGroup.TenantName)
+	}
+
 	// NOTE: Nothing more needs to be done here. This object
 	// need not be created in the masterCfg.
 

@@ -350,12 +350,13 @@ func checkDeleteRule(t *testing.T, expError bool, tenant, policy, ruleID string)
 }
 
 // checkCreateEpg creates an EPG
-func checkCreateEpg(t *testing.T, expError bool, tenant, network, group string, policies []string) {
+func checkCreateEpg(t *testing.T, expError bool, tenant, network, group string, policies, extContracts []string) {
 	epg := client.EndpointGroup{
-		TenantName:  tenant,
-		NetworkName: network,
-		GroupName:   group,
-		Policies:    policies,
+		TenantName:       tenant,
+		NetworkName:      network,
+		GroupName:        group,
+		Policies:         policies,
+		ExtContractsGrps: extContracts,
 	}
 	err := contivClient.EndpointGroupPost(&epg)
 	if err != nil && !expError {
@@ -367,6 +368,45 @@ func checkCreateEpg(t *testing.T, expError bool, tenant, network, group string, 
 		_, err := contivClient.EndpointGroupGet(tenant, group)
 		if err != nil {
 			t.Fatalf("Error getting epg %s/%s/%s. Err: %v", tenant, network, group, err)
+		}
+	}
+}
+
+// checkCreateExtContractsGrp creates an external contracts group
+func checkCreateExtContractsGrp(t *testing.T, expError bool, tenant, grpName, grpType string, contracts []string) {
+	extContractsGrp := client.ExtContractsGroup{
+		TenantName:         tenant,
+		ContractsGroupName: grpName,
+		ContractsType:      grpType,
+		Contracts:          contracts,
+	}
+
+	err := contivClient.ExtContractsGroupPost(&extContractsGrp)
+	if err != nil && !expError {
+		t.Fatalf("Error creating extContractsGrp {%+v}. Err: %v", extContractsGrp, err)
+	} else if err == nil && expError {
+		t.Fatalf("Create extContrctsGrp {%+v} succeded while expecing error", extContractsGrp)
+	} else if err == nil {
+		// verify extContractsGrp is created
+		_, err := contivClient.ExtContractsGroupGet(tenant, grpName)
+		if err != nil {
+			t.Fatalf("Error getting extContractsGrp %s/%s. Err: %v", tenant, grpName, err)
+		}
+	}
+}
+
+// checkDeleteExtContractsGrp deletes external contracts group
+func checkDeleteExtContractsGrp(t *testing.T, expError bool, tenant, grpName string) {
+	err := contivClient.ExtContractsGroupDelete(tenant, grpName)
+	if err != nil && !expError {
+		t.Fatalf("Error deleting extContractsGrp %s/%s. Err: %v", tenant, grpName, err)
+	} else if err == nil && expError {
+		t.Fatalf("Delete extContractsGrp %s/%s succeded while expecing error", tenant, grpName)
+	} else if err == nil {
+		// verify epg is gone
+		_, err := contivClient.ExtContractsGroupGet(tenant, grpName)
+		if err == nil {
+			t.Fatalf("ExtContractsGroup %s/%s not deleted", tenant, grpName)
 		}
 	}
 }
@@ -702,7 +742,7 @@ func TestNetworkPktRanges(t *testing.T) {
 // TestPolicyRules tests policy and rule REST objects
 func TestPolicyRules(t *testing.T) {
 	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1)
-	checkCreateEpg(t, false, "default", "contiv", "group1", []string{})
+	checkCreateEpg(t, false, "default", "contiv", "group1", []string{}, []string{})
 	// create policy
 	checkCreatePolicy(t, false, "default", "policy1")
 
@@ -796,7 +836,7 @@ func TestEpgPolicies(t *testing.T) {
 	checkCreateRule(t, false, "default", "policy1", "3", "out", "", "", "", "contiv", "", "", "tcp", "allow", 1, 80)
 
 	// create EPG and attach policy to it
-	checkCreateEpg(t, false, "default", "contiv", "group1", []string{"policy1"})
+	checkCreateEpg(t, false, "default", "contiv", "group1", []string{"policy1"}, []string{})
 	verifyEpgPolicy(t, "default", "contiv", "group1", "policy1")
 
 	// create a policy and rule that matches on other policy
@@ -805,27 +845,27 @@ func TestEpgPolicies(t *testing.T) {
 	checkCreateRule(t, false, "default", "policy2", "2", "out", "", "", "", "", "group1", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, false, "default", "policy2", "3", "in", "contiv", "", "", "", "", "", "tcp", "allow", 1, 80)
 	checkCreateRule(t, false, "default", "policy2", "4", "out", "", "", "", "contiv", "", "", "tcp", "allow", 1, 80)
-	checkCreateEpg(t, false, "default", "contiv", "group2", []string{"policy2"})
+	checkCreateEpg(t, false, "default", "contiv", "group2", []string{"policy2"}, []string{})
 	verifyEpgPolicy(t, "default", "contiv", "group2", "policy2")
 
 	// verify cant create/update EPGs that uses non-existing policies
-	checkCreateEpg(t, true, "default", "contiv", "group3", []string{"invalid"})
-	checkCreateEpg(t, true, "default", "contiv", "group2", []string{"invalid"})
+	checkCreateEpg(t, true, "default", "contiv", "group3", []string{"invalid"}, []string{})
+	checkCreateEpg(t, true, "default", "contiv", "group2", []string{"invalid"}, []string{})
 
 	// verify cant create EPGs without tenant/network
-	checkCreateEpg(t, true, "invalid", "contiv", "group3", []string{})
-	checkCreateEpg(t, true, "default", "invalid", "group3", []string{})
+	checkCreateEpg(t, true, "invalid", "contiv", "group3", []string{}, []string{})
+	checkCreateEpg(t, true, "default", "invalid", "group3", []string{}, []string{})
 
 	// verify name clash between network and epg is rejected
-	checkCreateEpg(t, true, "default", "contiv", "contiv", []string{})
+	checkCreateEpg(t, true, "default", "contiv", "contiv", []string{}, []string{})
 	checkCreateNetwork(t, true, "default", "group1", "data", "vxlan", "20.1.1.1/16", "20.1.1.254", 1)
 	// verify network association cant be changed on epg
 	checkCreateNetwork(t, false, "default", "newnet", "data", "vxlan", "20.1.1.1/16", "20.1.1.254", 2)
-	checkCreateEpg(t, true, "default", "newnet", "group1", []string{})
+	checkCreateEpg(t, true, "default", "newnet", "group1", []string{}, []string{})
 
 	// change policy and verify EPG policy changes
-	checkCreateEpg(t, false, "default", "contiv", "group3", []string{"policy1"})
-	checkCreateEpg(t, false, "default", "contiv", "group3", []string{"policy2"})
+	checkCreateEpg(t, false, "default", "contiv", "group3", []string{"policy1"}, []string{})
+	checkCreateEpg(t, false, "default", "contiv", "group3", []string{"policy2"}, []string{})
 	checkEpgPolicyDeleted(t, "default", "contiv", "group3", "policy1")
 	verifyEpgPolicy(t, "default", "contiv", "group3", "policy2")
 
@@ -848,14 +888,52 @@ func TestEpgPolicies(t *testing.T) {
 	checkDeleteNetwork(t, false, "default", "newnet")
 }
 
+// TestExtContractsGroups tests management of external contracts groups
+func TestExtContractsGroups(t *testing.T) {
+	// create network for the test
+	checkCreateNetwork(t, false, "default", "test-net", "data", "vlan", "23.1.1.1/16", "23.1.1.254", 1)
+	// create contract groups used for the test
+	checkCreateExtContractsGrp(t, false, "default", "ext-contracts-prov", "provided", []string{"uni/tn-common/brc-default", "uni/tn-common/brc-icmp-contract"})
+	checkCreateExtContractsGrp(t, false, "default", "ext-contracts-cons", "consumed", []string{"uni/tn-common/brc-default", "uni/tn-common/brc-icmp-contract"})
+	// Try creating a contract group which is neither "provided" nor "consumed"
+	checkCreateExtContractsGrp(t, true, "default", "ext-contracts-blah", "something", []string{"uni/tn-common/brc-default", "uni/tn-common/brc-icmp-contract"})
+
+	// epg can have a provided contract group
+	checkCreateEpg(t, false, "default", "test-net", "group1", []string{}, []string{"ext-contracts-prov"})
+	// epg can have a consumed contract group
+	checkCreateEpg(t, false, "default", "test-net", "group2", []string{}, []string{"ext-contracts-cons"})
+	// epg can have both provided and consumed contract groups
+	checkCreateEpg(t, false, "default", "test-net", "group3", []string{}, []string{"ext-contracts-prov", "ext-contracts-cons"})
+	// Try deleting a contract group when it is being used by an EPG. Should fail
+	checkDeleteExtContractsGrp(t, true, "default", "ext-contracts-prov")
+	// Try creating an EPG with a contract group that does not exist. Must fail
+	checkCreateEpg(t, true, "default", "test-net", "group4", []string{}, []string{"ext-contracts-blah"})
+
+	// create an app profile with the epgs with external contracts
+	checkCreateAppProfile(t, false, "default", "app-prof-test", []string{"group1", "group2", "group3"})
+
+	// delete the app profile
+	checkDeleteAppProfile(t, false, "default", "app-prof-test")
+
+	// delete the groups
+	checkDeleteEpg(t, false, "default", "test-net", "group1")
+	checkDeleteEpg(t, false, "default", "test-net", "group2")
+	checkDeleteEpg(t, false, "default", "test-net", "group3")
+	// delete the external contract groups.
+	// since there are no references any more, they should be deleted.
+	checkDeleteExtContractsGrp(t, false, "default", "ext-contracts-prov")
+	checkDeleteExtContractsGrp(t, false, "default", "ext-contracts-cons")
+	checkDeleteNetwork(t, false, "default", "test-net")
+}
+
 // TestAppProfile tests app-profile REST objects
 func TestAppProfile(t *testing.T) {
 	// Create two networks and 3 epgs
 	checkCreateNetwork(t, false, "default", "net1", "data", "vlan", "10.1.1.1/16", "10.1.1.254", 1)
 	checkCreateNetwork(t, false, "default", "net2", "data", "vlan", "20.1.1.1/16", "20.1.1.254", 2)
-	checkCreateEpg(t, false, "default", "net1", "group1", []string{})
-	checkCreateEpg(t, false, "default", "net1", "group2", []string{})
-	checkCreateEpg(t, false, "default", "net2", "group3", []string{})
+	checkCreateEpg(t, false, "default", "net1", "group1", []string{}, []string{})
+	checkCreateEpg(t, false, "default", "net1", "group2", []string{}, []string{})
+	checkCreateEpg(t, false, "default", "net2", "group3", []string{}, []string{})
 	checkCreateAppProfile(t, false, "default", "profile1", []string{})
 	checkCreateAppProfile(t, false, "default", "profile2", []string{"group1"})
 	checkCreateAppProfile(t, false, "default", "profile3", []string{"group1", "group3"})
