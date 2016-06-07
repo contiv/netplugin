@@ -49,8 +49,10 @@ func SetClusterMode(cm string) error {
 	case "docker":
 	case "kubernetes":
 		break
+	case "mesos":
+		break
 	default:
-		return core.Errorf("%s not a valid cluster mode {docker | kubernetes}", cm)
+		return core.Errorf("%s not a valid cluster mode {docker | kubernetes | mesos}", cm)
 	}
 
 	masterRTCfg.clusterMode = cm

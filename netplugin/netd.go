@@ -28,6 +28,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin"
+	"github.com/contiv/netplugin/mgmtfn/mesosplugin"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -46,7 +47,7 @@ import (
 
 type cliOpts struct {
 	hostLabel  string
-	pluginMode string // plugin could be docker | kubernetes
+	pluginMode string // plugin could be docker | kubernetes | mesos
 	debug      bool
 	syslog     string
 	jsonLog    bool
@@ -410,7 +411,7 @@ func main() {
 	flagSet.StringVar(&opts.pluginMode,
 		"plugin-mode",
 		"docker",
-		"plugin mode docker|kubernetes")
+		"plugin mode docker|kubernetes|mesos")
 	flagSet.StringVar(&opts.vtepIP,
 		"vtep-ip",
 		"",
@@ -532,8 +533,11 @@ func main() {
 	case "kubernetes":
 		k8splugin.InitCNIServer(netPlugin)
 
+	case "mesos":
+		mesosplugin.InitMesosPlugin(netPlugin)
+
 	default:
-		log.Fatalf("Unknown plugin mode -- should be docker | kubernetes")
+		log.Fatalf("Unknown plugin mode -- should be docker, kubernetes or mesos")
 	}
 
 	// Init the driver plugins..
