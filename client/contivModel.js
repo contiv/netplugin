@@ -135,6 +135,8 @@ var EndpointGroupSummaryView = React.createClass({
 					<tr key={ endpointGroup.key } className="info">
 						
 						 
+						<td>{ endpointGroup.extContractsGrps }</td>
+						 
 						<td>{ endpointGroup.groupName }</td>
 						 
 						<td>{ endpointGroup.networkName }</td>
@@ -153,6 +155,7 @@ var EndpointGroupSummaryView = React.createClass({
 					<tr>
 					
 					 
+						<th> External contracts </th>  
 						<th> Group name </th>  
 						<th> Network </th>  
 						<th> Policies </th>  
@@ -175,6 +178,8 @@ var EndpointGroupModalView = React.createClass({
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
 			
+				<Input type='text' label='External contracts' ref='extContractsGrps' defaultValue={obj.extContractsGrps} placeholder='External contracts' />
+			
 				<Input type='text' label='Group name' ref='groupName' defaultValue={obj.groupName} placeholder='Group name' />
 			
 				<Input type='text' label='Network' ref='networkName' defaultValue={obj.networkName} placeholder='Network' />
@@ -194,6 +199,76 @@ var EndpointGroupModalView = React.createClass({
 
 module.exports.EndpointGroupSummaryView = EndpointGroupSummaryView
 module.exports.EndpointGroupModalView = EndpointGroupModalView
+var ExtContractsGroupSummaryView = React.createClass({
+  	render: function() {
+		var self = this
+
+		// Walk thru all objects
+		var extContractsGroupListView = self.props.extContractsGroups.map(function(extContractsGroup){
+			return (
+				<ModalTrigger modal={<ExtContractsGroupModalView extContractsGroup={ extContractsGroup }/>}>
+					<tr key={ extContractsGroup.key } className="info">
+						
+						  
+						<td>{ extContractsGroup.contractsGroupName }</td>
+						 
+						<td>{ extContractsGroup.contractsType }</td>
+						 
+						<td>{ extContractsGroup.tenantName }</td>
+						
+					</tr>
+				</ModalTrigger>
+			);
+		});
+
+		return (
+        <div>
+			<Table hover>
+				<thead>
+					<tr>
+					
+					  
+						<th> Contracts group name </th>  
+						<th> Contracts type </th>  
+						<th> Tenant name </th> 
+					</tr>
+				</thead>
+				<tbody>
+            		{ extContractsGroupListView }
+				</tbody>
+			</Table>
+        </div>
+    	);
+	}
+});
+
+var ExtContractsGroupModalView = React.createClass({
+	render() {
+		var obj = this.props.extContractsGroup
+	    return (
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='ExtContractsGroup' animation={false}>
+	        <div className='modal-body' style={ {margin: '5%',} }>
+			
+			
+				<Input type='text' label='Contracts list' ref='contracts' defaultValue={obj.contracts} placeholder='Contracts list' />
+			
+				<Input type='text' label='Contracts group name' ref='contractsGroupName' defaultValue={obj.contractsGroupName} placeholder='Contracts group name' />
+			
+				<Input type='text' label='Contracts type' ref='contractsType' defaultValue={obj.contractsType} placeholder='Contracts type' />
+			
+				<Input type='text' label='Tenant name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant name' />
+			
+			</div>
+	        <div className='modal-footer'>
+				<Button onClick={this.props.onRequestHide}>Close</Button>
+	        </div>
+	      </Modal>
+	    );
+  	}
+});
+
+module.exports.ExtContractsGroupSummaryView = ExtContractsGroupSummaryView
+module.exports.ExtContractsGroupModalView = ExtContractsGroupModalView
 var GlobalSummaryView = React.createClass({
   	render: function() {
 		var self = this
