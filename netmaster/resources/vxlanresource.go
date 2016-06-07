@@ -19,7 +19,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/jainvipin/bitset"
@@ -125,6 +127,56 @@ func (r *AutoVXLANCfgResource) Deinit() {
 // Description is a string description of the resource. Returns AutoVXLANResource.
 func (r *AutoVXLANCfgResource) Description() string {
 	return AutoVXLANResource
+}
+
+// GetList returns number of vlans and stringified list of vlans in use.
+func (r *AutoVXLANCfgResource) GetList() (uint, string) {
+	cfg := &AutoVXLANCfgResource{}
+	cfg.StateDriver = r.StateDriver
+	if err := cfg.Read(r.ID); err != nil {
+		log.Errorf("Error reading resource %s: %s", r.ID, err)
+		return 0, ""
+	}
+
+	oper := &AutoVXLANOperResource{}
+	oper.StateDriver = r.StateDriver
+	if err := oper.Read(r.ID); err != nil {
+		log.Errorf("Error reading resource %s: %s", r.ID, err)
+		return 0, ""
+	}
+	oper.FreeVXLANs.InPlaceSymmetricDifference(cfg.VXLANs)
+
+	numVlans := uint(0)
+	idx := uint(0)
+	startIdx := idx
+	list := []string{}
+	inRange := false
+
+	for {
+		foundValue, found := oper.FreeVXLANs.NextSet(idx)
+		if !found {
+			break
+		}
+		numVlans++
+
+		if !inRange { // begin of range
+			startIdx = foundValue
+			inRange = true
+		} else if foundValue > idx { // end of range
+			thisRange := rangePrint(startIdx, idx-1)
+			list = append(list, thisRange)
+			startIdx = foundValue
+		}
+		idx = foundValue + 1
+	}
+
+	// list end with allocated value
+	if inRange {
+		thisRange := rangePrint(startIdx, idx-1)
+		list = append(list, thisRange)
+	}
+
+	return numVlans, strings.Join(list, ", ")
 }
 
 // Allocate allocates a new resource.

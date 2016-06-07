@@ -299,6 +299,22 @@ func deleteNetwork(ctx *cli.Context) {
 
 }
 
+func inspectNetwork(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	tenant := ctx.String("tenant")
+	network := ctx.Args()[0]
+
+	logrus.Infof("Inspeting network: %s tenant: %s", network, tenant)
+
+	net, err := getClient(ctx).NetworkInspect(tenant, network)
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(net, "", "  ")
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}
+
 func listNetworks(ctx *cli.Context) {
 	argCheck(0, ctx)
 
@@ -589,6 +605,19 @@ func showGlobal(ctx *cli.Context) {
 			writer.Write([]byte(fmt.Sprintf("Vxlan range: %v\n", gl.Vxlans)))
 		}
 	}
+}
+
+func inspectGlobal(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	logrus.Infof("Inspecting global")
+
+	ginfo, err := getClient(ctx).GlobalInspect("global")
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(ginfo, "", "  ")
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
 }
 
 func setGlobal(ctx *cli.Context) {

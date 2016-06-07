@@ -171,6 +171,18 @@ func (gc *Cfg) initVXLANBitset(vxlans string) (*resources.AutoVXLANCfgResource, 
 	return vxlanRsrcCfg, freeVXLANsStart, nil
 }
 
+// GetVxlansInUse gets the vlans that are currently in use
+func (gc *Cfg) GetVxlansInUse() (uint, string) {
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		log.Errorf("error getting resource manager: %s", err)
+		return 0, ""
+	}
+	ra := core.ResourceManager(tempRm)
+
+	return ra.GetResourceList("global", resources.AutoVXLANResource)
+}
+
 // AllocVXLAN allocates a new vxlan; ids for both the vxlan and vlan are returned.
 func (gc *Cfg) AllocVXLAN(reqVxlan uint) (vxlan uint, localVLAN uint, err error) {
 
@@ -249,6 +261,18 @@ func (gc *Cfg) initVLANBitset(vlans string) (*bitset.BitSet, error) {
 	clearReservedVLANs(vlanBitset)
 
 	return vlanBitset, nil
+}
+
+// GetVlansInUse gets the vlans that are currently in use
+func (gc *Cfg) GetVlansInUse() (uint, string) {
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		log.Errorf("error getting resource manager: %s", err)
+		return 0, ""
+	}
+	ra := core.ResourceManager(tempRm)
+
+	return ra.GetResourceList("global", resources.AutoVLANResource)
 }
 
 // AllocVLAN allocates a new VLAN resource. Returns an ID.

@@ -171,6 +171,7 @@ type Resource interface {
 	Init(rsrcCfg interface{}) error
 	Deinit()
 	Description() string
+	GetList() (uint, string)
 	Allocate(interface{}) (interface{}, error)
 	Deallocate(interface{}) error
 }
@@ -183,6 +184,7 @@ type ResourceManager interface {
 	Deinit()
 	DefineResource(id, desc string, rsrcCfg interface{}) error
 	UndefineResource(id, desc string) error
+	GetResourceList(id, desc string) (uint, string)
 	AllocateResourceVal(id, desc string, reqValue interface{}) (interface{}, error)
 	DeallocateResourceVal(id, desc string, value interface{}) error
 }

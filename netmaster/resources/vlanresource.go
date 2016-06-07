@@ -19,7 +19,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/jainvipin/bitset"
@@ -117,6 +119,64 @@ func (r *AutoVLANCfgResource) Deinit() {
 // Description is a description of this resource. returns AutoVLANResource.
 func (r *AutoVLANCfgResource) Description() string {
 	return AutoVLANResource
+}
+
+func rangePrint(startIdx, endIdx uint) string {
+	if startIdx == endIdx {
+		return fmt.Sprintf("%d", startIdx)
+	}
+
+	return fmt.Sprintf("%d-%d", startIdx, endIdx)
+}
+
+// GetList returns number of vlans and stringified list of vlans in use.
+func (r *AutoVLANCfgResource) GetList() (uint, string) {
+	cfg := &AutoVLANCfgResource{}
+	cfg.StateDriver = r.StateDriver
+	if err := cfg.Read(r.ID); err != nil {
+		log.Errorf("Error reading resource %s: %s", r.ID, err)
+		return 0, ""
+	}
+
+	oper := &AutoVLANOperResource{}
+	oper.StateDriver = r.StateDriver
+	if err := oper.Read(r.ID); err != nil {
+		log.Errorf("error fetching the vlan resource: id %s", r.ID)
+		return 0, ""
+	}
+	oper.FreeVLANs.InPlaceSymmetricDifference(cfg.VLANs)
+
+	numVlans := uint(0)
+	idx := uint(0)
+	startIdx := idx
+	list := []string{}
+	inRange := false
+
+	for {
+		foundValue, found := oper.FreeVLANs.NextSet(idx)
+		if !found {
+			break
+		}
+		numVlans++
+
+		if !inRange { // begin of range
+			startIdx = foundValue
+			inRange = true
+		} else if foundValue > idx { // end of range
+			thisRange := rangePrint(startIdx, idx-1)
+			list = append(list, thisRange)
+			startIdx = foundValue
+		}
+		idx = foundValue + 1
+	}
+
+	// list end with allocated value
+	if inRange {
+		thisRange := rangePrint(startIdx, idx-1)
+		list = append(list, thisRange)
+	}
+
+	return numVlans, strings.Join(list, ", ")
 }
 
 // Allocate a resource.

@@ -4,8 +4,9 @@
 		{
 			"name": "appProfile",
 			"type": "object",
+			"version": "v1",
 			"key": [ "tenantName", "appProfileName" ],
-			"properties": {
+			"cfgProperties": {
 				"tenantName": {
 					"type": "string",
 					"title": "Tenant Name",

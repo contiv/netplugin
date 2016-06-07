@@ -74,6 +74,9 @@ func (vt *vlanRsrcValidator) ValidateState(state core.State) error {
 		log.Debugf("oper length: %d", len(vt.expOper))
 		if rcvdOper.ID != vt.expOper[0].ID ||
 			!rcvdOper.FreeVLANs.Equal(vt.expOper[0].FreeVLANs) {
+			fmt.Printf("rcvdOper.ID = %s expOperId = %s \n", rcvdOper.ID, vt.expOper[0].ID)
+			fmt.Printf("RcvdFreeVlans = %s, ExpFreeVlans = %s\n", rcvdOper.FreeVLANs.DumpAsBits(),
+				vt.expOper[0].FreeVLANs.DumpAsBits())
 			errStr := fmt.Sprintf("oper mismatch. Expctd: %+v, Rcvd: %+v",
 				vt.expOper[0], rcvdOper)
 			//panic so we can catch the exact backtrace
@@ -114,6 +117,7 @@ const (
 	VlanRsrcAllocateID        = "VlanRsrcAllocateID"
 	VlanRsrcAllocateExhaustID = "VlanRsrcAllocateExhaustID"
 	VlanRsrcDeallocateID      = "VlanRsrcDeallocateID"
+	VlanRsrcGetListID         = "VlanRsrcGetListID"
 
 	vLANResourceOperWrite = iota
 	vLANResourceOperRead
@@ -220,6 +224,56 @@ var vlanRsrcValidationStateMap = map[string]*vlanRsrcValidator{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcDeallocateID},
 				FreeVLANs:   bitset.New(1).Set(0),
+			},
+		},
+	},
+	VlanRsrcGetListID: &vlanRsrcValidator{
+		expCfg: []AutoVLANCfgResource{
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				VLANs:       bitset.New(20).Complement().Clear(0),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				VLANs:       bitset.New(20).Complement().Clear(0),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				VLANs:       bitset.New(20).Complement().Clear(0),
+			},
+		},
+		expOper: []AutoVLANOperResource{
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				FreeVLANs:   bitset.New(20).Complement().Clear(0),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				FreeVLANs:   bitset.New(20).Complement().Clear(0),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				FreeVLANs:   bitset.New(20).Complement().Clear(0).Clear(1),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				FreeVLANs:   bitset.New(20).Complement().Clear(0).Clear(1),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				FreeVLANs:   bitset.New(20).Complement().Clear(0).Clear(1).Clear(2),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				FreeVLANs:   bitset.New(20).Complement().Clear(0).Clear(1).Clear(2),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				FreeVLANs:   bitset.New(20).Complement().Clear(0).Clear(1).Clear(2).Clear(19),
+			},
+			{
+				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},
+				FreeVLANs:   bitset.New(20).Complement().Clear(0).Clear(1).Clear(2).Clear(19),
 			},
 		},
 	},
@@ -383,5 +437,31 @@ func TestAutoVLANCfgResourceDeAllocate(t *testing.T) {
 	err = rsrc.Deallocate(vlan)
 	if err != nil {
 		t.Fatalf("Vlan resource deallocation failed. Error: %s", err)
+	}
+}
+
+func TestAutoVLANCfgResourceGetList(t *testing.T) {
+	rsrc := &AutoVLANCfgResource{}
+	rsrc.StateDriver = vlanRsrcStateDriver
+	rsrc.ID = VlanRsrcGetListID
+	vlans := vlanRsrcValidationStateMap[rsrc.ID].expCfg[0].VLANs.Clone()
+	err := rsrc.Init(vlans)
+	if err != nil {
+		t.Fatalf("Vlan resource init failed. Error: %s", err)
+	}
+
+	if _, err1 := rsrc.Allocate(uint(1)); err1 != nil {
+		t.Fatalf("Vlan resource allocation failed. Error: %s", err1)
+	}
+	if _, err1 := rsrc.Allocate(uint(2)); err1 != nil {
+		t.Fatalf("Vlan resource allocation failed. Error: %s", err1)
+	}
+	if _, err1 := rsrc.Allocate(uint(19)); err1 != nil {
+		t.Fatalf("Vlan resource allocation failed. Error: %s", err1)
+	}
+	expectedList := "1-2, 19"
+	numVlans, vlansInUse := rsrc.GetList()
+	if numVlans != 3 || vlansInUse != expectedList {
+		t.Fatalf("GetList failure, got %s vlanlist (%d vlans), expected %s", vlansInUse, numVlans, expectedList)
 	}
 }

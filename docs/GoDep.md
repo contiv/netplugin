@@ -60,6 +60,11 @@ Godeps
 godep udpate github.com/samalba/dockerclient
 ```
 
+In case above does not work try update as follows:
+```
+godep udpate github.com/samalba/dockerclient/...
+```
+
 - Verify the changes by running `git status` in netplugin directory. 
 Verify that package is added to `Godeps/_workspace/src` and that 
 `Godeps/Godeps.json` also reflects the version change 

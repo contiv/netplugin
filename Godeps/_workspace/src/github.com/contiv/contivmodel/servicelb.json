@@ -2,9 +2,10 @@
     "name": "contivModel",
     "objects": [{
         "name": "serviceLB",
+        "version": "v1",
         "type": "object",
         "key": ["tenantName","serviceName"],
-        "properties": {
+        "cfgProperties": {
             "tenantName": {
                 "type": "string",
                 "title": "Tenant Name",

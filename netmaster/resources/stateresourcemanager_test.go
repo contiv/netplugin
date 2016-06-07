@@ -71,6 +71,10 @@ func (r *TestResource) Description() string {
 	return testResourceDesc
 }
 
+func (r *TestResource) GetList() (uint, string) {
+	return 0, ""
+}
+
 func (r *TestResource) Allocate(reqValue interface{}) (interface{}, error) {
 	return 0, nil
 }

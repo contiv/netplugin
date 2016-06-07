@@ -19,8 +19,10 @@ import (
 	"errors"
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/objdb/modeldb"
 	"strconv"
@@ -102,6 +104,38 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+// GlobalGetOper retrieves glboal operational information
+func (ac *APIController) GlobalGetOper(global *contivModel.GlobalInspect) error {
+	log.Infof("Received GlobalInspect: %+v, params: %+v", global)
+
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	gOper := &gstate.Oper{}
+	gOper.StateDriver = stateDriver
+	err = gOper.Read("")
+	if err != nil {
+		log.Errorf("Error obtaining global operational state")
+		return err
+	}
+
+	global.Oper.DefaultNetwork = gOper.DefaultNetwork
+	global.Oper.FreeVXLANsStart = int(gOper.FreeVXLANsStart)
+
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	numVlans, vlansInUse := gCfg.GetVlansInUse()
+	numVxlans, vxlansInUse := gCfg.GetVxlansInUse()
+
+	global.Oper.NumNetworks = int(numVlans + numVxlans)
+	global.Oper.VlansInUse = vlansInUse
+	global.Oper.VxlansInUse = vxlansInUse
+
+	return nil
 }
 
 // GlobalCreate creates global state
@@ -629,6 +663,34 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 		log.Errorf("Error updating tenant state(%+v). Err: %v", tenant, err)
 		return err
 	}
+
+	return nil
+}
+
+// NetworkGetOper updates network
+func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) error {
+	log.Infof("Received NetworkInspect: %+v, params: %+v", network)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	networkID := network.Config.NetworkName + "." + network.Config.TenantName
+	if err := nwCfg.Read(networkID); err != nil {
+		log.Errorf("Error fetching network from mastercfg: %s", networkID)
+		return err
+	}
+
+	network.Oper.AllocatedAddressesCount = nwCfg.EpAddrCount
+	network.Oper.AllocatedIPAddresses = master.ListAllocatedIPs(nwCfg)
+	network.Oper.DnsServerIP = nwCfg.DNSServer
+	network.Oper.ExternalPktTag = nwCfg.ExtPktTag
+	network.Oper.NumEndpoints = nwCfg.EpCount
+	network.Oper.PktTag = nwCfg.PktTag
 
 	return nil
 }

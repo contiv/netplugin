@@ -54,11 +54,19 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
+<<<<<<< c8d02aeaceb314247fe58965084a5ec175e8c77d
 			"Rev": "5d20bfba00eba09845ba2402dd57c42502e4f2fc"
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel/client",
 			"Rev": "5d20bfba00eba09845ba2402dd57c42502e4f2fc"
+=======
+			"Rev": "09d405bd151be7fda17ccc2ea092ae95e945fff8"
+		},
+		{
+			"ImportPath": "github.com/contiv/contivmodel/client",
+			"Rev": "09d405bd151be7fda17ccc2ea092ae95e945fff8"
+>>>>>>> adding inspect support
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",

@@ -3,9 +3,10 @@
 	"objects": [
 		{
 			"name": "tenant",
+			"version": "v1",
 			"type": "object",
 			"key": [ "tenantName" ],
-			"properties": {
+			"cfgProperties": {
 				"tenantName": {
 					"type": "string",
 					"title": "Tenant Name",

@@ -69,6 +69,13 @@ func InitSubnetBitset(b *bitset.BitSet, subnetLen uint) {
 	b.Set(uint(0))
 }
 
+// ClearReservedEntries clears reserved bits
+func ClearReservedEntries(b *bitset.BitSet, subnetLen uint) {
+	maxSize := (1 << (32 - subnetLen)) - 1
+	b.Clear(uint(maxSize))
+	b.Clear(uint(0))
+}
+
 // SetBitsOutsideRange sets all IPs outside range as used
 func SetBitsOutsideRange(ipAllocMap *bitset.BitSet, ipRange string, subnetLen uint) {
 	var i uint32

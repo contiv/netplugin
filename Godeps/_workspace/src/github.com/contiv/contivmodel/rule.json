@@ -3,9 +3,10 @@
 	"objects": [
 		{
 			"name": "rule",
+			"version": "v1",
 			"type": "object",
 			"key": [ "tenantName", "policyName", "ruleId" ],
-			"properties": {
+			"cfgProperties": {
 				"tenantName": {
 					"type": "string",
 					"title": "Tenant Name",
