@@ -60,7 +60,7 @@ func setupExternalContracts(endpointGroup *contivModel.EndpointGroup, extContrac
 		contractsGrpObj := contivModel.FindExtContractsGroup(contractsGrpKey)
 
 		if contractsGrpObj == nil {
-			errStr := fmt.Sprintf("%External contracts group %s not found", contractsGrp)
+			errStr := fmt.Sprintf("External contracts group %s not found", contractsGrp)
 			log.Errorf(errStr)
 			return core.Errorf(errStr)
 		}
