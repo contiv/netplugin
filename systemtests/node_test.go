@@ -2,6 +2,7 @@ package systemtests
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -75,6 +76,23 @@ func (n *node) stopNetplugin() error {
 	return n.tbnode.RunCommand("sudo pkill netplugin")
 }
 
+func (s *systemtestSuite) copyBinary(fileName string) error {
+	logrus.Infof("Copying %s binary to %s", fileName, s.binpath)
+	hostIPs := strings.Split(os.Getenv("HOST_IPS"), ",")
+	srcFile := s.binpath + "/" + fileName
+	destFile := s.binpath + "/" + fileName
+	for i := 1; i < len(s.nodes); i++ {
+		logrus.Infof("Copying %s binary to IP= %s and Directory = %s", srcFile, hostIPs[i], destFile)
+		s.nodes[0].tbnode.RunCommand("scp -i " + s.keyFile + " " + srcFile + " " + hostIPs[i] + ":" + destFile)
+	}
+	return nil
+}
+
+func (n *node) deleteFile(file string) error {
+	logrus.Infof("Deleting %s file ", file)
+	return n.tbnode.RunCommand("sudo rm " + file)
+}
+
 func (n *node) stopNetmaster() error {
 	logrus.Infof("Stopping netmaster on %s", n.Name())
 	return n.tbnode.RunCommand("sudo pkill netmaster")
@@ -86,7 +104,7 @@ func (n *node) startNetmaster() error {
 	if n.suite.enableDNS {
 		dnsOpt = " --dns-enable=true "
 	}
-	return n.tbnode.RunCommandBackground(n.suite.binpath + "/netmaster" + dnsOpt + " --cluster-store " + n.suite.clusterStore + " &> /tmp/netmaster.log")
+	return n.tbnode.RunCommandBackground("sudo " + n.suite.binpath + "/netmaster" + dnsOpt + " --cluster-store " + n.suite.clusterStore + " &> /tmp/netmaster.log")
 }
 
 func (n *node) cleanupDockerNetwork() error {
@@ -96,6 +114,9 @@ func (n *node) cleanupDockerNetwork() error {
 
 func (n *node) cleanupContainers() error {
 	logrus.Infof("Cleaning up containers on %s", n.Name())
+	if os.Getenv("ACI_SYS_TEST_MODE") == "ON" {
+		return n.tbnode.RunCommand("docker ps | grep alpine | awk '{print $s}' $(docker kill -s 9 `docker ps -aq`; docker rm -f `docker ps -aq`)")
+	}
 	return n.tbnode.RunCommand("docker kill -s 9 `docker ps -aq`; docker rm -f `docker ps -aq`")
 }
 
@@ -106,7 +127,9 @@ func (n *node) cleanupSlave() {
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
 	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
 	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
-	vNode.RunCommand("sudo service docker restart")
+	if os.Getenv("ACI_SYS_TEST_MODE") != "ON" {
+		vNode.RunCommand("sudo service docker restart")
+	}
 }
 
 func (n *node) cleanupMaster() {

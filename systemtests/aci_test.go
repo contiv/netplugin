@@ -59,3 +59,48 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	c.Assert(s.cli.EndpointGroupDelete("default", "epgB"), IsNil)
 	c.Assert(s.cli.NetworkDelete("default", "aciNet"), IsNil)
 }
+
+func (s *systemtestSuite) TestACIPingGateway(c *C) {
+	if s.fwdMode == "routing" {
+		return
+	}
+	c.Assert(s.cli.GlobalPost(&client.Global{
+		Name:             "global",
+		NetworkInfraType: "aci",
+		Vlans:            "1100-1200",
+		Vxlans:           "1-10000",
+	}), IsNil)
+	c.Assert(s.cli.TenantPost(&client.Tenant{
+		TenantName: "aciTenant",
+	}), IsNil)
+	c.Assert(s.cli.NetworkPost(&client.Network{
+		TenantName:  "aciTenant",
+		NetworkName: "aciNet",
+		Subnet:      "20.1.1.0/24",
+		Gateway:     "20.1.1.254",
+		Encap:       "vlan",
+	}), IsNil)
+
+	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:  "aciTenant",
+		NetworkName: "aciNet",
+		GroupName:   "epgA",
+	}), IsNil)
+
+	c.Assert(s.cli.AppProfilePost(&client.AppProfile{
+		TenantName:     "aciTenant",
+		EndpointGroups: []string{"epgA"},
+		AppProfileName: "profile1",
+	}), IsNil)
+
+	cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA/aciTenant"})
+	c.Assert(err, IsNil)
+
+	// Verify cA1 can ping default gateway
+	c.Assert(cA1.checkPing("20.1.1.254"), IsNil)
+
+	c.Assert(s.removeContainers([]*container{cA1}), IsNil)
+	c.Assert(s.cli.AppProfileDelete("aciTenant", "profile1"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epgA"), IsNil)
+	c.Assert(s.cli.NetworkDelete("aciTenant", "aciNet"), IsNil)
+}
