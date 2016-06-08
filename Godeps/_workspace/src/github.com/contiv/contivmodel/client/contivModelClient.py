@@ -145,6 +145,7 @@ class objmodelClient:
 	    postUrl = self.baseUrl + '/api/endpointGroups/' + obj.tenantName + ":" + obj.groupName  + '/'
 
 	    jdata = json.dumps({ 
+			"extContractsGrps": obj.extContractsGrps, 
 			"groupName": obj.groupName, 
 			"networkName": obj.networkName, 
 			"policies": obj.policies, 
@@ -172,6 +173,40 @@ class objmodelClient:
 	    retDate = urllib2.urlopen(self.baseUrl + '/api/endpointGroups/')
 	    if retData == "Error":
 	        errorExit("list EndpointGroup failed")
+
+	    return json.loads(retData)
+	# Create extContractsGroup
+	def createExtContractsGroup(self, obj):
+	    postUrl = self.baseUrl + '/api/extContractsGroups/' + obj.tenantName + ":" + obj.contractsGroupName  + '/'
+
+	    jdata = json.dumps({ 
+			"contracts": obj.contracts, 
+			"contractsGroupName": obj.contractsGroupName, 
+			"contractsType": obj.contractsType, 
+			"tenantName": obj.tenantName, 
+	    })
+
+	    # Post the data
+	    response = httpPost(postUrl, jdata)
+
+	    if response == "Error":
+	        errorExit("ExtContractsGroup create failure")
+
+	# Delete extContractsGroup
+	def deleteExtContractsGroup(self, tenantName, contractsGroupName):
+	    # Delete ExtContractsGroup
+	    deleteUrl = self.baseUrl + '/api/extContractsGroups/' + tenantName + ":" + contractsGroupName  + '/'
+	    response = httpDelete(deleteUrl)
+
+	    if response == "Error":
+	        errorExit("ExtContractsGroup create failure")
+
+	# List all extContractsGroup objects
+	def listExtContractsGroup(self):
+	    # Get a list of extContractsGroup objects
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/extContractsGroups/')
+	    if retData == "Error":
+	        errorExit("list ExtContractsGroup failed")
 
 	    return json.loads(retData)
 	# Create global

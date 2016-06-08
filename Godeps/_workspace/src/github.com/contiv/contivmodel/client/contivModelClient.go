@@ -183,10 +183,11 @@ type EndpointGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	GroupName   string   `json:"groupName,omitempty"`   // Group name
-	NetworkName string   `json:"networkName,omitempty"` // Network
-	Policies    []string `json:"policies,omitempty"`
-	TenantName  string   `json:"tenantName,omitempty"` // Tenant
+	ExtContractsGrps []string `json:"extContractsGrps,omitempty"`
+	GroupName        string   `json:"groupName,omitempty"`   // Group name
+	NetworkName      string   `json:"networkName,omitempty"` // Network
+	Policies         []string `json:"policies,omitempty"`
+	TenantName       string   `json:"tenantName,omitempty"` // Tenant
 
 	// add link-sets and links
 	LinkSets EndpointGroupLinkSets `json:"link-sets,omitempty"`
@@ -194,14 +195,32 @@ type EndpointGroup struct {
 }
 
 type EndpointGroupLinkSets struct {
-	Policies map[string]Link `json:"Policies,omitempty"`
-	Services map[string]Link `json:"Services,omitempty"`
+	ExtContractsGrps map[string]Link `json:"ExtContractsGrps,omitempty"`
+	Policies         map[string]Link `json:"Policies,omitempty"`
+	Services         map[string]Link `json:"Services,omitempty"`
 }
 
 type EndpointGroupLinks struct {
 	AppProfile Link `json:"AppProfile,omitempty"`
 	Network    Link `json:"Network,omitempty"`
 	Tenant     Link `json:"Tenant,omitempty"`
+}
+
+type ExtContractsGroup struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	Contracts          []string `json:"contracts,omitempty"`
+	ContractsGroupName string   `json:"contractsGroupName,omitempty"` // Contracts group name
+	ContractsType      string   `json:"contractsType,omitempty"`      // Contracts type
+	TenantName         string   `json:"tenantName,omitempty"`         // Tenant name
+
+	// add link-sets and links
+	LinkSets ExtContractsGroupLinkSets `json:"link-sets,omitempty"`
+}
+
+type ExtContractsGroupLinkSets struct {
+	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
 }
 
 type Global struct {
@@ -569,6 +588,71 @@ func (c *ContivClient) EndpointGroupDelete(tenantName string, groupName string) 
 	err := httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting endpointGroup %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
+// ExtContractsGroupPost posts the extContractsGroup object
+func (c *ContivClient) ExtContractsGroupPost(obj *ExtContractsGroup) error {
+	// build key and URL
+	keyStr := obj.TenantName + ":" + obj.ContractsGroupName
+	url := c.baseURL + "/api/extContractsGroups/" + keyStr + "/"
+
+	// http post the object
+	err := httpPost(url, obj)
+	if err != nil {
+		log.Debugf("Error creating extContractsGroup %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
+}
+
+// ExtContractsGroupList lists all extContractsGroup objects
+func (c *ContivClient) ExtContractsGroupList() (*[]*ExtContractsGroup, error) {
+	// build key and URL
+	url := c.baseURL + "/api/extContractsGroups/"
+
+	// http get the object
+	var objList []*ExtContractsGroup
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Debugf("Error getting extContractsGroups. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
+// ExtContractsGroupGet gets the extContractsGroup object
+func (c *ContivClient) ExtContractsGroupGet(tenantName string, contractsGroupName string) (*ExtContractsGroup, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + contractsGroupName
+	url := c.baseURL + "/api/extContractsGroups/" + keyStr + "/"
+
+	// http get the object
+	var obj ExtContractsGroup
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting extContractsGroup %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// ExtContractsGroupDelete deletes the extContractsGroup object
+func (c *ContivClient) ExtContractsGroupDelete(tenantName string, contractsGroupName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + contractsGroupName
+	url := c.baseURL + "/api/extContractsGroups/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting extContractsGroup %s. Err: %v", keyStr, err)
 		return err
 	}
 
