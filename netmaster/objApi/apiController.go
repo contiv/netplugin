@@ -108,7 +108,7 @@ func stringInSlice(a string, list []string) bool {
 
 // GlobalGetOper retrieves glboal operational information
 func (ac *APIController) GlobalGetOper(global *contivModel.GlobalInspect) error {
-	log.Infof("Received GlobalInspect: %+v, params: %+v", global)
+	log.Infof("Received GlobalInspect: %+v", global)
 
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
@@ -669,7 +669,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 
 // NetworkGetOper updates network
 func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) error {
-	log.Infof("Received NetworkInspect: %+v, params: %+v", network)
+	log.Infof("Received NetworkInspect: %+v", network)
 
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
