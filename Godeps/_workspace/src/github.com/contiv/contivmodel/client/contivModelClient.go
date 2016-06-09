@@ -214,7 +214,6 @@ type EndpointGroupLinks struct {
 	Tenant     Link `json:"Tenant,omitempty"`
 }
 
-<<<<<<< c8d02aeaceb314247fe58965084a5ec175e8c77d
 type ExtContractsGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -230,10 +229,10 @@ type ExtContractsGroup struct {
 
 type ExtContractsGroupLinkSets struct {
 	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
-=======
+}
+
 type EndpointGroupInspect struct {
 	Config EndpointGroup
->>>>>>> adding inspect support
 }
 
 type Global struct {

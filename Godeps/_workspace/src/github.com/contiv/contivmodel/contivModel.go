@@ -102,6 +102,10 @@ type EndpointGroupInspect struct {
 	Config EndpointGroup
 }
 
+type EndpointGroupInspect struct {
+	Config EndpointGroup
+}
+
 type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`

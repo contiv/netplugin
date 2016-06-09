@@ -13,20 +13,8 @@ cp -rf $GOSRC/github.com/contiv/netplugin/mgmtfn/k8splugin/certs /tmp
 run_in_vagrant=false
 coverage_basic=false
 coverage_detail=false
-test_packages="github.com/contiv/netplugin/drivers \
-    github.com/contiv/netplugin/state \
-    github.com/contiv/netplugin/netplugin/plugin \
-    github.com/contiv/netplugin/utils/netutils \
-    github.com/contiv/netplugin/netmaster/gstate \
-    github.com/contiv/netplugin/netmaster/master \
-    github.com/contiv/netplugin/netmaster/mastercfg \
-    github.com/contiv/netplugin/netmaster/objApi \
-    github.com/contiv/netplugin/netmaster/docknet \
+test_packages="\
     github.com/contiv/netplugin/netmaster/resources \
-    github.com/contiv/netplugin/core \
-    github.com/contiv/netplugin/utils \
-    github.com/contiv/netplugin/mgmtfn/k8splugin \
-    github.com/contiv/netplugin/mgmtfn/k8splugin/contivk8s \
     "
 while [ "${#}" -gt 0 ]
 do
