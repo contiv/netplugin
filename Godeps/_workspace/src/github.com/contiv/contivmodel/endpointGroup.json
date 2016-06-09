@@ -34,7 +34,13 @@
 					"items": "string",
 					"Title": "Policies",
 					"ShowSummary": true
-				}
+				},
+				"extContractsGrps": {
+                                        "type": "array",
+                                        "items": "string",
+                                        "Title": "External contracts",
+                                        "ShowSummary": true
+                                }
 			},
 			"link-sets": {
 				"services": {
@@ -42,7 +48,10 @@
 				},
 				"policies": {
 					"ref": "policy"
-				}
+				},
+                                "extContractsGrps": {
+                                        "ref": "extContractsGrp"
+                                }
 			},
 			"links": {
 				"tenant": {

@@ -31,10 +31,12 @@ type appNwSpec struct {
 }
 
 type epgSpec struct {
-	Name    string       `json:"name,omitempty"`
-	VlanTag string       `json:"vlantag,omitempty"`
-	Filters []filterInfo `json:"filterinfo,omitempty"`
-	Uses    []string     `json:"uses,omitempty"`
+	Name          string       `json:"name,omitempty"`
+	VlanTag       string       `json:"vlantag,omitempty"`
+	Filters       []filterInfo `json:"filterinfo,omitempty"`
+	Uses          []string     `json:"uses,omitempty"`
+	ProvContracts []string     `json:"provcontracts,omitempty"`
+	ConsContracts []string     `json:"conscontracts,omitempty"`
 }
 
 type filterInfo struct {
@@ -91,7 +93,6 @@ func (ans *appNwSpec) validate() error {
 
 func (ans *appNwSpec) launch() error {
 
-	ans.TenantName = "CONTIV-" + ans.TenantName
 	url := proxyURL + "createAppProf"
 	if err := httpPost(url, ans); err != nil {
 		log.Errorf("Validation failed. Error: %v", err)
@@ -106,6 +107,7 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 	epg := epgSpec{}
 	epg.Name = epgObj.GroupName
 
+	log.Infof("Processing EPG: %+v", epgObj)
 	// Get EPG key for the endpoint group
 	epgKey := mastercfg.GetEndpointGroupKey(epgObj.GroupName, epgObj.TenantName)
 
@@ -166,6 +168,30 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 		}
 
 	}
+
+	// Append external contracts.
+	tenant := epgObj.TenantName
+	for _, contractsGrp := range epgObj.ExtContractsGrps {
+		contractsGrpKey := tenant + ":" + contractsGrp
+		contractsGrpObj := contivModel.FindExtContractsGroup(contractsGrpKey)
+
+		if contractsGrpObj == nil {
+			errStr := fmt.Sprintf("Contracts %v not found for epg: %v", contractsGrp, epg.Name)
+			return errors.New(errStr)
+		}
+		if contractsGrpObj.ContractsType == "consumed" {
+			epg.ConsContracts = append(epg.ConsContracts, contractsGrpObj.Contracts...)
+		} else if contractsGrpObj.ContractsType == "provided" {
+			epg.ProvContracts = append(epg.ProvContracts, contractsGrpObj.Contracts...)
+		} else {
+			// Should not be here.
+			errStr := fmt.Sprintf("Invalid contracts type %v", contractsGrp)
+			return errors.New(errStr)
+		}
+	}
+
+	log.Debugf("Copied over %d externally defined consumed contracts", len(epg.ConsContracts))
+	log.Debugf("Copied over %d externally defined provided contracts", len(epg.ProvContracts))
 
 	// add any saved uses info before overwriting
 	savedEpg, ok := eMap.Specs[epg.Name]
@@ -237,6 +263,7 @@ func CreateAppNw(app *contivModel.AppProfile) error {
 	ans.Subnet = nwCfg.Gateway + "/" + strconv.Itoa(int(nwCfg.SubnetLen))
 	log.Debugf("Nw %v subnet %v", netName, ans.Subnet)
 
+	log.Infof("Launching appNwSpec: %+v", ans)
 	ans.launch()
 
 	return nil
@@ -256,7 +283,7 @@ func DeleteAppNw(app *contivModel.AppProfile) error {
 	}
 
 	ans := &appNwSpec{}
-	ans.TenantName = "CONTIV-" + app.TenantName
+	ans.TenantName = app.TenantName
 	ans.AppName = app.AppProfileName
 
 	url := proxyURL + "deleteAppProf"

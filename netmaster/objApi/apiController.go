@@ -57,9 +57,8 @@ func NewAPIController(router *mux.Router, storeURL string) *APIController {
 	contivModel.RegisterRuleCallbacks(ctrler)
 	contivModel.RegisterTenantCallbacks(ctrler)
 	contivModel.RegisterBgpCallbacks(ctrler)
-	contivModel.RegisterBgpCallbacks(ctrler)
 	contivModel.RegisterServiceLBCallbacks(ctrler)
-
+	contivModel.RegisterExtContractsGroupCallbacks(ctrler)
 	// Register routes
 	contivModel.AddRoutes(router)
 
@@ -343,6 +342,12 @@ func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) {
 		policy.Write()
 	}
 
+	// Cleanup any external contracts
+	err = cleanupExternalContracts(endpointGroup)
+	if err != nil {
+		log.Errorf("Error cleaning up external contracts for epg %s", endpointGroup.Key)
+	}
+
 	// Remove the endpoint group from network and tenant link sets.
 	nwObjKey := endpointGroup.TenantName + ":" + endpointGroup.NetworkName
 	network := contivModel.FindNetwork(nwObjKey)
@@ -420,6 +425,14 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 			endpointGroupCleanup(endpointGroup)
 			return err
 		}
+	}
+
+	// Setup external contracts this EPG might have.
+	err = setupExternalContracts(endpointGroup, endpointGroup.ExtContractsGrps)
+	if err != nil {
+		log.Errorf("Error setting up external contracts for epg %s", endpointGroup.Key)
+		endpointGroupCleanup(endpointGroup)
+		return err
 	}
 
 	// Setup links
@@ -512,9 +525,25 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 			}
 		}
 	}
-
 	// Update the policy list
 	endpointGroup.Policies = params.Policies
+
+	// For the external contracts, we can keep the update simple. Remove
+	// all that we have now, and update the epg with the new list.
+	// Step 1: Cleanup existing external contracts.
+	err := cleanupExternalContracts(endpointGroup)
+	if err != nil {
+		return err
+	}
+	// Step 2: Add contracts from the update.
+	// Consumed contracts
+	err = setupExternalContracts(endpointGroup, params.ExtContractsGrps)
+	if err != nil {
+		return err
+	}
+
+	// Update the epg itself with the new contracts groups.
+	endpointGroup.ExtContractsGrps = params.ExtContractsGrps
 
 	// if there is an associated app profiles, update that as well
 	profKey := endpointGroup.Links.AppProfile.ObjKey

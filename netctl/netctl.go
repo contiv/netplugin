@@ -401,11 +401,17 @@ func createEndpointGroup(ctx *cli.Context) {
 		policies = []string{}
 	}
 
+	extContractsGrps := strings.Split(ctx.String("external-contracts"), ",")
+	if ctx.String("external-contracts") == "" {
+		extContractsGrps = []string{}
+	}
+
 	errCheck(ctx, getClient(ctx).EndpointGroupPost(&contivClient.EndpointGroup{
-		TenantName:  tenant,
-		NetworkName: network,
-		GroupName:   group,
-		Policies:    policies,
+		TenantName:       tenant,
+		NetworkName:      network,
+		GroupName:        group,
+		Policies:         policies,
+		ExtContractsGrps: extContractsGrps,
 	}))
 }
 
@@ -799,4 +805,77 @@ func listServiceLB(ctx *cli.Context) {
 				)))
 		}
 	}
+}
+
+func listExternalContracts(ctx *cli.Context) {
+	argCheck(0, ctx)
+
+	extContractsGroups, err := getClient(ctx).ExtContractsGroupList()
+	errCheck(ctx, err)
+
+	tenant := ctx.String("tenant")
+
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, extContractsGroups)
+	} else if ctx.Bool("quiet") {
+		contractsGroupNames := ""
+		for _, extContractsGroup := range *extContractsGroups {
+			contractsGroupNames += extContractsGroup.ContractsGroupName + "\n"
+		}
+		os.Stdout.WriteString(contractsGroupNames)
+	} else {
+		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+		defer writer.Flush()
+		for _, extContractsGroup := range *extContractsGroups {
+			if extContractsGroup.TenantName != tenant {
+				continue
+			}
+			writer.Write([]byte(fmt.Sprintf(" Name: %s\t\tType: %s\n", extContractsGroup.ContractsGroupName, extContractsGroup.ContractsType)))
+			writer.Write([]byte(fmt.Sprintf(" Contracts:\n")))
+			for _, contract := range extContractsGroup.Contracts {
+				writer.Write([]byte(fmt.Sprintf("\t\t%s\n", contract)))
+			}
+		}
+	}
+}
+
+func deleteExternalContracts(ctx *cli.Context) {
+	argCheck(1, ctx)
+	contractsGroupName := ctx.Args()[0]
+	tenant := ctx.String("tenant")
+
+	logrus.Infof("Deleting external contracts group %s in tenant %s", contractsGroupName, tenant)
+	errCheck(ctx, getClient(ctx).ExtContractsGroupDelete(tenant, contractsGroupName))
+
+}
+
+func createExternalContracts(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	var contractsType string
+	if ctx.Bool("provided") && ctx.Bool("consumed") {
+		errExit(ctx, exitHelp, "Cannot use both provided and consumed", false)
+	} else if ctx.Bool("provided") {
+		contractsType = "provided"
+	} else if ctx.Bool("consumed") {
+		contractsType = "consumed"
+	} else {
+		errExit(ctx, exitHelp, "Either provided or consumed must be specified", false)
+	}
+
+	tenant := ctx.String("tenant")
+
+	contracts := strings.Split(ctx.String("contracts"), ",")
+	if ctx.String("contracts") == "" {
+		errExit(ctx, exitHelp, "Contracts not provided", false)
+	}
+
+	contractsGroupName := ctx.Args()[0]
+
+	errCheck(ctx, getClient(ctx).ExtContractsGroupPost(&contivClient.ExtContractsGroup{
+		TenantName:         tenant,
+		ContractsGroupName: contractsGroupName,
+		ContractsType:      contractsType,
+		Contracts:          contracts,
+	}))
 }
