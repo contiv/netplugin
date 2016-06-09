@@ -3,9 +3,10 @@
 	"objects": [
 		{
 			"name": "network",
+			"version": "v1",
 			"type": "object",
 			"key": [ "tenantName", "networkName"],
-			"properties": {
+			"cfgProperties": {
 				"networkName": {
 					"type": "string",
 					"title": "Network name",

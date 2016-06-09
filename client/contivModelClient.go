@@ -154,17 +154,10 @@ type AppProfile struct {
 	EndpointGroups []string `json:"endpointGroups,omitempty"`
 	TenantName     string   `json:"tenantName,omitempty"` // Tenant Name
 
-	// add link-sets and links
-	LinkSets AppProfileLinkSets `json:"link-sets,omitempty"`
-	Links    AppProfileLinks    `json:"links,omitempty"`
 }
 
-type AppProfileLinkSets struct {
-	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
-}
-
-type AppProfileLinks struct {
-	Tenant Link `json:"Tenant,omitempty"`
+type AppProfileInspect struct {
+	Config AppProfile
 }
 
 type Bgp struct {
@@ -177,6 +170,10 @@ type Bgp struct {
 	NeighborAs string `json:"neighbor-as,omitempty"` // AS id
 	Routerip   string `json:"routerip,omitempty"`    // Bgp router intf ip
 
+}
+
+type BgpInspect struct {
+	Config Bgp
 }
 
 type EndpointGroup struct {
@@ -200,10 +197,8 @@ type EndpointGroupLinkSets struct {
 	Services         map[string]Link `json:"Services,omitempty"`
 }
 
-type EndpointGroupLinks struct {
-	AppProfile Link `json:"AppProfile,omitempty"`
-	Network    Link `json:"Network,omitempty"`
-	Tenant     Link `json:"Tenant,omitempty"`
+type EndpointGroupInspect struct {
+	Config EndpointGroup
 }
 
 type ExtContractsGroup struct {
@@ -234,6 +229,10 @@ type Global struct {
 
 }
 
+type GlobalInspect struct {
+	Config Global
+}
+
 type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -248,19 +247,10 @@ type Network struct {
 	Subnet      string `json:"subnet,omitempty"`      // Subnet
 	TenantName  string `json:"tenantName,omitempty"`  // Tenant Name
 
-	// add link-sets and links
-	LinkSets NetworkLinkSets `json:"link-sets,omitempty"`
-	Links    NetworkLinks    `json:"links,omitempty"`
 }
 
-type NetworkLinkSets struct {
-	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
-	Servicelbs     map[string]Link `json:"Servicelbs,omitempty"`
-	Services       map[string]Link `json:"Services,omitempty"`
-}
-
-type NetworkLinks struct {
-	Tenant Link `json:"Tenant,omitempty"`
+type NetworkInspect struct {
+	Config Network
 }
 
 type Policy struct {
@@ -270,18 +260,10 @@ type Policy struct {
 	PolicyName string `json:"policyName,omitempty"` // Policy Name
 	TenantName string `json:"tenantName,omitempty"` // Tenant Name
 
-	// add link-sets and links
-	LinkSets PolicyLinkSets `json:"link-sets,omitempty"`
-	Links    PolicyLinks    `json:"links,omitempty"`
 }
 
-type PolicyLinkSets struct {
-	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
-	Rules          map[string]Link `json:"Rules,omitempty"`
-}
-
-type PolicyLinks struct {
-	Tenant Link `json:"Tenant,omitempty"`
+type PolicyInspect struct {
+	Config Policy
 }
 
 type Rule struct {
@@ -303,12 +285,10 @@ type Rule struct {
 	ToIpAddress       string `json:"toIpAddress,omitempty"`       // IP Address
 	ToNetwork         string `json:"toNetwork,omitempty"`         // To Network
 
-	// add link-sets and links
-	LinkSets RuleLinkSets `json:"link-sets,omitempty"`
 }
 
-type RuleLinkSets struct {
-	Policies map[string]Link `json:"Policies,omitempty"`
+type RuleInspect struct {
+	Config Rule
 }
 
 type ServiceLB struct {
@@ -322,12 +302,10 @@ type ServiceLB struct {
 	ServiceName string   `json:"serviceName,omitempty"` // service name
 	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
 
-	Links ServiceLBLinks `json:"links,omitempty"`
 }
 
-type ServiceLBLinks struct {
-	Network Link `json:"Network,omitempty"`
-	Tenant  Link `json:"Tenant,omitempty"`
+type ServiceLBInspect struct {
+	Config ServiceLB
 }
 
 type Tenant struct {
@@ -337,18 +315,10 @@ type Tenant struct {
 	DefaultNetwork string `json:"defaultNetwork,omitempty"` // Network name
 	TenantName     string `json:"tenantName,omitempty"`     // Tenant Name
 
-	// add link-sets and links
-	LinkSets TenantLinkSets `json:"link-sets,omitempty"`
 }
 
-type TenantLinkSets struct {
-	AppProfiles    map[string]Link `json:"AppProfiles,omitempty"`
-	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
-	Networks       map[string]Link `json:"Networks,omitempty"`
-	Policies       map[string]Link `json:"Policies,omitempty"`
-	Servicelbs     map[string]Link `json:"Servicelbs,omitempty"`
-	VolumeProfiles map[string]Link `json:"VolumeProfiles,omitempty"`
-	Volumes        map[string]Link `json:"Volumes,omitempty"`
+type TenantInspect struct {
+	Config Tenant
 }
 
 type Volume struct {
@@ -362,17 +332,10 @@ type Volume struct {
 	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
 	VolumeName    string `json:"volumeName,omitempty"`    // Volume Name
 
-	// add link-sets and links
-	LinkSets VolumeLinkSets `json:"link-sets,omitempty"`
-	Links    VolumeLinks    `json:"links,omitempty"`
 }
 
-type VolumeLinkSets struct {
-	ServiceInstances map[string]Link `json:"ServiceInstances,omitempty"`
-}
-
-type VolumeLinks struct {
-	Tenant Link `json:"Tenant,omitempty"`
+type VolumeInspect struct {
+	Config Volume
 }
 
 type VolumeProfile struct {
@@ -386,24 +349,17 @@ type VolumeProfile struct {
 	TenantName        string `json:"tenantName,omitempty"`        // Tenant Name
 	VolumeProfileName string `json:"volumeProfileName,omitempty"` // Volume profile Name
 
-	// add link-sets and links
-	LinkSets VolumeProfileLinkSets `json:"link-sets,omitempty"`
-	Links    VolumeProfileLinks    `json:"links,omitempty"`
 }
 
-type VolumeProfileLinkSets struct {
-	Services map[string]Link `json:"Services,omitempty"`
-}
-
-type VolumeProfileLinks struct {
-	Tenant Link `json:"Tenant,omitempty"`
+type VolumeProfileInspect struct {
+	Config VolumeProfile
 }
 
 // AppProfilePost posts the appProfile object
 func (c *ContivClient) AppProfilePost(obj *AppProfile) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.AppProfileName
-	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -418,7 +374,7 @@ func (c *ContivClient) AppProfilePost(obj *AppProfile) error {
 // AppProfileList lists all appProfile objects
 func (c *ContivClient) AppProfileList() (*[]*AppProfile, error) {
 	// build key and URL
-	url := c.baseURL + "/api/appProfiles/"
+	url := c.baseURL + "/api/v1/appProfiles/"
 
 	// http get the object
 	var objList []*AppProfile
@@ -435,10 +391,27 @@ func (c *ContivClient) AppProfileList() (*[]*AppProfile, error) {
 func (c *ContivClient) AppProfileGet(tenantName string, appProfileName string) (*AppProfile, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + appProfileName
-	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
 
 	// http get the object
 	var obj AppProfile
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting appProfile %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// AppProfileGetInspect gets the appProfileInspect object
+func (c *ContivClient) AppProfileInspect(tenantName string, appProfileName string) (*AppProfileInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + appProfileName
+	url := c.baseURL + "/api/v1/inspect/appProfiles/" + keyStr + "/"
+
+	// http get the object
+	var obj AppProfileInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting appProfile %+v. Err: %v", keyStr, err)
@@ -452,7 +425,7 @@ func (c *ContivClient) AppProfileGet(tenantName string, appProfileName string) (
 func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + appProfileName
-	url := c.baseURL + "/api/appProfiles/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -468,7 +441,7 @@ func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string
 func (c *ContivClient) BgpPost(obj *Bgp) error {
 	// build key and URL
 	keyStr := obj.Hostname
-	url := c.baseURL + "/api/Bgps/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/Bgps/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -483,7 +456,7 @@ func (c *ContivClient) BgpPost(obj *Bgp) error {
 // BgpList lists all Bgp objects
 func (c *ContivClient) BgpList() (*[]*Bgp, error) {
 	// build key and URL
-	url := c.baseURL + "/api/Bgps/"
+	url := c.baseURL + "/api/v1/Bgps/"
 
 	// http get the object
 	var objList []*Bgp
@@ -500,10 +473,27 @@ func (c *ContivClient) BgpList() (*[]*Bgp, error) {
 func (c *ContivClient) BgpGet(hostname string) (*Bgp, error) {
 	// build key and URL
 	keyStr := hostname
-	url := c.baseURL + "/api/Bgps/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/Bgps/" + keyStr + "/"
 
 	// http get the object
 	var obj Bgp
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting Bgp %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// BgpGetInspect gets the BgpInspect object
+func (c *ContivClient) BgpInspect(hostname string) (*BgpInspect, error) {
+	// build key and URL
+	keyStr := hostname
+	url := c.baseURL + "/api/v1/inspect/Bgps/" + keyStr + "/"
+
+	// http get the object
+	var obj BgpInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting Bgp %+v. Err: %v", keyStr, err)
@@ -517,7 +507,7 @@ func (c *ContivClient) BgpGet(hostname string) (*Bgp, error) {
 func (c *ContivClient) BgpDelete(hostname string) error {
 	// build key and URL
 	keyStr := hostname
-	url := c.baseURL + "/api/Bgps/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/Bgps/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -533,7 +523,7 @@ func (c *ContivClient) BgpDelete(hostname string) error {
 func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.GroupName
-	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/endpointGroups/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -548,7 +538,7 @@ func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 // EndpointGroupList lists all endpointGroup objects
 func (c *ContivClient) EndpointGroupList() (*[]*EndpointGroup, error) {
 	// build key and URL
-	url := c.baseURL + "/api/endpointGroups/"
+	url := c.baseURL + "/api/v1/endpointGroups/"
 
 	// http get the object
 	var objList []*EndpointGroup
@@ -565,10 +555,27 @@ func (c *ContivClient) EndpointGroupList() (*[]*EndpointGroup, error) {
 func (c *ContivClient) EndpointGroupGet(tenantName string, groupName string) (*EndpointGroup, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + groupName
-	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/endpointGroups/" + keyStr + "/"
 
 	// http get the object
 	var obj EndpointGroup
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting endpointGroup %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// EndpointGroupGetInspect gets the endpointGroupInspect object
+func (c *ContivClient) EndpointGroupInspect(tenantName string, groupName string) (*EndpointGroupInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + groupName
+	url := c.baseURL + "/api/v1/inspect/endpointGroups/" + keyStr + "/"
+
+	// http get the object
+	var obj EndpointGroupInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting endpointGroup %+v. Err: %v", keyStr, err)
@@ -582,7 +589,7 @@ func (c *ContivClient) EndpointGroupGet(tenantName string, groupName string) (*E
 func (c *ContivClient) EndpointGroupDelete(tenantName string, groupName string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + groupName
-	url := c.baseURL + "/api/endpointGroups/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/endpointGroups/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -663,7 +670,7 @@ func (c *ContivClient) ExtContractsGroupDelete(tenantName string, contractsGroup
 func (c *ContivClient) GlobalPost(obj *Global) error {
 	// build key and URL
 	keyStr := obj.Name
-	url := c.baseURL + "/api/globals/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/globals/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -678,7 +685,7 @@ func (c *ContivClient) GlobalPost(obj *Global) error {
 // GlobalList lists all global objects
 func (c *ContivClient) GlobalList() (*[]*Global, error) {
 	// build key and URL
-	url := c.baseURL + "/api/globals/"
+	url := c.baseURL + "/api/v1/globals/"
 
 	// http get the object
 	var objList []*Global
@@ -695,10 +702,27 @@ func (c *ContivClient) GlobalList() (*[]*Global, error) {
 func (c *ContivClient) GlobalGet(name string) (*Global, error) {
 	// build key and URL
 	keyStr := name
-	url := c.baseURL + "/api/globals/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/globals/" + keyStr + "/"
 
 	// http get the object
 	var obj Global
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting global %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// GlobalGetInspect gets the globalInspect object
+func (c *ContivClient) GlobalInspect(name string) (*GlobalInspect, error) {
+	// build key and URL
+	keyStr := name
+	url := c.baseURL + "/api/v1/inspect/globals/" + keyStr + "/"
+
+	// http get the object
+	var obj GlobalInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting global %+v. Err: %v", keyStr, err)
@@ -712,7 +736,7 @@ func (c *ContivClient) GlobalGet(name string) (*Global, error) {
 func (c *ContivClient) GlobalDelete(name string) error {
 	// build key and URL
 	keyStr := name
-	url := c.baseURL + "/api/globals/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/globals/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -728,7 +752,7 @@ func (c *ContivClient) GlobalDelete(name string) error {
 func (c *ContivClient) NetworkPost(obj *Network) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.NetworkName
-	url := c.baseURL + "/api/networks/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -743,7 +767,7 @@ func (c *ContivClient) NetworkPost(obj *Network) error {
 // NetworkList lists all network objects
 func (c *ContivClient) NetworkList() (*[]*Network, error) {
 	// build key and URL
-	url := c.baseURL + "/api/networks/"
+	url := c.baseURL + "/api/v1/networks/"
 
 	// http get the object
 	var objList []*Network
@@ -760,10 +784,27 @@ func (c *ContivClient) NetworkList() (*[]*Network, error) {
 func (c *ContivClient) NetworkGet(tenantName string, networkName string) (*Network, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + networkName
-	url := c.baseURL + "/api/networks/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
 
 	// http get the object
 	var obj Network
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting network %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// NetworkGetInspect gets the networkInspect object
+func (c *ContivClient) NetworkInspect(tenantName string, networkName string) (*NetworkInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + networkName
+	url := c.baseURL + "/api/v1/inspect/networks/" + keyStr + "/"
+
+	// http get the object
+	var obj NetworkInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting network %+v. Err: %v", keyStr, err)
@@ -777,7 +818,7 @@ func (c *ContivClient) NetworkGet(tenantName string, networkName string) (*Netwo
 func (c *ContivClient) NetworkDelete(tenantName string, networkName string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + networkName
-	url := c.baseURL + "/api/networks/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -793,7 +834,7 @@ func (c *ContivClient) NetworkDelete(tenantName string, networkName string) erro
 func (c *ContivClient) PolicyPost(obj *Policy) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.PolicyName
-	url := c.baseURL + "/api/policys/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/policys/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -808,7 +849,7 @@ func (c *ContivClient) PolicyPost(obj *Policy) error {
 // PolicyList lists all policy objects
 func (c *ContivClient) PolicyList() (*[]*Policy, error) {
 	// build key and URL
-	url := c.baseURL + "/api/policys/"
+	url := c.baseURL + "/api/v1/policys/"
 
 	// http get the object
 	var objList []*Policy
@@ -825,10 +866,27 @@ func (c *ContivClient) PolicyList() (*[]*Policy, error) {
 func (c *ContivClient) PolicyGet(tenantName string, policyName string) (*Policy, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + policyName
-	url := c.baseURL + "/api/policys/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/policys/" + keyStr + "/"
 
 	// http get the object
 	var obj Policy
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting policy %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// PolicyGetInspect gets the policyInspect object
+func (c *ContivClient) PolicyInspect(tenantName string, policyName string) (*PolicyInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + policyName
+	url := c.baseURL + "/api/v1/inspect/policys/" + keyStr + "/"
+
+	// http get the object
+	var obj PolicyInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting policy %+v. Err: %v", keyStr, err)
@@ -842,7 +900,7 @@ func (c *ContivClient) PolicyGet(tenantName string, policyName string) (*Policy,
 func (c *ContivClient) PolicyDelete(tenantName string, policyName string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + policyName
-	url := c.baseURL + "/api/policys/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/policys/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -858,7 +916,7 @@ func (c *ContivClient) PolicyDelete(tenantName string, policyName string) error 
 func (c *ContivClient) RulePost(obj *Rule) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.PolicyName + ":" + obj.RuleID
-	url := c.baseURL + "/api/rules/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -873,7 +931,7 @@ func (c *ContivClient) RulePost(obj *Rule) error {
 // RuleList lists all rule objects
 func (c *ContivClient) RuleList() (*[]*Rule, error) {
 	// build key and URL
-	url := c.baseURL + "/api/rules/"
+	url := c.baseURL + "/api/v1/rules/"
 
 	// http get the object
 	var objList []*Rule
@@ -890,10 +948,27 @@ func (c *ContivClient) RuleList() (*[]*Rule, error) {
 func (c *ContivClient) RuleGet(tenantName string, policyName string, ruleId string) (*Rule, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + policyName + ":" + ruleId
-	url := c.baseURL + "/api/rules/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
 
 	// http get the object
 	var obj Rule
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting rule %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// RuleGetInspect gets the ruleInspect object
+func (c *ContivClient) RuleInspect(tenantName string, policyName string, ruleId string) (*RuleInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + policyName + ":" + ruleId
+	url := c.baseURL + "/api/v1/inspect/rules/" + keyStr + "/"
+
+	// http get the object
+	var obj RuleInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting rule %+v. Err: %v", keyStr, err)
@@ -907,7 +982,7 @@ func (c *ContivClient) RuleGet(tenantName string, policyName string, ruleId stri
 func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + policyName + ":" + ruleId
-	url := c.baseURL + "/api/rules/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -923,7 +998,7 @@ func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId s
 func (c *ContivClient) ServiceLBPost(obj *ServiceLB) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.ServiceName
-	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/serviceLBs/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -938,7 +1013,7 @@ func (c *ContivClient) ServiceLBPost(obj *ServiceLB) error {
 // ServiceLBList lists all serviceLB objects
 func (c *ContivClient) ServiceLBList() (*[]*ServiceLB, error) {
 	// build key and URL
-	url := c.baseURL + "/api/serviceLBs/"
+	url := c.baseURL + "/api/v1/serviceLBs/"
 
 	// http get the object
 	var objList []*ServiceLB
@@ -955,10 +1030,27 @@ func (c *ContivClient) ServiceLBList() (*[]*ServiceLB, error) {
 func (c *ContivClient) ServiceLBGet(tenantName string, serviceName string) (*ServiceLB, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + serviceName
-	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/serviceLBs/" + keyStr + "/"
 
 	// http get the object
 	var obj ServiceLB
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting serviceLB %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// ServiceLBGetInspect gets the serviceLBInspect object
+func (c *ContivClient) ServiceLBInspect(tenantName string, serviceName string) (*ServiceLBInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + serviceName
+	url := c.baseURL + "/api/v1/inspect/serviceLBs/" + keyStr + "/"
+
+	// http get the object
+	var obj ServiceLBInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting serviceLB %+v. Err: %v", keyStr, err)
@@ -972,7 +1064,7 @@ func (c *ContivClient) ServiceLBGet(tenantName string, serviceName string) (*Ser
 func (c *ContivClient) ServiceLBDelete(tenantName string, serviceName string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + serviceName
-	url := c.baseURL + "/api/serviceLBs/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/serviceLBs/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -988,7 +1080,7 @@ func (c *ContivClient) ServiceLBDelete(tenantName string, serviceName string) er
 func (c *ContivClient) TenantPost(obj *Tenant) error {
 	// build key and URL
 	keyStr := obj.TenantName
-	url := c.baseURL + "/api/tenants/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/tenants/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -1003,7 +1095,7 @@ func (c *ContivClient) TenantPost(obj *Tenant) error {
 // TenantList lists all tenant objects
 func (c *ContivClient) TenantList() (*[]*Tenant, error) {
 	// build key and URL
-	url := c.baseURL + "/api/tenants/"
+	url := c.baseURL + "/api/v1/tenants/"
 
 	// http get the object
 	var objList []*Tenant
@@ -1020,10 +1112,27 @@ func (c *ContivClient) TenantList() (*[]*Tenant, error) {
 func (c *ContivClient) TenantGet(tenantName string) (*Tenant, error) {
 	// build key and URL
 	keyStr := tenantName
-	url := c.baseURL + "/api/tenants/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/tenants/" + keyStr + "/"
 
 	// http get the object
 	var obj Tenant
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting tenant %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// TenantGetInspect gets the tenantInspect object
+func (c *ContivClient) TenantInspect(tenantName string) (*TenantInspect, error) {
+	// build key and URL
+	keyStr := tenantName
+	url := c.baseURL + "/api/v1/inspect/tenants/" + keyStr + "/"
+
+	// http get the object
+	var obj TenantInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting tenant %+v. Err: %v", keyStr, err)
@@ -1037,7 +1146,7 @@ func (c *ContivClient) TenantGet(tenantName string) (*Tenant, error) {
 func (c *ContivClient) TenantDelete(tenantName string) error {
 	// build key and URL
 	keyStr := tenantName
-	url := c.baseURL + "/api/tenants/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/tenants/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -1053,7 +1162,7 @@ func (c *ContivClient) TenantDelete(tenantName string) error {
 func (c *ContivClient) VolumePost(obj *Volume) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.VolumeName
-	url := c.baseURL + "/api/volumes/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/volumes/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -1068,7 +1177,7 @@ func (c *ContivClient) VolumePost(obj *Volume) error {
 // VolumeList lists all volume objects
 func (c *ContivClient) VolumeList() (*[]*Volume, error) {
 	// build key and URL
-	url := c.baseURL + "/api/volumes/"
+	url := c.baseURL + "/api/v1/volumes/"
 
 	// http get the object
 	var objList []*Volume
@@ -1085,10 +1194,27 @@ func (c *ContivClient) VolumeList() (*[]*Volume, error) {
 func (c *ContivClient) VolumeGet(tenantName string, volumeName string) (*Volume, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + volumeName
-	url := c.baseURL + "/api/volumes/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/volumes/" + keyStr + "/"
 
 	// http get the object
 	var obj Volume
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting volume %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// VolumeGetInspect gets the volumeInspect object
+func (c *ContivClient) VolumeInspect(tenantName string, volumeName string) (*VolumeInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + volumeName
+	url := c.baseURL + "/api/v1/inspect/volumes/" + keyStr + "/"
+
+	// http get the object
+	var obj VolumeInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting volume %+v. Err: %v", keyStr, err)
@@ -1102,7 +1228,7 @@ func (c *ContivClient) VolumeGet(tenantName string, volumeName string) (*Volume,
 func (c *ContivClient) VolumeDelete(tenantName string, volumeName string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + volumeName
-	url := c.baseURL + "/api/volumes/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/volumes/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)
@@ -1118,7 +1244,7 @@ func (c *ContivClient) VolumeDelete(tenantName string, volumeName string) error 
 func (c *ContivClient) VolumeProfilePost(obj *VolumeProfile) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.VolumeProfileName
-	url := c.baseURL + "/api/volumeProfiles/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/volumeProfiles/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -1133,7 +1259,7 @@ func (c *ContivClient) VolumeProfilePost(obj *VolumeProfile) error {
 // VolumeProfileList lists all volumeProfile objects
 func (c *ContivClient) VolumeProfileList() (*[]*VolumeProfile, error) {
 	// build key and URL
-	url := c.baseURL + "/api/volumeProfiles/"
+	url := c.baseURL + "/api/v1/volumeProfiles/"
 
 	// http get the object
 	var objList []*VolumeProfile
@@ -1150,10 +1276,27 @@ func (c *ContivClient) VolumeProfileList() (*[]*VolumeProfile, error) {
 func (c *ContivClient) VolumeProfileGet(tenantName string, volumeProfileName string) (*VolumeProfile, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + volumeProfileName
-	url := c.baseURL + "/api/volumeProfiles/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/volumeProfiles/" + keyStr + "/"
 
 	// http get the object
 	var obj VolumeProfile
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting volumeProfile %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// VolumeProfileGetInspect gets the volumeProfileInspect object
+func (c *ContivClient) VolumeProfileInspect(tenantName string, volumeProfileName string) (*VolumeProfileInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + volumeProfileName
+	url := c.baseURL + "/api/v1/inspect/volumeProfiles/" + keyStr + "/"
+
+	// http get the object
+	var obj VolumeProfileInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting volumeProfile %+v. Err: %v", keyStr, err)
@@ -1167,7 +1310,7 @@ func (c *ContivClient) VolumeProfileGet(tenantName string, volumeProfileName str
 func (c *ContivClient) VolumeProfileDelete(tenantName string, volumeProfileName string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + volumeProfileName
-	url := c.baseURL + "/api/volumeProfiles/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/volumeProfiles/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)

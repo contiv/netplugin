@@ -3,9 +3,10 @@
 	"objects": [
 		{
 			"name": "volume",
+			"version": "v1",
 			"type": "object",
 			"key": [ "tenantName", "volumeName" ],
-			"properties": {
+			"cfgProperties": {
 				"volumeName": {
 					"type": "string",
 					"title": "Volume Name"

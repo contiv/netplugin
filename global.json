@@ -3,9 +3,10 @@
 	"objects": [
 		{
 			"name": "global",
+			"version": "v1",
 			"type": "object",
 			"key": [ "name"],
-			"properties": {
+			"cfgProperties": {
 				"name": {
 					"type": "string",
 					"title": "name of this block(must be 'global')",
