@@ -70,17 +70,6 @@ type EndpointGroup struct {
 }
 
 type EndpointGroupLinkSets struct {
-	Policies map[string]modeldb.Link `json:"Policies,omitempty"`
-	Services map[string]modeldb.Link `json:"Services,omitempty"`
-}
-
-type EndpointGroupLinks struct {
-	AppProfile modeldb.Link `json:"AppProfile,omitempty"`
-	Network    modeldb.Link `json:"Network,omitempty"`
-	Tenant     modeldb.Link `json:"Tenant,omitempty"`
-}
-
-type EndpointGroupLinkSets struct {
 	ExtContractsGrps map[string]modeldb.Link `json:"ExtContractsGrps,omitempty"`
 	Policies         map[string]modeldb.Link `json:"Policies,omitempty"`
 	Services         map[string]modeldb.Link `json:"Services,omitempty"`
@@ -92,6 +81,9 @@ type EndpointGroupLinks struct {
 	Tenant     modeldb.Link `json:"Tenant,omitempty"`
 }
 
+type EndpointGroupInspect struct {
+	Config EndpointGroup
+}
 type ExtContractsGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -109,10 +101,9 @@ type ExtContractsGroupLinkSets struct {
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
 }
 
-type EndpointGroupInspect struct {
-	Config EndpointGroup
+type ExtContractsGroupInspect struct {
+	Config ExtContractsGroup
 }
-
 type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -597,14 +588,16 @@ func AddRoutes(router *mux.Router) {
 	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectEndpointGroup))
 
 	// Register extContractsGroup
-	route = "/api/extContractsGroups/{key}/"
-	listRoute = "/api/extContractsGroups/"
+	route = "/api/v1/extContractsGroups/{key}/"
+	listRoute = "/api/v1/extContractsGroups/"
+	inspectRoute = "/api/v1/inspect/extContractsGroups/{key}/"
 	log.Infof("Registering %s", route)
 	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListExtContractsGroups))
 	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetExtContractsGroup))
 	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateExtContractsGroup))
 	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateExtContractsGroup))
 	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteExtContractsGroup))
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectExtContractsGroup))
 
 	// Register global
 	route = "/api/v1/globals/{key}/"
@@ -1582,6 +1575,24 @@ func httpGetExtContractsGroup(w http.ResponseWriter, r *http.Request, vars map[s
 
 	// Return the obj
 	return obj, nil
+}
+
+// GET Oper REST call
+func httpInspectExtContractsGroup(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	var obj ExtContractsGroupInspect
+	log.Debugf("Received httpInspectExtContractsGroup: %+v", vars)
+
+	key := vars["key"]
+
+	objConfig := collections.extContractsGroups[key]
+	if objConfig == nil {
+		log.Errorf("extContractsGroup %s not found", key)
+		return nil, errors.New("extContractsGroup not found")
+	}
+	obj.Config = *objConfig
+
+	// Return the obj
+	return &obj, nil
 }
 
 // CREATE REST call
