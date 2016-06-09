@@ -197,16 +197,12 @@ func ReserveIPv6HostID(hostID string, IPv6AllocMap *map[string]bool) {
 }
 
 // GetNextIPv6HostID returns the next available hostId in the AllocMap
-func GetNextIPv6HostID(hostID, subnetAddr string, subnetLen, allocSubnetLen uint, IPv6AllocMap map[string]bool) (string, error) {
+func GetNextIPv6HostID(hostID, subnetAddr string, subnetLen uint, IPv6AllocMap map[string]bool) (string, error) {
 	if hostID == "" {
 		hostID = "::"
 	}
 	if subnetLen == 0 {
 		return "", core.Errorf("subnet length %d is invalid", subnetLen)
-	}
-	if subnetLen > allocSubnetLen {
-		return "", core.Errorf("subnet length %d is bigger than subnet alloc len %d",
-			subnetLen, allocSubnetLen)
 	}
 
 	hostidIP := net.ParseIP(hostID)
@@ -241,7 +237,7 @@ func GetNextIPv6HostID(hostID, subnetAddr string, subnetLen, allocSubnetLen uint
 			if (hostidIP[offset] & byte(mask)) != 0 {
 				// if hostID is outside subnet range,
 				//	check if we have reached MaxHosts
-				maxHosts := math.Pow(2, float64(allocSubnetLen-subnetLen)) - 1
+				maxHosts := math.Pow(2, float64(128-subnetLen)) - 1
 				if float64(len(IPv6AllocMap)) < maxHosts {
 					hostID = "::"
 					hostidIP = net.ParseIP(hostID)
@@ -258,17 +254,13 @@ func GetNextIPv6HostID(hostID, subnetAddr string, subnetLen, allocSubnetLen uint
 
 // GetSubnetIPv6 given a subnet IP and host identifier, calculates an IPv6 address
 // within the subnet for use.
-func GetSubnetIPv6(subnetAddr string, subnetLen, allocSubnetLen uint, hostID string) (string, error) {
+func GetSubnetIPv6(subnetAddr string, subnetLen uint, hostID string) (string, error) {
 	if subnetAddr == "" {
 		return "", core.Errorf("null subnet")
 	}
 
 	if subnetLen > 128 || subnetLen < 16 {
 		return "", core.Errorf("subnet length %d not supported", subnetLen)
-	}
-	if subnetLen > allocSubnetLen {
-		return "", core.Errorf("subnet length %d is bigger than subnet alloc len %d",
-			subnetLen, allocSubnetLen)
 	}
 
 	subnetIP := net.ParseIP(subnetAddr)
@@ -296,17 +288,9 @@ func GetSubnetIPv6(subnetAddr string, subnetLen, allocSubnetLen uint, hostID str
 }
 
 // GetIPv6HostID obtains the host id from the host IP. SEe `GetSubnetIP` for more information.
-func GetIPv6HostID(subnetAddr string, subnetLen uint, allocSubnetLen uint, hostAddr string) (string, error) {
+func GetIPv6HostID(subnetAddr string, subnetLen uint, hostAddr string) (string, error) {
 	if subnetLen > 128 || subnetLen < 16 {
 		return "", core.Errorf("subnet length %d not supported", subnetLen)
-	}
-	if subnetLen > allocSubnetLen {
-		return "", core.Errorf("subnet length %d is bigger than subnet alloc len %d",
-			subnetLen, allocSubnetLen)
-	}
-	if allocSubnetLen != 128 {
-		return "", core.Errorf("Trying to allocate IPv6 address with mask-len %d < 128",
-			allocSubnetLen)
 	}
 	// Initialize hostID
 	hostID := net.IPv6zero
@@ -328,7 +312,7 @@ func GetIPv6HostID(subnetAddr string, subnetLen uint, allocSubnetLen uint, hostA
 	hostID[offset] = byte(h - s)
 
 	// Copy the rest of the bytes
-	for i := (offset + 1); i < allocSubnetLen/8; i++ {
+	for i := (offset + 1); i < 16; i++ {
 		hostID[i] = hostIP[i]
 		offset++
 	}

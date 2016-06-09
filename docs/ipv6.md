@@ -52,3 +52,48 @@ The containers created will get IPv4 and IPv6 address allocated from the corresp
 ]
 ```
 	
+## Container IPv6 interface
+
+Container 'web' in Node1
+```
+[vagrant@netplugin-node1 netplugin]$ docker exec -it web /bin/sh
+/ # ip addr show dev eth0
+13: eth0@if12: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP 
+    link/ether 02:02:14:01:01:03 brd ff:ff:ff:ff:ff:ff
+    inet 20.1.1.3/24 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 2001::3/100 scope global 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::2:14ff:fe01:103/64 scope link 
+       valid_lft forever preferred_lft forever
+/ # 
+```
+
+Container 'db' in Node2
+```
+[vagrant@netplugin-node2 ~]$ docker exec -it db /bin/sh
+/ # ip addr show dev eth0
+9: eth0@if8: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP 
+    link/ether 02:02:14:01:01:04 brd ff:ff:ff:ff:ff:ff
+    inet 20.1.1.4/24 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 2001::4/100 scope global 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::2:14ff:fe01:104/64 scope link 
+       valid_lft forever preferred_lft forever
+/ # 
+```	
+
+## Ping6 between containers
+```
+/ # ping6 2001::4 -I 2001::3 -c 3
+PING 2001::4 (2001::4) from 2001::3: 56 data bytes
+64 bytes from 2001::4: seq=0 ttl=64 time=1.689 ms
+64 bytes from 2001::4: seq=1 ttl=64 time=2.437 ms
+64 bytes from 2001::4: seq=2 ttl=64 time=1.526 ms
+
+--- 2001::4 ping statistics ---
+3 packets transmitted, 3 packets received, 0% packet loss
+round-trip min/avg/max = 1.526/1.884/2.437 ms
+/ # 
+```

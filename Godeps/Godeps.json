@@ -75,25 +75,6 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-<<<<<<< c8d02aeaceb314247fe58965084a5ec175e8c77d
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
-		},
-		{
-			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
-		},
-		{
-			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
-		},
-		{
-			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
-		},
-		{
-			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
-=======
 			"Rev": "2bec1e4efe6a4a7aadd520b255053b8ea487e4b7"
 		},
 		{
@@ -111,7 +92,6 @@
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
 			"Rev": "2bec1e4efe6a4a7aadd520b255053b8ea487e4b7"
->>>>>>> Added IPv6 support
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",

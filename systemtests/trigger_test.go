@@ -18,6 +18,8 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 		NetworkName: "private",
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
+		Ipv6Subnet:  "2016:0617::/100",
+		Ipv6Gateway: "2016:0617::254",
 		PktTag:      1001,
 		Encap:       "vxlan",
 	}
@@ -79,6 +81,8 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 		NetworkName: "private",
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
+		Ipv6Subnet:  "2016:0617::/100",
+		Ipv6Gateway: "2016:0617::254",
 		PktTag:      1001,
 		Encap:       "vxlan",
 	}
@@ -117,6 +121,8 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 		NetworkName: "private",
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
+		Ipv6Subnet:  "2016:0617::/100",
+		Ipv6Gateway: "2016:0617::254",
 		Encap:       "vxlan",
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -191,6 +197,8 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 		NetworkName: "private",
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
+		Ipv6Subnet:  "2016:0617::/100",
+		Ipv6Gateway: "2016:0617::254",
 		PktTag:      1001,
 		Encap:       "vxlan",
 	}
@@ -201,6 +209,8 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 		NetworkName: "other",
 		Subnet:      "10.2.0.0/16",
 		Gateway:     "10.2.1.254",
+		Ipv6Subnet:  "2016:0620::/100",
+		Ipv6Gateway: "2016:0620::254",
 		PktTag:      1002,
 		Encap:       "vxlan",
 	}

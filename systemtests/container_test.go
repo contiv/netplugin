@@ -116,7 +116,6 @@ func (c *container) getIPv6Addr(dev string) (string, error) {
 
 	parts = strings.Split(parts[1], "/")
 	out = strings.TrimSpace(parts[0])
-	logrus.Infof("VK: getIPv6Addr dev: %s got addr: %s", dev, out)
 	return out, err
 }
 

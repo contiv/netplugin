@@ -144,7 +144,7 @@ var testv6Subnets = []testSubnetInfo{
 
 func TestGetSubnetIPv6(t *testing.T) {
 	for _, te := range testv6Subnets {
-		ipv6HostIP, err := GetSubnetIPv6(te.ipv6Subnet, te.ipv6SubnetLen, 128, te.ipv6HostID)
+		ipv6HostIP, err := GetSubnetIPv6(te.ipv6Subnet, te.ipv6SubnetLen, te.ipv6HostID)
 		if err != nil {
 			t.Fatalf("error getting host ip from ipv6Subnet %s/%d for hostid %s - err '%s'",
 				te.ipv6Subnet, te.ipv6SubnetLen, te.ipv6HostID, err)
@@ -165,7 +165,7 @@ var testInvalidv6Subnets = []testSubnetInfo{
 
 func TestInvalidGetSubnetIPv6(t *testing.T) {
 	for _, te := range testInvalidSubnets {
-		_, err := GetSubnetIPv6(te.ipv6Subnet, te.ipv6SubnetLen, 128, te.ipv6HostID)
+		_, err := GetSubnetIPv6(te.ipv6Subnet, te.ipv6SubnetLen, te.ipv6HostID)
 		if err == nil {
 			t.Fatalf("Expecting error on invalid config subnet %s/%d for hostid %s",
 				te.ipv6Subnet, te.ipv6SubnetLen, te.ipv6HostID)
@@ -203,7 +203,7 @@ var testHostIDs = []testHostID{
 func TestGetNextIPv6HostID(t *testing.T) {
 	var allocMap map[string]bool
 	for _, te := range testHostIDs {
-		nextHostID, err := GetNextIPv6HostID(te.hostID, te.subnetAddr, te.subnetLen, 128, allocMap)
+		nextHostID, err := GetNextIPv6HostID(te.hostID, te.subnetAddr, te.subnetLen, allocMap)
 		if nextHostID != te.nextHostID || err != nil {
 			t.Fatalf("obtained nextHostID %s doesn't match expected ID %s for %s\n",
 				nextHostID, te.nextHostID, te.hostID)

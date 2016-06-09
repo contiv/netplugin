@@ -158,7 +158,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		nwCfg.IPv6Gateway = network.IPv6Gateway
 
 		// Reserve gateway IPv6 address if gateway is specified
-		hostID, err := netutils.GetIPv6HostID(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, 128, nwCfg.IPv6Gateway)
+		hostID, err := netutils.GetIPv6HostID(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, nwCfg.IPv6Gateway)
 		if err != nil {
 			log.Errorf("Error parsing gateway address %s. Err: %v", nwCfg.IPv6Gateway, err)
 			return err
@@ -503,12 +503,12 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv
 	if reqAddr == "" {
 		if isIPv6 {
 			// Get the next available IPv6 address
-			hostID, err = netutils.GetNextIPv6HostID(nwCfg.IPv6LastHost, nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, 128, nwCfg.IPv6AllocMap)
+			hostID, err = netutils.GetNextIPv6HostID(nwCfg.IPv6LastHost, nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, nwCfg.IPv6AllocMap)
 			if err != nil {
 				log.Errorf("create eps: error allocating ip. Error: %s", err)
 				return "", err
 			}
-			ipAddress, err = netutils.GetSubnetIPv6(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, 128, hostID)
+			ipAddress, err = netutils.GetSubnetIPv6(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, hostID)
 			if err != nil {
 				log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
 				return "", err
@@ -540,7 +540,7 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv
 
 	} else if reqAddr != "" && nwCfg.SubnetIP != "" {
 		if isIPv6 {
-			hostID, err = netutils.GetIPv6HostID(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, 128, reqAddr)
+			hostID, err = netutils.GetIPv6HostID(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, reqAddr)
 			if err != nil {
 				log.Errorf("create eps: error getting host id from hostIP %s Subnet %s/%d. Error: %s",
 					reqAddr, nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, err)
@@ -578,7 +578,7 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv
 func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) error {
 	isIPv6 := netutils.IsIPv6(ipAddress)
 	if isIPv6 {
-		hostID, err := netutils.GetIPv6HostID(nwCfg.SubnetIP, nwCfg.SubnetLen, 128, ipAddress)
+		hostID, err := netutils.GetIPv6HostID(nwCfg.SubnetIP, nwCfg.SubnetLen, ipAddress)
 		if err != nil {
 			log.Errorf("error getting host id from hostIP %s Subnet %s/%d. Error: %s",
 				ipAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
