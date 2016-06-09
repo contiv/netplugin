@@ -23,6 +23,17 @@ type AppProfile struct {
 	EndpointGroups []string `json:"endpointGroups,omitempty"`
 	TenantName     string   `json:"tenantName,omitempty"` // Tenant Name
 
+	// add link-sets and links
+	LinkSets AppProfileLinkSets `json:"link-sets,omitempty"`
+	Links    AppProfileLinks    `json:"links,omitempty"`
+}
+
+type AppProfileLinkSets struct {
+	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
+}
+
+type AppProfileLinks struct {
+	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type AppProfileInspect struct {
@@ -53,6 +64,20 @@ type EndpointGroup struct {
 	Policies         []string `json:"policies,omitempty"`
 	TenantName       string   `json:"tenantName,omitempty"` // Tenant
 
+	// add link-sets and links
+	LinkSets EndpointGroupLinkSets `json:"link-sets,omitempty"`
+	Links    EndpointGroupLinks    `json:"links,omitempty"`
+}
+
+type EndpointGroupLinkSets struct {
+	Policies map[string]modeldb.Link `json:"Policies,omitempty"`
+	Services map[string]modeldb.Link `json:"Services,omitempty"`
+}
+
+type EndpointGroupLinks struct {
+	AppProfile modeldb.Link `json:"AppProfile,omitempty"`
+	Network    modeldb.Link `json:"Network,omitempty"`
+	Tenant     modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type EndpointGroupLinkSets struct {
@@ -116,6 +141,19 @@ type Network struct {
 	Subnet      string `json:"subnet,omitempty"`      // Subnet
 	TenantName  string `json:"tenantName,omitempty"`  // Tenant Name
 
+	// add link-sets and links
+	LinkSets NetworkLinkSets `json:"link-sets,omitempty"`
+	Links    NetworkLinks    `json:"links,omitempty"`
+}
+
+type NetworkLinkSets struct {
+	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
+	Servicelbs     map[string]modeldb.Link `json:"Servicelbs,omitempty"`
+	Services       map[string]modeldb.Link `json:"Services,omitempty"`
+}
+
+type NetworkLinks struct {
+	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type NetworkInspect struct {
@@ -128,6 +166,18 @@ type Policy struct {
 	PolicyName string `json:"policyName,omitempty"` // Policy Name
 	TenantName string `json:"tenantName,omitempty"` // Tenant Name
 
+	// add link-sets and links
+	LinkSets PolicyLinkSets `json:"link-sets,omitempty"`
+	Links    PolicyLinks    `json:"links,omitempty"`
+}
+
+type PolicyLinkSets struct {
+	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
+	Rules          map[string]modeldb.Link `json:"Rules,omitempty"`
+}
+
+type PolicyLinks struct {
+	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type PolicyInspect struct {
@@ -152,6 +202,12 @@ type Rule struct {
 	ToIpAddress       string `json:"toIpAddress,omitempty"`       // IP Address
 	ToNetwork         string `json:"toNetwork,omitempty"`         // To Network
 
+	// add link-sets and links
+	LinkSets RuleLinkSets `json:"link-sets,omitempty"`
+}
+
+type RuleLinkSets struct {
+	Policies map[string]modeldb.Link `json:"Policies,omitempty"`
 }
 
 type RuleInspect struct {
@@ -168,6 +224,12 @@ type ServiceLB struct {
 	ServiceName string   `json:"serviceName,omitempty"` // service name
 	TenantName  string   `json:"tenantName,omitempty"`  // Tenant Name
 
+	Links ServiceLBLinks `json:"links,omitempty"`
+}
+
+type ServiceLBLinks struct {
+	Network modeldb.Link `json:"Network,omitempty"`
+	Tenant  modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type ServiceLBInspect struct {
@@ -180,6 +242,18 @@ type Tenant struct {
 	DefaultNetwork string `json:"defaultNetwork,omitempty"` // Network name
 	TenantName     string `json:"tenantName,omitempty"`     // Tenant Name
 
+	// add link-sets and links
+	LinkSets TenantLinkSets `json:"link-sets,omitempty"`
+}
+
+type TenantLinkSets struct {
+	AppProfiles    map[string]modeldb.Link `json:"AppProfiles,omitempty"`
+	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
+	Networks       map[string]modeldb.Link `json:"Networks,omitempty"`
+	Policies       map[string]modeldb.Link `json:"Policies,omitempty"`
+	Servicelbs     map[string]modeldb.Link `json:"Servicelbs,omitempty"`
+	VolumeProfiles map[string]modeldb.Link `json:"VolumeProfiles,omitempty"`
+	Volumes        map[string]modeldb.Link `json:"Volumes,omitempty"`
 }
 
 type TenantInspect struct {
@@ -196,6 +270,17 @@ type Volume struct {
 	TenantName    string `json:"tenantName,omitempty"`    // Tenant Name
 	VolumeName    string `json:"volumeName,omitempty"`    // Volume Name
 
+	// add link-sets and links
+	LinkSets VolumeLinkSets `json:"link-sets,omitempty"`
+	Links    VolumeLinks    `json:"links,omitempty"`
+}
+
+type VolumeLinkSets struct {
+	ServiceInstances map[string]modeldb.Link `json:"ServiceInstances,omitempty"`
+}
+
+type VolumeLinks struct {
+	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type VolumeInspect struct {
@@ -212,6 +297,17 @@ type VolumeProfile struct {
 	TenantName        string `json:"tenantName,omitempty"`        // Tenant Name
 	VolumeProfileName string `json:"volumeProfileName,omitempty"` // Volume profile Name
 
+	// add link-sets and links
+	LinkSets VolumeProfileLinkSets `json:"link-sets,omitempty"`
+	Links    VolumeProfileLinks    `json:"links,omitempty"`
+}
+
+type VolumeProfileLinkSets struct {
+	Services map[string]modeldb.Link `json:"Services,omitempty"`
+}
+
+type VolumeProfileLinks struct {
+	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type VolumeProfileInspect struct {
