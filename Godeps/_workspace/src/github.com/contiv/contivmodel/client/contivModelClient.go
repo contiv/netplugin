@@ -235,6 +235,27 @@ type EndpointGroupInspect struct {
 	Config EndpointGroup
 }
 
+type ExtContractsGroup struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	Contracts          []string `json:"contracts,omitempty"`
+	ContractsGroupName string   `json:"contractsGroupName,omitempty"` // Contracts group name
+	ContractsType      string   `json:"contractsType,omitempty"`      // Contracts type
+	TenantName         string   `json:"tenantName,omitempty"`         // Tenant name
+
+	// add link-sets and links
+	LinkSets ExtContractsGroupLinkSets `json:"link-sets,omitempty"`
+}
+
+type ExtContractsGroupLinkSets struct {
+	EndpointGroups map[string]Link `json:"EndpointGroups,omitempty"`
+}
+
+type ExtContractsGroupInspect struct {
+	Config ExtContractsGroup
+}
+
 type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -716,7 +737,7 @@ func (c *ContivClient) EndpointGroupDelete(tenantName string, groupName string) 
 func (c *ContivClient) ExtContractsGroupPost(obj *ExtContractsGroup) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.ContractsGroupName
-	url := c.baseURL + "/api/extContractsGroups/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/extContractsGroups/" + keyStr + "/"
 
 	// http post the object
 	err := httpPost(url, obj)
@@ -731,7 +752,7 @@ func (c *ContivClient) ExtContractsGroupPost(obj *ExtContractsGroup) error {
 // ExtContractsGroupList lists all extContractsGroup objects
 func (c *ContivClient) ExtContractsGroupList() (*[]*ExtContractsGroup, error) {
 	// build key and URL
-	url := c.baseURL + "/api/extContractsGroups/"
+	url := c.baseURL + "/api/v1/extContractsGroups/"
 
 	// http get the object
 	var objList []*ExtContractsGroup
@@ -748,10 +769,27 @@ func (c *ContivClient) ExtContractsGroupList() (*[]*ExtContractsGroup, error) {
 func (c *ContivClient) ExtContractsGroupGet(tenantName string, contractsGroupName string) (*ExtContractsGroup, error) {
 	// build key and URL
 	keyStr := tenantName + ":" + contractsGroupName
-	url := c.baseURL + "/api/extContractsGroups/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/extContractsGroups/" + keyStr + "/"
 
 	// http get the object
 	var obj ExtContractsGroup
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting extContractsGroup %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// ExtContractsGroupInspect gets the extContractsGroupInspect object
+func (c *ContivClient) ExtContractsGroupInspect(tenantName string, contractsGroupName string) (*ExtContractsGroupInspect, error) {
+	// build key and URL
+	keyStr := tenantName + ":" + contractsGroupName
+	url := c.baseURL + "/api/v1/inspect/extContractsGroups/" + keyStr + "/"
+
+	// http get the object
+	var obj ExtContractsGroupInspect
 	err := httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting extContractsGroup %+v. Err: %v", keyStr, err)
@@ -765,7 +803,7 @@ func (c *ContivClient) ExtContractsGroupGet(tenantName string, contractsGroupNam
 func (c *ContivClient) ExtContractsGroupDelete(tenantName string, contractsGroupName string) error {
 	// build key and URL
 	keyStr := tenantName + ":" + contractsGroupName
-	url := c.baseURL + "/api/extContractsGroups/" + keyStr + "/"
+	url := c.baseURL + "/api/v1/extContractsGroups/" + keyStr + "/"
 
 	// http get the object
 	err := httpDelete(url)

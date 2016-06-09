@@ -54,12 +54,20 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
+<<<<<<< d1a557240833aa0005fdea043f657b070fd68b28
 			"Rev": "5d20bfba00eba09845ba2402dd57c42502e4f2fc"
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel/client",
 			"Rev": "5d20bfba00eba09845ba2402dd57c42502e4f2fc"
 		},
+=======
+			"Rev": "17a909cae20fd97df5f978ca3be2be6c3be5217b"
+		},
+		{
+			"ImportPath": "github.com/contiv/contivmodel/client",
+			"Rev": "17a909cae20fd97df5f978ca3be2be6c3be5217b"
+>>>>>>> add versioning and cfg/oper properties to external contracts object
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",
