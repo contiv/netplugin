@@ -94,6 +94,13 @@ var Commands = []cli.Command{
 				Action:    listNetworks,
 			},
 			{
+				Name:      "inspect",
+				Usage:     "Inspect a Network",
+				ArgsUsage: "[network]",
+				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Action:    inspectNetwork,
+			},
+			{
 				Name:      "rm",
 				Aliases:   []string{"delete"},
 				Usage:     "Delete a network",
@@ -318,6 +325,13 @@ var Commands = []cli.Command{
 				ArgsUsage: " ",
 				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag},
 				Action:    showGlobal,
+			},
+			{
+				Name:      "inspect",
+				Usage:     "Inspect Global Operational Information",
+				ArgsUsage: " ",
+				Flags:     []cli.Flag{jsonFlag},
+				Action:    inspectGlobal,
 			},
 			{
 				Name:      "set",

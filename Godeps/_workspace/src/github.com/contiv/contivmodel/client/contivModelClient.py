@@ -74,7 +74,7 @@ class objmodelClient:
 		self.baseUrl = baseUrl
 	# Create appProfile
 	def createAppProfile(self, obj):
-	    postUrl = self.baseUrl + '/api/appProfiles/' + obj.tenantName + ":" + obj.appProfileName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/appProfiles/' + obj.tenantName + ":" + obj.appProfileName  + '/'
 
 	    jdata = json.dumps({ 
 			"appProfileName": obj.appProfileName, 
@@ -91,7 +91,7 @@ class objmodelClient:
 	# Delete appProfile
 	def deleteAppProfile(self, tenantName, appProfileName):
 	    # Delete AppProfile
-	    deleteUrl = self.baseUrl + '/api/appProfiles/' + tenantName + ":" + appProfileName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/appProfiles/' + tenantName + ":" + appProfileName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -100,14 +100,14 @@ class objmodelClient:
 	# List all appProfile objects
 	def listAppProfile(self):
 	    # Get a list of appProfile objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/appProfiles/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/appProfiles/')
 	    if retData == "Error":
 	        errorExit("list AppProfile failed")
 
 	    return json.loads(retData)
 	# Create Bgp
 	def createBgp(self, obj):
-	    postUrl = self.baseUrl + '/api/Bgps/' + obj.hostname  + '/'
+	    postUrl = self.baseUrl + '/api/v1/Bgps/' + obj.hostname  + '/'
 
 	    jdata = json.dumps({ 
 			"as": obj.as, 
@@ -126,7 +126,7 @@ class objmodelClient:
 	# Delete Bgp
 	def deleteBgp(self, hostname):
 	    # Delete Bgp
-	    deleteUrl = self.baseUrl + '/api/Bgps/' + hostname  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/Bgps/' + hostname  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -135,14 +135,14 @@ class objmodelClient:
 	# List all Bgp objects
 	def listBgp(self):
 	    # Get a list of Bgp objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/Bgps/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/Bgps/')
 	    if retData == "Error":
 	        errorExit("list Bgp failed")
 
 	    return json.loads(retData)
 	# Create endpointGroup
 	def createEndpointGroup(self, obj):
-	    postUrl = self.baseUrl + '/api/endpointGroups/' + obj.tenantName + ":" + obj.groupName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/endpointGroups/' + obj.tenantName + ":" + obj.groupName  + '/'
 
 	    jdata = json.dumps({ 
 			"extContractsGrps": obj.extContractsGrps, 
@@ -161,7 +161,7 @@ class objmodelClient:
 	# Delete endpointGroup
 	def deleteEndpointGroup(self, tenantName, groupName):
 	    # Delete EndpointGroup
-	    deleteUrl = self.baseUrl + '/api/endpointGroups/' + tenantName + ":" + groupName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/endpointGroups/' + tenantName + ":" + groupName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -170,14 +170,14 @@ class objmodelClient:
 	# List all endpointGroup objects
 	def listEndpointGroup(self):
 	    # Get a list of endpointGroup objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/endpointGroups/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/endpointGroups/')
 	    if retData == "Error":
 	        errorExit("list EndpointGroup failed")
 
 	    return json.loads(retData)
 	# Create extContractsGroup
 	def createExtContractsGroup(self, obj):
-	    postUrl = self.baseUrl + '/api/extContractsGroups/' + obj.tenantName + ":" + obj.contractsGroupName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/extContractsGroups/' + obj.tenantName + ":" + obj.contractsGroupName  + '/'
 
 	    jdata = json.dumps({ 
 			"contracts": obj.contracts, 
@@ -195,7 +195,7 @@ class objmodelClient:
 	# Delete extContractsGroup
 	def deleteExtContractsGroup(self, tenantName, contractsGroupName):
 	    # Delete ExtContractsGroup
-	    deleteUrl = self.baseUrl + '/api/extContractsGroups/' + tenantName + ":" + contractsGroupName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/extContractsGroups/' + tenantName + ":" + contractsGroupName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -204,14 +204,14 @@ class objmodelClient:
 	# List all extContractsGroup objects
 	def listExtContractsGroup(self):
 	    # Get a list of extContractsGroup objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/extContractsGroups/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/extContractsGroups/')
 	    if retData == "Error":
 	        errorExit("list ExtContractsGroup failed")
 
 	    return json.loads(retData)
 	# Create global
 	def createGlobal(self, obj):
-	    postUrl = self.baseUrl + '/api/globals/' + obj.name  + '/'
+	    postUrl = self.baseUrl + '/api/v1/globals/' + obj.name  + '/'
 
 	    jdata = json.dumps({ 
 			"name": obj.name, 
@@ -229,7 +229,7 @@ class objmodelClient:
 	# Delete global
 	def deleteGlobal(self, name):
 	    # Delete Global
-	    deleteUrl = self.baseUrl + '/api/globals/' + name  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/globals/' + name  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -238,14 +238,14 @@ class objmodelClient:
 	# List all global objects
 	def listGlobal(self):
 	    # Get a list of global objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/globals/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/globals/')
 	    if retData == "Error":
 	        errorExit("list Global failed")
 
 	    return json.loads(retData)
 	# Create network
 	def createNetwork(self, obj):
-	    postUrl = self.baseUrl + '/api/networks/' + obj.tenantName + ":" + obj.networkName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/networks/' + obj.tenantName + ":" + obj.networkName  + '/'
 
 	    jdata = json.dumps({ 
 			"encap": obj.encap, 
@@ -268,7 +268,7 @@ class objmodelClient:
 	# Delete network
 	def deleteNetwork(self, tenantName, networkName):
 	    # Delete Network
-	    deleteUrl = self.baseUrl + '/api/networks/' + tenantName + ":" + networkName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/networks/' + tenantName + ":" + networkName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -277,14 +277,14 @@ class objmodelClient:
 	# List all network objects
 	def listNetwork(self):
 	    # Get a list of network objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/networks/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/networks/')
 	    if retData == "Error":
 	        errorExit("list Network failed")
 
 	    return json.loads(retData)
 	# Create policy
 	def createPolicy(self, obj):
-	    postUrl = self.baseUrl + '/api/policys/' + obj.tenantName + ":" + obj.policyName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/policys/' + obj.tenantName + ":" + obj.policyName  + '/'
 
 	    jdata = json.dumps({ 
 			"policyName": obj.policyName, 
@@ -300,7 +300,7 @@ class objmodelClient:
 	# Delete policy
 	def deletePolicy(self, tenantName, policyName):
 	    # Delete Policy
-	    deleteUrl = self.baseUrl + '/api/policys/' + tenantName + ":" + policyName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/policys/' + tenantName + ":" + policyName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -309,14 +309,14 @@ class objmodelClient:
 	# List all policy objects
 	def listPolicy(self):
 	    # Get a list of policy objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/policys/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/policys/')
 	    if retData == "Error":
 	        errorExit("list Policy failed")
 
 	    return json.loads(retData)
 	# Create rule
 	def createRule(self, obj):
-	    postUrl = self.baseUrl + '/api/rules/' + obj.tenantName + ":" + obj.policyName + ":" + obj.ruleId  + '/'
+	    postUrl = self.baseUrl + '/api/v1/rules/' + obj.tenantName + ":" + obj.policyName + ":" + obj.ruleId  + '/'
 
 	    jdata = json.dumps({ 
 			"action": obj.action, 
@@ -344,7 +344,7 @@ class objmodelClient:
 	# Delete rule
 	def deleteRule(self, tenantName, policyName, ruleId):
 	    # Delete Rule
-	    deleteUrl = self.baseUrl + '/api/rules/' + tenantName + ":" + policyName + ":" + ruleId  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/rules/' + tenantName + ":" + policyName + ":" + ruleId  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -353,14 +353,14 @@ class objmodelClient:
 	# List all rule objects
 	def listRule(self):
 	    # Get a list of rule objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/rules/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/rules/')
 	    if retData == "Error":
 	        errorExit("list Rule failed")
 
 	    return json.loads(retData)
 	# Create serviceLB
 	def createServiceLB(self, obj):
-	    postUrl = self.baseUrl + '/api/serviceLBs/' + obj.tenantName + ":" + obj.serviceName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/serviceLBs/' + obj.tenantName + ":" + obj.serviceName  + '/'
 
 	    jdata = json.dumps({ 
 			"ipAddress": obj.ipAddress, 
@@ -380,7 +380,7 @@ class objmodelClient:
 	# Delete serviceLB
 	def deleteServiceLB(self, tenantName, serviceName):
 	    # Delete ServiceLB
-	    deleteUrl = self.baseUrl + '/api/serviceLBs/' + tenantName + ":" + serviceName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/serviceLBs/' + tenantName + ":" + serviceName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -389,14 +389,14 @@ class objmodelClient:
 	# List all serviceLB objects
 	def listServiceLB(self):
 	    # Get a list of serviceLB objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/serviceLBs/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/serviceLBs/')
 	    if retData == "Error":
 	        errorExit("list ServiceLB failed")
 
 	    return json.loads(retData)
 	# Create tenant
 	def createTenant(self, obj):
-	    postUrl = self.baseUrl + '/api/tenants/' + obj.tenantName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/tenants/' + obj.tenantName  + '/'
 
 	    jdata = json.dumps({ 
 			"defaultNetwork": obj.defaultNetwork, 
@@ -412,7 +412,7 @@ class objmodelClient:
 	# Delete tenant
 	def deleteTenant(self, tenantName):
 	    # Delete Tenant
-	    deleteUrl = self.baseUrl + '/api/tenants/' + tenantName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/tenants/' + tenantName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -421,14 +421,14 @@ class objmodelClient:
 	# List all tenant objects
 	def listTenant(self):
 	    # Get a list of tenant objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/tenants/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/tenants/')
 	    if retData == "Error":
 	        errorExit("list Tenant failed")
 
 	    return json.loads(retData)
 	# Create volume
 	def createVolume(self, obj):
-	    postUrl = self.baseUrl + '/api/volumes/' + obj.tenantName + ":" + obj.volumeName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/volumes/' + obj.tenantName + ":" + obj.volumeName  + '/'
 
 	    jdata = json.dumps({ 
 			"datastoreType": obj.datastoreType, 
@@ -448,7 +448,7 @@ class objmodelClient:
 	# Delete volume
 	def deleteVolume(self, tenantName, volumeName):
 	    # Delete Volume
-	    deleteUrl = self.baseUrl + '/api/volumes/' + tenantName + ":" + volumeName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/volumes/' + tenantName + ":" + volumeName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -457,14 +457,14 @@ class objmodelClient:
 	# List all volume objects
 	def listVolume(self):
 	    # Get a list of volume objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/volumes/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/volumes/')
 	    if retData == "Error":
 	        errorExit("list Volume failed")
 
 	    return json.loads(retData)
 	# Create volumeProfile
 	def createVolumeProfile(self, obj):
-	    postUrl = self.baseUrl + '/api/volumeProfiles/' + obj.tenantName + ":" + obj.volumeProfileName  + '/'
+	    postUrl = self.baseUrl + '/api/v1/volumeProfiles/' + obj.tenantName + ":" + obj.volumeProfileName  + '/'
 
 	    jdata = json.dumps({ 
 			"datastoreType": obj.datastoreType, 
@@ -484,7 +484,7 @@ class objmodelClient:
 	# Delete volumeProfile
 	def deleteVolumeProfile(self, tenantName, volumeProfileName):
 	    # Delete VolumeProfile
-	    deleteUrl = self.baseUrl + '/api/volumeProfiles/' + tenantName + ":" + volumeProfileName  + '/'
+	    deleteUrl = self.baseUrl + '/api/v1/volumeProfiles/' + tenantName + ":" + volumeProfileName  + '/'
 	    response = httpDelete(deleteUrl)
 
 	    if response == "Error":
@@ -493,7 +493,7 @@ class objmodelClient:
 	# List all volumeProfile objects
 	def listVolumeProfile(self):
 	    # Get a list of volumeProfile objects
-	    retDate = urllib2.urlopen(self.baseUrl + '/api/volumeProfiles/')
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/volumeProfiles/')
 	    if retData == "Error":
 	        errorExit("list VolumeProfile failed")
 

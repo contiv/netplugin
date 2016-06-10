@@ -491,6 +491,57 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 	return err
 }
 
+func getIPRange(nwCfg *mastercfg.CfgNetworkState, startIdx, endIdx uint) string {
+	startAddress, err := netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, startIdx)
+	if err != nil {
+		log.Errorf("GetAllocatedIPs: getting ipAddress for idx %d: %s", startIdx, err)
+		startAddress = ""
+	}
+	if startIdx == endIdx {
+		return startAddress
+	}
+	endAddress, err := netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, endIdx)
+	if err != nil {
+		log.Errorf("GetAllocatedIPs: getting ipAddress for idx %d: %s", endIdx, err)
+		endAddress = ""
+	}
+	return startAddress + "-" + endAddress
+}
+
+// ListAllocatedIPs returns a string of allocated IPs in a network
+func ListAllocatedIPs(nwCfg *mastercfg.CfgNetworkState) string {
+	idx := uint(0)
+	startIdx := idx
+	list := []string{}
+	inRange := false
+
+	netutils.ClearReservedEntries(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
+	for {
+		foundValue, found := nwCfg.IPAllocMap.NextSet(idx)
+		if !found {
+			break
+		}
+
+		if !inRange { // begin of range
+			startIdx = foundValue
+			inRange = true
+		} else if foundValue > idx { // end of range
+			thisRange := getIPRange(nwCfg, startIdx, idx-1)
+			list = append(list, thisRange)
+			startIdx = foundValue
+		}
+		idx = foundValue + 1
+	}
+
+	// list end with allocated value
+	if inRange {
+		thisRange := getIPRange(nwCfg, startIdx, idx-1)
+		list = append(list, thisRange)
+	}
+
+	return strings.Join(list, ", ")
+}
+
 // Allocate an address from the network
 func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv6 bool) (string, error) {
 	var ipAddress string

@@ -18,6 +18,7 @@ package resources
 import (
 	"reflect"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 )
 
@@ -150,6 +151,18 @@ func (rm *StateResourceManager) UndefineResource(id, desc string) error {
 	rsrc.Deinit()
 	return nil
 
+}
+
+// GetResourceList get the list of allocated as string for inspection
+func (rm *StateResourceManager) GetResourceList(id, desc string) (uint, string) {
+	// XXX: need to take care of distibuted updates, locks etc here
+	rsrc, _, err := rm.findResource(id, desc)
+	if err != nil {
+		log.Errorf("unable to find resource %s desc %s", id, desc)
+		return 0, ""
+	}
+
+	return rsrc.GetList()
 }
 
 // AllocateResourceVal yields the core.Resource for the id and description.

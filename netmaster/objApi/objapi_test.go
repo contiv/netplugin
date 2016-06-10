@@ -156,6 +156,21 @@ func checkCreateNetwork(t *testing.T, expError bool, tenant, network, nwType, en
 	}
 }
 
+// checkInspectNetwork inspects network and checks for error
+func checkInspectNetwork(t *testing.T, expError bool, tenant, network, allocedIPs string, pktTag, addrCount int) {
+	insp, err := contivClient.NetworkInspect(tenant, network)
+	if err != nil && !expError {
+		t.Fatalf("Error inspecting network {%s.%s}. Err: %v", network, tenant, err)
+	} else if err == nil && expError {
+		t.Fatalf("Inspect network {%s.%s} succeded while expecing error", network, tenant)
+	} else if err == nil {
+		if insp.Oper.AllocatedAddressesCount != addrCount || insp.Oper.PktTag != pktTag ||
+			insp.Oper.AllocatedIPAddresses != allocedIPs {
+			t.Fatalf("Inspect network {%+v} failed with mismatching values", insp)
+		}
+	}
+}
+
 // verifyNetworkState verifies network state es as expected
 func verifyNetworkState(t *testing.T, tenant, network, nwType, encap, subnet, gw string, subnetLen uint, pktTag, extTag int, v6subnet, v6gw string, v6subnetLen uint) {
 	networkID := network + "." + tenant
@@ -202,6 +217,20 @@ func checkDeleteNetwork(t *testing.T, expError bool, tenant, network string) {
 		err = nwCfg.Read(networkID)
 		if err == nil {
 			t.Fatalf("Network state %s not deleted", networkID)
+		}
+	}
+}
+
+// checkInspectGlobal inspects network and checks for error
+func checkInspectGlobal(t *testing.T, expError bool, allocedVlans, allocedVxlans string) {
+	insp, err := contivClient.GlobalInspect("global")
+	if err != nil && !expError {
+		t.Fatalf("Error inspecting global info. Err: %v", err)
+	} else if err == nil && expError {
+		t.Fatalf("Inspect global info succeded while expecing error")
+	} else if err == nil {
+		if insp.Oper.VlansInUse != allocedVlans || insp.Oper.VxlansInUse != allocedVxlans {
+			t.Fatalf("Inspect network {%+v} failed with mismatching ", insp)
 		}
 	}
 }
@@ -613,11 +642,15 @@ func TestTenantAddDelete(t *testing.T) {
 func TestNetworkAddDelete(t *testing.T) {
 	// Basic vlan network
 	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "10.1.1.254", 1, 0)
+	checkInspectGlobal(t, false, "1", "")
 	verifyNetworkState(t, "default", "contiv", "data", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
 
 	// Basic Vxlan network
 	checkCreateNetwork(t, false, "default", "contiv", "", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "10.1.1.254", 1, 0)
+	checkInspectGlobal(t, false, "", "1")
 	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
 
@@ -628,6 +661,8 @@ func TestNetworkAddDelete(t *testing.T) {
 
 	// Basic network without gateway
 	checkCreateNetwork(t, false, "default", "contiv-gw", "", "vxlan", "10.1.1.1/16", "", 1, "", "")
+	checkInspectNetwork(t, false, "default", "contiv-gw", "", 1, 0)
+	checkInspectGlobal(t, false, "", "1")
 	verifyNetworkState(t, "default", "contiv-gw", "data", "vxlan", "10.1.1.1", "", 16, 1, 1, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv-gw")
 
@@ -638,6 +673,8 @@ func TestNetworkAddDelete(t *testing.T) {
 
 	// Infra vlan network create and delete
 	checkCreateNetwork(t, false, "default", "infraNw", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkInspectNetwork(t, false, "default", "infraNw", "10.1.1.254", 1, 0)
+	checkInspectGlobal(t, false, "1", "")
 	time.Sleep(time.Second)
 	verifyNetworkState(t, "default", "infraNw", "infra", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "infraNw")

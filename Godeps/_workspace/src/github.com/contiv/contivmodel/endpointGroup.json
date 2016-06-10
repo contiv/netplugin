@@ -3,9 +3,10 @@
 	"objects": [
 		{
 			"name": "endpointGroup",
+			"version": "v1",
 			"type": "object",
 			"key": [ "tenantName", "groupName" ],
-			"properties": {
+			"cfgProperties": {
 				"groupName": {
 					"type": "string",
 					"description": "Endpoint group Name",

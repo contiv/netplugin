@@ -25,6 +25,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
@@ -528,5 +529,155 @@ func TestNetworkDeleteWithEPs(t *testing.T) {
 		if err == nil || (err != nil && !strings.Contains(err.Error(), "Error: Network has active endpoints")) {
 			t.Fatalf("Network delete did not Fail with Active EPs.")
 		}
+	}
+}
+
+func TestGetAllocatedIPs(t *testing.T) {
+	cfgBytes := []byte(`{
+    "Tenants" : [{
+        "Name"                      : "teaone",
+        "Networks"  : [{
+            "Name"                : "orange",
+			"SubnetCIDR"			: "10.1.1.0/24",
+			"Gateway"				: "10.1.1.254",
+            "Endpoints" : [{
+                "Container"       : "myContainer1"
+            },
+			{
+                "Container"       : "myContainer2"
+            },
+            {
+                "Container"       : "myContainer3"
+            }]
+        },
+		{
+            "Name"                : "blue",
+			"SubnetCIDR"			: "10.1.1.0/24",
+            "Endpoints" : [{
+                "Container"       : "myContainer1"
+            },
+			{
+                "Container"       : "myContainer2"
+            },
+			{
+                "Container"       : "myContainer3"
+            },
+            {
+                "Container"       : "myContainer4"
+            }]
+		},
+		{
+            "Name"                : "green",
+			"SubnetCIDR"			: "10.1.1.0/24",
+			"Gateway"				: "10.1.1.254"
+        },
+		{
+            "Name"                : "red",
+			"SubnetCIDR"			: "10.1.1.0/24"
+        },
+		{
+            "Name"                : "yellow",
+			"SubnetCIDR"			: "10.1.1.0/24",
+			"Gateway"				: "10.1.1.254",
+            "Endpoints" : [{
+                "Container"       : "myContainer1"
+            },
+			{
+                "Container"       : "myContainer2"
+            },
+			{
+                "Container"       : "myContainer3"
+            },
+			{
+                "Container"       : "myContainer4"
+            },
+			{
+                "Container"       : "myContainer5"
+            },
+			{
+                "Container"       : "myContainer6"
+            },
+            {
+                "Container"       : "myContainer7"
+            }]
+		}]
+    }]}`)
+	initFakeStateDriver(t)
+	defer deinitFakeStateDriver()
+
+	applyConfig(t, cfgBytes)
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = fakeDriver
+
+	// default-gw with endpoints
+	expectedAllocedIPs := "10.1.1.1-10.1.1.3, 10.1.1.254"
+	networkID := "orange.teaone"
+	if err := nwCfg.Read(networkID); err != nil {
+		log.Fatalf("unable to locate network: %s", networkID)
+	}
+
+	networks := ListAllocatedIPs(nwCfg)
+	if networks != expectedAllocedIPs {
+		log.Fatalf("got networks '%s' expected '%s'", networks, expectedAllocedIPs)
+	}
+
+	// endpoints without default-gw
+	expectedAllocedIPs = "10.1.1.1-10.1.1.4"
+	networkID = "blue.teaone"
+	if err := nwCfg.Read(networkID); err != nil {
+		log.Fatalf("unable to locate network: %s", networkID)
+	}
+
+	networks = ListAllocatedIPs(nwCfg)
+	if networks != expectedAllocedIPs {
+		log.Fatalf("got networks '%s' expected '%s'", networks, expectedAllocedIPs)
+	}
+
+	// default-gw without endpoints
+	expectedAllocedIPs = "10.1.1.254"
+	networkID = "green.teaone"
+	if err := nwCfg.Read(networkID); err != nil {
+		log.Fatalf("unable to locate network: %s", networkID)
+	}
+
+	networks = ListAllocatedIPs(nwCfg)
+	if networks != expectedAllocedIPs {
+		log.Fatalf("got networks '%s' expected '%s'", networks, expectedAllocedIPs)
+	}
+
+	// no default-gw, no endpionts
+	expectedAllocedIPs = ""
+	networkID = "red.teaone"
+	if err := nwCfg.Read(networkID); err != nil {
+		log.Fatalf("unable to locate network: %s", networkID)
+	}
+
+	networks = ListAllocatedIPs(nwCfg)
+	if networks != expectedAllocedIPs {
+		log.Fatalf("got networks '%s' expected '%s'", networks, expectedAllocedIPs)
+	}
+
+	// default-gw, scattered endpionts, multiple ranges
+	networkID = "yellow.teaone"
+	epID := getEpName(networkID, &intent.ConfigEP{Container: "myContainer3"})
+	if _, err := DeleteEndpointID(fakeDriver, epID); err != nil {
+		log.Errorf("error deleting endpoint, %s", err)
+	}
+	epID = getEpName(networkID, &intent.ConfigEP{Container: "myContainer4"})
+	if _, err := DeleteEndpointID(fakeDriver, epID); err != nil {
+		log.Errorf("error deleting endpoint, %s", err)
+	}
+	epID = getEpName(networkID, &intent.ConfigEP{Container: "myContainer6"})
+	if _, err := DeleteEndpointID(fakeDriver, epID); err != nil {
+		log.Errorf("error deleting endpoint, %s", err)
+	}
+	expectedAllocedIPs = "10.1.1.1-10.1.1.2, 10.1.1.5, 10.1.1.7, 10.1.1.254"
+	if err := nwCfg.Read(networkID); err != nil {
+		log.Fatalf("unable to locate network: %s", networkID)
+	}
+
+	networks = ListAllocatedIPs(nwCfg)
+	if networks != expectedAllocedIPs {
+		log.Fatalf("got networks '%s' expected '%s'", networks, expectedAllocedIPs)
 	}
 }
