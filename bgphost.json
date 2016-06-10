@@ -2,9 +2,10 @@
     "name": "contivModel",
     "objects": [{
         "name": "Bgp",
+        "version": "v1",
         "type": "object",
         "key": ["hostname"],
-        "properties": {
+        "cfgProperties": {
             "hostname": {
                 "type": "string",
                 "title": "host name",

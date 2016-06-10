@@ -3,9 +3,10 @@
 	"objects": [
 		{
 			"name": "policy",
+			"version": "v1",
 			"type": "object",
 			"key": [ "tenantName", "policyName" ],
-			"properties": {
+			"cfgProperties": {
 				"policyName": {
 					"type": "string",
 					"description": "Policy Name",

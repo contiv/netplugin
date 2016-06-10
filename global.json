@@ -3,9 +3,10 @@
 	"objects": [
 		{
 			"name": "global",
+			"version": "v1",
 			"type": "object",
 			"key": [ "name"],
-			"properties": {
+			"cfgProperties": {
 				"name": {
 					"type": "string",
 					"title": "name of this block(must be 'global')",
@@ -29,6 +30,23 @@
 					"type": "string",
 					"title": "Allwed vxlan range",
 					"format": "^([0-9]{1,8}?-[0-9]{1,8}?)$"
+				}
+			},
+			"operProperties": {
+				"numNetworks": {
+					"type": "int"
+				},
+				"defaultNetwork": {
+					"type": "string"
+				},
+				"vlansInUse": {
+					"type": "string"
+				},
+				"vxlansInUse": {
+					"type": "string"
+				},
+				"freeVXLANsStart": {
+					"type": "int"
 				}
 			}
 		}
