@@ -81,27 +81,6 @@ type EndpointGroupLinks struct {
 	Tenant     modeldb.Link `json:"Tenant,omitempty"`
 }
 
-type ExtContractsGroup struct {
-	// every object has a key
-	Key string `json:"key,omitempty"`
-
-	Contracts          []string `json:"contracts,omitempty"`
-	ContractsGroupName string   `json:"contractsGroupName,omitempty"` // Contracts group name
-	ContractsType      string   `json:"contractsType,omitempty"`      // Contracts type
-	TenantName         string   `json:"tenantName,omitempty"`         // Tenant name
-
-	// add link-sets and links
-	LinkSets ExtContractsGroupLinkSets `json:"link-sets,omitempty"`
-}
-
-type ExtContractsGroupLinkSets struct {
-	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
-}
-
-type EndpointGroupInspect struct {
-	Config EndpointGroup
-}
-
 type EndpointGroupInspect struct {
 	Config EndpointGroup
 }
@@ -125,7 +104,6 @@ type ExtContractsGroupLinkSets struct {
 type ExtContractsGroupInspect struct {
 	Config ExtContractsGroup
 }
-
 type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
