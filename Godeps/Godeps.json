@@ -75,23 +75,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
+			"Rev": "2bec1e4efe6a4a7aadd520b255053b8ea487e4b7"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
+			"Rev": "2bec1e4efe6a4a7aadd520b255053b8ea487e4b7"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
+			"Rev": "2bec1e4efe6a4a7aadd520b255053b8ea487e4b7"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
+			"Rev": "2bec1e4efe6a4a7aadd520b255053b8ea487e4b7"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "dfb43a53bf5ea3fb65c2239669d6a68db69c4fc5"
+			"Rev": "2bec1e4efe6a4a7aadd520b255053b8ea487e4b7"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",
@@ -288,19 +288,19 @@
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "b692b84c96349d6f30d0cd2114196ef508847f9a"
+			"Rev": "94f338a137b50db6fa7d32e8cc3b406306616280"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "b692b84c96349d6f30d0cd2114196ef508847f9a"
+			"Rev": "94f338a137b50db6fa7d32e8cc3b406306616280"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "b692b84c96349d6f30d0cd2114196ef508847f9a"
+			"Rev": "94f338a137b50db6fa7d32e8cc3b406306616280"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "b692b84c96349d6f30d0cd2114196ef508847f9a"
+			"Rev": "94f338a137b50db6fa7d32e8cc3b406306616280"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",

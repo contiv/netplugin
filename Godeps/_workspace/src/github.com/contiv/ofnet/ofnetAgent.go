@@ -86,6 +86,7 @@ type EndpointInfo struct {
 	MacAddr           net.HardwareAddr
 	Vlan              uint16
 	IpAddr            net.IP
+	Ipv6Addr          net.IP
 	Vrf               string
 	EndpointGroupVlan uint16
 }
@@ -382,6 +383,11 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		log.Errorf("Invalid vlan to vrf mapping for %v", endpoint.Vlan)
 		return errors.New("Invalid vlan to vrf mapping")
 	}
+	var v6mask net.IP
+	if endpoint.Ipv6Addr != nil {
+		v6mask = net.ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
+	}
+
 	// Build endpoint registry info
 	epreg := &OfnetEndpoint{
 		EndpointID:        epId,
@@ -389,6 +395,8 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		EndpointGroup:     endpoint.EndpointGroup,
 		IpAddr:            endpoint.IpAddr,
 		IpMask:            net.ParseIP("255.255.255.255"),
+		Ipv6Addr:          endpoint.Ipv6Addr,
+		Ipv6Mask:          v6mask,
 		Vrf:               *vrf,
 		MacAddrStr:        endpoint.MacAddr.String(),
 		Vlan:              endpoint.Vlan,
@@ -441,7 +449,7 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 	// Call the datapath
 	err := self.datapath.RemoveLocalEndpoint(*epreg)
 	if err != nil {
-		log.Errorf("Error deleting endpointon port %d. Err: %v", portNo, err)
+		log.Errorf("Error deleting endpoint port %d. Err: %v", portNo, err)
 	}
 
 	// delete the endpoint from local endpoint table

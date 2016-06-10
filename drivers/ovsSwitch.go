@@ -321,6 +321,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		MacAddr:           macAddr,
 		Vlan:              uint16(nwPktTag),
 		IpAddr:            net.ParseIP(cfgEp.IPAddress),
+		Ipv6Addr:          net.ParseIP(cfgEp.IPv6Address),
 		EndpointGroup:     cfgEp.EndpointGroupID,
 		EndpointGroupVlan: uint16(pktTag),
 	}
@@ -359,6 +360,7 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		MacAddr:       macAddr,
 		Vlan:          uint16(pktTag),
 		IpAddr:        net.ParseIP(cfgEp.IPAddress),
+		Ipv6Addr:      net.ParseIP(cfgEp.IPv6Address),
 		EndpointGroup: cfgEp.EndpointGroupID,
 	}
 

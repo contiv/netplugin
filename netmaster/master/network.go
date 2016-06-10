@@ -100,14 +100,18 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		return err
 	}
 
+	ipv6Subnet, ipv6SubnetLen, _ := netutils.ParseCIDR(network.IPv6SubnetCIDR)
+
 	// construct and update network state
 	nwCfg = &mastercfg.CfgNetworkState{
-		Tenant:      tenantName,
-		NetworkName: network.Name,
-		NwType:      network.NwType,
-		PktTagType:  network.PktTagType,
-		SubnetIP:    subnetIP,
-		SubnetLen:   subnetLen,
+		Tenant:        tenantName,
+		NetworkName:   network.Name,
+		NwType:        network.NwType,
+		PktTagType:    network.PktTagType,
+		SubnetIP:      subnetIP,
+		SubnetLen:     subnetLen,
+		IPv6Subnet:    ipv6Subnet,
+		IPv6SubnetLen: ipv6SubnetLen,
 	}
 
 	nwCfg.ID = networkID
@@ -149,6 +153,18 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		netutils.SetBitsOutsideRange(&nwCfg.IPAllocMap, subnetIP, subnetLen)
 	}
 	nwCfg.SubnetIP = subnetAddr
+
+	if network.IPv6Gateway != "" {
+		nwCfg.IPv6Gateway = network.IPv6Gateway
+
+		// Reserve gateway IPv6 address if gateway is specified
+		hostID, err := netutils.GetIPv6HostID(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, nwCfg.IPv6Gateway)
+		if err != nil {
+			log.Errorf("Error parsing gateway address %s. Err: %v", nwCfg.IPv6Gateway, err)
+			return err
+		}
+		netutils.ReserveIPv6HostID(hostID, &nwCfg.IPv6AllocMap)
+	}
 
 	err = nwCfg.Write()
 	if err != nil {
@@ -476,27 +492,42 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 }
 
 // Allocate an address from the network
-func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (string, error) {
+func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv6 bool) (string, error) {
 	var ipAddress string
 	var ipAddrValue uint
 	var found bool
 	var err error
+	var hostID string
 
 	// alloc address
 	if reqAddr == "" {
-		ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0)
-		if !found {
-			log.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
-				nwCfg.SubnetIP, nwCfg.SubnetLen)
-			err = core.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
-				nwCfg.SubnetIP, nwCfg.SubnetLen)
-			return "", err
-		}
-
-		ipAddress, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
-		if err != nil {
-			log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
-			return "", err
+		if isIPv6 {
+			// Get the next available IPv6 address
+			hostID, err = netutils.GetNextIPv6HostID(nwCfg.IPv6LastHost, nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, nwCfg.IPv6AllocMap)
+			if err != nil {
+				log.Errorf("create eps: error allocating ip. Error: %s", err)
+				return "", err
+			}
+			ipAddress, err = netutils.GetSubnetIPv6(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, hostID)
+			if err != nil {
+				log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
+				return "", err
+			}
+			nwCfg.IPv6LastHost = hostID
+		} else {
+			ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0)
+			if !found {
+				log.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
+					nwCfg.SubnetIP, nwCfg.SubnetLen)
+				err = core.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
+					nwCfg.SubnetIP, nwCfg.SubnetLen)
+				return "", err
+			}
+			ipAddress, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
+			if err != nil {
+				log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
+				return "", err
+			}
 		}
 
 		// Docker, Mesos issue a Alloc Address first, followed by a CreateEndpoint
@@ -508,18 +539,31 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 		nwCfg.EpAddrCount++
 
 	} else if reqAddr != "" && nwCfg.SubnetIP != "" {
-		ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
-		if err != nil {
-			log.Errorf("create eps: error getting host id from hostIP %s Subnet %s/%d. Error: %s",
-				reqAddr, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
-			return "", err
+		if isIPv6 {
+			hostID, err = netutils.GetIPv6HostID(nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, reqAddr)
+			if err != nil {
+				log.Errorf("create eps: error getting host id from hostIP %s Subnet %s/%d. Error: %s",
+					reqAddr, nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, err)
+				return "", err
+			}
+		} else {
+			ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
+			if err != nil {
+				log.Errorf("create eps: error getting host id from hostIP %s Subnet %s/%d. Error: %s",
+					reqAddr, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
+				return "", err
+			}
 		}
 
 		ipAddress = reqAddr
 	}
 
-	// Set the bitmap
-	nwCfg.IPAllocMap.Set(ipAddrValue)
+	if isIPv6 {
+		netutils.ReserveIPv6HostID(hostID, &nwCfg.IPv6AllocMap)
+	} else {
+		// Set the bitmap
+		nwCfg.IPAllocMap.Set(ipAddrValue)
+	}
 
 	err = nwCfg.Write()
 	if err != nil {
@@ -532,22 +576,38 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string) (stri
 
 // networkReleaseAddress release the ip address
 func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) error {
-	ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddress)
-	if err != nil {
-		log.Errorf("error getting host id from hostIP %s Subnet %s/%d. Error: %s",
-			ipAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
-		return err
+	isIPv6 := netutils.IsIPv6(ipAddress)
+	if isIPv6 {
+		hostID, err := netutils.GetIPv6HostID(nwCfg.SubnetIP, nwCfg.SubnetLen, ipAddress)
+		if err != nil {
+			log.Errorf("error getting host id from hostIP %s Subnet %s/%d. Error: %s",
+				ipAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
+			return err
+		}
+		// networkReleaseAddress is called from multiple places
+		// Make sure we decrement the EpCount only if the IPAddress
+		// was not already freed earlier
+		if _, found := nwCfg.IPv6AllocMap[hostID]; found {
+			nwCfg.EpAddrCount--
+		}
+		delete(nwCfg.IPv6AllocMap, hostID)
+	} else {
+		ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddress)
+		if err != nil {
+			log.Errorf("error getting host id from hostIP %s Subnet %s/%d. Error: %s",
+				ipAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
+			return err
+		}
+		// networkReleaseAddress is called from multiple places
+		// Make sure we decrement the EpCount only if the IPAddress
+		// was not already freed earlier
+		if nwCfg.IPAllocMap.Test(ipAddrValue) {
+			nwCfg.EpAddrCount--
+		}
+		nwCfg.IPAllocMap.Clear(ipAddrValue)
 	}
 
-	// networkReleaseAddress is called from multiple places
-	// Make sure we decrement the EpCount only if the IPAddress
-	// was not already freed earlier
-	if nwCfg.IPAllocMap.Test(ipAddrValue) {
-		nwCfg.EpAddrCount--
-	}
-	nwCfg.IPAllocMap.Clear(ipAddrValue)
-
-	err = nwCfg.Write()
+	err := nwCfg.Write()
 	if err != nil {
 		log.Errorf("error writing nw config. Error: %s", err)
 		return err

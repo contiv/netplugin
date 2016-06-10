@@ -61,7 +61,7 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *intent.ConfigT
 func allocSetEpAddress(ep *intent.ConfigEP, epCfg *mastercfg.CfgEndpointState,
 	nwCfg *mastercfg.CfgNetworkState) (err error) {
 
-	ipAddress, err := networkAllocAddress(nwCfg, ep.IPAddress)
+	ipAddress, err := networkAllocAddress(nwCfg, ep.IPAddress, false)
 	if err != nil {
 		log.Errorf("Error allocating IP address. Err: %v", err)
 		return
@@ -72,7 +72,18 @@ func allocSetEpAddress(ep *intent.ConfigEP, epCfg *mastercfg.CfgEndpointState,
 	// Set mac address which is derived from IP address
 	ipAddr := net.ParseIP(ipAddress)
 	macAddr := fmt.Sprintf("02:02:%02x:%02x:%02x:%02x", ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15])
+
 	epCfg.MacAddress = macAddr
+
+	if nwCfg.IPv6Subnet != "" {
+		var ipv6Address string
+		ipv6Address, err = networkAllocAddress(nwCfg, ep.IPv6Address, true)
+		if err != nil {
+			log.Errorf("Error allocating IP address. Err: %v", err)
+			return
+		}
+		epCfg.IPv6Address = ipv6Address
+	}
 
 	return
 }

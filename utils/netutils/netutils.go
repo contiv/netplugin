@@ -18,6 +18,7 @@ package netutils
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"strconv"
@@ -57,6 +58,9 @@ func ValidateNetworkRangeParams(ipRange string, subnetLen uint) error {
 
 	return nil
 }
+
+// IsIPv6 Checks if the address string is IPv6 address
+func IsIPv6(ip string) bool { return strings.Contains(ip, ":") }
 
 // InitSubnetBitset initializes a bit set with 2^(32 - subnetLen) bits
 func InitSubnetBitset(b *bitset.BitSet, subnetLen uint) {
@@ -181,6 +185,140 @@ func GetIPNumber(subnetIP string, subnetLen uint, allocSubnetLen uint, hostIP st
 	return uint(hostID), nil
 }
 
+// ReserveIPv6HostID sets the hostId in the AllocMap
+func ReserveIPv6HostID(hostID string, IPv6AllocMap *map[string]bool) {
+	if hostID == "" {
+		return
+	}
+	if *IPv6AllocMap == nil {
+		*IPv6AllocMap = make(map[string]bool)
+	}
+	(*IPv6AllocMap)[hostID] = true
+}
+
+// GetNextIPv6HostID returns the next available hostId in the AllocMap
+func GetNextIPv6HostID(hostID, subnetAddr string, subnetLen uint, IPv6AllocMap map[string]bool) (string, error) {
+	if hostID == "" {
+		hostID = "::"
+	}
+	if subnetLen == 0 {
+		return "", core.Errorf("subnet length %d is invalid", subnetLen)
+	}
+
+	hostidIP := net.ParseIP(hostID)
+
+	// start with the carryOver 1 to get the next hostID
+	var carryOver = 1
+	var allocd = true
+
+	for allocd == true {
+		// Add 1 to hostID
+		for i := len(hostidIP) - 1; i >= 0; i-- {
+			var temp int
+			temp = int(hostidIP[i]) + carryOver
+			if temp > int(0xFF) {
+				hostidIP[i] = 0
+				carryOver = 1
+			} else {
+				hostidIP[i] = uint8(temp)
+				carryOver = 0
+				break
+			}
+		}
+		// Check if this hostID is already allocated
+		if _, allocd = IPv6AllocMap[hostidIP.String()]; allocd == true {
+			// Already allocated find the next hostID
+			carryOver = 1
+		} else {
+			// allocd == false. check if we reached MaxHosts
+			offset := (subnetLen - 1) / 8
+			masklen := subnetLen % 8
+			mask := ((1 << masklen) - 1) << (8 - masklen)
+			if (hostidIP[offset] & byte(mask)) != 0 {
+				// if hostID is outside subnet range,
+				//	check if we have reached MaxHosts
+				maxHosts := math.Pow(2, float64(128-subnetLen)) - 1
+				if float64(len(IPv6AllocMap)) < maxHosts {
+					hostID = "::"
+					hostidIP = net.ParseIP(hostID)
+					carryOver = 1
+					allocd = true // continue the loop
+				} else {
+					return "", core.Errorf("Reached MaxHosts (%v). Cannot allocate more hosts", maxHosts)
+				}
+			}
+		}
+	}
+	return hostidIP.String(), nil
+}
+
+// GetSubnetIPv6 given a subnet IP and host identifier, calculates an IPv6 address
+// within the subnet for use.
+func GetSubnetIPv6(subnetAddr string, subnetLen uint, hostID string) (string, error) {
+	if subnetAddr == "" {
+		return "", core.Errorf("null subnet")
+	}
+
+	if subnetLen > 128 || subnetLen < 16 {
+		return "", core.Errorf("subnet length %d not supported", subnetLen)
+	}
+
+	subnetIP := net.ParseIP(subnetAddr)
+	hostidIP := net.ParseIP(hostID)
+	hostIP := net.IPv6zero
+
+	var offset int
+	for offset = 0; offset < int(subnetLen/8); offset++ {
+		hostIP[offset] = subnetIP[offset]
+	}
+	// copy the overlapping byte in subnetIP and hostID
+	if subnetLen%8 != 0 && subnetIP[offset] != 0 {
+		if hostidIP[offset]&subnetIP[offset] != 0 {
+			return "", core.Errorf("host id %s exceeds subnet %s capacity ",
+				hostID, subnetAddr)
+		}
+		hostIP[offset] = hostidIP[offset] | subnetIP[offset]
+		offset++
+	}
+
+	for ; offset < len(hostidIP); offset++ {
+		hostIP[offset] = hostidIP[offset]
+	}
+	return hostIP.String(), nil
+}
+
+// GetIPv6HostID obtains the host id from the host IP. SEe `GetSubnetIP` for more information.
+func GetIPv6HostID(subnetAddr string, subnetLen uint, hostAddr string) (string, error) {
+	if subnetLen > 128 || subnetLen < 16 {
+		return "", core.Errorf("subnet length %d not supported", subnetLen)
+	}
+	// Initialize hostID
+	hostID := net.IPv6zero
+
+	var offset uint
+
+	// get the overlapping byte
+	offset = subnetLen / 8
+	subnetIP := net.ParseIP(subnetAddr)
+	if subnetIP == nil {
+		return "", core.Errorf("Invalid subnetAddr %s ", subnetAddr)
+	}
+	s := uint8(subnetIP[offset])
+	hostIP := net.ParseIP(hostAddr)
+	if hostIP == nil {
+		return "", core.Errorf("Invalid hostAddr %s ", hostAddr)
+	}
+	h := uint8(hostIP[offset])
+	hostID[offset] = byte(h - s)
+
+	// Copy the rest of the bytes
+	for i := (offset + 1); i < 16; i++ {
+		hostID[i] = hostIP[i]
+		offset++
+	}
+	return hostID.String(), nil
+}
+
 // TagRange represents a range of integers, intended for VLAN and VXLAN
 // tagging.
 type TagRange struct {
@@ -260,7 +398,7 @@ func ParseCIDR(cidrStr string) (string, uint, error) {
 
 	subnetStr := strs[0]
 	subnetLen, err := strconv.Atoi(strs[1])
-	if subnetLen > 32 || err != nil {
+	if (IsIPv6(subnetStr) && subnetLen > 128) || err != nil || (!IsIPv6(subnetStr) && subnetLen > 32) {
 		return "", 0, core.Errorf("invalid mask in gateway/mask specification ")
 	}
 

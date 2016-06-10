@@ -105,11 +105,21 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 		}
 
 		for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+			var v6subnet, v6gateway string
+			if networkNum%2 == 0 {
+				v6subnet = ""
+				v6gateway = ""
+			} else {
+				v6subnet = fmt.Sprintf("1001:%d::/120", networkNum)
+				v6gateway = fmt.Sprintf("1001:%d::254", networkNum)
+			}
 			network := &client.Network{
 				TenantName:  "default",
 				NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
 				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 				Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
+				Ipv6Subnet:  v6subnet,
+				Ipv6Gateway: v6gateway,
 				PktTag:      1001 + networkNum,
 				Encap:       encap,
 			}
@@ -203,10 +213,17 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 		}
 
 		for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+			var v6subnet string
+			if networkNum%2 == 0 {
+				v6subnet = ""
+			} else {
+				v6subnet = fmt.Sprintf("1001:%d::/120", networkNum)
+			}
 			network := &client.Network{
 				TenantName:  "default",
 				NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
 				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
+				Ipv6Subnet:  v6subnet,
 				Encap:       encap,
 			}
 
@@ -285,11 +302,21 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 			tenantNames[tenantName] = []string{}
 
 			for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+				var v6subnet, v6gateway string
+				if networkNum%2 == 0 {
+					v6subnet = ""
+					v6gateway = ""
+				} else {
+					v6subnet = fmt.Sprintf("1001:%d:%d::/120", tenantNum, networkNum)
+					v6gateway = fmt.Sprintf("1001:%d:%d::254", tenantNum, networkNum)
+				}
 				network := &client.Network{
 					TenantName:  tenantName,
 					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
 					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
 					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
+					Ipv6Subnet:  v6subnet,
+					Ipv6Gateway: v6gateway,
 					PktTag:      pktTag + 1000,
 					Encap:       encap,
 				}

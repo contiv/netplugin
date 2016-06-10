@@ -937,14 +937,14 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 			nodeCount = 0
 			for _, node := range s.nodes {
 				out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp global rib")
-				if strings.Contains(out, cont.eth0) {
+				if strings.Contains(out, cont.eth0.ip) {
 					nodeCount++
 				} else {
 					break
 				}
 			}
 			if nodeCount == len(s.nodes) {
-				ipList = append(ipList, cont.eth0)
+				ipList = append(ipList, cont.eth0.ip)
 			}
 			if len(ipList) == len(containers) {
 				return ipList, nil

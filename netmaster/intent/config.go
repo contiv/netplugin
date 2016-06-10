@@ -30,6 +30,7 @@ type ConfigEP struct {
 	Host        string
 	AttachUUID  string
 	IPAddress   string
+	IPv6Address string
 	ServiceName string
 }
 
@@ -39,12 +40,14 @@ type ConfigNetwork struct {
 	Name string
 
 	// overrides for various functions when auto allocation is not desired
-	NwType     string
-	PktTagType string
-	PktTag     int
-	SubnetCIDR string
-	Gateway    string
-	Vrf        string
+	NwType         string
+	PktTagType     string
+	PktTag         int
+	SubnetCIDR     string
+	Gateway        string
+	IPv6SubnetCIDR string
+	IPv6Gateway    string
+	Vrf            string
 
 	// eps associated with the network
 	Endpoints []ConfigEP

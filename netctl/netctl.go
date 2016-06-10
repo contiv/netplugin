@@ -251,12 +251,20 @@ func createNetwork(ctx *cli.Context) {
 	subnet := ctx.String("subnet")
 	gateway := ctx.String("gateway")
 
+	subnetv6 := ctx.String("subnetv6")
+	gatewayv6 := ctx.String("gatewayv6")
+
 	if subnet == "" {
 		errExit(ctx, exitHelp, "Subnet is required", true)
 	}
 	if gateway != "" {
 		if ok := net.ParseIP(gateway); ok == nil {
 			errExit(ctx, exitHelp, "Invalid gateway - Enter in A.B.C.D format", true)
+		}
+	}
+	if gatewayv6 != "" {
+		if ok := net.ParseIP(gatewayv6); ok == nil {
+			errExit(ctx, exitHelp, "Invalid IPv6 gateway ", true)
 		}
 	}
 
@@ -272,6 +280,8 @@ func createNetwork(ctx *cli.Context) {
 		Encap:       encap,
 		Subnet:      subnet,
 		Gateway:     gateway,
+		Ipv6Subnet:  subnetv6,
+		Ipv6Gateway: gatewayv6,
 		PktTag:      pktTag,
 		NwType:      nwType,
 	}))
@@ -320,12 +330,12 @@ func listNetworks(ctx *cli.Context) {
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tNetwork\tNw Type\tEncap type\tPacket tag\tSubnet\tGateway\n"))
-		writer.Write([]byte("------\t-------\t-------\t----------\t----------\t-------\t------\n"))
+		writer.Write([]byte("Tenant\tNetwork\tNw Type\tEncap type\tPacket tag\tSubnet\tGateway\tIPv6Subnet\tIPv6Gateway\n"))
+		writer.Write([]byte("------\t-------\t-------\t----------\t----------\t-------\t------\t----------\t-----------\n"))
 
 		for _, net := range filtered {
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 					net.TenantName,
 					net.NetworkName,
 					net.NwType,
@@ -333,6 +343,8 @@ func listNetworks(ctx *cli.Context) {
 					net.PktTag,
 					net.Subnet,
 					net.Gateway,
+					net.Ipv6Subnet,
+					net.Ipv6Gateway,
 				)))
 		}
 	}

@@ -129,6 +129,14 @@ var Commands = []cli.Command{
 						Name:  "gateway, g",
 						Usage: "Gateway",
 					},
+					cli.StringFlag{
+						Name:  "subnetv6, s6",
+						Usage: "IPv6 Subnet CIDR ",
+					},
+					cli.StringFlag{
+						Name:  "gatewayv6, g6",
+						Usage: "IPv6 Gateway",
+					},
 				},
 				Action: createNetwork,
 			},

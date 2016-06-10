@@ -130,7 +130,7 @@ func checkError(t *testing.T, testStr string, err error) {
 }
 
 // checkCreateNetwork creates networks and checks for error
-func checkCreateNetwork(t *testing.T, expError bool, tenant, network, nwType, encap, subnet, gw string, tag int) {
+func checkCreateNetwork(t *testing.T, expError bool, tenant, network, nwType, encap, subnet, gw string, tag int, v6subnet, v6gw string) {
 	net := client.Network{
 		TenantName:  tenant,
 		NetworkName: network,
@@ -138,6 +138,8 @@ func checkCreateNetwork(t *testing.T, expError bool, tenant, network, nwType, en
 		Encap:       encap,
 		Subnet:      subnet,
 		Gateway:     gw,
+		Ipv6Subnet:  v6subnet,
+		Ipv6Gateway: v6gw,
 		PktTag:      tag,
 	}
 	err := contivClient.NetworkPost(&net)
@@ -155,7 +157,7 @@ func checkCreateNetwork(t *testing.T, expError bool, tenant, network, nwType, en
 }
 
 // verifyNetworkState verifies network state es as expected
-func verifyNetworkState(t *testing.T, tenant, network, nwType, encap, subnet, gw string, subnetLen uint, pktTag, extTag int) {
+func verifyNetworkState(t *testing.T, tenant, network, nwType, encap, subnet, gw string, subnetLen uint, pktTag, extTag int, v6subnet, v6gw string, v6subnetLen uint) {
 	networkID := network + "." + tenant
 	nwCfg := &mastercfg.CfgNetworkState{}
 	nwCfg.StateDriver = stateStore
@@ -166,7 +168,8 @@ func verifyNetworkState(t *testing.T, tenant, network, nwType, encap, subnet, gw
 
 	// verify network params
 	if nwCfg.Tenant != tenant || nwCfg.NetworkName != network || nwCfg.NwType != nwType ||
-		nwCfg.PktTagType != encap || nwCfg.SubnetIP != netutils.GetSubnetAddr(subnet, subnetLen) || nwCfg.Gateway != gw {
+		nwCfg.PktTagType != encap || nwCfg.SubnetIP != netutils.GetSubnetAddr(subnet, subnetLen) || nwCfg.Gateway != gw ||
+		nwCfg.IPv6Subnet != v6subnet || nwCfg.IPv6SubnetLen != v6subnetLen || nwCfg.IPv6Gateway != v6gw {
 		t.Fatalf("Network state {%+v} did not match expected state", nwCfg)
 	}
 
@@ -609,67 +612,73 @@ func TestTenantAddDelete(t *testing.T) {
 // TestNetworkAddDelete tests network create/delete REST api
 func TestNetworkAddDelete(t *testing.T) {
 	// Basic vlan network
-	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
-	verifyNetworkState(t, "default", "contiv", "data", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0)
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	verifyNetworkState(t, "default", "contiv", "data", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
 
 	// Basic Vxlan network
-	checkCreateNetwork(t, false, "default", "contiv", "", "vxlan", "10.1.1.1/16", "10.1.1.254", 1)
-	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1)
+	checkCreateNetwork(t, false, "default", "contiv", "", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
+	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
 
 	// Basic network with '-' in the name
-	checkCreateNetwork(t, false, "default", "contiv-valid", "", "vxlan", "10.1.1.1/16", "10.1.1.254", 1)
-	verifyNetworkState(t, "default", "contiv-valid", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1)
+	checkCreateNetwork(t, false, "default", "contiv-valid", "", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
+	verifyNetworkState(t, "default", "contiv-valid", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv-valid")
 
 	// Basic network without gateway
-	checkCreateNetwork(t, false, "default", "contiv-gw", "", "vxlan", "10.1.1.1/16", "", 1)
-	verifyNetworkState(t, "default", "contiv-gw", "data", "vxlan", "10.1.1.1", "", 16, 1, 1)
+	checkCreateNetwork(t, false, "default", "contiv-gw", "", "vxlan", "10.1.1.1/16", "", 1, "", "")
+	verifyNetworkState(t, "default", "contiv-gw", "data", "vxlan", "10.1.1.1", "", 16, 1, 1, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv-gw")
 
+	// Basic network with ipv6
+	checkCreateNetwork(t, false, "default", "contiv-ipv6", "", "vxlan", "10.1.1.1/16", "", 1, "2016:0617::/120", "")
+	verifyNetworkState(t, "default", "contiv-ipv6", "data", "vxlan", "10.1.1.1", "", 16, 1, 1, "2016:0617::", "", 120)
+	checkDeleteNetwork(t, false, "default", "contiv-ipv6")
+
 	// Infra vlan network create and delete
-	checkCreateNetwork(t, false, "default", "infraNw", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, false, "default", "infraNw", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
 	time.Sleep(time.Second)
-	verifyNetworkState(t, "default", "infraNw", "infra", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0)
+	verifyNetworkState(t, "default", "infraNw", "infra", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "infraNw")
 	time.Sleep(time.Second)
 
 	// Try creating network with invalid names
-	checkCreateNetwork(t, true, "default", "contiv:invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
-	checkCreateNetwork(t, true, "default", "contiv|invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
-	checkCreateNetwork(t, true, "default", "-invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, true, "default", "contiv:invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv|invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "-invalid", "infra", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
 
 	// Try creating network with invalid network type
-	checkCreateNetwork(t, true, "default", "infraNw", "infratest", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
-	checkCreateNetwork(t, true, "default", "infraNw", "testinfra", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
-	checkCreateNetwork(t, true, "default", "infraNw", "testdata", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
-	checkCreateNetwork(t, true, "default", "infraNw", "datatest", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, true, "default", "infraNw", "infratest", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "infraNw", "testinfra", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "infraNw", "testdata", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "infraNw", "datatest", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
 
 	// Basic IP range network checks
-	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.10-20/24", "10.1.1.254", 1)
-	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.10", "10.1.1.254", 24, 1, 1)
+	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.10-20/24", "10.1.1.254", 1, "", "")
+	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.10", "10.1.1.254", 24, 1, 1, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
 
 	// Try network create with invalid network range
-	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1-70/26", "10.1.1.63", 1)
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1-70/26", "10.1.1.63", 1, "", "")
 
 	// Try network create with invalid subnet length
-	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/32", "10.1.1.1", 1)
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/32", "10.1.1.1", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.1.1", 1, "2016:0617::/128", "")
 
 	// try creating network without tenant
-	checkCreateNetwork(t, true, "tenant1", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, true, "tenant1", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
 
 	// try invalid encap
-	checkCreateNetwork(t, true, "default", "contiv", "data", "vvvv", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vvvv", "10.1.1.1/24", "10.1.1.254", 1, "", "")
 
 	// try invalid pkt tags
-	checkCreateNetwork(t, true, "default", "contiv", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 5000)
-	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 20000)
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 5000, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 20000, "", "")
 
 	// Try gateway outside the network
-	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.2.254", 1)
-	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.65-70/26", "10.1.1.1", 2)
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.2.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.65-70/26", "10.1.1.1", 2, "", "")
 
 	// Try deleting a non-existing network
 	checkDeleteNetwork(t, true, "default", "contiv")
@@ -704,36 +713,36 @@ func TestGlobalSetting(t *testing.T) {
 // TestNetworkPktRanges tests pkt-tag ranges in network REST api
 func TestNetworkPktRanges(t *testing.T) {
 	// verify auto allocation of vlans
-	checkCreateNetwork(t, false, "default", "contiv", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 0)
-	verifyNetworkState(t, "default", "contiv", "data", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0)
+	checkCreateNetwork(t, false, "default", "contiv", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 0, "", "")
+	verifyNetworkState(t, "default", "contiv", "data", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
 
 	// auto allocation of vxlan
-	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 0)
-	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.1", "10.1.1.254", 24, 1, 1)
-	checkCreateNetwork(t, false, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 0)
-	verifyNetworkState(t, "default", "contiv2", "data", "vxlan", "10.1.2.1", "10.1.2.254", 24, 2, 2)
-	checkCreateNetwork(t, false, "default", "contiv3", "data", "vxlan", "10.1.3.1/24", "10.1.3.254", 1000)
-	verifyNetworkState(t, "default", "contiv3", "data", "vxlan", "10.1.3.1", "10.1.3.254", 24, 3, 1000)
+	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 0, "", "")
+	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.1", "10.1.1.254", 24, 1, 1, "", "", 0)
+	checkCreateNetwork(t, false, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 0, "", "")
+	verifyNetworkState(t, "default", "contiv2", "data", "vxlan", "10.1.2.1", "10.1.2.254", 24, 2, 2, "", "", 0)
+	checkCreateNetwork(t, false, "default", "contiv3", "data", "vxlan", "10.1.3.1/24", "10.1.3.254", 1000, "", "")
+	verifyNetworkState(t, "default", "contiv3", "data", "vxlan", "10.1.3.1", "10.1.3.254", 24, 3, 1000, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
 	checkDeleteNetwork(t, false, "default", "contiv2")
 	checkDeleteNetwork(t, false, "default", "contiv3")
 
 	// verify duplicate values fail
-	checkCreateNetwork(t, false, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
-	checkCreateNetwork(t, true, "default", "contiv2", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, false, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv2", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
 	checkDeleteNetwork(t, false, "default", "contiv1")
 
-	checkCreateNetwork(t, false, "default", "contiv1", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 0)
-	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1)
+	checkCreateNetwork(t, false, "default", "contiv1", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 0, "", "")
+	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
 	checkDeleteNetwork(t, false, "default", "contiv1")
 
 	// shrink ranges and try allocating
 	checkGlobalSet(t, false, "default", "100-1000", "1001-2000")
-	checkCreateNetwork(t, true, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 1001)
-	checkCreateNetwork(t, true, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 99)
-	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 2001)
-	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 1000)
+	checkCreateNetwork(t, true, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 1001, "", "")
+	checkCreateNetwork(t, true, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 99, "", "")
+	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 2001, "", "")
+	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 1000, "", "")
 
 	// reset back to default values
 	checkGlobalSet(t, false, "default", "1-4094", "1-10000")
@@ -741,7 +750,7 @@ func TestNetworkPktRanges(t *testing.T) {
 
 // TestPolicyRules tests policy and rule REST objects
 func TestPolicyRules(t *testing.T) {
-	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1)
+	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
 	checkCreateEpg(t, false, "default", "contiv", "group1", []string{}, []string{})
 	// create policy
 	checkCreatePolicy(t, false, "default", "policy1")
@@ -825,7 +834,7 @@ func TestPolicyRules(t *testing.T) {
 // TestEpgPolicies tests attaching policy to EPG
 func TestEpgPolicies(t *testing.T) {
 	// create network
-	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1)
+	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
 
 	// create policy
 	checkCreatePolicy(t, false, "default", "policy1")
@@ -858,9 +867,9 @@ func TestEpgPolicies(t *testing.T) {
 
 	// verify name clash between network and epg is rejected
 	checkCreateEpg(t, true, "default", "contiv", "contiv", []string{}, []string{})
-	checkCreateNetwork(t, true, "default", "group1", "data", "vxlan", "20.1.1.1/16", "20.1.1.254", 1)
+	checkCreateNetwork(t, true, "default", "group1", "data", "vxlan", "20.1.1.1/16", "20.1.1.254", 1, "", "")
 	// verify network association cant be changed on epg
-	checkCreateNetwork(t, false, "default", "newnet", "data", "vxlan", "20.1.1.1/16", "20.1.1.254", 2)
+	checkCreateNetwork(t, false, "default", "newnet", "data", "vxlan", "20.1.1.1/16", "20.1.1.254", 2, "", "")
 	checkCreateEpg(t, true, "default", "newnet", "group1", []string{}, []string{})
 
 	// change policy and verify EPG policy changes
@@ -891,7 +900,7 @@ func TestEpgPolicies(t *testing.T) {
 // TestExtContractsGroups tests management of external contracts groups
 func TestExtContractsGroups(t *testing.T) {
 	// create network for the test
-	checkCreateNetwork(t, false, "default", "test-net", "data", "vlan", "23.1.1.1/16", "23.1.1.254", 1)
+	checkCreateNetwork(t, false, "default", "test-net", "data", "vlan", "23.1.1.1/16", "23.1.1.254", 1, "", "")
 	// create contract groups used for the test
 	checkCreateExtContractsGrp(t, false, "default", "ext-contracts-prov", "provided", []string{"uni/tn-common/brc-default", "uni/tn-common/brc-icmp-contract"})
 	checkCreateExtContractsGrp(t, false, "default", "ext-contracts-cons", "consumed", []string{"uni/tn-common/brc-default", "uni/tn-common/brc-icmp-contract"})
@@ -929,8 +938,8 @@ func TestExtContractsGroups(t *testing.T) {
 // TestAppProfile tests app-profile REST objects
 func TestAppProfile(t *testing.T) {
 	// Create two networks and 3 epgs
-	checkCreateNetwork(t, false, "default", "net1", "data", "vlan", "10.1.1.1/16", "10.1.1.254", 1)
-	checkCreateNetwork(t, false, "default", "net2", "data", "vlan", "20.1.1.1/16", "20.1.1.254", 2)
+	checkCreateNetwork(t, false, "default", "net1", "data", "vlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, false, "default", "net2", "data", "vlan", "20.1.1.1/16", "20.1.1.254", 2, "", "")
 	checkCreateEpg(t, false, "default", "net1", "group1", []string{}, []string{})
 	checkCreateEpg(t, false, "default", "net1", "group2", []string{}, []string{})
 	checkCreateEpg(t, false, "default", "net2", "group3", []string{}, []string{})

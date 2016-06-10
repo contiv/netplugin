@@ -40,6 +40,10 @@ type FlowMatch struct {
 	IpSaMask     *net.IP
 	IpDa         *net.IP
 	IpDaMask     *net.IP
+	Ipv6Sa       *net.IP
+	Ipv6SaMask   *net.IP
+	Ipv6Da       *net.IP
+	Ipv6DaMask   *net.IP
 	IpProto      uint8
 	TcpSrcPort   uint16
 	TcpDstPort   uint16
@@ -169,6 +173,28 @@ func (self *Flow) xlateMatch() openflow13.Match {
 		} else {
 			ipSaField := openflow13.NewIpv4SrcField(*self.Match.IpSa, nil)
 			ofMatch.AddField(*ipSaField)
+		}
+	}
+
+	// Handle IPv6 Dst
+	if self.Match.Ipv6Da != nil {
+		if self.Match.Ipv6DaMask != nil {
+			ipv6DaField := openflow13.NewIpv6DstField(*self.Match.Ipv6Da, self.Match.Ipv6DaMask)
+			ofMatch.AddField(*ipv6DaField)
+		} else {
+			ipv6DaField := openflow13.NewIpv6DstField(*self.Match.Ipv6Da, nil)
+			ofMatch.AddField(*ipv6DaField)
+		}
+	}
+
+	// Handle IPv6 Src
+	if self.Match.Ipv6Sa != nil {
+		if self.Match.Ipv6SaMask != nil {
+			ipv6SaField := openflow13.NewIpv6SrcField(*self.Match.Ipv6Sa, self.Match.Ipv6SaMask)
+			ofMatch.AddField(*ipv6SaField)
+		} else {
+			ipv6SaField := openflow13.NewIpv6SrcField(*self.Match.Ipv6Sa, nil)
+			ofMatch.AddField(*ipv6SaField)
 		}
 	}
 

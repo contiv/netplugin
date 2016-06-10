@@ -166,7 +166,7 @@ func requestAddress(w http.ResponseWriter, r *http.Request) {
 
 	// check if pool id contains address pool or network id
 	// HACK alert: This is very fragile. SImplify this when we stop supporting docker 1.9
-	if strings.Contains(areq.PoolID, ":") {
+	if strings.Count(areq.PoolID, ":") == 1 {
 		addrPool = strings.Split(areq.PoolID, ":")[1]
 		networkID = strings.Split(areq.PoolID, ":")[0]
 	}

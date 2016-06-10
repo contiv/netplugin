@@ -602,12 +602,14 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 
 	// Build network config
 	networkCfg := intent.ConfigNetwork{
-		Name:       network.NetworkName,
-		NwType:     network.NwType,
-		PktTagType: network.Encap,
-		PktTag:     network.PktTag,
-		SubnetCIDR: network.Subnet,
-		Gateway:    network.Gateway,
+		Name:           network.NetworkName,
+		NwType:         network.NwType,
+		PktTagType:     network.Encap,
+		PktTag:         network.PktTag,
+		SubnetCIDR:     network.Subnet,
+		Gateway:        network.Gateway,
+		IPv6SubnetCIDR: network.Ipv6Subnet,
+		IPv6Gateway:    network.Ipv6Gateway,
 	}
 
 	// Create the network

@@ -98,6 +98,11 @@ func GetDocknetName(tenantName, networkName, epgName string) string {
 // CreateDockNet Creates a network in docker daemon
 func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg.CfgNetworkState) error {
 	var nwID string
+	var subnetCIDRv6 = ""
+
+	if nwCfg.IPv6Subnet != "" {
+		subnetCIDRv6 = fmt.Sprintf("%s/%d", nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen)
+	}
 
 	// Trim default tenant name
 	docknetName := GetDocknetName(tenantName, networkName, serviceName)
@@ -130,6 +135,20 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 
 		subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
 
+		var ipams []dockerclient.IPAMConfig
+		var IPAMv4 = dockerclient.IPAMConfig{
+			Subnet:  subnetCIDR,
+			Gateway: nwCfg.Gateway,
+		}
+		ipams = append(ipams, IPAMv4)
+		var IPAMv6 dockerclient.IPAMConfig
+		if subnetCIDRv6 != "" {
+			IPAMv6 = dockerclient.IPAMConfig{
+				Subnet:  subnetCIDRv6,
+				Gateway: nwCfg.IPv6Gateway,
+			}
+			ipams = append(ipams, IPAMv6)
+		}
 		ipamOptions := make(map[string]string)
 		ipamOptions["tenant"] = nwCfg.Tenant
 		ipamOptions["network"] = nwCfg.NetworkName
@@ -140,13 +159,8 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 			CheckDuplicate: true,
 			Driver:         netDriverName,
 			IPAM: dockerclient.IPAM{
-				Driver: ipamDriverName,
-				Config: []dockerclient.IPAMConfig{
-					dockerclient.IPAMConfig{
-						Subnet:  subnetCIDR,
-						Gateway: nwCfg.Gateway,
-					},
-				},
+				Driver:  ipamDriverName,
+				Config:  ipams,
 				Options: ipamOptions,
 			},
 			Options: netPluginOptions,
