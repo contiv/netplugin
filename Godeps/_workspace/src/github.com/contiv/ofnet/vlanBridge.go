@@ -19,6 +19,8 @@ package ofnet
 import (
 	"net"
 	"net/rpc"
+	"sync"
+	"time"
 
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/shaleman/libOpenflow/openflow13"
@@ -29,6 +31,11 @@ import (
 
 // Vlan bridging currently uses native OVS bridging.
 // This is mostly stub code.
+
+const (
+	GARPRepeats = 15
+	GARPDELAY   = 3
+)
 
 // VlanBridge has Vlan state.
 type VlanBridge struct {
@@ -44,6 +51,22 @@ type VlanBridge struct {
 
 	portVlanFlowDb map[uint32]*ofctrl.Flow // Database of flow entries
 	uplinkDb       map[uint32]uint32       // Database of uplink ports
+	garpMutex      *sync.Mutex
+	epgToEPs       map[int]epgGARPInfo // Database of eps per epg
+	garpBGActive   bool
+}
+
+// epgGARPInfo holds info for epg
+type epgGARPInfo struct {
+	garpCount int                 // number of garps yet to be sent on this epg
+	epMap     map[uint32]GARPInfo // map of eps on this epg
+}
+
+// GARPInfo for each EP
+type GARPInfo struct {
+	ip   net.IP
+	mac  net.HardwareAddr
+	vlan uint16
 }
 
 // NewVlanBridge Create a new vlan instance
@@ -56,6 +79,9 @@ func NewVlanBridge(agent *OfnetAgent, rpcServ *rpc.Server) *VlanBridge {
 	// init maps
 	vlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
 	vlan.uplinkDb = make(map[uint32]uint32)
+	vlan.epgToEPs = make(map[int]epgGARPInfo)
+	vlan.garpMutex = &sync.Mutex{}
+	vlan.garpBGActive = false
 
 	vlan.svcProxy = NewServiceProxy()
 	// Create policy agent
@@ -115,6 +141,61 @@ func (vl *VlanBridge) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 	}
 }
 
+func (vl *VlanBridge) backGroundGARPs() {
+	for {
+		vl.garpMutex.Lock()
+
+		workDone := false
+		for epgID, epgInfo := range vl.epgToEPs {
+			if epgInfo.garpCount <= 0 {
+				continue
+			}
+
+			stats, ok := vl.agent.GARPStats[epgID]
+			if !ok {
+				stats = 0
+			}
+			epgInfo.garpCount--
+			for _, ep := range epgInfo.epMap {
+				err := vl.sendGARP(ep.ip, ep.mac, ep.vlan)
+				if err == nil {
+					stats++
+				} else {
+					log.Warnf("Send GARP failed for ep IP: %v", ep.ip)
+				}
+				workDone = true
+			}
+
+			vl.agent.GARPStats[epgID] = stats
+			vl.epgToEPs[epgID] = epgInfo
+		}
+
+		if !workDone { // No epgs pending. Time to exit
+			vl.garpBGActive = false
+			vl.garpMutex.Unlock()
+			return
+		}
+
+		vl.garpMutex.Unlock()
+		time.Sleep(GARPDELAY * time.Second)
+	}
+}
+
+// InjectGARPs for all endpoints on the epg
+func (vl *VlanBridge) InjectGARPs(epgID int) {
+	vl.garpMutex.Lock()
+	defer vl.garpMutex.Unlock()
+
+	epgInfo, found := vl.epgToEPs[epgID]
+	if found { // only if this epg has endpoints here
+		epgInfo.garpCount = GARPRepeats
+		vl.epgToEPs[epgID] = epgInfo
+		if !vl.garpBGActive {
+			go vl.backGroundGARPs()
+		}
+	}
+}
+
 // AddLocalEndpoint Add a local endpoint and install associated local route
 func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	log.Infof("Adding local endpoint: %+v", endpoint)
@@ -169,6 +250,25 @@ func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 			endpoint.IpAddr.String(), endpoint.MacAddrStr, endpoint.Vlan, err)
 	}
 
+	// update epgDB
+	vl.garpMutex.Lock()
+	defer vl.garpMutex.Unlock()
+	if endpoint.EndpointGroupVlan != 0 {
+		gInfo := GARPInfo{mac: mac,
+			ip:   endpoint.IpAddr,
+			vlan: endpoint.EndpointGroupVlan}
+		epgInfo, found := vl.epgToEPs[endpoint.EndpointGroup]
+		if !found {
+			epMap := make(map[uint32]GARPInfo)
+			epgInfo = epgGARPInfo{garpCount: 0,
+				epMap: epMap,
+			}
+		}
+
+		epgInfo.epMap[endpoint.PortNo] = gInfo
+		vl.epgToEPs[endpoint.EndpointGroup] = epgInfo
+	}
+
 	return nil
 }
 
@@ -181,6 +281,14 @@ func (vl *VlanBridge) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		if err != nil {
 			log.Errorf("Error deleting portvlan flow. Err: %v", err)
 		}
+	}
+
+	// Remove from epg DB
+	vl.garpMutex.Lock()
+	defer vl.garpMutex.Unlock()
+	epgInfo, found := vl.epgToEPs[endpoint.EndpointGroup]
+	if found {
+		delete(epgInfo.epMap, endpoint.PortNo)
 	}
 
 	vl.svcProxy.DelEndpoint(&endpoint)
@@ -510,7 +618,7 @@ func (vl *VlanBridge) sendGARP(ip net.IP, mac net.HardwareAddr, vlanID uint16) e
 	pktOut := BuildGarpPkt(ip, mac, vlanID)
 
 	for _, portNo := range vl.uplinkDb {
-		log.Debugf("Sending to uplink: %+v", portNo)
+		log.Debugf("Sending to uplink: %+v, ip:%v vlan: %d", portNo, ip.String(), vlanID)
 		pktOut.AddAction(openflow13.NewActionOutput(portNo))
 
 		// NOTE: Sending it on only one uplink to avoid loops

@@ -294,3 +294,18 @@ func (self *OfnetMaster) MakeDummyRpcCall() error {
 
 	return nil
 }
+
+// InjectGARPs triggers GARPS in the datapath on the specified epg
+func (self *OfnetMaster) InjectGARPs(epgID int) {
+	// Send to all agents
+	for _, node := range self.agentDb {
+		var resp bool
+
+		client := rpcHub.Client(node.HostAddr, node.HostPort)
+		err := client.Call("OfnetAgent.InjectGARPs", epgID, &resp)
+		if err != nil {
+			log.Errorf("Error triggering GARP on %s. Err: %v", node.HostAddr, err)
+		}
+	}
+
+}

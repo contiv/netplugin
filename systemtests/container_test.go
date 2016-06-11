@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -23,7 +24,7 @@ type container struct {
 func newContainer(node *node, containerID, name string) (*container, error) {
 	cont := &container{node: node, containerID: containerID, name: name}
 
-	out, err := cont.getIPAddr("eth0")
+	out, err := cont.GetIPAddr("eth0")
 	if err != nil {
 		return nil, err
 	}
@@ -41,6 +42,14 @@ func (c *container) String() string {
 	return fmt.Sprintf("(container: %s (name: %q ip: %s ipv6: %s host: %s))", c.containerID, c.name, c.eth0.ip, c.eth0.ipv6, c.node.Name())
 }
 
+func (c *container) checkPingFailureWithCount(ipaddr string, count int) error {
+	logrus.Infof("Expecting ping failure from %v to %s", c, ipaddr)
+	if err := c.checkPingWithCount(ipaddr, count); err == nil {
+		return fmt.Errorf("Ping succeeded when expected to fail from %v to %s", c, ipaddr)
+	}
+
+	return nil
+}
 func (c *container) checkPingFailure(ipaddr string) error {
 	logrus.Infof("Expecting ping failure from %v to %s", c, ipaddr)
 	if err := c.checkPing(ipaddr); err == nil {
@@ -50,9 +59,10 @@ func (c *container) checkPingFailure(ipaddr string) error {
 	return nil
 }
 
-func (c *container) checkPing(ipaddr string) error {
+func (c *container) checkPingWithCount(ipaddr string, count int) error {
 	logrus.Infof("Checking ping from %v to %s", c, ipaddr)
-	out, err := c.exec("ping -c 1 " + ipaddr)
+	cmd := fmt.Sprintf("ping -c %d %s", count, ipaddr)
+	out, err := c.exec(cmd)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %v to %s FAILED: %q - %v", c, ipaddr, out, err)
@@ -63,7 +73,11 @@ func (c *container) checkPing(ipaddr string) error {
 	return nil
 }
 
-func (c *container) getIPAddr(dev string) (string, error) {
+func (c *container) checkPing(ipaddr string) error {
+	return c.checkPingWithCount(ipaddr, 1)
+}
+
+func (c *container) GetIPAddr(dev string) (string, error) {
 	out, err := c.exec(fmt.Sprintf("ip addr show dev %s | grep inet | head -1", dev))
 	if err != nil {
 		logrus.Errorf("Failed to get IP for container %q", c.containerID)
@@ -77,6 +91,22 @@ func (c *container) getIPAddr(dev string) (string, error) {
 
 	parts = strings.Split(parts[1], "/")
 	out = strings.TrimSpace(parts[0])
+	return out, err
+}
+
+func (c *container) GetMACAddr(dev string) (string, error) {
+	out, err := c.exec(fmt.Sprintf("ip addr show dev %s | grep ether | head -1", dev))
+	if err != nil {
+		logrus.Errorf("Failed to get MAC for container %q", c.containerID)
+		logrus.Println(out)
+	}
+
+	parts := regexp.MustCompile(`\s+`).Split(strings.TrimSpace(out), -1)
+	if len(parts) < 2 {
+		return "", fmt.Errorf("Invalid output from container %q: %s", c.containerID, out)
+	}
+
+	out = parts[1]
 	return out, err
 }
 
@@ -194,6 +224,42 @@ func (c *container) checkNoConnection(ipaddr, protocol string, port int) error {
 	logrus.Infof("Expecting connection to fail from %v to %s on port %d", c, ipaddr, port)
 
 	if err := c.checkConnection(ipaddr, protocol, port); err != nil {
+		return nil
+	}
+
+	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED.", port, ipaddr, c)
+}
+func (c *container) checkConnectionRetry(ipaddr, protocol string, port, delay, retries int) error {
+	var protoStr string
+	var err error
+
+	err = nil
+
+	if protocol == "udp" {
+		protoStr = "-u"
+	}
+
+	logrus.Infof("Checking connection from %v to ip %s on port %d, delay: %d, retries: %d",
+		c, ipaddr, port, delay, retries)
+
+	for i := 0; i < retries; i++ {
+
+		_, err = c.exec(fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
+		if err == nil {
+			logrus.Infof("Connection to ip %s on port %d SUCCEEDED, tries: %d", ipaddr, port, i+1)
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	logrus.Errorf("Connection  to ip %s on port %d FAILED %v", ipaddr, port, err)
+	return err
+}
+
+func (c *container) checkNoConnectionRetry(ipaddr, protocol string, port, delay, retries int) error {
+	logrus.Infof("Expecting connection to fail from %v to %s on port %d", c, ipaddr, port)
+
+	if err := c.checkConnectionRetry(ipaddr, protocol, port, delay, retries); err != nil {
 		return nil
 	}
 

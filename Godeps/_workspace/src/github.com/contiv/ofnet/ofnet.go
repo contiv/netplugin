@@ -68,6 +68,9 @@ type OfnetDatapath interface {
 	//Delete uplink port
 	RemoveUplink(portNo uint32) error
 
+	//Inject GARPs
+	InjectGARPs(epgID int)
+
 	// Add a service spec to proxy
 	AddSvcSpec(svcName string, spec *ServiceSpec) error
 

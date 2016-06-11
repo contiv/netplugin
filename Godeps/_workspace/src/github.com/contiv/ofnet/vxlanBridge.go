@@ -143,6 +143,10 @@ func (self *Vxlan) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 	}
 }
 
+// InjectGARPs not implemented
+func (self *Vxlan) InjectGARPs(epgID int) {
+}
+
 // Add a local endpoint and install associated local route
 func (self *Vxlan) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	log.Infof("Adding localEndpoint: %+v", endpoint)
