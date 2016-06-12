@@ -206,7 +206,7 @@ func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
 	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", nil)
+		containers, err := s.runContainers(s.containers, false, "private", nil, nil)
 		c.Assert(err, IsNil)
 
 		// test ping for all containers
