@@ -86,7 +86,7 @@ func requestPool(w http.ResponseWriter, r *http.Request) {
 	tenant, okt := preq.Options["tenant"]
 	network, okn := preq.Options["network"]
 	if okt && okn {
-		PoolID = network + "." + tenant + ":" + preq.Pool
+		PoolID = network + "." + tenant + "|" + preq.Pool
 	}
 	presp := api.RequestPoolResponse{
 		PoolID: PoolID,
@@ -165,10 +165,10 @@ func requestAddress(w http.ResponseWriter, r *http.Request) {
 	subnetLen := strings.Split(areq.PoolID, "/")[1]
 
 	// check if pool id contains address pool or network id
-	// HACK alert: This is very fragile. SImplify this when we stop supporting docker 1.9
-	if strings.Count(areq.PoolID, ":") == 1 {
-		addrPool = strings.Split(areq.PoolID, ":")[1]
-		networkID = strings.Split(areq.PoolID, ":")[0]
+	// HACK alert: This is very fragile. Simplify this when we stop supporting docker 1.9
+	if strings.Contains(areq.PoolID, "|") {
+		addrPool = strings.Split(areq.PoolID, "|")[1]
+		networkID = strings.Split(areq.PoolID, "|")[0]
 	}
 
 	// Build an alloc request to be sent to master
