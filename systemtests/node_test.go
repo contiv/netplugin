@@ -255,9 +255,10 @@ func (n *node) runCommandUntilNoError(cmd string) error {
 	return err
 }
 
-func (n *node) checkPing(ipaddr string) error {
+func (n *node) checkPingWithCount(ipaddr string, count int) error {
 	logrus.Infof("Checking ping from %s to %s", n.Name(), ipaddr)
-	out, err := n.tbnode.RunCommandWithOutput("ping -c 1 " + ipaddr)
+	cmd := fmt.Sprintf("ping -c %d %s", count, ipaddr)
+	out, err := n.tbnode.RunCommandWithOutput(cmd)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %s to %s FAILED: %q - %v", n.Name(), ipaddr, out, err)
@@ -266,6 +267,10 @@ func (n *node) checkPing(ipaddr string) error {
 
 	logrus.Infof("Ping from %s to %s SUCCEEDED", n.Name(), ipaddr)
 	return nil
+}
+
+func (n *node) checkPing(ipaddr string) error {
+	return n.checkPingWithCount(ipaddr, 1)
 }
 
 func (n *node) reloadNode() error {

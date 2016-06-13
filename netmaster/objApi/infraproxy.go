@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel"
@@ -37,6 +38,7 @@ type epgSpec struct {
 	Uses          []string     `json:"uses,omitempty"`
 	ProvContracts []string     `json:"provcontracts,omitempty"`
 	ConsContracts []string     `json:"conscontracts,omitempty"`
+	epgID         int          // not exported
 }
 
 type filterInfo struct {
@@ -102,6 +104,13 @@ func (ans *appNwSpec) launch() error {
 	return nil
 }
 
+func (ans *appNwSpec) notifyDP() {
+
+	for _, epg := range ans.Epgs {
+		mastercfg.NotifyEpgChanged(epg.epgID)
+	}
+}
+
 // Extract relevant info from epg obj and append to application nw spec
 func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver core.StateDriver) error {
 	epg := epgSpec{}
@@ -121,6 +130,7 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 	}
 
 	epg.VlanTag = strconv.Itoa(epgCfg.PktTag)
+	epg.epgID = epgCfg.EndpointGroupID
 
 	// get all the service link details
 	for _, policy := range epgObj.Policies {
@@ -265,6 +275,8 @@ func CreateAppNw(app *contivModel.AppProfile) error {
 
 	log.Infof("Launching appNwSpec: %+v", ans)
 	ans.launch()
+	time.Sleep(2 * time.Second)
+	ans.notifyDP()
 
 	return nil
 }
@@ -292,5 +304,6 @@ func DeleteAppNw(app *contivModel.AppProfile) error {
 		return err
 	}
 
+	time.Sleep(time.Second)
 	return nil
 }

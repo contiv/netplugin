@@ -76,6 +76,7 @@ type OfnetAgent struct {
 	vrfDb        map[string]*OfnetVrfInfo // Db of all the global vrfs
 	vlanVrf      map[uint16]*string       //vlan to vrf mapping
 	fwdMode      string                   ///forwarding mode routing or bridge
+	GARPStats    map[int]uint32           // per EPG garp stats.
 
 }
 
@@ -137,6 +138,7 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	agent.vrfNameIdMap = make(map[string]*uint16)
 	agent.vrfIdBmp = bitset.New(256)
 	agent.vlanVrf = make(map[uint16]*string)
+	agent.GARPStats = make(map[int]uint32)
 
 	// Create an openflow controller
 	agent.ctrler = ofctrl.NewController(agent)
@@ -354,6 +356,12 @@ func (self *OfnetAgent) RemoveMaster(masterInfo *OfnetNode) error {
 	// Remove it from DB
 	delete(self.masterDb, masterKey)
 
+	return nil
+}
+
+// InjectGARPs inject garps for all eps on the epg.
+func (self *OfnetAgent) InjectGARPs(epgID int, resp *bool) error {
+	self.datapath.InjectGARPs(epgID)
 	return nil
 }
 

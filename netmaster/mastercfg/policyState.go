@@ -407,3 +407,8 @@ func (gp *EpgPolicy) Clear() error {
 	key := fmt.Sprintf(policyConfigPath, gp.ID)
 	return gp.StateDriver.ClearState(key)
 }
+
+// NotifyEpgChanged triggers GARPs.
+func NotifyEpgChanged(epgID int) {
+	ofnetMaster.InjectGARPs(epgID)
+}

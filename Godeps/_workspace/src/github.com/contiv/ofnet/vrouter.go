@@ -138,6 +138,10 @@ func (self *Vrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 	}
 }
 
+// InjectGARPs not implemented
+func (self *Vrouter) InjectGARPs(epgID int) {
+}
+
 // Add a local endpoint and install associated local route
 func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 

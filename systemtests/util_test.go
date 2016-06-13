@@ -24,6 +24,29 @@ func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*contai
 	return nil
 }
 
+func (s *systemtestSuite) checkConnectionPairRetry(containers1, containers2 []*container, port, delay, retries int) error {
+	for _, cont := range containers1 {
+		for _, cont2 := range containers2 {
+			if err := cont.checkConnectionRetry(cont2.eth0.ip, "tcp", port, delay, retries); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+func (s *systemtestSuite) checkNoConnectionPairRetry(containers1, containers2 []*container, port, delay, retries int) error {
+	for _, cont := range containers1 {
+		for _, cont2 := range containers2 {
+			if err := cont.checkNoConnectionRetry(cont2.eth0.ip, "tcp", port, delay, retries); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (s *systemtestSuite) runContainersInGroups(num int, netName string, groupNames []string) (map[*container]string, error) {
 	containers := map[*container]string{}
 	for _, groupName := range groupNames {

@@ -128,6 +128,10 @@ func (self *Vlrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 	}
 }
 
+// InjectGARPs not implemented
+func (self *Vlrouter) InjectGARPs(epgID int) {
+}
+
 /*AddLocalEndpoint does the following:
 1) Adds endpoint to the OVS and the associated flows
 2) Populates BGP RIB with local route to be propogated to neighbor
