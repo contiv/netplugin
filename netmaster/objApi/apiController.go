@@ -17,6 +17,7 @@ package objApi
 
 import (
 	"errors"
+	"fmt"
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
@@ -61,6 +62,7 @@ func NewAPIController(router *mux.Router, storeURL string) *APIController {
 	contivModel.RegisterBgpCallbacks(ctrler)
 	contivModel.RegisterServiceLBCallbacks(ctrler)
 	contivModel.RegisterExtContractsGroupCallbacks(ctrler)
+	contivModel.RegisterEndpointCallbacks(ctrler)
 	// Register routes
 	contivModel.AddRoutes(router)
 
@@ -342,6 +344,46 @@ func (ac *APIController) AppProfileDelete(prof *contivModel.AppProfile) error {
 
 	modeldb.RemoveLinkSet(&tenant.LinkSets.AppProfiles, prof)
 	tenant.Write()
+	return nil
+}
+
+// EndpointGetOper retrieves glboal operational information
+func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) error {
+	log.Infof("Received EndpointInspect: %+v", endpoint)
+
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	readEp := &mastercfg.CfgEndpointState{}
+	readEp.StateDriver = stateDriver
+	// TODO avoid linear read
+	epCfgs, err := readEp.ReadAll()
+	if err == nil {
+		for idx, epCfg := range epCfgs {
+			ep := epCfg.(*mastercfg.CfgEndpointState)
+			log.Infof("read ep key[%d] %s, populating state \n", idx, ep.ID)
+			if strings.Contains(ep.ContainerID, endpoint.Oper.Key) {
+				endpoint.Oper.Network = ep.NetID
+				endpoint.Oper.Name = ep.ContName
+				endpoint.Oper.ServiceName = ep.ServiceName
+				endpoint.Oper.EndpointGroupID = ep.EndpointGroupID
+				endpoint.Oper.EndpointGroupKey = ep.EndpointGroupKey
+				endpoint.Oper.AttachUUID = ep.AttachUUID
+				endpoint.Oper.IpAddress = []string{ep.IPAddress, ep.IPv6Address}
+				endpoint.Oper.MacAddress = ep.MacAddress
+				endpoint.Oper.HomingHost = ep.HomingHost
+				endpoint.Oper.IntfName = ep.IntfName
+				endpoint.Oper.VtepIP = ep.VtepIP
+				endpoint.Oper.Labels = fmt.Sprintf("%s", ep.Labels)
+				endpoint.Oper.ContainerID = ep.ContainerID
+
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
