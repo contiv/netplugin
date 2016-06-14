@@ -417,6 +417,21 @@ func listTenants(ctx *cli.Context) {
 	}
 }
 
+func inspectEndpoint(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	epid := ctx.Args()[0]
+
+	logrus.Infof("Inspecting endpoint: %s", epid)
+
+	net, err := getClient(ctx).EndpointInspect(epid)
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(net, "", "  ")
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}
+
 func createEndpointGroup(ctx *cli.Context) {
 	argCheck(2, ctx)
 

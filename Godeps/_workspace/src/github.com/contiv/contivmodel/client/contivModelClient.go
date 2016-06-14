@@ -187,6 +187,27 @@ type BgpInspect struct {
 	Config Bgp
 }
 
+type EndpointOper struct {
+	AttachUUID       string   `json:"attachUUID,omitempty"`       //
+	ContainerID      string   `json:"containerID,omitempty"`      //
+	EndpointGroupID  int      `json:"endpointGroupId,omitempty"`  //
+	EndpointGroupKey string   `json:"endpointGroupKey,omitempty"` //
+	HomingHost       string   `json:"homingHost,omitempty"`       //
+	IntfName         string   `json:"intfName,omitempty"`         //
+	IpAddress        []string `json:"ipAddress,omitempty"`
+	Labels           string   `json:"labels,omitempty"`      //
+	MacAddress       string   `json:"macAddress,omitempty"`  //
+	Name             string   `json:"name,omitempty"`        //
+	Network          string   `json:"network,omitempty"`     //
+	ServiceName      string   `json:"serviceName,omitempty"` //
+	VtepIP           string   `json:"vtepIP,omitempty"`      //
+
+}
+
+type EndpointInspect struct {
+	Oper EndpointOper
+}
+
 type EndpointGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -519,6 +540,22 @@ func (c *ContivClient) AppProfileGet(tenantName string, appProfileName string) (
 	return &obj, nil
 }
 
+// AppProfileDelete deletes the appProfile object
+func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + appProfileName
+	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting appProfile %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // AppProfileInspect gets the appProfileInspect object
 func (c *ContivClient) AppProfileInspect(tenantName string, appProfileName string) (*AppProfileInspect, error) {
 	// build key and URL
@@ -534,22 +571,6 @@ func (c *ContivClient) AppProfileInspect(tenantName string, appProfileName strin
 	}
 
 	return &obj, nil
-}
-
-// AppProfileDelete deletes the appProfile object
-func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + appProfileName
-	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting appProfile %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // BgpPost posts the Bgp object
@@ -601,6 +622,22 @@ func (c *ContivClient) BgpGet(hostname string) (*Bgp, error) {
 	return &obj, nil
 }
 
+// BgpDelete deletes the Bgp object
+func (c *ContivClient) BgpDelete(hostname string) error {
+	// build key and URL
+	keyStr := hostname
+	url := c.baseURL + "/api/v1/Bgps/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting Bgp %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // BgpInspect gets the BgpInspect object
 func (c *ContivClient) BgpInspect(hostname string) (*BgpInspect, error) {
 	// build key and URL
@@ -618,20 +655,21 @@ func (c *ContivClient) BgpInspect(hostname string) (*BgpInspect, error) {
 	return &obj, nil
 }
 
-// BgpDelete deletes the Bgp object
-func (c *ContivClient) BgpDelete(hostname string) error {
+// EndpointInspect gets the endpointInspect object
+func (c *ContivClient) EndpointInspect(name string) (*EndpointInspect, error) {
 	// build key and URL
-	keyStr := hostname
-	url := c.baseURL + "/api/v1/Bgps/" + keyStr + "/"
+	keyStr := name
+	url := c.baseURL + "/api/v1/inspect/endpoints/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	var obj EndpointInspect
+	err := httpGet(url, &obj)
 	if err != nil {
-		log.Debugf("Error deleting Bgp %s. Err: %v", keyStr, err)
-		return err
+		log.Debugf("Error getting endpoint %+v. Err: %v", keyStr, err)
+		return nil, err
 	}
 
-	return nil
+	return &obj, nil
 }
 
 // EndpointGroupPost posts the endpointGroup object
@@ -683,6 +721,22 @@ func (c *ContivClient) EndpointGroupGet(tenantName string, groupName string) (*E
 	return &obj, nil
 }
 
+// EndpointGroupDelete deletes the endpointGroup object
+func (c *ContivClient) EndpointGroupDelete(tenantName string, groupName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + groupName
+	url := c.baseURL + "/api/v1/endpointGroups/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting endpointGroup %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // EndpointGroupInspect gets the endpointGroupInspect object
 func (c *ContivClient) EndpointGroupInspect(tenantName string, groupName string) (*EndpointGroupInspect, error) {
 	// build key and URL
@@ -698,22 +752,6 @@ func (c *ContivClient) EndpointGroupInspect(tenantName string, groupName string)
 	}
 
 	return &obj, nil
-}
-
-// EndpointGroupDelete deletes the endpointGroup object
-func (c *ContivClient) EndpointGroupDelete(tenantName string, groupName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + groupName
-	url := c.baseURL + "/api/v1/endpointGroups/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting endpointGroup %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // ExtContractsGroupPost posts the extContractsGroup object
@@ -765,6 +803,22 @@ func (c *ContivClient) ExtContractsGroupGet(tenantName string, contractsGroupNam
 	return &obj, nil
 }
 
+// ExtContractsGroupDelete deletes the extContractsGroup object
+func (c *ContivClient) ExtContractsGroupDelete(tenantName string, contractsGroupName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + contractsGroupName
+	url := c.baseURL + "/api/v1/extContractsGroups/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting extContractsGroup %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // ExtContractsGroupInspect gets the extContractsGroupInspect object
 func (c *ContivClient) ExtContractsGroupInspect(tenantName string, contractsGroupName string) (*ExtContractsGroupInspect, error) {
 	// build key and URL
@@ -780,22 +834,6 @@ func (c *ContivClient) ExtContractsGroupInspect(tenantName string, contractsGrou
 	}
 
 	return &obj, nil
-}
-
-// ExtContractsGroupDelete deletes the extContractsGroup object
-func (c *ContivClient) ExtContractsGroupDelete(tenantName string, contractsGroupName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + contractsGroupName
-	url := c.baseURL + "/api/v1/extContractsGroups/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting extContractsGroup %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // GlobalPost posts the global object
@@ -847,6 +885,22 @@ func (c *ContivClient) GlobalGet(name string) (*Global, error) {
 	return &obj, nil
 }
 
+// GlobalDelete deletes the global object
+func (c *ContivClient) GlobalDelete(name string) error {
+	// build key and URL
+	keyStr := name
+	url := c.baseURL + "/api/v1/globals/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting global %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // GlobalInspect gets the globalInspect object
 func (c *ContivClient) GlobalInspect(name string) (*GlobalInspect, error) {
 	// build key and URL
@@ -862,22 +916,6 @@ func (c *ContivClient) GlobalInspect(name string) (*GlobalInspect, error) {
 	}
 
 	return &obj, nil
-}
-
-// GlobalDelete deletes the global object
-func (c *ContivClient) GlobalDelete(name string) error {
-	// build key and URL
-	keyStr := name
-	url := c.baseURL + "/api/v1/globals/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting global %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // NetworkPost posts the network object
@@ -929,6 +967,22 @@ func (c *ContivClient) NetworkGet(tenantName string, networkName string) (*Netwo
 	return &obj, nil
 }
 
+// NetworkDelete deletes the network object
+func (c *ContivClient) NetworkDelete(tenantName string, networkName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + networkName
+	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting network %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // NetworkInspect gets the networkInspect object
 func (c *ContivClient) NetworkInspect(tenantName string, networkName string) (*NetworkInspect, error) {
 	// build key and URL
@@ -944,22 +998,6 @@ func (c *ContivClient) NetworkInspect(tenantName string, networkName string) (*N
 	}
 
 	return &obj, nil
-}
-
-// NetworkDelete deletes the network object
-func (c *ContivClient) NetworkDelete(tenantName string, networkName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + networkName
-	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting network %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // PolicyPost posts the policy object
@@ -1011,6 +1049,22 @@ func (c *ContivClient) PolicyGet(tenantName string, policyName string) (*Policy,
 	return &obj, nil
 }
 
+// PolicyDelete deletes the policy object
+func (c *ContivClient) PolicyDelete(tenantName string, policyName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + policyName
+	url := c.baseURL + "/api/v1/policys/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting policy %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // PolicyInspect gets the policyInspect object
 func (c *ContivClient) PolicyInspect(tenantName string, policyName string) (*PolicyInspect, error) {
 	// build key and URL
@@ -1026,22 +1080,6 @@ func (c *ContivClient) PolicyInspect(tenantName string, policyName string) (*Pol
 	}
 
 	return &obj, nil
-}
-
-// PolicyDelete deletes the policy object
-func (c *ContivClient) PolicyDelete(tenantName string, policyName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + policyName
-	url := c.baseURL + "/api/v1/policys/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting policy %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // RulePost posts the rule object
@@ -1093,6 +1131,22 @@ func (c *ContivClient) RuleGet(tenantName string, policyName string, ruleId stri
 	return &obj, nil
 }
 
+// RuleDelete deletes the rule object
+func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + policyName + ":" + ruleId
+	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting rule %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // RuleInspect gets the ruleInspect object
 func (c *ContivClient) RuleInspect(tenantName string, policyName string, ruleId string) (*RuleInspect, error) {
 	// build key and URL
@@ -1108,22 +1162,6 @@ func (c *ContivClient) RuleInspect(tenantName string, policyName string, ruleId 
 	}
 
 	return &obj, nil
-}
-
-// RuleDelete deletes the rule object
-func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + policyName + ":" + ruleId
-	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting rule %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // ServiceLBPost posts the serviceLB object
@@ -1175,6 +1213,22 @@ func (c *ContivClient) ServiceLBGet(tenantName string, serviceName string) (*Ser
 	return &obj, nil
 }
 
+// ServiceLBDelete deletes the serviceLB object
+func (c *ContivClient) ServiceLBDelete(tenantName string, serviceName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + serviceName
+	url := c.baseURL + "/api/v1/serviceLBs/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting serviceLB %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // ServiceLBInspect gets the serviceLBInspect object
 func (c *ContivClient) ServiceLBInspect(tenantName string, serviceName string) (*ServiceLBInspect, error) {
 	// build key and URL
@@ -1190,22 +1244,6 @@ func (c *ContivClient) ServiceLBInspect(tenantName string, serviceName string) (
 	}
 
 	return &obj, nil
-}
-
-// ServiceLBDelete deletes the serviceLB object
-func (c *ContivClient) ServiceLBDelete(tenantName string, serviceName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + serviceName
-	url := c.baseURL + "/api/v1/serviceLBs/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting serviceLB %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // TenantPost posts the tenant object
@@ -1257,6 +1295,22 @@ func (c *ContivClient) TenantGet(tenantName string) (*Tenant, error) {
 	return &obj, nil
 }
 
+// TenantDelete deletes the tenant object
+func (c *ContivClient) TenantDelete(tenantName string) error {
+	// build key and URL
+	keyStr := tenantName
+	url := c.baseURL + "/api/v1/tenants/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting tenant %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // TenantInspect gets the tenantInspect object
 func (c *ContivClient) TenantInspect(tenantName string) (*TenantInspect, error) {
 	// build key and URL
@@ -1272,22 +1326,6 @@ func (c *ContivClient) TenantInspect(tenantName string) (*TenantInspect, error) 
 	}
 
 	return &obj, nil
-}
-
-// TenantDelete deletes the tenant object
-func (c *ContivClient) TenantDelete(tenantName string) error {
-	// build key and URL
-	keyStr := tenantName
-	url := c.baseURL + "/api/v1/tenants/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting tenant %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // VolumePost posts the volume object
@@ -1339,6 +1377,22 @@ func (c *ContivClient) VolumeGet(tenantName string, volumeName string) (*Volume,
 	return &obj, nil
 }
 
+// VolumeDelete deletes the volume object
+func (c *ContivClient) VolumeDelete(tenantName string, volumeName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + volumeName
+	url := c.baseURL + "/api/v1/volumes/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting volume %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // VolumeInspect gets the volumeInspect object
 func (c *ContivClient) VolumeInspect(tenantName string, volumeName string) (*VolumeInspect, error) {
 	// build key and URL
@@ -1354,22 +1408,6 @@ func (c *ContivClient) VolumeInspect(tenantName string, volumeName string) (*Vol
 	}
 
 	return &obj, nil
-}
-
-// VolumeDelete deletes the volume object
-func (c *ContivClient) VolumeDelete(tenantName string, volumeName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + volumeName
-	url := c.baseURL + "/api/v1/volumes/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting volume %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }
 
 // VolumeProfilePost posts the volumeProfile object
@@ -1421,6 +1459,22 @@ func (c *ContivClient) VolumeProfileGet(tenantName string, volumeProfileName str
 	return &obj, nil
 }
 
+// VolumeProfileDelete deletes the volumeProfile object
+func (c *ContivClient) VolumeProfileDelete(tenantName string, volumeProfileName string) error {
+	// build key and URL
+	keyStr := tenantName + ":" + volumeProfileName
+	url := c.baseURL + "/api/v1/volumeProfiles/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting volumeProfile %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
 // VolumeProfileInspect gets the volumeProfileInspect object
 func (c *ContivClient) VolumeProfileInspect(tenantName string, volumeProfileName string) (*VolumeProfileInspect, error) {
 	// build key and URL
@@ -1436,20 +1490,4 @@ func (c *ContivClient) VolumeProfileInspect(tenantName string, volumeProfileName
 	}
 
 	return &obj, nil
-}
-
-// VolumeProfileDelete deletes the volumeProfile object
-func (c *ContivClient) VolumeProfileDelete(tenantName string, volumeProfileName string) error {
-	// build key and URL
-	keyStr := tenantName + ":" + volumeProfileName
-	url := c.baseURL + "/api/v1/volumeProfiles/" + keyStr + "/"
-
-	// http get the object
-	err := httpDelete(url)
-	if err != nil {
-		log.Debugf("Error deleting volumeProfile %s. Err: %v", keyStr, err)
-		return err
-	}
-
-	return nil
 }

@@ -1,0 +1,56 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "endpoint",
+			"version": "v1",
+			"type": "object",
+			"key": [ "name" ],
+			"operProperties": {
+				"network": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"serviceName": {
+					"type": "string"
+				},
+				"endpointGroupId": {
+					"type": "int"
+				},
+				"endpointGroupKey": {
+					"type": "string"
+				},
+				"endpointGroupKey": {
+					"type": "string"
+				},
+				"attachUUID": {
+					"type": "string"
+				},
+				"ipAddress": {
+					"type": "array",
+					"items": "string"
+				},
+				"macAddress": {
+					"type": "string"
+				},
+				"homingHost": {
+					"type": "string"
+				},
+				"intfName": {
+					"type": "string"
+				},
+				"vtepIP": {
+					"type": "string"
+				},
+				"labels": {
+					"type": "string"
+				},
+				"containerID": {
+					"type": "string"
+				}
+			}
+		}
+	]
+}

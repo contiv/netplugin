@@ -72,6 +72,7 @@ def httpGet(url):
 class objmodelClient:
 	def __init__(self, baseUrl):
 		self.baseUrl = baseUrl
+
 	# Create appProfile
 	def createAppProfile(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/appProfiles/' + obj.tenantName + ":" + obj.appProfileName  + '/'
@@ -105,6 +106,10 @@ class objmodelClient:
 	        errorExit("list AppProfile failed")
 
 	    return json.loads(retData)
+
+
+
+
 	# Create Bgp
 	def createBgp(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/Bgps/' + obj.hostname  + '/'
@@ -140,6 +145,23 @@ class objmodelClient:
 	        errorExit("list Bgp failed")
 
 	    return json.loads(retData)
+
+
+
+
+
+
+	# Inspect endpoint
+	def createEndpoint(self, obj):
+	    postUrl = self.baseUrl + '/api/v1/inspect/endpoint/' + obj.name  + '/'
+
+	    retDate = urllib2.urlopen(postUrl)
+	    if retData == "Error":
+	        errorExit("list Endpoint failed")
+
+	    return json.loads(retData)
+
+
 	# Create endpointGroup
 	def createEndpointGroup(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/endpointGroups/' + obj.tenantName + ":" + obj.groupName  + '/'
@@ -175,6 +197,10 @@ class objmodelClient:
 	        errorExit("list EndpointGroup failed")
 
 	    return json.loads(retData)
+
+
+
+
 	# Create extContractsGroup
 	def createExtContractsGroup(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/extContractsGroups/' + obj.tenantName + ":" + obj.contractsGroupName  + '/'
@@ -209,6 +235,10 @@ class objmodelClient:
 	        errorExit("list ExtContractsGroup failed")
 
 	    return json.loads(retData)
+
+
+
+
 	# Create global
 	def createGlobal(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/globals/' + obj.name  + '/'
@@ -243,6 +273,20 @@ class objmodelClient:
 	        errorExit("list Global failed")
 
 	    return json.loads(retData)
+
+
+
+	# Inspect global
+	def createGlobal(self, obj):
+	    postUrl = self.baseUrl + '/api/v1/inspect/global/' + obj.name  + '/'
+
+	    retDate = urllib2.urlopen(postUrl)
+	    if retData == "Error":
+	        errorExit("list Global failed")
+
+	    return json.loads(retData)
+
+
 	# Create network
 	def createNetwork(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/networks/' + obj.tenantName + ":" + obj.networkName  + '/'
@@ -282,6 +326,20 @@ class objmodelClient:
 	        errorExit("list Network failed")
 
 	    return json.loads(retData)
+
+
+
+	# Inspect network
+	def createNetwork(self, obj):
+	    postUrl = self.baseUrl + '/api/v1/inspect/network/' + obj.tenantName + ":" + obj.networkName  + '/'
+
+	    retDate = urllib2.urlopen(postUrl)
+	    if retData == "Error":
+	        errorExit("list Network failed")
+
+	    return json.loads(retData)
+
+
 	# Create policy
 	def createPolicy(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/policys/' + obj.tenantName + ":" + obj.policyName  + '/'
@@ -314,6 +372,10 @@ class objmodelClient:
 	        errorExit("list Policy failed")
 
 	    return json.loads(retData)
+
+
+
+
 	# Create rule
 	def createRule(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/rules/' + obj.tenantName + ":" + obj.policyName + ":" + obj.ruleId  + '/'
@@ -358,6 +420,10 @@ class objmodelClient:
 	        errorExit("list Rule failed")
 
 	    return json.loads(retData)
+
+
+
+
 	# Create serviceLB
 	def createServiceLB(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/serviceLBs/' + obj.tenantName + ":" + obj.serviceName  + '/'
@@ -394,6 +460,10 @@ class objmodelClient:
 	        errorExit("list ServiceLB failed")
 
 	    return json.loads(retData)
+
+
+
+
 	# Create tenant
 	def createTenant(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/tenants/' + obj.tenantName  + '/'
@@ -426,6 +496,10 @@ class objmodelClient:
 	        errorExit("list Tenant failed")
 
 	    return json.loads(retData)
+
+
+
+
 	# Create volume
 	def createVolume(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/volumes/' + obj.tenantName + ":" + obj.volumeName  + '/'
@@ -462,6 +536,10 @@ class objmodelClient:
 	        errorExit("list Volume failed")
 
 	    return json.loads(retData)
+
+
+
+
 	# Create volumeProfile
 	def createVolumeProfile(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/volumeProfiles/' + obj.tenantName + ":" + obj.volumeProfileName  + '/'
@@ -498,3 +576,5 @@ class objmodelClient:
 	        errorExit("list VolumeProfile failed")
 
 	    return json.loads(retData)
+
+

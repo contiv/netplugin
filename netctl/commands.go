@@ -81,6 +81,20 @@ var Commands = []cli.Command{
 		},
 	},
 	{
+		Name:    "endpoint",
+		Aliases: []string{"ep"},
+		Usage:   "Endpoint Inspection",
+		Subcommands: []cli.Command{
+			{
+				Name:      "inspect",
+				Usage:     "Inspect an Endpoint",
+				ArgsUsage: "[epid]",
+				Flags:     []cli.Flag{jsonFlag},
+				Action:    inspectEndpoint,
+			},
+		},
+	},
+	{
 		Name:    "network",
 		Aliases: []string{"net"},
 		Usage:   "Network manipulation tools",
