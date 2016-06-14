@@ -79,5 +79,5 @@ func (r *Skydns2Adapter) Refresh(service *bridge.Service) error {
 }
 
 func (r *Skydns2Adapter) servicePath(service *bridge.Service) string {
-	return "/skydns/" + service.Tenant + "/" + service.Network + "/" + service.Name + "/" + service.ID
+	return "/skydns/" + service.Tenant + "/" + service.Name + "/" + service.ID
 }

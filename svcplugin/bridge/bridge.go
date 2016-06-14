@@ -83,7 +83,7 @@ func (b *Bridge) AddService(srvID string, srvName string, nwName string, tenantN
 		log.Errorf("Service registration failed for %v. Error: %s",
 			service, err)
 	}
-	b.services[srvName+nwName] = append(b.services[srvName+nwName], service)
+	b.services[srvName] = append(b.services[srvName], service)
 }
 
 // RemoveService removes service from registry when triggered from dockplugin
@@ -98,7 +98,7 @@ func (b *Bridge) RemoveService(srvID string, srvName string, nwName string, tena
 		log.Warningf("Service removal failed for service %v. Error: %s:",
 			service, err)
 	}
-	delete(b.services, srvName+nwName)
+	delete(b.services, srvName)
 }
 
 func (b *Bridge) createService(srvID string, srvName string, nwName string, tenantName string, srvIP string) *Service {
