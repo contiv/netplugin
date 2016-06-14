@@ -439,15 +439,9 @@ func createEndpointGroup(ctx *cli.Context) {
 	network := ctx.Args()[0]
 	group := ctx.Args()[1]
 
-	policies := strings.Split(ctx.String("policy"), ",")
-	if ctx.String("policy") == "" {
-		policies = []string{}
-	}
+	policies := ctx.StringSlice("policy")
 
-	extContractsGrps := strings.Split(ctx.String("external-contracts"), ",")
-	if ctx.String("external-contracts") == "" {
-		extContractsGrps = []string{}
-	}
+	extContractsGrps := ctx.StringSlice("external-contract")
 
 	errCheck(ctx, getClient(ctx).EndpointGroupPost(&contivClient.EndpointGroup{
 		TenantName:       tenant,
@@ -921,8 +915,8 @@ func createExternalContracts(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 
-	contracts := strings.Split(ctx.String("contracts"), ",")
-	if ctx.String("contracts") == "" {
+	contracts := ctx.StringSlice("contracts")
+	if len(contracts) == 0 {
 		errExit(ctx, exitHelp, "Contracts not provided", false)
 	}
 

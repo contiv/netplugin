@@ -51,13 +51,13 @@ var Commands = []cli.Command{
 				ArgsUsage: "[network] [group]",
 				Flags: []cli.Flag{
 					tenantFlag,
-					cli.StringFlag{
+					cli.StringSliceFlag{
 						Name:  "policy, p",
-						Usage: "Policy List (separated by commas)",
+						Usage: "Policy",
 					},
-					cli.StringFlag{
-						Name:  "external-contracts, e",
-						Usage: "External contracts(separated by commas)",
+					cli.StringSliceFlag{
+						Name:  "external-contract, e",
+						Usage: "External contract",
 					},
 				},
 				Action: createEndpointGroup,
@@ -320,9 +320,9 @@ var Commands = []cli.Command{
 						Name:  "provided, p",
 						Usage: "External contracts type - provided",
 					},
-					cli.StringFlag{
-						Name:  "contracts, a",
-						Usage: "Contracts (separated by commas)",
+					cli.StringSliceFlag{
+						Name:  "contract, a",
+						Usage: "Contract",
 					},
 				},
 				Action: createExternalContracts,
