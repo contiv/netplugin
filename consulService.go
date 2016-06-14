@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -171,48 +172,56 @@ func (cp *ConsulClient) WatchService(srvName string, eventCh chan WatchServiceEv
 			case <-stopCh:
 				return
 			default:
-			}
+				// Read the service instances
+				srvList, lastIdx, err = cp.getServiceInstances(keyName, lastIdx)
+				if err != nil {
+					if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
+						log.Warnf("Consul service watch: server error: %v Retrying..", err)
+					} else {
+						log.Errorf("Error getting service instances for (%s): Err: %v. Exiting watch", srvName, err)
+					}
 
-			srvList, lastIdx, err = cp.getServiceInstances(keyName, lastIdx)
-			if err != nil {
-				log.Errorf("Error getting service instances for (%s): Err: %v", srvName, err)
-			} else {
-				log.Debugf("Got consul srv list: {%+v}. Curr: {%+v}", srvList, currSrvMap)
-				var newSrvMap = make(map[string]ServiceInfo)
+					// Wait a little and continue
+					time.Sleep(5 * time.Second)
+					continue
+				} else {
+					log.Debugf("Got consul srv list: {%+v}. Curr: {%+v}", srvList, currSrvMap)
+					var newSrvMap = make(map[string]ServiceInfo)
 
-				// Check if there are any new services
-				for _, srvInfo := range srvList {
-					srvKey := srvInfo.HostAddr + ":" + strconv.Itoa(srvInfo.Port)
+					// Check if there are any new services
+					for _, srvInfo := range srvList {
+						srvKey := srvInfo.HostAddr + ":" + strconv.Itoa(srvInfo.Port)
 
-					// If the entry didnt exists previously, trigger add event
-					if _, ok := currSrvMap[srvKey]; !ok {
-						log.Debugf("Sending add event for srv: %v", srvInfo)
-						eventCh <- WatchServiceEvent{
-							EventType:   WatchServiceEventAdd,
-							ServiceInfo: srvInfo,
+						// If the entry didnt exists previously, trigger add event
+						if _, ok := currSrvMap[srvKey]; !ok {
+							log.Debugf("Sending add event for srv: %v", srvInfo)
+							eventCh <- WatchServiceEvent{
+								EventType:   WatchServiceEventAdd,
+								ServiceInfo: srvInfo,
+							}
+						}
+
+						// create new service map
+						newSrvMap[srvKey] = srvInfo
+					}
+
+					// for all entries in old service list, see if we need to delete any
+					for _, srvInfo := range currSrvMap {
+						srvKey := srvInfo.HostAddr + ":" + strconv.Itoa(srvInfo.Port)
+
+						// if the entry does not exists in new list, delete it
+						if _, ok := newSrvMap[srvKey]; !ok {
+							log.Debugf("Sending delete event for srv: %v", srvInfo)
+							eventCh <- WatchServiceEvent{
+								EventType:   WatchServiceEventDel,
+								ServiceInfo: srvInfo,
+							}
 						}
 					}
 
-					// create new service map
-					newSrvMap[srvKey] = srvInfo
+					// set new srv map as the current
+					currSrvMap = newSrvMap
 				}
-
-				// for all entries in old service list, see if we need to delete any
-				for _, srvInfo := range currSrvMap {
-					srvKey := srvInfo.HostAddr + ":" + strconv.Itoa(srvInfo.Port)
-
-					// if the entry does not exists in new list, delete it
-					if _, ok := newSrvMap[srvKey]; !ok {
-						log.Debugf("Sending delete event for srv: %v", srvInfo)
-						eventCh <- WatchServiceEvent{
-							EventType:   WatchServiceEventDel,
-							ServiceInfo: srvInfo,
-						}
-					}
-				}
-
-				// set new srv map as the current
-				currSrvMap = newSrvMap
 			}
 		}
 	}()

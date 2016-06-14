@@ -554,6 +554,9 @@ func testServiceRegisterDeregister(t *testing.T, dbClient API) {
 	}
 	log.Infof("Registered service: %+v", service2Info)
 
+	// Wait for a second for registration to happen in background
+	time.Sleep(time.Second)
+
 	resp, err := dbClient.GetService("athena")
 	if err != nil {
 		t.Fatalf("Fatal getting service. Err: %+v\n", err)

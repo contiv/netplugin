@@ -20,6 +20,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 
@@ -38,6 +39,9 @@ type ConsulClient struct {
 
 	serviceDb map[string]*consulServiceState
 }
+
+// Max times to retry
+const maxConsulRetries = 10
 
 // init Register the plugin
 func init() {
@@ -88,7 +92,23 @@ func (cp *ConsulClient) GetObj(key string, retVal interface{}) error {
 
 	resp, _, err := cp.client.KV().Get(key, &api.QueryOptions{RequireConsistent: true})
 	if err != nil {
-		return err
+		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+			strings.Contains(err.Error(), "connection refused") {
+			for i := 0; i < maxConsulRetries; i++ {
+				resp, _, err = cp.client.KV().Get(key, &api.QueryOptions{RequireConsistent: true})
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+
+		// return error if it failed after retries
+		if err != nil {
+			return err
+		}
 	}
 	// Consul returns success and a nil kv when a key is not found,
 	// translate it to 'Key not found' error
@@ -111,7 +131,23 @@ func (cp *ConsulClient) ListDir(key string) ([]string, error) {
 
 	kvs, _, err := cp.client.KV().List(key, nil)
 	if err != nil {
-		return nil, err
+		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+			strings.Contains(err.Error(), "connection refused") {
+			for i := 0; i < maxConsulRetries; i++ {
+				kvs, _, err = cp.client.KV().List(key, nil)
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+
+		// return error if it failed after retries
+		if err != nil {
+			return nil, err
+		}
 	}
 	// Consul returns success and a nil kv when a key is not found,
 	// translate it to 'Key not found' error
@@ -139,6 +175,20 @@ func (cp *ConsulClient) SetObj(key string, value interface{}) error {
 	}
 
 	_, err = cp.client.KV().Put(&api.KVPair{Key: key, Value: jsonVal}, nil)
+	if err != nil {
+		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+			strings.Contains(err.Error(), "connection refused") {
+			for i := 0; i < maxConsulRetries; i++ {
+				_, err = cp.client.KV().Put(&api.KVPair{Key: key, Value: jsonVal}, nil)
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+	}
 
 	return err
 }
@@ -147,11 +197,20 @@ func (cp *ConsulClient) SetObj(key string, value interface{}) error {
 func (cp *ConsulClient) DelObj(key string) error {
 	key = processKey("/contiv.io/obj/" + processKey(key))
 	_, err := cp.client.KV().Delete(key, nil)
-	return err
-}
+	if err != nil {
+		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+			strings.Contains(err.Error(), "connection refused") {
+			for i := 0; i < maxConsulRetries; i++ {
+				_, err = cp.client.KV().Delete(key, nil)
+				if err == nil {
+					break
+				}
 
-// GetLocalAddr gets local address of the host
-func (cp *ConsulClient) GetLocalAddr() (string, error) {
-	log.Panic("Calling unsupported API")
-	return "", nil
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+	}
+
+	return err
 }

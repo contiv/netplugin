@@ -20,8 +20,8 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -49,6 +49,9 @@ type member struct {
 type memData struct {
 	Members []member `json:"members"`
 }
+
+// Max retry count
+const maxEtcdRetries = 10
 
 // Register the plugin
 func init() {
@@ -102,8 +105,22 @@ func (ep *EtcdClient) GetObj(key string, retVal interface{}) error {
 	// Get the object from etcd client
 	resp, err := ep.kapi.Get(context.Background(), keyName, &client.GetOptions{Quorum: true})
 	if err != nil {
-		log.Errorf("Error getting key %s. Err: %v", keyName, err)
-		return err
+		// Retry few times if cluster is unavailable
+		if err.Error() == client.ErrClusterUnavailable.Error() {
+			for i := 0; i < maxEtcdRetries; i++ {
+				resp, err = ep.kapi.Get(context.Background(), keyName, &client.GetOptions{Quorum: true})
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+		if err != nil {
+			log.Errorf("Error getting key %s. Err: %v", keyName, err)
+			return err
+		}
 	}
 
 	// Parse JSON response
@@ -142,7 +159,21 @@ func (ep *EtcdClient) ListDir(key string) ([]string, error) {
 	// Get the object from etcd client
 	resp, err := ep.kapi.Get(context.Background(), keyName, &getOpts)
 	if err != nil {
-		return nil, nil
+		// Retry few times if cluster is unavailable
+		if err.Error() == client.ErrClusterUnavailable.Error() {
+			for i := 0; i < maxEtcdRetries; i++ {
+				resp, err = ep.kapi.Get(context.Background(), keyName, &getOpts)
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+		if err != nil {
+			return nil, nil
+		}
 	}
 
 	if !resp.Node.Dir {
@@ -172,9 +203,24 @@ func (ep *EtcdClient) SetObj(key string, value interface{}) error {
 	}
 
 	// Set it via etcd client
-	if _, err := ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), nil); err != nil {
-		log.Errorf("Error setting key %s, Err: %v", keyName, err)
-		return err
+	_, err = ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), nil)
+	if err != nil {
+		// Retry few times if cluster is unavailable
+		if err.Error() == client.ErrClusterUnavailable.Error() {
+			for i := 0; i < maxEtcdRetries; i++ {
+				_, err = ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), nil)
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+		if err != nil {
+			log.Errorf("Error setting key %s, Err: %v", keyName, err)
+			return err
+		}
 	}
 
 	return nil
@@ -185,9 +231,24 @@ func (ep *EtcdClient) DelObj(key string) error {
 	keyName := "/contiv.io/obj/" + key
 
 	// Remove it via etcd client
-	if _, err := ep.kapi.Delete(context.Background(), keyName, nil); err != nil {
-		log.Errorf("Error removing key %s, Err: %v", keyName, err)
-		return err
+	_, err := ep.kapi.Delete(context.Background(), keyName, nil)
+	if err != nil {
+		// Retry few times if cluster is unavailable
+		if err.Error() == client.ErrClusterUnavailable.Error() {
+			for i := 0; i < maxEtcdRetries; i++ {
+				_, err = ep.kapi.Delete(context.Background(), keyName, nil)
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+		if err != nil {
+			log.Errorf("Error removing key %s, Err: %v", keyName, err)
+			return err
+		}
 	}
 
 	return nil
@@ -214,42 +275,4 @@ func httpGetJSON(url string, data interface{}) (interface{}, error) {
 	log.Debugf("Results for (%s): %+v\n", url, data)
 
 	return data, nil
-}
-
-// GetLocalAddr Return the local address where etcd is listening
-func (ep *EtcdClient) GetLocalAddr() (string, error) {
-	var epData struct {
-		Name string `json:"name"`
-	}
-
-	log.Panic("Calling unsupported API")
-
-	// Get ep state from etcd
-	if _, err := httpGetJSON("http://localhost:2379/v2/stats/self", &epData); err != nil {
-		log.Errorf("Error getting self state. Err: %v", err)
-		return "", errors.New("Error getting self state")
-	}
-
-	var memData memData
-
-	// Get member list from etcd
-	if _, err := httpGetJSON("http://localhost:2379/v2/members", &memData); err != nil {
-		log.Errorf("Error getting members state. Err: %v", err)
-		return "", errors.New("Error getting members state")
-	}
-
-	myName := epData.Name
-	members := memData.Members
-
-	for _, mem := range members {
-		if mem.Name == myName {
-			for _, clientURL := range mem.ClientURLs {
-				hostStr := strings.TrimPrefix(clientURL, "http://")
-				hostAddr := strings.Split(hostStr, ":")[0]
-				log.Infof("Got host addr: %s", hostAddr)
-				return hostAddr, nil
-			}
-		}
-	}
-	return "", errors.New("Address not found")
 }
