@@ -124,6 +124,59 @@ var BgpModalView = React.createClass({
 
 module.exports.BgpSummaryView = BgpSummaryView
 module.exports.BgpModalView = BgpModalView
+var EndpointSummaryView = React.createClass({
+  	render: function() {
+		var self = this
+
+		// Walk thru all objects
+		var endpointListView = self.props.endpoints.map(function(endpoint){
+			return (
+				<ModalTrigger modal={<EndpointModalView endpoint={ endpoint }/>}>
+					<tr key={ endpoint.key } className="info">
+						
+						
+					</tr>
+				</ModalTrigger>
+			);
+		});
+
+		return (
+        <div>
+			<Table hover>
+				<thead>
+					<tr>
+					
+					
+					</tr>
+				</thead>
+				<tbody>
+            		{ endpointListView }
+				</tbody>
+			</Table>
+        </div>
+    	);
+	}
+});
+
+var EndpointModalView = React.createClass({
+	render() {
+		var obj = this.props.endpoint
+	    return (
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Endpoint' animation={false}>
+	        <div className='modal-body' style={ {margin: '5%',} }>
+			
+			
+			</div>
+	        <div className='modal-footer'>
+				<Button onClick={this.props.onRequestHide}>Close</Button>
+	        </div>
+	      </Modal>
+	    );
+  	}
+});
+
+module.exports.EndpointSummaryView = EndpointSummaryView
+module.exports.EndpointModalView = EndpointModalView
 var EndpointGroupSummaryView = React.createClass({
   	render: function() {
 		var self = this
