@@ -915,7 +915,7 @@ func createExternalContracts(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 
-	contracts := ctx.StringSlice("contracts")
+	contracts := ctx.StringSlice("contract")
 	if len(contracts) == 0 {
 		errExit(ctx, exitHelp, "Contracts not provided", false)
 	}
