@@ -683,6 +683,11 @@ func (vx *Vxlan) GetEndpointStats() ([]*OfnetEndpointStats, error) {
 func (vx *Vxlan) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply) {
 }
 
+// InspectState returns current state
+func (vx *Vxlan) InspectState() (interface{}, error) {
+	return nil, nil
+}
+
 // initialize Fgraph on the switch
 func (self *Vxlan) initFgraph() error {
 	sw := self.ofSwitch

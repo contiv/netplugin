@@ -788,6 +788,12 @@ func (self *OfnetAgent) GetEndpointStats() ([]*OfnetEndpointStats, error) {
 
 // InspectState returns ofnet agent state
 func (self *OfnetAgent) InspectState() (interface{}, error) {
+	dpState, err := self.datapath.InspectState()
+	if err != nil {
+		log.Errorf("Error getting state from datapath. Err: %v", err)
+		return nil, err
+	}
+
 	// convert ofnet struct to an exported struct for json marshaling
 	ofnetExport := struct {
 		LocalIp     net.IP                // Local IP to be used for tunnel end points
@@ -807,7 +813,8 @@ func (self *OfnetAgent) InspectState() (interface{}, error) {
 		// VrfIdNameMap    map[uint16]*string        // Map vrf id to vrf Name
 		VrfDb map[string]*OfnetVrfInfo // Db of all the global vrfs
 		// VlanVrf         map[uint16]*string        //vlan to vrf mapping
-		FwdMode string ///forwarding mode routing or bridge
+		FwdMode  string      ///forwarding mode routing or bridge
+		Datapath interface{} // datapath state
 	}{
 		self.localIp,
 		self.MyPort,
@@ -827,6 +834,7 @@ func (self *OfnetAgent) InspectState() (interface{}, error) {
 		self.vrfDb,
 		// self.vlanVrf,
 		self.fwdMode,
+		dpState,
 	}
 
 	return &ofnetExport, nil

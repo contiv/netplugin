@@ -807,6 +807,21 @@ func (vr *Vrouter) GetEndpointStats() ([]*OfnetEndpointStats, error) {
 	return vr.svcProxy.GetEndpointStats()
 }
 
+func (vr *Vrouter) InspectState() (interface{}, error) {
+	vrouterExport := struct {
+		PolicyAgent *PolicyAgent // Policy agent
+		SvcProxy    interface{}  // Service proxy
+		// VlanDb      map[uint16]*Vlan // Database of known vlans
+		MyRouterMac net.HardwareAddr // Router Mac to be used
+	}{
+		vr.policyAgent,
+		vr.svcProxy.InspectState(),
+		// vr.vlanDb,
+		vr.myRouterMac,
+	}
+	return vrouterExport, nil
+}
+
 // initialize Fgraph on the switch
 func (self *Vrouter) initFgraph() error {
 	sw := self.ofSwitch

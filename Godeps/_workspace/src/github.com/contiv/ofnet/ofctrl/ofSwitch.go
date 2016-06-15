@@ -203,7 +203,7 @@ func (self *OFSwitch) handleMessages(dpid net.HardwareAddr, msg util.Message) {
 	case *openflow13.MultipartRequest:
 
 	case *openflow13.MultipartReply:
-		log.Infof("Received MultipartReply")
+		log.Debugf("Received MultipartReply")
 		// send packet rcvd callback
 		self.app.MultipartReply(self, (*openflow13.MultipartReply)(t))
 

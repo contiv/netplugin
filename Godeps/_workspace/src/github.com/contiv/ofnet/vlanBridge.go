@@ -422,6 +422,11 @@ func (vl *VlanBridge) GetEndpointStats() ([]*OfnetEndpointStats, error) {
 func (vl *VlanBridge) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply) {
 }
 
+// InspectState returns current state
+func (vl *VlanBridge) InspectState() (interface{}, error) {
+	return nil, nil
+}
+
 // initialize Fgraph on the switch
 func (vl *VlanBridge) initFgraph() error {
 	sw := vl.ofSwitch

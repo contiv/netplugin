@@ -86,6 +86,9 @@ type OfnetDatapath interface {
 
 	// Get endpoint stats
 	GetEndpointStats() ([]*OfnetEndpointStats, error)
+
+	// Return the datapath state
+	InspectState() (interface{}, error)
 }
 
 // Interface implemented by each control protocol.

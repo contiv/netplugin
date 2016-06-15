@@ -911,3 +911,8 @@ func (self *Vlrouter) GetEndpointStats() ([]*OfnetEndpointStats, error) {
 // MultipartReply handles stats reply
 func (self *Vlrouter) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply) {
 }
+
+// InspectState returns current state
+func (self *Vlrouter) InspectState() (interface{}, error) {
+	return nil, nil
+}

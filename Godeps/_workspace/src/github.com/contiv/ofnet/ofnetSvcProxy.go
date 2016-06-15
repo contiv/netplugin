@@ -53,26 +53,26 @@ type ServiceSpec struct {
 
 // Providers holds the current providers of a given service
 type Providers struct {
-	providers map[string]bool // Provider IP as key
+	Providers map[string]bool // Provider IP as key
 }
 
 // svcCatalogue holds information about all services to be proxied
 // Accessible by north-bound API
 type svcCatalogue struct {
-	svcMap  map[string]ServiceSpec // service name as key
-	provMap map[string]Providers   // service name as key
+	SvcMap  map[string]ServiceSpec // service name as key
+	ProvMap map[string]Providers   // service name as key
 }
 
 // provOper holds operational info for each provider
 type provOper struct {
-	clientEPs map[string]bool // IP's of endpoints served by the provider
+	ClientEPs map[string]bool // IP's of endpoints served by the provider
 	pqHdl     *pqueue.Item    // handle into the providers pq
 }
 
 // proxyOper is operational state of the proxy
 type proxyOper struct {
-	ports        []PortSpec
-	provHdl      map[string]provOper     // provider IP as key
+	Ports        []PortSpec
+	ProvHdl      map[string]provOper     // provider IP as key
 	provPQ       *pqueue.MinPQueue       // provider priority queue for load balancing
 	watchedFlows []*ofctrl.Flow          // flows this service is watching
 	natFlows     map[string]*ofctrl.Flow // epIP.[in|out] as key
@@ -80,7 +80,7 @@ type proxyOper struct {
 
 // flow info for service
 type flowHdl struct {
-	svcIP string
+	SvcIP string
 	flow  *ofctrl.Flow
 }
 
@@ -144,7 +144,7 @@ func (svcOp *proxyOper) allocateProvider(clientIP string) (net.IP, error) {
 	}
 	prov := svcOp.provPQ.GetMin()
 	svcOp.provPQ.IncreaseMin()
-	svcOp.provHdl[prov].clientEPs[clientIP] = true
+	svcOp.ProvHdl[prov].ClientEPs[clientIP] = true
 	return net.ParseIP(prov), nil
 }
 
@@ -234,23 +234,23 @@ func (svcOp *proxyOper) addProvHdl(provIP string) {
 	clientMap := make(map[string]bool)
 	item := pqueue.NewItem(provIP)
 	pOper := provOper{
-		clientEPs: clientMap,
+		ClientEPs: clientMap,
 		pqHdl:     item,
 	}
-	svcOp.provHdl[provIP] = pOper
+	svcOp.ProvHdl[provIP] = pOper
 	svcOp.provPQ.PushItem(item)
 }
 
 func (proxy *ServiceProxy) addService(svcName string) error {
 	// make sure we have a spec and at least one provider
-	services := proxy.catalogue.svcMap
+	services := proxy.catalogue.SvcMap
 	spec, found := services[svcName]
 	if !found {
 		log.Debugf("No spec for %s", svcName)
 		return nil
 	}
 
-	providers := proxy.catalogue.provMap
+	providers := proxy.catalogue.ProvMap
 	prov, found := providers[svcName]
 	if !found {
 		log.Debugf("No providers for %s", svcName)
@@ -271,15 +271,15 @@ func (proxy *ServiceProxy) addService(svcName string) error {
 	pq := pqueue.NewMinPQueue()
 	pHdl := make(map[string]provOper)
 	nFlows := make(map[string]*ofctrl.Flow)
-	oState := &proxyOper{ports: spec.Ports,
+	oState := &proxyOper{Ports: spec.Ports,
 		provPQ:       pq,
 		watchedFlows: wFlows,
-		provHdl:      pHdl,
+		ProvHdl:      pHdl,
 		natFlows:     nFlows,
 	}
 
 	// add all providers
-	for p, _ := range prov.providers {
+	for p, _ := range prov.Providers {
 		oState.addProvHdl(p)
 	}
 
@@ -325,7 +325,7 @@ func (proxy *ServiceProxy) addService(svcName string) error {
 // delService deletes a service
 func (proxy *ServiceProxy) delService(svcName string) {
 	// make sure we have a spec
-	services := proxy.catalogue.svcMap
+	services := proxy.catalogue.SvcMap
 	spec, found := services[svcName]
 	if !found {
 		log.Debugf("delService %s not found", svcName)
@@ -373,7 +373,7 @@ func (proxy *ServiceProxy) AddSvcSpec(svcName string, spec *ServiceSpec) error {
 		}
 	}
 
-	services := proxy.catalogue.svcMap
+	services := proxy.catalogue.SvcMap
 	oldSpec, found := services[svcName]
 	if found {
 		if matchSpec(&oldSpec, spec) {
@@ -392,7 +392,7 @@ func (proxy *ServiceProxy) AddSvcSpec(svcName string, spec *ServiceSpec) error {
 // DelSvcSpec deletes a service spec.
 func (proxy *ServiceProxy) DelSvcSpec(svcName string, spec *ServiceSpec) error {
 	log.Infof("DelSvcSpec %s %v", svcName, spec)
-	services := proxy.catalogue.svcMap
+	services := proxy.catalogue.SvcMap
 	_, found := services[svcName]
 	if !found {
 		log.Warnf("DelSvcSpec service %s not found", svcName)
@@ -442,18 +442,18 @@ func (proxy *ServiceProxy) delProvider(svcIP, provIP string) error {
 	}
 
 	// Remove flows NAT'ed to this provider
-	for epIP, _ := range operEntry.provHdl[provIP].clientEPs {
-		for _, p := range operEntry.ports {
+	for epIP, _ := range operEntry.ProvHdl[provIP].ClientEPs {
+		for _, p := range operEntry.Ports {
 			operEntry.delNATFlow(proxy, epIP, "Dst", &p)
 			operEntry.delNATFlow(proxy, epIP, "Src", &p)
 		}
 	}
 
 	// Remove provider from the loadbalancer pq
-	pqItem := operEntry.provHdl[provIP].pqHdl
+	pqItem := operEntry.ProvHdl[provIP].pqHdl
 	operEntry.provPQ.RemoveItem(pqItem)
 	// remove the provider handle for this provider
-	delete(operEntry.provHdl, provIP)
+	delete(operEntry.ProvHdl, provIP)
 	log.Infof("Removed provider %s for serviceIP %s", provIP, svcIP)
 	return nil
 }
@@ -468,13 +468,13 @@ func (proxy *ServiceProxy) ProviderUpdate(svcName string, providers []string) {
 	}
 
 	pMap := Providers{
-		providers: newProvs,
+		Providers: newProvs,
 	}
 	// if we don't have the service spec yet, just save the provider
 	// map and return
-	sSpec, found := proxy.catalogue.svcMap[svcName]
+	sSpec, found := proxy.catalogue.SvcMap[svcName]
 	if !found {
-		proxy.catalogue.provMap[svcName] = pMap
+		proxy.catalogue.ProvMap[svcName] = pMap
 		log.Debugf("Service %s -- no spec yet", svcName)
 		return
 	}
@@ -489,7 +489,7 @@ func (proxy *ServiceProxy) ProviderUpdate(svcName string, providers []string) {
 	}
 
 	if !found {
-		proxy.catalogue.provMap[svcName] = pMap
+		proxy.catalogue.ProvMap[svcName] = pMap
 		err := proxy.addService(svcName)
 		if err != nil {
 			log.Errorf("ProviderUpdate failed for %s", svcName)
@@ -497,8 +497,8 @@ func (proxy *ServiceProxy) ProviderUpdate(svcName string, providers []string) {
 		return
 	}
 
-	currProvs := proxy.catalogue.provMap[svcName]
-	proxy.catalogue.provMap[svcName] = pMap
+	currProvs := proxy.catalogue.ProvMap[svcName]
+	proxy.catalogue.ProvMap[svcName] = pMap
 
 	// if the new provider list is empty, delete the service
 	if len(providers) == 0 {
@@ -509,14 +509,14 @@ func (proxy *ServiceProxy) ProviderUpdate(svcName string, providers []string) {
 
 	// Add any new providers first
 	for _, p := range providers {
-		_, found = currProvs.providers[p]
+		_, found = currProvs.Providers[p]
 		if !found {
 			proxy.addProvider(sSpec.IpAddress, p)
 		}
 	}
 
 	// Delete any providers that disappeared
-	for p, _ := range currProvs.providers {
+	for p, _ := range currProvs.Providers {
 		_, found = newProvs[p]
 		if !found {
 			proxy.delProvider(sSpec.IpAddress, p)
@@ -529,8 +529,8 @@ func NewServiceProxy() *ServiceProxy {
 	svcProxy := new(ServiceProxy)
 
 	// initialize
-	svcProxy.catalogue.svcMap = make(map[string]ServiceSpec)
-	svcProxy.catalogue.provMap = make(map[string]Providers)
+	svcProxy.catalogue.SvcMap = make(map[string]ServiceSpec)
+	svcProxy.catalogue.ProvMap = make(map[string]Providers)
 	svcProxy.operState = make(map[string]*proxyOper)
 	svcProxy.flowMap = make(map[uint64]flowHdl)
 	svcProxy.epStats = make(map[string]*OfnetEndpointStats)
@@ -545,6 +545,11 @@ func (proxy *ServiceProxy) SwitchConnected(sw *ofctrl.OFSwitch) {
 	proxy.ofSwitch = sw
 
 	log.Infof("Switch connected(svcProxy).")
+
+	if !proxy.statsPollStarted {
+		proxy.statsPollStarted = true
+		go proxy.pollStats()
+	}
 }
 
 // Handle switch disconnected notification
@@ -560,7 +565,7 @@ func (proxy *ServiceProxy) DelEndpoint(endpoint *OfnetEndpoint) {
 	proxy.oMutex.Lock()
 	defer proxy.oMutex.Unlock()
 	for _, operEntry := range proxy.operState {
-		for _, p := range operEntry.ports {
+		for _, p := range operEntry.Ports {
 			// this client exists iff DNAT flow exists
 			key := getNATKey(epIP, "Dst", &p)
 			flow, found := operEntry.natFlows[key]
@@ -569,9 +574,9 @@ func (proxy *ServiceProxy) DelEndpoint(endpoint *OfnetEndpoint) {
 				// delete both flows and remove the client
 				operEntry.delNATFlow(proxy, epIP, "Dst", &p)
 				operEntry.delNATFlow(proxy, epIP, "Src", &p)
-				hdl, ok := operEntry.provHdl[provIP]
+				hdl, ok := operEntry.ProvHdl[provIP]
 				if ok {
-					delete(hdl.clientEPs, epIP)
+					delete(hdl.ClientEPs, epIP)
 					pqItem := hdl.pqHdl
 					operEntry.provPQ.DecreaseItem(pqItem)
 				}
@@ -635,10 +640,10 @@ func (proxy *ServiceProxy) HandlePkt(pkt *ofctrl.PacketIn) {
 	// use copies of fields from the pkt
 	ipSrc := net.ParseIP(ip.NWSrc.String())
 	ipDst := net.ParseIP(ip.NWDst.String())
-	fInfo := flowHdl{}
+	fInfo := flowHdl{SvcIP: svcIP}
 
 	// setup nat rules in both directions for all ports of the service
-	for _, p := range operEntry.ports {
+	for _, p := range operEntry.Ports {
 		// set up outgoing NAT
 		f, err := operEntry.addNATFlow(proxy.dNATTable, proxy.dNATNext, &p, &ipSrc, &ipDst, &provIP, spDNAT)
 		if err == nil {
@@ -672,6 +677,7 @@ func (proxy *ServiceProxy) HandlePkt(pkt *ofctrl.PacketIn) {
 	// Send it out
 	proxy.ofSwitch.Send(pktOut)
 
+	// Start stats polling if it hasnt started already
 	if !proxy.statsPollStarted {
 		proxy.statsPollStarted = true
 		go proxy.pollStats()
@@ -685,7 +691,7 @@ func (proxy *ServiceProxy) updateSNATStats(fs *openflow13.FlowStats) {
 		return // Flow is probably deleted
 	}
 
-	svcIP := flowInfo.svcIP
+	svcIP := flowInfo.SvcIP
 	fm := flowInfo.flow.Match
 	provIP := fm.IpSa.String()
 	epIP := fm.IpDa.String()
@@ -716,7 +722,7 @@ func (proxy *ServiceProxy) updateSNATStats(fs *openflow13.FlowStats) {
 	stats.Stats.BytesIn = fs.ByteCount
 	entry.SvcStats[svcIP] = stats
 
-	log.Infof("SNAT Stats: epIP: %s, svcIp: %s, entry: %+v", epIP, svcIP, entry)
+	log.Debugf("SNAT Stats: epIP: %s, svcIp: %s, entry: %+v", epIP, svcIP, entry)
 
 }
 
@@ -726,7 +732,7 @@ func (proxy *ServiceProxy) updateDNATStats(fs *openflow13.FlowStats) {
 		return // Flow is probably deleted
 	}
 
-	svcIP := flowInfo.svcIP
+	svcIP := flowInfo.SvcIP
 	fm := flowInfo.flow.Match
 	if fm.TcpSrcPort == 0 && fm.TcpDstPort == 0 &&
 		fm.UdpSrcPort == 0 && fm.UdpDstPort == 0 {
@@ -759,7 +765,7 @@ func (proxy *ServiceProxy) updateDNATStats(fs *openflow13.FlowStats) {
 	stats.Stats.BytesOut = fs.ByteCount
 	entry.SvcStats[svcIP] = stats
 
-	log.Infof("DNAT Stats: epIP: %s, svcIp: %s, entry: %+v", epIP, svcIP, entry)
+	log.Debugf("DNAT Stats: epIP: %s, svcIp: %s, entry: %+v", epIP, svcIP, entry)
 }
 
 // FlowStats handles a stats response from the switch
@@ -773,7 +779,7 @@ func (proxy *ServiceProxy) FlowStats(reply *openflow13.MultipartReply) {
 	for _, entry := range flowArr {
 		flowStats := entry.(*openflow13.FlowStats)
 
-		log.Infof("Got flow stats: %+v", flowStats)
+		log.Debugf("Got flow stats: %+v", flowStats)
 
 		if flowStats.TableId == SRV_PROXY_DNAT_TBL_ID {
 			proxy.updateDNATStats(flowStats)
@@ -804,7 +810,7 @@ func (proxy *ServiceProxy) pollStats() {
 		mp1 := getMPReq()
 		mp1.Body = dnatReq
 		proxy.ofSwitch.Send(mp1)
-		log.Infof("Sent DNAT stats req")
+		log.Debugf("Sent DNAT stats req")
 		time.Sleep(1 * time.Second)
 		//inject a stats request
 		snatReq := openflow13.NewFlowStatsRequest()
@@ -812,7 +818,7 @@ func (proxy *ServiceProxy) pollStats() {
 		mp2 := getMPReq()
 		mp2.Body = snatReq
 		proxy.ofSwitch.Send(mp2)
-		log.Infof("Sent SNAT stats req")
+		log.Debugf("Sent SNAT stats req")
 	}
 }
 
@@ -857,4 +863,21 @@ func (proxy *ServiceProxy) InitDNATTable(nextIDdNAT uint8) error {
 	proxyMissFlow.Next(proxy.dNATNext)
 
 	return nil
+}
+
+// InspectState returns current state of svc proxy
+func (proxy *ServiceProxy) InspectState() interface{} {
+	proxyExport := struct {
+		Catalogue svcCatalogue                   // Services and providers added to the proxy
+		OperState map[string]*proxyOper          // Operational state info, with service IP as key
+		EpStats   map[string]*OfnetEndpointStats // stats for the service
+		// FlowMap   map[uint64]flowHdl             // flowId to Info map
+	}{
+		proxy.catalogue,
+		proxy.operState,
+		proxy.epStats,
+		// proxy.flowMap,
+	}
+
+	return &proxyExport
 }
