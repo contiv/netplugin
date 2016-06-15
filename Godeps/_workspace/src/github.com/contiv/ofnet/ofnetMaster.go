@@ -311,7 +311,7 @@ func (self *OfnetMaster) InjectGARPs(epgID int) {
 }
 
 // InspectState returns current state as json
-func (self *OfnetMaster) InspectState() (string, error) {
+func (self *OfnetMaster) InspectState() ([]byte, error) {
 	// convert ofnet struct to an exported struct for json marshaling
 	ofnetExport := struct {
 		MyAddr     string                      // Address where we are listening
@@ -331,8 +331,8 @@ func (self *OfnetMaster) InspectState() (string, error) {
 	jsonStats, err := json.Marshal(ofnetExport)
 	if err != nil {
 		log.Errorf("Error encoding ofnet master state. Err: %v", err)
-		return "", err
+		return []byte{}, err
 	}
 
-	return string(jsonStats), nil
+	return jsonStats, nil
 }

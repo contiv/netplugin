@@ -157,6 +157,17 @@ func (d *daemon) registerRoutes(router *mux.Router) {
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetServicesRESTEndpoint),
 		get(true, d.services))
 
+	// Debug REST endpoint for inspecting ofnet state
+	s.HandleFunc("/debug/ofnet", func(w http.ResponseWriter, r *http.Request) {
+		ofnetMasterState, err := d.ofnetMaster.InspectState()
+		if err != nil {
+			log.Errorf("Error fetching ofnet state. Err: %v", err)
+			http.Error(w, "Error fetching ofnet state", http.StatusInternalServerError)
+			return
+		}
+		w.Write(ofnetMasterState)
+	})
+
 }
 
 // XXX: This function should be returning logical state instead of driver state
