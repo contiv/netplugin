@@ -106,8 +106,8 @@ func addRule(ctx *cli.Context) {
 		}
 
 		// If from EPG is specified, make sure from network is specified too
-		if ctx.String("from-group") != "" && ctx.String("from-network") == "" {
-			errExit(ctx, exitHelp, "from-group argument requires -from-network too", false)
+		if ctx.String("from-group") != "" && ctx.String("from-network") != "" {
+			errExit(ctx, exitHelp, "Can't specify both from-group argument and -from-network ", false)
 		}
 	} else if dir == "out" {
 		if ctx.String("from-group") != "" {
@@ -121,8 +121,8 @@ func addRule(ctx *cli.Context) {
 		}
 
 		// If to EPG is specified, make sure to network is specified too
-		if ctx.String("to-group") != "" && ctx.String("to-network") == "" {
-			errExit(ctx, exitHelp, "-to-group argument requires -to-network too", false)
+		if ctx.String("to-group") != "" && ctx.String("to-network") != "" {
+			errExit(ctx, exitHelp, "Can't specify both -to-group and -to-network", false)
 		}
 	} else {
 		errExit(ctx, exitHelp, "Unknown direction", false)
