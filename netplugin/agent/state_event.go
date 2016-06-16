@@ -202,6 +202,29 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, hostID
 	return err
 }
 
+func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID string, isDelete bool) error {
+	log.Infof("Received processEpgEvent")
+	var err error
+
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+
+	operStr := ""
+	if isDelete {
+		operStr = "delete"
+	} else {
+		err = netPlugin.UpdateEndpointGroup(ID)
+		operStr = "update"
+	}
+	if err != nil {
+		log.Errorf("Epg %s failed. Error: %s", operStr, err)
+	} else {
+		log.Infof("Epg %s succeeded", operStr)
+	}
+
+	return err
+}
+
 func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, fwdMode string) {
 
 	// parse store URL
@@ -324,6 +347,12 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 				continue
 			}
 
+			if epgCfg, ok := currentState.(*mastercfg.EndpointGroupState); ok {
+				log.Infof("Received %q for Endpointgroup: %q", eventStr, epgCfg.EndpointGroupID)
+				processEpgEvent(netPlugin, opts, epgCfg.ID, isDelete)
+				continue
+			}
+
 			if svcProvider, ok := currentState.(*mastercfg.SvcProvider); ok {
 				log.Infof("Received %q for Service %s , provider:%#v", eventStr,
 					svcProvider.ServiceName, svcProvider.Providers)
@@ -363,6 +392,11 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
 			processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
 		}
+		if epgCfg, ok := currentState.(*mastercfg.EndpointGroupState); ok {
+			log.Infof("Received %q for Endpointgroup: %q", eventStr, epgCfg.EndpointGroupID)
+			processEpgEvent(netPlugin, opts, epgCfg.ID, isDelete)
+			continue
+		}
 		if serviceLbCfg, ok := currentState.(*mastercfg.CfgServiceLBState); ok {
 			log.Infof("Received %q for Service %s on tenant %s", eventStr,
 				serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
@@ -390,6 +424,16 @@ func handleBgpEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvEr
 	rsps := make(chan core.WatchState)
 	go processStateEvent(netPlugin, opts, rsps)
 	cfg := mastercfg.CfgBgpState{}
+	cfg.StateDriver = netPlugin.StateDriver
+	recvErr <- cfg.WatchAll(rsps)
+	return
+}
+
+func handleEpgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
+
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, opts, rsps)
+	cfg := mastercfg.EndpointGroupState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
 	return

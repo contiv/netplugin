@@ -55,6 +55,10 @@ var Commands = []cli.Command{
 						Name:  "policy, p",
 						Usage: "Policy",
 					},
+					cli.StringFlag{
+						Name:  "networkprofile, n",
+						Usage: "network profile",
+					},
 					cli.StringSliceFlag{
 						Name:  "external-contract, e",
 						Usage: "External contract",
@@ -91,6 +95,56 @@ var Commands = []cli.Command{
 				ArgsUsage: "[epid]",
 				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectEndpoint,
+			},
+		},
+	},
+	{
+		Name:  "netprofile",
+		Usage: "Network profile manipulation tools",
+		Subcommands: []cli.Command{
+			{
+				Name:      "create",
+				Usage:     "Create a network profile",
+				ArgsUsage: "[netprofile]",
+				Flags: []cli.Flag{
+					tenantFlag,
+					cli.StringFlag{
+						Name:  "bandwidth, b",
+						Usage: "Bandwidth (e.g., 10 kbps, 100 mbps, 1gbps)",
+					},
+					cli.IntFlag{
+						Name:  "dscp, d",
+						Usage: "DSCP",
+					},
+					cli.IntFlag{
+						Name:  "burst, s",
+						Usage: "burst size(Must be in kilobytes)",
+					},
+				},
+				Action: createNetProfile,
+			},
+			{
+				Name:      "rm",
+				Aliases:   []string{"delete"},
+				Usage:     "Delete a network profile",
+				ArgsUsage: "[network] [group]",
+				Flags:     []cli.Flag{tenantFlag},
+				Action:    deleteNetProfile,
+			},
+			{
+				Name:      "ls",
+				Aliases:   []string{"list"},
+				Usage:     "List network profile",
+				ArgsUsage: " ",
+				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
+				Action:    listNetProfiles,
+			},
+			{
+				Name:      "inspect",
+				Usage:     "inspect network profile",
+				ArgsUsage: "[netprofile]",
+				Flags:     []cli.Flag{tenantFlag},
+				Action:    inspectNetprofile,
 			},
 		},
 	},

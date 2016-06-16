@@ -100,6 +100,11 @@ func (d *KubeTestNetDrv) CreateEndpoint(id string) error {
 	return nil
 }
 
+//UpdateEndpointGroup is not implemented.
+func (d *KubeTestNetDrv) UpdateEndpointGroup(id string) error {
+	return nil
+}
+
 // DeleteEndpoint is not implemented.
 func (d *KubeTestNetDrv) DeleteEndpoint(id string) (err error) {
 	return nil

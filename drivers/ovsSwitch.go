@@ -272,7 +272,7 @@ func getOvsPortName(intfName string, skipVethPair bool) string {
 }
 
 // CreatePort creates a port in ovs switch
-func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag int, skipVethPair bool) error {
+func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag, burst int, skipVethPair bool, bandwidth int64) error {
 	var ovsIntfType string
 
 	// Get OVS port name
@@ -310,9 +310,8 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 			log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
 		}
 	}
-
 	// Ask OVSDB driver to add the port
-	err := sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag)
+	err := sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag, burst, bandwidth)
 	if err != nil {
 		return err
 	}
@@ -368,6 +367,18 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 
 	if err != nil {
 		log.Errorf("Error adding local port %s to ofnet. Err: %v", ovsPortName, err)
+		return err
+	}
+	return nil
+}
+
+//UpdateBandwidth calls the UpdateBandwidth
+func (sw *OvsSwitch) UpdateBandwidth(intfName string, burst int, epgBandwidth int64) error {
+
+	log.Infof("Coming inside UpdateBandwidth")
+
+	err := sw.ovsdbDriver.UpdatePolicingRate(intfName, burst, epgBandwidth)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -544,7 +555,7 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 	// Check if port is already part of the OVS and add it
 	if !sw.ovsdbDriver.IsPortNamePresent(intfName) {
 		// Ask OVSDB driver to add the port as a trunk port
-		err = sw.ovsdbDriver.CreatePort(intfName, "", uplinkID, 0)
+		err = sw.ovsdbDriver.CreatePort(intfName, "", uplinkID, 0, 0, 0)
 		if err != nil {
 			log.Errorf("Error adding uplink %s to OVS. Err: %v", intfName, err)
 			return err
@@ -669,7 +680,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 	}
 
 	// Ask OVSDB driver to add the port as an access port
-	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN)
+	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN, 0, 0)
 	if err != nil {
 		log.Errorf("Error adding hostport %s to OVS. Err: %v", intfName, err)
 		return err

@@ -152,7 +152,6 @@ func (d *OvsdbDriver) Echo([]interface{}) {
 
 func (d *OvsdbDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 	reply, _ := d.ovs.Transact(ovsDataBase, ops...)
-
 	if len(reply) < len(ops) {
 		return core.Errorf("Unexpected number of replies. Expected: %d, Recvd: %d",
 			len(ops), len(reply))
@@ -267,7 +266,7 @@ func (d *OvsdbDriver) GetPortOrIntfNameFromID(id string, isPort bool) (string, e
 }
 
 // CreatePort creates an OVS port
-func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag int) error {
+func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, bandwidth int64) error {
 	// intfName is assumed to be unique enough to become uuid
 	portUUIDStr := intfName
 	intfUUIDStr := fmt.Sprintf("Intf%s", intfName)
@@ -283,6 +282,12 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag int) error {
 	intf := make(map[string]interface{})
 	intf["name"] = intfName
 	intf["type"] = intfType
+	if bandwidth != 0 {
+		intf["ingress_policing_rate"] = bandwidth
+	}
+	if burst != 0 {
+		intf["ingress_policing_burst"] = burst
+	}
 	idMap["endpoint-id"] = id
 	intf["external_ids"], err = libovsdb.NewOvsMap(idMap)
 	if err != nil {
@@ -335,6 +340,29 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag int) error {
 
 	operations := []libovsdb.Operation{intfOp, portOp, mutateOp}
 	return d.performOvsdbOps(operations)
+}
+
+//UpdatePolicingRate will update the ingress policing rate in interface table.
+func (d *OvsdbDriver) UpdatePolicingRate(intfName string, burst int, bandwidth int64) error {
+	bw := int(bandwidth)
+	intf := make(map[string]interface{})
+	intf["ingress_policing_rate"] = bw
+	intf["ingress_policing_burst"] = burst
+
+	condition := libovsdb.NewCondition("name", "==", intfName)
+	if condition == nil {
+		return errors.New("Error getting the new condition")
+	}
+	mutateOp := libovsdb.Operation{
+		Op:    "update",
+		Table: interfaceTable,
+		Row:   intf,
+		Where: []interface{}{condition},
+	}
+
+	operations := []libovsdb.Operation{mutateOp}
+	return d.performOvsdbOps(operations)
+
 }
 
 // DeletePort deletes a port from OVS

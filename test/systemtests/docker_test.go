@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,7 +68,7 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 	}
 
 	if spec.imageName == "" {
-		spec.imageName = "alpine"
+		spec.imageName = "contiv/alpine"
 	}
 
 	if spec.commandName == "" {
@@ -92,7 +93,6 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 	logrus.Infof("Starting a container running %q on %s", spec.commandName, d.node.Name())
 
 	cmd := fmt.Sprintf("docker run -itd %s %s %s %s %s %s", namestr, netstr, dnsStr, labelstr, spec.imageName, spec.commandName)
-
 	out, err := d.node.tbnode.RunCommandWithOutput(cmd)
 	if err != nil {
 		logrus.Infof("cmd %q failed: output below", cmd)
@@ -244,6 +244,131 @@ func (d *docker) startListener(c *container, port int, protocol string) error {
 	logrus.Infof("Starting a %s listener on %v port %d", protocol, c, port)
 	_, err := d.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
 	return err
+}
+
+func (d *docker) startIperfServer(c *container) error {
+	logrus.Infof("starting iperf server on: %s", c)
+	_, err := d.execBG(c, fmt.Sprintf("iperf -s -u"))
+	return err
+}
+
+func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) error {
+
+	var (
+		bwLimit int64
+		bwInt64 int64
+		bw	string
+		success bool
+		err     error
+	)
+
+	for i := 0; i<10 ;i++  {
+        bw, err = d.exec(c, fmt.Sprintf("iperf -c %s -u -b 20mbps", ip))
+        if err != nil {
+                return err
+        }  
+	 if strings.Contains(bw, "Server Report:") {
+	success = true
+	break	
+	}else if strings.Contains(bw, "read failed:") { 
+	time.Sleep(2 * time.Second)
+	i++
+	}
+	}      
+
+		if success {
+		logrus.Infof("starting iperf client on conatiner:%s for server ip: %s", c, ip)
+		bwFormat := strings.Split(bw, "Server Report:")
+		bwString := strings.Split(bwFormat[1], "Bytes ")
+		newBandwidth := strings.Split(bwString[1], "bits/sec")
+		bwInt64, err = BwConvertInt64(newBandwidth[0])
+		if err != nil {
+			return err
+		}
+		if limit != "" {
+			bwLimit, err = BwConvertInt64(limit)
+			if err != nil {
+				return err
+			}
+			bwLimit = bwLimit + (bwLimit / 10)
+			if bwLimit > bwInt64 {
+				logrus.Infof("Obtained bandwidth :%sbits is less than the limit:%s", newBandwidth[0], limit)
+			} else if bwLimit < bwInt64 {
+				if isErr {
+					logrus.Errorf("Obtained Bandwidth:%sbits is more than the limit: %s",newBandwidth[0], limit)
+				} else {
+					logrus.Errorf("Obtained bandwidth:%sbits is more than the limit %s", newBandwidth[0], limit)
+					return errors.New("Applied bandwidth is more than bandwidth rate!")
+				}
+			} else {
+				logrus.Errorf("Bandwidth rate :%s not applied", limit)
+				return errors.New("Bandwidth rate is not applied")
+			}
+		} else {
+			logrus.Infof("Obtained bandwidth:%s", newBandwidth[0])
+		}
+	}
+	return nil
+}
+
+func BwConvertInt64(bandwidth string) (int64, error) {
+	var rate int64
+
+	const (
+		kiloBytes = 1024
+		magaBytes = 1024 * kiloBytes
+		gigaBytes = 1024 * magaBytes
+	)
+
+	regex := regexp.MustCompile("[0-9]+")
+	bwStr := regex.FindAllString(bandwidth, -1)
+	bwInt, err := strconv.ParseInt(bwStr[0], 10, 64)
+	if err != nil {
+		logrus.Errorf("error converting bandwidth string to uint64 %+v", err)
+		return 0, err
+	}
+	if strings.ContainsAny(bandwidth, "g|G") {
+		rate = gigaBytes
+	} else if strings.ContainsAny(bandwidth, "m|M") {
+		rate = magaBytes
+	} else if strings.ContainsAny(bandwidth, "k|K") {
+		rate = kiloBytes
+	}
+	bwInt64 := bwInt * rate
+	bwInt64 = bwInt64 / 1000
+
+	return bwInt64, nil
+}
+
+func (d *docker) tcFilterShow(bw string) error {
+	qdiscShow, err := d.node.runCommand("tc qdisc show")
+	if err != nil {
+		return err
+	}
+	qdiscoutput := strings.Split(qdiscShow, "ingress")
+	vvport := strings.Split(qdiscoutput[1], "parent")
+	vvPort := strings.Split(vvport[0], "dev ")
+	cmd := fmt.Sprintf("tc -s filter show dev %s parent ffff:", vvPort[1])
+	str, err := d.node.runCommand(cmd)
+	if err != nil {
+		return err
+	}
+	output := strings.Split(str, "rate ")
+	rate := strings.Split(output[1], "burst")
+	regex := regexp.MustCompile("[0-9]+")
+	outputStr := regex.FindAllString(rate[0], -1)
+	outputInt, err := strconv.ParseInt(outputStr[0], 10, 64)
+	bwInt, err := BwConvertInt64(bw)
+	if err != nil {
+		return err
+	}
+	if bwInt == outputInt {
+		logrus.Infof("Applied bandwidth: %dkbits equals tc qdisc rate: %dkbits", bwInt, outputInt)
+	} else {
+		logrus.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
+		return errors.New("Applied bandwidth does not match the tc qdisc rate")
+	}
+	return nil
 }
 
 func (d *docker) checkConnection(c *container, ipaddr, protocol string, port int) error {

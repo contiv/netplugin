@@ -37,4 +37,7 @@ type systemTestScheduler interface {
 	verifyEPs(epList []string) (string, error)
 	reloadNode(n *node) error
 	getMasterIP() (string, error)
+	startIperfServer(containers *container) error
+	startIperfClient(containers *container, ip, limit string, isErr bool) error
+	tcFilterShow(bw string) error
 }

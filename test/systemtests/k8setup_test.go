@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -75,7 +76,7 @@ func (k *kubernetes) runContainer(spec containerSpec) (*container, error) {
 		labelstr = "--labels=" + labelstr
 	}
 
-	image = "--image=alpine " //contiv/nc-busybox"
+	image = "--image=contiv/alpine " //contiv/nc-busybox"
 
 	cmdStr := " --command -- sleep 900000"
 
@@ -270,6 +271,91 @@ func (k *kubernetes) startListener(c *container, port int, protocol string) erro
 	k.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
 	return nil
 
+}
+
+func (k *kubernetes) startIperfServer(c *container) error {
+
+	k.execBG(c, fmt.Sprintf("iperf -s"))
+	return nil
+}
+
+func (k *kubernetes) startIperfClient(c *container, ip, limit string, isErr bool) error {
+
+	var (
+		bwLimit int64
+		bwInt64 int64
+	)
+	bw, err := k.exec(c, fmt.Sprintf("iperf -c %s ", ip))
+	logrus.Infof("starting iperf client on : %v for server ip: %s", c, ip)
+	if err != nil {
+		logrus.Errorf("Error starting the iperf client")
+	}
+	if strings.Contains(bw, "bits/sec") {
+		bwString := strings.Split(bw, "Bytes ")
+		bwInt64, err = BwConvertInt64(bwString[1])
+		if err != nil {
+			return err
+		}
+		if limit != "" {
+			bwLimit, err = BwConvertInt64(limit)
+			if err != nil {
+				return err
+			}
+			bwLimit = bwLimit + (bwLimit / 10)
+			if bwLimit > bwInt64 {
+				logrus.Infof("Obtained bandwidth :%dkbits is less than the limit:%dkbits", bwInt64, bwLimit)
+			} else if bwLimit < bwInt64 {
+				if isErr {
+					logrus.Errorf("Obtained Bandwidth:%s is more than the limit: %s", strings.TrimSpace(bwString[1]), limit)
+				} else {
+					logrus.Errorf("Obtained bandwidth:%s is more than the limit %s", bwString[1], limit)
+					return errors.New("Applied bandwidth is more than bandwidth rate!")
+				}
+			} else {
+				logrus.Errorf("Bandwidth rate :%s not applied", limit)
+				return errors.New("Bandwidth rate is not applied")
+			}
+		} else {
+			logrus.Infof("Obtained bandwidth:%s", bwString[1])
+		}
+	} else {
+		logrus.Errorf("Bandwidth string invalid:%s", bw)
+	}
+	return err
+}
+
+func (k *kubernetes) tcFilterShow(bw string) error {
+	if k.node.Name() == "k8master" {
+		return nil
+	}
+	qdiscShow, err := k.node.runCommand("tc qdisc show")
+	if err != nil {
+		return err
+	}
+	qdiscoutput := strings.Split(qdiscShow, "ingress")
+	vvport := strings.Split(qdiscoutput[1], "parent")
+	vvPort := strings.Split(vvport[0], "dev ")
+	cmd := fmt.Sprintf("tc -s filter show dev %s parent ffff:", vvPort[1])
+	str, err := k.node.runCommand(cmd)
+	if err != nil {
+		return err
+	}
+	output := strings.Split(str, "rate ")
+	rate := strings.Split(output[1], "burst")
+	regex := regexp.MustCompile("[0-9]+")
+	outputStr := regex.FindAllString(rate[0], -1)
+	outputInt, err := strconv.ParseInt(outputStr[0], 10, 64)
+	bwInt, err := BwConvertInt64(bw)
+	if err != nil {
+		return err
+	}
+	if bwInt == outputInt {
+		logrus.Infof("Applied bandwidth: %dkbits equals tc qdisc rate: %dkbits", bwInt, outputInt)
+	} else {
+		logrus.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
+		return errors.New("Applied bandwidth doe sot match teh tc qdisc rate")
+	}
+	return nil
 }
 
 func (k *kubernetes) checkConnection(c *container, ipaddr, protocol string, port int) error {

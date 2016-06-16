@@ -25,12 +25,11 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/ofnet"
-	"github.com/vishvananda/netlink"
-
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils/netutils"
+	"github.com/contiv/ofnet"
+	"github.com/vishvananda/netlink"
 )
 
 type oper int
@@ -40,12 +39,20 @@ const (
 	hostPortName = "contivh0"
 )
 
+//EpInfo contains the ovsport and id of the group
+type EpInfo struct {
+	Ovsportname string `json:"Ovsportname"`
+	EpgKey      string `json:"EpgKey"`
+	BridgeType  string `json:"BridgeType"`
+}
+
 // OvsDriverOperState carries operational state of the OvsDriver.
 type OvsDriverOperState struct {
 	core.CommonState
 
 	// used to allocate port names. XXX: should it be user controlled?
-	CurrPortNum int `json:"currPortNum"`
+	CurrPortNum int                `json:"currPortNum"`
+	LocalEpInfo map[string]*EpInfo `json:"LocalEpInfo"` // info about local endpoints
 }
 
 // Write the state
@@ -132,6 +139,11 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 		// create the oper state as it is first time start up
 		d.oper.ID = info.HostLabel
 		d.oper.CurrPortNum = 0
+
+		// create local endpoint info map
+		d.oper.LocalEpInfo = make(map[string]*EpInfo)
+
+		// write the oper
 		err = d.oper.Write()
 		if err != nil {
 			return err
@@ -303,8 +315,10 @@ func (d *OvsDriver) DeleteNetwork(id, nwType, encap string, pktTag, extPktTag in
 // CreateEndpoint creates an endpoint by named identifier
 func (d *OvsDriver) CreateEndpoint(id string) error {
 	var (
-		err      error
-		intfName string
+		err          error
+		intfName     string
+		epgKey       string
+		epgBandwidth int64
 	)
 
 	cfgEp := &mastercfg.CfgEndpointState{}
@@ -325,16 +339,22 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 	pktTagType := cfgNw.PktTagType
 	pktTag := cfgNw.PktTag
-
+	cfgEpGroup := &mastercfg.EndpointGroupState{}
 	// Read pkt tags from endpoint group if available
 	if cfgEp.EndpointGroupKey != "" {
-		cfgEpGroup := &mastercfg.EndpointGroupState{}
 		cfgEpGroup.StateDriver = d.oper.StateDriver
+
 		err = cfgEpGroup.Read(cfgEp.EndpointGroupKey)
 		if err == nil {
 			log.Debugf("pktTag: %v ", cfgEpGroup.PktTag)
 			pktTagType = cfgEpGroup.PktTagType
 			pktTag = cfgEpGroup.PktTag
+			epgKey = cfgEp.EndpointGroupKey
+			log.Infof("Received endpoint create with bandwidth:%s", cfgEpGroup.Bandwidth)
+			if cfgEpGroup.Bandwidth != "" {
+				epgBandwidth = netutils.ConvertBandwidth(cfgEpGroup.Bandwidth)
+			}
+
 		} else if core.ErrIfKeyExists(err) == nil {
 			log.Infof("EPG %s not found: %v. will use network based tag ", cfgEp.EndpointGroupKey, err)
 		} else {
@@ -389,13 +409,26 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		}
 	}
 
+	// Get OVS port name
+	ovsPortName := getOvsPortName(intfName, skipVethPair)
+
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, pktTag, cfgNw.PktTag, skipVethPair)
+	err = sw.CreatePort(intfName, cfgEp, pktTag, cfgNw.PktTag, cfgEpGroup.Burst, skipVethPair, epgBandwidth)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err
 	}
 
+	// save local endpoint info
+	d.oper.LocalEpInfo[id] = &EpInfo{
+		Ovsportname: ovsPortName,
+		EpgKey:      epgKey,
+		BridgeType:  pktTagType,
+	}
+	err = d.oper.Write()
+	if err != nil {
+		return err
+	}
 	// Save the oper state
 	operEp = &OvsOperEndpointState{
 		NetID:       cfgEp.NetID,
@@ -413,21 +446,62 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		if err != nil {
 			operEp.Clear()
 		}
 	}()
-
 	return nil
 }
 
-// DeleteEndpoint deletes an endpoint by named identifier.
-func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
+//UpdateEndpointGroup updates the epg
+func (d *OvsDriver) UpdateEndpointGroup(id string) error {
+	log.Infof("Received endpoint group update for %s", id)
+	var (
+		err          error
+		epgBandwidth int64
+		sw           *OvsSwitch
+	)
+	//gets the EndpointGroupState object
+	cfgEpGroup := &mastercfg.EndpointGroupState{}
+	cfgEpGroup.StateDriver = d.oper.StateDriver
+	err = cfgEpGroup.Read(id)
+	if err != nil {
+		return err
+	}
 
+	if cfgEpGroup.ID != "" {
+		if cfgEpGroup.Bandwidth != "" {
+			epgBandwidth = netutils.ConvertBandwidth(cfgEpGroup.Bandwidth)
+		}
+
+		for _, epInfo := range d.oper.LocalEpInfo {
+			if epInfo.EpgKey == id {
+				log.Infof("Applying bandwidth: %s on: %s ", cfgEpGroup.Bandwidth, epInfo.Ovsportname)
+				// Find the switch based on network type
+				//	var sw *OvsSwitch
+				if epInfo.BridgeType == "vxlan" {
+					sw = d.switchDb["vxlan"]
+				} else {
+					sw = d.switchDb["vlan"]
+				}
+				err = sw.UpdateBandwidth(epInfo.Ovsportname, cfgEpGroup.Burst, epgBandwidth)
+				if err != nil {
+					log.Errorf("Error adding bandwidth %v , err: %+v", epgBandwidth, err)
+					return err
+				}
+			}
+		}
+	}
+	return err
+}
+
+// DeleteEndpoint deletes an endpoint by named identifier.
+func (d *OvsDriver) DeleteEndpoint(id string) error {
 	epOper := OvsOperEndpointState{}
 	epOper.StateDriver = d.oper.StateDriver
-	err = epOper.Read(id)
+	err := epOper.Read(id)
 	if err != nil {
 		return err
 	}
@@ -456,6 +530,7 @@ func (d *OvsDriver) DeleteEndpoint(id string) (err error) {
 	if err != nil {
 		log.Errorf("Error deleting endpoint: %+v. Err: %v", epOper, err)
 	}
+	delete(d.oper.LocalEpInfo, id)
 
 	return nil
 }

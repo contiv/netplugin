@@ -125,6 +125,11 @@ func (p *NetPlugin) CreateEndpoint(id string) error {
 	return p.NetworkDriver.CreateEndpoint(id)
 }
 
+//UpdateEndpointGroup updates the endpoint with the new endpointgroup specification for the given ID.
+func (p *NetPlugin) UpdateEndpointGroup(id string) error {
+	return p.NetworkDriver.UpdateEndpointGroup(id)
+}
+
 // DeleteEndpoint destroys an endpoint for an ID.
 func (p *NetPlugin) DeleteEndpoint(id string) error {
 	return p.NetworkDriver.DeleteEndpoint(id)

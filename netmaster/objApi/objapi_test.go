@@ -380,6 +380,158 @@ func checkDeleteRule(t *testing.T, expError bool, tenant, policy, ruleID string)
 	}
 }
 
+func checkCreateNetProfile(t *testing.T, expError bool, dscp, burst int, bandwidth, profileName, tenantName string) {
+	np := client.Netprofile{
+		DSCP:        dscp,
+		Burst:       burst,
+		Bandwidth:   bandwidth,
+		TenantName:  tenantName,
+		ProfileName: profileName,
+	}
+	err := contivClient.NetprofilePost(&np)
+	if err != nil && !expError {
+		t.Fatalf("Error creating Netprofile {%+v}. Err: %v", np, err)
+	} else if err == nil && expError {
+		t.Fatalf("Create NetProfile {%+v} succeded while expecing error", np)
+	} else if err == nil {
+		//check if netprofile is created.
+		_, err := contivClient.NetprofileGet(tenantName, profileName)
+		if err != nil {
+			t.Fatalf("Error getting netprofile %s/%s. Err: %v", tenantName, profileName, err)
+		}
+	}
+}
+
+func checkverifyNetProfile(t *testing.T, expError bool, dscp, burst int, bandwidth, profileName, tenantName string) {
+	paramsKey := GetNetprofileKey(tenantName, profileName)
+	netprofile := contivModel.FindNetprofile(paramsKey)
+	if netprofile.Bandwidth != bandwidth {
+		t.Fatalf("error matching netprofile bandwidth: %s to: %s ", netprofile.Bandwidth, bandwidth)
+	}
+	if netprofile.DSCP != dscp {
+		t.Fatalf("error matching netprofile bandwidth: %d to: %d ", netprofile.DSCP, dscp)
+	}
+	if netprofile.Burst != burst {
+		t.Fatalf("error matching netprofile burst rate: %d to: %d ", netprofile.Burst, burst)
+	}
+}
+
+//checkDeleteNetProfile checks if the netprofile is deleted.
+func checkDeleteNetProfile(t *testing.T, expError bool, profileName, tenantName string) {
+	err := contivClient.NetprofileDelete(tenantName, profileName)
+	if err != nil && !expError {
+		t.Fatalf("Error deleting Netprofile %s/%s Err: %v", profileName, tenantName, err)
+	} else if err == nil && expError {
+		t.Fatalf("delete NetProfile %s/%s succeded while expecing error", profileName, tenantName)
+	} else if err == nil {
+		//check if netprofile is deleted.
+		_, err := contivClient.NetprofileGet(tenantName, profileName)
+		if err == nil {
+			t.Fatalf("Error deleting netprofile %s/%s. Netprofile still exists. Err: %v", tenantName, profileName, err)
+		}
+	}
+}
+
+// verifyEpgnetProfile verifies an EPG policy state
+func verifyEpgnetProfile(t *testing.T, tenant, group, Bandwidth string, DSCP, burst int) {
+	// Get the state driver - get the etcd driver state
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		t.Fatalf("Error getting the state of etcd driver %v", err)
+	}
+
+	epgKey := group + ":" + tenant
+	//read from etcd
+	epCfg := mastercfg.EndpointGroupState{}
+	epCfg.StateDriver = stateDriver
+
+	err = epCfg.Read(epgKey)
+	if err != nil {
+		t.Fatalf("Error finding endpointgroup %s. Err: %v", epgKey, err)
+	}
+
+	if epCfg.Bandwidth != Bandwidth {
+		t.Fatalf("Error updating endpoint group %s with bandwidth: %s, prev bandwidth: %s", epCfg.GroupName, Bandwidth, epCfg.Bandwidth)
+	}
+	if epCfg.DSCP != DSCP {
+		t.Fatalf("Error updating endpoint group %s with DSCP %d", epCfg.GroupName, DSCP)
+	}
+	if epCfg.Burst != burst {
+		t.Fatalf("Error updating endpoint group %s with burst %d applied burst:%d", epCfg.GroupName, burst, epCfg.Burst)
+	}
+	err = epCfg.Write()
+	if err != nil {
+		t.Fatalf("Error saving the etcd state")
+	}
+}
+
+//checkCreateEpgNp creates a group
+func checkCreateEpgNp(t *testing.T, expError bool, tenant, ProfileName, network, group string, extContracts []string) {
+	epg := client.EndpointGroup{
+		TenantName:       tenant,
+		NetProfile:       ProfileName,
+		NetworkName:      network,
+		GroupName:        group,
+		ExtContractsGrps: extContracts,
+	}
+	err := contivClient.EndpointGroupPost(&epg)
+	if err != nil && !expError {
+		t.Fatalf("Error creating epg {%+v}. Err: %v", epg, err)
+	} else if err == nil && expError {
+		t.Fatalf("Create epg {%+v} succeded while expecing error", epg)
+	} else if err == nil {
+		// verify epg is created
+		_, err := contivClient.EndpointGroupGet(tenant, group)
+		if err != nil {
+			t.Fatalf("Error getting epg %s/%s/%s. Err: %v", tenant, network, group, err)
+		}
+	}
+}
+
+// checkEpgnetProfileDeleted verifies EPG netprofile is deleted
+func checkEpgnetProfileDetached(t *testing.T, tenant, network, group, nProfile string) {
+
+	// Get the state driver - get the etcd driver state
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		t.Fatalf("Error getting the state of etcd driver %v", err)
+	}
+
+	epgKey := tenant + ":" + group
+	epgCfgKey := group + ":" + tenant
+
+	epCfg := mastercfg.EndpointGroupState{}
+	epCfg.StateDriver = stateDriver
+
+	//read the etcd
+	err = epCfg.Read(epgCfgKey)
+	if err != nil {
+		t.Fatalf("Error finding endpointgroup %s. Err: %v", epgCfgKey, err)
+	}
+
+	if epCfg.Bandwidth != "" {
+		t.Fatalf("Error removing bandwidth %s", epCfg.Bandwidth)
+	}
+
+	if epCfg.DSCP != 0 {
+		t.Fatalf("Error removing DSCP %d", epCfg.DSCP)
+	}
+
+	epg := contivModel.FindEndpointGroup(epgKey)
+	if epg == nil {
+		t.Fatalf("Error finding EPG %s", epgKey)
+	}
+	if epg.NetProfile != "" {
+		t.Fatalf("Error detaching net profile %s", epg.NetProfile)
+	}
+
+	//save the etcd state.
+	err = epCfg.Write()
+	if err != nil {
+		t.Fatalf("Error saving the etcd state")
+	}
+}
+
 // checkCreateEpg creates an EPG
 func checkCreateEpg(t *testing.T, expError bool, tenant, network, group string, policies, extContracts []string) {
 	epg := client.EndpointGroup{
@@ -1182,6 +1334,246 @@ func TestAppProfile(t *testing.T) {
 	checkDeleteEpg(t, false, "default", "net2", "group3")
 	checkDeleteNetwork(t, false, "default", "net1")
 	checkDeleteNetwork(t, false, "default", "net2")
+}
+
+//TestEpgNetprofile tests the netprofile netprofile REST objects.
+func TestEpgnpTenant(t *testing.T) {
+
+	//create a network,
+	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+
+	//verify that groups cannot be created with invalid/without tenantname.
+	checkCreateEpgNp(t, true, "invalid", "netp", "np-net", "g1", []string{})
+	checkCreateEpgNp(t, true, "", "netp", "np-net", "g1", []string{})
+
+	//verify that netprofile can be attached to a tenant.
+	checkCreateTenant(t, false, "blue")
+	checkCreateNetwork(t, false, "blue", "netT", "data", "vlan", "10.1.2.1/24", "10.1.2.254", 1, "", "")
+	checkCreateNetProfile(t, false, 3, 1500, "5Mb", "netprofile", "blue")
+	checkCreateEpgNp(t, false, "blue", "netprofile", "netT", "g1", []string{})
+	verifyEpgnetProfile(t, "blue", "g1", "5Mb", 3, 1500)
+
+	//verify that netprofile can be updated which reflects in the attached epg under that tenant.
+	checkCreateNetProfile(t, false, 9, 1650, "900Mb", "netprofile", "blue")
+	verifyEpgnetProfile(t, "blue", "g1", "900Mb", 9, 1650)
+
+	//verify that tenant cannot be deleted when it it linked to another network/netprofile.
+	checkDeleteTenant(t, true, "blue")
+
+	//detach the netprofile and check.
+	checkCreateEpgNp(t, false, "blue", "", "netT", "g1", []string{})
+	checkverifyNetProfile(t, false, 9, 1650, "900Mb", "netprofile", "blue")
+	verifyEpgnetProfile(t, "blue", "g1", "", 0, 0)
+
+	//verify groups cannot be created with invalid/without networkname.
+	checkCreateEpgNp(t, true, "default", "netp", "invalid", "g2", []string{})
+	checkCreateEpgNp(t, true, "default", "netp", "", "g2", []string{})
+
+	//verify that groups cannot be created with invalid/without group name.
+	checkCreateEpgNp(t, true, "default", "netp", "np-net", "in_valid", []string{})
+	checkCreateEpgNp(t, true, "default", "netp", "np-net", "", []string{})
+
+	//delete netprofile and network
+	checkDeleteEpg(t, false, "blue", "netT", "g1")
+	checkDeleteNetProfile(t, false, "netprofile", "blue")
+	checkDeleteNetwork(t, false, "default", "np-net")
+	checkDeleteNetwork(t, false, "blue", "netT")
+	checkDeleteTenant(t, false, "blue")
+
+	//add the same network , netprofile and group to the tenant and verify there are no stale variables left.
+	checkCreateTenant(t, false, "blue")
+	checkCreateNetwork(t, false, "blue", "netT", "data", "vlan", "10.1.2.1/24", "10.1.2.254", 1, "", "")
+	checkCreateNetProfile(t, false, 3, 1500, "5Mb", "netprofile", "blue")
+	checkCreateEpgNp(t, false, "blue", "netprofile", "netT", "g1", []string{})
+	verifyEpgnetProfile(t, "blue", "g1", "5Mb", 3, 1500)
+
+	//delete netprofile and network
+	checkDeleteEpg(t, false, "blue", "netT", "g1")
+	checkDeleteNetProfile(t, false, "netprofile", "blue")
+	checkDeleteNetwork(t, false, "blue", "netT")
+	checkDeleteTenant(t, false, "blue")
+
+}
+
+func TestEpgnp(t *testing.T) {
+	//create a network and  netprofile
+	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "netprofile", "default")
+
+	//verify that groups cannot be created with invalid netprofile. & can be created without netprofile
+	checkCreateEpgNp(t, true, "default", "invalid", "np-net", "group1", []string{})
+	checkCreateEpgNp(t, false, "default", "", "np-net", "group1", []string{})
+
+	//delete group, netprofile and network
+	checkDeleteEpg(t, false, "default", "np-net", "group1")
+	checkDeleteNetProfile(t, false, "netprofile", "default")
+	checkDeleteNetwork(t, false, "default", "np-net")
+}
+
+func TestEpgUpdate(t *testing.T) {
+	//create a network, netprofile and group.
+	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "netprofile", "default")
+	checkCreateEpgNp(t, false, "default", "", "np-net", "group1", []string{})
+
+	//create a group and attach a netprofile.
+	checkCreateEpgNp(t, false, "default", "netprofile", "np-net", "group1", []string{})
+	verifyEpgnetProfile(t, "default", "group1", "2gbps", 5, 1500)
+
+	//create another netprofile and group, attach netprofile to that group.
+	checkCreateNetProfile(t, false, 2, 1500, "5gbps", "netp", "default")
+	checkCreateEpgNp(t, false, "default", "netp", "np-net", "NpGroup", []string{})
+	verifyEpgnetProfile(t, "default", "NpGroup", "5gbps", 2, 1500)
+
+	//update netp and check if group is getting updated.
+	checkCreateNetProfile(t, false, 7, 1500, "10gbps", "netp", "default")
+	verifyEpgnetProfile(t, "default", "NpGroup", "10gbps", 7, 1500)
+
+	//attach netp to group1.
+	checkCreateEpgNp(t, false, "default", "netp", "np-net", "group1", []string{})
+	verifyEpgnetProfile(t, "default", "group1", "10gbps", 7, 1500)
+
+	//attach netprofile to Npgroup.
+	checkCreateEpgNp(t, false, "default", "netprofile", "np-net", "NpGroup", []string{})
+	verifyEpgnetProfile(t, "default", "NpGroup", "2gbps", 5, 1500)
+
+	//detach the netprofile from Npgroup.
+	checkCreateEpgNp(t, false, "default", "", "np-net", "NpGroup", []string{})
+	checkEpgnetProfileDetached(t, "default", "np-net", "NpGroup", "netprofile")
+	verifyEpgnetProfile(t, "default", "NpGroup", "", 0, 0)
+
+	//detach the netprofile from group1.
+	checkCreateEpgNp(t, false, "default", "", "np-net", "group1", []string{})
+	checkEpgnetProfileDetached(t, "default", "np-net", "group1", "netp")
+	verifyEpgnetProfile(t, "default", "group1", "", 0, 0)
+
+	//attach the netprofile to another group.
+	checkCreateEpgNp(t, false, "default", "netprofile", "np-net", "group1", []string{})
+	verifyEpgnetProfile(t, "default", "group1", "2gbps", 5, 1500)
+
+	//delete the netprofile as no group is using it
+	checkDeleteNetProfile(t, false, "netp", "default")
+
+	//delete the group and network
+	checkDeleteEpg(t, false, "default", "np-net", "group1")
+	checkDeleteEpg(t, false, "default", "np-net", "NpGroup")
+	checkDeleteNetProfile(t, false, "netprofile", "default")
+	checkDeleteNetwork(t, false, "default", "np-net")
+}
+
+func TestDeleteEpgNp(t *testing.T) {
+	//create a network, netprofile and group.
+	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "netprofile", "default")
+	checkCreateEpgNp(t, false, "default", "netprofile", "np-net", "group1", []string{})
+
+	//try deleting netprofile when the group is using it
+	checkDeleteNetProfile(t, true, "netprofile", "default")
+
+	//update the group without any netprofile and check if np has been detached.
+	checkCreateEpgNp(t, false, "default", "", "np-net", "group1", []string{})
+	checkEpgnetProfileDetached(t, "default", "np-net", "group1", "netprofile")
+
+	//delete group,nerofile and network
+	checkDeleteEpg(t, false, "default", "np-net", "group1")
+	checkDeleteNetProfile(t, false, "netprofile", "default")
+	checkDeleteNetwork(t, false, "default", "np-net")
+
+}
+
+func TestNetProfileupdate(t *testing.T) {
+
+	//create a network, netprofile.
+	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "netprofile", "default")
+	checkCreateNetProfile(t, false, 3, 1500, "10gbps", "netprofile1", "default")
+	checkCreateEpgNp(t, false, "default", "netprofile", "np-net", "group1", []string{})
+
+	//verify that same group can be assigned to another netprofile.
+	checkCreateEpgNp(t, false, "default", "netprofile1", "np-net", "groupNp", []string{})
+
+	//update the netprofile && check if epg has been updated
+	checkCreateNetProfile(t, false, 5, 1500, "10gbps", "netprofile", "default")
+	checkverifyNetProfile(t, false, 5, 1500, "10gbps", "netprofile", "default")
+	verifyEpgnetProfile(t, "default", "group1", "10gbps", 5, 1500)
+
+	//update with dscp 0
+	checkCreateNetProfile(t, false, 0, 150, "10gbps", "netprofile", "default")
+	verifyEpgnetProfile(t, "default", "group1", "10gbps", 0, 150)
+
+	//update with no bandwidth(Default bandwidth)
+	checkCreateNetProfile(t, false, 0, 1500, "", "netprofile", "default")
+	verifyEpgnetProfile(t, "default", "group1", "", 0, 1500)
+
+	//update netprofile without burst value.
+	checkCreateNetProfile(t, false, 0, 0, "20mb", "netprofile", "default")
+	verifyEpgnetProfile(t, "default", "group1", "20mb", 0, 0)
+
+	//delete group,nerofile and network
+	checkDeleteEpg(t, false, "default", "np-net", "group1")
+	checkDeleteEpg(t, false, "default", "np-net", "groupNp")
+	checkDeleteNetProfile(t, false, "netprofile", "default")
+	checkDeleteNetProfile(t, false, "netprofile1", "default")
+	checkDeleteNetwork(t, false, "default", "np-net")
+}
+
+func TestNetprofile(t *testing.T) {
+	//create a network & netprofile
+	checkCreateNetwork(t, false, "default", "net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "profile1", "default")
+
+	//verify that bandwidth and DSCP can be updated to a particular netprofile
+	checkCreateNetProfile(t, false, 6, 1500, "5gbps", "profile1", "default")
+
+	//verify that a netprofile can be created without dscp & bandwidth.
+	checkCreateNetProfile(t, false, 0, 1500, "", "profile2", "default")
+
+	//verify that netprofile cannot be created without proper bandwidth
+	checkCreateNetProfile(t, true, 5, 1500, "invalid", "profile3", "default")
+	//verify that netprofile cannot be created with invalid DSCP
+	checkCreateNetProfile(t, true, 72, 1500, "2gbps", "profile2", "default")
+	//verify netprofile cannot be created with an invalid burst size 2 - 10Mbyte
+	checkCreateNetProfile(t, true, 72, 1, "2gbps", "profile2", "default")
+	//verify that burst size can be given in integer format.
+	checkCreateNetProfile(t, false, 22, 450, "20mbps", "profile2", "default")
+
+	//verify that bandwidth is not case sensitive and user friendly format.
+	checkCreateNetProfile(t, false, 5, 1500, "10 Gbps", "profile3", "default")
+	checkCreateNetProfile(t, false, 5, 1500, "10 Gb", "profile3", "default")
+	checkCreateNetProfile(t, false, 5, 1500, "10 gb", "profile3", "default")
+	checkCreateNetProfile(t, false, 5, 1500, "5Gb", "profile3", "default")
+	checkCreateNetProfile(t, false, 5, 1500, "6gb", "profile3", "default")
+	checkCreateNetProfile(t, false, 5, 1500, "3gbps", "profile3", "default")
+	checkCreateNetProfile(t, false, 5, 1500, "3Gbps", "profile3", "default")
+	checkCreateNetProfile(t, false, 5, 1500, "4g", "profile3", "default")
+	checkCreateNetProfile(t, false, 5, 1500, "4G", "profile3", "default")
+
+	//netprofile must throw error for invalid bandwidth format.
+	checkCreateNetProfile(t, true, 5, 1500, "10 Gkms", "profile3", "default")
+	checkCreateNetProfile(t, true, 5, 1500, "10 G12ms", "profile3", "default")
+	checkCreateNetProfile(t, true, 5, 1500, "10 ms", "profile3", "default")
+	checkCreateNetProfile(t, true, 5, 1500, "10 bms", "profile3", "default")
+	checkCreateNetProfile(t, true, 5, 1500, "Gkms", "profile3", "default")
+	checkCreateNetProfile(t, true, 5, 1500, "Gbps", "profile3", "default")
+	checkCreateNetProfile(t, true, 5, 1500, "0 Gbps", "profile3", "default")
+	checkCreateNetProfile(t, true, 5, 1500, " 10 Gbps", "profile3", "default")
+
+	//verify that netprofile cannot be deleted with an invalid name/tenant name
+	checkDeleteNetProfile(t, true, "invalid", "default")
+	checkDeleteNetProfile(t, true, "invalid", "default")
+
+	//verify that tenant cannot be deleted when it has a netprofile.
+	checkCreateTenant(t, false, "blue")
+	checkCreateNetProfile(t, false, 3, 0, "13mb", "profile3", "blue")
+	checkDeleteTenant(t, true, "blue")
+
+	//delete the netprofile and network
+	checkDeleteNetProfile(t, false, "profile1", "default")
+	checkDeleteNetProfile(t, false, "profile2", "default")
+	checkDeleteNetProfile(t, false, "profile3", "default")
+	checkDeleteNetProfile(t, false, "profile3", "blue")
+	checkDeleteNetwork(t, false, "default", "net")
+	checkDeleteTenant(t, false, "blue")
 }
 
 func TestServiceProviderUpdate(t *testing.T) {

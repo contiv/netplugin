@@ -36,6 +36,7 @@ func (s *systemtestSuite) checkConnectionPairRetry(containers1, containers2 []*c
 
 	return nil
 }
+
 func (s *systemtestSuite) checkNoConnectionPairRetry(containers1, containers2 []*container, port, delay, retries int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
@@ -98,7 +99,7 @@ func (s *systemtestSuite) runContainersInService(num int, serviceName, networkNa
 			}
 
 			spec := containerSpec{
-				imageName:   "alpine",
+				imageName:   "contiv/alpine",
 				networkName: networkName,
 				name:        name,
 				serviceName: serviceName,
@@ -162,7 +163,7 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 
 			cname := fmt.Sprintf("%s-%d", name, i)
 			spec := containerSpec{
-				imageName:   "alpine",
+				imageName:   "contiv/alpine",
 				networkName: networkName,
 				name:        cname,
 				serviceName: serviceName,
@@ -224,7 +225,7 @@ func (s *systemtestSuite) runContainersSerial(num int, withService bool, network
 		}
 
 		spec := containerSpec{
-			imageName:   "alpine",
+			imageName:   "contiv/alpine",
 			networkName: networkName,
 			name:        name,
 			serviceName: serviceName,
@@ -263,7 +264,7 @@ func (s *systemtestSuite) runContainersOnNode(num int, networkName, tenantName, 
 	for i := 0; i < num; i++ {
 		go func(i int) {
 			spec := containerSpec{
-				imageName:   "alpine",
+				imageName:   "contiv/alpine",
 				networkName: networkName,
 				tenantName:  tenantName,
 				serviceName: groupname,
@@ -322,9 +323,8 @@ func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName,
 		go func(i int) {
 			nodeNum := i % len(s.nodes)
 			name := fmt.Sprintf("%s-srv%d-%d", strings.Replace(docSrvName, "/", "-", -1), i, nodeNum)
-
 			spec := containerSpec{
-				imageName:   "alpine",
+				imageName:   "contiv/alpine",
 				networkName: networkName,
 				name:        name,
 				serviceName: serviceName,
@@ -503,6 +503,18 @@ func (s *systemtestSuite) startListeners(containers []*container, ports []int) e
 	return nil
 }
 
+func (s *systemtestSuite) startIperfServers(containers []*container) error {
+	for _, cont := range containers {
+		err := cont.node.exec.startIperfServer(cont)
+		if err != nil {
+			logrus.Errorf("Error starting the iperf server")
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *systemtestSuite) checkConnections(containers []*container, port int) error {
 	ips := []string{}
 	for _, cont := range containers {
@@ -529,6 +541,59 @@ func (s *systemtestSuite) checkConnections(containers []*container, port int) er
 		}
 	}
 
+	return nil
+}
+
+func (s *systemtestSuite) startIperfClients(containers []*container, limit string, isErr bool) error {
+
+	// get the ips of containers in a slice.
+	ips := []string{}
+	for _, cont := range containers {
+		ips = append(ips, cont.eth0.ip)
+	}
+
+	for _, cont := range containers {
+		for _, ip := range ips {
+			if cont.eth0.ip == ip {
+				continue
+			}
+			err := cont.node.exec.startIperfClient(cont, ip, limit, isErr)
+			if err != nil {
+				logrus.Errorf("Error starting the iperf client")
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *systemtestSuite) checkIperfAcrossGroup(containers []*container, containers1 []*container, limit string, isErr bool) error {
+	// get the ips of containers in a slice.
+	ips := []string{}
+	for _, cont := range containers1 {
+		ips = append(ips, cont.eth0.ip)
+	}
+
+	for _, cont := range containers {
+		for _, ip := range ips {
+			if cont.eth0.ip == ip {
+				continue
+			}
+			err := cont.node.exec.startIperfClient(cont, ip, limit, isErr)
+			if err != nil {
+				logrus.Errorf("Error starting the iperf client")
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *systemtestSuite) checkIngressRate(containers []*container, bw string) error {
+	for _, cont := range containers {
+		err := cont.node.exec.tcFilterShow(bw)
+		return err
+	}
 	return nil
 }
 

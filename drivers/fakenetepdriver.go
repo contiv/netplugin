@@ -35,6 +35,11 @@ func (d *FakeNetEpDriver) CreateEndpoint(id string) error {
 	return core.Errorf("Not implemented")
 }
 
+//UpdateEndpointGroup is not implemented.
+func (d *FakeNetEpDriver) UpdateEndpointGroup(id string) error {
+	return core.Errorf("Not implemented")
+}
+
 // DeleteEndpoint is not implemented.
 func (d *FakeNetEpDriver) DeleteEndpoint(id string) (err error) {
 	return core.Errorf("Not implemented")

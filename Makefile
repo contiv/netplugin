@@ -99,7 +99,7 @@ update:
 ifdef NET_CONTAINER_BUILD
 start:
 else
-start: 
+start:
 	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 endif
 
@@ -116,11 +116,11 @@ k8s-sanity-cluster:
 	cd vagrant/k8s/ && ./setup_cluster.sh
 k8s-test:
 	CONTIV_K8=1 make k8s-sanity-cluster
-	#make ssh-build 
+	#make ssh-build
 	cd vagrant/k8s/ && CONTIV_K8=1 vagrant ssh k8master -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	CONTIV_K8=1 cd vagrant/k8s/ && ./start_sanity_service.sh
-	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|HostBridge" 
-	cd vagrant/k8s && vagrant destroy -f 
+	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|HostBridge|Netprofile"
+	cd vagrant/k8s && vagrant destroy -f
 # Mesos demo targets
 mesos-docker-demo:
 	cd vagrant/mesos-docker && vagrant up
@@ -172,13 +172,13 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
-	go test -v -timeout 480m ./test/systemtests -check.vv -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM"
+	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 	CONTIV_L3=2 CONTIV_NODES=3 make start
 	CONTIV_L3=2 CONTIV_NODES=3 make ssh-build
-	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v  
+	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 l3-demo:
 	CONTIV_L3=1 CONTIV_NODES=3 vagrant up
