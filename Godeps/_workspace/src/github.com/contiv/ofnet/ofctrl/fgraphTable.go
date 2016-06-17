@@ -42,7 +42,7 @@ func (self *Table) GetFlowInstr() openflow13.Instruction {
 }
 
 // FIXME: global unique flow cookie
-var globalFlowId uint64 = 1
+var globalFlowID uint64 = 1
 
 // Create a new flow on the table
 func (self *Table) NewFlow(match FlowMatch) (*Flow, error) {
@@ -50,8 +50,8 @@ func (self *Table) NewFlow(match FlowMatch) (*Flow, error) {
 	flow.Table = self
 	flow.Match = match
 	flow.isInstalled = false
-	flow.flowId = globalFlowId // FIXME: need a better id allocation
-	globalFlowId += 1
+	flow.FlowID = globalFlowID // FIXME: need a better id allocation
+	globalFlowID += 1
 	flow.flowActions = make([]*FlowAction, 0)
 
 	log.Debugf("Creating new flow for match: %+v", match)

@@ -174,7 +174,7 @@ func (d *EtcdStateDriver) channelEtcdEvents(watcher client.Watcher, rsps chan [2
 			}
 		}
 
-		log.Infof("Received %q for key: %s", eventStr, etcdRsp.Node.Key)
+		log.Debugf("Received %q for key: %s", eventStr, etcdRsp.Node.Key)
 		//channel the translated response
 		rsps <- rsp
 	}

@@ -135,6 +135,16 @@ func (d *KubeTestNetDrv) DeleteBgp(id string) error {
 	return nil
 }
 
+// GetEndpointStats is not implemented
+func (d *KubeTestNetDrv) GetEndpointStats() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}
+
+// InspectState is not implemented
+func (d *KubeTestNetDrv) InspectState() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}
+
 // AddSvcSpec is implemented.
 func (d *KubeTestNetDrv) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
 	d.services[svcName] = spec

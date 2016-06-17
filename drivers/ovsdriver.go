@@ -34,15 +34,6 @@ type oper int
 
 const maxIntfRetry = 100
 
-// OvsDriverConfig defines the configuration required to initialize the
-// OvsDriver.
-type OvsDriverConfig struct {
-	Ovs struct {
-		DbIP   string
-		DbPort int
-	}
-}
-
 // OvsDriverOperState carries operational state of the OvsDriver.
 type OvsDriverOperState struct {
 	core.CommonState
@@ -552,4 +543,58 @@ func (d *OvsDriver) SvcProviderUpdate(svcName string, providers []string) {
 	for _, sw := range d.switchDb {
 		sw.SvcProviderUpdate(svcName, providers)
 	}
+}
+
+// GetEndpointStats gets all endpoints from all ovs instances
+func (d *OvsDriver) GetEndpointStats() ([]byte, error) {
+	vxlanStats, err := d.switchDb["vxlan"].GetEndpointStats()
+	if err != nil {
+		log.Errorf("Error getting vxlan stats. Err: %v", err)
+		return []byte{}, err
+	}
+
+	vlanStats, err := d.switchDb["vlan"].GetEndpointStats()
+	if err != nil {
+		log.Errorf("Error getting vlan stats. Err: %v", err)
+		return []byte{}, err
+	}
+
+	stats := append(vxlanStats, vlanStats...)
+	jsonStats, err := json.Marshal(stats)
+	if err != nil {
+		log.Errorf("Error encoding epstats. Err: %v", err)
+		return jsonStats, err
+	}
+
+	return jsonStats, nil
+}
+
+// InspectState returns driver state as json string
+func (d *OvsDriver) InspectState() ([]byte, error) {
+	driverState := make(map[string]interface{})
+
+	// get vlan switch state
+	vlanState, err := d.switchDb["vlan"].InspectState()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	// get vxlan switch state
+	vxlanState, err := d.switchDb["vxlan"].InspectState()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	// build the map
+	driverState["vlan"] = vlanState
+	driverState["vxlan"] = vxlanState
+
+	// json marshall the map
+	jsonState, err := json.Marshal(driverState)
+	if err != nil {
+		log.Errorf("Error encoding epstats. Err: %v", err)
+		return []byte{}, err
+	}
+
+	return jsonState, nil
 }

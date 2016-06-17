@@ -83,3 +83,13 @@ func (d *FakeNetEpDriver) DelSvcSpec(svcName string, spec *core.ServiceSpec) err
 // SvcProviderUpdate is not implemented.
 func (d *FakeNetEpDriver) SvcProviderUpdate(svcName string, providers []string) {
 }
+
+// GetEndpointStats is not implemented
+func (d *FakeNetEpDriver) GetEndpointStats() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}
+
+// InspectState is not implemented
+func (d *FakeNetEpDriver) InspectState() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}

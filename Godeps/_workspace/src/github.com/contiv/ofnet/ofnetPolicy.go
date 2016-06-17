@@ -32,7 +32,7 @@ const TCP_FLAG_SYN = 0x2
 
 // PolicyRule has info about single rule
 type PolicyRule struct {
-	rule *OfnetPolicyRule // rule definition
+	Rule *OfnetPolicyRule // rule definition
 	flow *ofctrl.Flow     // Flow associated with the flow
 }
 
@@ -44,7 +44,7 @@ type PolicyAgent struct {
 	policyTable *ofctrl.Table           // Policy rule lookup table
 	nextTable   *ofctrl.Table           // Next table to goto for accepted packets
 	Rules       map[string]*PolicyRule  // rules database
-	DstGrpFlow  map[string]*ofctrl.Flow // FLow entries for dst group lookup
+	dstGrpFlow  map[string]*ofctrl.Flow // FLow entries for dst group lookup
 }
 
 // NewPolicyMgr Creates a new policy manager
@@ -54,7 +54,7 @@ func NewPolicyAgent(agent *OfnetAgent, rpcServ *rpc.Server) *PolicyAgent {
 	// initialize
 	policyAgent.agent = agent
 	policyAgent.Rules = make(map[string]*PolicyRule)
-	policyAgent.DstGrpFlow = make(map[string]*ofctrl.Flow)
+	policyAgent.dstGrpFlow = make(map[string]*ofctrl.Flow)
 
 	// Register for Master add/remove events
 	rpcServ.Register(policyAgent)
@@ -115,7 +115,7 @@ func ruleIsSame(r1, r2 *OfnetPolicyRule) bool {
 // AddEndpoint adds an endpoint to dst group lookup
 func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 
-	if self.DstGrpFlow[endpoint.EndpointID] != nil {
+	if self.dstGrpFlow[endpoint.EndpointID] != nil {
 		// FIXME: handle this as Update
 		log.Warnf("DstGroup for endpoint %+v already exists", endpoint)
 		return nil
@@ -159,7 +159,7 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	// save the Flow
-	self.DstGrpFlow[endpoint.EndpointID] = dstGrpFlow
+	self.dstGrpFlow[endpoint.EndpointID] = dstGrpFlow
 
 	return nil
 }
@@ -168,7 +168,7 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 func (self *PolicyAgent) DelEndpoint(endpoint *OfnetEndpoint) error {
 
 	// find the dst group flow
-	dstGrp := self.DstGrpFlow[endpoint.EndpointID]
+	dstGrp := self.dstGrpFlow[endpoint.EndpointID]
 	if dstGrp == nil {
 		return errors.New("Dst Group not found")
 	}
@@ -180,7 +180,7 @@ func (self *PolicyAgent) DelEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	// delete the cache
-	delete(self.DstGrpFlow, endpoint.EndpointID)
+	delete(self.dstGrpFlow, endpoint.EndpointID)
 
 	return nil
 }
@@ -194,7 +194,7 @@ func (self *PolicyAgent) AddIpv6Endpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	ipv6EpId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
-	if self.DstGrpFlow[ipv6EpId] != nil {
+	if self.dstGrpFlow[ipv6EpId] != nil {
 		// FIXME: handle this as Update
 		log.Warnf("DstGroup for IPv6 endpoint %+v already exists", endpoint)
 		return nil
@@ -238,7 +238,7 @@ func (self *PolicyAgent) AddIpv6Endpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	// save the Flow
-	self.DstGrpFlow[ipv6EpId] = dstGrpFlow
+	self.dstGrpFlow[ipv6EpId] = dstGrpFlow
 
 	return nil
 }
@@ -248,7 +248,7 @@ func (self *PolicyAgent) DelIpv6Endpoint(endpoint *OfnetEndpoint) error {
 
 	// find the dst group IPv6 flow
 	ipv6EpId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
-	dstGrp := self.DstGrpFlow[ipv6EpId]
+	dstGrp := self.dstGrpFlow[ipv6EpId]
 	if dstGrp == nil {
 		return errors.New("Dst Group IPv6 Flow not found")
 	}
@@ -260,7 +260,7 @@ func (self *PolicyAgent) DelIpv6Endpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	// delete the cache
-	delete(self.DstGrpFlow, ipv6EpId)
+	delete(self.dstGrpFlow, ipv6EpId)
 
 	return nil
 }
@@ -279,7 +279,7 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 
 	// check if we already have the rule
 	if self.Rules[rule.RuleId] != nil {
-		oldRule := self.Rules[rule.RuleId].rule
+		oldRule := self.Rules[rule.RuleId].Rule
 
 		if ruleIsSame(oldRule, rule) {
 			return nil
@@ -396,7 +396,7 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 
 	// save the rule
 	pRule := PolicyRule{
-		rule: rule,
+		Rule: rule,
 		flow: ruleFlow,
 	}
 	self.Rules[rule.RuleId] = &pRule

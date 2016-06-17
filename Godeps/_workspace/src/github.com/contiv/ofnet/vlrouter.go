@@ -902,3 +902,17 @@ func (self *Vlrouter) DelSvcSpec(svcName string, spec *ServiceSpec) error {
 // SvcProviderUpdate Service Proxy Back End update
 func (self *Vlrouter) SvcProviderUpdate(svcName string, providers []string) {
 }
+
+// GetEndpointStats fetches ep stats
+func (self *Vlrouter) GetEndpointStats() ([]*OfnetEndpointStats, error) {
+	return nil, nil
+}
+
+// MultipartReply handles stats reply
+func (self *Vlrouter) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply) {
+}
+
+// InspectState returns current state
+func (self *Vlrouter) InspectState() (interface{}, error) {
+	return nil, nil
+}
