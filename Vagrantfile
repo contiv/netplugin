@@ -136,7 +136,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                          virtualbox__intnet: "contiv_blue"
         quagga1.vm.provision "shell" do |s|
           s.inline = provision_bird
-          s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+          s.args = [ENV["HTTP_PROXY"] || "", ENV["HTTPS_PROXY"] || ""]
         end
       end
       config.vm.define "quagga2" do |quagga2|
@@ -156,7 +156,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
         quagga2.vm.provision "shell" do |s|
           s.inline = provision_bird
-          s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+          s.args = [ENV["HTTP_PROXY"] || "", ENV["HTTPS_PROXY"] || ""]
         end
       end
     end
@@ -225,7 +225,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common_once
-                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
+                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["HTTP_PROXY"] || "", ENV["HTTPS_PROXY"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
             end
             if ENV['CONTIV_L3'] then
                 node.vm.provision "shell" do |s|
