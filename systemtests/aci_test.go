@@ -15,11 +15,14 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
 		NetworkInfraType: "aci",
-		Vlans:            "1-4094",
+		Vlans:            "1140-1150",
 		Vxlans:           "1-10000",
 	}), IsNil)
+	c.Assert(s.cli.TenantPost(&client.Tenant{
+		TenantName: "aciTenant",
+	}), IsNil)
 	c.Assert(s.cli.NetworkPost(&client.Network{
-		TenantName:  "default",
+		TenantName:  "aciTenant",
 		NetworkName: "aciNet",
 		Subnet:      "22.2.2.0/24",
 		Gateway:     "22.2.2.254",
@@ -27,27 +30,32 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	}), IsNil)
 
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
-		TenantName:  "default",
+		TenantName:  "aciTenant",
 		NetworkName: "aciNet",
 		GroupName:   "epgA",
 	}), IsNil)
 
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
-		TenantName:  "default",
+		TenantName:  "aciTenant",
 		NetworkName: "aciNet",
 		GroupName:   "epgB",
 	}), IsNil)
+	c.Assert(s.cli.AppProfilePost(&client.AppProfile{
+		TenantName:     "aciTenant",
+		EndpointGroups: []string{"epgA", "epgB"},
+		AppProfileName: "profile1",
+	}), IsNil)
 
-	cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA"})
+	cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA/aciTenant"})
 	c.Assert(err, IsNil)
 
-	cA2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA"})
+	cA2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA/aciTenant"})
 	c.Assert(err, IsNil)
 
-	cB1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB"})
+	cB1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB/aciTenant"})
 	c.Assert(err, IsNil)
 
-	cB2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB"})
+	cB2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB/aciTenant"})
 	c.Assert(err, IsNil)
 
 	// Verify cA1 can ping cA2
@@ -58,9 +66,10 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	c.Assert(cA1.checkPingFailure(cB1.eth0.ip), IsNil)
 
 	c.Assert(s.removeContainers([]*container{cA1, cA2, cB1, cB2}), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("default", "epgA"), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("default", "epgB"), IsNil)
-	c.Assert(s.cli.NetworkDelete("default", "aciNet"), IsNil)
+	c.Assert(s.cli.AppProfileDelete("aciTenant", "profile1"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epgA"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epgB"), IsNil)
+	c.Assert(s.cli.NetworkDelete("aciTenant", "aciNet"), IsNil)
 }
 
 func (s *systemtestSuite) TestACIPingGateway(c *C) {
