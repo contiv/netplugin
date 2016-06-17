@@ -2,6 +2,7 @@ package systemtests
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -124,6 +125,10 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 	if !strings.Contains(s.clusterStore, "etcd") {
 		c.Skip("Skipping test")
 	}
+	// HACK: "--dns" option is broken in docker 1.10.3. skip this test
+	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" {
+		c.Skip("Skipping dns test docker 1.10.3")
+	}
 
 	if s.fwdMode == "routing" && encap == "vlan" {
 		s.SetupBgp(c, false)
@@ -132,7 +137,7 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		PktTag:      1001,
 		NetworkName: "private",
-		Subnet:      "10.1.0.0/16",
+		Subnet:      "10.1.1.0/24",
 		Gateway:     "10.1.1.254",
 		Encap:       encap,
 		TenantName:  "default",

@@ -62,13 +62,6 @@ func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 		return err
 	}
 
-	// Set it via etcd client
-	_, err = ep.kapi.Set(context.Background(), keyName, string(jsonVal[:]), &client.SetOptions{TTL: ttl})
-	if err != nil {
-		log.Errorf("Error setting key %s, Err: %v", keyName, err)
-		return err
-	}
-
 	// create service state
 	srvState := etcdServiceState{
 		ServiceName: serviceInfo.ServiceName,
@@ -295,6 +288,13 @@ func (ep *EtcdClient) DeregisterService(serviceInfo ServiceInfo) error {
 
 // Keep refreshing the service every 30sec
 func (ep *EtcdClient) refreshService(srvState *etcdServiceState, keyVal string) {
+	// Set it via etcd client
+	_, err := ep.kapi.Set(context.Background(), srvState.KeyName, keyVal, &client.SetOptions{TTL: srvState.TTL})
+	if err != nil {
+		log.Errorf("Error setting key %s, Err: %v", srvState.KeyName, err)
+	}
+
+	// Loop forever
 	for {
 		select {
 		case <-time.After(srvState.TTL / 3):

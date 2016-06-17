@@ -285,3 +285,25 @@ func (n *node) reloadNode() error {
 	logrus.Infof("Reloaded node %s. Output:\n%s", n.Name(), string(out))
 	return nil
 }
+
+func (n *node) restartClusterStore() error {
+	if strings.Contains(n.suite.clusterStore, "etcd://") {
+		logrus.Infof("Restarting etcd on %s", n.Name())
+
+		n.runCommand("sudo systemctl stop etcd")
+		time.Sleep(5 * time.Second)
+		n.runCommand("sudo systemctl start etcd")
+
+		logrus.Infof("Restarted etcd on %s", n.Name())
+	} else if strings.Contains(n.suite.clusterStore, "consul://") {
+		logrus.Infof("Restarting consul on %s", n.Name())
+
+		n.runCommand("sudo systemctl stop consul")
+		time.Sleep(5 * time.Second)
+		n.runCommand("sudo systemctl start consul")
+
+		logrus.Infof("Restarted consul on %s", n.Name())
+	}
+
+	return nil
+}

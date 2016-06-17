@@ -73,6 +73,9 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
 		c.Assert(s.removeContainers(containers), IsNil)
 	}
+
+	// delete the network
+	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
 }
 
 func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
@@ -110,6 +113,9 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 
 		c.Assert(s.removeContainers(containers), IsNil)
 	}
+
+	// delete the network
+	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
 }
 
 func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
@@ -187,6 +193,40 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 
 		c.Assert(s.removeContainers(containers), IsNil)
 	}
+}
+
+func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
+	network := &client.Network{
+		TenantName:  "default",
+		NetworkName: "private",
+		Subnet:      "10.1.1.0/24",
+		Gateway:     "10.1.1.254",
+		Encap:       "vxlan",
+	}
+	c.Assert(s.cli.NetworkPost(network), IsNil)
+
+	for i := 0; i < s.iterations; i++ {
+		containers, err := s.runContainers(s.containers, false, "private", nil, nil)
+		c.Assert(err, IsNil)
+
+		// test ping for all containers
+		c.Assert(s.pingTest(containers), IsNil)
+
+		// reload VMs one at a time
+		for _, node := range s.nodes {
+			c.Assert(node.restartClusterStore(), IsNil)
+
+			time.Sleep(20 * time.Second)
+
+			// test ping for all containers
+			c.Assert(s.pingTest(containers), IsNil)
+		}
+
+		c.Assert(s.removeContainers(containers), IsNil)
+	}
+
+	// delete the network
+	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
 }
 
 func (s *systemtestSuite) TestTriggers(c *C) {

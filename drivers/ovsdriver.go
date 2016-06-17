@@ -118,7 +118,7 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 	// restore the driver's runtime state if it exists
 	err := d.oper.Read(info.HostLabel)
 	if core.ErrIfKeyExists(err) != nil {
-		log.Printf("Failed to read driver oper state for key %q. Error: %s",
+		log.Errorf("Failed to read driver oper state for key %q. Error: %s",
 			info.HostLabel, err)
 		return err
 	} else if err != nil {
