@@ -407,8 +407,17 @@ type ServiceLBLinks struct {
 	Tenant  Link `json:"Tenant,omitempty"`
 }
 
+type ServiceLBOper struct {
+	NumProviders int            `json:"numProviders,omitempty"` // provider endpoints for the service
+	Providers    []EndpointOper `json:"providers,omitempty"`
+	ServiceVip   string         `json:"serviceVip,omitempty"` // allocated IP addresses
+
+}
+
 type ServiceLBInspect struct {
 	Config ServiceLB
+
+	Oper ServiceLBOper
 }
 
 type Tenant struct {

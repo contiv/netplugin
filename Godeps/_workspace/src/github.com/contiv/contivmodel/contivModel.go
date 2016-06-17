@@ -281,8 +281,17 @@ type ServiceLBLinks struct {
 	Tenant  modeldb.Link `json:"Tenant,omitempty"`
 }
 
+type ServiceLBOper struct {
+	NumProviders int            `json:"numProviders,omitempty"` // provider endpoints for the service
+	Providers    []EndpointOper `json:"providers,omitempty"`
+	ServiceVip   string         `json:"serviceVip,omitempty"` // allocated IP addresses
+
+}
+
 type ServiceLBInspect struct {
 	Config ServiceLB
+
+	Oper ServiceLBOper
 }
 
 type Tenant struct {
@@ -440,6 +449,8 @@ type RuleCallbacks interface {
 }
 
 type ServiceLBCallbacks interface {
+	ServiceLBGetOper(serviceLB *ServiceLBInspect) error
+
 	ServiceLBCreate(serviceLB *ServiceLB) error
 	ServiceLBUpdate(serviceLB, params *ServiceLB) error
 	ServiceLBDelete(serviceLB *ServiceLB) error
@@ -3218,8 +3229,31 @@ func httpInspectServiceLB(w http.ResponseWriter, r *http.Request, vars map[strin
 	}
 	obj.Config = *objConfig
 
+	if err := GetOperServiceLB(&obj); err != nil {
+		log.Errorf("GetServiceLB error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a serviceLBOper object
+func GetOperServiceLB(obj *ServiceLBInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.ServiceLBCb == nil {
+		log.Errorf("No callback registered for serviceLB object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.ServiceLBCb.ServiceLBGetOper(obj)
+	if err != nil {
+		log.Errorf("ServiceLBDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
 }
 
 // LIST REST call

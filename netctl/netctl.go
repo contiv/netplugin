@@ -929,3 +929,19 @@ func createExternalContracts(ctx *cli.Context) {
 		Contracts:          contracts,
 	}))
 }
+
+func inspectServiceLb(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	tenant := ctx.String("tenant")
+	service := ctx.Args()[0]
+
+	logrus.Infof("Inspeting service: %s tenant: %s", service, tenant)
+
+	net, err := getClient(ctx).ServiceLBInspect(tenant, service)
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(net, "", "  ")
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}

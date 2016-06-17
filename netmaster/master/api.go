@@ -376,7 +376,7 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 			provider.Labels[k] = v
 			epCfg.Labels[k] = v
 		}
-
+		provider.EpIDKey = epCfg.ID
 		//maintain the containerId in endpointstat for recovery
 		epCfg.ContainerID = svcProvUpdReq.ContainerID
 

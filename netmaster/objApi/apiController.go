@@ -1259,6 +1259,53 @@ func (ac *APIController) ServiceLBDelete(serviceCfg *contivModel.ServiceLB) erro
 
 }
 
+//ServiceLBGetOper inspects the oper state of service lb object
+func (ac *APIController) ServiceLBGetOper(serviceLB *contivModel.ServiceLBInspect) error {
+	log.Infof("Received Service load balancer inspect : %+v", serviceLB)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+	serviceID := master.GetServiceID(serviceLB.Config.ServiceName, serviceLB.Config.TenantName)
+	service := mastercfg.ServiceLBDb[serviceID]
+	if service == nil {
+		return errors.New("Invalid Service name. Oper state does not exist")
+	}
+	serviceLB.Oper.ServiceVip = service.IPAddress
+	count := 0
+	for _, provider := range service.Providers {
+
+		epCfg := &mastercfg.CfgEndpointState{}
+		epCfg.StateDriver = stateDriver
+		err := epCfg.Read(provider.EpIDKey)
+		if err != nil {
+			continue
+		}
+		epOper := contivModel.EndpointOper{}
+		epOper.Network = epCfg.NetID
+		epOper.Name = epCfg.ContName
+		epOper.ServiceName = service.ServiceName //FIXME:fill in service name in endpoint
+		epOper.EndpointGroupID = epCfg.EndpointGroupID
+		epOper.EndpointGroupKey = epCfg.EndpointGroupKey
+		epOper.AttachUUID = epCfg.AttachUUID
+		epOper.IpAddress = []string{epCfg.IPAddress, epCfg.IPv6Address}
+		epOper.MacAddress = epCfg.MacAddress
+		epOper.HomingHost = epCfg.HomingHost
+		epOper.IntfName = epCfg.IntfName
+		epOper.VtepIP = epCfg.VtepIP
+		epOper.Labels = fmt.Sprintf("%s", epCfg.Labels)
+		epOper.ContainerID = epCfg.ContainerID
+		serviceLB.Oper.Providers = append(serviceLB.Oper.Providers, epOper)
+		count++
+		epCfg = nil
+	}
+	serviceLB.Oper.NumProviders = count
+	return nil
+
+}
+
 func validateSelectors(selector string) bool {
 	if strings.Count(selector, "=") == 1 {
 		return true

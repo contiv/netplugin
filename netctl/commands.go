@@ -491,6 +491,13 @@ var Commands = []cli.Command{
 				Action:    listServiceLB,
 			},
 			{
+				Name:      "inspect",
+				Usage:     "Inspect a Network",
+				ArgsUsage: "[servicename]",
+				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Action:    inspectServiceLb,
+			},
+			{
 				Name:      "rm",
 				Aliases:   []string{"delete"},
 				Usage:     "Delete service object",
