@@ -361,9 +361,8 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 	// TODO avoid linear read
 	epCfgs, err := readEp.ReadAll()
 	if err == nil {
-		for idx, epCfg := range epCfgs {
+		for _, epCfg := range epCfgs {
 			ep := epCfg.(*mastercfg.CfgEndpointState)
-			log.Infof("read ep key[%d] %s, populating state \n", idx, ep.ID)
 			if strings.Contains(ep.ContainerID, endpoint.Oper.Key) {
 				endpoint.Oper.Network = ep.NetID
 				endpoint.Oper.Name = ep.ContName
@@ -734,6 +733,33 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 	network.Oper.NumEndpoints = nwCfg.EpCount
 	network.Oper.PktTag = nwCfg.PktTag
 
+	readEp := &mastercfg.CfgEndpointState{}
+	readEp.StateDriver = stateDriver
+	epCfgs, err := readEp.ReadAll()
+	if err == nil {
+		for _, epCfg := range epCfgs {
+			ep := epCfg.(*mastercfg.CfgEndpointState)
+			if ep.NetID == networkID {
+				epOper := contivModel.EndpointOper{}
+				epOper.Network = ep.NetID
+				epOper.Name = ep.ContName
+				epOper.ServiceName = ep.ServiceName
+				epOper.EndpointGroupID = ep.EndpointGroupID
+				epOper.EndpointGroupKey = ep.EndpointGroupKey
+				epOper.AttachUUID = ep.AttachUUID
+				epOper.IpAddress = []string{ep.IPAddress, ep.IPv6Address}
+				epOper.MacAddress = ep.MacAddress
+				epOper.HomingHost = ep.HomingHost
+				epOper.IntfName = ep.IntfName
+				epOper.VtepIP = ep.VtepIP
+				epOper.Labels = fmt.Sprintf("%s", ep.Labels)
+				epOper.ContainerID = ep.ContainerID
+				network.Oper.Endpoints = append(network.Oper.Endpoints, epOper)
+			} else {
+				log.Infof("Unmatch: ep's netId '%s' with '%s' ", ep.NetID, networkID)
+			}
+		}
+	}
 	return nil
 }
 
