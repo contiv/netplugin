@@ -54,7 +54,5 @@ if [ $? != 0 ]; then
    exit
 fi
 
+echo "Build Contiv Image $imgId ..., tagging it as contivbase"
 docker tag $imgId contivbase
-
-
-scripts/netContain/contivd.sh start $ARG1
