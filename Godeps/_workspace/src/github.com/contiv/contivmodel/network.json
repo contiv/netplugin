@@ -88,6 +88,11 @@
 				"dnsServerIP": {
 					"type": "string",
 					"title": "dns IP for the network"
+				},
+				"endpoints": {
+					"type": "array",
+					"items": "endpoint",
+					"title": "endpoints in the network"
 				}
 			},
 			"link-sets": {

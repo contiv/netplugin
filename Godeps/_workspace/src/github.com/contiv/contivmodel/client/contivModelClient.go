@@ -316,12 +316,13 @@ type NetworkLinks struct {
 }
 
 type NetworkOper struct {
-	AllocatedAddressesCount int    `json:"allocatedAddressesCount,omitempty"` // Vlan/Vxlan Tag
-	AllocatedIPAddresses    string `json:"allocatedIPAddresses,omitempty"`    // allocated IP addresses
-	DnsServerIP             string `json:"dnsServerIP,omitempty"`             // dns IP for the network
-	ExternalPktTag          int    `json:"externalPktTag,omitempty"`          // external packet tag
-	NumEndpoints            int    `json:"numEndpoints,omitempty"`            // external packet tag
-	PktTag                  int    `json:"pktTag,omitempty"`                  // internal packet tag
+	AllocatedAddressesCount int            `json:"allocatedAddressesCount,omitempty"` // Vlan/Vxlan Tag
+	AllocatedIPAddresses    string         `json:"allocatedIPAddresses,omitempty"`    // allocated IP addresses
+	DnsServerIP             string         `json:"dnsServerIP,omitempty"`             // dns IP for the network
+	Endpoints               []EndpointOper `json:"endpoints,omitempty"`
+	ExternalPktTag          int            `json:"externalPktTag,omitempty"` // external packet tag
+	NumEndpoints            int            `json:"numEndpoints,omitempty"`   // external packet tag
+	PktTag                  int            `json:"pktTag,omitempty"`         // internal packet tag
 
 }
 
