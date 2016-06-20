@@ -26,8 +26,8 @@ MAINTAINER Madhav Puri <mapuri@cisco.com> (@mapuri)
 
 # Insert your proxy server settings if this build is running behind 
 # a proxy.
-#ENV http_proxy ""
-#ENV https_proxy ""
+ENV http_proxy "http://proxy.esl.cisco.com:8080"
+ENV https_proxy "https://proxy.esl.cisco.com:8080"
 ENV GOPATH /go/
 
 ENV NET_CONTAINER_BUILD 1

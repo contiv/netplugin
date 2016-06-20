@@ -15,7 +15,7 @@
 
 # One Container for OVS / netplugin / netmaster 
 
-FROM ubuntu:14.04
+FROM ubuntu:15.10
 
 MAINTAINER Rajesh Nataraja <rajenata@cisco.com>
 
