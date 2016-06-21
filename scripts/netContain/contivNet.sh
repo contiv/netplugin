@@ -16,15 +16,19 @@ while getopts ":mp:v:i:f:c:" opt; do
           netmaster=true
           ;;
        v)
-          vtep_ip = $OPTARG
+          vtep_ip=$OPTARG
+          netplugin=true
+          ;;
+       i)
+          vlan_if=$OPTARG
           netplugin=true
           ;;
        f)
-          fwd_mode = $OPTARG
+          fwd_mode=$OPTARG
           netplugin=true
           ;;
        c)
-          cstore = $OPTARG
+          cstore=$OPTARG
           ;; 
        p) 
           plugin=$OPTARG
@@ -39,7 +43,7 @@ while getopts ":mp:v:i:f:c:" opt; do
      esac
 done
 
-if [ $netplugin == false && $netmaster == false ]; then
+if [ $netplugin == false ] && [ $netmaster == false ]; then
    echo "Neither Netmaster or Net Plugin Options Specificed"
    exit
 fi
@@ -53,9 +57,9 @@ fi
 
 
 if [ $netmaster ]; then
-   echo "Starting Net Master "
+   echo "Starting Netmaster "
    while [ true ]; do
-       if [ $cstore != "" ]; then
+       if [ "$cstore" != "" ]; then
            /contiv/bin/netmaster -cluster-store $cstore &> /var/log/contiv/netmaster.log
        else
            /contiv/bin/netmaster &> /var/log/contiv/netmaster.log
@@ -66,12 +70,12 @@ if [ $netmaster ]; then
 fi
    
 if [ $netplugin == true ]; then
-   if [ $vtep_ip == "" || $vlan_if == "" ]; then 
+   if [ "$vtep_ip" == "" || "$vlan_if" == "" ]; then 
        echo "Net Plugin Cannot be started without specifying the VETP or VLAN Interface"
        exit
    fi
    while [ true ]; do
-       if [ $cstore != "" ]; then
+       if [ "$cstore" != "" ]; then
            /contiv/bin/netplugin -cluster-store $cstore  -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwdmode -plugin-mode $plugin &> /var/log/contiv/netplugin.log
        else
            /contiv/bin/netplugin -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwd_mode -plugin-mode $plugin &> /var/log/contiv/netplugin.log
