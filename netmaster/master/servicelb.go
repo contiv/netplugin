@@ -247,8 +247,6 @@ func RestoreServiceProviderLBDb() {
 			}
 		}
 		mastercfg.SvcMutex.Unlock()
-	} else {
-		log.Errorf("Error reading service load balancer state from cluster store")
 	}
 
 	//Recover from endpoint state as well .
@@ -276,8 +274,6 @@ func RestoreServiceProviderLBDb() {
 				mastercfg.SvcMutex.Unlock()
 			}
 		}
-	} else {
-		log.Errorf("Error reading endpoint config during restore")
 	}
 }
 

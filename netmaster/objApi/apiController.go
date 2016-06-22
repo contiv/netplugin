@@ -1179,9 +1179,6 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 	if serviceCfg.ServiceName == "" {
 		return core.Errorf("Invalid service name")
 	}
-	if serviceCfg.TenantName == "" {
-		serviceCfg.TenantName = "default"
-	}
 
 	if len(serviceCfg.Selectors) == 0 {
 		return core.Errorf("Invalid selector options")
@@ -1229,7 +1226,20 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 
 //ServiceLBUpdate updates service object
 func (ac *APIController) ServiceLBUpdate(oldServiceCfg *contivModel.ServiceLB, serviceCfg *contivModel.ServiceLB) error {
-	return ac.ServiceLBCreate(serviceCfg)
+	log.Infof("Received Service Load Balancer update: %+v", serviceCfg)
+	err := ac.ServiceLBCreate(serviceCfg)
+	if err != nil {
+		return err
+	}
+	oldServiceCfg.ServiceName = serviceCfg.ServiceName
+	oldServiceCfg.TenantName = serviceCfg.TenantName
+	oldServiceCfg.NetworkName = serviceCfg.NetworkName
+	oldServiceCfg.IpAddress = serviceCfg.IpAddress
+	oldServiceCfg.Selectors = nil
+	oldServiceCfg.Ports = nil
+	oldServiceCfg.Selectors = append(oldServiceCfg.Selectors, serviceCfg.Selectors...)
+	oldServiceCfg.Ports = append(oldServiceCfg.Ports, serviceCfg.Ports...)
+	return nil
 }
 
 //ServiceLBDelete deletes service object
@@ -1240,9 +1250,7 @@ func (ac *APIController) ServiceLBDelete(serviceCfg *contivModel.ServiceLB) erro
 	if serviceCfg.ServiceName == "" {
 		return core.Errorf("Invalid service name")
 	}
-	if serviceCfg.TenantName == "" {
-		serviceCfg.TenantName = "default"
-	}
+
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
