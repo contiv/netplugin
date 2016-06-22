@@ -1,6 +1,8 @@
 #!/bin/bash
 #Start OVS in the Contiv Container
 
+mkdir -p /var/run/openvswitch
+
 sleep 2
 
 if [ -d "/etc/openvswitch" ]; then

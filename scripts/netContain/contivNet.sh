@@ -1,16 +1,23 @@
 #!/bin/bash
 #Initialize complete contiv container. Start OVS and Net Plugin
 
-ARG1=${1:-none}
-
-
 plugin="docker"
 vtep_ip=""
 fwd_mode="bridge"
 cstore=""
 netmaster=false
+vlan_if=""
 
-while getopts ":mp:v:i:f:c:" opt; do
+#This needs to be fixed, we cant rely on the value being supplied from 
+# paramters, just explosion of parameters is not a great solution
+export no_proxy="0.0.0.0, 172.28.11.253" 
+echo "172.28.11.253 netmaster" > /etc/hosts
+
+#Needed for Net Plugin to connect with OVS, This needs to be 
+#fixed as well. netplugin should have OVS locally. 
+echo "0.0.0.0 localhost" >> /etc/hosts
+
+while getopts ":xmp:v:i:f:c:" opt; do
     case $opt in
        m) 
           netmaster=true
@@ -34,6 +41,9 @@ while getopts ":mp:v:i:f:c:" opt; do
           plugin=$OPTARG
           netplugin=true
           ;;
+       x)
+          reinit=true
+          ;;
        :)
           echo "An argument required for $OPTARG was not passed"
           ;;
@@ -48,13 +58,13 @@ if [ $netplugin == false ] && [ $netmaster == false ]; then
    exit
 fi
 
-if [ $ARG1 == "reinit" ]; then
-    ovs-vsctl del-br contivVlanBridge
-    ovs-vsctl del-br contivVxlanBridge
-fi
 
 /contiv/scripts/ovsInit.sh
 
+if [ $reinit ]; then
+    ovs-vsctl del-br contivVlanBridge
+    ovs-vsctl del-br contivVxlanBridge
+fi
 
 if [ $netmaster ]; then
    echo "Starting Netmaster "
