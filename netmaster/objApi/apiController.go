@@ -231,10 +231,6 @@ func (ac *APIController) AppProfileCreate(prof *contivModel.AppProfile) error {
 		return core.Errorf("Tenant %s not found", prof.TenantName)
 	}
 
-	// Setup links
-	modeldb.AddLink(&prof.Links.Tenant, tenant)
-	modeldb.AddLinkSet(&tenant.LinkSets.AppProfiles, prof)
-
 	for _, epg := range prof.EndpointGroups {
 		epgKey := prof.TenantName + ":" + epg
 		epgObj := contivModel.FindEndpointGroup(epgKey)
@@ -255,6 +251,10 @@ func (ac *APIController) AppProfileCreate(prof *contivModel.AppProfile) error {
 		log.Errorf("Error updating tenant state(%+v). Err: %v", tenant, err)
 		return err
 	}
+
+	// Setup links
+	modeldb.AddLink(&prof.Links.Tenant, tenant)
+	modeldb.AddLinkSet(&tenant.LinkSets.AppProfiles, prof)
 
 	CreateAppNw(prof)
 	return nil
