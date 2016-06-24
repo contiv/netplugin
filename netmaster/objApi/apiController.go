@@ -850,6 +850,12 @@ func (ac *APIController) PolicyUpdate(policy, params *contivModel.Policy) error 
 func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 	log.Infof("Received PolicyDelete: %+v", policy)
 
+	// Find Tenant
+	tenant := contivModel.FindTenant(policy.TenantName)
+	if tenant == nil {
+		return core.Errorf("Tenant %s not found", policy.TenantName)
+	}
+
 	// Check if any endpoint group is using the Policy
 	if len(policy.LinkSets.EndpointGroups) != 0 {
 		return core.Errorf("Policy is being used")
@@ -864,6 +870,8 @@ func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 		}
 	}
 
+	//Remove Links
+	modeldb.RemoveLinkSet(&tenant.LinkSets.Policies, policy)
 	return nil
 }
 
@@ -1077,7 +1085,30 @@ func (ac *APIController) TenantDelete(tenant *contivModel.Tenant) error {
 		return err
 	}
 
-	// FIXME: Should we walk all objects under the tenant and delete it?
+	// if the tenant has associated app profiles, fail the delete
+	profCount := len(tenant.LinkSets.AppProfiles)
+	if profCount != 0 {
+		return core.Errorf("cannot delete %s, has %d app profiles",
+			tenant.TenantName, profCount)
+	}
+	// if the tenant has associated epgs, fail the delete
+	epgCount := len(tenant.LinkSets.EndpointGroups)
+	if epgCount != 0 {
+		return core.Errorf("cannot delete %s has %d endpoint groups",
+			tenant.TenantName, epgCount)
+	}
+	// if the tenant has associated policies, fail the delete
+	policyCount := len(tenant.LinkSets.Policies)
+	if policyCount != 0 {
+		return core.Errorf("cannot delete %s has %d policies",
+			tenant.TenantName, policyCount)
+	}
+	// if the tenant has associated networks, fail the delete
+	nwCount := len(tenant.LinkSets.Networks)
+	if nwCount != 0 {
+		return core.Errorf("cannot delete %s has %d networks",
+			tenant.TenantName, nwCount)
+	}
 
 	// Delete the tenant
 	err = master.DeleteTenantID(stateDriver, tenant.TenantName)
