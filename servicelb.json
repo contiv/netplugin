@@ -43,6 +43,21 @@
                 "items" : "string"
             }
         },
+        "operProperties": {
+          "serviceVip": {
+            "type": "string",
+            "title": "allocated IP addresses"
+          },
+          "numProviders": {
+            "type": "int",
+            "title": " number of provider endpoints for the service"
+          },
+          "providers": {
+            "type": "array",
+            "items": "endpoint",
+            "title": "provider endpoints for the service"
+          }
+        },
         "links": {
             "tenant": {
                 "ref": "tenant"

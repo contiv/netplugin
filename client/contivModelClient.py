@@ -463,6 +463,16 @@ class objmodelClient:
 
 
 
+	# Inspect serviceLB
+	def createServiceLB(self, obj):
+	    postUrl = self.baseUrl + '/api/v1/inspect/serviceLB/' + obj.tenantName + ":" + obj.serviceName  + '/'
+
+	    retDate = urllib2.urlopen(postUrl)
+	    if retData == "Error":
+	        errorExit("list ServiceLB failed")
+
+	    return json.loads(retData)
+
 
 	# Create tenant
 	def createTenant(self, obj):
