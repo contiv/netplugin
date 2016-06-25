@@ -50,8 +50,7 @@
           },
           "numProviders": {
             "type": "int",
-            "items": "ndpoint",
-            "title": "provider endpoints for the service"
+            "title": " number of provider endpoints for the service"
           },
           "providers": {
             "type": "array",

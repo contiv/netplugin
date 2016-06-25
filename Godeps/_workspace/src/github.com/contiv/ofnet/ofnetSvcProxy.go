@@ -545,11 +545,6 @@ func (proxy *ServiceProxy) SwitchConnected(sw *ofctrl.OFSwitch) {
 	proxy.ofSwitch = sw
 
 	log.Infof("Switch connected(svcProxy).")
-
-	if !proxy.statsPollStarted {
-		proxy.statsPollStarted = true
-		go proxy.pollStats()
-	}
 }
 
 // Handle switch disconnected notification

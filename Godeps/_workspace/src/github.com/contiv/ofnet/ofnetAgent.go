@@ -574,7 +574,7 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf string) error {
 	// Dont handle endpointDB operations during this time
 	self.lockDB()
-	self.unlockDB()
+	defer self.unlockDB()
 
 	vrf := self.vlanVrf[vlanId]
 	gwEpid := self.getEndpointIdByIpVrf(net.ParseIP(Gw), *vrf)
@@ -586,7 +586,7 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 		if (vni != 0) && (endpoint.Vni == vni) {
 			if endpoint.OriginatorIp.String() == self.localIp.String() {
 				log.Fatalf("Vlan %d still has routes. Route: %+v", vlanId, endpoint)
-			} else {
+			} else if endpoint.EndpointType == "internal" {
 				// Network delete arrived before other hosts cleanup endpoint
 				log.Warnf("Vlan %d still has routes, cleaning up. Route: %+v", vlanId, endpoint)
 				// Uninstall the endpoint from datapath
