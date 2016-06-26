@@ -117,7 +117,12 @@ func (vl *VlanBridge) SwitchConnected(sw *ofctrl.OFSwitch) {
 
 // SwitchDisconnected Handle switch disconnected notification
 func (vl *VlanBridge) SwitchDisconnected(sw *ofctrl.OFSwitch) {
-	// FIXME: ??
+
+	vl.svcProxy.SwitchDisconnected(sw)
+	// Tell the policy agent about the switch disconnected
+	vl.policyAgent.SwitchDisconnected(sw)
+
+	vl.ofSwitch = nil
 }
 
 // PacketRcvd Handle incoming packet

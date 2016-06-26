@@ -16,10 +16,11 @@ limitations under the License.
 package plugin
 
 import (
-	"sync"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
+	"sync"
 )
 
 // implements the generic Plugin interface
@@ -36,35 +37,6 @@ type Config struct {
 	Drivers  Drivers           `json:"drivers"`
 	Instance core.InstanceInfo `json:"plugin-instance"`
 }
-
-/*
-//ProviderInfo has providers info
-type ProviderInfo struct {
-	IPAddress   string            // provider IP
-	ContainerID string            // container id
-	Labels      map[string]string // lables
-	Tenant      string
-	Network     string
-}
-*/
-/*
-//ServiceLBInfo holds service information
-type ServiceLBInfo struct {
-	ServiceName string //Service name
-	IPAddress   string //Service IP
-	Tenant      string //Tenant name of the service
-	SrvPort     uint16 //Service port
-	ProvPort    uint16
-	Labels      map[string]string        // Labels associated with a service
-	Providers   map[string]*ProviderInfo //map of providers for a service keyed by provider ip
-}
-*/
-//ServiceLBInfo is map of all services
-//var ServiceLBDb map[string]*ServiceLBInfo //DB for all services keyed by servicename.tenant
-//ProviderDb is map of all providers
-//var ProviderDb map[string]*ProviderInfo
-
-//
 
 // NetPlugin is the configuration struct for the plugin bus. Network and
 // Endpoint drivers are all present in `drivers/` and state drivers are present
@@ -97,20 +69,24 @@ func (p *NetPlugin) Init(pluginConfig Config) error {
 	// set state driver in instance info
 	pluginConfig.Instance.StateDriver = p.StateDriver
 
+	fwdMode := GetFwdMode(p.StateDriver)
+	if fwdMode == "" {
+		fwdMode = "bridge"
+	}
+	pluginConfig.Instance.FwdMode = fwdMode
+
 	// initialize network driver
 	p.NetworkDriver, err = utils.NewNetworkDriver(pluginConfig.Drivers.Network, &pluginConfig.Instance)
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		if err != nil {
 			p.NetworkDriver.Deinit()
 		}
 	}()
-	/*
-		ServiceLBDb = make(map[string]*ServiceLBInfo)
-		ProviderDb = make(map[string]*ProviderInfo)
-	*/
+
 	return nil
 }
 
@@ -219,4 +195,44 @@ func (p *NetPlugin) GetEndpointStats() ([]byte, error) {
 // InspectState returns current state of the plugin
 func (p *NetPlugin) InspectState() ([]byte, error) {
 	return p.NetworkDriver.InspectState()
+}
+
+//GlobalFwdModeUpdate update the forwarding mode
+func (p *NetPlugin) GlobalFwdModeUpdate(cfg Config) {
+	var err error
+
+	if p.NetworkDriver != nil {
+		p.NetworkDriver.Deinit()
+		p.NetworkDriver = nil
+	}
+
+	cfg.Instance.StateDriver, _ = utils.GetStateDriver()
+	p.NetworkDriver, err = utils.NewNetworkDriver(cfg.Drivers.Network, &cfg.Instance)
+
+	if err != nil {
+		logrus.Errorf("THE ERROR IS %v", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			p.NetworkDriver.Deinit()
+		}
+	}()
+
+	return
+}
+
+//GetFwdMode returns the fabric forwarding mode
+func GetFwdMode(stateDriver core.StateDriver) string {
+
+	gCfg := mastercfg.GlobConfig{}
+	gCfg.StateDriver = stateDriver
+	err := gCfg.Read("")
+	if err != nil {
+		core.Errorf("Error reading forwarding mode from cluster store")
+		return ""
+	}
+	return gCfg.FwdMode
+
 }

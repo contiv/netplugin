@@ -30,7 +30,14 @@
 					"type": "string",
 					"title": "Allwed vxlan range",
 					"format": "^([0-9]{1,8}?-[0-9]{1,8}?)$"
-				}
+				},
+                                "fwdMode": {
+                                        "type": "string",
+                                        "title": "Forwarding Mode",
+                                        "length": 64,
+                                        "format": "^(bridge|routing)?$",
+                                        "ShowSummary": true
+                                }
 			},
 			"operProperties": {
 				"numNetworks": {

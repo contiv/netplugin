@@ -100,7 +100,7 @@ func (self *OfnetMaster) AddNode(hostInfo OfnetNode) error {
 	return nil
 }
 
-// Register an agent
+// RegisterNode registers an agent
 func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 	// Create a node
 	node := new(OfnetNode)
@@ -146,6 +146,18 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 		}
 	}
 
+	return nil
+}
+
+// UnRegisterNode unregisters an agent
+func (self *OfnetMaster) UnRegisterNode(hostInfo *OfnetNode, ret *bool) error {
+	hostKey := fmt.Sprintf("%s:%d", hostInfo.HostAddr, hostInfo.HostPort)
+
+	// Add it to DB
+	self.masterMutex.Lock()
+	delete(self.agentDb, hostKey)
+	self.masterMutex.Unlock()
+	rpcHub.DisconnectClient(hostInfo.HostPort, hostInfo.HostAddr)
 	return nil
 }
 

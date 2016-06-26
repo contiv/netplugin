@@ -40,11 +40,11 @@ const (
 	vxlanUDPPort     = 4789
 )
 
-// objdb client
-var objdbClient objdb.API
+// ObjdbClient client
+var ObjdbClient objdb.API
 
-// Database of master nodes
-var masterDB = make(map[string]*objdb.ServiceInfo)
+// MasterDB is Database of Master nodes
+var MasterDB = make(map[string]*objdb.ServiceInfo)
 
 func masterKey(srvInfo objdb.ServiceInfo) string {
 	return srvInfo.HostAddr + ":" + fmt.Sprintf("%d", srvInfo.Port)
@@ -53,7 +53,7 @@ func masterKey(srvInfo objdb.ServiceInfo) string {
 // Add a master node
 func addMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 	// save it in db
-	masterDB[masterKey(srvInfo)] = &srvInfo
+	MasterDB[masterKey(srvInfo)] = &srvInfo
 
 	// tell the plugin about the master
 	return netplugin.AddMaster(core.ServiceInfo{
@@ -65,7 +65,7 @@ func addMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 // delete master node
 func deleteMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 	// delete from the db
-	delete(masterDB, masterKey(srvInfo))
+	delete(MasterDB, masterKey(srvInfo))
 
 	// tel plugin about it
 	return netplugin.DeleteMaster(core.ServiceInfo{
@@ -126,7 +126,7 @@ func httpPost(url string, req interface{}, resp interface{}) error {
 // getMasterLockHolder returns the IP of current master lock hoder
 func getMasterLockHolder() (string, error) {
 	// Create the lock
-	leaderLock, err := objdbClient.NewLock("netmaster/leader", "", 0)
+	leaderLock, err := ObjdbClient.NewLock("netmaster/leader", "", 0)
 	if err != nil {
 		log.Fatalf("Could not create leader lock. Err: %v", err)
 	}
@@ -159,7 +159,7 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 	}
 
 	// Walk all netmasters and see if any of them respond
-	for _, master := range masterDB {
+	for _, master := range MasterDB {
 		url := "http://" + master.HostAddr + ":9999" + path
 
 		log.Infof("Making REST request to url: %s", url)
@@ -318,16 +318,16 @@ func Init(netplugin *plugin.NetPlugin, ctrlIP, vtepIP, storeURL string) error {
 	var err error
 
 	// Create an objdb client
-	objdbClient, err = objdb.NewClient(storeURL)
+	ObjdbClient, err = objdb.NewClient(storeURL)
 	if err != nil {
 		return err
 	}
 
 	// Register ourselves
-	registerService(objdbClient, ctrlIP, vtepIP)
+	registerService(ObjdbClient, ctrlIP, vtepIP)
 
 	// Start peer discovery loop
-	go peerDiscoveryLoop(netplugin, objdbClient, ctrlIP, vtepIP)
+	go peerDiscoveryLoop(netplugin, ObjdbClient, ctrlIP, vtepIP)
 
 	return nil
 }

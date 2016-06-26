@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	. "testing"
@@ -30,7 +29,6 @@ type systemtestSuite struct {
 	clusterStore string
 	enableDNS    bool
 	keyFile      string
-	scheduler    string
 	// user       string
 	// password   string
 	// nodes      []string
@@ -77,10 +75,6 @@ func TestMain(m *M) {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
 	} else {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "routing", "forwarding mode to start the test ")
-	}
-
-	if os.Getenv("CONTIV_K8") != "" {
-		flag.StringVar(&sts.scheduler, "scheduler", "k8", "scheduler used for testing")
 	}
 
 	flag.Parse()
@@ -171,10 +165,6 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 		s.nodes = []*node{}
 
-		if s.scheduler == "k8" {
-			s.KubeNodeSetup(c)
-		}
-
 		if s.fwdMode == "routing" {
 			contivL3Nodes := 2
 			c.Assert(s.vagrant.Setup(false, "CONTIV_NODES=3 CONTIV_L3=2", contivNodes+contivL3Nodes), IsNil)
@@ -201,50 +191,7 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 	logrus.Infof("============================= %s starting ==========================", c.TestName())
 
 	if os.Getenv("ACI_SYS_TEST_MODE") == "ON" {
-
-		for _, node := range s.nodes {
-			//node.cleanupContainers()
-			node.cleanupDockerNetwork()
-			node.stopNetplugin()
-			node.cleanupSlave()
-			node.deleteFile("/etc/systemd/system/netplugin.service")
-			node.stopNetmaster()
-			node.deleteFile("/etc/systemd/system/netmaster.service")
-			node.deleteFile("/usr/bin/netctl")
-		}
-
-		for _, node := range s.nodes {
-			node.cleanupMaster()
-		}
-
-		for _, node := range s.nodes {
-			if s.fwdMode == "bridge" {
-				c.Assert(node.startNetplugin(""), IsNil)
-				c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
-			} else if s.fwdMode == "routing" {
-				c.Assert(node.startNetplugin("-fwd-mode=routing -vlan-if=eth2"), IsNil)
-				c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
-			}
-		}
-
-		time.Sleep(15 * time.Second)
-
-		for _, node := range s.nodes {
-			c.Assert(node.startNetmaster(), IsNil)
-			time.Sleep(1 * time.Second)
-			c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
-		}
-
-		time.Sleep(5 * time.Second)
-		for i := 0; i < 11; i++ {
-			_, err := s.cli.TenantGet("default")
-			if err == nil {
-				break
-			}
-			// Fail if we reached last iteration
-			c.Assert((i < 10), Equals, true)
-			time.Sleep(500 * time.Millisecond)
-		}
+		s.AciTestSetup(c)
 	} else {
 		for _, node := range s.nodes {
 			node.cleanupContainers()
@@ -262,13 +209,8 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		}
 
 		for _, node := range s.nodes {
-			if s.fwdMode == "bridge" {
-				c.Assert(node.startNetplugin(""), IsNil)
-				c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
-			} else if s.fwdMode == "routing" {
-				c.Assert(node.startNetplugin("-fwd-mode=routing -vlan-if=eth2"), IsNil)
-				c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
-			}
+			c.Assert(node.startNetplugin(""), IsNil)
+			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 		}
 
 		time.Sleep(15 * time.Second)
@@ -295,6 +237,16 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 			// Fail if we reached last iteration
 			c.Assert((i < 10), Equals, true)
 			time.Sleep(500 * time.Millisecond)
+		}
+
+		if s.fwdMode == "routing" {
+			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+				Name:             "global",
+				NetworkInfraType: "default",
+				Vlans:            "1-4094",
+				Vxlans:           "1-10000",
+			}), IsNil)
+			time.Sleep(40 * time.Second)
 		}
 	}
 }
@@ -329,9 +281,4 @@ func (s *systemtestSuite) Test00SSH(c *C) {
 	c.Assert(s.vagrant.IterateNodes(func(node vagrantssh.TestbedNode) error {
 		return node.RunCommand("true")
 	}), IsNil)
-}
-
-func (s *systemtestSuite) KubeNodeSetup(c *C) {
-	cmd := exec.Command("/bin/sh", "./vagrant/k8s/setup_cluster.sh")
-	c.Assert(cmd.Run(), IsNil)
 }

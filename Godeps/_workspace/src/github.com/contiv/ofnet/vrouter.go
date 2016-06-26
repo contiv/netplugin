@@ -104,7 +104,13 @@ func (self *Vrouter) SwitchConnected(sw *ofctrl.OFSwitch) {
 
 // Handle switch disconnected notification
 func (self *Vrouter) SwitchDisconnected(sw *ofctrl.OFSwitch) {
-	// FIXME: ??
+
+	self.svcProxy.SwitchDisconnected(sw)
+	// Tell the policy agent about the switch disconnected
+	self.policyAgent.SwitchDisconnected(sw)
+
+	self.ofSwitch = nil
+
 }
 
 // Handle incoming packet

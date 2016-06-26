@@ -267,17 +267,17 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantVXLAN(c *C) {
-	s.testNetworkAddDeleteTenant(c, "vxlan")
+	s.testNetworkAddDeleteTenant(c, "vxlan", s.fwdMode)
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantVLAN(c *C) {
-	s.testNetworkAddDeleteTenant(c, "vlan")
+	s.testNetworkAddDeleteTenant(c, "vlan", s.fwdMode)
 }
 
-func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
+func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string) {
 	mutex := sync.Mutex{}
 
-	if encap == "vlan" && s.fwdMode == "routing" {
+	if encap == "vlan" && fwdmode == "routing" {
 
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
@@ -340,7 +340,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 					mutex.Unlock()
 					endChan <- err
 
-					if s.fwdMode == "routing" && encap == "vlan" {
+					if fwdmode == "routing" && encap == "vlan" {
 						_, err = s.CheckBgpRouteDistribution(c, containers[network])
 						c.Assert(err, IsNil)
 					}
@@ -359,5 +359,56 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap string) {
 
 			c.Assert(s.cli.TenantDelete(tenant), IsNil)
 		}
+	}
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
+	for i := 0; i < s.iterations; i++ {
+		s.testNetworkAddDeleteTenant(c, "vxlan", s.fwdMode)
+		if s.fwdMode == "routing" {
+			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
+				Name:             "global",
+				NetworkInfraType: "default",
+				Vlans:            "1-4094",
+				Vxlans:           "1-10000",
+			}), IsNil)
+			time.Sleep(40 * time.Second)
+			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
+		} else {
+			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+				Name:             "global",
+				NetworkInfraType: "default",
+				Vlans:            "100-2094",
+				Vxlans:           "1-10000",
+			}), IsNil)
+			time.Sleep(40 * time.Second)
+			s.testNetworkAddDeleteTenant(c, "vxlan", "routing")
+		}
+	}
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
+
+	if s.fwdMode != "routing" {
+		return
+	}
+
+	for i := 0; i < s.iterations; i++ {
+		s.testNetworkAddDeleteTenant(c, "vlan", s.fwdMode)
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
+			Name:             "global",
+			NetworkInfraType: "default",
+			Vlans:            "1-4094",
+			Vxlans:           "1-10000",
+		}), IsNil)
+		time.Sleep(40 * time.Second)
+		s.testNetworkAddDeleteTenant(c, "vlan", "bridge")
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+			Name:             "global",
+			NetworkInfraType: "default",
+			Vlans:            "1-4094",
+			Vxlans:           "1-10000",
+		}), IsNil)
+		time.Sleep(40 * time.Second)
 	}
 }

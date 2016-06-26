@@ -514,7 +514,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 		time.Sleep(1 * time.Minute)
 		time.Sleep(30 * time.Second)
 		c.Assert(node.rotateLog("netplugin"), IsNil)
-		c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
+		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 		time.Sleep(15 * time.Second)
 		s.CheckBgpConnection(c)
@@ -636,7 +636,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 				s.CheckBgpConnectionForaNode(c, node.tbnode)
 			}
 		}
-		c.Assert(nodeToStop.startNetplugin("-vlan-if=eth2 -fwd-mode=routing"), IsNil)
+		c.Assert(nodeToStop.startNetplugin("-vlan-if=eth2"), IsNil)
 		time.Sleep(15 * time.Second)
 		nodeToStop.tbnode.RunCommandWithOutput("sudo ip link set inb01 up")
 		s.CheckBgpConnectionForaNode(c, nodeToStop.tbnode)

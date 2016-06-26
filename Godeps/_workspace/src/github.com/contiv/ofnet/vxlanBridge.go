@@ -121,7 +121,10 @@ func (self *Vxlan) SwitchConnected(sw *ofctrl.OFSwitch) {
 
 // Handle switch disconnected notification
 func (self *Vxlan) SwitchDisconnected(sw *ofctrl.OFSwitch) {
-	// FIXME: ??
+
+	self.policyAgent.SwitchDisconnected(sw)
+	self.ofSwitch = nil
+
 }
 
 // Handle incoming packet

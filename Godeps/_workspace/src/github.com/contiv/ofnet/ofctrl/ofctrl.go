@@ -66,7 +66,6 @@ func NewController(app AppInterface) *Controller {
 
 	// Save the handler
 	c.app = app
-
 	return c
 }
 
@@ -98,6 +97,7 @@ func (c *Controller) Listen(port string) {
 
 // Cleanup the controller
 func (c *Controller) Delete() {
+	c.app = nil
 	c.listener.Close()
 }
 
