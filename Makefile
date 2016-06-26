@@ -97,7 +97,9 @@ mesos-docker-demo:
 mesos-docker-destroy:
 	cd vagrant/mesos-docker && vagrant destroy -f
 
-
+nomad-docker: 
+	cd vagrant/nomad-docker && vagrant up
+	VAGRANT_CWD=./vagrant/nomad-docker/ vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
 demo-ubuntu:
 	CONTIV_NODE_OS=ubuntu make demo
 
