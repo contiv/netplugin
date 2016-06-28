@@ -872,6 +872,14 @@ func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 
 	//Remove Links
 	modeldb.RemoveLinkSet(&tenant.LinkSets.Policies, policy)
+
+	// Save the tenant too since we added the links
+	err := tenant.Write()
+	if err != nil {
+		log.Errorf("Error updating tenant state(%+v). Err: %v", tenant, err)
+		return err
+	}
+
 	return nil
 }
 
