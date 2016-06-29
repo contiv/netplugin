@@ -256,8 +256,8 @@ func (ac *APIController) AppProfileCreate(prof *contivModel.AppProfile) error {
 		return err
 	}
 
-	CreateAppNw(prof)
-	return nil
+	err = CreateAppNw(prof)
+	return err
 }
 
 // AppProfileUpdate updates app
@@ -312,8 +312,8 @@ func (ac *APIController) AppProfileUpdate(oldProf, newProf *contivModel.AppProfi
 
 	// update the app nw
 	DeleteAppNw(oldProf)
-	CreateAppNw(oldProf)
-	return nil
+	lErr := CreateAppNw(oldProf)
+	return lErr
 }
 
 // AppProfileDelete delete the app

@@ -20,11 +20,13 @@ import (
 	"net"
 	"net/rpc"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"github.com/shaleman/libOpenflow/protocol"
+	"github.com/vishvananda/netlink"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -54,6 +56,8 @@ type VlanBridge struct {
 	garpMutex      *sync.Mutex
 	epgToEPs       map[int]epgGARPInfo // Database of eps per epg
 	garpBGActive   bool
+	uplinkName     string
+	nlCloser       chan struct{} // channel to close the netlink listener
 }
 
 // epgGARPInfo holds info for epg
@@ -196,6 +200,23 @@ func (vl *VlanBridge) InjectGARPs(epgID int) {
 	}
 }
 
+func (vl *VlanBridge) sendGARPAll() {
+	vl.garpMutex.Lock()
+	defer vl.garpMutex.Unlock()
+
+	count := 0
+	for epgID, epgInfo := range vl.epgToEPs {
+		epgInfo.garpCount = GARPRepeats
+		vl.epgToEPs[epgID] = epgInfo
+		count++
+	}
+
+	if !vl.garpBGActive && count > 0 {
+		log.Infof("GARPs will be send for %d epgs", count)
+		go vl.backGroundGARPs()
+	}
+}
+
 // AddLocalEndpoint Add a local endpoint and install associated local route
 func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	log.Infof("Adding local endpoint: %+v", endpoint)
@@ -251,9 +272,9 @@ func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	}
 
 	// update epgDB
-	vl.garpMutex.Lock()
-	defer vl.garpMutex.Unlock()
 	if endpoint.EndpointGroupVlan != 0 {
+		vl.garpMutex.Lock()
+
 		gInfo := GARPInfo{mac: mac,
 			ip:   endpoint.IpAddr,
 			vlan: endpoint.EndpointGroupVlan}
@@ -267,6 +288,9 @@ func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 		epgInfo.epMap[endpoint.PortNo] = gInfo
 		vl.epgToEPs[endpoint.EndpointGroup] = epgInfo
+
+		vl.garpMutex.Unlock()
+		vl.InjectGARPs(endpoint.EndpointGroup) // inject background arps as well
 	}
 
 	return nil
@@ -363,8 +387,41 @@ func (vl *VlanBridge) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 	return nil
 }
 
+// handlePortUp triggers GARPs on all eps when a link flap is detected.
+func (vl *VlanBridge) handlePortUp(ch <-chan netlink.LinkUpdate, ifname string) {
+	log.Infof("Start listening for link status")
+	for {
+		select {
+
+		case update := <-ch:
+			if ifname == update.Link.Attrs().Name && (update.IfInfomsg.Flags&syscall.IFF_UP != 0) == true {
+				log.Infof("Linkup received for %s", ifname)
+				vl.sendGARPAll()
+			}
+
+		case <-vl.nlCloser:
+			log.Infof("Stop listening for link status")
+			return
+		}
+	}
+
+}
+
+// monitorPort watches for link flap events
+func (vl *VlanBridge) monitorPort(ifname string) {
+	vl.nlCloser = make(chan struct{})
+	updChan := make(chan netlink.LinkUpdate)
+	if err := netlink.LinkSubscribe(updChan, vl.nlCloser); err != nil {
+		log.Errorf("Error listening on netlink: %v", err)
+		return
+	}
+
+	go vl.handlePortUp(updChan, ifname)
+
+}
+
 // AddUplink adds an uplink to the switch
-func (vl *VlanBridge) AddUplink(portNo uint32) error {
+func (vl *VlanBridge) AddUplink(portNo uint32, ifname string) error {
 	log.Infof("Adding uplink port: %+v", portNo)
 
 	// Install a flow entry for vlan mapping and point it to Mac table
@@ -388,6 +445,8 @@ func (vl *VlanBridge) AddUplink(portNo uint32) error {
 	// save the flow entry
 	vl.portVlanFlowDb[portNo] = portVlanFlow
 	vl.uplinkDb[portNo] = portNo
+	vl.uplinkName = ifname
+	vl.monitorPort(ifname)
 
 	return nil
 }
@@ -395,6 +454,7 @@ func (vl *VlanBridge) AddUplink(portNo uint32) error {
 // RemoveUplink remove an uplink to the switch
 func (vl *VlanBridge) RemoveUplink(portNo uint32) error {
 	delete(vl.uplinkDb, portNo)
+	close(vl.nlCloser)
 	return nil
 }
 

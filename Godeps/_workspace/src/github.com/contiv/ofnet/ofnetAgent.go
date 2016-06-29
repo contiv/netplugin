@@ -610,9 +610,9 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 }
 
 // AddUplink adds an uplink to the switch
-func (self *OfnetAgent) AddUplink(portNo uint32) error {
+func (self *OfnetAgent) AddUplink(portNo uint32, ifname string) error {
 	// Call the datapath
-	return self.datapath.AddUplink(portNo)
+	return self.datapath.AddUplink(portNo, ifname)
 }
 
 // RemoveUplink remove an uplink to the switch

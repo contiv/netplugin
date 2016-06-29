@@ -769,7 +769,7 @@ func (self *Vrouter) RemoveRemoteIpv6Flow(endpoint *OfnetEndpoint) error {
 }
 
 // AddUplink adds an uplink to the switch
-func (vr *Vrouter) AddUplink(portNo uint32) error {
+func (vr *Vrouter) AddUplink(portNo uint32, ifname string) error {
 	// Nothing to do
 	return nil
 }
