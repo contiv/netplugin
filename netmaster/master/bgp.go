@@ -16,6 +16,7 @@ limitations under the License.
 package master
 
 import (
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -26,6 +27,11 @@ import (
 func AddBgp(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) error {
 
 	log.Infof("Adding bgp neighbor {%v}", bgpCfg)
+	aci, _ := IsAciConfigured()
+	if aci {
+		log.Errorf("Invalid configuration. Not supported in ACI fabric mode.")
+		return errors.New("Not supported in ACI fabric mode.")
+	}
 	bgpState := &mastercfg.CfgBgpState{}
 	bgpState.Hostname = bgpCfg.Hostname
 	bgpState.RouterIP = bgpCfg.RouterIP

@@ -257,7 +257,8 @@ func (self *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	}
 
 	// Find the flow entry
-	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	//flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	flowId := endpoint.EndpointID
 	ipFlow := self.flowDb[flowId]
 	if ipFlow == nil {
 		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
@@ -511,7 +512,8 @@ func (self *Vlrouter) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 	delete(self.unresolvedEPs, endpoint.EndpointID)
 
 	// Find the flow entry
-	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	//flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	flowId := endpoint.EndpointID
 	ipFlow := self.flowDb[flowId]
 	if ipFlow == nil {
 		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)

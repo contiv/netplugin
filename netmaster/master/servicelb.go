@@ -34,7 +34,7 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 	log.Infof("Recevied Create Service Load Balancer config {%v}", serviceLbCfg)
 
 	//Check if service already exists.
-	svcID := getServiceID(serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
+	svcID := GetServiceID(serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
 
 	mastercfg.SvcMutex.RLock()
 	oldServiceInfo := mastercfg.ServiceLBDb[svcID]
@@ -57,7 +57,7 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 	serviceLbState.Tenant = serviceLbCfg.Tenant
 	serviceLbState.Network = serviceLbCfg.Network
 	serviceLbState.StateDriver = stateDriver
-	serviceLbState.ID = getServiceID(serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
+	serviceLbState.ID = GetServiceID(serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
 	serviceLbState.Ports = append(serviceLbState.Ports, serviceLbCfg.Ports...)
 	serviceLbState.Selectors = make(map[string]string)
 	serviceLbState.Providers = make(map[string]*mastercfg.Provider)
@@ -90,7 +90,7 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 		return err
 	}
 
-	serviceID := getServiceID(serviceLbState.ServiceName, serviceLbState.Tenant)
+	serviceID := GetServiceID(serviceLbState.ServiceName, serviceLbState.Tenant)
 
 	mastercfg.ServiceLBDb[serviceID] = &mastercfg.ServiceLBInfo{
 		IPAddress:   serviceLbState.IPAddress,
@@ -148,7 +148,7 @@ func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantNam
 	log.Infof("Received Delete Service Load Balancer %s on %s", serviceName, tenantName)
 	serviceLBState := &mastercfg.CfgServiceLBState{}
 	serviceLBState.StateDriver = stateDriver
-	serviceLBState.ID = getServiceID(serviceName, tenantName)
+	serviceLBState.ID = GetServiceID(serviceName, tenantName)
 
 	mastercfg.SvcMutex.RLock()
 	err := serviceLBState.Read(serviceLBState.ID)
@@ -173,7 +173,7 @@ func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantNam
 		log.Errorf("Network release address  failed %s", err)
 	}
 
-	serviceID := getServiceID(serviceLBState.ServiceName, serviceLBState.Tenant)
+	serviceID := GetServiceID(serviceLBState.ServiceName, serviceLBState.Tenant)
 
 	mastercfg.SvcMutex.Lock()
 	//Remove the service ID from the provider cache
@@ -205,10 +205,6 @@ func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantNam
 
 }
 
-func getServiceID(servicename string, tenantname string) string {
-	return servicename + ":" + tenantname
-}
-
 //RestoreServiceProviderLBDb restores provider and servicelb db
 func RestoreServiceProviderLBDb() {
 
@@ -228,7 +224,7 @@ func RestoreServiceProviderLBDb() {
 		for _, svcLBCfg := range svcLBCfgs {
 			svcLB := svcLBCfg.(*mastercfg.CfgServiceLBState)
 			//mastercfg.ServiceLBDb = make(map[string]*mastercfg.ServiceLBInfo)
-			serviceID := getServiceID(svcLB.ServiceName, svcLB.Tenant)
+			serviceID := GetServiceID(svcLB.ServiceName, svcLB.Tenant)
 			mastercfg.ServiceLBDb[serviceID] = &mastercfg.ServiceLBInfo{
 				IPAddress:   svcLB.IPAddress,
 				Tenant:      svcLB.Tenant,
@@ -251,8 +247,6 @@ func RestoreServiceProviderLBDb() {
 			}
 		}
 		mastercfg.SvcMutex.Unlock()
-	} else {
-		log.Errorf("Error reading service load balancer state from cluster store")
 	}
 
 	//Recover from endpoint state as well .
@@ -280,7 +274,10 @@ func RestoreServiceProviderLBDb() {
 				mastercfg.SvcMutex.Unlock()
 			}
 		}
-	} else {
-		log.Errorf("Error reading endpoint config during restore")
 	}
+}
+
+//GetServiceID returns service id for etcd lookup
+func GetServiceID(servicename string, tenantname string) string {
+	return servicename + ":" + tenantname
 }

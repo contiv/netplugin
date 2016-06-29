@@ -45,7 +45,7 @@ type Provider struct {
 	Network     string
 	Services    []string
 	Container   string //container endpoint id
-
+	EpIDKey     string
 }
 
 // Write the state

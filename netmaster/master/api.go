@@ -376,7 +376,7 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 			provider.Labels[k] = v
 			epCfg.Labels[k] = v
 		}
-
+		provider.EpIDKey = epCfg.ID
 		//maintain the containerId in endpointstat for recovery
 		epCfg.ContainerID = svcProvUpdReq.ContainerID
 
@@ -427,6 +427,7 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 				}
 			}
 		}
+		mastercfg.SvcMutex.Unlock()
 
 	} else if svcProvUpdReq.Event == "die" {
 		//Received a container die event. If it was a service provider -
@@ -469,9 +470,10 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 
 			}
 		}
+		mastercfg.SvcMutex.Unlock()
 
 	}
-	mastercfg.SvcMutex.Unlock()
+
 	srvUpdResp := &SvcProvUpdateResponse{
 		IPAddress: svcProvUpdReq.IPAddress,
 	}

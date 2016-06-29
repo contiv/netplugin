@@ -1179,9 +1179,6 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 	if serviceCfg.ServiceName == "" {
 		return core.Errorf("Invalid service name")
 	}
-	if serviceCfg.TenantName == "" {
-		serviceCfg.TenantName = "default"
-	}
 
 	if len(serviceCfg.Selectors) == 0 {
 		return core.Errorf("Invalid selector options")
@@ -1229,7 +1226,20 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 
 //ServiceLBUpdate updates service object
 func (ac *APIController) ServiceLBUpdate(oldServiceCfg *contivModel.ServiceLB, serviceCfg *contivModel.ServiceLB) error {
-	return ac.ServiceLBCreate(serviceCfg)
+	log.Infof("Received Service Load Balancer update: %+v", serviceCfg)
+	err := ac.ServiceLBCreate(serviceCfg)
+	if err != nil {
+		return err
+	}
+	oldServiceCfg.ServiceName = serviceCfg.ServiceName
+	oldServiceCfg.TenantName = serviceCfg.TenantName
+	oldServiceCfg.NetworkName = serviceCfg.NetworkName
+	oldServiceCfg.IpAddress = serviceCfg.IpAddress
+	oldServiceCfg.Selectors = nil
+	oldServiceCfg.Ports = nil
+	oldServiceCfg.Selectors = append(oldServiceCfg.Selectors, serviceCfg.Selectors...)
+	oldServiceCfg.Ports = append(oldServiceCfg.Ports, serviceCfg.Ports...)
+	return nil
 }
 
 //ServiceLBDelete deletes service object
@@ -1240,9 +1250,7 @@ func (ac *APIController) ServiceLBDelete(serviceCfg *contivModel.ServiceLB) erro
 	if serviceCfg.ServiceName == "" {
 		return core.Errorf("Invalid service name")
 	}
-	if serviceCfg.TenantName == "" {
-		serviceCfg.TenantName = "default"
-	}
+
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
@@ -1255,6 +1263,53 @@ func (ac *APIController) ServiceLBDelete(serviceCfg *contivModel.ServiceLB) erro
 		log.Errorf("Error deleting Service Load Balancer object {%+v}. Err: %v", serviceCfg.ServiceName, err)
 		return err
 	}
+	return nil
+
+}
+
+//ServiceLBGetOper inspects the oper state of service lb object
+func (ac *APIController) ServiceLBGetOper(serviceLB *contivModel.ServiceLBInspect) error {
+	log.Infof("Received Service load balancer inspect : %+v", serviceLB)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+	serviceID := master.GetServiceID(serviceLB.Config.ServiceName, serviceLB.Config.TenantName)
+	service := mastercfg.ServiceLBDb[serviceID]
+	if service == nil {
+		return errors.New("Invalid Service name. Oper state does not exist")
+	}
+	serviceLB.Oper.ServiceVip = service.IPAddress
+	count := 0
+	for _, provider := range service.Providers {
+
+		epCfg := &mastercfg.CfgEndpointState{}
+		epCfg.StateDriver = stateDriver
+		err := epCfg.Read(provider.EpIDKey)
+		if err != nil {
+			continue
+		}
+		epOper := contivModel.EndpointOper{}
+		epOper.Network = epCfg.NetID
+		epOper.Name = epCfg.ContName
+		epOper.ServiceName = service.ServiceName //FIXME:fill in service name in endpoint
+		epOper.EndpointGroupID = epCfg.EndpointGroupID
+		epOper.EndpointGroupKey = epCfg.EndpointGroupKey
+		epOper.AttachUUID = epCfg.AttachUUID
+		epOper.IpAddress = []string{epCfg.IPAddress, epCfg.IPv6Address}
+		epOper.MacAddress = epCfg.MacAddress
+		epOper.HomingHost = epCfg.HomingHost
+		epOper.IntfName = epCfg.IntfName
+		epOper.VtepIP = epCfg.VtepIP
+		epOper.Labels = fmt.Sprintf("%s", epCfg.Labels)
+		epOper.ContainerID = epCfg.ContainerID
+		serviceLB.Oper.Providers = append(serviceLB.Oper.Providers, epOper)
+		count++
+		epCfg = nil
+	}
+	serviceLB.Oper.NumProviders = count
 	return nil
 
 }
