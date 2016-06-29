@@ -448,6 +448,7 @@ func serveRequests(netPlugin *plugin.NetPlugin) {
 			http.Error(w, "Error fetching stats from driver", http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(stats)
 	})
 	s.HandleFunc("/inspect/driver", func(w http.ResponseWriter, r *http.Request) {

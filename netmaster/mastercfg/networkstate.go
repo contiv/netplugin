@@ -52,6 +52,7 @@ type CfgNetworkState struct {
 	SubnetIP      string          `json:"subnetIP"`
 	SubnetLen     uint            `json:"subnetLen"`
 	Gateway       string          `json:"gateway"`
+	IPAddrRange   string          `json:"ipAddrRange"`
 	EpAddrCount   int             `json:"epAddrCount"`
 	EpCount       int             `json:"epCount"`
 	IPAllocMap    bitset.BitSet   `json:"ipAllocMap"`
