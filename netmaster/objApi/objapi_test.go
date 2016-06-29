@@ -572,6 +572,79 @@ func checkDeleteAppProfile(t *testing.T, expError bool, tenant, prof string) {
 	}
 }
 
+// checkCreateTenant creates Tenant and checks for error
+func checkCreateTenant(t *testing.T, expError bool, tenantName string) {
+	// tenant params
+	tenant := client.Tenant{
+		TenantName: tenantName,
+	}
+	// create a tenant
+	err := contivClient.TenantPost(&tenant)
+	if err != nil && !expError {
+		t.Fatalf("Error creating tenant {%+v}. Err: %v", tenant, err)
+	} else if err == nil && expError {
+		t.Fatalf("Create tenant {%+v} succeded while expecing error", tenant)
+	} else if err == nil {
+		// verify tenant is created
+		_, err := contivClient.TenantGet(tenantName)
+		if err != nil {
+			t.Fatalf("Error getting tenant %s. Err: %v", tenantName, err)
+		}
+	}
+}
+
+// checkDeleteTenant deletes tenant and looks for error
+func checkDeleteTenant(t *testing.T, expError bool, tenant string) {
+	err := contivClient.TenantDelete(tenant)
+	if err != nil && !expError {
+		t.Fatalf("Error deleting tenant %s. Err: %v", tenant, err)
+	} else if err == nil && expError {
+		t.Fatalf("Delete tenant %s succeded while expecing error", tenant)
+	} else if err == nil {
+		// verify network is gone
+		_, err := contivClient.TenantGet(tenant)
+		if err == nil {
+			t.Fatalf("Tenant %s not deleted", tenant)
+		}
+	}
+}
+
+// TestTenantDelete tests deletion of tenant
+func TestTenantDelete(t *testing.T) {
+	// Create one tenant, two networks and 3 epgs
+	checkCreateTenant(t, false, "tenant1")
+	checkCreateNetwork(t, false, "tenant1", "net1", "data", "vlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, false, "tenant1", "net2", "data", "vlan", "20.1.1.1/16", "20.1.1.254", 2, "", "")
+	checkCreateEpg(t, false, "tenant1", "net1", "group1", []string{}, []string{})
+	checkCreateEpg(t, false, "tenant1", "net1", "group2", []string{}, []string{})
+	checkCreateEpg(t, false, "tenant1", "net2", "group3", []string{}, []string{})
+	checkCreateAppProfile(t, false, "tenant1", "profile1", []string{})
+	checkCreateAppProfile(t, false, "tenant1", "profile2", []string{"group1"})
+	checkCreateAppProfile(t, false, "tenant1", "profile3", []string{"group1", "group3"})
+	// Verify that tenant can not be deleted while app-profile is attached to it
+	checkDeleteTenant(t, true, "tenant1")
+	// Delete app-Profiles now
+	checkDeleteAppProfile(t, false, "tenant1", "profile1")
+	checkDeleteAppProfile(t, false, "tenant1", "profile2")
+	checkDeleteAppProfile(t, false, "tenant1", "profile3")
+
+	// Verify that tenant can not deleted while EPGs are attached to it.
+	checkDeleteTenant(t, true, "tenant1")
+	// Delete EPGs
+	checkDeleteEpg(t, false, "tenant1", "net1", "group1")
+	checkDeleteEpg(t, false, "tenant1", "net1", "group2")
+	checkDeleteEpg(t, false, "tenant1", "net2", "group3")
+
+	// Verify that tenant can not deleted while Networks are attached to it.
+	checkDeleteTenant(t, true, "tenant1")
+	// Delete Networks
+	checkDeleteNetwork(t, false, "tenant1", "net1")
+	checkDeleteNetwork(t, false, "tenant1", "net2")
+
+	// Verify that tenant can be delete now
+	checkDeleteTenant(t, false, "tenant1")
+}
+
 // TestTenantAddDelete tests tenant add delete
 func TestTenantAddDelete(t *testing.T) {
 	// tenant params
@@ -995,6 +1068,11 @@ func TestAppProfile(t *testing.T) {
 	checkDeleteAppProfile(t, false, "default", "profile1")
 	checkDeleteAppProfile(t, false, "default", "profile2")
 	checkDeleteAppProfile(t, false, "default", "profile3")
+	checkDeleteEpg(t, false, "default", "net1", "group1")
+	checkDeleteEpg(t, false, "default", "net1", "group2")
+	checkDeleteEpg(t, false, "default", "net2", "group3")
+	checkDeleteNetwork(t, false, "default", "net1")
+	checkDeleteNetwork(t, false, "default", "net2")
 }
 
 func TestServiceProviderUpdate(t *testing.T) {
