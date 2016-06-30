@@ -67,6 +67,7 @@ sudo systemctl start docker
 rm /etc/docker/key.json
 (service docker restart) || exit 1
 
+usermod -aG docker vagrant
 docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
 
 SCRIPT
@@ -103,7 +104,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
         config.vm.box = "contiv/ubuntu1504-netplugin"
     else
-        config.vm.box = "contiv/centos71-netplugin"
+        config.vm.box = "contiv/centos72"
     end
     config.vm.provider 'virtualbox' do |v|
         v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
@@ -188,7 +189,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
            end
         end
         config.vm.define node_name do |node|
-            node.vm.box_version = "0.3.1"
+            node.vm.box_version = "0.6.0"
 
             # node.vm.hostname = node_name
             # create an interface for etcd cluster
