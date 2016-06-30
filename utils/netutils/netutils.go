@@ -52,7 +52,7 @@ func ValidateNetworkRangeParams(ipRange string, subnetLen uint) error {
 	firstAddr, _ := ipv4ToUint32(GetSubnetAddr(ipRange, subnetLen))
 	lastAddr, _ := ipv4ToUint32(getLastAddrInSubnet(ipRange, subnetLen))
 
-	if rangeMin < firstAddr || rangeMax > lastAddr {
+	if rangeMin < firstAddr || rangeMax > lastAddr || rangeMin > rangeMax {
 		return core.Errorf("Network subnet format not valid")
 	}
 
@@ -92,6 +92,45 @@ func SetBitsOutsideRange(ipAllocMap *bitset.BitSet, ipRange string, subnetLen ui
 	// Set bits greater than the rangeMax as used
 	for i = ((rangeMin - firstAddr) + ((rangeMax - rangeMin) + 1)); i < (lastAddr - firstAddr); i++ {
 		ipAllocMap.Set(uint(i))
+	}
+}
+
+// GetIPAddrRange returns IP CIDR as a ip address range
+func GetIPAddrRange(ipCIDR string, subnetLen uint) string {
+	rangeMin, _ := ipv4ToUint32(getFirstAddrInRange(ipCIDR))
+	rangeMax, _ := ipv4ToUint32(getLastAddrInRange(ipCIDR, subnetLen))
+	firstAddr, _ := ipv4ToUint32(GetSubnetAddr(ipCIDR, subnetLen))
+	lastAddr, _ := ipv4ToUint32(getLastAddrInSubnet(ipCIDR, subnetLen))
+
+	if rangeMin < firstAddr {
+		rangeMin = firstAddr
+	}
+	if rangeMax > lastAddr {
+		rangeMax = lastAddr
+	}
+
+	minAddr, _ := ipv4Uint32ToString(rangeMin)
+	maxAddr, _ := ipv4Uint32ToString(rangeMax)
+
+	return minAddr + "-" + maxAddr
+}
+
+// ClearBitsOutsideRange sets all IPs outside range as used
+func ClearBitsOutsideRange(ipAllocMap *bitset.BitSet, ipRange string, subnetLen uint) {
+	var i uint32
+	rangeMin, _ := ipv4ToUint32(getFirstAddrInRange(ipRange))
+	rangeMax, _ := ipv4ToUint32(getLastAddrInRange(ipRange, subnetLen))
+	firstAddr, _ := ipv4ToUint32(GetSubnetAddr(ipRange, subnetLen))
+	lastAddr, _ := ipv4ToUint32(getLastAddrInSubnet(ipRange, subnetLen))
+
+	// Set bits lower than rangeMin as used
+	for i = 0; i < (rangeMin - firstAddr); i++ {
+		ipAllocMap.Clear(uint(i))
+	}
+
+	// Set bits greater than the rangeMax as used
+	for i = ((rangeMin - firstAddr) + ((rangeMax - rangeMin) + 1)); i < (lastAddr - firstAddr); i++ {
+		ipAllocMap.Clear(uint(i))
 	}
 }
 
@@ -601,9 +640,7 @@ func getLastAddrInRange(ipRange string, subnetLen uint) string {
 	var lastIP string
 
 	if isSubnetIPRange(ipRange) {
-		subnetRange := strings.Split(ipRange, "-")
-		commonSubnetPrefix := ipRange[0 : strings.LastIndex(subnetRange[0], ".")+1]
-		lastIP = commonSubnetPrefix + strings.Split(ipRange, "-")[1]
+		lastIP = strings.Split(ipRange, "-")[1]
 	} else {
 		lastIP = getLastAddrInSubnet(ipRange, subnetLen)
 	}

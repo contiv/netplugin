@@ -18,6 +18,9 @@ package objApi
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
@@ -26,8 +29,6 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/objdb/modeldb"
-	"strconv"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -727,6 +728,7 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 	}
 
 	network.Oper.AllocatedAddressesCount = nwCfg.EpAddrCount
+	network.Oper.AvailableIPAddresses = master.ListAvailableIPs(nwCfg)
 	network.Oper.AllocatedIPAddresses = master.ListAllocatedIPs(nwCfg)
 	network.Oper.DnsServerIP = nwCfg.DNSServer
 	network.Oper.ExternalPktTag = nwCfg.ExtPktTag
@@ -755,8 +757,6 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 				epOper.Labels = fmt.Sprintf("%s", ep.Labels)
 				epOper.ContainerID = ep.ContainerID
 				network.Oper.Endpoints = append(network.Oper.Endpoints, epOper)
-			} else {
-				log.Infof("Unmatch: ep's netId '%s' with '%s' ", ep.NetID, networkID)
 			}
 		}
 	}

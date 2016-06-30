@@ -17,7 +17,6 @@ package objApi
 
 import (
 	"encoding/json"
-	"golang.org/x/net/context"
 	"log"
 	"net/http"
 	"os"
@@ -25,6 +24,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/contivmodel/client"
@@ -765,9 +766,22 @@ func TestNetworkAddDelete(t *testing.T) {
 	checkCreateNetwork(t, true, "default", "infraNw", "datatest", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
 
 	// Basic IP range network checks
-	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.10-20/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.10-10.1.1.20/24", "10.1.1.254", 1, "", "")
 	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.10", "10.1.1.254", 24, 1, 1, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
+	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.10-10.1.5.254/16", "10.1.254.254", 1, "", "")
+	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.10", "10.1.254.254", 16, 1, 1, "", "", 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Try invalid values for ip addr range
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.10-20/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.10-10.1.20/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.10-10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.10-10.1.2.30/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.10-10.2.1.30/16", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.10-10.1.1.1.30/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1/24", "10.1.1.254", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.256/24", "10.1.1.254", 1, "", "")
 
 	// Try network create with invalid network range
 	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1-70/26", "10.1.1.63", 1, "", "")

@@ -136,6 +136,8 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 
 	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
 	subnetAddr := netutils.GetSubnetAddr(nwCfg.SubnetIP, nwCfg.SubnetLen)
+	nwCfg.SubnetIP = subnetAddr
+	nwCfg.IPAddrRange = netutils.GetIPAddrRange(subnetIP, subnetLen)
 
 	if network.Gateway != "" {
 		nwCfg.Gateway = network.Gateway
@@ -152,7 +154,6 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	if strings.Contains(subnetIP, "-") {
 		netutils.SetBitsOutsideRange(&nwCfg.IPAllocMap, subnetIP, subnetLen)
 	}
-	nwCfg.SubnetIP = subnetAddr
 
 	if network.IPv6Gateway != "" {
 		nwCfg.IPv6Gateway = network.IPv6Gateway
@@ -516,8 +517,42 @@ func ListAllocatedIPs(nwCfg *mastercfg.CfgNetworkState) string {
 	inRange := false
 
 	netutils.ClearReservedEntries(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
+	netutils.ClearBitsOutsideRange(&nwCfg.IPAllocMap, nwCfg.IPAddrRange, nwCfg.SubnetLen)
 	for {
 		foundValue, found := nwCfg.IPAllocMap.NextSet(idx)
+		if !found {
+			break
+		}
+
+		if !inRange { // begin of range
+			startIdx = foundValue
+			inRange = true
+		} else if foundValue > idx { // end of range
+			thisRange := getIPRange(nwCfg, startIdx, idx-1)
+			list = append(list, thisRange)
+			startIdx = foundValue
+		}
+		idx = foundValue + 1
+	}
+
+	// list end with allocated value
+	if inRange {
+		thisRange := getIPRange(nwCfg, startIdx, idx-1)
+		list = append(list, thisRange)
+	}
+
+	return strings.Join(list, ", ")
+}
+
+// ListAvailableIPs returns a string of available IPs in a network
+func ListAvailableIPs(nwCfg *mastercfg.CfgNetworkState) string {
+	idx := uint(0)
+	startIdx := idx
+	list := []string{}
+	inRange := false
+
+	for {
+		foundValue, found := nwCfg.IPAllocMap.NextClear(idx)
 		if !found {
 			break
 		}
