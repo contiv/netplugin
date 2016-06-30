@@ -530,7 +530,7 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 	}
 
 	// Add the master
-	err = sw.ofnetAgent.AddUplink(ofpPort)
+	err = sw.ofnetAgent.AddUplink(ofpPort, intfName)
 	if err != nil {
 		log.Errorf("Error adding uplink %s. Err: %v", uplinkID, err)
 		return err

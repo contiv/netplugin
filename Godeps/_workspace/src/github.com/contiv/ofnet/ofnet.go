@@ -64,7 +64,7 @@ type OfnetDatapath interface {
 	RemoveVlan(vlanId uint16, vni uint32, vrf string) error
 
 	//Add uplink port
-	AddUplink(portNo uint32) error
+	AddUplink(portNo uint32, ifname string) error
 
 	//Delete uplink port
 	RemoveUplink(portNo uint32) error

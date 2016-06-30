@@ -25,7 +25,6 @@ const (
 // appNwSpec Applications network spec per the composition
 type appNwSpec struct {
 	TenantName string `json:"tenant,omitempty"`
-	Subnet     string `json:"subnet,omitempty"`
 	AppName    string `json:"app,omitempty"`
 
 	Epgs []epgSpec `json:"epgs,omitempty"`
@@ -33,6 +32,8 @@ type appNwSpec struct {
 
 type epgSpec struct {
 	Name          string       `json:"name,omitempty"`
+	NwName        string       `json:"nwname,omitempty"`
+	GwCIDR        string       `json:"gwcidr,omitempty"`
 	VlanTag       string       `json:"vlantag,omitempty"`
 	Filters       []filterInfo `json:"filterinfo,omitempty"`
 	Uses          []string     `json:"uses,omitempty"`
@@ -50,44 +51,59 @@ type epgMap struct {
 	Specs map[string]epgSpec
 }
 
-func httpPost(url string, jdata interface{}) error {
+type gwResp struct {
+	Result string `json:"result,omitempty"`
+	Info   string `json:"info,omitempty"`
+}
+
+func httpPost(url string, jdata interface{}) (*gwResp, error) {
 	buf, err := json.Marshal(jdata)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	body := bytes.NewBuffer(buf)
 	r, err := http.Post(url, "application/json", body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer r.Body.Close()
 
 	switch {
 	case r.StatusCode == int(404):
-		return errors.New("Page not found!")
+		return nil, errors.New("Page not found!")
 	case r.StatusCode == int(403):
-		return errors.New("Access denied!")
+		return nil, errors.New("Access denied!")
 	case r.StatusCode != int(200):
 		log.Debugf("POST Status '%s' status code %d \n", r.Status, r.StatusCode)
-		return errors.New(r.Status)
+		return nil, errors.New(r.Status)
 	}
 
 	response, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	log.Debugf(string(response))
+	data := gwResp{}
+	err = json.Unmarshal(response, &data)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil
+	return &data, nil
 }
 
 func (ans *appNwSpec) validate() error {
 
 	url := proxyURL + "validateAppProf"
-	if err := httpPost(url, ans); err != nil {
+	resp, err := httpPost(url, ans)
+	if err != nil {
 		log.Errorf("Validation failed. Error: %v", err)
 		return err
+	}
+
+	if resp.Result != "success" {
+		log.Errorf("Validation failed. Error: %v", resp.Info)
+		return errors.New("Failed")
 	}
 
 	return nil
@@ -96,9 +112,15 @@ func (ans *appNwSpec) validate() error {
 func (ans *appNwSpec) launch() error {
 
 	url := proxyURL + "createAppProf"
-	if err := httpPost(url, ans); err != nil {
+	resp, err := httpPost(url, ans)
+	if err != nil {
 		log.Errorf("Validation failed. Error: %v", err)
 		return err
+	}
+
+	if resp.Result != "success" {
+		log.Errorf("Validation failed. Error: %v - %v", resp.Result, resp.Info)
+		return errors.New("Failed")
 	}
 
 	return nil
@@ -109,6 +131,22 @@ func (ans *appNwSpec) notifyDP() {
 	for _, epg := range ans.Epgs {
 		mastercfg.NotifyEpgChanged(epg.epgID)
 	}
+}
+
+// getGwCIDR utility that reads the gw information
+func getGwCIDR(epgObj *contivModel.EndpointGroup, stateDriver core.StateDriver) (string, error) {
+	// get the subnet info and add it to ans
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	networkID := epgObj.NetworkName + "." + epgObj.TenantName
+	nErr := nwCfg.Read(networkID)
+	if nErr != nil {
+		log.Errorf("Failed to network info %v %v ", networkID, nErr)
+		return "", nErr
+	}
+	gw := nwCfg.Gateway + "/" + strconv.Itoa(int(nwCfg.SubnetLen))
+	log.Debugf("GW is %s for epg %s", gw, epgObj.GroupName)
+	return gw, nil
 }
 
 // Extract relevant info from epg obj and append to application nw spec
@@ -128,6 +166,14 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 		log.Errorf("Error reading epg %v %v", epgKey, eErr)
 		return eErr
 	}
+
+	// get the network name and gw cidr and update.
+	epg.NwName = epgObj.NetworkName
+	gwCIDR, nErr := getGwCIDR(epgObj, stateDriver)
+	if nErr != nil {
+		return nErr
+	}
+	epg.GwCIDR = gwCIDR
 
 	epg.VlanTag = strconv.Itoa(epgCfg.PktTag)
 	epg.epgID = epgCfg.EndpointGroupID
@@ -231,7 +277,6 @@ func CreateAppNw(app *contivModel.AppProfile) error {
 		return uErr
 	}
 
-	netName := ""
 	eMap := &epgMap{}
 	eMap.Specs = make(map[string]epgSpec)
 	ans := &appNwSpec{}
@@ -252,7 +297,6 @@ func CreateAppNw(app *contivModel.AppProfile) error {
 			log.Errorf("Error getting epg info %v", err)
 			return err
 		}
-		netName = epgObj.NetworkName
 	}
 
 	// walk the map and add to ANS
@@ -261,24 +305,12 @@ func CreateAppNw(app *contivModel.AppProfile) error {
 		log.Debugf("Added epg %v", epg.Name)
 	}
 
-	// get the subnet info and add it to ans
-	nwCfg := &mastercfg.CfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	networkID := netName + "." + app.TenantName
-	nErr := nwCfg.Read(networkID)
-	if nErr != nil {
-		log.Errorf("Failed to network info %v %v ", netName, nErr)
-		return nErr
-	}
-	ans.Subnet = nwCfg.Gateway + "/" + strconv.Itoa(int(nwCfg.SubnetLen))
-	log.Debugf("Nw %v subnet %v", netName, ans.Subnet)
-
 	log.Infof("Launching appNwSpec: %+v", ans)
-	ans.launch()
+	lErr := ans.launch()
 	time.Sleep(2 * time.Second)
 	ans.notifyDP()
 
-	return nil
+	return lErr
 }
 
 //DeleteAppNw deletes the app profile from infra
@@ -299,9 +331,14 @@ func DeleteAppNw(app *contivModel.AppProfile) error {
 	ans.AppName = app.AppProfileName
 
 	url := proxyURL + "deleteAppProf"
-	if err := httpPost(url, ans); err != nil {
+	resp, err := httpPost(url, ans)
+	if err != nil {
 		log.Errorf("Delete failed. Error: %v", err)
 		return err
+	}
+
+	if resp.Result != "success" {
+		log.Errorf("Delete failed %v - %v", resp.Result, resp.Info)
 	}
 
 	time.Sleep(time.Second)

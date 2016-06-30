@@ -857,7 +857,7 @@ func (self *Vlrouter) resolveUnresolvedEPs(MacAddrStr string, portNo uint32) {
 }
 
 // AddUplink adds an uplink to the switch
-func (self *Vlrouter) AddUplink(portNo uint32) error {
+func (self *Vlrouter) AddUplink(portNo uint32, ifname string) error {
 	log.Infof("Adding uplink port: %+v", portNo)
 
 	// Install a flow entry for vlan mapping and point it to Mac table
