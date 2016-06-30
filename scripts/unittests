@@ -85,14 +85,14 @@ do
   # running in the sand box
   if ${coverage_basic}; then
       (cd $GOSRC/github.com/contiv/netplugin && \
-      $GOBIN/godep go test ${pkg} -coverprofile=cover.out) || exit 1
+      go test ${pkg} -coverprofile=cover.out) || exit 1
   elif ${coverage_detail}; then
       (cd $GOSRC/github.com/contiv/netplugin && \
-      $GOBIN/godep go test ${pkg} -coverprofile=cover.out && \
-      $GOBIN/godep go tool cover -func=cover.out) || exit 1
+      go test ${pkg} -coverprofile=cover.out && \
+      go tool cover -func=cover.out) || exit 1
   else
       (cd $GOSRC/github.com/contiv/netplugin && \
-      $GOBIN/godep go test -v ${pkg}) || exit 1
+      go test -v ${pkg}) || exit 1
   fi
 done
 

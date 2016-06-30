@@ -3,8 +3,8 @@
 
 # find all verifiable packages.
 # XXX: explore a better way that doesn't need multiple 'find'
-PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin|vagrant|netContain'`
-PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts|bin|vagrant'`
+PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin|vagrant|vendor'`
+PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts|bin|vagrant|vendor'`
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
@@ -45,13 +45,13 @@ ifdef NET_CONTAINER_BUILD
 run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	GOGC=1500 godep go install -v $(TO_BUILD) && \
+	GOGC=1500 go install -v $(TO_BUILD) && \
 	cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
 else
 run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	GOGC=1500 godep go install -v $(TO_BUILD) && \
+	GOGC=1500 go install -v $(TO_BUILD) && \
 	sudo cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
 endif
 
@@ -61,9 +61,8 @@ build:
 	make stop
 
 clean: deps
-	rm -rf Godeps/_workspace/pkg
 	rm -rf $(GOPATH)/pkg/*
-	godep go clean -i -v ./...
+	go clean -i -v ./...
 
 update:
 	vagrant box update
@@ -91,15 +90,15 @@ k8s-destroy:
 # Mesos demo targets
 mesos-docker-demo:
 	cd vagrant/mesos-docker && vagrant up
-	cd vagrant/mesos-docker && vagrant ssh node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	cd vagrant/mesos-docker && vagrant ssh node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && ./scripts/python/startPlugin.py -nodes 192.168.33.10,192.168.33.11"'
+	cd vagrant/mesos-docker && vagrant ssh node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
+	cd vagrant/mesos-docker && vagrant ssh node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && ./scripts/python/startPlugin.py -nodes 192.168.33.10,192.168.33.11"'
 
 mesos-docker-destroy:
 	cd vagrant/mesos-docker && vagrant destroy -f
 
-nomad-docker: 
+nomad-docker:
 	cd vagrant/nomad-docker && vagrant up
-	VAGRANT_CWD=./vagrant/nomad-docker/ vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
+	VAGRANT_CWD=./vagrant/nomad-docker/ vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
 demo-ubuntu:
 	CONTIV_NODE_OS=ubuntu make demo
 
@@ -112,7 +111,7 @@ endif
 
 demo:
 	make ssh-build
-	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
+	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
 
 ssh:
 	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
@@ -122,7 +121,7 @@ ssh-build:
 	cd /go/src/github.com/contiv/netplugin && make run-build
 else
 ssh-build: start
-		vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
+		vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 endif
 
 unit-test: stop clean build
@@ -132,18 +131,18 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
-	godep go test -v -timeout 240m ./systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM" 
+	go test -v -timeout 240m ./systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM"
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 	CONTIV_L3=2 CONTIV_NODES=3 make start
 	CONTIV_L3=2 CONTIV_NODES=3 make ssh-build
-	CONTIV_L3=2 CONTIV_NODES=3 godep go test -v -timeout 540m ./systemtests -check.v
+	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 540m ./systemtests -check.v
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 
 host-build:
 	@echo "dev: making binaries..."
-	sudo /bin/bash -c 'source /etc/profile.d/envvar.sh; make run-build'
+	/bin/bash -c 'source /etc/profile.d/envvar.sh; make run-build'
 
 host-unit-test:
 	@echo dev: running unit tests...
