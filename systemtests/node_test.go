@@ -1,6 +1,8 @@
 package systemtests
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -268,7 +270,7 @@ func (n *node) checkForNetpluginErrors() error {
 	return nil
 }
 
-func (n *node) runCommandUntilNoError(cmd string) error {
+func (n *node) runCommandWithTimeOut(cmd string, tick, timeout time.Duration) error {
 	runCmd := func() (string, bool) {
 		if err := n.tbnode.RunCommand(cmd); err != nil {
 			return "", false
@@ -276,8 +278,12 @@ func (n *node) runCommandUntilNoError(cmd string) error {
 		return "", true
 	}
 	timeoutMessage := fmt.Sprintf("timeout reached trying to run %v on %q", cmd, n.Name())
-	_, err := utils.WaitForDone(runCmd, 10*time.Millisecond, 10*time.Second, timeoutMessage)
+	_, err := utils.WaitForDone(runCmd, tick, timeout, timeoutMessage)
 	return err
+}
+
+func (n *node) runCommandUntilNoError(cmd string) error {
+	return n.runCommandWithTimeOut(cmd, 10*time.Millisecond, 10*time.Second)
 }
 
 func (n *node) checkPingWithCount(ipaddr string, count int) error {
@@ -331,4 +337,80 @@ func (n *node) restartClusterStore() error {
 	}
 
 	return nil
+}
+
+func (n *node) waitForListeners() error {
+	return n.runCommandWithTimeOut("netstat -tlpn | grep 9090 | grep LISTEN", 500*time.Millisecond, 50*time.Second)
+}
+
+func (n *node) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
+	var data interface{}
+	actVTEPs := make(map[string]uint32)
+
+	// read vtep information from inspect
+	cmd := "curl -s localhost:9090/inspect/driver | python -mjson.tool"
+	str, err := n.tbnode.RunCommandWithOutput(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	err = json.Unmarshal([]byte(str), &data)
+	if err != nil {
+		logrus.Errorf("Unmarshal error: %v", err)
+		return str, err
+	}
+
+	drvInfo := data.(map[string]interface{})
+	vx, found := drvInfo["vxlan"]
+	if !found {
+		logrus.Errorf("vxlan not found in driver info")
+		return str, errors.New("vxlan not found in driver info")
+	}
+
+	vt := vx.(map[string]interface{})
+	v, found := vt["VtepTable"]
+	if !found {
+		logrus.Errorf("VtepTable not found in driver info")
+		return str, errors.New("VtepTable not found in driver info")
+	}
+
+	vteps := v.(map[string]interface{})
+	for key := range vteps {
+		actVTEPs[key] = 1
+	}
+
+	// read local ip
+	l, found := vt["LocalIp"]
+	if found {
+		switch l.(type) {
+		case string:
+			localVtep := l.(string)
+			actVTEPs[localVtep] = 1
+		}
+	}
+
+	for vtep := range expVTEPS {
+		_, found := actVTEPs[vtep]
+		if !found {
+			return str, errors.New("VTEP " + vtep + " not found")
+		}
+	}
+
+	return "", nil
+}
+func (n *node) verifyEPs(epList []string) (string, error) {
+	// read ep information from inspect
+	cmd := "curl -s localhost:9090/inspect/driver | python -mjson.tool"
+	str, err := n.tbnode.RunCommandWithOutput(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	for _, ep := range epList {
+		if !strings.Contains(str, ep) {
+			return str, errors.New(ep + " not found on " + n.Name())
+		}
+	}
+
+	return "", nil
 }

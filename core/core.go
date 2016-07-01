@@ -109,6 +109,8 @@ type NetworkDriver interface {
 	DeleteNetwork(id, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
+	CreateHostAccPort(portName string) error
+	DeleteHostAccPort(id string) error
 	AddPeerHost(node ServiceInfo) error
 	DeletePeerHost(node ServiceInfo) error
 	AddMaster(node ServiceInfo) error

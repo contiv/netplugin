@@ -120,8 +120,13 @@ func (c *container) checkPing6Failure(ipaddr string) error {
 }
 
 func (c *container) checkPing6(ipaddr string) error {
+	return c.checkPing6WithCount(ipaddr, 1)
+}
+
+func (c *container) checkPing6WithCount(ipaddr string, count int) error {
 	logrus.Infof("Checking ping6 from %v to %s", c, ipaddr)
-	out, err := c.exec("ping6 -c 1 " + ipaddr)
+	cmd := fmt.Sprintf("ping6 -c %d %s", count, ipaddr)
+	out, err := c.exec(cmd)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping6 from %v to %s FAILED: %q - %v", c, ipaddr, out, err)

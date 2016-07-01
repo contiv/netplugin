@@ -75,23 +75,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "d26796f510e1d8481fe4996387349fa51a381fee"
+			"Rev": "4525f9b4ddad47b45d045ee0d60adeaa91733ac7"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "d26796f510e1d8481fe4996387349fa51a381fee"
+			"Rev": "4525f9b4ddad47b45d045ee0d60adeaa91733ac7"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "d26796f510e1d8481fe4996387349fa51a381fee"
+			"Rev": "4525f9b4ddad47b45d045ee0d60adeaa91733ac7"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "d26796f510e1d8481fe4996387349fa51a381fee"
+			"Rev": "4525f9b4ddad47b45d045ee0d60adeaa91733ac7"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "d26796f510e1d8481fe4996387349fa51a381fee"
+			"Rev": "4525f9b4ddad47b45d045ee0d60adeaa91733ac7"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",
@@ -386,6 +386,10 @@
 		{
 			"ImportPath": "gopkg.in/tomb.v2",
 			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netns",
+			"Rev": "8ba1072b58e0c2a240eb5f6120165c7776c3e7b8"
 		}
 	]
 }

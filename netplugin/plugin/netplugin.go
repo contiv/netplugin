@@ -151,6 +151,16 @@ func (p *NetPlugin) DeleteEndpoint(id string) error {
 	return p.NetworkDriver.DeleteEndpoint(id)
 }
 
+// CreateHostAccPort creates a host access port
+func (p *NetPlugin) CreateHostAccPort(portName string) error {
+	return p.NetworkDriver.CreateHostAccPort(portName)
+}
+
+// DeleteHostAccPort creates a host access port
+func (p *NetPlugin) DeleteHostAccPort(portName string) error {
+	return p.NetworkDriver.DeleteHostAccPort(portName)
+}
+
 // FetchEndpoint retrieves an endpoint's state for a given ID
 func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 	return nil, core.Errorf("Not implemented")

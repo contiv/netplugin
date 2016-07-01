@@ -57,6 +57,10 @@ func slaveProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// get current holder of master lock
 	masterNode := leaderLock.GetHolder()
+	if masterNode == "" {
+		http.Error(w, "Leader not found", http.StatusInternalServerError)
+		return
+	}
 
 	// If we are the master, return
 	if localIP == masterNode {

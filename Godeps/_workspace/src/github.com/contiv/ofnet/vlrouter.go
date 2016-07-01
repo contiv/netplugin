@@ -830,6 +830,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		}
 	}
 }
+
 func (self *Vlrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 	return nil
 }

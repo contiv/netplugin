@@ -28,9 +28,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/jainvipin/bitset"
 	"github.com/vishvananda/netlink"
+	osexec "os/exec"
 
 	"github.com/contiv/netplugin/core"
 )
+
+const hostPvtSubnet = 0xac140000
 
 var endianNess string
 
@@ -676,4 +679,55 @@ func GetMyAddr() (string, error) {
 	}
 
 	return "", errors.New("Could not find ip addr")
+}
+
+// PortToHostIPMAC gets IP and MAC based on port number
+func PortToHostIPMAC(port int) (string, string) {
+	b0 := hostPvtSubnet >> 24
+	b1 := (hostPvtSubnet >> 16) & 0xff
+	b2 := (port >> 8) & 0xff
+	b3 := port & 0xff
+	ipStr := fmt.Sprintf("%d.%d.%d.%d/16", b0, b1, b2, b3)
+	macStr := fmt.Sprintf("02:02:%02x:%02x:%02x:%02x", b0, b1, b2, b3)
+
+	return ipStr, macStr
+}
+
+// GetHostIntfName gets the host access interface name
+func GetHostIntfName(intf string) string {
+	return strings.Replace(intf, "vport", "hport", 1)
+}
+
+// SetIPMasquerade sets a ip masquerade rule.
+func SetIPMasquerade(intf, netmask string) error {
+	ipTablesPath, err := osexec.LookPath("iptables")
+	if err != nil {
+		return err
+	}
+	out, err := osexec.Command(ipTablesPath, "-t", "nat", "-A", "POSTROUTING", "-s", netmask,
+		"!", "-o", intf, "-j", "MASQUERADE").CombinedOutput()
+	if err != nil {
+		log.Errorf("Setting ip tables failed: %v %s", err, out)
+	} else {
+		log.Infof("####Set ip tables success: %s", out)
+	}
+
+	return err
+}
+
+// HostIfToIP gets IP based on ifname
+func HostIfToIP(hostIf string) (string, error) {
+	num := strings.Replace(hostIf, "hport", "", 1)
+	port, err := strconv.Atoi(num)
+	if err != nil {
+		return "", err
+	}
+
+	b0 := hostPvtSubnet >> 24
+	b1 := (hostPvtSubnet >> 16) & 0xff
+	b2 := (port >> 8) & 0xff
+	b3 := port & 0xff
+	ipStr := fmt.Sprintf("%d.%d.%d.%d/16", b0, b1, b2, b3)
+
+	return ipStr, nil
 }

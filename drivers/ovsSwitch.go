@@ -36,8 +36,11 @@ const (
 	vxlanEndpointMtu = 1450
 	vxlanOfnetPort   = 9002
 	vlanOfnetPort    = 9003
+	unusedOfnetPort  = 9004
 	vxlanCtrlerPort  = 6633
 	vlanCtrlerPort   = 6634
+	hostCtrlerPort   = 6635
+	hostVLAN         = 2
 )
 
 // OvsSwitch represents on OVS bridge instance
@@ -46,6 +49,7 @@ type OvsSwitch struct {
 	netType     string
 	ovsdbDriver *OvsdbDriver
 	ofnetAgent  *ofnet.OfnetAgent
+	hostBridge  *ofnet.HostBridge
 }
 
 // NewOvsSwitch Creates a new OVS switch instance
@@ -77,6 +81,15 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 			log.Errorf("Invalid datapath mode")
 			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
+		// Create an ofnet agent
+		sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
+			ofnetPort, ctrlrPort, routerInfo...)
+
+		if err != nil {
+			log.Fatalf("Error initializing ofnet")
+			return nil, err
+		}
+
 	} else if netType == "vlan" {
 		ofnetPort = vlanOfnetPort
 		ctrlrPort = vlanCtrlerPort
@@ -89,15 +102,24 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 			log.Errorf("Invalid datapath mode")
 			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
-	}
+		// Create an ofnet agent
+		sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
+			ofnetPort, ctrlrPort, routerInfo...)
 
-	// Create an ofnet agent
-	sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
-		ofnetPort, ctrlrPort, routerInfo...)
+		if err != nil {
+			log.Fatalf("Error initializing ofnet")
+			return nil, err
+		}
 
-	if err != nil {
-		log.Fatalf("Error initializing ofnet")
-		return nil, err
+	} else if netType == "host" {
+		datapath = "hostbridge"
+		ofnetPort = unusedOfnetPort
+		ctrlrPort = hostCtrlerPort
+		sw.hostBridge, err = ofnet.NewHostBridge(bridgeName, datapath, ctrlrPort)
+		if err != nil {
+			log.Fatalf("Error initializing hostBridge")
+			return nil, err
+		}
 	}
 
 	// Add controller to the OVS
@@ -113,8 +135,14 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 
 	log.Infof("Waiting for OVS switch(%s) to connect..", netType)
 
-	// Wait for a while for OVS switch to connect to ofnet agent
-	sw.ofnetAgent.WaitForSwitchConnection()
+	// Wait for a while for OVS switch to connect to agent
+	if sw.ofnetAgent != nil {
+		sw.ofnetAgent.WaitForSwitchConnection()
+	}
+
+	if sw.hostBridge != nil {
+		sw.hostBridge.WaitForSwitchConnection()
+	}
 
 	log.Infof("Switch (%s) connected.", netType)
 
@@ -125,6 +153,9 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 func (sw *OvsSwitch) Delete() {
 	if sw.ofnetAgent != nil {
 		sw.ofnetAgent.Delete()
+	}
+	if sw.hostBridge != nil {
+		sw.hostBridge.Delete()
 	}
 	if sw.ovsdbDriver != nil {
 		sw.ovsdbDriver.Delete()
@@ -548,6 +579,134 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 	return nil
 }
 
+// AddHostPort adds a host port to the OVS
+func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) error {
+	var err error
+
+	// some error checking
+	if sw.netType != "host" {
+		log.Fatalf("Can not add host port to OVS type %s.", sw.netType)
+	}
+
+	if sw.hostBridge == nil {
+		log.Fatalf("Cannot add host port -- no host bridge")
+	}
+
+	ovsPortType := ""
+	ovsPortName := getOvsPortName(intfName, isHostNS)
+	if isHostNS {
+		ovsPortType = "internal"
+	} else {
+
+		// Create a Veth pair
+		err := createVethPair(intfName, ovsPortName)
+		// Set the OVS side of the port as up
+		err = setLinkUp(ovsPortName)
+		if err != nil {
+			log.Errorf("Error setting link %s up. Err: %v", ovsPortName, err)
+			return err
+		}
+	}
+
+	portID := "host" + intfName
+
+	// If the port already exists in OVS, remove it first
+	if sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
+		log.Debugf("Removing existing interface entry %s from OVS", ovsPortName)
+
+		// Delete it from ovsdb
+		err := sw.ovsdbDriver.DeletePort(ovsPortName)
+		if err != nil {
+			log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
+		}
+	}
+
+	// Ask OVSDB driver to add the port as an access port
+	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN)
+	if err != nil {
+		log.Errorf("Error adding hostport %s to OVS. Err: %v", intfName, err)
+		return err
+	}
+
+	// Get the openflow port number for the interface
+	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
+	if err != nil {
+		log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+		return err
+	}
+
+	// Assign an IP based on the intfnumber
+	ipStr, macStr := netutils.PortToHostIPMAC(intfNum)
+	mac, _ := net.ParseMAC(macStr)
+	ip := net.ParseIP(ipStr)
+
+	portInfo := ofnet.EndpointInfo{
+		PortNo:  ofpPort,
+		MacAddr: mac,
+		IpAddr:  ip,
+	}
+	// Add to ofnet if this is the hostNS port.
+	netutils.SetInterfaceMac(intfName, macStr)
+	netutils.SetInterfaceIP(intfName, ipStr)
+	err = setLinkUp(intfName)
+
+	if isHostNS {
+		err = sw.hostBridge.AddHostPort(portInfo)
+		if err != nil {
+			log.Errorf("Error adding host port %s. Err: %v", intfName, err)
+			return err
+		}
+
+		log.Infof("Added host port %s to OVS switch %s.", intfName, sw.bridgeName)
+	}
+
+	defer func() {
+		if err != nil {
+			sw.ovsdbDriver.DeletePort(intfName)
+		}
+	}()
+
+	return nil
+}
+
+// DelHostPort removes a host port from the OVS
+func (sw *OvsSwitch) DelHostPort(intfName string, isHostNS bool) error {
+	var err error
+
+	if sw.hostBridge == nil {
+		log.Errorf("Cannot delete host port -- no host bridge")
+		return errors.New("no host bridge")
+	}
+	ovsPortName := getOvsPortName(intfName, isHostNS)
+	// Get the openflow port number for the interface
+	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
+	if err != nil {
+		log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+	}
+	// If the port already exists in OVS, remove it first
+	if sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
+		log.Debugf("Removing interface entry %s from OVS", ovsPortName)
+
+		// Delete it from ovsdb
+		err := sw.ovsdbDriver.DeletePort(ovsPortName)
+		if err != nil {
+			log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
+		}
+	}
+
+	if isHostNS {
+		err = sw.hostBridge.DelHostPort(ofpPort)
+		if err != nil {
+			log.Errorf("Error adding host port %s. Err: %v", intfName, err)
+			return err
+		}
+	} else {
+		deleteVethPair(intfName, ovsPortName)
+	}
+
+	return nil
+}
+
 // AddMaster adds master node
 func (sw *OvsSwitch) AddMaster(node core.ServiceInfo) error {
 	var resp bool
@@ -621,21 +780,35 @@ func (sw *OvsSwitch) DeleteBgp() error {
 // AddSvcSpec invokes ofnetAgent api
 func (sw *OvsSwitch) AddSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
 	log.Infof("OvsSwitch AddSvcSpec %s", svcName)
-	return sw.ofnetAgent.AddSvcSpec(svcName, spec)
+	if sw.ofnetAgent != nil {
+		return sw.ofnetAgent.AddSvcSpec(svcName, spec)
+	}
+
+	return nil
 }
 
 // DelSvcSpec invokes ofnetAgent api
 func (sw *OvsSwitch) DelSvcSpec(svcName string, spec *ofnet.ServiceSpec) error {
-	return sw.ofnetAgent.DelSvcSpec(svcName, spec)
+	if sw.ofnetAgent != nil {
+		return sw.ofnetAgent.DelSvcSpec(svcName, spec)
+	}
+
+	return nil
 }
 
 // SvcProviderUpdate invokes ofnetAgent api
 func (sw *OvsSwitch) SvcProviderUpdate(svcName string, providers []string) {
-	sw.ofnetAgent.SvcProviderUpdate(svcName, providers)
+	if sw.ofnetAgent != nil {
+		sw.ofnetAgent.SvcProviderUpdate(svcName, providers)
+	}
 }
 
 // GetEndpointStats invokes ofnetAgent api
 func (sw *OvsSwitch) GetEndpointStats() ([]*ofnet.OfnetEndpointStats, error) {
+	if sw.ofnetAgent == nil {
+		return nil, errors.New("No ofnet agent")
+	}
+
 	stats, err := sw.ofnetAgent.GetEndpointStats()
 	if err != nil {
 		log.Errorf("Error: %v", err)
@@ -649,5 +822,8 @@ func (sw *OvsSwitch) GetEndpointStats() ([]*ofnet.OfnetEndpointStats, error) {
 
 // InspectState ireturns ofnet state in json form
 func (sw *OvsSwitch) InspectState() (interface{}, error) {
+	if sw.ofnetAgent == nil {
+		return nil, errors.New("No ofnet agent")
+	}
 	return sw.ofnetAgent.InspectState()
 }

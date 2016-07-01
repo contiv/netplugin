@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -28,11 +29,15 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/utils/netutils"
 )
 
 type oper int
 
-const maxIntfRetry = 100
+const (
+	maxIntfRetry = 100
+	hostPortName = "contivh0"
+)
 
 // OvsDriverOperState carries operational state of the OvsDriver.
 type OvsDriverOperState struct {
@@ -77,6 +82,9 @@ func (d *OvsDriver) getIntfName() (string, error) {
 	for i := 0; i < maxIntfRetry; i++ {
 		// Pick next port number
 		d.oper.CurrPortNum++
+		if d.oper.CurrPortNum >= maxPortNum {
+			d.oper.CurrPortNum = 0 // roll over
+		}
 		intfName := fmt.Sprintf("vport%d", d.oper.CurrPortNum)
 		ovsIntfName := getOvsPortName(intfName, false)
 
@@ -148,7 +156,61 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 		}
 	}
 
+	// Create Host Access switch
+	d.switchDb["host"], err = NewOvsSwitch(hostBridgeName, "host", info.VtepIP,
+		info.FwdMode)
+	if err != nil {
+		log.Fatalf("Error creating host switch. Err: %v", err)
+	}
+
+	if maxPortNum > 0xfffe {
+		log.Fatalf("Host bridge logic assumes maxPortNum <= 0xfffe")
+	}
+
+	// Add host port.
+	err = d.switchDb["host"].AddHostPort(hostPortName, maxPortNum, true)
+	if err != nil {
+		log.Errorf("Could not add host port %s to OVS. Err: %v", hostPortName, err)
+	}
+
+	// Add a masquerade rule to ip tables.
+	netutils.SetIPMasquerade(hostPortName, hostPvtSubnet)
+
 	return nil
+}
+
+//DeleteHostAccPort deletes the access port
+func (d *OvsDriver) DeleteHostAccPort(id string) error {
+	sw, found := d.switchDb["host"]
+	if found {
+		operEp := &OvsOperEndpointState{}
+		operEp.StateDriver = d.oper.StateDriver
+		err := operEp.Read(id)
+		if err != nil {
+			return err
+		}
+		portName := operEp.PortName
+		intfName := netutils.GetHostIntfName(portName)
+		return sw.DelHostPort(intfName, false)
+	}
+
+	return errors.New("host bridge not found")
+}
+
+// CreateHostAccPort creates an access port
+func (d *OvsDriver) CreateHostAccPort(portName string) error {
+	sw, found := d.switchDb["host"]
+	if found {
+		num := strings.Replace(portName, "hport", "", 1)
+		intfNum, err := strconv.Atoi(num)
+		if err != nil {
+			return err
+		}
+
+		return sw.AddHostPort(portName, intfNum, false)
+	}
+
+	return errors.New("host bridge not found")
 }
 
 // Deinit performs cleanup prior to destruction of the OvsDriver
@@ -161,6 +223,9 @@ func (d *OvsDriver) Deinit() {
 	}
 	if d.switchDb["vxlan"] != nil {
 		d.switchDb["vxlan"].Delete()
+	}
+	if d.switchDb["host"] != nil {
+		d.switchDb["host"].Delete()
 	}
 }
 
