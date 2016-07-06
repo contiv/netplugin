@@ -97,6 +97,10 @@
 					"type": "array",
 					"items": "endpoint",
 					"title": "endpoints in the network"
+				},
+				"dnsServerIP": {
+					"type": "string",
+					"title": "dns IP for the network"
 				}
 			},
 			"link-sets": {
