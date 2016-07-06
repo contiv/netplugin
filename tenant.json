@@ -41,7 +41,10 @@
 				},
 				"servicelbs":{
                     "ref": "servicelb"
-                }
+        },
+				"netProfiles": {
+					"ref": "netprofile"
+				}
 			}
 		}
 	]

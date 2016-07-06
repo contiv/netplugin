@@ -1,0 +1,52 @@
+{
+    "name": "contivModel",
+    "objects":  [
+          {
+            "name": "netprofile",
+	    "version": "v1",
+            "type": "object",
+            "key":  ["tenantName",  "profileName"],
+	    "cfgProperties": {
+                    "profileName":  {
+                            "type": "string",
+                            "title":  "Network profile name",
+                            "length": 64,
+                            "ShowSummary":  true
+                      },
+                      "tenantName": {
+                              "type": "string",
+                              "description":  "Tenant name",
+                              "title":  "Tenant name",
+                              "ShowSummary":  true
+                      },
+                      "bandwidth":  {
+                              "type": "string",
+                              "length": 64,
+                              "format": "^((([1-9][0-9]*((k|K|m|M|g|G)(bps|BPS)))|(K|k|M|m|G|g)|(K|k|M|m|G|g)(b))|(([1-9][0-9]* ((k|K|m|M|g|G)(bps|BPS)))|(K|k|M|m|G|g)|(K|k|M|m|G|g)(b)))?$",
+                              "title":  "Allocated bandwidth",
+                              "description":  "Amount of allocated outbound bandwidth",
+                              "ShowSummary":  true
+                      },
+                      "DSCP": {
+                              "type": "int",
+                              "min":  0,
+                              "max":  63,
+                              "default":  "0",
+                              "title":  "DSCP",
+                              "description":  "DSCP value",
+                              "ShowSummary":  true
+                      }
+            },
+            "link-sets":  {
+                    "endpointGroups": {
+                            "ref":  "endpointGroup"
+                    }
+            },
+            "links":  {
+                    "tenant": {
+                            "ref":  "tenant"
+                    }
+                }
+            }
+        ]
+  }
