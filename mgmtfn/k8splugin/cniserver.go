@@ -89,8 +89,20 @@ func makeHTTPHandler(handlerFunc restAPIFunc) http.HandlerFunc {
 			// Log error
 			log.Errorf("Handler for %s %s returned error: %s", r.Method, r.URL, err)
 
-			// Send HTTP response
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			if resp == nil {
+				// Send HTTP response
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				// Send HTTP response as Json
+				content, err1 := json.Marshal(resp)
+				if err1 != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write(content)
+			}
 		} else {
 			// Send HTTP response as Json
 			content, err := json.Marshal(resp)

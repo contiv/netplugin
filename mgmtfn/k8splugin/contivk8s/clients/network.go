@@ -55,6 +55,7 @@ func NewNWClient() *NWClient {
 // AddPod adds a pod to contiv using the cni api
 func (c *NWClient) AddPod(podInfo interface{}) (*cniapi.RspAddPod, error) {
 
+	data := cniapi.RspAddPod{}
 	buf, err := json.Marshal(podInfo)
 	if err != nil {
 		return nil, err
@@ -71,10 +72,23 @@ func (c *NWClient) AddPod(podInfo interface{}) (*cniapi.RspAddPod, error) {
 	switch {
 	case r.StatusCode == int(404):
 		return nil, fmt.Errorf("Page not found!")
+
 	case r.StatusCode == int(403):
 		return nil, fmt.Errorf("Access denied!")
+
+	case r.StatusCode == int(500):
+		info, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(info, &data)
+		if err != nil {
+			return nil, err
+		}
+		return &data, fmt.Errorf("Internal Server Error")
+
 	case r.StatusCode != int(200):
-		log.Errorf("GET Status '%s' status code %d \n", r.Status, r.StatusCode)
+		log.Errorf("POST Status '%s' status code %d \n", r.Status, r.StatusCode)
 		return nil, fmt.Errorf("%s", r.Status)
 	}
 
@@ -83,7 +97,6 @@ func (c *NWClient) AddPod(podInfo interface{}) (*cniapi.RspAddPod, error) {
 		return nil, err
 	}
 
-	data := cniapi.RspAddPod{}
 	err = json.Unmarshal(response, &data)
 	if err != nil {
 		return nil, err

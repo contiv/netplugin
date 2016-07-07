@@ -318,6 +318,12 @@ func getEPSpec(pInfo *cniapi.CNIPodAttr) (*epSpec, error) {
 	return &resp, nil
 }
 
+func setErrorResp(resp *cniapi.RspAddPod, msg string, err error) {
+	resp.Result = 1
+	resp.ErrMsg = msg
+	resp.ErrInfo = fmt.Sprintf("Err: %v", err)
+}
+
 // addPod is the handler for pod additions
 func addPod(r *http.Request) (interface{}, error) {
 
@@ -340,18 +346,22 @@ func addPod(r *http.Request) (interface{}, error) {
 	epReq, err := getEPSpec(&pInfo)
 	if err != nil {
 		log.Errorf("Error getting labels. Err: %v", err)
+		setErrorResp(&resp, "Error getting labels", err)
 		return resp, err
 	}
 
 	ep, err := createEP(epReq)
 	if err != nil {
 		log.Errorf("Error creating ep. Err: %v", err)
+		setErrorResp(&resp, "Error creating EP", err)
 		return resp, err
 	}
 
 	// convert netns to pid that netlink needs
 	pid, err := nsToPID(pInfo.NwNameSpace)
 	if err != nil {
+		log.Errorf("Error moving to netns. Err: %v", err)
+		setErrorResp(&resp, "Error moving to netns", err)
 		return resp, err
 	}
 
@@ -359,6 +369,7 @@ func addPod(r *http.Request) (interface{}, error) {
 	err = setIfAttrs(pid, ep.PortName, ep.IPAddress, pInfo.IntfName)
 	if err != nil {
 		log.Errorf("Error setting interface attributes. Err: %v", err)
+		setErrorResp(&resp, "Error setting interface attributes", err)
 		return resp, err
 	}
 
@@ -366,9 +377,11 @@ func addPod(r *http.Request) (interface{}, error) {
 	err = setDefGw(pid, ep.Gateway, pInfo.IntfName)
 	if err != nil {
 		log.Errorf("Error setting default gateway. Err: %v", err)
+		setErrorResp(&resp, "Error setting default gateway", err)
 		return resp, err
 	}
 
+	resp.Result = 0
 	resp.IPAddress = ep.IPAddress
 	resp.EndpointID = pInfo.InfraContainerID
 	return resp, nil
@@ -396,10 +409,12 @@ func deletePod(r *http.Request) (interface{}, error) {
 	epReq, err := getEPSpec(&pInfo)
 	if err != nil {
 		log.Errorf("Error getting labels. Err: %v", err)
+		setErrorResp(&resp, "Error getting labels", err)
 		return resp, err
 	}
 
 	err = epCleanUp(epReq)
+	resp.Result = 0
 	resp.EndpointID = pInfo.InfraContainerID
 	return resp, err
 }

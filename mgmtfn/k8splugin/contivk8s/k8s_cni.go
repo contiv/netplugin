@@ -29,6 +29,13 @@ import (
 	logger "github.com/Sirupsen/logrus"
 )
 
+type CNIError struct {
+	CNIVersion string `json:"cniVersion"`
+	Code       uint   `json:"code"`
+	Msg        string `json:"msg"`
+	Details    string `json:"details,omitempty"`
+}
+
 var log *logger.Entry
 
 func getPodInfo(ppInfo *cniapi.CNIPodAttr) error {
@@ -56,12 +63,32 @@ func addPodToContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
 
 	// Add to contiv network
 	result, err := nc.AddPod(pInfo)
-	if err != nil {
-		log.Fatalf("EP create failed -- %s", err)
-	} else {
-		log.Infof("EP created IP: %s\n", result.IPAddress)
+	if err != nil || result.Result != 0 {
+		log.Errorf("EP create failed for pod: %s/%s",
+			pInfo.K8sNameSpace, pInfo.Name)
+		cerr := CNIError{}
+		cerr.CNIVersion = "0.1.0"
+
+		if result != nil {
+			cerr.Code = result.Result
+			cerr.Msg = "Contiv:" + result.ErrMsg
+			cerr.Details = result.ErrInfo
+		} else {
+			cerr.Code = 1
+			cerr.Msg = "Contiv:" + err.Error()
+		}
+
+		eOut, err := json.Marshal(&cerr)
+		if err == nil {
+			log.Infof("cniErr: %s", eOut)
+			fmt.Printf("%s", eOut)
+		} else {
+			log.Errorf("JSON error: %v", err)
+		}
+		os.Exit(1)
 	}
 
+	log.Infof("EP created IP: %s\n", result.IPAddress)
 	// Write the ip address of the created endpoint to stdout
 	fmt.Printf("{\n\"cniVersion\": \"0.1.0\",\n")
 	fmt.Printf("\"ip4\": {\n")
