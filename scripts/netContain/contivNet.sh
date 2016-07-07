@@ -1,17 +1,20 @@
 #!/bin/bash
 #Initialize complete contiv container. Start OVS and Net Plugin
 
+reinit=false
 plugin="docker"
 vtep_ip=""
 fwd_mode="bridge"
 cstore=""
+cmode="bridge"
 netmaster=false
+netplugin=false
 vlan_if=""
 
 #This needs to be fixed, we cant rely on the value being supplied from 
 # paramters, just explosion of parameters is not a great solution
-export no_proxy="0.0.0.0, 172.28.11.253" 
-echo "172.28.11.253 netmaster" > /etc/hosts
+#export no_proxy="0.0.0.0, 172.28.11.253" 
+#echo "172.28.11.253 netmaster" > /etc/hosts
 
 #Needed for Net Plugin to connect with OVS, This needs to be 
 #fixed as well. netplugin should have OVS locally. 
@@ -39,7 +42,6 @@ while getopts ":xmp:v:i:f:c:" opt; do
           ;; 
        p) 
           plugin=$OPTARG
-          netplugin=true
           ;;
        x)
           reinit=true
@@ -61,18 +63,26 @@ fi
 
 /contiv/scripts/ovsInit.sh
 
-if [ $reinit ]; then
+if [ $reinit == true ]; then
     ovs-vsctl del-br contivVlanBridge
     ovs-vsctl del-br contivVxlanBridge
 fi
 
-if [ $netmaster ]; then
+
+mkdir -p /opt/contiv/
+
+if  [ "$plugin" == "kubernetes" ]; then
+    mkdir -p  /opt/contiv/config
+    cp /var/contiv/config/contiv.json /opt/contiv/config/contiv.json
+fi
+
+if [ $netmaster == true ]; then
    echo "Starting Netmaster "
    while [ true ]; do
        if [ "$cstore" != "" ]; then
-           /contiv/bin/netmaster -cluster-store $cstore &> /var/log/contiv/netmaster.log
+           /contiv/bin/netmaster  -cluster-mode $plugin -cluster-store $cstore &> /var/contiv/log/netmaster.log
        else
-           /contiv/bin/netmaster &> /var/log/contiv/netmaster.log
+           /contiv/bin/netmaster -cluster-mode $plugin  &> /var/contiv/log/netmaster.log
        fi
        echo "CRITICAL : Net Master has exited, Respawn in 5"
        sleep 5
@@ -80,15 +90,18 @@ if [ $netmaster ]; then
 fi
    
 if [ $netplugin == true ]; then
-   if [ "$vtep_ip" == "" || "$vlan_if" == "" ]; then 
+
+
+   if [ "$vtep_ip" == "" ] || [ "$vlan_if" == "" ]; then 
        echo "Net Plugin Cannot be started without specifying the VETP or VLAN Interface"
        exit
    fi
+
    while [ true ]; do
        if [ "$cstore" != "" ]; then
-           /contiv/bin/netplugin -cluster-store $cstore  -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwdmode -plugin-mode $plugin &> /var/log/contiv/netplugin.log
+           /contiv/bin/netplugin -cluster-store $cstore  -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwdmode -plugin-mode $plugin &> /var/contiv/log/netplugin.log
        else
-           /contiv/bin/netplugin -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwd_mode -plugin-mode $plugin &> /var/log/contiv/netplugin.log
+           /contiv/bin/netplugin -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwd_mode -plugin-mode $plugin &> /var/contiv/log/netplugin.log
        fi
        echo "CRITICAL : Net Plugin has exited, Respawn in 5"
        sleep 5
