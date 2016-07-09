@@ -26,17 +26,26 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 		Encap:       "vlan",
 	}), IsNil)
 
+	err := s.nodes[0].checkDockerNetworkCreated("aciNet", false)
+	c.Assert(err, IsNil)
+
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
 		TenantName:  "default",
 		NetworkName: "aciNet",
 		GroupName:   "epgA",
 	}), IsNil)
 
+	err = s.nodes[0].checkDockerNetworkCreated("epgA", true)
+	c.Assert(err, IsNil)
+
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
 		TenantName:  "default",
 		NetworkName: "aciNet",
 		GroupName:   "epgB",
 	}), IsNil)
+
+	err = s.nodes[0].checkDockerNetworkCreated("epgB", true)
+	c.Assert(err, IsNil)
 
 	cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA"})
 	c.Assert(err, IsNil)
