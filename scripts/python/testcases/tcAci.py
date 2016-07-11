@@ -43,6 +43,6 @@ def testACIMode(testbed):
     api.objmodel.setFabricMode("default")
 
     # Check for errors
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
     api.tutils.info("testACIMode Test passed")

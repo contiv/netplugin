@@ -207,9 +207,9 @@ class Testbed:
         return success
 
     # Look for any error logs on all nodes
-    def chekForNetpluginErrors(self):
+    def checkForNetpluginErrors(self):
         for node in self.nodes:
-            ret = node.chekForNetpluginErrors()
+            ret = node.checkForNetpluginErrors()
             if ret == False and self.failOnError:
                 tutils.exit("Errors in log file")
 
@@ -217,7 +217,7 @@ class Testbed:
     def errExit(self, str):
         # print erros from netplugin log file
         for node in self.nodes:
-            node.chekForNetpluginErrors()
+            node.checkForNetpluginErrors()
 
         # exit the script
         tutils.exit(str)

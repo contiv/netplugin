@@ -22,7 +22,7 @@ def startRemoveContainer(testbed, numContainer, numIter, encap="vxlan"):
 			cnt.remove()
 
 		# Check for errors
-		testbed.chekForNetpluginErrors()
+		testbed.checkForNetpluginErrors()
 
 		# Iteration is done
 		api.tutils.info("startRemoveContainer iteration " + str(iter) + " Passed")
@@ -31,7 +31,7 @@ def startRemoveContainer(testbed, numContainer, numIter, encap="vxlan"):
 	tenant.deleteNetwork('private')
 
 	# Check for errors
-	testbed.chekForNetpluginErrors()
+	testbed.checkForNetpluginErrors()
 
 	# Test is done
 	api.tutils.info("startRemoveContainer Test passed")
@@ -63,7 +63,7 @@ def startStopContainer(testbed, numContainer, numIter, encap="vxlan"):
 		testbed.pingTest(containers)
 
 		# Check for errors
-		testbed.chekForNetpluginErrors()
+		testbed.checkForNetpluginErrors()
 
 		# Iteration is done
 		api.tutils.info("startStopContainer iteration " + str(iter) + " Passed")
@@ -76,7 +76,7 @@ def startStopContainer(testbed, numContainer, numIter, encap="vxlan"):
 	tenant.deleteNetwork('private')
 
 	# Check for errors
-	testbed.chekForNetpluginErrors()
+	testbed.checkForNetpluginErrors()
 
 	# Test is done
 	api.tutils.info("startStopContainer Test passed")

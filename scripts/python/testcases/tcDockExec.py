@@ -74,7 +74,7 @@ def testDockExecRepeate(testbed, numContainer, numIteration, numExec):
         tenant.deletePolicy('first')
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
         api.tutils.info("dockExec Iteration " + str(iter) + " passed")
 

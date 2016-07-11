@@ -62,7 +62,7 @@ def testBasicPolicy(testbed, numContainer, numIter, encap="vxlan"):
         tenant.deletePolicy('first')
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
         api.tutils.info("testBasicPolicy Iteration " + str(iter) + " passed")
 
@@ -125,7 +125,7 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter, encap="vxlan"):
             api.tutils.exit("Connection succeded while expecting it to fail")
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
         api.tutils.info("testPolicyAddDeleteRule Iteration " + str(iter) + " Passed")
 
@@ -152,7 +152,7 @@ def testPolicyAddDeleteRule(testbed, numContainer, numIter, encap="vxlan"):
     tenant.deleteNetwork('private')
 
     # Check for errors
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
     api.tutils.info("testPolicyAddDeleteRule Test passed")
 
@@ -220,7 +220,7 @@ def testPolicyFromEpg(testbed, numContainer, numIter, encap="vxlan"):
         network.deleteGroup('common')
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
         api.tutils.info("testPolicyFromEpg Iteration " + str(iter) + " passed")
 
@@ -410,7 +410,7 @@ def testPolicyFeatures(testbed, encap="vxlan"):
     tenant.deletePolicy('second')
 
     # Check for errors
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
     # Delete the network we created
     tenant.deleteNetwork('private')

@@ -57,7 +57,7 @@ try:
 
     time.sleep(15)
 
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
     # Run single test case
     testcases.tcTrigger.netmasterSwitchoverTest(testbed, numCntr, numIteration)

@@ -57,7 +57,7 @@ try:
 
     time.sleep(15)
 
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
     # Run vlan tests
     testcases.tcNetwork.testAddDeleteTenant(testbed, numCntr, numIteration, encap="vlan")

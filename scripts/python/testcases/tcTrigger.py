@@ -84,7 +84,7 @@ def checkAllConnection(testbed, netContainers, networks, grpContainers, groups):
         api.tutils.exit("Connection succeeded while expecting to fail")
 
     # Check for errors
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
 # remove all containers
 def removeAllContainers(netContainers, grpContainers):
@@ -145,7 +145,7 @@ def triggerNetpluginDisconectConnect(testbed):
         time.sleep(30)
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
 # Trigger netmaster restart
 def triggerNetmasterRestart(testbed):
@@ -315,7 +315,7 @@ def testMultiTrigger(testbed, numIter, numTenants=1, numNetworksPerTenant=1, num
         tenant.delete()
 
     # Check for cleanup errors
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
     # Done
     api.tutils.info("testMultiTrigger PASSED")
@@ -344,7 +344,7 @@ def netmasterSwitchoverTest(testbed, numContainer, numIter, encap="vxlan"):
             cnt.remove()
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
         # Iteration is done
         api.tutils.info("netmasterSwitchoverTest iteration " + str(iter) + " Passed")
@@ -353,7 +353,7 @@ def netmasterSwitchoverTest(testbed, numContainer, numIter, encap="vxlan"):
     tenant.deleteNetwork('private')
 
     # Check for errors
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
     # Test is done
     api.tutils.info("netmasterSwitchoverTest Test passed")
@@ -380,7 +380,7 @@ def netpluginDisconnectTest(testbed, numContainer, numIter, encap="vxlan"):
             cnt.remove()
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
         # Iteration is done
         api.tutils.info("netpluginDisconnectTest iteration " + str(iter) + " Passed")
@@ -389,7 +389,7 @@ def netpluginDisconnectTest(testbed, numContainer, numIter, encap="vxlan"):
     tenant.deleteNetwork('private')
 
     # Check for errors
-    testbed.chekForNetpluginErrors()
+    testbed.checkForNetpluginErrors()
 
     # Test is done
     api.tutils.info("netpluginDisconnectTest Test passed")

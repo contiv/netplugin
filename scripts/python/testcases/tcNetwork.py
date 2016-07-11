@@ -59,7 +59,7 @@ def testAddDeleteNetwork(testbed, numContainer, numIter, encap="vxlan"):
             tenant.deleteNetwork(netName)
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
         api.tutils.info("testAddDeleteNetwork Iteration " + str(iter) + " passed")
 
@@ -113,7 +113,7 @@ def testAddDeleteTenant(testbed, numContainer, numIter, encap="vxlan"):
             tenant.delete()
 
         # Check for errors
-        testbed.chekForNetpluginErrors()
+        testbed.checkForNetpluginErrors()
 
         api.tutils.info("testAddDeleteTenant Iteration " + str(iter) + " passed")
 
