@@ -514,7 +514,7 @@ func main() {
 	}
 
 	// parse rest of the args that require creating state
-	flagSet = flag.NewFlagSet("netd", flag.ExitOnError)
+	flagSet = flag.NewFlagSet("netplugin", flag.ExitOnError)
 	flagSet.BoolVar(&opts.debug,
 		"debug",
 		false,
@@ -550,7 +550,7 @@ func main() {
 	flagSet.StringVar(&opts.vlanIntf,
 		"vlan-if",
 		"",
-		"My VTEP ip address")
+		"VLAN uplink interface")
 	flagSet.BoolVar(&opts.version,
 		"version",
 		false,
