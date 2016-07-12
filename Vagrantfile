@@ -80,8 +80,8 @@ provision_common_always = <<SCRIPT
 # Drop cache to workaround vboxsf problem
 echo 3 > /proc/sys/vm/drop_caches
 
-# Start OVS
-(systemctl start openvswitch) || exit 1
+# Start OVS if required
+systemctl start openvswitch
 
 # Enable ovs mgmt port
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
