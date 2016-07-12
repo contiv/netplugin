@@ -91,6 +91,14 @@ func httpPost(url string, req interface{}, resp interface{}) error {
 	}
 
 	// Check the response code
+	if res.StatusCode == http.StatusInternalServerError {
+		eBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return errors.New("HTTP StatusInternalServerError" + err.Error())
+		}
+		return errors.New(string(eBody))
+	}
+
 	if res.StatusCode != http.StatusOK {
 		log.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
 		return errors.New("HTTP Error response")
