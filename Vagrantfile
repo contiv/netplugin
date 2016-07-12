@@ -80,6 +80,9 @@ provision_common_always = <<SCRIPT
 # Drop cache to workaround vboxsf problem
 echo 3 > /proc/sys/vm/drop_caches
 
+# Start OVS
+(systemctl start openvswitch) || exit 1
+
 # Enable ovs mgmt port
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
@@ -103,8 +106,10 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
         config.vm.box = "contiv/ubuntu1504-netplugin"
+        config.vm.box_version = "0.6.0"
     else
         config.vm.box = "contiv/centos72"
+        config.vm.box_version = "0.7.0"
     end
     config.vm.provider 'virtualbox' do |v|
         v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
@@ -189,9 +194,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
            end
         end
         config.vm.define node_name do |node|
-            node.vm.box_version = "0.6.0"
-
-            # node.vm.hostname = node_name
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
             # create an interface for bridged network
