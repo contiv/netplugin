@@ -146,7 +146,7 @@ class Node:
         # Return a container object
         return container.Container(self, cid, cntName="")
 
-    def chekForNetpluginErrors(self):
+    def checkForNetpluginErrors(self):
         out, err, exitCode = self.runCmd('grep "error\|fatal" /tmp/net*')
         if out != [] or err != []:
             print "\n\n\n\n\n\n"
