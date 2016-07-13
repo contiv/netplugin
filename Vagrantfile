@@ -135,6 +135,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       config.vm.define "quagga1" do |quagga1|
 
         quagga1.vm.box = "contiv/quagga1"
+        quagga1.vm.box_version = "0.0.1"
         quagga1.vm.host_name = "quagga1"
         quagga1.vm.network :private_network, ip: base_ip + "51", virtualbox__intnet: "true", auto_config: false
         quagga1.vm.network "private_network",
@@ -151,6 +152,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       config.vm.define "quagga2" do |quagga2|
 
         quagga2.vm.box = "contiv/quagga2"
+        quagga2.vm.box_version = "0.0.1"
         quagga2.vm.host_name = "quagga2"
         quagga2.vm.network :private_network, ip: base_ip + "52", virtualbox__intnet: "true", auto_config: false
         quagga2.vm.network "private_network",
