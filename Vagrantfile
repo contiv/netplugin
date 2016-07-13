@@ -80,6 +80,9 @@ provision_common_always = <<SCRIPT
 # Drop cache to workaround vboxsf problem
 echo 3 > /proc/sys/vm/drop_caches
 
+# start docker daemon
+systemctl start docker
+
 # Start OVS if required
 systemctl start openvswitch
 
