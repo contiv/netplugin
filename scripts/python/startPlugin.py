@@ -26,8 +26,5 @@ testbed = api.tbed.Testbed(addrList, args.user, args.password, args.binpath)
 print "Waiting for netmaster to come up"
 time.sleep(15)
 
-# Setup proxy
-# setupProxy.setupProxy()
-
 print "################### Started Netplugin #####################"
 os._exit(0)
