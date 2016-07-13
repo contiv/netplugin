@@ -5,7 +5,6 @@ import api.tbed
 import time
 import sys
 import os
-import setupProxy
 import argparse
 
 # Parse command line args
