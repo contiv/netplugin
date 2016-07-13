@@ -283,7 +283,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			log.Printf("Found matching oper state for ep %s, noop", id)
 
 			// Ask the switch to update the port
-			err = sw.UpdatePort(operEp.PortName, cfgEp, pktTag, skipVethPair)
+			err = sw.UpdatePort(operEp.PortName, cfgEp, pktTag, cfgNw.PktTag, skipVethPair)
 			if err != nil {
 				log.Errorf("Error creating port %s. Err: %v", intfName, err)
 				return err

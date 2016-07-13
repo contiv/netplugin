@@ -339,7 +339,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 }
 
 // UpdatePort updates an OVS port without creating it
-func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag int, skipVethPair bool) error {
+func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag int, skipVethPair bool) error {
 
 	// Get OVS port name
 	ovsPortName := getOvsPortName(intfName, skipVethPair)
@@ -356,12 +356,13 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 
 	// Build the endpoint info
 	endpoint := ofnet.EndpointInfo{
-		PortNo:        ofpPort,
-		MacAddr:       macAddr,
-		Vlan:          uint16(pktTag),
-		IpAddr:        net.ParseIP(cfgEp.IPAddress),
-		Ipv6Addr:      net.ParseIP(cfgEp.IPv6Address),
-		EndpointGroup: cfgEp.EndpointGroupID,
+		PortNo:            ofpPort,
+		MacAddr:           macAddr,
+		Vlan:              uint16(nwPktTag),
+		IpAddr:            net.ParseIP(cfgEp.IPAddress),
+		Ipv6Addr:          net.ParseIP(cfgEp.IPv6Address),
+		EndpointGroup:     cfgEp.EndpointGroupID,
+		EndpointGroupVlan: uint16(pktTag),
 	}
 
 	// Add the local port to ofnet
