@@ -177,6 +177,12 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		return nil
 	}
 
+	aci, _ := IsAciConfigured()
+	if aci {
+		// Skip docker network creation for ACI fabric mode.
+		return nil
+	}
+
 	if GetClusterMode() == "docker" {
 		// Create the network in docker
 		err = docknet.CreateDockNet(tenantName, network.Name, "", nwCfg)
@@ -406,6 +412,12 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 	if err != nil {
 		log.Errorf("network %s is not operational", netID)
 		return err
+	}
+
+	aci, _ := IsAciConfigured()
+	if aci {
+		// Skip docker network deletion for ACI fabric mode.
+		return nil
 	}
 
 	if nwCfg.NwType != "infra" {

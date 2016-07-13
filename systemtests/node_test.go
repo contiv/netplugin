@@ -112,6 +112,31 @@ func (n *node) cleanupDockerNetwork() error {
 	return n.tbnode.RunCommand("docker network rm $(docker network ls | grep netplugin | awk '{print $2}')")
 }
 
+func (n *node) checkDockerNetworkCreated(nwName string, expectedOp bool) error {
+	logrus.Infof("Checking whether docker network is created or not")
+	cmd := fmt.Sprintf("docker network ls | grep netplugin | grep %s | awk \"{print \\$2}\"", nwName)
+	logrus.Infof("Command to be executed is = %s", cmd)
+	op, err := n.tbnode.RunCommandWithOutput(cmd)
+
+	if err == nil {
+		// if networks are NOT meant to be created. In ACI mode netctl net create should
+		// not create docker networks
+		ret := strings.Contains(op, nwName)
+		if expectedOp == false && ret != true {
+			logrus.Infof("Network names Input=%s and Output=%s are NOT matching and thats expected", nwName, op)
+		} else {
+			// If netwokrs are meant to be created. In ACI Once you create EPG,
+			// respective docker network should get created.
+			if ret == true {
+				logrus.Infof("Network names are matching.")
+				return nil
+			}
+		}
+		return nil
+	}
+	return err
+}
+
 func (n *node) cleanupContainers() error {
 	logrus.Infof("Cleaning up containers on %s", n.Name())
 	if os.Getenv("ACI_SYS_TEST_MODE") == "ON" {
