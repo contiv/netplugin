@@ -108,8 +108,8 @@ SCRIPT
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
-        config.vm.box = "contiv/ubuntu1504-netplugin"
-        config.vm.box_version = "0.6.0"
+        config.vm.box = "contiv/ubuntu1604-netplugin"
+#        config.vm.box_version = "0.6.0"
     else
         config.vm.box = "contiv/centos72"
         config.vm.box_version = "0.7.0"
