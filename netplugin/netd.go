@@ -422,9 +422,10 @@ func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 
 	go handleSvcProviderUpdEvents(netPlugin, opts, recvErr)
 
-	docker, _ := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
-	go docker.StartMonitorEvents(handleDockerEvents, recvErr, netPlugin, recvErr)
-
+	if opts.pluginMode == "docker" {
+		docker, _ := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+		go docker.StartMonitorEvents(handleDockerEvents, recvErr, netPlugin, recvErr)
+	}
 	err := <-recvErr
 	if err != nil {
 		log.Errorf("Failure occured. Error: %s", err)
