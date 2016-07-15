@@ -777,7 +777,10 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 				return
 			}
 			containerTenant := getTenantFromContainerInspect(&containerInfo)
-			network, ipAddress := getEpNetworkInfoFromContainerInspect(&containerInfo)
+			network, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
+			if err != nil {
+				log.Errorf("Error getting container network info for %v.Err:%s", event.ID, err)
+			}
 			container := getContainerFromContainerInspect(&containerInfo)
 			if ipAddress != "" {
 				//Create provider info
@@ -799,7 +802,7 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 
 			log.Infof("Sending Provider create request to master: {%+v}", providerUpdReq)
 
-			err := cluster.MasterPostReq("/plugin/svcProviderUpdate", providerUpdReq, &svcProvResp)
+			err = cluster.MasterPostReq("/plugin/svcProviderUpdate", providerUpdReq, &svcProvResp)
 			if err != nil {
 				log.Errorf("Event: 'start' , Http error posting service provider update, Error:%s", err)
 			}
@@ -841,21 +844,27 @@ func getTenantFromContainerInspect(containerInfo *types.ContainerJSON) string {
 }
 
 /*getEpNetworkInfoFromContainerInspect inspects the network info from containerinfo returned by dockerclient*/
-func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (string, string) {
+func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (string, string, error) {
 	var networkName string
 	var IPAddress string
-
+	var networkUUID string
 	if containerInfo != nil && containerInfo.NetworkSettings != nil {
-		for network, endpoint := range containerInfo.NetworkSettings.Networks {
-			networkName = network
-			if strings.Contains(network, "/") {
-				//network name is of the form networkname/tenantname for non default tenant
-				networkName = strings.Split(network, "/")[0]
-			}
+		for _, endpoint := range containerInfo.NetworkSettings.Networks {
 			IPAddress = endpoint.IPAddress
+			networkUUID = endpoint.NetworkID
+			_, network, serviceName, err := dockplugin.GetDockerNetworkName(networkUUID)
+			if err != nil {
+				log.Errorf("Error getting docker networkname for network uuid : %s", networkUUID)
+				return "", "", err
+			}
+			if serviceName != "" {
+				networkName = serviceName
+			} else {
+				networkName = network
+			}
 		}
 	}
-	return networkName, IPAddress
+	return networkName, IPAddress, nil
 }
 
 func getContainerFromContainerInspect(containerInfo *types.ContainerJSON) string {
