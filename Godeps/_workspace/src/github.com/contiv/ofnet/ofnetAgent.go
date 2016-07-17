@@ -172,7 +172,6 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 		agent.fwdMode = "routing"
 		agent.ovsDriver = ovsdbDriver.NewOvsDriver(bridgeName)
 		agent.protopath = NewOfnetBgp(agent, routerInfo)
-
 	default:
 		log.Fatalf("Unknown Datapath %s", dpName)
 	}

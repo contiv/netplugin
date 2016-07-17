@@ -125,6 +125,16 @@ func (d *KubeTestNetDrv) DeleteMaster(node core.ServiceInfo) error {
 	return nil
 }
 
+// CreateHostAccPort is not implemented.
+func (d *KubeTestNetDrv) CreateHostAccPort(id string) (err error) {
+	return core.Errorf("Not implemented")
+}
+
+// DeleteHostAccPort is not implemented.
+func (d *KubeTestNetDrv) DeleteHostAccPort(id string) (err error) {
+	return core.Errorf("Not implemented")
+}
+
 // AddBgp is not implemented.
 func (d *KubeTestNetDrv) AddBgp(id string) error {
 	return nil

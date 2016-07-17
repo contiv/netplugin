@@ -17,8 +17,11 @@ const (
 	interfaceTable  = "Interface"
 	vlanBridgeName  = "contivVlanBridge"
 	vxlanBridgeName = "contivVxlanBridge"
+	hostBridgeName  = "contivHostBridge"
 	portNameFmt     = "port%d"
 	vxlanIfNameFmt  = "vxif%s"
+	maxPortNum      = 0xfffe
+	hostPvtSubnet   = "172.20.0.0/16"
 
 	// StateOperPath is the path to the operations stored in state.
 	ovsOperPathPrefix      = mastercfg.StateOperPath + "ovs-driver/"
