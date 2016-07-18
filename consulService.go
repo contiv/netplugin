@@ -116,7 +116,7 @@ func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
 
 	// Run refresh in background
 	stopChan := make(chan struct{})
-	go cp.client.Session().RenewPeriodic(sessCfg.TTL, sessionID, nil, stopChan)
+	go cp.renewService(keyName, sessCfg.TTL, sessionID, stopChan)
 
 	// Store it in DB
 	cp.serviceDb[keyName] = &consulServiceState{
@@ -240,6 +240,8 @@ func (cp *ConsulClient) DeregisterService(serviceInfo ServiceInfo) error {
 		return errors.New("Service not found")
 	}
 
+	log.Infof("Deregistering service key: %s, value: %+v", keyName, serviceInfo)
+
 	// stop the refresh thread and delete service
 	close(srvState.stopChan)
 	delete(cp.serviceDb, keyName)
@@ -255,6 +257,16 @@ func (cp *ConsulClient) DeregisterService(serviceInfo ServiceInfo) error {
 }
 
 //--------------------- Internal funcitons -------------------
+func (cp *ConsulClient) renewService(keyName, ttl, sessionID string, stopChan chan struct{}) {
+	for {
+		err := cp.client.Session().RenewPeriodic(ttl, sessionID, nil, stopChan)
+		if err == nil {
+			log.Infof("Stoping renew on %s", keyName)
+			return
+		}
+		log.Infof("RenewPeriodic for session %s exited with error: %v. Retrying..", keyName, err)
+	}
+}
 
 // getServiceInstances gets the current list of service instances
 func (cp *ConsulClient) getServiceInstances(key string, waitIdx uint64) ([]ServiceInfo, uint64, error) {
