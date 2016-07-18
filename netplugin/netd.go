@@ -743,7 +743,7 @@ func processSvcProviderUpdEvent(netPlugin *plugin.NetPlugin, opts cliOpts,
 func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interface{}) {
 
 	log.Printf("Received Docker event: {%#v}\n", *event)
-	providerUpdReq := &master.SvcProvUpdateRequest{}
+	endpointUpdReq := &master.UpdateEndpointRequest{}
 	switch event.Status {
 	case "start":
 		defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
@@ -758,52 +758,51 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 			log.Errorf("Container Inspect failed :%s", err)
 			return
 		}
+
 		if event.ID != "" {
 			labelMap := getLabelsFromContainerInspect(&containerInfo)
-			if len(labelMap) == 0 {
-				//Ignore container without labels
-				return
-			}
 			containerTenant := getTenantFromContainerInspect(&containerInfo)
 			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
 			if err != nil {
 				log.Errorf("Error getting container network info for %v.Err:%s", event.ID, err)
 			}
-			container := getContainerFromContainerInspect(&containerInfo)
+			endpoint := getEndpointFromContainerInspect(&containerInfo)
+
 			if ipAddress != "" {
 				//Create provider info
-				providerUpdReq.IPAddress = ipAddress
-				providerUpdReq.ContainerID = event.ID
-				providerUpdReq.Tenant = containerTenant
-				providerUpdReq.Network = networkName
-				providerUpdReq.Event = "start"
-				providerUpdReq.Container = container
-				providerUpdReq.Labels = make(map[string]string)
+				endpointUpdReq.IPAddress = ipAddress
+				endpointUpdReq.ContainerID = event.ID
+				endpointUpdReq.Tenant = containerTenant
+				endpointUpdReq.Network = networkName
+				endpointUpdReq.Event = "start"
+				endpointUpdReq.EndpointID = endpoint
+				endpointUpdReq.ContainerName = containerInfo.Name
+				endpointUpdReq.Labels = make(map[string]string)
 
 				for k, v := range labelMap {
-					providerUpdReq.Labels[k] = v
+					endpointUpdReq.Labels[k] = v
 				}
 			}
 
-			var svcProvResp master.SvcProvUpdateResponse
+			var epUpdResp master.UpdateEndpointResponse
 
-			log.Infof("Sending Provider create request to master: {%+v}", providerUpdReq)
+			log.Infof("Sending Endpoint update request to master: {%+v}", endpointUpdReq)
 
-			err = cluster.MasterPostReq("/plugin/svcProviderUpdate", providerUpdReq, &svcProvResp)
+			err = cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
 			if err != nil {
-				log.Errorf("Event: 'start' , Http error posting service provider update, Error:%s", err)
+				log.Errorf("Event: 'start' , Http error posting endpoint update, Error:%s", err)
 			}
 		} else {
 			log.Errorf("Unable to fetch container labels for container %s ", event.ID)
 		}
 	case "die":
-		providerUpdReq.ContainerID = event.ID
-		providerUpdReq.Event = "die"
-		var svcProvResp master.SvcProvUpdateResponse
-		log.Infof("Sending Provider delete request to master: {%+v}", providerUpdReq)
-		err := cluster.MasterPostReq("/plugin/svcProviderUpdate", providerUpdReq, &svcProvResp)
+		endpointUpdReq.ContainerID = event.ID
+		endpointUpdReq.Event = "die"
+		var epUpdResp master.UpdateEndpointResponse
+		log.Infof("Sending Endpoint update request to master: {%+v} on container delete", endpointUpdReq)
+		err := cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
 		if err != nil {
-			log.Errorf("Event:'die' Http error posting service provider update, Error:%s", err)
+			log.Errorf("Event:'die' Http error posting endpoint update, Error:%s", err)
 		}
 	}
 }
@@ -849,15 +848,15 @@ func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (s
 	return networkName, IPAddress, nil
 }
 
-func getContainerFromContainerInspect(containerInfo *types.ContainerJSON) string {
+func getEndpointFromContainerInspect(containerInfo *types.ContainerJSON) string {
 
-	container := ""
+	endpointID := ""
 	if containerInfo != nil && containerInfo.NetworkSettings != nil {
 		for _, endpoint := range containerInfo.NetworkSettings.Networks {
-			container = endpoint.EndpointID
+			endpointID = endpoint.EndpointID
 		}
 	}
-	return container
+	return endpointID
 
 }
 
