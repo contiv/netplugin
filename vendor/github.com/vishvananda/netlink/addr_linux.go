@@ -16,24 +16,35 @@ const IFA_FLAGS = 0x8
 // AddrAdd will add an IP address to a link device.
 // Equivalent to: `ip addr add $addr dev $link`
 func AddrAdd(link Link, addr *Addr) error {
+	return pkgHandle.AddrAdd(link, addr)
+}
 
-	req := nl.NewNetlinkRequest(syscall.RTM_NEWADDR, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
-	return addrHandle(link, addr, req)
+// AddrAdd will add an IP address to a link device.
+// Equivalent to: `ip addr add $addr dev $link`
+func (h *Handle) AddrAdd(link Link, addr *Addr) error {
+	req := h.newNetlinkRequest(syscall.RTM_NEWADDR, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	return h.addrHandle(link, addr, req)
 }
 
 // AddrDel will delete an IP address from a link device.
 // Equivalent to: `ip addr del $addr dev $link`
 func AddrDel(link Link, addr *Addr) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_DELADDR, syscall.NLM_F_ACK)
-	return addrHandle(link, addr, req)
+	return pkgHandle.AddrDel(link, addr)
 }
 
-func addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
+// AddrDel will delete an IP address from a link device.
+// Equivalent to: `ip addr del $addr dev $link`
+func (h *Handle) AddrDel(link Link, addr *Addr) error {
+	req := h.newNetlinkRequest(syscall.RTM_DELADDR, syscall.NLM_F_ACK)
+	return h.addrHandle(link, addr, req)
+}
+
+func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
 	base := link.Attrs()
 	if addr.Label != "" && !strings.HasPrefix(addr.Label, base.Name) {
 		return fmt.Errorf("label must begin with interface name")
 	}
-	ensureIndex(base)
+	h.ensureIndex(base)
 
 	family := nl.GetIPFamily(addr.IP)
 
@@ -58,10 +69,14 @@ func addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
 	req.AddData(addressData)
 
 	if addr.Flags != 0 {
-		b := make([]byte, 4)
-		native.PutUint32(b, uint32(addr.Flags))
-		flagsData := nl.NewRtAttr(IFA_FLAGS, b)
-		req.AddData(flagsData)
+		if addr.Flags <= 0xff {
+			msg.IfAddrmsg.Flags = uint8(addr.Flags)
+		} else {
+			b := make([]byte, 4)
+			native.PutUint32(b, uint32(addr.Flags))
+			flagsData := nl.NewRtAttr(IFA_FLAGS, b)
+			req.AddData(flagsData)
+		}
 	}
 
 	if addr.Label != "" {
@@ -77,7 +92,14 @@ func addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
 // Equivalent to: `ip addr show`.
 // The list can be filtered by link and ip family.
 func AddrList(link Link, family int) ([]Addr, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETADDR, syscall.NLM_F_DUMP)
+	return pkgHandle.AddrList(link, family)
+}
+
+// AddrList gets a list of IP addresses in the system.
+// Equivalent to: `ip addr show`.
+// The list can be filtered by link and ip family.
+func (h *Handle) AddrList(link Link, family int) ([]Addr, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETADDR, syscall.NLM_F_DUMP)
 	msg := nl.NewIfInfomsg(family)
 	req.AddData(msg)
 
@@ -89,7 +111,7 @@ func AddrList(link Link, family int) ([]Addr, error) {
 	indexFilter := 0
 	if link != nil {
 		base := link.Attrs()
-		ensureIndex(base)
+		h.ensureIndex(base)
 		indexFilter = base.Index
 	}
 

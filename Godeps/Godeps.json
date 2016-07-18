@@ -353,11 +353,15 @@
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
-			"Rev": "a632d6dc2806fa19d2f7693017d3fb79d3d8fa03"
+			"Rev": "77483a0e697ebcc2584461e9624b611767e7d203"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink/nl",
-			"Rev": "a632d6dc2806fa19d2f7693017d3fb79d3d8fa03"
+			"Rev": "77483a0e697ebcc2584461e9624b611767e7d203"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netns",
+			"Rev": "8ba1072b58e0c2a240eb5f6120165c7776c3e7b8"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/ssh",
@@ -426,10 +430,6 @@
 		{
 			"ImportPath": "gopkg.in/tomb.v2",
 			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
-		},
-		{
-			"ImportPath": "github.com/vishvananda/netns",
-			"Rev": "8ba1072b58e0c2a240eb5f6120165c7776c3e7b8"
 		}
 	]
 }
