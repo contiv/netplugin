@@ -109,7 +109,7 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
         config.vm.box = "contiv/ubuntu1604-netplugin"
-#        config.vm.box_version = "0.6.0"
+        config.vm.box_version = "0.7.0"
     else
         config.vm.box = "contiv/centos72"
         config.vm.box_version = "0.7.0"
@@ -250,7 +250,7 @@ set -x
 
 ## start etcd with generated config
 echo "#!/bin/bash" > /usr/bin/etcd.sh
-echo "etcd --name #{node_name} --data-dir /tmp/etcd \
+echo "etcd --name #{node_name} --data-dir /var/lib/etcd \
  -heartbeat-interval=100 -election-timeout=5000 \
  --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
  --advertise-client-urls http://#{node_addr}:2379,http://#{node_addr}:4001 \

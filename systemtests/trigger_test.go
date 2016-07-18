@@ -162,8 +162,6 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 		// reload VMs one at a time
 		for _, node := range s.nodes {
 			c.Assert(node.reloadNode(), IsNil)
-			c.Assert(node.rotateLog("netplugin"), IsNil)
-			c.Assert(node.rotateLog("netmaster"), IsNil)
 
 			c.Assert(node.startNetplugin(""), IsNil)
 
