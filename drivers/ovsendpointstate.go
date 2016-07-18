@@ -27,10 +27,9 @@ import (
 type OvsOperEndpointState struct {
 	core.CommonState
 	NetID       string `json:"netID"`
-	ContName    string `json:"contName"`
+	EndpointID  string `json:"endpointID"`
 	ServiceName string `json:"serviceName"`
 	ContUUID    string `json:"contUUID"`
-	AttachUUID  string `json:"attachUUID"`
 	IPAddress   string `json:"ipAddress"`
 	MacAddress  string `json:"macAddress"`
 	HomingHost  string `json:"homingHost"`
@@ -42,8 +41,7 @@ type OvsOperEndpointState struct {
 // Matches matches the fields updated from configuration state
 func (s *OvsOperEndpointState) Matches(c *mastercfg.CfgEndpointState) bool {
 	return s.NetID == c.NetID &&
-		s.ContName == c.ContName &&
-		s.AttachUUID == c.AttachUUID &&
+		s.EndpointID == c.EndpointID &&
 		s.IPAddress == c.IPAddress &&
 		s.MacAddress == c.MacAddress &&
 		s.HomingHost == c.HomingHost &&

@@ -1469,8 +1469,7 @@ func createEP(t *testing.T, providerIP, network, containerID, tenant, endpointID
 
 	epCfg := &mastercfg.CfgEndpointState{
 		NetID:      network,
-		ContName:   containerID,
-		AttachUUID: endpointID,
+		EndpointID: endpointID,
 		IPAddress:  providerIP,
 	}
 	epCfg.Labels = make(map[string]string)
