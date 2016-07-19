@@ -172,7 +172,7 @@ var Commands = []cli.Command{
 				Aliases:   []string{"list"},
 				Usage:     "List tenants",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{quietFlag},
+				Flags:     []cli.Flag{quietFlag, jsonFlag},
 				Action:    listTenants,
 			},
 			{
@@ -221,7 +221,7 @@ var Commands = []cli.Command{
 				Name:      "rule-ls",
 				Usage:     "List rules for a given tenant,policy",
 				ArgsUsage: "[policy]",
-				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
+				Flags:     []cli.Flag{tenantFlag, jsonFlag, quietFlag},
 				Action:    listRules,
 			},
 			{
@@ -297,7 +297,7 @@ var Commands = []cli.Command{
 				Name:    "ls",
 				Aliases: []string{"list"},
 				Usage:   "List external contracts",
-				Flags:   []cli.Flag{quietFlag, jsonFlag, tenantFlag},
+				Flags:   []cli.Flag{quietFlag, allFlag, jsonFlag, tenantFlag},
 				Action:  listExternalContracts,
 			},
 			{
