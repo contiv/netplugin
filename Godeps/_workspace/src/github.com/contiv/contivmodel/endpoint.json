@@ -5,12 +5,12 @@
 			"name": "endpoint",
 			"version": "v1",
 			"type": "object",
-			"key": [ "name" ],
+			"key": [ "endpointID" ],
 			"operProperties": {
 				"network": {
 					"type": "string"
 				},
-				"name": {
+				"endpointID": {
 					"type": "string"
 				},
 				"serviceName": {
@@ -23,9 +23,6 @@
 					"type": "string"
 				},
 				"endpointGroupKey": {
-					"type": "string"
-				},
-				"attachUUID": {
 					"type": "string"
 				},
 				"ipAddress": {
@@ -48,6 +45,9 @@
 					"type": "string"
 				},
 				"containerID": {
+					"type": "string"
+				},
+				"containerName": {
 					"type": "string"
 				}
 			}
