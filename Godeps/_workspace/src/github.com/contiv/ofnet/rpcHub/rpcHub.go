@@ -24,10 +24,23 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 )
+
+// Info for eahc client
+type RpcClient struct {
+	servAddr string
+	portNo   uint16
+	client   *rpc.Client
+	conn     net.Conn
+}
+
+// DB of all existing clients
+var clientDb map[string]*RpcClient = make(map[string]*RpcClient)
+var dbLock sync.Mutex
 
 // Create a new RPC server
 func NewRpcServer(portNo uint16) (*rpc.Server, net.Listener) {
@@ -96,17 +109,6 @@ func dialRpcClient(servAddr string, portNo uint16) (*rpc.Client, net.Conn) {
 	return client, conn
 }
 
-// Info for eahc client
-type RpcClient struct {
-	servAddr string
-	portNo   uint16
-	client   *rpc.Client
-	conn     net.Conn
-}
-
-// DB of all existing clients
-var clientDb map[string]*RpcClient = make(map[string]*RpcClient)
-
 // Get a client to the rpc server
 func Client(servAddr string, portNo uint16) *RpcClient {
 	clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
@@ -125,7 +127,10 @@ func Client(servAddr string, portNo uint16) *RpcClient {
 		conn:     conn,
 	}
 
+	dbLock.Lock()
 	clientDb[clientKey] = &rpcClient
+	dbLock.Unlock()
+
 	return &rpcClient
 }
 

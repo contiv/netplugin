@@ -70,7 +70,7 @@ func NewVrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vrouter {
 
 	// Create policy agent
 	vrouter.policyAgent = NewPolicyAgent(agent, rpcServ)
-	vrouter.svcProxy = NewServiceProxy()
+	vrouter.svcProxy = NewServiceProxy(agent)
 
 	// Create a flow dbs and my router mac
 	vrouter.flowDb = make(map[string]*ofctrl.Flow)

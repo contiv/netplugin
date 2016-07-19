@@ -87,6 +87,7 @@ type flowHdl struct {
 // ServiceProxy is an instance of a service proxy
 type ServiceProxy struct {
 	ofSwitch         *ofctrl.OFSwitch               // openflow switch we are talking to
+	agent            *OfnetAgent                    // Pointer back to ofnet agent that owns this
 	dNATTable        *ofctrl.Table                  // proxy dNAT rules table
 	sNATTable        *ofctrl.Table                  // proxy sNAT rules table
 	dNATNext         *ofctrl.Table                  // Next table to goto for dNAT'ed packets
@@ -156,7 +157,7 @@ func getNATKey(epIP, natT string, p *PortSpec) string {
 // addNATFlow sets up a NAT flow
 // natT must be "Src" or "Dst"
 func (svcOp *proxyOper) addNATFlow(this, next *ofctrl.Table, p *PortSpec,
-	ipSa, ipDa, ipNew *net.IP, natT string) (*ofctrl.Flow, error) {
+	ipSa, ipDa, ipNew *net.IP, natT, macDA string) (*ofctrl.Flow, error) {
 
 	// Check if we already installed this flow
 	key := ""
@@ -209,6 +210,19 @@ func (svcOp *proxyOper) addNATFlow(this, next *ofctrl.Table, p *PortSpec,
 	} else {
 		natFlow.SetL4Field(p.SvcPort, l4field)
 	}
+
+	if macDA != "" {
+		// Update dmac as well
+		dmac, err := net.ParseMAC(macDA)
+		if err != nil {
+			log.Errorf("Error parsing mac: %v", err)
+			return nil, errors.New("Proxy addNATFlow failed to parse MAC")
+		}
+
+		log.Infof("Rewrite mac to %s for provider", macDA)
+		natFlow.SetMacDa(dmac)
+	}
+
 	natFlow.Next(next)
 	svcOp.natFlows[key] = natFlow
 	log.Infof("Added NAT %s to %s", key, ipNew.String())
@@ -525,10 +539,11 @@ func (proxy *ServiceProxy) ProviderUpdate(svcName string, providers []string) {
 }
 
 // NewServiceProxy Creates a new service proxy
-func NewServiceProxy() *ServiceProxy {
+func NewServiceProxy(agent *OfnetAgent) *ServiceProxy {
 	svcProxy := new(ServiceProxy)
 
 	// initialize
+	svcProxy.agent = agent
 	svcProxy.catalogue.SvcMap = make(map[string]ServiceSpec)
 	svcProxy.catalogue.ProvMap = make(map[string]Providers)
 	svcProxy.operState = make(map[string]*proxyOper)
@@ -597,6 +612,27 @@ func getInPort(pkt *ofctrl.PacketIn) uint32 {
 	return openflow13.P_ANY
 }
 
+// getRewriteMAC returns the providers mac if the client and provider are
+// in the same subnet
+func (proxy *ServiceProxy) getRewriteMAC(inPort uint32, provIP net.IP) string {
+	clientEP := proxy.agent.getLocalEndpoint(inPort)
+	if clientEP != nil {
+		provEP := proxy.agent.getEndpointByIpVlan(provIP, clientEP.Vlan)
+		if provEP != nil {
+			if provEP.Vlan == clientEP.Vlan {
+				return provEP.MacAddrStr
+			}
+		}
+
+		log.Debugf("provEP not found for vlan %d", clientEP.Vlan)
+	} else {
+		log.Debugf("ClientEP not found for port %d", inPort)
+	}
+
+	log.Debugf("ProvMac not found for %s", provIP.String())
+	return ""
+}
+
 // HandlePkt processes a received pkt from a matching table entry
 func (proxy *ServiceProxy) HandlePkt(pkt *ofctrl.PacketIn) {
 
@@ -632,6 +668,8 @@ func (proxy *ServiceProxy) HandlePkt(pkt *ofctrl.PacketIn) {
 		return
 	}
 
+	inPort := getInPort(pkt)
+	provMac := proxy.getRewriteMAC(inPort, provIP)
 	// use copies of fields from the pkt
 	ipSrc := net.ParseIP(ip.NWSrc.String())
 	ipDst := net.ParseIP(ip.NWDst.String())
@@ -640,7 +678,7 @@ func (proxy *ServiceProxy) HandlePkt(pkt *ofctrl.PacketIn) {
 	// setup nat rules in both directions for all ports of the service
 	for _, p := range operEntry.Ports {
 		// set up outgoing NAT
-		f, err := operEntry.addNATFlow(proxy.dNATTable, proxy.dNATNext, &p, &ipSrc, &ipDst, &provIP, spDNAT)
+		f, err := operEntry.addNATFlow(proxy.dNATTable, proxy.dNATNext, &p, &ipSrc, &ipDst, &provIP, spDNAT, provMac)
 		if err == nil {
 			fInfo.flow = f
 			proxy.flowMap[f.FlowID] = fInfo
@@ -649,7 +687,7 @@ func (proxy *ServiceProxy) HandlePkt(pkt *ofctrl.PacketIn) {
 		}
 
 		// set up incoming NAT
-		f, err = operEntry.addNATFlow(proxy.sNATTable, proxy.sNATNext, &p, &provIP, &ipSrc, &ipDst, spSNAT)
+		f, err = operEntry.addNATFlow(proxy.sNATTable, proxy.sNATNext, &p, &provIP, &ipSrc, &ipDst, spSNAT, "")
 		if err == nil {
 			fInfo.flow = f
 			proxy.flowMap[f.FlowID] = fInfo
@@ -665,7 +703,7 @@ func (proxy *ServiceProxy) HandlePkt(pkt *ofctrl.PacketIn) {
 
 	// Packet out
 	pktOut := openflow13.NewPacketOut()
-	pktOut.InPort = getInPort(pkt)
+	pktOut.InPort = inPort
 	pktOut.Data = &pkt.Data
 	pktOut.AddAction(openflow13.NewActionOutput(openflow13.P_TABLE))
 
