@@ -20,8 +20,6 @@ import (
 	"errors"
 
 	"github.com/shaleman/libOpenflow/openflow13"
-
-	// log "github.com/Sirupsen/logrus"
 )
 
 // Initialize the fgraph elements on the switch

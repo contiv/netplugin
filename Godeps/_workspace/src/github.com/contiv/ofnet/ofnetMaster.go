@@ -163,7 +163,9 @@ func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 	}
 
 	// Save the endpoint in DB
+	self.masterMutex.Lock()
 	self.endpointDb[ep.EndpointID] = ep
+	self.masterMutex.Unlock()
 
 	// Publish it to all agents except where it came from
 	for _, node := range self.agentDb {
@@ -200,7 +202,9 @@ func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 	}
 
 	// Delete the endpoint from DB
+	self.masterMutex.Lock()
 	delete(self.endpointDb, ep.EndpointID)
+	self.masterMutex.Unlock()
 
 	// Publish it to all agents except where it came from
 	for _, node := range self.agentDb {
@@ -230,9 +234,11 @@ func (self *OfnetMaster) AddRule(rule *OfnetPolicyRule) error {
 	}
 
 	// Save the rule in DB
+	self.masterMutex.Lock()
 	self.policyDb[rule.RuleId] = rule
+	self.masterMutex.Unlock()
 
-	// Publish it to all agents except where it came from
+	// Publish it to all agents
 	for _, node := range self.agentDb {
 		var resp bool
 
@@ -257,9 +263,11 @@ func (self *OfnetMaster) DelRule(rule *OfnetPolicyRule) error {
 	}
 
 	// Remove the rule from DB
+	self.masterMutex.Lock()
 	delete(self.policyDb, rule.RuleId)
+	self.masterMutex.Unlock()
 
-	// Publish it to all agents except where it came from
+	// Publish it to all agents
 	for _, node := range self.agentDb {
 		var resp bool
 
@@ -278,7 +286,7 @@ func (self *OfnetMaster) DelRule(rule *OfnetPolicyRule) error {
 
 // Make a dummy RPC call to all agents. for testing purposes..
 func (self *OfnetMaster) MakeDummyRpcCall() error {
-	// Publish it to all agents except where it came from
+	// Call all agents
 	for _, node := range self.agentDb {
 		var resp bool
 		dummyArg := "dummy string"

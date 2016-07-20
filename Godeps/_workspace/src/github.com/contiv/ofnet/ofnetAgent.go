@@ -181,12 +181,12 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 }
 
 func (self *OfnetAgent) lockDB() {
-	log.Infof("Locking endpoint db %s", self.dpName)
+	log.Debugf("Locking endpoint db %s", self.dpName)
 	self.mutex.Lock()
 }
 
 func (self *OfnetAgent) unlockDB() {
-	log.Infof("Unlocking endpoint db %s", self.dpName)
+	log.Debugf("Unlocking endpoint db %s", self.dpName)
 	self.mutex.Unlock()
 }
 
@@ -217,6 +217,16 @@ func (self *OfnetAgent) getEndpointByIpVrf(ipAddr net.IP, vrf string) *OfnetEndp
 	if self.endpointDb != nil && vrf != "" {
 		return self.endpointDb[ipAddr.String()+":"+vrf]
 	}
+	return nil
+}
+
+// GetLocalEndpoint finds the endpoint based on the port number
+func (self *OfnetAgent) getLocalEndpoint(portNo uint32) *OfnetEndpoint {
+	ep, found := self.localEndpointDb[portNo]
+	if found {
+		return ep
+	}
+
 	return nil
 }
 
@@ -307,7 +317,9 @@ func (self *OfnetAgent) AddMaster(masterInfo *OfnetNode, ret *bool) error {
 	masterKey := fmt.Sprintf("%s:%d", masterInfo.HostAddr, masterInfo.HostPort)
 
 	// Save it in DB
+	self.lockDB()
 	self.masterDb[masterKey] = master
+	self.unlockDB()
 
 	// My info to send to master
 	myInfo := new(OfnetNode)
@@ -354,7 +366,9 @@ func (self *OfnetAgent) RemoveMaster(masterInfo *OfnetNode) error {
 	masterKey := fmt.Sprintf("%s:%d", masterInfo.HostAddr, masterInfo.HostPort)
 
 	// Remove it from DB
+	self.lockDB()
 	delete(self.masterDb, masterKey)
+	self.unlockDB()
 
 	return nil
 }
@@ -369,7 +383,9 @@ func (self *OfnetAgent) InjectGARPs(epgID int, resp *bool) error {
 // This takes ofp port number, mac address, vlan , VrfId and IP address of the port.
 func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	// Add port vlan mapping
+	self.lockDB()
 	self.portVlanMap[endpoint.PortNo] = &endpoint.Vlan
+	self.unlockDB()
 
 	// Map Vlan to VNI
 	vni := self.vlanVniMap[endpoint.Vlan]
@@ -423,8 +439,10 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	}
 
 	// Add the endpoint to local routing table
+	self.lockDB()
 	self.endpointDb[epId] = epreg
 	self.localEndpointDb[endpoint.PortNo] = epreg
+	self.unlockDB()
 
 	// Send the endpoint to all known masters
 	for _, master := range self.masterDb {
@@ -445,9 +463,7 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 
 // Remove local endpoint
 func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
-	// Clear it from DB
-	delete(self.portVlanMap, portNo)
-
+	// find the local copy
 	epreg := self.localEndpointDb[portNo]
 	if epreg == nil {
 		log.Errorf("Endpoint not found for port %d", portNo)
@@ -461,8 +477,11 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 	}
 
 	// delete the endpoint from local endpoint table
+	self.lockDB()
 	delete(self.endpointDb, epreg.EndpointID)
 	delete(self.localEndpointDb, portNo)
+	delete(self.portVlanMap, portNo)
+	self.unlockDB()
 
 	// Send the DELETE to all known masters
 	for _, master := range self.masterDb {
@@ -537,9 +556,10 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 	log.Infof("ofnet Adding Vlan %d. Vni %d", vlanId, vni)
 
 	// store it in DB
-
+	self.lockDB()
 	self.vlanVniMap[vlanId] = &vni
 	self.vniVlanMap[vni] = &vlanId
+	self.unlockDB()
 
 	// Call the datapath
 	err := self.datapath.AddVlan(vlanId, vni, Vrf)

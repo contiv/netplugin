@@ -18,8 +18,6 @@ package ofctrl
 
 import (
 	"github.com/shaleman/libOpenflow/openflow13"
-
-	// log "github.com/Sirupsen/logrus"
 )
 
 type Output struct {

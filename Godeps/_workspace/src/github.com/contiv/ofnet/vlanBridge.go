@@ -87,7 +87,7 @@ func NewVlanBridge(agent *OfnetAgent, rpcServ *rpc.Server) *VlanBridge {
 	vlan.garpMutex = &sync.Mutex{}
 	vlan.garpBGActive = false
 
-	vlan.svcProxy = NewServiceProxy()
+	vlan.svcProxy = NewServiceProxy(agent)
 	// Create policy agent
 	vlan.policyAgent = NewPolicyAgent(agent, rpcServ)
 
