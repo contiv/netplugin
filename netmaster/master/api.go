@@ -352,8 +352,29 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 
 		epCfg := &mastercfg.CfgEndpointState{}
 		epCfg.StateDriver = stateDriver
-		nwID := svcProvUpdReq.Network + "." + svcProvUpdReq.Tenant
-		epCfg.ID = getEpName(nwID, &intent.ConfigEP{Container: svcProvUpdReq.Container})
+
+		nwCfg := &mastercfg.CfgNetworkState{}
+		nwCfg.StateDriver = stateDriver
+		//check if networkname is epg name or network name
+		key := mastercfg.GetNwCfgKey(svcProvUpdReq.Network, svcProvUpdReq.Tenant)
+		err := nwCfg.Read(key)
+		if err != nil {
+			if !strings.Contains(err.Error(), "Key not found") {
+				return nil, err
+			}
+			//If network is not found then networkname is epg
+			epgCfg := &mastercfg.EndpointGroupState{}
+			epgCfg.StateDriver = stateDriver
+			key = mastercfg.GetEndpointGroupKey(svcProvUpdReq.Network, svcProvUpdReq.Tenant)
+			err := epgCfg.Read(key)
+			if err != nil {
+				return nil, err
+			}
+			//get the network associated with the endpoint group
+			key = mastercfg.GetNwCfgKey(epgCfg.NetworkName, svcProvUpdReq.Tenant)
+		}
+
+		epCfg.ID = getEpName(key, &intent.ConfigEP{Container: svcProvUpdReq.Container})
 
 		err = epCfg.Read(epCfg.ID)
 		if err != nil {

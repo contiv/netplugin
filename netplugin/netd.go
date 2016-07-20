@@ -766,7 +766,9 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 		if err != nil {
 			panic(err)
 		}
+
 		containerInfo, err := cli.ContainerInspect(context.Background(), event.ID)
+
 		if err != nil {
 			log.Errorf("Container Inspect failed :%s", err)
 			return
@@ -778,18 +780,17 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 				return
 			}
 			containerTenant := getTenantFromContainerInspect(&containerInfo)
-			network, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
+			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
 			if err != nil {
 				log.Errorf("Error getting container network info for %v.Err:%s", event.ID, err)
 			}
 			container := getContainerFromContainerInspect(&containerInfo)
 			if ipAddress != "" {
 				//Create provider info
-				networkname := strings.Split(network, "/")[0]
 				providerUpdReq.IPAddress = ipAddress
 				providerUpdReq.ContainerID = event.ID
 				providerUpdReq.Tenant = containerTenant
-				providerUpdReq.Network = networkname
+				providerUpdReq.Network = networkName
 				providerUpdReq.Event = "start"
 				providerUpdReq.Container = container
 				providerUpdReq.Labels = make(map[string]string)
@@ -848,18 +849,13 @@ func getTenantFromContainerInspect(containerInfo *types.ContainerJSON) string {
 func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (string, string, error) {
 	var networkName string
 	var IPAddress string
-	var networkUUID string
 	if containerInfo != nil && containerInfo.NetworkSettings != nil {
-		for _, endpoint := range containerInfo.NetworkSettings.Networks {
+		for network, endpoint := range containerInfo.NetworkSettings.Networks {
 			IPAddress = endpoint.IPAddress
-			networkUUID = endpoint.NetworkID
-			_, network, serviceName, err := dockplugin.GetDockerNetworkName(networkUUID)
-			if err != nil {
-				log.Errorf("Error getting docker networkname for network uuid : %s", networkUUID)
-				return "", "", err
-			}
-			if serviceName != "" {
-				networkName = serviceName
+
+			if strings.Contains(network, "/") {
+				//network name is of the form networkname/tenantname for non default tenant
+				networkName = strings.Split(network, "/")[0]
 			} else {
 				networkName = network
 			}

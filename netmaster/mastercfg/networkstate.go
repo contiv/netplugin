@@ -104,3 +104,8 @@ func (s *CfgNetworkState) DecrEpCount() error {
 	s.EpCount--
 	return s.Write()
 }
+
+//GetNwCfgKey returns the key for network state
+func GetNwCfgKey(network, tenant string) string {
+	return network + "." + tenant
+}
