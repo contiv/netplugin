@@ -823,13 +823,12 @@ func deleteServiceLB(ctx *cli.Context) {
 	errCheck(ctx, getClient(ctx).ServiceLBDelete(tenantName, serviceName))
 }
 
-//listServiceLB is a netctl interface routine to delete
+//listServiceLB is a netctl interface routine to list
 //service object
 func listServiceLB(ctx *cli.Context) {
-	argCheck(1, ctx)
+	argCheck(0, ctx)
 
-	serviceName := ctx.Args()[0]
-	tenantName := ctx.String("tenantName")
+	tenantName := ctx.String("tenant")
 	if len(tenantName) == 0 {
 		tenantName = "default"
 	}
@@ -838,14 +837,24 @@ func listServiceLB(ctx *cli.Context) {
 
 	filtered := []*contivClient.ServiceLB{}
 
-	for _, svc := range *svcList {
-		if svc.ServiceName == serviceName || ctx.Bool("all") && svc.TenantName == tenantName {
-			filtered = append(filtered, svc)
+	if ctx.Bool("all") {
+		filtered = *svcList
+	} else {
+		for _, svc := range *svcList {
+			if svc.TenantName == tenantName {
+				filtered = append(filtered, svc)
+			}
 		}
 	}
 
 	if ctx.Bool("json") {
 		dumpJSONList(ctx, filtered)
+	} else if ctx.Bool("quiet") {
+		services := ""
+		for _, service := range filtered {
+			services += service.ServiceName + "\n"
+		}
+		os.Stdout.WriteString(services)
 	} else {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)

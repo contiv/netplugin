@@ -486,7 +486,7 @@ var Commands = []cli.Command{
 				Name:      "ls",
 				Aliases:   []string{"list"},
 				Usage:     "List service objects",
-				ArgsUsage: "[servicename]",
+				ArgsUsage: " ",
 				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
 				Action:    listServiceLB,
 			},
