@@ -22,7 +22,7 @@
                       "bandwidth":  {
                               "type": "string",
                               "length": 64,
-                              "format": "^((([1-9][0-9]*((k|K|m|M|g|G)(bps|BPS)))|(K|k|M|m|G|g)|(K|k|M|m|G|g)(b))|(([1-9][0-9]* ((k|K|m|M|g|G)(bps|BPS)))|(K|k|M|m|G|g)|(K|k|M|m|G|g)(b)))?$",
+                              "format": "^([1-9][0-9]* (([kmgKMG{1}]bps)|[kmgKMG{1}]|(kb|Kb|Gb|gb|Mb|mb)))?$|^([1-9][0-9]*(((k|m|g|K|G|M)bps)|(k|m|g|K|M|G)|(kb|Kb|Gb|gb|Mb|mb)))?$",
                               "title":  "Allocated bandwidth",
                               "description":  "Amount of allocated outbound bandwidth",
                               "ShowSummary":  true

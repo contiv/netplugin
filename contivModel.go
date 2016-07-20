@@ -2570,7 +2570,7 @@ func ValidateNetprofile(obj *Netprofile) error {
 		return errors.New("bandwidth string too long")
 	}
 
-	bandwidthMatch := regexp.MustCompile("^((([1-9][0-9]*((k|K|m|M|g|G)(bps|BPS)))|(K|k|M|m|G|g)|(K|k|M|m|G|g)(b))|(([1-9][0-9]* ((k|K|m|M|g|G)(bps|BPS)))|(K|k|M|m|G|g)|(K|k|M|m|G|g)(b)))?$")
+	bandwidthMatch := regexp.MustCompile("^([1-9][0-9]* (([kmgKMG{1}]bps)|[kmgKMG{1}]|(kb|Kb|Gb|gb|Mb|mb)))?$|^([1-9][0-9]*(((k|m|g|K|G|M)bps)|(k|m|g|K|M|G)|(kb|Kb|Gb|gb|Mb|mb)))?$")
 	if bandwidthMatch.MatchString(obj.Bandwidth) == false {
 		return errors.New("bandwidth string invalid format")
 	}
