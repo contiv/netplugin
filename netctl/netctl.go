@@ -9,7 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	contivClient "github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/version"
@@ -33,12 +32,12 @@ func createPolicy(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
 
-	logrus.Infof("Creating policy %s:%s", tenant, policy)
-
 	errCheck(ctx, getClient(ctx).PolicyPost(&contivClient.Policy{
 		PolicyName: policy,
 		TenantName: tenant,
 	}))
+
+	fmt.Printf("Creating policy %s:%s\n", tenant, policy)
 }
 
 func deletePolicy(ctx *cli.Context) {
@@ -47,7 +46,7 @@ func deletePolicy(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
 
-	logrus.Infof("Deleting policy %s:%s", tenant, policy)
+	fmt.Printf("Deleting policy %s:%s\n", tenant, policy)
 
 	errCheck(ctx, getClient(ctx).PolicyDelete(tenant, policy))
 }
@@ -62,30 +61,28 @@ func listPolicies(ctx *cli.Context) {
 
 	var filtered []*contivClient.Policy
 
-	if !ctx.Bool("all") {
-		for _, policy := range *policies {
-			if policy.TenantName == tenant {
-				filtered = append(filtered, policy)
-			}
+	for _, policy := range *policies {
+		if policy.TenantName == tenant || ctx.Bool("all") {
+			filtered = append(filtered, policy)
 		}
+	}
 
-		if ctx.Bool("json") {
-			dumpJSONList(ctx, filtered)
-		} else if ctx.Bool("quiet") {
-			policies := ""
-			for _, policy := range filtered {
-				policies += policy.PolicyName + "\n"
-			}
-			os.Stdout.WriteString(policies)
-		} else {
-			writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-			defer writer.Flush()
-			writer.Write([]byte("Tenant\tPolicy\n"))
-			writer.Write([]byte("------\t------\n"))
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, filtered)
+	} else if ctx.Bool("quiet") {
+		policies := ""
+		for _, policy := range filtered {
+			policies += policy.PolicyName + "\n"
+		}
+		os.Stdout.WriteString(policies)
+	} else {
+		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+		defer writer.Flush()
+		writer.Write([]byte("Tenant\tPolicy\n"))
+		writer.Write([]byte("------\t------\n"))
 
-			for _, policy := range filtered {
-				writer.Write([]byte(fmt.Sprintf("%s\t%s\n", policy.TenantName, policy.PolicyName)))
-			}
+		for _, policy := range filtered {
+			writer.Write([]byte(fmt.Sprintf("%s\t%s\n", policy.TenantName, policy.PolicyName)))
 		}
 	}
 }
@@ -168,9 +165,11 @@ func listRules(ctx *cli.Context) {
 	writeRules := map[int][]*contivClient.Rule{}
 
 	var writePrio []int
+	var results []*contivClient.Rule
 
 	for _, rule := range *rules {
-		if ctx.Bool("all") || (rule.TenantName == tenant && rule.PolicyName == policy) {
+
+		if rule.TenantName == tenant && rule.PolicyName == policy {
 			prio := rule.Priority
 
 			if _, ok := writeRules[prio]; !ok {
@@ -183,8 +182,6 @@ func listRules(ctx *cli.Context) {
 	}
 
 	sort.Ints(writePrio)
-
-	results := []*contivClient.Rule{}
 
 	for _, prio := range writePrio {
 		for _, rule := range writeRules[prio] {
@@ -285,6 +282,8 @@ func createNetwork(ctx *cli.Context) {
 		PktTag:      pktTag,
 		NwType:      nwType,
 	}))
+
+	fmt.Printf("Creating network %s:%s\n", tenant, network)
 }
 
 func deleteNetwork(ctx *cli.Context) {
@@ -293,7 +292,7 @@ func deleteNetwork(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 
-	logrus.Infof("Deleting network %s:%s", tenant, network)
+	fmt.Printf("Deleting network %s:%s\n", tenant, network)
 
 	errCheck(ctx, getClient(ctx).NetworkDelete(tenant, network))
 
@@ -305,7 +304,7 @@ func inspectNetwork(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 
-	logrus.Infof("Inspeting network: %s tenant: %s", network, tenant)
+	fmt.Printf("Inspeting network: %s tenant: %s\n", network, tenant)
 
 	net, err := getClient(ctx).NetworkInspect(tenant, network)
 	errCheck(ctx, err)
@@ -371,11 +370,11 @@ func createTenant(ctx *cli.Context) {
 
 	tenant := ctx.Args()[0]
 
-	logrus.Infof("Creating tenant: %s", tenant)
-
 	errCheck(ctx, getClient(ctx).TenantPost(&contivClient.Tenant{
 		TenantName: tenant,
 	}))
+
+	fmt.Printf("Creating tenant: %s\n", tenant)
 }
 
 func deleteTenant(ctx *cli.Context) {
@@ -383,7 +382,7 @@ func deleteTenant(ctx *cli.Context) {
 
 	tenant := ctx.Args()[0]
 
-	logrus.Infof("Deleting tenant %s", tenant)
+	fmt.Printf("Deleting tenant %s\n", tenant)
 
 	errCheck(ctx, getClient(ctx).TenantDelete(tenant))
 }
@@ -422,7 +421,7 @@ func inspectEndpoint(ctx *cli.Context) {
 
 	epid := ctx.Args()[0]
 
-	logrus.Infof("Inspecting endpoint: %s", epid)
+	fmt.Printf("Inspecting endpoint: %s\n", epid)
 
 	net, err := getClient(ctx).EndpointInspect(epid)
 	errCheck(ctx, err)
@@ -450,6 +449,8 @@ func createEndpointGroup(ctx *cli.Context) {
 		Policies:         policies,
 		ExtContractsGrps: extContractsGrps,
 	}))
+
+	fmt.Printf("Creating EndpointGroup %s:%s\n", tenant, group)
 }
 
 func deleteEndpointGroup(ctx *cli.Context) {
@@ -553,7 +554,7 @@ func deleteBgp(ctx *cli.Context) {
 	argCheck(1, ctx)
 
 	hostname := ctx.Args()[0]
-	logrus.Infof("Deleting Bgp router config %s:%s", hostname)
+	fmt.Printf("Deleting Bgp router config: %s\n", hostname)
 
 	errCheck(ctx, getClient(ctx).BgpDelete(hostname))
 }
@@ -561,30 +562,25 @@ func deleteBgp(ctx *cli.Context) {
 //listBgpNeighbors is netctl interface routine to list
 //Bgp neighbor configs for a given host
 func listBgp(ctx *cli.Context) {
-	argCheck(1, ctx)
-
-	hostname := ctx.Args()[0]
+	argCheck(0, ctx)
 
 	bgpList, err := getClient(ctx).BgpList()
 	errCheck(ctx, err)
 
-	filtered := []*contivClient.Bgp{}
-
-	for _, host := range *bgpList {
-		if host.Hostname == hostname || ctx.Bool("all") {
-			filtered = append(filtered, host)
-		}
-	}
-
 	if ctx.Bool("json") {
-		dumpJSONList(ctx, filtered)
+		dumpJSONList(ctx, bgpList)
+	} else if ctx.Bool("quite") {
+		bgpName := ""
+		for _, bgp := range *bgpList {
+			bgpName += bgp.Hostname + "\n"
+		}
+		os.Stdout.WriteString(bgpName)
 	} else {
-
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
 		writer.Write([]byte("HostName\tRouterIP\tAS\tNeighbor\tNeighborAS\n"))
 		writer.Write([]byte("---------\t--------\t-------\t--------\t-------\n"))
-		for _, group := range filtered {
+		for _, group := range *bgpList {
 			writer.Write(
 				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\n",
 					group.Hostname,
@@ -619,7 +615,7 @@ func showGlobal(ctx *cli.Context) {
 func inspectGlobal(ctx *cli.Context) {
 	argCheck(0, ctx)
 
-	logrus.Infof("Inspecting global")
+	fmt.Printf("Inspecting global\n")
 
 	ginfo, err := getClient(ctx).GlobalInspect("global")
 	errCheck(ctx, err)
@@ -656,7 +652,7 @@ func showVersion(ctx *cli.Context) {
 
 	ver := version.Info{}
 	if err := getObject(ctx, versionURL(ctx), &ver); err != nil {
-		fmt.Printf("Unable to fetch version information")
+		fmt.Printf("Unable to fetch version information\n")
 	} else {
 		fmt.Printf("Client Version:\n")
 		fmt.Printf(version.String())
@@ -682,6 +678,8 @@ func createAppProfile(ctx *cli.Context) {
 		AppProfileName: prof,
 		EndpointGroups: groups,
 	}))
+
+	fmt.Printf("Creating AppProfile %s:%s\n", tenant, prof)
 }
 
 func updateAppProfile(ctx *cli.Context) {
@@ -740,7 +738,7 @@ func listAppProfiles(ctx *cli.Context) {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
 		writer.Write([]byte("Tenant\tAppProfile\tGroups\n"))
-		writer.Write([]byte("------\t-----\t---------\n"))
+		writer.Write([]byte("------\t----------\t------\n"))
 		for _, p := range filtered {
 			groups := ""
 			if p.EndpointGroups != nil {
@@ -806,6 +804,8 @@ func createServiceLB(ctx *cli.Context) {
 	service.Selectors = append(service.Selectors, selectors...)
 	service.Ports = append(service.Ports, ports...)
 	errCheck(ctx, getClient(ctx).ServiceLBPost(service))
+
+	fmt.Printf("Creating ServiceLB %s:%s\n", tenantName, serviceName)
 }
 
 //deleteServiceLB is a netctl interface routine to delete
@@ -818,7 +818,7 @@ func deleteServiceLB(ctx *cli.Context) {
 	if len(tenantName) == 0 {
 		tenantName = "default"
 	}
-	fmt.Printf("Deleting Service  %s,%s", serviceName, tenantName)
+	fmt.Printf("Deleting Service  %s,%s\n", serviceName, tenantName)
 
 	errCheck(ctx, getClient(ctx).ServiceLBDelete(tenantName, serviceName))
 }
@@ -867,31 +867,37 @@ func listServiceLB(ctx *cli.Context) {
 func listExternalContracts(ctx *cli.Context) {
 	argCheck(0, ctx)
 
-	extContractsGroups, err := getClient(ctx).ExtContractsGroupList()
+	extContractsGroupsList, err := getClient(ctx).ExtContractsGroupList()
 	errCheck(ctx, err)
 
 	tenant := ctx.String("tenant")
 
+	var filtered []*contivClient.ExtContractsGroup
+
+	for _, extContractsGroup := range *extContractsGroupsList {
+		if extContractsGroup.TenantName == tenant || ctx.Bool("all") {
+			filtered = append(filtered, extContractsGroup)
+		}
+	}
+
 	if ctx.Bool("json") {
-		dumpJSONList(ctx, extContractsGroups)
+		dumpJSONList(ctx, filtered)
 	} else if ctx.Bool("quiet") {
 		contractsGroupNames := ""
-		for _, extContractsGroup := range *extContractsGroups {
+		for _, extContractsGroup := range filtered {
 			contractsGroupNames += extContractsGroup.ContractsGroupName + "\n"
 		}
 		os.Stdout.WriteString(contractsGroupNames)
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		for _, extContractsGroup := range *extContractsGroups {
-			if extContractsGroup.TenantName != tenant {
-				continue
-			}
-			writer.Write([]byte(fmt.Sprintf(" Name: %s\t\tType: %s\n", extContractsGroup.ContractsGroupName, extContractsGroup.ContractsType)))
-			writer.Write([]byte(fmt.Sprintf(" Contracts:\n")))
-			for _, contract := range extContractsGroup.Contracts {
-				writer.Write([]byte(fmt.Sprintf("\t\t%s\n", contract)))
-			}
+
+		writer.Write([]byte("Tenant\tName\t\tType\t\tContracts\n"))
+		writer.Write([]byte("------\t------\t\t------\t\t-------\n"))
+		for _, extContracts := range filtered {
+
+			writer.Write([]byte(fmt.Sprintf("%s\t%s\t\t%s\t%s\n", extContracts.TenantName, extContracts.ContractsGroupName, extContracts.ContractsType, extContracts.Contracts)))
+
 		}
 	}
 }
@@ -901,7 +907,7 @@ func deleteExternalContracts(ctx *cli.Context) {
 	contractsGroupName := ctx.Args()[0]
 	tenant := ctx.String("tenant")
 
-	logrus.Infof("Deleting external contracts group %s in tenant %s", contractsGroupName, tenant)
+	fmt.Printf("Deleting external contracts group %s in tenant %s\n", contractsGroupName, tenant)
 	errCheck(ctx, getClient(ctx).ExtContractsGroupDelete(tenant, contractsGroupName))
 
 }
@@ -935,6 +941,8 @@ func createExternalContracts(ctx *cli.Context) {
 		ContractsType:      contractsType,
 		Contracts:          contracts,
 	}))
+
+	fmt.Printf("Creating ExternalContracts %s:%s\n", tenant, contractsGroupName)
 }
 
 func inspectServiceLb(ctx *cli.Context) {
@@ -943,7 +951,7 @@ func inspectServiceLb(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	service := ctx.Args()[0]
 
-	logrus.Infof("Inspeting service: %s tenant: %s", service, tenant)
+	fmt.Printf("Inspecting service: %s tenant: %s\n", service, tenant)
 
 	net, err := getClient(ctx).ServiceLBInspect(tenant, service)
 	errCheck(ctx, err)
