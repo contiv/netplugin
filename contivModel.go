@@ -62,16 +62,16 @@ type EndpointOper struct {
 	// oper object key (present for oper only objects)
 	Key string `json:"key,omitempty"`
 
-	AttachUUID       string   `json:"attachUUID,omitempty"`       //
 	ContainerID      string   `json:"containerID,omitempty"`      //
+	ContainerName    string   `json:"containerName,omitempty"`    //
 	EndpointGroupID  int      `json:"endpointGroupId,omitempty"`  //
 	EndpointGroupKey string   `json:"endpointGroupKey,omitempty"` //
+	EndpointID       string   `json:"endpointID,omitempty"`       //
 	HomingHost       string   `json:"homingHost,omitempty"`       //
 	IntfName         string   `json:"intfName,omitempty"`         //
 	IpAddress        []string `json:"ipAddress,omitempty"`
 	Labels           string   `json:"labels,omitempty"`      //
 	MacAddress       string   `json:"macAddress,omitempty"`  //
-	Name             string   `json:"name,omitempty"`        //
 	Network          string   `json:"network,omitempty"`     //
 	ServiceName      string   `json:"serviceName,omitempty"` //
 	VtepIP           string   `json:"vtepIP,omitempty"`      //

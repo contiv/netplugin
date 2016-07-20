@@ -188,16 +188,16 @@ type BgpInspect struct {
 }
 
 type EndpointOper struct {
-	AttachUUID       string   `json:"attachUUID,omitempty"`       //
 	ContainerID      string   `json:"containerID,omitempty"`      //
+	ContainerName    string   `json:"containerName,omitempty"`    //
 	EndpointGroupID  int      `json:"endpointGroupId,omitempty"`  //
 	EndpointGroupKey string   `json:"endpointGroupKey,omitempty"` //
+	EndpointID       string   `json:"endpointID,omitempty"`       //
 	HomingHost       string   `json:"homingHost,omitempty"`       //
 	IntfName         string   `json:"intfName,omitempty"`         //
 	IpAddress        []string `json:"ipAddress,omitempty"`
 	Labels           string   `json:"labels,omitempty"`      //
 	MacAddress       string   `json:"macAddress,omitempty"`  //
-	Name             string   `json:"name,omitempty"`        //
 	Network          string   `json:"network,omitempty"`     //
 	ServiceName      string   `json:"serviceName,omitempty"` //
 	VtepIP           string   `json:"vtepIP,omitempty"`      //
@@ -696,9 +696,9 @@ func (c *ContivClient) BgpInspect(hostname string) (*BgpInspect, error) {
 }
 
 // EndpointInspect gets the endpointInspect object
-func (c *ContivClient) EndpointInspect(name string) (*EndpointInspect, error) {
+func (c *ContivClient) EndpointInspect(endpointID string) (*EndpointInspect, error) {
 	// build key and URL
-	keyStr := name
+	keyStr := endpointID
 	url := c.baseURL + "/api/v1/inspect/endpoints/" + keyStr + "/"
 
 	// http get the object

@@ -153,7 +153,7 @@ class objmodelClient:
 
 	# Inspect endpoint
 	def createEndpoint(self, obj):
-	    postUrl = self.baseUrl + '/api/v1/inspect/endpoint/' + obj.name  + '/'
+	    postUrl = self.baseUrl + '/api/v1/inspect/endpoint/' + obj.endpointID  + '/'
 
 	    retDate = urllib2.urlopen(postUrl)
 	    if retData == "Error":
