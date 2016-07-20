@@ -691,8 +691,6 @@ func main() {
 func processServiceLBEvent(netPlugin *plugin.NetPlugin, opts cliOpts, svcLBCfg *mastercfg.CfgServiceLBState,
 	isDelete bool) error {
 	var err error
-	portSpecList := []core.PortSpec{}
-	portSpec := core.PortSpec{}
 
 	netPlugin.Lock()
 	defer func() { netPlugin.Unlock() }()
@@ -702,23 +700,10 @@ func processServiceLBEvent(netPlugin *plugin.NetPlugin, opts cliOpts, svcLBCfg *
 
 	//create portspect list from state.
 	//Ports format: servicePort:ProviderPort:Protocol
-	for _, port := range svcLBCfg.Ports {
-
-		portInfo := strings.Split(port, ":")
-		if len(portInfo) != 3 {
-			return errors.New("Invalid Port Format")
-		}
-		svcPort := portInfo[0]
-		provPort := portInfo[1]
-		portSpec.Protocol = portInfo[2]
-
-		sPort, _ := strconv.ParseUint(svcPort, 10, 16)
-		portSpec.SvcPort = uint16(sPort)
-
-		pPort, _ := strconv.ParseUint(provPort, 10, 16)
-		portSpec.ProvPort = uint16(pPort)
-
-		portSpecList = append(portSpecList, portSpec)
+	portSpecList, err := getPortInfo(svcLBCfg.Ports)
+	if err != nil {
+		log.Errorf("Error getting ports for the service %s", svcLBCfg.ServiceName)
+		return err
 	}
 
 	spec := &core.ServiceSpec{
@@ -874,4 +859,28 @@ func getContainerFromContainerInspect(containerInfo *types.ContainerJSON) string
 	}
 	return container
 
+}
+
+func getPortInfo(ports []string) ([]core.PortSpec, error) {
+
+	portSpecList := []core.PortSpec{}
+	portSpec := core.PortSpec{}
+	for _, port := range ports {
+
+		portInfo := strings.Split(port, ":")
+		if len(portInfo) != 3 {
+			return nil, errors.New("Invalid Port Format")
+		}
+		svcPort := portInfo[0]
+		provPort := portInfo[1]
+		portSpec.Protocol = strings.ToUpper(portInfo[2])
+
+		sPort, _ := strconv.ParseUint(svcPort, 10, 16)
+		portSpec.SvcPort = uint16(sPort)
+
+		pPort, _ := strconv.ParseUint(provPort, 10, 16)
+		portSpec.ProvPort = uint16(pPort)
+		portSpecList = append(portSpecList, portSpec)
+	}
+	return portSpecList, nil
 }
