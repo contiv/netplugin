@@ -691,8 +691,6 @@ func main() {
 func processServiceLBEvent(netPlugin *plugin.NetPlugin, opts cliOpts, svcLBCfg *mastercfg.CfgServiceLBState,
 	isDelete bool) error {
 	var err error
-	portSpecList := []core.PortSpec{}
-	portSpec := core.PortSpec{}
 
 	netPlugin.Lock()
 	defer func() { netPlugin.Unlock() }()
@@ -702,23 +700,10 @@ func processServiceLBEvent(netPlugin *plugin.NetPlugin, opts cliOpts, svcLBCfg *
 
 	//create portspect list from state.
 	//Ports format: servicePort:ProviderPort:Protocol
-	for _, port := range svcLBCfg.Ports {
-
-		portInfo := strings.Split(port, ":")
-		if len(portInfo) != 3 {
-			return errors.New("Invalid Port Format")
-		}
-		svcPort := portInfo[0]
-		provPort := portInfo[1]
-		portSpec.Protocol = portInfo[2]
-
-		sPort, _ := strconv.ParseUint(svcPort, 10, 16)
-		portSpec.SvcPort = uint16(sPort)
-
-		pPort, _ := strconv.ParseUint(provPort, 10, 16)
-		portSpec.ProvPort = uint16(pPort)
-
-		portSpecList = append(portSpecList, portSpec)
+	portSpecList, err := getPortInfo(svcLBCfg.Ports)
+	if err != nil {
+		log.Errorf("Error getting ports for the service %s", svcLBCfg.ServiceName)
+		return err
 	}
 
 	spec := &core.ServiceSpec{
@@ -766,7 +751,9 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 		if err != nil {
 			panic(err)
 		}
+
 		containerInfo, err := cli.ContainerInspect(context.Background(), event.ID)
+
 		if err != nil {
 			log.Errorf("Container Inspect failed :%s", err)
 			return
@@ -778,18 +765,17 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 				return
 			}
 			containerTenant := getTenantFromContainerInspect(&containerInfo)
-			network, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
+			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
 			if err != nil {
 				log.Errorf("Error getting container network info for %v.Err:%s", event.ID, err)
 			}
 			container := getContainerFromContainerInspect(&containerInfo)
 			if ipAddress != "" {
 				//Create provider info
-				networkname := strings.Split(network, "/")[0]
 				providerUpdReq.IPAddress = ipAddress
 				providerUpdReq.ContainerID = event.ID
 				providerUpdReq.Tenant = containerTenant
-				providerUpdReq.Network = networkname
+				providerUpdReq.Network = networkName
 				providerUpdReq.Event = "start"
 				providerUpdReq.Container = container
 				providerUpdReq.Labels = make(map[string]string)
@@ -848,18 +834,13 @@ func getTenantFromContainerInspect(containerInfo *types.ContainerJSON) string {
 func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (string, string, error) {
 	var networkName string
 	var IPAddress string
-	var networkUUID string
 	if containerInfo != nil && containerInfo.NetworkSettings != nil {
-		for _, endpoint := range containerInfo.NetworkSettings.Networks {
+		for network, endpoint := range containerInfo.NetworkSettings.Networks {
 			IPAddress = endpoint.IPAddress
-			networkUUID = endpoint.NetworkID
-			_, network, serviceName, err := dockplugin.GetDockerNetworkName(networkUUID)
-			if err != nil {
-				log.Errorf("Error getting docker networkname for network uuid : %s", networkUUID)
-				return "", "", err
-			}
-			if serviceName != "" {
-				networkName = serviceName
+
+			if strings.Contains(network, "/") {
+				//network name is of the form networkname/tenantname for non default tenant
+				networkName = strings.Split(network, "/")[0]
 			} else {
 				networkName = network
 			}
@@ -878,4 +859,28 @@ func getContainerFromContainerInspect(containerInfo *types.ContainerJSON) string
 	}
 	return container
 
+}
+
+func getPortInfo(ports []string) ([]core.PortSpec, error) {
+
+	portSpecList := []core.PortSpec{}
+	portSpec := core.PortSpec{}
+	for _, port := range ports {
+
+		portInfo := strings.Split(port, ":")
+		if len(portInfo) != 3 {
+			return nil, errors.New("Invalid Port Format")
+		}
+		svcPort := portInfo[0]
+		provPort := portInfo[1]
+		portSpec.Protocol = strings.ToUpper(portInfo[2])
+
+		sPort, _ := strconv.ParseUint(svcPort, 10, 16)
+		portSpec.SvcPort = uint16(sPort)
+
+		pPort, _ := strconv.ParseUint(provPort, 10, 16)
+		portSpec.ProvPort = uint16(pPort)
+		portSpecList = append(portSpecList, portSpec)
+	}
+	return portSpecList, nil
 }

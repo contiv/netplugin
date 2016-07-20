@@ -1361,6 +1361,10 @@ func validateSelectors(selector string) bool {
 }
 
 func validatePorts(ports []string) bool {
+
+	if len(ports) == 0 {
+		return false
+	}
 	for _, x := range ports {
 		svcPort := strings.Split(x, ":")[0]
 		provPort := strings.Split(x, ":")[1]
@@ -1380,9 +1384,9 @@ func validatePorts(ports []string) bool {
 		}
 
 		switch protocol {
-		case "TCP":
+		case "TCP", "tcp", "Tcp":
 			return true
-		case "UDP":
+		case "UDP", "udp", "Udp":
 			return true
 		default:
 			return false

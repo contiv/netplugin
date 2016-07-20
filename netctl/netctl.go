@@ -826,7 +826,6 @@ func deleteServiceLB(ctx *cli.Context) {
 //listServiceLB is a netctl interface routine to list
 //service object
 func listServiceLB(ctx *cli.Context) {
-	argCheck(0, ctx)
 
 	tenantName := ctx.String("tenant")
 	if len(tenantName) == 0 {
