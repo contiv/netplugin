@@ -270,8 +270,8 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 		Encap:       "vxlan",
 	}
 	if s.fwdMode != "routing" {
-		network.Ipv6Subnet = "2016:0617::/100"
-		network.Ipv6Gateway = "2016:0617::254"
+		network.Ipv6Subnet = "2016:0718::/100"
+		network.Ipv6Gateway = "2016:0718::254"
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
