@@ -230,6 +230,9 @@ func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
 			time.Sleep(20 * time.Second)
 			c.Assert(s.verifyVTEPs(), IsNil)
 
+			c.Assert(s.verifyEPs(containers), IsNil)
+			time.Sleep(2 * time.Second)
+
 			// test ping for all containers
 			c.Assert(s.pingTest(containers), IsNil)
 		}
