@@ -72,19 +72,20 @@ type DeleteEndpointRequest struct {
 	IPv4Address string // Allocated IPv4 address for the endpoint
 }
 
-//SvcProvUpdateRequest is service provider update request from netplugin
-type SvcProvUpdateRequest struct {
-	IPAddress   string            // provider IP
-	ContainerID string            // container id
-	Labels      map[string]string // lables
-	Tenant      string
-	Network     string
-	Event       string
-	Container   string
+//UpdateEndpointRequest has the update endpoint request from netplugin
+type UpdateEndpointRequest struct {
+	IPAddress     string            // provider IP
+	ContainerID   string            // container id
+	Labels        map[string]string // lables
+	Tenant        string
+	Network       string
+	Event         string
+	EndpointID    string
+	ContainerName string
 }
 
-//SvcProvUpdateResponse is service provider update request from netplugin
-type SvcProvUpdateResponse struct {
+//UpdateEndpointResponse is service provider update request from netplugin
+type UpdateEndpointResponse struct {
 	IPAddress string // provider IP
 }
 
@@ -325,27 +326,27 @@ func DeleteEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 	return delResp, nil
 }
 
-//ServiceProviderUpdateHandler handles service provider update event from netplugin
-func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+//UpdateEndpointHandler handles update event from netplugin
+func UpdateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 
-	var svcProvUpdReq SvcProvUpdateRequest
+	var epUpdReq UpdateEndpointRequest
 
 	// Get object from the request
-	err := json.NewDecoder(r.Body).Decode(&svcProvUpdReq)
+	err := json.NewDecoder(r.Body).Decode(&epUpdReq)
 
 	if err != nil {
-		log.Errorf("Error decoding ServiceUpdateRequest. Err %v", err)
+		log.Errorf("Error decoding EndpointUpdateRequest. Err %v", err)
 		return nil, err
 	}
 
-	log.Infof("Recieved ServiceProviderUpdate {%+v}", svcProvUpdReq)
+	log.Infof("Received EndpointUpdateRequest {%+v}", epUpdReq)
 
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return nil, err
 	}
 
-	if svcProvUpdReq.Event == "start" {
+	if epUpdReq.Event == "start" {
 		//Received container start event from netplugin. Check if the Provider
 		//matches any service and perform service provider update if there is a matching
 		//service.
@@ -356,7 +357,7 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 		nwCfg := &mastercfg.CfgNetworkState{}
 		nwCfg.StateDriver = stateDriver
 		//check if networkname is epg name or network name
-		key := mastercfg.GetNwCfgKey(svcProvUpdReq.Network, svcProvUpdReq.Tenant)
+		key := mastercfg.GetNwCfgKey(epUpdReq.Network, epUpdReq.Tenant)
 		err := nwCfg.Read(key)
 		if err != nil {
 			if !strings.Contains(err.Error(), "Key not found") {
@@ -365,16 +366,16 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 			//If network is not found then networkname is epg
 			epgCfg := &mastercfg.EndpointGroupState{}
 			epgCfg.StateDriver = stateDriver
-			key = mastercfg.GetEndpointGroupKey(svcProvUpdReq.Network, svcProvUpdReq.Tenant)
+			key = mastercfg.GetEndpointGroupKey(epUpdReq.Network, epUpdReq.Tenant)
 			err := epgCfg.Read(key)
 			if err != nil {
 				return nil, err
 			}
 			//get the network associated with the endpoint group
-			key = mastercfg.GetNwCfgKey(epgCfg.NetworkName, svcProvUpdReq.Tenant)
+			key = mastercfg.GetNwCfgKey(epgCfg.NetworkName, epUpdReq.Tenant)
 		}
 
-		epCfg.ID = getEpName(key, &intent.ConfigEP{Container: svcProvUpdReq.Container})
+		epCfg.ID = getEpName(key, &intent.ConfigEP{Container: epUpdReq.EndpointID})
 
 		err = epCfg.Read(epCfg.ID)
 		if err != nil {
@@ -382,10 +383,10 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 		}
 
 		provider := &mastercfg.Provider{}
-		provider.IPAddress = svcProvUpdReq.IPAddress
-		provider.Tenant = svcProvUpdReq.Tenant
-		provider.Network = svcProvUpdReq.Network
-		provider.ContainerID = svcProvUpdReq.ContainerID
+		provider.IPAddress = epUpdReq.IPAddress
+		provider.Tenant = epUpdReq.Tenant
+		provider.Network = epUpdReq.Network
+		provider.ContainerID = epUpdReq.ContainerID
 		provider.Labels = make(map[string]string)
 
 		if epCfg.Labels == nil {
@@ -393,13 +394,14 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 			epCfg.Labels = make(map[string]string)
 		}
 
-		for k, v := range svcProvUpdReq.Labels {
+		for k, v := range epUpdReq.Labels {
 			provider.Labels[k] = v
 			epCfg.Labels[k] = v
 		}
 		provider.EpIDKey = epCfg.ID
 		//maintain the containerId in endpointstat for recovery
-		epCfg.ContainerID = svcProvUpdReq.ContainerID
+		epCfg.ContainerID = epUpdReq.ContainerID
+		epCfg.ContainerName = epUpdReq.ContainerName
 
 		err = epCfg.Write()
 		if err != nil {
@@ -419,8 +421,8 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 
 		for serviceID, service := range mastercfg.ServiceLBDb {
 			count := 0
-			if service.Tenant == svcProvUpdReq.Tenant {
-				for key, value := range svcProvUpdReq.Labels {
+			if service.Tenant == epUpdReq.Tenant {
+				for key, value := range epUpdReq.Labels {
 					if val := service.Selectors[key]; val == value {
 						count++
 					}
@@ -450,13 +452,13 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 		}
 		mastercfg.SvcMutex.Unlock()
 
-	} else if svcProvUpdReq.Event == "die" {
+	} else if epUpdReq.Event == "die" {
 		//Received a container die event. If it was a service provider -
 		//clear the provider db and the service db and change the etcd state
 
-		providerDbID := svcProvUpdReq.ContainerID
+		providerDbID := epUpdReq.ContainerID
 		if providerDbID == "" {
-			return nil, fmt.Errorf("Invalid containerID in SvcProvUpdateRequest:(nil)")
+			return nil, fmt.Errorf("Invalid containerID in UpdateEndpointRequest:(nil)")
 		}
 
 		mastercfg.SvcMutex.Lock()
@@ -495,8 +497,8 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 
 	}
 
-	srvUpdResp := &SvcProvUpdateResponse{
-		IPAddress: svcProvUpdReq.IPAddress,
+	epUpdResp := &UpdateEndpointResponse{
+		IPAddress: epUpdReq.IPAddress,
 	}
-	return srvUpdResp, nil
+	return epUpdResp, nil
 }

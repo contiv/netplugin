@@ -364,13 +364,12 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 	if err == nil {
 		for _, epCfg := range epCfgs {
 			ep := epCfg.(*mastercfg.CfgEndpointState)
-			if strings.Contains(ep.ContainerID, endpoint.Oper.Key) {
+			if strings.Contains(ep.ContainerID, endpoint.Oper.Key) || strings.Contains(ep.ContainerName, endpoint.Oper.Key) {
 				endpoint.Oper.Network = ep.NetID
-				endpoint.Oper.Name = ep.ContName
+				endpoint.Oper.EndpointID = ep.EndpointID
 				endpoint.Oper.ServiceName = ep.ServiceName
 				endpoint.Oper.EndpointGroupID = ep.EndpointGroupID
 				endpoint.Oper.EndpointGroupKey = ep.EndpointGroupKey
-				endpoint.Oper.AttachUUID = ep.AttachUUID
 				endpoint.Oper.IpAddress = []string{ep.IPAddress, ep.IPv6Address}
 				endpoint.Oper.MacAddress = ep.MacAddress
 				endpoint.Oper.HomingHost = ep.HomingHost
@@ -378,6 +377,7 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 				endpoint.Oper.VtepIP = ep.VtepIP
 				endpoint.Oper.Labels = fmt.Sprintf("%s", ep.Labels)
 				endpoint.Oper.ContainerID = ep.ContainerID
+				endpoint.Oper.ContainerName = ep.ContainerName
 
 				break
 			}
@@ -744,11 +744,10 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 			if ep.NetID == networkID {
 				epOper := contivModel.EndpointOper{}
 				epOper.Network = ep.NetID
-				epOper.Name = ep.ContName
+				epOper.EndpointID = ep.EndpointID
 				epOper.ServiceName = ep.ServiceName
 				epOper.EndpointGroupID = ep.EndpointGroupID
 				epOper.EndpointGroupKey = ep.EndpointGroupKey
-				epOper.AttachUUID = ep.AttachUUID
 				epOper.IpAddress = []string{ep.IPAddress, ep.IPv6Address}
 				epOper.MacAddress = ep.MacAddress
 				epOper.HomingHost = ep.HomingHost
@@ -756,6 +755,7 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 				epOper.VtepIP = ep.VtepIP
 				epOper.Labels = fmt.Sprintf("%s", ep.Labels)
 				epOper.ContainerID = ep.ContainerID
+				epOper.ContainerName = ep.ContainerName
 				network.Oper.Endpoints = append(network.Oper.Endpoints, epOper)
 			}
 		}
@@ -1332,11 +1332,10 @@ func (ac *APIController) ServiceLBGetOper(serviceLB *contivModel.ServiceLBInspec
 		}
 		epOper := contivModel.EndpointOper{}
 		epOper.Network = epCfg.NetID
-		epOper.Name = epCfg.ContName
+		epOper.EndpointID = epCfg.EndpointID
 		epOper.ServiceName = service.ServiceName //FIXME:fill in service name in endpoint
 		epOper.EndpointGroupID = epCfg.EndpointGroupID
 		epOper.EndpointGroupKey = epCfg.EndpointGroupKey
-		epOper.AttachUUID = epCfg.AttachUUID
 		epOper.IpAddress = []string{epCfg.IPAddress, epCfg.IPv6Address}
 		epOper.MacAddress = epCfg.MacAddress
 		epOper.HomingHost = epCfg.HomingHost
@@ -1344,6 +1343,7 @@ func (ac *APIController) ServiceLBGetOper(serviceLB *contivModel.ServiceLBInspec
 		epOper.VtepIP = epCfg.VtepIP
 		epOper.Labels = fmt.Sprintf("%s", epCfg.Labels)
 		epOper.ContainerID = epCfg.ContainerID
+		epOper.ContainerName = epCfg.ContainerName
 		serviceLB.Oper.Providers = append(serviceLB.Oper.Providers, epOper)
 		count++
 		epCfg = nil

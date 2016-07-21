@@ -27,11 +27,10 @@ import (
 type CfgEndpointState struct {
 	core.CommonState
 	NetID            string            `json:"netID"`
-	ContName         string            `json:"contName"`
+	EndpointID       string            `json:"endpointID"`
 	ServiceName      string            `json:"serviceName"`
 	EndpointGroupID  int               `json:"endpointGroupId"`
 	EndpointGroupKey string            `json:"endpointGroupKey"`
-	AttachUUID       string            `json:"attachUUID"`
 	IPAddress        string            `json:"ipAddress"`
 	IPv6Address      string            `json:"ipv6Address"`
 	MacAddress       string            `json:"macAddress"`
@@ -40,6 +39,7 @@ type CfgEndpointState struct {
 	VtepIP           string            `json:"vtepIP"`
 	Labels           map[string]string `json:"labels"`
 	ContainerID      string            `json:"containerId"`
+	ContainerName    string            `json:"containerName"`
 }
 
 // Write the state.

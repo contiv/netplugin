@@ -101,8 +101,7 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 	}
 
 	epCfg.NetID = nwCfg.ID
-	epCfg.ContName = ep.Container
-	epCfg.AttachUUID = ep.AttachUUID
+	epCfg.EndpointID = ep.Container
 	epCfg.HomingHost = ep.Host
 	epCfg.ServiceName = ep.ServiceName
 
@@ -256,11 +255,10 @@ func CreateEpBindings(epBindings *[]intent.ConfigEP) error {
 
 		for _, epCfg := range epCfgs {
 			cfg := epCfg.(*mastercfg.CfgEndpointState)
-			if cfg.ContName != ep.Container {
+			if cfg.EndpointID != ep.Container {
 				continue
 			}
 			cfg.HomingHost = ep.Host
-			cfg.AttachUUID = ep.AttachUUID
 			err = cfg.Write()
 			if err != nil {
 				log.Errorf("error updating epCfg. Error: %s", err)

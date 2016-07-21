@@ -28,7 +28,6 @@ type ConfigGlobal struct {
 type ConfigEP struct {
 	Container   string
 	Host        string
-	AttachUUID  string
 	IPAddress   string
 	IPv6Address string
 	ServiceName string

@@ -77,7 +77,7 @@ func TestMain(m *testing.M) {
 
 	router := mux.NewRouter()
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
-	s.HandleFunc("/plugin/svcProviderUpdate", makeHTTPHandler(master.ServiceProviderUpdateHandler))
+	s.HandleFunc("/plugin/updateEndpoint", makeHTTPHandler(master.UpdateEndpointHandler))
 	s = router.Methods("Get").Subrouter()
 
 	// Create a new api controller
@@ -1105,20 +1105,20 @@ func TestServiceProviderUpdate(t *testing.T) {
 	containerID2 := "823e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
 	containerID3 := "023e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
 	containerID4 := "123e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
-	container1 := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
-	container2 := "757355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
-	container3 := "857355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
-	container4 := "957355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	ep1 := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	ep2 := "757355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	ep3 := "857355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	ep4 := "957355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
 
-	createEP(t, "20.1.1.1", "orange", containerID1, "default", container1, labels)
-	createEP(t, "20.1.1.2", "orange", containerID2, "default", container2, labels)
-	createEP(t, "20.1.1.3", "orange", containerID3, "default", container3, labels)
-	createEP(t, "20.1.1.4", "orange", containerID4, "default", container4, labels)
+	createEP(t, "20.1.1.1", "orange", containerID1, "default", ep1, labels)
+	createEP(t, "20.1.1.2", "orange", containerID2, "default", ep2, labels)
+	createEP(t, "20.1.1.3", "orange", containerID3, "default", ep3, labels)
+	createEP(t, "20.1.1.4", "orange", containerID4, "default", ep4, labels)
 
-	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, container1, "default", "start", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, container2, "default", "start", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, container3, "default", "start", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, container4, "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, ep1, "container1", "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, ep2, "container2", "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, ep3, "container3", "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, ep4, "container4", "default", "start", labels, ch)
 
 	for i := 0; i < 4; i++ {
 		<-ch
@@ -1129,10 +1129,10 @@ func TestServiceProviderUpdate(t *testing.T) {
 	verifyProviderUpdate(t, "20.1.1.3", "orange", containerID3, "default", "start", "redis", labels)
 	verifyProviderUpdate(t, "20.1.1.4", "orange", containerID4, "default", "start", "redis", labels)
 
-	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, container1, "default", "die", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, container2, "default", "die", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, container3, "default", "die", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, container4, "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, ep1, "container1", "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, ep2, "container2", "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, ep3, "container3", "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, ep4, "container4", "default", "die", labels, ch)
 
 	for i := 0; i < 4; i++ {
 		<-ch
@@ -1143,10 +1143,10 @@ func TestServiceProviderUpdate(t *testing.T) {
 	verifyProviderUpdate(t, "20.1.1.3", "orange", containerID3, "default", "die", "redis", labels)
 	verifyProviderUpdate(t, "20.1.1.4", "orange", containerID4, "default", "die", "redis", labels)
 
-	deleteEP(t, "orange", "default", container1)
-	deleteEP(t, "orange", "default", container2)
-	deleteEP(t, "orange", "default", container3)
-	deleteEP(t, "orange", "default", container4)
+	deleteEP(t, "orange", "default", ep1)
+	deleteEP(t, "orange", "default", ep2)
+	deleteEP(t, "orange", "default", ep3)
+	deleteEP(t, "orange", "default", ep4)
 
 	checkServiceDelete(t, "default", "redis")
 	verifyServiceDelete(t, "default", "redis")
@@ -1164,22 +1164,22 @@ func TestServiceProviderUpdateServiceAdd(t *testing.T) {
 	containerID2 := "823e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
 	containerID3 := "023e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
 	containerID4 := "123e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
-	container1 := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
-	container2 := "757355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
-	container3 := "857355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
-	container4 := "957355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	ep1 := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	ep2 := "757355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	ep3 := "857355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
+	ep4 := "957355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
 
 	createNetwork(t, "orange", "default", "vxlan", "11.1.1.0/24", "11.1.1.254")
 
-	createEP(t, "20.1.1.1", "orange", containerID1, "default", container1, labels)
-	createEP(t, "20.1.1.2", "orange", containerID2, "default", container2, labels)
-	createEP(t, "20.1.1.3", "orange", containerID3, "default", container3, labels)
-	createEP(t, "20.1.1.4", "orange", containerID4, "default", container4, labels)
+	createEP(t, "20.1.1.1", "orange", containerID1, "default", ep1, labels)
+	createEP(t, "20.1.1.2", "orange", containerID2, "default", ep2, labels)
+	createEP(t, "20.1.1.3", "orange", containerID3, "default", ep3, labels)
+	createEP(t, "20.1.1.4", "orange", containerID4, "default", ep4, labels)
 
-	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, container1, "default", "start", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, container2, "default", "start", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, container3, "default", "start", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, container4, "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, ep1, "container1", "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, ep2, "container2", "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, ep3, "container3", "default", "start", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, ep4, "container4", "default", "start", labels, ch)
 
 	for i := 0; i < 4; i++ {
 		<-ch
@@ -1194,10 +1194,10 @@ func TestServiceProviderUpdateServiceAdd(t *testing.T) {
 	verifyProviderUpdate(t, "20.1.1.3", "orange", containerID3, "default", "start", "redis", labels)
 	verifyProviderUpdate(t, "20.1.1.4", "orange", containerID4, "default", "start", "redis", labels)
 
-	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, container1, "default", "die", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, container2, "default", "die", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, container3, "default", "die", labels, ch)
-	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, container4, "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.1", "orange", containerID1, ep1, "container1", "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.2", "orange", containerID2, ep2, "container2", "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.3", "orange", containerID3, ep3, "container3", "default", "die", labels, ch)
+	go triggerProviderUpdate(t, "20.1.1.4", "orange", containerID4, ep4, "container4", "default", "die", labels, ch)
 	for i := 0; i < 4; i++ {
 		<-ch
 	}
@@ -1207,10 +1207,10 @@ func TestServiceProviderUpdateServiceAdd(t *testing.T) {
 	verifyProviderUpdate(t, "20.1.1.3", "orange", containerID3, "default", "die", "redis", labels)
 	verifyProviderUpdate(t, "20.1.1.4", "orange", containerID4, "default", "die", "redis", labels)
 
-	deleteEP(t, "orange", "default", container1)
-	deleteEP(t, "orange", "default", container2)
-	deleteEP(t, "orange", "default", container3)
-	deleteEP(t, "orange", "default", container4)
+	deleteEP(t, "orange", "default", ep1)
+	deleteEP(t, "orange", "default", ep2)
+	deleteEP(t, "orange", "default", ep3)
+	deleteEP(t, "orange", "default", ep4)
 
 	checkServiceDelete(t, "default", "redis")
 	verifyServiceDelete(t, "default", "redis")
@@ -1306,31 +1306,31 @@ func verifyServiceDelete(t *testing.T, tenant, serviceName string) {
 	}
 }
 
-func triggerProviderUpdate(t *testing.T, providerIP, network, containerID, container,
+func triggerProviderUpdate(t *testing.T, providerIP, network, containerID, endpointID, containerName,
 	tenant, event string, labels []string, ch chan error) {
 
-	providerUpdReq := master.SvcProvUpdateRequest{}
-	providerUpdReq.IPAddress = providerIP
-	providerUpdReq.ContainerID = containerID
-	providerUpdReq.Tenant = tenant
-	providerUpdReq.Network = network
-	providerUpdReq.Event = event
-	providerUpdReq.Labels = make(map[string]string)
-	providerUpdReq.Container = container
+	endpointUpdReq := master.UpdateEndpointRequest{}
+	endpointUpdReq.IPAddress = providerIP
+	endpointUpdReq.ContainerID = containerID
+	endpointUpdReq.Tenant = tenant
+	endpointUpdReq.Network = network
+	endpointUpdReq.Event = event
+	endpointUpdReq.Labels = make(map[string]string)
+	endpointUpdReq.EndpointID = endpointID
+	endpointUpdReq.ContainerName = containerName
 
 	for _, v := range labels {
 		key := strings.Split(v, "=")[0]
 		value := strings.Split(v, "=")[1]
-		providerUpdReq.Labels[key] = value
+		endpointUpdReq.Labels[key] = value
 	}
-	//var svcProvResp master.SvcProvUpdateResponse
 
-	jsonStr, err := json.Marshal(providerUpdReq)
+	jsonStr, err := json.Marshal(endpointUpdReq)
 	if err != nil {
 		ch <- err
-		t.Fatalf("Error converting request data(%#v) to Json. Err: %v", providerUpdReq, err)
+		t.Fatalf("Error converting request data(%#v) to Json. Err: %v", endpointUpdReq, err)
 	}
-	url := netmasterTestURL + "/plugin/svcProviderUpdate"
+	url := netmasterTestURL + "/plugin/updateEndpoint"
 	// Perform HTTP POST operation
 	res, err := http.Post(url, "application/json", strings.NewReader(string(jsonStr)))
 	if err != nil {
@@ -1465,12 +1465,11 @@ func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.Resp
 	}
 }
 
-func createEP(t *testing.T, providerIP, network, containerID, tenant, container string, labels []string) {
+func createEP(t *testing.T, providerIP, network, containerID, tenant, endpointID string, labels []string) {
 
 	epCfg := &mastercfg.CfgEndpointState{
 		NetID:      network,
-		ContName:   containerID,
-		AttachUUID: container,
+		EndpointID: endpointID,
 		IPAddress:  providerIP,
 	}
 	epCfg.Labels = make(map[string]string)
@@ -1481,17 +1480,17 @@ func createEP(t *testing.T, providerIP, network, containerID, tenant, container 
 	}
 	epCfg.StateDriver = stateStore
 	netID := network + "." + tenant
-	epCfg.ID = netID + "-" + container
+	epCfg.ID = netID + "-" + endpointID
 	err := epCfg.Write()
 	if err != nil {
 		t.Errorf("Error creating Ep :%s", err)
 	}
 }
-func deleteEP(t *testing.T, network, tenant, container string) {
+func deleteEP(t *testing.T, network, tenant, endpointID string) {
 	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateStore
 	netID := network + "." + tenant
-	epCfg.ID = netID + "-" + container
+	epCfg.ID = netID + "-" + endpointID
 	err := epCfg.Clear()
 	if err != nil {
 		t.Errorf("Error deleting Ep :%s", err)

@@ -140,7 +140,7 @@ func (d *daemon) registerRoutes(router *mux.Router) {
 	s.HandleFunc("/plugin/releaseAddress", makeHTTPHandler(master.ReleaseAddressHandler))
 	s.HandleFunc("/plugin/createEndpoint", makeHTTPHandler(master.CreateEndpointHandler))
 	s.HandleFunc("/plugin/deleteEndpoint", makeHTTPHandler(master.DeleteEndpointHandler))
-	s.HandleFunc("/plugin/svcProviderUpdate", makeHTTPHandler(master.ServiceProviderUpdateHandler))
+	s.HandleFunc("/plugin/updateEndpoint", makeHTTPHandler(master.UpdateEndpointHandler))
 
 	s = router.Methods("Get").Subrouter()
 	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetEndpointRESTEndpoint, "{id}"),
