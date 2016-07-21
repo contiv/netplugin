@@ -25,8 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/core"
@@ -40,6 +38,7 @@ import (
 	"github.com/contiv/ofnet"
 	etcdclient "github.com/coreos/etcd/client"
 	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -710,6 +709,101 @@ func TestTenantAddDelete(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Tenant was not deleted")
 	}
+}
+
+// TestOverlappingSubnets tests overlapping network create/delete REST api
+func TestOverlappingSubnets(t *testing.T) {
+
+	// Non-overlapping subnet for same tenant - vlan & gateway
+	checkCreateNetwork(t, false, "default", "contiv1", "", "vlan", "10.1.1.0/24", "10.1.1.220", 1, "", "")
+	checkCreateNetwork(t, false, "default", "contiv2", "", "vlan", "10.1.2.0/24", "10.1.2.254", 2, "", "")
+	checkInspectNetwork(t, false, "default", "contiv1", "10.1.1.220", 1, 0)
+	checkInspectNetwork(t, false, "default", "contiv2", "10.1.2.254", 2, 0)
+	checkDeleteNetwork(t, false, "default", "contiv1")
+	checkDeleteNetwork(t, false, "default", "contiv2")
+
+	// overlapping subnet for same tenant -- vlan - vxlan combination
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.0/24", "", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv1", "", "vxlan", "10.1.1.0/24", "", 2, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Overlapping subnet for same tenant - vxlan
+	checkCreateNetwork(t, false, "default", "contiv", "", "vxlan", "10.1.1.0/24", "", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv1", "", "vxlan", "10.1.1.0/24", "", 2, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Overlapping subnet for same tenant - including gateway
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.0/24", "", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv1", "", "vlan", "10.1.1.0/24", "10.1.1.233", 2, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Overlapping subnet for same tenant - vlan
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.0/16", "", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv1", "", "vlan", "10.1.2.0/24", "", 2, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Overlapping subnet for different tenant - vlan
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.0/24", "", 1, "", "")
+	checkCreateTenant(t, false, "tenant1")
+	checkCreateNetwork(t, false, "tenant1", "contiv1", "", "vlan", "10.1.0.0/16", "", 2, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkInspectNetwork(t, false, "tenant1", "contiv1", "", 2, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+	checkDeleteNetwork(t, false, "tenant1", "contiv1")
+	checkDeleteTenant(t, false, "tenant1")
+
+	// Non-overlapping subnet ranges for same tenant
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "20.1.1.10-20.1.1.45/24", "", 1, "", "")
+	checkCreateNetwork(t, false, "default", "contiv2", "", "vlan", "20.1.1.46-20.1.1.100/24", "", 2, "", "")
+	checkCreateNetwork(t, false, "default", "contiv3", "", "vlan", "20.1.1.0-20.1.1.9/24", "", 3, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkInspectNetwork(t, false, "default", "contiv2", "", 2, 0)
+	checkInspectNetwork(t, false, "default", "contiv3", "", 3, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+	checkDeleteNetwork(t, false, "default", "contiv2")
+	checkDeleteNetwork(t, false, "default", "contiv3")
+
+	// Overlapping subnet ranges for same tenant
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "20.1.1.10-20.1.1.45/24", "", 1, "", "")
+	checkCreateNetwork(t, true, "default", "contiv2", "", "vlan", "20.1.1.45-20.1.1.100/24", "", 2, "", "")
+	checkCreateNetwork(t, true, "default", "contiv3", "", "vlan", "20.1.1.0-20.1.1.10/24", "", 3, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Non-Overlapping subnetv6 for same tenant
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "20.1.1.0/24", "", 1, "::/64", "")
+	checkCreateNetwork(t, false, "default", "contiv1", "", "vlan", "20.1.2.0/24", "", 2, "1::/64", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkInspectNetwork(t, false, "default", "contiv1", "", 2, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+	checkDeleteNetwork(t, false, "default", "contiv1")
+
+	// Overlapping subnetv6 for same tenant
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "20.1.1.0/24", "", 1, "2001:3332:3244:2422::/64", "")
+	checkCreateNetwork(t, true, "default", "contiv1", "", "vlan", "20.1.2.0/24", "", 2, "2001:3332:3244:2422::/64", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Overlapping subnetv6 for same tenant - vxlan
+	checkCreateNetwork(t, false, "default", "contiv", "", "vxlan", "10.1.1.0/16", "", 1, "2001:2000::/32", "")
+	checkCreateNetwork(t, true, "default", "contiv1", "", "vxlan", "10.2.0.0/16", "", 2, "2001:2000:1234:4422::/64", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Oerlapping subnetv6 for different tenant
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.0/24", "", 1, "ffff:ffff:ffff::/48", "")
+	checkCreateTenant(t, false, "tenant1")
+	checkCreateNetwork(t, false, "tenant1", "contiv1", "", "vlan", "10.1.0.0/16", "", 2, "ffff:ffff:ffff::/48", "")
+	checkInspectNetwork(t, false, "default", "contiv", "", 1, 0)
+	checkInspectNetwork(t, false, "tenant1", "contiv1", "", 2, 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+	checkDeleteNetwork(t, false, "tenant1", "contiv1")
+	checkDeleteTenant(t, false, "tenant1")
+
 }
 
 // TestNetworkAddDelete tests network create/delete REST api

@@ -95,6 +95,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	}
 
 	subnetIP, subnetLen, _ := netutils.ParseCIDR(network.SubnetCIDR)
+
 	err = netutils.ValidateNetworkRangeParams(subnetIP, subnetLen)
 	if err != nil {
 		return err

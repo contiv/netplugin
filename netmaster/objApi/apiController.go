@@ -28,6 +28,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb/modeldb"
 
 	log "github.com/Sirupsen/logrus"
@@ -651,8 +652,6 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 
 // NetworkCreate creates network
 func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
-	log.Infof("Received NetworkCreate: %+v", network)
-
 	// Make sure tenant exists
 	if network.TenantName == "" {
 		return core.Errorf("Invalid tenant name")
@@ -661,6 +660,32 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	tenant := contivModel.FindTenant(network.TenantName)
 	if tenant == nil {
 		return core.Errorf("Tenant not found")
+	}
+
+	for key := range tenant.LinkSets.Networks {
+		networkDetail := contivModel.FindNetwork(key)
+		if networkDetail == nil {
+			log.Errorf("Network %s not found", network)
+			return errors.New("FromNetwork not found")
+		}
+
+		// Check for overlapping subnetv6 if existing and current subnetv6 is non-empty
+		if network.Ipv6Subnet != "" && networkDetail.Ipv6Subnet != "" {
+			flagv6 := netutils.IsOverlappingSubnetv6(network.Ipv6Subnet, networkDetail.Ipv6Subnet)
+			if flagv6 == true {
+				log.Errorf("Overlapping of Subnetv6 Networks")
+				return core.Errorf("Network " + networkDetail.NetworkName + " conflicts with subnetv6  " + network.Ipv6Subnet)
+			}
+		}
+
+		// Check for overlapping subnet if existing and current subnet is non-empty
+		if network.Subnet != "" && networkDetail.Subnet != "" {
+			flag := netutils.IsOverlappingSubnet(network.Subnet, networkDetail.Subnet)
+			if flag == true {
+				log.Errorf("Overlapping of Networks")
+				return core.Errorf("Network " + networkDetail.NetworkName + " conflicts with subnet " + network.Subnet)
+			}
+		}
 	}
 
 	// If there is an EndpointGroup with the same name as this network, reject.

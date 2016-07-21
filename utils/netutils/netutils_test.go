@@ -101,6 +101,8 @@ func TestValidNetworkRangeParams(t *testing.T) {
 var testInvalidNetParams = []testSubnetInfo{
 	{subnetIP: "10.123.16.10-10.123.16.100", subnetLen: 26},
 	{subnetIP: "10.123.16.60-10.123.16.100", subnetLen: 26},
+	{subnetIP: "10.1.1.0", subnetLen: 1},
+	{subnetIP: "10.1.1.0", subnetLen: 33},
 }
 
 func TestInvalidNetworkRangeParams(t *testing.T) {
