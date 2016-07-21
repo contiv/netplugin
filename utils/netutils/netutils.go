@@ -16,7 +16,6 @@ limitations under the License.
 package netutils
 
 import (
-	//"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -27,10 +26,11 @@ import (
 	"strings"
 	"unsafe"
 
+	osexec "os/exec"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/jainvipin/bitset"
 	"github.com/vishvananda/netlink"
-	osexec "os/exec"
 
 	"github.com/contiv/netplugin/core"
 )
