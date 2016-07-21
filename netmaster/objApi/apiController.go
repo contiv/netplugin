@@ -652,6 +652,8 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 
 // NetworkCreate creates network
 func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
+	log.Infof("Received NetworkCreate: %+v", network)
+
 	// Make sure tenant exists
 	if network.TenantName == "" {
 		return core.Errorf("Invalid tenant name")
