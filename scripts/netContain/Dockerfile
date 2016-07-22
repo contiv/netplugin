@@ -15,7 +15,7 @@
 
 # One Container for OVS / netplugin / netmaster 
 
-FROM ubuntu:14.04
+FROM ubuntu:15.10
 
 MAINTAINER Rajesh Nataraja <rajenata@cisco.com>
 
@@ -27,6 +27,7 @@ MAINTAINER Rajesh Nataraja <rajenata@cisco.com>
 #Install the Open vSwitch package on this ubuntu container.
 RUN apt update
 RUN apt --assume-yes  install openvswitch-switch
+RUN apt --assume-yes  install net-tools
 
 #Copy the Net Plugin Binaries  and the Scripts required to 
 # start the Net Plugin and Net Master. 

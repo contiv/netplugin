@@ -414,6 +414,7 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 				}
 			}
 		}
+		mastercfg.SvcMutex.Unlock()
 
 	} else if svcProvUpdReq.Event == "die" {
 		//Received a container die event. If it was a service provider -
@@ -456,9 +457,9 @@ func ServiceProviderUpdateHandler(w http.ResponseWriter, r *http.Request, vars m
 
 			}
 		}
-
+		mastercfg.SvcMutex.Unlock()
 	}
-	mastercfg.SvcMutex.Unlock()
+
 	srvUpdResp := &SvcProvUpdateResponse{
 		IPAddress: svcProvUpdReq.IPAddress,
 	}

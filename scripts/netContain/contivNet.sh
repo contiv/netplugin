@@ -99,7 +99,7 @@ if [ $netplugin == true ]; then
 
    while [ true ]; do
        if [ "$cstore" != "" ]; then
-           /contiv/bin/netplugin -cluster-store $cstore  -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwdmode -plugin-mode $plugin &> /var/contiv/log/netplugin.log
+           /contiv/bin/netplugin -cluster-store $cstore  -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwd_mode -plugin-mode $plugin &> /var/contiv/log/netplugin.log
        else
            /contiv/bin/netplugin -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwd_mode -plugin-mode $plugin &> /var/contiv/log/netplugin.log
        fi
