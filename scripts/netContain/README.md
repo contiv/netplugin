@@ -10,13 +10,14 @@ The script BuildContainer.sh should be executed from the top level directory as 
 After this Script successfully executes you will get a final image which is containerized contiv. The container can then be pushed into repo for deployment on a cluster. 
 
 ## Executing Containerized Contiv
-   ### Running as Master
+
+   Running as Net Master
 ```
 	docker run -itd --pid=host --net=host --name=contivNet  --privileged   -v /etc/openvswitch:/etc/openvswitch -v /etc/kubernetes/ssl:/tmp/kubernets/ssl -v /var/run/:/var/run/  -v /var/contiv:/var/contiv rajenata/contiv:0.1  -m  -p kubernetes -c etcd://127.0.0.1:2379
 ```
   Please Note that --net=host is required so that Contiv has the Same Network view as the Host Namespace, this is required for both talking to the Docker Runtime and OVS Kernel.
   
-  ### Running as Net Plugin
+  Running as NetPlugin
 
 ```
   ### Running as Net Plugin
