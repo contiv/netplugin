@@ -496,9 +496,14 @@ func UpdateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 		mastercfg.SvcMutex.Unlock()
 
 	}
+<<<<<<< 26b5fd274d543e9a39e62fe669d775517275f04e
 
 	epUpdResp := &UpdateEndpointResponse{
 		IPAddress: epUpdReq.IPAddress,
+=======
+	srvUpdResp := &SvcProvUpdateResponse{
+		IPAddress: svcProvUpdReq.IPAddress,
+>>>>>>> Support for Building Container Image and kubernetes environment
 	}
 	return epUpdResp, nil
 }
