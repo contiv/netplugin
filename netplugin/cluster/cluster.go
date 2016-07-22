@@ -86,7 +86,7 @@ func httpPost(url string, req interface{}, resp interface{}) error {
 	// Perform HTTP POST operation
 	res, err := http.Post(url, "application/json", strings.NewReader(string(jsonStr)))
 	if err != nil {
-		log.Errorf("Error during http get. Err: %v", err)
+		log.Errorf("Error during http POST. Err: %v", err)
 		return err
 	}
 
@@ -150,9 +150,19 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 		log.Infof("Making REST request to url: %s", url)
 
 		// Make the REST call to master
-		err := httpPost(url, req, resp)
-		if err != nil {
-			log.Errorf("Error making POST request: Err: %v", err)
+		for i := 0; i < 3; i++ {
+			err = httpPost(url, req, resp)
+			if err != nil && strings.Contains(err.Error(), "connection refused") {
+				log.Warnf("Error making POST request. Retrying...: Err: %v", err)
+				// Wait a little before retrying
+				time.Sleep(time.Second)
+				continue
+			} else if err != nil {
+				log.Errorf("Error making POST request: Err: %v", err)
+				return err
+			}
+
+			return err
 		}
 
 		return err

@@ -100,6 +100,9 @@ func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
 			log.Errorf("Error deleting key %s. Err: %v", keyName, err)
 			return err
 		}
+
+		// Wait for lock delay
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	// Set it via consul client
