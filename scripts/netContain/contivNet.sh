@@ -61,7 +61,9 @@ if [ $netplugin == false ] && [ $netmaster == false ]; then
 fi
 
 
-/contiv/scripts/ovsInit.sh
+if [ $netplugin == true ]; then
+    /contiv/scripts/ovsInit.sh
+fi
 
 if [ $reinit == true ]; then
     ovs-vsctl del-br contivVlanBridge
