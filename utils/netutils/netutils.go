@@ -50,16 +50,12 @@ func init() {
 	}
 }
 
-func ipv6ToInt(IPv6Addr string) *big.Int {
+func ipv6ToBigint(IPv6Addr string) *big.Int {
 	IPv6Address := net.ParseIP(IPv6Addr)
 	IPv6Int := big.NewInt(0)
 	IPv6Int.SetBytes(IPv6Address.To16())
 	return IPv6Int
 }
-
-type ipAddress []byte
-
-const hexDigit = "0123456789abcdef"
 
 func getIPv6Range(Subnetv6 string) (string, string) {
 	_, ipv6IP, _ := net.ParseCIDR(Subnetv6)
@@ -72,12 +68,12 @@ func getIPv6Range(Subnetv6 string) (string, string) {
 	}
 	n := len(subnetStartRange)
 
-	subnetEndRange := make(ipAddress, n)
+	subnetEndRange := make(net.IP, n)
 	for i := 0; i < n; i++ {
 		subnetEndRange[i] = subnetStartRange[i] | subnetMask[i]
 	}
 
-	return subnetStartRange.String(), subnetEndRange.byteToString()
+	return subnetStartRange.String(), subnetEndRange.String()
 }
 
 // IsOverlappingSubnetv6 verifies the Overlapping of subnet for v6 networks
@@ -85,44 +81,22 @@ func IsOverlappingSubnetv6(inputIPv6Subnet string, existingIPv6Subnet string) bo
 	inputIPv6StartRange, inputIPv6EndRange := getIPv6Range(inputIPv6Subnet)
 	existingIPv6StartRange, existingIPv6EndRange := getIPv6Range(existingIPv6Subnet)
 
-	inputStartRange := ipv6ToInt(inputIPv6StartRange)
-	inputEndRange := ipv6ToInt(inputIPv6EndRange)
+	inputStartRange := ipv6ToBigint(inputIPv6StartRange)
+	inputEndRange := ipv6ToBigint(inputIPv6EndRange)
 
-	existingStartRange := ipv6ToInt(existingIPv6StartRange)
-	existingEndRange := ipv6ToInt(existingIPv6EndRange)
+	existingStartRange := ipv6ToBigint(existingIPv6StartRange)
+	existingEndRange := ipv6ToBigint(existingIPv6EndRange)
 
-	if (existingStartRange.Cmp(inputStartRange) == -1 && inputStartRange.Cmp(existingEndRange) == -1) ||
-		(existingStartRange.Cmp(inputEndRange) == -1 && inputEndRange.Cmp(existingEndRange) == -1) ||
-		(existingStartRange.Cmp(inputStartRange) == 0) ||
-		(inputStartRange.Cmp(existingEndRange) == 0) ||
-		(existingStartRange.Cmp(inputEndRange) == 0) ||
-		(inputEndRange.Cmp(existingEndRange) == 0) {
+	if (existingStartRange.Cmp(inputStartRange) <= 0 && inputStartRange.Cmp(existingEndRange) <= 0) ||
+		(existingStartRange.Cmp(inputEndRange) <= 0 && inputEndRange.Cmp(existingEndRange) <= 0) {
 		return true
 	}
 
-	if (inputStartRange.Cmp(existingStartRange) == -1 && existingStartRange.Cmp(inputEndRange) == -1) ||
-		(inputStartRange.Cmp(existingEndRange) == -1 && existingEndRange.Cmp(inputEndRange) == -1) {
+	if (inputStartRange.Cmp(existingStartRange) <= 0 && existingStartRange.Cmp(inputEndRange) <= 0) ||
+		(inputStartRange.Cmp(existingEndRange) <= 0 && existingEndRange.Cmp(inputEndRange) <= 0) {
 		return true
 	}
 	return false
-}
-
-// String returns the hexadecimal form of m, with no punctuation.
-func (m ipAddress) byteToString() string {
-	if len(m) == 0 {
-		return "<nil>"
-	}
-	buf := make([]byte, len(m)*2+7)
-
-	j := 0
-	for i, b := range m {
-		buf[i*2+j], buf[i*2+1+j] = hexDigit[b>>4], hexDigit[b&0xf]
-		if i%2 != 0 && i < 15 {
-			buf[i*2+2+j] = ':'
-			j++
-		}
-	}
-	return string(buf)
 }
 
 // IsOverlappingSubnet verifies the Overlapping of subnet
@@ -135,11 +109,13 @@ func IsOverlappingSubnet(inputSubnet string, existingSubnet string) bool {
 	existingStartRange, _ := ipv4ToUint32(getFirstAddrInRange(existingSubnetIP))
 	existingEndRange, _ := ipv4ToUint32(getLastAddrInRange(existingSubnetIP, existingSubnetLen))
 
-	if (existingStartRange <= inputStartRange && inputStartRange <= existingEndRange) || (existingStartRange <= inputEndRange && inputEndRange <= existingEndRange) {
+	if (existingStartRange <= inputStartRange && inputStartRange <= existingEndRange) ||
+		(existingStartRange <= inputEndRange && inputEndRange <= existingEndRange) {
 		return true
 	}
 
-	if (inputStartRange <= existingStartRange && existingStartRange <= inputEndRange) || (inputStartRange <= existingEndRange && existingEndRange <= inputEndRange) {
+	if (inputStartRange <= existingStartRange && existingStartRange <= inputEndRange) ||
+		(inputStartRange <= existingEndRange && existingEndRange <= inputEndRange) {
 		return true
 	}
 	return false
@@ -148,7 +124,6 @@ func IsOverlappingSubnet(inputSubnet string, existingSubnet string) bool {
 
 // ValidateNetworkRangeParams verifies the network range format
 func ValidateNetworkRangeParams(ipRange string, subnetLen uint) error {
-
 	rangeMin, _ := ipv4ToUint32(getFirstAddrInRange(ipRange))
 	rangeMax, _ := ipv4ToUint32(getLastAddrInRange(ipRange, subnetLen))
 	firstAddr, _ := ipv4ToUint32(GetSubnetAddr(ipRange, subnetLen))
@@ -161,7 +136,6 @@ func ValidateNetworkRangeParams(ipRange string, subnetLen uint) error {
 	if subnetLen > 32 || subnetLen < 8 {
 		return core.Errorf("subnet length %d not supported", subnetLen)
 	}
-
 	return nil
 }
 
@@ -452,7 +426,6 @@ func GetIPv6HostID(subnetAddr string, subnetLen uint, hostAddr string) (string, 
 	// get the overlapping byte
 	offset = subnetLen / 8
 	subnetIP := net.ParseIP(subnetAddr)
-
 	if subnetIP == nil {
 		return "", core.Errorf("Invalid subnetAddr %s ", subnetAddr)
 	}
@@ -469,7 +442,6 @@ func GetIPv6HostID(subnetAddr string, subnetLen uint, hostAddr string) (string, 
 		hostID[i] = hostIP[i]
 		offset++
 	}
-
 	return hostID.String(), nil
 }
 

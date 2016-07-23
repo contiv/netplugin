@@ -667,8 +667,8 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	for key := range tenant.LinkSets.Networks {
 		networkDetail := contivModel.FindNetwork(key)
 		if networkDetail == nil {
-			log.Errorf("Network %s not found", network)
-			return errors.New("FromNetwork not found")
+			log.Errorf("Network key %s not found", key)
+			return fmt.Errorf("Network key %s not found", key)
 		}
 
 		// Check for overlapping subnetv6 if existing and current subnetv6 is non-empty
@@ -676,7 +676,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 			flagv6 := netutils.IsOverlappingSubnetv6(network.Ipv6Subnet, networkDetail.Ipv6Subnet)
 			if flagv6 == true {
 				log.Errorf("Overlapping of Subnetv6 Networks")
-				return core.Errorf("Network " + networkDetail.NetworkName + " conflicts with subnetv6  " + network.Ipv6Subnet)
+				return errors.New("Network " + networkDetail.NetworkName + " conflicts with subnetv6  " + network.Ipv6Subnet)
 			}
 		}
 
@@ -685,7 +685,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 			flag := netutils.IsOverlappingSubnet(network.Subnet, networkDetail.Subnet)
 			if flag == true {
 				log.Errorf("Overlapping of Networks")
-				return core.Errorf("Network " + networkDetail.NetworkName + " conflicts with subnet " + network.Subnet)
+				return errors.New("Network " + networkDetail.NetworkName + " conflicts with subnet " + network.Subnet)
 			}
 		}
 	}
@@ -992,7 +992,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		net := contivModel.FindNetwork(netKey)
 		if net == nil {
 			log.Errorf("Network %s not found", netKey)
-			return errors.New("FromNetwork not found")
+			return errors.New("From Network not found")
 		}
 	} else if rule.ToNetwork != "" {
 		netKey := rule.TenantName + ":" + rule.ToNetwork
@@ -1000,7 +1000,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		net := contivModel.FindNetwork(netKey)
 		if net == nil {
 			log.Errorf("Network %s not found", netKey)
-			return errors.New("ToNetwork not found")
+			return errors.New("To Network not found")
 		}
 	}
 
