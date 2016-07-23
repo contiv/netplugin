@@ -382,8 +382,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	// Save the oper state
 	operEp = &OvsOperEndpointState{
 		NetID:       cfgEp.NetID,
-		AttachUUID:  cfgEp.AttachUUID,
-		ContName:    cfgEp.ContName,
+		EndpointID:  cfgEp.EndpointID,
 		ServiceName: cfgEp.ServiceName,
 		IPAddress:   cfgEp.IPAddress,
 		MacAddress:  cfgEp.MacAddress,

@@ -187,7 +187,7 @@ var EndpointGroupSummaryView = React.createClass({
 				<ModalTrigger modal={<EndpointGroupModalView endpointGroup={ endpointGroup }/>}>
 					<tr key={ endpointGroup.key } className="info">
 						
-						     
+						      
 					</tr>
 				</ModalTrigger>
 			);
@@ -199,7 +199,7 @@ var EndpointGroupSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					     
+					      
 					</tr>
 				</thead>
 				<tbody>
@@ -222,6 +222,8 @@ var EndpointGroupModalView = React.createClass({
 				<Input type='text' label='External contracts' ref='extContractsGrps' defaultValue={obj.extContractsGrps} placeholder='External contracts' />
 			
 				<Input type='text' label='Group name' ref='groupName' defaultValue={obj.groupName} placeholder='Group name' />
+			
+				<Input type='text' label='Network profile name' ref='netProfile' defaultValue={obj.netProfile} placeholder='Network profile name' />
 			
 				<Input type='text' label='Network' ref='networkName' defaultValue={obj.networkName} placeholder='Network' />
 			
@@ -362,6 +364,67 @@ var GlobalModalView = React.createClass({
 
 module.exports.GlobalSummaryView = GlobalSummaryView
 module.exports.GlobalModalView = GlobalModalView
+var NetprofileSummaryView = React.createClass({
+  	render: function() {
+		var self = this
+
+		// Walk thru all objects
+		var netprofileListView = self.props.netprofiles.map(function(netprofile){
+			return (
+				<ModalTrigger modal={<NetprofileModalView netprofile={ netprofile }/>}>
+					<tr key={ netprofile.key } className="info">
+						
+						    
+					</tr>
+				</ModalTrigger>
+			);
+		});
+
+		return (
+        <div>
+			<Table hover>
+				<thead>
+					<tr>
+					
+					    
+					</tr>
+				</thead>
+				<tbody>
+            		{ netprofileListView }
+				</tbody>
+			</Table>
+        </div>
+    	);
+	}
+});
+
+var NetprofileModalView = React.createClass({
+	render() {
+		var obj = this.props.netprofile
+	    return (
+	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Netprofile' animation={false}>
+	        <div className='modal-body' style={ {margin: '5%',} }>
+			
+			
+				<Input type='text' label='DSCP' ref='DSCP' defaultValue={obj.DSCP} placeholder='DSCP' />
+			
+				<Input type='text' label='Allocated bandwidth' ref='bandwidth' defaultValue={obj.bandwidth} placeholder='Allocated bandwidth' />
+			
+				<Input type='text' label='Network profile name' ref='profileName' defaultValue={obj.profileName} placeholder='Network profile name' />
+			
+				<Input type='text' label='Tenant name' ref='tenantName' defaultValue={obj.tenantName} placeholder='Tenant name' />
+			
+			</div>
+	        <div className='modal-footer'>
+				<Button onClick={this.props.onRequestHide}>Close</Button>
+	        </div>
+	      </Modal>
+	    );
+  	}
+});
+
+module.exports.NetprofileSummaryView = NetprofileSummaryView
+module.exports.NetprofileModalView = NetprofileModalView
 var NetworkSummaryView = React.createClass({
   	render: function() {
 		var self = this
