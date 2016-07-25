@@ -140,6 +140,7 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
 	Vlans            string `json:"vlans,omitempty"`            // Allowed vlan range
@@ -2272,6 +2273,15 @@ func ValidateGlobal(obj *Global) error {
 	}
 
 	// Validate each field
+
+	if len(obj.FwdMode) > 64 {
+		return errors.New("fwdMode string too long")
+	}
+
+	fwdModeMatch := regexp.MustCompile("^(bridge|routing)?$")
+	if fwdModeMatch.MatchString(obj.FwdMode) == false {
+		return errors.New("fwdMode string invalid format")
+	}
 
 	if len(obj.Name) > 64 {
 		return errors.New("name string too long")

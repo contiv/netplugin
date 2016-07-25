@@ -245,6 +245,7 @@ class objmodelClient:
 	    postUrl = self.baseUrl + '/api/v1/globals/' + obj.name  + '/'
 
 	    jdata = json.dumps({ 
+			"fwdMode": obj.fwdMode, 
 			"name": obj.name, 
 			"networkInfraType": obj.networkInfraType, 
 			"vlans": obj.vlans, 

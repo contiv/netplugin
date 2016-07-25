@@ -313,7 +313,7 @@ var GlobalSummaryView = React.createClass({
 				<ModalTrigger modal={<GlobalModalView global={ global }/>}>
 					<tr key={ global.key } className="info">
 						
-						    
+						     
 					</tr>
 				</ModalTrigger>
 			);
@@ -325,7 +325,7 @@ var GlobalSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					    
+					     
 					</tr>
 				</thead>
 				<tbody>
@@ -344,6 +344,8 @@ var GlobalModalView = React.createClass({
 	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Global' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
+			
+				<Input type='text' label='Forwarding Mode' ref='fwdMode' defaultValue={obj.fwdMode} placeholder='Forwarding Mode' />
 			
 				<Input type='text' label='name of this block(must be 'global')' ref='name' defaultValue={obj.name} placeholder='name of this block(must be 'global')' />
 			
