@@ -28,6 +28,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb/modeldb"
 
 	log "github.com/Sirupsen/logrus"
@@ -663,6 +664,32 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 		return core.Errorf("Tenant not found")
 	}
 
+	for key := range tenant.LinkSets.Networks {
+		networkDetail := contivModel.FindNetwork(key)
+		if networkDetail == nil {
+			log.Errorf("Network key %s not found", key)
+			return fmt.Errorf("Network key %s not found", key)
+		}
+
+		// Check for overlapping subnetv6 if existing and current subnetv6 is non-empty
+		if network.Ipv6Subnet != "" && networkDetail.Ipv6Subnet != "" {
+			flagv6 := netutils.IsOverlappingSubnetv6(network.Ipv6Subnet, networkDetail.Ipv6Subnet)
+			if flagv6 == true {
+				log.Errorf("Overlapping of Subnetv6 Networks")
+				return errors.New("Network " + networkDetail.NetworkName + " conflicts with subnetv6  " + network.Ipv6Subnet)
+			}
+		}
+
+		// Check for overlapping subnet if existing and current subnet is non-empty
+		if network.Subnet != "" && networkDetail.Subnet != "" {
+			flag := netutils.IsOverlappingSubnet(network.Subnet, networkDetail.Subnet)
+			if flag == true {
+				log.Errorf("Overlapping of Networks")
+				return errors.New("Network " + networkDetail.NetworkName + " conflicts with subnet " + network.Subnet)
+			}
+		}
+	}
+
 	// If there is an EndpointGroup with the same name as this network, reject.
 	nameClash := contivModel.FindEndpointGroup(network.Key)
 	if nameClash != nil {
@@ -965,7 +992,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		net := contivModel.FindNetwork(netKey)
 		if net == nil {
 			log.Errorf("Network %s not found", netKey)
-			return errors.New("FromNetwork not found")
+			return errors.New("From Network not found")
 		}
 	} else if rule.ToNetwork != "" {
 		netKey := rule.TenantName + ":" + rule.ToNetwork
@@ -973,7 +1000,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		net := contivModel.FindNetwork(netKey)
 		if net == nil {
 			log.Errorf("Network %s not found", netKey)
-			return errors.New("ToNetwork not found")
+			return errors.New("To Network not found")
 		}
 	}
 

@@ -230,6 +230,9 @@ func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
 			time.Sleep(20 * time.Second)
 			c.Assert(s.verifyVTEPs(), IsNil)
 
+			c.Assert(s.verifyEPs(containers), IsNil)
+			time.Sleep(2 * time.Second)
+
 			// test ping for all containers
 			c.Assert(s.pingTest(containers), IsNil)
 		}
@@ -267,8 +270,8 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 		Encap:       "vxlan",
 	}
 	if s.fwdMode != "routing" {
-		network.Ipv6Subnet = "2016:0617::/100"
-		network.Ipv6Gateway = "2016:0617::254"
+		network.Ipv6Subnet = "2016:0718::/100"
+		network.Ipv6Gateway = "2016:0718::254"
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
