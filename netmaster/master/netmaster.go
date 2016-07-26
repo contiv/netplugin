@@ -110,58 +110,83 @@ func validateTenantConfig(tenant *intent.ConfigTenant) error {
 
 // CreateGlobal sets the global state
 func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
-	// check for valid values
-	switch gc.NwInfraType {
-	case "default", "aci", "aci-opflex":
-		// These values are acceptable.
-	default:
-		return errors.New("Invalid fabric mode")
-	}
-	_, err := netutils.ParseTagRanges(gc.VLANs, "vlan")
-	if err != nil {
-		return err
-	}
-	_, err = netutils.ParseTagRanges(gc.VXLANs, "vxlan")
-	if err != nil {
-		return err
-	}
+	log.Infof("Received global create with intent {%v}", gc)
+	var err error
+	gcfgUpdateList := []string{}
 
 	masterGc := &mastercfg.GlobConfig{}
 	masterGc.StateDriver = stateDriver
-	masterGc.NwInfraType = gc.NwInfraType
+	masterGc.Read("global")
+
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	gCfg.Read("global")
+
+	// check for valid values
+	if gc.NwInfraType != "" {
+		switch gc.NwInfraType {
+		case "default", "aci", "aci-opflex":
+			// These values are acceptable.
+		default:
+			return errors.New("Invalid fabric mode")
+		}
+		masterGc.NwInfraType = gc.NwInfraType
+	}
+	if gc.VLANs != "" {
+		_, err := netutils.ParseTagRanges(gc.VLANs, "vlan")
+		if err != nil {
+			return err
+		}
+		gCfg.Auto.VLANs = gc.VLANs
+		gcfgUpdateList = append(gcfgUpdateList, "vlan")
+	}
+
+	if gc.VXLANs != "" {
+		_, err = netutils.ParseTagRanges(gc.VXLANs, "vxlan")
+		if err != nil {
+			return err
+		}
+		gCfg.Auto.VXLANs = gc.VXLANs
+		gcfgUpdateList = append(gcfgUpdateList, "vxlan")
+	}
+
+	if gc.FwdMode != "" {
+		masterGc.FwdMode = gc.FwdMode
+	}
+
 	err = masterGc.Write()
 	if err != nil {
 		return err
 	}
 
-	// Setup global state
-	gCfg := &gstate.Cfg{}
-	gCfg.StateDriver = stateDriver
-	gCfg.Auto.VLANs = gc.VLANs
-	gCfg.Auto.VXLANs = gc.VXLANs
+	if len(gcfgUpdateList) > 0 {
+		// Delete old state
 
-	// Delete old state
-	gOper := &gstate.Oper{}
-	gOper.StateDriver = stateDriver
-	err = gOper.Read("")
-	if err == nil {
-		err = gCfg.DeleteResources()
+		gOper := &gstate.Oper{}
+		gOper.StateDriver = stateDriver
+		err = gOper.Read("")
+		if err == nil {
+			for _, res := range gcfgUpdateList {
+				err = gCfg.DeleteResources(res)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		for _, res := range gcfgUpdateList {
+			// setup resources
+			err = gCfg.Process(res)
+			if err != nil {
+				log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
+				return err
+			}
+		}
+
+		err = gCfg.Write()
 		if err != nil {
+			log.Errorf("error updating global config.Error: %s", err)
 			return err
 		}
-	}
-
-	// setup resources
-	err = gCfg.Process()
-	if err != nil {
-		log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
-		return err
-	}
-
-	err = gCfg.Write()
-	if err != nil {
-		log.Errorf("error updating global config.Error: %s", err)
-		return err
 	}
 
 	return nil
@@ -184,7 +209,11 @@ func DeleteGlobal(stateDriver core.StateDriver) error {
 	gCfg.StateDriver = stateDriver
 	err = gCfg.Read("")
 	if err == nil {
-		err = gCfg.DeleteResources()
+		err = gCfg.DeleteResources("vlan")
+		if err != nil {
+			return err
+		}
+		err = gCfg.DeleteResources("vxlan")
 		if err != nil {
 			return err
 		}

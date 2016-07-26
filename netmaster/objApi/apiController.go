@@ -78,6 +78,7 @@ func NewAPIController(router *mux.Router, storeURL string) *APIController {
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
+			FwdMode:          "bridge",
 		})
 		if err != nil {
 			log.Fatalf("Error creating global state. Err: %v", err)
@@ -157,6 +158,7 @@ func (ac *APIController) GlobalCreate(global *contivModel.Global) error {
 		NwInfraType: global.NetworkInfraType,
 		VLANs:       global.Vlans,
 		VXLANs:      global.Vxlans,
+		FwdMode:     global.FwdMode,
 	}
 
 	// Create the object
@@ -180,14 +182,32 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	}
 
 	// Build global config
-	gCfg := intent.ConfigGlobal{
-		NwInfraType: params.NetworkInfraType,
-		VLANs:       params.Vlans,
-		VXLANs:      params.Vxlans,
+	globalCfg := intent.ConfigGlobal{}
+	//check for change in forwarding mode
+	if global.FwdMode != params.FwdMode {
+		gCfg := &gstate.Cfg{}
+		gCfg.StateDriver = stateDriver
+		numVlans, vlansInUse := gCfg.GetVlansInUse()
+		numVxlans, vxlansInUse := gCfg.GetVxlansInUse()
+		//check if there exists any non default network and tenants
+		if numVlans+numVxlans > 0 {
+			log.Errorf("Unable to update forwarding mode due to existing %d vlans and %d vxlans", numVlans, numVxlans)
+			return fmt.Errorf("Please delete %v vlans and %v vxlans before changing forwarding mode", vlansInUse, vxlansInUse)
+		}
+		globalCfg.FwdMode = params.FwdMode
+	}
+	if global.Vlans != params.Vlans {
+		globalCfg.VLANs = params.Vlans
+	}
+	if global.Vxlans != params.Vxlans {
+		globalCfg.VXLANs = params.Vxlans
+	}
+	if global.NetworkInfraType != params.NetworkInfraType {
+		globalCfg.NwInfraType = params.NetworkInfraType
 	}
 
 	// Create the object
-	err = master.CreateGlobal(stateDriver, &gCfg)
+	err = master.CreateGlobal(stateDriver, &globalCfg)
 	if err != nil {
 		log.Errorf("Error creating global config {%+v}. Err: %v", global, err)
 		return err
@@ -196,6 +216,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	global.NetworkInfraType = params.NetworkInfraType
 	global.Vlans = params.Vlans
 	global.Vxlans = params.Vxlans
+	global.FwdMode = params.FwdMode
 
 	return nil
 }

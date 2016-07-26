@@ -53,11 +53,14 @@ func applyConfig(t *testing.T, cfgBytes []byte) {
 	gCfg.Auto.VXLANs = "1-10000"
 
 	// setup resources
-	err = gCfg.Process()
+	err = gCfg.Process("vxlan")
 	if err != nil {
 		t.Fatalf("Error updating the config %+v. Error: %s", gCfg, err)
 	}
-
+	err = gCfg.Process("vlan")
+	if err != nil {
+		t.Fatalf("Error updating the config %+v. Error: %s", gCfg, err)
+	}
 	err = gCfg.Write()
 	if err != nil {
 		t.Fatalf("error updating global config.Error: %s", err)
@@ -427,7 +430,11 @@ func applyVerifyRangeTag(t *testing.T, cfgBytes []byte, shouldFail bool) {
 	gCfg.Auto.VXLANs = "1001-2000"
 
 	// setup resources
-	err = gCfg.Process()
+	err = gCfg.Process("vlan")
+	if err != nil {
+		t.Fatalf("Error updating the config %+v. Error: %s", gCfg, err)
+	}
+	err = gCfg.Process("vxlan")
 	if err != nil {
 		t.Fatalf("Error updating the config %+v. Error: %s", gCfg, err)
 	}

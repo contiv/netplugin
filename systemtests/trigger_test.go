@@ -93,7 +93,6 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 		network.Ipv6Subnet = "2016:0617::/100"
 		network.Ipv6Gateway = "2016:0617::254"
 	}
-
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
 	for i := 0; i < s.iterations; i++ {
@@ -105,11 +104,8 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
 			time.Sleep(50 * time.Second)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
-			if s.fwdMode == "routing" {
-				c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
-			} else {
-				c.Assert(node.startNetplugin(""), IsNil)
-			}
+			c.Assert(node.startNetplugin(""), IsNil)
+
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 			time.Sleep(20 * time.Second)
 			c.Assert(node.waitForListeners(), IsNil)
@@ -169,11 +165,8 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 			c.Assert(node.rotateLog("netplugin"), IsNil)
 			c.Assert(node.rotateLog("netmaster"), IsNil)
 
-			if s.fwdMode == "routing" {
-				c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
-			} else {
-				c.Assert(node.startNetplugin(""), IsNil)
-			}
+			c.Assert(node.startNetplugin(""), IsNil)
+
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 			time.Sleep(20 * time.Second)
 			c.Assert(node.startNetmaster(), IsNil)
@@ -346,11 +339,9 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 			for _, node := range s.nodes {
 				c.Assert(node.stopNetplugin(), IsNil)
 				c.Assert(node.rotateLog("netplugin"), IsNil)
-				if s.fwdMode == "routing" {
-					c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
-				} else {
-					c.Assert(node.startNetplugin(""), IsNil)
-				}
+
+				c.Assert(node.startNetplugin(""), IsNil)
+
 				c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 				time.Sleep(20 * time.Second)
 			}

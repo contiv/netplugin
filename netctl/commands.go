@@ -360,12 +360,14 @@ var Commands = []cli.Command{
 					cli.StringFlag{
 						Name:  "vlan-range, v",
 						Usage: "Allowed Vlan id range",
-						Value: "1-4094",
 					},
 					cli.StringFlag{
 						Name:  "vxlan-range, x",
 						Usage: "Allowed Vxlan VNID range",
-						Value: "1-10000",
+					},
+					cli.StringFlag{
+						Name:  "fwd-mode, b",
+						Usage: "forwarding mode (bridge,routing)",
 					},
 				},
 				Action: setGlobal,

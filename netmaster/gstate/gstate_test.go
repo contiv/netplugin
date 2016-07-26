@@ -57,7 +57,11 @@ func TestGlobalConfigAutoVLANs(t *testing.T) {
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process()
+	err = gc.Process("vxlan")
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v \n", err, gc)
+	}
+	err = gc.Process("vlan")
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
@@ -110,11 +114,14 @@ func TestGlobalConfigAutoVXLAN(t *testing.T) {
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process()
+	err = gc.Process("vlan")
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
-
+	err = gc.Process("vxlan")
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v \n", err, gc)
+	}
 	vxlan, localVLAN, err = gc.AllocVXLAN(uint(0))
 	if err != nil {
 		t.Fatalf("error - allocating vxlan - %s \n", err)
@@ -164,11 +171,14 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 	}
 	defer func() { resources.ReleaseStateResourceManager() }()
 
-	err = gc.Process()
+	err = gc.Process("vlan")
 	if err != nil {
 		t.Fatalf("error '%s' processing config %v \n", err, gc)
 	}
-
+	err = gc.Process("vxlan")
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v \n", err, gc)
+	}
 	vlan, err = gc.AllocVLAN(uint(0))
 	if err != nil {
 		t.Fatalf("error - allocating vlan - %s \n", err)

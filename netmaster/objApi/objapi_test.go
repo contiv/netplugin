@@ -236,12 +236,13 @@ func checkInspectGlobal(t *testing.T, expError bool, allocedVlans, allocedVxlans
 }
 
 // checkGlobalSet sets global state and verifies state
-func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans string) {
+func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode string) {
 	gl := client.Global{
 		Name:             "global",
 		NetworkInfraType: fabMode,
 		Vlans:            vlans,
 		Vxlans:           vxlans,
+		FwdMode:          fwdMode,
 	}
 	err := contivClient.GlobalPost(&gl)
 	if err != nil && !expError {
@@ -905,27 +906,27 @@ func TestNetworkAddDelete(t *testing.T) {
 // TestGlobalSetting tests global REST api
 func TestGlobalSetting(t *testing.T) {
 	// try basic modification
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
 	// set aci mode
-	checkGlobalSet(t, false, "aci", "1-4094", "1-10000")
+	checkGlobalSet(t, false, "aci", "1-4094", "1-10000", "bridge")
 
 	// modify vlan/vxlan range
-	checkGlobalSet(t, false, "default", "1-1000", "1001-2000")
+	checkGlobalSet(t, false, "default", "1-1000", "1001-2000", "bridge")
 
 	// try invalid fabric mode
-	checkGlobalSet(t, true, "xyz", "1-4094", "1-10000")
+	checkGlobalSet(t, true, "xyz", "1-4094", "1-10000", "bridge")
 
 	// try invalid vlan/vxlan range
-	checkGlobalSet(t, true, "default", "1-5000", "1-10000")
-	checkGlobalSet(t, true, "default", "0-4094", "1-10000")
-	checkGlobalSet(t, true, "default", "1", "1-10000")
-	checkGlobalSet(t, true, "default", "1?2", "1-10000")
-	checkGlobalSet(t, true, "default", "abcd", "1-10000")
-	checkGlobalSet(t, true, "default", "1-4094", "1-100000")
-	checkGlobalSet(t, true, "default", "1-4094", "1-20000")
+	checkGlobalSet(t, true, "default", "1-5000", "1-10000", "bridge")
+	checkGlobalSet(t, true, "default", "0-4094", "1-10000", "bridge")
+	checkGlobalSet(t, true, "default", "1", "1-10000", "bridge")
+	checkGlobalSet(t, true, "default", "1?2", "1-10000", "bridge")
+	checkGlobalSet(t, true, "default", "abcd", "1-10000", "bridge")
+	checkGlobalSet(t, true, "default", "1-4094", "1-100000", "bridge")
+	checkGlobalSet(t, true, "default", "1-4094", "1-20000", "bridge")
 
 	// reset back to default values
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
 }
 
 // TestNetworkPktRanges tests pkt-tag ranges in network REST api
@@ -956,14 +957,14 @@ func TestNetworkPktRanges(t *testing.T) {
 	checkDeleteNetwork(t, false, "default", "contiv1")
 
 	// shrink ranges and try allocating
-	checkGlobalSet(t, false, "default", "100-1000", "1001-2000")
+	checkGlobalSet(t, false, "default", "100-1000", "1001-2000", "bridge")
 	checkCreateNetwork(t, true, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 1001, "", "")
 	checkCreateNetwork(t, true, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 99, "", "")
 	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 2001, "", "")
 	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 1000, "", "")
 
 	// reset back to default values
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
 }
 
 // TestPolicyRules tests policy and rule REST objects

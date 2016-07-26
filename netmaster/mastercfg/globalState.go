@@ -36,6 +36,7 @@ const (
 type GlobConfig struct {
 	core.CommonState
 	NwInfraType string `json:"nw-infra-type"`
+	FwdMode     string `json:"fwd-mode"`
 }
 
 // Write the state
@@ -59,4 +60,10 @@ func (s *GlobConfig) ReadAll() ([]core.State, error) {
 func (s *GlobConfig) Clear() error {
 	key := globalConfigPath
 	return s.StateDriver.ClearState(key)
+}
+
+// WatchAll state transitions and send them through the channel.
+func (s *GlobConfig) WatchAll(rsps chan core.WatchState) error {
+	return s.StateDriver.WatchAllState(globalConfigPathPrefix, s, json.Unmarshal,
+		rsps)
 }

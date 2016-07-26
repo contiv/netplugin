@@ -65,19 +65,19 @@ func (gc *Cfg) Dump() error {
 	return nil
 }
 
-func (gc *Cfg) checkErrors() error {
+func (gc *Cfg) checkErrors(res string) error {
 	var err error
-
-	_, err = netutils.ParseTagRanges(gc.Auto.VLANs, "vlan")
-	if err != nil {
-		return err
+	if res == "vlan" {
+		_, err = netutils.ParseTagRanges(gc.Auto.VLANs, "vlan")
+		if err != nil {
+			return err
+		}
+	} else if res == "vxlan" {
+		_, err = netutils.ParseTagRanges(gc.Auto.VXLANs, "vxlan")
+		if err != nil {
+			return err
+		}
 	}
-
-	_, err = netutils.ParseTagRanges(gc.Auto.VXLANs, "vxlan")
-	if err != nil {
-		return err
-	}
-
 	return err
 }
 
@@ -90,7 +90,12 @@ func Parse(configBytes []byte) (*Cfg, error) {
 		return nil, err
 	}
 
-	err = gc.checkErrors()
+	err = gc.checkErrors("vlan")
+	if err != nil {
+		return nil, err
+	}
+
+	err = gc.checkErrors("vxlan")
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +309,7 @@ func (gc *Cfg) FreeVLAN(vlan uint) error {
 }
 
 // Process validates, implements, and writes the state.
-func (gc *Cfg) Process() error {
+func (gc *Cfg) Process(res string) error {
 	var err error
 
 	tempRm, err := resources.GetStateResourceManager()
@@ -314,44 +319,48 @@ func (gc *Cfg) Process() error {
 
 	ra := core.ResourceManager(tempRm)
 
-	err = gc.checkErrors()
+	err = gc.checkErrors(res)
 	if err != nil {
 		return core.Errorf("process failed on error checks %s", err)
 	}
 
 	// Only define a vlan resource if a valid range was specified
-	if gc.Auto.VLANs != "" {
-		var vlanRsrcCfg *bitset.BitSet
-		vlanRsrcCfg, err = gc.initVLANBitset(gc.Auto.VLANs)
-		if err != nil {
-			return err
-		}
-		err = ra.DefineResource("global", resources.AutoVLANResource, vlanRsrcCfg)
-		if err != nil {
-			return err
+	if res == "vlan" {
+		if gc.Auto.VLANs != "" {
+			var vlanRsrcCfg *bitset.BitSet
+			vlanRsrcCfg, err = gc.initVLANBitset(gc.Auto.VLANs)
+			if err != nil {
+				return err
+			}
+			err = ra.DefineResource("global", resources.AutoVLANResource, vlanRsrcCfg)
+			if err != nil {
+				return err
+			}
 		}
 	}
-
 	// Only define a vxlan resource if a valid range was specified
 	var freeVXLANsStart uint
-	if gc.Auto.VXLANs != "" {
-		var vxlanRsrcCfg *resources.AutoVXLANCfgResource
-		vxlanRsrcCfg, freeVXLANsStart, err = gc.initVXLANBitset(gc.Auto.VXLANs)
-		if err != nil {
-			return err
+	if res == "vxlan" {
+		if gc.Auto.VXLANs != "" {
+			var vxlanRsrcCfg *resources.AutoVXLANCfgResource
+			vxlanRsrcCfg, freeVXLANsStart, err = gc.initVXLANBitset(gc.Auto.VXLANs)
+			if err != nil {
+				return err
+			}
+			err = ra.DefineResource("global", resources.AutoVXLANResource, vxlanRsrcCfg)
+			if err != nil {
+				return err
+			}
 		}
-		err = ra.DefineResource("global", resources.AutoVXLANResource, vxlanRsrcCfg)
-		if err != nil {
-			return err
-		}
-	}
 
-	g := &Oper{FreeVXLANsStart: freeVXLANsStart}
-	g.StateDriver = gc.StateDriver
-	err = g.Write()
-	if err != nil {
-		log.Errorf("error '%s' updating goper state %v \n", err, g)
-		return err
+		g := &Oper{FreeVXLANsStart: freeVXLANsStart}
+
+		g.StateDriver = gc.StateDriver
+		err = g.Write()
+		if err != nil {
+			log.Errorf("error '%s' updating global oper state %v \n", err, g)
+			return err
+		}
 	}
 
 	log.Debugf("updating the global config to new state %v \n", gc)
@@ -359,24 +368,25 @@ func (gc *Cfg) Process() error {
 }
 
 // DeleteResources deletes associated resources
-func (gc *Cfg) DeleteResources() error {
+func (gc *Cfg) DeleteResources(res string) error {
 	tempRm, err := resources.GetStateResourceManager()
 	if err != nil {
 		return err
 	}
 
 	ra := core.ResourceManager(tempRm)
+	if res == "vlan" {
+		err = ra.UndefineResource("global", resources.AutoVLANResource)
+		if err != nil {
+			log.Errorf("Error deleting vlan resource. Err: %v", err)
+		}
+	} else if res == "vxlan" {
 
-	err = ra.UndefineResource("global", resources.AutoVLANResource)
-	if err != nil {
-		log.Errorf("Error deleting vlan resource. Err: %v", err)
+		err = ra.UndefineResource("global", resources.AutoVXLANResource)
+		if err != nil {
+			log.Errorf("Error deleting vxlan resource. Err: %v", err)
+		}
 	}
-
-	err = ra.UndefineResource("global", resources.AutoVXLANResource)
-	if err != nil {
-		log.Errorf("Error deleting vxlan resource. Err: %v", err)
-	}
-
 	return err
 }
 

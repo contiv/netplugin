@@ -92,7 +92,9 @@ func (self *OFSwitch) Send(req util.Message) {
 }
 
 func (self *OFSwitch) Disconnect() {
+	log.Infof("######################disconnecting the switch")
 	self.stream.Shutdown <- true
+	self.switchDisconnected()
 }
 
 // Handle switch connected event
@@ -109,7 +111,9 @@ func (self *OFSwitch) switchConnected() {
 
 // Handle switch disconnected event
 func (self *OFSwitch) switchDisconnected() {
+	log.Infof("FINALLY DELETING THE SWITCH CONNECTION")
 	self.app.SwitchDisconnected(self)
+	delete(switchDb, self.DPID().String())
 }
 
 // Receive loop for each Switch.
@@ -125,7 +129,6 @@ func (self *OFSwitch) receive() {
 
 			// send Switch disconnected callback
 			self.switchDisconnected()
-
 			return
 		}
 	}

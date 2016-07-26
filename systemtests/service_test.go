@@ -817,7 +817,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
 			time.Sleep(2 * time.Minute)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
-			c.Assert(node.startNetplugin("-fwd-mode=routing"), IsNil)
+			c.Assert(node.startNetplugin(""), IsNil)
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
 			time.Sleep(20 * time.Second)
 			for _, ips := range serviceIPs {

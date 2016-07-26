@@ -64,8 +64,6 @@ type cliOpts struct {
 	vtepIP     string // IP address to be used by the VTEP
 	vlanIntf   string // Uplink interface for VLAN switching
 	version    bool
-	routerIP   string // myrouter ip to start a protocol like Bgp
-	fwdMode    string // default "bridge". Values: "routing" , "bridge"
 	dbURL      string // state store URL
 }
 
@@ -322,17 +320,18 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 				log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
 				processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
 				continue
-			} /*
-				if serviceLbCfg, ok := currentState.(*mastercfg.CfgServiceLBState); ok {
-					log.Infof("Received %q for Service %s on tenant %s", eventStr,
-						serviceLbCfg.ServiceName, serviceLbCfg.Tenant)
-					processServiceLBEvent(netPlugin, opts, serviceLbCfg, isDelete)
-				}*/
-
+			}
 			if svcProvider, ok := currentState.(*mastercfg.SvcProvider); ok {
 				log.Infof("Received %q for Service %s , provider:%#v", eventStr,
 					svcProvider.ServiceName, svcProvider.Providers)
 				processSvcProviderUpdEvent(netPlugin, opts, svcProvider, isDelete)
+			}
+
+			if gCfg, ok := currentState.(*mastercfg.GlobConfig); ok {
+				log.Infof("Received %q for global config current state - %s , prev state - %s ", eventStr, gCfg.FwdMode, rsp.Prev.(*mastercfg.GlobConfig).FwdMode)
+				if gCfg.FwdMode != rsp.Prev.(*mastercfg.GlobConfig).FwdMode {
+					processGlobalFwdModeUpdEvent(netPlugin, opts, gCfg.FwdMode)
+				}
 			}
 
 			log.Debugf("Received a modify event, ignoring it")
@@ -368,7 +367,9 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts cliOpts, rsps chan core
 				svcProvider.ServiceName, svcProvider.Providers)
 			processSvcProviderUpdEvent(netPlugin, opts, svcProvider, isDelete)
 		}
-
+		if gCfg, ok := currentState.(*mastercfg.GlobConfig); ok {
+			log.Infof("Received %q for global config current state - %s ", eventStr, gCfg.FwdMode)
+		}
 	}
 }
 
@@ -410,6 +411,16 @@ func handleSvcProviderUpdEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvE
 	return
 }
 
+func handleGlobalCfgEvents(netPlugin *plugin.NetPlugin, opts cliOpts, recvErr chan error) {
+
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, opts, rsps)
+	cfg := mastercfg.GlobConfig{}
+	cfg.StateDriver = netPlugin.StateDriver
+	recvErr <- cfg.WatchAll(rsps)
+	return
+}
+
 func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 
 	recvErr := make(chan error, 1)
@@ -426,6 +437,9 @@ func handleEvents(netPlugin *plugin.NetPlugin, opts cliOpts) error {
 		docker, _ := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
 		go docker.StartMonitorEvents(handleDockerEvents, recvErr, netPlugin, recvErr)
 	}
+
+	go handleGlobalCfgEvents(netPlugin, opts, recvErr)
+
 	err := <-recvErr
 	if err != nil {
 		log.Errorf("Failure occured. Error: %s", err)
@@ -510,9 +524,6 @@ func main() {
 	var flagSet *flag.FlagSet
 
 	defHostLabel, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("Failed to fetch hostname. Error: %s", err)
-	}
 
 	// parse rest of the args that require creating state
 	flagSet = flag.NewFlagSet("netplugin", flag.ExitOnError)
@@ -556,10 +567,6 @@ func main() {
 		"version",
 		false,
 		"Show version")
-	flagSet.StringVar(&opts.fwdMode,
-		"fwd-mode",
-		"bridge",
-		"Forwarding Mode")
 	flagSet.StringVar(&opts.dbURL,
 		"cluster-store",
 		"etcd://127.0.0.1:2379",
@@ -594,10 +601,6 @@ func main() {
 
 	if opts.syslog != "" {
 		configureSyslog(opts.syslog)
-	}
-
-	if opts.fwdMode != "bridge" && opts.fwdMode != "routing" {
-		log.Fatalf("Invalid forwarding mode. Allowed modes are bridge,routing ")
 	}
 
 	if flagSet.NFlag() < 1 {
@@ -635,8 +638,6 @@ func main() {
 			HostLabel: opts.hostLabel,
 			VtepIP:    opts.vtepIP,
 			VlanIntf:  opts.vlanIntf,
-			RouterIP:  opts.routerIP,
-			FwdMode:   opts.fwdMode,
 			DbURL:     opts.dbURL,
 		},
 	}
@@ -736,6 +737,50 @@ func processSvcProviderUpdEvent(netPlugin *plugin.NetPlugin, opts cliOpts,
 	}
 	netPlugin.SvcProviderUpdate(svcProvider.ServiceName, svcProvider.Providers)
 	return nil
+}
+
+func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts cliOpts, fwdMode string) {
+
+	// parse store URL
+	parts := strings.Split(opts.dbURL, "://")
+	if len(parts) < 2 {
+		log.Fatalf("Invalid cluster-store-url %s", opts.dbURL)
+	}
+	stateStore := parts[0]
+	// initialize the config
+	pluginConfig := plugin.Config{
+		Drivers: plugin.Drivers{
+			Network: "ovs",
+			State:   stateStore,
+		},
+		Instance: core.InstanceInfo{
+			HostLabel: opts.hostLabel,
+			VtepIP:    opts.vtepIP,
+			VlanIntf:  opts.vlanIntf,
+			DbURL:     opts.dbURL,
+			FwdMode:   fwdMode,
+		},
+	}
+
+	netPlugin.GlobalFwdModeUpdate(pluginConfig)
+
+	for _, master := range cluster.MasterDB {
+		netPlugin.AddMaster(core.ServiceInfo{
+			HostAddr: master.HostAddr,
+			Port:     9001, //netmasterRPCPort
+		})
+	}
+
+	serviceList, _ := cluster.ObjdbClient.GetService("netplugin")
+	for _, serviceInfo := range serviceList {
+		if serviceInfo.HostAddr != opts.vtepIP {
+			netPlugin.AddPeerHost(core.ServiceInfo{
+				HostAddr: serviceInfo.HostAddr,
+				Port:     4789, //vxlanUDPPort
+			})
+		}
+	}
+
 }
 
 /*Handles docker events monitored by dockerclient. Currently we only handle
