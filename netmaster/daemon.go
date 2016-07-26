@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
@@ -316,6 +317,7 @@ func (d *daemon) becomeLeader() {
 func (d *daemon) becomeFollower() {
 	// ask listener to stop
 	d.stopLeaderChan <- true
+	time.Sleep(time.Second)
 
 	// set current state
 	d.currState = "follower"
