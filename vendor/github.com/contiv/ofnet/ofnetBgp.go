@@ -54,6 +54,7 @@ type OfnetBgp struct {
 	cc          *grpc.ClientConn //grpc client connection
 	stop        chan bool
 	start       chan bool
+	stopArp     chan bool
 	intfName    string //loopback intf to run bgp
 }
 
@@ -84,6 +85,7 @@ func NewOfnetBgp(agent *OfnetAgent, routerInfo []string) *OfnetBgp {
 	ofnetBgp.stop = make(chan bool, 1)
 	ofnetBgp.intfName = "inb01"
 	ofnetBgp.start = make(chan bool, 1)
+	ofnetBgp.stopArp = make(chan bool, 1)
 	return ofnetBgp
 }
 
@@ -214,10 +216,8 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 func (self *OfnetBgp) StopProtoServer() error {
 
 	log.Info("Received stop bgp server")
-	err := self.agent.ovsDriver.DeletePort(self.intfName)
-	if err != nil {
-		log.Errorf("Error deleting the port: %v", err)
-		return err
+	if self.myBgpPeer != "" {
+		self.DeleteProtoNeighbor()
 	}
 
 	// Delete the endpoint from local routing table
@@ -225,11 +225,15 @@ func (self *OfnetBgp) StopProtoServer() error {
 	if epreg != nil {
 		delete(self.agent.endpointDb, epreg.EndpointID)
 		delete(self.agent.localEndpointDb, epreg.PortNo)
-		err = self.agent.datapath.RemoveLocalEndpoint(*epreg)
+		err := self.agent.datapath.RemoveLocalEndpoint(*epreg)
+		if err != nil {
+			return err
+		}
 	}
 	self.routerIP = ""
 	self.myBgpAs = 0
 	self.agent.deleteVrf("default")
+
 	self.stop <- true
 	return nil
 }
@@ -271,7 +275,7 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 	})
 
 	self.bgpServer.PeerDelete(p)
-
+	self.stopArp <- true
 	bgpEndpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
 
 	self.agent.datapath.RemoveEndpoint(bgpEndpoint)
@@ -344,7 +348,7 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 		return err
 	}
 	self.myBgpPeer = neighborInfo.NeighborIP
-	go self.sendArp()
+	go self.sendArp(self.stopArp)
 
 	//Walk through all the localEndpointDb and them to protocol rib
 	for _, endpoint := range self.agent.localEndpointDb {
@@ -739,54 +743,62 @@ func setNeighborConfigValues(neighbor *bgpconf.Neighbor) error {
 	return nil
 }
 
-func (self *OfnetBgp) sendArp() {
+func (self *OfnetBgp) sendArp(stopArp chan bool) {
 
 	//Get the Mac of the vlan intf
 	//Get the portno of the uplink
 	//Build an arp packet and send on portno of uplink
 	time.Sleep(5 * time.Second)
 	for {
-		if self.myBgpPeer == "" {
+		select {
+		case <-stopArp:
 			return
+		case <-time.After(1800 * time.Second):
+			self.sendArpPacketOut()
 		}
-
-		intf, _ := net.InterfaceByName(self.vlanIntf)
-		ofPortno, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
-		bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
-		zeroMac, _ := net.ParseMAC("00:00:00:00:00:00")
-
-		srcIP := net.ParseIP(self.routerIP)
-		dstIP := net.ParseIP(self.myBgpPeer)
-		arpReq, _ := protocol.NewARP(protocol.Type_Request)
-		arpReq.HWSrc = intf.HardwareAddr
-		arpReq.IPSrc = srcIP
-		arpReq.HWDst = zeroMac
-		arpReq.IPDst = dstIP
-
-		log.Infof("Sending ARP Request: %+v", arpReq)
-
-		// build the ethernet packet
-		ethPkt := protocol.NewEthernet()
-		ethPkt.HWDst = bMac
-		ethPkt.HWSrc = arpReq.HWSrc
-		ethPkt.Ethertype = 0x0806
-		ethPkt.Data = arpReq
-
-		log.Infof("Sending ARP Request Ethernet: %+v", ethPkt)
-
-		// Packet out
-		pktOut := openflow13.NewPacketOut()
-		pktOut.Data = ethPkt
-		pktOut.AddAction(openflow13.NewActionOutput(ofPortno))
-
-		log.Infof("Sending ARP Request packet: %+v", pktOut)
-
-		// Send it out
-		self.agent.ofSwitch.Send(pktOut)
-		time.Sleep(1800 * time.Second)
 	}
 }
 
 func (self *OfnetBgp) ModifyProtoRib(path interface{}) {
 	self.modRibCh <- path.(*api.Path)
+}
+
+func (self *OfnetBgp) sendArpPacketOut() {
+	if self.myBgpPeer == "" {
+		return
+	}
+
+	intf, _ := net.InterfaceByName(self.vlanIntf)
+	ofPortno, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
+	bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
+	zeroMac, _ := net.ParseMAC("00:00:00:00:00:00")
+
+	srcIP := net.ParseIP(self.routerIP)
+	dstIP := net.ParseIP(self.myBgpPeer)
+	arpReq, _ := protocol.NewARP(protocol.Type_Request)
+	arpReq.HWSrc = intf.HardwareAddr
+	arpReq.IPSrc = srcIP
+	arpReq.HWDst = zeroMac
+	arpReq.IPDst = dstIP
+
+	log.Infof("Sending ARP Request: %+v", arpReq)
+
+	// build the ethernet packet
+	ethPkt := protocol.NewEthernet()
+	ethPkt.HWDst = bMac
+	ethPkt.HWSrc = arpReq.HWSrc
+	ethPkt.Ethertype = 0x0806
+	ethPkt.Data = arpReq
+
+	log.Infof("Sending ARP Request Ethernet: %+v", ethPkt)
+
+	// Packet out
+	pktOut := openflow13.NewPacketOut()
+	pktOut.Data = ethPkt
+	pktOut.AddAction(openflow13.NewActionOutput(ofPortno))
+
+	log.Infof("Sending ARP Request packet: %+v", pktOut)
+
+	// Send it out
+	self.agent.ofSwitch.Send(pktOut)
 }

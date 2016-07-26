@@ -142,10 +142,7 @@ func Client(servAddr string, portNo uint16) *RpcClient {
 func DisconnectClient(portNo uint16, servAddr string) {
 
 	clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
-	log.Infof("Received CLIENT DISCONNECT for %v", clientKey)
-	log.Infof("Received CLIENT DISCONNECT CLIENTDB HAS: %v", clientDb)
 	clientDb[clientKey] = nil
-	log.Infof("Received CLIENT DISCONNECT CLIENTDB HAS: %v", clientDb)
 }
 
 // Make an rpc call
@@ -209,7 +206,6 @@ func (s *contivListener) decrementRef() {
 // Accept is a wrapper over regular Accept call
 // which also maintains the refCnt
 func (s *contivListener) Accept() (net.Conn, error) {
-	log.Infof("#####################ACCEPTING ")
 	s.incrementRef()
 	defer s.decrementRef()
 	return s.Listener.Accept()
@@ -217,7 +213,6 @@ func (s *contivListener) Accept() (net.Conn, error) {
 
 // Close closes the contivListener.
 func (s *contivListener) Close() error {
-	log.Infof("############CLOSING")
 	if err := s.Listener.Close(); err != nil {
 		return err
 	}
