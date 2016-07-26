@@ -74,8 +74,24 @@ func (cp *consulPlugin) NewClient(endpoints []string) (API, error) {
 	// verify we can reach the consul
 	_, _, err = client.KV().List("/", nil)
 	if err != nil {
-		log.Errorf("Error connecting to consul. Err: %v", err)
-		return nil, err
+		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+			strings.Contains(err.Error(), "connection refused") {
+			for i := 0; i < maxConsulRetries; i++ {
+				_, _, err = client.KV().List("/", nil)
+				if err == nil {
+					break
+				}
+
+				// Retry after a delay
+				time.Sleep(time.Second)
+			}
+		}
+
+		// return error if it failed after retries
+		if err != nil {
+			log.Errorf("Error connecting to consul. Err: %v", err)
+			return nil, err
+		}
 	}
 
 	return cc, nil

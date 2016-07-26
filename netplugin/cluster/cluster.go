@@ -324,7 +324,7 @@ func GetLocalAddr() (string, error) {
 }
 
 // Init initializes the cluster module
-func Init(netplugin *plugin.NetPlugin, ctrlIP, vtepIP, storeURL string) error {
+func Init(storeURL string) error {
 	var err error
 
 	// Create an objdb client
@@ -333,6 +333,11 @@ func Init(netplugin *plugin.NetPlugin, ctrlIP, vtepIP, storeURL string) error {
 		return err
 	}
 
+	return nil
+}
+
+// RunLoop registers netplugin service with cluster store and runs peer discovery
+func RunLoop(netplugin *plugin.NetPlugin, ctrlIP, vtepIP string) error {
 	// Register ourselves
 	registerService(ObjdbClient, ctrlIP, vtepIP)
 

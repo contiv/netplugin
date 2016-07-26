@@ -163,6 +163,7 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 		for _, node := range s.nodes {
 			c.Assert(node.reloadNode(), IsNil)
 
+			time.Sleep(20 * time.Second)
 			c.Assert(node.startNetplugin(""), IsNil)
 
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
