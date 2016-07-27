@@ -67,7 +67,8 @@ sudo systemctl start docker
 rm /etc/docker/key.json
 (service docker restart) || exit 1
 
-docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
+usermod -aG docker vagrant
+docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar || echo "Loading skydns container failed"
 
 SCRIPT
 
@@ -78,6 +79,12 @@ provision_common_always = <<SCRIPT
 
 # Drop cache to workaround vboxsf problem
 echo 3 > /proc/sys/vm/drop_caches
+
+# start docker daemon
+systemctl start docker
+
+# Start OVS if required
+systemctl start openvswitch
 
 # Enable ovs mgmt port
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
@@ -101,9 +108,11 @@ SCRIPT
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
-        config.vm.box = "contiv/ubuntu1504-netplugin"
+        config.vm.box = "contiv/ubuntu1604-netplugin"
+        config.vm.box_version = "0.7.0"
     else
-        config.vm.box = "contiv/centos71-netplugin"
+        config.vm.box = "contiv/centos72"
+        config.vm.box_version = "0.7.0"
     end
     config.vm.provider 'virtualbox' do |v|
         v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
@@ -126,6 +135,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       config.vm.define "quagga1" do |quagga1|
 
         quagga1.vm.box = "contiv/quagga1"
+        quagga1.vm.box_version = "0.0.1"
         quagga1.vm.host_name = "quagga1"
         quagga1.vm.network :private_network, ip: base_ip + "51", virtualbox__intnet: "true", auto_config: false
         quagga1.vm.network "private_network",
@@ -142,6 +152,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       config.vm.define "quagga2" do |quagga2|
 
         quagga2.vm.box = "contiv/quagga2"
+        quagga2.vm.box_version = "0.0.1"
         quagga2.vm.host_name = "quagga2"
         quagga2.vm.network :private_network, ip: base_ip + "52", virtualbox__intnet: "true", auto_config: false
         quagga2.vm.network "private_network",
@@ -188,9 +199,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
            end
         end
         config.vm.define node_name do |node|
-            node.vm.box_version = "0.3.1"
-
-            # node.vm.hostname = node_name
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
             # create an interface for bridged network
@@ -242,7 +250,7 @@ set -x
 
 ## start etcd with generated config
 echo "#!/bin/bash" > /usr/bin/etcd.sh
-echo "etcd --name #{node_name} --data-dir /tmp/etcd \
+echo "etcd --name #{node_name} --data-dir /var/lib/etcd \
  -heartbeat-interval=100 -election-timeout=5000 \
  --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
  --advertise-client-urls http://#{node_addr}:2379,http://#{node_addr}:4001 \

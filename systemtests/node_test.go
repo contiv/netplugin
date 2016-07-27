@@ -154,9 +154,6 @@ func (n *node) cleanupSlave() {
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
 	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
 	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
-	if os.Getenv("ACI_SYS_TEST_MODE") != "ON" {
-		vNode.RunCommand("sudo service docker restart")
-	}
 }
 
 func (n *node) cleanupMaster() {
@@ -206,7 +203,7 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 	}
 
 	if spec.commandName == "" {
-		spec.commandName = "sleep 60m"
+		spec.commandName = "sleep 600m"
 	}
 
 	if spec.name != "" {
@@ -252,7 +249,7 @@ func (n *node) runContainer(spec containerSpec) (*container, error) {
 }
 
 func (n *node) checkForNetpluginErrors() error {
-	out, _ := n.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "panic\|fatal" $i; done`)
+	out, _ := n.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep -A 10 -B 5 "panic\|fatal" $i; done`)
 	if out != "" {
 		logrus.Errorf("Fatal error in logs on %s: \n", n.Name())
 		fmt.Printf("%s\n==========================================\n", out)

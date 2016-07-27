@@ -649,6 +649,9 @@ func main() {
 	}
 	defer close(quitCh)
 
+	// Initialize clustering
+	cluster.Init(opts.dbURL)
+
 	// Initialize appropriate plugin
 	switch opts.pluginMode {
 	case "docker":
@@ -670,8 +673,8 @@ func main() {
 	// Process all current state
 	processCurrentState(netPlugin, opts)
 
-	// Initialize clustering
-	cluster.Init(netPlugin, opts.ctrlIP, opts.vtepIP, opts.dbURL)
+	// Run peer discovery loop
+	cluster.RunLoop(netPlugin, opts.ctrlIP, opts.vtepIP)
 
 	if opts.pluginMode == "kubernetes" {
 		k8splugin.InitKubServiceWatch(netPlugin)

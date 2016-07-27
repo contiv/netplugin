@@ -124,7 +124,7 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 }
 
 func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
-	if os.Getenv("CONTIV_DOCKER_VERSION") != "1.11.1" {
+	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" {
 		c.Skip("Skipping node reload test on older docker version")
 	}
 	network := &client.Network{
@@ -162,9 +162,8 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 		// reload VMs one at a time
 		for _, node := range s.nodes {
 			c.Assert(node.reloadNode(), IsNil)
-			c.Assert(node.rotateLog("netplugin"), IsNil)
-			c.Assert(node.rotateLog("netmaster"), IsNil)
 
+			time.Sleep(20 * time.Second)
 			c.Assert(node.startNetplugin(""), IsNil)
 
 			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)

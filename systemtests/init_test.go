@@ -253,7 +253,7 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 
 func (s *systemtestSuite) TearDownTest(c *C) {
 	for _, node := range s.nodes {
-		c.Check(node.checkForNetpluginErrors(), IsNil)
+		c.Assert(node.checkForNetpluginErrors(), IsNil)
 		node.rotateLog("netplugin")
 		node.rotateLog("netmaster")
 	}
