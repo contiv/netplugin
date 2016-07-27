@@ -106,7 +106,7 @@ class Node:
         self.runCmd("docker rm -f `docker ps -aq`")
         self.runCmd("sudo ovs-vsctl del-br contivVxlanBridge")
         self.runCmd("sudo ovs-vsctl del-br contivVlanBridge")
-        self.runCmd("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
+        self.runCmd("for p in `/usr/sbin/ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
         self.runCmd("sudo rm /var/run/docker/plugins/netplugin.sock")
         self.runCmd("sudo rm /tmp/net*")
         self.runCmd("sudo service docker restart")

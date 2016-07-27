@@ -77,11 +77,13 @@ type Plugin interface {
 type InstanceInfo struct {
 	StateDriver StateDriver `json:"-"`
 	HostLabel   string      `json:"host-label"`
+	CtrlIP      string      `json:"ctrl-ip"`
 	VtepIP      string      `json:"vtep-ip"`
 	VlanIntf    string      `json:"vlan-if"`
 	RouterIP    string      `json:"router-ip"`
 	FwdMode     string      `json:"fwd-mode"`
 	DbURL       string      `json:"db-url"`
+	PluginMode  string      `json:"plugin-mode"`
 }
 
 // PortSpec defines protocol/port info required to host the service
