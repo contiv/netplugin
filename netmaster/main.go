@@ -116,7 +116,7 @@ func main() {
 		ListenURL:    opts.listenURL,
 		ClusterStore: opts.clusterStore,
 		ClusterMode:  opts.clusterMode,
-		DnsEnabled:   opts.dnsEnabled,
+		DNSEnabled:   opts.dnsEnabled,
 	}
 
 	// initialize master daemon

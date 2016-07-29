@@ -30,6 +30,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// per agent stats
+type ofnetAgentStats struct {
+	Stats map[string]uint64
+}
+
 // Ofnet master state
 type OfnetMaster struct {
 	myAddr      string       // Address where we are listening
@@ -46,6 +51,9 @@ type OfnetMaster struct {
 
 	// Policy database
 	policyDb map[string]*OfnetPolicyRule
+
+	// agent stats
+	agentStats map[string]*ofnetAgentStats
 }
 
 // Create new Ofnet master
@@ -79,6 +87,23 @@ func (self *OfnetMaster) Delete() error {
 	time.Sleep(100 * time.Millisecond)
 
 	return nil
+}
+
+// incrAgentStats increments an agent key
+func (self *OfnetMaster) incrAgentStats(hostKey, statName string) {
+	self.masterMutex.Lock()
+	defer self.masterMutex.Unlock()
+
+	// lookup the agent
+	agentStats := self.agentStats[hostKey]
+	if agentStats == nil {
+		return
+	}
+
+	// increment the stats
+	currStats := agentStats.Stats[statName]
+	currStats++
+	agentStats.Stats[statName] = currStats
 }
 
 // AddNode adds a node by calling MasterAdd rpc call on the node
@@ -146,6 +171,9 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 		}
 	}
 
+	// increment stats
+	self.incrAgentStats(hostKey, "registered")
+
 	return nil
 }
 
@@ -158,6 +186,10 @@ func (self *OfnetMaster) UnRegisterNode(hostInfo *OfnetNode, ret *bool) error {
 	delete(self.agentDb, hostKey)
 	self.masterMutex.Unlock()
 	rpcHub.DisconnectClient(hostInfo.HostPort, hostInfo.HostAddr)
+
+	// increment stats
+	self.incrAgentStats(hostKey, "unregistered")
+
 	return nil
 }
 
@@ -180,7 +212,7 @@ func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 	self.masterMutex.Unlock()
 
 	// Publish it to all agents except where it came from
-	for _, node := range self.agentDb {
+	for nodeKey, node := range self.agentDb {
 		if node.HostAddr != ep.OriginatorIp.String() {
 			var resp bool
 
@@ -191,6 +223,12 @@ func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 			if err != nil {
 				log.Errorf("Error adding endpoint to %s. Err: %v", node.HostAddr, err)
 				// Continue sending the message to other nodes
+
+				// increment stats
+				self.incrAgentStats(nodeKey, "EndpointAddFailure")
+			} else {
+				// increment stats
+				self.incrAgentStats(nodeKey, "EndpointAddSent")
 			}
 		}
 	}
@@ -219,7 +257,7 @@ func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 	self.masterMutex.Unlock()
 
 	// Publish it to all agents except where it came from
-	for _, node := range self.agentDb {
+	for nodeKey, node := range self.agentDb {
 		if node.HostAddr != ep.OriginatorIp.String() {
 			var resp bool
 
@@ -230,6 +268,12 @@ func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 			if err != nil {
 				log.Errorf("Error sending DELERE endpoint to %s. Err: %v", node.HostAddr, err)
 				// Continue sending the message to other nodes
+
+				// increment stats
+				self.incrAgentStats(nodeKey, "EndpointDelFailure")
+			} else {
+				// increment stats
+				self.incrAgentStats(nodeKey, "EndpointDelSent")
 			}
 		}
 	}
@@ -251,7 +295,7 @@ func (self *OfnetMaster) AddRule(rule *OfnetPolicyRule) error {
 	self.masterMutex.Unlock()
 
 	// Publish it to all agents
-	for _, node := range self.agentDb {
+	for nodeKey, node := range self.agentDb {
 		var resp bool
 
 		log.Infof("Sending rule: %+v to node %s:%d", rule, node.HostAddr, node.HostPort)
@@ -261,6 +305,12 @@ func (self *OfnetMaster) AddRule(rule *OfnetPolicyRule) error {
 		if err != nil {
 			log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
 			// Continue sending the message to other nodes
+
+			// increment stats
+			self.incrAgentStats(nodeKey, "AddRuleFailure")
+		} else {
+			// increment stats
+			self.incrAgentStats(nodeKey, "AddRuleSent")
 		}
 	}
 
@@ -280,7 +330,7 @@ func (self *OfnetMaster) DelRule(rule *OfnetPolicyRule) error {
 	self.masterMutex.Unlock()
 
 	// Publish it to all agents
-	for _, node := range self.agentDb {
+	for nodeKey, node := range self.agentDb {
 		var resp bool
 
 		log.Infof("Sending DELETE rule: %+v to node %s", rule, node.HostAddr)
@@ -290,6 +340,12 @@ func (self *OfnetMaster) DelRule(rule *OfnetPolicyRule) error {
 		if err != nil {
 			log.Errorf("Error adding rule to %s. Err: %v", node.HostAddr, err)
 			// Continue sending the message to other nodes
+
+			// increment stats
+			self.incrAgentStats(nodeKey, "DelRuleFailure")
+		} else {
+			// increment stats
+			self.incrAgentStats(nodeKey, "DelRuleSent")
 		}
 	}
 
@@ -319,13 +375,19 @@ func (self *OfnetMaster) MakeDummyRpcCall() error {
 // InjectGARPs triggers GARPS in the datapath on the specified epg
 func (self *OfnetMaster) InjectGARPs(epgID int) {
 	// Send to all agents
-	for _, node := range self.agentDb {
+	for nodeKey, node := range self.agentDb {
 		var resp bool
 
 		client := rpcHub.Client(node.HostAddr, node.HostPort)
 		err := client.Call("OfnetAgent.InjectGARPs", epgID, &resp)
 		if err != nil {
 			log.Errorf("Error triggering GARP on %s. Err: %v", node.HostAddr, err)
+
+			// increment stats
+			self.incrAgentStats(nodeKey, "InjectGARPsFailure")
+		} else {
+			// increment stats
+			self.incrAgentStats(nodeKey, "InjectGARPsSent")
 		}
 	}
 }
@@ -339,12 +401,14 @@ func (self *OfnetMaster) InspectState() ([]byte, error) {
 		AgentDb    map[string]*OfnetNode       // Database of agent nodes
 		EndpointDb map[string]*OfnetEndpoint   // Endpoint database
 		PolicyDb   map[string]*OfnetPolicyRule // Policy database
+		AgentStats map[string]*ofnetAgentStats // Agent stats
 	}{
 		self.myAddr,
 		self.myPort,
 		self.agentDb,
 		self.endpointDb,
 		self.policyDb,
+		self.agentStats,
 	}
 
 	// convert struct to json

@@ -29,6 +29,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/samalba/dockerclient"
 
+	// import and init skydns libraries
 	_ "github.com/contiv/netplugin/netplugin/svcplugin/consulextension"
 	_ "github.com/contiv/netplugin/netplugin/svcplugin/skydns2extension"
 )
@@ -50,6 +51,12 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	svcPlugin, quitCh, err := svcplugin.NewSvcregPlugin(opts.DbURL, nil)
 	if err != nil {
 		log.Fatalf("Error initializing service registry plugin")
+	}
+
+	// init cluster state
+	err = cluster.Init(opts.DbURL)
+	if err != nil {
+		log.Fatalf("Error initializing cluster. Err: %v", err)
 	}
 
 	// Initialize appropriate plugin
@@ -159,7 +166,10 @@ func (ag *Agent) PostInit() error {
 	opts := ag.pluginConfig.Instance
 
 	// Initialize clustering
-	cluster.Init(ag.netPlugin, opts.CtrlIP, opts.VtepIP, opts.DbURL)
+	err := cluster.RunLoop(ag.netPlugin, opts.CtrlIP, opts.VtepIP)
+	if err != nil {
+		log.Errorf("Error starting cluster run loop")
+	}
 
 	// start service REST requests
 	ag.serveRequests()

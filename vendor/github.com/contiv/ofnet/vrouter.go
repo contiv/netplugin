@@ -899,11 +899,16 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		log.Debugf("ARP packet: %+v", *t)
 		var arpHdr protocol.ARP = *t
 
+		self.agent.incrStats("ArpPktRcvd")
+
 		switch arpHdr.Operation {
 		case protocol.Type_Request:
+			self.agent.incrStats("ArpReqRcvd")
+
 			// Lookup the Dest IP in the endpoint table
 			vlan := self.agent.portVlanMap[inPort]
 			if vlan == nil {
+				self.agent.incrStats("ArpReqInvalidPortVlan")
 				return
 			}
 			endpointId := self.agent.getEndpointIdByIpVlan(arpHdr.IPDst, *vlan)
@@ -911,6 +916,7 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 			if endpoint == nil {
 				// If we dont know the IP address, dont send an ARP response
 				log.Infof("Received ARP request for unknown IP: %v", arpHdr.IPDst)
+				self.agent.incrStats("ArpReqUnknownDest")
 				return
 			}
 
@@ -941,8 +947,11 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 
 			// Send it out
 			self.ofSwitch.Send(pktOut)
+			self.agent.incrStats("ArpReqRespSent")
+
 		default:
 			log.Infof("Dropping ARP response packet from port %d", inPort)
+			self.agent.incrStats("ArpRespRcvd")
 		}
 	}
 }

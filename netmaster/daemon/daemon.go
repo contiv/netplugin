@@ -45,7 +45,7 @@ type MasterDaemon struct {
 	ListenURL    string // URL where netmaster needs to listen
 	ClusterStore string // state store URL
 	ClusterMode  string // cluster scheduler used docker/kubernetes/mesos etc
-	DnsEnabled   bool   // Contiv skydns enabled?
+	DNSEnabled   bool   // Contiv skydns enabled?
 
 	// Private state
 	currState        string                          // Current state of the daemon
@@ -61,6 +61,7 @@ type MasterDaemon struct {
 
 var leaderLock objdb.LockInterface // leader lock
 
+// Init initializes the master daemon
 func (d *MasterDaemon) Init() {
 	// set cluster mode
 	err := master.SetClusterMode(d.ClusterMode)
@@ -69,7 +70,7 @@ func (d *MasterDaemon) Init() {
 	}
 
 	// save dns flag
-	err = master.SetDNSEnabled(d.DnsEnabled)
+	err = master.SetDNSEnabled(d.DNSEnabled)
 	if err != nil {
 		log.Fatalf("Failed to set dns-enable. Error: %s", err)
 	}

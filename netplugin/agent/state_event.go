@@ -202,6 +202,108 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, hostID
 	return err
 }
 
+func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, fwdMode string) {
+
+	// parse store URL
+	parts := strings.Split(opts.DbURL, "://")
+	if len(parts) < 2 {
+		log.Fatalf("Invalid cluster-store-url %s", opts.DbURL)
+	}
+	stateStore := parts[0]
+	// initialize the config
+	pluginConfig := plugin.Config{
+		Drivers: plugin.Drivers{
+			Network: "ovs",
+			State:   stateStore,
+		},
+		Instance: opts,
+	}
+
+	netPlugin.GlobalFwdModeUpdate(pluginConfig)
+
+	for _, master := range cluster.MasterDB {
+		netPlugin.AddMaster(core.ServiceInfo{
+			HostAddr: master.HostAddr,
+			Port:     9001, //netmasterRPCPort
+		})
+	}
+
+	serviceList, _ := cluster.ObjdbClient.GetService("netplugin")
+	for _, serviceInfo := range serviceList {
+		if serviceInfo.HostAddr != opts.VtepIP {
+			netPlugin.AddPeerHost(core.ServiceInfo{
+				HostAddr: serviceInfo.HostAddr,
+				Port:     4789, //vxlanUDPPort
+			})
+		}
+	}
+
+}
+
+//processServiceLBEvent processes service load balancer object events
+func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgServiceLBState, isDelete bool) error {
+	var err error
+	portSpecList := []core.PortSpec{}
+	portSpec := core.PortSpec{}
+
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+	serviceID := svcLBCfg.ID
+
+	log.Infof("Recevied Process Service load balancer event {%v}", svcLBCfg)
+
+	//create portspect list from state.
+	//Ports format: servicePort:ProviderPort:Protocol
+	for _, port := range svcLBCfg.Ports {
+
+		portInfo := strings.Split(port, ":")
+		if len(portInfo) != 3 {
+			return errors.New("Invalid Port Format")
+		}
+		svcPort := portInfo[0]
+		provPort := portInfo[1]
+		portSpec.Protocol = portInfo[2]
+
+		sPort, _ := strconv.ParseUint(svcPort, 10, 16)
+		portSpec.SvcPort = uint16(sPort)
+
+		pPort, _ := strconv.ParseUint(provPort, 10, 16)
+		portSpec.ProvPort = uint16(pPort)
+
+		portSpecList = append(portSpecList, portSpec)
+	}
+
+	spec := &core.ServiceSpec{
+		IPAddress: svcLBCfg.IPAddress,
+		Ports:     portSpecList,
+	}
+	operStr := ""
+	if isDelete {
+		err = netPlugin.DeleteServiceLB(serviceID, spec)
+		operStr = "delete"
+	} else {
+		err = netPlugin.AddServiceLB(serviceID, spec)
+		operStr = "create"
+	}
+	if err != nil {
+		log.Errorf("Service Load Balancer %s failed.Error:%s", operStr, err)
+		return err
+	}
+	log.Infof("Service Load Balancer %s succeeded", operStr)
+
+	return nil
+}
+
+//processSvcProviderUpdEvent updates service provider events
+func processSvcProviderUpdEvent(netPlugin *plugin.NetPlugin, svcProvider *mastercfg.SvcProvider, isDelete bool) error {
+	if isDelete {
+		//ignore delete event since servicelb delete will take care of this.
+		return nil
+	}
+	netPlugin.SvcProviderUpdate(svcProvider.ServiceName, svcProvider.Providers)
+	return nil
+}
+
 func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps chan core.WatchState) {
 	for {
 		// block on change notifications
@@ -226,6 +328,13 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 				log.Infof("Received %q for Service %s , provider:%#v", eventStr,
 					svcProvider.ServiceName, svcProvider.Providers)
 				processSvcProviderUpdEvent(netPlugin, svcProvider, isDelete)
+			}
+
+			if gCfg, ok := currentState.(*mastercfg.GlobConfig); ok {
+				log.Infof("Received %q for global config current state - %s , prev state - %s ", eventStr, gCfg.FwdMode, rsp.Prev.(*mastercfg.GlobConfig).FwdMode)
+				if gCfg.FwdMode != rsp.Prev.(*mastercfg.GlobConfig).FwdMode {
+					processGlobalFwdModeUpdEvent(netPlugin, opts, gCfg.FwdMode)
+				}
 			}
 
 			// Ignore modify event on network state
@@ -305,66 +414,12 @@ func handleSvcProviderUpdEvents(netPlugin *plugin.NetPlugin, opts core.InstanceI
 	return
 }
 
-//processServiceLBEvent processes service load balancer object events
-func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgServiceLBState, isDelete bool) error {
-	var err error
-	portSpecList := []core.PortSpec{}
-	portSpec := core.PortSpec{}
+func handleGlobalCfgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
 
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
-	serviceID := svcLBCfg.ID
-
-	log.Infof("Recevied Process Service load balancer event {%v}", svcLBCfg)
-
-	//create portspect list from state.
-	//Ports format: servicePort:ProviderPort:Protocol
-	for _, port := range svcLBCfg.Ports {
-
-		portInfo := strings.Split(port, ":")
-		if len(portInfo) != 3 {
-			return errors.New("Invalid Port Format")
-		}
-		svcPort := portInfo[0]
-		provPort := portInfo[1]
-		portSpec.Protocol = portInfo[2]
-
-		sPort, _ := strconv.ParseUint(svcPort, 10, 16)
-		portSpec.SvcPort = uint16(sPort)
-
-		pPort, _ := strconv.ParseUint(provPort, 10, 16)
-		portSpec.ProvPort = uint16(pPort)
-
-		portSpecList = append(portSpecList, portSpec)
-	}
-
-	spec := &core.ServiceSpec{
-		IPAddress: svcLBCfg.IPAddress,
-		Ports:     portSpecList,
-	}
-	operStr := ""
-	if isDelete {
-		err = netPlugin.DeleteServiceLB(serviceID, spec)
-		operStr = "delete"
-	} else {
-		err = netPlugin.AddServiceLB(serviceID, spec)
-		operStr = "create"
-	}
-	if err != nil {
-		log.Errorf("Service Load Balancer %s failed.Error:%s", operStr, err)
-		return err
-	}
-	log.Infof("Service Load Balancer %s succeeded", operStr)
-
-	return nil
-}
-
-//processSvcProviderUpdEvent updates service provider events
-func processSvcProviderUpdEvent(netPlugin *plugin.NetPlugin, svcProvider *mastercfg.SvcProvider, isDelete bool) error {
-	if isDelete {
-		//ignore delete event since servicelb delete will take care of this.
-		return nil
-	}
-	netPlugin.SvcProviderUpdate(svcProvider.ServiceName, svcProvider.Providers)
-	return nil
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, opts, rsps)
+	cfg := mastercfg.GlobConfig{}
+	cfg.StateDriver = netPlugin.StateDriver
+	recvErr <- cfg.WatchAll(rsps)
+	return
 }

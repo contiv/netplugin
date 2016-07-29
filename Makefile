@@ -27,6 +27,7 @@ all: build unit-test system-test ubuntu-tests
 all-CI: stop clean start
 	make ssh-build
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-unit-test"'
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-integ-test"'
 	make system-test
 
 test: build unit-test system-test ubuntu-tests
@@ -166,9 +167,9 @@ host-unit-test-coverage-detail:
 
 host-integ-test: host-cleanup
 	@echo dev: running integration tests...
-	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./test/integration/ -check.v -encap vlan -fwd-mode bridge
-	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode bridge
-	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode routing
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vlan -fwd-mode bridge
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode bridge
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode routing
 
 host-cleanup:
 	@echo dev: cleaning up services...

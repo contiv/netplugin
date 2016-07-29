@@ -71,14 +71,17 @@ type OfnetAgent struct {
 	ovsDriver *ovsdbDriver.OvsDriver
 
 	//Vrf information
-	vrfIdBmp     *bitset.BitSet           //bit map to generate a vrf id
+	vrfIdBmp     *bitset.BitSet           // bit map to generate a vrf id
 	vrfNameIdMap map[string]*uint16       // Map vrf name to vrf Id
 	vrfIdNameMap map[uint16]*string       // Map vrf id to vrf Name
 	vrfDb        map[string]*OfnetVrfInfo // Db of all the global vrfs
 	vlanVrf      map[uint16]*string       //vlan to vrf mapping
 	fwdMode      string                   ///forwarding mode routing or bridge
-	GARPStats    map[int]uint32           // per EPG garp stats.
 
+	// stats
+	stats      map[string]uint64 // arbitrary stats
+	errStats   map[string]uint64 // error stats
+	statsMutex sync.Mutex        // Sync mutext for modifying stats
 }
 
 // local End point information
@@ -114,7 +117,6 @@ const (
 func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uint16,
 	ovsPort uint16, routerInfo ...string) (*OfnetAgent, error) {
 	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d,%v \n", bridgeName, dpName, localIp, rpcPort, ovsPort, routerInfo)
-
 	agent := new(OfnetAgent)
 
 	// Init params
@@ -141,7 +143,10 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	agent.vrfNameIdMap = make(map[string]*uint16)
 	agent.vrfIdBmp = bitset.New(256)
 	agent.vlanVrf = make(map[uint16]*string)
-	agent.GARPStats = make(map[int]uint32)
+
+	// stats db
+	agent.stats = make(map[string]uint64)
+	agent.errStats = make(map[string]uint64)
 
 	// Create an openflow controller
 	agent.ctrler = ofctrl.NewController(agent)
@@ -190,6 +195,34 @@ func (self *OfnetAgent) lockDB() {
 func (self *OfnetAgent) unlockDB() {
 	log.Debugf("Unlocking endpoint db %s", self.dpName)
 	self.mutex.Unlock()
+}
+
+// incrStats increment a stats counter by name
+func (self *OfnetAgent) incrStats(statName string) {
+	self.statsMutex.Lock()
+	defer self.statsMutex.Unlock()
+
+	currStats := self.stats[statName]
+	currStats++
+	self.stats[statName] = currStats
+}
+
+// getStats return current stats by name
+func (self *OfnetAgent) getStats(statName string) uint64 {
+	self.statsMutex.Lock()
+	defer self.statsMutex.Unlock()
+
+	return self.stats[statName]
+}
+
+// incrStats increment a stats counter by name
+func (self *OfnetAgent) incrErrStats(errName string) {
+	self.statsMutex.Lock()
+	defer self.statsMutex.Unlock()
+
+	currStats := self.stats[errName+"-ERROR"]
+	currStats++
+	self.stats[errName+"-ERROR"] = currStats
 }
 
 // getEndpointId Get a unique identifier for the endpoint.
@@ -318,6 +351,9 @@ func (self *OfnetAgent) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 
 	// Inform the datapath
 	self.datapath.PacketRcvd(sw, pkt)
+
+	// increment stats
+	self.incrStats("PktRcvd")
 }
 
 // Add a master
@@ -338,6 +374,9 @@ func (self *OfnetAgent) AddMaster(masterInfo *OfnetNode, ret *bool) error {
 	self.masterDb[masterKey] = master
 	self.unlockDB()
 
+	// increment stats
+	self.incrStats("MasterAdd")
+
 	// My info to send to master
 	myInfo := new(OfnetNode)
 	myInfo.HostAddr = self.MyAddr
@@ -347,6 +386,10 @@ func (self *OfnetAgent) AddMaster(masterInfo *OfnetNode, ret *bool) error {
 	err := rpcHub.Client(master.HostAddr, master.HostPort).Call("OfnetMaster.RegisterNode", &myInfo, &resp)
 	if err != nil {
 		log.Errorf("Failed to register with the master %+v. Err: %v", master, err)
+
+		// increment stats
+		self.incrErrStats("RegisterNodeFailure")
+
 		return err
 	}
 
@@ -368,7 +411,14 @@ func (self *OfnetAgent) AddMaster(masterInfo *OfnetNode, ret *bool) error {
 			err := client.Call("OfnetMaster.EndpointAdd", endpoint, &resp)
 			if err != nil {
 				log.Errorf("Failed to add endpoint %+v to master %+v. Err: %v", endpoint, master, err)
-				return err
+
+				// increment stats
+				self.incrErrStats("MasterAddEndpointAddSendFailure")
+
+				// continue sending other routes
+			} else {
+				// increment stats
+				self.incrStats("MasterAddEndpointAddSent")
 			}
 		}
 	}
@@ -387,12 +437,19 @@ func (self *OfnetAgent) RemoveMaster(masterInfo *OfnetNode) error {
 	delete(self.masterDb, masterKey)
 	self.unlockDB()
 
+	// increment stats
+	self.incrStats("RemoveMaster")
+
 	return nil
 }
 
 // InjectGARPs inject garps for all eps on the epg.
 func (self *OfnetAgent) InjectGARPs(epgID int, resp *bool) error {
 	self.datapath.InjectGARPs(epgID)
+
+	// increment stats
+	self.incrStats("InjectGARPs")
+
 	return nil
 }
 
@@ -403,6 +460,9 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	self.lockDB()
 	self.portVlanMap[endpoint.PortNo] = &endpoint.Vlan
 	self.unlockDB()
+
+	// increment stats
+	self.incrStats("AddLocalEndpoint")
 
 	// Map Vlan to VNI
 	vni := self.vlanVniMap[endpoint.Vlan]
@@ -472,6 +532,9 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		if err != nil {
 			log.Errorf("Failed to add endpoint %+v to master %+v. Err: %v", epreg, master, err)
 			// Continue sending the message to other masters.
+		} else {
+			// increment stats
+			self.incrStats("EndpointAddSent")
 		}
 	}
 
@@ -480,6 +543,9 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 
 // Remove local endpoint
 func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
+	// increment stats
+	self.incrStats("RemoveLocalEndpoint")
+
 	// find the local copy
 	epreg := self.localEndpointDb[portNo]
 	if epreg == nil {
@@ -511,6 +577,9 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 		err := client.Call("OfnetMaster.EndpointDel", epreg, &resp)
 		if err != nil {
 			log.Errorf("Failed to DELETE endpoint %+v on master %+v. Err: %v", epreg, master, err)
+		} else {
+			// increment stats
+			self.incrStats("EndpointDelSent")
 		}
 	}
 
@@ -603,6 +672,9 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 		self.endpointDb[gwEpid] = epreg
 	}
 
+	// increment stats
+	self.incrStats("AddNetwork")
+
 	return nil
 }
 
@@ -641,6 +713,9 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 	delete(self.vlanVniMap, vlanId)
 	delete(self.vniVlanMap, vni)
 
+	// increment stats
+	self.incrStats("RemoveNetwork")
+
 	// Call the datapath
 	return self.datapath.RemoveVlan(vlanId, vni, Vrf)
 }
@@ -659,16 +734,25 @@ func (self *OfnetAgent) RemoveUplink(portNo uint32) error {
 
 // AddSvcSpec adds a service spec to proxy
 func (self *OfnetAgent) AddSvcSpec(svcName string, spec *ServiceSpec) error {
+	// increment stats
+	self.incrStats("AddSvcSpec")
+
 	return self.datapath.AddSvcSpec(svcName, spec)
 }
 
 // DelSvcSpec removes a service spec from proxy
 func (self *OfnetAgent) DelSvcSpec(svcName string, spec *ServiceSpec) error {
+	// increment stats
+	self.incrStats("DelSvcSpec")
+
 	return self.datapath.DelSvcSpec(svcName, spec)
 }
 
 // SvcProviderUpdate Service Proxy Back End update
 func (self *OfnetAgent) SvcProviderUpdate(svcName string, providers []string) {
+	// increment stats
+	self.incrStats("SvcProviderUpdate")
+
 	self.datapath.SvcProviderUpdate(svcName, providers)
 }
 
@@ -686,6 +770,9 @@ func (self *OfnetAgent) EndpointAdd(epreg *OfnetEndpoint, ret *bool) error {
 		log.Warnf("Received EndpointAdd for {%+v} before switch connection was up ", epreg)
 		return nil
 	}
+
+	// increment stats
+	self.incrStats("EndpointAddRcvd")
 
 	// Dont handle other endpointDB operations during this time
 	self.lockDB()
@@ -732,6 +819,9 @@ func (self *OfnetAgent) EndpointDel(epreg *OfnetEndpoint, ret *bool) error {
 	if self.endpointDb[epreg.EndpointID] == nil {
 		return nil
 	}
+
+	// increment stats
+	self.incrStats("EndpointDelRcvd")
 
 	// Dont handle endpointDB operations during this time
 	self.lockDB()
@@ -849,8 +939,10 @@ func (self *OfnetAgent) InspectState() (interface{}, error) {
 		// VrfIdNameMap    map[uint16]*string        // Map vrf id to vrf Name
 		VrfDb map[string]*OfnetVrfInfo // Db of all the global vrfs
 		// VlanVrf         map[uint16]*string        //vlan to vrf mapping
-		FwdMode  string      ///forwarding mode routing or bridge
-		Datapath interface{} // datapath state
+		FwdMode  string            ///forwarding mode routing or bridge
+		Stats    map[string]uint64 // arbitrary stats
+		ErrStats map[string]uint64 // error stats
+		Datapath interface{}       // datapath state
 	}{
 		self.localIp,
 		self.MyPort,
@@ -870,6 +962,8 @@ func (self *OfnetAgent) InspectState() (interface{}, error) {
 		self.vrfDb,
 		// self.vlanVrf,
 		self.fwdMode,
+		self.stats,
+		self.errStats,
 		dpState,
 	}
 

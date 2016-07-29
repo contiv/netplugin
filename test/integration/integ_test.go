@@ -67,7 +67,7 @@ func (its *integTestSuite) SetUpSuite(c *C) {
 	// clear all etcd state before running the tests
 	exec.Command("etcdctl", "rm", "--recursive", "/contiv.io").Output()
 
-	cluster, err := NewCluster(its.fwdMode, its.clusterStore)
+	cluster, err := newCluster(its.fwdMode, its.clusterStore)
 	assertNoErr(err, c, "creating cluster")
 
 	// create a new contiv client

@@ -757,6 +757,17 @@ func (self *Vxlan) initFgraph() error {
 	return nil
 }
 
+// isVtepPort returns true if the port is a vtep port
+func (self *Vxlan) isVtepPort(inPort uint32) bool {
+	for _, vtepPort := range self.agent.vtepTable {
+		if *vtepPort == inPort {
+			return true
+		}
+	}
+
+	return false
+}
+
 /*
  * Process incoming ARP packets
  * ARP request handling in various scenarios:
@@ -775,6 +786,8 @@ func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
 		log.Debugf("Processing ARP packet on port %d: %+v", inPort, *t)
 		var arpIn protocol.ARP = *t
 
+		self.agent.incrStats("ArpPktRcvd")
+
 		switch arpIn.Operation {
 		case protocol.Type_Request:
 			// If it's a GARP packet, ignore processing
@@ -783,19 +796,30 @@ func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
 				return
 			}
 
-			if self.agent.portVlanMap[inPort] == nil {
-				log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
-				return
+			self.agent.incrStats("ArpReqRcvd")
+
+			var vlan uint16
+			if self.isVtepPort(inPort) {
+				vlan = pkt.VLANID.VID
+			} else {
+				if self.agent.portVlanMap[inPort] == nil {
+					log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
+					self.agent.incrStats("ArpReqInvalidPortVlan")
+					return
+				}
+
+				vlan = *self.agent.portVlanMap[inPort]
 			}
-			vlan := self.agent.portVlanMap[inPort]
 
 			// Lookup the Source and Dest IP in the endpoint table
-			srcEp := self.agent.getEndpointByIpVlan(arpIn.IPSrc, *vlan)
-			dstEp := self.agent.getEndpointByIpVlan(arpIn.IPDst, *vlan)
+			srcEp := self.agent.getEndpointByIpVlan(arpIn.IPSrc, vlan)
+			dstEp := self.agent.getEndpointByIpVlan(arpIn.IPDst, vlan)
 
 			// No information about the src or dest EP. Ignore processing.
 			if srcEp == nil && dstEp == nil {
 				log.Debugf("No information on source/destination. Ignoring ARP request.")
+				self.agent.incrStats("ArpRequestUnknownSrcDst")
+
 				return
 			}
 			// If we know the dstEp to be present locally, send the Proxy ARP response
@@ -831,6 +855,8 @@ func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
 					// Send the packet out
 					self.ofSwitch.Send(pktOut)
 
+					self.agent.incrStats("ArpReqRespSent")
+
 					return
 				}
 			}
@@ -840,6 +866,8 @@ func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
 				for _, vtepPort := range self.agent.vtepTable {
 					if *vtepPort == inPort {
 						log.Debugf("Received packet from VTEP port. Ignore processing")
+						self.agent.incrStats("ArpReqUnknownDestFromVtep")
+
 						return
 					}
 				}
@@ -873,10 +901,12 @@ func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
 
 				// Send the packet out
 				self.ofSwitch.Send(pktOut)
+				self.agent.incrStats("ArpReqReinject")
 			}
 
 		case protocol.Type_Reply:
 			log.Debugf("Received ARP response packet: %+v from port %d", arpIn, inPort)
+			self.agent.incrStats("ArpRespRcvd")
 
 			ethPkt := protocol.NewEthernet()
 			ethPkt.VLANID = pkt.VLANID
@@ -922,5 +952,7 @@ func (self *Vxlan) sendGARP(ip net.IP, mac net.HardwareAddr, vni uint64) error {
 
 	// Send it out
 	self.ofSwitch.Send(pktOut)
+	self.agent.incrStats("GarpPktSent")
+
 	return nil
 }

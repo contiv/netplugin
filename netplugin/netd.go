@@ -200,8 +200,6 @@ func main() {
 			CtrlIP:     opts.ctrlIP,
 			VtepIP:     opts.vtepIP,
 			VlanIntf:   opts.vlanIntf,
-			RouterIP:   opts.routerIP,
-			FwdMode:    opts.fwdMode,
 			DbURL:      opts.dbURL,
 			PluginMode: opts.pluginMode,
 		},

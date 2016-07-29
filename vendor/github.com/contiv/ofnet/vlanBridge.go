@@ -160,22 +160,17 @@ func (vl *VlanBridge) backGroundGARPs() {
 				continue
 			}
 
-			stats, ok := vl.agent.GARPStats[epgID]
-			if !ok {
-				stats = 0
-			}
 			epgInfo.garpCount--
 			for _, ep := range epgInfo.epMap {
 				err := vl.sendGARP(ep.ip, ep.mac, ep.vlan)
 				if err == nil {
-					stats++
+					vl.agent.incrStats("GARPSent")
 				} else {
 					log.Warnf("Send GARP failed for ep IP: %v", ep.ip)
 				}
 				workDone = true
 			}
 
-			vl.agent.GARPStats[epgID] = stats
 			vl.epgToEPs[epgID] = epgInfo
 		}
 
@@ -402,6 +397,7 @@ func (vl *VlanBridge) handlePortUp(ch <-chan netlink.LinkUpdate, ifname string) 
 			if ifname == update.Link.Attrs().Name && (update.IfInfomsg.Flags&syscall.IFF_UP != 0) == true {
 				log.Infof("Linkup received for %s", ifname)
 				vl.sendGARPAll()
+				vl.agent.incrStats("LinkupRcvd")
 			}
 
 		case <-vl.nlCloser:
@@ -566,6 +562,8 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 		log.Debugf("Processing ARP packet on port %d: %+v", inPort, *t)
 		var arpIn protocol.ARP = *t
 
+		vl.agent.incrStats("ArpPktRcvd")
+
 		switch arpIn.Operation {
 		case protocol.Type_Request:
 			// If it's a GARP packet, ignore processing
@@ -573,6 +571,8 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 				log.Debugf("Ignoring GARP packet")
 				return
 			}
+
+			vl.agent.incrStats("ArpReqRcvd")
 
 			// Lookup the Source and Dest IP in the endpoint table
 			//Vrf derivation logic :
@@ -586,6 +586,7 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 					vlan = *(vl.agent.portVlanMap[inPort])
 				} else {
 					log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
+					vl.agent.incrStats("ArpReqInvalidPortVlan")
 					return
 				}
 			}
@@ -595,6 +596,7 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 			// No information about the src or dest EP. Ignore processing.
 			if srcEp == nil && dstEp == nil {
 				log.Debugf("No information on source/destination. Ignoring ARP request.")
+				vl.agent.incrStats("ArpRequestUnknownSrcDst")
 				return
 			}
 			// If we know the dstEp to be present locally, send the Proxy ARP response
@@ -630,6 +632,8 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 					// Send the packet out
 					vl.ofSwitch.Send(pktOut)
 
+					vl.agent.incrStats("ArpReqRespSent")
+
 					return
 				}
 			}
@@ -639,6 +643,7 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 				for _, portNo := range vl.uplinkDb {
 					if portNo == inPort {
 						log.Debugf("Ignore processing ARP packet from uplink")
+						vl.agent.incrStats("ArpReqUnknownDestFromUplink")
 						return
 					}
 				}
@@ -666,10 +671,13 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 
 				// Send the packet out
 				vl.ofSwitch.Send(pktOut)
+
+				vl.agent.incrStats("ArpReqReinject")
 			}
 
 		case protocol.Type_Reply:
 			log.Debugf("Received ARP response packet: %+v from port %d", arpIn, inPort)
+			vl.agent.incrStats("ArpRespRcvd")
 
 			ethPkt := protocol.NewEthernet()
 			ethPkt.VLANID = pkt.VLANID
@@ -706,6 +714,10 @@ func (vl *VlanBridge) sendGARP(ip net.IP, mac net.HardwareAddr, vlanID uint16) e
 	}
 
 	// Send it out
-	vl.ofSwitch.Send(pktOut)
+	if vl.ofSwitch != nil {
+		vl.ofSwitch.Send(pktOut)
+		vl.agent.incrStats("GarpPktSent")
+	}
+
 	return nil
 }

@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/daemon"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -45,7 +46,8 @@ type clusterState struct {
 	uniqEPID     uint64               // rolling int to generate unique EP IDs
 }
 
-func NewCluster(fwdMode, clusterStore string) (*clusterState, error) {
+// newCluster creates a new cluster of netplugin/netmaster
+func newCluster(fwdMode, clusterStore string) (*clusterState, error) {
 	// get local host name
 	hostLabel, err := os.Hostname()
 	if err != nil {
@@ -63,7 +65,7 @@ func NewCluster(fwdMode, clusterStore string) (*clusterState, error) {
 		ListenURL:    ":9999",
 		ClusterStore: clusterStore,
 		ClusterMode:  "test",
-		DnsEnabled:   false,
+		DNSEnabled:   false,
 	}
 
 	// initialize the plugin config
@@ -77,7 +79,6 @@ func NewCluster(fwdMode, clusterStore string) (*clusterState, error) {
 			CtrlIP:     localIP,
 			VtepIP:     localIP,
 			VlanIntf:   "eth2",
-			FwdMode:    fwdMode,
 			DbURL:      clusterStore,
 			PluginMode: "test",
 		},
@@ -88,6 +89,24 @@ func NewCluster(fwdMode, clusterStore string) (*clusterState, error) {
 
 	// Run daemon FSM
 	go md.RunMasterFsm()
+
+	// Wait for a second for master to initialize
+	time.Sleep(time.Second)
+
+	// set forwarding mode if required
+	if fwdMode != "bridge" {
+		err := contivModel.CreateGlobal(&contivModel.Global{
+			Key:              "global",
+			Name:             "global",
+			NetworkInfraType: "default",
+			Vlans:            "1-4094",
+			Vxlans:           "1-10000",
+			FwdMode:          fwdMode,
+		})
+		if err != nil {
+			log.Fatalf("Error creating global state. Err: %v", err)
+		}
+	}
 
 	// Create a new agent
 	ag := agent.NewAgent(&pluginConfig)
@@ -235,7 +254,7 @@ func (its *integTestSuite) deleteEndpoint(tenantName, netName, epgName string, e
 		TenantName:  tenantName,
 		NetworkName: netName,
 		ServiceName: epgName,
-		EndpointID:  epCfg.ContName,
+		EndpointID:  epCfg.EndpointID,
 	}
 
 	var delResp master.DeleteEndpointResponse
@@ -288,7 +307,7 @@ func (its *integTestSuite) verifyEndpointInspect(tenantName, netName string, epC
 	// walk all endpoints and verify endpoint exists
 	foundCount := 0
 	for _, ep := range insp.Oper.Endpoints {
-		if ep.Name == epCfg.ContName {
+		if ep.EndpointID == epCfg.EndpointID {
 			c.Assert(len(ep.IpAddress), Equals, 2)
 			c.Assert(ep.IpAddress[0], Equals, epCfg.IPAddress)
 			c.Assert(ep.Network, Equals, fmt.Sprintf("%s.%s", netName, tenantName))
@@ -299,9 +318,9 @@ func (its *integTestSuite) verifyEndpointInspect(tenantName, netName string, epC
 	}
 
 	if foundCount == 0 {
-		c.Fatalf("Endpoint %s not found in network %s.%s", epCfg.ContName, netName, tenantName)
+		c.Fatalf("Endpoint %s not found in network %s.%s", epCfg.EndpointID, netName, tenantName)
 	} else if foundCount > 1 {
-		c.Fatalf("Endpoint %s found multiple times in network %s.%s", epCfg.ContName, netName, tenantName)
+		c.Fatalf("Endpoint %s found multiple times in network %s.%s", epCfg.EndpointID, netName, tenantName)
 	}
 }
 
@@ -348,8 +367,8 @@ func ofctlFlowDump(brName string) ([]string, error) {
 }
 
 // Find a flow in flow list and match its action
-func ofctlFlowMatch(flowList []string, tableId int, matchStr string) bool {
-	tblStr := fmt.Sprintf("table=%d", tableId)
+func ofctlFlowMatch(flowList []string, tableID int, matchStr string) bool {
+	tblStr := fmt.Sprintf("table=%d", tableID)
 	for _, flowEntry := range flowList {
 		log.Debugf("Looking for %s in %s", matchStr, flowEntry)
 		if strings.Contains(flowEntry, tblStr) && strings.Contains(flowEntry, matchStr) {
