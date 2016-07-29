@@ -1,0 +1,4 @@
+.vagrant
+
+#ide files
+*.swp

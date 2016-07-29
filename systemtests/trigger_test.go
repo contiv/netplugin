@@ -128,7 +128,7 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 }
 
 func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
-	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" || s.scheduler=="k8" {
+	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" || s.scheduler == "k8" {
 		c.Skip("Skipping node reload test on older docker version")
 	}
 	network := &client.Network{

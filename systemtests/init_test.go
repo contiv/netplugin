@@ -11,13 +11,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
-	"github.com/contiv/vagrantssh"
+	"github.com/contiv/remotessh"
 	. "gopkg.in/check.v1"
 )
 
 type systemtestSuite struct {
-	vagrant      vagrantssh.Vagrant
-	baremetal    vagrantssh.Baremetal
+	vagrant      remotessh.Vagrant
+	baremetal    remotessh.Baremetal
 	cli          *client.ContivClient
 	short        bool
 	containers   int
@@ -107,14 +107,14 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 		logrus.Infof("Binary binpath = %s", s.binpath)
 		logrus.Infof("Interface vlanIf = %s", s.vlanIf)
 
-		s.baremetal = vagrantssh.Baremetal{}
+		s.baremetal = remotessh.Baremetal{}
 		bm := &s.baremetal
 
 		// To fill the hostInfo data structure for Baremetal VMs
 		name := "aci-swarm-node"
 		hostIPs := strings.Split(os.Getenv("HOST_IPS"), ",")
 		hostNames := strings.Split(os.Getenv("HOST_USER_NAMES"), ",")
-		hosts := make([]vagrantssh.HostInfo, 2)
+		hosts := make([]remotessh.HostInfo, 2)
 
 		for i := range hostIPs {
 			hosts[i].Name = name + strconv.Itoa(i+1)
@@ -142,7 +142,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 		logrus.Info("Pulling alpine on all nodes")
 
-		s.baremetal.IterateNodes(func(node vagrantssh.TestbedNode) error {
+		s.baremetal.IterateNodes(func(node remotessh.TestbedNode) error {
 			node.RunCommand("sudo rm /tmp/*net*")
 			return node.RunCommand("docker pull alpine")
 		})
@@ -154,7 +154,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 		s.copyBinary("contivk8s")
 
 	} else {
-		s.vagrant = vagrantssh.Vagrant{}
+		s.vagrant = remotessh.Vagrant{}
 		nodesStr := os.Getenv("CONTIV_NODES")
 		var contivNodes int
 
@@ -215,7 +215,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 		}
 
 		logrus.Info("Pulling alpine on all nodes")
-		s.vagrant.IterateNodes(func(node vagrantssh.TestbedNode) error {
+		s.vagrant.IterateNodes(func(node remotessh.TestbedNode) error {
 			node.RunCommand("sudo rm /tmp/net*")
 			return node.RunCommand("docker pull alpine")
 		})
@@ -316,7 +316,7 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 }
 
 func (s *systemtestSuite) Test00SSH(c *C) {
-	c.Assert(s.vagrant.IterateNodes(func(node vagrantssh.TestbedNode) error {
+	c.Assert(s.vagrant.IterateNodes(func(node remotessh.TestbedNode) error {
 		return node.RunCommand("true")
 	}), IsNil)
 }
