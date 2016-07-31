@@ -32,7 +32,7 @@ if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
 fi
 
 # Change ownership for gopath folder
-chown vagrant #{gopath_folder}
+chown -R vagrant #{gopath_folder}
 
 # Install specific docker version if required
 if [[ $8 != "" ]]; then
