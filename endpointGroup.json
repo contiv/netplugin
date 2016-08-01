@@ -49,6 +49,25 @@
 					"ShowSummary": true
 				}
 			},
+			"operProperties": {
+				"pktTag": {
+					"type": "int",
+					"title": "internal packet tag"
+				},
+				"externalPktTag": {
+					"type": "int",
+					"title": "external packet tag"
+				},
+				"numEndpoints": {
+					"type": "int",
+					"title": "external packet tag"
+				},
+				"endpoints": {
+					"type": "array",
+					"items": "endpoint",
+					"title": "endpoints in the group"
+				}
+			},
 			"link-sets": {
 				"services": {
 					"ref": "service"

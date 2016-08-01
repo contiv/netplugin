@@ -237,8 +237,18 @@ type EndpointGroupLinks struct {
 	Tenant     Link `json:"Tenant,omitempty"`
 }
 
+type EndpointGroupOper struct {
+	Endpoints      []EndpointOper `json:"endpoints,omitempty"`
+	ExternalPktTag int            `json:"externalPktTag,omitempty"` // external packet tag
+	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // external packet tag
+	PktTag         int            `json:"pktTag,omitempty"`         // internal packet tag
+
+}
+
 type EndpointGroupInspect struct {
 	Config EndpointGroup
+
+	Oper EndpointGroupOper
 }
 
 type ExtContractsGroup struct {
