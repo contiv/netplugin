@@ -17,126 +17,19 @@ package integration
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"runtime/debug"
 	"strings"
-	"time"
 
-	"github.com/contiv/contivmodel"
-	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/netmaster/daemon"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/netplugin/agent"
 	"github.com/contiv/netplugin/netplugin/cluster"
-	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
 	. "gopkg.in/check.v1"
 )
-
-type clusterState struct {
-	masterDaemon *daemon.MasterDaemon // master instance
-	pluginAgent  *agent.Agent         // netplugin agent
-	hostLabel    string               // local host name
-	localIP      string               // local ip addr
-	uniqEPID     uint64               // rolling int to generate unique EP IDs
-}
-
-// newCluster creates a new cluster of netplugin/netmaster
-func newCluster(fwdMode, clusterStore string) (*clusterState, error) {
-	// get local host name
-	hostLabel, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("Failed to fetch hostname. Error: %s", err)
-	}
-
-	// get local IP addr
-	localIP, err := cluster.GetLocalAddr()
-	if err != nil {
-		log.Fatalf("Error getting local address. Err: %v", err)
-	}
-
-	// create master daemon
-	md := &daemon.MasterDaemon{
-		ListenURL:    ":9999",
-		ClusterStore: clusterStore,
-		ClusterMode:  "test",
-		DNSEnabled:   false,
-	}
-
-	// initialize the plugin config
-	pluginConfig := plugin.Config{
-		Drivers: plugin.Drivers{
-			Network: "ovs",
-			State:   strings.Split(clusterStore, "://")[0],
-		},
-		Instance: core.InstanceInfo{
-			HostLabel:  hostLabel,
-			CtrlIP:     localIP,
-			VtepIP:     localIP,
-			VlanIntf:   "eth2",
-			DbURL:      clusterStore,
-			PluginMode: "test",
-		},
-	}
-
-	// initialize master daemon
-	md.Init()
-
-	// Run daemon FSM
-	go md.RunMasterFsm()
-
-	// Wait for a second for master to initialize
-	time.Sleep(time.Second)
-
-	// set forwarding mode if required
-	if fwdMode != "bridge" {
-		err := contivModel.CreateGlobal(&contivModel.Global{
-			Key:              "global",
-			Name:             "global",
-			NetworkInfraType: "default",
-			Vlans:            "1-4094",
-			Vxlans:           "1-10000",
-			FwdMode:          fwdMode,
-		})
-		if err != nil {
-			log.Fatalf("Error creating global state. Err: %v", err)
-		}
-	}
-
-	// Create a new agent
-	ag := agent.NewAgent(&pluginConfig)
-
-	// Process all current state
-	ag.ProcessCurrentState()
-
-	// post initialization processing
-	ag.PostInit()
-
-	// handle events
-	go func() {
-		if err := ag.HandleEvents(); err != nil {
-			log.Infof("Netplugin exiting due to error: %v", err)
-			os.Exit(1)
-		}
-	}()
-
-	// Wait for a second for things to settle down
-	time.Sleep(time.Second)
-
-	cl := &clusterState{
-		masterDaemon: md,
-		pluginAgent:  ag,
-		hostLabel:    hostLabel,
-		localIP:      localIP,
-	}
-
-	return cl, nil
-}
 
 // assertNoErr utility function to assert no error
 func assertNoErr(err error, c *C, msg string) {
@@ -169,8 +62,8 @@ func (its *integTestSuite) allocAddress(addrPool, networkID, prefAddress string)
 
 // createEndpoint creates an endpoint using netplugin api
 func (its *integTestSuite) createEndpoint(tenantName, netName, epgName, v4Addr, v6Addr string) (*mastercfg.CfgEndpointState, error) {
-	its.cluster.uniqEPID++
-	epID := fmt.Sprintf("%s-%s-%s-%d", tenantName, netName, epgName, its.cluster.uniqEPID)
+	its.uniqEPID++
+	epID := fmt.Sprintf("%s-%s-%s-%d", tenantName, netName, epgName, its.uniqEPID)
 	// Build endpoint request
 	mreq := master.CreateEndpointRequest{
 		TenantName:  tenantName,
@@ -179,7 +72,7 @@ func (its *integTestSuite) createEndpoint(tenantName, netName, epgName, v4Addr, 
 		EndpointID:  epID,
 		ConfigEP: intent.ConfigEP{
 			Container:   epID,
-			Host:        its.cluster.hostLabel,
+			Host:        its.npcluster.HostLabel,
 			IPAddress:   v4Addr,
 			IPv6Address: v6Addr,
 			ServiceName: epgName,
@@ -197,7 +90,7 @@ func (its *integTestSuite) createEndpoint(tenantName, netName, epgName, v4Addr, 
 	netID := netName + "." + tenantName
 
 	// Ask netplugin to create the endpoint
-	err = its.cluster.pluginAgent.Plugin().CreateEndpoint(netID + "-" + epID)
+	err = its.npcluster.PluginAgent.Plugin().CreateEndpoint(netID + "-" + epID)
 	if err != nil {
 		log.Errorf("Endpoint creation failed. Error: %s", err)
 		return nil, err
@@ -265,7 +158,7 @@ func (its *integTestSuite) deleteEndpoint(tenantName, netName, epgName string, e
 	}
 
 	// delete the endpoint
-	err = its.cluster.pluginAgent.Plugin().DeleteEndpoint(epCfg.ID)
+	err = its.npcluster.PluginAgent.Plugin().DeleteEndpoint(epCfg.ID)
 	if err != nil {
 		log.Errorf("Error deleting endpoint %s. Err: %v", epCfg.ID, err)
 		return err
@@ -312,7 +205,7 @@ func (its *integTestSuite) verifyEndpointInspect(tenantName, netName string, epC
 			c.Assert(ep.IpAddress[0], Equals, epCfg.IPAddress)
 			c.Assert(ep.Network, Equals, fmt.Sprintf("%s.%s", netName, tenantName))
 			c.Assert(ep.MacAddress, Equals, epCfg.MacAddress)
-			c.Assert(ep.HomingHost, Equals, its.cluster.hostLabel)
+			c.Assert(ep.HomingHost, Equals, its.npcluster.HostLabel)
 			foundCount++
 		}
 	}

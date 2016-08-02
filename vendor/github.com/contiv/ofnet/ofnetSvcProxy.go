@@ -17,6 +17,7 @@ package ofnet
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -933,4 +934,22 @@ func (proxy *ServiceProxy) InspectState() interface{} {
 	}
 
 	return &proxyExport
+}
+
+// GetSvcProxyMAC looks up the service IP and returns a mac if the IP exists.
+// if the svc IP is not found, returns empty string
+func (proxy *ServiceProxy) GetSvcProxyMAC(svcIP net.IP) string {
+	ip := svcIP.String()
+
+	proxy.oMutex.Lock()
+	defer proxy.oMutex.Unlock()
+
+	_, found := proxy.operState[ip]
+	if found {
+		ipv4 := svcIP.To4()
+		return fmt.Sprintf("02:02:%02x:%02x:%02x:%02x", ipv4[0], ipv4[1], ipv4[2], ipv4[3])
+	}
+
+	return ""
+
 }

@@ -36,8 +36,9 @@ type integTestSuite struct {
 	clusterStore string // cluster store URL
 
 	// internal state
-	cluster *clusterState        // netplugin + netmaster cluster
-	client  *client.ContivClient // contiv client
+	npcluster *NPCluster           // netplugin + netmaster cluster
+	client    *client.ContivClient // contiv client
+	uniqEPID  uint64               // rolling int to generate unique EP IDs
 }
 
 var integ = &integTestSuite{}
@@ -67,7 +68,7 @@ func (its *integTestSuite) SetUpSuite(c *C) {
 	// clear all etcd state before running the tests
 	exec.Command("etcdctl", "rm", "--recursive", "/contiv.io").Output()
 
-	cluster, err := newCluster(its.fwdMode, its.clusterStore)
+	npcluster, err := NewNPCluster(its.fwdMode, its.clusterStore)
 	assertNoErr(err, c, "creating cluster")
 
 	// create a new contiv client
@@ -75,7 +76,7 @@ func (its *integTestSuite) SetUpSuite(c *C) {
 	assertNoErr(err, c, "creating contivmodel client")
 
 	// setup test suite
-	its.cluster = cluster
+	its.npcluster = npcluster
 	its.client = contivClient
 }
 

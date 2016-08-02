@@ -911,18 +911,25 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 				self.agent.incrStats("ArpReqInvalidPortVlan")
 				return
 			}
+			tgtMac := self.myRouterMac
 			endpointId := self.agent.getEndpointIdByIpVlan(arpHdr.IPDst, *vlan)
 			endpoint := self.agent.endpointDb[endpointId]
 			if endpoint == nil {
-				// If we dont know the IP address, dont send an ARP response
-				log.Infof("Received ARP request for unknown IP: %v", arpHdr.IPDst)
-				self.agent.incrStats("ArpReqUnknownDest")
-				return
+				// Look for a service entry for the target IP
+				proxyMac := self.svcProxy.GetSvcProxyMAC(arpHdr.IPDst)
+				if proxyMac == "" {
+					// If we dont know the IP address, dont send an ARP response
+					log.Debugf("Received ARP request for unknown IP: %v", arpHdr.IPDst)
+					self.agent.incrStats("ArpReqUnknownDest")
+					return
+				}
+
+				tgtMac, _ = net.ParseMAC(proxyMac)
 			}
 
 			// Form an ARP response
 			arpResp, _ := protocol.NewARP(protocol.Type_Reply)
-			arpResp.HWSrc = self.myRouterMac
+			arpResp.HWSrc = tgtMac
 			arpResp.IPSrc = arpHdr.IPDst
 			arpResp.HWDst = arpHdr.HWSrc
 			arpResp.IPDst = arpHdr.IPSrc

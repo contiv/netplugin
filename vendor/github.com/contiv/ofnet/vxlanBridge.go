@@ -822,6 +822,20 @@ func (self *Vxlan) processArp(pkt protocol.Ethernet, inPort uint32) {
 
 				return
 			}
+
+			// Handle packets from vtep ports
+			if self.isVtepPort(inPort) {
+				if dstEp == nil {
+					self.agent.incrStats("ArpReqUnknownDestFromVtep")
+					return
+				}
+
+				if dstEp.OriginatorIp.String() != self.agent.localIp.String() {
+					self.agent.incrStats("ArpReqNonLocalDestFromVtep")
+					return
+				}
+			}
+
 			// If we know the dstEp to be present locally, send the Proxy ARP response
 			if dstEp != nil {
 				// Container to Container communication. Send proxy ARP response.
