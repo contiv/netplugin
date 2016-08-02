@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/contiv/remotessh"
 	"github.com/contiv/systemtests-utils"
-	"github.com/contiv/vagrantssh"
 )
 
 type node struct {
-	tbnode vagrantssh.TestbedNode
+	tbnode remotessh.TestbedNode
 	suite  *systemtestSuite
 	exec   systemTestScheduler
 }

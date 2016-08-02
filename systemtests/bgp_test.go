@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
-	"github.com/contiv/vagrantssh"
+	"github.com/contiv/remotessh"
 	. "gopkg.in/check.v1"
 	"strings"
 	"time"
@@ -902,7 +902,7 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 	return errors.New("BGP connection persists")
 }
 
-func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node vagrantssh.TestbedNode) error {
+func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.TestbedNode) error {
 	for i := 0; i < 100; i++ {
 		time.Sleep(3 * time.Second)
 		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
@@ -914,7 +914,7 @@ func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node vagrantssh.Testb
 	return errors.New("BGP connection not established")
 }
 
-func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node vagrantssh.TestbedNode) error {
+func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.TestbedNode) error {
 	for i := 0; i < 100; i++ {
 		time.Sleep(3 * time.Second)
 		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
