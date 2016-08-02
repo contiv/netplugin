@@ -98,10 +98,6 @@
 			"Rev": "b0462e68014f35e222ac3d44a4f9c6323814c490"
 		},
 		{
-			"ImportPath": "github.com/contiv/vagrantssh",
-			"Rev": "873176beee0ae1cdcd5ecefb7009d979419138af"
-		},
-		{
 			"ImportPath": "github.com/coreos/etcd/client",
 			"Comment": "v2.3.0-84-g7d2545c",
 			"Rev": "7d2545c72e5cbf1f072e99537dafc3883c73740e"
@@ -328,19 +324,19 @@
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "c84253c8da7c8146bc6f0e8a942cc8c1d61546d2"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "c84253c8da7c8146bc6f0e8a942cc8c1d61546d2"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "c84253c8da7c8146bc6f0e8a942cc8c1d61546d2"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "c84253c8da7c8146bc6f0e8a942cc8c1d61546d2"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
