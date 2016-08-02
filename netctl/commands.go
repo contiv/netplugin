@@ -63,6 +63,13 @@ var Commands = []cli.Command{
 				Action: createEndpointGroup,
 			},
 			{
+				Name:      "inspect",
+				Usage:     "Inspect a EndpointGroup",
+				ArgsUsage: "[group]",
+				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Action:    inspectEndpointGroup,
+			},
+			{
 				Name:      "rm",
 				Aliases:   []string{"delete"},
 				Usage:     "Delete an endpoint group",

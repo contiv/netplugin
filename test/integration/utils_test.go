@@ -285,7 +285,7 @@ func (its *integTestSuite) verifyEndpointFlow(epCfg *mastercfg.CfgEndpointState,
 	assertNoErr(err, c, "dumping flow entries")
 
 	// verify dst group entry exists
-	dstGrpFmt := fmt.Sprintf("nw_dst=%s actions=write_metadata:%d/0xfffe", epCfg.IPAddress, epCfg.EndpointGroupID)
+	dstGrpFmt := fmt.Sprintf("nw_dst=%s actions=write_metadata:0x%x/0xfffe", epCfg.IPAddress, (epCfg.EndpointGroupID << 1))
 	dstGrpTbl := ofnet.DST_GRP_TBL_ID
 	c.Assert(ofctlFlowMatch(ofdump, dstGrpTbl, dstGrpFmt), Equals, true)
 

@@ -403,6 +403,20 @@ func checkCreateEpg(t *testing.T, expError bool, tenant, network, group string, 
 	}
 }
 
+// checkInspectEpg inspects endpointGroup and checks for error
+func checkInspectEpg(t *testing.T, expError bool, tenant, epg string, pktTag int) {
+	insp, err := contivClient.EndpointGroupInspect(tenant, epg)
+	if err != nil && !expError {
+		t.Fatalf("Error inspecting endpointGroup {%s.%s}. Err: %v", epg, tenant, err)
+	} else if err == nil && expError {
+		t.Fatalf("Inspect endpointGroup {%s.%s} succeded while expecing error", epg, tenant)
+	} else if err == nil {
+		if insp.Oper.PktTag != pktTag {
+			t.Fatalf("Inspect endpointGroup {%+v} failed with mismatching values", insp)
+		}
+	}
+}
+
 // checkCreateExtContractsGrp creates an external contracts group
 func checkCreateExtContractsGrp(t *testing.T, expError bool, tenant, grpName, grpType string, contracts []string) {
 	extContractsGrp := client.ExtContractsGroup{
@@ -615,8 +629,11 @@ func TestTenantDelete(t *testing.T) {
 	checkCreateNetwork(t, false, "tenant1", "net1", "data", "vlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
 	checkCreateNetwork(t, false, "tenant1", "net2", "data", "vlan", "20.1.1.1/16", "20.1.1.254", 2, "", "")
 	checkCreateEpg(t, false, "tenant1", "net1", "group1", []string{}, []string{})
+	checkInspectEpg(t, false, "tenant1", "group1", 1)
 	checkCreateEpg(t, false, "tenant1", "net1", "group2", []string{}, []string{})
+	checkInspectEpg(t, false, "tenant1", "group2", 1)
 	checkCreateEpg(t, false, "tenant1", "net2", "group3", []string{}, []string{})
+	checkInspectEpg(t, false, "tenant1", "group3", 2)
 	checkCreateAppProfile(t, false, "tenant1", "profile1", []string{})
 	checkCreateAppProfile(t, false, "tenant1", "profile2", []string{"group1"})
 	checkCreateAppProfile(t, false, "tenant1", "profile3", []string{"group1", "group3"})
