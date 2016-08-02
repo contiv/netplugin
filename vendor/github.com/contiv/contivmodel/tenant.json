@@ -1,0 +1,51 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "tenant",
+			"version": "v1",
+			"type": "object",
+			"key": [ "tenantName" ],
+			"cfgProperties": {
+				"tenantName": {
+					"type": "string",
+					"title": "Tenant Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+				},
+				"defaultNetwork": {
+					"type" : "string",
+					"title": "Network name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$"
+				}
+			},
+			"link-sets": {
+				"networks": {
+					"ref": "network"
+				},
+				"appProfiles": {
+					"ref": "appProfile"
+				},
+				"endpointGroups": {
+					"ref": "endpointGroup"
+				},
+				"policies": {
+					"ref": "policy"
+				},
+				"volumes": {
+					"ref": "volume"
+				},
+				"volumeProfiles": {
+					"ref": "volumeProfile"
+				},
+				"servicelbs":{
+                    "ref": "servicelb"
+        },
+				"netProfiles": {
+					"ref": "netprofile"
+				}
+			}
+		}
+	]
+}

@@ -1,0 +1,40 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "appProfile",
+			"type": "object",
+			"version": "v1",
+			"key": [ "tenantName", "appProfileName" ],
+			"cfgProperties": {
+				"tenantName": {
+					"type": "string",
+					"title": "Tenant Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+				},
+				"appProfileName": {
+					"type": "string",
+					"title": "Application Profile Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+				},
+				"endpointGroups": {
+					"type": "array",
+					"items": "string",
+					"title": "Member groups of the appProf"
+				}
+			},
+			"link-sets": {
+				"endpointGroups": {
+					"ref": "endpointGroup"
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				}
+			}
+		}
+	]
+}

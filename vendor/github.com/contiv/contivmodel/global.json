@@ -1,0 +1,61 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "global",
+			"version": "v1",
+			"type": "object",
+			"key": [ "name"],
+			"cfgProperties": {
+				"name": {
+					"type": "string",
+					"title": "name of this block(must be 'global')",
+					"length": 64,
+					"format": "^(global)$",
+					"ShowSummary": true
+				},
+				"networkInfraType": {
+					"type": "string",
+					"title": "Network infrastructure type",
+					"length": 64,
+					"format": "^(aci|aci-opflex|default)?$",
+					"ShowSummary": true
+				},
+				"vlans": {
+					"type": "string",
+					"title": "Allowed vlan range",
+					"format": "^([0-9]{1,4}?-[0-9]{1,4}?)$"
+				},
+				"vxlans": {
+					"type": "string",
+					"title": "Allwed vxlan range",
+					"format": "^([0-9]{1,8}?-[0-9]{1,8}?)$"
+				},
+                                "fwdMode": {
+                                        "type": "string",
+                                        "title": "Forwarding Mode",
+                                        "length": 64,
+                                        "format": "^(bridge|routing)?$",
+                                        "ShowSummary": true
+                                }
+			},
+			"operProperties": {
+				"numNetworks": {
+					"type": "int"
+				},
+				"defaultNetwork": {
+					"type": "string"
+				},
+				"vlansInUse": {
+					"type": "string"
+				},
+				"vxlansInUse": {
+					"type": "string"
+				},
+				"freeVXLANsStart": {
+					"type": "int"
+				}
+			}
+		}
+	]
+}
