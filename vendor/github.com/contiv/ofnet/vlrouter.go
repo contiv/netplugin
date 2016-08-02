@@ -194,7 +194,7 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 	// save the flow entry
 	self.portVlanFlowDb[endpoint.PortNo] = portVlanFlow
-
+	log.Infof("COMING HERE !")
 	outPort, err := self.ofSwitch.OutputPort(endpoint.PortNo)
 	if err != nil {
 		log.Errorf("Error creating output port %d. Err: %v", endpoint.PortNo, err)
@@ -211,7 +211,7 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		log.Errorf("Error creating flow for endpoint: %+v. Err: %v", endpoint, err)
 		return err
 	}
-
+	log.Infof("COMING HERE 2")
 	destMacAddr, _ := net.ParseMAC(endpoint.MacAddrStr)
 
 	// Set Mac addresses
@@ -227,6 +227,7 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 	// Store the flow
 	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
+	log.Infof("COMING HERE 3")
 	self.flowDb[flowId] = ipFlow
 
 	if endpoint.EndpointType != "internal-bgp" {
@@ -236,6 +237,7 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 			log.Errorf("Error adding endpoint to policy agent{%+v}. Err: %v", endpoint, err)
 			return err
 		}
+		log.Infof("COMING HERE 4")
 		path := &OfnetProtoRouteInfo{
 			ProtocolType: "bgp",
 			localEpIP:    endpoint.IpAddr.String(),
@@ -246,13 +248,14 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		}
 		self.agent.AddLocalProtoRoute(path)
 	}
-
+	log.Infof("COMING HERE 5")
 	if endpoint.Ipv6Addr != nil && endpoint.Ipv6Addr.String() != "" {
 		err = self.AddLocalIpv6Flow(endpoint)
 		if err != nil {
 			return err
 		}
 	}
+	log.Infof("COMING HERE 6")
 	return nil
 }
 

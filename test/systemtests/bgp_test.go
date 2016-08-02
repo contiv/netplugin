@@ -872,7 +872,7 @@ func (s *systemtestSuite) CheckBgpConnection(c *C) error {
 		count = 0
 		time.Sleep(3 * time.Second)
 		for _, node := range s.nodes {
-			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
+			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp neighbor")
 			fmt.Println(out)
 			if strings.Contains(out, "Establ") {
 				count++
@@ -892,7 +892,7 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 		count = 0
 		time.Sleep(3 * time.Second)
 		for _, node := range s.nodes {
-			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
+			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp neighbor")
 			fmt.Println(out)
 			if !strings.Contains(out, "Establ") {
 				count++
@@ -905,7 +905,7 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
 func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.TestbedNode) error {
 	for i := 0; i < 100; i++ {
 		time.Sleep(3 * time.Second)
-		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
+		out, _ := node.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp neighbor")
 		fmt.Println(out)
 		if strings.Contains(out, "Establ") {
 			return nil
@@ -917,7 +917,7 @@ func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.Testbe
 func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.TestbedNode) error {
 	for i := 0; i < 100; i++ {
 		time.Sleep(3 * time.Second)
-		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
+		out, _ := node.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp neighbor")
 		fmt.Println(out)
 		if !strings.Contains(out, "Establ") {
 			return nil
@@ -929,14 +929,14 @@ func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.Test
 func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*container) ([]string, error) {
 	ipList := []string{}
 	nodeCount := 0
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 40; i++ {
 		logrus.Infof("Checking Bgp container route distribution")
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		ipList = nil
 		for _, cont := range containers {
 			nodeCount = 0
 			for _, node := range s.nodes {
-				out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp global rib")
+				out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp global rib")
 				if strings.Contains(out, cont.eth0.ip) {
 					nodeCount++
 				} else {
@@ -950,7 +950,7 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 				return ipList, nil
 			}
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 	return ipList, errors.New("Bgp Route distribution not complete")
 }
@@ -958,14 +958,14 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) ([]string, error) {
 	ipList := []string{}
 	nodeCount := 0
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 40; i++ {
 		logrus.Infof("Checking Bgp container route distribution")
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		ipList = nil
 		for _, ip := range ips {
 			nodeCount = 0
 			for _, node := range s.nodes {
-				out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp global rib")
+				out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/src/github.com/contiv/netplugin/scripts/gobgp global rib")
 				fmt.Println(out)
 				if strings.Contains(out, ip) {
 					nodeCount++
@@ -980,7 +980,7 @@ func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) ([
 				return ipList, nil
 			}
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 	return ipList, errors.New("Bgp Route distribution not complete")
 }

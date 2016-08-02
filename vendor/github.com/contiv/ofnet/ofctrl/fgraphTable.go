@@ -18,9 +18,8 @@ package ofctrl
 
 import (
 	"errors"
-	"sync"
-
 	"github.com/shaleman/libOpenflow/openflow13"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 )

@@ -116,9 +116,6 @@ type OfnetProto interface {
 
 	//Modify protocol Rib (Could be used for testing)
 	ModifyProtoRib(path interface{})
-
-	//Inspect bgp
-	InspectProto() (interface{}, error)
 }
 
 // Default port numbers

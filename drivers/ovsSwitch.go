@@ -61,7 +61,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 	var err error
 	var datapath string
 	var ofnetPort, ctrlrPort uint16
-
+	log.Infof("Received request to create new ovs switch bridge:%s, localIP:%s, fwdMode:%s", bridgeName, localIP, fwdMode)
 	sw := new(OvsSwitch)
 	sw.bridgeName = bridgeName
 	sw.netType = netType

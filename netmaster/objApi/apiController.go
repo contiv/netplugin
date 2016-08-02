@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"

@@ -17,23 +17,21 @@ package ofnet
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
-	bgp "github.com/osrg/gobgp/packet"
-
 	log "github.com/Sirupsen/logrus"
+	bgp "github.com/osrg/gobgp/packet/bgp"
+	table "github.com/osrg/gobgp/table"
 
 	api "github.com/osrg/gobgp/api"
 	bgpconf "github.com/osrg/gobgp/config"
-	bgpserver "github.com/osrg/gobgp/server"
+	gobgp "github.com/osrg/gobgp/server"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"github.com/shaleman/libOpenflow/protocol"
 	"github.com/vishvananda/netlink"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -44,24 +42,21 @@ type OfnetBgp struct {
 	agent    *OfnetAgent // Pointer back to ofnet agent that owns this
 
 	//bgp resources
-	modRibCh   chan *api.Path //channel for route change notif
-	advPathCh  chan *api.Path
-	bgpServer  *bgpserver.BgpServer // bgp server instance
-	grpcServer *bgpserver.Server    // grpc server to talk to gobgp
+	bgpServer  *gobgp.BgpServer // bgp server instance
+	grpcServer *api.Server      // grpc server to talk to gobgp
 
-	myRouterMac net.HardwareAddr //Router mac used for external proxy
-	myBgpPeer   string           // bgp neighbor
-	myBgpAs     uint32
-	cc          *grpc.ClientConn //grpc client connection
-	stop        chan bool
-	start       chan bool
-	stopArp     chan bool
-	intfName    string //loopback intf to run bgp
-}
-
-type OfnetBgpInspect struct {
-	Peer *api.Peer
-	Rib  *api.Table
+	myRouterMac    net.HardwareAddr //Router mac used for external proxy
+	myBgpPeer      string           // bgp neighbor
+	myBgpAs        uint32
+	cc             *grpc.ClientConn //grpc client connection
+	stopWatch      chan bool
+	start          chan bool
+	stopArp        chan bool
+	intfName       string //loopback intf to run bgp
+	routeUUID      map[string][]byte
+	routeUUIDMutex sync.RWMutex
+	oldState       string
+	oldAdminState  string
 }
 
 // Create a new vlrouter instance
@@ -88,10 +83,11 @@ func NewOfnetBgp(agent *OfnetAgent, routerInfo []string) *OfnetBgp {
 		log.Errorf("Error instantiating Bgp server")
 		return nil
 	}
-	ofnetBgp.stop = make(chan bool, 1)
+	ofnetBgp.stopWatch = make(chan bool, 1)
 	ofnetBgp.intfName = "inb01"
 	ofnetBgp.start = make(chan bool, 1)
 	ofnetBgp.stopArp = make(chan bool, 1)
+	ofnetBgp.routeUUID = make(map[string][]byte)
 	return ofnetBgp
 }
 
@@ -102,6 +98,7 @@ Bgp serve routine does the following:
 3) Kicks off routines to monitor route updates and peer state
 */
 func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
+
 	log.Infof("Starting the Bgp Server with %v", routerInfo)
 	//go routine to start gobgp server
 	var len uint
@@ -110,32 +107,12 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	as, _ := strconv.Atoi(routerInfo.As)
 	self.myBgpAs = uint32(as)
 
-	self.modRibCh = make(chan *api.Path, 16)
-	self.advPathCh = make(chan *api.Path, 16)
-
 	timeout := grpc.WithTimeout(time.Second)
-	conn, err := grpc.Dial("127.0.0.1:8080", timeout, grpc.WithBlock(), grpc.WithInsecure())
+	conn, err := grpc.Dial("127.0.0.1:50051", timeout, grpc.WithBlock(), grpc.WithInsecure())
 	if err != nil {
 		log.Fatal(err)
 	}
 	self.cc = conn
-	defer self.cc.Close()
-
-	client := api.NewGobgpApiClient(self.cc)
-	if client == nil {
-		log.Errorf("Invalid Gobgpapi client")
-		return errors.New("Error creating Gobgpapiclient")
-	}
-	path := &api.Path{
-		Pattrs: make([][]byte, 0),
-	}
-
-	path.Nlri, _ = bgp.NewIPAddrPrefix(uint8(32), self.routerIP).Serialize()
-	n, _ := bgp.NewPathAttributeNextHop("0.0.0.0").Serialize()
-	path.Pattrs = append(path.Pattrs, n)
-	origin, _ := bgp.NewPathAttributeOrigin(bgp.BGP_ORIGIN_ATTR_TYPE_INCOMPLETE).Serialize()
-	path.Pattrs = append(path.Pattrs, origin)
-
 	log.Debugf("Creating the loopback port ")
 	err = self.agent.ovsDriver.CreatePort(self.intfName, "internal", 1)
 	if err != nil {
@@ -196,30 +173,25 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	self.agent.endpointDb.Set(epid, ep)
 	self.agent.localEndpointDb.Set(string(ep.PortNo), ep)
 
-	//Add bgp router id as well
-	bgpGlobalCfg := &bgpconf.Global{}
-	setDefaultGlobalConfigValues(bgpGlobalCfg)
-	bgpGlobalCfg.GlobalConfig.RouterId = net.ParseIP(self.routerIP)
-	bgpGlobalCfg.GlobalConfig.As = self.myBgpAs
-	self.bgpServer.SetGlobalType(*bgpGlobalCfg)
-
-	//monitor route updates from peer
-	go self.monitorBest()
-	//monitor peer state
-	go self.monitorPeer()
-	self.start <- true
-	for {
-		select {
-		case p := <-self.modRibCh:
-			err = self.modRib(p)
-			if err != nil {
-				log.Error("failed to mod rib: ", err)
-			}
-		case <-self.stop:
-			return nil
-		}
+	// global configuration
+	global := &bgpconf.Global{
+		Config: bgpconf.GlobalConfig{
+			As:       self.myBgpAs,
+			RouterId: self.routerIP,
+			Port:     179,
+		},
 	}
+
+	if err := self.bgpServer.Start(global); err != nil {
+		return err
+	}
+
+	//monitor route updates from peer, peer state
+	go self.watch()
+	self.start <- true
+	return nil
 }
+
 func (self *OfnetBgp) StopProtoServer() error {
 
 	log.Info("Stopping bgp server")
@@ -243,9 +215,11 @@ func (self *OfnetBgp) StopProtoServer() error {
 	}
 	self.routerIP = ""
 	self.myBgpAs = 0
+	self.cc.Close()
 	self.agent.deleteVrf("default")
 
-	self.stop <- true
+	self.stopWatch <- true
+	self.bgpServer.Stop()
 	return nil
 }
 
@@ -259,32 +233,12 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 	4) Mark the routes learn via json rpc as unresolved
 	*/
 	log.Infof("Received DeleteProtoNeighbor to delete bgp neighbor %v", self.myBgpPeer)
-	client := api.NewGobgpApiClient(self.cc)
-	if client == nil {
-		log.Errorf("Invalid Gobgpapi client")
-		return errors.New("Error creating Gobgpapiclient")
+	n := &bgpconf.Neighbor{
+		Config: bgpconf.NeighborConfig{
+			NeighborAddress: self.myBgpPeer,
+		},
 	}
-	arg := &api.Arguments{Name: self.myBgpPeer}
-
-	peer, err := client.GetNeighbor(context.Background(), arg)
-	if err != nil {
-		log.Errorf("GetNeighbor failed: %v", err)
-		return err
-	}
-	p := bgpconf.Neighbor{}
-	setNeighborConfigValues(&p)
-
-	p.NeighborAddress = net.ParseIP(peer.Conf.NeighborAddress)
-	p.NeighborConfig.NeighborAddress = net.ParseIP(peer.Conf.NeighborAddress)
-	p.NeighborConfig.PeerAs = uint32(peer.Conf.PeerAs)
-	//FIX ME set ipv6 depending on peerip (for v6 BGP)
-	p.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"}}
-	self.bgpServer.SetBmpConfig(bgpconf.BmpServers{
-		BmpServerList: []bgpconf.BmpServer{},
-	})
-
-	self.bgpServer.PeerDelete(p)
+	self.bgpServer.DeleteNeighbor(n)
 	self.stopArp <- true
 	bgpEndpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
 
@@ -316,26 +270,21 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) error {
 
 	<-self.start
-
 	log.Infof("Received AddProtoNeighbor to add bgp neighbor %v", neighborInfo.NeighborIP)
 
-	var policyConfig bgpconf.RoutingPolicy
-
 	peerAs, _ := strconv.Atoi(neighborInfo.As)
-	p := &bgpconf.Neighbor{}
-	setNeighborConfigValues(p)
-	p.NeighborAddress = net.ParseIP(neighborInfo.NeighborIP)
-	p.NeighborConfig.NeighborAddress = net.ParseIP(neighborInfo.NeighborIP)
-	p.NeighborConfig.PeerAs = uint32(peerAs)
-	//FIX ME set ipv6 depending on peerip (for v6 BGP)
-	p.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"}}
-	self.bgpServer.SetBmpConfig(bgpconf.BmpServers{
-		BmpServerList: []bgpconf.BmpServer{},
-	})
 
-	self.bgpServer.PeerAdd(*p)
-	self.bgpServer.SetPolicy(policyConfig)
+	n := &bgpconf.Neighbor{
+		Config: bgpconf.NeighborConfig{
+			NeighborAddress: neighborInfo.NeighborIP,
+			PeerAs:          uint32(peerAs),
+		},
+	}
+
+	err := self.bgpServer.AddNeighbor(n)
+	if err != nil {
+		return err
+	}
 
 	epid := self.agent.getEndpointIdByIpVrf(net.ParseIP(neighborInfo.NeighborIP), "default")
 	epreg := &OfnetEndpoint{
@@ -350,13 +299,13 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 
 	// Install the endpoint in datapath
 	// First, add the endpoint to local routing table
-	self.agent.endpointDb.Set(epreg.EndpointID, epreg)
 
-	err := self.agent.datapath.AddEndpoint(epreg)
+	err = self.agent.datapath.AddEndpoint(epreg)
 	if err != nil {
 		log.Errorf("Error adding endpoint: {%+v}. Err: %v", epreg, err)
 		return err
 	}
+	self.agent.endpointDb.Set(epreg.EndpointID, epreg)
 
 	self.myBgpPeer = neighborInfo.NeighborIP
 	go self.sendArp(self.stopArp)
@@ -395,58 +344,22 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
 		//Bgp is not configured.
 		return nil
 	}
-
 	log.Infof("Received AddLocalProtoRoute to add local endpoint to protocol RIB: %v", pathInfo)
 
-	path := &api.Path{
-		Pattrs: make([][]byte, 0),
+	// add routes
+	attrs := []bgp.PathAttributeInterface{
+		bgp.NewPathAttributeOrigin(1),
+		bgp.NewPathAttributeNextHop(pathInfo.nextHopIP),
+		bgp.NewPathAttributeAsPath([]bgp.AsPathParamInterface{bgp.NewAs4PathParam(bgp.BGP_ASPATH_ATTR_TYPE_SEQ, []uint32{self.myBgpAs})}),
 	}
-
-	// form the path structure with appropriate path attributes
-	nlri := bgp.NewIPAddrPrefix(32, pathInfo.localEpIP)
-	path.Nlri, _ = nlri.Serialize()
-	origin, _ := bgp.NewPathAttributeOrigin(bgp.BGP_ORIGIN_ATTR_TYPE_EGP).Serialize()
-	path.Pattrs = append(path.Pattrs, origin)
-	aspathParam := []bgp.AsPathParamInterface{bgp.NewAs4PathParam(2, []uint32{self.myBgpAs})}
-	aspath, _ := bgp.NewPathAttributeAsPath(aspathParam).Serialize()
-	path.Pattrs = append(path.Pattrs, aspath)
-	n, _ := bgp.NewPathAttributeNextHop(pathInfo.nextHopIP).Serialize()
-	path.Pattrs = append(path.Pattrs, n)
-
-	name := ""
-
-	arg := &api.ModPathArguments{
-		Resource: api.Resource_GLOBAL,
-		Name:     name,
-		Paths:    []*api.Path{path},
-	}
-
-	//send arguement stream
-	client := api.NewGobgpApiClient(self.cc)
-	if client == nil {
-		log.Errorf("Gobgpapi stream invalid")
-		return nil
-	}
-
-	stream, err := client.ModPath(context.Background())
+	self.routeUUIDMutex.Lock()
+	defer self.routeUUIDMutex.Unlock()
+	uuid, err := self.bgpServer.AddPath("", []*table.Path{table.NewPath(nil, bgp.NewIPAddrPrefix(32, pathInfo.localEpIP), false, attrs, time.Now(), false)})
 	if err != nil {
-		log.Errorf("Fail to enforce Modpath: %v", err)
 		return err
 	}
-	err = stream.Send(arg)
-	if err != nil {
-		log.Errorf("Failed to send strean: %v", err)
-		return err
-	}
-	stream.CloseSend()
-	res, e := stream.CloseAndRecv()
-	if e != nil {
-		log.Errorf("Falied toclose stream ")
-		return e
-	}
-	if res.Code != api.Error_SUCCESS {
-		return fmt.Errorf("error: code: %d, msg: %s", res.Code, res.Msg)
-	}
+	self.routeUUID[pathInfo.localEpIP] = append(self.routeUUID[pathInfo.localEpIP], uuid...)
+
 	return nil
 }
 
@@ -455,189 +368,97 @@ func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error
 
 	log.Infof("Received DeleteLocalProtoRoute to withdraw local endpoint to protocol RIB: %v", pathInfo)
 
-	path := &api.Path{
-		Pattrs: make([][]byte, 0),
+	attrs := []bgp.PathAttributeInterface{
+		bgp.NewPathAttributeOrigin(1),
+		bgp.NewPathAttributeNextHop(pathInfo.nextHopIP),
+		bgp.NewPathAttributeAsPath([]bgp.AsPathParamInterface{bgp.NewAs4PathParam(bgp.BGP_ASPATH_ATTR_TYPE_SEQ, []uint32{self.myBgpAs})}),
 	}
-
-	//form appropraite path attributes for path to be withdrawn
-	nlri := bgp.NewIPAddrPrefix(32, pathInfo.localEpIP)
-	path.Nlri, _ = nlri.Serialize()
-	origin, _ := bgp.NewPathAttributeOrigin(bgp.BGP_ORIGIN_ATTR_TYPE_EGP).Serialize()
-	path.Pattrs = append(path.Pattrs, origin)
-	aspathParam := []bgp.AsPathParamInterface{bgp.NewAs4PathParam(2, []uint32{self.myBgpAs})}
-	aspath, _ := bgp.NewPathAttributeAsPath(aspathParam).Serialize()
-	path.Pattrs = append(path.Pattrs, aspath)
-	n, _ := bgp.NewPathAttributeNextHop(pathInfo.nextHopIP).Serialize()
-	path.Pattrs = append(path.Pattrs, n)
-	path.IsWithdraw = true
-	name := ""
-
-	arg := &api.ModPathArguments{
-		Resource: api.Resource_GLOBAL,
-		Name:     name,
-		Paths:    []*api.Path{path},
-	}
-
-	//send arguement stream
-	client := api.NewGobgpApiClient(self.cc)
-	if client == nil {
-		log.Errorf("Gobgpapi stream invalid")
-		return nil
-	}
-
-	stream, err := client.ModPath(context.Background())
-	if err != nil {
-		log.Errorf("Fail to enforce Modpathi: %v", err)
+	self.routeUUIDMutex.Lock()
+	defer self.routeUUIDMutex.Unlock()
+	if err := self.bgpServer.DeletePath(self.routeUUID[pathInfo.localEpIP], bgp.RF_IPv4_UC, "", []*table.Path{table.NewPath(nil, bgp.NewIPAddrPrefix(32, pathInfo.localEpIP), true, attrs, time.Now(), false)}); err != nil {
 		return err
 	}
+	delete(self.routeUUID, pathInfo.localEpIP)
 
-	err = stream.Send(arg)
-	if err != nil {
-		log.Errorf("Failed to send strean: %v", err)
-		return err
-	}
-	stream.CloseSend()
-
-	res, e := stream.CloseAndRecv()
-	if e != nil {
-		log.Errorf("Falied toclose stream ")
-		return e
-	}
-
-	if res.Code != api.Error_SUCCESS {
-		return fmt.Errorf("error: code: %d, msg: %s", res.Code, res.Msg)
-	}
 	return nil
 }
 
 //monitorBest monitors for route updates/changes form peer
-func (self *OfnetBgp) monitorBest() {
-
-	client := api.NewGobgpApiClient(self.cc)
-	if client == nil {
-		log.Errorf("Invalid Gobgpapi client")
-		return
-	}
-	arg := &api.Arguments{
-		Resource: api.Resource_GLOBAL,
-		Rf:       uint32(bgp.RF_IPv4_UC),
-	}
-
-	stream, err := client.MonitorBestChanged(context.Background(), arg)
-	if err != nil {
-		return
-	}
-
+func (self *OfnetBgp) watch() {
+	w := self.bgpServer.Watch(gobgp.WatchBestPath(), gobgp.WatchPeerState(true))
 	for {
-		dst, err := stream.Recv()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			log.Infof("monitorBest stream ended")
+		select {
+		case ev := <-w.Event():
+			switch msg := ev.(type) {
+			case *gobgp.WatchEventBestPath:
+				for _, path := range msg.PathList {
+					self.modRib(path)
+				}
+			case *gobgp.WatchEventPeerState:
+				self.peerUpdate(msg)
+
+			}
+		case <-self.stopWatch:
 			return
 		}
-		self.modRibCh <- dst.Paths[0]
 	}
-	return
 }
 
 // monitorPeer is used to monitor the bgp peer state
-func (self *OfnetBgp) monitorPeer() {
+func (self *OfnetBgp) peerUpdate(s *gobgp.WatchEventPeerState) {
 
-	var oldAdminState, oldState string
+	fmt.Printf("[NEIGH] %s fsm: %s admin: %v\n", s.PeerAddress,
+		s.State, s.AdminState.String())
+	if self.oldState == "BGP_FSM_ESTABLISHED" && self.oldAdminState == "ADMIN_STATE_UP" {
+		uplink, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
+		/*If the state changed from being established to idle or active:
+		   1) delete all endpoints learnt via bgp Peer
+			 2) mark routes pointing to the bgp nexthop as unresolved
+			 3) mark the bgp peer reachbility as unresolved
+		*/
+		endpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
+		self.agent.datapath.RemoveEndpoint(endpoint)
+		endpoint.PortNo = 0
 
-	client := api.NewGobgpApiClient(self.cc)
-	if client == nil {
-		log.Errorf("Invalid Gobgpapi client")
-		return
-	}
-	arg := &api.Arguments{}
-
-	stream, err := client.MonitorPeerState(context.Background(), arg)
-	if err != nil {
-		log.Errorf("MonitorPeerState failed: %v", err)
-		return
-	}
-	for {
-		s, err := stream.Recv()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			log.Warnf("MonitorPeerState stream ended :")
-			break
+		err := self.agent.datapath.AddEndpoint(endpoint)
+		if err != nil {
+			log.Errorf("Error unresolving bgp peer %s ", self.myBgpPeer)
 		}
-		fmt.Printf("[NEIGH] %s fsm: %s admin: %s\n", s.Conf.NeighborAddress,
-			s.Info.BgpState, s.Info.AdminState)
-		if oldState == "BGP_FSM_ESTABLISHED" && oldAdminState == "ADMIN_STATE_UP" {
-			uplink, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
-			/*If the state changed from being established to idle or active:
-			   1) delete all endpoints learnt via bgp Peer
-				 2) mark routes pointing to the bgp nexthop as unresolved
-				 3) mark the bgp peer reachbility as unresolved
-			*/
-			endpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
-			self.agent.datapath.RemoveEndpoint(endpoint)
-			endpoint.PortNo = 0
+		self.agent.endpointDb.Set(endpoint.EndpointID, endpoint)
 
-			self.agent.endpointDb.Set(endpoint.EndpointID, endpoint)
-			err = self.agent.datapath.AddEndpoint(endpoint)
-			if err != nil {
-				log.Errorf("Error unresolving bgp peer %s ", self.myBgpPeer)
-			}
-
-			var ep *OfnetEndpoint
-			for endpoint := range self.agent.endpointDb.IterBuffered() {
-				ep = endpoint.Val.(*OfnetEndpoint)
-				if ep.PortNo == uplink {
-					self.agent.datapath.RemoveEndpoint(ep)
-					if ep.EndpointType == "internal" {
-						ep.PortNo = 0
-						self.agent.endpointDb.Set(ep.EndpointID, ep)
-						//We readd unresolved endpoints that were learnt via
-						//json rpc
-						self.agent.datapath.AddEndpoint(ep)
-					} else if ep.EndpointType == "external" {
-						self.agent.endpointDb.Remove(ep.EndpointID)
-					}
+		var ep *OfnetEndpoint
+		for endpoint := range self.agent.endpointDb.IterBuffered() {
+			ep = endpoint.Val.(*OfnetEndpoint)
+			if ep.PortNo == uplink {
+				self.agent.datapath.RemoveEndpoint(ep)
+				if ep.EndpointType == "internal" {
+					ep.PortNo = 0
+					self.agent.endpointDb.Set(ep.EndpointID, ep)
+					//We readd unresolved endpoints that were learnt via
+					//json rpc
+					self.agent.datapath.AddEndpoint(ep)
+				} else if ep.EndpointType == "external" {
+					self.agent.endpointDb.Remove(ep.EndpointID)
 				}
 			}
 		}
-		oldState = s.Info.BgpState
-		oldAdminState = s.Info.AdminState
 	}
+	self.oldState = s.State.String()
+	self.oldAdminState = s.AdminState.String()
+
 	return
 }
 
 //modrib receives route updates from BGP server and adds the endpoint
-func (self *OfnetBgp) modRib(path *api.Path) error {
+func (self *OfnetBgp) modRib(path *table.Path) error {
 	var nlri bgp.AddrPrefixInterface
 	var nextHop string
 	var macAddrStr string
 	var portNo uint32
-	if len(path.Nlri) > 0 {
-		nlri = &bgp.IPAddrPrefix{}
-		err := nlri.DecodeFromBytes(path.Nlri)
-		if err != nil {
-			return err
-		}
-	}
 
-	for _, attr := range path.Pattrs {
-		p, err := bgp.GetPathAttribute(attr)
-		if err != nil {
-			return err
-		}
+	nlri = path.GetNlri()
+	nextHop = path.GetNexthop().String()
 
-		err = p.DecodeFromBytes(attr)
-		if err != nil {
-			return err
-		}
-
-		if p.GetType() == bgp.BGP_ATTR_TYPE_NEXT_HOP {
-			nextHop = p.(*bgp.PathAttributeNextHop).Value.String()
-			break
-		}
-	}
 	if nextHop == "0.0.0.0" {
 		return nil
 	}
@@ -647,8 +468,7 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 	}
 
 	endpointIPNet, _ := netlink.ParseIPNet(nlri.String())
-	log.Infof("Bgp Rib Received endpoint update for %v , with nexthop %v",
-		endpointIPNet, nextHop)
+	log.Infof("Bgp Rib Received endpoint update for path %s", path.String())
 
 	//check if bgp published a route local to the host
 	epid := self.agent.getEndpointIdByIpVrf(endpointIPNet.IP.Mask(endpointIPNet.Mask), "default")
@@ -694,12 +514,12 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 		// Install the endpoint in datapath
 		// First, add the endpoint to local routing table
 
-		self.agent.endpointDb.Set(epreg.EndpointID, epreg)
 		err := self.agent.datapath.AddEndpoint(epreg)
 		if err != nil {
 			log.Errorf("Error adding endpoint: {%+v}. Err: %v", epreg, err)
 			return err
 		}
+		self.agent.endpointDb.Set(epreg.EndpointID, epreg)
 	} else {
 		log.Info("Received route withdraw from BGP for ", endpointIPNet)
 		endpoint := self.agent.getEndpointByIpVrf(endpointIPNet.IP, "default")
@@ -712,8 +532,8 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 }
 
 //createBgpServer creates and starts a bgp server and correspoinding grpc server
-func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Server) {
-	bgpServer = bgpserver.NewBgpServer(bgp.BGP_PORT)
+func createBgpServer() (bgpServer *gobgp.BgpServer, grpcServer *api.Server) {
+	bgpServer = gobgp.NewBgpServer()
 	if bgpServer == nil {
 		log.Errorf("Error creating bgp server")
 		return
@@ -721,7 +541,7 @@ func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Se
 		go bgpServer.Serve()
 	}
 	// start grpc Server
-	grpcServer = bgpserver.NewGrpcServer(bgpserver.GRPC_PORT, bgpServer.GrpcReqCh)
+	grpcServer = api.NewGrpcServer(bgpServer, ":50051")
 	if grpcServer == nil {
 		log.Errorf("Error creating bgp server")
 		return
@@ -729,42 +549,6 @@ func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Se
 		go grpcServer.Serve()
 	}
 	return
-}
-
-//setDefaultGlobalConfigValues sets the default global configs for bgp
-func setDefaultGlobalConfigValues(bt *bgpconf.Global) error {
-
-	bt.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "ipv6-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv4-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv6-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "l2vpn-evpn"},
-		bgpconf.AfiSafi{AfiSafiName: "encap"},
-		bgpconf.AfiSafi{AfiSafiName: "rtc"},
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-flowspec"},
-		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv4-flowspec"},
-		bgpconf.AfiSafi{AfiSafiName: "ipv6-flowspec"},
-		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv6-flowspec"},
-	}
-	bt.MplsLabelRange.MinLabel = bgpconf.DEFAULT_MPLS_LABEL_MIN
-	bt.MplsLabelRange.MaxLabel = bgpconf.DEFAULT_MPLS_LABEL_MAX
-
-	return nil
-}
-
-//setNeighborConfigValues sets the default neighbor configs for bgp
-func setNeighborConfigValues(neighbor *bgpconf.Neighbor) error {
-
-	neighbor.Timers.TimersConfig.ConnectRetry = float64(bgpconf.DEFAULT_CONNECT_RETRY)
-	neighbor.Timers.TimersConfig.HoldTime = float64(bgpconf.DEFAULT_HOLDTIME)
-	neighbor.Timers.TimersConfig.KeepaliveInterval = float64(bgpconf.DEFAULT_HOLDTIME / 3)
-	neighbor.Timers.TimersConfig.IdleHoldTimeAfterReset =
-		float64(bgpconf.DEFAULT_IDLE_HOLDTIME_AFTER_RESET)
-	//FIX ME need to check with global peer to set internal or external
-	neighbor.NeighborConfig.PeerType = bgpconf.PEER_TYPE_EXTERNAL
-	neighbor.Transport.TransportConfig.PassiveMode = false
-	return nil
 }
 
 func (self *OfnetBgp) sendArp(stopArp chan bool) {
@@ -784,7 +568,7 @@ func (self *OfnetBgp) sendArp(stopArp chan bool) {
 }
 
 func (self *OfnetBgp) ModifyProtoRib(path interface{}) {
-	self.modRibCh <- path.(*api.Path)
+	self.modRib(path.(*table.Path))
 }
 
 func (self *OfnetBgp) sendArpPacketOut() {
@@ -825,33 +609,4 @@ func (self *OfnetBgp) sendArpPacketOut() {
 
 	// Send it out
 	self.agent.ofSwitch.Send(pktOut)
-}
-
-func (self *OfnetBgp) InspectProto() (interface{}, error) {
-	OfnetBgpInspect := new(OfnetBgpInspect)
-	var err error
-
-	client := api.NewGobgpApiClient(self.cc)
-	if client == nil {
-		log.Errorf("Invalid Gobgpapi client")
-		return nil, errors.New("Error creating Gobgpapiclient")
-	}
-
-	// Get Bgp info
-	arg := &api.Arguments{Name: self.myBgpPeer}
-	OfnetBgpInspect.Peer, err = client.GetNeighbor(context.Background(), arg)
-	if err != nil {
-		log.Errorf("GetNeighbor failed: %v", err)
-		return nil, err
-	}
-
-	// Get rib info
-	table := &api.Table{Type: api.Resource_GLOBAL, Family: uint32(bgp.RF_IPv4_UC)}
-	OfnetBgpInspect.Rib, err = client.GetRib(context.Background(), table)
-	if err != nil {
-		log.Errorf("GetRib failed: %v", err)
-		return nil, err
-	}
-
-	return OfnetBgpInspect, nil
 }

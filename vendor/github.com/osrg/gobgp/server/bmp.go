@@ -1,4 +1,4 @@
-// Copyright (C) 2015 Nippon Telegraph and Telephone Corporation.
+// Copyright (C) 2015-2016 Nippon Telegraph and Telephone Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,120 +16,172 @@
 package server
 
 import (
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/osrg/gobgp/config"
-	"github.com/osrg/gobgp/packet"
+	"github.com/osrg/gobgp/packet/bgp"
+	"github.com/osrg/gobgp/packet/bmp"
 	"github.com/osrg/gobgp/table"
 	"net"
 	"strconv"
 	"time"
 )
 
-type broadcastBMPMsg struct {
-	ch      chan *broadcastBMPMsg
-	msgList []*bgp.BMPMessage
-	conn    *net.TCPConn
-	addr    string
+func (b *bmpClient) tryConnect() *net.TCPConn {
+	interval := 1
+	for {
+		log.WithFields(log.Fields{"Topic": "bmp"}).Debugf("Connecting BMP server:%s", b.host)
+		conn, err := net.Dial("tcp", b.host)
+		if err != nil {
+			select {
+			case <-b.dead:
+				return nil
+			default:
+			}
+			time.Sleep(time.Duration(interval) * time.Second)
+			if interval < 30 {
+				interval *= 2
+			}
+		} else {
+			log.WithFields(log.Fields{"Topic": "bmp"}).Infof("BMP server is connected:%s", b.host)
+			return conn.(*net.TCPConn)
+		}
+	}
 }
 
-func (m *broadcastBMPMsg) send() {
-	m.ch <- m
+func (b *bmpClient) Stop() {
+	close(b.dead)
 }
 
-type bmpConn struct {
-	conn *net.TCPConn
-	addr string
+func (b *bmpClient) loop() {
+	for {
+		conn := b.tryConnect()
+		if conn == nil {
+			break
+		}
+
+		if func() bool {
+			ops := []WatchOption{WatchPeerState(true)}
+			if b.typ != config.BMP_ROUTE_MONITORING_POLICY_TYPE_POST_POLICY {
+				ops = append(ops, WatchUpdate(true))
+			} else if b.typ != config.BMP_ROUTE_MONITORING_POLICY_TYPE_PRE_POLICY {
+				ops = append(ops, WatchPostUpdate(true))
+			}
+			w := b.s.Watch(ops...)
+			defer w.Stop()
+
+			write := func(msg *bmp.BMPMessage) error {
+				buf, _ := msg.Serialize()
+				_, err := conn.Write(buf)
+				if err != nil {
+					log.Warnf("failed to write to bmp server %s", b.host)
+				}
+				return err
+			}
+
+			if err := write(bmp.NewBMPInitiation([]bmp.BMPTLV{})); err != nil {
+				return false
+			}
+
+			for {
+				select {
+				case ev := <-w.Event():
+					switch msg := ev.(type) {
+					case *WatchEventUpdate:
+						info := &table.PeerInfo{
+							Address: msg.PeerAddress,
+							AS:      msg.PeerAS,
+							ID:      msg.PeerID,
+						}
+						if err := write(bmpPeerRoute(bmp.BMP_PEER_TYPE_GLOBAL, msg.PostPolicy, 0, info, msg.Timestamp.Unix(), msg.Payload)); err != nil {
+							return false
+						}
+					case *WatchEventPeerState:
+						info := &table.PeerInfo{
+							Address: msg.PeerAddress,
+							AS:      msg.PeerAS,
+							ID:      msg.PeerID,
+						}
+						if msg.State == bgp.BGP_FSM_ESTABLISHED {
+							if err := write(bmpPeerUp(msg.LocalAddress.String(), msg.LocalPort, msg.PeerPort, msg.SentOpen, msg.RecvOpen, bmp.BMP_PEER_TYPE_GLOBAL, false, 0, info, msg.Timestamp.Unix())); err != nil {
+								return false
+							}
+						} else {
+							if err := write(bmpPeerDown(bmp.BMP_PEER_DOWN_REASON_UNKNOWN, bmp.BMP_PEER_TYPE_GLOBAL, false, 0, info, msg.Timestamp.Unix())); err != nil {
+								return false
+							}
+						}
+					}
+				case <-b.dead:
+					conn.Close()
+					return true
+				}
+			}
+		}() {
+			return
+		}
+	}
 }
 
 type bmpClient struct {
-	ch     chan *broadcastBMPMsg
-	connCh chan *bmpConn
+	s    *BgpServer
+	dead chan struct{}
+	host string
+	typ  config.BmpRouteMonitoringPolicyType
 }
 
-func newBMPClient(conf config.BmpServers, connCh chan *bmpConn) (*bmpClient, error) {
-	b := &bmpClient{}
-	if len(conf.BmpServerList) == 0 {
-		return b, nil
-	}
-
-	b.ch = make(chan *broadcastBMPMsg)
-	b.connCh = connCh
-
-	tryConnect := func(addr string) {
-		for {
-			conn, err := net.Dial("tcp", addr)
-			if err != nil {
-				time.Sleep(30 * time.Second)
-			} else {
-				log.Info("bmp server is connected, ", addr)
-				connCh <- &bmpConn{
-					conn: conn.(*net.TCPConn),
-					addr: addr,
-				}
-				break
-			}
-		}
-	}
-
-	for _, c := range conf.BmpServerList {
-		b := c.BmpServerConfig
-		go tryConnect(net.JoinHostPort(b.Address.String(), strconv.Itoa(int(b.Port))))
-	}
-
-	go func() {
-		connMap := make(map[string]*net.TCPConn)
-		for {
-			select {
-			case m := <-b.ch:
-				if m.conn != nil {
-					i := bgp.NewBMPInitiation([]bgp.BMPTLV{})
-					buf, _ := i.Serialize()
-					_, err := m.conn.Write(buf)
-					if err == nil {
-						connMap[m.addr] = m.conn
-					}
-				}
-
-				for addr, conn := range connMap {
-					if m.conn != nil && m.conn != conn {
-						continue
-					}
-
-					for _, msg := range m.msgList {
-						b, _ := msg.Serialize()
-						_, err := conn.Write(b)
-						if err != nil {
-							delete(connMap, addr)
-							go tryConnect(addr)
-							break
-						}
-					}
-				}
-			}
-		}
-	}()
-
-	return b, nil
+func bmpPeerUp(laddr string, lport, rport uint16, sent, recv *bgp.BGPMessage, t uint8, policy bool, pd uint64, peeri *table.PeerInfo, timestamp int64) *bmp.BMPMessage {
+	ph := bmp.NewBMPPeerHeader(t, policy, pd, peeri.Address.String(), peeri.AS, peeri.ID.String(), float64(timestamp))
+	return bmp.NewBMPPeerUpNotification(*ph, laddr, lport, rport, sent, recv)
 }
 
-func (c *bmpClient) send() chan *broadcastBMPMsg {
-	return c.ch
+func bmpPeerDown(reason uint8, t uint8, policy bool, pd uint64, peeri *table.PeerInfo, timestamp int64) *bmp.BMPMessage {
+	ph := bmp.NewBMPPeerHeader(t, policy, pd, peeri.Address.String(), peeri.AS, peeri.ID.String(), float64(timestamp))
+	return bmp.NewBMPPeerDownNotification(*ph, reason, nil, []byte{})
 }
 
-func bmpPeerUp(laddr string, lport, rport uint16, sent, recv *bgp.BGPMessage, t int, policy bool, pd uint64, peeri *table.PeerInfo, timestamp int64) *bgp.BMPMessage {
-	ph := bgp.NewBMPPeerHeader(uint8(t), policy, pd, peeri.Address.String(), peeri.AS, peeri.LocalID.String(), float64(timestamp))
-	return bgp.NewBMPPeerUpNotification(*ph, laddr, lport, rport, sent, recv)
-}
-
-func bmpPeerDown(reason uint8, t int, policy bool, pd uint64, peeri *table.PeerInfo, timestamp int64) *bgp.BMPMessage {
-	ph := bgp.NewBMPPeerHeader(uint8(t), policy, pd, peeri.Address.String(), peeri.AS, peeri.LocalID.String(), float64(timestamp))
-	return bgp.NewBMPPeerDownNotification(*ph, reason, nil, []byte{})
-}
-
-func bmpPeerRoute(t int, policy bool, pd uint64, peeri *table.PeerInfo, timestamp int64, payload []byte) *bgp.BMPMessage {
-	ph := bgp.NewBMPPeerHeader(uint8(t), policy, pd, peeri.Address.String(), peeri.AS, peeri.LocalID.String(), float64(timestamp))
-	m := bgp.NewBMPRouteMonitoring(*ph, nil)
-	body := m.Body.(*bgp.BMPRouteMonitoring)
+func bmpPeerRoute(t uint8, policy bool, pd uint64, peeri *table.PeerInfo, timestamp int64, payload []byte) *bmp.BMPMessage {
+	ph := bmp.NewBMPPeerHeader(t, policy, pd, peeri.Address.String(), peeri.AS, peeri.ID.String(), float64(timestamp))
+	m := bmp.NewBMPRouteMonitoring(*ph, nil)
+	body := m.Body.(*bmp.BMPRouteMonitoring)
 	body.BGPUpdatePayload = payload
 	return m
+}
+
+func (b *bmpClientManager) addServer(c *config.BmpServerConfig) error {
+	host := net.JoinHostPort(c.Address, strconv.Itoa(int(c.Port)))
+	if _, y := b.clientMap[host]; y {
+		return fmt.Errorf("bmp client %s is already configured", host)
+	}
+	b.clientMap[host] = &bmpClient{
+		s:    b.s,
+		dead: make(chan struct{}),
+		host: host,
+		typ:  c.RouteMonitoringPolicy,
+	}
+	go b.clientMap[host].loop()
+	return nil
+}
+
+func (b *bmpClientManager) deleteServer(c *config.BmpServerConfig) error {
+	host := net.JoinHostPort(c.Address, strconv.Itoa(int(c.Port)))
+	if c, y := b.clientMap[host]; !y {
+		return fmt.Errorf("bmp client %s isn't found", host)
+	} else {
+		c.Stop()
+		delete(b.clientMap, host)
+	}
+	return nil
+}
+
+type bmpClientManager struct {
+	s         *BgpServer
+	clientMap map[string]*bmpClient
+}
+
+func newBmpClientManager(s *BgpServer) *bmpClientManager {
+	return &bmpClientManager{
+		s:         s,
+		clientMap: make(map[string]*bmpClient),
+	}
 }
