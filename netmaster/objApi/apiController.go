@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -149,7 +148,6 @@ func (ac *APIController) GlobalGetOper(global *contivModel.GlobalInspect) error 
 	global.Oper.NumNetworks = int(numVlans + numVxlans)
 	global.Oper.VlansInUse = vlansInUse
 	global.Oper.VxlansInUse = vxlansInUse
-
 	return nil
 }
 
@@ -203,6 +201,16 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 		if numVlans+numVxlans > 0 {
 			log.Errorf("Unable to update forwarding mode due to existing %d vlans and %d vxlans", numVlans, numVxlans)
 			return fmt.Errorf("Please delete %v vlans and %v vxlans before changing forwarding mode", vlansInUse, vxlansInUse)
+		}
+		if global.FwdMode == "routing" {
+			//check if  any bgp configurations exists.
+			bgpCfgs := &mastercfg.CfgBgpState{}
+			bgpCfgs.StateDriver = stateDriver
+			cfgs, err := bgpCfgs.ReadAll()
+			if len(cfgs) != 0 {
+				log.Errorf("Unable to change the forwarding mode due to existing bgp configs")
+				return fmt.Errorf("please delete existing Bgp configs")
+			}
 		}
 		globalCfg.FwdMode = params.FwdMode
 	}

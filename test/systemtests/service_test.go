@@ -817,6 +817,9 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 			c.Assert(node.startNetplugin(""), IsNil)
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 			time.Sleep(20 * time.Second)
+			c.Assert(s.verifyVTEPs(), IsNil)
+			time.Sleep(2 * time.Second)
+
 			for _, ips := range serviceIPs {
 				endChan := make(chan error)
 				for _, conts := range containers {

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/contiv/netplugin/core"
@@ -47,9 +48,11 @@ const (
 type OvsSwitch struct {
 	bridgeName  string
 	netType     string
+	uplinkDb    map[string]string //map of uplink intf name and intf type (bond,port)
 	ovsdbDriver *OvsdbDriver
 	ofnetAgent  *ofnet.OfnetAgent
 	hostBridge  *ofnet.HostBridge
+	mutex       sync.RWMutex
 }
 
 // NewOvsSwitch Creates a new OVS switch instance
@@ -62,6 +65,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 	sw := new(OvsSwitch)
 	sw.bridgeName = bridgeName
 	sw.netType = netType
+	sw.uplinkDb = make(map[string]string)
 
 	// Create OVS db driver
 	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure")
@@ -567,7 +571,9 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 		log.Errorf("Error adding uplink %s. Err: %v", uplinkID, err)
 		return err
 	}
-
+	sw.mutex.Lock()
+	sw.uplinkDb[intfName] = "port"
+	sw.mutex.Unlock()
 	log.Infof("Added uplink %s to OVS switch %s.", intfName, sw.bridgeName)
 
 	defer func() {
@@ -576,6 +582,47 @@ func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
 		}
 	}()
 
+	return nil
+}
+
+// RemoveUplinkPort removes uplink port from the OVS
+func (sw *OvsSwitch) RemoveUplinkPort() error {
+
+	// some error checking
+	if sw.netType != "vlan" {
+		log.Fatalf("Can not remove uplink from OVS type %s.", sw.netType)
+	}
+	sw.mutex.Lock()
+	defer sw.mutex.Unlock()
+	for intfName := range sw.uplinkDb {
+		// Get the openflow port number for the interface
+		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
+		if err != nil {
+			log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+			return err
+		}
+
+		// Check if port is already part of the OVS and add it
+		if !sw.ovsdbDriver.IsPortNamePresent(intfName) {
+			// Ask OVSDB driver to add the port as a trunk port
+			err = sw.ovsdbDriver.DeletePort(intfName)
+			if err != nil {
+				log.Errorf("Error deleting uplink %s from OVS. Err: %v", intfName, err)
+				return err
+			}
+		}
+		time.Sleep(time.Second)
+
+		// Remove uplink from agent
+		err = sw.ofnetAgent.RemoveUplink(ofpPort)
+		if err != nil {
+			log.Errorf("Error removing uplink %s. Err: %v", intfName, err)
+			return err
+		}
+		delete(sw.uplinkDb, intfName)
+
+		log.Infof("Removed uplink %s from OVS switch %s.", intfName, sw.bridgeName)
+	}
 	return nil
 }
 

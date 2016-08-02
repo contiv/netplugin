@@ -62,8 +62,8 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",
-			"Comment": "v0.1-7-gbbc744d",
-			"Rev": "bbc744d8ddc88c6a997e600b19736055c24d87d5"
+			"Comment": "v0.1-10-gb5d4dd4",
+			"Rev": "b5d4dd420f593267b1a699020a7387b35b891efc"
 		},
 		{
 			"ImportPath": "github.com/contiv/objdb",

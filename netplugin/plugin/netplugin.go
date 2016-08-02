@@ -218,8 +218,8 @@ func (p *NetPlugin) GlobalFwdModeUpdate(cfg Config) {
 	p.NetworkDriver, err = utils.NewNetworkDriver(cfg.Drivers.Network, &cfg.Instance)
 
 	if err != nil {
-		logrus.Errorf("THE ERROR IS %v", err)
-		return
+		logrus.Errorf("Error updating global forwarding mode %v", err)
+		return 
 	}
 
 	defer func() {
