@@ -92,7 +92,7 @@ func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
 					}
 					var err error
 					mutex.Lock()
-					containers[network+tenant], err = s.runContainers(numContainer, false, net, nil, nil)
+					containers[network+tenant], err = s.runContainers(numContainer, false, net, "", nil, nil)
 					mutex.Unlock()
 					endChan <- err
 				}(network, tenant, containers)
@@ -242,7 +242,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 					}
 					var err error
 					mutex.Lock()
-					containers[network+":"+tenant], err = s.runContainers(numContainer, false, net, nil, nil)
+					containers[network+":"+tenant], err = s.runContainers(numContainer, false, net, "", nil, nil)
 					mutex.Unlock()
 					endChan <- err
 				}(network, tenant, containers)
@@ -421,7 +421,7 @@ func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAdd(c *C) {
 				}
 				var err error
 				mutex.Lock()
-				containers[network+":"+tenant], err = s.runContainers(numContainer, false, net, nil, nil)
+				containers[network+":"+tenant], err = s.runContainers(numContainer, false, net, "", nil, nil)
 				mutex.Unlock()
 				endChan <- err
 			}(network, tenant, containers)
@@ -575,7 +575,7 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 					}
 					var err error
 					mutex.Lock()
-					c, err := s.runContainers(numContainer, false, net, nil, nil)
+					c, err := s.runContainers(numContainer, false, net, "", nil, nil)
 					containers[network+tenant] = append(containers[network+tenant], c...)
 					mutex.Unlock()
 					endChan <- err
@@ -773,7 +773,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 					}
 					var err error
 					mutex.Lock()
-					c, err := s.runContainers(numContainer, false, net, nil, nil)
+					c, err := s.runContainers(numContainer, false, net, "", nil, nil)
 					containers[network+tenant] = append(containers[network+tenant], c...)
 					mutex.Unlock()
 					endChan <- err
@@ -818,7 +818,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 			time.Sleep(2 * time.Minute)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
 			c.Assert(node.startNetplugin(""), IsNil)
-			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 			time.Sleep(20 * time.Second)
 			for _, ips := range serviceIPs {
 				endChan := make(chan error)
@@ -926,7 +926,7 @@ func (s *systemtestSuite) addProviders(c *C, labels []string, numProviders int, 
 		netName = netName + "/" + tenant
 	}
 
-	containers, err = s.runContainers(numProviders, false, netName, names, labels)
+	containers, err = s.runContainers(numProviders, false, netName, "", names, labels)
 	c.Assert(err, IsNil)
 
 	return containers

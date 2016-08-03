@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package vagrantssh
+package remotessh
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ import (
 // TestCommand is a command that is run on a test node
 type TestCommand struct {
 	ContivNodes int
-	ContivEnv   string
+	ContivEnv   []string
 }
 
 func (c *TestCommand) getCmd(cmd string, args ...string) *exec.Cmd {
@@ -34,9 +34,9 @@ func (c *TestCommand) getCmd(cmd string, args ...string) *exec.Cmd {
 	if c.ContivNodes != 0 {
 		osCmd.Env = append(osCmd.Env, fmt.Sprintf("CONTIV_NODES=%d", c.ContivNodes))
 	}
-	if c.ContivEnv != "" {
-		osCmd.Env = append(osCmd.Env, fmt.Sprintf("CONTIV_ENV=%s", c.ContivEnv))
-	}
+
+	osCmd.Env = append(osCmd.Env, c.ContivEnv...)
+
 	return osCmd
 }
 

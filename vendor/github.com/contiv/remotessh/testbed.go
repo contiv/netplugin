@@ -13,12 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package vagrantssh
-
-import (
-	"fmt"
-	"sync"
-)
+package remotessh
 
 // Testbed is a collection of test nodes
 type Testbed interface {
@@ -30,29 +25,24 @@ type Testbed interface {
 }
 
 func iterateNodes(tb Testbed, fn func(TestbedNode) error) error {
-	wg := sync.WaitGroup{}
 	nodes := tb.GetNodes()
 	errChan := make(chan error, len(nodes))
 
 	for _, node := range nodes {
-		wg.Add(1)
-
 		go func(node TestbedNode) {
-			if err := fn(node); err != nil {
-				errChan <- fmt.Errorf(`Error: "%v" on host: %q"`, err, node.GetName())
-			}
-			wg.Done()
+			errChan <- fn(node)
 		}(node)
 	}
 
-	wg.Wait()
+	var err error
 
-	select {
-	case err := <-errChan:
-		return err
-	default:
-		return nil
+	for range nodes {
+		if chanerr := <-errChan; chanerr != nil {
+			err = chanerr
+		}
 	}
+
+	return err
 }
 
 func sshExecAllNodes(tb Testbed, cmd string) error {

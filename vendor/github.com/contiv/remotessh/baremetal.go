@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package vagrantssh
+package remotessh
 
 import (
 	"fmt"
@@ -36,6 +36,7 @@ type HostInfo struct {
 	SSHPort     string
 	User        string
 	PrivKeyFile string
+	Env         []string
 }
 
 // Baremetal implements a host based testbed
@@ -54,7 +55,7 @@ func (b *Baremetal) setup(hosts []HostInfo) error {
 			node *SSHNode
 			err  error
 		)
-		if node, err = NewSSHNode(h.Name, h.User, h.SSHAddr, h.SSHPort, h.PrivKeyFile); err != nil {
+		if node, err = NewSSHNode(h.Name, h.User, h.Env, h.SSHAddr, h.SSHPort, h.PrivKeyFile); err != nil {
 			return err
 		}
 		b.nodes[node.GetName()] = TestbedNode(node)
@@ -66,7 +67,7 @@ func (b *Baremetal) setup(hosts []HostInfo) error {
 // Setup initializes a baremetal testbed.
 func (b *Baremetal) Setup(args ...interface{}) error {
 	if _, ok := args[0].([]HostInfo); !ok {
-		return unexpectedSetupArgError("[]vagrantssh.HostInfo", args...)
+		return unexpectedSetupArgError("[]remotessh.HostInfo", args...)
 	}
 	return b.setup(args[0].([]HostInfo))
 }

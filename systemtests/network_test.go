@@ -12,10 +12,16 @@ import (
 )
 
 func (s *systemtestSuite) TestInfraNetworkAddDeleteVXLAN(c *C) {
+	if s.scheduler == "k8" {
+		return
+	}
 	s.testInfraNetworkAddDelete(c, "vxlan")
 }
 
 func (s *systemtestSuite) TestInfraNetworkAddDeleteVLAN(c *C) {
+	if s.scheduler == "k8" {
+		return
+	}
 	s.testInfraNetworkAddDelete(c, "vlan")
 }
 
@@ -130,7 +136,7 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 
 		for _, name := range netNames {
 			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, nil, nil)
+			containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
 			c.Assert(err, IsNil)
 		}
 
@@ -235,7 +241,7 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 			var err error
 			// There seem to be a docker bug in creating external connectivity if we run
 			// containers in parallel. So, running it serially for this test
-			containers[name], err = s.runContainersSerial(numContainer, false, name, nil)
+			containers[name], err = s.runContainersSerial(numContainer, false, name, "", nil)
 			c.Assert(err, IsNil)
 		}
 
@@ -336,7 +342,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 				go func(network, tenant string, containers map[string][]*container) {
 					var err error
 					mutex.Lock()
-					containers[network], err = s.runContainers(numContainer, false, fmt.Sprintf("%s/%s", network, tenant), nil, nil)
+					containers[network], err = s.runContainers(numContainer, false, network, tenant, nil, nil)
 					mutex.Unlock()
 					endChan <- err
 

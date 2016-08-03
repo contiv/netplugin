@@ -1,6 +1,6 @@
-## vagrantssh: Test your vagrant files through SSH with a simple library.
+## remotessh: Test your remote files through SSH with a simple library.
 
-godoc is [here](https://godoc.org/github.com/contiv/vagrantssh)
+godoc is [here](https://godoc.org/github.com/contiv/remotessh)
 
 Use this library to do remote testing of vagrant nodes.
 
@@ -18,12 +18,42 @@ For example, this will select the "mynode" node and run "ls" on it.
     fmt.Println(out) // already a string
 ```
 
+Similarly for a Baremetal node:
+
+```go
+hosts := []HostInfo{
+		{
+			Name:        "self",
+			SSHAddr:     "127.0.0.1",
+			SSHPort:     "22",
+			User:        "vagrant",
+			PrivKeyFile: "/vagrant/testdata/insecure_private_key",
+		},
+		{
+			Name:        "self1",
+			SSHAddr:     "127.0.0.1",
+			SSHPort:     "22",
+			User:        "vagrant",
+			PrivKeyFile: "/vagrant/testdata/insecure_private_key",
+		},
+	}
+	bm := &Baremetal{}
+	c.Assert(bm.Setup(hosts), IsNil)
+    out, err := bm.GetNode("mynode").RunCommandWithOutput("ls")
+    if err != nil {
+      // exit status != 0
+      panic(err)
+    }
+
+    fmt.Println(out) // already a string
+```
+
 If you want to walk nodes, you have a few options:
 
 Sequentially:
 
 ```go
-    vagrant := &vagrantssh.Vagrant{}
+    vagrant := &remotessh.Vagrant{}
     vagrant.Setup(false, "", 3)
     for _, node := range vagrant.GetNodes() {
       node.RunCommand("something")
@@ -33,9 +63,9 @@ Sequentially:
 In Parallel:
 
 ```go
-    vagrant := &vagrantssh.Vagrant{}
+    vagrant := &remotessh.Vagrant{}
     vagrant.Setup(false, "", 3)
-    err := vagrant.IterateNodes(func (node vagrantssh.TestbedNode) error {
+    err := vagrant.IterateNodes(func (node remotessh.TestbedNode) error {
       return node.RunCommand("docker ps -aq | xargs docker rm")
     })
 

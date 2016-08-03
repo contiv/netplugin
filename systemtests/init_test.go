@@ -11,13 +11,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
-	"github.com/contiv/vagrantssh"
+	"github.com/contiv/remotessh"
 	. "gopkg.in/check.v1"
 )
 
 type systemtestSuite struct {
-	vagrant      vagrantssh.Vagrant
-	baremetal    vagrantssh.Baremetal
+	vagrant      remotessh.Vagrant
+	baremetal    remotessh.Baremetal
 	cli          *client.ContivClient
 	short        bool
 	containers   int
@@ -29,6 +29,7 @@ type systemtestSuite struct {
 	clusterStore string
 	enableDNS    bool
 	keyFile      string
+	scheduler    string
 	// user       string
 	// password   string
 	// nodes      []string
@@ -77,6 +78,10 @@ func TestMain(m *M) {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "routing", "forwarding mode to start the test ")
 	}
 
+	if os.Getenv("CONTIV_K8") != "" {
+		flag.StringVar(&sts.scheduler, "scheduler", "k8", "scheduler used for testing")
+	}
+
 	flag.Parse()
 
 	logrus.Infof("Running system test with params: %+v", sts)
@@ -102,14 +107,14 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 		logrus.Infof("Binary binpath = %s", s.binpath)
 		logrus.Infof("Interface vlanIf = %s", s.vlanIf)
 
-		s.baremetal = vagrantssh.Baremetal{}
+		s.baremetal = remotessh.Baremetal{}
 		bm := &s.baremetal
 
 		// To fill the hostInfo data structure for Baremetal VMs
 		name := "aci-swarm-node"
 		hostIPs := strings.Split(os.Getenv("HOST_IPS"), ",")
 		hostNames := strings.Split(os.Getenv("HOST_USER_NAMES"), ",")
-		hosts := make([]vagrantssh.HostInfo, 2)
+		hosts := make([]remotessh.HostInfo, 2)
 
 		for i := range hostIPs {
 			hosts[i].Name = name + strconv.Itoa(i+1)
@@ -137,7 +142,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 		logrus.Info("Pulling alpine on all nodes")
 
-		s.baremetal.IterateNodes(func(node vagrantssh.TestbedNode) error {
+		s.baremetal.IterateNodes(func(node remotessh.TestbedNode) error {
 			node.RunCommand("sudo rm /tmp/*net*")
 			return node.RunCommand("docker pull alpine")
 		})
@@ -149,7 +154,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 		s.copyBinary("contivk8s")
 
 	} else {
-		s.vagrant = vagrantssh.Vagrant{}
+		s.vagrant = remotessh.Vagrant{}
 		nodesStr := os.Getenv("CONTIV_NODES")
 		var contivNodes int
 
@@ -167,19 +172,50 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 		if s.fwdMode == "routing" {
 			contivL3Nodes := 2
-			c.Assert(s.vagrant.Setup(false, "CONTIV_NODES=3 CONTIV_L3=2", contivNodes+contivL3Nodes), IsNil)
+			if s.scheduler == "k8" {
+				topDir := os.Getenv("GOPATH")
+				//topDir contains the godeps path. hence purging the gopath
+				topDir = strings.Split(topDir, ":")[1]
+
+				contivNodes = 4 // 3 contiv nodes + 1 k8master
+				c.Assert(s.vagrant.Setup(false, []string{"CONTIV_L3=1 VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
+			} else {
+				c.Assert(s.vagrant.Setup(false, []string{"CONTIV_NODES=3 CONTIV_L3=1"}, contivNodes+contivL3Nodes), IsNil)
+			}
 		} else {
-			c.Assert(s.vagrant.Setup(false, "", contivNodes), IsNil)
+			if s.scheduler == "k8" {
+				contivNodes = contivNodes + 1 //k8master
+
+				topDir := os.Getenv("GOPATH")
+				//topDir contains the godeps path. hence purging the gopath
+				topDir = strings.Split(topDir, ":")[1]
+
+				c.Assert(s.vagrant.Setup(false, []string{"VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
+			} else {
+				c.Assert(s.vagrant.Setup(false, []string{}, contivNodes), IsNil)
+			}
 		}
+
 		for _, nodeObj := range s.vagrant.GetNodes() {
 			nodeName := nodeObj.GetName()
-			if strings.Contains(nodeName, "netplugin-node") {
-				s.nodes = append(s.nodes, &node{tbnode: nodeObj, suite: s})
+			if strings.Contains(nodeName, "netplugin-node") ||
+				strings.Contains(nodeName, "k8") {
+				node := &node{}
+				node.tbnode = nodeObj
+				node.suite = s
+
+				switch s.scheduler {
+				case "k8":
+					node.exec = s.NewK8sExec(node)
+				default:
+					node.exec = s.NewDockerExec(node)
+				}
+				s.nodes = append(s.nodes, node)
 			}
 		}
 
 		logrus.Info("Pulling alpine on all nodes")
-		s.vagrant.IterateNodes(func(node vagrantssh.TestbedNode) error {
+		s.vagrant.IterateNodes(func(node remotessh.TestbedNode) error {
 			node.RunCommand("sudo rm /tmp/net*")
 			return node.RunCommand("docker pull alpine")
 		})
@@ -191,12 +227,13 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 	logrus.Infof("============================= %s starting ==========================", c.TestName())
 
 	if os.Getenv("ACI_SYS_TEST_MODE") == "ON" {
-		s.AciTestSetup(c)
+		//s.AciTestSetup(c)
 	} else {
 		for _, node := range s.nodes {
-			node.cleanupContainers()
-			node.cleanupDockerNetwork()
+			node.exec.cleanupContainers()
+			//node.cleanupDockerNetwork()
 			node.stopNetplugin()
+			node.cleanupSlave()
 		}
 
 		for _, node := range s.nodes {
@@ -205,12 +242,11 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		}
 		for _, node := range s.nodes {
 			node.cleanupMaster()
-			node.cleanupSlave()
 		}
 
 		for _, node := range s.nodes {
 			c.Assert(node.startNetplugin(""), IsNil)
-			c.Assert(node.runCommandUntilNoError("pgrep netplugin"), IsNil)
+			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 		}
 
 		time.Sleep(15 * time.Second)
@@ -225,18 +261,21 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 		for _, node := range s.nodes {
 			c.Assert(node.startNetmaster(), IsNil)
 			time.Sleep(1 * time.Second)
-			c.Assert(node.runCommandUntilNoError("pgrep netmaster"), IsNil)
+			c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 		}
 
 		time.Sleep(5 * time.Second)
-		for i := 0; i < 11; i++ {
-			_, err := s.cli.TenantGet("default")
-			if err == nil {
-				break
+		if s.scheduler != "k8" {
+			for i := 0; i < 11; i++ {
+
+				_, err := s.cli.TenantGet("default")
+				if err == nil {
+					break
+				}
+				// Fail if we reached last iteration
+				c.Assert((i < 10), Equals, true)
+				time.Sleep(500 * time.Millisecond)
 			}
-			// Fail if we reached last iteration
-			c.Assert((i < 10), Equals, true)
-			time.Sleep(500 * time.Millisecond)
 		}
 
 		if s.fwdMode == "routing" {
@@ -253,16 +292,16 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 
 func (s *systemtestSuite) TearDownTest(c *C) {
 	for _, node := range s.nodes {
-		c.Assert(node.checkForNetpluginErrors(), IsNil)
-		node.rotateLog("netplugin")
-		node.rotateLog("netmaster")
+		c.Check(node.checkForNetpluginErrors(), IsNil)
+		c.Assert(node.exec.rotateNetpluginLog(), IsNil)
+		c.Assert(node.exec.rotateNetmasterLog(), IsNil)
 	}
 	logrus.Infof("============================= %s completed ==========================", c.TestName())
 }
 
 func (s *systemtestSuite) TearDownSuite(c *C) {
 	for _, node := range s.nodes {
-		node.cleanupContainers()
+		node.exec.cleanupContainers()
 	}
 
 	// Print all errors and fatal messages
@@ -274,11 +313,10 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 			fmt.Printf("%s\n==========================\n\n", out)
 		}
 	}
-
 }
 
 func (s *systemtestSuite) Test00SSH(c *C) {
-	c.Assert(s.vagrant.IterateNodes(func(node vagrantssh.TestbedNode) error {
+	c.Assert(s.vagrant.IterateNodes(func(node remotessh.TestbedNode) error {
 		return node.RunCommand("true")
 	}), IsNil)
 }

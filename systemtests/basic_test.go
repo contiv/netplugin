@@ -35,7 +35,7 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 	}), IsNil)
 
 	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", nil, nil)
+		containers, err := s.runContainers(s.containers, false, "private", "", nil, nil)
 		c.Assert(err, IsNil)
 
 		if s.fwdMode == "routing" && encap == "vlan" {
@@ -73,7 +73,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 		TenantName:  "default",
 	}), IsNil)
 
-	containers, err := s.runContainers(s.containers, false, "private", nil, nil)
+	containers, err := s.runContainers(s.containers, false, "private", "", nil, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		var err error
@@ -86,7 +86,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 
 		errChan := make(chan error)
 		for _, cont := range containers {
-			go func(cont *container) { errChan <- cont.stop() }(cont)
+			go func(cont *container) { errChan <- cont.node.exec.stop(cont) }(cont)
 		}
 
 		for range containers {
@@ -94,7 +94,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 		}
 
 		for _, cont := range containers {
-			go func(cont *container) { errChan <- cont.start() }(cont)
+			go func(cont *container) { errChan <- cont.node.exec.start(cont) }(cont)
 		}
 
 		for range containers {
@@ -114,10 +114,16 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestBasicSvcDiscoveryVXLAN(c *C) {
+	if s.scheduler == "k8" {
+		return
+	}
 	s.testBasicSvcDiscovery(c, "vxlan")
 }
 
 func (s *systemtestSuite) TestBasicSvcDiscoveryVLAN(c *C) {
+	if s.scheduler == "k8" {
+		return
+	}
 	s.testBasicSvcDiscovery(c, "vlan")
 }
 

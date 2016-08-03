@@ -2,11 +2,11 @@ package systemtests
 
 import (
 	"fmt"
-	"strconv"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	. "gopkg.in/check.v1"
+	"strconv"
+	"time"
 )
 
 func (s *systemtestSuite) TestPolicyBasicVXLAN(c *C) {
@@ -84,15 +84,17 @@ func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
 			groupNames = append(groupNames, epgName)
 		}
 
-		containers, err := s.runContainers(s.containers, true, "private", groupNames, nil)
+		containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
 			_, err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
-
+		time.Sleep(15 * time.Second)
 		c.Assert(s.startListeners(containers, []int{8000, 8001}), IsNil)
+		time.Sleep(15 * time.Second)
 		c.Assert(s.checkConnections(containers, 8000), IsNil)
+		time.Sleep(15 * time.Second)
 		c.Assert(s.checkNoConnections(containers, 8001), IsNil)
 
 		c.Assert(s.removeContainers(containers), IsNil)
@@ -183,14 +185,17 @@ func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 		groupNames = append(groupNames, epgName)
 	}
 
-	containers, err := s.runContainers(s.containers, true, "private", groupNames, nil)
+	containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		_, err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
+	time.Sleep(15 * time.Second)
 	c.Assert(s.startListeners(containers, []int{8000, 8001}), IsNil)
+	time.Sleep(15 * time.Second)
 	c.Assert(s.checkConnections(containers, 8000), IsNil)
+	time.Sleep(15 * time.Second)
 	c.Assert(s.checkNoConnections(containers, 8001), IsNil)
 
 	for i := 0; i < s.iterations; i++ {
@@ -321,7 +326,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 			policyNames = append(policyNames, policyName)
 		}
 
-		containers, err := s.runContainers(s.containers, true, "private", policyNames, nil)
+		containers, err := s.runContainers(s.containers, true, "private", "", policyNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
 			_, err = s.CheckBgpRouteDistribution(c, containers)
@@ -333,18 +338,20 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 			commonNames = append(commonNames, fmt.Sprintf("common-%s", name))
 		}
 
-		cmnContainers, err := s.runContainersInService(s.containers, "common", "private", commonNames)
+		cmnContainers, err := s.runContainersInService(s.containers, "common", "private", "", commonNames)
 		c.Assert(err, IsNil)
 
 		if s.fwdMode == "routing" && encap == "vlan" {
 			_, err = s.CheckBgpRouteDistribution(c, cmnContainers)
 			c.Assert(err, IsNil)
 		}
-
+		time.Sleep(15 * time.Second)
 		c.Assert(s.startListeners(containers, []int{8000, 8001}), IsNil)
-
+		time.Sleep(15 * time.Second)
 		c.Assert(s.checkConnections(containers, 8000), IsNil)
+		time.Sleep(15 * time.Second)
 		c.Assert(s.checkNoConnections(containers, 8001), IsNil)
+		time.Sleep(15 * time.Second)
 		c.Assert(s.checkConnectionPair(cmnContainers, containers, 8001), IsNil)
 
 		c.Assert(s.removeContainers(containers), IsNil)
@@ -427,9 +434,9 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 
 	c.Assert(s.cli.EndpointGroupPost(group2), IsNil)
 
-	container1, err := s.nodes[0].runContainer(containerSpec{serviceName: "srv1", networkName: "private"})
+	container1, err := s.nodes[0].exec.runContainer(containerSpec{name: "srv1-private", serviceName: "srv1", networkName: "private"})
 	c.Assert(err, IsNil)
-	container2, err := s.nodes[0].runContainer(containerSpec{serviceName: "srv2", networkName: "private"})
+	container2, err := s.nodes[0].exec.runContainer(containerSpec{name: "srv2-private", serviceName: "srv2", networkName: "private"})
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		_, err = s.CheckBgpRouteDistribution(c, []*container{container1})
@@ -438,12 +445,13 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		c.Assert(err, IsNil)
 
 	}
-	c.Assert(container1.startListener(8000, "tcp"), IsNil)
-	c.Assert(container1.startListener(8001, "tcp"), IsNil)
-	c.Assert(container2.startListener(8000, "tcp"), IsNil)
-	c.Assert(container2.startListener(8001, "tcp"), IsNil)
+	time.Sleep(15 * time.Second)
+	c.Assert(container1.node.exec.startListener(container1, 8000, "tcp"), IsNil)
+	c.Assert(container1.node.exec.startListener(container1, 8001, "tcp"), IsNil)
+	c.Assert(container2.node.exec.startListener(container2, 8000, "tcp"), IsNil)
+	c.Assert(container2.node.exec.startListener(container2, 8001, "tcp"), IsNil)
 
-	c.Assert(container2.checkConnection(container1.eth0.ip, "tcp", 8000), IsNil)
+	c.Assert(container2.node.exec.checkConnection(container2, container1.eth0.ip, "tcp", 8000), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName: "first",
@@ -454,7 +462,7 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:     "deny",
 	}), IsNil)
 
-	c.Assert(container2.checkNoConnection(container1.eth0.ip, "tcp", 8000), IsNil)
+	c.Assert(container2.node.exec.checkNoConnection(container2, container1.eth0.ip, "tcp", 8000), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName: "first",
@@ -467,8 +475,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:     "allow",
 	}), IsNil)
 
-	c.Assert(container2.checkConnection(container1.eth0.ip, "tcp", 8000), IsNil)
-	c.Assert(container2.checkNoConnection(container1.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container2.node.exec.checkConnection(container2, container1.eth0.ip, "tcp", 8000), IsNil)
+	c.Assert(container2.node.exec.checkNoConnection(container2, container1.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:        "first",
@@ -481,10 +489,10 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Port:              8001,
 		Action:            "allow",
 	}), IsNil)
-	c.Assert(container2.checkConnection(container1.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container2.node.exec.checkConnection(container2, container1.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "3"), IsNil)
-	c.Assert(container2.checkNoConnection(container1.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container2.node.exec.checkNoConnection(container2, container1.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:  "first",
@@ -508,11 +516,11 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:      "deny",
 	}), IsNil)
 
-	c.Assert(container2.checkConnection(container1.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container2.node.exec.checkConnection(container2, container1.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "3"), IsNil)
 	c.Assert(s.cli.RuleDelete("default", "first", "4"), IsNil)
-	c.Assert(container2.checkNoConnection(container1.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container2.node.exec.checkNoConnection(container2, container1.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:    "first",
@@ -536,13 +544,13 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:        "deny",
 	}), IsNil)
 
-	c.Assert(container2.checkConnection(container1.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container2.node.exec.checkConnection(container2, container1.eth0.ip, "tcp", 8001), IsNil)
 
 	for i := 1; i <= 4; i++ {
 		c.Assert(s.cli.RuleDelete("default", "first", strconv.Itoa(i)), IsNil)
 	}
 
-	c.Assert(container2.checkConnection(container1.eth0.ip, "tcp", 8000), IsNil)
+	c.Assert(container2.node.exec.checkConnection(container2, container1.eth0.ip, "tcp", 8000), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName: "first",
@@ -553,7 +561,7 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:     "deny",
 	}), IsNil)
 
-	c.Assert(container1.checkNoConnection(container2.eth0.ip, "tcp", 8000), IsNil)
+	c.Assert(container1.node.exec.checkNoConnection(container1, container2.eth0.ip, "tcp", 8000), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName: "first",
@@ -566,8 +574,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:     "allow",
 	}), IsNil)
 
-	c.Assert(container1.checkConnection(container2.eth0.ip, "tcp", 8000), IsNil)
-	c.Assert(container1.checkNoConnection(container2.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container1.node.exec.checkConnection(container1, container2.eth0.ip, "tcp", 8000), IsNil)
+	c.Assert(container1.node.exec.checkNoConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:      "first",
@@ -581,10 +589,10 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:          "allow",
 	}), IsNil)
 
-	c.Assert(container1.checkConnection(container2.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container1.node.exec.checkConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "3"), IsNil)
-	c.Assert(container1.checkNoConnection(container2.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container1.node.exec.checkNoConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName: "first",
@@ -608,12 +616,12 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:     "deny",
 	}), IsNil)
 
-	c.Assert(container1.checkConnection(container2.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container1.node.exec.checkConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "3"), IsNil)
 	c.Assert(s.cli.RuleDelete("default", "first", "4"), IsNil)
 
-	c.Assert(container1.checkNoConnection(container2.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container1.node.exec.checkNoConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:  "first",
@@ -637,13 +645,13 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:      "deny",
 	}), IsNil)
 
-	c.Assert(container1.checkConnection(container2.eth0.ip, "tcp", 8001), IsNil)
+	c.Assert(container1.node.exec.checkConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
 	for i := 1; i <= 4; i++ {
 		c.Assert(s.cli.RuleDelete("default", "first", strconv.Itoa(i)), IsNil)
 	}
 
-	c.Assert(container1.checkPing(container2.eth0.ip), IsNil)
+	c.Assert(container1.node.exec.checkPing(container1, container2.eth0.ip), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName: "first",
@@ -654,7 +662,7 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:     "deny",
 	}), IsNil)
 
-	c.Assert(container1.checkPingFailure(container2.eth0.ip), IsNil)
+	c.Assert(container1.node.exec.checkPingFailure(container1, container2.eth0.ip), IsNil)
 
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:    "first",
@@ -667,13 +675,13 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:        "allow",
 	}), IsNil)
 
-	c.Assert(container1.checkPing(container2.eth0.ip), IsNil)
+	c.Assert(container1.node.exec.checkPing(container1, container2.eth0.ip), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "2"), IsNil)
-	c.Assert(container1.checkPingFailure(container2.eth0.ip), IsNil)
+	c.Assert(container1.node.exec.checkPingFailure(container1, container2.eth0.ip), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "1"), IsNil)
-	c.Assert(container1.checkPing(container2.eth0.ip), IsNil)
+	c.Assert(container1.node.exec.checkPing(container1, container2.eth0.ip), IsNil)
 
 	c.Assert(s.removeContainers([]*container{container1, container2}), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete("default", "srv1"), IsNil)

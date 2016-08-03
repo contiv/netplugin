@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package vagrantssh
+package remotessh
 
 import (
 	"os"
@@ -23,18 +23,14 @@ import (
 // VagrantCommand is a command that is run on a vagrant node
 type VagrantCommand struct {
 	ContivNodes int
-	ContivEnv   string
+	Env         []string
 }
 
 func (c *VagrantCommand) getCmd(cmd string, args ...string) *exec.Cmd {
 	newArgs := append([]string{cmd}, args...)
 	osCmd := exec.Command("vagrant", newArgs...)
 	osCmd.Env = os.Environ()
-
-	if c.ContivEnv != "" {
-		osCmd.Env = append(osCmd.Env, c.ContivEnv)
-	}
-
+	osCmd.Env = append(osCmd.Env, c.Env...)
 	return osCmd
 }
 

@@ -1,19 +1,19 @@
 package systemtests
 
 import (
-	"errors"
+	//"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
-	"github.com/contiv/vagrantssh"
+	//	"github.com/contiv/vagrantssh"
 	. "gopkg.in/check.v1"
-	"os"
-	"strconv"
-	"strings"
+	//	"os"
+	//	"strconv"
+	//	"strings"
 	"time"
 )
 
 func (s *systemtestSuite) TestACIMode(c *C) {
-	if s.fwdMode == "routing" {
+	if s.fwdMode == "routing" || s.scheduler == "k8" {
 		return
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
@@ -31,45 +31,38 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 		Encap:       "vlan",
 	}), IsNil)
 
-	err := s.nodes[0].checkDockerNetworkCreated("aciNet", false)
+	err := s.nodes[0].checkSchedulerNetworkCreated("aciNet", false)
 	c.Assert(err, IsNil)
 
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
 		TenantName:  "default",
 		NetworkName: "aciNet",
-		GroupName:   "epgA",
+		GroupName:   "epga",
 	}), IsNil)
 
-	err = s.nodes[0].checkDockerNetworkCreated("epgA", true)
+	err = s.nodes[0].exec.checkSchedulerNetworkCreated("epga", true)
 	c.Assert(err, IsNil)
 
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
 		TenantName:  "default",
 		NetworkName: "aciNet",
-		GroupName:   "epgB",
+		GroupName:   "epgb",
 	}), IsNil)
 
-	err = s.nodes[0].checkDockerNetworkCreated("epgB", true)
+	err = s.nodes[0].checkSchedulerNetworkCreated("epgb", true)
 	c.Assert(err, IsNil)
 
-	cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA"})
+	containersA, err := s.runContainersOnNode(2, "aciNet", "", "epga", s.nodes[0])
 	c.Assert(err, IsNil)
-
-	cA2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA"})
-	c.Assert(err, IsNil)
-
-	cB1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB"})
-	c.Assert(err, IsNil)
-
-	cB2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB"})
+	containersB, err := s.runContainersOnNode(2, "aciNet", "", "epgb", s.nodes[0])
 	c.Assert(err, IsNil)
 
 	// Verify cA1 can ping cA2
-	c.Assert(cA1.checkPing(cA2.eth0.ip), IsNil)
+	c.Assert(s.pingTest(containersA), IsNil)
 	// Verify cB1 can ping cB2
-	c.Assert(cB1.checkPing(cB2.eth0.ip), IsNil)
+	c.Assert(s.pingTest(containersB), IsNil)
 	// Verify cA1 cannot ping cB1
-	c.Assert(cA1.checkPingFailure(cB1.eth0.ip), IsNil)
+	c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
 
 	log.Infof("Triggering netplugin restart")
 	node1 := s.nodes[0]
@@ -80,18 +73,20 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	time.Sleep(20 * time.Second)
 
 	// Verify cA1 can ping cA2
-	c.Assert(cA1.checkPingWithCount(cA2.eth0.ip, 3), IsNil)
+	c.Assert(s.pingTest(containersA), IsNil)
 	// Verify cB1 can ping cB2
-	c.Assert(cB1.checkPingWithCount(cB2.eth0.ip, 3), IsNil)
+	c.Assert(s.pingTest(containersB), IsNil)
 	// Verify cA1 cannot ping cB1
-	c.Assert(cA1.checkPingFailureWithCount(cB1.eth0.ip, 5), IsNil)
+	c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
 
-	c.Assert(s.removeContainers([]*container{cA1, cA2, cB1, cB2}), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("default", "epgA"), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("default", "epgB"), IsNil)
+	c.Assert(s.removeContainers(containersA), IsNil)
+	c.Assert(s.removeContainers(containersB), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("default", "epga"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("default", "epgb"), IsNil)
 	c.Assert(s.cli.NetworkDelete("default", "aciNet"), IsNil)
 }
 
+/*
 func (s *systemtestSuite) TestACIPingGateway(c *C) {
 	if s.fwdMode == "routing" {
 		return
@@ -117,26 +112,27 @@ func (s *systemtestSuite) TestACIPingGateway(c *C) {
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
 		TenantName:  "aciTenant",
 		NetworkName: "aciNet",
-		GroupName:   "epgA",
+		GroupName:   "epga",
 	}), IsNil)
 
 	c.Assert(s.cli.AppProfilePost(&client.AppProfile{
 		TenantName:     "aciTenant",
-		EndpointGroups: []string{"epgA"},
+		EndpointGroups: []string{"epga"},
 		AppProfileName: "profile1",
 	}), IsNil)
 
-	cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA/aciTenant"})
+	containersA, err := s.runContainersOnNode(1, "aciNet", "aciTenant", "epga", s.nodes[0])
 	c.Assert(err, IsNil)
 
 	// Verify cA1 can ping default gateway
-	c.Assert(cA1.checkPingWithCount("20.1.1.254", 5), IsNil)
+	c.Assert(s.pingTestToNonContainer(containersA, []string{"20.1.1.254"}), IsNil)
 
-	c.Assert(s.removeContainers([]*container{cA1}), IsNil)
+	c.Assert(s.removeContainers(containersA), IsNil)
 	c.Assert(s.cli.AppProfileDelete("aciTenant", "profile1"), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epgA"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epga"), IsNil)
 	c.Assert(s.cli.NetworkDelete("aciTenant", "aciNet"), IsNil)
 }
+
 
 func (s *systemtestSuite) TestACIProfile(c *C) {
 	if s.fwdMode == "routing" {
@@ -400,21 +396,17 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 			"epgB",
 			cB2), IsNil)
 
-		//cA1.checkPingWithCount("20.1.1.254", 5)
-		//cB1.checkPingWithCount("20.1.1.254", 5)
-
 		c.Assert(s.checkConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
 		c.Assert(s.checkConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA2.checkPingFailureWithCount(cB2.eth0.ip, 5), IsNil)
+		c.Assert(cA2.node.exec.checkPingFailureWithCount(cA2, cB2.eth0.ip, 5), IsNil)
 
 		// Delete the app profile
 		c.Assert(s.cli.AppProfileDelete("aciTenant", "profile2"), IsNil)
 		time.Sleep(time.Second * 5)
-		//cA1.checkPingWithCount("20.1.1.254", 5)
-		//cB1.checkPingWithCount("20.1.1.254", 5)
+
 		c.Assert(s.checkNoConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
 		c.Assert(s.checkNoConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA2.checkPingFailureWithCount(cB2.eth0.ip, 5), IsNil)
+		c.Assert(cA2.node.exec.checkPingFailureWithCount(cA2, cB2.eth0.ip, 5), IsNil)
 
 		c.Assert(s.removeContainers([]*container{cA1, cB1, cA2, cB2}), IsNil)
 		c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epgA"), IsNil)
@@ -479,4 +471,4 @@ func (s *systemtestSuite) AciTestSetup(c *C) {
 	s.copyBinary("netctl")
 	s.copyBinary("contivk8s")
 
-}
+}*/
