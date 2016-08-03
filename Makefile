@@ -76,6 +76,8 @@ else
 start: update
 	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 endif
+system-test-start:
+	CONTIV_NODES=3 vagrant up
 
 #kubernetes demo targets
 k8s-cluster:
@@ -138,7 +140,7 @@ unit-test: stop clean build
 ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
-system-test:start
+system-test:system-test-start
 	go test -v -timeout 240m ./systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM"
 
 l3-test:
