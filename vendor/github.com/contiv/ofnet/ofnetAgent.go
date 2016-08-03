@@ -52,7 +52,7 @@ type OfnetAgent struct {
 	dpName      string             // Datapath type
 	datapath    OfnetDatapath      // Configured datapath
 	protopath   OfnetProto         // Configured protopath
-	mutex       sync.Mutex         // Sync mutext when we need to lock
+	mutex       sync.RWMutex       // Sync mutext when we need to lock
 
 	masterDb map[string]*OfnetNode // list of Masters
 
@@ -295,6 +295,7 @@ func (self *OfnetAgent) Delete() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -308,7 +309,9 @@ func (self *OfnetAgent) SwitchConnected(sw *ofctrl.OFSwitch) {
 	// Inform the datapath
 	self.datapath.SwitchConnected(sw)
 
+	self.mutex.Lock()
 	self.isConnected = true
+	self.mutex.Unlock()
 }
 
 // Handle switch disconnect event
@@ -323,12 +326,16 @@ func (self *OfnetAgent) SwitchDisconnected(sw *ofctrl.OFSwitch) {
 	// Inform the datapath
 	self.datapath.SwitchDisconnected(sw)
 
+	self.mutex.Lock()
 	self.ofSwitch = nil
 	self.isConnected = false
+	self.mutex.Unlock()
 }
 
 // IsSwitchConnected returns true if switch is connected
 func (self *OfnetAgent) IsSwitchConnected() bool {
+	self.mutex.RLock()
+	defer self.mutex.RUnlock()
 	return self.isConnected
 }
 

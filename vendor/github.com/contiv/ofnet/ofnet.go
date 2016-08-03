@@ -203,7 +203,8 @@ type OfnetDatapathStats struct {
 // OfnetSvcProviderStats has stats for a provider of a service
 type OfnetSvcProviderStats struct {
 	ProviderIP         string // Provider IP address
-	ProviderVrf        string // Provider VRF name
+	ServiceIP          string // service ip address
+	ServiceVrf         string // Provider VRF name
 	OfnetDatapathStats        // stats
 }
 
