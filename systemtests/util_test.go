@@ -160,10 +160,11 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 				serviceName = name
 			}
 
+			cname := fmt.Sprintf("%s-%d", name, i)
 			spec := containerSpec{
 				imageName:   "alpine",
 				networkName: networkName,
-				name:        name,
+				name:        cname,
 				serviceName: serviceName,
 				tenantName:  tenantName,
 			}
@@ -425,6 +426,42 @@ func (s *systemtestSuite) pingFailureTest(containers1 []*container, containers2 
 	}
 
 	for i := 0; i < len(containers1)*len(containers2); i++ {
+		if err := <-errChan; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *systemtestSuite) hostIsolationTest(containers []*container) error {
+	numTests := 0
+	errChan := make(chan error, len(containers) - 1)
+	hBridgeIPs := make(map[string]string)
+	for _, cont := range containers {
+		ip, err := cont.node.exec.getIPAddr(cont, "host1")
+		if err != nil {
+			logrus.Errorf("Error getting host1 ip for container: %+v err: %v",
+				cont, err)
+			return err
+		}
+		hBridgeIPs[cont.containerID] = ip
+	}
+
+	for _, cont := range containers {
+		for _, hIP := range hBridgeIPs {
+			if hIP != hBridgeIPs[cont.containerID] {
+				go func(c *container, dest string) {
+					errChan <- c.node.exec.checkPingFailure(c, dest)
+				}(cont, hIP)
+				numTests++
+			}
+		}
+
+		break;	// ping from one container to all others is sufficient
+	}
+
+	for i := 0; i < numTests; i++ {
 		if err := <-errChan; err != nil {
 			return err
 		}

@@ -548,3 +548,6 @@ func (d *docker) reloadNode(n *node) error {
 	logrus.Infof("Reloaded node %s. Output:\n%s", n.Name(), string(out))
 	return nil
 }
+func (d *docker) getMasterIP() (string, error) {
+	return d.node.getIPAddr("eth1")
+}

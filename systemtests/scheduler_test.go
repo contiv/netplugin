@@ -36,4 +36,5 @@ type systemTestScheduler interface {
 	verifyVTEPs(expVTEPS map[string]bool) (string, error)
 	verifyEPs(epList []string) (string, error)
 	reloadNode(n *node) error
+	getMasterIP() (string, error)
 }

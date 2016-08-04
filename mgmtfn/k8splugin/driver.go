@@ -292,6 +292,30 @@ func setIfAttrs(pid int, ifname, cidr, newname string) error {
 
 }
 
+func addStaticRoute(pid int, subnet, intfName string) error {
+	nsenterPath, err := osexec.LookPath("nsenter")
+	if err != nil {
+		return err
+	}
+
+	ipPath, err := osexec.LookPath("ip")
+	if err != nil {
+		return err
+	}
+
+	nsPid := fmt.Sprintf("%d", pid)
+	_, err = osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
+		"route", "add", subnet, "dev", intfName).CombinedOutput()
+
+	if err != nil {
+		log.Errorf("unable to add route %s via %s. Error: %s",
+			subnet, intfName, err)
+		return err
+	}
+
+	return nil
+}
+
 // setDefGw sets the default gateway for the container namespace
 func setDefGw(pid int, gw, intfName string) error {
 	nsenterPath, err := osexec.LookPath("nsenter")
@@ -411,8 +435,12 @@ func addPod(r *http.Request) (interface{}, error) {
 			} else {
 				gw = hostGWIP
 				gwIntf = "host1"
+				// make sure service subnet points to eth0
+				svcSubnet := contivK8Config.SvcSubnet
+				addStaticRoute(pid, svcSubnet, pInfo.IntfName)
 			}
 		}
+
 	}
 
 	// Set default gateway

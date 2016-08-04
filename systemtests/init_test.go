@@ -187,8 +187,13 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 				contivNodes = contivNodes + 1 //k8master
 
 				topDir := os.Getenv("GOPATH")
-				//topDir contains the godeps path. hence purging the gopath
-				topDir = strings.Split(topDir, ":")[1]
+				//topDir may contain the godeps path. hence purging the gopath
+				dirs := strings.Split(topDir, ":")
+				if len(dirs) > 1 {
+					topDir = dirs[1]
+				} else {
+					topDir = dirs[0]
+				}
 
 				c.Assert(s.vagrant.Setup(false, []string{"VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
 			} else {

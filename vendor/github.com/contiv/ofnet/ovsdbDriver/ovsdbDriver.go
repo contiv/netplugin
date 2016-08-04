@@ -105,7 +105,7 @@ func (self *OvsDriver) PrintCache() {
 // Get the UUID for root
 func (self *OvsDriver) getRootUuid() libovsdb.UUID {
 	for uuid := range self.ovsdbCache["Open_vSwitch"] {
-		return libovsdb.UUID{uuid}
+		return libovsdb.UUID{GoUuid: uuid}
 	}
 	return libovsdb.UUID{}
 }
