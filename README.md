@@ -62,7 +62,7 @@ PING db (20.1.1.3) 56(84) bytes of data.
 
 High level `make` targets:
 
-* `demo`: start two VM demo cluster for development or testing.
+* `demo`: start three VM demo cluster for development or testing.
 * `build`: build the binary in a VM and download it to the host.
 * `unit-test`: run the unit tests. Specify `CONTIV_NODE_OS=centos` to test on centos instead of ubuntu.
 * `system-test`: run the networking/"sanity" tests. Specify `CONTIV_NODE_OS=centos` to test on centos instead of ubuntu.
