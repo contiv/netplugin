@@ -701,7 +701,7 @@ func (sw *OvsSwitch) DelHostPort(intfName string, isHostNS bool) error {
 			return err
 		}
 	} else {
-		deleteVethPair(intfName, ovsPortName)
+		deleteVethPair(ovsPortName, intfName)
 	}
 
 	return nil
