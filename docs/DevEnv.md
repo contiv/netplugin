@@ -52,7 +52,7 @@ $ make host-unit-test
 
 ### 5. Run system tests `Estimated Time: 90 mins`
 Note: This is done outside the VMs. System tests would start the vagrant VMs if
-they are not already running and run the tests on two VMs
+they are not already running and run the tests on three VMs
 ```
 $ make system-test
 ```
