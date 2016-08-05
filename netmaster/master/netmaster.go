@@ -48,6 +48,7 @@ func SetClusterMode(cm string) error {
 	switch cm {
 	case "docker":
 	case "kubernetes":
+	case "test": // internal mode used for integration testing
 		break
 	default:
 		return core.Errorf("%s not a valid cluster mode {docker | kubernetes}", cm)

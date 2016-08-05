@@ -56,9 +56,12 @@ func (p *NetPlugin) Init(pluginConfig Config) error {
 	}
 
 	// initialize state driver
-	p.StateDriver, err = utils.NewStateDriver(pluginConfig.Drivers.State, &pluginConfig.Instance)
+	p.StateDriver, err = utils.GetStateDriver()
 	if err != nil {
-		return err
+		p.StateDriver, err = utils.NewStateDriver(pluginConfig.Drivers.State, &pluginConfig.Instance)
+		if err != nil {
+			return err
+		}
 	}
 	defer func() {
 		if err != nil {

@@ -899,24 +899,37 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		log.Debugf("ARP packet: %+v", *t)
 		var arpHdr protocol.ARP = *t
 
+		self.agent.incrStats("ArpPktRcvd")
+
 		switch arpHdr.Operation {
 		case protocol.Type_Request:
+			self.agent.incrStats("ArpReqRcvd")
+
 			// Lookup the Dest IP in the endpoint table
 			vlan := self.agent.portVlanMap[inPort]
 			if vlan == nil {
+				self.agent.incrStats("ArpReqInvalidPortVlan")
 				return
 			}
+			tgtMac := self.myRouterMac
 			endpointId := self.agent.getEndpointIdByIpVlan(arpHdr.IPDst, *vlan)
 			endpoint := self.agent.endpointDb[endpointId]
 			if endpoint == nil {
-				// If we dont know the IP address, dont send an ARP response
-				log.Infof("Received ARP request for unknown IP: %v", arpHdr.IPDst)
-				return
+				// Look for a service entry for the target IP
+				proxyMac := self.svcProxy.GetSvcProxyMAC(arpHdr.IPDst)
+				if proxyMac == "" {
+					// If we dont know the IP address, dont send an ARP response
+					log.Debugf("Received ARP request for unknown IP: %v", arpHdr.IPDst)
+					self.agent.incrStats("ArpReqUnknownDest")
+					return
+				}
+
+				tgtMac, _ = net.ParseMAC(proxyMac)
 			}
 
 			// Form an ARP response
 			arpResp, _ := protocol.NewARP(protocol.Type_Reply)
-			arpResp.HWSrc = self.myRouterMac
+			arpResp.HWSrc = tgtMac
 			arpResp.IPSrc = arpHdr.IPDst
 			arpResp.HWDst = arpHdr.HWSrc
 			arpResp.IPDst = arpHdr.IPSrc
@@ -941,8 +954,11 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 
 			// Send it out
 			self.ofSwitch.Send(pktOut)
+			self.agent.incrStats("ArpReqRespSent")
+
 		default:
 			log.Infof("Dropping ARP response packet from port %d", inPort)
+			self.agent.incrStats("ArpRespRcvd")
 		}
 	}
 }

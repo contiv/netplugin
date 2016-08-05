@@ -5,7 +5,7 @@ import (
 	"net/url"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/svcplugin/bridge"
+	"github.com/contiv/netplugin/netplugin/svcplugin/bridge"
 	consulapi "github.com/hashicorp/consul/api"
 )
 

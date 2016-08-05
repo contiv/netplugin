@@ -339,10 +339,10 @@ func Init(storeURL string) error {
 // RunLoop registers netplugin service with cluster store and runs peer discovery
 func RunLoop(netplugin *plugin.NetPlugin, ctrlIP, vtepIP string) error {
 	// Register ourselves
-	registerService(ObjdbClient, ctrlIP, vtepIP)
+	err := registerService(ObjdbClient, ctrlIP, vtepIP)
 
 	// Start peer discovery loop
 	go peerDiscoveryLoop(netplugin, ObjdbClient, ctrlIP, vtepIP)
 
-	return nil
+	return err
 }

@@ -13,9 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package daemon
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -23,12 +25,11 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
+	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
 	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
@@ -38,36 +39,58 @@ import (
 
 const leaderLockTTL = 30
 
-type daemon struct {
-	listenURL        string                // URL where netmaster needs to listen
-	currState        string                // Current state of the daemon
-	clusterStore     string                // state store URL
-	apiController    *objApi.APIController // API controller for contiv model
-	stateDriver      core.StateDriver      // KV store
-	objdbClient      objdb.API             // Objdb client
-	ofnetMaster      *ofnet.OfnetMaster    // Ofnet master instance
-	listenerMutex    sync.Mutex            // Mutex for HTTP listener
-	stopLeaderChan   chan bool             // Channel to stop the leader listener
-	stopFollowerChan chan bool             // Channel to stop the follower listener
+// MasterDaemon runs the daemon FSM
+type MasterDaemon struct {
+	// Public state
+	ListenURL    string // URL where netmaster needs to listen
+	ClusterStore string // state store URL
+	ClusterMode  string // cluster scheduler used docker/kubernetes/mesos etc
+	DNSEnabled   bool   // Contiv skydns enabled?
+
+	// Private state
+	currState        string                          // Current state of the daemon
+	apiController    *objApi.APIController           // API controller for contiv model
+	stateDriver      core.StateDriver                // KV store
+	resmgr           *resources.StateResourceManager // state resource manager
+	objdbClient      objdb.API                       // Objdb client
+	ofnetMaster      *ofnet.OfnetMaster              // Ofnet master instance
+	listenerMutex    sync.Mutex                      // Mutex for HTTP listener
+	stopLeaderChan   chan bool                       // Channel to stop the leader listener
+	stopFollowerChan chan bool                       // Channel to stop the follower listener
 }
 
 var leaderLock objdb.LockInterface // leader lock
 
-// GetLocalAddr gets local address to be used
-func GetLocalAddr() (string, error) {
-	// get the ip address by local hostname
-	localIP, err := netutils.GetMyAddr()
-	if err == nil && netutils.IsAddrLocal(localIP) {
-		return localIP, nil
+// Init initializes the master daemon
+func (d *MasterDaemon) Init() {
+	// set cluster mode
+	err := master.SetClusterMode(d.ClusterMode)
+	if err != nil {
+		log.Fatalf("Failed to set cluster-mode. Error: %s", err)
 	}
 
-	// Return first available address if we could not find by hostname
-	return netutils.GetFirstLocalAddr()
+	// save dns flag
+	err = master.SetDNSEnabled(d.DNSEnabled)
+	if err != nil {
+		log.Fatalf("Failed to set dns-enable. Error: %s", err)
+	}
+
+	// initialize state driver
+	d.stateDriver, err = initStateDriver(d.ClusterStore)
+	if err != nil {
+		log.Fatalf("Failed to init state-store. Error: %s", err)
+	}
+
+	// Initialize resource manager
+	d.resmgr, err = resources.NewStateResourceManager(d.stateDriver)
+	if err != nil {
+		log.Fatalf("Failed to init resource manager. Error: %s", err)
+	}
 }
 
-func (d *daemon) registerService() {
+func (d *MasterDaemon) registerService() {
 	// Get the address to be used for local communication
-	localIP, err := GetLocalAddr()
+	localIP, err := getLocalAddr()
 	if err != nil {
 		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}
@@ -106,7 +129,7 @@ func (d *daemon) registerService() {
 }
 
 // Find all netplugin nodes and register them
-func (d *daemon) registerNetpluginNodes() error {
+func (d *MasterDaemon) registerNetpluginNodes() error {
 	// Get all netplugin services
 	srvList, err := d.objdbClient.GetService("netplugin")
 	if err != nil {
@@ -133,7 +156,7 @@ func (d *daemon) registerNetpluginNodes() error {
 }
 
 // registerRoutes registers HTTP route handlers
-func (d *daemon) registerRoutes(router *mux.Router) {
+func (d *MasterDaemon) registerRoutes(router *mux.Router) {
 	// Add REST routes
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
 
@@ -144,15 +167,31 @@ func (d *daemon) registerRoutes(router *mux.Router) {
 	s.HandleFunc("/plugin/updateEndpoint", makeHTTPHandler(master.UpdateEndpointHandler))
 
 	s = router.Methods("Get").Subrouter()
-	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetEndpointRESTEndpoint, "{id}"),
-		get(false, d.endpoints))
-	s.HandleFunc(fmt.Sprintf("/%s", master.GetEndpointsRESTEndpoint),
-		get(true, d.endpoints))
-	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetNetworkRESTEndpoint, "{id}"),
-		get(false, d.networks))
-	s.HandleFunc(fmt.Sprintf("/%s", master.GetNetworksRESTEndpoint),
-		get(true, d.networks))
+
+	// return netmaster version
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetVersionRESTEndpoint), getVersion)
+	// Print info about the cluster
+	s.HandleFunc(fmt.Sprintf("/%s", master.GetInfoRESTEndpoint), func(w http.ResponseWriter, r *http.Request) {
+		info, err := d.getMasterInfo()
+		if err != nil {
+			log.Errorf("Error getting master state. Err: %v", err)
+			http.Error(w, "Error getting master state", http.StatusInternalServerError)
+			return
+		}
+
+		// convert to json
+		resp, err := json.Marshal(info)
+		if err != nil {
+			http.Error(w,
+				core.Errorf("marshalling json failed. Error: %s", err).Error(),
+				http.StatusInternalServerError)
+			return
+		}
+		w.Write(resp)
+	})
+
+	// services REST endpoints
+	// FIXME: we need to remove once service inspect is added
 	s.HandleFunc(fmt.Sprintf("/%s/%s", master.GetServiceRESTEndpoint, "{id}"),
 		get(false, d.services))
 	s.HandleFunc(fmt.Sprintf("/%s", master.GetServicesRESTEndpoint),
@@ -171,57 +210,8 @@ func (d *daemon) registerRoutes(router *mux.Router) {
 
 }
 
-// XXX: This function should be returning logical state instead of driver state
-func (d *daemon) endpoints(id string) ([]core.State, error) {
-	var (
-		err error
-		ep  *drivers.OvsOperEndpointState
-	)
-
-	ep = &drivers.OvsOperEndpointState{}
-	if ep.StateDriver, err = utils.GetStateDriver(); err != nil {
-		return nil, err
-	}
-
-	if id == "all" {
-		eps, err := ep.ReadAll()
-		if err != nil {
-			return []core.State{}, nil
-		}
-		return eps, nil
-	}
-
-	err = ep.Read(id)
-	if err == nil {
-		return []core.State{core.State(ep)}, nil
-	}
-
-	return nil, core.Errorf("Unexpected code path. Recieved error during read: %v", err)
-}
-
-// Returns state of networks
-func (d *daemon) networks(id string) ([]core.State, error) {
-	var (
-		err error
-		nw  *mastercfg.CfgNetworkState
-	)
-
-	nw = &mastercfg.CfgNetworkState{}
-	if nw.StateDriver, err = utils.GetStateDriver(); err != nil {
-		return nil, err
-	}
-
-	if id == "all" {
-		return nw.ReadAll()
-	} else if err := nw.Read(id); err == nil {
-		return []core.State{core.State(nw)}, nil
-	}
-
-	return nil, core.Errorf("Unexpected code path")
-}
-
 // runLeader runs leader loop
-func (d *daemon) runLeader() {
+func (d *MasterDaemon) runLeader() {
 	router := mux.NewRouter()
 
 	// acquire listener mutex
@@ -229,10 +219,9 @@ func (d *daemon) runLeader() {
 	defer d.listenerMutex.Unlock()
 
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router, d.clusterStore)
+	d.apiController = objApi.NewAPIController(router, d.ClusterStore)
 
 	//Restore state from clusterStore
-
 	d.restoreCache()
 
 	// Register netmaster service
@@ -247,12 +236,12 @@ func (d *daemon) runLeader() {
 	// Create HTTP server and listener
 	server := &http.Server{Handler: router}
 	server.SetKeepAlivesEnabled(false)
-	listener, err := net.Listen("tcp", d.listenURL)
+	listener, err := net.Listen("tcp", d.ListenURL)
 	if nil != err {
 		log.Fatalln(err)
 	}
 
-	log.Infof("Netmaster listening on %s", d.listenURL)
+	log.Infof("Netmaster listening on %s", d.ListenURL)
 
 	listener = utils.ListenWrapper(listener)
 
@@ -268,7 +257,7 @@ func (d *daemon) runLeader() {
 }
 
 // runFollower runs the follower FSM loop
-func (d *daemon) runFollower() {
+func (d *MasterDaemon) runFollower() {
 	router := mux.NewRouter()
 	router.PathPrefix("/").HandlerFunc(slaveProxyHandler)
 
@@ -279,7 +268,7 @@ func (d *daemon) runFollower() {
 	// start server
 	server := &http.Server{Handler: router}
 	server.SetKeepAlivesEnabled(false)
-	listener, err := net.Listen("tcp", d.listenURL)
+	listener, err := net.Listen("tcp", d.ListenURL)
 	if nil != err {
 		log.Fatalln(err)
 	}
@@ -302,7 +291,7 @@ func (d *daemon) runFollower() {
 }
 
 // becomeLeader changes daemon FSM state to master
-func (d *daemon) becomeLeader() {
+func (d *MasterDaemon) becomeLeader() {
 	// ask listener to stop
 	d.stopFollowerChan <- true
 
@@ -314,7 +303,7 @@ func (d *daemon) becomeLeader() {
 }
 
 // becomeFollower changes FSM state to follower
-func (d *daemon) becomeFollower() {
+func (d *MasterDaemon) becomeFollower() {
 	// ask listener to stop
 	d.stopLeaderChan <- true
 	time.Sleep(time.Second)
@@ -326,12 +315,12 @@ func (d *daemon) becomeFollower() {
 	go d.runFollower()
 }
 
-// runMasterFsm runs netmaster FSM
-func (d *daemon) runMasterFsm() {
+// RunMasterFsm runs netmaster FSM
+func (d *MasterDaemon) RunMasterFsm() {
 	var err error
 
 	// Get the address to be used for local communication
-	localIP, err := GetLocalAddr()
+	localIP, err := getLocalAddr()
 	if err != nil {
 		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}
@@ -343,9 +332,9 @@ func (d *daemon) runMasterFsm() {
 	}
 
 	// Create an objdb client
-	d.objdbClient, err = objdb.NewClient(d.clusterStore)
+	d.objdbClient, err = objdb.NewClient(d.ClusterStore)
 	if err != nil {
-		log.Fatalf("Error connecting to state store: %v. Err: %v", d.clusterStore, err)
+		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
 	}
 
 	// Register all existing netplugins in the background
@@ -392,30 +381,61 @@ func (d *daemon) runMasterFsm() {
 	}
 }
 
-func (d *daemon) restoreCache() {
+func (d *MasterDaemon) restoreCache() {
 
 	//Restore ServiceLBDb and ProviderDb
 	master.RestoreServiceProviderLBDb()
 
 }
 
-// services: This function should be returning logical state instead of driver state
-func (d *daemon) services(id string) ([]core.State, error) {
-	var (
-		err error
-		svc *mastercfg.CfgServiceLBState
-	)
+// getMasterInfo returns information about cluster
+func (d *MasterDaemon) getMasterInfo() (map[string]interface{}, error) {
+	info := make(map[string]interface{})
 
-	svc = &mastercfg.CfgServiceLBState{}
-	if svc.StateDriver, err = utils.GetStateDriver(); err != nil {
+	// get local ip
+	localIP, err := getLocalAddr()
+	if err != nil {
+		return nil, errors.New("Error getting local IP address")
+	}
+
+	// get current holder of master lock
+	leader := leaderLock.GetHolder()
+	if leader == "" {
+		return nil, errors.New("Leader not found")
+	}
+
+	// Get all netplugin services
+	srvList, err := d.objdbClient.GetService("netplugin")
+	if err != nil {
+		log.Errorf("Error getting netplugin nodes. Err: %v", err)
 		return nil, err
 	}
 
-	if id == "all" {
-		return svc.ReadAll()
-	} else if err := svc.Read(id); err == nil {
-		return []core.State{core.State(svc)}, nil
+	// Add each node
+	pluginNodes := []string{}
+	for _, srv := range srvList {
+		pluginNodes = append(pluginNodes, srv.HostAddr)
 	}
 
-	return nil, err
+	// Get all netmaster services
+	srvList, err = d.objdbClient.GetService("netmaster")
+	if err != nil {
+		log.Errorf("Error getting netmaster nodes. Err: %v", err)
+		return nil, err
+	}
+
+	// Add each node
+	masterNodes := []string{}
+	for _, srv := range srvList {
+		masterNodes = append(masterNodes, srv.HostAddr)
+	}
+
+	// setup info map
+	info["local-ip"] = localIP
+	info["leader-ip"] = leader
+	info["current-state"] = d.currState
+	info["netplugin-nodes"] = pluginNodes
+	info["netmaster-nodes"] = masterNodes
+
+	return info, nil
 }

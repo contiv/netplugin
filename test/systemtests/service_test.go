@@ -1,17 +1,14 @@
 package systemtests
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel/client"
-	"github.com/contiv/netplugin/netmaster/mastercfg"
-	. "gopkg.in/check.v1"
-	"io/ioutil"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/contiv/contivmodel/client"
+	. "gopkg.in/check.v1"
 )
 
 var providerIndex int
@@ -884,6 +881,7 @@ func (s *systemtestSuite) createServices(c *C, numServices int, tenant string, s
 
 	services := []*client.ServiceLB{}
 	serviceIPs := []string{}
+
 	for serviceNum := 0; serviceNum < numServices; serviceNum++ {
 		service := &client.ServiceLB{
 			ServiceName: fmt.Sprintf("svc-%d-%s", serviceNum, tenant),
@@ -898,19 +896,14 @@ func (s *systemtestSuite) createServices(c *C, numServices int, tenant string, s
 		c.Assert(s.cli.ServiceLBPost(service), IsNil)
 		logrus.Infof("Creating service %s tenant %s on network %s with label %v", service.ServiceName, tenant, svcNetwork, service.Selectors)
 		services = append(services, service)
+
+		// Get service IP
+		svcInspect, err := s.cli.ServiceLBInspect(tenant, service.ServiceName)
+		c.Assert(err, IsNil)
+		serviceIPs = append(serviceIPs, svcInspect.Oper.ServiceVip)
+
 	}
 
-	res, err := http.Get("http://localhost:9999/services")
-	c.Assert(err, IsNil)
-
-	body, err := ioutil.ReadAll(res.Body)
-	c.Assert(err, IsNil)
-	servicesLB := []mastercfg.CfgServiceLBState{}
-	err = json.Unmarshal(body, &servicesLB)
-	c.Assert(err, IsNil)
-	for _, service := range servicesLB {
-		serviceIPs = append(serviceIPs, service.IPAddress)
-	}
 	return services, serviceIPs
 }
 

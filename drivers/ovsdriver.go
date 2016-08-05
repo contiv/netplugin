@@ -22,6 +22,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/ofnet"
@@ -75,9 +76,14 @@ type OvsDriver struct {
 	oper     OvsDriverOperState    // Oper state of the driver
 	localIP  string                // Local IP address
 	switchDb map[string]*OvsSwitch // OVS switch instances
+	lock     sync.Mutex            // lock for modifying shared state
 }
 
 func (d *OvsDriver) getIntfName() (string, error) {
+	// take a lock for modifying shared state
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
 	// get the next available port number
 	for i := 0; i < maxIntfRetry; i++ {
 		// Pick next port number

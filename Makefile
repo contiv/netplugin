@@ -3,7 +3,7 @@
 
 # find all verifiable packages.
 # XXX: explore a better way that doesn't need multiple 'find'
-PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin|vagrant|vendor'`
+PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin|vagrant|test|vendor'`
 PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts|bin|vagrant|vendor'`
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
@@ -27,6 +27,7 @@ all: build unit-test system-test ubuntu-tests
 all-CI: stop clean start
 	make ssh-build
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-unit-test"'
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-integ-test"'
 	make system-test
 
 test: build unit-test system-test ubuntu-tests
@@ -139,7 +140,7 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
-	go test -v -timeout 240m ./systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM"
+	go test -v -timeout 240m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM"
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
@@ -163,6 +164,12 @@ host-unit-test-coverage:
 host-unit-test-coverage-detail:
 	@echo dev: running unit tests...
 	cd $(GOPATH)/src/github.com/contiv/netplugin && sudo -E PATH=$(PATH) scripts/unittests --coverage-detail
+
+host-integ-test: host-cleanup
+	@echo dev: running integration tests...
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vlan -fwd-mode bridge
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode bridge
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode routing
 
 host-cleanup:
 	@echo dev: cleaning up services...

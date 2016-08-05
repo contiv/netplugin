@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	. "gopkg.in/check.v1"
@@ -128,8 +129,9 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 }
 
 func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
-	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" || s.scheduler == "k8" {
-		c.Skip("Skipping node reload test on older docker version")
+	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" || s.scheduler == "k8" ||
+		strings.Contains(s.clusterStore, "consul") {
+		c.Skip("Skipping node reload test on [older docker version | consul | k8s]")
 	}
 	network := &client.Network{
 		TenantName:  "default",
@@ -205,6 +207,9 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 }
 
 func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
+	if strings.Contains(s.clusterStore, "consul") {
+		c.Skip("Skipping cluster store restart test on etcd")
+	}
 	network := &client.Network{
 		TenantName:  "default",
 		NetworkName: "private",

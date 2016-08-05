@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -20,6 +21,9 @@ type OvsDriver struct {
 
 	// OVSDB cache
 	ovsdbCache map[string]map[string]libovsdb.Row
+
+	// read/write lock for accessing the cache
+	lock sync.RWMutex
 }
 
 // Create a new OVS driver
@@ -72,6 +76,10 @@ func (d *OvsDriver) Delete() error {
 
 // Populate local cache of ovs state
 func (self *OvsDriver) populateCache(updates libovsdb.TableUpdates) {
+	// lock the cache for write
+	self.lock.Lock()
+	defer self.lock.Unlock()
+
 	for table, tableUpdate := range updates.Updates {
 		if _, ok := self.ovsdbCache[table]; !ok {
 			self.ovsdbCache[table] = make(map[string]libovsdb.Row)
@@ -90,7 +98,13 @@ func (self *OvsDriver) populateCache(updates libovsdb.TableUpdates) {
 
 // Dump the contents of the cache into stdout
 func (self *OvsDriver) PrintCache() {
+	// lock the cache for read
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
 	fmt.Printf("OvsDB Cache: \n")
+
+	// walk the local cache
 	for tName, table := range self.ovsdbCache {
 		fmt.Printf("Table: %s\n", tName)
 		for uuid, row := range table {
@@ -104,8 +118,13 @@ func (self *OvsDriver) PrintCache() {
 
 // Get the UUID for root
 func (self *OvsDriver) getRootUuid() libovsdb.UUID {
+	// lock the cache for read
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
+	// find the matching uuid
 	for uuid := range self.ovsdbCache["Open_vSwitch"] {
-		return libovsdb.UUID{uuid}
+		return libovsdb.UUID{GoUuid: uuid}
 	}
 	return libovsdb.UUID{}
 }
@@ -184,6 +203,10 @@ func (self *OvsDriver) CreateBridge(bridgeName string) error {
 
 // Delete a bridge from ovs
 func (self *OvsDriver) DeleteBridge(bridgeName string) error {
+	// lock the cache for read
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
 	namedUuidStr := "dummy"
 	brUuid := []libovsdb.UUID{{namedUuidStr}}
 
@@ -195,6 +218,7 @@ func (self *OvsDriver) DeleteBridge(bridgeName string) error {
 		Table: "Bridge",
 		Where: []interface{}{condition},
 	}
+
 	// also fetch the br-uuid from cache
 	for uuid, row := range self.ovsdbCache["Bridge"] {
 		name := row.Fields["name"].(string)
@@ -286,6 +310,10 @@ func (self *OvsDriver) CreatePort(intfName, intfType string, vlanTag uint) error
 
 // Delete a port from OVS
 func (self *OvsDriver) DeletePort(intfName string) error {
+	// lock the cache for read
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
 	portUuidStr := intfName
 	portUuid := []libovsdb.UUID{{portUuidStr}}
 	opStr := "delete"
@@ -453,6 +481,11 @@ func (self *OvsDriver) RemoveController(target string) error {
 // HACK alert: This is used to pick next port number instead of managing
 //    port number space actively across agent restarts
 func (self *OvsDriver) IsPortNamePresent(intfName string) bool {
+	// lock the cache for read
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
+	// walk the local cache
 	for tName, table := range self.ovsdbCache {
 		if tName == "Port" {
 			for _, row := range table {
@@ -474,6 +507,11 @@ func (self *OvsDriver) IsPortNamePresent(intfName string) bool {
 
 // Check if the bridge entry already exists
 func (self *OvsDriver) IsBridgePresent(bridgeName string) bool {
+	// lock the cache for read
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
+	// walk the bridge table in cache
 	for tName, table := range self.ovsdbCache {
 		if tName == "Bridge" {
 			for _, row := range table {
@@ -495,6 +533,11 @@ func (self *OvsDriver) IsBridgePresent(bridgeName string) bool {
 
 // Check if Controller already exists
 func (self *OvsDriver) IsControllerPresent(ipAddr string, portNo uint16) bool {
+	// lock the cache for read
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
+	// walk the locak cache
 	target := fmt.Sprintf("tcp:%s:%d", ipAddr, portNo)
 	for tName, table := range self.ovsdbCache {
 		if tName == "Controller" {
@@ -517,6 +560,11 @@ func (self *OvsDriver) IsControllerPresent(ipAddr string, portNo uint16) bool {
 
 // Check if VTEP already exists
 func (self *OvsDriver) IsVtepPresent(remoteIP string) (bool, string) {
+	// lock the cache for read
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
+	// walk the local cache
 	for tName, table := range self.ovsdbCache {
 		if tName == "Interface" {
 			for _, row := range table {
