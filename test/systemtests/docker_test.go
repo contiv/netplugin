@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"os/exec"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type intf struct {
@@ -345,7 +346,7 @@ func (d *docker) rotateNetpluginLog() error {
 }
 
 func (d *docker) checkForNetpluginErrors() error {
-	out, _ := d.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "panic\|fatal" $i; done`)
+	out, _ := d.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep -A 5 "panic\|fatal" $i; done`)
 	if out != "" {
 		logrus.Errorf("Fatal error in logs on %s: \n", d.node.Name())
 		fmt.Printf("%s\n==========================================\n", out)
