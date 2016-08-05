@@ -129,6 +129,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
     cluster_ip_nodes = node_ips.join(",")
 
+    config.ssh.insert_key = false
     node_names = num_nodes.times.collect { |n| "netplugin-node#{n+1}" }
     node_peers = []
     if ENV['CONTIV_L3'] then
