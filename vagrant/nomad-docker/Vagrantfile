@@ -24,6 +24,7 @@ echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
 echo "export no_proxy=$3,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 echo "export CLUSTER_NODE_IPS=$3" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_CLUSTER_STORE=$7" >> /etc/profile.d/envvar.sh
+echo "export GO15VENDOREXPERIMENT=1" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
 if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
@@ -32,7 +33,7 @@ if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
 fi
 
 # Change ownership for gopath folder
-chown vagrant #{gopath_folder}
+chown -R vagrant #{gopath_folder}
 
 # Install specific docker version if required
 if [[ $8 != "" ]]; then
