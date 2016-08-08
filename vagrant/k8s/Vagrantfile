@@ -206,7 +206,7 @@ Vagrant.configure(2) do |config|
         c.vm.network :private_network, ip: member_info["contiv_control_ip"]
         if ENV['CONTIV_L3'] then
           # create an interface for bridged network
-          node.vm.network :private_network, ip: member_info["contiv_network_ip"], virtualbox__intnet: network_name, auto_config: false
+          c.vm.network :private_network, ip: member_info["contiv_network_ip"], virtualbox__intnet: network_name, auto_config: false
         else
         c.vm.network :private_network, ip: member_info["contiv_network_ip"], virtualbox__intnet: "true", auto_config: false
       end
