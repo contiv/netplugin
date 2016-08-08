@@ -178,7 +178,7 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 				topDir = strings.Split(topDir, ":")[1]
 
 				contivNodes = 4 // 3 contiv nodes + 1 k8master
-				c.Assert(s.vagrant.Setup(false, []string{"CONTIV_L3=1 VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
+				c.Assert(s.vagrant.Setup(false, []string{"CONTIV_L3=1 VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivL3Nodes+contivNodes), IsNil)
 			} else {
 				c.Assert(s.vagrant.Setup(false, []string{"CONTIV_NODES=3 CONTIV_L3=1"}, contivNodes+contivL3Nodes), IsNil)
 			}
