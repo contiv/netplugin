@@ -2,6 +2,10 @@
 # vi: set ft=ruby :
 require "rubygems"
 require "json"
+require 'fileutils'
+
+# netplugin_synced_gopath="/opt/golang"
+gopath_folder="/opt/gopath"
 
 # method to set up attributes for better performance
 def customize_vm(v)
@@ -13,12 +17,20 @@ end
 
 # method to create an etc_hosts file based on the cluster info
 def create_etc_hosts(cluster)
-  etc_file = open("./export/.etc_hosts", "w")
+  if ENV['VAGRANT_CWD'] then
+     folder = ENV['VAGRANT_CWD'] + "/export/.etc_hosts"
+     etc_file = open(folder, "w")
+  else
+     etc_file = open("./export/.etc_hosts", "w")
+  end
   etc_file.write("127.0.0.1   localhost\n")
-  
+
   cluster.each do |role, member_list|
     member_list.each do |member_info|
       etc_file.write("#{member_info['contiv_control_ip']}   #{member_info['name']}\n")
+      if role == "master" then
+	etc_file.write("#{member_info['contiv_control_ip']}   netmaster \n")
+      end
     end
   end
 
@@ -27,32 +39,99 @@ end
 
 # method to read the cluster config file
 def read_cluster_config
-  defs_file = open("cluster_defs.json")
+  if ENV['VAGRANT_CWD']  then
+      folder = ENV['VAGRANT_CWD'] + "/cluster_defs.json"
+      defs_file = open(folder)
+  else
+      defs_file = open("cluster_defs.json")
+  end
   defs_json = defs_file.read
   clust_cfg = JSON.parse(defs_json)
   defs_file.close
   return clust_cfg
 end
 
+provision_k8 = <<SCRIPT
+echo 'export GOPATH=#{gopath_folder}' > /etc/profile.d/envvar.sh
+echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
+echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
+echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
+echo "export http_proxy='$1'" >> /etc/profile.d/envvar.sh
+echo "export https_proxy='$1'" >> /etc/profile.d/envvar.sh
+echo "export no_proxy='k8master,192.168.2.10,192.168.2.11,192.168.2.12,netmaster,localhost,127.0.0.1'" >> /etc/profile.d/envvar.sh
+echo "export no_proxy='k8master,192.168.2.10,192.168.2.11,192.168.2.12,netmaster,localhost,127.0.0.1'" >> ~/.profile
+source /etc/profile.d/envvar.sh
+# Change ownership for gopath folder
+chown vagrant #{gopath_folder}
+sudo yum install -y net-tools
+SCRIPT
+
+provision_master = <<SCRIPT
+echo "export https_proxy='$2'" >> /etc/profile.d/envvar.sh
+echo "export http_proxy='$1'" >> ~/.profile
+echo "export https_proxy='$2'" >> ~/.profile
+source /etc/profile.d/envvar.sh
+sudo -E bash
+go get github.com/tools/godep
+cd $GOPATH/src/github.com/tools
+go install ./godep
+sudo yum install -y net-tools
+#git config --global http.proxy $HTTP_PROXY
+SCRIPT
+
 # begin execution here
 cluster = read_cluster_config
 create_etc_hosts(cluster)
 
 Vagrant.configure(2) do |config|
-  config.vm.box = "contiv/k8s-centos"
-  config.vm.box_version = "0.0.6"
 
   config.ssh.password = 'vagrant'
 
-  config.vm.synced_folder "./export", "/shared", disabled: false
-  config.vm.synced_folder ".", "/vagrant", disabled: true
- 
-  config.vm.provider(:virtualbox){|v| v.functional_vboxsf = false }
- 
+  config.vm.synced_folder "./export", "/shared"
+  #config.vm.provider(:virtualbox){|v| v.functional_vboxsf = false }
+
   cluster.each do |role, member_list|
     member_list.each do |member_info|
       config.vm.define vm_name = member_info["name"] do |c|
-
+         if ENV['CONTIV_K8'] == "1" then
+       	   c.vm.box_version = "0.0.2"
+           box_name = vm_name
+	    if  role == "master" then
+	      c.vm.box = "contiv/k8master"
+              c.vm.synced_folder "./../../","/opt/gopath/src/github.com/contiv/netplugin"
+	      c.vm.provision "shell" do |s|
+		s.inline = provision_k8
+                s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+              end
+	      c.vm.provision "shell" do |s|
+                s.inline = provision_master
+	        s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+              end
+              c.vm.network "forwarded_port", guest: 9999, host: 9999
+       	   else
+	      if vm_name =="k8node-01" then
+ 	      	c.vm.box = "contiv/k8node01"
+ 	      else
+ 		 if vm_name == "k8node-02" then
+ 		    c.vm.box = "contiv/k8node02"
+                  else
+		    c.vm.box = "contiv/k8node03"
+ 		 end
+ 	      end	
+	   end
+	   c.vm.synced_folder "./../../bin","/opt/gopath/bin"
+	   c.vm.provision "shell" do |s|
+              s.inline = provision_k8
+               s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+           end
+	else
+	    c.vm.box = "contiv/centos-k8"
+  	    c.vm.box_version = "0.0.0"
+            c.vm.provision "shell" do |s|
+                s.inline = provision_master
+                s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+            end             
+	end
         # Customize VM for better performance
         config.vm.provider "virtualbox" do |v|
           customize_vm(v)
@@ -61,8 +140,18 @@ Vagrant.configure(2) do |config|
         # configure ip address etc
         c.vm.hostname = vm_name
         c.vm.network :private_network, ip: member_info["contiv_control_ip"]
-        c.vm.network :private_network, ip: member_info["contiv_network_ip"]
-
+        c.vm.network :private_network, ip: member_info["contiv_network_ip"], virtualbox__intnet: "true", auto_config: false
+                    c.vm.provider "virtualbox" do |v|
+                # make all nics 'virtio' to take benefit of builtin vlan tag
+                # support, which otherwise needs to be enabled in Intel drivers,
+                # which are used by default by virtualbox
+                v.customize ['modifyvm', :id, '--nictype1', 'virtio']
+                v.customize ['modifyvm', :id, '--nictype2', 'virtio']
+                v.customize ['modifyvm', :id, '--nictype3', 'virtio']
+                v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
+                v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
+                v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
+            end
         c.vm.provision "shell", inline: <<-EOS
           sudo setenforce 0
           sudo systemctl stop firewalld
@@ -73,3 +162,4 @@ Vagrant.configure(2) do |config|
     end # member_info
   end #role
 end #config
+#

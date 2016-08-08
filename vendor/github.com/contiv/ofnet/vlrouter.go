@@ -737,13 +737,19 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		var srcMac net.HardwareAddr
 		var intf *net.Interface
 
+		self.agent.incrStats("ArpPktRcvd")
+
 		switch arpHdr.Operation {
 		case protocol.Type_Request:
+			self.agent.incrStats("ArpReqRcvd")
+
 			// Lookup the Dest IP in the endpoint table
 			endpoint := self.agent.getEndpointByIpVrf(arpHdr.IPDst, "default")
 			if endpoint == nil {
 				//If we dont know the IP address, dont send an ARP response
 				log.Infof("Received ARP request for unknown IP: %v ", arpHdr.IPDst)
+				self.agent.incrStats("ArpReqUnknownDest")
+
 				return
 			} else {
 				if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
@@ -756,10 +762,12 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 						if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
 							srcMac = self.myRouterMac
 						} else {
+							self.agent.incrStats("ArpReqUnknownEndpointType")
 							return
 						}
 
 					} else {
+						self.agent.incrStats("ArpReqUnknownEndpoint")
 						return
 					}
 
@@ -779,7 +787,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 					self.agent.endpointDb[endpoint.EndpointID] = endpoint
 					self.AddEndpoint(endpoint)
 					self.resolveUnresolvedEPs(endpoint.MacAddrStr, inPort)
-
+					self.agent.incrStats("ArpReqRcvdFromBgpPeer")
 				}
 			}
 
@@ -810,7 +818,11 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 
 			// Send it out
 			self.ofSwitch.Send(pktOut)
+			self.agent.incrStats("ArpReqRespSent")
+
 		case protocol.Type_Reply:
+			self.agent.incrStats("ArpRespRcvd")
+
 			endpoint := self.agent.getEndpointByIpVrf(arpHdr.IPSrc, "default")
 			if endpoint != nil && endpoint.EndpointType == "external-bgp" {
 				//endpoint exists from where the arp is received.
@@ -828,7 +840,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 			}
 
 		default:
-			log.Infof("Dropping ARP response packet from port %d", inPort)
+			log.Infof("Dropping unknown ARP type from port %d", inPort)
 		}
 	}
 }

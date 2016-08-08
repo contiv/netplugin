@@ -40,7 +40,7 @@ type RpcClient struct {
 
 // DB of all existing clients
 var clientDb map[string]*RpcClient = make(map[string]*RpcClient)
-var dbLock sync.Mutex
+var dbLock sync.RWMutex
 
 // Create a new RPC server
 func NewRpcServer(portNo uint16) (*rpc.Server, net.Listener) {
@@ -60,7 +60,6 @@ func NewRpcServer(portNo uint16) (*rpc.Server, net.Listener) {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				log.Infof("######################I AM CLOSING BOSSSSS")
 				// if listener closed, just exit the groutine
 				if strings.Contains(err.Error(), "use of closed network connection") {
 					return
@@ -114,9 +113,8 @@ func dialRpcClient(servAddr string, portNo uint16) (*rpc.Client, net.Conn) {
 // Get a client to the rpc server
 func Client(servAddr string, portNo uint16) *RpcClient {
 	clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
-	log.Infof("RECEIVED CLIENT : for client key %s", clientKey)
-	log.Infof("DUMPING CLIENT DB !!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-	log.Infof("%v", clientDb)
+	dbLock.Lock()
+	defer dbLock.Unlock()
 
 	// Return the client if it already exists
 	if (clientDb[clientKey] != nil) && (clientDb[clientKey].conn != nil) {
@@ -132,14 +130,14 @@ func Client(servAddr string, portNo uint16) *RpcClient {
 		conn:     conn,
 	}
 
-	dbLock.Lock()
 	clientDb[clientKey] = &rpcClient
-	dbLock.Unlock()
 
 	return &rpcClient
 }
 
 func DisconnectClient(portNo uint16, servAddr string) {
+	dbLock.Lock()
+	defer dbLock.Unlock()
 
 	clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
 	clientDb[clientKey] = nil

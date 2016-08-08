@@ -163,12 +163,14 @@ type OfnetPolicyRule struct {
 	Action           string // rule action: 'accept' or 'deny'
 }
 
+// OfnetProtoNeighborInfo has bgp neighbor info
 type OfnetProtoNeighborInfo struct {
 	ProtocolType string // type of protocol
 	NeighborIP   string // ip address of the neighbor
 	As           string // As of neighbor if applicable
 }
 
+// OfnetProtoRouterInfo has local router info
 type OfnetProtoRouterInfo struct {
 	ProtocolType string // type of protocol
 	RouterIP     string // ip address of the router
@@ -176,35 +178,51 @@ type OfnetProtoRouterInfo struct {
 	As           string // As for Bgp protocol
 }
 
+// OfnetProtoRouteInfo contains a route
 type OfnetProtoRouteInfo struct {
 	ProtocolType string // type of protocol
 	localEpIP    string
 	nextHopIP    string
 }
 
+// OfnetVrfInfo has info about a VRF
 type OfnetVrfInfo struct {
-	VrfName     string //vrf name
-	VrfId       uint16 //local vrf id
-	NumNetworks uint16 //ref count of networks in the vrf
+	VrfName     string // vrf name
+	VrfId       uint16 // local vrf id
+	NumNetworks uint16 // ref count of networks in the vrf
 }
 
+// OfnetDatapathStats is generic stats struct
 type OfnetDatapathStats struct {
 	PacketsIn  uint64
 	BytesIn    uint64
 	PacketsOut uint64
 	BytesOut   uint64
 }
-type OfnetSvcStats struct {
-	ProviderIP string
-	Protocol   string
-	SvcPort    string
-	ProvPort   string
-	Stats      OfnetDatapathStats
+
+// OfnetSvcProviderStats has stats for a provider of a service
+type OfnetSvcProviderStats struct {
+	ProviderIP         string // Provider IP address
+	ServiceIP          string // service ip address
+	ServiceVrf         string // Provider VRF name
+	OfnetDatapathStats        // stats
 }
 
+// OfnetSvcStats per service stats from one client
+type OfnetSvcStats struct {
+	ServiceIP  string                           // service ip address
+	ServiceVRF string                           // service vrf name
+	Protocol   string                           // service protocol tcp | udp
+	SvcPort    string                           // Service Port
+	ProvPort   string                           // Provider port
+	SvcStats   OfnetDatapathStats               // aggregate service stats
+	ProvStats  map[string]OfnetSvcProviderStats // per provider stats
+}
+
+// OfnetEndpointStats has stats for local endpoints
 type OfnetEndpointStats struct {
 	EndpointIP string                   // Endpoint IP address
-	VrfName    string                   //vrf name
+	VrfName    string                   // vrf name
 	PortStats  OfnetDatapathStats       // Aggregate port stats
 	SvcStats   map[string]OfnetSvcStats // Service level stats
 }

@@ -32,7 +32,7 @@ if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
 fi
 
 # Change ownership for gopath folder
-chown vagrant #{gopath_folder}
+chown -R vagrant #{gopath_folder}
 
 # Install specific docker version if required
 if [[ $8 != "" ]]; then
@@ -118,7 +118,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
     end
 
-    num_nodes = 2
+    num_nodes = 3
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i
     end
@@ -178,15 +178,18 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node_peers += ["#{node_name}=http://#{node_addr}:2380,#{node_name}=http://#{node_addr}:7001"]
         consul_join_flag = if n > 0 then "-join #{node_ips[0]}" else "" end
         consul_bootstrap_flag = "-bootstrap-expect=3"
-        swarm_flag = "slave"
         if num_nodes < 3 then
-            if n == 0 then
-                consul_bootstrap_flag = "-bootstrap"
-                swarm_flag = "master"
-            else
-                consul_bootstrap_flag = ""
-                swarm_flag = "slave"
-            end
+          if n == 0 then
+            consul_bootstrap_flag = "-bootstrap"
+          else
+            consul_bootstrap_flag = ""
+          end
+        end
+        swarm_flag = "slave"
+        if n == 0 then
+          swarm_flag = "master"
+        else
+          swarm_flag = "slave"
         end
         net_num = (n+1)%3
         if net_num == 0 then

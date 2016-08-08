@@ -17,6 +17,7 @@ package ofnet
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -738,7 +739,10 @@ func (proxy *ServiceProxy) updateSNATStats(fs *openflow13.FlowStats) {
 
 	_, found = entry.SvcStats[svcIP]
 	if !found {
-		entry.SvcStats[svcIP] = OfnetSvcStats{}
+		entry.SvcStats[svcIP] = OfnetSvcStats{
+			ServiceIP: svcIP,
+			ProvStats: make(map[string]OfnetSvcProviderStats),
+		}
 	}
 
 	stats := entry.SvcStats[svcIP]
@@ -750,9 +754,15 @@ func (proxy *ServiceProxy) updateSNATStats(fs *openflow13.FlowStats) {
 		stats.ProvPort = strconv.Itoa(int(fm.UdpSrcPort))
 	}
 
-	stats.ProviderIP = provIP
-	stats.Stats.PacketsIn = fs.PacketCount
-	stats.Stats.BytesIn = fs.ByteCount
+	_, found = stats.ProvStats[provIP]
+	if !found {
+		stats.ProvStats[provIP] = OfnetSvcProviderStats{ProviderIP: provIP}
+	}
+	provStats := stats.ProvStats[provIP]
+	provStats.PacketsIn = fs.PacketCount
+	provStats.BytesIn = fs.ByteCount
+
+	stats.ProvStats[provIP] = provStats
 	entry.SvcStats[svcIP] = stats
 
 	log.Debugf("SNAT Stats: epIP: %s, svcIp: %s, entry: %+v", epIP, svcIP, entry)
@@ -771,6 +781,7 @@ func (proxy *ServiceProxy) updateDNATStats(fs *openflow13.FlowStats) {
 		fm.UdpSrcPort == 0 && fm.UdpDstPort == 0 {
 		return // watch flow
 	}
+	provIP := fm.IpSa.String()
 	epIP := fm.IpSa.String()
 	entry, found := proxy.epStats[epIP]
 	if !found {
@@ -782,7 +793,10 @@ func (proxy *ServiceProxy) updateDNATStats(fs *openflow13.FlowStats) {
 
 	_, found = entry.SvcStats[svcIP]
 	if !found {
-		entry.SvcStats[svcIP] = OfnetSvcStats{}
+		entry.SvcStats[svcIP] = OfnetSvcStats{
+			ServiceIP: svcIP,
+			ProvStats: make(map[string]OfnetSvcProviderStats),
+		}
 	}
 	stats := entry.SvcStats[svcIP]
 
@@ -794,8 +808,15 @@ func (proxy *ServiceProxy) updateDNATStats(fs *openflow13.FlowStats) {
 		stats.SvcPort = strconv.Itoa(int(fm.UdpDstPort))
 	}
 
-	stats.Stats.PacketsOut = fs.PacketCount
-	stats.Stats.BytesOut = fs.ByteCount
+	_, found = stats.ProvStats[provIP]
+	if !found {
+		stats.ProvStats[provIP] = OfnetSvcProviderStats{ProviderIP: provIP}
+	}
+	provStats := stats.ProvStats[provIP]
+	provStats.PacketsOut = fs.PacketCount
+	provStats.BytesOut = fs.ByteCount
+
+	stats.ProvStats[provIP] = provStats
 	entry.SvcStats[svcIP] = stats
 
 	log.Debugf("DNAT Stats: epIP: %s, svcIp: %s, entry: %+v", epIP, svcIP, entry)
@@ -913,4 +934,22 @@ func (proxy *ServiceProxy) InspectState() interface{} {
 	}
 
 	return &proxyExport
+}
+
+// GetSvcProxyMAC looks up the service IP and returns a mac if the IP exists.
+// if the svc IP is not found, returns empty string
+func (proxy *ServiceProxy) GetSvcProxyMAC(svcIP net.IP) string {
+	ip := svcIP.String()
+
+	proxy.oMutex.Lock()
+	defer proxy.oMutex.Unlock()
+
+	_, found := proxy.operState[ip]
+	if found {
+		ipv4 := svcIP.To4()
+		return fmt.Sprintf("02:02:%02x:%02x:%02x:%02x", ipv4[0], ipv4[1], ipv4[2], ipv4[3])
+	}
+
+	return ""
+
 }

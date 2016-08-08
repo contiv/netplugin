@@ -75,31 +75,27 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "0bba6a709d559a6288c68df58cf60106069880d3"
+			"Rev": "08702370ff660886e7fbe242107c15c29c6cb21d"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "0bba6a709d559a6288c68df58cf60106069880d3"
+			"Rev": "08702370ff660886e7fbe242107c15c29c6cb21d"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "0bba6a709d559a6288c68df58cf60106069880d3"
+			"Rev": "08702370ff660886e7fbe242107c15c29c6cb21d"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "0bba6a709d559a6288c68df58cf60106069880d3"
+			"Rev": "08702370ff660886e7fbe242107c15c29c6cb21d"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "0bba6a709d559a6288c68df58cf60106069880d3"
+			"Rev": "08702370ff660886e7fbe242107c15c29c6cb21d"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",
-			"Rev": "912796a0a1310b462f441bbe7f4140da781d0548"
-		},
-		{
-			"ImportPath": "github.com/contiv/vagrantssh",
-			"Rev": "b5e81e988e7222c887b7e07d8c5d7b8e47ce3afa"
+			"Rev": "b0462e68014f35e222ac3d44a4f9c6323814c490"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
@@ -430,6 +426,10 @@
 		{
 			"ImportPath": "gopkg.in/tomb.v2",
 			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
+		},
+		{
+			"ImportPath": "github.com/contiv/remotessh",
+			"Rev": "873176beee0ae1cdcd5ecefb7009d979419138af"
 		}
 	]
 }

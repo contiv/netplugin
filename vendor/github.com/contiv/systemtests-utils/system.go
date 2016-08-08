@@ -6,11 +6,11 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/vagrantssh"
+	"github.com/contiv/remotessh"
 )
 
 // StopEtcd stops etcd on a specific host
-func StopEtcd(nodes []vagrantssh.TestbedNode) error {
+func StopEtcd(nodes []remotessh.TestbedNode) error {
 	for _, node := range nodes {
 		log.Infof("Stopping etcd on node %s", node.GetName())
 
@@ -37,13 +37,13 @@ func StopEtcd(nodes []vagrantssh.TestbedNode) error {
 	return nil
 }
 
-func ClearEtcd(node vagrantssh.TestbedNode) {
+func ClearEtcd(node remotessh.TestbedNode) {
 	log.Infof("Clearing etcd data")
 	node.RunCommand(`for i in $(etcdctl ls /); do etcdctl rm --recursive "$i"; done`)
 }
 
 // StartEtcd starts etcd on a specific host.
-func StartEtcd(nodes []vagrantssh.TestbedNode) error {
+func StartEtcd(nodes []remotessh.TestbedNode) error {
 	for _, node := range nodes {
 		log.Infof("Starting etcd on %s", node.GetName())
 		times := 10
@@ -71,12 +71,12 @@ func StartEtcd(nodes []vagrantssh.TestbedNode) error {
 }
 
 //ServiceStart starts a systemd service unit
-func ServiceStart(n vagrantssh.TestbedNode, srv string) (string, error) {
+func ServiceStart(n remotessh.TestbedNode, srv string) (string, error) {
 	return n.RunCommandWithOutput(fmt.Sprintf("sudo systemctl start %s", srv))
 }
 
 //ServiceStatus queries and returns status result of systemd service unit
-func ServiceStatus(n vagrantssh.TestbedNode, srv string) (string, error) {
+func ServiceStatus(n remotessh.TestbedNode, srv string) (string, error) {
 	return n.RunCommandWithOutput(fmt.Sprintf("systemctl status %s", srv))
 }
 
@@ -110,8 +110,8 @@ func WaitForDone(doneFn func() (string, bool), tickDur time.Duration, timeoutDur
 
 // ServiceActionAndWaitForState call the specified action function on a service unit and
 // waits for the unit to reach expected state up until the timeout
-func ServiceActionAndWaitForState(n vagrantssh.TestbedNode, srv string, timeoutSec int, state string,
-	action func(vagrantssh.TestbedNode, string) (string, error)) (string, error) {
+func ServiceActionAndWaitForState(n remotessh.TestbedNode, srv string, timeoutSec int, state string,
+	action func(remotessh.TestbedNode, string) (string, error)) (string, error) {
 	out, err := action(n, srv)
 	if err != nil {
 		return out, err
@@ -127,26 +127,26 @@ func ServiceActionAndWaitForState(n vagrantssh.TestbedNode, srv string, timeoutS
 }
 
 //ServiceStartAndWaitForUp starts a systemd service unit and waits for it to be up
-func ServiceStartAndWaitForUp(n vagrantssh.TestbedNode, srv string, timeoutSec int) (string, error) {
+func ServiceStartAndWaitForUp(n remotessh.TestbedNode, srv string, timeoutSec int) (string, error) {
 	return ServiceActionAndWaitForState(n, srv, timeoutSec, "active", ServiceStart)
 }
 
 //ServiceStop stops a systemd service unit
-func ServiceStop(n vagrantssh.TestbedNode, srv string) (string, error) {
+func ServiceStop(n remotessh.TestbedNode, srv string) (string, error) {
 	return n.RunCommandWithOutput(fmt.Sprintf("sudo systemctl stop %s", srv))
 }
 
 //ServiceRestart restarts a systemd service unit
-func ServiceRestart(n vagrantssh.TestbedNode, srv string) (string, error) {
+func ServiceRestart(n remotessh.TestbedNode, srv string) (string, error) {
 	return n.RunCommandWithOutput(fmt.Sprintf("sudo systemctl restart %s", srv))
 }
 
 //ServiceRestartAndWaitForUp starts a systemd service unit and waits for it to be up
-func ServiceRestartAndWaitForUp(n vagrantssh.TestbedNode, srv string, timeoutSec int) (string, error) {
+func ServiceRestartAndWaitForUp(n remotessh.TestbedNode, srv string, timeoutSec int) (string, error) {
 	return ServiceActionAndWaitForState(n, srv, timeoutSec, "active", ServiceRestart)
 }
 
 //ServiceLogs queries and returns upto maxLogLines lines from systemd service unit logs
-func ServiceLogs(n vagrantssh.TestbedNode, srv string, maxLogLines int) (string, error) {
+func ServiceLogs(n remotessh.TestbedNode, srv string, maxLogLines int) (string, error) {
 	return n.RunCommandWithOutput(fmt.Sprintf("sudo systemctl status -ln%d %s", maxLogLines, srv))
 }
