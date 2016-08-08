@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
-	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/shaleman/libOpenflow/openflow13"
@@ -37,25 +36,24 @@ type FlowMatch struct {
 	Ethertype    uint16            // Ethertype
 	VlanId       uint16            // vlan id
 	ArpOper      uint16            // ARP Oper type
-	IpSa         *net.IP           // IPv4 source addr
-	IpSaMask     *net.IP           // IPv4 source mask
-	IpDa         *net.IP           // IPv4 dest addr
-	IpDaMask     *net.IP           // IPv4 dest mask
-	Ipv6Sa       *net.IP           // IPv6 source addr
-	Ipv6SaMask   *net.IP           // IPv6 source mask
-	Ipv6Da       *net.IP           // IPv6 dest addr
-	Ipv6DaMask   *net.IP           // IPv6 dest mask
-	IpProto      uint8             // IP protocol
-	IpDscp       uint8             // DSCP/TOS field
-	TcpSrcPort   uint16            // TCP source port
-	TcpDstPort   uint16            // TCP dest port
-	UdpSrcPort   uint16            // UDP source port
-	UdpDstPort   uint16            // UDP dest port
-	Metadata     *uint64           // OVS metadata
-	MetadataMask *uint64           // Metadata mask
-	TunnelId     uint64            // Vxlan Tunnel id i.e. VNI
-	TcpFlags     *uint16           // TCP flags
-	TcpFlagsMask *uint16           // Mask for TCP flags
+	IpSa         *net.IP
+	IpSaMask     *net.IP
+	IpDa         *net.IP
+	IpDaMask     *net.IP
+	Ipv6Sa       *net.IP
+	Ipv6SaMask   *net.IP
+	Ipv6Da       *net.IP
+	Ipv6DaMask   *net.IP
+	IpProto      uint8
+	TcpSrcPort   uint16
+	TcpDstPort   uint16
+	UdpSrcPort   uint16
+	UdpDstPort   uint16
+	Metadata     *uint64
+	MetadataMask *uint64
+	TunnelId     uint64  // Vxlan Tunnel id i.e. VNI
+	TcpFlags     *uint16 // TCP flags
+	TcpFlagsMask *uint16 // Mask for TCP flags
 }
 
 // additional actions in flow's instruction set
@@ -68,7 +66,6 @@ type FlowAction struct {
 	tunnelId     uint64           // Tunnel Id (used for setting VNI)
 	metadata     uint64           // Metadata in case of "setMetadata"
 	metadataMask uint64           // Metadata mask
-	dscp         uint8            // DSCP field
 }
 
 // State of a flow entry
@@ -79,7 +76,6 @@ type Flow struct {
 	isInstalled bool          // Is the flow installed in the switch
 	FlowID      uint64        // Unique ID for the flow
 	flowActions []*FlowAction // List of flow actions
-	lock        sync.RWMutex  // lock for modifying flow state
 }
 
 const IP_PROTO_TCP = 6
@@ -206,12 +202,6 @@ func (self *Flow) xlateMatch() openflow13.Match {
 	if self.Match.IpProto != 0 {
 		protoField := openflow13.NewIpProtoField(self.Match.IpProto)
 		ofMatch.AddField(*protoField)
-	}
-
-	// Handle IP dscp
-	if self.Match.IpDscp != 0 {
-		dscpField := openflow13.NewIpDscpField(self.Match.IpDscp)
-		ofMatch.AddField(*dscpField)
 	}
 
 	// Handle port numbers
@@ -363,17 +353,6 @@ func (self *Flow) installFlowActions(flowMod *openflow13.FlowMod,
 
 			log.Debugf("flow install. Added setIPDa Action: %+v", setIPDaAction)
 
-		case "setDscp":
-			// Set DSCP field
-			ipDscpField := openflow13.NewIpDscpField(flowAction.dscp)
-			setIPDscpAction := openflow13.NewActionSetField(*ipDscpField)
-
-			// Add set action to the instruction
-			actInstr.AddAction(setIPDscpAction, true)
-			addActn = true
-
-			log.Debugf("flow install. Added setDscp Action: %+v", setIPDscpAction)
-
 		case "setTCPSrc":
 			// Set TCP src
 			tcpSrcField := openflow13.NewTcpSrcField(flowAction.l4Port)
@@ -500,9 +479,6 @@ func (self *Flow) install() error {
 // Set Next element in the Fgraph. This determines what actions will be
 // part of the flow's instruction set
 func (self *Flow) Next(elem FgraphElem) error {
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
 	// Set the next element in the graph
 	self.NextElem = elem
 
@@ -516,10 +492,8 @@ func (self *Flow) SetVlan(vlanId uint16) error {
 	action.actionType = "setVlan"
 	action.vlanId = vlanId
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
+	// Add to the action list
+	// FIXME: detect duplicates
 	self.flowActions = append(self.flowActions, action)
 
 	// If the flow entry was already installed, re-install it
@@ -535,10 +509,8 @@ func (self *Flow) PopVlan() error {
 	action := new(FlowAction)
 	action.actionType = "popVlan"
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
+	// Add to the action list
+	// FIXME: detect duplicates
 	self.flowActions = append(self.flowActions, action)
 
 	// If the flow entry was already installed, re-install it
@@ -555,10 +527,8 @@ func (self *Flow) SetMacDa(macDa net.HardwareAddr) error {
 	action.actionType = "setMacDa"
 	action.macAddr = macDa
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
+	// Add to the action list
+	// FIXME: detect duplicates
 	self.flowActions = append(self.flowActions, action)
 
 	// If the flow entry was already installed, re-install it
@@ -575,10 +545,8 @@ func (self *Flow) SetMacSa(macSa net.HardwareAddr) error {
 	action.actionType = "setMacSa"
 	action.macAddr = macSa
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
+	// Add to the action list
+	// FIXME: detect duplicates
 	self.flowActions = append(self.flowActions, action)
 
 	// If the flow entry was already installed, re-install it
@@ -592,7 +560,6 @@ func (self *Flow) SetMacSa(macSa net.HardwareAddr) error {
 // Special action on the flow to set an ip field
 func (self *Flow) SetIPField(ip net.IP, field string) error {
 	action := new(FlowAction)
-	action.ipAddr = ip
 	if field == "Src" {
 		action.actionType = "setIPSa"
 	} else if field == "Dst" {
@@ -601,10 +568,8 @@ func (self *Flow) SetIPField(ip net.IP, field string) error {
 		return errors.New("field not supported")
 	}
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
+	action.ipAddr = ip
+	// Add to the action list
 	self.flowActions = append(self.flowActions, action)
 
 	// If the flow entry was already installed, re-install it
@@ -618,7 +583,6 @@ func (self *Flow) SetIPField(ip net.IP, field string) error {
 // Special action on the flow to set a L4 field
 func (self *Flow) SetL4Field(port uint16, field string) error {
 	action := new(FlowAction)
-	action.l4Port = port
 
 	switch field {
 	case "TCPSrc":
@@ -637,10 +601,8 @@ func (self *Flow) SetL4Field(port uint16, field string) error {
 		return errors.New("field not supported")
 	}
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
+	action.l4Port = port
+	// Add to the action list
 	self.flowActions = append(self.flowActions, action)
 
 	// If the flow entry was already installed, re-install it
@@ -658,10 +620,8 @@ func (self *Flow) SetMetadata(metadata, metadataMask uint64) error {
 	action.metadata = metadata
 	action.metadataMask = metadataMask
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
+	// Add to the action list
+	// FIXME: detect duplicates
 	self.flowActions = append(self.flowActions, action)
 
 	// If the flow entry was already installed, re-install it
@@ -678,51 +638,9 @@ func (self *Flow) SetTunnelId(tunnelId uint64) error {
 	action.actionType = "setTunnelId"
 	action.tunnelId = tunnelId
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
+	// Add to the action list
+	// FIXME: detect duplicates
 	self.flowActions = append(self.flowActions, action)
-
-	// If the flow entry was already installed, re-install it
-	if self.isInstalled {
-		self.install()
-	}
-
-	return nil
-}
-
-// Special actions on the flow to set dscp field
-func (self *Flow) SetDscp(dscp uint8) error {
-	action := new(FlowAction)
-	action.actionType = "setDscp"
-	action.dscp = dscp
-
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Add to the action db
-	self.flowActions = append(self.flowActions, action)
-
-	// If the flow entry was already installed, re-install it
-	if self.isInstalled {
-		self.install()
-	}
-
-	return nil
-}
-
-// unset dscp field
-func (self *Flow) UnsetDscp() error {
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
-	// Delete to the action from db
-	for idx, act := range self.flowActions {
-		if act.actionType == "setDscp" {
-			self.flowActions = append(self.flowActions[:idx], self.flowActions[idx+1:]...)
-		}
-	}
 
 	// If the flow entry was already installed, re-install it
 	if self.isInstalled {
@@ -734,9 +652,6 @@ func (self *Flow) UnsetDscp() error {
 
 // Delete the flow
 func (self *Flow) Delete() error {
-	self.lock.Lock()
-	defer self.lock.Unlock()
-
 	// Delete from ofswitch
 	if self.isInstalled {
 		// Create a flowmode entry

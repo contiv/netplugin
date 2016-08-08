@@ -436,7 +436,7 @@ func (s *systemtestSuite) pingFailureTest(containers1 []*container, containers2 
 
 func (s *systemtestSuite) hostIsolationTest(containers []*container) error {
 	numTests := 0
-	errChan := make(chan error, len(containers) - 1)
+	errChan := make(chan error, len(containers)-1)
 	hBridgeIPs := make(map[string]string)
 	for _, cont := range containers {
 		ip, err := cont.node.exec.getIPAddr(cont, "host1")
@@ -458,7 +458,7 @@ func (s *systemtestSuite) hostIsolationTest(containers []*container) error {
 			}
 		}
 
-		break;	// ping from one container to all others is sufficient
+		break // ping from one container to all others is sufficient
 	}
 
 	for i := 0; i < numTests; i++ {
