@@ -41,7 +41,8 @@ type OfnetMaster struct {
 	myPort      uint16       // port where we are listening
 	rpcServer   *rpc.Server  // json-rpc server
 	rpcListener net.Listener // Listener
-	masterMutex sync.Mutex   // Mutex to lock master datastructures
+	masterMutex sync.RWMutex // Mutex to lock master datastructures
+	statsMutex  sync.Mutex   // Mutex to protect stats update
 
 	// Database of agent nodes
 	agentDb map[string]*OfnetNode
@@ -91,8 +92,8 @@ func (self *OfnetMaster) Delete() error {
 
 // incrAgentStats increments an agent key
 func (self *OfnetMaster) incrAgentStats(hostKey, statName string) {
-	self.masterMutex.Lock()
-	defer self.masterMutex.Unlock()
+	self.statsMutex.Lock()
+	defer self.statsMutex.Unlock()
 
 	// lookup the agent
 	agentStats := self.agentStats[hostKey]
@@ -140,6 +141,10 @@ func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 	self.masterMutex.Unlock()
 
 	log.Infof("Registered node: %+v", node)
+
+	// take a read lock for accessing db
+	self.masterMutex.RLock()
+	defer self.masterMutex.RUnlock()
 
 	// Send all existing endpoints to the new node
 	for _, endpoint := range self.endpointDb {
@@ -198,7 +203,9 @@ func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 
 	log.Infof("Received Endpoint CReate from Remote netplugin")
 	// Check if we have the endpoint already and which is more recent
+	self.masterMutex.RLock()
 	oldEp := self.endpointDb[ep.EndpointID]
+	self.masterMutex.RUnlock()
 	if oldEp != nil {
 		// If old endpoint has more recent timestamp, nothing to do
 		if !ep.Timestamp.After(oldEp.Timestamp) {
@@ -210,6 +217,10 @@ func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 	self.masterMutex.Lock()
 	self.endpointDb[ep.EndpointID] = ep
 	self.masterMutex.Unlock()
+
+	// take a read lock for accessing db
+	self.masterMutex.RLock()
+	defer self.masterMutex.RUnlock()
 
 	// Publish it to all agents except where it came from
 	for nodeKey, node := range self.agentDb {
@@ -240,7 +251,9 @@ func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 // Delete an Endpoint
 func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 	// Check if we have the endpoint, if we dont have the endpoint, nothing to do
+	self.masterMutex.RLock()
 	oldEp := self.endpointDb[ep.EndpointID]
+	self.masterMutex.RUnlock()
 	if oldEp == nil {
 		log.Errorf("Received endpoint DELETE on a non existing endpoint %+v", ep)
 		return nil
@@ -255,6 +268,10 @@ func (self *OfnetMaster) EndpointDel(ep *OfnetEndpoint, ret *bool) error {
 	self.masterMutex.Lock()
 	delete(self.endpointDb, ep.EndpointID)
 	self.masterMutex.Unlock()
+
+	// take a read lock for accessing db
+	self.masterMutex.RLock()
+	defer self.masterMutex.RUnlock()
 
 	// Publish it to all agents except where it came from
 	for nodeKey, node := range self.agentDb {
@@ -294,6 +311,10 @@ func (self *OfnetMaster) AddRule(rule *OfnetPolicyRule) error {
 	self.policyDb[rule.RuleId] = rule
 	self.masterMutex.Unlock()
 
+	// take a read lock for accessing db
+	self.masterMutex.RLock()
+	defer self.masterMutex.RUnlock()
+
 	// Publish it to all agents
 	for nodeKey, node := range self.agentDb {
 		var resp bool
@@ -328,6 +349,10 @@ func (self *OfnetMaster) DelRule(rule *OfnetPolicyRule) error {
 	self.masterMutex.Lock()
 	delete(self.policyDb, rule.RuleId)
 	self.masterMutex.Unlock()
+
+	// take a read lock for accessing db
+	self.masterMutex.RLock()
+	defer self.masterMutex.RUnlock()
 
 	// Publish it to all agents
 	for nodeKey, node := range self.agentDb {
@@ -374,6 +399,10 @@ func (self *OfnetMaster) MakeDummyRpcCall() error {
 
 // InjectGARPs triggers GARPS in the datapath on the specified epg
 func (self *OfnetMaster) InjectGARPs(epgID int) {
+	// take a read lock for accessing db
+	self.masterMutex.RLock()
+	defer self.masterMutex.RUnlock()
+
 	// Send to all agents
 	for nodeKey, node := range self.agentDb {
 		var resp bool
