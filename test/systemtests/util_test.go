@@ -777,39 +777,15 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 	}
 }
 
-func (s *systemtestSuite) getNetworkStates() ([]map[string]interface{}, error) {
-	var networkList []map[string]interface{}
-
-	err := s.getJSON("localhost:9999/networks", &networkList)
-	if err != nil {
-		logrus.Errorf("Error getting json from host. Err: %v", err)
-		return nil, err
-	}
-
-	return networkList, err
-}
-
 func (s *systemtestSuite) getNetworkDNSServer(tenant, network string) (string, error) {
-	netList, err := s.getNetworkStates()
+	netInspect, err := s.cli.NetworkInspect(tenant, network)
 	if err != nil {
 		return "", err
 	}
 
-	for _, net := range netList {
-		if net["tenant"].(string) == tenant && net["networkName"].(string) == network {
-			dnsServer := net["dnsServer"].(string)
-
-			if dnsServer == "" {
-				logrus.Infof("Network %s/%s does not have a dns server", network, tenant)
-				return "", errors.New("No DNS server in network")
-			}
-			logrus.Infof("Gor dns server %s for network %s/%s", dnsServer, network, tenant)
-			return dnsServer, nil
-		}
-	}
-
-	return "", errors.New("Network not found")
+	return netInspect.Oper.DnsServerIP, nil
 }
+
 func (s *systemtestSuite) checkConnectionToService(containers []*container, ips []string, port int, protocol string) error {
 
 	for _, cont := range containers {

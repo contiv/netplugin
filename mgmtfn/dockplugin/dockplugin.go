@@ -29,7 +29,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/netplugin/plugin"
-	"github.com/contiv/netplugin/svcplugin"
+	"github.com/contiv/netplugin/netplugin/svcplugin"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/gorilla/mux"

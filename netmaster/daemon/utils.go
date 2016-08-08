@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package daemon
 
 import (
 	"encoding/json"
@@ -21,8 +21,12 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/netplugin/version"
 	"github.com/gorilla/mux"
 
@@ -46,11 +50,48 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// initStateDriver creates a state driver based on the cluster store URL
+func initStateDriver(clusterStore string) (core.StateDriver, error) {
+	// parse the state store URL
+	parts := strings.Split(clusterStore, "://")
+	if len(parts) < 2 {
+		return nil, core.Errorf("Invalid state-store URL %q", clusterStore)
+	}
+	stateStore := parts[0]
+
+	// Make sure we support the statestore type
+	switch stateStore {
+	case utils.EtcdNameStr:
+	case utils.ConsulNameStr:
+	default:
+		return nil, core.Errorf("Unsupported state-store %q", stateStore)
+	}
+
+	// Setup instance info
+	instInfo := core.InstanceInfo{
+		DbURL: clusterStore,
+	}
+
+	return utils.NewStateDriver(stateStore, &instInfo)
+}
+
+// getLocalAddr gets local address to be used
+func getLocalAddr() (string, error) {
+	// get the ip address by local hostname
+	localIP, err := netutils.GetMyAddr()
+	if err == nil && netutils.IsAddrLocal(localIP) {
+		return localIP, nil
+	}
+
+	// Return first available address if we could not find by hostname
+	return netutils.GetFirstLocalAddr()
+}
+
 // slaveProxyHandler redirects to current master
 func slaveProxyHandler(w http.ResponseWriter, r *http.Request) {
 	log.Infof("proxy handler for %q ", r.URL.Path)
 
-	localIP, err := GetLocalAddr()
+	localIP, err := getLocalAddr()
 	if err != nil {
 		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}
@@ -152,4 +193,25 @@ func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.Resp
 		w.Write(resp)
 		return
 	}
+}
+
+// services: This function should be returning logical state instead of driver state
+func (d *MasterDaemon) services(id string) ([]core.State, error) {
+	var (
+		err error
+		svc *mastercfg.CfgServiceLBState
+	)
+
+	svc = &mastercfg.CfgServiceLBState{}
+	if svc.StateDriver, err = utils.GetStateDriver(); err != nil {
+		return nil, err
+	}
+
+	if id == "all" {
+		return svc.ReadAll()
+	} else if err := svc.Read(id); err == nil {
+		return []core.State{core.State(svc)}, nil
+	}
+
+	return nil, err
 }

@@ -19,14 +19,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/netmaster/master"
-	"github.com/contiv/netplugin/netmaster/resources"
-	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/netmaster/daemon"
 	"github.com/contiv/netplugin/version"
 )
 
@@ -45,30 +41,6 @@ var flagSet *flag.FlagSet
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
 	flagSet.PrintDefaults()
-}
-
-func initStateDriver(opts *cliOpts) (core.StateDriver, error) {
-	// parse the state store URL
-	parts := strings.Split(opts.clusterStore, "://")
-	if len(parts) < 2 {
-		return nil, core.Errorf("Invalid state-store URL %q", opts.clusterStore)
-	}
-	stateStore := parts[0]
-
-	// Make sure we support the statestore type
-	switch stateStore {
-	case utils.EtcdNameStr:
-	case utils.ConsulNameStr:
-	default:
-		return nil, core.Errorf("Unsupported state-store %q", stateStore)
-	}
-
-	// Setup instance info
-	instInfo := core.InstanceInfo{
-		DbURL: opts.clusterStore,
-	}
-
-	return utils.NewStateDriver(stateStore, &instInfo)
 }
 
 func parseOpts(opts *cliOpts) error {
@@ -109,7 +81,7 @@ func parseOpts(opts *cliOpts) error {
 	return nil
 }
 
-func execOpts(opts *cliOpts) core.StateDriver {
+func execOpts(opts *cliOpts) {
 
 	if opts.help {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
@@ -127,29 +99,9 @@ func execOpts(opts *cliOpts) core.StateDriver {
 	if opts.debug {
 		log.SetLevel(log.DebugLevel)
 	}
-
-	if err := master.SetClusterMode(opts.clusterMode); err != nil {
-		log.Fatalf("Failed to set cluster-mode. Error: %s", err)
-	}
-
-	if err := master.SetDNSEnabled(opts.dnsEnabled); err != nil {
-		log.Fatalf("Failed to set dns-enable. Error: %s", err)
-	}
-
-	sd, err := initStateDriver(opts)
-	if err != nil {
-		log.Fatalf("Failed to init state-store. Error: %s", err)
-	}
-
-	if _, err = resources.NewStateResourceManager(sd); err != nil {
-		log.Fatalf("Failed to init resource manager. Error: %s", err)
-	}
-
-	return sd
 }
 
 func main() {
-	d := &daemon{}
 	opts := cliOpts{}
 
 	if err := parseOpts(&opts); err != nil {
@@ -157,12 +109,19 @@ func main() {
 	}
 
 	// execute options
-	d.stateDriver = execOpts(&opts)
+	execOpts(&opts)
 
-	// store the URLs
-	d.listenURL = opts.listenURL
-	d.clusterStore = opts.clusterStore
+	// create master daemon
+	d := &daemon.MasterDaemon{
+		ListenURL:    opts.listenURL,
+		ClusterStore: opts.clusterStore,
+		ClusterMode:  opts.clusterMode,
+		DNSEnabled:   opts.dnsEnabled,
+	}
+
+	// initialize master daemon
+	d.Init()
 
 	// Run daemon FSM
-	d.runMasterFsm()
+	d.RunMasterFsm()
 }

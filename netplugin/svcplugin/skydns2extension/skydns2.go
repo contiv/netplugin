@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/svcplugin/bridge"
+	"github.com/contiv/netplugin/netplugin/svcplugin/bridge"
 	"github.com/coreos/etcd/client"
 )
 

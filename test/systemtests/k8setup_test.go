@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 	//"sync"
 	"os"
 	"time"
@@ -417,7 +418,7 @@ func (k *kubernetes) checkForNetpluginErrors() error {
 		return nil
 	}
 
-	out, _ := k.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "panic\|fatal" $i; done`)
+	out, _ := k.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep -A 5 "panic\|fatal" $i; done`)
 	if out != "" {
 		logrus.Errorf("Fatal error in logs on %s: \n", k.node.Name())
 		fmt.Printf("%s\n==========================================\n", out)

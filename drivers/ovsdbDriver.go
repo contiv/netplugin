@@ -37,7 +37,7 @@ type OvsdbDriver struct {
 	bridgeName string // Name of the bridge we are operating on
 	ovs        *libovsdb.OvsdbClient
 	cache      map[string]map[libovsdb.UUID]libovsdb.Row
-	cacheLock  sync.Mutex
+	cacheLock  sync.RWMutex // lock to protect cache accesses
 }
 
 // NewOvsdbDriver creates a new OVSDB driver instance.
@@ -105,6 +105,9 @@ func (d *OvsdbDriver) Delete() error {
 }
 
 func (d *OvsdbDriver) getRootUUID() libovsdb.UUID {
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
 	for uuid := range d.cache[rootTable] {
 		return uuid
 	}
@@ -248,6 +251,10 @@ func (d *OvsdbDriver) GetPortOrIntfNameFromID(id string, isPort bool) (string, e
 		table = interfaceTable
 	}
 
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	// walk thru all ports
 	for _, row := range d.cache[table] {
 		if extIDs, ok := row.Fields["external_ids"]; ok {
 			extIDMap := extIDs.(libovsdb.OvsMap).GoMap
@@ -353,6 +360,7 @@ func (d *OvsdbDriver) DeletePort(intfName string) error {
 	}
 
 	// also fetch the port-uuid from cache
+	d.cacheLock.RLock()
 	for uuid, row := range d.cache["Port"] {
 		name := row.Fields["name"].(string)
 		if name == intfName {
@@ -360,6 +368,7 @@ func (d *OvsdbDriver) DeletePort(intfName string) error {
 			break
 		}
 	}
+	d.cacheLock.RUnlock()
 
 	// mutate the Ports column of the row in the Bridge table
 	mutateSet, _ := libovsdb.NewOvsSet(portUUID)
@@ -498,6 +507,10 @@ func (d *OvsdbDriver) RemoveController(target string) error {
 
 // IsControllerPresent : Check if Controller already exists
 func (d *OvsdbDriver) IsControllerPresent(target string) bool {
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	// walk the local cache
 	for tName, table := range d.cache {
 		if tName == "Controller" {
 			for _, row := range table {
@@ -519,6 +532,10 @@ func (d *OvsdbDriver) IsControllerPresent(target string) bool {
 
 // IsPortNamePresent checks if port already exists in OVS bridge
 func (d *OvsdbDriver) IsPortNamePresent(intfName string) bool {
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	// walk the local cache
 	for tName, table := range d.cache {
 		if tName == "Port" {
 			for _, row := range table {
@@ -572,6 +589,10 @@ func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
 
 // IsVtepPresent checks if VTEP already exists
 func (d *OvsdbDriver) IsVtepPresent(remoteIP string) (bool, string) {
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	// walk the local cache
 	for tName, table := range d.cache {
 		if tName == "Interface" {
 			for _, row := range table {

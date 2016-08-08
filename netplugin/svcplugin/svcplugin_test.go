@@ -1,10 +1,11 @@
 package svcplugin
 
 import (
-	"github.com/contiv/netplugin/svcplugin/bridge"
-	skydns "github.com/contiv/netplugin/svcplugin/skydns2extension"
 	"os"
 	"testing"
+
+	skydns "github.com/contiv/netplugin/netplugin/svcplugin/skydns2extension"
+	"github.com/contiv/netplugin/svcplugin/bridge"
 )
 
 func TestServicePluginInit(t *testing.T) {

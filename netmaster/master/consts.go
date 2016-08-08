@@ -16,24 +16,10 @@ limitations under the License.
 package master
 
 const (
-	//DesiredConfigRESTEndpoint is the REST endpoint to post desired configuration
-	DesiredConfigRESTEndpoint = "desired-config"
-	//AddConfigRESTEndpoint is the REST endpoint to post configuration additions
-	AddConfigRESTEndpoint = "add-config"
-	// DelConfigRESTEndpoint is the REST endpoint to post configuration deletions
-	DelConfigRESTEndpoint = "del-config"
-	//HostBindingConfigRESTEndpoint is the REST endpoint to post host binding configuration
-	HostBindingConfigRESTEndpoint = "host-bindings-config"
-	//GetEndpointRESTEndpoint is the REST endpoint to request info of an endpoint
-	GetEndpointRESTEndpoint = "endpoint"
-	//GetEndpointsRESTEndpoint is the REST endpoint to request info of all endpoints
-	GetEndpointsRESTEndpoint = "endpoints"
-	//GetNetworkRESTEndpoint is the REST endpoint to request info of a network
-	GetNetworkRESTEndpoint = "network"
-	//GetNetworksRESTEndpoint is the REST endpoint to request info of all networks
-	GetNetworksRESTEndpoint = "networks"
 	//GetVersionRESTEndpoint is the REST endpoint to get version info
 	GetVersionRESTEndpoint = "version"
+	// GetInfoRESTEndpoint is the REST endpoint to get netmaster info
+	GetInfoRESTEndpoint = "info"
 	//GetServiceRESTEndpoint is the REST endpoint to get service info of a service
 	GetServiceRESTEndpoint = "service"
 	//GetServicesRESTEndpoint is the REST endpoint to request info of all services
