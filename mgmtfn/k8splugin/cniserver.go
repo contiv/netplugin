@@ -32,6 +32,7 @@ import (
 // contivKubeCfgFile holds credentials to access k8s api server
 const (
 	contivKubeCfgFile = "/opt/contiv/config/contiv.json"
+	defSvcSubnet      = "10.254.0.0/16"
 )
 
 // ContivConfig holds information passed via config file during cluster set up
@@ -40,6 +41,7 @@ type ContivConfig struct {
 	K8sCa        string `json:"K8S_CA,omitempty"`
 	K8sKey       string `json:"K8S_KEY,omitempty"`
 	K8sCert      string `json:"K8S_CERT,omitempty"`
+	SvcSubnet    string `json:"SVC_SUBNET,omitempty"`
 }
 
 type restAPIFunc func(r *http.Request) (interface{}, error)
@@ -47,6 +49,7 @@ type restAPIFunc func(r *http.Request) (interface{}, error)
 var netPlugin *plugin.NetPlugin
 var kubeAPIClient *APIClient
 var pluginHost string
+var contivK8Config ContivConfig
 
 // getConfig reads and parses the contivKubeCfgFile
 func getConfig(cfgFile string, pCfg *ContivConfig) error {
@@ -55,6 +58,7 @@ func getConfig(cfgFile string, pCfg *ContivConfig) error {
 		return err
 	}
 
+	pCfg.SvcSubnet = defSvcSubnet
 	err = json.Unmarshal(bytes, pCfg)
 	if err != nil {
 		return fmt.Errorf("Error parsing config file: %s", err)
@@ -65,17 +69,15 @@ func getConfig(cfgFile string, pCfg *ContivConfig) error {
 
 // setUpAPIClient sets up an instance of the k8s api server
 func setUpAPIClient() *APIClient {
-	cCfg := ContivConfig{}
-
 	// Read config
-	err := getConfig(contivKubeCfgFile, &cCfg)
+	err := getConfig(contivKubeCfgFile, &contivK8Config)
 	if err != nil {
 		log.Errorf("Failed: %v", err)
 		return nil
 	}
 
-	return NewAPIClient(cCfg.K8sAPIServer, cCfg.K8sCa,
-		cCfg.K8sKey, cCfg.K8sCert)
+	return NewAPIClient(contivK8Config.K8sAPIServer, contivK8Config.K8sCa,
+		contivK8Config.K8sKey, contivK8Config.K8sCert)
 
 }
 

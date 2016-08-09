@@ -187,7 +187,7 @@ func (k *kubernetes) checkPing6(c *container, ipaddr string) error {
 
 func (k *kubernetes) getIPAddr(c *container, dev string) (string, error) {
 	////master.lock()
-	out, err := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl describe pod %s | grep IP", c.containerID))
+	out, err := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl exec %s ip addr show dev %s | grep inet | head -1", c.containerID, dev))
 	//master.unlock()
 	if err != nil {
 		logrus.Errorf("Failed to get IP for container %q", c.containerID)
@@ -620,4 +620,8 @@ func (k *kubernetes) reloadNode(n *node) error {
 
 	logrus.Infof("Reloaded node %s. Output:\n%s", n.Name(), string(out))
 	return nil
+}
+
+func (k *kubernetes) getMasterIP() (string, error) {
+	return k8master.getIPAddr("eth1")
 }
