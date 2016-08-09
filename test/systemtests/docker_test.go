@@ -71,7 +71,7 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 	}
 
 	if spec.commandName == "" {
-		spec.commandName = "sleep 60m"
+		spec.commandName = "sleep 600m"
 	}
 
 	if spec.name != "" {
