@@ -41,7 +41,7 @@ func (d *FakeNetEpDriver) DeleteEndpoint(id string) (err error) {
 }
 
 // CreateHostAccPort is not implemented.
-func (d *FakeNetEpDriver) CreateHostAccPort(id string) (err error) {
+func (d *FakeNetEpDriver) CreateHostAccPort(id, a, b string) (err error) {
 	return core.Errorf("Not implemented")
 }
 

@@ -781,6 +781,14 @@ func SetIPMasquerade(intf, netmask string) error {
 	if err != nil {
 		return err
 	}
+	_, err = osexec.Command(ipTablesPath, "-t", "nat", "-C", "POSTROUTING", "-s", netmask,
+		"!", "-o", intf, "-j", "MASQUERADE").CombinedOutput()
+
+	// If the rule already exists, just return
+	if err == nil {
+		return nil
+	}
+
 	out, err := osexec.Command(ipTablesPath, "-t", "nat", "-A", "POSTROUTING", "-s", netmask,
 		"!", "-o", intf, "-j", "MASQUERADE").CombinedOutput()
 	if err != nil {

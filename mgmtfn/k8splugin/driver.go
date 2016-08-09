@@ -400,11 +400,11 @@ func addPod(r *http.Request) (interface{}, error) {
 	gw := ep.Gateway
 	if gw == "" {
 		hostIf := netutils.GetHostIntfName(ep.PortName)
-		err = netPlugin.CreateHostAccPort(hostIf)
+		hostIP, _ := netutils.HostIfToIP(hostIf)
+		err = netPlugin.CreateHostAccPort(hostIf, ep.IPAddress, hostIP)
 		if err != nil {
 			log.Errorf("Error setting host access. Err: %v", err)
 		} else {
-			hostIP, _ := netutils.HostIfToIP(hostIf)
 			err = setIfAttrs(pid, hostIf, hostIP, "host1")
 			if err != nil {
 				log.Errorf("Move to pid %d failed", pid)
