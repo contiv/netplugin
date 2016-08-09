@@ -74,7 +74,7 @@ update:
 ifdef NET_CONTAINER_BUILD
 start:
 else
-start: update
+start: 
 	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 endif
 
