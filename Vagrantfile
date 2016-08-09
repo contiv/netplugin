@@ -289,6 +289,7 @@ SCRIPT
             # forward netmaster port
             if n == 0 then
                 node.vm.network "forwarded_port", guest: 9999, host: 9999
+                node.vm.network "forwarded_port", guest: 80, host: 9998
             end
         end
     end
