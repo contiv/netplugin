@@ -279,7 +279,7 @@ systemctl start etcd || exit 1
 systemctl start consul || exit 1
 
 # start swarm
-(nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} #{swarm_flag}> /tmp/start-swarm.log &) || exit 1
+(nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh start #{node_addr}> /tmp/start-swarm.log &) || exit 1
 
 SCRIPT
             node.vm.provision "shell" do |s|
