@@ -19,6 +19,7 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -149,6 +150,10 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 		return err
 	}
 
+	if epgCfg.EpCount != 0 {
+		return core.Errorf("Error: EPG %s has active endpoints", groupName)
+	}
+
 	// Delete the endpoint group state
 	gCfg := gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
@@ -181,5 +186,8 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 		return err
 	}
 
-	return docknet.DeleteDockNet(epgCfg.TenantName, epgCfg.NetworkName, epgCfg.GroupName)
+	if GetClusterMode() == "docker" {
+		return docknet.DeleteDockNet(epgCfg.TenantName, epgCfg.NetworkName, epgCfg.GroupName)
+	}
+	return nil
 }
