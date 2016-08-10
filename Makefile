@@ -148,6 +148,10 @@ l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make ssh-build
 	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 540m ./systemtests -check.v
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
+l3-demo:
+	CONTIV_L3=1 CONTIV_NODES=3 vagrant up
+	make ssh-build
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
 
 host-build:
 	@echo "dev: making binaries..."

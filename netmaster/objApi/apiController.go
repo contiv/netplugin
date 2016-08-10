@@ -31,13 +31,23 @@ import (
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb/modeldb"
 
+	"encoding/json"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
+	api "github.com/osrg/gobgp/api"
+	"io/ioutil"
+	"net/http"
 )
 
 // APIController stores the api controller state
 type APIController struct {
 	router *mux.Router
+}
+
+// BgpInspect is bgp inspect struct
+type BgpInspect struct {
+	Peer *api.Peer
+	Rib  *api.Table
 }
 
 var apiCtrler *APIController
@@ -1253,6 +1263,66 @@ func (ac *APIController) BgpUpdate(oldbgpCfg *contivModel.Bgp, NewbgpCfg *contiv
 	if err != nil {
 		log.Errorf("Error creating Bgp neighbor {%+v}. Err: %v", NewbgpCfg.Neighbor, err)
 		return err
+	}
+
+	return nil
+}
+
+//BgpGetOper inspects the oper state of bgp object
+func (ac *APIController) BgpGetOper(bgp *contivModel.BgpInspect) error {
+	log.Infof("apiController. Received BgpInspect: %+v", bgp)
+	var obj *BgpInspect
+	var host string
+
+	srvList, err := master.ObjdbClient.GetService("netplugin")
+	if err != nil {
+		log.Errorf("Error getting netplugin nodes. Err: %v", err)
+		return err
+	}
+
+	for _, srv := range srvList {
+		if srv.Hostname == bgp.Config.Hostname {
+			host = srv.HostAddr
+		}
+	}
+
+	url := "http://" + host + ":9090/inspect/bgp"
+	r, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer r.Body.Close()
+
+	switch {
+	case r.StatusCode == int(404):
+		return errors.New("Page not found!")
+	case r.StatusCode == int(403):
+		return errors.New("Access denied!")
+	case r.StatusCode == int(500):
+		response, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return err
+		}
+		return errors.New(string(response))
+	case r.StatusCode != int(200):
+		log.Debugf("GET Status '%s' status code %d \n", r.Status, r.StatusCode)
+		return errors.New(r.Status)
+	}
+
+	response, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(response, &obj); err != nil {
+		return err
+	}
+
+	bgp.Oper.NeighborStatus = obj.Peer.Info.BgpState
+	bgp.Oper.AdminStatus = obj.Peer.Info.AdminState
+	bgp.Oper.NumRoutes = len(obj.Rib.Destinations)
+	for _, v := range obj.Rib.Destinations {
+		bgp.Oper.Routes = append(bgp.Oper.Routes, v.Prefix)
 	}
 
 	return nil

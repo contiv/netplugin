@@ -53,8 +53,17 @@ type Bgp struct {
 
 }
 
+type BgpOper struct {
+	AdminStatus    string   `json:"adminStatus,omitempty"`    // admin status
+	NeighborStatus string   `json:"neighborStatus,omitempty"` // neighbor status
+	NumRoutes      int      `json:"numRoutes,omitempty"`      // number of routes
+	Routes         []string `json:"routes,omitempty"`
+}
+
 type BgpInspect struct {
 	Config Bgp
+
+	Oper BgpOper
 }
 
 type EndpointOper struct {
@@ -431,6 +440,8 @@ type AppProfileCallbacks interface {
 }
 
 type BgpCallbacks interface {
+	BgpGetOper(Bgp *BgpInspect) error
+
 	BgpCreate(Bgp *Bgp) error
 	BgpUpdate(Bgp, params *Bgp) error
 	BgpDelete(Bgp *Bgp) error
@@ -1122,8 +1133,31 @@ func httpInspectBgp(w http.ResponseWriter, r *http.Request, vars map[string]stri
 	}
 	obj.Config = *objConfig
 
+	if err := GetOperBgp(&obj); err != nil {
+		log.Errorf("GetBgp error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a BgpOper object
+func GetOperBgp(obj *BgpInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.BgpCb == nil {
+		log.Errorf("No callback registered for Bgp object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.BgpCb.BgpGetOper(obj)
+	if err != nil {
+		log.Errorf("BgpDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
 }
 
 // LIST REST call

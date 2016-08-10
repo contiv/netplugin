@@ -183,8 +183,17 @@ type Bgp struct {
 
 }
 
+type BgpOper struct {
+	AdminStatus    string   `json:"adminStatus,omitempty"`    // admin status
+	NeighborStatus string   `json:"neighborStatus,omitempty"` // neighbor status
+	NumRoutes      int      `json:"numRoutes,omitempty"`      // number of routes
+	Routes       []string `json:"routesIn,omitempty"`
+}
+
 type BgpInspect struct {
 	Config Bgp
+
+	Oper BgpOper
 }
 
 type EndpointOper struct {

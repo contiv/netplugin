@@ -129,6 +129,8 @@ type NetworkDriver interface {
 	GetEndpointStats() ([]byte, error)
 	// return current state in json form
 	InspectState() ([]byte, error)
+	// return bgp in json form
+	InspectBgp() ([]byte, error)
 }
 
 // WatchState is used to provide a difference between core.State structs by

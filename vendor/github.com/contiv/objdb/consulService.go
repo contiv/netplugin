@@ -35,6 +35,7 @@ type consulServiceState struct {
 	Port        int           // Port number where its listening
 	SessionID   string        // session id assigned by consul
 	stopChan    chan struct{} // Channel to stop ttl refresh
+	Hostname    string        // Host name where its running
 }
 
 // RegisterService registers a service
@@ -126,6 +127,7 @@ func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
 		Port:        serviceInfo.Port,
 		SessionID:   sessionID,
 		stopChan:    stopChan,
+		Hostname:    serviceInfo.Hostname,
 	}
 
 	return nil

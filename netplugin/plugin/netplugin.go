@@ -200,6 +200,11 @@ func (p *NetPlugin) InspectState() ([]byte, error) {
 	return p.NetworkDriver.InspectState()
 }
 
+// InspectBgp returns current state of the plugin
+func (p *NetPlugin) InspectBgp() ([]byte, error) {
+	return p.NetworkDriver.InspectBgp()
+}
+
 //GlobalFwdModeUpdate update the forwarding mode
 func (p *NetPlugin) GlobalFwdModeUpdate(cfg Config) {
 	var err error

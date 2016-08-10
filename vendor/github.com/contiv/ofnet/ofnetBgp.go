@@ -58,6 +58,11 @@ type OfnetBgp struct {
 	intfName    string //loopback intf to run bgp
 }
 
+type OfnetBgpInspect struct {
+	Peer *api.Peer
+	Rib  *api.Table
+}
+
 // Create a new vlrouter instance
 func NewOfnetBgp(agent *OfnetAgent, routerInfo []string) *OfnetBgp {
 	//Sanity checks
@@ -802,4 +807,33 @@ func (self *OfnetBgp) sendArpPacketOut() {
 
 	// Send it out
 	self.agent.ofSwitch.Send(pktOut)
+}
+
+func (self *OfnetBgp) InspectProto() (interface{}, error) {
+	OfnetBgpInspect := new(OfnetBgpInspect)
+	var err error
+
+	client := api.NewGobgpApiClient(self.cc)
+	if client == nil {
+		log.Errorf("Invalid Gobgpapi client")
+		return nil, errors.New("Error creating Gobgpapiclient")
+	}
+
+	// Get Bgp info
+	arg := &api.Arguments{Name: self.myBgpPeer}
+	OfnetBgpInspect.Peer, err = client.GetNeighbor(context.Background(), arg)
+	if err != nil {
+		log.Errorf("GetNeighbor failed: %v", err)
+		return nil, err
+	}
+
+	// Get rib info
+	table := &api.Table{Type: api.Resource_GLOBAL, Family: uint32(bgp.RF_IPv4_UC)}
+	OfnetBgpInspect.Rib, err = client.GetRib(context.Background(), table)
+	if err != nil {
+		log.Errorf("GetRib failed: %v", err)
+		return nil, err
+	}
+
+	return OfnetBgpInspect, nil
 }
