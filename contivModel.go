@@ -179,6 +179,7 @@ type Netprofile struct {
 
 	DSCP        int    `json:"DSCP,omitempty"`        // DSCP
 	Bandwidth   string `json:"bandwidth,omitempty"`   // Allocated bandwidth
+	Burst       int    `json:"burst,omitempty"`       // burst size
 	ProfileName string `json:"profileName,omitempty"` // Network profile name
 	TenantName  string `json:"tenantName,omitempty"`  // Tenant name
 
@@ -2618,6 +2619,10 @@ func ValidateNetprofile(obj *Netprofile) error {
 	bandwidthMatch := regexp.MustCompile("^([1-9][0-9]* (([kmgKMG{1}]bps)|[kmgKMG{1}]|(kb|Kb|Gb|gb|Mb|mb)))?$|^([1-9][0-9]*(((k|m|g|K|G|M)bps)|(k|m|g|K|M|G)|(kb|Kb|Gb|gb|Mb|mb)))?$")
 	if bandwidthMatch.MatchString(obj.Bandwidth) == false {
 		return errors.New("bandwidth string invalid format")
+	}
+
+	if obj.Burst > 10486 {
+		return errors.New("burst Value Out of bound")
 	}
 
 	if len(obj.ProfileName) > 64 {

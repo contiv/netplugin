@@ -306,6 +306,7 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"DSCP": obj.DSCP, 
 			"bandwidth": obj.bandwidth, 
+			"burst": obj.burst, 
 			"profileName": obj.profileName, 
 			"tenantName": obj.tenantName, 
 	    })

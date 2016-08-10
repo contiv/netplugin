@@ -305,6 +305,7 @@ type Netprofile struct {
 
 	DSCP        int    `json:"DSCP,omitempty"`        // DSCP
 	Bandwidth   string `json:"bandwidth,omitempty"`   // Allocated bandwidth
+	Burst       int    `json:"burst,omitempty"`       // burst size
 	ProfileName string `json:"profileName,omitempty"` // Network profile name
 	TenantName  string `json:"tenantName,omitempty"`  // Tenant name
 
