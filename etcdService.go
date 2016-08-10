@@ -35,6 +35,7 @@ type etcdServiceState struct {
 	TTL         time.Duration // TTL for the service
 	HostAddr    string        // Host name or IP address where its running
 	Port        int           // Port number where its listening
+	Hostname    string        // Host name where its running
 
 	// Channel to stop ttl refresh
 	stopChan chan bool
@@ -70,6 +71,7 @@ func (ep *EtcdClient) RegisterService(serviceInfo ServiceInfo) error {
 		HostAddr:    serviceInfo.HostAddr,
 		Port:        serviceInfo.Port,
 		stopChan:    make(chan bool, 1),
+		Hostname:    serviceInfo.Hostname,
 	}
 
 	// Run refresh in background

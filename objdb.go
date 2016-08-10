@@ -56,6 +56,7 @@ type ServiceInfo struct {
 	TTL         int    // TTL for this service
 	HostAddr    string // Host name or IP address where its running
 	Port        int    // Port number where its listening
+	Hostname    string // Host name where its running
 }
 
 // Watch events
