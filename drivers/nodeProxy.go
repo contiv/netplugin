@@ -75,6 +75,12 @@ func NewNodeProxy() (*NodeSvcProxy, error) {
 			return nil, err
 		}
 	}
+
+	// Flush any old rules we might have added. They will get re-added
+	// if the service is still active
+	osexec.Command(ipTablesPath, "-t", "nat", "-F",
+		contivNPChain).CombinedOutput()
+
 	proxy := NodeSvcProxy{}
 	proxy.SvcMap = make(map[string]core.ServiceSpec)
 	proxy.ProvMap = make(map[string]Presence)
