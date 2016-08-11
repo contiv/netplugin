@@ -12,14 +12,14 @@ import (
 )
 
 func (s *systemtestSuite) TestInfraNetworkAddDeleteVXLAN(c *C) {
-	if s.scheduler == "k8" {
+	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
 	s.testInfraNetworkAddDelete(c, "vxlan")
 }
 
 func (s *systemtestSuite) TestInfraNetworkAddDeleteVLAN(c *C) {
-	if s.scheduler == "k8" {
+	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
 	s.testInfraNetworkAddDelete(c, "vlan")
@@ -32,7 +32,7 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 		s.CheckBgpConnection(c)
 	}
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
 			netNames = []string{}
 		)
@@ -99,13 +99,13 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 		s.CheckBgpConnection(c)
 	}
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
 			netNames   = []string{}
 			containers = map[string][]*container{}
 		)
 
-		numContainer := s.containers
+		numContainer := s.basicInfo.Containers
 		if numContainer < 4 {
 			numContainer = 4
 		}
@@ -207,13 +207,13 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 		s.CheckBgpConnection(c)
 	}
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
 			netNames   = []string{}
 			containers = map[string][]*container{}
 		)
 
-		numContainer := s.containers
+		numContainer := s.basicInfo.Containers
 		if numContainer < 4 {
 			numContainer = 4
 		}
@@ -289,7 +289,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 		s.CheckBgpConnection(c)
 	}
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
 			tenantNames = map[string][]string{}
 			netNames    = []string{}
@@ -297,12 +297,12 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 			pktTag      = 0
 		)
 
-		numContainer := s.containers
+		numContainer := s.basicInfo.Containers
 		if numContainer < 4 {
 			numContainer = 4
 		}
 
-		for tenantNum := 0; tenantNum < (s.containers / 2); tenantNum++ {
+		for tenantNum := 0; tenantNum < (s.basicInfo.Containers / 2); tenantNum++ {
 			tenantName := fmt.Sprintf("tenant%d", tenantNum)
 			c.Assert(s.cli.TenantPost(&client.Tenant{TenantName: tenantName}), IsNil)
 			tenantNames[tenantName] = []string{}
@@ -374,7 +374,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 	fwdMode := s.fwdMode
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		s.testNetworkAddDeleteTenant(c, "vxlan", fwdMode)
 		if fwdMode == "routing" {
 			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
@@ -408,7 +408,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 		return
 	}
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		s.testNetworkAddDeleteTenant(c, "vlan", s.fwdMode)
 		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
 			Name:             "global",

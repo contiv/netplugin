@@ -1,42 +1,43 @@
 package systemtests
 
 import (
-	//"errors"
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
-	//	"github.com/contiv/vagrantssh"
 	. "gopkg.in/check.v1"
-	//	"os"
-	//	"strconv"
-	//	"strings"
 	"time"
 )
 
+/* TestACIMode does the following:
+1). Checks ping success between containers of same EPGs.
+2). Checks ping failure between containers from different EPGs.
+3). Checks this behavior once netplugin is restarted.
+*/
 func (s *systemtestSuite) TestACIMode(c *C) {
-	if s.fwdMode == "routing" || s.scheduler == "k8" {
+	if s.fwdMode == "routing" {
 		return
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
 		NetworkInfraType: "aci",
-		Vlans:            "1-4094",
-		Vxlans:           "1-10000",
+		Vlans:            s.globInfo.Vlan,
+		Vxlans:           s.globInfo.Vxlan,
 		FwdMode:          "bridge",
 	}), IsNil)
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		TenantName:  "default",
-		NetworkName: "aciNet",
-		Subnet:      "22.2.2.0/24",
-		Gateway:     "22.2.2.254",
-		Encap:       "vlan",
+		NetworkName: s.globInfo.Network,
+		Subnet:      s.globInfo.Subnet,
+		Gateway:     s.globInfo.Gateway,
+		Encap:       s.globInfo.Encap,
 	}), IsNil)
 
-	err := s.nodes[0].checkSchedulerNetworkCreated("aciNet", false)
+	err := s.nodes[0].checkSchedulerNetworkCreated(s.globInfo.Network, false)
 	c.Assert(err, IsNil)
 
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
 		TenantName:  "default",
-		NetworkName: "aciNet",
+		NetworkName: s.globInfo.Network,
 		GroupName:   "epga",
 	}), IsNil)
 
@@ -45,23 +46,23 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
 		TenantName:  "default",
-		NetworkName: "aciNet",
+		NetworkName: s.globInfo.Network,
 		GroupName:   "epgb",
 	}), IsNil)
 
 	err = s.nodes[0].checkSchedulerNetworkCreated("epgb", true)
 	c.Assert(err, IsNil)
 
-	containersA, err := s.runContainersOnNode(2, "aciNet", "", "epga", s.nodes[0])
+	containersA, err := s.runContainersOnNode(s.basicInfo.Containers, s.globInfo.Network, "", "epga", s.nodes[0])
 	c.Assert(err, IsNil)
-	containersB, err := s.runContainersOnNode(2, "aciNet", "", "epgb", s.nodes[0])
+	containersB, err := s.runContainersOnNode(s.basicInfo.Containers, s.globInfo.Network, "", "epgb", s.nodes[0])
 	c.Assert(err, IsNil)
 
-	// Verify cA1 can ping cA2
+	// Verify containers within epga can ping each other
 	c.Assert(s.pingTest(containersA), IsNil)
-	// Verify cB1 can ping cB2
+	// Verify containers within epgb can ping each other
 	c.Assert(s.pingTest(containersB), IsNil)
-	// Verify cA1 cannot ping cB1
+	// Verify containers from epga can't ping epgb containers
 	c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
 
 	log.Infof("Triggering netplugin restart")
@@ -72,312 +73,343 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	c.Assert(node1.runCommandUntilNoError("pgrep netplugin"), IsNil)
 	time.Sleep(20 * time.Second)
 
-	// Verify cA1 can ping cA2
 	c.Assert(s.pingTest(containersA), IsNil)
-	// Verify cB1 can ping cB2
 	c.Assert(s.pingTest(containersB), IsNil)
-	// Verify cA1 cannot ping cB1
 	c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
 
 	c.Assert(s.removeContainers(containersA), IsNil)
 	c.Assert(s.removeContainers(containersB), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete("default", "epga"), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete("default", "epgb"), IsNil)
-	c.Assert(s.cli.NetworkDelete("default", "aciNet"), IsNil)
+	c.Assert(s.cli.NetworkDelete("default", s.globInfo.Network), IsNil)
 }
 
-/*
+/* TesACIPingGateway checks ping success from containers running in a EPG to the default gateway */
 func (s *systemtestSuite) TestACIPingGateway(c *C) {
-	if s.fwdMode == "routing" {
+	if s.fwdMode == "routing" || s.basicInfo.Scheduler == "k8" {
 		return
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
 		NetworkInfraType: "aci",
-		Vlans:            "1100-1200",
-		Vxlans:           "1-10000",
 		FwdMode:          "bridge",
+		Vlans:            s.globInfo.Vlan,
+		Vxlans:           s.globInfo.Vxlan,
 	}), IsNil)
 	c.Assert(s.cli.TenantPost(&client.Tenant{
-		TenantName: "aciTenant",
-	}), IsNil)
-	c.Assert(s.cli.NetworkPost(&client.Network{
-		TenantName:  "aciTenant",
-		NetworkName: "aciNet",
-		Subnet:      "20.1.1.0/24",
-		Gateway:     "20.1.1.254",
-		Encap:       "vlan",
+		TenantName: s.globInfo.Tenant,
 	}), IsNil)
 
+	containersA := []*container{}
+
+	c.Assert(s.cli.NetworkPost(&client.Network{
+		TenantName:  s.globInfo.Tenant,
+		NetworkName: s.globInfo.Network,
+		Subnet:      s.globInfo.Subnet,
+		Gateway:     s.globInfo.Gateway,
+		Encap:       s.globInfo.Encap,
+	}), IsNil)
+
+	err := s.nodes[0].checkSchedulerNetworkCreated(s.globInfo.Network, false)
+	c.Assert(err, IsNil)
+
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
-		TenantName:  "aciTenant",
-		NetworkName: "aciNet",
+		TenantName:  s.globInfo.Tenant,
+		NetworkName: s.globInfo.Network,
 		GroupName:   "epga",
 	}), IsNil)
 
-	c.Assert(s.cli.AppProfilePost(&client.AppProfile{
-		TenantName:     "aciTenant",
-		EndpointGroups: []string{"epga"},
-		AppProfileName: "profile1",
-	}), IsNil)
-
-	containersA, err := s.runContainersOnNode(1, "aciNet", "aciTenant", "epga", s.nodes[0])
+	err = s.nodes[0].exec.checkSchedulerNetworkCreated("epga", true)
 	c.Assert(err, IsNil)
 
-	// Verify cA1 can ping default gateway
-	c.Assert(s.pingTestToNonContainer(containersA, []string{"20.1.1.254"}), IsNil)
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		c.Assert(s.cli.AppProfilePost(&client.AppProfile{
+			TenantName:     s.globInfo.Tenant,
+			EndpointGroups: []string{"epga"},
+			AppProfileName: "profile1",
+		}), IsNil)
+		time.Sleep(5 * time.Second)
+		containers, err := s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, []string{"epga"})
+		c.Assert(err, IsNil)
 
-	c.Assert(s.removeContainers(containersA), IsNil)
-	c.Assert(s.cli.AppProfileDelete("aciTenant", "profile1"), IsNil)
-	c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epga"), IsNil)
-	c.Assert(s.cli.NetworkDelete("aciTenant", "aciNet"), IsNil)
+		for key := range containers {
+			containersA = append(containersA, key)
+		}
+
+		// Verify containers in A can ping default gateway
+		c.Assert(s.pingTestByName(containersA, s.globInfo.Gateway), IsNil)
+
+		c.Assert(s.removeContainers(containersA), IsNil)
+		containersA = nil
+		c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1"), IsNil)
+		time.Sleep(time.Second * 5)
+	}
+	c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epga"), IsNil)
+	c.Assert(s.cli.NetworkDelete(s.globInfo.Tenant, s.globInfo.Network), IsNil)
 }
 
-
+/* TestACIProfile does the following:
+1). TestACIMode and TestACIPingGateway for containers in two EPGs.
+2). Checks policies and rules learned on the APIC controller.
+3). Checks policies behavior before and after deleting app-profiles.
+*/
 func (s *systemtestSuite) TestACIProfile(c *C) {
-	if s.fwdMode == "routing" {
+	if s.fwdMode == "routing"  {
 		return
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
 		NetworkInfraType: "aci",
-		Vlans:            "1120-1200",
-		Vxlans:           "1-10000",
 		FwdMode:          "bridge",
+		Vlans:            s.globInfo.Vlan,
+		Vxlans:           s.globInfo.Vxlan,
 	}), IsNil)
 	c.Assert(s.cli.TenantPost(&client.Tenant{
-		TenantName: "aciTenant",
+		TenantName: s.globInfo.Tenant,
 	}), IsNil)
 
-	for i := 0; i < 2; i++ {
-		log.Infof(">>ITERATION #%d<<", i)
+	containersA := []*container{}
+	containersB := []*container{}
+
+	containersA2 := []*container{}
+	containersB2 := []*container{}
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+
 		c.Assert(s.cli.NetworkPost(&client.Network{
-			TenantName:  "aciTenant",
-			NetworkName: "aciNet",
-			Subnet:      "20.1.1.0/24",
-			Gateway:     "20.1.1.254",
-			Encap:       "vlan",
+			TenantName:  s.globInfo.Tenant,
+			NetworkName: s.globInfo.Network,
+			Subnet:      s.globInfo.Subnet,
+			Gateway:     s.globInfo.Gateway,
+			Encap:       s.globInfo.Encap,
+		}), IsNil)
+
+		err := s.nodes[0].checkSchedulerNetworkCreated(s.globInfo.Network, false)
+		c.Assert(err, IsNil)
+
+		c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:  s.globInfo.Tenant,
+			NetworkName: s.globInfo.Network,
+			GroupName:   "epga",
 		}), IsNil)
 
 		c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
-			TenantName:  "aciTenant",
-			NetworkName: "aciNet",
-			GroupName:   "epgA",
-		}), IsNil)
-
-		c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
-			TenantName:  "aciTenant",
-			NetworkName: "aciNet",
-			GroupName:   "epgB",
+			TenantName:  s.globInfo.Tenant,
+			NetworkName: s.globInfo.Network,
+			GroupName:   "epgb",
 		}), IsNil)
 
 		c.Assert(s.cli.AppProfilePost(&client.AppProfile{
-			TenantName:     "aciTenant",
-			EndpointGroups: []string{"epgA", "epgB"},
+			TenantName:     s.globInfo.Tenant,
+			EndpointGroups: []string{"epga", "epgb"},
 			AppProfileName: "profile1",
 		}), IsNil)
 
 		time.Sleep(5 * time.Second)
-		cA1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA/aciTenant"})
+
+		groups := []string{"epga", "epgb"}
+		containers, err := s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, groups)
 		c.Assert(err, IsNil)
+		time.Sleep(time.Second * 20)
+		for key, value := range containers {
+			if value == "epga" {
+				containersA = append(containersA, key)
+			} else {
+				containersB = append(containersB, key)
+			}
+		}
 
-		// Verify cA1 can ping default gateway
-		c.Assert(cA1.checkPingWithCount("20.1.1.254", 5), IsNil)
-
-		cB1, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB/aciTenant"})
-		c.Assert(err, IsNil)
-
-		// Verify cA1 cannot ping cB1
-		c.Assert(cA1.checkPingFailureWithCount(cB1.eth0.ip, 5), IsNil)
-		// Verify cB1 can ping default gateway
-		c.Assert(cB1.checkPingWithCount("20.1.1.254", 5), IsNil)
+		// Verify containers in epga can ping default gateway
+		c.Assert(s.pingTestByName(containersA, s.globInfo.Gateway), IsNil)
+		// Verify containers in epga cannot ping containers in epgb
+		c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
+		// Verify containers in epgb can ping default gateway
+		c.Assert(s.pingTestByName(containersB, s.globInfo.Gateway), IsNil)
 
 		// Create a policy that allows ICMP and apply between A and B
 		c.Assert(s.cli.PolicyPost(&client.Policy{
 			PolicyName: "policyAB",
-			TenantName: "aciTenant",
+			TenantName: s.globInfo.Tenant,
 		}), IsNil)
 
 		c.Assert(s.cli.RulePost(&client.Rule{
 			RuleID:            "1",
 			PolicyName:        "policyAB",
-			TenantName:        "aciTenant",
-			FromEndpointGroup: "epgA",
+			TenantName:        s.globInfo.Tenant,
+			FromEndpointGroup: "epga",
 			Direction:         "in",
 			Protocol:          "icmp",
 			Action:            "allow",
 		}), IsNil)
 
 		c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
-			TenantName:  "aciTenant",
-			NetworkName: "aciNet",
+			TenantName:  s.globInfo.Tenant,
+			NetworkName: s.globInfo.Network,
 			Policies:    []string{"policyAB"},
-			GroupName:   "epgB",
+			GroupName:   "epgb",
 		}), IsNil)
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 10)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgA",
-			cA1), IsNil)
+			"epga",
+			containersA), IsNil)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgB",
-			cB1), IsNil)
+			"epgb",
+			containersB), IsNil)
 
-		// Verify cA1 can ping cB1
-		cA1.checkPingWithCount(cB1.eth0.ip, 5)
-		cA1.checkPingWithCount(cB1.eth0.ip, 5)
-		cA1.checkPingWithCount(cB1.eth0.ip, 5)
-		c.Assert(cA1.checkPingWithCount(cB1.eth0.ip, 5), IsNil)
+		// Verify containers in epga can ping containers in epgb
+		for _, cB := range containersB {
+			c.Assert(s.pingTestByName(containersA, cB.eth0.ip), IsNil)
+		}
 
 		// Verify TCP is not allowed.
-		containers := []*container{cA1, cB1}
-		from := []*container{cA1}
-		to := []*container{cB1}
 
-		c.Assert(s.startListeners(containers, []int{8000, 8001}), IsNil)
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
+		c.Assert(s.startListeners(containersA, []int{8000, 8001}), IsNil)
+		c.Assert(s.startListeners(containersB, []int{8000, 8001}), IsNil)
+		c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
+		c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
 
-		// Add a rule to allow 8000
 		c.Assert(s.cli.RulePost(&client.Rule{
 			RuleID:            "2",
 			PolicyName:        "policyAB",
-			TenantName:        "aciTenant",
-			FromEndpointGroup: "epgA",
+			TenantName:        s.globInfo.Tenant,
+			FromEndpointGroup: "epga",
 			Direction:         "in",
 			Protocol:          "tcp",
 			Port:              8000,
 			Action:            "allow",
 		}), IsNil)
-		time.Sleep(time.Second * 5)
-		c.Assert(checkACILearning("aciTenant",
-			"profile1",
-			"epgA",
-			cA1), IsNil)
+		time.Sleep(time.Second * 10)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgB",
-			cB1), IsNil)
+			"epga",
+			containersA), IsNil)
 
-		c.Assert(s.checkConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA1.checkPingWithCount(cB1.eth0.ip, 5), IsNil)
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile1",
+			"epgb",
+			containersB), IsNil)
+
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
+		c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
+		for _, cB := range containersB {
+			c.Assert(s.pingTestByName(containersA, cB.eth0.ip), IsNil)
+		}
 
 		// Add a rule to allow 8001
 		c.Assert(s.cli.RulePost(&client.Rule{
 			RuleID:            "3",
 			PolicyName:        "policyAB",
-			TenantName:        "aciTenant",
-			FromEndpointGroup: "epgA",
+			TenantName:        s.globInfo.Tenant,
+			FromEndpointGroup: "epga",
 			Direction:         "in",
 			Protocol:          "tcp",
 			Port:              8001,
 			Action:            "allow",
 		}), IsNil)
-		//cA1.checkPing("20.1.1.254")
-		//cB1.checkPing("20.1.1.254")
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 10)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgA",
-			cA1), IsNil)
+			"epga",
+			containersA), IsNil)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgB",
-			cB1), IsNil)
+			"epgb",
+			containersB), IsNil)
 
-		c.Assert(s.checkConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA1.checkPingWithCount(cB1.eth0.ip, 5), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
+		for _, cB := range containersB {
+			c.Assert(s.pingTestByName(containersA, cB.eth0.ip), IsNil)
+		}
 
 		// Delete ICMP rule
-		c.Assert(s.cli.RuleDelete("aciTenant", "policyAB", "1"), IsNil)
-		time.Sleep(time.Second * 5)
+		c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "1"), IsNil)
+		time.Sleep(time.Second * 10)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgA",
-			cA1), IsNil)
+			"epga",
+			containersA), IsNil)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgB",
-			cB1), IsNil)
+			"epgb",
+			containersB), IsNil)
 
-		c.Assert(cA1.checkPingFailureWithCount(cB1.eth0.ip, 5), IsNil)
-		c.Assert(s.checkConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-
+		c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
 		// Delete TCP 8000 rule
-		c.Assert(s.cli.RuleDelete("aciTenant", "policyAB", "2"), IsNil)
-		time.Sleep(time.Second * 5)
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "2"), IsNil)
+		time.Sleep(time.Second * 10)
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgA",
-			cA1), IsNil)
+			"epga",
+			containersA), IsNil)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile1",
-			"epgB",
-			cB1), IsNil)
-
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA1.checkPingFailureWithCount(cB1.eth0.ip, 5), IsNil)
+			"epgb",
+			containersB), IsNil)
+		c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
+		c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
 
 		// Delete the app profile
-		c.Assert(s.cli.AppProfileDelete("aciTenant", "profile1"), IsNil)
+		c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1"), IsNil)
 		time.Sleep(time.Second * 5)
-		//cA1.checkPingWithCount("20.1.1.254", 5)
-		//cB1.checkPingWithCount("20.1.1.254", 5)
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA1.checkPingFailureWithCount(cB1.eth0.ip, 5), IsNil)
+
+		c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
+		c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
+		c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
 
 		// Create the app profile with a different name
 		c.Assert(s.cli.AppProfilePost(&client.AppProfile{
-			TenantName:     "aciTenant",
-			EndpointGroups: []string{"epgA", "epgB"},
+			TenantName:     s.globInfo.Tenant,
+			EndpointGroups: []string{"epga", "epgb"},
 			AppProfileName: "profile2",
 		}), IsNil)
-		time.Sleep(time.Second * 5)
-		c.Assert(checkACILearning("aciTenant",
-			"profile2",
-			"epgA",
-			cA1), IsNil)
-
-		c.Assert(checkACILearning("aciTenant",
-			"profile2",
-			"epgB",
-			cB1), IsNil)
-
-		//cA1.checkPingWithCount("20.1.1.254", 5)
-		//cB1.checkPingWithCount("20.1.1.254", 5)
-		cA2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgA/aciTenant"})
-		c.Assert(err, IsNil)
-		cB2, err := s.nodes[0].runContainer(containerSpec{networkName: "epgB/aciTenant"})
-		c.Assert(err, IsNil)
 		time.Sleep(time.Second * 10)
-		from = []*container{cA2}
-		to = []*container{cB2}
-		c.Assert(s.startListeners([]*container{cA2, cB2}, []int{8000, 8001}), IsNil)
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile2",
+			"epga",
+			containersA), IsNil)
 
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA2.checkPingFailureWithCount(cB2.eth0.ip, 5), IsNil)
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile2",
+			"epgb",
+			containersB), IsNil)
+		c.Assert(s.removeContainers(append(containersA, containersB...)), IsNil)
+		containersA = nil
+		containersB = nil
+		containers, err = s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, groups)
+		c.Assert(err, IsNil)
+		time.Sleep(time.Second * 20)
+		for key, value := range containers {
+			if value == "epga" {
+				containersA2 = append(containersA2, key)
+			} else {
+				containersB2 = append(containersB2, key)
+			}
+		}
+		c.Assert(s.startListeners(containersA2, []int{8000, 8001}), IsNil)
+		c.Assert(s.startListeners(containersB2, []int{8000, 8001}), IsNil)
+		c.Assert(s.checkNoConnectionPairRetry(containersA2, containersB2, 8000, 1, 3), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA2, containersB2, 8001, 1, 3), IsNil)
+		c.Assert(s.pingFailureTest(containersA2, containersB2), IsNil)
 
 		// Add TCP 8000 rule.
 		c.Assert(s.cli.RulePost(&client.Rule{
 			RuleID:            "2",
 			PolicyName:        "policyAB",
-			TenantName:        "aciTenant",
-			FromEndpointGroup: "epgA",
+			TenantName:        s.globInfo.Tenant,
+			FromEndpointGroup: "epga",
 			Direction:         "in",
 			Protocol:          "tcp",
 			Port:              8000,
@@ -385,90 +417,235 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		}), IsNil)
 		err = errors.New("Forced")
 		//c.Assert(err, IsNil)
-		time.Sleep(time.Second * 5)
-		c.Assert(checkACILearning("aciTenant",
+		time.Sleep(time.Second * 10)
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile2",
-			"epgA",
-			cA2), IsNil)
+			"epga",
+			containersA2), IsNil)
 
-		c.Assert(checkACILearning("aciTenant",
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
 			"profile2",
-			"epgB",
-			cB2), IsNil)
+			"epgb",
+			containersB2), IsNil)
 
-		c.Assert(s.checkConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA2.node.exec.checkPingFailureWithCount(cA2, cB2.eth0.ip, 5), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA2, containersB2, 8000, 1, 3), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA2, containersB2, 8001, 1, 3), IsNil)
+		c.Assert(s.pingFailureTest(containersA2, containersB2), IsNil)
 
 		// Delete the app profile
-		c.Assert(s.cli.AppProfileDelete("aciTenant", "profile2"), IsNil)
+		c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile2"), IsNil)
 		time.Sleep(time.Second * 5)
+		c.Assert(s.checkNoConnectionPairRetry(containersA2, containersB2, 8000, 1, 3), IsNil)
+		c.Assert(s.checkNoConnectionPairRetry(containersA2, containersB2, 8001, 1, 3), IsNil)
+		c.Assert(s.pingFailureTest(containersA2, containersB2), IsNil)
 
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8000, 1, 3), IsNil)
-		c.Assert(s.checkNoConnectionPairRetry(from, to, 8001, 1, 3), IsNil)
-		c.Assert(cA2.node.exec.checkPingFailureWithCount(cA2, cB2.eth0.ip, 5), IsNil)
+		c.Assert(s.removeContainers(append(containersA2, containersB2...)), IsNil)
+		containersA2 = nil
+		containersB2 = nil
+		c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epga"), IsNil)
+		c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epgb"), IsNil)
+		c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "2"), IsNil)
+		c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "3"), IsNil)
 
-		c.Assert(s.removeContainers([]*container{cA1, cB1, cA2, cB2}), IsNil)
-		c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epgA"), IsNil)
-		c.Assert(s.cli.EndpointGroupDelete("aciTenant", "epgB"), IsNil)
-		c.Assert(s.cli.RuleDelete("aciTenant", "policyAB", "2"), IsNil)
-		c.Assert(s.cli.RuleDelete("aciTenant", "policyAB", "3"), IsNil)
-		c.Assert(s.cli.PolicyDelete("aciTenant", "policyAB"), IsNil)
-		c.Assert(s.cli.NetworkDelete("aciTenant", "aciNet"), IsNil)
+		c.Assert(s.cli.PolicyDelete(s.globInfo.Tenant, "policyAB"), IsNil)
+		c.Assert(s.cli.NetworkDelete(s.globInfo.Tenant, s.globInfo.Network), IsNil)
 	}
 }
 
-func (s *systemtestSuite) AciTestSetup(c *C) {
-
-	log.Infof("ACI_SYS_TEST_MODE is ON")
-	log.Infof("Private keyFile = %s", s.keyFile)
-	log.Infof("Binary binpath = %s", s.binpath)
-	log.Infof("Interface vlanIf = %s", s.vlanIf)
-
-	s.baremetal = vagrantssh.Baremetal{}
-	bm := &s.baremetal
-
-	// To fill the hostInfo data structure for Baremetal VMs
-	name := "aci-swarm-node"
-	hostIPs := strings.Split(os.Getenv("HOST_IPS"), ",")
-	hostNames := strings.Split(os.Getenv("HOST_USER_NAMES"), ",")
-	hosts := make([]vagrantssh.HostInfo, 2)
-
-	for i := range hostIPs {
-		hosts[i].Name = name + strconv.Itoa(i+1)
-		log.Infof("Name=%s", hosts[i].Name)
-
-		hosts[i].SSHAddr = hostIPs[i]
-		log.Infof("SHAddr=%s", hosts[i].SSHAddr)
-
-		hosts[i].SSHPort = "22"
-
-		hosts[i].User = hostNames[i]
-		log.Infof("User=%s", hosts[i].User)
-
-		hosts[i].PrivKeyFile = s.keyFile
-		log.Infof("PrivKeyFile=%s", hosts[i].PrivKeyFile)
+func (s *systemtestSuite) TestACIGWRestart(c *C) {
+	if s.fwdMode == "routing" {
+		return
 	}
 
-	c.Assert(bm.Setup(hosts), IsNil)
+	c.Assert(s.cli.GlobalPost(&client.Global{
+		Name:             "global",
+		NetworkInfraType: "aci",
+		Vlans:            s.globInfo.Vlan,
+		Vxlans:           s.globInfo.Vxlan,
+	}), IsNil)
 
-	s.nodes = []*node{}
+	c.Assert(s.cli.TenantPost(&client.Tenant{
+		TenantName: s.globInfo.Tenant,
+	}), IsNil)
 
-	for _, nodeObj := range s.baremetal.GetNodes() {
-		s.nodes = append(s.nodes, &node{tbnode: nodeObj, suite: s})
+	containersA := []*container{}
+	containersB := []*container{}
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+
+		c.Assert(s.cli.NetworkPost(&client.Network{
+			TenantName:  s.globInfo.Tenant,
+			NetworkName: s.globInfo.Network,
+			Subnet:      s.globInfo.Subnet,
+			Gateway:     s.globInfo.Gateway,
+			Encap:       s.globInfo.Encap,
+		}), IsNil)
+
+		err := s.nodes[0].checkSchedulerNetworkCreated(s.globInfo.Network, false)
+		c.Assert(err, IsNil)
+
+		c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:  s.globInfo.Tenant,
+			NetworkName: s.globInfo.Network,
+			GroupName:   "epga",
+		}), IsNil)
+
+		c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:  s.globInfo.Tenant,
+			NetworkName: s.globInfo.Network,
+			GroupName:   "epgb",
+		}), IsNil)
+
+		c.Assert(s.cli.AppProfilePost(&client.AppProfile{
+			TenantName:     s.globInfo.Tenant,
+			EndpointGroups: []string{"epga", "epgb"},
+			AppProfileName: "profile1",
+		}), IsNil)
+
+		time.Sleep(5 * time.Second)
+
+		groups := []string{"epga", "epgb"}
+		containers, err := s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, groups)
+		c.Assert(err, IsNil)
+		time.Sleep(time.Second * 20)
+		for key, value := range containers {
+			if value == "epga" {
+				containersA = append(containersA, key)
+			} else {
+				containersB = append(containersB, key)
+			}
+		}
+
+		// Verify containers in epga can ping default gateway
+		c.Assert(s.pingTestByName(containersA, s.globInfo.Gateway), IsNil)
+		// Verify containers in epga cannot ping containers in epgb
+		c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
+		// Verify containers in epgb can ping default gateway
+		c.Assert(s.pingTestByName(containersB, s.globInfo.Gateway), IsNil)
+		// Verify containers within epga can ping each other
+		c.Assert(s.pingTest(containersA), IsNil)
+		// Verify containers within epgb can ping each other
+		c.Assert(s.pingTest(containersB), IsNil)
+
+		c.Assert(s.cli.PolicyPost(&client.Policy{
+			PolicyName: "policyAB",
+			TenantName: s.globInfo.Tenant,
+		}), IsNil)
+
+		c.Assert(s.cli.RulePost(&client.Rule{
+			RuleID:            "1",
+			PolicyName:        "policyAB",
+			TenantName:        s.globInfo.Tenant,
+			FromEndpointGroup: "epga",
+			Direction:         "in",
+			Protocol:          "icmp",
+			Action:            "allow",
+		}), IsNil)
+		c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:  s.globInfo.Tenant,
+			NetworkName: s.globInfo.Network,
+			Policies:    []string{"policyAB"},
+			GroupName:   "epgb",
+		}), IsNil)
+		time.Sleep(time.Second * 10)
+
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile1",
+			"epga",
+			containersA), IsNil)
+
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile1",
+			"epgb",
+			containersB), IsNil)
+
+		// Verify containers in epga can ping containers in epgb
+		for _, cB := range containersB {
+			c.Assert(s.pingTestByName(containersA, cB.eth0.ip), IsNil)
+		}
+		c.Assert(s.cli.RulePost(&client.Rule{
+			RuleID:            "2",
+			PolicyName:        "policyAB",
+			TenantName:        s.globInfo.Tenant,
+			FromEndpointGroup: "epga",
+			Direction:         "in",
+			Protocol:          "tcp",
+			Port:              8000,
+			Action:            "allow",
+		}), IsNil)
+		time.Sleep(time.Second * 10)
+
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile1",
+			"epga",
+			containersA), IsNil)
+
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile1",
+			"epgb",
+			containersB), IsNil)
+
+		c.Assert(s.startListeners(containersA, []int{8000, 8001}), IsNil)
+		c.Assert(s.startListeners(containersB, []int{8000, 8001}), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
+		c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
+		for _, cB := range containersB {
+			c.Assert(s.pingTestByName(containersA, cB.eth0.ip), IsNil)
+		}
+
+		log.Infof("Restarting ACI gateway on all nodes")
+		for iNode := range s.nodes {
+			s.nodes[iNode].tbnode.RunCommand("sudo service aci-gw restart")
+		}
+		time.Sleep(10 * time.Millisecond)
+
+		//Verifying the behavior didn't change after restarting the gateway
+		for _, cB := range containersB {
+			c.Assert(s.pingTestByName(containersA, cB.eth0.ip), IsNil)
+		}
+		c.Assert(s.pingTestByName(containersA, s.globInfo.Gateway), IsNil)
+		c.Assert(s.pingTestByName(containersB, s.globInfo.Gateway), IsNil)
+		c.Assert(s.pingTest(containersA), IsNil)
+		c.Assert(s.pingTest(containersB), IsNil)
+
+		// Add a rule to allow 8001
+		c.Assert(s.cli.RulePost(&client.Rule{
+			RuleID:            "3",
+			PolicyName:        "policyAB",
+			TenantName:        s.globInfo.Tenant,
+			FromEndpointGroup: "epga",
+			Direction:         "in",
+			Protocol:          "tcp",
+			Port:              8001,
+			Action:            "allow",
+		}), IsNil)
+		time.Sleep(time.Second * 10)
+
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile1",
+			"epga",
+			containersA), IsNil)
+
+		c.Assert(s.checkACILearning(s.globInfo.Tenant,
+			"profile1",
+			"epgb",
+			containersB), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
+		c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
+
+		// Delete the app profile
+		c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1"), IsNil)
+		time.Sleep(time.Second * 5)
+
+		c.Assert(s.removeContainers(append(containersA, containersB...)), IsNil)
+		containersA = nil
+		containersB = nil
+		c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epga"), IsNil)
+		c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epgb"), IsNil)
+		c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "2"), IsNil)
+		c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "3"), IsNil)
+
+		c.Assert(s.cli.PolicyDelete(s.globInfo.Tenant, "policyAB"), IsNil)
+		c.Assert(s.cli.NetworkDelete(s.globInfo.Tenant, s.globInfo.Network), IsNil)
 	}
-
-	log.Info("Pulling contiv/alpine on all nodes")
-
-	s.baremetal.IterateNodes(func(node vagrantssh.TestbedNode) error {
-		node.RunCommand("sudo rm /tmp/*net*")
-		return node.RunCommand("docker pull contiv/alpine")
-	})
-
-	//Copying binaries
-	s.copyBinary("netmaster")
-	s.copyBinary("netplugin")
-	s.copyBinary("netctl")
-	s.copyBinary("contivk8s")
-
-}*/
+}

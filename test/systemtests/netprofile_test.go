@@ -44,8 +44,8 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 
 	groups := []*client.EndpointGroup{}
 	groupNames := []string{}
-	for x := 0; x < s.containers; x++ {
-		nodeNum := s.containers % len(s.nodes)
+	for x := 0; x < s.basicInfo.Containers; x++ {
+		nodeNum := s.basicInfo.Containers % len(s.nodes)
 		epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 		group := &client.EndpointGroup{
 			GroupName:   epgName,
@@ -58,7 +58,7 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 		groupNames = append(groupNames, epgName)
 	}
 
-	containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
+	containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		_, err = s.CheckBgpRouteDistribution(c, containers)
@@ -80,8 +80,8 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 
 	groups = []*client.EndpointGroup{}
 	groupNames = []string{}
-	for x := 0; x < s.containers; x++ {
-		nodeNum := s.containers % len(s.nodes)
+	for x := 0; x < s.basicInfo.Containers; x++ {
+		nodeNum := s.basicInfo.Containers % len(s.nodes)
 		epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 		group := &client.EndpointGroup{
 			GroupName:   epgName,
@@ -109,8 +109,8 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 
 	groups = []*client.EndpointGroup{}
 	groupNames = []string{}
-	for x := 0; x < s.containers; x++ {
-		nodeNum := s.containers % len(s.nodes)
+	for x := 0; x < s.basicInfo.Containers; x++ {
+		nodeNum := s.basicInfo.Containers % len(s.nodes)
 		epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 		group := &client.EndpointGroup{
 			GroupName:   epgName,
@@ -169,7 +169,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		netProfile1 := &client.Netprofile{
 			ProfileName: "Netprofile1",
 			DSCP:        10,
@@ -182,8 +182,8 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 
 		groups := []*client.EndpointGroup{}
 		groupNames := []string{}
-		for x := 0; x < s.containers; x++ {
-			nodeNum := s.containers % len(s.nodes)
+		for x := 0; x < s.basicInfo.Containers; x++ {
+			nodeNum := s.basicInfo.Containers % len(s.nodes)
 			epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 			group := &client.EndpointGroup{
 				GroupName:   epgName,
@@ -197,7 +197,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 			groupNames = append(groupNames, epgName)
 		}
 
-		containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
+		containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
 			_, err = s.CheckBgpRouteDistribution(c, containers)
@@ -222,8 +222,8 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 
 		groups = []*client.EndpointGroup{}
 		groupNames = []string{}
-		for x := 0; x < s.containers; x++ {
-			nodeNum := s.containers % len(s.nodes)
+		for x := 0; x < s.basicInfo.Containers; x++ {
+			nodeNum := s.basicInfo.Containers % len(s.nodes)
 			epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 			group := &client.EndpointGroup{
 				GroupName:   epgName,
@@ -252,8 +252,8 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 
 		groups = []*client.EndpointGroup{}
 		groupNames = []string{}
-		for x := 0; x < s.containers; x++ {
-			nodeNum := s.containers % len(s.nodes)
+		for x := 0; x < s.basicInfo.Containers; x++ {
+			nodeNum := s.basicInfo.Containers % len(s.nodes)
 			epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 			group := &client.EndpointGroup{
 				GroupName:   epgName,
@@ -307,7 +307,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 		s.CheckBgpConnection(c)
 	}
 
-	for i := 0; i < s.iterations-2; i++ {
+	for i := 0; i < s.basicInfo.Iterations-2; i++ {
 
 		var (
 			groupNames = make(map[string][]string)
@@ -319,9 +319,9 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 			pktTag     = 0
 			epgName    string
 		)
-		numContainer := s.containers
+		numContainer := s.basicInfo.Containers
 
-		for tenantNum := 0; tenantNum < (s.containers); tenantNum++ {
+		for tenantNum := 0; tenantNum < (s.basicInfo.Containers); tenantNum++ {
 
 			tenantName := fmt.Sprintf("tenant%d", tenantNum)
 			logrus.Infof("Creating %s", tenantName)
@@ -387,7 +387,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 						_, err := s.CheckBgpRouteDistribution(c, containers[groupName])
 						c.Assert(err, IsNil)
 					}
-			
+
 				}(groupName, tenant, containers)
 			}
 			for i := 0; i < len(groups); i++ {
@@ -471,8 +471,8 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 
 	groups := []*client.EndpointGroup{}
 	groupNames := []string{}
-	for x := 0; x < s.containers; x++ {
-		nodeNum := s.containers % len(s.nodes)
+	for x := 0; x < s.basicInfo.Containers; x++ {
+		nodeNum := s.basicInfo.Containers % len(s.nodes)
 		epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 		group := &client.EndpointGroup{
 			GroupName:   epgName,
@@ -485,7 +485,7 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 		groupNames = append(groupNames, epgName)
 	}
 
-	containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
+	containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		_, err = s.CheckBgpRouteDistribution(c, containers)
@@ -497,8 +497,8 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 
 	groups = []*client.EndpointGroup{}
 	groupNames = []string{}
-	for x := 0; x < s.containers; x++ {
-		nodeNum := s.containers % len(s.nodes)
+	for x := 0; x < s.basicInfo.Containers; x++ {
+		nodeNum := s.basicInfo.Containers % len(s.nodes)
 		epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 		group := &client.EndpointGroup{
 			GroupName:   epgName,
@@ -554,7 +554,7 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 //the netmaster is back up and running.
 func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 
-	if s.scheduler == "k8" {
+	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
 
@@ -568,7 +568,7 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 	}
 
 	c.Assert(s.cli.NetworkPost(network), IsNil)
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 
 		netProfile := &client.Netprofile{
 			ProfileName: "Netprofile",
@@ -581,8 +581,8 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 
 		groups := []*client.EndpointGroup{}
 		groupNames := []string{}
-		for x := 0; x < s.containers; x++ {
-			nodeNum := s.containers % len(s.nodes)
+		for x := 0; x < s.basicInfo.Containers; x++ {
+			nodeNum := s.basicInfo.Containers % len(s.nodes)
 			epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 			group := &client.EndpointGroup{
 				GroupName:   epgName,
@@ -596,7 +596,7 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 			groupNames = append(groupNames, epgName)
 		}
 
-		containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
+		containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
 
 		c.Assert(s.startIperfServers(containers), IsNil)
@@ -718,8 +718,8 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 
 	groups := []*client.EndpointGroup{}
 	groupNames := []string{}
-	for x := 0; x < s.containers; x++ {
-		nodeNum := s.containers % len(s.nodes)
+	for x := 0; x < s.basicInfo.Containers; x++ {
+		nodeNum := s.basicInfo.Containers % len(s.nodes)
 		epgName := fmt.Sprintf("%s-srv%d-%d", network.NetworkName, nodeNum, x)
 		group := &client.EndpointGroup{
 			GroupName:   epgName,
@@ -735,8 +735,8 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 
 	groupsNew := []*client.EndpointGroup{}
 	NewGroupNames := []string{}
-	for x := 0; x < s.containers; x++ {
-		nodeNum := s.containers % len(s.nodes)
+	for x := 0; x < s.basicInfo.Containers; x++ {
+		nodeNum := s.basicInfo.Containers % len(s.nodes)
 		epgName := fmt.Sprintf("%d-srv%d-%s", nodeNum, x, network.NetworkName)
 		group := &client.EndpointGroup{
 			GroupName:   epgName,
@@ -750,14 +750,14 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 		NewGroupNames = append(NewGroupNames, epgName)
 	}
 
-	containersNew, err := s.runContainers(s.containers, true, "private", "", NewGroupNames, nil)
+	containersNew, err := s.runContainers(s.basicInfo.Containers, true, "private", "", NewGroupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		_, err = s.CheckBgpRouteDistribution(c, containersNew)
 		c.Assert(err, IsNil)
 	}
 
-	containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
+	containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		_, err = s.CheckBgpRouteDistribution(c, containers)
