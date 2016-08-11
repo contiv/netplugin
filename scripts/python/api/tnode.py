@@ -99,17 +99,17 @@ class Node:
 
     # Remove all containers on this node
     def cleanupContainers(self):
-        self.runCmd("docker rm -f `docker ps -aq`")
+        self.runCmd("docker kill -s 9 $(docker ps -a | grep alpine | awk '{print $1}' )")
+        self.runCmd("docker rm -f $(docker ps -a | grep alpine | awk '{print $1}')")
 
     # Cleanup all state created by netplugin
     def cleanupSlave(self):
-        self.runCmd("docker rm -f `docker ps -aq`")
+        self.runCmd("docker rm -f $(docker ps -a | grep alpine | awk '{print $1}')")
         self.runCmd("sudo ovs-vsctl del-br contivVxlanBridge")
         self.runCmd("sudo ovs-vsctl del-br contivVlanBridge")
         self.runCmd("for p in `/usr/sbin/ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
         self.runCmd("sudo rm /var/run/docker/plugins/netplugin.sock")
         self.runCmd("sudo rm /tmp/net*")
-        self.runCmd("sudo service docker restart")
 
     # Cleanup all state created by netmaster
     def cleanupMaster(self):
