@@ -402,7 +402,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 
-        c.Skip("Skipping this tests temporarily")
+	c.Skip("Skipping this tests temporarily")
 
 	if s.fwdMode != "routing" {
 		return
