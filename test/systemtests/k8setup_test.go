@@ -210,6 +210,25 @@ func (k *kubernetes) getIPv6Addr(c *container, dev string) (string, error) {
 	return "", nil
 }
 
+func (k *kubernetes) getMACAddr(c *container, dev string) (string, error) {
+	////master.lock()
+	out, err := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl exec %s -- ip addr show dev %s | grep ether | head -1", c.containerID, dev))
+	//master.unlock()
+	if err != nil {
+		logrus.Errorf("Failed to get IP for container %q", c.containerID)
+		logrus.Println(out)
+	}
+
+	parts := regexp.MustCompile(`\s+`).Split(strings.TrimSpace(out), -1)
+	if len(parts) < 2 {
+		return "", fmt.Errorf("Invalid output from container %q: %s", c.containerID, out)
+	}
+
+	parts = strings.Split(parts[1], "/")
+	out = strings.TrimSpace(parts[0])
+	return out, err
+}
+
 func (k *kubernetes) exec(c *container, args string) (string, error) {
 	cmd := fmt.Sprintf("kubectl exec %s -- %s", c.containerID, args)
 	logrus.Infof("Exec: Running command %s", cmd)
@@ -413,7 +432,7 @@ func (k *kubernetes) startNetplugin(args string) error {
 		return nil
 	}
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.binpath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.vlanIf + " --cluster-store " + k.node.suite.clusterStore + " " + args + "&> /tmp/netplugin.log")
+	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterface + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
 }
 
 func (k *kubernetes) stopNetplugin() error {
@@ -438,10 +457,10 @@ func (k *kubernetes) startNetmaster() error {
 	}
 	logrus.Infof("Starting netmaster on %s", k.node.Name())
 	dnsOpt := " --dns-enable=false "
-	if k.node.suite.enableDNS {
+	if k.node.suite.basicInfo.EnableDNS {
 		dnsOpt = " --dns-enable=true "
 	}
-	return k.node.tbnode.RunCommandBackground(k.node.suite.binpath + "/netmaster" + dnsOpt + " --cluster-store " + k.node.suite.clusterStore + " " + "--cluster-mode kubernetes &> /tmp/netmaster.log")
+	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + dnsOpt + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes &> /tmp/netmaster.log")
 }
 func (k *kubernetes) cleanupMaster() {
 	if k.node.Name() != "k8master" {

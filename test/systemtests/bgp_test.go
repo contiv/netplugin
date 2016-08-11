@@ -25,14 +25,14 @@ func (s *systemtestSuite) TestBgpContainerToContainerPing(c *C) {
 	s.SetupBgp(c, false)
 	s.CheckBgpConnection(c)
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
 			netNames      = []string{}
 			containers    = map[string][]*container{}
 			allcontainers = []*container{}
 		)
 
-		numContainer := s.containers
+		numContainer := s.basicInfo.Containers
 		if numContainer < 3 {
 			numContainer = 3
 		}
@@ -93,7 +93,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 		ips        = []string{}
 	)
 
-	numContainer := s.containers
+	numContainer := s.basicInfo.Containers
 	if numContainer < 3 {
 		numContainer = 3
 	}
@@ -159,7 +159,7 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 		allcontainers = []*container{}
 	)
 
-	numContainer := s.containers
+	numContainer := s.basicInfo.Containers
 	if numContainer < 3 {
 		numContainer = 3
 	}
@@ -186,7 +186,7 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 	}
 
 	time.Sleep(5 * time.Second)
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
 		_, err := s.CheckBgpRouteDistribution(c, allcontainers)
@@ -209,7 +209,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 	if s.fwdMode != "routing" {
 		c.Skip("Skipping test")
 	}
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
@@ -220,7 +220,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 			allcontainers = []*container{}
 		)
 
-		numContainer := s.containers
+		numContainer := s.basicInfo.Containers
 		if numContainer < 3 {
 			numContainer = 3
 		}
@@ -293,7 +293,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 		allcontainers = []*container{}
 	)
 
-	numContainer := s.containers
+	numContainer := s.basicInfo.Containers
 	if numContainer < 3 {
 		numContainer = 3
 	}
@@ -320,7 +320,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 		allcontainers = append(allcontainers, containers[name]...)
 	}
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
 
@@ -375,7 +375,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 		netNames = []string{}
 	)
 
-	numContainer := s.containers
+	numContainer := s.basicInfo.Containers
 	if numContainer < 3 {
 		numContainer = 3
 	}
@@ -394,7 +394,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 		netNames = append(netNames, network.NetworkName)
 	}
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
 			containers    = map[string][]*container{}
 			allcontainers = []*container{}
@@ -474,7 +474,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 		allcontainers = []*container{}
 	)
 
-	numContainer := s.containers
+	numContainer := s.basicInfo.Containers
 	if numContainer < 3 {
 		numContainer = 3
 	}
@@ -558,7 +558,7 @@ func (s *systemtestSuite) TestBgpTriggerNetmasterRestart(c *C) {
 		containers    = map[string][]*container{}
 		allcontainers = []*container{}
 	)
-	numContainer := s.containers
+	numContainer := s.basicInfo.Containers
 	if numContainer < 3 {
 		numContainer = 3
 	}
@@ -641,7 +641,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 		nodeToStop.tbnode.RunCommandWithOutput("sudo ip link set inb01 up")
 		s.CheckBgpConnectionForaNode(c, nodeToStop.tbnode)
 
-		numContainer := s.containers
+		numContainer := s.basicInfo.Containers
 		if numContainer < 3 {
 			numContainer = 3
 		}
@@ -701,13 +701,13 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 	}
 	for _, node := range s.nodes {
 		logrus.Infof("Bringing down uplink")
-		node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s down", s.vlanIf))
+		node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s down", s.hostInfo.HostDataInterface))
 	}
 	s.SetupBgp(c, false)
 
 	for _, node := range s.nodes {
 		logrus.Infof("Bringing up uplink")
-		node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s up", s.vlanIf))
+		node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s up", s.hostInfo.HostDataInterface))
 	}
 	s.CheckBgpConnection(c)
 
@@ -717,7 +717,7 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 		allcontainers = []*container{}
 	)
 
-	numContainer := s.containers
+	numContainer := s.basicInfo.Containers
 	if numContainer < 3 {
 		numContainer = 3
 	}
@@ -772,7 +772,7 @@ func (s *systemtestSuite) TestBgpMisconfigRecovery(c *C) {
 		allcontainers = []*container{}
 	)
 
-	numContainer := s.containers
+	numContainer := s.basicInfo.Containers
 	if numContainer < 3 {
 		numContainer = 3
 	}
