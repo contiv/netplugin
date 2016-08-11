@@ -1,15 +1,14 @@
 package systemtests
 
-/*
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	log "github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // EPSpec for aci-gw
@@ -98,38 +97,38 @@ func GetEPFromAPIC(tenant, app, epg, mac string) (string, string, error) {
 
 }
 
-func checkACILearning(tenant, app, epg string, c *container) error {
+func (s *systemtestSuite) checkACILearning(tenant, app, epg string, containers []*container) error {
 
 	ip := ""
-	mac, err := c.GetMACAddr("eth0")
-	if err != nil {
-		return err
-	}
-
-	containerIP, err := c.GetIPAddr("eth0")
-	if err != nil {
-		return err
-	}
-
-	log.Infof("Checking %s learned on ACI...", containerIP)
-
-	for ix := 0; ix < 20; ix++ {
-		ip, _, err = GetEPFromAPIC(tenant, app, epg, mac)
-		if err == nil {
-			break
+	for _, c := range containers {
+		mac, err := c.node.exec.getMACAddr(c, "eth0")
+		mac = strings.ToUpper(mac)
+		if err != nil {
+			return err
 		}
-		time.Sleep(2 * time.Second)
-	}
 
-	if err != nil {
-		return err
-	}
+		containerIP, err := c.node.exec.getIPAddr(c, "eth0")
+		if err != nil {
+			return err
+		}
 
-	if ip != containerIP {
-		log.Errorf("ip from apic: %s from container: %s", ip, containerIP)
-		return errors.New("ip mismatch")
-	}
+		log.Infof("Checking IP %s and MAC %s learned on ACI...", containerIP, mac)
 
+		for ix := 0; ix < 20; ix++ {
+			ip, _, err = GetEPFromAPIC(tenant, app, epg, mac)
+			if err == nil {
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
+		if err != nil {
+			return err
+		}
+
+		if ip != containerIP {
+			log.Errorf("ip from apic: %s from container: %s", ip, containerIP)
+			return errors.New("ip mismatch")
+		}
+	}
 	return nil
 }
-*/
