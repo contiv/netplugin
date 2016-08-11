@@ -190,6 +190,8 @@ func (ag *Agent) HandleEvents() error {
 
 	go handleSvcProviderUpdEvents(ag.netPlugin, opts, recvErr)
 
+	go handleGlobalCfgEvents(netPlugin, opts, recvErr)
+
 	if ag.pluginConfig.Instance.PluginMode == "docker" {
 		// watch for docker events
 		docker, _ := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
