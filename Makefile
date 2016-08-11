@@ -140,7 +140,7 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
-	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM"
+	go test -v -timeout 480m ./test/systemtests -check.vv -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM"
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
@@ -167,9 +167,9 @@ host-unit-test-coverage-detail:
 
 host-integ-test: host-cleanup
 	@echo dev: running integration tests...
-	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vlan -fwd-mode bridge
-	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode bridge
-	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode routing
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.vv -encap vlan -fwd-mode bridge
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.vv -encap vxlan -fwd-mode bridge
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.vv -encap vxlan -fwd-mode routing
 
 host-cleanup:
 	@echo dev: cleaning up services...
