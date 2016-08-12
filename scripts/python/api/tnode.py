@@ -93,30 +93,30 @@ class Node:
 
     def cleanupDockerNetwork(self):
         # cleanup docker network
-        out, err, exitCode = self.runCmd("docker network ls | grep netplugin | awk '{print $2}'")
+        out, err, exitCode = self.runCmd("docker network ls | grep -w netplugin | awk '{print $2}'")
         for net in out:
             self.runCmd("docker network rm " + net)
 
     # Remove all containers on this node
     def cleanupContainers(self):
-        self.runCmd("docker rm -f `docker ps -aq`")
+        self.runCmd("docker ps -aq | xargs -r docker rm -fv ")
 
     # Cleanup all state created by netplugin
     def cleanupSlave(self):
-        self.runCmd("docker rm -f `docker ps -aq`")
+        self.runCmd("docker ps -aq | xargs -r docker rm -fv")
         self.runCmd("sudo ovs-vsctl del-br contivVxlanBridge")
         self.runCmd("sudo ovs-vsctl del-br contivVlanBridge")
-        self.runCmd("for p in `/usr/sbin/ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
-        self.runCmd("sudo rm /var/run/docker/plugins/netplugin.sock")
-        self.runCmd("sudo rm /tmp/net*")
+        self.runCmd("ifconfig | grep -e vport | awk '{print $1}' | xargs -r -n1 -I{} sudo ip link delete {} type veth")
+        self.runCmd("sudo rm -f /var/run/docker/plugins/netplugin.sock")
+        self.runCmd("sudo rm -f /tmp/net*")
         self.runCmd("sudo service docker restart")
 
     # Cleanup all state created by netmaster
     def cleanupMaster(self):
-        self.runCmd("etcdctl rm --recursive /contiv")
-        self.runCmd("etcdctl rm --recursive /contiv.io")
-        self.runCmd("etcdctl rm --recursive /docker")
-        self.runCmd("etcdctl rm --recursive /skydns")
+        self.runCmd("etcdctl ls /contiv > /dev/null 2>&1 && etcdctl rm --recursive /contiv")
+        self.runCmd("etcdctl ls /contiv.io > /dev/null 2>&1 && etcdctl rm --recursive /contiv.io")
+        self.runCmd("etcdctl ls /docker > /dev/null 2>&1 && etcdctl rm --recursive /docker")
+        self.runCmd("etcdctl ls /skydns > /dev/null 2>&1 && etcdctl rm --recursive /skydns")
         self.runCmd("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
         self.runCmd("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 
