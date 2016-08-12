@@ -136,11 +136,10 @@ func Client(servAddr string, portNo uint16) *RpcClient {
 }
 
 func DisconnectClient(portNo uint16, servAddr string) {
-	dbLock.Lock()
-	defer dbLock.Unlock()
-
 	clientKey := fmt.Sprintf("%s:%d", servAddr, portNo)
+	dbLock.Lock()
 	clientDb[clientKey] = nil
+	dbLock.Unlock()
 }
 
 // Make an rpc call

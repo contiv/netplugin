@@ -148,16 +148,6 @@ class objmodelClient:
 
 
 
-	# Inspect Bgp
-	def createBgp(self, obj):
-	    postUrl = self.baseUrl + '/api/v1/inspect/Bgp/' + obj.hostname  + '/'
-
-	    retDate = urllib2.urlopen(postUrl)
-	    if retData == "Error":
-	        errorExit("list Bgp failed")
-
-	    return json.loads(retData)
-
 
 
 
@@ -255,7 +245,6 @@ class objmodelClient:
 	    postUrl = self.baseUrl + '/api/v1/globals/' + obj.name  + '/'
 
 	    jdata = json.dumps({ 
-			"fwdMode": obj.fwdMode, 
 			"name": obj.name, 
 			"networkInfraType": obj.networkInfraType, 
 			"vlans": obj.vlans, 

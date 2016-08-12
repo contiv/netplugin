@@ -183,17 +183,8 @@ type Bgp struct {
 
 }
 
-type BgpOper struct {
-	AdminStatus    string   `json:"adminStatus,omitempty"`    // admin status
-	NeighborStatus string   `json:"neighborStatus,omitempty"` // neighbor status
-	NumRoutes      int      `json:"numRoutes,omitempty"`      // number of routes
-	Routes       []string `json:"routesIn,omitempty"`
-}
-
 type BgpInspect struct {
 	Config Bgp
-
-	Oper BgpOper
 }
 
 type EndpointOper struct {
@@ -275,7 +266,6 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
 	Vlans            string `json:"vlans,omitempty"`            // Allowed vlan range

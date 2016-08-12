@@ -53,17 +53,8 @@ type Bgp struct {
 
 }
 
-type BgpOper struct {
-	AdminStatus    string   `json:"adminStatus,omitempty"`    // admin status
-	NeighborStatus string   `json:"neighborStatus,omitempty"` // neighbor status
-	NumRoutes      int      `json:"numRoutes,omitempty"`      // number of routes
-	Routes         []string `json:"routes,omitempty"`
-}
-
 type BgpInspect struct {
 	Config Bgp
-
-	Oper BgpOper
 }
 
 type EndpointOper struct {
@@ -149,7 +140,6 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
-	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
 	Vlans            string `json:"vlans,omitempty"`            // Allowed vlan range
@@ -440,8 +430,6 @@ type AppProfileCallbacks interface {
 }
 
 type BgpCallbacks interface {
-	BgpGetOper(Bgp *BgpInspect) error
-
 	BgpCreate(Bgp *Bgp) error
 	BgpUpdate(Bgp, params *Bgp) error
 	BgpDelete(Bgp *Bgp) error
@@ -1133,31 +1121,8 @@ func httpInspectBgp(w http.ResponseWriter, r *http.Request, vars map[string]stri
 	}
 	obj.Config = *objConfig
 
-	if err := GetOperBgp(&obj); err != nil {
-		log.Errorf("GetBgp error for: %+v. Err: %v", obj, err)
-		return nil, err
-	}
-
 	// Return the obj
 	return &obj, nil
-}
-
-// Get a BgpOper object
-func GetOperBgp(obj *BgpInspect) error {
-	// Check if we handle this object
-	if objCallbackHandler.BgpCb == nil {
-		log.Errorf("No callback registered for Bgp object")
-		return errors.New("Invalid object type")
-	}
-
-	// Perform callback
-	err := objCallbackHandler.BgpCb.BgpGetOper(obj)
-	if err != nil {
-		log.Errorf("BgpDelete retruned error for: %+v. Err: %v", obj, err)
-		return err
-	}
-
-	return nil
 }
 
 // LIST REST call
@@ -2307,15 +2272,6 @@ func ValidateGlobal(obj *Global) error {
 	}
 
 	// Validate each field
-
-	if len(obj.FwdMode) > 64 {
-		return errors.New("fwdMode string too long")
-	}
-
-	fwdModeMatch := regexp.MustCompile("^(bridge|routing)?$")
-	if fwdModeMatch.MatchString(obj.FwdMode) == false {
-		return errors.New("fwdMode string invalid format")
-	}
 
 	if len(obj.Name) > 64 {
 		return errors.New("name string too long")
