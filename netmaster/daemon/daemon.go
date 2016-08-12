@@ -332,7 +332,7 @@ func (d *MasterDaemon) RunMasterFsm() {
 	}
 
 	// Create an objdb client
-	master.ObjdbClient, err = objdb.NewClient(d.clusterStore)
+	master.ObjdbClient, err = objdb.NewClient(d.ClusterStore)
 	if err != nil {
 		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
 	}
