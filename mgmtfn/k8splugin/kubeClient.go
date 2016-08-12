@@ -265,10 +265,12 @@ func (c *APIClient) WatchServices(respCh chan SvcWatchResp) {
 			sSpec := core.ServiceSpec{}
 			sSpec.Ports = make([]core.PortSpec, 0, 1)
 			sSpec.IPAddress = wss.Object.Spec.ClusterIP
+			sSpec.ExternalIPs = wss.Object.Spec.ExternalIPs
 			for _, port := range wss.Object.Spec.Ports {
 				ps := core.PortSpec{Protocol: string(port.Protocol),
 					SvcPort:  uint16(port.Port),
 					ProvPort: uint16(port.TargetPort),
+					NodePort: uint16(port.NodePort),
 				}
 				sSpec.Ports = append(sSpec.Ports, ps)
 			}

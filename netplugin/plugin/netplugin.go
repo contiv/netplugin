@@ -131,8 +131,8 @@ func (p *NetPlugin) DeleteEndpoint(id string) error {
 }
 
 // CreateHostAccPort creates a host access port
-func (p *NetPlugin) CreateHostAccPort(portName string) error {
-	return p.NetworkDriver.CreateHostAccPort(portName)
+func (p *NetPlugin) CreateHostAccPort(portName, globalIP, localIP string) error {
+	return p.NetworkDriver.CreateHostAccPort(portName, globalIP, localIP)
 }
 
 // DeleteHostAccPort creates a host access port

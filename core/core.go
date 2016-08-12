@@ -91,12 +91,14 @@ type PortSpec struct {
 	Protocol string
 	SvcPort  uint16 // advertised port
 	ProvPort uint16 // actual port of provider
+	NodePort uint16 // port on the node where service is exposed
 }
 
 // ServiceSpec defines a service to be proxied
 type ServiceSpec struct {
-	IPAddress string
-	Ports     []PortSpec
+	IPAddress   string
+	Ports       []PortSpec
+	ExternalIPs []string // externally visible IPs
 }
 
 // Driver implements the programming logic
@@ -111,7 +113,7 @@ type NetworkDriver interface {
 	DeleteNetwork(id, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error
 	CreateEndpoint(id string) error
 	DeleteEndpoint(id string) error
-	CreateHostAccPort(portName string) error
+	CreateHostAccPort(portName, globalIP, localIP string) error
 	DeleteHostAccPort(id string) error
 	AddPeerHost(node ServiceInfo) error
 	DeletePeerHost(node ServiceInfo) error

@@ -73,10 +73,11 @@ func (s *OvsDriverOperState) Clear() error {
 // OvsDriver implements the Layer 2 Network and Endpoint Driver interfaces
 // specific to vlan based open-vswitch.
 type OvsDriver struct {
-	oper     OvsDriverOperState    // Oper state of the driver
-	localIP  string                // Local IP address
-	switchDb map[string]*OvsSwitch // OVS switch instances
-	lock     sync.Mutex            // lock for modifying shared state
+	oper      OvsDriverOperState    // Oper state of the driver
+	localIP   string                // Local IP address
+	switchDb  map[string]*OvsSwitch // OVS switch instances
+	lock      sync.Mutex            // lock for modifying shared state
+	HostProxy *NodeSvcProxy
 }
 
 func (d *OvsDriver) getIntfName() (string, error) {
@@ -182,7 +183,10 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 	// Add a masquerade rule to ip tables.
 	netutils.SetIPMasquerade(hostPortName, hostPvtSubnet)
 
-	return nil
+	// Initialize the node proxy
+	d.HostProxy, err = NewNodeProxy()
+
+	return err
 }
 
 //DeleteHostAccPort deletes the access port
@@ -195,6 +199,7 @@ func (d *OvsDriver) DeleteHostAccPort(id string) error {
 		if err != nil {
 			return err
 		}
+		d.HostProxy.DeleteLocalIP(operEp.IPAddress)
 		portName := operEp.PortName
 		intfName := netutils.GetHostIntfName(portName)
 		return sw.DelHostPort(intfName, false)
@@ -204,7 +209,7 @@ func (d *OvsDriver) DeleteHostAccPort(id string) error {
 }
 
 // CreateHostAccPort creates an access port
-func (d *OvsDriver) CreateHostAccPort(portName string) error {
+func (d *OvsDriver) CreateHostAccPort(portName, globalIP, hostIP string) error {
 	sw, found := d.switchDb["host"]
 	if found {
 		num := strings.Replace(portName, "hport", "", 1)
@@ -213,7 +218,11 @@ func (d *OvsDriver) CreateHostAccPort(portName string) error {
 			return err
 		}
 
-		return sw.AddHostPort(portName, intfNum, false)
+		err = sw.AddHostPort(portName, intfNum, false)
+		if err == nil {
+			d.HostProxy.AddLocalIP(globalIP, hostIP)
+			return nil
+		}
 	}
 
 	return errors.New("host bridge not found")
@@ -583,6 +592,11 @@ func (d *OvsDriver) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
 		}
 	}
 
+	err := d.HostProxy.AddSvcSpec(svcName, spec)
+	if err != nil {
+		errs += err.Error()
+	}
+
 	if errs != "" {
 		return errors.New(errs)
 	}
@@ -601,6 +615,11 @@ func (d *OvsDriver) DelSvcSpec(svcName string, spec *core.ServiceSpec) error {
 		}
 	}
 
+	err := d.HostProxy.DelSvcSpec(svcName, spec)
+	if err != nil {
+		errs += err.Error()
+	}
+
 	if errs != "" {
 		return errors.New(errs)
 	}
@@ -613,6 +632,8 @@ func (d *OvsDriver) SvcProviderUpdate(svcName string, providers []string) {
 	for _, sw := range d.switchDb {
 		sw.SvcProviderUpdate(svcName, providers)
 	}
+
+	d.HostProxy.SvcProviderUpdate(svcName, providers)
 }
 
 // GetEndpointStats gets all endpoints from all ovs instances
