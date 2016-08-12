@@ -320,19 +320,19 @@
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "11954d9e46275d5cd47788dd8bc31420a238e34e"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "11954d9e46275d5cd47788dd8bc31420a238e34e"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "11954d9e46275d5cd47788dd8bc31420a238e34e"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "11954d9e46275d5cd47788dd8bc31420a238e34e"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",

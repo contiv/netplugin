@@ -1520,3 +1520,8 @@ func validatePorts(ports []string) bool {
 	}
 	return true
 }
+
+// EndpointGroupGetOper returns nil
+func (ac *APIController) EndpointGroupGetOper(endpointGroup *contivModel.EndpointGroupInspect) error {
+	return nil
+}
