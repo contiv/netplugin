@@ -1265,12 +1265,20 @@ func (ac *APIController) BgpUpdate(oldbgpCfg *contivModel.Bgp, NewbgpCfg *contiv
 		return err
 	}
 
+	oldbgpCfg.Hostname = NewbgpCfg.Hostname
+	oldbgpCfg.Routerip = NewbgpCfg.Routerip
+	oldbgpCfg.As = NewbgpCfg.As
+	oldbgpCfg.NeighborAs = NewbgpCfg.NeighborAs
+	oldbgpCfg.Neighbor = NewbgpCfg.Neighbor
+
+	NewbgpCfg.Write()
+
 	return nil
 }
 
 //BgpGetOper inspects the oper state of bgp object
 func (ac *APIController) BgpGetOper(bgp *contivModel.BgpInspect) error {
-	log.Infof("apiController. Received BgpInspect: %+v", bgp)
+	log.Infof("Received BgpInspect: %+v", bgp)
 	var obj *BgpInspect
 	var host string
 
