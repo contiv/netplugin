@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	skydns "github.com/contiv/netplugin/netplugin/svcplugin/skydns2extension"
 	"github.com/contiv/netplugin/netplugin/svcplugin/bridge"
+	skydns "github.com/contiv/netplugin/netplugin/svcplugin/skydns2extension"
 )
 
 func TestServicePluginInit(t *testing.T) {

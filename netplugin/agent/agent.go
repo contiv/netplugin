@@ -234,7 +234,6 @@ func (ag *Agent) serveRequests() {
 		w.Write(driverState)
 	})
 	s.HandleFunc("/inspect/bgp", func(w http.ResponseWriter, r *http.Request) {
-		log.Infof("netd. serveRequests /inspect/bgp")
 		bgpState, err := ag.netPlugin.InspectBgp()
 		if err != nil {
 			log.Errorf("Error fetching bgp. Err: %v", err)
