@@ -207,7 +207,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 			//check if  any bgp configurations exists.
 			bgpCfgs := &mastercfg.CfgBgpState{}
 			bgpCfgs.StateDriver = stateDriver
-			cfgs, err := bgpCfgs.ReadAll()
+			cfgs, _ := bgpCfgs.ReadAll()
 			if len(cfgs) != 0 {
 				log.Errorf("Unable to change the forwarding mode due to existing bgp configs")
 				return fmt.Errorf("please delete existing Bgp configs")
