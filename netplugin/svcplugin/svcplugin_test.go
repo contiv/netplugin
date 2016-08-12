@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	skydns "github.com/contiv/netplugin/netplugin/svcplugin/skydns2extension"
-	"github.com/contiv/netplugin/svcplugin/bridge"
+	"github.com/contiv/netplugin/netplugin/svcplugin/bridge"
 )
 
 func TestServicePluginInit(t *testing.T) {
