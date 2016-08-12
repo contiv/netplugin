@@ -103,3 +103,8 @@ func (d *FakeNetEpDriver) GetEndpointStats() ([]byte, error) {
 func (d *FakeNetEpDriver) InspectState() ([]byte, error) {
 	return []byte{}, core.Errorf("Not implemented")
 }
+
+// InspectBgp is not implemented
+func (d *FakeNetEpDriver) InspectBgp() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}
