@@ -313,7 +313,7 @@ var GlobalSummaryView = React.createClass({
 				<ModalTrigger modal={<GlobalModalView global={ global }/>}>
 					<tr key={ global.key } className="info">
 						
-						    
+						     
 					</tr>
 				</ModalTrigger>
 			);
@@ -325,7 +325,7 @@ var GlobalSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					    
+					     
 					</tr>
 				</thead>
 				<tbody>
@@ -344,6 +344,8 @@ var GlobalModalView = React.createClass({
 	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Global' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
+			
+				<Input type='text' label='Forwarding Mode' ref='fwdMode' defaultValue={obj.fwdMode} placeholder='Forwarding Mode' />
 			
 				<Input type='text' label='name of this block(must be 'global')' ref='name' defaultValue={obj.name} placeholder='name of this block(must be 'global')' />
 			
@@ -374,7 +376,7 @@ var NetprofileSummaryView = React.createClass({
 				<ModalTrigger modal={<NetprofileModalView netprofile={ netprofile }/>}>
 					<tr key={ netprofile.key } className="info">
 						
-						    
+						     
 					</tr>
 				</ModalTrigger>
 			);
@@ -386,7 +388,7 @@ var NetprofileSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					    
+					     
 					</tr>
 				</thead>
 				<tbody>
@@ -409,6 +411,8 @@ var NetprofileModalView = React.createClass({
 				<Input type='text' label='DSCP' ref='DSCP' defaultValue={obj.DSCP} placeholder='DSCP' />
 			
 				<Input type='text' label='Allocated bandwidth' ref='bandwidth' defaultValue={obj.bandwidth} placeholder='Allocated bandwidth' />
+			
+				<Input type='text' label='burst size' ref='burst' defaultValue={obj.burst} placeholder='burst size' />
 			
 				<Input type='text' label='Network profile name' ref='profileName' defaultValue={obj.profileName} placeholder='Network profile name' />
 			

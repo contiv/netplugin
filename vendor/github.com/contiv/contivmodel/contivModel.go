@@ -53,8 +53,17 @@ type Bgp struct {
 
 }
 
+type BgpOper struct {
+	AdminStatus    string   `json:"adminStatus,omitempty"`    // admin status
+	NeighborStatus string   `json:"neighborStatus,omitempty"` // neighbor status
+	NumRoutes      int      `json:"numRoutes,omitempty"`      // number of routes
+	Routes         []string `json:"routes,omitempty"`
+}
+
 type BgpInspect struct {
 	Config Bgp
+
+	Oper BgpOper
 }
 
 type EndpointOper struct {
@@ -111,8 +120,18 @@ type EndpointGroupLinks struct {
 	Tenant     modeldb.Link `json:"Tenant,omitempty"`
 }
 
+type EndpointGroupOper struct {
+	Endpoints      []EndpointOper `json:"endpoints,omitempty"`
+	ExternalPktTag int            `json:"externalPktTag,omitempty"` // external packet tag
+	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // external packet tag
+	PktTag         int            `json:"pktTag,omitempty"`         // internal packet tag
+
+}
+
 type EndpointGroupInspect struct {
 	Config EndpointGroup
+
+	Oper EndpointGroupOper
 }
 
 type ExtContractsGroup struct {
@@ -140,6 +159,7 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
 	Vlans            string `json:"vlans,omitempty"`            // Allowed vlan range
@@ -168,6 +188,7 @@ type Netprofile struct {
 
 	DSCP        int    `json:"DSCP,omitempty"`        // DSCP
 	Bandwidth   string `json:"bandwidth,omitempty"`   // Allocated bandwidth
+	Burst       int    `json:"burst,omitempty"`       // burst size
 	ProfileName string `json:"profileName,omitempty"` // Network profile name
 	TenantName  string `json:"tenantName,omitempty"`  // Tenant name
 
@@ -430,6 +451,8 @@ type AppProfileCallbacks interface {
 }
 
 type BgpCallbacks interface {
+	BgpGetOper(Bgp *BgpInspect) error
+
 	BgpCreate(Bgp *Bgp) error
 	BgpUpdate(Bgp, params *Bgp) error
 	BgpDelete(Bgp *Bgp) error
@@ -440,6 +463,8 @@ type EndpointCallbacks interface {
 }
 
 type EndpointGroupCallbacks interface {
+	EndpointGroupGetOper(endpointGroup *EndpointGroupInspect) error
+
 	EndpointGroupCreate(endpointGroup *EndpointGroup) error
 	EndpointGroupUpdate(endpointGroup, params *EndpointGroup) error
 	EndpointGroupDelete(endpointGroup *EndpointGroup) error
@@ -1121,8 +1146,31 @@ func httpInspectBgp(w http.ResponseWriter, r *http.Request, vars map[string]stri
 	}
 	obj.Config = *objConfig
 
+	if err := GetOperBgp(&obj); err != nil {
+		log.Errorf("GetBgp error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a BgpOper object
+func GetOperBgp(obj *BgpInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.BgpCb == nil {
+		log.Errorf("No callback registered for Bgp object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.BgpCb.BgpGetOper(obj)
+	if err != nil {
+		log.Errorf("BgpDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
 }
 
 // LIST REST call
@@ -1447,8 +1495,31 @@ func httpInspectEndpointGroup(w http.ResponseWriter, r *http.Request, vars map[s
 	}
 	obj.Config = *objConfig
 
+	if err := GetOperEndpointGroup(&obj); err != nil {
+		log.Errorf("GetEndpointGroup error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a endpointGroupOper object
+func GetOperEndpointGroup(obj *EndpointGroupInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.EndpointGroupCb == nil {
+		log.Errorf("No callback registered for endpointGroup object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.EndpointGroupCb.EndpointGroupGetOper(obj)
+	if err != nil {
+		log.Errorf("EndpointGroupDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
 }
 
 // LIST REST call
@@ -2273,6 +2344,15 @@ func ValidateGlobal(obj *Global) error {
 
 	// Validate each field
 
+	if len(obj.FwdMode) > 64 {
+		return errors.New("fwdMode string too long")
+	}
+
+	fwdModeMatch := regexp.MustCompile("^(bridge|routing)?$")
+	if fwdModeMatch.MatchString(obj.FwdMode) == false {
+		return errors.New("fwdMode string invalid format")
+	}
+
 	if len(obj.Name) > 64 {
 		return errors.New("name string too long")
 	}
@@ -2573,6 +2653,10 @@ func ValidateNetprofile(obj *Netprofile) error {
 	bandwidthMatch := regexp.MustCompile("^([1-9][0-9]* (([kmgKMG{1}]bps)|[kmgKMG{1}]|(kb|Kb|Gb|gb|Mb|mb)))?$|^([1-9][0-9]*(((k|m|g|K|G|M)bps)|(k|m|g|K|M|G)|(kb|Kb|Gb|gb|Mb|mb)))?$")
 	if bandwidthMatch.MatchString(obj.Bandwidth) == false {
 		return errors.New("bandwidth string invalid format")
+	}
+
+	if obj.Burst > 10486 {
+		return errors.New("burst Value Out of bound")
 	}
 
 	if len(obj.ProfileName) > 64 {

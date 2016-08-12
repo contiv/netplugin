@@ -35,6 +35,13 @@
                               "title":  "DSCP",
                               "description":  "DSCP value",
                               "ShowSummary":  true
+                      },
+                      "burst": {
+                              "type": "int",
+                              "title":  "burst size",
+                              "max": 10486,
+                              "description":  "burst size",
+                              "ShowSummary":  true
                       }
             },
             "link-sets":  {
