@@ -218,7 +218,7 @@ func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instanc
 		},
 		Instance: opts,
 	}
-
+	pluginConfig.Instance.FwdMode = fwdMode
 	netPlugin.GlobalFwdModeUpdate(pluginConfig)
 
 	for _, master := range cluster.MasterDB {
