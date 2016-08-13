@@ -105,7 +105,7 @@ func (d *MasterDaemon) registerService() {
 	}
 
 	// Register the node with service registry
-	err = d.objdbClient.RegisterService(srvInfo)
+	err = master.ObjdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 	}
@@ -120,7 +120,7 @@ func (d *MasterDaemon) registerService() {
 	}
 
 	// Register the node with service registry
-	err = d.objdbClient.RegisterService(srvInfo)
+	err = master.ObjdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 	}
@@ -131,7 +131,7 @@ func (d *MasterDaemon) registerService() {
 // Find all netplugin nodes and register them
 func (d *MasterDaemon) registerNetpluginNodes() error {
 	// Get all netplugin services
-	srvList, err := d.objdbClient.GetService("netplugin")
+	srvList, err := master.ObjdbClient.GetService("netplugin")
 	if err != nil {
 		log.Errorf("Error getting netplugin nodes. Err: %v", err)
 		return err
@@ -332,7 +332,7 @@ func (d *MasterDaemon) RunMasterFsm() {
 	}
 
 	// Create an objdb client
-	d.objdbClient, err = objdb.NewClient(d.ClusterStore)
+	master.ObjdbClient, err = objdb.NewClient(d.ClusterStore)
 	if err != nil {
 		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
 	}
@@ -341,7 +341,7 @@ func (d *MasterDaemon) RunMasterFsm() {
 	go d.registerNetpluginNodes()
 
 	// Create the lock
-	leaderLock, err = d.objdbClient.NewLock("netmaster/leader", localIP, leaderLockTTL)
+	leaderLock, err = master.ObjdbClient.NewLock("netmaster/leader", localIP, leaderLockTTL)
 	if err != nil {
 		log.Fatalf("Could not create leader lock. Err: %v", err)
 	}

@@ -183,8 +183,17 @@ type Bgp struct {
 
 }
 
+type BgpOper struct {
+	AdminStatus    string   `json:"adminStatus,omitempty"`    // admin status
+	NeighborStatus string   `json:"neighborStatus,omitempty"` // neighbor status
+	NumRoutes      int      `json:"numRoutes,omitempty"`      // number of routes
+	Routes         []string `json:"routes,omitempty"`
+}
+
 type BgpInspect struct {
 	Config Bgp
+
+	Oper BgpOper
 }
 
 type EndpointOper struct {
@@ -237,8 +246,18 @@ type EndpointGroupLinks struct {
 	Tenant     Link `json:"Tenant,omitempty"`
 }
 
+type EndpointGroupOper struct {
+	Endpoints      []EndpointOper `json:"endpoints,omitempty"`
+	ExternalPktTag int            `json:"externalPktTag,omitempty"` // external packet tag
+	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // external packet tag
+	PktTag         int            `json:"pktTag,omitempty"`         // internal packet tag
+
+}
+
 type EndpointGroupInspect struct {
 	Config EndpointGroup
+
+	Oper EndpointGroupOper
 }
 
 type ExtContractsGroup struct {
@@ -295,6 +314,7 @@ type Netprofile struct {
 
 	DSCP        int    `json:"DSCP,omitempty"`        // DSCP
 	Bandwidth   string `json:"bandwidth,omitempty"`   // Allocated bandwidth
+	Burst       int    `json:"burst,omitempty"`       // burst size
 	ProfileName string `json:"profileName,omitempty"` // Network profile name
 	TenantName  string `json:"tenantName,omitempty"`  // Tenant name
 

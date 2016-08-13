@@ -145,6 +145,11 @@ func (d *KubeTestNetDrv) DeleteBgp(id string) error {
 	return nil
 }
 
+// InspectBgp is not implemented
+func (d *KubeTestNetDrv) InspectBgp() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}
+
 // GetEndpointStats is not implemented
 func (d *KubeTestNetDrv) GetEndpointStats() ([]byte, error) {
 	return []byte{}, core.Errorf("Not implemented")

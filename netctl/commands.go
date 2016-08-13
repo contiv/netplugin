@@ -422,6 +422,13 @@ var Commands = []cli.Command{
 				},
 				Action: addBgp,
 			},
+			{
+				Name:      "inspect",
+				Usage:     "Inspect Bgp",
+				ArgsUsage: "[hostname]",
+				Flags:     []cli.Flag{jsonFlag},
+				Action:    inspectBgp,
+			},
 		},
 	},
 	{

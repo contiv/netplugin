@@ -230,8 +230,7 @@ func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		log.Errorf("Error creating portvlan entry. Err: %v", err)
 		return err
 	}
-
-	vrfid := vl.agent.vrfNameIdMap[endpoint.Vrf]
+	vrfid := vl.agent.getvrfId(endpoint.Vrf)
 	//set vrf id as METADATA
 	metadata, metadataMask := Vrfmetadata(*vrfid)
 
@@ -338,14 +337,18 @@ func (vl *VlanBridge) RemoveVtepPort(portNo uint32, remoteIP net.IP) error {
 
 // AddVlan Add a vlan.
 func (vl *VlanBridge) AddVlan(vlanID uint16, vni uint32, vrf string) error {
+	vl.agent.vlanVrfMutex.Lock()
 	vl.agent.vlanVrf[vlanID] = &vrf
+	vl.agent.vlanVrfMutex.Unlock()
 	vl.agent.createVrf(vrf)
 	return nil
 }
 
 // RemoveVlan Remove a vlan
 func (vl *VlanBridge) RemoveVlan(vlanID uint16, vni uint32, vrf string) error {
+	vl.agent.vlanVrfMutex.Lock()
 	delete(vl.agent.vlanVrf, vlanID)
+	vl.agent.vlanVrfMutex.Unlock()
 	vl.agent.deleteVrf(vrf)
 	return nil
 }
@@ -608,8 +611,8 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 				vlan = pkt.VLANID.VID
 			} else {
 				//arp packet came from local endpoints - derive vrf from inport
-				if vl.agent.portVlanMap[inPort] != nil {
-					vlan = *(vl.agent.portVlanMap[inPort])
+				if pVl := vl.agent.getPortVlanMap(inPort); pVl != nil {
+					vlan = *(pVl)
 				} else {
 					log.Debugf("Invalid port vlan mapping. Ignoring arp packet")
 					vl.agent.incrStats("ArpReqInvalidPortVlan")

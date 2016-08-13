@@ -188,13 +188,14 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 }
 
 // Register netplugin with service registry
-func registerService(objClient objdb.API, ctrlIP, vtepIP string) error {
+func registerService(objClient objdb.API, ctrlIP, vtepIP, hostname string) error {
 	// netplugin service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netplugin",
 		TTL:         10,
 		HostAddr:    ctrlIP,
 		Port:        netpluginRPCPort,
+		Hostname:    hostname,
 	}
 
 	// Register the node with service registry
@@ -337,9 +338,9 @@ func Init(storeURL string) error {
 }
 
 // RunLoop registers netplugin service with cluster store and runs peer discovery
-func RunLoop(netplugin *plugin.NetPlugin, ctrlIP, vtepIP string) error {
+func RunLoop(netplugin *plugin.NetPlugin, ctrlIP, vtepIP, hostname string) error {
 	// Register ourselves
-	err := registerService(ObjdbClient, ctrlIP, vtepIP)
+	err := registerService(ObjdbClient, ctrlIP, vtepIP, hostname)
 
 	// Start peer discovery loop
 	go peerDiscoveryLoop(netplugin, ObjdbClient, ctrlIP, vtepIP)

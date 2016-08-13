@@ -689,3 +689,22 @@ func (d *OvsDriver) InspectState() ([]byte, error) {
 
 	return jsonState, nil
 }
+
+// InspectBgp returns bgp state as json string
+func (d *OvsDriver) InspectBgp() ([]byte, error) {
+
+	// get vlan switch state
+	bgpState, err := d.switchDb["vlan"].InspectBgp()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	// json marshall the map
+	jsonState, err := json.Marshal(bgpState)
+	if err != nil {
+		log.Errorf("Error encoding epstats. Err: %v", err)
+		return []byte{}, err
+	}
+
+	return jsonState, nil
+}

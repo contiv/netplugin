@@ -166,7 +166,7 @@ func (ag *Agent) PostInit() error {
 	opts := ag.pluginConfig.Instance
 
 	// Initialize clustering
-	err := cluster.RunLoop(ag.netPlugin, opts.CtrlIP, opts.VtepIP)
+	err := cluster.RunLoop(ag.netPlugin, opts.CtrlIP, opts.VtepIP, opts.HostLabel)
 	if err != nil {
 		log.Errorf("Error starting cluster run loop")
 	}
@@ -232,6 +232,15 @@ func (ag *Agent) serveRequests() {
 			return
 		}
 		w.Write(driverState)
+	})
+	s.HandleFunc("/inspect/bgp", func(w http.ResponseWriter, r *http.Request) {
+		bgpState, err := ag.netPlugin.InspectBgp()
+		if err != nil {
+			log.Errorf("Error fetching bgp. Err: %v", err)
+			http.Error(w, "Error fetching bgp", http.StatusInternalServerError)
+			return
+		}
+		w.Write(bgpState)
 	})
 
 	// Create HTTP server and listener

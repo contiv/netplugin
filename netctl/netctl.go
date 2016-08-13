@@ -593,6 +593,21 @@ func listBgp(ctx *cli.Context) {
 	}
 }
 
+func inspectBgp(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	hostname := ctx.Args()[0]
+
+	fmt.Printf("netctl. Inspecting bgp: %s\n", hostname)
+
+	bgp, err := getClient(ctx).BgpInspect(hostname)
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(bgp, "", "  ")
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}
+
 func showGlobal(ctx *cli.Context) {
 	argCheck(0, ctx)
 

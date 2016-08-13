@@ -827,3 +827,11 @@ func (sw *OvsSwitch) InspectState() (interface{}, error) {
 	}
 	return sw.ofnetAgent.InspectState()
 }
+
+// InspectBgp returns ofnet state in json form
+func (sw *OvsSwitch) InspectBgp() (interface{}, error) {
+	if sw.ofnetAgent == nil {
+		return nil, errors.New("No ofnet agent")
+	}
+	return sw.ofnetAgent.InspectBgp()
+}
