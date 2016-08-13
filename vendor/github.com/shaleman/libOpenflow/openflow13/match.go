@@ -1191,37 +1191,3 @@ func NewTunnelIpv4DstField(tunnelIpDst net.IP, tunnelIpDstMask *net.IP) *MatchFi
 
 	return f
 }
-
-// IP_DSCP field
-type IpDscpField struct {
-	dscp uint8
-}
-
-func (m *IpDscpField) Len() uint16 {
-	return 1
-}
-func (m *IpDscpField) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 1)
-	data[0] = m.dscp
-	return
-}
-
-func (m *IpDscpField) UnmarshalBinary(data []byte) error {
-	m.dscp = data[0]
-	return nil
-}
-
-// Return a MatchField for ipv4/ipv6 dscp
-func NewIpDscpField(dscp uint8) *MatchField {
-	f := new(MatchField)
-	f.Class = OXM_CLASS_OPENFLOW_BASIC
-	f.Field = OXM_FIELD_IP_DSCP
-	f.HasMask = false
-
-	ipDscpField := new(IpDscpField)
-	ipDscpField.dscp = dscp
-	f.Value = ipDscpField
-	f.Length = uint8(ipDscpField.Len())
-
-	return f
-}
