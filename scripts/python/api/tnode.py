@@ -83,6 +83,12 @@ class Node:
         # npThread.setDaemon(True)
         self.nmThread.start()
 
+    # Start Swarm Containers
+    def utilSwarmContainer(self, command):
+        ssh_object = self.sshConnect(self.username, self.password)
+        self.swThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
+        self.swThread.start()
+    
     # Stop netplugin by killing it
     def stopNetplugin(self):
         self.runCmd("sudo pkill netplugin")
@@ -99,17 +105,16 @@ class Node:
 
     # Remove all containers on this node
     def cleanupContainers(self):
-        self.runCmd("docker ps -aq | xargs -r docker rm -fv ")
+        self.runCmd("docker ps -a | grep alpine | awk '{print $1}' | xargs -r docker rm -fv ")
 
     # Cleanup all state created by netplugin
     def cleanupSlave(self):
-        self.runCmd("docker ps -aq | xargs -r docker rm -fv")
+        self.runCmd("docker ps -a | grep alpine | awk '{print $1}' | xargs -r docker rm -fv ")
         self.runCmd("sudo ovs-vsctl del-br contivVxlanBridge")
         self.runCmd("sudo ovs-vsctl del-br contivVlanBridge")
         self.runCmd("ifconfig | grep -e vport | awk '{print $1}' | xargs -r -n1 -I{} sudo ip link delete {} type veth")
         self.runCmd("sudo rm -f /var/run/docker/plugins/netplugin.sock")
         self.runCmd("sudo rm -f /tmp/net*")
-        self.runCmd("sudo service docker restart")
 
     # Cleanup all state created by netmaster
     def cleanupMaster(self):

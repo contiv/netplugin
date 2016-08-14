@@ -186,12 +186,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             consul_bootstrap_flag = ""
           end
         end
-        swarm_flag = "slave"
-        if n == 0 then
-          swarm_flag = "master"
-        else
-          swarm_flag = "slave"
-        end
         net_num = (n+1)%3
         if net_num == 0 then
            network_name = "contiv_orange"
@@ -278,9 +272,6 @@ systemctl enable etcd || exit 1
 systemctl enable consul || exit 1
 systemctl start etcd || exit 1
 systemctl start consul || exit 1
-
-# start swarm
-(nohup #{gopath_folder}/src/github.com/contiv/netplugin/scripts/start-swarm.sh #{node_addr} #{swarm_flag}> /tmp/start-swarm.log &) || exit 1
 
 SCRIPT
             node.vm.provision "shell" do |s|
