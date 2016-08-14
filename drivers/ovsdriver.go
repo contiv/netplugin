@@ -43,6 +43,7 @@ const (
 // OvsDriverOperState carries operational state of the OvsDriver.
 type OvsDriverOperState struct {
 	core.CommonState
+
 	// used to allocate port names. XXX: should it be user controlled?
 	CurrPortNum int `json:"currPortNum"`
 }
@@ -234,6 +235,7 @@ func (d *OvsDriver) Deinit() {
 
 	// cleanup both vlan and vxlan OVS instances
 	if d.switchDb["vlan"] != nil {
+		d.switchDb["vlan"].RemoveUplinkPort()
 		d.switchDb["vlan"].Delete()
 	}
 	if d.switchDb["vxlan"] != nil {
@@ -537,13 +539,12 @@ func (d *OvsDriver) AddBgp(id string) error {
 
 	cfg := mastercfg.CfgBgpState{}
 	cfg.StateDriver = d.oper.StateDriver
-	log.Info("Reading from etcd State %s", id)
 	err := cfg.Read(id)
 	if err != nil {
 		log.Errorf("Failed to read router state %s \n", cfg.Hostname)
 		return err
 	}
-	log.Infof("create Bgp Server %s \n", cfg.Hostname)
+	log.Infof("Create Bgp :%+v", cfg)
 
 	// Find the switch based on network type
 	sw = d.switchDb["vlan"]
@@ -553,7 +554,7 @@ func (d *OvsDriver) AddBgp(id string) error {
 
 // DeleteBgp deletes bgp config by named identifier
 func (d *OvsDriver) DeleteBgp(id string) error {
-	log.Infof("delete Bgp Neighbor %s \n", id)
+	log.Infof("Delete Bgp Neighbor %s \n", id)
 	//FixME: We are not maintaining oper state for Bgp
 	//Need to Revisit again
 	// Find the switch based on network type

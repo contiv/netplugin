@@ -366,20 +366,26 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 			c.Assert(s.cli.TenantDelete(tenant), IsNil)
 		}
 	}
+	if encap == "vlan" && fwdmode == "routing" {
+		s.TearDownBgp(c)
+	}
+
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
+	fwdMode := s.fwdMode
 	for i := 0; i < s.iterations; i++ {
-		s.testNetworkAddDeleteTenant(c, "vxlan", s.fwdMode)
-		if s.fwdMode == "routing" {
+		s.testNetworkAddDeleteTenant(c, "vxlan", fwdMode)
+		if fwdMode == "routing" {
 			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
 				Name:             "global",
 				NetworkInfraType: "default",
 				Vlans:            "1-4094",
 				Vxlans:           "1-10000",
 			}), IsNil)
-			time.Sleep(40 * time.Second)
+			time.Sleep(60 * time.Second)
 			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
+			fwdMode = "bridge"
 		} else {
 			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
 				Name:             "global",
@@ -387,13 +393,16 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				Vlans:            "100-2094",
 				Vxlans:           "1-10000",
 			}), IsNil)
-			time.Sleep(40 * time.Second)
+			time.Sleep(60 * time.Second)
 			s.testNetworkAddDeleteTenant(c, "vxlan", "routing")
+			fwdMode = "routing"
 		}
 	}
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
+
+	c.Skip("Skipping this tests temporarily")
 
 	if s.fwdMode != "routing" {
 		return
@@ -407,14 +416,13 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 		}), IsNil)
-		time.Sleep(40 * time.Second)
-		s.testNetworkAddDeleteTenant(c, "vlan", "bridge")
+		time.Sleep(60 * time.Second)
 		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
 			Name:             "global",
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 		}), IsNil)
-		time.Sleep(40 * time.Second)
+		time.Sleep(60 * time.Second)
 	}
 }

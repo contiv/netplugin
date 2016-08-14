@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"net"
-
 	"github.com/cenkalti/rpc2"
 	"github.com/cenkalti/rpc2/jsonrpc"
+	"log"
+	"net"
+	"sync"
 )
 
 type OvsdbClient struct {
@@ -19,13 +19,16 @@ type OvsdbClient struct {
 
 func newOvsdbClient(c *rpc2.Client) *OvsdbClient {
 	ovs := &OvsdbClient{rpcClient: c, Schema: make(map[string]DatabaseSchema)}
+	connectionsMutex.Lock()
 	connections[c] = ovs
+	connectionsMutex.Unlock()
 	return ovs
 }
 
 // Would rather replace this connection map with an OvsdbClient Receiver scoped method
 // Unfortunately rpc2 package acts wierd with a receiver scoped method and needs some investigation.
 var connections map[*rpc2.Client]*OvsdbClient = make(map[*rpc2.Client]*OvsdbClient)
+var connectionsMutex sync.Mutex
 
 const DEFAULT_ADDR = "127.0.0.1"
 const DEFAULT_PORT = 6640
@@ -107,11 +110,13 @@ type NotificationHandler interface {
 // RFC 7047 : Section 4.1.6 : Echo
 func echo(client *rpc2.Client, args []interface{}, reply *[]interface{}) error {
 	*reply = args
+	connectionsMutex.Lock()
 	if _, ok := connections[client]; ok {
 		for _, handler := range connections[client].handlers {
 			handler.Echo(nil)
 		}
 	}
+	connectionsMutex.Unlock()
 	return nil
 }
 
@@ -140,12 +145,13 @@ func update(client *rpc2.Client, params []interface{}, reply *interface{}) error
 
 	// Update the local DB cache with the tableUpdates
 	tableUpdates := getTableUpdatesFromRawUnmarshal(rowUpdates)
+	connectionsMutex.Lock()
 	if _, ok := connections[client]; ok {
 		for _, handler := range connections[client].handlers {
 			handler.Update(params, tableUpdates)
 		}
 	}
-
+	connectionsMutex.Unlock()
 	return nil
 }
 
@@ -245,7 +251,9 @@ func getTableUpdatesFromRawUnmarshal(raw map[string]map[string]RowUpdate) TableU
 }
 
 func clearConnection(c *rpc2.Client) {
+	connectionsMutex.Lock()
 	delete(connections, c)
+	connectionsMutex.Unlock()
 }
 
 func handleDisconnectNotification(c *rpc2.Client) {
