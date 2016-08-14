@@ -115,7 +115,7 @@ ifdef NET_CONTAINER_BUILD
 stop:
 else
 stop:
-	CONTIV_NODES=$${CONTIV_NODES:-2} vagrant destroy -f
+	CONTIV_NODES=$${CONTIV_NODES:-3} vagrant destroy -f
 endif
 
 demo:
