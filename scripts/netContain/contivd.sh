@@ -51,7 +51,7 @@ fi
 
 
 if [ $restartContiv ]; then
-    if [ $spawned == 0 ]; then
+    if [ $spawned == 0 ] && [ $stopped == 0 ]; then
        echo "contivNet has not been spawned, Try Start"
        exit
     fi

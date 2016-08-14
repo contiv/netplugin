@@ -13,12 +13,12 @@ function dockerBuildIt {
 
 set -x 
 
-eexists=`docker images contivbase | grep -w "contivbase" | wc -l`
-if [ $eexists != 0 ]; then
-    echo "An image by name contivbase already exists"
-    echo "Remove contivbase (docker rmi contivbase) and retry"
-    exit
-fi
+#eexists=`docker images contivbase | grep -w "contivbase" | wc -l`
+#if [ $eexists != 0 ]; then
+#    echo "An image by name contivbase already exists"
+#    echo "Remove contivbase (docker rmi contivbase) and retry"
+#    exit
+#fi
 
 ARG1=${1:-none}
 if [ $ARG1 == "reinit" ]; then
@@ -41,6 +41,7 @@ echo "Copying the Contiv Binaries from the built container"
 docker cp $imgId:/go/bin/netplugin scripts/netContain/
 docker cp $imgId:/go/bin/netmaster scripts/netContain/
 docker cp $imgId:/go/bin/netctl scripts/netContain/
+docker cp $imgId:/go/bin/contivk8s scripts/netContain/
 
 
 echo "Removing Intermediate Contiv Container"
@@ -54,7 +55,5 @@ if [ $? != 0 ]; then
    exit
 fi
 
-docker tag $imgId contivbase
-
-
-scripts/netContain/contivd.sh start $ARG1
+#echo "Build Contiv Image $imgId ..., tagging it as contivbase"
+#docker tag $imgId contivbase
