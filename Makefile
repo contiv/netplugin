@@ -1,10 +1,9 @@
 
-.PHONY: all all-CI build clean default unit-test release tar
+.PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src golint-src govet-src
 
-# find all verifiable packages.
-# XXX: explore a better way that doesn't need multiple 'find'
-PKGS := `find . -mindepth 1 -maxdepth 1 -type d -name '*' | grep -vE '/\..*$\|Godeps|examples|docs|scripts|mgmtfn|bin|vagrant|test|vendor'`
-PKGS += `find . -mindepth 2 -maxdepth 2 -type d -name '*'| grep -vE '/\..*$\|Godeps|examples|docs|scripts|bin|vagrant|vendor'`
+SHELL := /bin/bash
+EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor
+PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
@@ -18,6 +17,12 @@ TAR_EXT := tar.bz2
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
 TAR_LOC := .
 TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
+GO_MIN_VERSION := 1.5.1
+GO_MAX_VERSION := 1.6.2
+GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
+GOLINT_CMD := golint -set_exit_status
+GOFMT_CMD := gofmt -l
+GOVET_CMD := go tool vet
 
 all: build unit-test system-test ubuntu-tests
 
@@ -37,8 +42,28 @@ default: build
 deps:
 	./scripts/deps
 
-checks:
-	./scripts/checks "$(PKGS)"
+gofmt-src: $(PKG_DIRS)
+	$(info +++ gofmt $(PKG_DIRS))
+	@for dir in $?; do $(GOFMT_CMD) $${dir} | grep "go"; [[ $$? -ne 0 ]] || exit 1; done
+
+golint-src: $(PKG_DIRS)
+	$(info +++ golint $(PKG_DIRS))
+	@for dir in $?; do $(GOLINT_CMD) $${dir}/... || exit 1;done
+
+govet-src: $(PKG_DIRS)
+	$(info +++ govet $(PKG_DIRS))
+	@for dir in $?; do $(GOVET_CMD) $${dir} || exit 1;done
+
+go-version:
+	$(info +++ check go version)
+ifneq ($(GO_VERSION), $(lastword $(sort $(GO_VERSION) $(GO_MIN_VERSION))))
+	$(error go version check failed, expected >= $(GO_MIN_VERSION), found $(GO_VERSION))
+endif
+ifneq ($(GO_VERSION), $(firstword $(sort $(GO_VERSION) $(GO_MAX_VERSION))))
+	$(error go version check failed, expected <= $(GO_MAX_VERSION), found $(GO_VERSION))
+endif
+
+checks: go-version gofmt-src golint-src govet-src
 
 # We cannot perform sudo inside a golang, the only reason to split the rules
 # here

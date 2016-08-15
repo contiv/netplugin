@@ -29,6 +29,7 @@ import (
 	logger "github.com/Sirupsen/logrus"
 )
 
+//CNIError : return format from CNI plugin
 type CNIError struct {
 	CNIVersion string `json:"cniVersion"`
 	Code       uint   `json:"code"`
