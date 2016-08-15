@@ -82,16 +82,12 @@ func (its *integTestSuite) SetUpSuite(c *C) {
 
 // SetUpTest gets called before each test is run
 func (its *integTestSuite) SetUpTest(c *C) {
-	log.Infof("=======================================================")
-	log.Infof("%s starting", c.TestName())
-	log.Infof("=======================================================")
+	log.Infof("============================= %s starting ==========================", c.TestName())
 }
 
 // TearDownTest gets called after each test is run
 func (its *integTestSuite) TearDownTest(c *C) {
-	log.Infof("=======================================================")
-	log.Infof("%s finished", c.TestName())
-	log.Infof("=======================================================")
+	log.Infof("============================= %s completed ==========================", c.TestName())
 }
 
 // TearDownSuite gets called after entire test suite is done
