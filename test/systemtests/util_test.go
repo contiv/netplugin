@@ -642,16 +642,31 @@ func (s *systemtestSuite) checkConnectionsAcrossGroup(containers map[*container]
 		groups[group] = append(groups[group], cont1)
 	}
 
+	errChan := make(chan error, len(containers)*len(containers)*len(groups))
+	checkConnCount := 0
 	for cont1, group := range containers {
 		for group2, conts := range groups {
 			if group != group2 {
 				for _, cont := range conts {
-					err := cont1.node.exec.checkConnection(cont1, cont.eth0.ip, "tcp", port)
-					if !expFail && err != nil {
-						return err
-					}
+					go func(cont1 *container, cont *container, port int) {
+						err := cont1.node.exec.checkConnection(cont1, cont.eth0.ip, "tcp", port)
+						if !expFail && err != nil {
+							errChan <- err
+						} else {
+							errChan <- nil
+						}
+					}(cont1, cont, port)
+					checkConnCount++
 				}
 			}
+		}
+	}
+
+	// check for errors
+	for i := 0; i < checkConnCount; i++ {
+		err := <-errChan
+		if err != nil {
+			return err
 		}
 	}
 
@@ -669,15 +684,28 @@ func (s *systemtestSuite) checkConnectionsWithinGroup(containers map[*container]
 		groups[group] = append(groups[group], cont1)
 	}
 
+	errChan := make(chan error, len(containers)*len(containers)*len(groups))
+	checkConnCount := 0
+
+	// check connections
 	for cont1, group := range containers {
 		for group2, conts := range groups {
 			if group == group2 {
 				for _, cont := range conts {
-					if err := cont1.node.exec.checkConnection(cont1, cont.eth0.ip, "tcp", port); err != nil {
-						return err
-					}
+					go func(cont1 *container, cont *container, port int) {
+						errChan <- cont1.node.exec.checkConnection(cont1, cont.eth0.ip, "tcp", port)
+					}(cont1, cont, port)
+					checkConnCount++
 				}
 			}
+		}
+	}
+
+	// check for errors
+	for i := 0; i < checkConnCount; i++ {
+		err := <-errChan
+		if err != nil {
+			return err
 		}
 	}
 
@@ -695,15 +723,27 @@ func (s *systemtestSuite) checkPingContainersInNetworks(containers map[*containe
 		networks[network] = append(networks[network], cont1)
 	}
 
+	pingCount := 0
+	errChan := make(chan error, len(containers)*len(containers)*len(networks))
+
 	for cont1, network := range containers {
 		for network2, conts := range networks {
 			if network2 == network {
 				for _, cont := range conts {
-					if err := cont1.node.exec.checkPing(cont1, cont.eth0.ip); err != nil {
-						return err
-					}
+					go func(cont1 *container, cont *container) {
+						errChan <- cont1.node.exec.checkPing(cont1, cont.eth0.ip)
+					}(cont1, cont)
+					pingCount++
 				}
 			}
+		}
+	}
+
+	// check for errors
+	for i := 0; i < pingCount; i++ {
+		err := <-errChan
+		if err != nil {
+			return err
 		}
 	}
 

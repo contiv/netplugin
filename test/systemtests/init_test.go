@@ -109,8 +109,8 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 func (s *systemtestSuite) TearDownTest(c *C) {
 	for _, node := range s.nodes {
 		c.Check(node.checkForNetpluginErrors(), IsNil)
-		c.Assert(node.exec.rotateNetpluginLog(), IsNil)
-		c.Assert(node.exec.rotateNetmasterLog(), IsNil)
+		node.exec.rotateNetpluginLog()
+		node.exec.rotateNetmasterLog()
 	}
 	logrus.Infof("============================= %s completed ==========================", c.TestName())
 }

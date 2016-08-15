@@ -1016,6 +1016,10 @@ func TestNetworkAddDelete(t *testing.T) {
 	verifyNetworkState(t, "default", "contiv", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1, "", "", 0)
 	checkDeleteNetwork(t, false, "default", "contiv")
 
+	// vxlan network with VNI higher than 4K
+	checkCreateNetwork(t, false, "default", "contiv", "", "vxlan", "10.1.1.1/24", "10.1.1.254", 8000, "", "")
+	checkDeleteNetwork(t, false, "default", "contiv")
+
 	// Basic network with '-' in the name
 	checkCreateNetwork(t, false, "default", "contiv-valid", "", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "")
 	verifyNetworkState(t, "default", "contiv-valid", "data", "vxlan", "10.1.1.1", "10.1.1.254", 16, 1, 1, "", "", 0)
@@ -1087,6 +1091,7 @@ func TestNetworkAddDelete(t *testing.T) {
 	// try invalid pkt tags
 	checkCreateNetwork(t, true, "default", "contiv", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 5000, "", "")
 	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 20000, "", "")
+	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 16777217, "", "")
 
 	// Try gateway outside the network
 	checkCreateNetwork(t, true, "default", "contiv", "data", "vxlan", "10.1.1.1/24", "10.1.2.254", 1, "", "")

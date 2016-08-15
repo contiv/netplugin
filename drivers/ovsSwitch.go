@@ -504,8 +504,7 @@ func (sw *OvsSwitch) CreateVtep(vtepIP string) error {
 	log.Infof("Creating VTEP intf %s for IP %s", intfName, vtepIP)
 
 	// Check if it already exists
-	isPresent, vsifName := sw.ovsdbDriver.IsVtepPresent(vtepIP)
-	if !isPresent || (vsifName != intfName) {
+	if !sw.ovsdbDriver.IsVtepPresent(intfName, vtepIP) {
 		// Ask ovsdb to create it
 		err := sw.ovsdbDriver.CreateVtep(intfName, vtepIP)
 		if err != nil {

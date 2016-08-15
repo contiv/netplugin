@@ -617,33 +617,33 @@ func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
 }
 
 // IsVtepPresent checks if VTEP already exists
-func (d *OvsdbDriver) IsVtepPresent(remoteIP string) (bool, string) {
-	d.cacheLock.RLock()
-	defer d.cacheLock.RUnlock()
+func (d *OvsdbDriver) IsVtepPresent(intfName, remoteIP string) bool {
+	condition := libovsdb.NewCondition("name", "==", intfName)
+	selectOp := libovsdb.Operation{
+		Op:    "select",
+		Table: "Interface",
+		Where: []interface{}{condition},
+	}
 
-	// walk the local cache
-	for tName, table := range d.cache {
-		if tName == "Interface" {
-			for _, row := range table {
-				options := row.Fields["options"]
-				switch optMap := options.(type) {
-				case libovsdb.OvsMap:
-					if optMap.GoMap["remote_ip"] == remoteIP {
-						value := row.Fields["name"]
-						switch t := value.(type) {
-						case string:
-							return true, t
-						default:
-							// return false, ""
-						}
-					}
-				default:
-					// return false, ""
+	row, err := d.ovs.Transact(ovsDataBase, selectOp)
+
+	if err == nil && len(row) > 0 && len(row[0].Rows) > 0 {
+		value := row[0].Rows[0]["ofport"]
+		if reflect.TypeOf(value).Kind() == reflect.Float64 {
+			options := row[0].Rows[0]["options"]
+			switch optMap := options.(type) {
+			case libovsdb.OvsMap:
+				// make sure remote IP matches too
+				if optMap.GoMap["remote_ip"] == remoteIP {
+					return true
 				}
+
+				return false
+			default:
+				return false
 			}
 		}
 	}
 
-	// We could not find the interface name
-	return false, ""
+	return false
 }

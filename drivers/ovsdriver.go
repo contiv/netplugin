@@ -735,7 +735,7 @@ func (d *OvsDriver) SvcProviderUpdate(svcName string, providers []string) {
 
 // GetEndpointStats gets all endpoints from all ovs instances
 func (d *OvsDriver) GetEndpointStats() ([]byte, error) {
-	vxlanStats, err := d.switchDb["vxlan"].GetEndpointStats()
+	stats, err := d.switchDb["vxlan"].GetEndpointStats()
 	if err != nil {
 		log.Errorf("Error getting vxlan stats. Err: %v", err)
 		return []byte{}, err
@@ -747,12 +747,13 @@ func (d *OvsDriver) GetEndpointStats() ([]byte, error) {
 		return []byte{}, err
 	}
 
-	// combine the maps
-	for key, val := range vxlanStats {
-		vlanStats[key] = val
+	// merge vlan and vxlan stats
+	for key, val := range vlanStats {
+		stats[key] = val
 	}
 
-	jsonStats, err := json.Marshal(vlanStats)
+	// convert to json
+	jsonStats, err := json.Marshal(stats)
 	if err != nil {
 		log.Errorf("Error encoding epstats. Err: %v", err)
 		return jsonStats, err

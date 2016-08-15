@@ -710,7 +710,7 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 			}
 
 			c.Assert(leader.stopNetmaster(), IsNil)
-			c.Assert(leader.rotateLog("netmaster"), IsNil)
+			leader.rotateLog("netmaster")
 
 			for x := 0; x < 15; x++ {
 				logrus.Info("Waiting 5s for leader to change...")
@@ -900,7 +900,7 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 			c.Assert(node.stopNetplugin(), IsNil)
 			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
 			time.Sleep(2 * time.Minute)
-			c.Assert(node.rotateLog("netplugin"), IsNil)
+			node.rotateLog("netplugin")
 			c.Assert(node.startNetplugin(""), IsNil)
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 			time.Sleep(20 * time.Second)

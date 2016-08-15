@@ -67,6 +67,10 @@ sudo systemctl start docker
 rm /etc/docker/key.json
 (service docker restart) || exit 1
 
+# fix SSH slowness
+sed -i -e 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config
+(service sshd restart) || exit 1
+
 usermod -aG docker vagrant
 docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar || echo "Loading skydns container failed"
 
