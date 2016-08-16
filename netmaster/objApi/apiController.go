@@ -676,6 +676,58 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 	return nil
 }
 
+// EndpointGroupGetOper inspects endpointGroup
+func (ac *APIController) EndpointGroupGetOper(endpointGroup *contivModel.EndpointGroupInspect) error {
+	log.Infof("Received EndpointGroupInspect: %+v", endpointGroup)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	epgCfg := &mastercfg.EndpointGroupState{}
+	epgCfg.StateDriver = stateDriver
+	epgID := endpointGroup.Config.GroupName + ":" + endpointGroup.Config.TenantName
+	if err := epgCfg.Read(epgID); err != nil {
+		log.Errorf("Error fetching endpointGroup from mastercfg: %s", epgID)
+		return err
+	}
+
+	endpointGroup.Oper.ExternalPktTag = epgCfg.ExtPktTag
+	endpointGroup.Oper.PktTag = epgCfg.PktTag
+	epCount := 0
+
+	readEp := &mastercfg.CfgEndpointState{}
+	readEp.StateDriver = stateDriver
+	epCfgs, err := readEp.ReadAll()
+	if err == nil {
+		for _, epCfg := range epCfgs {
+			ep := epCfg.(*mastercfg.CfgEndpointState)
+			if ep.EndpointGroupKey == epgID {
+				epCount++
+				epOper := contivModel.EndpointOper{}
+				epOper.Network = ep.NetID
+				epOper.EndpointID = ep.EndpointID
+				epOper.ServiceName = ep.ServiceName
+				epOper.EndpointGroupID = ep.EndpointGroupID
+				epOper.EndpointGroupKey = ep.EndpointGroupKey
+				epOper.IpAddress = []string{ep.IPAddress, ep.IPv6Address}
+				epOper.MacAddress = ep.MacAddress
+				epOper.HomingHost = ep.HomingHost
+				epOper.IntfName = ep.IntfName
+				epOper.VtepIP = ep.VtepIP
+				epOper.Labels = fmt.Sprintf("%s", ep.Labels)
+				epOper.ContainerID = ep.ContainerID
+				epOper.ContainerName = ep.ContainerName
+				endpointGroup.Oper.Endpoints = append(endpointGroup.Oper.Endpoints, epOper)
+			}
+		}
+	}
+	endpointGroup.Oper.NumEndpoints = epCount
+	return nil
+}
+
 // EndpointGroupDelete deletes end point group
 func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupDelete: %+v", endpointGroup)
@@ -776,7 +828,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	return nil
 }
 
-// NetworkGetOper updates network
+// NetworkGetOper inspects network
 func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) error {
 	log.Infof("Received NetworkInspect: %+v", network)
 
@@ -1528,9 +1580,4 @@ func validatePorts(ports []string) bool {
 		}
 	}
 	return true
-}
-
-// EndpointGroupGetOper returns nil
-func (ac *APIController) EndpointGroupGetOper(endpointGroup *contivModel.EndpointGroupInspect) error {
-	return nil
 }
