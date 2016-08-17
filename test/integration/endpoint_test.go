@@ -213,3 +213,92 @@ func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
 
 	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
 }
+
+// TestEndpointGroupInspect test endpointGroup inspect command
+func (its *integTestSuite) TestEndpointGroupInspect(c *C) {
+	// Create a network
+	err := its.client.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: "test",
+		Subnet:      "10.1.1.0/24",
+		Encap:       its.encap,
+	})
+	assertNoErr(err, c, "creating network")
+
+	// Create a epg
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:  "default",
+		NetworkName: "test",
+		GroupName:   "epgA",
+	})
+	assertNoErr(err, c, "creating endpointgroup")
+
+	// verify endpointGroup state is correct
+	insp, err := its.client.EndpointGroupInspect("default", "epgA")
+	assertNoErr(err, c, "inspecting endpointGroup")
+	log.Infof("Inspecting endpointGroup: %+v", insp)
+	c.Assert(len(insp.Oper.Endpoints), Equals, 0)
+	c.Assert(insp.Oper.PktTag, Equals, 1)
+	c.Assert(insp.Oper.NumEndpoints, Equals, 0)
+
+	for i := 0; i < its.iterations; i++ {
+		addr, err := its.allocAddress("", "test.default", "")
+		assertNoErr(err, c, "allocating address")
+		c.Assert(addr, Equals, "10.1.1.1")
+
+		// create an endpoint in epg
+		epCfg1, err := its.createEndpoint("default", "test", "epgA", addr, "")
+		assertNoErr(err, c, "creating endpoint")
+
+		// verify endpointGroup & endpoint inspect output
+		insp, err := its.client.EndpointGroupInspect("default", "epgA")
+		assertNoErr(err, c, "inspecting endpointGroup")
+		log.Infof("Inspecting endpointGroup: %+v", insp)
+		c.Assert(len(insp.Oper.Endpoints), Equals, 1)
+		c.Assert(insp.Oper.NumEndpoints, Equals, 1)
+
+		// verify the endpoint inspect and flow
+		its.verifyEndpointInspect("default", "test", epCfg1, c)
+		its.verifyEndpointFlow(epCfg1, c)
+
+		// allocate a specific address
+		addr, err = its.allocAddress("", "test.default", "10.1.1.5")
+		assertNoErr(err, c, "allocating address")
+		c.Assert(addr, Equals, "10.1.1.5")
+
+		// create an endpoint in epg
+		epCfg2, err := its.createEndpoint("default", "test", "epgA", addr, "")
+		assertNoErr(err, c, "creating endpoint")
+
+		// verify network & endpoint inspect output
+		insp, err = its.client.EndpointGroupInspect("default", "epgA")
+		assertNoErr(err, c, "inspecting endpointGroup")
+		log.Infof("Inspecting endpointGroup: %+v", insp)
+		c.Assert(len(insp.Oper.Endpoints), Equals, 2)
+		c.Assert(insp.Oper.NumEndpoints, Equals, 2)
+
+		// verify endpoint inspect and flows is added
+		its.verifyEndpointInspect("default", "test", epCfg2, c)
+		its.verifyEndpointFlow(epCfg2, c)
+
+		// delete the endpoints
+		err = its.deleteEndpoint("default", "test", "", epCfg1)
+		assertNoErr(err, c, "deleting endpoint")
+		err = its.deleteEndpoint("default", "test", "", epCfg2)
+		assertNoErr(err, c, "deleting endpoint")
+
+		// verify there are no more endpoints in epg
+		insp, err = its.client.EndpointGroupInspect("default", "epgA")
+		assertNoErr(err, c, "inspecting endpointGroup")
+		c.Assert(len(insp.Oper.Endpoints), Equals, 0)
+		log.Infof("Inspecting endpointGroup: %+v", insp)
+		c.Assert(len(insp.Oper.Endpoints), Equals, 0)
+		c.Assert(insp.Oper.NumEndpoints, Equals, 0)
+
+		// verify flows are also gone
+		its.verifyEndpointFlowRemoved(epCfg1, c)
+		its.verifyEndpointFlowRemoved(epCfg2, c)
+	}
+
+	assertNoErr(its.client.EndpointGroupDelete("default", "epgA"), c, "deleting endpointGroup")
+}
