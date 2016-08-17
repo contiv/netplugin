@@ -167,3 +167,49 @@ func (its *integTestSuite) TestEndpointCreateDeleteParallel(c *C) {
 
 	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
 }
+
+// TestEndpointGroupCreateDelete tests EPG create delete ops
+func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
+	// Create a network
+	err := its.client.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: "test",
+		Subnet:      "10.1.1.0/24",
+		Encap:       its.encap,
+	})
+	assertNoErr(err, c, "creating network")
+
+	for i := 0; i < its.iterations; i++ {
+		err := its.client.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:       "default",
+			NetworkName:      "test",
+			GroupName:        "epg1",
+			Policies:         []string{},
+			ExtContractsGrps: []string{},
+		})
+		addr, err := its.allocAddress("", "test.default", "")
+		assertNoErr(err, c, "allocating address")
+		c.Assert(addr, Equals, "10.1.1.1")
+
+		// create an endpoint in the network
+		epCfg1, err := its.createEndpoint("default", "test", "epg1", addr, "")
+		assertNoErr(err, c, "creating endpoint")
+
+		// delete epg with active endpoints - should FAIL
+		err = its.client.EndpointGroupDelete("default", "epg1")
+		assertErr(err, c, "deleting epg")
+
+		// delete the endpoints
+		err = its.deleteEndpoint("default", "test", "", epCfg1)
+		assertNoErr(err, c, "deleting endpoint")
+
+		// delete epg
+		err = its.client.EndpointGroupDelete("default", "epg1")
+		assertNoErr(err, c, "deleting epg")
+
+		// verify flows are also gone
+		its.verifyEndpointFlowRemoved(epCfg1, c)
+	}
+
+	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
+}

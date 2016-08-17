@@ -118,8 +118,26 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 		epCfg.EndpointGroupKey = mastercfg.GetEndpointGroupKey(ep.ServiceName, nwCfg.Tenant)
 		epCfg.EndpointGroupID, err = mastercfg.GetEndpointGroupID(stateDriver, ep.ServiceName, nwCfg.Tenant)
 		if err != nil {
-			log.Errorf("Error getting endpoint group for %s.%s. Err: %v", ep.ServiceName, nwCfg.ID, err)
+			log.Errorf("Error getting endpoint group ID for %s.%s. Err: %v", ep.ServiceName, nwCfg.ID, err)
 			return nil, err
+		}
+
+		if epCfg.EndpointGroupKey != "" {
+			epgCfg := &mastercfg.EndpointGroupState{}
+			epgCfg.StateDriver = stateDriver
+			err = epgCfg.Read(epCfg.EndpointGroupKey)
+			if err != nil {
+				log.Errorf("Error reading Epg info for EP: %+v. Error: %v", ep, err)
+				return nil, err
+			}
+
+			epgCfg.EpCount++
+
+			err = epgCfg.Write()
+			if err != nil {
+				log.Errorf("Error saving epg state: %+v", epgCfg)
+				return nil, err
+			}
 		}
 	}
 
@@ -193,6 +211,23 @@ func DeleteEndpointID(stateDriver core.StateDriver, epID string) (*mastercfg.Cfg
 		err = networkReleaseAddress(nwCfg, epCfg.IPAddress)
 		if err != nil {
 			log.Errorf("Error releasing endpoint state for: %s. Err: %v", epCfg.IPAddress, err)
+		}
+
+		if epCfg.EndpointGroupKey != "" {
+			epgCfg := &mastercfg.EndpointGroupState{}
+			epgCfg.StateDriver = stateDriver
+			err = epgCfg.Read(epCfg.EndpointGroupKey)
+			if err != nil {
+				log.Errorf("Error reading EPG for endpoint: %+v", epCfg)
+			}
+
+			epgCfg.EpCount--
+
+			// write updated epg state
+			err = epgCfg.Write()
+			if err != nil {
+				log.Errorf("error writing epg config. Error: %s", err)
+			}
 		}
 
 		// decrement ep count

@@ -34,6 +34,7 @@ type EndpointGroupState struct {
 	PktTagType      string `json:"pktTagType"`
 	PktTag          int    `json:"pktTag"`
 	ExtPktTag       int    `json:"extPktTag"`
+	EpCount         int    `json:"epCount"`
 }
 
 // Write the state.

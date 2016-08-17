@@ -144,7 +144,7 @@ func checkCreateNetwork(t *testing.T, expError bool, tenant, network, nwType, en
 	if err != nil && !expError {
 		t.Fatalf("Error creating network {%+v}. Err: %v", net, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create network {%+v} succeded while expecing error", net)
+		t.Fatalf("Create network {%+v} succeeded while expecting error", net)
 	} else if err == nil {
 		// verify network is created
 		_, err := contivClient.NetworkGet(tenant, network)
@@ -160,7 +160,7 @@ func checkInspectNetwork(t *testing.T, expError bool, tenant, network, allocedIP
 	if err != nil && !expError {
 		t.Fatalf("Error inspecting network {%s.%s}. Err: %v", network, tenant, err)
 	} else if err == nil && expError {
-		t.Fatalf("Inspect network {%s.%s} succeded while expecing error", network, tenant)
+		t.Fatalf("Inspect network {%s.%s} succeeded while expecting error", network, tenant)
 	} else if err == nil {
 		if insp.Oper.AllocatedAddressesCount != addrCount || insp.Oper.PktTag != pktTag ||
 			insp.Oper.AllocatedIPAddresses != allocedIPs {
@@ -200,7 +200,7 @@ func checkDeleteNetwork(t *testing.T, expError bool, tenant, network string) {
 	if err != nil && !expError {
 		t.Fatalf("Error deleting network %s/%s. Err: %v", tenant, network, err)
 	} else if err == nil && expError {
-		t.Fatalf("Delete network %s/%s succeded while expecing error", tenant, network)
+		t.Fatalf("Delete network %s/%s succeeded while expecting error", tenant, network)
 	} else if err == nil {
 		// verify network is gone
 		_, err := contivClient.NetworkGet(tenant, network)
@@ -225,7 +225,7 @@ func checkInspectGlobal(t *testing.T, expError bool, allocedVlans, allocedVxlans
 	if err != nil && !expError {
 		t.Fatalf("Error inspecting global info. Err: %v", err)
 	} else if err == nil && expError {
-		t.Fatalf("Inspect global info succeded while expecing error")
+		t.Fatalf("Inspect global info succeeded while expecting error")
 	} else if err == nil {
 		if insp.Oper.VlansInUse != allocedVlans || insp.Oper.VxlansInUse != allocedVxlans {
 			t.Fatalf("Inspect network {%+v} failed with mismatching ", insp)
@@ -246,7 +246,7 @@ func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode
 	if err != nil && !expError {
 		t.Fatalf("Error setting global {%+v}. Err: %v", gl, err)
 	} else if err == nil && expError {
-		t.Fatalf("Set global {%+v} succeded while expecing error", gl)
+		t.Fatalf("Set global {%+v} succeeded while expecting error", gl)
 	} else if err == nil {
 		// verify global state
 		gotGl, err := contivClient.GlobalGet("global")
@@ -306,7 +306,7 @@ func checkCreatePolicy(t *testing.T, expError bool, tenant, policy string) {
 	if err != nil && !expError {
 		t.Fatalf("Error creating policy {%+v}. Err: %v", pol, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create policy {%+v} succeded while expecing error", pol)
+		t.Fatalf("Create policy {%+v} succeeded while expecting error", pol)
 	} else if err == nil {
 		// verify policy is created
 		_, err := contivClient.PolicyGet(tenant, policy)
@@ -322,7 +322,7 @@ func checkDeletePolicy(t *testing.T, expError bool, tenant, policy string) {
 	if err != nil && !expError {
 		t.Fatalf("Error deleting policy %s/%s. Err: %v", tenant, policy, err)
 	} else if err == nil && expError {
-		t.Fatalf("Delete policy %s/%s succeded while expecing error", tenant, policy)
+		t.Fatalf("Delete policy %s/%s succeeded while expecting error", tenant, policy)
 	} else if err == nil {
 		// verify policy is gone
 		_, err := contivClient.PolicyGet(tenant, policy)
@@ -354,7 +354,7 @@ func checkCreateRule(t *testing.T, expError bool, tenant, policy, ruleID, dir, f
 	if err != nil && !expError {
 		t.Fatalf("Error creating rule {%+v}. Err: %v", pol, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create rule {%+v} succeded while expecing error", pol)
+		t.Fatalf("Create rule {%+v} succeeded while expecting error", pol)
 	} else if err == nil {
 		// verify rule is created
 		_, err := contivClient.RuleGet(tenant, policy, ruleID)
@@ -370,7 +370,7 @@ func checkDeleteRule(t *testing.T, expError bool, tenant, policy, ruleID string)
 	if err != nil && !expError {
 		t.Fatalf("Error deleting rule %s/%s/%s. Err: %v", tenant, policy, ruleID, err)
 	} else if err == nil && expError {
-		t.Fatalf("Delete rule %s/%s/%s succeded while expecing error", tenant, policy, ruleID)
+		t.Fatalf("Delete rule %s/%s/%s succeeded while expecting error", tenant, policy, ruleID)
 	} else if err == nil {
 		// verify rule is gone
 		_, err := contivClient.RuleGet(tenant, policy, ruleID)
@@ -393,7 +393,7 @@ func checkCreateEpg(t *testing.T, expError bool, tenant, network, group string, 
 	if err != nil && !expError {
 		t.Fatalf("Error creating epg {%+v}. Err: %v", epg, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create epg {%+v} succeded while expecing error", epg)
+		t.Fatalf("Create epg {%+v} succeeded while expecting error", epg)
 	} else if err == nil {
 		// verify epg is created
 		_, err := contivClient.EndpointGroupGet(tenant, group)
@@ -416,7 +416,7 @@ func checkCreateExtContractsGrp(t *testing.T, expError bool, tenant, grpName, gr
 	if err != nil && !expError {
 		t.Fatalf("Error creating extContractsGrp {%+v}. Err: %v", extContractsGrp, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create extContrctsGrp {%+v} succeded while expecing error", extContractsGrp)
+		t.Fatalf("Create extContrctsGrp {%+v} succeeded while expecting error", extContractsGrp)
 	} else if err == nil {
 		// verify extContractsGrp is created
 		_, err := contivClient.ExtContractsGroupGet(tenant, grpName)
@@ -432,7 +432,7 @@ func checkDeleteExtContractsGrp(t *testing.T, expError bool, tenant, grpName str
 	if err != nil && !expError {
 		t.Fatalf("Error deleting extContractsGrp %s/%s. Err: %v", tenant, grpName, err)
 	} else if err == nil && expError {
-		t.Fatalf("Delete extContractsGrp %s/%s succeded while expecing error", tenant, grpName)
+		t.Fatalf("Delete extContractsGrp %s/%s succeeded while expecting error", tenant, grpName)
 	} else if err == nil {
 		// verify epg is gone
 		_, err := contivClient.ExtContractsGroupGet(tenant, grpName)
@@ -483,7 +483,7 @@ func checkEpgPolicyDeleted(t *testing.T, tenant, network, group, policy string) 
 	// See if it already exists
 	gp := mastercfg.FindEpgPolicy(epgpKey)
 	if gp != nil {
-		t.Fatalf("Found EPG policy %s while expecing it to be deleted", epgpKey)
+		t.Fatalf("Found EPG policy %s while expecting it to be deleted", epgpKey)
 	}
 
 }
@@ -494,7 +494,7 @@ func checkDeleteEpg(t *testing.T, expError bool, tenant, network, group string) 
 	if err != nil && !expError {
 		t.Fatalf("Error deleting epg %s/%s. Err: %v", tenant, group, err)
 	} else if err == nil && expError {
-		t.Fatalf("Delete epg %s/%s succeded while expecing error", tenant, group)
+		t.Fatalf("Delete epg %s/%s succeeded while expecting error", tenant, group)
 	} else if err == nil {
 		// verify epg is gone
 		_, err := contivClient.EndpointGroupGet(tenant, group)
@@ -515,7 +515,7 @@ func checkCreateAppProfile(t *testing.T, expError bool, tenant, profName string,
 	if err != nil && !expError {
 		t.Fatalf("Error creating AppProfile {%+v}. Err: %v", prof, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create AppProfile {%+v} succeded while expecing error", prof)
+		t.Fatalf("Create AppProfile {%+v} succeeded while expecting error", prof)
 	} else if err == nil {
 		// verify AppProfile is created
 		_, err := contivClient.AppProfileGet(tenant, profName)
@@ -561,12 +561,14 @@ func checkDeleteAppProfile(t *testing.T, expError bool, tenant, prof string) {
 	if err != nil && !expError {
 		t.Fatalf("Error deleting AppProfile %s/%s. Err: %v", tenant, prof, err)
 	} else if err == nil && expError {
-		t.Fatalf("Delete AppProfile %s/%s succeded while expecing error", tenant, prof)
+		t.Fatalf("Delete AppProfile %s/%s succeeded while expecting error", tenant, prof)
 	} else if err == nil {
 		// verify AppProfile is gone
 		_, err := contivClient.AppProfileGet(tenant, prof)
 		if err == nil {
 			t.Fatalf("AppProfile %s/%s not deleted", tenant, prof)
+		} else {
+			t.Logf("AppProfile %s/%s successfully deleted", tenant, prof)
 		}
 	}
 }
@@ -582,7 +584,7 @@ func checkCreateTenant(t *testing.T, expError bool, tenantName string) {
 	if err != nil && !expError {
 		t.Fatalf("Error creating tenant {%+v}. Err: %v", tenant, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create tenant {%+v} succeded while expecing error", tenant)
+		t.Fatalf("Create tenant {%+v} succeeded while expecting error", tenant)
 	} else if err == nil {
 		// verify tenant is created
 		_, err := contivClient.TenantGet(tenantName)
@@ -598,7 +600,7 @@ func checkDeleteTenant(t *testing.T, expError bool, tenant string) {
 	if err != nil && !expError {
 		t.Fatalf("Error deleting tenant %s. Err: %v", tenant, err)
 	} else if err == nil && expError {
-		t.Fatalf("Delete tenant %s succeded while expecing error", tenant)
+		t.Fatalf("Delete tenant %s succeeded while expecting error", tenant)
 	} else if err == nil {
 		// verify network is gone
 		_, err := contivClient.TenantGet(tenant)

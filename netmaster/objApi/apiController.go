@@ -429,11 +429,12 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 }
 
 // Cleans up state off endpointGroup and related objects.
-func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) {
+func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) error {
 	// delete the endpoint group state
 	err := master.DeleteEndpointGroup(endpointGroup.TenantName, endpointGroup.GroupName)
 	if err != nil {
 		log.Errorf("Error deleting endpoint group %+v. Err: %v", endpointGroup, err)
+		return err
 	}
 
 	// Detach the endpoint group from the Policies
@@ -477,6 +478,8 @@ func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) {
 		modeldb.RemoveLinkSet(&tenant.LinkSets.EndpointGroups, endpointGroup)
 		tenant.Write()
 	}
+
+	return nil
 }
 
 // FIXME: hack to allocate unique endpoint group ids
@@ -509,7 +512,7 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	// create the endpoint group state
 	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
 	if err != nil {
-		log.Errorf("Error creating endpoing group %+v. Err: %v", endpointGroup, err)
+		log.Errorf("Error creating endpoint group %+v. Err: %v", endpointGroup, err)
 		return err
 	}
 
@@ -686,8 +689,12 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 			endpointGroup.GroupName, endpointGroup.Links.AppProfile.ObjKey)
 	}
 
-	endpointGroupCleanup(endpointGroup)
-	return nil
+	err := endpointGroupCleanup(endpointGroup)
+	if err != nil {
+		log.Errorf("EPG cleanup failed: %+v", err)
+	}
+
+	return err
 }
 
 // NetworkCreate creates network
@@ -856,12 +863,6 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	// Remove link
 	modeldb.RemoveLinkSet(&tenant.LinkSets.Networks, network)
 
-	// Save the tenant too since we removed the links
-	err := tenant.Write()
-	if err != nil {
-		return err
-	}
-
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
@@ -873,6 +874,12 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	err = master.DeleteNetworkID(stateDriver, networkID)
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", network.NetworkName, err)
+		return err
+	}
+
+	// Save the tenant too since we removed the links
+	err = tenant.Write()
+	if err != nil {
 		return err
 	}
 

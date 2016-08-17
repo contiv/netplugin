@@ -40,6 +40,15 @@ func assertNoErr(err error, c *C, msg string) {
 	}
 }
 
+// assertErr utility function to assert no error
+func assertErr(err error, c *C, msg string) {
+	if err == nil {
+		log.Errorf("Expected Error %s.", err)
+		debug.PrintStack()
+		c.Fatalf("Expected Error %s.", err)
+	}
+}
+
 // allocAddress gets an address from the master
 func (its *integTestSuite) allocAddress(addrPool, networkID, prefAddress string) (string, error) {
 	// Build an alloc request to be sent to master
