@@ -29,12 +29,6 @@ func errExit(ctx *cli.Context, exitCode int, err string, showHelp bool) {
 	os.Exit(exitCode)
 }
 
-func argCheck(args int, ctx *cli.Context) {
-	if len(ctx.Args()) != args {
-		errExit(ctx, exitHelp, "Invalid Arguments", true)
-	}
-}
-
 func respCheck(resp *http.Response, ctx *cli.Context) {
 	if resp.StatusCode != 200 {
 		writeBody(resp, ctx)
