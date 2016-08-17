@@ -2981,7 +2981,7 @@ func ValidateNetwork(obj *Network) error {
 		return errors.New("nwType string invalid format")
 	}
 
-	if obj.PktTag > 4094 {
+	if obj.PktTag > 1.6777216e+07 {
 		return errors.New("pktTag Value Out of bound")
 	}
 
