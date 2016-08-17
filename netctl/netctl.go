@@ -580,6 +580,22 @@ func createEndpointGroup(ctx *cli.Context) {
 	fmt.Printf("Creating EndpointGroup %s:%s\n", tenant, group)
 }
 
+func inspectEndpointGroup(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	tenant := ctx.String("tenant")
+	endpointGroup := ctx.Args()[0]
+
+	fmt.Printf("Inspeting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
+
+	epg, err := getClient(ctx).EndpointGroupInspect(tenant, endpointGroup)
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(epg, "", "  ")
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}
+
 func deleteEndpointGroup(ctx *cli.Context) {
 	argCheck(1, ctx)
 
