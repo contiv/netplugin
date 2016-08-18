@@ -315,6 +315,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 			bandwidth  = make(map[string]string)
 			npTenant   = make(map[string][]string)
 			networks   = make(map[string][]string)
+			netName    = make(map[string]string)
 			containers = map[string][]*container{}
 			pktTag     = 0
 			epgName    string
@@ -328,9 +329,10 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 			c.Assert(s.cli.TenantPost(&client.Tenant{TenantName: tenantName}), IsNil)
 
 			for networkNum := 0; networkNum < (numContainer - 1); networkNum++ {
+				networkName := fmt.Sprintf("net%d-%s", networkNum, tenantName)
 				network := &client.Network{
 					TenantName:  tenantName,
-					NetworkName: fmt.Sprintf("net%d", networkNum),
+					NetworkName: networkName,
 					Subnet:      fmt.Sprintf("10.%d.%d.1/24", tenantNum, networkNum),
 					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
 					PktTag:      pktTag + 1000,
@@ -343,9 +345,9 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 				networks[tenantName] = append(networks[network.TenantName], network.NetworkName)
 				pktTag++
 
-				profileName := fmt.Sprintf("netprofile%d-%d-%d", tenantNum, networkNum, i)
+				profileName := fmt.Sprintf("netprofile%d%d-%s", networkNum, tenantNum, tenantName)
 				bwInt := 10 + tenantNum + networkNum
-				burst := (bwInt * 15)
+				burst := (bwInt * 13)
 				netprofile := &client.Netprofile{
 					ProfileName: profileName,
 					DSCP:        networkNum + i,
@@ -356,7 +358,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 
 				c.Assert(s.cli.NetprofilePost(netprofile), IsNil)
 				logrus.Infof("Creating:%s with %s", netprofile.ProfileName, netprofile.TenantName)
-				epgName = fmt.Sprintf("epg%d-ten%d-%d", networkNum, tenantNum, i)
+				epgName = fmt.Sprintf("epg%d-%s", networkNum, networkName)
 				group := &client.EndpointGroup{
 					GroupName:   epgName,
 					NetworkName: network.NetworkName,
@@ -366,6 +368,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 				c.Assert(s.cli.EndpointGroupPost(group), IsNil)
 				logrus.Infof("Creating %s with %s and %s", group.GroupName, group.NetProfile, group.TenantName)
 				groupNames[tenantName] = append(groupNames[group.TenantName], group.GroupName)
+				netName[epgName] = group.NetworkName
 				groupsInNp[profileName] = append(groupsInNp[group.NetProfile], group.GroupName)
 				bandwidth[group.NetProfile] = netprofile.Bandwidth
 				npTenant[tenantName] = append(npTenant[netprofile.TenantName], netprofile.ProfileName)
@@ -375,11 +378,11 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 		for tenant, groups := range groupNames {
 			endChan := make(chan error)
 			for _, groupName := range groups {
-				go func(groupName, tenant string, containers map[string][]*container) {
+				go func(groupName, tenant string, netName map[string]string, containers map[string][]*container) {
 					var err error
 					mutex.Lock()
 					logrus.Infof("Creating containers in group:%s", groupName)
-					containers[groupName], err = s.runContainers(numContainer, false, groupName, tenant, nil, nil)
+					containers[groupName], err = s.runContainersInService(numContainer, groupName, netName[groupName], tenant, nil)
 					mutex.Unlock()
 					endChan <- err
 
@@ -387,8 +390,8 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 						_, err := s.CheckBgpRouteDistribution(c, containers[groupName])
 						c.Assert(err, IsNil)
 					}
-			
-				}(groupName, tenant, containers)
+
+				}(groupName, tenant, netName, containers)
 			}
 			for i := 0; i < len(groups); i++ {
 				c.Assert(<-endChan, IsNil)
@@ -398,7 +401,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 		for netprofiles, groups := range groupsInNp {
 			for _, group := range groups {
 				logrus.Infof("Running iperf server on %s", group)
-				s.startIperfServers(containers[group])
+				c.Assert(s.startIperfServers(containers[group]), IsNil)
 				logrus.Infof("running iperf client on %s", group)
 				c.Assert(s.startIperfClients(containers[group], bandwidth[netprofiles], false), IsNil)
 			}

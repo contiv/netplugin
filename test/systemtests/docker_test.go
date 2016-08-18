@@ -257,26 +257,26 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 	var (
 		bwLimit int64
 		bwInt64 int64
-		bw	string
+		bw      string
 		success bool
 		err     error
 	)
 
-	for i := 0; i<10 ;i++  {
-        bw, err = d.exec(c, fmt.Sprintf("iperf -c %s -u -b 20mbps", ip))
-        if err != nil {
-                return err
-        }  
-	 if strings.Contains(bw, "Server Report:") {
-	success = true
-	break	
-	}else if strings.Contains(bw, "read failed:") { 
-	time.Sleep(2 * time.Second)
-	i++
+	for i := 0; i < 3; i++ {
+		bw, err = d.exec(c, fmt.Sprintf("iperf -c %s -u -b 20mbps", ip))
+		if err != nil {
+			return err
+		}
+		if strings.Contains(bw, "Server Report:") {
+			success = true
+			break
+		} else if strings.Contains(bw, "read failed:") {
+			time.Sleep(2 * time.Second)
+			i++
+		}
 	}
-	}      
 
-		if success {
+	if success {
 		logrus.Infof("starting iperf client on conatiner:%s for server ip: %s", c, ip)
 		bwFormat := strings.Split(bw, "Server Report:")
 		bwString := strings.Split(bwFormat[1], "Bytes ")
@@ -292,16 +292,16 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 			}
 			bwLimit = bwLimit + (bwLimit / 10)
 			if bwLimit > bwInt64 {
-				logrus.Infof("Obtained bandwidth :%sbits is less than the limit:%s", newBandwidth[0], limit)
+				logrus.Infof("Obtained bandwidth:%sbits matches with the limit:%s", newBandwidth[0], limit)
 			} else if bwLimit < bwInt64 {
 				if isErr {
-					logrus.Errorf("Obtained Bandwidth:%sbits is more than the limit: %s",newBandwidth[0], limit)
+					logrus.Errorf("Obtained Bandwidth:%sbits is more than the limit:%s", newBandwidth[0], limit)
 				} else {
-					logrus.Errorf("Obtained bandwidth:%sbits is more than the limit %s", newBandwidth[0], limit)
+					logrus.Errorf("Obtained bandwidth:%sbits is more than the limit:%s", newBandwidth[0], limit)
 					return errors.New("Applied bandwidth is more than bandwidth rate!")
 				}
 			} else {
-				logrus.Errorf("Bandwidth rate :%s not applied", limit)
+				logrus.Errorf("Bandwidth rate:%s not applied", limit)
 				return errors.New("Bandwidth rate is not applied")
 			}
 		} else {
