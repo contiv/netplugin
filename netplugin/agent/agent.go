@@ -22,6 +22,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin"
+	"github.com/contiv/netplugin/mgmtfn/mesosplugin"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
@@ -78,6 +79,9 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	if err != nil {
 		log.Fatalf("Failed to initialize the plugin. Error: %s", err)
 	}
+
+	// init mesos plugin
+	mesosplugin.InitPlugin(netPlugin)
 
 	// create a new agent
 	agent := &Agent{

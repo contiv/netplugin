@@ -4,7 +4,7 @@
 SHELL := /bin/bash
 EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
-TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/
+TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/contivnet/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
 NAME := netplugin
@@ -133,6 +133,13 @@ mesos-docker-destroy:
 nomad-docker:
 	cd vagrant/nomad-docker && vagrant up
 	VAGRANT_CWD=./vagrant/nomad-docker/ vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
+
+mesos-cni-demo:
+	$(MAKE) -C vagrant/mesos-cni $@
+
+mesos-cni-destroy:
+	$(MAKE) -C vagrant/mesos-cni $@
+
 demo-ubuntu:
 	CONTIV_NODE_OS=ubuntu make demo
 
