@@ -138,6 +138,17 @@ func (ag *Agent) ProcessCurrentState() error {
 		}
 	}
 
+	readEpg := mastercfg.EndpointGroupState{}
+	readEpg.StateDriver = ag.netPlugin.StateDriver
+	epgCfgs, err := readEpg.ReadAll()
+	if err == nil {
+		for idx, epgCfg := range epgCfgs {
+			epg := epgCfg.(*mastercfg.EndpointGroupState)
+			log.Infof("Read epg key[%d] %s, for group %s, populating state \n", idx, epg.GroupName)
+			processEpgEvent(ag.netPlugin, opts, epg.ID, false)
+		}
+	}
+
 	readServiceLb := &mastercfg.CfgServiceLBState{}
 	readServiceLb.StateDriver = ag.netPlugin.StateDriver
 	serviceLbCfgs, err := readServiceLb.ReadAll()
@@ -189,6 +200,8 @@ func (ag *Agent) HandleEvents() error {
 	go handleNetworkEvents(ag.netPlugin, opts, recvErr)
 
 	go handleBgpEvents(ag.netPlugin, opts, recvErr)
+
+	go handleEpgEvents(ag.netPlugin, opts, recvErr)
 
 	go handleServiceLBEvents(ag.netPlugin, opts, recvErr)
 

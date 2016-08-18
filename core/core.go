@@ -112,6 +112,7 @@ type NetworkDriver interface {
 	CreateNetwork(id string) error
 	DeleteNetwork(id, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error
 	CreateEndpoint(id string) error
+	UpdateEndpointGroup(id string) error
 	DeleteEndpoint(id string) error
 	CreateHostAccPort(portName, globalIP, localIP string) error
 	DeleteHostAccPort(id string) error

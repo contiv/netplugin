@@ -1,10 +1,12 @@
 package netctl
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -242,6 +244,124 @@ func listRules(ctx *cli.Context) {
 	}
 }
 
+func createNetProfile(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	burst := ctx.Int("burst")
+	bandwidth := ctx.String("bandwidth")
+	dscp := ctx.Int("dscp")
+	tenant := ctx.String("tenant")
+
+	name := ctx.Args()[0]
+
+	errCheck(ctx, getClient(ctx).NetprofilePost(&contivClient.Netprofile{
+		Burst:       burst,
+		Bandwidth:   bandwidth,
+		DSCP:        dscp,
+		ProfileName: name,
+		TenantName:  tenant,
+	}))
+	fmt.Printf("Creating netprofile %s:%s\n", tenant, name)
+}
+
+func deleteNetProfile(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	name := ctx.Args()[0]
+	tenant := ctx.String("tenant")
+
+	errCheck(ctx, getClient(ctx).NetprofileDelete(tenant, name))
+
+}
+
+func listNetProfiles(ctx *cli.Context) {
+	var (
+		bandwidth string
+		bw        []string
+	)
+	argCheck(0, ctx)
+
+	tenant := ctx.String("tenant")
+
+	profileList, err := getClient(ctx).NetprofileList()
+	errCheck(ctx, err)
+
+	var filtered []*contivClient.Netprofile
+
+	for _, profile := range *profileList {
+		if profile.TenantName == tenant || ctx.Bool("all") {
+			filtered = append(filtered, profile)
+		}
+	}
+
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, filtered)
+	} else if ctx.Bool("quiet") {
+		profiles := ""
+		for _, profile := range filtered {
+			profiles += profile.ProfileName + "\n"
+		}
+		os.Stdout.WriteString(profiles)
+	} else {
+		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+		defer writer.Flush()
+		writer.Write([]byte("Name\tTenant\tBandwidth\tDSCP\tburst size\n"))
+		writer.Write([]byte("------\t------\t---------\t--------\t----------\n"))
+
+		for _, netProfile := range filtered {
+			if netProfile.Bandwidth != "" {
+				regex := regexp.MustCompile("[0-9]+")
+				bw = regex.FindAllString(netProfile.Bandwidth, -1)
+				if strings.ContainsAny(netProfile.Bandwidth, "g|G") {
+					bandwidth = "Gbps"
+				} else if strings.ContainsAny(netProfile.Bandwidth, "m|M") {
+					bandwidth = "Mbps"
+				} else if strings.ContainsAny(netProfile.Bandwidth, "k|K") {
+					bandwidth = "Kbps"
+				}
+				npBandwidth := bw[0] + bandwidth
+				writer.Write(
+					[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\n",
+						netProfile.ProfileName,
+						netProfile.TenantName,
+						npBandwidth,
+						netProfile.DSCP,
+						netProfile.Burst,
+					)))
+			} else {
+				writer.Write(
+					[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\n",
+						netProfile.ProfileName,
+						netProfile.TenantName,
+						netProfile.Bandwidth,
+						netProfile.DSCP,
+					)))
+			}
+
+		}
+	}
+}
+
+func inspectNetprofile(ctx *cli.Context) {
+	argCheck(1, ctx)
+
+	tenant := ctx.String("tenant")
+	netprofile := ctx.Args()[0]
+	fmt.Printf("Inspecting netprofile:%s for %s", netprofile, tenant)
+
+	profileList, err := getClient(ctx).NetprofileInspect(tenant, netprofile)
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(profileList, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+
+}
+
 func createNetwork(ctx *cli.Context) {
 	argCheck(1, ctx)
 
@@ -310,6 +430,9 @@ func inspectNetwork(ctx *cli.Context) {
 	errCheck(ctx, err)
 
 	content, err := json.MarshalIndent(net, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
 	os.Stdout.Write(content)
 	os.Stdout.WriteString("\n")
 }
@@ -427,6 +550,9 @@ func inspectEndpoint(ctx *cli.Context) {
 	errCheck(ctx, err)
 
 	content, err := json.MarshalIndent(net, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
 	os.Stdout.Write(content)
 	os.Stdout.WriteString("\n")
 }
@@ -437,15 +563,16 @@ func createEndpointGroup(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 	group := ctx.Args()[1]
+	netprofile := ctx.String("networkprofile")
 
 	policies := ctx.StringSlice("policy")
 
 	extContractsGrps := ctx.StringSlice("external-contract")
-
 	errCheck(ctx, getClient(ctx).EndpointGroupPost(&contivClient.EndpointGroup{
 		TenantName:       tenant,
 		NetworkName:      network,
 		GroupName:        group,
+		NetProfile:       netprofile,
 		Policies:         policies,
 		ExtContractsGrps: extContractsGrps,
 	}))
@@ -490,8 +617,8 @@ func listEndpointGroups(ctx *cli.Context) {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tGroup\tNetwork\tPolicies\n"))
-		writer.Write([]byte("------\t-----\t-------\t--------\n"))
+		writer.Write([]byte("Tenant\tGroup\tNetwork\tPolicies\tNetwork profile\n"))
+		writer.Write([]byte("------\t-----\t-------\t--------\t---------------\n"))
 		for _, group := range filtered {
 			policies := ""
 			if group.Policies != nil {
@@ -502,11 +629,12 @@ func listEndpointGroups(ctx *cli.Context) {
 				policies = strings.Join(policyList, ",")
 			}
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\n",
 					group.TenantName,
 					group.GroupName,
 					group.NetworkName,
 					policies,
+					group.NetProfile,
 				)))
 		}
 	}
@@ -636,6 +764,9 @@ func inspectGlobal(ctx *cli.Context) {
 	errCheck(ctx, err)
 
 	content, err := json.MarshalIndent(ginfo, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
 	os.Stdout.Write(content)
 	os.Stdout.WriteString("\n")
 }
@@ -671,6 +802,18 @@ func dumpJSONList(ctx *cli.Context, list interface{}) {
 		errExit(ctx, exitIO, err.Error(), false)
 	}
 	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}
+
+func dumpInspectList(ctx *cli.Context, list interface{}) {
+	content, err := json.MarshalIndent(list, "", "  ")
+	newContent := bytes.Split(content, []byte("link-sets"))
+	fmt.Println(newContent)
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+	//	os.Stdout.Write(newContent[0])
+	fmt.Printf("%s", newContent[0])
 	os.Stdout.WriteString("\n")
 }
 
@@ -992,6 +1135,9 @@ func inspectServiceLb(ctx *cli.Context) {
 	errCheck(ctx, err)
 
 	content, err := json.MarshalIndent(net, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
 	os.Stdout.Write(content)
 	os.Stdout.WriteString("\n")
 }

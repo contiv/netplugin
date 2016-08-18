@@ -71,7 +71,6 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 			return err
 		}
 	}
-
 	// assign unique endpoint group ids
 	// FIXME: This is a hack. need to add a epgID resource
 	for i := 0; i < maxEpgID; i++ {
@@ -124,7 +123,6 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 		log.Debugf("ACI -- Allocated vlan %v for epg %v", pktTag, groupName)
 
 	}
-
 	err = epgCfg.Write()
 	if err != nil {
 		return err
@@ -188,6 +186,43 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 
 	if GetClusterMode() == "docker" {
 		return docknet.DeleteDockNet(epgCfg.TenantName, epgCfg.NetworkName, epgCfg.GroupName)
+	}
+	return nil
+}
+
+//UpdateEndpointGroup updates the endpointgroups
+func UpdateEndpointGroup(bandwidth, groupName, tenantName string, Dscp, burst int) error {
+
+	// Get the state driver - get the etcd driver state
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	key := mastercfg.GetEndpointGroupKey(groupName, tenantName)
+	if key == "" {
+		return errors.New("Error finding endpointGroup key ")
+	}
+
+	// Read etcd driver
+	epCfg := mastercfg.EndpointGroupState{}
+	epCfg.StateDriver = stateDriver
+
+	err = epCfg.Read(key)
+	if err != nil {
+		log.Errorf("Error finding endpointgroup %s. Err: %v", key, err)
+		return err
+	}
+
+	//update the epGroup state
+	epCfg.DSCP = Dscp
+	epCfg.Bandwidth = bandwidth
+	epCfg.Burst = burst
+
+	//Write to etcd
+	err = epCfg.Write()
+	if err != nil {
+		return err
 	}
 	return nil
 }

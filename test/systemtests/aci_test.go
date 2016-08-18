@@ -458,11 +458,11 @@ func (s *systemtestSuite) AciTestSetup(c *C) {
 		s.nodes = append(s.nodes, &node{tbnode: nodeObj, suite: s})
 	}
 
-	log.Info("Pulling alpine on all nodes")
+	log.Info("Pulling contiv/alpine on all nodes")
 
 	s.baremetal.IterateNodes(func(node vagrantssh.TestbedNode) error {
 		node.RunCommand("sudo rm /tmp/*net*")
-		return node.RunCommand("docker pull alpine")
+		return node.RunCommand("docker pull contiv/alpine")
 	})
 
 	//Copying binaries

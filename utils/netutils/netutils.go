@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -30,7 +31,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/jainvipin/bitset"
-	"github.com/vishvananda/netlink"
+	netlink "github.com/vishvananda/netlink"
 
 	"github.com/contiv/netplugin/core"
 )
@@ -120,6 +121,36 @@ func IsOverlappingSubnet(inputSubnet string, existingSubnet string) bool {
 	}
 	return false
 
+}
+
+//ConvertBandwidth will change the format of the bandwidth to int64 format and return the updated bw.
+//eg:- 2 kb bandwidth will be converted to 2*1024 and the result in Int64 format will be returned.
+func ConvertBandwidth(bandwidth string) int64 {
+	var rate int64
+
+	const (
+		kilobytes = 1024
+		megabytes = 1024 * kilobytes
+		gigabytes = 1024 * megabytes
+	)
+
+	regex := regexp.MustCompile("[0-9]+")
+	bw := regex.FindAllString(bandwidth, -1)
+	bwParseInt, err := strconv.ParseInt(bw[0], 10, 64)
+	if err != nil {
+		log.Errorf("error converting bandwidth string to uint64 %+v", err)
+	}
+	if strings.ContainsAny(bandwidth, "g|G") {
+		rate = gigabytes
+	} else if strings.ContainsAny(bandwidth, "m|M") {
+		rate = megabytes
+	} else if strings.ContainsAny(bandwidth, "k|K") {
+		rate = kilobytes
+	}
+	bwInt := bwParseInt * rate
+	bwInt = bwInt / 1000
+
+	return bwInt
 }
 
 // ValidateNetworkRangeParams verifies the network range format
