@@ -851,7 +851,7 @@ func (sw *OvsSwitch) SvcProviderUpdate(svcName string, providers []string) {
 }
 
 // GetEndpointStats invokes ofnetAgent api
-func (sw *OvsSwitch) GetEndpointStats() ([]*ofnet.OfnetEndpointStats, error) {
+func (sw *OvsSwitch) GetEndpointStats() (map[string]*ofnet.OfnetEndpointStats, error) {
 	if sw.ofnetAgent == nil {
 		return nil, errors.New("No ofnet agent")
 	}

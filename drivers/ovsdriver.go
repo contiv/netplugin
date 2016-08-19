@@ -651,8 +651,12 @@ func (d *OvsDriver) GetEndpointStats() ([]byte, error) {
 		return []byte{}, err
 	}
 
-	stats := append(vxlanStats, vlanStats...)
-	jsonStats, err := json.Marshal(stats)
+	// combine the maps
+	for key, val := range vxlanStats {
+		vlanStats[key] = val
+	}
+
+	jsonStats, err := json.Marshal(vlanStats)
 	if err != nil {
 		log.Errorf("Error encoding epstats. Err: %v", err)
 		return jsonStats, err

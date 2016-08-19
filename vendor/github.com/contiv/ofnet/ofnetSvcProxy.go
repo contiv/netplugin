@@ -421,13 +421,8 @@ func (proxy *ServiceProxy) DelSvcSpec(svcName string, spec *ServiceSpec) error {
 }
 
 // GetEndpointStats fetches ep stats
-func (proxy *ServiceProxy) GetEndpointStats() ([]*OfnetEndpointStats, error) {
-	var stats []*OfnetEndpointStats
-	for _, epStat := range proxy.epStats {
-		stats = append(stats, epStat)
-	}
-
-	return stats, nil
+func (proxy *ServiceProxy) GetEndpointStats() (map[string]*OfnetEndpointStats, error) {
+	return proxy.epStats, nil
 }
 
 // addProvider adds the given provider to operational State

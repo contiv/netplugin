@@ -986,7 +986,7 @@ func (self *OfnetAgent) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.Mu
 }
 
 // GetEndpointStats fetches all endpoint stats
-func (self *OfnetAgent) GetEndpointStats() ([]*OfnetEndpointStats, error) {
+func (self *OfnetAgent) GetEndpointStats() (map[string]*OfnetEndpointStats, error) {
 	return self.datapath.GetEndpointStats()
 }
 
