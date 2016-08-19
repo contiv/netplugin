@@ -348,8 +348,10 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 			}
 
 			if epgCfg, ok := currentState.(*mastercfg.EndpointGroupState); ok {
-				log.Infof("Received %q for Endpointgroup: %q", eventStr, epgCfg.EndpointGroupID)
-				processEpgEvent(netPlugin, opts, epgCfg.ID, isDelete)
+				log.Infof("Received %q for Endpointgroup %q with current state : %s , %d  ", eventStr, epgCfg.EndpointGroupID, epgCfg.Bandwidth, epgCfg.DSCP)
+				if epgCfg.DSCP != rsp.Prev.(*mastercfg.EndpointGroupState).DSCP {
+					processEpgEvent(netPlugin, opts, epgCfg.ID, isDelete)
+				}
 				continue
 			}
 
