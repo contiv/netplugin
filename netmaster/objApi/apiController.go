@@ -407,7 +407,10 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 	if err == nil {
 		for _, epCfg := range epCfgs {
 			ep := epCfg.(*mastercfg.CfgEndpointState)
-			if strings.Contains(ep.ContainerID, endpoint.Oper.Key) || strings.Contains(ep.ContainerName, endpoint.Oper.Key) {
+			if strings.Contains(ep.EndpointID, endpoint.Oper.Key) ||
+				strings.Contains(ep.ContainerID, endpoint.Oper.Key) ||
+				strings.Contains(ep.ContainerName, endpoint.Oper.Key) {
+
 				endpoint.Oper.Network = ep.NetID
 				endpoint.Oper.EndpointID = ep.EndpointID
 				endpoint.Oper.ServiceName = ep.ServiceName
@@ -422,12 +425,11 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 				endpoint.Oper.ContainerID = ep.ContainerID
 				endpoint.Oper.ContainerName = ep.ContainerName
 
-				break
+				return nil
 			}
 		}
 	}
-
-	return nil
+	return fmt.Errorf("endpoint not found")
 }
 
 //GetNetprofileKey gets the netprofile key.
