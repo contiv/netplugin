@@ -4,37 +4,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/Sirupsen/logrus"
 )
 
-type intf struct {
-	ip   string
-	ipv6 string
-}
-
-type container struct {
-	node        *node
-	containerID string
-	name        string
-	eth0        intf
-}
-type docker struct {
+type swarm struct {
 	node *node
+	env  string
 }
 
-func (s *systemtestSuite) NewDockerExec(n *node) *docker {
-	d := new(docker)
-	d.node = n
-	return d
+func (s *systemtestSuite) NewSwarmExec(n *node) *swarm {
+	w := new(swarm)
+	w.node = n
+	w.env = s.basicInfo.SwarmEnv + " "
+	return w
 }
 
-func (d *docker) newContainer(node *node, containerID, name string) (*container, error) {
+func (w *swarm) newContainer(node *node, containerID, name string) (*container, error) {
 	cont := &container{node: node, containerID: containerID, name: name}
 
 	out, err := node.exec.getIPAddr(cont, "eth0")
@@ -51,9 +41,8 @@ func (d *docker) newContainer(node *node, containerID, name string) (*container,
 	return cont, nil
 }
 
-func (d *docker) runContainer(spec containerSpec) (*container, error) {
+func (w *swarm) runContainer(spec containerSpec) (*container, error) {
 	var namestr, netstr, dnsStr, labelstr string
-
 	if spec.networkName != "" {
 		netstr = spec.networkName
 
@@ -68,11 +57,11 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 	}
 
 	if spec.imageName == "" {
-		spec.imageName = "contiv/alpine"
+		spec.imageName = "alpine"
 	}
 
 	if spec.commandName == "" {
-		spec.commandName = "sleep 600m"
+		spec.commandName = "sleep 60m"
 	}
 
 	if spec.name != "" {
@@ -89,15 +78,14 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 			labelstr += l + label + " "
 		}
 	}
-
-	logrus.Infof("Starting a container running %q on %s", spec.commandName, d.node.Name())
-
+	logrus.Infof("Starting a container running %q on %s", spec.commandName, w.node.Name())
 	cmd := fmt.Sprintf("docker run -itd %s %s %s %s %s %s", namestr, netstr, dnsStr, labelstr, spec.imageName, spec.commandName)
-	out, err := d.node.tbnode.RunCommandWithOutput(cmd)
+
+	out, err := w.node.tbnode.RunCommandWithOutput(w.env + cmd)
 	if err != nil {
 		logrus.Infof("cmd %q failed: output below", cmd)
 		logrus.Println(out)
-		out2, err := d.node.tbnode.RunCommandWithOutput(fmt.Sprintf("docker logs %s", strings.TrimSpace(out)))
+		out2, err := w.node.tbnode.RunCommandWithOutput(fmt.Sprintf("docker logs %s", strings.TrimSpace(out)))
 		if err == nil {
 			logrus.Println(out2)
 		} else {
@@ -107,7 +95,7 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 		return nil, err
 	}
 
-	cont, err := d.newContainer(d.node, strings.TrimSpace(out), spec.name)
+	cont, err := w.newContainer(w.node, strings.TrimSpace(out), spec.name)
 	if err != nil {
 		logrus.Info(err)
 		return nil, err
@@ -116,18 +104,18 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 	return cont, nil
 }
 
-func (d *docker) checkPingFailure(c *container, ipaddr string) error {
+func (w *swarm) checkPingFailure(c *container, ipaddr string) error {
 	logrus.Infof("Expecting ping failure from %v to %s", c, ipaddr)
-	if err := d.checkPing(c, ipaddr); err == nil {
+	if err := w.checkPing(c, ipaddr); err == nil {
 		return fmt.Errorf("Ping succeeded when expected to fail from %v to %s", c, ipaddr)
 	}
 
 	return nil
 }
 
-func (d *docker) checkPing(c *container, ipaddr string) error {
+func (w *swarm) checkPing(c *container, ipaddr string) error {
 	logrus.Infof("Checking ping from %v to %s", c, ipaddr)
-	out, err := d.exec(c, "ping -c 1 "+ipaddr)
+	out, err := w.exec(c, "ping -c 1 "+ipaddr)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %v to %s FAILED: %q - %v", c, ipaddr, out, err)
@@ -138,18 +126,18 @@ func (d *docker) checkPing(c *container, ipaddr string) error {
 	return nil
 }
 
-func (d *docker) checkPing6Failure(c *container, ipaddr string) error {
+func (w *swarm) checkPing6Failure(c *container, ipaddr string) error {
 	logrus.Infof("Expecting ping6 failure from %v to %s", c, ipaddr)
-	if err := d.checkPing6(c, ipaddr); err == nil {
+	if err := w.checkPing6(c, ipaddr); err == nil {
 		return fmt.Errorf("Ping6 succeeded when expected to fail from %v to %s", c, ipaddr)
 	}
 
 	return nil
 }
 
-func (d *docker) checkPing6(c *container, ipaddr string) error {
+func (w *swarm) checkPing6(c *container, ipaddr string) error {
 	logrus.Infof("Checking ping6 from %v to %s", c, ipaddr)
-	out, err := d.exec(c, "ping6 -c 1 "+ipaddr)
+	out, err := w.exec(c, "ping6 -c 1 "+ipaddr)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping6 from %v to %s FAILED: %q - %v", c, ipaddr, out, err)
@@ -160,8 +148,8 @@ func (d *docker) checkPing6(c *container, ipaddr string) error {
 	return nil
 }
 
-func (d *docker) getIPAddr(c *container, dev string) (string, error) {
-	out, err := d.exec(c, fmt.Sprintf("ip addr show dev %s | grep inet | head -1", dev))
+func (w *swarm) getIPAddr(c *container, dev string) (string, error) {
+	out, err := w.exec(c, fmt.Sprintf("ip addr show dev %s | grep inet | head -1", dev))
 	if err != nil {
 		logrus.Errorf("Failed to get IP for container %q", c.containerID)
 		logrus.Println(out)
@@ -177,8 +165,8 @@ func (d *docker) getIPAddr(c *container, dev string) (string, error) {
 	return out, err
 }
 
-func (d *docker) getIPv6Addr(c *container, dev string) (string, error) {
-	out, err := d.exec(c, fmt.Sprintf("ip addr show dev %s | grep 'inet6.*scope.*global' | head -1", dev))
+func (w *swarm) getIPv6Addr(c *container, dev string) (string, error) {
+	out, err := w.exec(c, fmt.Sprintf("ip addr show dev %s | grep 'inet6.*scope.*global' | head -1", dev))
 	if err != nil {
 		logrus.Errorf("Failed to get IPv6 for container %q", c.containerID)
 		logrus.Println(out)
@@ -194,8 +182,8 @@ func (d *docker) getIPv6Addr(c *container, dev string) (string, error) {
 	return out, err
 }
 
-func (d *docker) getMACAddr(c *container, dev string) (string, error) {
-	out, err := d.exec(c, fmt.Sprintf("ip addr show dev %s | grep inet | head -1", dev))
+func (w *swarm) getMACAddr(c *container, dev string) (string, error) {
+	out, err := w.exec(c, fmt.Sprintf("ip addr show dev %s | grep ether | head -1", dev))
 	if err != nil {
 		logrus.Errorf("Failed to get IP for container %q", c.containerID)
 		logrus.Println(out)
@@ -211,9 +199,13 @@ func (d *docker) getMACAddr(c *container, dev string) (string, error) {
 	return out, err
 }
 
-func (d *docker) exec(c *container, args string) (string, error) {
-	out, err := c.node.runCommand(fmt.Sprintf("docker exec %s %s", c.containerID, args))
+func (w *swarm) exec(c *container, args string) (string, error) {
+	out, err := c.node.runCommand(fmt.Sprintf(w.env+"docker exec %s %s", c.containerID, args))
 	if err != nil {
+		if strings.Contains(args, "nc ") && out == "" {
+			return out, nil
+		}
+
 		logrus.Println(out)
 		return out, err
 	}
@@ -221,12 +213,12 @@ func (d *docker) exec(c *container, args string) (string, error) {
 	return out, nil
 }
 
-func (d *docker) execBG(c *container, args string) (string, error) {
-	return c.node.runCommand(fmt.Sprintf("docker exec -d %s %s", c.containerID, args))
+func (w *swarm) execBG(c *container, args string) (string, error) {
+	return c.node.runCommand(fmt.Sprintf(w.env+"docker exec -d %s %s", c.containerID, args))
 }
 
-func (d *docker) dockerCmd(c *container, arg string) error {
-	out, err := c.node.runCommand(fmt.Sprintf("docker %s %s", arg, c.containerID))
+func (w *swarm) swarmCmd(c *container, arg string) error {
+	out, err := c.node.runCommand(fmt.Sprintf(w.env+"docker %s %s", arg, c.containerID))
 	if err != nil {
 		logrus.Println(out)
 		return err
@@ -235,65 +227,64 @@ func (d *docker) dockerCmd(c *container, arg string) error {
 	return nil
 }
 
-func (d *docker) start(c *container) error {
+func (w *swarm) start(c *container) error {
 	logrus.Infof("Starting container %s on %s", c.containerID, c.node.Name())
-	return d.dockerCmd(c, "start")
+	return w.swarmCmd(c, "start")
 }
 
-func (d *docker) stop(c *container) error {
+func (w *swarm) stop(c *container) error {
 	logrus.Infof("Stopping container %s on %s", c.containerID, c.node.Name())
-	return d.dockerCmd(c, "stop")
+	return w.swarmCmd(c, "stop")
 }
 
-func (d *docker) rm(c *container) error {
+func (w *swarm) rm(c *container) error {
 	logrus.Infof("Removing container %s on %s", c.containerID, c.node.Name())
-	d.dockerCmd(c, "kill -s 9")
-	return d.dockerCmd(c, "rm -f")
+	w.swarmCmd(c, "kill -s 9")
+	return w.swarmCmd(c, "rm -f")
 }
 
-func (d *docker) startListener(c *container, port int, protocol string) error {
+func (w *swarm) startListener(c *container, port int, protocol string) error {
 	var protoStr string
-
 	if protocol == "udp" {
 		protoStr = "-u"
 	}
 
 	logrus.Infof("Starting a %s listener on %v port %d", protocol, c, port)
-	_, err := d.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
+	_, err := w.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
 	return err
 }
 
-func (d *docker) startIperfServer(c *container) error {
+func (w *swarm) startIperfServer(c *container) error {
 	logrus.Infof("starting iperf server on: %s", c)
-	_, err := d.execBG(c, fmt.Sprintf("iperf -s -u"))
+	_, err := w.execBG(c, fmt.Sprintf("iperf -s -u"))
 	return err
 }
 
-func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) error {
+func (w *swarm) startIperfClient(c *container, ip, limit string, isErr bool) error {
 
 	var (
 		bwLimit int64
 		bwInt64 int64
-		bw	string
+		bw      string
 		success bool
 		err     error
 	)
 
-	for i := 0; i<10 ;i++  {
-        bw, err = d.exec(c, fmt.Sprintf("iperf -c %s -u -b 20mbps", ip))
-        if err != nil {
-                return err
-        }  
-	 if strings.Contains(bw, "Server Report:") {
-	success = true
-	break	
-	}else if strings.Contains(bw, "read failed:") { 
-	time.Sleep(2 * time.Second)
-	i++
+	for i := 0; i < 10; i++ {
+		bw, err = w.exec(c, fmt.Sprintf("iperf -c %s -u -b 20mbps", ip))
+		if err != nil {
+			return err
+		}
+		if strings.Contains(bw, "Server Report:") {
+			success = true
+			break
+		} else if strings.Contains(bw, "read failed:") {
+			time.Sleep(2 * time.Second)
+			i++
+		}
 	}
-	}      
 
-		if success {
+	if success {
 		logrus.Infof("starting iperf client on conatiner:%s for server ip: %s", c, ip)
 		bwFormat := strings.Split(bw, "Server Report:")
 		bwString := strings.Split(bwFormat[1], "Bytes ")
@@ -312,7 +303,7 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 				logrus.Infof("Obtained bandwidth :%sbits is less than the limit:%s", newBandwidth[0], limit)
 			} else if bwLimit < bwInt64 {
 				if isErr {
-					logrus.Errorf("Obtained Bandwidth:%sbits is more than the limit: %s",newBandwidth[0], limit)
+					logrus.Errorf("Obtained Bandwidth:%sbits is more than the limit: %s", newBandwidth[0], limit)
 				} else {
 					logrus.Errorf("Obtained bandwidth:%sbits is more than the limit %s", newBandwidth[0], limit)
 					return errors.New("Applied bandwidth is more than bandwidth rate!")
@@ -328,37 +319,8 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 	return nil
 }
 
-func BwConvertInt64(bandwidth string) (int64, error) {
-	var rate int64
-
-	const (
-		kiloBytes = 1024
-		magaBytes = 1024 * kiloBytes
-		gigaBytes = 1024 * magaBytes
-	)
-
-	regex := regexp.MustCompile("[0-9]+")
-	bwStr := regex.FindAllString(bandwidth, -1)
-	bwInt, err := strconv.ParseInt(bwStr[0], 10, 64)
-	if err != nil {
-		logrus.Errorf("error converting bandwidth string to uint64 %+v", err)
-		return 0, err
-	}
-	if strings.ContainsAny(bandwidth, "g|G") {
-		rate = gigaBytes
-	} else if strings.ContainsAny(bandwidth, "m|M") {
-		rate = magaBytes
-	} else if strings.ContainsAny(bandwidth, "k|K") {
-		rate = kiloBytes
-	}
-	bwInt64 := bwInt * rate
-	bwInt64 = bwInt64 / 1000
-
-	return bwInt64, nil
-}
-
-func (d *docker) tcFilterShow(bw string) error {
-	qdiscShow, err := d.node.runCommand("tc qdisc show")
+func (w *swarm) tcFilterShow(bw string) error {
+	qdiscShow, err := w.node.runCommand("tc qdisc show")
 	if err != nil {
 		return err
 	}
@@ -366,7 +328,7 @@ func (d *docker) tcFilterShow(bw string) error {
 	vvport := strings.Split(qdiscoutput[1], "parent")
 	vvPort := strings.Split(vvport[0], "dev ")
 	cmd := fmt.Sprintf("tc -s filter show dev %s parent ffff:", vvPort[1])
-	str, err := d.node.runCommand(cmd)
+	str, err := w.node.runCommand(cmd)
 	if err != nil {
 		return err
 	}
@@ -388,7 +350,7 @@ func (d *docker) tcFilterShow(bw string) error {
 	return nil
 }
 
-func (d *docker) checkConnection(c *container, ipaddr, protocol string, port int) error {
+func (w *swarm) checkConnection(c *container, ipaddr, protocol string, port int) error {
 	var protoStr string
 
 	if protocol == "udp" {
@@ -397,7 +359,7 @@ func (d *docker) checkConnection(c *container, ipaddr, protocol string, port int
 
 	logrus.Infof("Checking connection from %v to ip %s on port %d", c, ipaddr, port)
 
-	_, err := d.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
+	_, err := w.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil {
 		logrus.Errorf("Connection from %v to ip %s on port %d FAILED", c, ipaddr, port)
 	} else {
@@ -407,52 +369,54 @@ func (d *docker) checkConnection(c *container, ipaddr, protocol string, port int
 	return err
 }
 
-func (d *docker) checkNoConnection(c *container, ipaddr, protocol string, port int) error {
+func (w *swarm) checkNoConnection(c *container, ipaddr, protocol string, port int) error {
 	logrus.Infof("Expecting connection to fail from %v to %s on port %d", c, ipaddr, port)
 
-	if err := d.checkConnection(c, ipaddr, protocol, port); err != nil {
+	if err := w.checkConnection(c, ipaddr, protocol, port); err != nil {
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILEw.", port, ipaddr, c)
 }
 
-func (d *docker) cleanupDockerNetwork() error {
-	logrus.Infof("Cleaning up networks on %s", d.node.Name())
-	return d.node.tbnode.RunCommand("docker network ls | grep netplugin | awk '{print $2}'")
+func (w *swarm) cleanupDockerNetwork() error {
+	logrus.Infof("Cleaning up networks on %s", w.node.Name())
+	return w.node.tbnode.RunCommand("docker network rm $(docker network ls | grep netplugin | awk '{print $2}')")
 }
 
-func (d *docker) cleanupContainers() error {
-	logrus.Infof("Cleaning up containers on %s", d.node.Name())
-	return d.node.tbnode.RunCommand("docker kill -s 9 `docker ps -aq`; docker rm -f `docker ps -aq`")
+func (w *swarm) cleanupContainers() error {
+	logrus.Infof("Cleaning up containers on %s", w.node.Name())
+	w.node.tbnode.RunCommand("docker kill -s 9 $(docker ps -a | grep alpine )")
+	// Removing all alpine container images
+	return w.node.tbnode.RunCommand("docker rm -f $(docker ps -a | grep alpine )")
+}
+func (w *swarm) startNetplugin(args string) error {
+	logrus.Infof("Starting netplugin on %s", w.node.Name())
+	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + w.node.suite.hostInfo.HostDataInterface + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log"
+	return w.node.tbnode.RunCommandBackground(cmd)
 }
 
-func (d *docker) startNetplugin(args string) error {
-	logrus.Infof("Starting netplugin on %s", d.node.Name())
-	return d.node.tbnode.RunCommandBackground("sudo " + d.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterface + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
+func (w *swarm) stopNetplugin() error {
+	logrus.Infof("Stopping netplugin on %s", w.node.Name())
+	return w.node.tbnode.RunCommand("sudo pkill netplugin")
 }
 
-func (d *docker) stopNetplugin() error {
-	logrus.Infof("Stopping netplugin on %s", d.node.Name())
-	return d.node.tbnode.RunCommand("sudo pkill netplugin")
+func (w *swarm) stopNetmaster() error {
+	logrus.Infof("Stopping netmaster on %s", w.node.Name())
+	return w.node.tbnode.RunCommand("sudo pkill netmaster")
 }
 
-func (d *docker) stopNetmaster() error {
-	logrus.Infof("Stopping netmaster on %s", d.node.Name())
-	return d.node.tbnode.RunCommand("sudo pkill netmaster")
-}
-
-func (d *docker) startNetmaster() error {
-	logrus.Infof("Starting netmaster on %s", d.node.Name())
+func (w *swarm) startNetmaster() error {
+	logrus.Infof("Starting netmaster on %s", w.node.Name())
 	dnsOpt := " --dns-enable=false "
-	if d.node.suite.basicInfo.EnableDNS {
+	if w.node.suite.basicInfo.EnableDNS {
 		dnsOpt = " --dns-enable=true "
 	}
-	return d.node.tbnode.RunCommandBackground(d.node.suite.basicInfo.BinPath + "/netmaster" + dnsOpt + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log")
+	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + dnsOpt + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log")
 }
-func (d *docker) cleanupMaster() {
-	logrus.Infof("Cleaning up master on %s", d.node.Name())
-	vNode := d.node.tbnode
+func (w *swarm) cleanupMaster() {
+	logrus.Infof("Cleaning up master on %s", w.node.Name())
+	vNode := w.node.tbnode
 	vNode.RunCommand("etcdctl rm --recursive /contiv")
 	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
 	vNode.RunCommand("etcdctl rm --recursive /docker")
@@ -461,43 +425,41 @@ func (d *docker) cleanupMaster() {
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 }
 
-func (d *docker) cleanupSlave() {
-	logrus.Infof("Cleaning up slave on %s", d.node.Name())
-	vNode := d.node.tbnode
+func (w *swarm) cleanupSlave() {
+	logrus.Infof("Cleaning up slave on %s", w.node.Name())
+	vNode := w.node.tbnode
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVxlanBridge")
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
 	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
-	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
-	vNode.RunCommand("sudo service docker restart")
 }
 
-func (d *docker) runCommandUntilNoNetpluginError() error {
-	return d.node.runCommandUntilNoError("pgrep netplugin")
+func (w *swarm) runCommandUntilNoNetpluginError() error {
+	return w.node.runCommandUntilNoError("pgrep netplugin")
 }
 
-func (d *docker) runCommandUntilNoNetmasterError() error {
-	return d.node.runCommandUntilNoError("pgrep netmaster")
+func (w *swarm) runCommandUntilNoNetmasterError() error {
+	return w.node.runCommandUntilNoError("pgrep netmaster")
 }
 
-func (d *docker) rotateNetmasterLog() error {
-	return d.rotateLog("netmaster")
+func (w *swarm) rotateNetmasterLog() error {
+	return w.rotateLog("netmaster")
 }
 
-func (d *docker) rotateNetpluginLog() error {
-	return d.rotateLog("netplugin")
+func (w *swarm) rotateNetpluginLog() error {
+	return w.rotateLog("netplugin")
 }
 
-func (d *docker) checkForNetpluginErrors() error {
-	out, _ := d.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep -A 5 "panic\|fatal" $i; done`)
+func (w *swarm) checkForNetpluginErrors() error {
+	out, _ := w.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "panic\|fatal" $i; done`)
 	if out != "" {
-		logrus.Errorf("Fatal error in logs on %s: \n", d.node.Name())
+		logrus.Errorf("Fatal error in logs on %s: \n", w.node.Name())
 		fmt.Printf("%s\n==========================================\n", out)
 		return fmt.Errorf("fatal error in netplugin logs")
 	}
 
-	out, _ = d.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "error" $i; done`)
+	out, _ = w.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "error" $i; done`)
 	if out != "" {
-		logrus.Errorf("error output in netplugin logs on %s: \n", d.node.Name())
+		logrus.Errorf("error output in netplugin logs on %s: \n", w.node.Name())
 		fmt.Printf("%s==========================================\n\n", out)
 		// FIXME: We still have some tests that are failing error check
 		// return fmt.Errorf("error output in netplugin logs")
@@ -506,14 +468,14 @@ func (d *docker) checkForNetpluginErrors() error {
 	return nil
 }
 
-func (d *docker) rotateLog(prefix string) error {
+func (w *swarm) rotateLog(prefix string) error {
 	oldPrefix := fmt.Sprintf("/tmp/%s", prefix)
 	newPrefix := fmt.Sprintf("/tmp/_%s", prefix)
-	_, err := d.node.runCommand(fmt.Sprintf("mv %s.log %s-`date +%%s`.log", oldPrefix, newPrefix))
+	_, err := w.node.runCommand(fmt.Sprintf("mv %s.log %s-`date +%%s`.log", oldPrefix, newPrefix))
 	return err
 }
 
-func (d *docker) checkConnectionRetry(c *container, ipaddr, protocol string, port, delay, retries int) error {
+func (w *swarm) checkConnectionRetry(c *container, ipaddr, protocol string, port, delay, retries int) error {
 	var protoStr string
 	var err error
 
@@ -528,7 +490,7 @@ func (d *docker) checkConnectionRetry(c *container, ipaddr, protocol string, por
 
 	for i := 0; i < retries; i++ {
 
-		_, err = d.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
+		_, err = w.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 		if err == nil {
 			logrus.Infof("Connection to ip %s on port %d SUCCEEDED, tries: %d", ipaddr, port, i+1)
 			return nil
@@ -540,20 +502,20 @@ func (d *docker) checkConnectionRetry(c *container, ipaddr, protocol string, por
 	return err
 }
 
-func (d *docker) checkNoConnectionRetry(c *container, ipaddr, protocol string, port, delay, retries int) error {
+func (w *swarm) checkNoConnectionRetry(c *container, ipaddr, protocol string, port, delay, retries int) error {
 	logrus.Infof("Expecting connection to fail from %v to %s on port %d", c, ipaddr, port)
 
-	if err := d.checkConnectionRetry(c, ipaddr, protocol, port, delay, retries); err != nil {
+	if err := w.checkConnectionRetry(c, ipaddr, protocol, port, delay, retries); err != nil {
 		return nil
 	}
 
 	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED.", port, ipaddr, c)
 }
 
-func (d *docker) checkPing6WithCount(c *container, ipaddr string, count int) error {
+func (w *swarm) checkPing6WithCount(c *container, ipaddr string, count int) error {
 	logrus.Infof("Checking ping6 from %v to %s", c, ipaddr)
 	cmd := fmt.Sprintf("ping6 -c %d %s", count, ipaddr)
-	out, err := d.exec(c, cmd)
+	out, err := w.exec(c, cmd)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping6 from %s to %s FAILED: %q - %v", c, ipaddr, out, err)
@@ -564,10 +526,10 @@ func (d *docker) checkPing6WithCount(c *container, ipaddr string, count int) err
 	return nil
 }
 
-func (d *docker) checkPingWithCount(c *container, ipaddr string, count int) error {
+func (w *swarm) checkPingWithCount(c *container, ipaddr string, count int) error {
 	logrus.Infof("Checking ping from %s to %s", c, ipaddr)
 	cmd := fmt.Sprintf("ping -c %d %s", count, ipaddr)
-	out, err := d.exec(c, cmd)
+	out, err := w.exec(c, cmd)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %s to %s FAILED: %q - %v", c, ipaddr, out, err)
@@ -578,11 +540,11 @@ func (d *docker) checkPingWithCount(c *container, ipaddr string, count int) erro
 	return nil
 }
 
-func (d *docker) checkSchedulerNetworkCreated(nwName string, expectedOp bool) error {
-	logrus.Infof("Checking whether docker network is created or not")
+func (w *swarm) checkSchedulerNetworkCreated(nwName string, expectedOp bool) error {
+	logrus.Infof(w.env + "Checking whether docker network is created or not")
 	cmd := fmt.Sprintf("docker network ls | grep netplugin | grep %s | awk \"{print \\$2}\"", nwName)
 	logrus.Infof("Command to be executed is = %s", cmd)
-	op, err := d.node.runCommand(cmd)
+	op, err := w.node.runCommand(cmd)
 
 	if err == nil {
 		// if networks are NOT meant to be created. In ACI mode netctl net create should
@@ -603,17 +565,17 @@ func (d *docker) checkSchedulerNetworkCreated(nwName string, expectedOp bool) er
 	return err
 }
 
-func (d *docker) waitForListeners() error {
-	return d.node.runCommandWithTimeOut("netstat -tlpn | grep 9090 | grep LISTEN", 500*time.Millisecond, 50*time.Second)
+func (w *swarm) waitForListeners() error {
+	return w.node.runCommandWithTimeOut("netstat -tlpn | grep 9090 | grep LISTEN", 500*time.Millisecond, 50*time.Second)
 }
 
-func (d *docker) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
+func (w *swarm) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	var data interface{}
 	actVTEPs := make(map[string]uint32)
 
 	// read vtep information from inspect
 	cmd := "curl -s localhost:9090/inspect/driver | python -mjson.tool"
-	str, err := d.node.tbnode.RunCommandWithOutput(cmd)
+	str, err := w.node.tbnode.RunCommandWithOutput(cmd)
 	if err != nil {
 		return "", err
 	}
@@ -662,24 +624,24 @@ func (d *docker) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 
 	return "", nil
 }
-func (d *docker) verifyEPs(epList []string) (string, error) {
+func (w *swarm) verifyEPs(epList []string) (string, error) {
 	// read ep information from inspect
 	cmd := "curl -s localhost:9090/inspect/driver | python -mjson.tool"
-	str, err := d.node.tbnode.RunCommandWithOutput(cmd)
+	str, err := w.node.tbnode.RunCommandWithOutput(cmd)
 	if err != nil {
 		return "", err
 	}
 
 	for _, ep := range epList {
 		if !strings.Contains(str, ep) {
-			return str, errors.New(ep + " not found on " + d.node.Name())
+			return str, errors.New(ep + " not found on " + w.node.Name())
 		}
 	}
 
 	return "", nil
 }
 
-func (d *docker) reloadNode(n *node) error {
+func (w *swarm) reloadNode(n *node) error {
 	logrus.Infof("Reloading node %s", n.Name())
 
 	out, err := exec.Command("vagrant", "reload", n.Name()).CombinedOutput()
@@ -691,6 +653,6 @@ func (d *docker) reloadNode(n *node) error {
 	logrus.Infof("Reloaded node %s. Output:\n%s", n.Name(), string(out))
 	return nil
 }
-func (d *docker) getMasterIP() (string, error) {
-	return d.node.getIPAddr("eth1")
+func (w *swarm) getMasterIP() (string, error) {
+	return w.node.getIPAddr("eth1")
 }

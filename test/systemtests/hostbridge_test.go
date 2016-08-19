@@ -6,7 +6,7 @@ import (
 )
 
 func (s *systemtestSuite) TestHostBridge(c *C) {
-	if s.scheduler != "k8" {
+	if s.basicInfo.Scheduler != "k8" {
 		return
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{

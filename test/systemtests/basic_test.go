@@ -34,8 +34,8 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 		TenantName:  "default",
 	}), IsNil)
 
-	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", "", nil, nil)
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 		c.Assert(err, IsNil)
 
 		if s.fwdMode == "routing" && encap == "vlan" {
@@ -73,7 +73,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 		TenantName:  "default",
 	}), IsNil)
 
-	containers, err := s.runContainers(s.containers, false, "private", "", nil, nil)
+	containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		var err error
@@ -81,7 +81,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 		c.Assert(err, IsNil)
 	}
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		c.Assert(s.pingTest(containers), IsNil)
 
 		errChan := make(chan error)
@@ -114,21 +114,21 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestBasicSvcDiscoveryVXLAN(c *C) {
-	if s.scheduler == "k8" {
+	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
 	s.testBasicSvcDiscovery(c, "vxlan")
 }
 
 func (s *systemtestSuite) TestBasicSvcDiscoveryVLAN(c *C) {
-	if s.scheduler == "k8" {
+	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
 	s.testBasicSvcDiscovery(c, "vlan")
 }
 
 func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
-	if !strings.Contains(s.clusterStore, "etcd") {
+	if !strings.Contains(s.basicInfo.ClusterStore, "etcd") {
 		c.Skip("Skipping test")
 	}
 	// HACK: "--dns" option is broken in docker 1.10.3. skip this test
@@ -149,7 +149,7 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		TenantName:  "default",
 	}), IsNil)
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		group1 := &client.EndpointGroup{
 			GroupName:   fmt.Sprintf("svc1%d", i),
 			NetworkName: "private",
@@ -167,9 +167,9 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		logrus.Infof("Creating epg: %s", group2.GroupName)
 		c.Assert(s.cli.EndpointGroupPost(group2), IsNil)
 
-		containers1, err := s.runContainersWithDNS(s.containers, "default", "private", fmt.Sprintf("svc1%d", i))
+		containers1, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private", fmt.Sprintf("svc1%d", i))
 		c.Assert(err, IsNil)
-		containers2, err := s.runContainersWithDNS(s.containers, "default", "private", fmt.Sprintf("svc2%d", i))
+		containers2, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private", fmt.Sprintf("svc2%d", i))
 		c.Assert(err, IsNil)
 
 		containers := append(containers1, containers2...)

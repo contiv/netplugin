@@ -14,7 +14,7 @@ import (
 
 func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
-	if s.scheduler == "k8" {
+	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
 
@@ -32,8 +32,8 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
-	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", "", nil, nil)
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 		c.Assert(err, IsNil)
 
 		var leader, oldLeader *node
@@ -42,7 +42,7 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 		c.Assert(err, IsNil)
 
 		for _, node := range s.nodes {
-			res, err := node.getIPAddr("eth1")
+			res, err := node.getIPAddr(s.hostInfo.HostMgmtInterface)
 			c.Assert(err, IsNil)
 			if leaderIP == res {
 				leader = node
@@ -59,7 +59,7 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 			c.Assert(err, IsNil)
 
 			for _, node := range s.nodes {
-				res, err := node.getIPAddr("eth1")
+				res, err := node.getIPAddr(s.hostInfo.HostMgmtInterface)
 				c.Assert(err, IsNil)
 				if res == newLeaderIP && res != leaderIP {
 					oldLeader = leader
@@ -100,8 +100,8 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
-	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", "", nil, nil)
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 		c.Assert(err, IsNil)
 
 		for _, node := range s.nodes {
@@ -131,7 +131,7 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 	c.Skip("Skipping this tests temporarily")
 
 	// can not run this test on docker 1.10 & k8s
-	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" || s.scheduler == "k8" {
+	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" || s.basicInfo.Scheduler == "k8" {
 		c.Skip("Skipping node reload test on [older docker version | consul | k8s]")
 	}
 	network := &client.Network{
@@ -147,13 +147,13 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
-	numContainers := s.containers
+	numContainers := s.basicInfo.Containers
 	if numContainers < (len(s.nodes) * 2) {
 		numContainers = len(s.nodes) * 2
 	}
 	cntPerNode := numContainers / len(s.nodes)
 
-	for i := 0; i < s.iterations; i++ {
+	for i := 0; i < s.basicInfo.Iterations; i++ {
 		containers := []*container{}
 
 		// start containers on all nodes
@@ -168,7 +168,7 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 
 		// reload VMs one at a time
 		for _, node := range s.nodes {
-			if s.scheduler == "k8" && node.Name() == "k8master" {
+			if s.basicInfo.Scheduler == "k8" && node.Name() == "k8master" {
 				continue
 			}
 			c.Assert(node.reloadNode(), IsNil)
@@ -220,8 +220,8 @@ func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
-	for i := 0; i < s.iterations; i++ {
-		containers, err := s.runContainers(s.containers, false, "private", "default", nil, nil)
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "default", nil, nil)
 		c.Assert(err, IsNil)
 
 		// test ping for all containers
@@ -343,7 +343,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(s.checkAllConnection(netMapContainers, groupMapContainers), IsNil)
 
-	for i := 0; i < (s.iterations * 6); i++ {
+	for i := 0; i < (s.basicInfo.Iterations * 6); i++ {
 		switch rand.Int() % 3 {
 		case 0:
 			logrus.Info("Triggering netplugin restart")
@@ -389,12 +389,12 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 }
 
 func (s *systemtestSuite) runTriggerContainers(groupNames []string) (map[*container]string, map[*container]string, []*container, error) {
-	netContainers, err := s.runContainers(s.containers, false, "private", "", nil, nil)
+	netContainers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	groupMapContainers, err := s.runContainersInGroups(s.containers, "other", "", groupNames)
+	groupMapContainers, err := s.runContainersInGroups(s.basicInfo.Containers, "other", "", groupNames)
 	if err != nil {
 		return nil, nil, nil, err
 	}

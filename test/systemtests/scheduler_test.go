@@ -1,5 +1,9 @@
 package systemtests
 
+/* An interface defined for testing different schedulers.
+   Support for kubernetes, swarm and no scheduler scenarios.
+   Scalable for other schedulers also, if required.
+*/
 type systemTestScheduler interface {
 	runContainer(spec containerSpec) (*container, error)
 	stop(c *container) error
@@ -14,6 +18,7 @@ type systemTestScheduler interface {
 	startListener(c *container, port int, protocol string) error
 	rm(c *container) error
 	getIPAddr(c *container, dev string) (string, error)
+	getMACAddr(c *container, dev string) (string, error)
 	checkPing(c *container, ipaddr string) error
 	checkPing6(c *container, ipv6addr string) error
 	checkPingFailure(c *container, ipaddr string) error
