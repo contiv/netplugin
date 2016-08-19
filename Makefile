@@ -178,7 +178,7 @@ l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 	CONTIV_L3=2 CONTIV_NODES=3 make start
 	CONTIV_L3=2 CONTIV_NODES=3 make ssh-build
-	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v
+	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 720m ./test/systemtests -check.v   
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 l3-demo:
 	CONTIV_L3=1 CONTIV_NODES=3 vagrant up

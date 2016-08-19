@@ -21,13 +21,22 @@ var providerIndex int
 5) Creates Providers under each service
 6) Checks reachability to service ip from consumer containers
 */
-func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
+func (s *systemtestSuite) TestServiceAddDeleteServiceVxlan(c *C) {
+	s.testServiceAddDeleteService(c, "vxlan")
+}
 
-	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
-	}
+func (s *systemtestSuite) TestServiceAddDeleteServiceVlan(c *C) {
+	s.testServiceAddDeleteService(c, "vlan")
+}
+
+func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 
 	mutex := sync.Mutex{}
+
+	if s.fwdMode == "routing" && encap == "vlan" {
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
+	}
 
 	for i := 0; i < s.iterations; i++ {
 		var (
@@ -67,7 +76,7 @@ func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
 					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
 					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
 					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
-					Encap:       "vxlan",
+					Encap:       encap,
 				}
 				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
 
@@ -76,7 +85,7 @@ func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
 				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
 			}
 
-			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName)
+			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName, encap)
 		}
 
 		for tenant, networks := range tenantNames {
@@ -95,6 +104,12 @@ func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
 				}(network, tenant, containers)
 			}
 		}
+		if s.fwdMode == "routing" && encap == "vlan" {
+			for _, cList := range containers {
+				_, err := s.CheckBgpRouteDistribution(c, cList)
+				c.Assert(err, IsNil)
+			}
+		}
 
 		for tenant, networks := range serviceNetworks {
 			ips := []string{}
@@ -110,7 +125,7 @@ func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
 			for _, network := range tenantNames[tenant] {
 				for _, svc := range service {
 					serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
-						s.addProviders(c, svc.Selectors, numContainer, tenant, network)...)
+						s.addProviders(c, svc.Selectors, numContainer, tenant, network, encap)...)
 				}
 				servicesPerTenant[tenant] = serviceContainers
 			}
@@ -163,6 +178,9 @@ func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
 			}
 		}
 	}
+	if encap == "vlan" && s.fwdMode == "routing" {
+		s.TearDownBgp(c)
+	}
 }
 
 /*TestServiceAddDeleteProviders does the following:
@@ -173,13 +191,21 @@ func (s *systemtestSuite) TestServiceAddDeleteService(c *C) {
 5) Adds and delete service provider containers and checks service ip reachability
 */
 
-func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
+func (s *systemtestSuite) TestServiceAddDeleteProvidersVxlan(c *C) {
+	s.testServiceAddDeleteProviders(c, "vxlan")
+}
 
-	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
-	}
+func (s *systemtestSuite) TestServiceAddDeleteProvidersVlan(c *C) {
+	s.testServiceAddDeleteProviders(c, "vlan")
+}
+
+func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 
 	mutex := sync.Mutex{}
+	if s.fwdMode == "routing" && encap == "vlan" {
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
+	}
 
 	for i := 0; i < s.iterations; i++ {
 		var (
@@ -219,7 +245,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
 					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
 					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
-					Encap:       "vxlan",
+					Encap:       encap,
 				}
 				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
 
@@ -227,7 +253,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 				netNames = append(netNames, network.NetworkName)
 				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
 			}
-			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName)
+			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName, encap)
 		}
 		for tenant, networks := range tenantNames {
 			endChan := make(chan error)
@@ -245,6 +271,13 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 				}(network, tenant, containers)
 			}
 		}
+
+		if s.fwdMode == "routing" && encap == "vlan" {
+			for _, cList := range containers {
+				_, err := s.CheckBgpRouteDistribution(c, cList)
+				c.Assert(err, IsNil)
+			}
+		}
 		for tenant, networks := range serviceNetworks {
 			ips := []string{}
 			for _, network := range networks {
@@ -255,7 +288,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 
 		for tenant, service := range services {
 			for _, svc := range service {
-				serviceContainers[svc.ServiceName] = s.addProviders(c, svc.Selectors, numContainer, tenant, svc.NetworkName)
+				serviceContainers[svc.ServiceName] = s.addProviders(c, svc.Selectors, numContainer, tenant, svc.NetworkName, encap)
 			}
 			servicesPerTenant[tenant] = serviceContainers
 		}
@@ -314,7 +347,7 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 						c.Assert(<-endChan, IsNil)
 					}
 					serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
-						s.addProviders(c, svc.Selectors, numContainer, tenant, svc.NetworkName)...)
+						s.addProviders(c, svc.Selectors, numContainer, tenant, svc.NetworkName, encap)...)
 					servicesPerTenant[tenant] = serviceContainers
 
 					s.startListenersOnProviders(serviceContainers[svc.ServiceName], svc.Ports)
@@ -344,6 +377,9 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 			}
 		}
 	}
+	if encap == "vlan" && s.fwdMode == "routing" {
+		s.TearDownBgp(c)
+	}
 }
 
 /*TestServiceAddDeleteProviders does the following:
@@ -354,10 +390,21 @@ func (s *systemtestSuite) TestServiceAddDeleteProviders(c *C) {
 5) Creates Services and verifies the sequesnce of providerupdate and
 service creation will appropriately update service providers
 */
-func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAdd(c *C) {
+func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAddVxlan(c *C) {
+	s.testServiceSequenceProviderAddServiceAdd(c, "vxlan")
 
-	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+}
+
+func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAddVlan(c *C) {
+	s.testServiceSequenceProviderAddServiceAdd(c, "vlan")
+
+}
+
+func (s *systemtestSuite) testServiceSequenceProviderAddServiceAdd(c *C, encap string) {
+
+	if s.fwdMode == "routing" && encap == "vlan" {
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
 	}
 
 	mutex := sync.Mutex{}
@@ -397,7 +444,7 @@ func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAdd(c *C) {
 				NetworkName: fmt.Sprintf("net%d", networkNum),
 				Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
 				Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
-				Encap:       "vxlan",
+				Encap:       encap,
 			}
 
 			logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
@@ -406,7 +453,7 @@ func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAdd(c *C) {
 			netNames = append(netNames, network.NetworkName)
 			tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
 		}
-		serviceNetworks[tenantName] = s.createServiceNetworks(c, 1, numSvcNet, tenantName)
+		serviceNetworks[tenantName] = s.createServiceNetworks(c, 1, numSvcNet, tenantName, encap)
 	}
 	for tenant, networks := range tenantNames {
 		endChan := make(chan error)
@@ -424,13 +471,19 @@ func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAdd(c *C) {
 			}(network, tenant, containers)
 		}
 	}
+	if s.fwdMode == "routing" && encap == "vlan" {
+		for _, cList := range containers {
+			_, err := s.CheckBgpRouteDistribution(c, cList)
+			c.Assert(err, IsNil)
+		}
+	}
 
 	for tenant, networks := range tenantNames {
 		for _, network := range networks {
 			for i := 0; i < numSvcs; i++ {
 				labels := getLabels(numLabels, i)
 				providers[tenant] = append(providers[tenant],
-					s.addProviders(c, labels, numContainer, tenant, network)...)
+					s.addProviders(c, labels, numContainer, tenant, network, encap)...)
 			}
 		}
 		s.startListenersOnProviders(providers[tenant], []string{"80:8080", "90:7070"})
@@ -491,7 +544,9 @@ func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAdd(c *C) {
 		}
 		delete(tenantNames, tenant)
 	}
-
+	if encap == "vlan" && s.fwdMode == "routing" {
+		s.TearDownBgp(c)
+	}
 }
 
 /*TestServiceAddDeleteProviders does the following:
@@ -503,10 +558,19 @@ func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAdd(c *C) {
 6) Restarts netmaster one by one on every node and creates/deletes service,providers
 and verfies the reachability.
 */
-func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 
-	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+func (s systemtestSuite) TestServiceTriggerNetmasterSwitchoverVxlan(c *C) {
+	s.testServiceTriggerNetmasterSwitchover(c, "vxlan")
+}
+func (s systemtestSuite) TestServiceTriggerNetmasterSwitchoverVlan(c *C) {
+	s.testServiceTriggerNetmasterSwitchover(c, "vlan")
+}
+
+func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap string) {
+
+	if s.fwdMode == "routing" && encap == "vlan" {
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
 	}
 
 	mutex := sync.Mutex{}
@@ -550,7 +614,7 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
 					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
 					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
-					Encap:       "vxlan",
+					Encap:       encap,
 				}
 
 				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
@@ -559,7 +623,7 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 				netNames = append(netNames, network.NetworkName)
 				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
 			}
-			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName)
+			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName, encap)
 		}
 
 		for tenant, networks := range tenantNames {
@@ -579,6 +643,12 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 				}(network, tenant, containers)
 			}
 		}
+		if s.fwdMode == "routing" && encap == "vlan" {
+			for _, cList := range containers {
+				_, err := s.CheckBgpRouteDistribution(c, cList)
+				c.Assert(err, IsNil)
+			}
+		}
 		for x := 0; x < s.iterations; x++ {
 
 			for tenant, networks := range serviceNetworks {
@@ -594,7 +664,7 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 				for _, network := range tenantNames[tenant] {
 					for _, svc := range service {
 						serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
-							s.addProviders(c, svc.Selectors, numContainer, tenant, network)...)
+							s.addProviders(c, svc.Selectors, numContainer, tenant, network, encap)...)
 					}
 					servicesPerTenant[tenant] = serviceContainers
 				}
@@ -689,6 +759,9 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 			}
 		}
 	}
+	if encap == "vlan" && s.fwdMode == "routing" {
+		s.TearDownBgp(c)
+	}
 }
 
 /*TestServiceAddDeleteProviders does the following:
@@ -700,13 +773,21 @@ func (s systemtestSuite) TestServiceTriggerNetmasterSwitchover(c *C) {
 6) Restarts netplugin one by one on every node and creates/deletes service,providers
 and verfies the reachability.
 */
-func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 
-	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
-	}
+func (s systemtestSuite) TestServiceTriggerNetpluginRestartVlan(c *C) {
+	s.testServiceTriggerNetpluginRestart(c, "vlan")
+}
+func (s systemtestSuite) TestServiceTriggerNetpluginRestartVxlan(c *C) {
+	s.testServiceTriggerNetpluginRestart(c, "vxlan")
+}
+
+func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) {
 
 	mutex := sync.Mutex{}
+	if s.fwdMode == "routing" && encap == "vlan" {
+		s.SetupBgp(c, false)
+		s.CheckBgpConnection(c)
+	}
 
 	for i := 0; i < s.iterations; i++ {
 		var (
@@ -746,7 +827,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
 					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
 					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
-					Encap:       "vxlan",
+					Encap:       encap,
 					PktTag:      pktTag + 1000,
 				}
 
@@ -757,7 +838,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
 				pktTag++
 			}
-			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName)
+			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName, encap)
 		}
 
 		for tenant, networks := range tenantNames {
@@ -777,6 +858,12 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 				}(network, tenant, containers)
 			}
 		}
+		if s.fwdMode == "routing" && encap == "vlan" {
+			for _, cList := range containers {
+				_, err := s.CheckBgpRouteDistribution(c, cList)
+				c.Assert(err, IsNil)
+			}
+		}
 
 		for _, node := range s.nodes {
 			for tenant, networks := range serviceNetworks {
@@ -793,7 +880,7 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 				for _, network := range tenantNames[tenant] {
 					for _, svc := range service {
 						serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
-							s.addProviders(c, svc.Selectors, numContainer, tenant, network)...)
+							s.addProviders(c, svc.Selectors, numContainer, tenant, network, encap)...)
 					}
 					servicesPerTenant[tenant] = serviceContainers
 				}
@@ -817,9 +904,16 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 			c.Assert(node.startNetplugin(""), IsNil)
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 			time.Sleep(20 * time.Second)
-			c.Assert(s.verifyVTEPs(), IsNil)
-			time.Sleep(2 * time.Second)
-
+			if s.fwdMode == "routing" && encap == "vlan" {
+				s.CheckBgpConnection(c)
+				for _, cList := range containers {
+					_, err := s.CheckBgpRouteDistribution(c, cList)
+					c.Assert(err, IsNil)
+				}
+			} else {
+				c.Assert(s.verifyVTEPs(), IsNil)
+				time.Sleep(2 * time.Second)
+			}
 			for _, ips := range serviceIPs {
 				endChan := make(chan error)
 				for _, conts := range containers {
@@ -859,9 +953,12 @@ func (s systemtestSuite) TestServiceTriggerNetpluginRestart(c *C) {
 			}
 		}
 	}
+	if encap == "vlan" && s.fwdMode == "routing" {
+		s.TearDownBgp(c)
+	}
 }
 
-func (s *systemtestSuite) createServiceNetworks(c *C, i int, numNets int, tenant string) []string {
+func (s *systemtestSuite) createServiceNetworks(c *C, i int, numNets int, tenant, encap string) []string {
 
 	networks := []string{}
 	for count := 0; count < numNets; count++ {
@@ -870,7 +967,7 @@ func (s *systemtestSuite) createServiceNetworks(c *C, i int, numNets int, tenant
 			NetworkName: fmt.Sprintf("svc-net-%d-%d", i, count),
 			Subnet:      fmt.Sprintf("30.%d.%d.0/24", i, count),
 			Gateway:     fmt.Sprintf("30.%d.%d.254", i, count),
-			Encap:       "vxlan",
+			Encap:       encap,
 		}
 		logrus.Infof("Creating service Network %s on tenant %s", network.NetworkName, tenant)
 		c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -910,7 +1007,7 @@ func (s *systemtestSuite) createServices(c *C, numServices int, tenant string, s
 	return services, serviceIPs
 }
 
-func (s *systemtestSuite) addProviders(c *C, labels []string, numProviders int, tenant string, netName string) []*container {
+func (s *systemtestSuite) addProviders(c *C, labels []string, numProviders int, tenant string, netName string, encap string) []*container {
 
 	containers := []*container{}
 	logrus.Infof("Adding Providers with labels %v , on tenant %s , network %s", labels, tenant, netName)
@@ -918,13 +1015,13 @@ func (s *systemtestSuite) addProviders(c *C, labels []string, numProviders int, 
 	names := generateProviderNames(numProviders, netName, tenant)
 
 	var err error
-	if tenant != "default" {
-		netName = netName + "/" + tenant
-	}
 
-	containers, err = s.runContainers(numProviders, false, netName, "", names, labels)
+	containers, err = s.runContainers(numProviders, false, netName, tenant, names, labels)
 	c.Assert(err, IsNil)
-
+	if s.fwdMode == "routing" && encap == "vlan" {
+		_, err = s.CheckBgpRouteDistribution(c, containers)
+		c.Assert(err, IsNil)
+	}
 	return containers
 }
 
