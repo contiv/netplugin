@@ -203,9 +203,9 @@ host-unit-test-coverage-detail:
 
 host-integ-test: host-cleanup
 	@echo dev: running integration tests...
-	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.vv -encap vlan -fwd-mode bridge
-	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.vv -encap vxlan -fwd-mode bridge
-	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.vv -encap vxlan -fwd-mode routing
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vlan -fwd-mode bridge
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode bridge
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode routing
 
 host-cleanup:
 	@echo dev: cleaning up services...
