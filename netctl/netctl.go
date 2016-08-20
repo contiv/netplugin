@@ -29,7 +29,9 @@ func getClient(ctx *cli.Context) *contivClient.ContivClient {
 }
 
 func createPolicy(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Policy name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
@@ -43,7 +45,9 @@ func createPolicy(ctx *cli.Context) {
 }
 
 func deletePolicy(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Policy name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
@@ -54,7 +58,9 @@ func deletePolicy(ctx *cli.Context) {
 }
 
 func listPolicies(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	tenant := ctx.String("tenant")
 
@@ -90,7 +96,9 @@ func listPolicies(ctx *cli.Context) {
 }
 
 func addRule(ctx *cli.Context) {
-	argCheck(2, ctx)
+	if len(ctx.Args()) != 2 {
+		errExit(ctx, exitHelp, "Policy name and Rule ID required", true)
+	}
 
 	dir := ctx.String("direction")
 	if dir == "in" {
@@ -146,7 +154,9 @@ func addRule(ctx *cli.Context) {
 }
 
 func deleteRule(ctx *cli.Context) {
-	argCheck(2, ctx)
+	if len(ctx.Args()) != 2 {
+		errExit(ctx, exitHelp, "Policy name and Rule ID required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
@@ -156,7 +166,9 @@ func deleteRule(ctx *cli.Context) {
 }
 
 func listRules(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Policy name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
@@ -245,7 +257,9 @@ func listRules(ctx *cli.Context) {
 }
 
 func createNetProfile(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Net profile name required", true)
+	}
 
 	burst := ctx.Int("burst")
 	bandwidth := ctx.String("bandwidth")
@@ -265,7 +279,9 @@ func createNetProfile(ctx *cli.Context) {
 }
 
 func deleteNetProfile(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Net profile name required", true)
+	}
 
 	name := ctx.Args()[0]
 	tenant := ctx.String("tenant")
@@ -279,7 +295,9 @@ func listNetProfiles(ctx *cli.Context) {
 		bandwidth string
 		bw        []string
 	)
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	tenant := ctx.String("tenant")
 
@@ -343,7 +361,9 @@ func listNetProfiles(ctx *cli.Context) {
 }
 
 func inspectNetprofile(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Net profile name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	netprofile := ctx.Args()[0]
@@ -363,7 +383,9 @@ func inspectNetprofile(ctx *cli.Context) {
 }
 
 func createNetwork(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Network name required", true)
+	}
 
 	subnet := ctx.String("subnet")
 	gateway := ctx.String("gateway")
@@ -407,7 +429,9 @@ func createNetwork(ctx *cli.Context) {
 }
 
 func deleteNetwork(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Network name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
@@ -419,7 +443,9 @@ func deleteNetwork(ctx *cli.Context) {
 }
 
 func inspectNetwork(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Network name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
@@ -438,7 +464,9 @@ func inspectNetwork(ctx *cli.Context) {
 }
 
 func listNetworks(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	tenant := ctx.String("tenant")
 
@@ -489,7 +517,9 @@ func listNetworks(ctx *cli.Context) {
 }
 
 func createTenant(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Tenant name required", true)
+	}
 
 	tenant := ctx.Args()[0]
 
@@ -501,7 +531,9 @@ func createTenant(ctx *cli.Context) {
 }
 
 func deleteTenant(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Tenant name required", true)
+	}
 
 	tenant := ctx.Args()[0]
 
@@ -511,7 +543,9 @@ func deleteTenant(ctx *cli.Context) {
 }
 
 func listTenants(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	tenantList, err := getClient(ctx).TenantList()
 	errCheck(ctx, err)
@@ -540,7 +574,9 @@ func listTenants(ctx *cli.Context) {
 }
 
 func inspectEndpoint(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Endpoint name required", true)
+	}
 
 	epid := ctx.Args()[0]
 
@@ -558,7 +594,9 @@ func inspectEndpoint(ctx *cli.Context) {
 }
 
 func createEndpointGroup(ctx *cli.Context) {
-	argCheck(2, ctx)
+	if len(ctx.Args()) != 2 {
+		errExit(ctx, exitHelp, "Network and group name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
@@ -581,7 +619,9 @@ func createEndpointGroup(ctx *cli.Context) {
 }
 
 func deleteEndpointGroup(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Endpoint name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	group := ctx.Args()[0]
@@ -590,7 +630,9 @@ func deleteEndpointGroup(ctx *cli.Context) {
 }
 
 func listEndpointGroups(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	tenant := ctx.String("tenant")
 
@@ -643,7 +685,9 @@ func listEndpointGroups(ctx *cli.Context) {
 //addBgp is a netctl interface routine to add
 //bgp config
 func addBgp(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Host name required", true)
+	}
 
 	hostname := ctx.Args()[0]
 	routerip := ctx.String("router-ip")
@@ -679,7 +723,9 @@ func addBgp(ctx *cli.Context) {
 //deleteBgp is a netctl interface routine to delete
 //bgp config
 func deleteBgp(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Host name required", true)
+	}
 
 	hostname := ctx.Args()[0]
 	fmt.Printf("Deleting Bgp router config: %s\n", hostname)
@@ -690,7 +736,9 @@ func deleteBgp(ctx *cli.Context) {
 //listBgpNeighbors is netctl interface routine to list
 //Bgp neighbor configs for a given host
 func listBgp(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	bgpList, err := getClient(ctx).BgpList()
 	errCheck(ctx, err)
@@ -722,7 +770,9 @@ func listBgp(ctx *cli.Context) {
 }
 
 func inspectBgp(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Host name required", true)
+	}
 
 	hostname := ctx.Args()[0]
 
@@ -737,7 +787,9 @@ func inspectBgp(ctx *cli.Context) {
 }
 
 func showGlobal(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	list, err := getClient(ctx).GlobalList()
 	errCheck(ctx, err)
@@ -749,6 +801,7 @@ func showGlobal(ctx *cli.Context) {
 		defer writer.Flush()
 		for _, gl := range *list {
 			writer.Write([]byte(fmt.Sprintf("Fabric mode: %v\n", gl.NetworkInfraType)))
+			writer.Write([]byte(fmt.Sprintf("Forward mode: %v\n", gl.FwdMode)))
 			writer.Write([]byte(fmt.Sprintf("Vlan Range: %v\n", gl.Vlans)))
 			writer.Write([]byte(fmt.Sprintf("Vxlan range: %v\n", gl.Vxlans)))
 		}
@@ -756,7 +809,9 @@ func showGlobal(ctx *cli.Context) {
 }
 
 func inspectGlobal(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	fmt.Printf("Inspecting global\n")
 
@@ -818,7 +873,9 @@ func dumpInspectList(ctx *cli.Context, list interface{}) {
 }
 
 func showVersion(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	ver := version.Info{}
 	if err := getObject(ctx, versionURL(ctx), &ver); err != nil {
@@ -833,7 +890,9 @@ func showVersion(ctx *cli.Context) {
 }
 
 func createAppProfile(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Profile name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	prof := ctx.Args()[0]
@@ -853,7 +912,9 @@ func createAppProfile(ctx *cli.Context) {
 }
 
 func updateAppProfile(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Profile name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	prof := ctx.Args()[0]
@@ -871,7 +932,9 @@ func updateAppProfile(ctx *cli.Context) {
 }
 
 func deleteAppProfile(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Profile name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	prof := ctx.Args()[0]
@@ -880,7 +943,9 @@ func deleteAppProfile(ctx *cli.Context) {
 }
 
 func listAppProfiles(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	tenant := ctx.String("tenant")
 
@@ -929,7 +994,9 @@ func listAppProfiles(ctx *cli.Context) {
 }
 
 func listAppProfEpgs(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Profile name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	prof := ctx.Args()[0]
@@ -954,7 +1021,9 @@ func listAppProfEpgs(ctx *cli.Context) {
 //createServiceLB is a netctl interface routine to delete
 //service object
 func createServiceLB(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Service name required", true)
+	}
 
 	serviceName := ctx.Args()[0]
 	serviceSubnet := ctx.String("network")
@@ -981,7 +1050,9 @@ func createServiceLB(ctx *cli.Context) {
 //deleteServiceLB is a netctl interface routine to delete
 //service object
 func deleteServiceLB(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Service name required", true)
+	}
 
 	serviceName := ctx.Args()[0]
 	tenantName := ctx.String("tenant")
@@ -1043,7 +1114,9 @@ func listServiceLB(ctx *cli.Context) {
 }
 
 func listExternalContracts(ctx *cli.Context) {
-	argCheck(0, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
 
 	extContractsGroupsList, err := getClient(ctx).ExtContractsGroupList()
 	errCheck(ctx, err)
@@ -1081,7 +1154,10 @@ func listExternalContracts(ctx *cli.Context) {
 }
 
 func deleteExternalContracts(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Contracts group name required", true)
+	}
+
 	contractsGroupName := ctx.Args()[0]
 	tenant := ctx.String("tenant")
 
@@ -1091,7 +1167,9 @@ func deleteExternalContracts(ctx *cli.Context) {
 }
 
 func createExternalContracts(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Contracts group name required", true)
+	}
 
 	var contractsType string
 	if ctx.Bool("provided") && ctx.Bool("consumed") {
@@ -1124,7 +1202,9 @@ func createExternalContracts(ctx *cli.Context) {
 }
 
 func inspectServiceLb(ctx *cli.Context) {
-	argCheck(1, ctx)
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Service group name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	service := ctx.Args()[0]
