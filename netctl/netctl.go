@@ -58,7 +58,7 @@ func deletePolicy(ctx *cli.Context) {
 }
 
 func listPolicies(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -295,7 +295,7 @@ func listNetProfiles(ctx *cli.Context) {
 		bandwidth string
 		bw        []string
 	)
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -464,7 +464,7 @@ func inspectNetwork(ctx *cli.Context) {
 }
 
 func listNetworks(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -543,7 +543,7 @@ func deleteTenant(ctx *cli.Context) {
 }
 
 func listTenants(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -619,7 +619,6 @@ func createEndpointGroup(ctx *cli.Context) {
 }
 
 func inspectEndpointGroup(ctx *cli.Context) {
-	argCheck(1, ctx)
 
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
@@ -646,7 +645,7 @@ func deleteEndpointGroup(ctx *cli.Context) {
 }
 
 func listEndpointGroups(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -752,7 +751,7 @@ func deleteBgp(ctx *cli.Context) {
 //listBgpNeighbors is netctl interface routine to list
 //Bgp neighbor configs for a given host
 func listBgp(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -803,7 +802,7 @@ func inspectBgp(ctx *cli.Context) {
 }
 
 func showGlobal(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -825,7 +824,7 @@ func showGlobal(ctx *cli.Context) {
 }
 
 func inspectGlobal(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -889,7 +888,7 @@ func dumpInspectList(ctx *cli.Context, list interface{}) {
 }
 
 func showVersion(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -959,7 +958,7 @@ func deleteAppProfile(ctx *cli.Context) {
 }
 
 func listAppProfiles(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
@@ -1130,7 +1129,7 @@ func listServiceLB(ctx *cli.Context) {
 }
 
 func listExternalContracts(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
