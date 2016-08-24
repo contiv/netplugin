@@ -221,9 +221,10 @@ host-restart:
 
 only-tar:
 
-tar: clean-tar build
+tar: clean-tar 
+	CONTIV_NODES=1 ${MAKE} build
 	@cat ${GOPATH}/src/github.com/contiv/netplugin/version/version_gen.go | grep versionStr | cut -f 4 -d " " | tr -d \" > $(VERSION_FILE)
-	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s -C $(GOPATH)/src/github.com/contiv/netplugin/scripts contrib/completion/bash/netctl
+	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s contivnet -C $(GOPATH)/src/github.com/contiv/netplugin/scripts contrib/completion/bash/netctl
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
