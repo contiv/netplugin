@@ -37,7 +37,7 @@
 					"type": "int",
 					"title": "Vlan/Vxlan Tag",
 					"showSummary": true,
-					"max": 4094
+					"max": 16777216
 				},
 				"subnet": {
 					"type": "string",

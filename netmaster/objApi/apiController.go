@@ -1177,6 +1177,84 @@ func (ac *APIController) PolicyCreate(policy *contivModel.Policy) error {
 	return nil
 }
 
+// PolicyGetOper inspects policy
+func (ac *APIController) PolicyGetOper(policy *contivModel.PolicyInspect) error {
+	log.Infof("Received PolicyInspect: %+v", policy)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	// To hold total number of Endpoint count
+	var policyEPCount int
+
+	policyCfg := &mastercfg.EpgPolicy{}
+	policyCfg.StateDriver = stateDriver
+
+	// Policy is attached to EPG. So we need to fetch EPGs as well.
+	epgCfg := &mastercfg.EndpointGroupState{}
+	epgCfg.StateDriver = stateDriver
+
+	// Get all the Endpoints
+	readEp := &mastercfg.CfgEndpointState{}
+	readEp.StateDriver = stateDriver
+	epCfgs, epErr := readEp.ReadAll()
+
+	// Get all the EPGs on which this policy is applied
+	epgs := policy.Config.LinkSets.EndpointGroups
+
+	// Scan all the EPGs which are under this policy
+	for _, epg := range epgs {
+		log.Infof("EPG Object : %+v", epg)
+
+		// Reversing key from TenantName:EPGName to EPGName:TenantName
+		sList := strings.Split(epg.ObjKey, ":")
+		if sList == nil {
+			log.Errorf("EPG key %+v is not in valid format", epg.ObjKey)
+			return err
+		}
+		epgID := sList[1] + ":" + sList[0]
+
+		log.Infof("EPG ID : %s", epgID)
+
+		if err := epgCfg.Read(epgID); err != nil {
+			log.Errorf("Error fetching endpointGroup from mastercfg: %s", epgID)
+			return err
+		}
+
+		policyEPCount = policyEPCount + epgCfg.EpCount
+
+		if epErr == nil {
+			for _, epCfg := range epCfgs {
+				ep := epCfg.(*mastercfg.CfgEndpointState)
+				if ep.EndpointGroupKey == epgID {
+					epOper := contivModel.EndpointOper{}
+					epOper.Network = ep.NetID
+					epOper.EndpointID = ep.EndpointID
+					epOper.ServiceName = ep.ServiceName
+					epOper.EndpointGroupID = ep.EndpointGroupID
+					epOper.EndpointGroupKey = ep.EndpointGroupKey
+					epOper.IpAddress = []string{ep.IPAddress, ep.IPv6Address}
+					epOper.MacAddress = ep.MacAddress
+					epOper.HomingHost = ep.HomingHost
+					epOper.IntfName = ep.IntfName
+					epOper.VtepIP = ep.VtepIP
+					epOper.Labels = fmt.Sprintf("%s", ep.Labels)
+					epOper.ContainerID = ep.ContainerID
+					epOper.ContainerName = ep.ContainerName
+					policy.Oper.Endpoints = append(policy.Oper.Endpoints, epOper)
+				}
+			}
+		}
+	} // End of main for loop
+
+	policy.Oper.NumEndpoints = policyEPCount
+
+	return nil
+}
+
 // PolicyUpdate updates policy
 func (ac *APIController) PolicyUpdate(policy, params *contivModel.Policy) error {
 	log.Infof("Received PolicyUpdate: %+v, params: %+v", policy, params)
@@ -1410,6 +1488,156 @@ func (ac *APIController) TenantCreate(tenant *contivModel.Tenant) error {
 	}
 
 	return nil
+}
+
+// Get all the networks inside tenant
+func getTenantNetworks(tenant *contivModel.TenantInspect) error {
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	tenantID := tenant.Config.TenantName
+	numEPs := 0
+	s := []string{}
+	networkID := ""
+	for _, net := range tenant.Config.LinkSets.Networks {
+		networkID = net.ObjKey
+		log.Infof("network has ID %s", networkID)
+		s = strings.Split(networkID, ":")
+		if s[0] == tenantID {
+			networkID = s[1] + "." + s[0]
+			nwCfg := &mastercfg.CfgNetworkState{}
+			nwCfg.StateDriver = stateDriver
+			if err := nwCfg.Read(networkID); err != nil {
+				log.Errorf("Error fetching network from mastercfg: %s", networkID)
+				return err
+			}
+			numEPs = numEPs + nwCfg.EpCount
+			netOper := contivModel.NetworkOper{}
+			netOper.AllocatedAddressesCount = nwCfg.EpAddrCount
+			netOper.AvailableIPAddresses = master.ListAvailableIPs(nwCfg)
+			netOper.AllocatedIPAddresses = master.ListAllocatedIPs(nwCfg)
+			netOper.DnsServerIP = nwCfg.DNSServer
+			netOper.ExternalPktTag = nwCfg.ExtPktTag
+			netOper.PktTag = nwCfg.PktTag
+			netOper.NumEndpoints = nwCfg.EpCount
+			readEp := &mastercfg.CfgEndpointState{}
+			readEp.StateDriver = stateDriver
+			epCfgs, err := readEp.ReadAll()
+			if err == nil {
+				for _, epCfg := range epCfgs {
+					ep := epCfg.(*mastercfg.CfgEndpointState)
+					if ep.NetID == networkID {
+						epOper := contivModel.EndpointOper{}
+						epOper.Network = ep.NetID
+						epOper.EndpointID = ep.EndpointID
+						epOper.ServiceName = ep.ServiceName
+						epOper.EndpointGroupID = ep.EndpointGroupID
+						epOper.EndpointGroupKey = ep.EndpointGroupKey
+						epOper.IpAddress = []string{ep.IPAddress, ep.IPv6Address}
+						epOper.MacAddress = ep.MacAddress
+						epOper.HomingHost = ep.HomingHost
+						epOper.IntfName = ep.IntfName
+						epOper.VtepIP = ep.VtepIP
+						epOper.Labels = fmt.Sprintf("%s", ep.Labels)
+						epOper.ContainerID = ep.ContainerID
+						epOper.ContainerName = ep.ContainerName
+						netOper.Endpoints = append(netOper.Endpoints, epOper)
+					}
+				}
+			}
+			tenant.Oper.Networks = append(tenant.Oper.Networks, netOper)
+		}
+	}
+
+	tenant.Oper.TotalEndpoints = numEPs
+	return nil
+}
+
+// Get all the EPGs inside tenant
+func getTenantEPGs(tenant *contivModel.TenantInspect) error {
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	tenantID := tenant.Config.TenantName
+	s := []string{}
+	epgID := ""
+	for _, epg := range tenant.Config.LinkSets.EndpointGroups {
+		epgID = epg.ObjKey
+		log.Infof("EPG ID is  %s", epgID)
+		s = strings.Split(epgID, ":")
+		if s[0] == tenantID {
+			epgID = s[1] + ":" + s[0]
+			epgCfg := &mastercfg.EndpointGroupState{}
+			epgCfg.StateDriver = stateDriver
+			if err := epgCfg.Read(epgID); err != nil {
+				log.Errorf("Error fetching epg from mastercfg: %s", epgID)
+				return err
+			}
+			epgOper := contivModel.EndpointGroupOper{}
+			epgOper.ExternalPktTag = epgCfg.ExtPktTag
+			epgOper.PktTag = epgCfg.PktTag
+			epgOper.NumEndpoints = epgCfg.EpCount
+
+			readEp := &mastercfg.CfgEndpointState{}
+			readEp.StateDriver = stateDriver
+			epCfgs, err := readEp.ReadAll()
+			if err == nil {
+				for _, epCfg := range epCfgs {
+					ep := epCfg.(*mastercfg.CfgEndpointState)
+					log.Infof("EndpointGroupKey is %s", ep.EndpointGroupKey)
+					if ep.EndpointGroupKey == epgID {
+						epOper := contivModel.EndpointOper{}
+						epOper.Network = ep.NetID
+						epOper.EndpointID = ep.EndpointID
+						epOper.ServiceName = ep.ServiceName
+						epOper.EndpointGroupID = ep.EndpointGroupID
+						epOper.EndpointGroupKey = ep.EndpointGroupKey
+						epOper.IpAddress = []string{ep.IPAddress, ep.IPv6Address}
+						epOper.MacAddress = ep.MacAddress
+						epOper.HomingHost = ep.HomingHost
+						epOper.IntfName = ep.IntfName
+						epOper.VtepIP = ep.VtepIP
+						epOper.Labels = fmt.Sprintf("%s", ep.Labels)
+						epOper.ContainerID = ep.ContainerID
+						epOper.ContainerName = ep.ContainerName
+						epgOper.Endpoints = append(epgOper.Endpoints, epOper)
+					}
+				}
+			}
+			tenant.Oper.EndpointGroups = append(tenant.Oper.EndpointGroups, epgOper)
+		}
+	}
+
+	return nil
+}
+
+// TenantGetOper inspects tenant
+func (ac *APIController) TenantGetOper(tenant *contivModel.TenantInspect) error {
+	log.Infof("Received TenantInspect: %+v", tenant)
+
+	tenant.Oper.TotalNetworks = len(tenant.Config.LinkSets.Networks)
+	tenant.Oper.TotalEPGs = len(tenant.Config.LinkSets.EndpointGroups)
+	tenant.Oper.TotalNetprofiles = len(tenant.Config.LinkSets.NetProfiles)
+	tenant.Oper.TotalPolicies = len(tenant.Config.LinkSets.Policies)
+	tenant.Oper.TotalAppProfiles = len(tenant.Config.LinkSets.AppProfiles)
+	tenant.Oper.TotalServicelbs = len(tenant.Config.LinkSets.Servicelbs)
+
+	//Get all the networks config and oper parmeters under this tenant
+	getTenantNetworks(tenant)
+
+	//Get all the EPGs config and oper parmeters under this tenant
+	getTenantEPGs(tenant)
+
+	return nil
+
 }
 
 // TenantUpdate updates a tenant

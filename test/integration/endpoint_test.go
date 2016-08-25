@@ -303,3 +303,235 @@ func (its *integTestSuite) TestEndpointGroupInspect(c *C) {
 	assertNoErr(its.client.EndpointGroupDelete("default", "epgA"), c, "deleting endpointGroup")
 	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
 }
+
+// TestTenantCreateDelete test tenant create and delete ops
+func (its *integTestSuite) TestTenantCreateDelete(c *C) {
+	// Create a tenant
+	c.Assert(its.client.TenantPost(&client.Tenant{
+		TenantName: "TestTenant",
+	}), IsNil)
+
+	err := its.client.NetworkPost(&client.Network{
+		TenantName:  "TestTenant",
+		NetworkName: "TestNet",
+		Subnet:      "20.1.1.0/24",
+		Encap:       its.encap,
+	})
+	assertNoErr(err, c, "creating network")
+
+	// Create a epg
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:  "TestTenant",
+		NetworkName: "TestNet",
+		GroupName:   "epgA",
+	})
+	assertNoErr(err, c, "creating endpointgroup")
+
+	// Create a epg
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:  "TestTenant",
+		NetworkName: "TestNet",
+		GroupName:   "epgB",
+	})
+	assertNoErr(err, c, "creating endpointgroup")
+
+	// verify tenant state is correct
+	insp, err := its.client.TenantInspect("TestTenant")
+	assertNoErr(err, c, "inspecting tenant")
+	log.Infof("Inspecting tenant: %+v", insp)
+	c.Assert(insp.Oper.TotalEndpoints, Equals, 0)
+	c.Assert(insp.Oper.TotalNetworks, Equals, 1)
+	c.Assert(insp.Oper.TotalEPGs, Equals, 2)
+
+	for i := 0; i < its.iterations; i++ {
+		addr, err := its.allocAddress("", "TestNet.TestTenant", "")
+		assertNoErr(err, c, "allocating address")
+		c.Assert(addr, Equals, "20.1.1.1")
+		epCfg1, err := its.createEndpoint("TestTenant", "TestNet", "epgA", addr, "")
+		assertNoErr(err, c, "creating endpoint")
+		insp, err := its.client.TenantInspect("TestTenant")
+		assertNoErr(err, c, "inspecting tenant")
+		log.Infof("Inspecting tenant: %+v", insp)
+		c.Assert(insp.Oper.TotalEndpoints, Equals, 1)
+
+		// allocate a specific address
+		addr, err = its.allocAddress("", "TestNet.TestTenant", "20.1.1.2")
+		assertNoErr(err, c, "allocating address")
+		c.Assert(addr, Equals, "20.1.1.2")
+		epCfg2, err := its.createEndpoint("TestTenant", "TestNet", "epgB", addr, "")
+		assertNoErr(err, c, "creating endpoint")
+		insp, err = its.client.TenantInspect("TestTenant")
+		assertNoErr(err, c, "inspecting tenant")
+		log.Infof("Inspecting tenant: %+v", insp)
+		c.Assert(insp.Oper.TotalEndpoints, Equals, 2)
+
+		// allocate a specific address
+		addr, err = its.allocAddress("", "TestNet.TestTenant", "20.1.1.3")
+		assertNoErr(err, c, "allocating address")
+		c.Assert(addr, Equals, "20.1.1.3")
+		epCfg3, err := its.createEndpoint("TestTenant", "TestNet", "", addr, "")
+		assertNoErr(err, c, "creating endpoint")
+		insp, err = its.client.TenantInspect("TestTenant")
+		assertNoErr(err, c, "inspecting tenant")
+		log.Infof("Inspecting tenant: %+v", insp)
+		c.Assert(insp.Oper.TotalEndpoints, Equals, 3)
+
+		err = its.deleteEndpoint("TestTenant", "TestNet", "epgA", epCfg1)
+		assertNoErr(err, c, "deleting endpoint")
+
+		err = its.deleteEndpoint("TestTenant", "TestNet", "epgB", epCfg2)
+		assertNoErr(err, c, "deleting endpoint")
+
+		err = its.deleteEndpoint("TestTenant", "TestNet", "", epCfg3)
+		assertNoErr(err, c, "deleting endpoint")
+
+		// verify there are no more endpoints in epg
+		insp, err = its.client.TenantInspect("TestTenant")
+		assertNoErr(err, c, "inspecting Tenant")
+		c.Assert(len(insp.Oper.Endpoints), Equals, 0)
+		log.Infof("Inspecting Tenant: %+v", insp)
+		c.Assert(insp.Oper.TotalEndpoints, Equals, 0)
+
+		// verify flows are also gone
+		its.verifyEndpointFlowRemoved(epCfg1, c)
+		its.verifyEndpointFlowRemoved(epCfg2, c)
+		its.verifyEndpointFlowRemoved(epCfg3, c)
+	}
+
+	assertNoErr(its.client.EndpointGroupDelete("TestTenant", "epgA"), c, "deleting endpointGroup")
+	assertNoErr(its.client.EndpointGroupDelete("TestTenant", "epgB"), c, "deleting endpointGroup")
+	assertNoErr(its.client.NetworkDelete("TestTenant", "TestNet"), c, "deleting network")
+	assertNoErr(its.client.TenantDelete("TestTenant"), c, "deleting Tenant")
+}
+
+// TestPolicyInspect test policy inspect command
+func (its *integTestSuite) TestPolicyInspect(c *C) {
+	// Create a network
+	err := its.client.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: "test",
+		Subnet:      "10.1.1.0/24",
+		Encap:       its.encap,
+	})
+	assertNoErr(err, c, "creating network")
+
+	// Create a policy
+	c.Assert(its.client.PolicyPost(&client.Policy{
+		PolicyName: "policy",
+		TenantName: "default",
+	}), IsNil)
+
+	rules := []*client.Rule{
+		{
+			RuleID:     "1",
+			PolicyName: "policy",
+			TenantName: "default",
+			Direction:  "in",
+			Protocol:   "tcp",
+			Action:     "deny",
+		},
+		{
+			RuleID:     "2",
+			PolicyName: "policy",
+			TenantName: "default",
+			Priority:   100,
+			Direction:  "in",
+			Protocol:   "tcp",
+			Port:       8000,
+			Action:     "allow",
+		},
+	}
+
+	for _, rule := range rules {
+		c.Assert(its.client.RulePost(rule), IsNil)
+	}
+
+	// Create a epgB and attach it to policy
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:  "default",
+		NetworkName: "test",
+		Policies:    []string{"policy"},
+		GroupName:   "epgA",
+	})
+	assertNoErr(err, c, "creating endpointgroup")
+
+	// Create a epgB and attach it to policy
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:  "default",
+		NetworkName: "test",
+		Policies:    []string{"policy"},
+		GroupName:   "epgB",
+	})
+	assertNoErr(err, c, "creating endpointgroup")
+
+	// verify Policy state is correct
+	insp, err := its.client.PolicyInspect("default", "policy")
+	assertNoErr(err, c, "inspecting policy")
+	log.Infof("Inspecting policy: %+v", insp)
+	c.Assert(len(insp.Oper.Endpoints), Equals, 0)
+	c.Assert(insp.Oper.NumEndpoints, Equals, 0)
+
+	for i := 0; i < its.iterations; i++ {
+		addr, err := its.allocAddress("", "test.default", "")
+		assertNoErr(err, c, "allocating address")
+		c.Assert(addr, Equals, "10.1.1.1")
+
+		// create an endpoint in epgA
+		epCfg1, err := its.createEndpoint("default", "test", "epgA", addr, "")
+		assertNoErr(err, c, "creating endpoint")
+
+		// verify policy & endpoint inspect output
+		insp, err := its.client.PolicyInspect("default", "policy")
+		assertNoErr(err, c, "inspecting policy")
+		log.Infof("Inspecting policy: %+v", insp)
+		c.Assert(len(insp.Oper.Endpoints), Equals, 1)
+		c.Assert(insp.Oper.NumEndpoints, Equals, 1)
+
+		// verify the endpoint inspect and flow
+		its.verifyEndpointInspect("default", "test", epCfg1, c)
+		its.verifyEndpointFlow(epCfg1, c)
+
+		// allocate a specific address
+		addr, err = its.allocAddress("", "test.default", "10.1.1.5")
+		assertNoErr(err, c, "allocating address")
+		c.Assert(addr, Equals, "10.1.1.5")
+
+		// create an endpoint in epgB
+		epCfg2, err := its.createEndpoint("default", "test", "epgB", addr, "")
+		assertNoErr(err, c, "creating endpoint")
+
+		// verify policy & endpoint inspect output
+		insp, err = its.client.PolicyInspect("default", "policy")
+		assertNoErr(err, c, "inspecting policy")
+		log.Infof("Inspecting policy: %+v", insp)
+		c.Assert(len(insp.Oper.Endpoints), Equals, 2)
+		c.Assert(insp.Oper.NumEndpoints, Equals, 2)
+
+		// verify endpoint inspect and flows is added
+		its.verifyEndpointInspect("default", "test", epCfg2, c)
+		its.verifyEndpointFlow(epCfg2, c)
+
+		// delete the endpoints
+		err = its.deleteEndpoint("default", "test", "", epCfg1)
+		assertNoErr(err, c, "deleting endpoint")
+		err = its.deleteEndpoint("default", "test", "", epCfg2)
+		assertNoErr(err, c, "deleting endpoint")
+
+		// verify there are no more endpoints in epg
+		insp, err = its.client.PolicyInspect("default", "policy")
+		assertNoErr(err, c, "inspecting policy")
+		c.Assert(len(insp.Oper.Endpoints), Equals, 0)
+		log.Infof("Inspecting policy: %+v", insp)
+		c.Assert(len(insp.Oper.Endpoints), Equals, 0)
+		c.Assert(insp.Oper.NumEndpoints, Equals, 0)
+
+		// verify flows are also gone
+		its.verifyEndpointFlowRemoved(epCfg1, c)
+		its.verifyEndpointFlowRemoved(epCfg2, c)
+	}
+
+	assertNoErr(its.client.EndpointGroupDelete("default", "epgA"), c, "deleting endpointGroup")
+	assertNoErr(its.client.EndpointGroupDelete("default", "epgB"), c, "deleting endpointGroup")
+	assertNoErr(its.client.PolicyDelete("default", "policy"), c, "deleting policy")
+	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
+}

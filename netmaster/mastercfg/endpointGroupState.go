@@ -34,7 +34,7 @@ type EndpointGroupState struct {
 	PktTagType      string `json:"pktTagType"`
 	PktTag          int    `json:"pktTag"`
 	ExtPktTag       int    `json:"extPktTag"`
-	EpCount         int    `json:"epCount"`
+	EpCount         int    `json:"epCount"` // To store endpoint Count
 	DSCP            int    `json:"DSCP"`
 	Bandwidth       string `json:"Bandwidth"`
 	Burst           int    `json:"Burst"`
