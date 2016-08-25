@@ -30,6 +30,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // track containers
@@ -221,10 +222,17 @@ func (cfg1 *testConfigData) runContainer(its *integTestSuite, c *C) {
 	containerName := cfg1.containerName
 	intLog.Infof("creating container: %s", containerName)
 
-	// Create a container
-	err := docker.PullImage("alpine", nil)
+	err := fmt.Errorf("")
+	for c := 0; c < 10 && err != nil; c++ {
+		// could fail in docker 1.10
+		if err = docker.PullImage("alpine", nil); err != nil {
+			intLog.Warnf("failed to pull alpine, %s", err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 	assertNoErr(err, c, "pull alpine image")
 
+	// Create a container
 	containerConfig := &dockerclient.ContainerConfig{
 		Image: "alpine",
 		// self clean up after a few sec.
