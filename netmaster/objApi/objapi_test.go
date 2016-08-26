@@ -35,6 +35,7 @@ import (
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
+	"github.com/contiv/objdb"
 	"github.com/contiv/ofnet"
 	etcdclient "github.com/coreos/etcd/client"
 	"github.com/gorilla/mux"
@@ -80,8 +81,14 @@ func TestMain(m *testing.M) {
 	s.HandleFunc("/plugin/createEndpoint", makeHTTPHandler(master.CreateEndpointHandler))
 	s = router.Methods("Get").Subrouter()
 
+	// create objdb client
+	objdbClient, err := objdb.NewClient("etcd://127.0.0.1:2379")
+	if err != nil {
+		log.Fatalf("Error connecting to state store: etcd://127.0.0.1:2379. Err: %v", err)
+	}
+
 	// Create a new api controller
-	apiController = NewAPIController(router, "etcd://127.0.0.1:2379")
+	apiController = NewAPIController(router, objdbClient, "etcd://127.0.0.1:2379")
 
 	ofnetMaster := ofnet.NewOfnetMaster("127.0.0.1", ofnet.OFNET_MASTER_PORT)
 	if ofnetMaster == nil {

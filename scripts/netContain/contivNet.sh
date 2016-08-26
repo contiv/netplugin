@@ -9,7 +9,7 @@ cstore=""
 cmode="bridge"
 netmaster=false
 netplugin=false
-vlan_if=""
+vlan_if="invalid"
 
 #This needs to be fixed, we cant rely on the value being supplied from 
 # paramters, just explosion of parameters is not a great solution
@@ -80,11 +80,12 @@ fi
 
 if [ $netmaster == true ]; then
    echo "Starting Netmaster "
+   mkdir -p /var/contiv/log/
    while [ true ]; do
        if [ "$cstore" != "" ]; then
-           /contiv/bin/netmaster  -cluster-mode $plugin -cluster-store $cstore &> /var/contiv/log/netmaster.log
+           /contiv/bin/netmaster  -cluster-mode $plugin -dns-enable=false -cluster-store $cstore &> /var/contiv/log/netmaster.log
        else
-           /contiv/bin/netmaster -cluster-mode $plugin  &> /var/contiv/log/netmaster.log
+           /contiv/bin/netmaster -cluster-mode $plugin -dns-enable=false  &> /var/contiv/log/netmaster.log
        fi
        echo "CRITICAL : Net Master has exited, Respawn in 5"
        sleep 5
@@ -93,17 +94,20 @@ fi
    
 if [ $netplugin == true ]; then
 
-
-   if [ "$vtep_ip" == "" ] || [ "$vlan_if" == "" ]; then 
-       echo "Net Plugin Cannot be started without specifying the VETP or VLAN Interface"
-       exit
-   fi
-
+   mkdir -p /var/contiv/log/
    while [ true ]; do
        if [ "$cstore" != "" ]; then
-           /contiv/bin/netplugin -cluster-store $cstore  -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwd_mode -plugin-mode $plugin &> /var/contiv/log/netplugin.log
+           if [ "$vtep_ip" != "" ]; then
+           /contiv/bin/netplugin -cluster-store $cstore  -vtep-ip $vtep_ip -vlan-if $vlan_if -plugin-mode $plugin &> /var/contiv/log/netplugin.log
+           else
+           /contiv/bin/netplugin -cluster-store $cstore  -vlan-if $vlan_if -plugin-mode $plugin &> /var/contiv/log/netplugin.log
+           fi
        else
-           /contiv/bin/netplugin -vtep-ip $vtep_ip -vlan-if $vlan_if -fwd-mode $fwd_mode -plugin-mode $plugin &> /var/contiv/log/netplugin.log
+           if [ "$vtep_ip" != "" ]; then
+               /contiv/bin/netplugin -vtep-ip $vtep_ip -vlan-if $vlan_if -plugin-mode $plugin &> /var/contiv/log/netplugin.log
+           else
+               /contiv/bin/netplugin -vlan-if $vlan_if -plugin-mode $plugin &> /var/contiv/log/netplugin.log
+           fi
        fi
        echo "CRITICAL : Net Plugin has exited, Respawn in 5"
        sleep 5

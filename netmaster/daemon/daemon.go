@@ -86,6 +86,12 @@ func (d *MasterDaemon) Init() {
 	if err != nil {
 		log.Fatalf("Failed to init resource manager. Error: %s", err)
 	}
+
+	// Create an objdb client
+	d.objdbClient, err = objdb.NewClient(d.ClusterStore)
+	if err != nil {
+		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
+	}
 }
 
 func (d *MasterDaemon) registerService() {
@@ -105,7 +111,7 @@ func (d *MasterDaemon) registerService() {
 	}
 
 	// Register the node with service registry
-	err = master.ObjdbClient.RegisterService(srvInfo)
+	err = d.objdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 	}
@@ -120,7 +126,7 @@ func (d *MasterDaemon) registerService() {
 	}
 
 	// Register the node with service registry
-	err = master.ObjdbClient.RegisterService(srvInfo)
+	err = d.objdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 	}
@@ -136,7 +142,7 @@ func (d *MasterDaemon) agentDiscoveryLoop() {
 	watchStopCh := make(chan bool, 1)
 
 	// Start a watch on netplugin service
-	err := master.ObjdbClient.WatchService("netplugin", agentEventCh, watchStopCh)
+	err := d.objdbClient.WatchService("netplugin", agentEventCh, watchStopCh)
 	if err != nil {
 		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
 	}
@@ -230,7 +236,7 @@ func (d *MasterDaemon) runLeader() {
 	defer d.listenerMutex.Unlock()
 
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router, d.ClusterStore)
+	d.apiController = objApi.NewAPIController(router, d.objdbClient, d.ClusterStore)
 
 	//Restore state from clusterStore
 	d.restoreCache()
@@ -342,17 +348,11 @@ func (d *MasterDaemon) RunMasterFsm() {
 		log.Fatalf("Error creating ofnet master")
 	}
 
-	// Create an objdb client
-	master.ObjdbClient, err = objdb.NewClient(d.ClusterStore)
-	if err != nil {
-		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
-	}
-
 	// Register all existing netplugins in the background
 	go d.agentDiscoveryLoop()
 
 	// Create the lock
-	leaderLock, err = master.ObjdbClient.NewLock("netmaster/leader", localIP, leaderLockTTL)
+	leaderLock, err = d.objdbClient.NewLock("netmaster/leader", localIP, leaderLockTTL)
 	if err != nil {
 		log.Fatalf("Could not create leader lock. Err: %v", err)
 	}

@@ -117,7 +117,7 @@ func (cp *ConsulClient) RegisterService(serviceInfo ServiceInfo) error {
 
 	// Run refresh in background
 	stopChan := make(chan struct{})
-	go cp.renewService(keyName, sessCfg.TTL, sessionID, stopChan)
+	go cp.renewService(keyName, sessCfg.TTL, sessionID, jsonVal, stopChan)
 
 	// Store it in DB
 	cp.serviceDb[keyName] = &consulServiceState{
@@ -259,7 +259,7 @@ func (cp *ConsulClient) DeregisterService(serviceInfo ServiceInfo) error {
 }
 
 //--------------------- Internal funcitons -------------------
-func (cp *ConsulClient) renewService(keyName, ttl, sessionID string, stopChan chan struct{}) {
+func (cp *ConsulClient) renewService(keyName, ttl, sessionID string, jsonVal []byte, stopChan chan struct{}) {
 	for {
 		err := cp.client.Session().RenewPeriodic(ttl, sessionID, nil, stopChan)
 		if err == nil {
@@ -267,6 +267,35 @@ func (cp *ConsulClient) renewService(keyName, ttl, sessionID string, stopChan ch
 			return
 		}
 		log.Infof("RenewPeriodic for session %s exited with error: %v. Retrying..", keyName, err)
+
+		// session configuration
+		sessCfg := api.SessionEntry{
+			Name:      keyName,
+			Behavior:  "delete",
+			LockDelay: 10 * time.Millisecond,
+			TTL:       ttl,
+		}
+
+		// Create consul session
+		sessionID, _, err = cp.client.Session().CreateNoChecks(&sessCfg, nil)
+		if err != nil {
+			log.Errorf("Error Creating session for lock %s. Err: %v", keyName, err)
+		}
+
+		// Delete the old key if it exists..
+		log.Infof("Deleting old service entry for key %s", keyName)
+		_, err = cp.client.KV().Delete(keyName, nil)
+		if err != nil {
+			log.Errorf("Error deleting key %s. Err: %v", keyName, err)
+		}
+
+		// Set it via consul client
+		succ, _, err := cp.client.KV().Acquire(&api.KVPair{Key: keyName, Value: jsonVal, Session: sessionID}, nil)
+		if err != nil {
+			log.Errorf("Error setting key %s, Err: %v", keyName, err)
+		} else if !succ {
+			log.Errorf("Failed to acquire key %s. Already acquired", keyName)
+		}
 	}
 }
 

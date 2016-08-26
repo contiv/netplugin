@@ -28,7 +28,6 @@ import (
 	"github.com/contiv/netplugin/utils/netutils"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/objdb"
 	"github.com/samalba/dockerclient"
 )
 
@@ -44,9 +43,6 @@ type nmRunTimeConf struct {
 }
 
 var masterRTCfg nmRunTimeConf
-
-// ObjdbClient global
-var ObjdbClient objdb.API
 
 // SetClusterMode sets the cluster mode for the contiv plugin
 func SetClusterMode(cm string) error {
