@@ -959,6 +959,33 @@ func TestOverlappingSubnets(t *testing.T) {
 
 }
 
+// TestNetworkAddDeleteACIMode tests network create/delete REST api when ACI mode is on
+func TestNetworkAddDeleteACIMode(t *testing.T) {
+
+	// set aci mode
+	checkGlobalSet(t, false, "aci", "1-4094", "1-10000", "bridge")
+
+	// Create Network and Delete it
+	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
+	checkInspectNetwork(t, false, "default", "contiv", "10.1.1.254", 1, 0)
+	checkInspectGlobal(t, false, "1", "")
+	verifyNetworkState(t, "default", "contiv", "data", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0, "", "", 0)
+	checkDeleteNetwork(t, false, "default", "contiv")
+
+	// Create network without gateway
+	checkCreateNetwork(t, false, "default", "contiv-gw", "", "vxlan", "10.1.1.1/16", "", 1, "", "")
+	checkInspectNetwork(t, false, "default", "contiv-gw", "", 1, 0)
+	checkInspectGlobal(t, false, "", "1")
+	verifyNetworkState(t, "default", "contiv-gw", "data", "vxlan", "10.1.1.1", "", 16, 1, 1, "", "", 0)
+	checkDeleteNetwork(t, false, "default", "contiv-gw")
+
+	// Create network with ipv6
+	checkCreateNetwork(t, false, "default", "contiv-ipv6", "", "vxlan", "10.1.1.1/16", "", 1, "2016:0617::/120", "")
+	verifyNetworkState(t, "default", "contiv-ipv6", "data", "vxlan", "10.1.1.1", "", 16, 1, 1, "2016:0617::", "", 120)
+	checkDeleteNetwork(t, false, "default", "contiv-ipv6")
+
+}
+
 // TestNetworkAddDelete tests network create/delete REST api
 func TestNetworkAddDelete(t *testing.T) {
 	// Basic vlan network
