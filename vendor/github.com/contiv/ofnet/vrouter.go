@@ -416,9 +416,6 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 			return err
 		}
 
-		// Point it to next table.
-		// Note that we bypass policy lookup on dest host.
-		portVlanFlow.Next(self.ipTable)
 		// Set the metadata to indicate packet came in from VTEP port
 
 		vrf := self.agent.getvlanVrf(*vlan)
@@ -821,7 +818,7 @@ func (vr *Vrouter) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.Multipa
 }
 
 // GetEndpointStats fetches ep stats
-func (vr *Vrouter) GetEndpointStats() ([]*OfnetEndpointStats, error) {
+func (vr *Vrouter) GetEndpointStats() (map[string]*OfnetEndpointStats, error) {
 	return vr.svcProxy.GetEndpointStats()
 }
 
