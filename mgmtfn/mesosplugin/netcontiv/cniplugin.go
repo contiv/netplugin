@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	logfileName = "/var/log/contivnet.log"
+	logfileName = "/var/log/netcontiv.log"
 	logfileSize = 50 * (1 << 20)
 
 	// cni env. variables
@@ -86,7 +86,7 @@ func (cniApp *cniAppInfo) parseEnv() error {
 		case envVarCniNetns:
 			cniApp.cniMesosAttr.CniNetns = envVal
 			nsDir := filepath.Dir(envVal)
-			cniApp.netcfgFile = strings.Join([]string{nsDir, "contiv", "network.conf"}, "/")
+			cniApp.netcfgFile = strings.Join([]string{nsDir, "netcontiv", "network.conf"}, "/")
 			logger.Infof("cni network config file location : %s", cniApp.netcfgFile)
 
 		case envVarCniContainerID:
@@ -266,7 +266,7 @@ func main() {
 	logger.Infof("%s", version.String())
 	logger.Infof("CNI version : %s", cniapi.CniDefaultVersion)
 
-	flagSet := flag.NewFlagSet("contivnet", flag.ExitOnError)
+	flagSet := flag.NewFlagSet("netcontiv", flag.ExitOnError)
 	flagSet.BoolVar(&pluginVersion,
 		"version",
 		false,

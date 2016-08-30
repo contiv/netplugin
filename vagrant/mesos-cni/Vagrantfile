@@ -212,11 +212,11 @@ mkdir -p /var/lib/mesos/cni/config/
 mkdir -p /var/lib/mesos/cni/logs/
 cat >  /var/lib/mesos/cni/config/contiv.cfg <<EOF
 {
-   "name": "contiv",
-   "type": "contivnet"
+   "name": "netcontiv",
+   "type": "netcontiv"
 }
 EOF
-cp /opt/gopath/bin/contivnet  /var/lib/mesos/cni/plugins/
+cp /opt/gopath/bin/netcontiv  /var/lib/mesos/cni/plugins/
 nohup /usr/sbin/mesos-slave  --ip=$NODEADDR --work_dir=/var/lib/mesos/ \
       --master=$MASTERADDR:5050 --containerizers=mesos --executor_registration_timeout=5mins \
       --network_cni_config_dir=/var/lib/mesos/cni/config/ \
