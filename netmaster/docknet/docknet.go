@@ -38,8 +38,8 @@ const (
 var netDriverName = "netplugin"
 var ipamDriverName = "netplugin"
 
-// OperState has oper state of docker network
-type OperState struct {
+// DnetOperState has oper state of docker network
+type DnetOperState struct {
 	core.CommonState
 	TenantName  string `json:"tenantName"`
 	NetworkName string `json:"networkName"`
@@ -48,30 +48,30 @@ type OperState struct {
 }
 
 // Write the state.
-func (s *OperState) Write() error {
+func (s *DnetOperState) Write() error {
 	key := fmt.Sprintf(docknetOperPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the state for a given identifier
-func (s *OperState) Read(id string) error {
+func (s *DnetOperState) Read(id string) error {
 	key := fmt.Sprintf(docknetOperPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll state and return the collection.
-func (s *OperState) ReadAll() ([]core.State, error) {
+func (s *DnetOperState) ReadAll() ([]core.State, error) {
 	return s.StateDriver.ReadAllState(docknetOperPrefix, s, json.Unmarshal)
 }
 
 // WatchAll state transitions and send them through the channel.
-func (s *OperState) WatchAll(rsps chan core.WatchState) error {
+func (s *DnetOperState) WatchAll(rsps chan core.WatchState) error {
 	return s.StateDriver.WatchAllState(docknetOperPrefix, s, json.Unmarshal,
 		rsps)
 }
 
 // Clear removes the state.
-func (s *OperState) Clear() error {
+func (s *DnetOperState) Clear() error {
 	key := fmt.Sprintf(docknetOperPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }
@@ -186,7 +186,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 	}
 
 	// save docknet oper state
-	dnetOper := OperState{
+	dnetOper := DnetOperState{
 		TenantName:  tenantName,
 		NetworkName: networkName,
 		ServiceName: serviceName,
@@ -233,7 +233,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	}
 
 	// save docknet oper state
-	dnetOper := OperState{}
+	dnetOper := DnetOperState{}
 	dnetOper.ID = fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName)
 	dnetOper.StateDriver = stateDriver
 
@@ -247,7 +247,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 }
 
 // FindDocknetByUUID find the docknet by UUID
-func FindDocknetByUUID(dnetID string) (*OperState, error) {
+func FindDocknetByUUID(dnetID string) (*DnetOperState, error) {
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
@@ -255,7 +255,7 @@ func FindDocknetByUUID(dnetID string) (*OperState, error) {
 		return nil, err
 	}
 
-	tmpDnet := OperState{}
+	tmpDnet := DnetOperState{}
 	tmpDnet.StateDriver = stateDriver
 	dnetOperList, err := tmpDnet.ReadAll()
 	if err != nil {
@@ -265,8 +265,8 @@ func FindDocknetByUUID(dnetID string) (*OperState, error) {
 
 	// Walk all dnets and find the matching UUID
 	for _, dnet := range dnetOperList {
-		if dnet.(*OperState).DocknetUUID == dnetID {
-			return dnet.(*OperState), nil
+		if dnet.(*DnetOperState).DocknetUUID == dnetID {
+			return dnet.(*DnetOperState), nil
 		}
 	}
 

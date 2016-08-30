@@ -218,7 +218,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		time.Sleep(100 * time.Millisecond)
 
 		// verify TC bandwidth
-		c.Assert(tcFilterCheckBw(10, 100), IsNil)
+		c.Assert(tcFilterCheckBwRetry(10, 100), IsNil)
 
 		// change bandwidthvalue
 		c.Assert(its.client.NetprofilePost(&client.Netprofile{
@@ -232,7 +232,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		time.Sleep(100 * time.Millisecond)
 
 		// verify TC bandwidth
-		c.Assert(tcFilterCheckBw(20, 200), IsNil)
+		c.Assert(tcFilterCheckBwRetry(20, 200), IsNil)
 
 		// clear bandwidth value
 		c.Assert(its.client.NetprofilePost(&client.Netprofile{
@@ -260,7 +260,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		time.Sleep(100 * time.Millisecond)
 
 		// verify TC bandwidth
-		c.Assert(tcFilterCheckBw(30, 300), IsNil)
+		c.Assert(tcFilterCheckBwRetry(30, 300), IsNil)
 
 		// create a new net profile
 		c.Assert(its.client.NetprofilePost(&client.Netprofile{
@@ -282,7 +282,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		time.Sleep(100 * time.Millisecond)
 
 		// verify TC bandwidth
-		c.Assert(tcFilterCheckBw(40, 400), IsNil)
+		c.Assert(tcFilterCheckBwRetry(40, 400), IsNil)
 
 		// remove net profile from epg
 		c.Assert(its.client.EndpointGroupPost(&client.EndpointGroup{

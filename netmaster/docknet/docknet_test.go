@@ -36,7 +36,7 @@ func initStateDriver() (core.StateDriver, error) {
 }
 
 // getDocknetState gets docknet oper state
-func getDocknetState(tenantName, networkName, serviceName string) *OperState {
+func getDocknetState(tenantName, networkName, serviceName string) *DnetOperState {
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
@@ -45,7 +45,7 @@ func getDocknetState(tenantName, networkName, serviceName string) *OperState {
 	}
 
 	// save docknet oper state
-	dnetOper := OperState{}
+	dnetOper := DnetOperState{}
 	dnetOper.StateDriver = stateDriver
 
 	// write the dnet oper state
