@@ -414,11 +414,8 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		return err
 	}
 
+	// Will Skip docker network deletion for ACI fabric mode.
 	aci, _ := IsAciConfigured()
-	if aci {
-		// Skip docker network deletion for ACI fabric mode.
-		return nil
-	}
 
 	if nwCfg.NwType != "infra" {
 		// For Infra nw, endpoint delete initiated by netplugin
@@ -435,7 +432,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 			}
 		}
 
-		if GetClusterMode() == "docker" {
+		if GetClusterMode() == "docker" && aci == false {
 			// Delete the docker network
 			err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
 			if err != nil {

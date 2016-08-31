@@ -85,7 +85,7 @@ type OfnetDatapath interface {
 	MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply)
 
 	// Get endpoint stats
-	GetEndpointStats() ([]*OfnetEndpointStats, error)
+	GetEndpointStats() (map[string]*OfnetEndpointStats, error)
 
 	// Return the datapath state
 	InspectState() (interface{}, error)

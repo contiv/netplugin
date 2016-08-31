@@ -478,17 +478,29 @@ func (vl *VlanBridge) SvcProviderUpdate(svcName string, providers []string) {
 }
 
 // GetEndpointStats fetches ep stats
-func (vl *VlanBridge) GetEndpointStats() ([]*OfnetEndpointStats, error) {
-	return nil, nil
+func (vl *VlanBridge) GetEndpointStats() (map[string]*OfnetEndpointStats, error) {
+	return vl.svcProxy.GetEndpointStats()
 }
 
 // MultipartReply handles stats reply
 func (vl *VlanBridge) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply) {
+	if reply.Type == openflow13.MultipartType_Flow {
+		vl.svcProxy.FlowStats(reply)
+	}
 }
 
 // InspectState returns current state
 func (vl *VlanBridge) InspectState() (interface{}, error) {
-	return nil, nil
+	vlExport := struct {
+		PolicyAgent *PolicyAgent // Policy agent
+		SvcProxy    interface{}  // Service proxy
+		// VlanDb      map[uint16]*Vlan // Database of known vlans
+	}{
+		vl.policyAgent,
+		vl.svcProxy.InspectState(),
+		// vr.vlanDb,
+	}
+	return vlExport, nil
 }
 
 // initialize Fgraph on the switch
@@ -666,6 +678,7 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 				pktOut := getProxyARPResp(&arpIn, proxyMac,
 					pkt.VLANID.VID, inPort)
 				vl.ofSwitch.Send(pktOut)
+				vl.agent.incrStats("ArpReqRespSent")
 				return
 			}
 

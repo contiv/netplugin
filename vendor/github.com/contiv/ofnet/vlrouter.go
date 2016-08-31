@@ -46,6 +46,7 @@ type Vlrouter struct {
 	agent       *OfnetAgent      // Pointer back to ofnet agent that owns this
 	ofSwitch    *ofctrl.OFSwitch // openflow switch we are talking to
 	policyAgent *PolicyAgent     // Policy agent
+	svcProxy    *ServiceProxy    // Service proxy
 
 	// Fgraph tables
 	inputTable *ofctrl.Table // Packet lookup starts here
@@ -70,6 +71,7 @@ func NewVlrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vlrouter {
 
 	// Create policy agent
 	vlrouter.policyAgent = NewPolicyAgent(agent, rpcServ)
+	vlrouter.svcProxy = NewServiceProxy(agent)
 
 	// Create a flow dbs and my router mac
 	vlrouter.flowDb = make(map[string]*ofctrl.Flow)
@@ -93,6 +95,7 @@ func (self *Vlrouter) SwitchConnected(sw *ofctrl.OFSwitch) {
 
 	log.Infof("Switch connected(vlrouter). installing flows")
 
+	self.svcProxy.SwitchConnected(sw)
 	// Tell the policy agent about the switch
 	self.policyAgent.SwitchConnected(sw)
 
@@ -109,6 +112,11 @@ func (self *Vlrouter) SwitchDisconnected(sw *ofctrl.OFSwitch) {
 
 // Handle incoming packet
 func (self *Vlrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
+	if pkt.TableId == SRV_PROXY_SNAT_TBL_ID || pkt.TableId == SRV_PROXY_DNAT_TBL_ID {
+		// these are destined to service proxy
+		self.svcProxy.HandlePkt(pkt)
+		return
+	}
 	switch pkt.Data.Ethertype {
 	case 0x0806:
 		if (pkt.Match.Type == openflow13.MatchType_OXM) &&
@@ -176,8 +184,9 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	portVlanFlow.SetMetadata(metadata, metadataMask)
 
 	// Point it to dst group table for policy lookups
-	dstGrpTbl := self.ofSwitch.GetTable(DST_GRP_TBL_ID)
-	err = portVlanFlow.Next(dstGrpTbl)
+	// Point it to dnat table
+	dNATTbl := self.ofSwitch.GetTable(SRV_PROXY_DNAT_TBL_ID)
+	err = portVlanFlow.Next(dNATTbl)
 	if err != nil {
 		log.Errorf("Error installing portvlan entry. Err: %v", err)
 		return err
@@ -278,6 +287,8 @@ func (self *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
 	}
 
+	self.svcProxy.DelEndpoint(&endpoint)
+
 	// Remove the endpoint from policy tables
 	if endpoint.EndpointType != "internal-bgp" {
 		err = self.policyAgent.DelEndpoint(&endpoint)
@@ -286,6 +297,7 @@ func (self *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 			return err
 		}
 	}
+
 	path := &OfnetProtoRouteInfo{
 		ProtocolType: "bgp",
 		localEpIP:    endpoint.IpAddr.String(),
@@ -684,12 +696,19 @@ func (self *Vlrouter) initFgraph() error {
 	self.vlanTable, _ = sw.NewTable(VLAN_TBL_ID)
 	self.ipTable, _ = sw.NewTable(IP_TBL_ID)
 
+	// setup SNAT table
+	// Matches in SNAT table (i.e. incoming) go to IP look up
+	self.svcProxy.InitSNATTable(IP_TBL_ID)
+
 	// Init policy tables
-	err := self.policyAgent.InitTables(IP_TBL_ID)
+	err := self.policyAgent.InitTables(SRV_PROXY_SNAT_TBL_ID)
 	if err != nil {
 		log.Fatalf("Error installing policy table. Err: %v", err)
 		return err
 	}
+
+	// Matches in DNAT go to Policy
+	self.svcProxy.InitDNATTable(DST_GRP_TBL_ID)
 
 	//Create all drop entries
 	// Drop mcast source mac
@@ -764,11 +783,15 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 			// Lookup the Dest IP in the endpoint table
 			endpoint := self.agent.getEndpointByIpVrf(arpHdr.IPDst, "default")
 			if endpoint == nil {
-				//If we dont know the IP address, dont send an ARP response
-				log.Debugf("Received ARP request for unknown IP: %v ", arpHdr.IPDst)
-				self.agent.incrStats("ArpReqUnknownDest")
-
-				return
+				// Look for a service entry for the target IP
+				proxyMac := self.svcProxy.GetSvcProxyMAC(arpHdr.IPDst)
+				if proxyMac == "" {
+					// If we dont know the IP address, dont send an ARP response
+					log.Debugf("Received ARP request for unknown IP: %v", arpHdr.IPDst)
+					self.agent.incrStats("ArpReqUnknownDest")
+					return
+				}
+				srcMac, _ = net.ParseMAC(proxyMac)
 			} else {
 				if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
 					//srcMac, _ = net.ParseMAC(endpoint.MacAddrStr)
@@ -913,7 +936,8 @@ func (self *Vlrouter) AddUplink(portNo uint32, ifname string) error {
 
 	// Packets coming from uplink go thru policy and iptable lookup
 	//FIXME: Change next to Policy table
-	err = portVlanFlow.Next(self.ipTable)
+	sNATTbl := self.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
+	portVlanFlow.Next(sNATTbl)
 	if err != nil {
 		log.Errorf("Error installing portvlan entry. Err: %v", err)
 		return err
@@ -931,28 +955,39 @@ func (self *Vlrouter) RemoveUplink(portNo uint32) error {
 
 // AddSvcSpec adds a service spec to proxy
 func (self *Vlrouter) AddSvcSpec(svcName string, spec *ServiceSpec) error {
-	return nil
+	return self.svcProxy.AddSvcSpec(svcName, spec)
 }
 
 // DelSvcSpec removes a service spec from proxy
 func (self *Vlrouter) DelSvcSpec(svcName string, spec *ServiceSpec) error {
-	return nil
+	return self.svcProxy.DelSvcSpec(svcName, spec)
 }
 
 // SvcProviderUpdate Service Proxy Back End update
 func (self *Vlrouter) SvcProviderUpdate(svcName string, providers []string) {
+	self.svcProxy.ProviderUpdate(svcName, providers)
 }
 
 // GetEndpointStats fetches ep stats
-func (self *Vlrouter) GetEndpointStats() ([]*OfnetEndpointStats, error) {
-	return nil, nil
+func (self *Vlrouter) GetEndpointStats() (map[string]*OfnetEndpointStats, error) {
+	return self.svcProxy.GetEndpointStats()
 }
 
 // MultipartReply handles stats reply
 func (self *Vlrouter) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.MultipartReply) {
+	if reply.Type == openflow13.MultipartType_Flow {
+		self.svcProxy.FlowStats(reply)
+	}
 }
 
 // InspectState returns current state
 func (self *Vlrouter) InspectState() (interface{}, error) {
-	return nil, nil
+	vlrExport := struct {
+		PolicyAgent *PolicyAgent // Policy agent
+		SvcProxy    interface{}  // Service proxy
+	}{
+		self.policyAgent,
+		self.svcProxy.InspectState(),
+	}
+	return vlrExport, nil
 }

@@ -90,7 +90,7 @@ cat > "$JSON_FILE" << JSON_SCRIPT
     }
   },
   "ipAddress": {
-     "networkName": "contiv",
+     "networkName": "netcontiv",
      "labels": {
      }
   }
