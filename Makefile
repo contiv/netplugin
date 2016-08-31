@@ -165,7 +165,7 @@ ssh-build: start
 		vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 endif
 
-unit-test: stop clean build
+unit-test: stop clean 
 	./scripts/unittests -vagrant
 
 ubuntu-tests:
