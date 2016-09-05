@@ -114,7 +114,12 @@
 				"policies": {
 					"ref": "policy"
 				}
-			}
+			},
+			"links": {
+                                "matchEndpointGroup": {
+                                        "ref": "endpointGroup"
+                                }
+                        }
 		}
 	]
 }

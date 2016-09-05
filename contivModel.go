@@ -109,6 +109,7 @@ type EndpointGroup struct {
 
 type EndpointGroupLinkSets struct {
 	ExtContractsGrps map[string]modeldb.Link `json:"ExtContractsGrps,omitempty"`
+	MatchRules       map[string]modeldb.Link `json:"MatchRules,omitempty"`
 	Policies         map[string]modeldb.Link `json:"Policies,omitempty"`
 	Services         map[string]modeldb.Link `json:"Services,omitempty"`
 }
@@ -302,10 +303,15 @@ type Rule struct {
 
 	// add link-sets and links
 	LinkSets RuleLinkSets `json:"link-sets,omitempty"`
+	Links    RuleLinks    `json:"links,omitempty"`
 }
 
 type RuleLinkSets struct {
 	Policies map[string]modeldb.Link `json:"Policies,omitempty"`
+}
+
+type RuleLinks struct {
+	MatchEndpointGroup modeldb.Link `json:"MatchEndpointGroup,omitempty"`
 }
 
 type RuleInspect struct {
