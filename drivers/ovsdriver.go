@@ -350,7 +350,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			pktTagType = cfgEpGroup.PktTagType
 			pktTag = cfgEpGroup.PktTag
 			epgKey = cfgEp.EndpointGroupKey
-			log.Infof("Received endpoint create with bandwidth:%s", cfgEpGroup.Bandwidth)
 			if cfgEpGroup.Bandwidth != "" {
 				epgBandwidth = netutils.ConvertBandwidth(cfgEpGroup.Bandwidth)
 			}
@@ -411,9 +410,9 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 
 	// Get OVS port name
 	ovsPortName := getOvsPortName(intfName, skipVethPair)
-
+	log.Infof("Received endpoint create with bandwidth:%s and dscp: %d", cfgEpGroup.Bandwidth, cfgEpGroup.DSCP)
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, pktTag, cfgNw.PktTag, cfgEpGroup.Burst, skipVethPair, epgBandwidth)
+	err = sw.CreatePort(intfName, cfgEp, pktTag, cfgNw.PktTag, cfgEpGroup.Burst, cfgEpGroup.DSCP, skipVethPair, epgBandwidth)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err
@@ -489,6 +488,12 @@ func (d *OvsDriver) UpdateEndpointGroup(id string) error {
 				err = sw.UpdateBandwidth(epInfo.Ovsportname, cfgEpGroup.Burst, epgBandwidth)
 				if err != nil {
 					log.Errorf("Error adding bandwidth %v , err: %+v", epgBandwidth, err)
+					return err
+				}
+				log.Infof("Receiving update endpoint group for dscp: %d", cfgEpGroup.DSCP)
+				err = sw.UpdateEndpointGroup(epInfo.Ovsportname, cfgEpGroup.DSCP)
+				if err != nil {
+					log.Errorf("Error updating dscp %v , err: %+v", cfgEpGroup.DSCP, err)
 					return err
 				}
 			}
@@ -717,13 +722,13 @@ func (d *OvsDriver) GetEndpointStats() ([]byte, error) {
 	vxlanStats, err := d.switchDb["vxlan"].GetEndpointStats()
 	if err != nil {
 		log.Errorf("Error getting vxlan stats. Err: %v", err)
-		return []byte{}, err
+		return nil, err
 	}
 
 	vlanStats, err := d.switchDb["vlan"].GetEndpointStats()
 	if err != nil {
 		log.Errorf("Error getting vlan stats. Err: %v", err)
-		return []byte{}, err
+		return nil, err
 	}
 
 	// combine the maps
@@ -733,11 +738,12 @@ func (d *OvsDriver) GetEndpointStats() ([]byte, error) {
 
 	jsonStats, err := json.Marshal(vlanStats)
 	if err != nil {
+		log.Infof("%v", jsonStats)
 		log.Errorf("Error encoding epstats. Err: %v", err)
-		return jsonStats, err
+		return nil, err
 	}
 
-	return jsonStats, nil
+	return nil, nil
 }
 
 // InspectState returns driver state as json string

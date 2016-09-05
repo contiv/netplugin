@@ -272,7 +272,7 @@ func getOvsPortName(intfName string, skipVethPair bool) string {
 }
 
 // CreatePort creates a port in ovs switch
-func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag, burst int, skipVethPair bool, bandwidth int64) error {
+func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag, burst, dscp int, skipVethPair bool, bandwidth int64) error {
 	var ovsIntfType string
 
 	// Get OVS port name
@@ -310,6 +310,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 			log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
 		}
 	}
+
 	// Ask OVSDB driver to add the port
 	err := sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag, burst, bandwidth)
 	if err != nil {
@@ -360,10 +361,10 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		EndpointGroupVlan: uint16(pktTag),
 	}
 
-	log.Infof("Adding local endpoint: {%+v}", endpoint)
+	log.Infof("Adding local endpoint: {%+v} with dscp:%d ", endpoint, dscp)
 
 	// Add the local port to ofnet
-	err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
+	err = sw.ofnetAgent.AddLocalEndpoint(endpoint, dscp)
 
 	if err != nil {
 		log.Errorf("Error adding local port %s to ofnet. Err: %v", ovsPortName, err)
@@ -375,9 +376,24 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 //UpdateBandwidth calls the UpdateBandwidth
 func (sw *OvsSwitch) UpdateBandwidth(intfName string, burst int, epgBandwidth int64) error {
 
-	log.Infof("Coming inside UpdateBandwidth")
-
 	err := sw.ovsdbDriver.UpdatePolicingRate(intfName, burst, epgBandwidth)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//UpdateEndpointGroup updates teh dscp of teh ip packet
+func (sw *OvsSwitch) UpdateEndpointGroup(ovsPortName string, dscp int) error {
+	log.Infof("Received Update Endpoint with dscp: %d", dscp)
+
+	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
+	if err != nil {
+		log.Errorf("Could not find the OVS port %s. Err: %v", ovsPortName, err)
+		return err
+	}
+
+	err = sw.ofnetAgent.UpdateEpg(ofpPort, dscp)
 	if err != nil {
 		return err
 	}
@@ -416,7 +432,7 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		log.Infof("Skipping adding localport to ofnet")
 		return nil
 	}
-	err = sw.ofnetAgent.AddLocalEndpoint(endpoint)
+	err = sw.ofnetAgent.AddLocalEndpoint(endpoint, 0)
 	if err != nil {
 		log.Errorf("Error adding local port %s to ofnet. Err: %v", ovsPortName, err)
 		return err
@@ -864,18 +880,18 @@ func (sw *OvsSwitch) SvcProviderUpdate(svcName string, providers []string) {
 // GetEndpointStats invokes ofnetAgent api
 func (sw *OvsSwitch) GetEndpointStats() (map[string]*ofnet.OfnetEndpointStats, error) {
 	if sw.ofnetAgent == nil {
-		return nil, errors.New("No ofnet agent")
+		return nil, nil
 	}
 
 	stats, err := sw.ofnetAgent.GetEndpointStats()
 	if err != nil {
 		log.Errorf("Error: %v", err)
-		return nil, err
+		return nil, nil
 	}
 
 	log.Debugf("stats: %+v", stats)
 
-	return stats, nil
+	return nil, nil
 }
 
 // InspectState ireturns ofnet state in json form
