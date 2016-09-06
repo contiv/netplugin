@@ -47,6 +47,7 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.box = "contiv/centos72"
     config.vm.box_version = "0.7.0"
+    config.ssh.insert_key = false
     num_nodes = 1
     base_ip = "192.168.11."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }

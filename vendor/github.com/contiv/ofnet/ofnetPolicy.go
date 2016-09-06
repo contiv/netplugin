@@ -116,9 +116,7 @@ func ruleIsSame(r1, r2 *OfnetPolicyRule) bool {
 // AddEndpoint adds an endpoint to dst group lookup
 func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 
-	log.Infof("COMING TO POLICY ADD ENDPOINT")
 	self.mutex.RLock()
-	log.Infof("AFTER THE LOCK")
 	if self.dstGrpFlow[endpoint.EndpointID] != nil {
 		// FIXME: handle this as Update
 		log.Warnf("DstGroup for endpoint %+v already exists", endpoint)

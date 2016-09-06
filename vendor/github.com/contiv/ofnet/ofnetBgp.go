@@ -45,18 +45,21 @@ type OfnetBgp struct {
 	bgpServer  *gobgp.BgpServer // bgp server instance
 	grpcServer *api.Server      // grpc server to talk to gobgp
 
-	myRouterMac    net.HardwareAddr //Router mac used for external proxy
-	myBgpPeer      string           // bgp neighbor
-	myBgpAs        uint32
-	cc             *grpc.ClientConn //grpc client connection
-	stopWatch      chan bool
-	start          chan bool
-	stopArp        chan bool
-	intfName       string //loopback intf to run bgp
-	routeUUID      map[string][]byte
-	routeUUIDMutex sync.RWMutex
-	oldState       string
-	oldAdminState  string
+	myRouterMac   net.HardwareAddr //Router mac used for external proxy
+	myBgpPeer     string           // bgp neighbor
+	myBgpAs       uint32
+	cc            *grpc.ClientConn //grpc client connection
+	stopWatch     chan bool
+	start         chan bool
+	stopArp       chan bool
+	intfName      string //loopback intf to run bgp
+	oldState      string
+	oldAdminState string
+}
+
+type OfnetBgpInspect struct {
+	Peers []*bgpconf.Neighbor
+	Rib   map[string][]*table.Path
 }
 
 // Create a new vlrouter instance
@@ -87,7 +90,6 @@ func NewOfnetBgp(agent *OfnetAgent, routerInfo []string) *OfnetBgp {
 	ofnetBgp.intfName = "inb01"
 	ofnetBgp.start = make(chan bool, 1)
 	ofnetBgp.stopArp = make(chan bool, 1)
-	ofnetBgp.routeUUID = make(map[string][]byte)
 	return ofnetBgp
 }
 
@@ -188,6 +190,7 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 
 	//monitor route updates from peer, peer state
 	go self.watch()
+	// register for link ups on uplink and inb01 intf
 	self.start <- true
 	return nil
 }
@@ -279,6 +282,11 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 			NeighborAddress: neighborInfo.NeighborIP,
 			PeerAs:          uint32(peerAs),
 		},
+		Timers: bgpconf.Timers{
+			Config: bgpconf.TimersConfig{
+				ConnectRetry: 60,
+			},
+		},
 	}
 
 	err := self.bgpServer.AddNeighbor(n)
@@ -310,6 +318,7 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 	self.myBgpPeer = neighborInfo.NeighborIP
 	go self.sendArp(self.stopArp)
 
+	paths := []*OfnetProtoRouteInfo{}
 	//Walk through all the localEndpointDb and them to protocol rib
 	for endpoint := range self.agent.localEndpointDb.IterBuffered() {
 		ep := endpoint.Val.(*OfnetEndpoint)
@@ -318,8 +327,9 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 			localEpIP:    ep.IpAddr.String(),
 			nextHopIP:    self.routerIP,
 		}
-		self.AddLocalProtoRoute(path)
+		paths = append(paths, path)
 	}
+	self.AddLocalProtoRoute(paths)
 	return nil
 }
 
@@ -337,48 +347,51 @@ func (self *OfnetBgp) GetRouterInfo() *OfnetProtoRouterInfo {
 }
 
 //AddLocalProtoRoute is used to add local endpoint to the protocol RIB
-func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
+func (self *OfnetBgp) AddLocalProtoRoute(pathInfo []*OfnetProtoRouteInfo) error {
 
 	if self.routerIP == "" {
 		//ignoring populating to the bgp rib because
 		//Bgp is not configured.
 		return nil
 	}
-	log.Infof("Received AddLocalProtoRoute to add local endpoint to protocol RIB: %v", pathInfo)
+	log.Infof("Received AddLocalProtoRoute to add local endpoint to protocol RIB: %+v", pathInfo)
 
 	// add routes
 	attrs := []bgp.PathAttributeInterface{
 		bgp.NewPathAttributeOrigin(1),
-		bgp.NewPathAttributeNextHop(pathInfo.nextHopIP),
+		bgp.NewPathAttributeNextHop(pathInfo[0].nextHopIP),
 		bgp.NewPathAttributeAsPath([]bgp.AsPathParamInterface{bgp.NewAs4PathParam(bgp.BGP_ASPATH_ATTR_TYPE_SEQ, []uint32{self.myBgpAs})}),
 	}
-	self.routeUUIDMutex.Lock()
-	defer self.routeUUIDMutex.Unlock()
-	uuid, err := self.bgpServer.AddPath("", []*table.Path{table.NewPath(nil, bgp.NewIPAddrPrefix(32, pathInfo.localEpIP), false, attrs, time.Now(), false)})
+	paths := []*table.Path{}
+	for _, path := range pathInfo {
+		paths = append(paths, table.NewPath(nil, bgp.NewIPAddrPrefix(32, path.localEpIP), false, attrs, time.Now(), false))
+	}
+
+	_, err := self.bgpServer.AddPath("", paths)
 	if err != nil {
 		return err
 	}
-	self.routeUUID[pathInfo.localEpIP] = append(self.routeUUID[pathInfo.localEpIP], uuid...)
 
 	return nil
 }
 
 //DeleteLocalProtoRoute withdraws local endpoints from protocol RIB
-func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
+func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo []*OfnetProtoRouteInfo) error {
 
 	log.Infof("Received DeleteLocalProtoRoute to withdraw local endpoint to protocol RIB: %v", pathInfo)
 
 	attrs := []bgp.PathAttributeInterface{
 		bgp.NewPathAttributeOrigin(1),
-		bgp.NewPathAttributeNextHop(pathInfo.nextHopIP),
+		bgp.NewPathAttributeNextHop(pathInfo[0].nextHopIP),
 		bgp.NewPathAttributeAsPath([]bgp.AsPathParamInterface{bgp.NewAs4PathParam(bgp.BGP_ASPATH_ATTR_TYPE_SEQ, []uint32{self.myBgpAs})}),
 	}
-	self.routeUUIDMutex.Lock()
-	defer self.routeUUIDMutex.Unlock()
-	if err := self.bgpServer.DeletePath(self.routeUUID[pathInfo.localEpIP], bgp.RF_IPv4_UC, "", []*table.Path{table.NewPath(nil, bgp.NewIPAddrPrefix(32, pathInfo.localEpIP), true, attrs, time.Now(), false)}); err != nil {
+	paths := []*table.Path{}
+	for _, path := range pathInfo {
+		paths = append(paths, table.NewPath(nil, bgp.NewIPAddrPrefix(32, path.localEpIP), true, attrs, time.Now(), false))
+	}
+	if err := self.bgpServer.DeletePath(nil, bgp.RF_IPv4_UC, "", paths); err != nil {
 		return err
 	}
-	delete(self.routeUUID, pathInfo.localEpIP)
 
 	return nil
 }
@@ -514,12 +527,12 @@ func (self *OfnetBgp) modRib(path *table.Path) error {
 		// Install the endpoint in datapath
 		// First, add the endpoint to local routing table
 
+		self.agent.endpointDb.Set(epreg.EndpointID, epreg)
 		err := self.agent.datapath.AddEndpoint(epreg)
 		if err != nil {
 			log.Errorf("Error adding endpoint: {%+v}. Err: %v", epreg, err)
 			return err
 		}
-		self.agent.endpointDb.Set(epreg.EndpointID, epreg)
 	} else {
 		log.Info("Received route withdraw from BGP for ", endpointIPNet)
 		endpoint := self.agent.getEndpointByIpVrf(endpointIPNet.IP, "default")
@@ -556,7 +569,9 @@ func (self *OfnetBgp) sendArp(stopArp chan bool) {
 	//Get the Mac of the vlan intf
 	//Get the portno of the uplink
 	//Build an arp packet and send on portno of uplink
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
+	self.sendArpPacketOut()
+
 	for {
 		select {
 		case <-stopArp:
@@ -575,7 +590,6 @@ func (self *OfnetBgp) sendArpPacketOut() {
 	if self.myBgpPeer == "" {
 		return
 	}
-
 	intf, _ := net.InterfaceByName(self.vlanIntf)
 	ofPortno, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
 	bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
@@ -609,4 +623,28 @@ func (self *OfnetBgp) sendArpPacketOut() {
 
 	// Send it out
 	self.agent.ofSwitch.Send(pktOut)
+}
+
+func (self *OfnetBgp) InspectProto() (interface{}, error) {
+	OfnetBgpInspect := new(OfnetBgpInspect)
+	var err error
+
+	if self.bgpServer == nil {
+		return nil, nil
+	}
+	// Get Bgp info
+	OfnetBgpInspect.Peers = self.bgpServer.GetNeighbor()
+
+	if OfnetBgpInspect.Peers == nil {
+		return nil, nil
+	}
+
+	// Get rib info
+	_, OfnetBgpInspect.Rib, err = self.bgpServer.GetRib(self.myBgpPeer, bgp.RF_IPv4_UC, nil)
+	if err != nil {
+		log.Errorf("Bgp Inspect failed: %v", err)
+		return nil, err
+	}
+
+	return OfnetBgpInspect, nil
 }

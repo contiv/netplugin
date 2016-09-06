@@ -109,13 +109,16 @@ type OfnetProto interface {
 	GetRouterInfo() *OfnetProtoRouterInfo
 
 	//Add Local Route
-	AddLocalProtoRoute(path *OfnetProtoRouteInfo) error
+	AddLocalProtoRoute(path []*OfnetProtoRouteInfo) error
 
 	//Delete Local Route
-	DeleteLocalProtoRoute(path *OfnetProtoRouteInfo) error
+	DeleteLocalProtoRoute(path []*OfnetProtoRouteInfo) error
 
 	//Modify protocol Rib (Could be used for testing)
 	ModifyProtoRib(path interface{})
+
+	//Inspect bgp
+	InspectProto() (interface{}, error)
 }
 
 // Default port numbers

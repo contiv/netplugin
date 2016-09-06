@@ -199,6 +199,7 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	return agent, nil
 }
 
+// incrStats increment a stats counter by name
 func (self *OfnetAgent) incrStats(statName string) {
 	self.statsMutex.Lock()
 	defer self.statsMutex.Unlock()
@@ -632,7 +633,7 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 		}
 	}
 	self.masterDbMutex.Unlock()
-	log.Infof("local endpoint removed and withdrawn successfully")
+	log.Infof("Local endpoint removed and withdrawn successfully")
 	return nil
 }
 
@@ -966,13 +967,13 @@ func (self *OfnetAgent) GetRouterInfo() *OfnetProtoRouterInfo {
 	return nil
 }
 
-func (self *OfnetAgent) AddLocalProtoRoute(path *OfnetProtoRouteInfo) {
+func (self *OfnetAgent) AddLocalProtoRoute(path []*OfnetProtoRouteInfo) {
 	if self.protopath != nil {
 		self.protopath.AddLocalProtoRoute(path)
 	}
 }
 
-func (self *OfnetAgent) DeleteLocalProtoRoute(path *OfnetProtoRouteInfo) {
+func (self *OfnetAgent) DeleteLocalProtoRoute(path []*OfnetProtoRouteInfo) {
 	if self.protopath != nil {
 		self.protopath.DeleteLocalProtoRoute(path)
 	}
@@ -989,6 +990,12 @@ func (self *OfnetAgent) MultipartReply(sw *ofctrl.OFSwitch, reply *openflow13.Mu
 // GetEndpointStats fetches all endpoint stats
 func (self *OfnetAgent) GetEndpointStats() (map[string]*OfnetEndpointStats, error) {
 	return self.datapath.GetEndpointStats()
+}
+
+// InspectBgp returns ofnet bgp state
+func (self *OfnetAgent) InspectBgp() (interface{}, error) {
+	peer, err := self.protopath.InspectProto()
+	return peer, err
 }
 
 // InspectState returns ofnet agent state

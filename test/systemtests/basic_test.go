@@ -40,7 +40,7 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 
 		if s.fwdMode == "routing" && encap == "vlan" {
 			var err error
-			_, err = s.CheckBgpRouteDistribution(c, containers)
+			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
 
@@ -77,7 +77,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
 		var err error
-		_, err = s.CheckBgpRouteDistribution(c, containers)
+		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
 
@@ -103,7 +103,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 
 		if s.fwdMode == "routing" && encap == "vlan" {
 			var err error
-			_, err = s.CheckBgpRouteDistribution(c, containers)
+			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
 
@@ -175,7 +175,7 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		containers := append(containers1, containers2...)
 		if s.fwdMode == "routing" && encap == "vlan" {
 			var err error
-			_, err = s.CheckBgpRouteDistribution(c, containers)
+			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
 		if s.fwdMode == "routing" && encap == "vlan" {

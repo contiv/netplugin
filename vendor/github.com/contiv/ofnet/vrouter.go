@@ -502,6 +502,7 @@ func (self *Vrouter) AddVlan(vlanId uint16, vni uint32, vrf string) error {
 
 	// Walk all VTEP ports and add vni-vlan mapping for new VNI
 	self.agent.vtepTableMutex.RLock()
+	defer self.agent.vtepTableMutex.RUnlock()
 	for _, vtepPort := range self.agent.vtepTable {
 		// Install a flow entry for  VNI/vlan and point it to macDest table
 		portVlanFlow, err := self.vlanTable.NewFlow(ofctrl.FlowMatch{
@@ -511,19 +512,19 @@ func (self *Vrouter) AddVlan(vlanId uint16, vni uint32, vrf string) error {
 		})
 		if err != nil {
 			log.Errorf("Error creating port vlan flow for vlan %d. Err: %v", vlanId, err)
-			self.agent.vtepTableMutex.RUnlock()
 			return err
 		}
+
 		var vrfid *uint16
 		if vrfid = self.agent.getvrfId(vrf); vrfid == nil {
 			log.Errorf("Invalid vrf name:%v", vrf)
-			self.agent.vtepTableMutex.RUnlock()
 			return errors.New("Invalid vrf name")
 		}
 
 		//set vrf id as METADATA
 		vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
 
+		// Set the metadata to indicate packet came in from VTEP port
 		metadata := METADATA_RX_VTEP | vrfmetadata
 		metadataMask := METADATA_RX_VTEP | vrfmetadataMask
 
@@ -534,7 +535,6 @@ func (self *Vrouter) AddVlan(vlanId uint16, vni uint32, vrf string) error {
 		portVlanFlow.Next(sNATTbl)
 		vlan.vtepVlanFlowDb[*vtepPort] = portVlanFlow
 	}
-	self.agent.vtepTableMutex.RUnlock()
 
 	// store it in DB
 	self.vlanDb[vlanId] = vlan

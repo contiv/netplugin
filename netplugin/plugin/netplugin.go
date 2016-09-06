@@ -224,7 +224,7 @@ func (p *NetPlugin) GlobalFwdModeUpdate(cfg Config) {
 
 	if err != nil {
 		logrus.Errorf("Error updating global forwarding mode %v", err)
-		return 
+		return
 	}
 
 	defer func() {
