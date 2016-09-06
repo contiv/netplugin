@@ -19,11 +19,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel/client"
-	"github.com/contiv/netplugin/mgmtfn/mesosplugin/cniapi"
-	"github.com/samalba/dockerclient"
-	. "gopkg.in/check.v1"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -31,6 +26,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/mgmtfn/mesosplugin/cniapi"
+	"github.com/samalba/dockerclient"
+	. "gopkg.in/check.v1"
 )
 
 // track containers
@@ -128,16 +129,15 @@ func (cfg1 *testConfigData) deleteNetwork(its *integTestSuite, c *C) {
 		return
 	}
 
-	if _, err := its.client.NetworkGet(cfg1.tenantName, cfg1.networkName); err == nil {
-		intLog.Infof("delete network %s", cfg1.networkName)
-		if len(cfg1.tenantName) > 0 {
-			err := its.client.NetworkDelete(cfg1.tenantName, cfg1.networkName)
-			assertNoErr(err, c, "delete network")
-		} else {
-			err := its.client.NetworkDelete("default", cfg1.networkName)
-			assertNoErr(err, c, "delete network")
-		}
+	tenantName := "default"
+	if len(cfg1.tenantName) > 0 {
+		tenantName = cfg1.tenantName
+	}
 
+	if _, err := its.client.NetworkGet(tenantName, cfg1.networkName); err == nil {
+		intLog.Infof("delete network %s", tenantName)
+		err := its.client.NetworkDelete(tenantName, cfg1.networkName)
+		assertNoErr(err, c, "delete network")
 	} else {
 		intLog.Warnf("no network %s", cfg1.networkName)
 	}

@@ -32,7 +32,7 @@ import (
 // container start and die event*/
 func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interface{}) {
 
-	log.Printf("Received Docker event: {%#v}\n", *event)
+	log.Debugf("Received Docker event: {%#v}\n", *event)
 	endpointUpdReq := &master.UpdateEndpointRequest{}
 	switch event.Status {
 	case "start":

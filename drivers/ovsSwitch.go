@@ -272,7 +272,7 @@ func getOvsPortName(intfName string, skipVethPair bool) string {
 }
 
 // CreatePort creates a port in ovs switch
-func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag, burst int, skipVethPair bool, bandwidth int64) error {
+func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag, burst, dscp int, skipVethPair bool, bandwidth int64) error {
 	var ovsIntfType string
 
 	// Get OVS port name
@@ -358,6 +358,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		Ipv6Addr:          net.ParseIP(cfgEp.IPv6Address),
 		EndpointGroup:     cfgEp.EndpointGroupID,
 		EndpointGroupVlan: uint16(pktTag),
+		Dscp:              dscp,
 	}
 
 	log.Infof("Adding local endpoint: {%+v}", endpoint)
@@ -372,20 +373,39 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 	return nil
 }
 
-//UpdateBandwidth calls the UpdateBandwidth
-func (sw *OvsSwitch) UpdateBandwidth(intfName string, burst int, epgBandwidth int64) error {
-
-	log.Infof("Coming inside UpdateBandwidth")
-
-	err := sw.ovsdbDriver.UpdatePolicingRate(intfName, burst, epgBandwidth)
+// UpdateEndpoint updates endpoint state
+func (sw *OvsSwitch) UpdateEndpoint(ovsPortName string, burst, dscp int, epgBandwidth int64) error {
+	// update bandwidth
+	err := sw.ovsdbDriver.UpdatePolicingRate(ovsPortName, burst, epgBandwidth)
 	if err != nil {
 		return err
 	}
+
+	// Get the openflow port number for the interface
+	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
+	if err != nil {
+		log.Errorf("Could not find the OVS port %s. Err: %v", ovsPortName, err)
+		return err
+	}
+
+	// Build the updated endpoint info
+	endpoint := ofnet.EndpointInfo{
+		PortNo: ofpPort,
+		Dscp:   dscp,
+	}
+
+	// update endpoint state in ofnet
+	err = sw.ofnetAgent.UpdateLocalEndpoint(endpoint)
+	if err != nil {
+		log.Errorf("Error updating local port %s to ofnet. Err: %v", ovsPortName, err)
+		return err
+	}
+
 	return nil
 }
 
 // UpdatePort updates an OVS port without creating it
-func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag int, skipVethPair bool) error {
+func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag, dscp int, skipVethPair bool) error {
 
 	// Get OVS port name
 	ovsPortName := getOvsPortName(intfName, skipVethPair)
@@ -409,6 +429,7 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		Ipv6Addr:          net.ParseIP(cfgEp.IPv6Address),
 		EndpointGroup:     cfgEp.EndpointGroupID,
 		EndpointGroupVlan: uint16(pktTag),
+		Dscp:              dscp,
 	}
 
 	// Add the local port to ofnet
