@@ -3,12 +3,13 @@ package systemtests
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"
 	. "gopkg.in/check.v1"
-	"strings"
-	"time"
 )
 
 /*TestBgpContainerToContainerPing tests the following:
