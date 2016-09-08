@@ -60,6 +60,12 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 		log.Fatalf("Error initializing cluster. Err: %v", err)
 	}
 
+	// Init the driver plugins..
+	err = netPlugin.Init(*pluginConfig)
+	if err != nil {
+		log.Fatalf("Failed to initialize the plugin. Error: %s", err)
+	}
+
 	// Initialize appropriate plugin
 	switch opts.PluginMode {
 	case "docker":
@@ -73,13 +79,6 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	default:
 		log.Fatalf("Unknown plugin mode -- should be docker | kubernetes")
 	}
-
-	// Init the driver plugins..
-	err = netPlugin.Init(*pluginConfig)
-	if err != nil {
-		log.Fatalf("Failed to initialize the plugin. Error: %s", err)
-	}
-
 	// init mesos plugin
 	mesosplugin.InitPlugin(netPlugin)
 
