@@ -121,8 +121,12 @@ func createPortVlanFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, e
 
 	}
 
-	// set vlan and metedata
-	portVlanFlow.SetVlan(endpoint.Vlan)
+	// set vlan if required
+	if agent.dpName == "vxlan" {
+		portVlanFlow.SetVlan(endpoint.Vlan)
+	}
+
+	// set metedata
 	portVlanFlow.SetMetadata(metadata, metadataMask)
 
 	// Point it to next table
@@ -176,9 +180,13 @@ func createDscpFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, endpo
 
 	}
 
-	// set vlan, dscp and metadata on the flow
-	dscpV4Flow.SetVlan(endpoint.Vlan)
-	dscpV6Flow.SetVlan(endpoint.Vlan)
+	// set vlan if required
+	if agent.dpName == "vxlan" {
+		dscpV4Flow.SetVlan(endpoint.Vlan)
+		dscpV6Flow.SetVlan(endpoint.Vlan)
+	}
+
+	// set dscp and metadata on the flow
 	dscpV4Flow.SetDscp(uint8(endpoint.Dscp))
 	dscpV6Flow.SetDscp(uint8(endpoint.Dscp))
 	dscpV4Flow.SetMetadata(metadata, metadataMask)

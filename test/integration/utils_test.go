@@ -446,14 +446,21 @@ func (its *integTestSuite) verifyPortVlanFlow(epCfg *mastercfg.CfgEndpointState,
 	assertNoErr(err, c, "dumping flow entries")
 
 	// verify port vlan flow exists
-	portVlanFlow := fmt.Sprintf("actions=push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+	portVlanFlow := fmt.Sprintf("actions=write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+	if its.encap == "vxlan" && its.fwdMode == "bridge" {
+		portVlanFlow = fmt.Sprintf("actions=push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+
+	}
 	vlanTable := ofnet.VLAN_TBL_ID
 	ofctlFlowAssert(ofdump, vlanTable, portVlanFlow, true, c)
 
 	// Check for dscp flow
 	if dscp != 0 {
 		//  dscp flow
-		dscpFlow := fmt.Sprintf("actions=set_field:%d->ip_dscp,push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		dscpFlow := fmt.Sprintf("actions=set_field:%d->ip_dscp,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		if its.encap == "vxlan" && its.fwdMode == "bridge" {
+			dscpFlow = fmt.Sprintf("actions=set_field:%d->ip_dscp,push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		}
 		ofctlFlowAssert(ofdump, vlanTable, dscpFlow, true, c)
 	}
 }
@@ -475,7 +482,10 @@ func (its *integTestSuite) verifyPortVlanFlowRemoved(epCfg *mastercfg.CfgEndpoin
 	// Check for dscp flow
 	if dscp != 0 {
 		//  dscp flow
-		dscpFlow := fmt.Sprintf("actions=set_field:%d->ip_dscp,push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		dscpFlow := fmt.Sprintf("actions=set_field:%d->ip_dscp,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		if its.encap == "vxlan" && its.fwdMode == "bridge" {
+			dscpFlow = fmt.Sprintf("actions=set_field:%d->ip_dscp,push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		}
 		ofctlFlowAssert(ofdump, vlanTable, dscpFlow, false, c)
 	}
 
@@ -485,6 +495,9 @@ func (its *integTestSuite) verifyPortVlanFlowRemoved(epCfg *mastercfg.CfgEndpoin
 	}
 
 	// verify port vlan flow exists
-	portVlanFlow := fmt.Sprintf("actions=push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+	portVlanFlow := fmt.Sprintf("actions=write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+	if its.encap == "vxlan" && its.fwdMode == "bridge" {
+		portVlanFlow = fmt.Sprintf("actions=push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+	}
 	ofctlFlowAssert(ofdump, vlanTable, portVlanFlow, false, c)
 }
