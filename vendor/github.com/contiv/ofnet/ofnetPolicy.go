@@ -17,12 +17,13 @@ package ofnet
 
 import (
 	"errors"
-	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/ofnet/ofctrl"
 	"net"
 	"net/rpc"
 	"reflect"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/ofnet/ofctrl"
 )
 
 // This file has security policy rule implementation
@@ -303,6 +304,11 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 	var flag, flagMask uint16
 	var flagPtr, flagMaskPtr *uint16
 	var err error
+
+	// make sure switch is connected
+	if !self.agent.IsSwitchConnected() {
+		self.agent.WaitForSwitchConnection()
+	}
 
 	// check if we already have the rule
 	self.mutex.RLock()

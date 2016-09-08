@@ -301,4 +301,5 @@ func (its *integTestSuite) TestEndpointGroupInspect(c *C) {
 	}
 
 	assertNoErr(its.client.EndpointGroupDelete("default", "epgA"), c, "deleting endpointGroup")
+	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
 }

@@ -98,14 +98,15 @@ type OfnetAgent struct {
 
 // local End point information
 type EndpointInfo struct {
-	PortNo            uint32
-	EndpointGroup     int
-	MacAddr           net.HardwareAddr
-	Vlan              uint16
-	IpAddr            net.IP
-	Ipv6Addr          net.IP
-	Vrf               string
-	EndpointGroupVlan uint16
+	PortNo            uint32           // OVS port number
+	EndpointGroup     int              // Endpoint group ID
+	MacAddr           net.HardwareAddr // mac address
+	Vlan              uint16           // OVS internal vlan for the network
+	IpAddr            net.IP           // IPv4 address of the endpoint
+	Ipv6Addr          net.IP           // IPv6 address of the endpoint
+	Vrf               string           // VRF name
+	EndpointGroupVlan uint16           // Endpoint group vlan when its different from network vlan
+	Dscp              int              // DSCP value for the endpoint
 }
 
 const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
@@ -550,6 +551,7 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		Vni:               *vni,
 		OriginatorIp:      self.localIp,
 		PortNo:            endpoint.PortNo,
+		Dscp:              endpoint.Dscp,
 		Timestamp:         time.Now(),
 		EndpointGroupVlan: endpoint.EndpointGroupVlan,
 	}
@@ -608,7 +610,6 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 	}
 
 	// delete the endpoint from local endpoint table
-
 	self.endpointDb.Remove(ep.EndpointID)
 	self.localEndpointDb.Remove(string(portNo))
 	self.portVlanMapMutex.Lock()
@@ -634,6 +635,32 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 	}
 	self.masterDbMutex.Unlock()
 	log.Infof("Local endpoint removed and withdrawn successfully")
+
+	return nil
+}
+
+// UpdateLocalEndpoint update state on a local endpoint
+func (self *OfnetAgent) UpdateLocalEndpoint(endpoint EndpointInfo) error {
+	log.Infof("Received local endpoint update: {%+v}", endpoint)
+
+	// increment stats
+	self.incrStats("UpdateLocalEndpoint")
+
+	// find the local endpoint first
+	epreg, _ := self.localEndpointDb.Get(string(endpoint.PortNo))
+	if epreg == nil {
+		log.Errorf("Endpoint not found for port %d", endpoint.PortNo)
+		return errors.New("Endpoint not found")
+	}
+	ep := epreg.(*OfnetEndpoint)
+
+	// pass it down to datapath
+	err := self.datapath.UpdateLocalEndpoint(ep, endpoint)
+	if err != nil {
+		log.Errorf("Error updating endpoint: %+v. Err: %v", endpoint, err)
+		return err
+	}
+
 	return nil
 }
 

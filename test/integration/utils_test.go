@@ -16,9 +16,12 @@ limitations under the License.
 package integration
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -226,6 +229,17 @@ func (its *integTestSuite) verifyEndpointInspect(tenantName, netName string, epC
 	}
 }
 
+// runCmd runs a command and returns output
+func runCmd(cmd string) (string, error) {
+	out, err := exec.Command("/bin/sh", "-c", cmd).Output()
+	if err != nil {
+		log.Errorf("error running %s. Error: %v", cmd, err)
+		return "", err
+	}
+
+	return string(out), nil
+}
+
 // Run an ovs-ofctl command
 func runOfctlCmd(cmd, brName string) ([]byte, error) {
 	cmdStr := fmt.Sprintf("sudo /usr/bin/ovs-ofctl -O Openflow13 %s %s", cmd, brName)
@@ -279,6 +293,76 @@ func ofctlFlowMatch(flowList []string, tableID int, matchStr string) bool {
 	}
 
 	return false
+}
+
+// Assert if a flow exists or not
+func ofctlFlowAssert(flowList []string, tableID int, matchStr string, expMatch bool, c *C) {
+	if ofctlFlowMatch(flowList, tableID, matchStr) != expMatch {
+		log.Errorf("Flow %s in table %d not found in:\n%s", matchStr, tableID, strings.Join(flowList, "\n"))
+		c.Fatalf("Flow %s not found in table %d", matchStr, tableID)
+	}
+}
+
+// tcFilterCheckBw checks bandwidth using `tc` command
+func tcFilterCheckBw(expBw, expBurst int64) error {
+	qdiscShow, err := runCmd("tc qdisc show")
+	if err != nil {
+		return err
+	}
+
+	qdiscoutput := strings.Split(qdiscShow, "ingress")
+	if len(qdiscoutput) < 2 {
+		log.Errorf("Got `tc qdisco show` output:\n%s", qdiscShow)
+		return fmt.Errorf("Unexpected `tc qdisco show` output")
+	}
+	vvport := strings.Split(qdiscoutput[1], "parent")
+	vvPort := strings.Split(vvport[0], "dev ")
+	cmd := fmt.Sprintf("tc -s filter show dev %s parent ffff:", vvPort[1])
+	str, err := runCmd(cmd)
+	if err != nil {
+		return err
+	}
+	output := strings.Split(str, "rate ")
+	if len(output) < 2 {
+		log.Errorf("Got `tc -s filter show dev` output:\n%s", output)
+		return fmt.Errorf("Unexpected `tc -s filter show dev` output")
+	}
+	rate := strings.Split(output[1], "burst")
+	regex := regexp.MustCompile("[0-9]+")
+	outputStr := regex.FindAllString(rate[0], -1)
+	outputInt, err := strconv.ParseInt(outputStr[0], 10, 64)
+	gotBurst := strings.Split(rate[1], "mtu")[0]
+
+	// verify expected rate
+	expBw = expBw * 1024 * 1024 / 1000
+	if expBw != outputInt {
+		log.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d\n Output: %s", expBw, outputInt, str)
+		return errors.New("Applied bandwidth does not match the tc qdisc rate")
+	}
+
+	// verify burst rate
+	if gotBurst != fmt.Sprintf(" %dKb ", expBurst) {
+		log.Errorf("Expected burst rate %dKb did not match got %s.\nOutput: %s", expBurst, gotBurst, str)
+		return errors.New("Applied burst does not match tc qdisc")
+	}
+
+	return nil
+}
+
+func tcFilterVerifyEmpty() error {
+	qdiscShow, err := runCmd("tc qdisc show")
+	if err != nil {
+		return err
+	}
+	qdiscoutput := strings.Split(qdiscShow, "ingress")
+
+	// make sure length of the string is 1. i.e, empty
+	if len(qdiscoutput) != 1 {
+		log.Errorf("Unexpected 'tc qdisco show' output:\n%s", qdiscShow)
+		return fmt.Errorf("tcp qdisc not empty")
+	}
+
+	return nil
 }
 
 // verifyEndpointFlow verifies endpoint flow exists
@@ -351,4 +435,73 @@ func (its *integTestSuite) verifyEndpointFlowRemoved(epCfg *mastercfg.CfgEndpoin
 			c.Assert(ofctlFlowMatch(ofdump, macTbl, macFlow), Equals, false)
 		}
 	}
+}
+
+// verifyEndpointFlow verifies endpoint flow exists
+func (its *integTestSuite) verifyPortVlanFlow(epCfg *mastercfg.CfgEndpointState, dscp int, c *C) {
+	// determine the bridge name
+	ovsBridgeName := "contivVlanBridge"
+	if its.encap == "vxlan" {
+		ovsBridgeName = "contivVxlanBridge"
+	}
+
+	// get the flow dump
+	ofdump, err := ofctlFlowDump(ovsBridgeName)
+	assertNoErr(err, c, "dumping flow entries")
+
+	// verify port vlan flow exists
+	portVlanFlow := fmt.Sprintf("actions=write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+	if its.encap == "vxlan" && its.fwdMode == "bridge" {
+		portVlanFlow = fmt.Sprintf("actions=push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+
+	}
+	vlanTable := ofnet.VLAN_TBL_ID
+	ofctlFlowAssert(ofdump, vlanTable, portVlanFlow, true, c)
+
+	// Check for dscp flow
+	if dscp != 0 {
+		//  dscp flow
+		dscpFlow := fmt.Sprintf("actions=set_field:%d->ip_dscp,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		if its.encap == "vxlan" && its.fwdMode == "bridge" {
+			dscpFlow = fmt.Sprintf("actions=set_field:%d->ip_dscp,push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		}
+		ofctlFlowAssert(ofdump, vlanTable, dscpFlow, true, c)
+	}
+}
+
+// verifyPortVlanFlowRemoved verifies port vlan flow is removed
+func (its *integTestSuite) verifyPortVlanFlowRemoved(epCfg *mastercfg.CfgEndpointState, dscp int, dscpOnly bool, c *C) {
+	vlanTable := ofnet.VLAN_TBL_ID
+
+	// determine the bridge name
+	ovsBridgeName := "contivVlanBridge"
+	if its.encap == "vxlan" {
+		ovsBridgeName = "contivVxlanBridge"
+	}
+
+	// get the flow dump
+	ofdump, err := ofctlFlowDump(ovsBridgeName)
+	assertNoErr(err, c, "dumping flow entries")
+
+	// Check for dscp flow
+	if dscp != 0 {
+		//  dscp flow
+		dscpFlow := fmt.Sprintf("actions=set_field:%d->ip_dscp,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		if its.encap == "vxlan" && its.fwdMode == "bridge" {
+			dscpFlow = fmt.Sprintf("actions=set_field:%d->ip_dscp,push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", dscp, epCfg.EndpointGroupID)
+		}
+		ofctlFlowAssert(ofdump, vlanTable, dscpFlow, false, c)
+	}
+
+	// if we need to check only dscp flow is removed, we are done
+	if dscpOnly {
+		return
+	}
+
+	// verify port vlan flow exists
+	portVlanFlow := fmt.Sprintf("actions=write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+	if its.encap == "vxlan" && its.fwdMode == "bridge" {
+		portVlanFlow = fmt.Sprintf("actions=push_vlan:0x8100,set_field:4097->vlan_vid,write_metadata:0x1%04x0000/0xff7fff0000", epCfg.EndpointGroupID)
+	}
+	ofctlFlowAssert(ofdump, vlanTable, portVlanFlow, false, c)
 }

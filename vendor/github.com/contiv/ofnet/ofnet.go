@@ -45,6 +45,9 @@ type OfnetDatapath interface {
 	// Remove a local endpoint from forwarding DB
 	RemoveLocalEndpoint(endpoint OfnetEndpoint) error
 
+	// Update a local endpoint state
+	UpdateLocalEndpoint(ep *OfnetEndpoint, epInfo EndpointInfo) error
+
 	// Add a remote endpoint to forwarding DB
 	AddEndpoint(endpoint *OfnetEndpoint) error
 
@@ -145,10 +148,11 @@ type OfnetEndpoint struct {
 	MacAddrStr        string    // Mac address of the end point(in string format)
 	Vlan              uint16    // Vlan Id for the endpoint
 	Vni               uint32    // Vxlan VNI
-	OriginatorIp      net.IP    // Originating switch
-	PortNo            uint32    // Port number on originating switch
-	Timestamp         time.Time // Timestamp of the last event
 	EndpointGroupVlan uint16    // EnpointGroup Vlan, needed in non-Standalone mode of netplugin
+	OriginatorIp      net.IP    // Originating switch
+	PortNo            uint32    `json:"-"` // Port number on originating switch
+	Dscp              int       `json:"-"` // DSCP value for the endpoint
+	Timestamp         time.Time // Timestamp of the last event
 }
 
 // OfnetPolicyRule has security rule to be installed

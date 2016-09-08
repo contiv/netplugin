@@ -319,6 +319,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		intfName     string
 		epgKey       string
 		epgBandwidth int64
+		dscp         int
 	)
 
 	cfgEp := &mastercfg.CfgEndpointState{}
@@ -350,6 +351,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			pktTagType = cfgEpGroup.PktTagType
 			pktTag = cfgEpGroup.PktTag
 			epgKey = cfgEp.EndpointGroupKey
+			dscp = cfgEpGroup.DSCP
 			log.Infof("Received endpoint create with bandwidth:%s", cfgEpGroup.Bandwidth)
 			if cfgEpGroup.Bandwidth != "" {
 				epgBandwidth = netutils.ConvertBandwidth(cfgEpGroup.Bandwidth)
@@ -385,7 +387,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			log.Printf("Found matching oper state for ep %s, noop", id)
 
 			// Ask the switch to update the port
-			err = sw.UpdatePort(operEp.PortName, cfgEp, pktTag, cfgNw.PktTag, skipVethPair)
+			err = sw.UpdatePort(operEp.PortName, cfgEp, pktTag, cfgNw.PktTag, dscp, skipVethPair)
 			if err != nil {
 				log.Errorf("Error creating port %s. Err: %v", intfName, err)
 				return err
@@ -413,7 +415,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	ovsPortName := getOvsPortName(intfName, skipVethPair)
 
 	// Ask the switch to create the port
-	err = sw.CreatePort(intfName, cfgEp, pktTag, cfgNw.PktTag, cfgEpGroup.Burst, skipVethPair, epgBandwidth)
+	err = sw.CreatePort(intfName, cfgEp, pktTag, cfgNw.PktTag, cfgEpGroup.Burst, dscp, skipVethPair, epgBandwidth)
 	if err != nil {
 		log.Errorf("Error creating port %s. Err: %v", intfName, err)
 		return err
@@ -478,15 +480,16 @@ func (d *OvsDriver) UpdateEndpointGroup(id string) error {
 
 		for _, epInfo := range d.oper.LocalEpInfo {
 			if epInfo.EpgKey == id {
-				log.Infof("Applying bandwidth: %s on: %s ", cfgEpGroup.Bandwidth, epInfo.Ovsportname)
+				log.Debugf("Applying bandwidth: %s on: %s ", cfgEpGroup.Bandwidth, epInfo.Ovsportname)
 				// Find the switch based on network type
-				//	var sw *OvsSwitch
 				if epInfo.BridgeType == "vxlan" {
 					sw = d.switchDb["vxlan"]
 				} else {
 					sw = d.switchDb["vlan"]
 				}
-				err = sw.UpdateBandwidth(epInfo.Ovsportname, cfgEpGroup.Burst, epgBandwidth)
+
+				// update the endpoint in ovs switch
+				err = sw.UpdateEndpoint(epInfo.Ovsportname, cfgEpGroup.Burst, cfgEpGroup.DSCP, epgBandwidth)
 				if err != nil {
 					log.Errorf("Error adding bandwidth %v , err: %+v", epgBandwidth, err)
 					return err

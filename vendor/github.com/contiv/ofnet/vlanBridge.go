@@ -51,8 +51,9 @@ type VlanBridge struct {
 	vlanTable  *ofctrl.Table // Vlan Table. map port or VNI to vlan
 	nmlTable   *ofctrl.Table // OVS normal lookup table
 
-	portVlanFlowDb map[uint32]*ofctrl.Flow // Database of flow entries
-	uplinkDb       map[uint32]uint32       // Database of uplink ports
+	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
+	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
+	uplinkDb       map[uint32]uint32         // Database of uplink ports
 	garpMutex      *sync.Mutex
 	epgToEPs       map[int]epgGARPInfo // Database of eps per epg
 	garpBGActive   bool
@@ -82,6 +83,7 @@ func NewVlanBridge(agent *OfnetAgent, rpcServ *rpc.Server) *VlanBridge {
 
 	// init maps
 	vlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
+	vlan.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
 	vlan.uplinkDb = make(map[uint32]uint32)
 	vlan.epgToEPs = make(map[int]epgGARPInfo)
 	vlan.garpMutex = &sync.Mutex{}
@@ -221,39 +223,29 @@ func (vl *VlanBridge) sendGARPAll() {
 func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	log.Infof("Adding local endpoint: %+v", endpoint)
 
-	// Install a flow entry for vlan mapping and point it to Mac table
-	portVlanFlow, err := vl.vlanTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY,
-		InputPort: endpoint.PortNo,
-	})
+	dNATTbl := vl.ofSwitch.GetTable(SRV_PROXY_DNAT_TBL_ID)
+
+	// Install a flow entry for vlan mapping and point it to next table
+	portVlanFlow, err := createPortVlanFlow(vl.agent, vl.vlanTable, dNATTbl, &endpoint)
 	if err != nil {
 		log.Errorf("Error creating portvlan entry. Err: %v", err)
-		return err
-	}
-	vrfid := vl.agent.getvrfId(endpoint.Vrf)
-	//set vrf id as METADATA
-	metadata, metadataMask := Vrfmetadata(*vrfid)
-
-	if endpoint.EndpointGroup != 0 {
-		srcMetadata, srcMetadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
-		metadata = metadata | srcMetadata
-		metadataMask = metadataMask | srcMetadataMask
-
-	}
-	portVlanFlow.SetMetadata(metadata, metadataMask)
-
-	// Set the vlan and install it
-	// FIXME: portVlanFlow.SetVlan(endpoint.Vlan)
-	// Point it to dnat table
-	dNATTbl := vl.ofSwitch.GetTable(SRV_PROXY_DNAT_TBL_ID)
-	err = portVlanFlow.Next(dNATTbl)
-	if err != nil {
-		log.Errorf("Error installing portvlan entry. Err: %v", err)
 		return err
 	}
 
 	// save the flow entry
 	vl.portVlanFlowDb[endpoint.PortNo] = portVlanFlow
+
+	// install DSCP flow entries if required
+	if endpoint.Dscp != 0 {
+		dscpV4Flow, dscpV6Flow, err := createDscpFlow(vl.agent, vl.vlanTable, dNATTbl, &endpoint)
+		if err != nil {
+			log.Errorf("Error installing DSCP flows. Err: %v", err)
+			return err
+		}
+
+		// save it for tracking
+		vl.dscpFlowDb[endpoint.PortNo] = []*ofctrl.Flow{dscpV4Flow, dscpV6Flow}
+	}
 
 	// Install dst group entry for the endpoint
 	err = vl.policyAgent.AddEndpoint(&endpoint)
@@ -306,6 +298,17 @@ func (vl *VlanBridge) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		}
 	}
 
+	// Remove dscp flows.
+	dscpFlows, found := vl.dscpFlowDb[endpoint.PortNo]
+	if found {
+		for _, dflow := range dscpFlows {
+			err := dflow.Delete()
+			if err != nil {
+				log.Errorf("Error deleting dscp flow {%+v}. Err: %v", dflow, err)
+			}
+		}
+	}
+
 	// Remove from epg DB
 	vl.garpMutex.Lock()
 	defer vl.garpMutex.Unlock()
@@ -320,6 +323,45 @@ func (vl *VlanBridge) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	if err != nil {
 		log.Errorf("Error deleting endpoint to policy agent{%+v}. Err: %v", endpoint, err)
 		return err
+	}
+
+	return nil
+}
+
+// UpdateLocalEndpoint update local endpoint state
+func (vl *VlanBridge) UpdateLocalEndpoint(endpoint *OfnetEndpoint, epInfo EndpointInfo) error {
+	oldDscp := endpoint.Dscp
+	// Remove existing DSCP flows if required
+	if epInfo.Dscp == 0 || epInfo.Dscp != endpoint.Dscp {
+		// remove old DSCP flows
+		dscpFlows, found := vl.dscpFlowDb[endpoint.PortNo]
+		if found {
+			for _, dflow := range dscpFlows {
+				err := dflow.Delete()
+				if err != nil {
+					log.Errorf("Error deleting dscp flow {%+v}. Err: %v", dflow, err)
+					return err
+				}
+			}
+		}
+	}
+
+	// change DSCP value
+	endpoint.Dscp = epInfo.Dscp
+
+	// Add new DSCP flows if required
+	if epInfo.Dscp != 0 && epInfo.Dscp != oldDscp {
+		dNATTbl := vl.ofSwitch.GetTable(SRV_PROXY_DNAT_TBL_ID)
+
+		// add new dscp flows
+		dscpV4Flow, dscpV6Flow, err := createDscpFlow(vl.agent, vl.vlanTable, dNATTbl, endpoint)
+		if err != nil {
+			log.Errorf("Error installing DSCP flows. Err: %v", err)
+			return err
+		}
+
+		// save it for tracking
+		vl.dscpFlowDb[endpoint.PortNo] = []*ofctrl.Flow{dscpV4Flow, dscpV6Flow}
 	}
 
 	return nil
