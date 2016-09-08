@@ -927,9 +927,11 @@ func (self *OfnetAgent) AddBgp(routerIP string, As string, neighborAs string, pe
 		self.DeleteBgp()
 	}
 
-	go self.protopath.StartProtoServer(routerInfo)
-
-	err := self.protopath.AddProtoNeighbor(neighborInfo)
+	err := self.protopath.StartProtoServer(routerInfo)
+	if err != nil {
+		return err
+	}
+	err = self.protopath.AddProtoNeighbor(neighborInfo)
 	if err != nil {
 		log.Errorf("Error adding protocol neighbor")
 		return err
@@ -965,13 +967,13 @@ func (self *OfnetAgent) GetRouterInfo() *OfnetProtoRouterInfo {
 	return nil
 }
 
-func (self *OfnetAgent) AddLocalProtoRoute(path *OfnetProtoRouteInfo) {
+func (self *OfnetAgent) AddLocalProtoRoute(path []*OfnetProtoRouteInfo) {
 	if self.protopath != nil {
 		self.protopath.AddLocalProtoRoute(path)
 	}
 }
 
-func (self *OfnetAgent) DeleteLocalProtoRoute(path *OfnetProtoRouteInfo) {
+func (self *OfnetAgent) DeleteLocalProtoRoute(path []*OfnetProtoRouteInfo) {
 	if self.protopath != nil {
 		self.protopath.DeleteLocalProtoRoute(path)
 	}

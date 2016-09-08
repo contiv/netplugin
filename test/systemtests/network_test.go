@@ -143,7 +143,7 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 		if s.fwdMode == "routing" && encap == "vlan" {
 			var err error
 			for _, name := range netNames {
-				_, err = s.CheckBgpRouteDistribution(c, containers[name])
+				err = s.CheckBgpRouteDistribution(c, containers[name])
 				c.Assert(err, IsNil)
 			}
 		}
@@ -247,7 +247,8 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 
 		if s.fwdMode == "routing" && encap == "vlan" {
 			for _, name := range netNames {
-				s.CheckBgpRouteDistribution(c, containers[name])
+				err := s.CheckBgpRouteDistribution(c, containers[name])
+				c.Assert(err, IsNil)
 			}
 		}
 
@@ -347,7 +348,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 					endChan <- err
 
 					if fwdmode == "routing" && encap == "vlan" {
-						_, err = s.CheckBgpRouteDistribution(c, containers[network])
+						err = s.CheckBgpRouteDistribution(c, containers[network])
 						c.Assert(err, IsNil)
 					}
 					endChan <- s.pingTest(containers[network])
@@ -402,7 +403,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 
-	c.Skip("Skipping this tests temporarily")
+        c.Skip("Skipping this tests temporarily")
 
 	if s.fwdMode != "routing" {
 		return

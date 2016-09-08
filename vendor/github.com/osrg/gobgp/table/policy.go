@@ -1,4 +1,4 @@
-// Copyright (C) 2014,2015 Nippon Telegraph and Telephone Corporation.
+// Copyright (C) 2014-2016 Nippon Telegraph and Telephone Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,13 +23,17 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-radix"
-	api "github.com/osrg/gobgp/api"
 	"github.com/osrg/gobgp/config"
-	"github.com/osrg/gobgp/packet"
+	"github.com/osrg/gobgp/packet/bgp"
 )
+
+type PolicyOptions struct {
+	Info *PeerInfo
+}
 
 type DefinedType int
 
@@ -50,24 +54,26 @@ const (
 	ROUTE_TYPE_REJECT
 )
 
-func (t RouteType) ToApiStruct() api.RouteAction {
-	switch t {
-	case ROUTE_TYPE_ACCEPT:
-		return api.RouteAction_ACCEPT
-	case ROUTE_TYPE_REJECT:
-		return api.RouteAction_REJECT
-	}
-	return api.RouteAction_NONE
-}
-
 type PolicyDirection int
 
 const (
 	POLICY_DIRECTION_NONE PolicyDirection = iota
+	POLICY_DIRECTION_IN
 	POLICY_DIRECTION_IMPORT
 	POLICY_DIRECTION_EXPORT
-	POLICY_DIRECTION_IN
 )
+
+func (d PolicyDirection) String() string {
+	switch d {
+	case POLICY_DIRECTION_IN:
+		return "in"
+	case POLICY_DIRECTION_IMPORT:
+		return "import"
+	case POLICY_DIRECTION_EXPORT:
+		return "export"
+	}
+	return fmt.Sprintf("unknown(%d)", d)
+}
 
 type MatchOption int
 
@@ -88,34 +94,6 @@ func (o MatchOption) String() string {
 	default:
 		return fmt.Sprintf("MatchOption(%d)", o)
 	}
-}
-
-func toConfigMatchSetOption(a api.MatchType) (config.MatchSetOptionsType, error) {
-	var typ config.MatchSetOptionsType
-	switch a {
-	case api.MatchType_ANY:
-		typ = config.MATCH_SET_OPTIONS_TYPE_ANY
-	case api.MatchType_ALL:
-		typ = config.MATCH_SET_OPTIONS_TYPE_ALL
-	case api.MatchType_INVERT:
-		typ = config.MATCH_SET_OPTIONS_TYPE_INVERT
-	default:
-		return typ, fmt.Errorf("invalid match type")
-	}
-	return typ, nil
-}
-
-func toConfigMatchSetOptionRestricted(a api.MatchType) (config.MatchSetOptionsRestrictedType, error) {
-	var typ config.MatchSetOptionsRestrictedType
-	switch a {
-	case api.MatchType_ANY:
-		typ = config.MATCH_SET_OPTIONS_RESTRICTED_TYPE_ANY
-	case api.MatchType_INVERT:
-		typ = config.MATCH_SET_OPTIONS_RESTRICTED_TYPE_INVERT
-	default:
-		return typ, fmt.Errorf("invalid match type")
-	}
-	return typ, nil
 }
 
 type MedActionType int
@@ -157,12 +135,15 @@ const (
 	ACTION_EXT_COMMUNITY
 	ACTION_MED
 	ACTION_AS_PATH_PREPEND
+	ACTION_NEXTHOP
+	ACTION_LOCAL_PREF
 )
 
 func NewMatchOption(c interface{}) (MatchOption, error) {
-	switch c.(type) {
+	switch t := c.(type) {
 	case config.MatchSetOptionsType:
-		switch c.(config.MatchSetOptionsType) {
+		t = t.DefaultAsNeeded()
+		switch t {
 		case config.MATCH_SET_OPTIONS_TYPE_ANY:
 			return MATCH_OPTION_ANY, nil
 		case config.MATCH_SET_OPTIONS_TYPE_ALL:
@@ -171,7 +152,8 @@ func NewMatchOption(c interface{}) (MatchOption, error) {
 			return MATCH_OPTION_INVERT, nil
 		}
 	case config.MatchSetOptionsRestrictedType:
-		switch c.(config.MatchSetOptionsRestrictedType) {
+		t = t.DefaultAsNeeded()
+		switch t {
 		case config.MATCH_SET_OPTIONS_RESTRICTED_TYPE_ANY:
 			return MATCH_OPTION_ANY, nil
 		case config.MATCH_SET_OPTIONS_RESTRICTED_TYPE_INVERT:
@@ -199,7 +181,6 @@ const (
 type DefinedSet interface {
 	Type() DefinedType
 	Name() string
-	ToApiStruct() *api.DefinedSet
 	Append(DefinedSet) error
 	Remove(DefinedSet) error
 	Replace(DefinedSet) error
@@ -244,31 +225,6 @@ func (lhs *Prefix) Equal(rhs *Prefix) bool {
 		return false
 	}
 	return lhs.Prefix.String() == rhs.Prefix.String() && lhs.MasklengthRangeMin == rhs.MasklengthRangeMin && lhs.MasklengthRangeMax == rhs.MasklengthRangeMax
-}
-
-func (p *Prefix) ToApiStruct() *api.Prefix {
-	return &api.Prefix{
-		IpPrefix:      p.Prefix.String(),
-		MaskLengthMin: uint32(p.MasklengthRangeMin),
-		MaskLengthMax: uint32(p.MasklengthRangeMax),
-	}
-}
-
-func NewPrefixFromApiStruct(a *api.Prefix) (*Prefix, error) {
-	addr, prefix, err := net.ParseCIDR(a.IpPrefix)
-	if err != nil {
-		return nil, err
-	}
-	rf := bgp.RF_IPv4_UC
-	if addr.To4() == nil {
-		rf = bgp.RF_IPv6_UC
-	}
-	return &Prefix{
-		Prefix:             prefix,
-		AddressFamily:      rf,
-		MasklengthRangeMin: uint8(a.MaskLengthMin),
-		MasklengthRangeMax: uint8(a.MaskLengthMax),
-	}, nil
 }
 
 func NewPrefix(c config.Prefix) (*Prefix, error) {
@@ -357,33 +313,29 @@ func (lhs *PrefixSet) Replace(arg DefinedSet) error {
 	return nil
 }
 
-func (s *PrefixSet) ToApiStruct() *api.DefinedSet {
-	list := make([]*api.Prefix, 0, s.tree.Len())
+func (s *PrefixSet) ToConfig() *config.PrefixSet {
+	list := make([]config.Prefix, 0, s.tree.Len())
 	s.tree.Walk(func(s string, v interface{}) bool {
-		list = append(list, v.(*Prefix).ToApiStruct())
+		p := v.(*Prefix)
+		list = append(list, config.Prefix{IpPrefix: p.Prefix.String(), MasklengthRange: fmt.Sprintf("%d..%d", p.MasklengthRangeMin, p.MasklengthRangeMax)})
 		return false
 	})
-	return &api.DefinedSet{
-		Type:     api.DefinedType(s.Type()),
-		Name:     s.name,
-		Prefixes: list,
+	return &config.PrefixSet{
+		PrefixSetName: s.name,
+		PrefixList:    list,
 	}
 }
 
-func NewPrefixSetFromApiStruct(a *api.DefinedSet) (*PrefixSet, error) {
-	if a.Name == "" {
+func NewPrefixSetFromApiStruct(name string, prefixes []*Prefix) (*PrefixSet, error) {
+	if name == "" {
 		return nil, fmt.Errorf("empty prefix set name")
 	}
 	tree := radix.New()
-	for _, x := range a.Prefixes {
-		y, err := NewPrefixFromApiStruct(x)
-		if err != nil {
-			return nil, err
-		}
-		tree.Insert(CidrToRadixkey(y.Prefix.String()), y)
+	for _, x := range prefixes {
+		tree.Insert(CidrToRadixkey(x.Prefix.String()), x)
 	}
 	return &PrefixSet{
-		name: a.Name,
+		name: name,
 		tree: tree,
 	}, nil
 }
@@ -463,32 +415,20 @@ func (lhs *NeighborSet) Replace(arg DefinedSet) error {
 	return nil
 }
 
-func (s *NeighborSet) ToApiStruct() *api.DefinedSet {
+func (s *NeighborSet) ToConfig() *config.NeighborSet {
 	list := make([]string, 0, len(s.list))
 	for _, n := range s.list {
 		list = append(list, n.String())
 	}
-	return &api.DefinedSet{
-		Type: api.DefinedType(s.Type()),
-		Name: s.name,
-		List: list,
+	return &config.NeighborSet{
+		NeighborSetName:  s.name,
+		NeighborInfoList: list,
 	}
 }
 
-func NewNeighborSetFromApiStruct(a *api.DefinedSet) (*NeighborSet, error) {
-	if a.Name == "" {
-		return nil, fmt.Errorf("empty neighbor set name")
-	}
-	list := make([]net.IP, 0, len(a.List))
-	for _, x := range a.List {
-		addr := net.ParseIP(x)
-		if addr == nil {
-			return nil, fmt.Errorf("invalid ip address format: %s", x)
-		}
-		list = append(list, addr)
-	}
+func NewNeighborSetFromApiStruct(name string, list []net.IP) (*NeighborSet, error) {
 	return &NeighborSet{
-		name: a.Name,
+		name: name,
 		list: list,
 	}, nil
 }
@@ -503,7 +443,11 @@ func NewNeighborSet(c config.NeighborSet) (*NeighborSet, error) {
 	}
 	list := make([]net.IP, 0, len(c.NeighborInfoList))
 	for _, x := range c.NeighborInfoList {
-		list = append(list, x.Address)
+		addr := net.ParseIP(x)
+		if addr == nil {
+			return nil, fmt.Errorf("invalid address: %s", x)
+		}
+		list = append(list, addr)
 	}
 	return &NeighborSet{
 		name: name,
@@ -517,6 +461,7 @@ const (
 	INCLUDE singleAsPathMatchMode = iota
 	LEFT_MOST
 	ORIGIN
+	ONLY
 )
 
 type singleAsPathMatch struct {
@@ -531,11 +476,13 @@ func (lhs *singleAsPathMatch) Equal(rhs *singleAsPathMatch) bool {
 func (lhs *singleAsPathMatch) String() string {
 	switch lhs.mode {
 	case INCLUDE:
-		return fmt.Sprintf("%d", lhs.asn)
+		return fmt.Sprintf("_%d_", lhs.asn)
 	case LEFT_MOST:
-		return fmt.Sprintf("^%d", lhs.asn)
+		return fmt.Sprintf("^%d_", lhs.asn)
 	case ORIGIN:
-		return fmt.Sprintf("%d$", lhs.asn)
+		return fmt.Sprintf("_%d$", lhs.asn)
+	case ONLY:
+		return fmt.Sprintf("^%d$", lhs.asn)
 	}
 	return ""
 }
@@ -559,34 +506,43 @@ func (m *singleAsPathMatch) Match(aspath []uint32) bool {
 		if m.asn == aspath[len(aspath)-1] {
 			return true
 		}
+	case ONLY:
+		if len(aspath) == 1 && m.asn == aspath[0] {
+			return true
+		}
 	}
 	return false
 }
 
 func NewSingleAsPathMatch(arg string) *singleAsPathMatch {
+	leftMostRe := regexp.MustCompile("$\\^([0-9]+)_^")
+	originRe := regexp.MustCompile("^_([0-9]+)\\$$")
+	includeRe := regexp.MustCompile("^_([0-9]+)_$")
+	onlyRe := regexp.MustCompile("^\\^([0-9]+)\\$$")
 	switch {
-	case len(arg) == 0:
-		return nil
-	case arg[0] == '^':
-		if asn, err := strconv.Atoi(arg[1:]); err == nil {
-			return &singleAsPathMatch{
-				asn:  uint32(asn),
-				mode: LEFT_MOST,
-			}
+	case leftMostRe.MatchString(arg):
+		asn, _ := strconv.Atoi(leftMostRe.FindStringSubmatch(arg)[1])
+		return &singleAsPathMatch{
+			asn:  uint32(asn),
+			mode: LEFT_MOST,
 		}
-	case arg[len(arg)-1] == '$':
-		if asn, err := strconv.Atoi(arg[:len(arg)-1]); err == nil {
-			return &singleAsPathMatch{
-				asn:  uint32(asn),
-				mode: ORIGIN,
-			}
+	case originRe.MatchString(arg):
+		asn, _ := strconv.Atoi(originRe.FindStringSubmatch(arg)[1])
+		return &singleAsPathMatch{
+			asn:  uint32(asn),
+			mode: ORIGIN,
 		}
-	default:
-		if asn, err := strconv.Atoi(arg); err == nil {
-			return &singleAsPathMatch{
-				asn:  uint32(asn),
-				mode: INCLUDE,
-			}
+	case includeRe.MatchString(arg):
+		asn, _ := strconv.Atoi(includeRe.FindStringSubmatch(arg)[1])
+		return &singleAsPathMatch{
+			asn:  uint32(asn),
+			mode: INCLUDE,
+		}
+	case onlyRe.MatchString(arg):
+		asn, _ := strconv.Atoi(onlyRe.FindStringSubmatch(arg)[1])
+		return &singleAsPathMatch{
+			asn:  uint32(asn),
+			mode: ONLY,
 		}
 	}
 	return nil
@@ -661,7 +617,7 @@ func (lhs *AsPathSet) Replace(arg DefinedSet) error {
 	return nil
 }
 
-func (s *AsPathSet) ToApiStruct() *api.DefinedSet {
+func (s *AsPathSet) ToConfig() *config.AsPathSet {
 	list := make([]string, 0, len(s.list)+len(s.singleList))
 	for _, exp := range s.singleList {
 		list = append(list, exp.String())
@@ -669,22 +625,10 @@ func (s *AsPathSet) ToApiStruct() *api.DefinedSet {
 	for _, exp := range s.list {
 		list = append(list, exp.String())
 	}
-	return &api.DefinedSet{
-		Type: api.DefinedType(s.typ),
-		Name: s.name,
-		List: list,
+	return &config.AsPathSet{
+		AsPathSetName: s.name,
+		AsPathList:    list,
 	}
-}
-
-func NewAsPathSetFromApiStruct(a *api.DefinedSet) (*AsPathSet, error) {
-	c := config.AsPathSet{
-		AsPathSetName: a.Name,
-		AsPathList:    make([]config.AsPath, 0, len(a.List)),
-	}
-	for _, x := range a.List {
-		c.AsPathList = append(c.AsPathList, config.AsPath{AsPath: x})
-	}
-	return NewAsPathSet(c)
 }
 
 func NewAsPathSet(c config.AsPathSet) (*AsPathSet, error) {
@@ -698,10 +642,10 @@ func NewAsPathSet(c config.AsPathSet) (*AsPathSet, error) {
 	list := make([]*regexp.Regexp, 0, len(c.AsPathList))
 	singleList := make([]*singleAsPathMatch, 0, len(c.AsPathList))
 	for _, x := range c.AsPathList {
-		if s := NewSingleAsPathMatch(x.AsPath); s != nil {
+		if s := NewSingleAsPathMatch(x); s != nil {
 			singleList = append(singleList, s)
 		} else {
-			exp, err := regexp.Compile(strings.Replace(x.AsPath, "_", ASPATH_REGEXP_MAGIC, -1))
+			exp, err := regexp.Compile(strings.Replace(x, "_", ASPATH_REGEXP_MAGIC, -1))
 			if err != nil {
 				return nil, fmt.Errorf("invalid regular expression: %s", x)
 			}
@@ -790,20 +734,19 @@ func (lhs *regExpSet) Replace(arg DefinedSet) error {
 	return nil
 }
 
-func (s *regExpSet) ToApiStruct() *api.DefinedSet {
+type CommunitySet struct {
+	regExpSet
+}
+
+func (s *CommunitySet) ToConfig() *config.CommunitySet {
 	list := make([]string, 0, len(s.list))
 	for _, exp := range s.list {
 		list = append(list, exp.String())
 	}
-	return &api.DefinedSet{
-		Type: api.DefinedType(s.typ),
-		Name: s.name,
-		List: list,
+	return &config.CommunitySet{
+		CommunitySetName: s.name,
+		CommunityList:    list,
 	}
-}
-
-type CommunitySet struct {
-	regExpSet
 }
 
 func ParseCommunity(arg string) (uint32, error) {
@@ -828,19 +771,33 @@ func ParseCommunity(arg string) (uint32, error) {
 
 func ParseExtCommunity(arg string) (bgp.ExtendedCommunityInterface, error) {
 	var subtype bgp.ExtendedCommunityAttrSubType
+	var value string
 	elems := strings.SplitN(arg, ":", 2)
-	if len(elems) < 2 {
-		return nil, fmt.Errorf("invalid ext-community format([rt|soo]:<value>)")
+
+	isValidationState := func(s string) bool {
+		s = strings.ToLower(s)
+		r := s == bgp.VALIDATION_STATE_VALID.String()
+		r = r || s == bgp.VALIDATION_STATE_NOT_FOUND.String()
+		return r || s == bgp.VALIDATION_STATE_INVALID.String()
 	}
-	switch strings.ToLower(elems[0]) {
-	case "rt":
-		subtype = bgp.EC_SUBTYPE_ROUTE_TARGET
-	case "soo":
-		subtype = bgp.EC_SUBTYPE_ROUTE_ORIGIN
-	default:
-		return nil, fmt.Errorf("unknown ext-community subtype. rt, soo is supported")
+	if len(elems) < 2 && (len(elems) < 1 && !isValidationState(elems[0])) {
+		return nil, fmt.Errorf("invalid ext-community (rt|soo):<value> | valid | not-found | invalid")
 	}
-	return bgp.ParseExtendedCommunity(subtype, elems[1])
+	if isValidationState(elems[0]) {
+		subtype = bgp.EC_SUBTYPE_ORIGIN_VALIDATION
+		value = elems[0]
+	} else {
+		switch strings.ToLower(elems[0]) {
+		case "rt":
+			subtype = bgp.EC_SUBTYPE_ROUTE_TARGET
+		case "soo":
+			subtype = bgp.EC_SUBTYPE_ROUTE_ORIGIN
+		default:
+			return nil, fmt.Errorf("invalid ext-community (rt|soo):<value> | valid | not-found | invalid")
+		}
+		value = elems[1]
+	}
+	return bgp.ParseExtendedCommunity(subtype, value)
 }
 
 func ParseCommunityRegexp(arg string) (*regexp.Regexp, error) {
@@ -881,17 +838,6 @@ func ParseExtCommunityRegexp(arg string) (bgp.ExtendedCommunityAttrSubType, *reg
 	return subtype, exp, err
 }
 
-func NewCommunitySetFromApiStruct(a *api.DefinedSet) (*CommunitySet, error) {
-	c := config.CommunitySet{
-		CommunitySetName: a.Name,
-		CommunityList:    make([]config.Community, 0, len(a.List)),
-	}
-	for _, x := range a.List {
-		c.CommunityList = append(c.CommunityList, config.Community{Community: x})
-	}
-	return NewCommunitySet(c)
-}
-
 func NewCommunitySet(c config.CommunitySet) (*CommunitySet, error) {
 	name := c.CommunitySetName
 	if name == "" {
@@ -902,7 +848,7 @@ func NewCommunitySet(c config.CommunitySet) (*CommunitySet, error) {
 	}
 	list := make([]*regexp.Regexp, 0, len(c.CommunityList))
 	for _, x := range c.CommunityList {
-		exp, err := ParseCommunityRegexp(x.Community)
+		exp, err := ParseCommunityRegexp(x)
 		if err != nil {
 			return nil, err
 		}
@@ -922,7 +868,7 @@ type ExtCommunitySet struct {
 	subtypeList []bgp.ExtendedCommunityAttrSubType
 }
 
-func (s *ExtCommunitySet) ToApiStruct() *api.DefinedSet {
+func (s *ExtCommunitySet) ToConfig() *config.ExtCommunitySet {
 	list := make([]string, 0, len(s.list))
 	f := func(idx int, arg string) string {
 		switch s.subtypeList[idx] {
@@ -930,6 +876,8 @@ func (s *ExtCommunitySet) ToApiStruct() *api.DefinedSet {
 			return fmt.Sprintf("rt:%s", arg)
 		case bgp.EC_SUBTYPE_ROUTE_ORIGIN:
 			return fmt.Sprintf("soo:%s", arg)
+		case bgp.EC_SUBTYPE_ORIGIN_VALIDATION:
+			return arg
 		default:
 			return fmt.Sprintf("%d:%s", s.subtypeList[idx], arg)
 		}
@@ -937,22 +885,10 @@ func (s *ExtCommunitySet) ToApiStruct() *api.DefinedSet {
 	for idx, exp := range s.list {
 		list = append(list, f(idx, exp.String()))
 	}
-	return &api.DefinedSet{
-		Type: api.DefinedType(s.typ),
-		Name: s.name,
-		List: list,
+	return &config.ExtCommunitySet{
+		ExtCommunitySetName: s.name,
+		ExtCommunityList:    list,
 	}
-}
-
-func NewExtCommunitySetFromApiStruct(a *api.DefinedSet) (*ExtCommunitySet, error) {
-	c := config.ExtCommunitySet{
-		ExtCommunitySetName: a.Name,
-		ExtCommunityList:    make([]config.ExtCommunity, 0, len(a.List)),
-	}
-	for _, x := range a.List {
-		c.ExtCommunityList = append(c.ExtCommunityList, config.ExtCommunity{ExtCommunity: x})
-	}
-	return NewExtCommunitySet(c)
 }
 
 func NewExtCommunitySet(c config.ExtCommunitySet) (*ExtCommunitySet, error) {
@@ -966,7 +902,7 @@ func NewExtCommunitySet(c config.ExtCommunitySet) (*ExtCommunitySet, error) {
 	list := make([]*regexp.Regexp, 0, len(c.ExtCommunityList))
 	subtypeList := make([]bgp.ExtendedCommunityAttrSubType, 0, len(c.ExtCommunityList))
 	for _, x := range c.ExtCommunityList {
-		subtype, exp, err := ParseExtCommunityRegexp(x.ExtCommunity)
+		subtype, exp, err := ParseExtCommunityRegexp(x)
 		if err != nil {
 			return nil, err
 		}
@@ -983,30 +919,15 @@ func NewExtCommunitySet(c config.ExtCommunitySet) (*ExtCommunitySet, error) {
 	}, nil
 }
 
-func NewDefinedSetFromApiStruct(a *api.DefinedSet) (DefinedSet, error) {
-	switch DefinedType(a.Type) {
-	case DEFINED_TYPE_PREFIX:
-		return NewPrefixSetFromApiStruct(a)
-	case DEFINED_TYPE_NEIGHBOR:
-		return NewNeighborSetFromApiStruct(a)
-	case DEFINED_TYPE_AS_PATH:
-		return NewAsPathSetFromApiStruct(a)
-	case DEFINED_TYPE_COMMUNITY:
-		return NewCommunitySetFromApiStruct(a)
-	case DEFINED_TYPE_EXT_COMMUNITY:
-		return NewExtCommunitySetFromApiStruct(a)
-	default:
-		return nil, fmt.Errorf("invalid defined type")
-	}
-}
-
 type Condition interface {
+	Name() string
 	Type() ConditionType
-	Evaluate(*Path) bool
+	Evaluate(*Path, *PolicyOptions) bool
 	Set() DefinedSet
 }
 
 type PrefixCondition struct {
+	name   string
 	set    *PrefixSet
 	option MatchOption
 }
@@ -1026,7 +947,7 @@ func (c *PrefixCondition) Option() MatchOption {
 // compare prefixes in this condition and nlri of path and
 // subsequent comparison is skipped if that matches the conditions.
 // If PrefixList's length is zero, return true.
-func (c *PrefixCondition) Evaluate(path *Path) bool {
+func (c *PrefixCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
 	var key string
 	var masklen uint8
 	keyf := func(ip net.IP, ones int) string {
@@ -1057,61 +978,27 @@ func (c *PrefixCondition) Evaluate(path *Path) bool {
 		result = !result
 	}
 
-	log.WithFields(log.Fields{
-		"Topic":     "Policy",
-		"Condition": "prefix",
-		"Path":      path,
-		"Matched":   result,
-	}).Debug("evaluation result")
-
 	return result
 }
 
-func (c *PrefixCondition) ToApiStruct() *api.MatchSet {
-	return &api.MatchSet{
-		Type: api.MatchType(c.option),
-		Name: c.set.Name(),
-	}
-}
+func (c *PrefixCondition) Name() string { return c.name }
 
-func NewPrefixConditionFromApiStruct(a *api.MatchSet, m map[string]DefinedSet) (*PrefixCondition, error) {
-	if a == nil {
-		return nil, nil
-	}
-	typ, err := toConfigMatchSetOptionRestricted(a.Type)
-	if err != nil {
-		return nil, err
-	}
-	c := config.MatchPrefixSet{
-		PrefixSet:       a.Name,
-		MatchSetOptions: typ,
-	}
-	return NewPrefixCondition(c, m)
-}
-
-func NewPrefixCondition(c config.MatchPrefixSet, m map[string]DefinedSet) (*PrefixCondition, error) {
+func NewPrefixCondition(c config.MatchPrefixSet) (*PrefixCondition, error) {
 	if c.PrefixSet == "" {
 		return nil, nil
-	}
-	i, ok := m[c.PrefixSet]
-	if !ok {
-		return nil, fmt.Errorf("not found prefix set %s", c.PrefixSet)
-	}
-	s, ok := i.(*PrefixSet)
-	if !ok {
-		return nil, fmt.Errorf("type assert from DefinedSet to *PrefixSet failed")
 	}
 	o, err := NewMatchOption(c.MatchSetOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &PrefixCondition{
-		set:    s,
+		name:   c.PrefixSet,
 		option: o,
 	}, nil
 }
 
 type NeighborCondition struct {
+	name   string
 	set    *NeighborSet
 	option MatchOption
 }
@@ -1131,19 +1018,26 @@ func (c *NeighborCondition) Option() MatchOption {
 // compare neighbor ipaddress of this condition and source address of path
 // and, subsequent comparisons are skipped if that matches the conditions.
 // If NeighborList's length is zero, return true.
-func (c *NeighborCondition) Evaluate(path *Path) bool {
+func (c *NeighborCondition) Evaluate(path *Path, options *PolicyOptions) bool {
 
 	if len(c.set.list) == 0 {
-		log.Debug("NeighborList doesn't have elements")
+		log.WithFields(log.Fields{
+			"Topic": "Policy",
+		}).Debug("NeighborList doesn't have elements")
 		return true
 	}
 
-	if path.Owner == nil {
+	neighbor := path.GetSource().Address
+	if options != nil && options.Info != nil && options.Info.Address != nil {
+		neighbor = options.Info.Address
+	}
+
+	if neighbor == nil {
 		return false
 	}
 	result := false
 	for _, n := range c.set.list {
-		if path.Owner.Equal(n) {
+		if neighbor.Equal(n) {
 			result = true
 			break
 		}
@@ -1153,61 +1047,27 @@ func (c *NeighborCondition) Evaluate(path *Path) bool {
 		result = !result
 	}
 
-	log.WithFields(log.Fields{
-		"Topic":           "Policy",
-		"Condition":       "neighbor",
-		"NeighborAddress": path.Owner,
-		"Matched":         result,
-	}).Debug("evaluation result")
-
 	return result
 }
 
-func (c *NeighborCondition) ToApiStruct() *api.MatchSet {
-	return &api.MatchSet{
-		Type: api.MatchType(c.option),
-		Name: c.set.Name(),
-	}
-}
+func (c *NeighborCondition) Name() string { return c.name }
 
-func NewNeighborConditionFromApiStruct(a *api.MatchSet, m map[string]DefinedSet) (*NeighborCondition, error) {
-	if a == nil {
-		return nil, nil
-	}
-	typ, err := toConfigMatchSetOptionRestricted(a.Type)
-	if err != nil {
-		return nil, err
-	}
-	c := config.MatchNeighborSet{
-		NeighborSet:     a.Name,
-		MatchSetOptions: typ,
-	}
-	return NewNeighborCondition(c, m)
-}
-
-func NewNeighborCondition(c config.MatchNeighborSet, m map[string]DefinedSet) (*NeighborCondition, error) {
+func NewNeighborCondition(c config.MatchNeighborSet) (*NeighborCondition, error) {
 	if c.NeighborSet == "" {
 		return nil, nil
-	}
-	i, ok := m[c.NeighborSet]
-	if !ok {
-		return nil, fmt.Errorf("not found neighbor set %s", c.NeighborSet)
-	}
-	s, ok := i.(*NeighborSet)
-	if !ok {
-		return nil, fmt.Errorf("type assert from DefinedSet to *NeighborSet failed")
 	}
 	o, err := NewMatchOption(c.MatchSetOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &NeighborCondition{
-		set:    s,
+		name:   c.NeighborSet,
 		option: o,
 	}, nil
 }
 
 type AsPathCondition struct {
+	name   string
 	set    *AsPathSet
 	option MatchOption
 }
@@ -1224,87 +1084,61 @@ func (c *AsPathCondition) Option() MatchOption {
 	return c.option
 }
 
-func (c *AsPathCondition) ToApiStruct() *api.MatchSet {
-	return &api.MatchSet{
-		Type: api.MatchType(c.option),
-		Name: c.set.Name(),
-	}
-}
-
-func (c *AsPathCondition) Evaluate(path *Path) bool {
-	result := false
-	aspath := path.GetAsSeqList()
-	for _, m := range c.set.singleList {
-		result = m.Match(aspath)
-		if c.option == MATCH_OPTION_ALL && !result {
-			break
-		}
-		if c.option == MATCH_OPTION_ANY && result {
-			break
-		}
-	}
-	if (c.option == MATCH_OPTION_ALL && result) || (c.option == MATCH_OPTION_ANY && !result) {
-		aspath := path.GetAsString()
-		for _, r := range c.set.list {
-			result = r.MatchString(aspath)
+func (c *AsPathCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
+	if len(c.set.singleList) > 0 {
+		aspath := path.GetAsSeqList()
+		for _, m := range c.set.singleList {
+			result := m.Match(aspath)
 			if c.option == MATCH_OPTION_ALL && !result {
-				break
+				return false
 			}
 			if c.option == MATCH_OPTION_ANY && result {
-				break
+				return true
+			}
+			if c.option == MATCH_OPTION_INVERT && result {
+				return false
 			}
 		}
 	}
-	if c.option == MATCH_OPTION_INVERT {
-		result = !result
+	if len(c.set.list) > 0 {
+		aspath := path.GetAsString()
+		for _, r := range c.set.list {
+			result := r.MatchString(aspath)
+			if c.option == MATCH_OPTION_ALL && !result {
+				return false
+			}
+			if c.option == MATCH_OPTION_ANY && result {
+				return true
+			}
+			if c.option == MATCH_OPTION_INVERT && result {
+				return false
+			}
+		}
 	}
-	log.WithFields(log.Fields{
-		"Topic":       "Policy",
-		"Condition":   "aspath",
-		"MatchOption": c.option,
-		"Matched":     result,
-	}).Debug("evaluation result")
-	return result
+	if c.option == MATCH_OPTION_ANY {
+		return false
+	}
+	return true
 }
 
-func NewAsPathConditionFromApiStruct(a *api.MatchSet, m map[string]DefinedSet) (*AsPathCondition, error) {
-	if a == nil {
-		return nil, nil
-	}
-	typ, err := toConfigMatchSetOption(a.Type)
-	if err != nil {
-		return nil, err
-	}
-	c := config.MatchAsPathSet{
-		AsPathSet:       a.Name,
-		MatchSetOptions: typ,
-	}
-	return NewAsPathCondition(c, m)
-}
+func (c *AsPathCondition) Name() string { return c.name }
 
-func NewAsPathCondition(c config.MatchAsPathSet, m map[string]DefinedSet) (*AsPathCondition, error) {
+func NewAsPathCondition(c config.MatchAsPathSet) (*AsPathCondition, error) {
 	if c.AsPathSet == "" {
 		return nil, nil
-	}
-	i, ok := m[c.AsPathSet]
-	if !ok {
-		return nil, fmt.Errorf("not found as path set %s", c.AsPathSet)
-	}
-	s, ok := i.(*AsPathSet)
-	if !ok {
-		return nil, fmt.Errorf("type assert from DefinedSet to *AsPathSet failed")
 	}
 	o, err := NewMatchOption(c.MatchSetOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &AsPathCondition{
-		set:    s,
+		name:   c.AsPathSet,
 		option: o,
 	}, nil
 }
 
 type CommunityCondition struct {
+	name   string
 	set    *CommunitySet
 	option MatchOption
 }
@@ -1321,20 +1155,13 @@ func (c *CommunityCondition) Option() MatchOption {
 	return c.option
 }
 
-func (c *CommunityCondition) ToApiStruct() *api.MatchSet {
-	return &api.MatchSet{
-		Type: api.MatchType(c.option),
-		Name: c.set.Name(),
-	}
-}
-
-func (c *CommunityCondition) Evaluate(path *Path) bool {
+func (c *CommunityCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
 	cs := path.GetCommunities()
 	result := false
-	for _, x := range cs {
+	for _, x := range c.set.list {
 		result = false
-		for _, y := range c.set.list {
-			if y.MatchString(fmt.Sprintf("%d:%d", x>>16, x&0x0000ffff)) {
+		for _, y := range cs {
+			if x.MatchString(fmt.Sprintf("%d:%d", y>>16, y&0x0000ffff)) {
 				result = true
 				break
 			}
@@ -1342,60 +1169,34 @@ func (c *CommunityCondition) Evaluate(path *Path) bool {
 		if c.option == MATCH_OPTION_ALL && !result {
 			break
 		}
-		if c.option == MATCH_OPTION_ANY && result {
+		if (c.option == MATCH_OPTION_ANY || c.option == MATCH_OPTION_INVERT) && result {
 			break
 		}
 	}
 	if c.option == MATCH_OPTION_INVERT {
 		result = !result
 	}
-	log.WithFields(log.Fields{
-		"Topic":       "Policy",
-		"Condition":   "community",
-		"MatchOption": c.option,
-		"Matched":     result,
-	}).Debug("evaluation result")
 	return result
 }
 
-func NewCommunityConditionFromApiStruct(a *api.MatchSet, m map[string]DefinedSet) (*CommunityCondition, error) {
-	if a == nil {
-		return nil, nil
-	}
-	typ, err := toConfigMatchSetOption(a.Type)
-	if err != nil {
-		return nil, err
-	}
-	c := config.MatchCommunitySet{
-		CommunitySet:    a.Name,
-		MatchSetOptions: typ,
-	}
-	return NewCommunityCondition(c, m)
-}
+func (c *CommunityCondition) Name() string { return c.name }
 
-func NewCommunityCondition(c config.MatchCommunitySet, m map[string]DefinedSet) (*CommunityCondition, error) {
+func NewCommunityCondition(c config.MatchCommunitySet) (*CommunityCondition, error) {
 	if c.CommunitySet == "" {
 		return nil, nil
-	}
-	i, ok := m[c.CommunitySet]
-	if !ok {
-		return nil, fmt.Errorf("not found community set %s", c.CommunitySet)
-	}
-	s, ok := i.(*CommunitySet)
-	if !ok {
-		return nil, fmt.Errorf("type assert from DefinedSet to *CommunitySet failed")
 	}
 	o, err := NewMatchOption(c.MatchSetOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &CommunityCondition{
-		set:    s,
+		name:   c.CommunitySet,
 		option: o,
 	}, nil
 }
 
 type ExtCommunityCondition struct {
+	name   string
 	set    *ExtCommunitySet
 	option MatchOption
 }
@@ -1412,14 +1213,7 @@ func (c *ExtCommunityCondition) Option() MatchOption {
 	return c.option
 }
 
-func (c *ExtCommunityCondition) ToApiStruct() *api.MatchSet {
-	return &api.MatchSet{
-		Type: api.MatchType(c.option),
-		Name: c.set.Name(),
-	}
-}
-
-func (c *ExtCommunityCondition) Evaluate(path *Path) bool {
+func (c *ExtCommunityCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
 	es := path.GetExtCommunities()
 	result := false
 	for _, x := range es {
@@ -1445,49 +1239,21 @@ func (c *ExtCommunityCondition) Evaluate(path *Path) bool {
 	if c.option == MATCH_OPTION_INVERT {
 		result = !result
 	}
-
-	log.WithFields(log.Fields{
-		"Topic":       "Policy",
-		"Condition":   "community",
-		"MatchOption": c.option,
-		"Matched":     result,
-	}).Debug("evaluation result")
 	return result
 }
 
-func NewExtCommunityConditionFromApiStruct(a *api.MatchSet, m map[string]DefinedSet) (*ExtCommunityCondition, error) {
-	if a == nil {
-		return nil, nil
-	}
-	typ, err := toConfigMatchSetOption(a.Type)
-	if err != nil {
-		return nil, err
-	}
-	c := config.MatchExtCommunitySet{
-		ExtCommunitySet: a.Name,
-		MatchSetOptions: typ,
-	}
-	return NewExtCommunityCondition(c, m)
-}
+func (c *ExtCommunityCondition) Name() string { return c.name }
 
-func NewExtCommunityCondition(c config.MatchExtCommunitySet, m map[string]DefinedSet) (*ExtCommunityCondition, error) {
+func NewExtCommunityCondition(c config.MatchExtCommunitySet) (*ExtCommunityCondition, error) {
 	if c.ExtCommunitySet == "" {
 		return nil, nil
-	}
-	i, ok := m[c.ExtCommunitySet]
-	if !ok {
-		return nil, fmt.Errorf("not found ext-community set %s", c.ExtCommunitySet)
-	}
-	s, ok := i.(*ExtCommunitySet)
-	if !ok {
-		return nil, fmt.Errorf("type assert from DefinedSet to *ExtCommunitySet failed")
 	}
 	o, err := NewMatchOption(c.MatchSetOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &ExtCommunityCondition{
-		set:    s,
+		name:   c.ExtCommunitySet,
 		option: o,
 	}, nil
 }
@@ -1503,7 +1269,7 @@ func (c *AsPathLengthCondition) Type() ConditionType {
 
 // compare AS_PATH length in the message's AS_PATH attribute with
 // the one in condition.
-func (c *AsPathLengthCondition) Evaluate(path *Path) bool {
+func (c *AsPathLengthCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
 
 	length := uint32(path.GetAsPathLen())
 	result := false
@@ -1516,13 +1282,6 @@ func (c *AsPathLengthCondition) Evaluate(path *Path) bool {
 		result = c.length >= length
 	}
 
-	log.WithFields(log.Fields{
-		"Topic":     "Policy",
-		"Condition": "aspath length",
-		"Reason":    c.operator,
-		"Matched":   result,
-	}).Debug("evaluation result")
-
 	return result
 }
 
@@ -1530,37 +1289,19 @@ func (c *AsPathLengthCondition) Set() DefinedSet {
 	return nil
 }
 
-func (c *AsPathLengthCondition) ToApiStruct() *api.AsPathLength {
-	return &api.AsPathLength{
-		Length: c.length,
-		Type:   api.AsPathLengthType(c.operator),
-	}
-}
-
-func NewAsPathLengthConditionFromApiStruct(a *api.AsPathLength) (*AsPathLengthCondition, error) {
-	if a == nil {
-		return nil, nil
-	}
-	return &AsPathLengthCondition{
-		length:   a.Length,
-		operator: AttributeComparison(a.Type),
-	}, nil
-}
+func (c *AsPathLengthCondition) Name() string { return "" }
 
 func NewAsPathLengthCondition(c config.AsPathLength) (*AsPathLengthCondition, error) {
 	if c.Value == 0 && c.Operator == "" {
 		return nil, nil
 	}
 	var op AttributeComparison
-	switch strings.ToLower(c.Operator) {
-	case "eq":
-		op = ATTRIBUTE_EQ
-	case "ge":
-		op = ATTRIBUTE_GE
-	case "le":
-		op = ATTRIBUTE_LE
-	default:
+	if i := c.Operator.ToInt(); i < 0 {
 		return nil, fmt.Errorf("invalid as path length operator: %s", c.Operator)
+	} else {
+		// take mod 3 because we have extended openconfig attribute-comparison
+		// for simple configuration. see config.AttributeComparison definition
+		op = AttributeComparison(i % 3)
 	}
 	return &AsPathLengthCondition{
 		length:   c.Value,
@@ -1576,21 +1317,15 @@ func (c *RpkiValidationCondition) Type() ConditionType {
 	return CONDITION_RPKI
 }
 
-func (c *RpkiValidationCondition) Evaluate(path *Path) bool {
-	return c.result == path.Validation
+func (c *RpkiValidationCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
+	return c.result == path.Validation()
 }
 
 func (c *RpkiValidationCondition) Set() DefinedSet {
 	return nil
 }
 
-func NewRpkiValidationConditionFromApiStruct(a int32) (*RpkiValidationCondition, error) {
-	if a == 0 {
-		return nil, nil
-	}
-	typ := config.RpkiValidationResultType(a)
-	return NewRpkiValidationCondition(typ)
-}
+func (c *RpkiValidationCondition) Name() string { return "" }
 
 func NewRpkiValidationCondition(c config.RpkiValidationResultType) (*RpkiValidationCondition, error) {
 	if c == config.RPKI_VALIDATION_RESULT_TYPE_NONE {
@@ -1603,7 +1338,7 @@ func NewRpkiValidationCondition(c config.RpkiValidationResultType) (*RpkiValidat
 
 type Action interface {
 	Type() ActionType
-	Apply(*Path) *Path
+	Apply(*Path, *PolicyOptions) *Path
 }
 
 type RoutingAction struct {
@@ -1614,32 +1349,11 @@ func (a *RoutingAction) Type() ActionType {
 	return ACTION_ROUTING
 }
 
-func (a *RoutingAction) Apply(path *Path) *Path {
+func (a *RoutingAction) Apply(path *Path, _ *PolicyOptions) *Path {
 	if a.AcceptRoute {
 		return path
 	}
 	return nil
-}
-
-func (a *RoutingAction) ToApiStruct() api.RouteAction {
-	if a.AcceptRoute {
-		return api.RouteAction_ACCEPT
-	} else {
-		return api.RouteAction_REJECT
-	}
-}
-
-func NewRoutingActionFromApiStruct(a api.RouteAction) (*RoutingAction, error) {
-	if a == api.RouteAction_NONE {
-		return nil, nil
-	}
-	accept := false
-	if a == api.RouteAction_ACCEPT {
-		accept = true
-	}
-	return &RoutingAction{
-		AcceptRoute: accept,
-	}, nil
 }
 
 func NewRoutingAction(c config.RouteDisposition) (*RoutingAction, error) {
@@ -1707,7 +1421,7 @@ func (a *CommunityAction) Type() ActionType {
 	return ACTION_COMMUNITY
 }
 
-func (a *CommunityAction) Apply(path *Path) *Path {
+func (a *CommunityAction) Apply(path *Path, _ *PolicyOptions) *Path {
 	switch a.action {
 	case config.BGP_SET_COMMUNITY_OPTION_TYPE_ADD:
 		path.SetCommunities(a.list, false)
@@ -1716,16 +1430,10 @@ func (a *CommunityAction) Apply(path *Path) *Path {
 	case config.BGP_SET_COMMUNITY_OPTION_TYPE_REPLACE:
 		path.SetCommunities(a.list, true)
 	}
-	log.WithFields(log.Fields{
-		"Topic":  "Policy",
-		"Action": "community",
-		"Values": a.list,
-		"Method": a.action,
-	}).Debug("community action applied")
 	return path
 }
 
-func (a *CommunityAction) ToApiStruct() *api.CommunityAction {
+func (a *CommunityAction) ToConfig() *config.SetCommunity {
 	cs := make([]string, 0, len(a.list)+len(a.removeList))
 	for _, comm := range a.list {
 		c := fmt.Sprintf("%d:%d", comm>>16, comm&0x0000ffff)
@@ -1734,50 +1442,16 @@ func (a *CommunityAction) ToApiStruct() *api.CommunityAction {
 	for _, exp := range a.removeList {
 		cs = append(cs, exp.String())
 	}
-	return &api.CommunityAction{
-		Type:        api.CommunityActionType(a.action),
-		Communities: cs,
+	return &config.SetCommunity{
+		Options:            string(a.action),
+		SetCommunityMethod: config.SetCommunityMethod{CommunitiesList: cs},
 	}
-}
-
-func NewCommunityActionFromApiStruct(a *api.CommunityAction) (*CommunityAction, error) {
-	if a == nil {
-		return nil, nil
-	}
-	var list []uint32
-	var removeList []*regexp.Regexp
-	op := config.BgpSetCommunityOptionType(a.Type)
-	if op == config.BGP_SET_COMMUNITY_OPTION_TYPE_REMOVE {
-		removeList = make([]*regexp.Regexp, 0, len(a.Communities))
-	} else {
-		list = make([]uint32, 0, len(a.Communities))
-	}
-	for _, x := range a.Communities {
-		if op == config.BGP_SET_COMMUNITY_OPTION_TYPE_REMOVE {
-			exp, err := ParseCommunityRegexp(x)
-			if err != nil {
-				return nil, err
-			}
-			removeList = append(removeList, exp)
-		} else {
-			comm, err := ParseCommunity(x)
-			if err != nil {
-				return nil, err
-			}
-			list = append(list, comm)
-		}
-	}
-	return &CommunityAction{
-		action:     op,
-		list:       list,
-		removeList: removeList,
-	}, nil
 }
 
 func NewCommunityAction(c config.SetCommunity) (*CommunityAction, error) {
 	a, ok := CommunityOptionValueMap[strings.ToLower(c.Options)]
 	if !ok {
-		if len(c.SetCommunityMethod.Communities) == 0 {
+		if len(c.SetCommunityMethod.CommunitiesList) == 0 {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("invalid option name: %s", c.Options)
@@ -1785,11 +1459,11 @@ func NewCommunityAction(c config.SetCommunity) (*CommunityAction, error) {
 	var list []uint32
 	var removeList []*regexp.Regexp
 	if a == config.BGP_SET_COMMUNITY_OPTION_TYPE_REMOVE {
-		removeList = make([]*regexp.Regexp, 0, len(c.SetCommunityMethod.Communities))
+		removeList = make([]*regexp.Regexp, 0, len(c.SetCommunityMethod.CommunitiesList))
 	} else {
-		list = make([]uint32, 0, len(c.SetCommunityMethod.Communities))
+		list = make([]uint32, 0, len(c.SetCommunityMethod.CommunitiesList))
 	}
-	for _, x := range c.SetCommunityMethod.Communities {
+	for _, x := range c.SetCommunityMethod.CommunitiesList {
 		if a == config.BGP_SET_COMMUNITY_OPTION_TYPE_REMOVE {
 			exp, err := ParseCommunityRegexp(x)
 			if err != nil {
@@ -1822,7 +1496,7 @@ func (a *ExtCommunityAction) Type() ActionType {
 	return ACTION_EXT_COMMUNITY
 }
 
-func (a *ExtCommunityAction) Apply(path *Path) *Path {
+func (a *ExtCommunityAction) Apply(path *Path, _ *PolicyOptions) *Path {
 	switch a.action {
 	case config.BGP_SET_COMMUNITY_OPTION_TYPE_ADD:
 		path.SetExtCommunities(a.list, false)
@@ -1834,7 +1508,7 @@ func (a *ExtCommunityAction) Apply(path *Path) *Path {
 	return path
 }
 
-func (a *ExtCommunityAction) ToApiStruct() *api.CommunityAction {
+func (a *ExtCommunityAction) ToConfig() *config.SetExtCommunity {
 	cs := make([]string, 0, len(a.list)+len(a.removeList))
 	f := func(idx int, arg string) string {
 		switch a.subtypeList[idx] {
@@ -1842,6 +1516,8 @@ func (a *ExtCommunityAction) ToApiStruct() *api.CommunityAction {
 			return fmt.Sprintf("rt:%s", arg)
 		case bgp.EC_SUBTYPE_ROUTE_ORIGIN:
 			return fmt.Sprintf("soo:%s", arg)
+		case bgp.EC_SUBTYPE_ORIGIN_VALIDATION:
+			return arg
 		default:
 			return fmt.Sprintf("%d:%s", a.subtypeList[idx], arg)
 		}
@@ -1852,68 +1528,31 @@ func (a *ExtCommunityAction) ToApiStruct() *api.CommunityAction {
 	for idx, exp := range a.removeList {
 		cs = append(cs, f(idx, exp.String()))
 	}
-	return &api.CommunityAction{
-		Type:        api.CommunityActionType(a.action),
-		Communities: cs,
+	return &config.SetExtCommunity{
+		Options: string(a.action),
+		SetExtCommunityMethod: config.SetExtCommunityMethod{
+			CommunitiesList: cs,
+		},
 	}
-}
-
-func NewExtCommunityActionFromApiStruct(a *api.CommunityAction) (*ExtCommunityAction, error) {
-	if a == nil {
-		return nil, nil
-	}
-	var list []bgp.ExtendedCommunityInterface
-	var removeList []*regexp.Regexp
-	subtypeList := make([]bgp.ExtendedCommunityAttrSubType, 0, len(a.Communities))
-	op := config.BgpSetCommunityOptionType(a.Type)
-	if op == config.BGP_SET_COMMUNITY_OPTION_TYPE_REMOVE {
-		removeList = make([]*regexp.Regexp, 0, len(a.Communities))
-	} else {
-		list = make([]bgp.ExtendedCommunityInterface, 0, len(a.Communities))
-	}
-	for _, x := range a.Communities {
-		if op == config.BGP_SET_COMMUNITY_OPTION_TYPE_REMOVE {
-			subtype, exp, err := ParseExtCommunityRegexp(x)
-			if err != nil {
-				return nil, err
-			}
-			removeList = append(removeList, exp)
-			subtypeList = append(subtypeList, subtype)
-		} else {
-			comm, err := ParseExtCommunity(x)
-			if err != nil {
-				return nil, err
-			}
-			list = append(list, comm)
-			_, subtype := comm.GetTypes()
-			subtypeList = append(subtypeList, subtype)
-		}
-	}
-	return &ExtCommunityAction{
-		action:      op,
-		list:        list,
-		removeList:  removeList,
-		subtypeList: subtypeList,
-	}, nil
 }
 
 func NewExtCommunityAction(c config.SetExtCommunity) (*ExtCommunityAction, error) {
 	a, ok := CommunityOptionValueMap[strings.ToLower(c.Options)]
 	if !ok {
-		if len(c.SetExtCommunityMethod.Communities) == 0 {
+		if len(c.SetExtCommunityMethod.CommunitiesList) == 0 {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("invalid option name: %s", c.Options)
 	}
 	var list []bgp.ExtendedCommunityInterface
 	var removeList []*regexp.Regexp
-	subtypeList := make([]bgp.ExtendedCommunityAttrSubType, 0, len(c.SetExtCommunityMethod.Communities))
+	subtypeList := make([]bgp.ExtendedCommunityAttrSubType, 0, len(c.SetExtCommunityMethod.CommunitiesList))
 	if a == config.BGP_SET_COMMUNITY_OPTION_TYPE_REMOVE {
-		removeList = make([]*regexp.Regexp, 0, len(c.SetExtCommunityMethod.Communities))
+		removeList = make([]*regexp.Regexp, 0, len(c.SetExtCommunityMethod.CommunitiesList))
 	} else {
-		list = make([]bgp.ExtendedCommunityInterface, 0, len(c.SetExtCommunityMethod.Communities))
+		list = make([]bgp.ExtendedCommunityInterface, 0, len(c.SetExtCommunityMethod.CommunitiesList))
 	}
-	for _, x := range c.SetExtCommunityMethod.Communities {
+	for _, x := range c.SetExtCommunityMethod.CommunitiesList {
 		if a == config.BGP_SET_COMMUNITY_OPTION_TYPE_REMOVE {
 			subtype, exp, err := ParseExtCommunityRegexp(x)
 			if err != nil {
@@ -1948,7 +1587,7 @@ func (a *MedAction) Type() ActionType {
 	return ACTION_MED
 }
 
-func (a *MedAction) Apply(path *Path) *Path {
+func (a *MedAction) Apply(path *Path, _ *PolicyOptions) *Path {
 	var err error
 	switch a.action {
 	case MED_ACTION_MOD:
@@ -1961,34 +1600,17 @@ func (a *MedAction) Apply(path *Path) *Path {
 		log.WithFields(log.Fields{
 			"Topic": "Policy",
 			"Type":  "Med Action",
-		}).Warn(err)
-	} else {
-		log.WithFields(log.Fields{
-			"Topic":      "Policy",
-			"Action":     "med",
-			"Value":      a.value,
-			"ActionType": a.action,
-		}).Debug("med action applied")
+			"Error": err,
+		}).Warn("Could not set Med on path")
 	}
-
 	return path
 }
 
-func (a *MedAction) ToApiStruct() *api.MedAction {
-	return &api.MedAction{
-		Type:  api.MedActionType(a.action),
-		Value: int64(a.value),
+func (a *MedAction) ToConfig() config.BgpSetMedType {
+	if a.action == MED_ACTION_MOD && a.value > 0 {
+		return config.BgpSetMedType(fmt.Sprintf("+%d", a.value))
 	}
-}
-
-func NewMedActionFromApiStruct(a *api.MedAction) (*MedAction, error) {
-	if a == nil {
-		return nil, nil
-	}
-	return &MedAction{
-		action: MedActionType(a.Type),
-		value:  int(a.Value),
-	}, nil
+	return config.BgpSetMedType(fmt.Sprintf("%d", a.value))
 }
 
 func NewMedAction(c config.BgpSetMedType) (*MedAction, error) {
@@ -2012,6 +1634,36 @@ func NewMedAction(c config.BgpSetMedType) (*MedAction, error) {
 	}, nil
 }
 
+func NewMedActionFromApiStruct(action MedActionType, value int) *MedAction {
+	return &MedAction{action: action, value: value}
+}
+
+type LocalPrefAction struct {
+	value uint32
+}
+
+func (a *LocalPrefAction) Type() ActionType {
+	return ACTION_LOCAL_PREF
+}
+
+func (a *LocalPrefAction) Apply(path *Path, _ *PolicyOptions) *Path {
+	path.setPathAttr(bgp.NewPathAttributeLocalPref(a.value))
+	return path
+}
+
+func (a *LocalPrefAction) ToConfig() uint32 {
+	return a.value
+}
+
+func NewLocalPrefAction(value uint32) (*LocalPrefAction, error) {
+	if value == 0 {
+		return nil, nil
+	}
+	return &LocalPrefAction{
+		value: value,
+	}, nil
+}
+
 type AsPathPrependAction struct {
 	asn         uint32
 	useLeftMost bool
@@ -2022,7 +1674,7 @@ func (a *AsPathPrependAction) Type() ActionType {
 	return ACTION_AS_PATH_PREPEND
 }
 
-func (a *AsPathPrependAction) Apply(path *Path) *Path {
+func (a *AsPathPrependAction) Apply(path *Path, _ *PolicyOptions) *Path {
 	var asn uint32
 	if a.useLeftMost {
 		aspath := path.GetAsSeqList()
@@ -2030,7 +1682,7 @@ func (a *AsPathPrependAction) Apply(path *Path) *Path {
 			log.WithFields(log.Fields{
 				"Topic": "Policy",
 				"Type":  "AsPathPrepend Action",
-			}).Warnf("aspath length is zero.")
+			}).Warn("aspath length is zero.")
 			return path
 		}
 		asn = aspath[0]
@@ -2038,48 +1690,28 @@ func (a *AsPathPrependAction) Apply(path *Path) *Path {
 			log.WithFields(log.Fields{
 				"Topic": "Policy",
 				"Type":  "AsPathPrepend Action",
-			}).Warnf("left-most ASN is not seq")
+			}).Warn("left-most ASN is not seq")
 			return path
 		}
-		log.WithFields(log.Fields{
-			"Topic":  "Policy",
-			"Type":   "AsPathPrepend Action",
-			"LastAs": asn,
-			"Repeat": a.repeat,
-		}).Debug("use left-most ASN")
 	} else {
 		asn = a.asn
 	}
 
 	path.PrependAsn(asn, a.repeat)
 
-	log.WithFields(log.Fields{
-		"Topic":  "Policy",
-		"Action": "aspath prepend",
-		"ASN":    asn,
-		"Repeat": a.repeat,
-	}).Debug("aspath prepend action applied")
-
 	return path
 }
 
-func (a *AsPathPrependAction) ToApiStruct() *api.AsPrependAction {
-	return &api.AsPrependAction{
-		Asn:         a.asn,
-		Repeat:      uint32(a.repeat),
-		UseLeftMost: a.useLeftMost,
+func (a *AsPathPrependAction) ToConfig() *config.SetAsPathPrepend {
+	return &config.SetAsPathPrepend{
+		RepeatN: uint8(a.repeat),
+		As: func() string {
+			if a.useLeftMost {
+				return "last-as"
+			}
+			return fmt.Sprintf("%d", a.asn)
+		}(),
 	}
-}
-
-func NewAsPathPrependActionFromApiStruct(a *api.AsPrependAction) (*AsPathPrependAction, error) {
-	if a == nil {
-		return nil, nil
-	}
-	return &AsPathPrependAction{
-		asn:         a.Asn,
-		useLeftMost: a.UseLeftMost,
-		repeat:      uint8(a.Repeat),
-	}, nil
 }
 
 // NewAsPathPrependAction creates AsPathPrependAction object.
@@ -2106,6 +1738,51 @@ func NewAsPathPrependAction(action config.SetAsPathPrepend) (*AsPathPrependActio
 	return a, nil
 }
 
+type NexthopAction struct {
+	value net.IP
+	self  bool
+}
+
+func (a *NexthopAction) Type() ActionType {
+	return ACTION_NEXTHOP
+}
+
+func (a *NexthopAction) Apply(path *Path, options *PolicyOptions) *Path {
+	if a.self {
+		if options != nil && options.Info != nil && options.Info.LocalAddress != nil {
+			path.SetNexthop(options.Info.LocalAddress)
+		}
+		return path
+	}
+	path.SetNexthop(a.value)
+	return path
+}
+
+func (a *NexthopAction) ToConfig() config.BgpNextHopType {
+	if a.self {
+		return config.BgpNextHopType("self")
+	}
+	return config.BgpNextHopType(a.value.String())
+}
+
+func NewNexthopAction(c config.BgpNextHopType) (*NexthopAction, error) {
+	switch string(c) {
+	case "":
+		return nil, nil
+	case "self":
+		return &NexthopAction{
+			self: true,
+		}, nil
+	}
+	addr := net.ParseIP(string(c))
+	if addr == nil {
+		return nil, fmt.Errorf("invalid ip address format: %s", string(c))
+	}
+	return &NexthopAction{
+		value: addr,
+	}, nil
+}
+
 type Statement struct {
 	Name        string
 	Conditions  []Condition
@@ -2114,32 +1791,27 @@ type Statement struct {
 }
 
 // evaluate each condition in the statement according to MatchSetOptions
-func (s *Statement) Evaluate(p *Path) bool {
+func (s *Statement) Evaluate(p *Path, options *PolicyOptions) bool {
 	for _, c := range s.Conditions {
-		if !c.Evaluate(p) {
+		if !c.Evaluate(p, options) {
 			return false
 		}
 	}
 	return true
 }
 
-func (s *Statement) Apply(path *Path) (RouteType, *Path) {
-	result := s.Evaluate(path)
-	log.WithFields(log.Fields{
-		"Topic":      "Policy",
-		"Path":       path,
-		"PolicyName": s.Name,
-	}).Debug("statement evaluate : ", result)
+func (s *Statement) Apply(path *Path, options *PolicyOptions) (RouteType, *Path) {
+	result := s.Evaluate(path, options)
 	if result {
 		if len(s.ModActions) != 0 {
 			// apply all modification actions
-			path = path.Clone(path.Owner, path.IsWithdraw)
+			path = path.Clone(path.IsWithdraw)
 			for _, action := range s.ModActions {
-				path = action.Apply(path)
+				path = action.Apply(path, options)
 			}
 		}
 		//Routing action
-		if s.RouteAction == nil {
+		if s.RouteAction == nil || reflect.ValueOf(s.RouteAction).IsNil() {
 			log.WithFields(log.Fields{
 				"Topic":      "Policy",
 				"Path":       path,
@@ -2147,7 +1819,7 @@ func (s *Statement) Apply(path *Path) (RouteType, *Path) {
 			}).Warn("route action is nil")
 			return ROUTE_TYPE_NONE, path
 		}
-		p := s.RouteAction.Apply(path)
+		p := s.RouteAction.Apply(path, options)
 		if p == nil {
 			return ROUTE_TYPE_REJECT, path
 		}
@@ -2156,46 +1828,62 @@ func (s *Statement) Apply(path *Path) (RouteType, *Path) {
 	return ROUTE_TYPE_NONE, path
 }
 
-func (s *Statement) ToApiStruct() *api.Statement {
-	cs := &api.Conditions{}
-	for _, c := range s.Conditions {
-		switch c.(type) {
-		case *PrefixCondition:
-			cs.PrefixSet = c.(*PrefixCondition).ToApiStruct()
-		case *NeighborCondition:
-			cs.NeighborSet = c.(*NeighborCondition).ToApiStruct()
-		case *AsPathLengthCondition:
-			cs.AsPathLength = c.(*AsPathLengthCondition).ToApiStruct()
-		case *AsPathCondition:
-			cs.AsPathSet = c.(*AsPathCondition).ToApiStruct()
-		case *CommunityCondition:
-			cs.CommunitySet = c.(*CommunityCondition).ToApiStruct()
-		case *ExtCommunityCondition:
-			cs.ExtCommunitySet = c.(*ExtCommunityCondition).ToApiStruct()
-		case *RpkiValidationCondition:
-			cs.RpkiResult = int32(c.(*RpkiValidationCondition).result)
-		}
-	}
-	as := &api.Actions{}
-	if s.RouteAction != nil && !reflect.ValueOf(s.RouteAction).IsNil() {
-		as.RouteAction = s.RouteAction.(*RoutingAction).ToApiStruct()
-	}
-	for _, a := range s.ModActions {
-		switch a.(type) {
-		case *CommunityAction:
-			as.Community = a.(*CommunityAction).ToApiStruct()
-		case *MedAction:
-			as.Med = a.(*MedAction).ToApiStruct()
-		case *AsPathPrependAction:
-			as.AsPrepend = a.(*AsPathPrependAction).ToApiStruct()
-		case *ExtCommunityAction:
-			as.ExtCommunity = a.(*ExtCommunityAction).ToApiStruct()
-		}
-	}
-	return &api.Statement{
-		Name:       s.Name,
-		Conditions: cs,
-		Actions:    as,
+func (s *Statement) ToConfig() *config.Statement {
+	return &config.Statement{
+		Name: s.Name,
+		Conditions: func() config.Conditions {
+			cond := config.Conditions{}
+			for _, c := range s.Conditions {
+				switch c.(type) {
+				case *PrefixCondition:
+					v := c.(*PrefixCondition)
+					cond.MatchPrefixSet = config.MatchPrefixSet{PrefixSet: v.set.Name(), MatchSetOptions: config.IntToMatchSetOptionsRestrictedTypeMap[int(v.option)]}
+				case *NeighborCondition:
+					v := c.(*NeighborCondition)
+					cond.MatchNeighborSet = config.MatchNeighborSet{NeighborSet: v.set.Name(), MatchSetOptions: config.IntToMatchSetOptionsRestrictedTypeMap[int(v.option)]}
+				case *AsPathLengthCondition:
+					v := c.(*AsPathLengthCondition)
+					cond.BgpConditions.AsPathLength = config.AsPathLength{Operator: config.IntToAttributeComparisonMap[int(v.operator)], Value: v.length}
+				case *AsPathCondition:
+					v := c.(*AsPathCondition)
+					cond.BgpConditions.MatchAsPathSet = config.MatchAsPathSet{AsPathSet: v.set.Name(), MatchSetOptions: config.IntToMatchSetOptionsTypeMap[int(v.option)]}
+				case *CommunityCondition:
+					v := c.(*CommunityCondition)
+					cond.BgpConditions.MatchCommunitySet = config.MatchCommunitySet{CommunitySet: v.set.Name(), MatchSetOptions: config.IntToMatchSetOptionsTypeMap[int(v.option)]}
+				case *ExtCommunityCondition:
+					v := c.(*ExtCommunityCondition)
+					cond.BgpConditions.MatchExtCommunitySet = config.MatchExtCommunitySet{ExtCommunitySet: v.set.Name(), MatchSetOptions: config.IntToMatchSetOptionsTypeMap[int(v.option)]}
+				case *RpkiValidationCondition:
+					v := c.(*RpkiValidationCondition)
+					cond.BgpConditions.RpkiValidationResult = v.result
+				}
+			}
+			return cond
+		}(),
+		Actions: func() config.Actions {
+			act := config.Actions{}
+			if s.RouteAction != nil && !reflect.ValueOf(s.RouteAction).IsNil() {
+				a := s.RouteAction.(*RoutingAction)
+				act.RouteDisposition = config.RouteDisposition{AcceptRoute: a.AcceptRoute, RejectRoute: false}
+			}
+			for _, a := range s.ModActions {
+				switch a.(type) {
+				case *AsPathPrependAction:
+					act.BgpActions.SetAsPathPrepend = *a.(*AsPathPrependAction).ToConfig()
+				case *CommunityAction:
+					act.BgpActions.SetCommunity = *a.(*CommunityAction).ToConfig()
+				case *ExtCommunityAction:
+					act.BgpActions.SetExtCommunity = *a.(*ExtCommunityAction).ToConfig()
+				case *MedAction:
+					act.BgpActions.SetMed = a.(*MedAction).ToConfig()
+				case *LocalPrefAction:
+					act.BgpActions.SetLocalPref = a.(*LocalPrefAction).ToConfig()
+				case *NexthopAction:
+					act.BgpActions.SetNextHop = a.(*NexthopAction).ToConfig()
+				}
+			}
+			return act
+		}(),
 	}
 }
 
@@ -2318,88 +2006,7 @@ func (lhs *Statement) Replace(rhs *Statement) error {
 	return lhs.mod(REPLACE, rhs)
 }
 
-func NewStatementFromApiStruct(a *api.Statement, dmap DefinedSetMap) (*Statement, error) {
-	if a.Name == "" {
-		return nil, fmt.Errorf("empty statement name")
-	}
-	var ra Action
-	var as []Action
-	var cs []Condition
-	var err error
-	if a.Conditions != nil {
-		cfs := []func() (Condition, error){
-			func() (Condition, error) {
-				return NewPrefixConditionFromApiStruct(a.Conditions.PrefixSet, dmap[DEFINED_TYPE_PREFIX])
-			},
-			func() (Condition, error) {
-				return NewNeighborConditionFromApiStruct(a.Conditions.NeighborSet, dmap[DEFINED_TYPE_NEIGHBOR])
-			},
-			func() (Condition, error) {
-				return NewAsPathLengthConditionFromApiStruct(a.Conditions.AsPathLength)
-			},
-			func() (Condition, error) {
-				return NewRpkiValidationConditionFromApiStruct(a.Conditions.RpkiResult)
-			},
-			func() (Condition, error) {
-				return NewAsPathConditionFromApiStruct(a.Conditions.AsPathSet, dmap[DEFINED_TYPE_AS_PATH])
-			},
-			func() (Condition, error) {
-				return NewCommunityConditionFromApiStruct(a.Conditions.CommunitySet, dmap[DEFINED_TYPE_COMMUNITY])
-			},
-			func() (Condition, error) {
-				return NewExtCommunityConditionFromApiStruct(a.Conditions.ExtCommunitySet, dmap[DEFINED_TYPE_EXT_COMMUNITY])
-			},
-		}
-		cs = make([]Condition, 0, len(cfs))
-		for _, f := range cfs {
-			c, err := f()
-			if err != nil {
-				return nil, err
-			}
-			if !reflect.ValueOf(c).IsNil() {
-				cs = append(cs, c)
-			}
-		}
-	}
-	if a.Actions != nil {
-		ra, err = NewRoutingActionFromApiStruct(a.Actions.RouteAction)
-		if err != nil {
-			return nil, err
-		}
-		afs := []func() (Action, error){
-			func() (Action, error) {
-				return NewCommunityActionFromApiStruct(a.Actions.Community)
-			},
-			func() (Action, error) {
-				return NewExtCommunityActionFromApiStruct(a.Actions.ExtCommunity)
-			},
-			func() (Action, error) {
-				return NewMedActionFromApiStruct(a.Actions.Med)
-			},
-			func() (Action, error) {
-				return NewAsPathPrependActionFromApiStruct(a.Actions.AsPrepend)
-			},
-		}
-		as = make([]Action, 0, len(afs))
-		for _, f := range afs {
-			a, err := f()
-			if err != nil {
-				return nil, err
-			}
-			if !reflect.ValueOf(a).IsNil() {
-				as = append(as, a)
-			}
-		}
-	}
-	return &Statement{
-		Name:        a.Name,
-		Conditions:  cs,
-		RouteAction: ra,
-		ModActions:  as,
-	}, nil
-}
-
-func NewStatement(c config.Statement, dmap DefinedSetMap) (*Statement, error) {
+func NewStatement(c config.Statement) (*Statement, error) {
 	if c.Name == "" {
 		return nil, fmt.Errorf("empty statement name")
 	}
@@ -2409,10 +2016,10 @@ func NewStatement(c config.Statement, dmap DefinedSetMap) (*Statement, error) {
 	var err error
 	cfs := []func() (Condition, error){
 		func() (Condition, error) {
-			return NewPrefixCondition(c.Conditions.MatchPrefixSet, dmap[DEFINED_TYPE_PREFIX])
+			return NewPrefixCondition(c.Conditions.MatchPrefixSet)
 		},
 		func() (Condition, error) {
-			return NewNeighborCondition(c.Conditions.MatchNeighborSet, dmap[DEFINED_TYPE_NEIGHBOR])
+			return NewNeighborCondition(c.Conditions.MatchNeighborSet)
 		},
 		func() (Condition, error) {
 			return NewAsPathLengthCondition(c.Conditions.BgpConditions.AsPathLength)
@@ -2421,13 +2028,13 @@ func NewStatement(c config.Statement, dmap DefinedSetMap) (*Statement, error) {
 			return NewRpkiValidationCondition(c.Conditions.BgpConditions.RpkiValidationResult)
 		},
 		func() (Condition, error) {
-			return NewAsPathCondition(c.Conditions.BgpConditions.MatchAsPathSet, dmap[DEFINED_TYPE_AS_PATH])
+			return NewAsPathCondition(c.Conditions.BgpConditions.MatchAsPathSet)
 		},
 		func() (Condition, error) {
-			return NewCommunityCondition(c.Conditions.BgpConditions.MatchCommunitySet, dmap[DEFINED_TYPE_COMMUNITY])
+			return NewCommunityCondition(c.Conditions.BgpConditions.MatchCommunitySet)
 		},
 		func() (Condition, error) {
-			return NewExtCommunityCondition(c.Conditions.BgpConditions.MatchExtCommunitySet, dmap[DEFINED_TYPE_EXT_COMMUNITY])
+			return NewExtCommunityCondition(c.Conditions.BgpConditions.MatchExtCommunitySet)
 		},
 	}
 	cs = make([]Condition, 0, len(cfs))
@@ -2455,7 +2062,13 @@ func NewStatement(c config.Statement, dmap DefinedSetMap) (*Statement, error) {
 			return NewMedAction(c.Actions.BgpActions.SetMed)
 		},
 		func() (Action, error) {
+			return NewLocalPrefAction(c.Actions.BgpActions.SetLocalPref)
+		},
+		func() (Action, error) {
 			return NewAsPathPrependAction(c.Actions.BgpActions.SetAsPathPrepend)
+		},
+		func() (Action, error) {
+			return NewNexthopAction(c.Actions.BgpActions.SetNextHop)
 		},
 	}
 	as = make([]Action, 0, len(afs))
@@ -2477,21 +2090,17 @@ func NewStatement(c config.Statement, dmap DefinedSetMap) (*Statement, error) {
 }
 
 type Policy struct {
-	name       string
+	Name       string
 	Statements []*Statement
-}
-
-func (p *Policy) Name() string {
-	return p.name
 }
 
 // Compare path with a policy's condition in stored order in the policy.
 // If a condition match, then this function stops evaluation and
 // subsequent conditions are skipped.
-func (p *Policy) Apply(path *Path) (RouteType, *Path) {
+func (p *Policy) Apply(path *Path, options *PolicyOptions) (RouteType, *Path) {
 	for _, stmt := range p.Statements {
 		var result RouteType
-		result, path = stmt.Apply(path)
+		result, path = stmt.Apply(path, options)
 		if result != ROUTE_TYPE_NONE {
 			return result, path
 		}
@@ -2499,13 +2108,13 @@ func (p *Policy) Apply(path *Path) (RouteType, *Path) {
 	return ROUTE_TYPE_NONE, path
 }
 
-func (p *Policy) ToApiStruct() *api.Policy {
-	ss := make([]*api.Statement, 0, len(p.Statements))
+func (p *Policy) ToConfig() *config.PolicyDefinition {
+	ss := make([]config.Statement, 0, len(p.Statements))
 	for _, s := range p.Statements {
-		ss = append(ss, s.ToApiStruct())
+		ss = append(ss, *s.ToConfig())
 	}
-	return &api.Policy{
-		Name:       p.name,
+	return &config.PolicyDefinition{
+		Name:       p.Name,
 		Statements: ss,
 	}
 }
@@ -2529,7 +2138,7 @@ func (lhs *Policy) Add(rhs *Policy) error {
 }
 
 func (lhs *Policy) Remove(rhs *Policy) error {
-	stmts := make([]*Statement, 0, len(lhs.Statements)-len(rhs.Statements))
+	stmts := make([]*Statement, 0, len(lhs.Statements))
 	for _, x := range lhs.Statements {
 		found := false
 		for _, y := range rhs.Statements {
@@ -2551,40 +2160,19 @@ func (lhs *Policy) Replace(rhs *Policy) error {
 	return nil
 }
 
-func NewPolicyFromApiStruct(a *api.Policy, dmap DefinedSetMap) (*Policy, error) {
-	if a.Name == "" {
-		return nil, fmt.Errorf("empty policy name")
-	}
-	stmts := make([]*Statement, 0, len(a.Statements))
-	for idx, x := range a.Statements {
-		if x.Name == "" {
-			x.Name = fmt.Sprintf("%s_stmt%d", a.Name, idx)
-		}
-		y, err := NewStatementFromApiStruct(x, dmap)
-		if err != nil {
-			return nil, err
-		}
-		stmts = append(stmts, y)
-	}
-	return &Policy{
-		name:       a.Name,
-		Statements: stmts,
-	}, nil
-}
-
-func NewPolicy(c config.PolicyDefinition, dmap DefinedSetMap) (*Policy, error) {
+func NewPolicy(c config.PolicyDefinition) (*Policy, error) {
 	if c.Name == "" {
 		return nil, fmt.Errorf("empty policy name")
 	}
 	var st []*Statement
-	stmts := c.Statements.StatementList
+	stmts := c.Statements
 	if len(stmts) != 0 {
 		st = make([]*Statement, 0, len(stmts))
 		for idx, stmt := range stmts {
 			if stmt.Name == "" {
 				stmt.Name = fmt.Sprintf("%s_stmt%d", c.Name, idx)
 			}
-			s, err := NewStatement(stmt, dmap)
+			s, err := NewStatement(stmt)
 			if err != nil {
 				return nil, err
 			}
@@ -2592,31 +2180,143 @@ func NewPolicy(c config.PolicyDefinition, dmap DefinedSetMap) (*Policy, error) {
 		}
 	}
 	return &Policy{
-		name:       c.Name,
+		Name:       c.Name,
 		Statements: st,
 	}, nil
 }
 
-type RoutingPolicy struct {
-	DefinedSetMap DefinedSetMap
-	PolicyMap     map[string]*Policy
-	StatementMap  map[string]*Statement
+type Assignment struct {
+	inPolicies          []*Policy
+	defaultInPolicy     RouteType
+	importPolicies      []*Policy
+	defaultImportPolicy RouteType
+	exportPolicies      []*Policy
+	defaultExportPolicy RouteType
 }
 
-func (r *RoutingPolicy) GetAssignmentFromConfig(dir PolicyDirection, a config.ApplyPolicy) ([]*Policy, RouteType, error) {
+type RoutingPolicy struct {
+	definedSetMap DefinedSetMap
+	policyMap     map[string]*Policy
+	statementMap  map[string]*Statement
+	assignmentMap map[string]*Assignment
+	mu            sync.RWMutex
+}
+
+func (r *RoutingPolicy) ApplyPolicy(id string, dir PolicyDirection, before *Path, options *PolicyOptions) *Path {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if before == nil {
+		return nil
+	}
+	if filtered := before.Filtered(id); filtered > POLICY_DIRECTION_NONE && filtered < dir {
+		return nil
+	}
+	if before.IsWithdraw {
+		return before
+	}
+	result := ROUTE_TYPE_NONE
+	after := before
+	for _, p := range r.getPolicy(id, dir) {
+		result, after = p.Apply(before, options)
+		if result != ROUTE_TYPE_NONE {
+			break
+		}
+	}
+	if result == ROUTE_TYPE_NONE {
+		result = r.getDefaultPolicy(id, dir)
+	}
+	switch result {
+	case ROUTE_TYPE_ACCEPT:
+		return after
+	default:
+		return nil
+	}
+}
+
+func (r *RoutingPolicy) getPolicy(id string, dir PolicyDirection) []*Policy {
+	a, ok := r.assignmentMap[id]
+	if !ok {
+		return nil
+	}
+	switch dir {
+	case POLICY_DIRECTION_IN:
+		return a.inPolicies
+	case POLICY_DIRECTION_IMPORT:
+		return a.importPolicies
+	case POLICY_DIRECTION_EXPORT:
+		return a.exportPolicies
+	default:
+		return nil
+	}
+}
+
+func (r *RoutingPolicy) getDefaultPolicy(id string, dir PolicyDirection) RouteType {
+	a, ok := r.assignmentMap[id]
+	if !ok {
+		return ROUTE_TYPE_NONE
+	}
+	switch dir {
+	case POLICY_DIRECTION_IN:
+		return a.defaultInPolicy
+	case POLICY_DIRECTION_IMPORT:
+		return a.defaultImportPolicy
+	case POLICY_DIRECTION_EXPORT:
+		return a.defaultExportPolicy
+	default:
+		return ROUTE_TYPE_NONE
+	}
+
+}
+
+func (r *RoutingPolicy) setPolicy(id string, dir PolicyDirection, policies []*Policy) error {
+	a, ok := r.assignmentMap[id]
+	if !ok {
+		a = &Assignment{}
+	}
+	switch dir {
+	case POLICY_DIRECTION_IN:
+		a.inPolicies = policies
+	case POLICY_DIRECTION_IMPORT:
+		a.importPolicies = policies
+	case POLICY_DIRECTION_EXPORT:
+		a.exportPolicies = policies
+	}
+	r.assignmentMap[id] = a
+	return nil
+}
+
+func (r *RoutingPolicy) setDefaultPolicy(id string, dir PolicyDirection, typ RouteType) error {
+	a, ok := r.assignmentMap[id]
+	if !ok {
+		a = &Assignment{}
+	}
+	switch dir {
+	case POLICY_DIRECTION_IN:
+		a.defaultInPolicy = typ
+	case POLICY_DIRECTION_IMPORT:
+		a.defaultImportPolicy = typ
+	case POLICY_DIRECTION_EXPORT:
+		a.defaultExportPolicy = typ
+	}
+	r.assignmentMap[id] = a
+	return nil
+}
+
+func (r *RoutingPolicy) getAssignmentFromConfig(dir PolicyDirection, a config.ApplyPolicy) ([]*Policy, RouteType, error) {
 	var names []string
 	var cdef config.DefaultPolicyType
 	def := ROUTE_TYPE_ACCEPT
-	c := a.ApplyPolicyConfig
+	c := a.Config
 	switch dir {
 	case POLICY_DIRECTION_IN:
-		names = c.InPolicy
+		names = c.InPolicyList
 		cdef = c.DefaultInPolicy
 	case POLICY_DIRECTION_IMPORT:
-		names = c.ImportPolicy
+		names = c.ImportPolicyList
 		cdef = c.DefaultImportPolicy
 	case POLICY_DIRECTION_EXPORT:
-		names = c.ExportPolicy
+		names = c.ExportPolicyList
 		cdef = c.DefaultExportPolicy
 	default:
 		return nil, def, fmt.Errorf("invalid policy direction")
@@ -2625,19 +2325,72 @@ func (r *RoutingPolicy) GetAssignmentFromConfig(dir PolicyDirection, a config.Ap
 		def = ROUTE_TYPE_REJECT
 	}
 	ps := make([]*Policy, 0, len(names))
+	seen := make(map[string]bool)
 	for _, name := range names {
-		p, ok := r.PolicyMap[name]
+		p, ok := r.policyMap[name]
 		if !ok {
 			return nil, def, fmt.Errorf("not found policy %s", name)
 		}
+		if seen[name] {
+			return nil, def, fmt.Errorf("duplicated policy %s", name)
+		}
+		seen[name] = true
 		ps = append(ps, p)
 	}
 	return ps, def, nil
 }
 
-func (r *RoutingPolicy) InUse(d DefinedSet) bool {
+func (r *RoutingPolicy) validateCondition(v Condition) (err error) {
+	switch v.Type() {
+	case CONDITION_PREFIX:
+		m := r.definedSetMap[DEFINED_TYPE_PREFIX]
+		if i, ok := m[v.Name()]; !ok {
+			return fmt.Errorf("not found prefix set %s", v.Name())
+		} else {
+			c := v.(*PrefixCondition)
+			c.set = i.(*PrefixSet)
+		}
+	case CONDITION_NEIGHBOR:
+		m := r.definedSetMap[DEFINED_TYPE_NEIGHBOR]
+		if i, ok := m[v.Name()]; !ok {
+			return fmt.Errorf("not found neighbor set %s", v.Name())
+		} else {
+			c := v.(*NeighborCondition)
+			c.set = i.(*NeighborSet)
+		}
+	case CONDITION_AS_PATH:
+		m := r.definedSetMap[DEFINED_TYPE_AS_PATH]
+		if i, ok := m[v.Name()]; !ok {
+			return fmt.Errorf("not found as path set %s", v.Name())
+		} else {
+			c := v.(*AsPathCondition)
+			c.set = i.(*AsPathSet)
+		}
+	case CONDITION_COMMUNITY:
+		m := r.definedSetMap[DEFINED_TYPE_COMMUNITY]
+		if i, ok := m[v.Name()]; !ok {
+			return fmt.Errorf("not found community set %s", v.Name())
+		} else {
+			c := v.(*CommunityCondition)
+			c.set = i.(*CommunitySet)
+		}
+	case CONDITION_EXT_COMMUNITY:
+		m := r.definedSetMap[DEFINED_TYPE_EXT_COMMUNITY]
+		if i, ok := m[v.Name()]; !ok {
+			return fmt.Errorf("not found ext-community set %s", v.Name())
+		} else {
+			c := v.(*ExtCommunityCondition)
+			c.set = i.(*ExtCommunitySet)
+		}
+	case CONDITION_AS_PATH_LENGTH:
+	case CONDITION_RPKI:
+	}
+	return nil
+}
+
+func (r *RoutingPolicy) inUse(d DefinedSet) bool {
 	name := d.Name()
-	for _, p := range r.PolicyMap {
+	for _, p := range r.policyMap {
 		for _, s := range p.Statements {
 			for _, c := range s.Conditions {
 				if c.Set().Name() == name {
@@ -2649,8 +2402,8 @@ func (r *RoutingPolicy) InUse(d DefinedSet) bool {
 	return false
 }
 
-func (r *RoutingPolicy) StatementInUse(x *Statement) bool {
-	for _, p := range r.PolicyMap {
+func (r *RoutingPolicy) statementInUse(x *Statement) bool {
+	for _, p := range r.policyMap {
 		for _, y := range p.Statements {
 			if x.Name == y.Name {
 				return true
@@ -2660,27 +2413,33 @@ func (r *RoutingPolicy) StatementInUse(x *Statement) bool {
 	return false
 }
 
-func NewRoutingPolicy(c config.RoutingPolicy) (*RoutingPolicy, error) {
+func (r *RoutingPolicy) reload(c config.RoutingPolicy) error {
 	dmap := make(map[DefinedType]map[string]DefinedSet)
 	dmap[DEFINED_TYPE_PREFIX] = make(map[string]DefinedSet)
 	d := c.DefinedSets
-	for _, x := range d.PrefixSets.PrefixSetList {
+	for _, x := range d.PrefixSets {
 		y, err := NewPrefixSet(x)
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if y == nil {
+			return fmt.Errorf("empty prefix set")
 		}
 		dmap[DEFINED_TYPE_PREFIX][y.Name()] = y
 	}
 	dmap[DEFINED_TYPE_NEIGHBOR] = make(map[string]DefinedSet)
-	for _, x := range d.NeighborSets.NeighborSetList {
+	for _, x := range d.NeighborSets {
 		y, err := NewNeighborSet(x)
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if y == nil {
+			return fmt.Errorf("empty neighbor set")
 		}
 		dmap[DEFINED_TYPE_NEIGHBOR][y.Name()] = y
 	}
 	//	dmap[DEFINED_TYPE_TAG] = make(map[string]DefinedSet)
-	//	for _, x := range c.DefinedSets.TagSets.TagSetList {
+	//	for _, x := range c.DefinedSets.TagSets{
 	//		y, err := NewTagSet(x)
 	//		if err != nil {
 	//			return nil, err
@@ -2689,59 +2448,557 @@ func NewRoutingPolicy(c config.RoutingPolicy) (*RoutingPolicy, error) {
 	//	}
 	bd := c.DefinedSets.BgpDefinedSets
 	dmap[DEFINED_TYPE_AS_PATH] = make(map[string]DefinedSet)
-	for _, x := range bd.AsPathSets.AsPathSetList {
+	for _, x := range bd.AsPathSets {
 		y, err := NewAsPathSet(x)
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if y == nil {
+			return fmt.Errorf("empty as path set")
 		}
 		dmap[DEFINED_TYPE_AS_PATH][y.Name()] = y
 	}
 	dmap[DEFINED_TYPE_COMMUNITY] = make(map[string]DefinedSet)
-	for _, x := range bd.CommunitySets.CommunitySetList {
+	for _, x := range bd.CommunitySets {
 		y, err := NewCommunitySet(x)
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if y == nil {
+			return fmt.Errorf("empty community set")
 		}
 		dmap[DEFINED_TYPE_COMMUNITY][y.Name()] = y
 	}
 	dmap[DEFINED_TYPE_EXT_COMMUNITY] = make(map[string]DefinedSet)
-	for _, x := range bd.ExtCommunitySets.ExtCommunitySetList {
+	for _, x := range bd.ExtCommunitySets {
 		y, err := NewExtCommunitySet(x)
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if y == nil {
+			return fmt.Errorf("empty ext-community set")
 		}
 		dmap[DEFINED_TYPE_EXT_COMMUNITY][y.Name()] = y
 	}
 	pmap := make(map[string]*Policy)
 	smap := make(map[string]*Statement)
-	for _, x := range c.PolicyDefinitions.PolicyDefinitionList {
-		y, err := NewPolicy(x, dmap)
+	for _, x := range c.PolicyDefinitions {
+		y, err := NewPolicy(x)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		pmap[y.Name()] = y
+		if _, ok := pmap[y.Name]; ok {
+			return fmt.Errorf("duplicated policy name. policy name must be unique.")
+		}
+		pmap[y.Name] = y
 		for _, s := range y.Statements {
 			_, ok := smap[s.Name]
 			if ok {
-				return nil, fmt.Errorf("duplicated statement name. statement name must be unique.")
+				return fmt.Errorf("duplicated statement name. statement name must be unique.")
 			}
 			smap[s.Name] = s
 		}
 	}
+
+	// hacky
+	oldMap := r.definedSetMap
+	r.definedSetMap = dmap
+	for _, y := range pmap {
+		for _, s := range y.Statements {
+			for _, c := range s.Conditions {
+				if err := r.validateCondition(c); err != nil {
+					r.definedSetMap = oldMap
+					return err
+				}
+			}
+		}
+	}
+
+	r.definedSetMap = dmap
+	r.policyMap = pmap
+	r.statementMap = smap
+	r.assignmentMap = make(map[string]*Assignment)
+	return nil
+}
+
+func (r *RoutingPolicy) GetDefinedSet(typ DefinedType) (*config.DefinedSets, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	set, ok := r.definedSetMap[typ]
+	if !ok {
+		return nil, fmt.Errorf("invalid defined-set type: %d", typ)
+	}
+	sets := &config.DefinedSets{
+		PrefixSets:   make([]config.PrefixSet, 0),
+		NeighborSets: make([]config.NeighborSet, 0),
+		BgpDefinedSets: config.BgpDefinedSets{
+			CommunitySets:    make([]config.CommunitySet, 0),
+			ExtCommunitySets: make([]config.ExtCommunitySet, 0),
+			AsPathSets:       make([]config.AsPathSet, 0),
+		},
+	}
+	for _, s := range set {
+		switch s.(type) {
+		case *PrefixSet:
+			sets.PrefixSets = append(sets.PrefixSets, *s.(*PrefixSet).ToConfig())
+		case *NeighborSet:
+			sets.NeighborSets = append(sets.NeighborSets, *s.(*NeighborSet).ToConfig())
+		case *CommunitySet:
+			sets.BgpDefinedSets.CommunitySets = append(sets.BgpDefinedSets.CommunitySets, *s.(*CommunitySet).ToConfig())
+		case *ExtCommunitySet:
+			sets.BgpDefinedSets.ExtCommunitySets = append(sets.BgpDefinedSets.ExtCommunitySets, *s.(*ExtCommunitySet).ToConfig())
+		case *AsPathSet:
+			sets.BgpDefinedSets.AsPathSets = append(sets.BgpDefinedSets.AsPathSets, *s.(*AsPathSet).ToConfig())
+		}
+	}
+	return sets, nil
+}
+
+func (r *RoutingPolicy) AddDefinedSet(s DefinedSet) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if m, ok := r.definedSetMap[s.Type()]; !ok {
+		return fmt.Errorf("invalid defined-set type: %d", s.Type())
+	} else {
+		if d, ok := m[s.Name()]; ok {
+			if err := d.Append(s); err != nil {
+				return err
+			}
+		} else {
+			m[s.Name()] = s
+		}
+	}
+	return nil
+}
+
+func (r *RoutingPolicy) DeleteDefinedSet(a DefinedSet, all bool) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if m, ok := r.definedSetMap[a.Type()]; !ok {
+		err = fmt.Errorf("invalid defined-set type: %d", a.Type())
+	} else {
+		d, ok := m[a.Name()]
+		if !ok {
+			return fmt.Errorf("not found defined-set: %s", a.Name())
+		}
+		if all {
+			if r.inUse(d) {
+				err = fmt.Errorf("can't delete. defined-set %s is in use", a.Name())
+			} else {
+				delete(m, a.Name())
+			}
+		} else {
+			err = d.Remove(a)
+		}
+	}
+	return err
+}
+
+func (r *RoutingPolicy) ReplaceDefinedSet(a DefinedSet) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if m, ok := r.definedSetMap[a.Type()]; !ok {
+		err = fmt.Errorf("invalid defined-set type: %d", a.Type())
+	} else {
+		if d, ok := m[a.Name()]; !ok {
+			err = fmt.Errorf("not found defined-set: %s", a.Name())
+		} else {
+			err = d.Replace(a)
+		}
+	}
+	return err
+}
+
+func (r *RoutingPolicy) GetStatement() []*config.Statement {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	l := make([]*config.Statement, 0, len(r.statementMap))
+	for _, st := range r.statementMap {
+		l = append(l, st.ToConfig())
+	}
+	return l
+}
+
+func (r *RoutingPolicy) AddStatement(st *Statement) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, c := range st.Conditions {
+		if err = r.validateCondition(c); err != nil {
+			return
+		}
+	}
+	m := r.statementMap
+	name := st.Name
+	if d, ok := m[name]; ok {
+		err = d.Add(st)
+	} else {
+		m[name] = st
+	}
+
+	return err
+}
+
+func (r *RoutingPolicy) DeleteStatement(st *Statement, all bool) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	m := r.statementMap
+	name := st.Name
+	if d, ok := m[name]; ok {
+		if all {
+			if r.statementInUse(d) {
+				err = fmt.Errorf("can't delete. statement %s is in use", name)
+			} else {
+				delete(m, name)
+			}
+		} else {
+			err = d.Remove(st)
+		}
+	} else {
+		err = fmt.Errorf("not found statement: %s", name)
+	}
+	return err
+}
+
+func (r *RoutingPolicy) ReplaceStatement(st *Statement) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	m := r.statementMap
+	name := st.Name
+	if d, ok := m[name]; ok {
+		err = d.Replace(st)
+	} else {
+		err = fmt.Errorf("not found statement: %s", name)
+	}
+	return err
+}
+
+func (r *RoutingPolicy) GetAllPolicy() []*config.PolicyDefinition {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	l := make([]*config.PolicyDefinition, 0, len(r.policyMap))
+	for _, p := range r.policyMap {
+		l = append(l, p.ToConfig())
+	}
+	return l
+}
+
+func (r *RoutingPolicy) AddPolicy(x *Policy, refer bool) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, st := range x.Statements {
+		for _, c := range st.Conditions {
+			if err = r.validateCondition(c); err != nil {
+				return
+			}
+		}
+	}
+
+	pMap := r.policyMap
+	sMap := r.statementMap
+	name := x.Name
+	y, ok := pMap[name]
+	if refer {
+		err = x.FillUp(sMap)
+	} else {
+		for _, st := range x.Statements {
+			if _, ok := sMap[st.Name]; ok {
+				err = fmt.Errorf("statement %s already defined", st.Name)
+				return
+			}
+			sMap[st.Name] = st
+		}
+	}
+	if ok {
+		err = y.Add(x)
+	} else {
+		pMap[name] = x
+	}
+
+	return err
+}
+
+func (r *RoutingPolicy) DeletePolicy(x *Policy, all, preserve bool, activeId []string) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	pMap := r.policyMap
+	sMap := r.statementMap
+	name := x.Name
+	y, ok := pMap[name]
+	if !ok {
+		err = fmt.Errorf("not found policy: %s", name)
+		return
+	}
+	inUse := func(ids []string) bool {
+		for _, id := range ids {
+			for _, dir := range []PolicyDirection{POLICY_DIRECTION_IN, POLICY_DIRECTION_EXPORT, POLICY_DIRECTION_EXPORT} {
+				for _, y := range r.getPolicy(id, dir) {
+					if x.Name == y.Name {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+
+	if all {
+		if inUse(activeId) {
+			err = fmt.Errorf("can't delete. policy %s is in use", name)
+			return
+		}
+		log.WithFields(log.Fields{
+			"Topic": "Policy",
+			"Key":   name,
+		}).Debug("delete policy")
+		delete(pMap, name)
+	} else {
+		err = y.Remove(x)
+	}
+	if err == nil && !preserve {
+		for _, st := range y.Statements {
+			if !r.statementInUse(st) {
+				log.WithFields(log.Fields{
+					"Topic": "Policy",
+					"Key":   st.Name,
+				}).Debug("delete unused statement")
+				delete(sMap, st.Name)
+			}
+		}
+	}
+	return err
+}
+
+func (r *RoutingPolicy) ReplacePolicy(x *Policy, refer, preserve bool) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, st := range x.Statements {
+		for _, c := range st.Conditions {
+			if err = r.validateCondition(c); err != nil {
+				return
+			}
+		}
+	}
+
+	pMap := r.policyMap
+	sMap := r.statementMap
+	name := x.Name
+	y, ok := pMap[name]
+	if !ok {
+		err = fmt.Errorf("not found policy: %s", name)
+		return
+	}
+	if refer {
+		if err = x.FillUp(sMap); err != nil {
+			return
+		}
+	} else {
+		for _, st := range x.Statements {
+			if _, ok := sMap[st.Name]; ok {
+				err = fmt.Errorf("statement %s already defined", st.Name)
+				return
+			}
+			sMap[st.Name] = st
+		}
+	}
+
+	err = y.Replace(x)
+	if err == nil && !preserve {
+		for _, st := range y.Statements {
+			if !r.statementInUse(st) {
+				log.WithFields(log.Fields{
+					"Topic": "Policy",
+					"Key":   st.Name,
+				}).Debug("delete unused statement")
+				delete(sMap, st.Name)
+			}
+		}
+	}
+	return err
+}
+
+func (r *RoutingPolicy) GetPolicyAssignment(id string, dir PolicyDirection) (RouteType, []*config.PolicyDefinition, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rt := r.getDefaultPolicy(id, dir)
+
+	ps := r.getPolicy(id, dir)
+	l := make([]*config.PolicyDefinition, 0, len(ps))
+	for _, p := range ps {
+		l = append(l, p.ToConfig())
+	}
+	return rt, l, nil
+}
+
+func (r *RoutingPolicy) AddPolicyAssignment(id string, dir PolicyDirection, policies []*config.PolicyDefinition, def RouteType) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ps := make([]*Policy, 0, len(policies))
+	seen := make(map[string]bool)
+	for _, x := range policies {
+		p, ok := r.policyMap[x.Name]
+		if !ok {
+			err = fmt.Errorf("not found policy %s", x.Name)
+			return
+		}
+		if seen[x.Name] {
+			err = fmt.Errorf("duplicated policy %s", x.Name)
+			return
+		}
+		seen[x.Name] = true
+		ps = append(ps, p)
+	}
+	cur := r.getPolicy(id, dir)
+	if cur == nil {
+		err = r.setPolicy(id, dir, ps)
+	} else {
+		seen = make(map[string]bool)
+		ps = append(cur, ps...)
+		for _, x := range ps {
+			if seen[x.Name] {
+				err = fmt.Errorf("duplicated policy %s", x.Name)
+				return
+			}
+			seen[x.Name] = true
+		}
+		err = r.setPolicy(id, dir, ps)
+	}
+	if err == nil && def != ROUTE_TYPE_NONE {
+		err = r.setDefaultPolicy(id, dir, def)
+	}
+	return err
+}
+
+func (r *RoutingPolicy) DeletePolicyAssignment(id string, dir PolicyDirection, policies []*config.PolicyDefinition, all bool) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ps := make([]*Policy, 0, len(policies))
+	seen := make(map[string]bool)
+	for _, x := range policies {
+		p, ok := r.policyMap[x.Name]
+		if !ok {
+			err = fmt.Errorf("not found policy %s", x.Name)
+			return
+		}
+		if seen[x.Name] {
+			err = fmt.Errorf("duplicated policy %s", x.Name)
+			return
+		}
+		seen[x.Name] = true
+		ps = append(ps, p)
+	}
+	cur := r.getPolicy(id, dir)
+
+	if all {
+		err = r.setPolicy(id, dir, nil)
+		if err != nil {
+			return
+		}
+		err = r.setDefaultPolicy(id, dir, ROUTE_TYPE_NONE)
+	} else {
+		n := make([]*Policy, 0, len(cur)-len(ps))
+		for _, y := range cur {
+			found := false
+			for _, x := range ps {
+				if x.Name == y.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				n = append(n, y)
+			}
+		}
+		err = r.setPolicy(id, dir, n)
+	}
+	return err
+}
+
+func (r *RoutingPolicy) ReplacePolicyAssignment(id string, dir PolicyDirection, policies []*config.PolicyDefinition, def RouteType) (err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ps := make([]*Policy, 0, len(policies))
+	seen := make(map[string]bool)
+	for _, x := range policies {
+		p, ok := r.policyMap[x.Name]
+		if !ok {
+			err = fmt.Errorf("not found policy %s", x.Name)
+			return
+		}
+		if seen[x.Name] {
+			err = fmt.Errorf("duplicated policy %s", x.Name)
+			return
+		}
+		seen[x.Name] = true
+		ps = append(ps, p)
+	}
+	r.getPolicy(id, dir)
+	err = r.setPolicy(id, dir, ps)
+	if err == nil && def != ROUTE_TYPE_NONE {
+		err = r.setDefaultPolicy(id, dir, def)
+	}
+	return err
+}
+
+func (r *RoutingPolicy) Reset(rp *config.RoutingPolicy, ap map[string]config.ApplyPolicy) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if rp != nil {
+		if err := r.reload(*rp); err != nil {
+			log.WithFields(log.Fields{
+				"Topic": "Policy",
+			}).Errorf("failed to create routing policy: %s", err)
+			return err
+		}
+	}
+
+	for id, c := range ap {
+		for _, dir := range []PolicyDirection{POLICY_DIRECTION_IN, POLICY_DIRECTION_IMPORT, POLICY_DIRECTION_EXPORT} {
+			ps, def, err := r.getAssignmentFromConfig(dir, c)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"Topic": "Policy",
+					"Dir":   dir,
+				}).Errorf("failed to get policy info: %s", err)
+				continue
+			}
+			r.setDefaultPolicy(id, dir, def)
+			r.setPolicy(id, dir, ps)
+		}
+	}
+	return nil
+}
+
+func NewRoutingPolicy() *RoutingPolicy {
 	return &RoutingPolicy{
-		DefinedSetMap: dmap,
-		PolicyMap:     pmap,
-		StatementMap:  smap,
-	}, nil
+		definedSetMap: make(map[DefinedType]map[string]DefinedSet),
+		policyMap:     make(map[string]*Policy),
+		statementMap:  make(map[string]*Statement),
+		assignmentMap: make(map[string]*Assignment),
+	}
 }
 
 func CanImportToVrf(v *Vrf, path *Path) bool {
-	f := func(arg []bgp.ExtendedCommunityInterface) []config.ExtCommunity {
-		ret := make([]config.ExtCommunity, 0, len(arg))
+	f := func(arg []bgp.ExtendedCommunityInterface) []string {
+		ret := make([]string, 0, len(arg))
 		for _, a := range arg {
-			ret = append(ret, config.ExtCommunity{
-				ExtCommunity: fmt.Sprintf("RT:%s", a.String()),
-			})
+			ret = append(ret, fmt.Sprintf("RT:%s", a.String()))
 		}
 		return ret
 	}
@@ -2753,14 +3010,7 @@ func CanImportToVrf(v *Vrf, path *Path) bool {
 		ExtCommunitySet: v.Name,
 		MatchSetOptions: config.MATCH_SET_OPTIONS_TYPE_ANY,
 	}
-	c, _ := NewExtCommunityCondition(matchSet, map[string]DefinedSet{v.Name: set})
-	return c.Evaluate(path)
-}
-
-func PoliciesToString(ps []*api.Policy) []string {
-	names := make([]string, 0, len(ps))
-	for _, p := range ps {
-		names = append(names, p.Name)
-	}
-	return names
+	c, _ := NewExtCommunityCondition(matchSet)
+	c.set = set
+	return c.Evaluate(path, nil)
 }

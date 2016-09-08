@@ -61,7 +61,7 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 	containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
-		_, err = s.CheckBgpRouteDistribution(c, containers)
+		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
 
@@ -200,7 +200,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 		containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
-			_, err = s.CheckBgpRouteDistribution(c, containers)
+			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
 
@@ -387,7 +387,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 					endChan <- err
 
 					if s.fwdMode == "routing" && encap == "vlan" {
-						_, err := s.CheckBgpRouteDistribution(c, containers[groupName])
+						err := s.CheckBgpRouteDistribution(c, containers[groupName])
 						c.Assert(err, IsNil)
 					}
 
@@ -491,7 +491,7 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 	containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
-		_, err = s.CheckBgpRouteDistribution(c, containers)
+		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
 
@@ -756,14 +756,14 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 	containersNew, err := s.runContainers(s.containers, true, "private", "", NewGroupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
-		_, err = s.CheckBgpRouteDistribution(c, containersNew)
+		err = s.CheckBgpRouteDistribution(c, containersNew)
 		c.Assert(err, IsNil)
 	}
 
 	containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
-		_, err = s.CheckBgpRouteDistribution(c, containers)
+		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
 

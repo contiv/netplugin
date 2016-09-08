@@ -2,11 +2,12 @@ package systemtests
 
 import (
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	. "gopkg.in/check.v1"
-	"strconv"
-	"time"
 )
 
 func (s *systemtestSuite) TestPolicyBasicVXLAN(c *C) {
@@ -87,7 +88,7 @@ func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
 		containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
-			_, err = s.CheckBgpRouteDistribution(c, containers)
+			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
 		time.Sleep(15 * time.Second)
@@ -188,7 +189,7 @@ func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 	containers, err := s.runContainers(s.containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
-		_, err = s.CheckBgpRouteDistribution(c, containers)
+		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
 	time.Sleep(15 * time.Second)
@@ -329,7 +330,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 		containers, err := s.runContainers(s.containers, true, "private", "", policyNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
-			_, err = s.CheckBgpRouteDistribution(c, containers)
+			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
 
@@ -342,7 +343,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 		c.Assert(err, IsNil)
 
 		if s.fwdMode == "routing" && encap == "vlan" {
-			_, err = s.CheckBgpRouteDistribution(c, cmnContainers)
+			err = s.CheckBgpRouteDistribution(c, cmnContainers)
 			c.Assert(err, IsNil)
 		}
 		time.Sleep(15 * time.Second)
@@ -439,9 +440,9 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 	container2, err := s.nodes[0].exec.runContainer(containerSpec{name: "srv2-private", serviceName: "srv2", networkName: "private"})
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
-		_, err = s.CheckBgpRouteDistribution(c, []*container{container1})
+		err = s.CheckBgpRouteDistribution(c, []*container{container1})
 		c.Assert(err, IsNil)
-		_, err = s.CheckBgpRouteDistribution(c, []*container{container2})
+		err = s.CheckBgpRouteDistribution(c, []*container{container2})
 		c.Assert(err, IsNil)
 
 	}

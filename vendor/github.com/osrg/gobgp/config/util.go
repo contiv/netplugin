@@ -16,13 +16,14 @@
 package config
 
 import (
-	"github.com/osrg/gobgp/packet"
+	"fmt"
+	"github.com/osrg/gobgp/packet/bgp"
 )
 
 func IsConfederationMember(g *Global, p *Neighbor) bool {
-	if p.NeighborConfig.PeerAs != g.GlobalConfig.As {
-		for _, member := range g.Confederation.ConfederationConfig.MemberAs {
-			if member == p.NeighborConfig.PeerAs {
+	if p.Config.PeerAs != g.Config.As {
+		for _, member := range g.Confederation.Config.MemberAsList {
+			if member == p.Config.PeerAs {
 				return true
 			}
 		}
@@ -31,14 +32,53 @@ func IsConfederationMember(g *Global, p *Neighbor) bool {
 }
 
 func IsEBGPPeer(g *Global, p *Neighbor) bool {
-	return p.NeighborConfig.PeerAs != g.GlobalConfig.As
+	return p.Config.PeerAs != g.Config.As
+}
+
+type AfiSafis []AfiSafi
+
+func (c AfiSafis) ToRfList() ([]bgp.RouteFamily, error) {
+	rfs := make([]bgp.RouteFamily, 0, len(c))
+	for _, rf := range c {
+		k, err := bgp.GetRouteFamily(string(rf.Config.AfiSafiName))
+		if err != nil {
+			return nil, fmt.Errorf("invalid address family: %s", rf.Config.AfiSafiName)
+		}
+		rfs = append(rfs, k)
+	}
+	return rfs, nil
 }
 
 func CreateRfMap(p *Neighbor) map[bgp.RouteFamily]bool {
+	rfs, _ := AfiSafis(p.AfiSafis).ToRfList()
 	rfMap := make(map[bgp.RouteFamily]bool)
-	for _, rf := range p.AfiSafis.AfiSafiList {
-		k, _ := bgp.GetRouteFamily(rf.AfiSafiName)
-		rfMap[k] = true
+	for _, rf := range rfs {
+		rfMap[rf] = true
 	}
 	return rfMap
+}
+
+func GetAfiSafi(p *Neighbor, family bgp.RouteFamily) *AfiSafi {
+	for _, a := range p.AfiSafis {
+		if string(a.Config.AfiSafiName) == family.String() {
+			return &a
+		}
+	}
+	return nil
+}
+
+func CheckAfiSafisChange(x, y []AfiSafi) bool {
+	if len(x) != len(y) {
+		return true
+	}
+	m := make(map[string]bool)
+	for _, e := range x {
+		m[string(e.Config.AfiSafiName)] = true
+	}
+	for _, e := range y {
+		if !m[string(e.Config.AfiSafiName)] {
+			return true
+		}
+	}
+	return false
 }

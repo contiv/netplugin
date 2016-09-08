@@ -31,6 +31,12 @@ source /etc/profile.d/envvar.sh
 # Change permissions for gopath folder
 chown -R vagrant #{gopath_folder}
 
+start docker daemon
+systemctl start docker
+
+# Start OVS if required
+systemctl start openvswitch
+
 # Setup OVSDB listener
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
@@ -39,8 +45,9 @@ SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-    config.vm.box = "contiv/ubuntu1504-netplugin"
-    config.vm.box_version = "0.3.1"
+    config.vm.box = "contiv/centos72"
+    config.vm.box_version = "0.7.0"
+    config.ssh.insert_key = false
     num_nodes = 1
     base_ip = "192.168.11."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
