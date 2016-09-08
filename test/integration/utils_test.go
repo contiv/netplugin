@@ -323,6 +323,10 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 		return err
 	}
 	output := strings.Split(str, "rate ")
+	if len(output) < 2 {
+		log.Errorf("Got `tc -s filter show dev` output:\n%s", output)
+		return fmt.Errorf("Unexpected `tc -s filter show dev` output")
+	}
 	rate := strings.Split(output[1], "burst")
 	regex := regexp.MustCompile("[0-9]+")
 	outputStr := regex.FindAllString(rate[0], -1)

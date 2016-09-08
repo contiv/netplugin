@@ -106,7 +106,7 @@ func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 		}
 		if s.fwdMode == "routing" && encap == "vlan" {
 			for _, cList := range containers {
-				_, err := s.CheckBgpRouteDistribution(c, cList)
+				err := s.CheckBgpRouteDistribution(c, cList)
 				c.Assert(err, IsNil)
 			}
 		}
@@ -274,7 +274,7 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 
 		if s.fwdMode == "routing" && encap == "vlan" {
 			for _, cList := range containers {
-				_, err := s.CheckBgpRouteDistribution(c, cList)
+				err := s.CheckBgpRouteDistribution(c, cList)
 				c.Assert(err, IsNil)
 			}
 		}
@@ -473,7 +473,7 @@ func (s *systemtestSuite) testServiceSequenceProviderAddServiceAdd(c *C, encap s
 	}
 	if s.fwdMode == "routing" && encap == "vlan" {
 		for _, cList := range containers {
-			_, err := s.CheckBgpRouteDistribution(c, cList)
+			err := s.CheckBgpRouteDistribution(c, cList)
 			c.Assert(err, IsNil)
 		}
 	}
@@ -645,7 +645,7 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 		}
 		if s.fwdMode == "routing" && encap == "vlan" {
 			for _, cList := range containers {
-				_, err := s.CheckBgpRouteDistribution(c, cList)
+				err := s.CheckBgpRouteDistribution(c, cList)
 				c.Assert(err, IsNil)
 			}
 		}
@@ -860,7 +860,7 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 		}
 		if s.fwdMode == "routing" && encap == "vlan" {
 			for _, cList := range containers {
-				_, err := s.CheckBgpRouteDistribution(c, cList)
+				err := s.CheckBgpRouteDistribution(c, cList)
 				c.Assert(err, IsNil)
 			}
 		}
@@ -907,7 +907,7 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 			if s.fwdMode == "routing" && encap == "vlan" {
 				s.CheckBgpConnection(c)
 				for _, cList := range containers {
-					_, err := s.CheckBgpRouteDistribution(c, cList)
+					err := s.CheckBgpRouteDistribution(c, cList)
 					c.Assert(err, IsNil)
 				}
 			} else {
@@ -1019,7 +1019,7 @@ func (s *systemtestSuite) addProviders(c *C, labels []string, numProviders int, 
 	containers, err = s.runContainers(numProviders, false, netName, tenant, names, labels)
 	c.Assert(err, IsNil)
 	if s.fwdMode == "routing" && encap == "vlan" {
-		_, err = s.CheckBgpRouteDistribution(c, containers)
+		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
 	return containers
