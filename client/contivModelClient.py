@@ -436,6 +436,16 @@ class objmodelClient:
 
 
 
+	# Inspect policy
+	def createPolicy(self, obj):
+	    postUrl = self.baseUrl + '/api/v1/inspect/policy/' + obj.tenantName + ":" + obj.policyName  + '/'
+
+	    retDate = urllib2.urlopen(postUrl)
+	    if retData == "Error":
+	        errorExit("list Policy failed")
+
+	    return json.loads(retData)
+
 
 	# Create rule
 	def createRule(self, obj):
@@ -569,6 +579,16 @@ class objmodelClient:
 	    return json.loads(retData)
 
 
+
+	# Inspect tenant
+	def createTenant(self, obj):
+	    postUrl = self.baseUrl + '/api/v1/inspect/tenant/' + obj.tenantName  + '/'
+
+	    retDate = urllib2.urlopen(postUrl)
+	    if retData == "Error":
+	        errorExit("list Tenant failed")
+
+	    return json.loads(retData)
 
 
 	# Create volume

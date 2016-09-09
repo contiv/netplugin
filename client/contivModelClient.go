@@ -250,7 +250,7 @@ type EndpointGroupLinks struct {
 type EndpointGroupOper struct {
 	Endpoints      []EndpointOper `json:"endpoints,omitempty"`
 	ExternalPktTag int            `json:"externalPktTag,omitempty"` // external packet tag
-	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // external packet tag
+	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // number of endpoints
 	PktTag         int            `json:"pktTag,omitempty"`         // internal packet tag
 
 }
@@ -404,8 +404,17 @@ type PolicyLinks struct {
 	Tenant Link `json:"Tenant,omitempty"`
 }
 
+type PolicyOper struct {
+	Endpoints        []EndpointOper `json:"endpoints,omitempty"`
+	NumEndpoints     int            `json:"numEndpoints,omitempty"`     // number of endpoints
+	PolicyViolations int            `json:"policyViolations,omitempty"` // number of policyViolations
+
+}
+
 type PolicyInspect struct {
 	Config Policy
+
+	Oper PolicyOper
 }
 
 type Rule struct {
@@ -498,8 +507,26 @@ type TenantLinkSets struct {
 	Volumes        map[string]Link `json:"Volumes,omitempty"`
 }
 
+type TenantOper struct {
+	EndpointGroups   []EndpointGroupOper `json:"endpointGroups,omitempty"`
+	Endpoints        []EndpointOper      `json:"endpoints,omitempty"`
+	Networks         []NetworkOper       `json:"networks,omitempty"`
+	Policies         []PolicyOper        `json:"policies,omitempty"`
+	Servicelbs       []ServiceLBOper     `json:"servicelbs,omitempty"`
+	TotalAppProfiles int                 `json:"totalAppProfiles,omitempty"` // total number of App-Profiles
+	TotalEPGs        int                 `json:"totalEPGs,omitempty"`        // total number of EPGs
+	TotalEndpoints   int                 `json:"totalEndpoints,omitempty"`   // total number of endpoints in the tenant
+	TotalNetprofiles int                 `json:"totalNetprofiles,omitempty"` // total number of Netprofiles
+	TotalNetworks    int                 `json:"totalNetworks,omitempty"`    // total number of networks
+	TotalPolicies    int                 `json:"totalPolicies,omitempty"`    // total number of totalPolicies
+	TotalServicelbs  int                 `json:"totalServicelbs,omitempty"`  // total number of Servicelbs
+
+}
+
 type TenantInspect struct {
 	Config Tenant
+
+	Oper TenantOper
 }
 
 type Volume struct {

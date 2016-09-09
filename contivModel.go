@@ -124,7 +124,7 @@ type EndpointGroupLinks struct {
 type EndpointGroupOper struct {
 	Endpoints      []EndpointOper `json:"endpoints,omitempty"`
 	ExternalPktTag int            `json:"externalPktTag,omitempty"` // external packet tag
-	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // external packet tag
+	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // number of endpoints
 	PktTag         int            `json:"pktTag,omitempty"`         // internal packet tag
 
 }
@@ -278,8 +278,17 @@ type PolicyLinks struct {
 	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
+type PolicyOper struct {
+	Endpoints        []EndpointOper `json:"endpoints,omitempty"`
+	NumEndpoints     int            `json:"numEndpoints,omitempty"`     // number of endpoints
+	PolicyViolations int            `json:"policyViolations,omitempty"` // number of policyViolations
+
+}
+
 type PolicyInspect struct {
 	Config Policy
+
+	Oper PolicyOper
 }
 
 type Rule struct {
@@ -372,8 +381,26 @@ type TenantLinkSets struct {
 	Volumes        map[string]modeldb.Link `json:"Volumes,omitempty"`
 }
 
+type TenantOper struct {
+	EndpointGroups   []EndpointGroupOper `json:"endpointGroups,omitempty"`
+	Endpoints        []EndpointOper      `json:"endpoints,omitempty"`
+	Networks         []NetworkOper       `json:"networks,omitempty"`
+	Policies         []PolicyOper        `json:"policies,omitempty"`
+	Servicelbs       []ServiceLBOper     `json:"servicelbs,omitempty"`
+	TotalAppProfiles int                 `json:"totalAppProfiles,omitempty"` // total number of App-Profiles
+	TotalEPGs        int                 `json:"totalEPGs,omitempty"`        // total number of EPGs
+	TotalEndpoints   int                 `json:"totalEndpoints,omitempty"`   // total number of endpoints in the tenant
+	TotalNetprofiles int                 `json:"totalNetprofiles,omitempty"` // total number of Netprofiles
+	TotalNetworks    int                 `json:"totalNetworks,omitempty"`    // total number of networks
+	TotalPolicies    int                 `json:"totalPolicies,omitempty"`    // total number of totalPolicies
+	TotalServicelbs  int                 `json:"totalServicelbs,omitempty"`  // total number of Servicelbs
+
+}
+
 type TenantInspect struct {
 	Config Tenant
+
+	Oper TenantOper
 }
 
 type Volume struct {
@@ -505,6 +532,8 @@ type NetworkCallbacks interface {
 }
 
 type PolicyCallbacks interface {
+	PolicyGetOper(policy *PolicyInspect) error
+
 	PolicyCreate(policy *Policy) error
 	PolicyUpdate(policy, params *Policy) error
 	PolicyDelete(policy *Policy) error
@@ -525,6 +554,8 @@ type ServiceLBCallbacks interface {
 }
 
 type TenantCallbacks interface {
+	TenantGetOper(tenant *TenantInspect) error
+
 	TenantCreate(tenant *Tenant) error
 	TenantUpdate(tenant, params *Tenant) error
 	TenantDelete(tenant *Tenant) error
@@ -3022,8 +3053,31 @@ func httpInspectPolicy(w http.ResponseWriter, r *http.Request, vars map[string]s
 	}
 	obj.Config = *objConfig
 
+	if err := GetOperPolicy(&obj); err != nil {
+		log.Errorf("GetPolicy error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a policyOper object
+func GetOperPolicy(obj *PolicyInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.PolicyCb == nil {
+		log.Errorf("No callback registered for policy object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.PolicyCb.PolicyGetOper(obj)
+	if err != nil {
+		log.Errorf("PolicyDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
 }
 
 // LIST REST call
@@ -3974,8 +4028,31 @@ func httpInspectTenant(w http.ResponseWriter, r *http.Request, vars map[string]s
 	}
 	obj.Config = *objConfig
 
+	if err := GetOperTenant(&obj); err != nil {
+		log.Errorf("GetTenant error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
 	// Return the obj
 	return &obj, nil
+}
+
+// Get a tenantOper object
+func GetOperTenant(obj *TenantInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.TenantCb == nil {
+		log.Errorf("No callback registered for tenant object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.TenantCb.TenantGetOper(obj)
+	if err != nil {
+		log.Errorf("TenantDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
 }
 
 // LIST REST call

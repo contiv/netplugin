@@ -60,7 +60,7 @@
 				},
 				"numEndpoints": {
 					"type": "int",
-					"title": "external packet tag"
+					"title": "number of endpoints"
 				},
 				"endpoints": {
 					"type": "array",

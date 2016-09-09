@@ -24,6 +24,21 @@
 					"showSummary": true
 				}
 			},
+			"operProperties": {
+				"numEndpoints": {
+					"type": "int",
+					"title": "number of endpoints"
+				},
+				"policyViolations": {
+					"type": "int",
+					"title": "number of policyViolations"
+				},
+				"endpoints": {
+					"type": "array",
+					"items": "endpoint",
+					"title": "endpoints associate with the policy"
+				}
+			},
 			"link-sets": {
 				"endpointGroups": {
 					"ref": "endpointGroup"
