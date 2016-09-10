@@ -23,6 +23,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
@@ -301,6 +302,22 @@ func ofctlFlowAssert(flowList []string, tableID int, matchStr string, expMatch b
 		log.Errorf("Flow %s in table %d not found in:\n%s", matchStr, tableID, strings.Join(flowList, "\n"))
 		c.Fatalf("Flow %s not found in table %d", matchStr, tableID)
 	}
+}
+
+// tcFilterCheckBwRetry check for tc bw with retry
+func tcFilterCheckBwRetry(expBw, expBurst int64) error {
+	var err error
+	for i := 0; i < 3; i++ {
+		err = tcFilterCheckBw(expBw, expBurst)
+		if err == nil {
+			return err
+		}
+
+		// wait a little and retry again
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	return err
 }
 
 // tcFilterCheckBw checks bandwidth using `tc` command
