@@ -432,7 +432,8 @@ func (d *OvsdbDriver) CreateVtep(intfName string, vtepRemoteIP string) error {
 	// Special handling for VTEP ports
 	intfOptions := make(map[string]interface{})
 	intfOptions["remote_ip"] = vtepRemoteIP
-	intfOptions["key"] = "flow" // Insert VNI per flow
+	intfOptions["key"] = "flow"    // Insert VNI per flow
+	intfOptions["tos"] = "inherit" // Copy DSCP from inner to outer IP header
 
 	intf["options"], err = libovsdb.NewOvsMap(intfOptions)
 	if err != nil {
