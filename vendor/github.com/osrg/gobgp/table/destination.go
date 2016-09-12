@@ -18,12 +18,14 @@ package table
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"net"
+	"sort"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/osrg/gobgp/config"
 	"github.com/osrg/gobgp/packet/bgp"
-	"net"
-	"sort"
 )
 
 var SelectionOptions config.RouteSelectionOptionsConfig
@@ -123,11 +125,11 @@ type Destination struct {
 	RadixKey      string
 }
 
-func NewDestination(nlri bgp.AddrPrefixInterface) *Destination {
+func NewDestination(nlri bgp.AddrPrefixInterface, known ...*Path) *Destination {
 	d := &Destination{
 		routeFamily:   bgp.AfiSafiToRouteFamily(nlri.AFI(), nlri.SAFI()),
 		nlri:          nlri,
-		knownPathList: make([]*Path, 0),
+		knownPathList: known,
 		withdrawList:  make([]*Path, 0),
 		newPathList:   make([]*Path, 0),
 	}
@@ -338,7 +340,7 @@ func (dest *Destination) explicitWithdraw() paths {
 				isFound = true
 				// this path is referenced in peer's adj-rib-in
 				// when there was no policy modification applied.
-				// we sould flag IsWithdraw down after use to avoid
+				// we could flag IsWithdraw down after use to avoid
 				// a path with IsWithdraw flag exists in adj-rib-in
 				path.IsWithdraw = true
 				matches = append(matches, withdraw)
@@ -847,6 +849,79 @@ func compareByAge(path1, path2 *Path) *Path {
 
 func (dest *Destination) String() string {
 	return fmt.Sprintf("Destination NLRI: %s", dest.nlri.String())
+}
+
+type DestinationSelectOption struct {
+	ID        string
+	VRF       *Vrf
+	adj       bool
+	Best      bool
+	MultiPath bool
+}
+
+func (d *Destination) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.GetAllKnownPathList())
+}
+
+func (old *Destination) Select(option ...DestinationSelectOption) *Destination {
+	id := GLOBAL_RIB_NAME
+	var vrf *Vrf
+	adj := false
+	best := false
+	mp := false
+	for _, o := range option {
+		if o.ID != "" {
+			id = o.ID
+		}
+		if o.VRF != nil {
+			vrf = o.VRF
+		}
+		adj = o.adj
+		best = o.Best
+		mp = o.MultiPath
+	}
+	var paths []*Path
+	if adj {
+		paths = old.knownPathList
+	} else {
+		paths = old.GetKnownPathList(id)
+		if vrf != nil {
+			ps := make([]*Path, 0, len(paths))
+			for _, p := range paths {
+				if CanImportToVrf(vrf, p) {
+					ps = append(ps, p)
+				}
+			}
+			paths = ps
+		}
+		if len(paths) == 0 {
+			return nil
+		}
+		if best {
+			if !mp {
+				paths = []*Path{paths[0]}
+			} else {
+				ps := make([]*Path, 0, len(paths))
+				var best *Path
+				for _, p := range paths {
+					if best == nil {
+						best = p
+						ps = append(ps, p)
+					} else if best.Compare(p) == 0 {
+						ps = append(ps, p)
+					}
+				}
+				paths = ps
+			}
+		}
+	}
+	new := NewDestination(old.nlri)
+	for _, path := range paths {
+		p := path.Clone(path.IsWithdraw)
+		p.Filter("", path.Filtered(id))
+		new.knownPathList = append(new.knownPathList, p)
+	}
+	return new
 }
 
 type destinations []*Destination

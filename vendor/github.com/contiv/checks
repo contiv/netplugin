@@ -1,0 +1,55 @@
+#!/bin/bash
+
+#performs basic dev and build environment checks
+
+USAGE="Usage: $0 <build packages>"
+
+if [ $# -ne 1 ]; then
+    echo $USAGE
+    exit 1
+fi
+
+BUILD_PKGS=$1
+
+echo "+++ Checking gofmt..."
+fmtRes=$(gofmt -l $BUILD_PKGS)
+if [ -n "${fmtRes}" ]; then
+    echo -e "!!! gofmt checking failed:\n${fmtRes}\n"
+    exit 1
+fi
+
+# FIXME: golint checking is disabled for now
+# echo "+++ golint tree..."
+# for i in ${BUILD_PKGS}
+# do
+#     tmp="$(golint ${i})"
+#     if [ -n "$tmp" ]
+#     then
+#       lintOutput="${lintOutput}\n${tmp}" # golint has no exit codes
+#     fi
+# done
+#
+# if [ -n "${lintOutput}" ]
+# then
+#     echo -e "!!! golint checking failed:\n${lintOutput}\n"
+#     exit 1
+# fi
+
+echo "+++ go vet tree..."
+for i in ${BUILD_PKGS}
+do
+    tmp="$(go vet ${i} 2>&1)"
+    if [ -n "$tmp" ]
+    then
+      vetOutput="${vetOutput}\n${tmp}"
+    fi
+done
+
+if [ -n "${vetOutput}" ]
+then
+    echo -e "!!! go vet checking failed:\n${vetOutput}\n"
+    exit 1
+fi
+
+echo "+++ All checks passed!!"
+exit 0

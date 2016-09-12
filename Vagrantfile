@@ -91,11 +91,6 @@ systemctl start openvswitch
  ovs-vsctl set-manager ptcp:6640) || exit 1
 SCRIPT
 
-provision_gobgp = <<SCRIPT
-#Get gobgp binary
-wget https://cisco.box.com/shared/static/5leqlo84kjh0thty91ouotilm4ish3nz -q -O #{gopath_folder}/bin/gobgp && chmod +x #{gopath_folder}/bin/gobgp
-SCRIPT
-
 provision_bird = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
@@ -232,11 +227,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             node.vm.provision "shell" do |s|
                 s.inline = provision_common_once
                 s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
-            end
-            if ENV['CONTIV_L3'] then
-                node.vm.provision "shell" do |s|
-                    s.inline = provision_gobgp
-                end
             end
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_common_always

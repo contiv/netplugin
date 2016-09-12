@@ -824,7 +824,7 @@ func (s *systemtestSuite) SetupBgp(c *C, misConfig bool) {
 	var neighborIP, routerIP, hostname string
 	for num := 0; num < len(s.nodes); num++ {
 		hostname = fmt.Sprintf("netplugin-node%d", num+1)
-		fmt.Println("Adding bgp host to", hostname)
+		logrus.Infof("Adding bgp host to %s", hostname)
 		netNum := (num + 1) % 3
 		if netNum == 0 {
 			routerIP = "80.1.1.2/24"
@@ -863,52 +863,67 @@ func (s *systemtestSuite) TearDownBgp(c *C) {
 	}
 }
 
-func (s *systemtestSuite) CheckBgpConnection(c *C) error {
+func (s *systemtestSuite) CheckBgpConnection(c *C) {
 
-	count := 0
-	for i := 0; i < 100; i++ {
-		if count == len(s.nodes) {
-			return nil
-		}
-		count = 0
-		time.Sleep(3 * time.Second)
-		for _, node := range s.nodes {
-			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
-			fmt.Println(out)
-			if strings.Contains(out, "Establ") {
-				count++
+	endChan := make(chan error)
+	for _, n := range s.nodes {
+		go func(n node) {
+			for i := 0; i < 100; i++ {
+				time.Sleep(3 * time.Second)
+				bgp, err := s.cli.BgpInspect(n.Name())
+				if err != nil {
+					continue
+				}
+				if strings.Contains(bgp.Oper.NeighborStatus, "established") {
+					logrus.Infof("Bgp Connection on Node:%s established", n.Name())
+					endChan <- nil
+					return
+				}
 			}
-		}
+			endChan <- errors.New("bgp connection failed")
+		}(*n)
 	}
-	return errors.New("BGP connection not established")
+
+	for range s.nodes {
+		c.Assert(<-endChan, IsNil)
+	}
 }
 
-func (s *systemtestSuite) CheckBgpNoConnection(c *C) error {
+func (s *systemtestSuite) CheckBgpNoConnection(c *C) {
 
-	count := 0
-	for i := 0; i < 100; i++ {
-		if count == len(s.nodes) {
-			return nil
-		}
-		count = 0
-		time.Sleep(3 * time.Second)
-		for _, node := range s.nodes {
-			out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
-			fmt.Println(out)
-			if !strings.Contains(out, "Establ") {
-				count++
+	endChan := make(chan error)
+	for _, n := range s.nodes {
+		go func(n node) {
+			for i := 0; i < 100; i++ {
+				time.Sleep(3 * time.Second)
+				bgp, err := s.cli.BgpInspect(n.Name())
+				if err != nil {
+					continue
+				}
+				if !strings.Contains(bgp.Oper.NeighborStatus, "established") {
+					logrus.Infof("Bgp Connection on Node:%s established", n.Name())
+					endChan <- nil
+					return
+				}
 			}
-		}
+			endChan <- errors.New("bgp connection failed")
+		}(*n)
 	}
-	return errors.New("BGP connection persists")
+
+	for range s.nodes {
+		c.Assert(<-endChan, IsNil)
+	}
 }
 
 func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.TestbedNode) error {
 	for i := 0; i < 100; i++ {
 		time.Sleep(3 * time.Second)
-		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
-		fmt.Println(out)
-		if strings.Contains(out, "Establ") {
+		bgp, err := s.cli.BgpInspect(node.GetName())
+		if err != nil {
+			continue
+		}
+		if strings.Contains(bgp.Oper.NeighborStatus, "established") {
+			logrus.Infof("Bgp Connection on Node:%s established", node.GetName())
 			return nil
 		}
 	}
@@ -918,9 +933,12 @@ func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.Testbe
 func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.TestbedNode) error {
 	for i := 0; i < 100; i++ {
 		time.Sleep(3 * time.Second)
-		out, _ := node.RunCommandWithOutput("/opt/gopath/bin/gobgp neighbor")
-		fmt.Println(out)
-		if !strings.Contains(out, "Establ") {
+		bgp, err := s.cli.BgpInspect(node.GetName())
+		if err != nil {
+			continue
+		}
+		if !strings.Contains(bgp.Oper.NeighborStatus, "established") {
+			logrus.Infof("Bgp Connection on Node:%s Disconnected", node.GetName())
 			return nil
 		}
 	}
@@ -932,16 +950,25 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 	for _, n := range s.nodes {
 		go func(n *node, containers []*container) {
 			logrus.Infof("Checking Bgp container route distribution on node %s", n.Name())
+			remoteRoutes := 0
+			for _, cont := range containers {
+				if cont.node != n {
+					remoteRoutes++
+				}
+			}
 			for i := 0; i < 120; i++ {
 				time.Sleep(1 * time.Second)
 				contCount := 0
-				for _, cont := range containers {
-					out, _ := n.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp global rib")
-					if strings.Contains(out, cont.eth0.ip) {
-						contCount++
+				bgp, err := s.cli.BgpInspect(n.Name())
+				if err == nil {
+					routes := strings.Join(bgp.Oper.Routes, ",")
+					for _, cont := range containers {
+						if strings.Contains(routes, cont.eth0.ip) {
+							contCount++
+						}
 					}
 				}
-				if contCount == len(containers) {
+				if contCount == remoteRoutes {
 					endChan <- nil
 					logrus.Infof("Done checking container route distribution on node %s", n.Name())
 					return
@@ -968,12 +995,14 @@ func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) ([
 		for _, ip := range ips {
 			nodeCount = 0
 			for _, node := range s.nodes {
-				out, _ := node.tbnode.RunCommandWithOutput("/opt/gopath/bin/gobgp global rib")
-				fmt.Println(out)
-				if strings.Contains(out, ip) {
-					nodeCount++
-				} else {
-					break
+				bgp, err := s.cli.BgpInspect(node.Name())
+				if err == nil {
+					routes := strings.Join(bgp.Oper.Routes, ",")
+					if !strings.Contains(routes, ip) {
+						nodeCount++
+					} else {
+						break
+					}
 				}
 			}
 			if nodeCount == len(s.nodes) {
