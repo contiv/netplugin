@@ -93,9 +93,22 @@ func (ep *EtcdClient) GetService(name string) ([]ServiceInfo, error) {
 
 func (ep *EtcdClient) getServiceState(key string) (uint64, []ServiceInfo, error) {
 	var srvcList []ServiceInfo
+	retryCount := 0
 
 	// Get the object from etcd client
 	resp, err := ep.kapi.Get(context.Background(), key, &client.GetOptions{Recursive: true, Sort: true})
+	for err != nil && err.Error() == client.ErrClusterUnavailable.Error() {
+		// Retry after a delay
+		retryCount++
+		if retryCount%16 == 0 {
+			log.Warnf("%v -- Retrying...", err)
+		}
+
+		time.Sleep(time.Second)
+		resp, err = ep.kapi.Get(context.Background(), key,
+			&client.GetOptions{Recursive: true, Sort: true})
+	}
+
 	if err != nil {
 		if strings.Contains(err.Error(), "Key not found") {
 			return 0, nil, nil
