@@ -249,6 +249,13 @@ var Commands = []cli.Command{
 				ArgsUsage: "[tenant]",
 				Action:    createTenant,
 			},
+			{
+				Name:      "inspect",
+				Usage:     "Inspect a tenant",
+				ArgsUsage: "[tenant]",
+				Flags:     []cli.Flag{jsonFlag},
+				Action:    inspectTenant,
+			},
 		},
 	},
 	{
@@ -277,6 +284,13 @@ var Commands = []cli.Command{
 				ArgsUsage: " ",
 				Flags:     []cli.Flag{tenantFlag, allFlag, jsonFlag, quietFlag},
 				Action:    listPolicies,
+			},
+			{
+				Name:      "inspect",
+				Usage:     "Inspect a policy",
+				ArgsUsage: "[policy]",
+				Flags:     []cli.Flag{tenantFlag},
+				Action:    inspectPolicy,
 			},
 			{
 				Name:      "rule-ls",

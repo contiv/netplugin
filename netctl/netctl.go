@@ -57,6 +57,27 @@ func deletePolicy(ctx *cli.Context) {
 	errCheck(ctx, getClient(ctx).PolicyDelete(tenant, policy))
 }
 
+func inspectPolicy(ctx *cli.Context) {
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Policy name required", true)
+	}
+
+	tenant := ctx.String("tenant")
+	policy := ctx.Args()[0]
+
+	fmt.Printf("Inspeting policy: %s tenant: %s\n", policy, tenant)
+
+	pol, err := getClient(ctx).PolicyInspect(tenant, policy)
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(pol, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}
+
 func listPolicies(ctx *cli.Context) {
 	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
@@ -540,6 +561,23 @@ func deleteTenant(ctx *cli.Context) {
 	fmt.Printf("Deleting tenant %s\n", tenant)
 
 	errCheck(ctx, getClient(ctx).TenantDelete(tenant))
+}
+
+func inspectTenant(ctx *cli.Context) {
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "Tenant name required", true)
+	}
+
+	tenant := ctx.Args()[0]
+
+	fmt.Printf("Inspecting tenant: %s  ", tenant)
+
+	ten, err := getClient(ctx).TenantInspect(tenant)
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(ten, "", "  ")
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
 }
 
 func listTenants(ctx *cli.Context) {
