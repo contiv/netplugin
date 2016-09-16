@@ -74,8 +74,8 @@ func deleteMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error 
 	})
 }
 
-// httpPost performs http POST operation
-func httpPost(url string, req interface{}, resp interface{}) error {
+// HTTPPost performs http POST operation
+func HTTPPost(url string, req interface{}, resp interface{}) error {
 	// Convert the req to json
 	jsonStr, err := json.Marshal(req)
 	if err != nil {
@@ -151,7 +151,7 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 
 		// Make the REST call to master
 		for i := 0; i < 3; i++ {
-			err = httpPost(url, req, resp)
+			err = HTTPPost(url, req, resp)
 			if err != nil && strings.Contains(err.Error(), "connection refused") {
 				log.Warnf("Error making POST request. Retrying...: Err: %v", err)
 				// Wait a little before retrying
@@ -174,7 +174,7 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 
 		log.Infof("Making REST request to url: %s", url)
 
-		err := httpPost(url, req, resp)
+		err := HTTPPost(url, req, resp)
 		if err != nil {
 			log.Warnf("Error making POST request: Err: %v", err)
 			// continue and try making POST call to next master

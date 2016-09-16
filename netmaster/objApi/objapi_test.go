@@ -27,9 +27,11 @@ import (
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
+	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/resources"
+	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
@@ -75,6 +77,7 @@ func TestMain(m *testing.M) {
 	router := mux.NewRouter()
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
 	s.HandleFunc("/plugin/updateEndpoint", makeHTTPHandler(master.UpdateEndpointHandler))
+	s.HandleFunc("/plugin/createEndpoint", makeHTTPHandler(master.CreateEndpointHandler))
 	s = router.Methods("Get").Subrouter()
 
 	// Create a new api controller
@@ -164,7 +167,10 @@ func checkInspectNetwork(t *testing.T, expError bool, tenant, network, allocedIP
 	} else if err == nil {
 		if insp.Oper.AllocatedAddressesCount != addrCount || insp.Oper.PktTag != pktTag ||
 			insp.Oper.AllocatedIPAddresses != allocedIPs {
-			t.Fatalf("Inspect network {%+v} failed with mismatching values", insp)
+			log.Printf("Inspect network {%+v}", insp)
+			t.Fatalf("addrCount exp: %d got: %d pktTag exp: %d got: %d, allocedIPs exp: %s got: %s",
+				addrCount, insp.Oper.AllocatedAddressesCount, pktTag, insp.Oper.PktTag,
+				allocedIPs, insp.Oper.AllocatedIPAddresses)
 		}
 	}
 }
@@ -2009,6 +2015,59 @@ func deleteEP(t *testing.T, network, tenant, endpointID string) {
 	if err != nil {
 		t.Errorf("Error deleting Ep :%s", err)
 	}
+}
+
+func AddEP(tenant, nw, epg, id string) error {
+	// Build endpoint request
+	mreq := master.CreateEndpointRequest{
+		TenantName:  tenant,
+		NetworkName: nw,
+		ServiceName: epg,
+		EndpointID:  id,
+		ConfigEP: intent.ConfigEP{
+			Container:   id,
+			ServiceName: epg,
+		},
+	}
+
+	var mresp master.CreateEndpointResponse
+	url := netmasterTestURL + "/plugin/createEndpoint"
+	return cluster.HTTPPost(url, &mreq, &mresp)
+}
+
+func TestEPCreate(t *testing.T) {
+	checkCreateTenant(t, false, "teatwo")
+	checkCreateNetwork(t, false, "teatwo", "t2-net", "data", "vlan",
+		"60.1.1.1/24", "60.1.1.254", 1, "", "")
+	checkCreateEpg(t, false, "teatwo", "t2-net", "t2-epgA", []string{}, []string{})
+	checkInspectNetwork(t, false, "teatwo", "t2-net", "60.1.1.254", 1, 0)
+
+	err := AddEP("teatwo", "t2-net", "t2-epgA", "c1231")
+	if err != nil {
+		log.Fatalf("Error creating ep c1231")
+	}
+
+	checkInspectNetwork(t, false, "teatwo", "t2-net", "60.1.1.1, 60.1.1.254", 1, 1)
+
+	// create an endpoint with non-existent epg
+	err = AddEP("teatwo", "t2-net", "t2-epgB", "c1232")
+	if err == nil {
+		log.Fatalf("Error succeeded creating ep c1232, expected failure")
+	}
+	checkInspectNetwork(t, false, "teatwo", "t2-net", "60.1.1.1, 60.1.1.254", 1, 1)
+
+	err = AddEP("teatwo", "t2-net", "t2-epgA", "c1233")
+	if err != nil {
+		log.Fatalf("Error creating ep c1233")
+	}
+	checkInspectNetwork(t, false, "teatwo", "t2-net", "60.1.1.1-60.1.1.2, 60.1.1.254", 1, 2)
+
+	checkCreateEpg(t, false, "teatwo", "t2-net", "t2-epgB", []string{}, []string{})
+	err = AddEP("teatwo", "t2-net", "t2-epgB", "c1232")
+	if err != nil {
+		log.Fatalf("Error creating ep c1232")
+	}
+	checkInspectNetwork(t, false, "teatwo", "t2-net", "60.1.1.1-60.1.1.3, 60.1.1.254", 1, 3)
 }
 
 type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
