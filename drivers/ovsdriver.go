@@ -51,8 +51,9 @@ type OvsDriverOperState struct {
 	core.CommonState
 
 	// used to allocate port names. XXX: should it be user controlled?
-	CurrPortNum int                `json:"currPortNum"`
-	LocalEpInfo map[string]*EpInfo `json:"LocalEpInfo"` // info about local endpoints
+	CurrPortNum      int                `json:"currPortNum"`
+	LocalEpInfo      map[string]*EpInfo `json:"LocalEpInfo"` // info about local endpoints
+	localEpInfoMutex sync.Mutex
 }
 
 // Write the state
@@ -422,11 +423,13 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	}
 
 	// save local endpoint info
+	d.oper.localEpInfoMutex.Lock()
 	d.oper.LocalEpInfo[id] = &EpInfo{
 		Ovsportname: ovsPortName,
 		EpgKey:      epgKey,
 		BridgeType:  pktTagType,
 	}
+	d.oper.localEpInfoMutex.Unlock()
 	err = d.oper.Write()
 	if err != nil {
 		return err
@@ -478,6 +481,8 @@ func (d *OvsDriver) UpdateEndpointGroup(id string) error {
 			epgBandwidth = netutils.ConvertBandwidth(cfgEpGroup.Bandwidth)
 		}
 
+		d.oper.localEpInfoMutex.Lock()
+		defer d.oper.localEpInfoMutex.Unlock()
 		for _, epInfo := range d.oper.LocalEpInfo {
 			if epInfo.EpgKey == id {
 				log.Debugf("Applying bandwidth: %s on: %s ", cfgEpGroup.Bandwidth, epInfo.Ovsportname)
@@ -533,7 +538,10 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	if err != nil {
 		log.Errorf("Error deleting endpoint: %+v. Err: %v", epOper, err)
 	}
+
+	d.oper.localEpInfoMutex.Lock()
 	delete(d.oper.LocalEpInfo, id)
+	d.oper.localEpInfoMutex.Unlock()
 
 	return nil
 }

@@ -59,7 +59,7 @@ type OfnetBgp struct {
 
 type OfnetBgpInspect struct {
 	Peers []*bgpconf.Neighbor `json:"peers,omitempty"`
-        Dsts  []string `json:"dsts,omitempty"`	
+	Dsts  []string            `json:"dsts,omitempty"`
 }
 
 // Create a new vlrouter instance
@@ -633,8 +633,8 @@ func (self *OfnetBgp) InspectProto() (interface{}, error) {
 	}
 	// Get Bgp info
 	peers := self.bgpServer.GetNeighbor()
-	OfnetBgpInspect.Peers = append(OfnetBgpInspect.Peers,peers...)
-	
+	OfnetBgpInspect.Peers = append(OfnetBgpInspect.Peers, peers...)
+
 	if len(OfnetBgpInspect.Peers) == 0 {
 		return nil, nil
 	}
@@ -646,9 +646,8 @@ func (self *OfnetBgp) InspectProto() (interface{}, error) {
 		return nil, err
 	}
 	for _, dst := range tbl.GetDestinations() {
-		OfnetBgpInspect.Dsts = append(OfnetBgpInspect.Dsts,dst.GetNlri().String())
+		OfnetBgpInspect.Dsts = append(OfnetBgpInspect.Dsts, dst.GetNlri().String())
 	}
-	log.Infof("Returning bgp inspect state")
 
 	return OfnetBgpInspect, nil
 }

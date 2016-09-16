@@ -18,6 +18,9 @@ package objApi
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
@@ -27,8 +30,6 @@ import (
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb/modeldb"
-	"strconv"
-	"strings"
 
 	"encoding/json"
 	"io/ioutil"
@@ -1806,17 +1807,3 @@ func validatePorts(ports []string) bool {
 	}
 	return true
 }
-
-/*
-func getIp(prefix string) string {
-	length := len(prefix)
-	var p string
-	for i := 0; i+8 < len; i = i + 8 {
-		temp := prefix[i : i+8]
-		s := strconv.ParseInt(temp, 2, 8)
-
-		p = string(s) + "."
-	}
-
-}
-*/

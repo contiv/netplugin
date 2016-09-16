@@ -196,7 +196,6 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 		c.Assert(s.pingTest(allcontainers), IsNil)
 
 		s.TearDownBgp(c)
-		s.CheckBgpNoConnection(c)
 	}
 }
 
@@ -638,7 +637,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 			}
 		}
 		c.Assert(nodeToStop.startNetplugin("-vlan-if=eth2"), IsNil)
-		time.Sleep(15 * time.Second)
+		time.Sleep(120 * time.Second)
 		nodeToStop.tbnode.RunCommandWithOutput("sudo ip link set inb01 up")
 		s.CheckBgpConnectionForaNode(c, nodeToStop.tbnode)
 
@@ -985,7 +984,7 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 	return nil
 }
 
-func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) ([]string, error) {
+func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) error {
 	ipList := []string{}
 	nodeCount := 0
 	for i := 0; i < 120; i++ {
@@ -1009,10 +1008,10 @@ func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) ([
 				ipList = append(ipList, ip)
 			}
 			if len(ipList) == len(ips) {
-				return ipList, nil
+				return nil
 			}
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return ipList, errors.New("Bgp Route distribution not complete")
+	return errors.New("Bgp Route distribution not complete")
 }

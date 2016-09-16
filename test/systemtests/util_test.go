@@ -967,3 +967,33 @@ func (s *systemtestSuite) verifyEPs(containers []*container) error {
 	logrus.Info("Debug output:\n %s", dbgOut)
 	return err
 }
+
+func (s *systemtestSuite) verifyIPs(ipaddrs []string) error {
+	var err error
+
+	err = nil
+	dbgOut := ""
+	for try := 0; try < 20; try++ {
+		for _, n := range s.nodes {
+
+			if n.Name() == "k8master" {
+				continue
+			}
+
+			dbgOut, err = n.verifyEPs(ipaddrs)
+			if err != nil {
+				break
+			}
+
+			if err == nil {
+				logrus.Info("IPs %v verified on node %s", ipaddrs, n.Name())
+				return nil
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	logrus.Errorf("Failed to verify EP after 20 sec %v ", err)
+	logrus.Info("Debug output:\n %s", dbgOut)
+	return err
+}
