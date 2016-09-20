@@ -33,6 +33,7 @@ type integTestSuite struct {
 	parallels    int    // number of parallel tests to run
 	fwdMode      string // forwarding mode bridging/routing
 	encap        string // encap vlan/vxlan
+	fabricMode   string // aci or default
 	clusterStore string // cluster store URL
 
 	// internal state
@@ -49,6 +50,7 @@ func TestMain(m *M) {
 	flag.IntVar(&integ.parallels, "parallels", 10, "Number of parallel actions")
 	flag.StringVar(&integ.fwdMode, "fwd-mode", "bridge", "forwarding mode [ bridge | routing ]")
 	flag.StringVar(&integ.encap, "encap", "vlan", "Encap [ vlan | vxlan ]")
+	flag.StringVar(&integ.fabricMode, "fabric-mode", "default", "fabric-mode [ aci | default ]")
 	flag.StringVar(&integ.clusterStore, "cluster-store", "etcd://127.0.0.1:2379", "Cluster store URL")
 
 	flag.Parse()
@@ -68,7 +70,7 @@ func (its *integTestSuite) SetUpSuite(c *C) {
 	// clear all etcd state before running the tests
 	exec.Command("etcdctl", "rm", "--recursive", "/contiv.io").Output()
 
-	npcluster, err := NewNPCluster(its.fwdMode, its.clusterStore)
+	npcluster, err := NewNPCluster(its)
 	assertNoErr(err, c, "creating cluster")
 
 	// create a new contiv client

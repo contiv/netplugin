@@ -201,11 +201,17 @@ host-unit-test-coverage-detail:
 	@echo dev: running unit tests...
 	cd $(GOPATH)/src/github.com/contiv/netplugin && sudo -E PATH=$(PATH) scripts/unittests --coverage-detail
 
-host-integ-test: host-cleanup
+host-integ-test: host-cleanup start-aci-gw
 	@echo dev: running integration tests...
 	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vlan -fwd-mode bridge
 	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode bridge
 	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode routing
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -check.f "AppProfile" -encap vlan -fwd-mode bridge --fabric-mode aci
+
+start-aci-gw:
+	@echo dev: starting aci gw...
+	docker pull contiv/aci-gw:integ_test
+	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" -e "APIC_LEAF_NODE=IGNORE" -e "APIC_PHYS_DOMAIN=IGNORE" --name=contiv-aci-gw contiv/aci-gw:integ_test
 
 host-cleanup:
 	@echo dev: cleaning up services...

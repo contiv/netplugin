@@ -39,7 +39,7 @@ type NPCluster struct {
 }
 
 // NewNPCluster creates a new cluster of netplugin/netmaster
-func NewNPCluster(fwdMode, clusterStore string) (*NPCluster, error) {
+func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 	// get local host name
 	hostLabel, err := os.Hostname()
 	if err != nil {
@@ -55,7 +55,7 @@ func NewNPCluster(fwdMode, clusterStore string) (*NPCluster, error) {
 	// create master daemon
 	md := &daemon.MasterDaemon{
 		ListenURL:    ":9999",
-		ClusterStore: clusterStore,
+		ClusterStore: its.clusterStore,
 		ClusterMode:  "test",
 		DNSEnabled:   false,
 	}
@@ -64,14 +64,14 @@ func NewNPCluster(fwdMode, clusterStore string) (*NPCluster, error) {
 	pluginConfig := plugin.Config{
 		Drivers: plugin.Drivers{
 			Network: "ovs",
-			State:   strings.Split(clusterStore, "://")[0],
+			State:   strings.Split(its.clusterStore, "://")[0],
 		},
 		Instance: core.InstanceInfo{
 			HostLabel:  hostLabel,
 			CtrlIP:     localIP,
 			VtepIP:     localIP,
 			VlanIntf:   "eth2",
-			DbURL:      clusterStore,
+			DbURL:      its.clusterStore,
 			PluginMode: "test",
 		},
 	}
@@ -83,17 +83,17 @@ func NewNPCluster(fwdMode, clusterStore string) (*NPCluster, error) {
 	go md.RunMasterFsm()
 
 	// Wait for a second for master to initialize
-	time.Sleep(time.Second)
+	time.Sleep(10*time.Second)
 
 	// set forwarding mode if required
-	if fwdMode != "bridge" {
+	if its.fwdMode != "bridge" || its.fabricMode != "default" {
 		err := contivModel.CreateGlobal(&contivModel.Global{
 			Key:              "global",
 			Name:             "global",
-			NetworkInfraType: "default",
+			NetworkInfraType: its.fabricMode,
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
-			FwdMode:          fwdMode,
+			FwdMode:          its.fwdMode,
 		})
 		if err != nil {
 			log.Fatalf("Error creating global state. Err: %v", err)
