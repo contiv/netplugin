@@ -74,7 +74,7 @@ rm -f "$JSON_FILE"
 cat > "$JSON_FILE" << JSON_SCRIPT
 {
   "id": "$JOB_NAME",
-  "cmd": "python3 -m http.server 9002",
+  "cmd": "python -m  SimpleHTTPServer 9002",
   "cpus": 1,
   "mem": 500,
   "disk": 0,
@@ -83,7 +83,7 @@ cat > "$JSON_FILE" << JSON_SCRIPT
     "type": "MESOS",
     "volumes": [],
     "mesos": {
-      "image": "ubuntu:latest",
+      "image": "ubuntu:14.04",
       "privileged": false,
       "parameters": [],
       "forcePullImage": false
