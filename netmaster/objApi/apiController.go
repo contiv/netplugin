@@ -1047,6 +1047,12 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 			network.NetworkName, epgCount)
 	}
 
+	svcCount := len(network.LinkSets.Servicelbs)
+	if svcCount != 0 {
+		return core.Errorf("cannot delete %s has %d services ",
+			network.NetworkName, svcCount)
+	}
+
 	// Remove link
 	modeldb.RemoveLinkSet(&tenant.LinkSets.Networks, network)
 
@@ -1868,6 +1874,20 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 		return core.Errorf("Invalid Port maping . Port format is - Port:TargetPort:Protocol")
 	}
 
+	if serviceCfg.TenantName == "" {
+		return core.Errorf("Invalid tenant name")
+	}
+
+	tenant := contivModel.FindTenant(serviceCfg.TenantName)
+	if tenant == nil {
+		return core.Errorf("Tenant %s not found", serviceCfg.TenantName)
+	}
+
+	network := contivModel.FindNetwork(serviceCfg.TenantName + ":" + serviceCfg.NetworkName)
+	if network == nil {
+		return core.Errorf("Network %s not found", serviceCfg.NetworkName)
+	}
+
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
@@ -1899,6 +1919,19 @@ func (ac *APIController) ServiceLBCreate(serviceCfg *contivModel.ServiceLB) erro
 	if err != nil {
 		log.Errorf("Error creating service  {%+v}. Err: %v", serviceIntentCfg.ServiceName, err)
 		return err
+	}
+	// Setup links
+	if tenant != nil {
+		modeldb.AddLink(&serviceCfg.Links.Tenant, tenant)
+		modeldb.AddLinkSet(&tenant.LinkSets.Servicelbs, serviceCfg)
+		tenant.Write()
+	}
+
+	// Setup links
+	if network != nil {
+		modeldb.AddLink(&serviceCfg.Links.Network, network)
+		modeldb.AddLinkSet(&network.LinkSets.Servicelbs, serviceCfg)
+		network.Write()
 	}
 	return nil
 
@@ -1943,6 +1976,23 @@ func (ac *APIController) ServiceLBDelete(serviceCfg *contivModel.ServiceLB) erro
 		log.Errorf("Error deleting Service Load Balancer object {%+v}. Err: %v", serviceCfg.ServiceName, err)
 		return err
 	}
+	// Find the tenant
+	tenant := contivModel.FindTenant(serviceCfg.TenantName)
+	if tenant == nil {
+		return core.Errorf("Tenant %s not found", serviceCfg.TenantName)
+	}
+
+	modeldb.RemoveLinkSet(&tenant.LinkSets.Servicelbs, serviceCfg)
+	tenant.Write()
+
+	nwKey := serviceCfg.TenantName + ":" + serviceCfg.NetworkName
+	network := contivModel.FindNetwork(nwKey)
+	if network == nil {
+		return core.Errorf("Network %s not found in tenant %s", serviceCfg.NetworkName, serviceCfg.TenantName)
+	}
+	modeldb.RemoveLinkSet(&network.LinkSets.Servicelbs, serviceCfg)
+	network.Write()
+
 	return nil
 
 }
