@@ -147,12 +147,13 @@ func (lk *etcdLock) acquireLock() {
 	for {
 		log.Infof("Getting the lock %s to see if its acquired", keyName)
 		// Get the key and see if we or someone else has already acquired the lock
-		resp, err := lk.kapi.Get(context.Background(), keyName, nil)
+		resp, err := lk.kapi.Get(context.Background(), keyName, &client.GetOptions{Quorum: true})
 		if err != nil {
 			if !client.IsKeyNotFound(err) {
 				log.Errorf("Error getting the key %s. Err: %v", keyName, err)
 				// Retry after a second in case of error
 				time.Sleep(time.Second)
+				continue
 			} else {
 				log.Infof("Lock %s does not exist. trying to acquire it", keyName)
 			}

@@ -32,7 +32,6 @@ type consulLock struct {
 	isAcquired bool
 	isReleased bool
 	ttl        string
-	timeout    uint64
 	sessionID  string
 	eventChan  chan LockEvent
 	stopChan   chan struct{}
@@ -57,31 +56,15 @@ func (cp *ConsulClient) NewLock(name string, myID string, ttl uint64) (LockInter
 
 // Acquire a lock
 func (lk *consulLock) Acquire(timeout uint64) error {
-	// session configuration
-	sessCfg := api.SessionEntry{
-		Name:      lk.keyName,
-		Behavior:  "release",
-		LockDelay: 10 * time.Millisecond,
-		TTL:       lk.ttl,
-	}
-
 	// Create consul session
-	sessionID, _, err := lk.client.Session().CreateNoChecks(&sessCfg, nil)
+	err := lk.createSession()
 	if err != nil {
 		log.Errorf("Error Creating session for lock %s. Err: %v", lk.keyName, err)
 		return err
 	}
 
-	log.Infof("Created session: %s for lock %s/%s", sessionID, lk.name, lk.myID)
-
-	// save the session ID for later
-	lk.mutex.Lock()
-	lk.timeout = timeout
-	lk.sessionID = sessionID
-	lk.mutex.Unlock()
-
 	// Refresh the session in background
-	go lk.client.Session().RenewPeriodic(lk.ttl, sessionID, nil, lk.stopChan)
+	go lk.renewSession()
 
 	// Watch for changes on the lock
 	go lk.acquireLock()
@@ -105,18 +88,18 @@ func (lk *consulLock) Acquire(timeout uint64) error {
 
 // Release a lock
 func (lk *consulLock) Release() error {
-	lk.mutex.Lock()
-	defer lk.mutex.Unlock()
 
 	// Mark this as released
+	lk.mutex.Lock()
 	lk.isReleased = true
+	lk.mutex.Unlock()
 
 	// Send stop signal on stop channel
 	close(lk.stopChan)
 
 	// If the lock was acquired, release it
-	if lk.isAcquired {
-		lk.isAcquired = false
+	if lk.IsAcquired() {
+		lk.setAcquired(false)
 
 		// Release it via consul client
 		succ, _, err := lk.client.KV().Release(&api.KVPair{Key: lk.keyName, Value: []byte(lk.myID), Session: lk.sessionID}, nil)
@@ -164,6 +147,13 @@ func (lk *consulLock) IsAcquired() bool {
 	return lk.isAcquired
 }
 
+// IsReleased Checks if the lock is released
+func (lk *consulLock) IsReleased() bool {
+	lk.mutex.Lock()
+	defer lk.mutex.Unlock()
+	return lk.isReleased
+}
+
 // GetHolder Gets current lock holder's ID
 func (lk *consulLock) GetHolder() string {
 	lk.mutex.Lock()
@@ -206,25 +196,18 @@ func (lk *consulLock) acquireLock() {
 
 		log.Debugf("Got lock(%s) watch Resp: %+v", lk.myID, resp)
 
-		// check if we are holding the lock
-		lk.mutex.Lock()
 		// exit the loop if lock is released
-		if lk.isReleased {
+		if lk.IsReleased() {
 			log.Infof("Lock is released. exiting watch")
-			lk.mutex.Unlock()
 			return
 		}
 
-		isAcquired := lk.isAcquired
-		lk.mutex.Unlock()
-
-		if isAcquired {
+		// check if we are holding the lock
+		if lk.IsAcquired() {
 			// check if we lost the lock
 			if resp == nil || resp.Session != lk.sessionID || string(resp.Value) != lk.myID {
 				// lock is released
-				lk.mutex.Lock()
-				lk.isAcquired = false
-				lk.mutex.Unlock()
+				lk.setAcquired(false)
 
 				log.Infof("Lost lock %s", lk.name, lk.myID)
 
@@ -248,9 +231,7 @@ func (lk *consulLock) acquireLock() {
 				log.Infof("Acquired lock %s/%s", lk.name, lk.myID)
 
 				// Mark the lock as acquired
-				lk.mutex.Lock()
-				lk.isAcquired = true
-				lk.mutex.Unlock()
+				lk.setAcquired(true)
 
 				// Send acquired message to event channel
 				lk.eventChan <- LockEvent{EventType: LockAcquired}
@@ -262,4 +243,56 @@ func (lk *consulLock) acquireLock() {
 		// use the last modified index
 		waitIdx = meta.LastIndex
 	}
+}
+
+// setAcquired marks the lock as acquired/not
+func (lk *consulLock) setAcquired(isAcquired bool) {
+	lk.mutex.Lock()
+	lk.isAcquired = isAcquired
+	lk.mutex.Unlock()
+}
+
+// createSession creates a consul-session for the lock
+func (lk *consulLock) createSession() error {
+	// session configuration
+	sessCfg := api.SessionEntry{
+		Name:      lk.keyName,
+		Behavior:  "delete",
+		LockDelay: 10 * time.Millisecond,
+		TTL:       lk.ttl,
+	}
+
+	// Create consul session
+	sessionID, _, err := lk.client.Session().CreateNoChecks(&sessCfg, nil)
+	if err != nil {
+		log.Errorf("Error Creating session for lock %s. Err: %v", lk.keyName, err)
+		return err
+	}
+
+	log.Infof("Created session: %s for lock %s/%s", sessionID, lk.name, lk.myID)
+
+	// save the session ID for later
+	lk.mutex.Lock()
+	lk.sessionID = sessionID
+	lk.mutex.Unlock()
+
+	return nil
+}
+
+// renewSession keeps the session alive.. If a session expires, it creates new one..
+func (lk *consulLock) renewSession() {
+	for {
+		err := lk.client.Session().RenewPeriodic(lk.ttl, lk.sessionID, nil, lk.stopChan)
+		if err == nil || lk.IsReleased() {
+			// If lock was released, exit this go routine
+			return
+		}
+
+		// Create new consul session
+		err = lk.createSession()
+		if err != nil {
+			log.Errorf("Error Creating session for lock %s. Err: %v", lk.keyName, err)
+		}
+	}
+
 }
