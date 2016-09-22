@@ -88,9 +88,18 @@ func allocSetEpAddress(ep *intent.ConfigEP, epCfg *mastercfg.CfgEndpointState,
 	return
 }
 
+// freeAddrOnErr deferred function that cleans up on error
+func freeAddrOnErr(nwCfg *mastercfg.CfgNetworkState, ipAddress string, pErr *error) {
+	if *pErr != nil {
+		log.Infof("Freeing %s on error", ipAddress)
+		networkReleaseAddress(nwCfg, ipAddress)
+	}
+}
+
 // CreateEndpoint creates an endpoint
 func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkState,
 	ep *intent.ConfigEP) (*mastercfg.CfgEndpointState, error) {
+
 	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getEpName(nwCfg.ID, ep)
@@ -111,6 +120,9 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 		log.Errorf("error allocating and/or reserving IP. Error: %s", err)
 		return nil, err
 	}
+
+	// cleanup relies on var err being used for all error checking
+	defer freeAddrOnErr(nwCfg, epCfg.IPAddress, &err)
 
 	// Set endpoint group
 	// Skip for infra nw
