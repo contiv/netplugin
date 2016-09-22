@@ -75,23 +75,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "059d947917453e19f48609ea9d820b8a65507fd8"
+			"Rev": "1da8409373178a135a42e8c87b7edb7e2078a27b"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "d05dd577e6188f10669ea042d82b195896c69d84"
+			"Rev": "1da8409373178a135a42e8c87b7edb7e2078a27b"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "d05dd577e6188f10669ea042d82b195896c69d84"
+			"Rev": "1da8409373178a135a42e8c87b7edb7e2078a27b"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "d05dd577e6188f10669ea042d82b195896c69d84"
+			"Rev": "1da8409373178a135a42e8c87b7edb7e2078a27b"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "d05dd577e6188f10669ea042d82b195896c69d84"
+			"Rev": "1da8409373178a135a42e8c87b7edb7e2078a27b"
 		},
 		{
 			"ImportPath": "github.com/contiv/remotessh",
@@ -294,33 +294,33 @@
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/api",
-			"Comment": "v1.10-8-g7bf91ea",
-			"Rev": "7bf91ea437181b85ecc3a1473adc3fbc0da80cbe"
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/config",
-			"Comment": "v1.10-8-g7bf91ea",
-			"Rev": "7bf91ea437181b85ecc3a1473adc3fbc0da80cbe"
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/packet",
-			"Comment": "v1.10-8-g7bf91ea",
-			"Rev": "7bf91ea437181b85ecc3a1473adc3fbc0da80cbe"
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/server",
-			"Comment": "v1.10-8-g7bf91ea",
-			"Rev": "7bf91ea437181b85ecc3a1473adc3fbc0da80cbe"
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/table",
-			"Comment": "v1.10-8-g7bf91ea",
-			"Rev": "7bf91ea437181b85ecc3a1473adc3fbc0da80cbe"
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/zebra",
-			"Comment": "v1.10-8-g7bf91ea",
-			"Rev": "7bf91ea437181b85ecc3a1473adc3fbc0da80cbe"
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
 		},
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
@@ -572,6 +572,26 @@
 			"ImportPath": "github.com/pkg/errors",
 			"Comment": "v0.7.0-13-ga221380",
 			"Rev": "a22138067af1c4942683050411a841ade67fe1eb"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/packet/bgp",
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/packet/bmp",
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/packet/rtr",
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
+		},
+		{
+			"ImportPath": "github.com/osrg/gobgp/packet/mrt",
+			"Comment": "v1.11-3-g48bc1ed",
+			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
 		}
 	]
 }

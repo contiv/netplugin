@@ -50,6 +50,7 @@ service GobgpApi {
   rpc ResetRpki(ResetRpkiRequest) returns (ResetRpkiResponse) {}
   rpc SoftResetRpki(SoftResetRpkiRequest) returns (SoftResetRpkiResponse) {}
   rpc GetRoa(GetRoaRequest) returns (GetRoaResponse) {}
+  rpc EnableZebra(EnableZebraRequest) returns (EnableZebraResponse) {}
   rpc AddVrf(AddVrfRequest) returns (AddVrfResponse) {}
   rpc DeleteVrf(DeleteVrfRequest) returns (DeleteVrfResponse) {}
   rpc GetVrf(GetVrfRequest) returns (GetVrfResponse) {}
@@ -287,6 +288,14 @@ message SoftResetRpkiRequest {
 }
 
 message SoftResetRpkiResponse {
+}
+
+message EnableZebraRequest {
+  string url = 1;
+  repeated string route_types = 2;
+}
+
+message EnableZebraResponse {
 }
 
 message GetVrfRequest {
@@ -702,6 +711,13 @@ message Conditions {
   MatchSet community_set = 5;
   MatchSet ext_community_set = 6;
   int32 rpki_result = 7;
+  enum RouteType {
+    ROUTE_TYPE_NONE = 0;
+    ROUTE_TYPE_INTERNAL = 1;
+    ROUTE_TYPE_EXTERNAL = 2;
+    ROUTE_TYPE_LOCAL = 3;
+  }
+  RouteType route_type = 8;
 }
 
 enum RouteAction {
@@ -812,4 +828,5 @@ message Global {
   repeated uint32 families = 5;
   uint32 mpls_label_min = 6;
   uint32 mpls_label_max = 7;
+  bool use_multiple_paths = 8;
 }

@@ -58,8 +58,8 @@ type OfnetBgp struct {
 }
 
 type OfnetBgpInspect struct {
-	Peers []*bgpconf.Neighbor
-	Rib   map[string][]*table.Path
+	Peers []*bgpconf.Neighbor `json:"peers,omitempty"`
+	Dsts  []string            `json:"dsts,omitempty"`
 }
 
 // Create a new vlrouter instance
@@ -627,23 +627,26 @@ func (self *OfnetBgp) sendArpPacketOut() {
 
 func (self *OfnetBgp) InspectProto() (interface{}, error) {
 	OfnetBgpInspect := new(OfnetBgpInspect)
-	var err error
 
 	if self.bgpServer == nil {
 		return nil, nil
 	}
 	// Get Bgp info
-	OfnetBgpInspect.Peers = self.bgpServer.GetNeighbor()
+	peers := self.bgpServer.GetNeighbor()
+	OfnetBgpInspect.Peers = append(OfnetBgpInspect.Peers, peers...)
 
-	if OfnetBgpInspect.Peers == nil {
+	if len(OfnetBgpInspect.Peers) == 0 {
 		return nil, nil
 	}
 
 	// Get rib info
-	_, OfnetBgpInspect.Rib, err = self.bgpServer.GetRib(self.myBgpPeer, bgp.RF_IPv4_UC, nil)
+	tbl, err := self.bgpServer.GetAdjRib(self.myBgpPeer, bgp.RF_IPv4_UC, true, nil)
 	if err != nil {
 		log.Errorf("Bgp Inspect failed: %v", err)
 		return nil, err
+	}
+	for _, dst := range tbl.GetDestinations() {
+		OfnetBgpInspect.Dsts = append(OfnetBgpInspect.Dsts, dst.GetNlri().String())
 	}
 
 	return OfnetBgpInspect, nil

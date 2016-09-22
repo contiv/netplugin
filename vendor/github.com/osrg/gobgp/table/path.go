@@ -17,14 +17,16 @@ package table
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/osrg/gobgp/config"
-	"github.com/osrg/gobgp/packet/bgp"
 	"math"
 	"net"
 	"sort"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/osrg/gobgp/config"
+	"github.com/osrg/gobgp/packet/bgp"
 )
 
 const (
@@ -683,7 +685,7 @@ func (path *Path) SetCommunities(communities []uint32, doReplace bool) {
 }
 
 // RemoveCommunities removes specific communities.
-// If the length of communites is 0, it does nothing.
+// If the length of communities is 0, it does nothing.
 // If all communities are removed, it removes Communities path attribute itself.
 func (path *Path) RemoveCommunities(communities []uint32) int {
 
@@ -842,6 +844,30 @@ func (lhs *Path) Equal(rhs *Path) bool {
 		return ret
 	}
 	return bytes.Equal(pattrs(lhs.GetPathAttrs()), pattrs(rhs.GetPathAttrs()))
+}
+
+func (path *Path) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Nlri       bgp.AddrPrefixInterface      `json:"nlri"`
+		PathAttrs  []bgp.PathAttributeInterface `json:"attrs"`
+		Age        int64                        `json:"age"`
+		Withdrawal bool                         `json:"withdrawal,omitempty"`
+		Validation string                       `json:"validation,omitempty"`
+		SourceID   net.IP                       `json:"source-id,omitempty"`
+		NeighborIP net.IP                       `json:"neighbor-ip,omitempty"`
+		Stale      bool                         `json:"stale,omitempty"`
+		Filtered   bool                         `json:"filtered,omitempty"`
+	}{
+		Nlri:       path.GetNlri(),
+		PathAttrs:  path.GetPathAttrs(),
+		Age:        path.GetTimestamp().Unix(),
+		Withdrawal: path.IsWithdraw,
+		Validation: string(path.Validation()),
+		SourceID:   path.GetSource().ID,
+		NeighborIP: path.GetSource().Address,
+		Stale:      path.IsStale(),
+		Filtered:   path.Filtered("") > POLICY_DIRECTION_NONE,
+	})
 }
 
 func (lhs *Path) Compare(rhs *Path) int {

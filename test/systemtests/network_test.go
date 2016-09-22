@@ -59,22 +59,20 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 			netNames = append(netNames, network.NetworkName)
 		}
 
-		node1 := s.nodes[0]
-
-		for networkNum := 0; networkNum < numInfraNw; networkNum++ {
-			// From first node, ping every node on this network
-			for nodeNum := 1; nodeNum <= len(s.nodes); nodeNum++ {
-				logrus.Infof("Running ping test for network %q node %d", netNames[networkNum], nodeNum)
-				ipaddr := fmt.Sprintf("10.1.%d.%d", networkNum, nodeNum)
-				if s.fwdMode == "routing" && encap == "vlan" {
-					_, err := s.CheckBgpRouteDistributionIPList(c, []string{ipaddr})
-					c.Assert(err, IsNil)
+		for _, node := range s.nodes {
+			for networkNum := 0; networkNum < numInfraNw; networkNum++ {
+				// From first node, ping every node on this network
+				for nodeNum := 1; nodeNum <= len(s.nodes); nodeNum++ {
+					logrus.Infof("Running ping test for network %q node %d", netNames[networkNum], nodeNum)
+					ipaddr := fmt.Sprintf("10.1.%d.%d", networkNum, nodeNum)
+					if s.fwdMode == "routing" && encap == "vlan" {
+						err := s.verifyIPs([]string{ipaddr})
+						c.Assert(err, IsNil)
+					}
+					c.Assert(node.checkPing(ipaddr), IsNil)
 				}
-				c.Assert(node1.checkPing(ipaddr), IsNil)
-
 			}
 		}
-
 		for _, netName := range netNames {
 			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
 		}
@@ -403,7 +401,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 
-        c.Skip("Skipping this tests temporarily")
+	c.Skip("Skipping this tests temporarily")
 
 	if s.fwdMode != "routing" {
 		return

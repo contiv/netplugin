@@ -584,13 +584,17 @@ func (v AttributeComparison) Validate() error {
 type RouteType string
 
 const (
+	ROUTE_TYPE_NONE     RouteType = "none"
 	ROUTE_TYPE_INTERNAL RouteType = "internal"
 	ROUTE_TYPE_EXTERNAL RouteType = "external"
+	ROUTE_TYPE_LOCAL    RouteType = "local"
 )
 
 var RouteTypeToIntMap = map[RouteType]int{
-	ROUTE_TYPE_INTERNAL: 0,
-	ROUTE_TYPE_EXTERNAL: 1,
+	ROUTE_TYPE_NONE:     0,
+	ROUTE_TYPE_INTERNAL: 1,
+	ROUTE_TYPE_EXTERNAL: 2,
+	ROUTE_TYPE_LOCAL:    3,
 }
 
 func (v RouteType) ToInt() int {
@@ -602,8 +606,10 @@ func (v RouteType) ToInt() int {
 }
 
 var IntToRouteTypeMap = map[int]RouteType{
-	0: ROUTE_TYPE_INTERNAL,
-	1: ROUTE_TYPE_EXTERNAL,
+	0: ROUTE_TYPE_NONE,
+	1: ROUTE_TYPE_INTERNAL,
+	2: ROUTE_TYPE_EXTERNAL,
+	3: ROUTE_TYPE_LOCAL,
 }
 
 func (v RouteType) Validate() error {
@@ -1032,17 +1038,21 @@ func (lhs *Zebra) Equal(rhs *Zebra) bool {
 	return true
 }
 
-//struct for container gobgp:mrt
-type Mrt struct {
+//struct for container gobgp:config
+type MrtConfig struct {
 	// original -> gobgp:dump-type
 	DumpType MrtType `mapstructure:"dump-type"`
 	// original -> gobgp:file-name
 	FileName string `mapstructure:"file-name"`
-	// original -> gobgp:interval
-	Interval uint64 `mapstructure:"interval"`
+	// original -> gobgp:table-name
+	TableName string `mapstructure:"table-name"`
+	// original -> gobgp:dump-interval
+	DumpInterval uint64 `mapstructure:"dump-interval"`
+	// original -> gobgp:rotation-interval
+	RotationInterval uint64 `mapstructure:"rotation-interval"`
 }
 
-func (lhs *Mrt) Equal(rhs *Mrt) bool {
+func (lhs *MrtConfig) Equal(rhs *MrtConfig) bool {
 	if lhs == nil || rhs == nil {
 		return false
 	}
@@ -1052,7 +1062,30 @@ func (lhs *Mrt) Equal(rhs *Mrt) bool {
 	if lhs.FileName != rhs.FileName {
 		return false
 	}
-	if lhs.Interval != rhs.Interval {
+	if lhs.TableName != rhs.TableName {
+		return false
+	}
+	if lhs.DumpInterval != rhs.DumpInterval {
+		return false
+	}
+	if lhs.RotationInterval != rhs.RotationInterval {
+		return false
+	}
+	return true
+}
+
+//struct for container gobgp:mrt
+type Mrt struct {
+	// original -> gobgp:file-name
+	// original -> gobgp:mrt-config
+	Config MrtConfig `mapstructure:"config"`
+}
+
+func (lhs *Mrt) Equal(rhs *Mrt) bool {
+	if lhs == nil || rhs == nil {
+		return false
+	}
+	if !lhs.Config.Equal(&(rhs.Config)) {
 		return false
 	}
 	return true
@@ -2479,6 +2512,8 @@ type NeighborState struct {
 	Flops uint32 `mapstructure:"flops"`
 	// original -> gobgp:neighbor-interface
 	NeighborInterface string `mapstructure:"neighbor-interface"`
+	// original -> gobgp:remote-router-id
+	RemoteRouterId string `mapstructure:"remote-router-id"`
 }
 
 func (lhs *NeighborState) Equal(rhs *NeighborState) bool {
@@ -2554,6 +2589,9 @@ func (lhs *NeighborState) Equal(rhs *NeighborState) bool {
 		return false
 	}
 	if lhs.NeighborInterface != rhs.NeighborInterface {
+		return false
+	}
+	if lhs.RemoteRouterId != rhs.RemoteRouterId {
 		return false
 	}
 	return true
@@ -4280,10 +4318,10 @@ func (lhs *Bgp) Equal(rhs *Bgp) bool {
 	{
 		lmap := make(map[string]*Mrt)
 		for i, l := range lhs.MrtDump {
-			lmap[mapkey(i, string(l.FileName))] = &lhs.MrtDump[i]
+			lmap[mapkey(i, string(l.Config.FileName))] = &lhs.MrtDump[i]
 		}
 		for i, r := range rhs.MrtDump {
-			if l, y := lmap[mapkey(i, string(r.FileName))]; !y {
+			if l, y := lmap[mapkey(i, string(r.Config.FileName))]; !y {
 				return false
 			} else if !r.Equal(l) {
 				return false

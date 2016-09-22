@@ -37,7 +37,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
-	api "github.com/osrg/gobgp/api"
+	bgpconf "github.com/osrg/gobgp/config"
 )
 
 // APIController stores the api controller state
@@ -47,8 +47,8 @@ type APIController struct {
 
 // BgpInspect is bgp inspect struct
 type BgpInspect struct {
-	Peer *api.Peer
-	Rib  *api.Table
+	Peers []*bgpconf.Neighbor
+	Dsts  []string
 }
 
 var apiCtrler *APIController
@@ -1788,7 +1788,6 @@ func (ac *APIController) BgpUpdate(oldbgpCfg *contivModel.Bgp, NewbgpCfg *contiv
 
 //BgpGetOper inspects the oper state of bgp object
 func (ac *APIController) BgpGetOper(bgp *contivModel.BgpInspect) error {
-	log.Infof("Received BgpInspect: %+v", bgp)
 	var obj *BgpInspect
 	var host string
 
@@ -1835,12 +1834,18 @@ func (ac *APIController) BgpGetOper(bgp *contivModel.BgpInspect) error {
 	if err := json.Unmarshal(response, &obj); err != nil {
 		return err
 	}
+	//Assuming bgp peer state will be only for one neighbor
+	if obj.Peers != nil {
+		nConf := obj.Peers[0]
+		bgp.Oper.NeighborStatus = string(nConf.State.SessionState)
+		bgp.Oper.AdminStatus = nConf.State.AdminState
+	}
 
-	bgp.Oper.NeighborStatus = obj.Peer.Info.BgpState
-	bgp.Oper.AdminStatus = obj.Peer.Info.AdminState
-	bgp.Oper.NumRoutes = len(obj.Rib.Destinations)
-	for _, v := range obj.Rib.Destinations {
-		bgp.Oper.Routes = append(bgp.Oper.Routes, v.Prefix)
+	if obj.Dsts != nil {
+		for _, dst := range obj.Dsts {
+			bgp.Oper.Routes = append(bgp.Oper.Routes, dst)
+		}
+		bgp.Oper.NumRoutes = len(bgp.Oper.Routes)
 	}
 
 	return nil

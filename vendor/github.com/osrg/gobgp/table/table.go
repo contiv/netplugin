@@ -16,21 +16,50 @@
 package table
 
 import (
+	"fmt"
+	"net"
+	"sort"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-radix"
 	"github.com/osrg/gobgp/packet/bgp"
-	"sort"
 )
+
+type LookupOption uint8
+
+const (
+	LOOKUP_EXACT LookupOption = iota
+	LOOKUP_LONGER
+	LOOKUP_SHORTER
+)
+
+type LookupPrefix struct {
+	Prefix string
+	LookupOption
+}
+
+type TableSelectOption struct {
+	ID             string
+	LookupPrefixes []*LookupPrefix
+	VRF            *Vrf
+	adj            bool
+	Best           bool
+	MultiPath      bool
+}
 
 type Table struct {
 	routeFamily  bgp.RouteFamily
 	destinations map[string]*Destination
 }
 
-func NewTable(rf bgp.RouteFamily) *Table {
+func NewTable(rf bgp.RouteFamily, dsts ...*Destination) *Table {
+	destinations := make(map[string]*Destination)
+	for _, dst := range dsts {
+		destinations[dst.GetNlri().String()] = dst
+	}
 	return &Table{
 		routeFamily:  rf,
-		destinations: make(map[string]*Destination),
+		destinations: destinations,
 	}
 }
 
@@ -206,15 +235,11 @@ func (t *Table) GetSortedDestinations() []*Destination {
 			results = append(results, v.(*Destination))
 			return false
 		})
-	case bgp.RF_FS_IPv4_UC, bgp.RF_FS_IPv6_UC, bgp.RF_FS_IPv4_VPN, bgp.RF_FS_IPv6_VPN, bgp.RF_FS_L2_VPN:
-		for _, dst := range t.GetDestinations() {
-			results = append(results, dst)
-		}
-		sort.Sort(destinations(results))
 	default:
 		for _, dst := range t.GetDestinations() {
 			results = append(results, dst)
 		}
+		sort.Sort(destinations(results))
 	}
 	return results
 }
@@ -234,15 +259,20 @@ func (t *Table) GetDestination(key string) *Destination {
 	}
 }
 
-func (t *Table) GetLongerPrefixDestinations(key string) []*Destination {
+func (t *Table) GetLongerPrefixDestinations(key string) ([]*Destination, error) {
 	results := make([]*Destination, 0, len(t.GetDestinations()))
 	switch t.routeFamily {
 	case bgp.RF_IPv4_UC, bgp.RF_IPv6_UC:
+		_, prefix, err := net.ParseCIDR(key)
+		if err != nil {
+			return nil, err
+		}
+		k := CidrToRadixkey(prefix.String())
 		r := radix.New()
 		for _, dst := range t.GetDestinations() {
 			r.Insert(dst.RadixKey, dst)
 		}
-		r.WalkPrefix(key, func(s string, v interface{}) bool {
+		r.WalkPrefix(k, func(s string, v interface{}) bool {
 			results = append(results, v.(*Destination))
 			return false
 		})
@@ -251,7 +281,7 @@ func (t *Table) GetLongerPrefixDestinations(key string) []*Destination {
 			results = append(results, dst)
 		}
 	}
-	return results
+	return results, nil
 }
 
 func (t *Table) setDestination(key string, dest *Destination) {
@@ -279,4 +309,87 @@ func (t *Table) GetKnownPathList(id string) []*Path {
 		paths = append(paths, dst.GetKnownPathList(id)...)
 	}
 	return paths
+}
+
+func (t *Table) Select(option ...TableSelectOption) (*Table, error) {
+	id := GLOBAL_RIB_NAME
+	var vrf *Vrf
+	adj := false
+	prefixes := make([]*LookupPrefix, 0, len(option))
+	best := false
+	mp := false
+	for _, o := range option {
+		if o.ID != "" {
+			id = o.ID
+		}
+		if o.VRF != nil {
+			vrf = o.VRF
+		}
+		adj = o.adj
+		prefixes = append(prefixes, o.LookupPrefixes...)
+		best = o.Best
+		mp = o.MultiPath
+	}
+	dOption := DestinationSelectOption{ID: id, VRF: vrf, adj: adj, Best: best, MultiPath: mp}
+	dsts := make(map[string]*Destination)
+	if (t.routeFamily == bgp.RF_IPv4_UC || t.routeFamily == bgp.RF_IPv6_UC) && len(prefixes) > 0 {
+		f := func(id, key string) (bool, error) {
+			if dst := t.GetDestination(key); dst != nil {
+				if d := dst.Select(dOption); d != nil {
+					dsts[key] = d
+					return true, nil
+				}
+			}
+			return false, nil
+		}
+		for _, p := range prefixes {
+			key := p.Prefix
+			switch p.LookupOption {
+			case LOOKUP_LONGER:
+				ds, err := t.GetLongerPrefixDestinations(key)
+				if err != nil {
+					return nil, err
+				}
+				for _, dst := range ds {
+					if d := dst.Select(dOption); d != nil {
+						dsts[dst.GetNlri().String()] = d
+					}
+				}
+			case LOOKUP_SHORTER:
+				_, prefix, err := net.ParseCIDR(key)
+				if err != nil {
+					return nil, err
+				}
+				ones, bits := prefix.Mask.Size()
+				for i := ones; i > 0; i-- {
+					prefix.Mask = net.CIDRMask(i, bits)
+					f(id, prefix.String())
+				}
+			default:
+				if _, err := f(id, key); err != nil {
+					if host := net.ParseIP(key); host != nil {
+						masklen := 32
+						if t.routeFamily == bgp.RF_IPv6_UC {
+							masklen = 128
+						}
+						for i := masklen; i > 0; i-- {
+							if y, _ := f(id, fmt.Sprintf("%s/%d", key, i)); y {
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+	} else {
+		for k, dst := range t.GetDestinations() {
+			if d := dst.Select(dOption); d != nil {
+				dsts[k] = d
+			}
+		}
+	}
+	return &Table{
+		routeFamily:  t.routeFamily,
+		destinations: dsts,
+	}, nil
 }
