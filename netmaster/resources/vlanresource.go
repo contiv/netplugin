@@ -232,7 +232,7 @@ func (r *AutoVLANCfgResource) Allocate(reqVal interface{}) (interface{}, error) 
 	if (reqVal != nil) && (reqVal.(uint) != 0) {
 		vlan = reqVal.(uint)
 		if !oper.FreeVLANs.Test(vlan) {
-			return nil, errors.New("requested vlan not available")
+			return nil, fmt.Errorf("requested vlan not available - vlan:%d", vlan)
 		}
 	} else {
 		ok := false

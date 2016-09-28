@@ -245,7 +245,7 @@ func (r *AutoVXLANCfgResource) Allocate(reqVal interface{}) (interface{}, error)
 	if (reqVal != nil) && (reqVal.(uint) != 0) {
 		vxlan = reqVal.(uint)
 		if !oper.FreeVXLANs.Test(vxlan) {
-			return nil, fmt.Errorf("requested vxlan %d not available", vxlan)
+			return nil, fmt.Errorf("requested vxlan not available")
 		}
 	} else {
 		ok := false
