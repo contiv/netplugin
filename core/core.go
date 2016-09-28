@@ -183,6 +183,7 @@ type Resource interface {
 	State
 	Init(rsrcCfg interface{}) error
 	Deinit()
+	Reinit(rsrcCfg interface{}) error
 	Description() string
 	GetList() (uint, string)
 	Allocate(interface{}) (interface{}, error)
@@ -196,6 +197,7 @@ type ResourceManager interface {
 	Init() error
 	Deinit()
 	DefineResource(id, desc string, rsrcCfg interface{}) error
+	RedefineResource(id, desc string, rsrcCfg interface{}) error
 	UndefineResource(id, desc string) error
 	GetResourceList(id, desc string) (uint, string)
 	AllocateResourceVal(id, desc string, reqValue interface{}) (interface{}, error)

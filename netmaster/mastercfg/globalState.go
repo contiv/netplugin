@@ -39,6 +39,12 @@ type GlobConfig struct {
 	FwdMode     string `json:"fwd-mode"`
 }
 
+//OldResState is used for global resource update
+type OldResState struct {
+	VLANs  string
+	VXLANs string
+}
+
 // Write the state
 func (s *GlobConfig) Write() error {
 	key := globalConfigPath

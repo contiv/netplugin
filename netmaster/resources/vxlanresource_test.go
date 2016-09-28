@@ -431,6 +431,16 @@ func TestAutoVXLANCfgResourceInit(t *testing.T) {
 	}
 }
 
+func TestAutoVXLANCfgResourceReInit(t *testing.T) {
+	rsrc := &AutoVXLANCfgResource{}
+	rsrc.StateDriver = vxlanRsrcStateDriver
+	rsrc.ID = VXLANRsrcValidInitID
+	err := rsrc.ReInit(&vxlanRsrcValidationStateMap[rsrc.ID].expCfg[0])
+	if err != nil {
+		t.Fatalf("VXLAN resource init failed. Error: %s", err)
+	}
+}
+
 func TestAutoVXLANCfgResourceDeInit(t *testing.T) {
 	rsrc := &AutoVXLANCfgResource{}
 	rsrc.StateDriver = vxlanRsrcStateDriver

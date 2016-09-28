@@ -367,6 +367,17 @@ func TestAutoVLANCfgResourceInit(t *testing.T) {
 	}
 }
 
+func TestAutoVLANCfgResourceReInit(t *testing.T) {
+	rsrc := &AutoVLANCfgResource{}
+	rsrc.StateDriver = vlanRsrcStateDriver
+	rsrc.ID = VlanRsrcValidInitID
+	vlans := vlanRsrcValidationStateMap[rsrc.ID].expCfg[0].VLANs.Clone()
+	err := rsrc.ReInit(vlans)
+	if err != nil {
+		t.Fatalf("Vlan resource init failed. Error: %s", err)
+	}
+}
+
 func TestAutoVLANCfgResourceDeInit(t *testing.T) {
 	rsrc := &AutoVLANCfgResource{}
 	rsrc.StateDriver = vlanRsrcStateDriver

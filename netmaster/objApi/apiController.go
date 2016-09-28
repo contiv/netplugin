@@ -192,14 +192,16 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 		return err
 	}
 
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	numVlans, vlansInUse := gCfg.GetVlansInUse()
+	numVxlans, vxlansInUse := gCfg.GetVxlansInUse()
+
 	// Build global config
 	globalCfg := intent.ConfigGlobal{}
+
 	//check for change in forwarding mode
 	if global.FwdMode != params.FwdMode {
-		gCfg := &gstate.Cfg{}
-		gCfg.StateDriver = stateDriver
-		numVlans, vlansInUse := gCfg.GetVlansInUse()
-		numVxlans, vxlansInUse := gCfg.GetVxlansInUse()
 		//check if there exists any non default network and tenants
 		if numVlans+numVxlans > 0 {
 			log.Errorf("Unable to update forwarding mode due to existing %d vlans and %d vxlans", numVlans, numVxlans)
@@ -228,7 +230,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	}
 
 	// Create the object
-	err = master.CreateGlobal(stateDriver, &globalCfg)
+	err = master.UpdateGlobal(stateDriver, &globalCfg)
 	if err != nil {
 		log.Errorf("Error creating global config {%+v}. Err: %v", global, err)
 		return err
