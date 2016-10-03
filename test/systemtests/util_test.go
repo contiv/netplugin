@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/remotessh"
+	. "gopkg.in/check.v1"
 )
 
 func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*container, port int) error {
@@ -789,11 +794,11 @@ func (s *systemtestSuite) getJSON(url string, target interface{}) error {
 }
 
 func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
-	if strings.Contains(s.clusterStore, "etcd://") {
+	if strings.Contains(s.basicInfo.ClusterStore, "etcd://") {
 		var etcdKv map[string]interface{}
 
 		// Get from etcd
-		etcdURL := strings.Replace(s.clusterStore, "etcd://", "http://", 1)
+		etcdURL := strings.Replace(s.basicInfo.ClusterStore, "etcd://", "http://", 1)
 		etcdURL = etcdURL + "/v2/keys" + path
 
 		// get json from etcd
@@ -815,11 +820,11 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 		}
 
 		return value.(string), nil
-	} else if strings.Contains(s.clusterStore, "consul://") {
+	} else if strings.Contains(s.basicInfo.ClusterStore, "consul://") {
 		var consulKv []map[string]interface{}
 
 		// Get from consul
-		consulURL := strings.Replace(s.clusterStore, "consul://", "http://", 1)
+		consulURL := strings.Replace(s.basicInfo.ClusterStore, "consul://", "http://", 1)
 		consulURL = consulURL + "/v1/kv" + path
 
 		// get kv json from consul
@@ -897,10 +902,10 @@ func (s *systemtestSuite) verifyVTEPs() error {
 
 	expVTEPs := make(map[string]bool)
 	for _, n := range s.nodes {
-		if s.scheduler == "k8" && n.Name() == "k8master" {
+		if s.basicInfo.Scheduler == "k8" && n.Name() == "k8master" {
 			continue
 		}
-		vtep, err := n.getIPAddr("eth1")
+		vtep, err := n.getIPAddr(s.hostInfo.HostMgmtInterface)
 		if err != nil {
 			logrus.Errorf("Error getting eth1 IP address for node %s", n.Name())
 			return err
@@ -996,4 +1001,300 @@ func (s *systemtestSuite) verifyIPs(ipaddrs []string) error {
 	logrus.Errorf("Failed to verify EP after 20 sec %v ", err)
 	logrus.Info("Debug output:\n %s", dbgOut)
 	return err
+}
+
+//Function to extract cfg Info from JSON file
+func getInfo(file string) (BasicInfo, HostInfo, GlobInfo) {
+	raw, err := ioutil.ReadFile(file)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	var b BasicInfo
+	json.Unmarshal(raw, &b)
+	var c HostInfo
+	json.Unmarshal(raw, &c)
+	var d GlobInfo
+	json.Unmarshal(raw, &d)
+	return b, c, d
+}
+
+// Setup suite and test methods for all platforms
+func (s *systemtestSuite) SetUpSuiteBaremetal(c *C) {
+
+	logrus.Infof("Private keyFile = %s", s.basicInfo.KeyFile)
+	logrus.Infof("Binary binpath = %s", s.basicInfo.BinPath)
+	logrus.Infof("Interface vlanIf = %s", s.hostInfo.HostDataInterface)
+
+	s.baremetal = remotessh.Baremetal{}
+	bm := &s.baremetal
+
+	// To fill the hostInfo data structure for Baremetal VMs
+	var name string
+	if s.basicInfo.AciMode == "on" {
+		name = "aci-" + s.basicInfo.Scheduler + "-baremetal-node"
+	} else {
+		name = s.basicInfo.Scheduler + "-baremetal-node"
+	}
+	hostIPs := strings.Split(s.hostInfo.HostIPs, ",")
+	hostNames := strings.Split(s.hostInfo.HostUsernames, ",")
+	hosts := make([]remotessh.HostInfo, len(hostNames))
+
+	for i := range hostIPs {
+		hosts[i].Name = name + strconv.Itoa(i+1)
+		logrus.Infof("Name=%s", hosts[i].Name)
+
+		hosts[i].SSHAddr = hostIPs[i]
+		logrus.Infof("SHAddr=%s", hosts[i].SSHAddr)
+
+		hosts[i].SSHPort = "22"
+
+		hosts[i].User = hostNames[i]
+		logrus.Infof("User=%s", hosts[i].User)
+
+		hosts[i].PrivKeyFile = s.basicInfo.KeyFile
+		logrus.Infof("PrivKeyFile=%s", hosts[i].PrivKeyFile)
+
+		hosts[i].Env = append([]string{}, s.basicInfo.SwarmEnv)
+		logrus.Infof("Env variables are =%s", hosts[i].Env)
+
+	}
+	c.Assert(bm.Setup(hosts), IsNil)
+	s.nodes = []*node{}
+
+	for _, nodeObj := range s.baremetal.GetNodes() {
+		nodeName := nodeObj.GetName()
+		if strings.Contains(nodeName, s.basicInfo.Scheduler) {
+			node := &node{}
+			node.tbnode = nodeObj
+			node.suite = s
+
+			switch s.basicInfo.Scheduler {
+			case "k8":
+				node.exec = s.NewK8sExec(node)
+			case "swarm":
+				node.exec = s.NewSwarmExec(node)
+			default:
+				node.exec = s.NewDockerExec(node)
+			}
+			s.nodes = append(s.nodes, node)
+		}
+		//s.nodes = append(s.nodes, &node{tbnode: nodeObj, suite: s})
+	}
+	logrus.Info("Pulling alpine on all nodes")
+	s.baremetal.IterateNodes(func(node remotessh.TestbedNode) error {
+		node.RunCommand("sudo rm /tmp/*net*")
+		return node.RunCommand("docker pull contiv/alpine")
+	})
+	//Copying binaries
+	s.copyBinary("netmaster")
+	s.copyBinary("netplugin")
+	s.copyBinary("netctl")
+	s.copyBinary("contivk8s")
+}
+
+func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
+	s.vagrant = remotessh.Vagrant{}
+	nodesStr := os.Getenv("CONTIV_NODES")
+	var contivNodes int
+
+	if nodesStr == "" {
+		contivNodes = 3
+	} else {
+		var err error
+		contivNodes, err = strconv.Atoi(nodesStr)
+		if err != nil {
+			c.Fatal(err)
+		}
+	}
+
+	s.nodes = []*node{}
+	if s.fwdMode == "routing" {
+		contivL3Nodes := 2
+		switch s.basicInfo.Scheduler {
+		case "k8":
+			topDir := os.Getenv("GOPATH")
+			//topDir contains the godeps path. hence purging the gopath
+			topDir = strings.Split(topDir, ":")[1]
+
+			contivNodes = 4 // 3 contiv nodes + 1 k8master
+			c.Assert(s.vagrant.Setup(false, []string{"CONTIV_L3=1 VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
+
+		case "swarm":
+			c.Assert(s.vagrant.Setup(false, append([]string{"CONTIV_NODES=3 CONTIV_L3=1"}, s.basicInfo.SwarmEnv), contivNodes+contivL3Nodes), IsNil)
+		default:
+			c.Assert(s.vagrant.Setup(false, []string{"CONTIV_NODES=3 CONTIV_L3=1"}, contivNodes+contivL3Nodes), IsNil)
+
+		}
+
+	} else {
+		switch s.basicInfo.Scheduler {
+		case "k8":
+			contivNodes = contivNodes + 1 //k8master
+
+			topDir := os.Getenv("GOPATH")
+			//topDir may contain the godeps path. hence purging the gopath
+			dirs := strings.Split(topDir, ":")
+			if len(dirs) > 1 {
+				topDir = dirs[1]
+			} else {
+				topDir = dirs[0]
+			}
+
+			c.Assert(s.vagrant.Setup(false, []string{"VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
+
+		case "swarm":
+			c.Assert(s.vagrant.Setup(false, append([]string{}, s.basicInfo.SwarmEnv), contivNodes), IsNil)
+		default:
+			c.Assert(s.vagrant.Setup(false, []string{}, contivNodes), IsNil)
+
+		}
+
+	}
+
+	for _, nodeObj := range s.vagrant.GetNodes() {
+		nodeName := nodeObj.GetName()
+		if strings.Contains(nodeName, "netplugin-node") ||
+			strings.Contains(nodeName, "k8") {
+			node := &node{}
+			node.tbnode = nodeObj
+			node.suite = s
+			switch s.basicInfo.Scheduler {
+			case "k8":
+				node.exec = s.NewK8sExec(node)
+			case "swarm":
+				node.exec = s.NewSwarmExec(node)
+			default:
+				node.exec = s.NewDockerExec(node)
+			}
+			s.nodes = append(s.nodes, node)
+		}
+	}
+
+	logrus.Info("Pulling alpine on all nodes")
+	s.vagrant.IterateNodes(func(node remotessh.TestbedNode) error {
+		node.RunCommand("sudo rm /tmp/net*")
+		return node.RunCommand("docker pull contiv/alpine")
+	})
+}
+
+func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
+
+	for _, node := range s.nodes {
+		node.exec.cleanupContainers()
+		//node.exec.cleanupDockerNetwork()
+
+		node.stopNetplugin()
+		node.cleanupSlave()
+		node.deleteFile("/etc/systemd/system/netplugin.service")
+		node.stopNetmaster()
+		node.deleteFile("/etc/systemd/system/netmaster.service")
+		node.deleteFile("/usr/bin/netplugin")
+		node.deleteFile("/usr/bin/netmaster")
+		node.deleteFile("/usr/bin/netctl")
+	}
+
+	for _, node := range s.nodes {
+		node.cleanupMaster()
+	}
+
+	for _, node := range s.nodes {
+
+		c.Assert(node.startNetplugin(""), IsNil)
+		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
+
+	}
+
+	time.Sleep(15 * time.Second)
+
+	for _, node := range s.nodes {
+		c.Assert(node.startNetmaster(), IsNil)
+		time.Sleep(1 * time.Second)
+		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
+	}
+
+	time.Sleep(5 * time.Second)
+	if s.basicInfo.Scheduler != "k8" {
+		for i := 0; i < 11; i++ {
+			_, err := s.cli.TenantGet("default")
+			if err == nil {
+				break
+			}
+			// Fail if we reached last iteration
+			c.Assert((i < 10), Equals, true)
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+	if s.fwdMode == "routing" {
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+			Name:             "global",
+			NetworkInfraType: "default",
+			Vlans:            "1-4094",
+			Vxlans:           "1-10000",
+		}), IsNil)
+		time.Sleep(40 * time.Second)
+	}
+}
+
+func (s *systemtestSuite) SetUpTestVagrant(c *C) {
+	for _, node := range s.nodes {
+		node.exec.cleanupContainers()
+		node.stopNetplugin()
+		node.cleanupSlave()
+	}
+
+	for _, node := range s.nodes {
+		node.stopNetmaster()
+
+	}
+	for _, node := range s.nodes {
+		node.cleanupMaster()
+	}
+
+	for _, node := range s.nodes {
+
+		c.Assert(node.startNetplugin(""), IsNil)
+		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
+
+	}
+
+	time.Sleep(15 * time.Second)
+
+	// temporarily enable DNS for service discovery tests
+	prevDNSEnabled := s.basicInfo.EnableDNS
+	if strings.Contains(c.TestName(), "SvcDiscovery") {
+		s.basicInfo.EnableDNS = true
+	}
+
+	defer func() { s.basicInfo.EnableDNS = prevDNSEnabled }()
+
+	for _, node := range s.nodes {
+		c.Assert(node.startNetmaster(), IsNil)
+		time.Sleep(1 * time.Second)
+		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
+	}
+
+	time.Sleep(5 * time.Second)
+	if s.basicInfo.Scheduler != "k8" {
+		for i := 0; i < 11; i++ {
+
+			_, err := s.cli.TenantGet("default")
+			if err == nil {
+				break
+			}
+			// Fail if we reached last iteration
+			c.Assert((i < 10), Equals, true)
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+
+	if s.fwdMode == "routing" {
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+			Name:             "global",
+			NetworkInfraType: "default",
+			Vlans:            "1-4094",
+			Vxlans:           "1-10000",
+		}), IsNil)
+		time.Sleep(120 * time.Second)
+	}
 }

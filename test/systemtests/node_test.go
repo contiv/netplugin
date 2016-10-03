@@ -2,7 +2,6 @@ package systemtests
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -79,13 +78,13 @@ func (n *node) stopNetplugin() error {
 }
 
 func (s *systemtestSuite) copyBinary(fileName string) error {
-	logrus.Infof("Copying %s binary to %s", fileName, s.binpath)
-	hostIPs := strings.Split(os.Getenv("HOST_IPS"), ",")
-	srcFile := s.binpath + "/" + fileName
-	destFile := s.binpath + "/" + fileName
+	logrus.Infof("Copying %s binary to %s", fileName, s.basicInfo.BinPath)
+	hostIPs := strings.Split(s.hostInfo.HostIPs, ",")
+	srcFile := s.basicInfo.BinPath + "/" + fileName
+	destFile := s.basicInfo.BinPath + "/" + fileName
 	for i := 1; i < len(s.nodes); i++ {
 		logrus.Infof("Copying %s binary to IP= %s and Directory = %s", srcFile, hostIPs[i], destFile)
-		s.nodes[0].tbnode.RunCommand("scp -i " + s.keyFile + " " + srcFile + " " + hostIPs[i] + ":" + destFile)
+		s.nodes[0].tbnode.RunCommand("scp -i " + s.basicInfo.KeyFile + " " + srcFile + " " + hostIPs[i] + ":" + destFile)
 	}
 	return nil
 }
@@ -172,7 +171,7 @@ func (n *node) reloadNode() error {
 }
 
 func (n *node) restartClusterStore() error {
-	if strings.Contains(n.suite.clusterStore, "etcd://") {
+	if strings.Contains(n.suite.basicInfo.ClusterStore, "etcd://") {
 		logrus.Infof("Restarting etcd on %s", n.Name())
 
 		n.runCommand("sudo systemctl stop etcd")
@@ -180,7 +179,7 @@ func (n *node) restartClusterStore() error {
 		n.runCommand("sudo systemctl start etcd")
 
 		logrus.Infof("Restarted etcd on %s", n.Name())
-	} else if strings.Contains(n.suite.clusterStore, "consul://") {
+	} else if strings.Contains(n.suite.basicInfo.ClusterStore, "consul://") {
 		logrus.Infof("Restarting consul on %s", n.Name())
 
 		n.runCommand("sudo systemctl stop consul")
