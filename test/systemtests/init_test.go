@@ -32,15 +32,15 @@ type BasicInfo struct {
 	Iterations   int    `json:"iterations"`
 	EnableDNS    bool   `json:"enableDNS"`
 	ClusterStore string `json:"contiv_cluster_store"`
-	ContivL3     string `json:"contiv_l3"`
-	KeyFile      string `json:"key_file"`
+	ContivL3     int `json:"contiv_l3"`
+	KeyFile      string `json:"keyFile"`
 	BinPath      string `json:"binpath"` // /home/admin/bin or /opt/gopath/bin
 }
 
 type HostInfo struct {
 	HostIPs           string `json:"hostips"`
 	HostUsernames     string `json:"hostusernames"`
-	HostDataInterface string `json:"dataInterface"`
+	HostDataInterfaces string `json:"dataInterfaces"`
 	HostMgmtInterface string `json:"mgmtInterface"`
 }
 
@@ -61,7 +61,7 @@ var _ = Suite(sts)
 func TestMain(m *M) {
 	mastbasic, _, _ := getInfo("cfg.json")
 
-	if mastbasic.ContivL3 == "" {
+	if mastbasic.ContivL3 == 0 {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
 	} else {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "routing", "forwarding mode to start the test ")
@@ -123,7 +123,7 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 	// Print all errors and fatal messages
 	for _, node := range s.nodes {
 		logrus.Infof("Checking for errors on %v", node.Name())
-		out, _ := node.runCommand(`for i in /tmp/_net*; do grep "error\|fatal\|panic" $i; done`)
+		out, _ := node.runCommand(`for i in /tmp/net*; do grep "error\|fatal\|panic" $i; done`)
 		if out != "" {
 			logrus.Errorf("Errors in logfiles on %s: \n", node.Name())
 			fmt.Printf("%s\n==========================\n\n", out)

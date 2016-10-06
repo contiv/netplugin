@@ -21,7 +21,7 @@ parser.add_argument("-containers", default=3, help="Number of containers for eac
 parser.add_argument("-iterations", default=3, help="Number of iterations for each test")
 parser.add_argument("-enableDNS", default=False, help="Enabling DNS")
 parser.add_argument("-contiv_cluster_store", default="etcd://localhost:2379", help="cluster info")
-parser.add_argument("-datainterface", default="eth2", help="Data interface")
+parser.add_argument("-datainterfaces", default="eth2", help="Data interface")
 parser.add_argument("-mgmtinterface", default="eth1", help="Control interface")
 parser.add_argument("-vlan", default="1120-1150", help="vlan range")
 parser.add_argument("-vxlan", default="1-10000", help="vxlan range")
@@ -48,7 +48,7 @@ data['key_file'] = args.key_file
 data['binpath'] = args.binpath
 data['hostips'] = args.hostips
 data['hostusernames'] = args.hostnames
-data['dataInterface'] = args.datainterface
+data['dataInterfaces'] = args.datainterfaces
 data['mgmtInterface'] = args.mgmtinterface
 data['vlan'] = args.vlan
 data['vxlan'] = args.vxlan

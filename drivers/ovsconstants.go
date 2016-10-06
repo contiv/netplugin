@@ -7,8 +7,6 @@ const (
 	operDeleteBridge
 	operCreatePort
 	operDeletePort
-	operCreatePortBond
-	operDeletePortBond
 )
 
 const (

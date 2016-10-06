@@ -40,11 +40,21 @@ func (s *StringSlice) String() string {
 	return fmt.Sprintf("%s", *s)
 }
 
+// Get returns the slice of strings set by this flag
+func (s *StringSlice) Get() interface{} {
+	return *s
+}
+
 // Set function for StringSlice sets the appropriate field for flag handling
 func (s *StringSlice) Set(value string) error {
 	optVal := strings.Split(value, ",")
 	*s = append(*s, optVal...)
 	return nil
+}
+
+// Value returns the slice of strings set by this flag
+func (s *StringSlice) Value() []string {
+	return *s
 }
 
 // a daemon based on etcd client's Watch interface to trigger plugin's

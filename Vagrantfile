@@ -92,6 +92,7 @@ provision_common_always = <<SCRIPT
 /sbin/ip addr add "$2/24" dev eth1
 /sbin/ip link set eth1 up
 /sbin/ip link set eth2 up
+/sbin/ip link set eth3 up
 
 # Drop cache to workaround vboxsf problem
 echo 3 > /proc/sys/vm/drop_caches
@@ -258,8 +259,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 v.customize ['modifyvm', :id, '--nictype1', 'virtio']
                 v.customize ['modifyvm', :id, '--nictype2', 'virtio']
                 v.customize ['modifyvm', :id, '--nictype3', 'virtio']
+                v.customize ['modifyvm', :id, '--nictype4', 'virtio']
                 v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
+                v.customize ['modifyvm', :id, '--nicpromisc4', 'allow-all']
                 v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
             end
 
@@ -272,7 +275,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
 
             node.vm.provision "shell" do |s|
-                s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_ips[1]} netmaster' >> /etc/hosts;	echo '#{node_addr} #{node_name}' >> /etc/hosts"
+                s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_ips[1]} netmaster' >> /etc/hosts;   echo '#{node_addr} #{node_name}' >> /etc/hosts"
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common_once

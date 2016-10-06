@@ -1086,7 +1086,7 @@ func (s *systemtestSuite) SetUpSuiteBaremetal(c *C) {
 
 	logrus.Infof("Private keyFile = %s", s.basicInfo.KeyFile)
 	logrus.Infof("Binary binpath = %s", s.basicInfo.BinPath)
-	logrus.Infof("Interface vlanIf = %s", s.hostInfo.HostDataInterface)
+	logrus.Infof("Uplink data Interface(s) = %s", s.hostInfo.HostDataInterfaces)
 
 	s.baremetal = remotessh.Baremetal{}
 	bm := &s.baremetal

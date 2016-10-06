@@ -49,9 +49,16 @@ const (
 	testHostLabel              = "testHost"
 	testHostLabelStateful      = "testHostStateful"
 	testCurrPortNum            = 10
-	testVlanUplinkPorts        = "eth2,eth3"
+	testSingleUplinkPort       = "eth2"
+	testMultiUplinkPorts       = "eth2,eth3"
 	testGateway                = "10.1.1.254"
 	testTenant                 = "default"
+)
+
+// General constants
+const (
+	bridgeMode  = "bridge"
+	routingMode = "routing"
 )
 
 func createCommonState(stateDriver core.StateDriver) error {
@@ -167,9 +174,8 @@ func createCommonState(stateDriver core.StateDriver) error {
 	return nil
 }
 
-func initOvsDriver(t *testing.T) *OvsDriver {
+func initOvsDriver(t *testing.T, fMode string) *OvsDriver {
 	driver := &OvsDriver{}
-	fMode := bridgeMode
 	arpMode := "proxy"
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
@@ -190,7 +196,7 @@ func initOvsDriver(t *testing.T) *OvsDriver {
 }
 
 func TestOvsDriverInit(t *testing.T) {
-	driver := initOvsDriver(t)
+	driver := initOvsDriver(t, bridgeMode)
 	defer func() { driver.Deinit() }()
 }
 
@@ -267,7 +273,7 @@ func TestOvsDriverInitInvalidInstanceInfo(t *testing.T) {
 }
 
 func TestOvsDriverDeinit(t *testing.T) {
-	driver := initOvsDriver(t)
+	driver := initOvsDriver(t, bridgeMode)
 
 	driver.Deinit()
 
@@ -323,7 +329,7 @@ func TestOvsDriverStateUpgrade(t *testing.T) {
 }
 
 func TestOvsDriverCreateEndpoint(t *testing.T) {
-	driver := initOvsDriver(t)
+	driver := initOvsDriver(t, bridgeMode)
 	defer func() { driver.Deinit() }()
 	id := createEpID
 
@@ -357,7 +363,7 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 }
 
 func TestOvsDriverCreateEndpointStateful(t *testing.T) {
-	driver := initOvsDriver(t)
+	driver := initOvsDriver(t, bridgeMode)
 	defer func() { driver.Deinit() }()
 	id := createEpIDStateful
 
@@ -398,7 +404,7 @@ func TestOvsDriverCreateEndpointStateful(t *testing.T) {
 }
 
 func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
-	driver := initOvsDriver(t)
+	driver := initOvsDriver(t, bridgeMode)
 	defer func() { driver.Deinit() }()
 	id := createEpIDStatefulMismatch
 
@@ -459,7 +465,7 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 }
 
 func TestOvsDriverDeleteEndpoint(t *testing.T) {
-	driver := initOvsDriver(t)
+	driver := initOvsDriver(t, bridgeMode)
 	defer func() { driver.Deinit() }()
 	id := deleteEpID
 
@@ -500,12 +506,12 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 	}
 }
 
-func TestOvsDriverAddUplink(t *testing.T) {
-	driver := initOvsDriver(t)
+func TestOvsDriverUplinkBridgeMode(t *testing.T) {
+	driver := initOvsDriver(t, bridgeMode)
 	defer func() { driver.Deinit() }()
 
 	uplinkName := "uplinkPort"
-	uplinkPorts := strings.Split(testVlanUplinkPorts, ",")
+	uplinkPorts := strings.Split(testMultiUplinkPorts, ",")
 	// Add uplink
 	err := driver.switchDb["vlan"].AddUplink(uplinkName, uplinkPorts)
 	if err != nil {
@@ -531,7 +537,7 @@ func TestOvsDriverAddUplink(t *testing.T) {
 }
 
 func TestOvsDriverVethNameConflict(t *testing.T) {
-	driver := initOvsDriver(t)
+	driver := initOvsDriver(t, bridgeMode)
 	defer func() { driver.Deinit() }()
 
 	// Create conflicting Veth interface pairs
