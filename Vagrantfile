@@ -249,12 +249,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
             # create an interface for bridged network
-            if ENV['CONTIV_L3'] then
-              # create an interface for bridged network
-              node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: network_name, auto_config: false
-            else
-              node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true", auto_config: false
-            end
+            node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: network_name, auto_config: false
+            node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "contiv_purple", auto_config: false
             node.vm.provider "virtualbox" do |v|
                 # make all nics 'virtio' to take benefit of builtin vlan tag
                 # support, which otherwise needs to be enabled in Intel drivers,

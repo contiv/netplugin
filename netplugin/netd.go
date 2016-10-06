@@ -33,6 +33,20 @@ import (
 	"github.com/Sirupsen/logrus/hooks/syslog"
 )
 
+// StringSlice is a flag option implementation
+type StringSlice []string
+
+func (s *StringSlice) String() string {
+	return fmt.Sprintf("%s", *s)
+}
+
+// Set function for StringSlice sets the appropriate field for flag handling
+func (s *StringSlice) Set(value string) error {
+	optVal := strings.Split(value, ",")
+	*s = append(*s, optVal...)
+	return nil
+}
+
 // a daemon based on etcd client's Watch interface to trigger plugin's
 // network provisioning interfaces
 
@@ -43,9 +57,9 @@ type cliOpts struct {
 	debug      bool
 	syslog     string
 	jsonLog    bool
-	ctrlIP     string // IP address to be used by control protocols
-	vtepIP     string // IP address to be used by the VTEP
-	vlanIntf   string // Uplink interface for VLAN switching
+	ctrlIP     string      // IP address to be used by control protocols
+	vtepIP     string      // IP address to be used by the VTEP
+	vlanIntf   StringSlice // Uplink interface for VLAN switching
 	version    bool
 	dbURL      string // state store URL
 }
@@ -120,9 +134,8 @@ func main() {
 		"ctrl-ip",
 		"",
 		"Local ip address to be used for control communication")
-	flagSet.StringVar(&opts.vlanIntf,
+	flagSet.Var(&opts.vlanIntf,
 		"vlan-if",
-		"",
 		"VLAN uplink interface")
 	flagSet.BoolVar(&opts.version,
 		"version",
@@ -197,7 +210,7 @@ func main() {
 			HostLabel:  opts.hostLabel,
 			CtrlIP:     opts.ctrlIP,
 			VtepIP:     opts.vtepIP,
-			VlanIntf:   opts.vlanIntf,
+			UplinkIntf: opts.vlanIntf,
 			DbURL:      opts.dbURL,
 			PluginMode: opts.pluginMode,
 		},

@@ -79,7 +79,7 @@ type InstanceInfo struct {
 	HostLabel   string      `json:"host-label"`
 	CtrlIP      string      `json:"ctrl-ip"`
 	VtepIP      string      `json:"vtep-ip"`
-	VlanIntf    string      `json:"vlan-if"`
+	UplinkIntf  []string    `json:"uplink-if"`
 	RouterIP    string      `json:"router-ip"`
 	FwdMode     string      `json:"fwd-mode"`
 	ArpMode     string      `json:"arp-mode"`
