@@ -44,6 +44,8 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 	}
 
 	// Read global config
+	gstate.GlobalMutex.Lock()
+	defer gstate.GlobalMutex.Unlock()
 	gCfg := gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
 	err = gCfg.Read(tenantName)
@@ -153,6 +155,8 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 	}
 
 	// Delete the endpoint group state
+	gstate.GlobalMutex.Lock()
+	defer gstate.GlobalMutex.Unlock()
 	gCfg := gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
 	err = gCfg.Read(epgCfg.TenantName)

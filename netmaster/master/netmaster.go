@@ -17,6 +17,7 @@ package master
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/cenkalti/backoff"
 	"github.com/contiv/netplugin/core"
@@ -123,6 +124,8 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 	masterGc.StateDriver = stateDriver
 	masterGc.Read("global")
 
+	gstate.GlobalMutex.Lock()
+	defer gstate.GlobalMutex.Unlock()
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
 	gCfg.Read("global")
@@ -159,9 +162,103 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		masterGc.FwdMode = gc.FwdMode
 	}
 
+	if len(gcfgUpdateList) > 0 {
+		// Delete old state
+
+		gOper := &gstate.Oper{}
+		gOper.StateDriver = stateDriver
+		err = gOper.Read("")
+		if err == nil {
+			for _, res := range gcfgUpdateList {
+				err = gCfg.UpdateResources(res)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+
+			for _, res := range gcfgUpdateList {
+				// setup resources
+				err = gCfg.Process(res)
+				if err != nil {
+					log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
+					return err
+				}
+			}
+		}
+
+		err = gCfg.Write()
+		if err != nil {
+			log.Errorf("error updating global config.Error: %s", err)
+			return err
+		}
+	}
 	err = masterGc.Write()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// UpdateGlobal updates the global state
+func UpdateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
+	log.Infof("Received global update with intent {%v}", gc)
+	var err error
+	gcfgUpdateList := []string{}
+
+	masterGc := &mastercfg.GlobConfig{}
+	masterGc.StateDriver = stateDriver
+	masterGc.Read("global")
+
+	gstate.GlobalMutex.Lock()
+	defer gstate.GlobalMutex.Unlock()
+
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	gCfg.Read("global")
+
+	_, vlansInUse := gCfg.GetVlansInUse()
+	_, vxlansInUse := gCfg.GetVxlansInUse()
+
+	// check for valid values
+	if gc.NwInfraType != "" {
+		switch gc.NwInfraType {
+		case "default", "aci", "aci-opflex":
+			// These values are acceptable.
+		default:
+			return errors.New("Invalid fabric mode")
+		}
+		masterGc.NwInfraType = gc.NwInfraType
+	}
+	if gc.VLANs != "" {
+
+		if !gCfg.CheckInBitRange(gc.VLANs, vlansInUse, "vlan") {
+			return fmt.Errorf("cannot update the vlan range due to existing vlans %s", vlansInUse)
+		}
+		_, err := netutils.ParseTagRanges(gc.VLANs, "vlan")
+		if err != nil {
+			return err
+		}
+		gCfg.Auto.VLANs = gc.VLANs
+		gcfgUpdateList = append(gcfgUpdateList, "vlan")
+	}
+
+	if gc.VXLANs != "" {
+		if !gCfg.CheckInBitRange(gc.VXLANs, vxlansInUse, "vxlan") {
+			return fmt.Errorf("cannot update the vxlan range due to existing vxlans %s", vxlansInUse)
+		}
+
+		_, err = netutils.ParseTagRanges(gc.VXLANs, "vxlan")
+		if err != nil {
+			return err
+		}
+		gCfg.Auto.VXLANs = gc.VXLANs
+		gcfgUpdateList = append(gcfgUpdateList, "vxlan")
+	}
+
+	if gc.FwdMode != "" {
+		masterGc.FwdMode = gc.FwdMode
 	}
 
 	if len(gcfgUpdateList) > 0 {
@@ -172,18 +269,10 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		err = gOper.Read("")
 		if err == nil {
 			for _, res := range gcfgUpdateList {
-				err = gCfg.DeleteResources(res)
+				err = gCfg.UpdateResources(res)
 				if err != nil {
 					return err
 				}
-			}
-		}
-		for _, res := range gcfgUpdateList {
-			// setup resources
-			err = gCfg.Process(res)
-			if err != nil {
-				log.Errorf("Error updating the config %+v. Error: %s", gCfg, err)
-				return err
 			}
 		}
 
@@ -192,6 +281,11 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 			log.Errorf("error updating global config.Error: %s", err)
 			return err
 		}
+	}
+
+	err = masterGc.Write()
+	if err != nil {
+		return err
 	}
 
 	return nil

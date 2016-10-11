@@ -153,6 +153,24 @@ func (rm *StateResourceManager) UndefineResource(id, desc string) error {
 
 }
 
+// RedefineResource deinitializes a resource.
+func (rm *StateResourceManager) RedefineResource(id, desc string, rsrcCfg interface{}) error {
+
+	rsrc, alreadyExists, err := rm.findResource(id, desc)
+	if err != nil {
+		return err
+	}
+
+	if !alreadyExists {
+		return core.Errorf("No resource found for description: %q and id: %q",
+			desc, id)
+	}
+
+	rsrc.Reinit(rsrcCfg)
+	return nil
+
+}
+
 // GetResourceList get the list of allocated as string for inspection
 func (rm *StateResourceManager) GetResourceList(id, desc string) (uint, string) {
 	// XXX: need to take care of distibuted updates, locks etc here
