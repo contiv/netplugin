@@ -116,6 +116,46 @@ func (r *AutoVLANCfgResource) Deinit() {
 	r.Clear()
 }
 
+// Reinit the Resource. Requires a *bitset.BitSet.
+func (r *AutoVLANCfgResource) Reinit(rsrcCfg interface{}) error {
+	var ok bool
+	prevVLANs := r.VLANs
+	r.VLANs, ok = rsrcCfg.(*bitset.BitSet)
+	if !ok {
+		return core.Errorf("Invalid type for vlan resource config")
+	}
+	err := r.Write()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			r.Clear()
+		}
+	}()
+
+	oper := &AutoVLANOperResource{}
+	oper.StateDriver = r.StateDriver
+	oper.ID = r.ID
+	err = oper.Read(r.ID)
+	if err != nil {
+		return err
+	}
+
+	prevVLANs.InPlaceSymmetricDifference(oper.FreeVLANs)
+	oper.FreeVLANs = r.VLANs
+	for i, e := prevVLANs.NextSet(0); e; i, e = prevVLANs.NextSet(i + 1) {
+		oper.FreeVLANs.Clear(i)
+	}
+
+	err = oper.Write()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Description is a description of this resource. returns AutoVLANResource.
 func (r *AutoVLANCfgResource) Description() string {
 	return AutoVLANResource
@@ -192,7 +232,7 @@ func (r *AutoVLANCfgResource) Allocate(reqVal interface{}) (interface{}, error) 
 	if (reqVal != nil) && (reqVal.(uint) != 0) {
 		vlan = reqVal.(uint)
 		if !oper.FreeVLANs.Test(vlan) {
-			return nil, errors.New("requested vlan not available")
+			return nil, fmt.Errorf("requested vlan not available - vlan:%d", vlan)
 		}
 	} else {
 		ok := false

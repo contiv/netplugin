@@ -1,0 +1,29 @@
+[
+    {
+      "scheduler" : "docker",
+      "swarm_variable":"DOCKER_HOST=192.168.2.10:2375",
+      "platform" : "vagrant",
+      "product" : "netplugin",
+      "aci_mode" : "off",
+      "short"   : false,
+      "containers" : 3,
+      "iterations" : 2,
+      "enableDNS" : false,
+      "contiv_cluster_store" : "etcd://localhost:2379",
+      "contiv_l3" : "",
+      "key_file" : "/home/admin/.ssh/id_rsa",
+      "binpath" : "/opt/gopath/bin",
+
+      "hostips" : "192.168.2.10,192.168.2.11,192.168.2.12",
+      "hostusernames" : "admin,admin,admin",
+      "dataInterface" : "eth2",
+	"mgmtInterface" : "eth1",
+      "vlan" : "1120-1150",
+      "vxlan" : "1-10000",
+      "subnet" : "10.1.1.0/24",
+      "gateway" : "10.1.1.254",
+      "network" : "MyNet",
+      "tenant": "MyTenant",
+      "encap" : "vlan"
+      }
+]

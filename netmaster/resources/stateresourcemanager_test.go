@@ -64,6 +64,10 @@ func (r *TestResource) Init(rsrcCfg interface{}) error {
 	return nil
 }
 
+func (r *TestResource) Reinit(rsrcCfg interface{}) error {
+	return nil
+}
+
 func (r *TestResource) Deinit() {
 }
 

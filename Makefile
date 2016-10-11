@@ -119,8 +119,9 @@ k8s-test:
 	#make ssh-build
 	cd vagrant/k8s/ && CONTIV_K8=1 vagrant ssh k8master -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	CONTIV_K8=1 cd vagrant/k8s/ && ./start_sanity_service.sh
-	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|HostBridge|Netprofile"
-	cd vagrant/k8s && vagrant destroy -f
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8'
+	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|HostBridge|Netprofile" 
+	cd vagrant/k8s && vagrant destroy -f 
 # Mesos demo targets
 mesos-docker-demo:
 	cd vagrant/mesos-docker && vagrant up
@@ -172,13 +173,15 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py 
 	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 	CONTIV_L3=2 CONTIV_NODES=3 make start
 	CONTIV_L3=2 CONTIV_NODES=3 make ssh-build
-	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 720m ./test/systemtests -check.v   
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -contiv_l3 2
+	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 720m ./test/systemtests -check.v  
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 l3-demo:
 	CONTIV_L3=1 CONTIV_NODES=3 vagrant up
@@ -201,11 +204,17 @@ host-unit-test-coverage-detail:
 	@echo dev: running unit tests...
 	cd $(GOPATH)/src/github.com/contiv/netplugin && sudo -E PATH=$(PATH) scripts/unittests --coverage-detail
 
-host-integ-test: host-cleanup
+host-integ-test: host-cleanup start-aci-gw
 	@echo dev: running integration tests...
 	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vlan -fwd-mode bridge
 	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode bridge
 	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -encap vxlan -fwd-mode routing
+	sudo -E /usr/local/go/bin/go test -v ./test/integration/ -check.v -check.f "AppProfile" -encap vlan -fwd-mode bridge --fabric-mode aci
+
+start-aci-gw:
+	@echo dev: starting aci gw...
+	docker pull contiv/aci-gw:integ_test
+	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" -e "APIC_LEAF_NODE=IGNORE" -e "APIC_PHYS_DOMAIN=IGNORE" --name=contiv-aci-gw contiv/aci-gw:integ_test
 
 host-cleanup:
 	@echo dev: cleaning up services...

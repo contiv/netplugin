@@ -234,7 +234,7 @@ func checkInspectGlobal(t *testing.T, expError bool, allocedVlans, allocedVxlans
 		t.Fatalf("Inspect global info succeeded while expecting error")
 	} else if err == nil {
 		if insp.Oper.VlansInUse != allocedVlans || insp.Oper.VxlansInUse != allocedVxlans {
-			t.Fatalf("Inspect network {%+v} failed with mismatching ", insp)
+			t.Fatalf("Inspect global {%+v} failed with mismatching vlan/vxlan allocated ", insp)
 		}
 	}
 }
@@ -992,6 +992,7 @@ func TestNetworkAddDeleteACIMode(t *testing.T) {
 
 }
 
+/*
 // TestNetworkAddDelete tests network create/delete REST api
 func TestNetworkAddDelete(t *testing.T) {
 	// Basic vlan network
@@ -1086,6 +1087,124 @@ func TestNetworkAddDelete(t *testing.T) {
 
 	// Try deleting a non-existing network
 	checkDeleteNetwork(t, true, "default", "contiv")
+}
+*/
+
+func TestDynamicGlobalVlanRange(t *testing.T) {
+
+	// Basic vlan network creation
+
+	checkCreateNetwork(t, false, "default", "contiv1", "", "vlan", "10.1.1.1/24", "10.1.1.254", 10, "", "")
+	checkInspectNetwork(t, false, "default", "contiv1", "10.1.1.254", 10, 0)
+	//checkInspectGlobal(t, false, "1", "")
+	verifyNetworkState(t, "default", "contiv1", "data", "vlan", "10.1.1.1", "10.1.1.254", 24, 10, 0, "", "", 0)
+
+	checkCreateNetwork(t, false, "default", "contiv2", "", "vlan", "11.1.1.1/24", "11.1.1.254", 11, "", "")
+	checkInspectNetwork(t, false, "default", "contiv2", "11.1.1.254", 11, 0)
+	//checkInspectGlobal(t, false, "2", "")
+	verifyNetworkState(t, "default", "contiv2", "data", "vlan", "11.1.1.1", "11.1.1.254", 24, 11, 0, "", "", 0)
+
+	checkCreateNetwork(t, false, "default", "contiv3", "", "vlan", "12.1.1.1/24", "12.1.1.254", 300, "", "")
+	checkInspectNetwork(t, false, "default", "contiv3", "12.1.1.254", 300, 0)
+	//checkInspectGlobal(t, false, "3", "")
+	verifyNetworkState(t, "default", "contiv3", "data", "vlan", "12.1.1.1", "12.1.1.254", 24, 300, 0, "", "", 0)
+
+	//Change global state
+	checkGlobalSet(t, false, "default", "9-301", "1-10000", "bridge")
+
+	//verify creation of network with active tag fails after change in global vlan range
+	checkCreateNetwork(t, true, "default", "contiv4", "", "vlan", "13.1.1.1/24", "13.1.1.254", 10, "", "")
+
+	//verify creation of network with out of range tag fails after change in global vlan range
+	checkCreateNetwork(t, true, "default", "contiv5", "", "vlan", "14.1.1.1/24", "14.1.1.254", 302, "", "")
+
+	//verify creation of network succeeds after vlan change
+	checkCreateNetwork(t, false, "default", "contiv6", "", "vlan", "15.1.1.1/24", "15.1.1.254", 299, "", "")
+	checkInspectNetwork(t, false, "default", "contiv6", "15.1.1.254", 299, 0)
+	//checkInspectGlobal(t, false, "4", "")
+	verifyNetworkState(t, "default", "contiv6", "data", "vlan", "15.1.1.1", "15.1.1.254", 24, 299, 0, "", "", 0)
+
+	//check global state change fails if there are active tags
+	checkGlobalSet(t, true, "default", "50-301", "1-10000", "bridge")
+	//check global state change fails if there are active tags
+	checkGlobalSet(t, true, "default", "1-200", "1-10000", "bridge")
+
+	//check global vlan range can be changed to bigger range
+	checkGlobalSet(t, false, "default", "1-800", "1-10000", "bridge")
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vlan", "16.1.1.1/24", "16.1.1.254", 700, "", "")
+	checkInspectNetwork(t, false, "default", "contiv7", "16.1.1.254", 700, 0)
+	//checkInspectGlobal(t, false, "5", "")
+	verifyNetworkState(t, "default", "contiv7", "data", "vlan", "16.1.1.1", "16.1.1.254", 24, 700, 0, "", "", 0)
+
+	//Delete and recreate the network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vlan", "16.1.1.1/24", "16.1.1.254", 700, "", "")
+	checkInspectNetwork(t, false, "default", "contiv7", "16.1.1.254", 700, 0)
+	//checkInspectGlobal(t, false, "5", "")
+	verifyNetworkState(t, "default", "contiv7", "data", "vlan", "16.1.1.1", "16.1.1.254", 24, 700, 0, "", "", 0)
+
+	checkDeleteNetwork(t, false, "default", "contiv7")
+	checkDeleteNetwork(t, false, "default", "contiv6")
+	checkDeleteNetwork(t, false, "default", "contiv3")
+	checkDeleteNetwork(t, false, "default", "contiv2")
+	checkDeleteNetwork(t, false, "default", "contiv1")
+
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+
+}
+
+func TestDynamicGlobalVxlanRange(t *testing.T) {
+
+	insp, _ := contivClient.GlobalInspect("global") // Basic vxlan network creation
+
+	log.Printf("THE GLOBAL DUMP: %#v \n", insp)
+	checkCreateNetwork(t, false, "default", "contiv1", "", "vxlan", "10.1.1.1/24", "10.1.1.254", 1000, "", "")
+	verifyNetworkState(t, "default", "contiv1", "data", "vxlan", "10.1.1.1", "10.1.1.254", 24, 1, 1000, "", "", 0)
+
+	checkCreateNetwork(t, false, "default", "contiv2", "", "vxlan", "11.1.1.1/24", "11.1.1.254", 1001, "", "")
+	verifyNetworkState(t, "default", "contiv2", "data", "vxlan", "11.1.1.1", "11.1.1.254", 24, 2, 1001, "", "", 0)
+
+	checkCreateNetwork(t, false, "default", "contiv3", "", "vxlan", "12.1.1.1/24", "12.1.1.254", 2000, "", "")
+	verifyNetworkState(t, "default", "contiv3", "data", "vxlan", "12.1.1.1", "12.1.1.254", 24, 3, 2000, "", "", 0)
+
+	//Change global state
+	checkGlobalSet(t, false, "default", "1-4094", "1000-2500", "bridge")
+
+	//verify creation of network with active tag fails after change in global vlan range
+	checkCreateNetwork(t, true, "default", "contiv4", "", "vxlan", "13.1.1.1/24", "13.1.1.254", 1000, "", "")
+
+	//verify creation of network with out of range tag fails after change in global vlan range
+	checkCreateNetwork(t, true, "default", "contiv5", "", "vxlan", "13.1.1.1/24", "13.1.1.254", 2501, "", "")
+
+	//verify creation of network succeeds after vlan change
+	checkCreateNetwork(t, false, "default", "contiv6", "", "vxlan", "14.1.1.1/24", "14.1.1.254", 2200, "", "")
+	verifyNetworkState(t, "default", "contiv6", "data", "vxlan", "14.1.1.1", "14.1.1.254", 24, 4, 2200, "", "", 0)
+
+	//check global state change fails if there are active tags
+	checkGlobalSet(t, true, "default", "1-4094", "2000-10000", "bridge")
+	//check global state change fails if there are active tags
+	checkGlobalSet(t, true, "default", "1-4094", "1000-2000", "bridge")
+
+	//check global vlan range can be changed to bigger range
+	checkGlobalSet(t, false, "default", "1-4094", "1000-9000", "bridge")
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "15.1.1.1/24", "15.1.1.254", 3200, "", "")
+	verifyNetworkState(t, "default", "contiv7", "data", "vxlan", "15.1.1.1", "15.1.1.254", 24, 5, 3200, "", "", 0)
+
+	//Delete and recreate the network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "")
+	verifyNetworkState(t, "default", "contiv7", "data", "vxlan", "16.1.1.1", "16.1.1.254", 24, 5, 3200, "", "", 0)
+
+	checkDeleteNetwork(t, false, "default", "contiv7")
+	checkDeleteNetwork(t, false, "default", "contiv6")
+	checkDeleteNetwork(t, false, "default", "contiv3")
+	checkDeleteNetwork(t, false, "default", "contiv2")
+	checkDeleteNetwork(t, false, "default", "contiv1")
+
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+
 }
 
 // TestGlobalSetting tests global REST api

@@ -192,14 +192,16 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 		return err
 	}
 
+	gCfg := &gstate.Cfg{}
+	gCfg.StateDriver = stateDriver
+	numVlans, vlansInUse := gCfg.GetVlansInUse()
+	numVxlans, vxlansInUse := gCfg.GetVxlansInUse()
+
 	// Build global config
 	globalCfg := intent.ConfigGlobal{}
+
 	//check for change in forwarding mode
 	if global.FwdMode != params.FwdMode {
-		gCfg := &gstate.Cfg{}
-		gCfg.StateDriver = stateDriver
-		numVlans, vlansInUse := gCfg.GetVlansInUse()
-		numVxlans, vxlansInUse := gCfg.GetVxlansInUse()
 		//check if there exists any non default network and tenants
 		if numVlans+numVxlans > 0 {
 			log.Errorf("Unable to update forwarding mode due to existing %d vlans and %d vxlans", numVlans, numVxlans)
@@ -228,7 +230,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	}
 
 	// Create the object
-	err = master.CreateGlobal(stateDriver, &globalCfg)
+	err = master.UpdateGlobal(stateDriver, &globalCfg)
 	if err != nil {
 		log.Errorf("Error creating global config {%+v}. Err: %v", global, err)
 		return err
@@ -1304,21 +1306,37 @@ func (ac *APIController) PolicyDelete(policy *contivModel.Policy) error {
 	return nil
 }
 
-func syncAppProfile(policy *contivModel.Policy) {
-	// find all appProfiles that have an association
+func getAffectedProfs(policy *contivModel.Policy,
+	matchEpg *contivModel.EndpointGroup) map[string]bool {
 	profMap := make(map[string]bool)
-
+	// find all appProfiles that have an association via policy
 	for epg := range policy.LinkSets.EndpointGroups {
 		epgObj := contivModel.FindEndpointGroup(epg)
 		if epgObj == nil {
 			log.Warnf("syncAppProfile epg %s not found", epg)
 		} else {
 			prof := epgObj.Links.AppProfile.ObjKey
-			profMap[prof] = true
-			log.Infof("syncAppProfile epg %s ==> prof %s", epg, prof)
+			if prof != "" {
+				profMap[prof] = true
+				log.Infof("syncAppProfile epg %s ==> prof %s", epg, prof)
+			}
 		}
 	}
 
+	// add any app-profile associated via a matching epg
+	if matchEpg != nil {
+		prof := matchEpg.Links.AppProfile.ObjKey
+		if prof != "" {
+			profMap[prof] = true
+			log.Infof("syncAppProfile epg %s ==> prof %s",
+				matchEpg, prof)
+		}
+	}
+
+	return profMap
+}
+
+func syncAppProfile(profMap map[string]bool) {
 	for ap := range profMap {
 		profObj := contivModel.FindAppProfile(ap)
 		if profObj == nil {
@@ -1334,6 +1352,8 @@ func syncAppProfile(policy *contivModel.Policy) {
 // RuleCreate Creates the rule within a policy
 func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 	log.Infof("Received RuleCreate: %+v", rule)
+	var epg *contivModel.EndpointGroup
+	epg = nil
 
 	// verify parameter values
 	if rule.Direction == "in" {
@@ -1365,7 +1385,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 	if rule.FromEndpointGroup != "" {
 		epgKey := rule.TenantName + ":" + rule.FromEndpointGroup
 		// find the endpoint group
-		epg := contivModel.FindEndpointGroup(epgKey)
+		epg = contivModel.FindEndpointGroup(epgKey)
 		if epg == nil {
 			log.Errorf("Error finding endpoint group %s", epgKey)
 			return errors.New("endpoint group not found")
@@ -1374,7 +1394,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		epgKey := rule.TenantName + ":" + rule.ToEndpointGroup
 
 		// find the endpoint group
-		epg := contivModel.FindEndpointGroup(epgKey)
+		epg = contivModel.FindEndpointGroup(epgKey)
 		if epg == nil {
 			log.Errorf("Error finding endpoint group %s", epgKey)
 			return errors.New("endpoint group not found")
@@ -1421,8 +1441,19 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		return err
 	}
 
+	// link the rule to epg and vice versa
+	if epg != nil {
+		modeldb.AddLinkSet(&epg.LinkSets.MatchRules, rule)
+		modeldb.AddLink(&rule.Links.MatchEndpointGroup, epg)
+		err = epg.Write()
+		if err != nil {
+			return err
+		}
+	}
+
 	// Update any affected app profiles
-	syncAppProfile(policy)
+	pMap := getAffectedProfs(policy, epg)
+	syncAppProfile(pMap)
 
 	return nil
 }
@@ -1435,6 +1466,9 @@ func (ac *APIController) RuleUpdate(rule, params *contivModel.Rule) error {
 
 // RuleDelete deletes the rule within a policy
 func (ac *APIController) RuleDelete(rule *contivModel.Rule) error {
+	var epg *contivModel.EndpointGroup
+
+	epg = nil
 	log.Infof("Received RuleDelete: %+v", rule)
 
 	policyKey := GetpolicyKey(rule.TenantName, rule.PolicyName)
@@ -1453,6 +1487,15 @@ func (ac *APIController) RuleDelete(rule *contivModel.Rule) error {
 		return err
 	}
 
+	// unlink the rule from matching epg
+	epgKey := rule.Links.MatchEndpointGroup.ObjKey
+	if epgKey != "" {
+		epg = contivModel.FindEndpointGroup(epgKey)
+		if epg != nil {
+			modeldb.RemoveLinkSet(&epg.LinkSets.MatchRules, rule)
+		}
+	}
+
 	// Trigger policyDB Update
 	err = master.PolicyDelRule(policy, rule)
 	if err != nil {
@@ -1461,7 +1504,8 @@ func (ac *APIController) RuleDelete(rule *contivModel.Rule) error {
 	}
 
 	// Update any affected app profiles
-	syncAppProfile(policy)
+	pMap := getAffectedProfs(policy, epg)
+	syncAppProfile(pMap)
 
 	return nil
 }

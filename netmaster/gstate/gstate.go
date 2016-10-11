@@ -18,6 +18,9 @@ package gstate
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
+	"sync"
 
 	"github.com/jainvipin/bitset"
 
@@ -36,6 +39,9 @@ const (
 	operGlobalPath      = operGlobalPrefix + "global"
 	vxlanLocalVlanRange = "1-4094"
 )
+
+//GlobalMutex used to syncronize global configuration changes
+var GlobalMutex sync.Mutex
 
 // AutoParams specifies various parameters for the auto allocation and resource
 // management for networks and endpoints.  This allows for hands-free
@@ -149,7 +155,7 @@ func (g *Oper) Clear() error {
 	return g.StateDriver.ClearState(key)
 }
 
-func (gc *Cfg) initVXLANBitset(vxlans string) (*resources.AutoVXLANCfgResource, uint, error) {
+func (gc *Cfg) initVXLANBitset(vxlans string) (*resources.AutoVXLANCfgResource, error) {
 
 	vxlanRsrcCfg := &resources.AutoVXLANCfgResource{}
 	vxlanRsrcCfg.VXLANs = netutils.CreateBitset(14)
@@ -157,7 +163,7 @@ func (gc *Cfg) initVXLANBitset(vxlans string) (*resources.AutoVXLANCfgResource, 
 	vxlanRange := netutils.TagRange{}
 	vxlanRanges, err := netutils.ParseTagRanges(vxlans, "vxlan")
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	// XXX: REVISIT, we seem to accept one contiguous vxlan range
 	vxlanRange = vxlanRanges[0]
@@ -169,11 +175,12 @@ func (gc *Cfg) initVXLANBitset(vxlans string) (*resources.AutoVXLANCfgResource, 
 
 	// Initialize local vlan bitset
 	vxlanRsrcCfg.LocalVLANs, err = gc.initVLANBitset(vxlanLocalVlanRange)
+	vxlanRsrcCfg.FreeVXLANsStart = freeVXLANsStart
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return vxlanRsrcCfg, freeVXLANsStart, nil
+	return vxlanRsrcCfg, nil
 }
 
 // GetVxlansInUse gets the vlans that are currently in use
@@ -339,11 +346,10 @@ func (gc *Cfg) Process(res string) error {
 		}
 	}
 	// Only define a vxlan resource if a valid range was specified
-	var freeVXLANsStart uint
 	if res == "vxlan" {
+		var vxlanRsrcCfg *resources.AutoVXLANCfgResource
 		if gc.Auto.VXLANs != "" {
-			var vxlanRsrcCfg *resources.AutoVXLANCfgResource
-			vxlanRsrcCfg, freeVXLANsStart, err = gc.initVXLANBitset(gc.Auto.VXLANs)
+			vxlanRsrcCfg, err = gc.initVXLANBitset(gc.Auto.VXLANs)
 			if err != nil {
 				return err
 			}
@@ -353,7 +359,7 @@ func (gc *Cfg) Process(res string) error {
 			}
 		}
 
-		g := &Oper{FreeVXLANsStart: freeVXLANsStart}
+		g := &Oper{FreeVXLANsStart: vxlanRsrcCfg.FreeVXLANsStart}
 
 		g.StateDriver = gc.StateDriver
 		err = g.Write()
@@ -381,10 +387,56 @@ func (gc *Cfg) DeleteResources(res string) error {
 			log.Errorf("Error deleting vlan resource. Err: %v", err)
 		}
 	} else if res == "vxlan" {
-
 		err = ra.UndefineResource("global", resources.AutoVXLANResource)
 		if err != nil {
 			log.Errorf("Error deleting vxlan resource. Err: %v", err)
+		}
+	}
+	return err
+}
+
+// UpdateResources deletes associated resources
+func (gc *Cfg) UpdateResources(res string) error {
+	log.Infof("Received update resource for res %s", res)
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		return err
+	}
+
+	ra := core.ResourceManager(tempRm)
+
+	err = gc.checkErrors(res)
+	if err != nil {
+		return core.Errorf("process failed on error checks %s", err)
+	}
+
+	if res == "vlan" {
+		var vlanRsrcCfg *bitset.BitSet
+		vlanRsrcCfg, err = gc.initVLANBitset(gc.Auto.VLANs)
+		if err != nil {
+			return err
+		}
+		err = ra.RedefineResource("global", resources.AutoVLANResource, vlanRsrcCfg)
+		if err != nil {
+			log.Errorf("Error deleting vlan resource. Err: %v", err)
+		}
+	} else if res == "vxlan" {
+		var vxlanRsrcCfg *resources.AutoVXLANCfgResource
+		vxlanRsrcCfg, err = gc.initVXLANBitset(gc.Auto.VXLANs)
+		if err != nil {
+			return err
+		}
+		err = ra.RedefineResource("global", resources.AutoVXLANResource, vxlanRsrcCfg)
+		if err != nil {
+			log.Errorf("Error deleting vxlan resource. Err: %v", err)
+		}
+		g := &Oper{FreeVXLANsStart: vxlanRsrcCfg.FreeVXLANsStart}
+
+		g.StateDriver = gc.StateDriver
+		err = g.Write()
+		if err != nil {
+			log.Errorf("error '%s' updating global oper state %v \n", err, g)
+			return err
 		}
 	}
 	return err
@@ -435,4 +487,41 @@ func (gc *Cfg) UnassignNetwork(networkName string) error {
 	}
 
 	return nil
+}
+
+//CheckInBitRange to check if range includes inuse vlans
+func (gc *Cfg) CheckInBitRange(ranges, inUse, pktTagType string) bool {
+
+	tags := strings.Split(inUse, ",")
+
+	if len(inUse) == 0 {
+		return true
+	}
+	minUsed := 0
+	maxUsed := 0
+	if strings.Contains(tags[0], "-") {
+		minUsed, _ = strconv.Atoi(strings.Split(tags[0], "-")[0])
+		maxUsed, _ = strconv.Atoi(strings.Split(tags[0], "-")[1])
+	} else {
+		minUsed, _ = strconv.Atoi(tags[0])
+		maxUsed = minUsed
+	}
+
+	if len(inUse) > 1 {
+		if strings.Contains(tags[len(tags)-1], "-") {
+			maxUsed, _ = strconv.Atoi(strings.Split(tags[len(tags)-1], "-")[1])
+		} else {
+			maxUsed, _ = strconv.Atoi(strings.TrimSpace(tags[len(tags)-1]))
+		}
+	}
+
+	r, err := netutils.ParseTagRanges(ranges, pktTagType)
+	if err != nil {
+		return false
+	}
+
+	if r[0].Min > minUsed || r[0].Max < maxUsed {
+		return false
+	}
+	return true
 }

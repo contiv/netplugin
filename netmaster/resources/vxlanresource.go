@@ -44,8 +44,9 @@ const (
 // at time of resource instantiation
 type AutoVXLANCfgResource struct {
 	core.CommonState
-	VXLANs     *bitset.BitSet `json:"vxlans"`
-	LocalVLANs *bitset.BitSet `json:"LocalVLANs"`
+	VXLANs          *bitset.BitSet `json:"vxlans"`
+	LocalVLANs      *bitset.BitSet `json:"LocalVLANs"`
+	FreeVXLANsStart uint           `json:"FreeVXLANsStart"`
 }
 
 // VXLANVLANPair Pairs a VXLAN tag with a VLAN tag.
@@ -124,6 +125,58 @@ func (r *AutoVXLANCfgResource) Deinit() {
 	r.Clear()
 }
 
+// Reinit the resource.
+func (r *AutoVXLANCfgResource) Reinit(rsrcCfg interface{}) error {
+
+	cfg, ok := rsrcCfg.(*AutoVXLANCfgResource)
+	if !ok {
+		return core.Errorf("Invalid vxlan resource config.")
+	}
+
+	prevVXLANs := r.VXLANs
+	prevFreeStart := r.FreeVXLANsStart
+
+	r.VXLANs = cfg.VXLANs
+	r.LocalVLANs = cfg.LocalVLANs
+	r.FreeVXLANsStart = cfg.FreeVXLANsStart
+
+	err := r.Write()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			r.Clear()
+		}
+	}()
+
+	oper := &AutoVXLANOperResource{}
+	oper.StateDriver = r.StateDriver
+	oper.ID = r.ID
+
+	err = oper.Read(r.ID)
+	if err != nil {
+		return err
+	}
+
+	prevVXLANs.InPlaceSymmetricDifference(oper.FreeVXLANs)
+
+	oper.FreeVXLANs = r.VXLANs
+	for i, e := prevVXLANs.NextSet(0); e; i, e = prevVXLANs.NextSet(i + 1) {
+		vxlan := i + prevFreeStart
+		oper.FreeVXLANs.Clear(vxlan - r.FreeVXLANsStart)
+	}
+
+	oper.FreeLocalVLANs = oper.FreeLocalVLANs.Intersection(r.LocalVLANs)
+
+	err = oper.Write()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Description is a string description of the resource. Returns AutoVXLANResource.
 func (r *AutoVXLANCfgResource) Description() string {
 	return AutoVXLANResource
@@ -163,7 +216,7 @@ func (r *AutoVXLANCfgResource) GetList() (uint, string) {
 			startIdx = foundValue
 			inRange = true
 		} else if foundValue > idx { // end of range
-			thisRange := rangePrint(startIdx, idx-1)
+			thisRange := rangePrint(startIdx+cfg.FreeVXLANsStart, idx-1+cfg.FreeVXLANsStart)
 			list = append(list, thisRange)
 			startIdx = foundValue
 		}
@@ -172,7 +225,7 @@ func (r *AutoVXLANCfgResource) GetList() (uint, string) {
 
 	// list end with allocated value
 	if inRange {
-		thisRange := rangePrint(startIdx, idx-1)
+		thisRange := rangePrint(startIdx+cfg.FreeVXLANsStart, idx-1+cfg.FreeVXLANsStart)
 		list = append(list, thisRange)
 	}
 
@@ -192,7 +245,7 @@ func (r *AutoVXLANCfgResource) Allocate(reqVal interface{}) (interface{}, error)
 	if (reqVal != nil) && (reqVal.(uint) != 0) {
 		vxlan = reqVal.(uint)
 		if !oper.FreeVXLANs.Test(vxlan) {
-			return nil, errors.New("requested vxlan not available")
+			return nil, fmt.Errorf("requested vxlan not available")
 		}
 	} else {
 		ok := false

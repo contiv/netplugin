@@ -77,6 +77,8 @@ func validateNetworkConfig(tenant *intent.ConfigTenant) error {
 func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, tenantName string) error {
 	var extPktTag, pktTag uint
 
+	gstate.GlobalMutex.Lock()
+	defer gstate.GlobalMutex.Unlock()
 	gCfg := gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
 	err := gCfg.Read("")
@@ -447,6 +449,8 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 		}
 	}
 
+	gstate.GlobalMutex.Lock()
+	defer gstate.GlobalMutex.Unlock()
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
 	err = gCfg.Read("")
