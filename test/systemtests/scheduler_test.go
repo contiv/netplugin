@@ -39,6 +39,7 @@ type systemTestScheduler interface {
 	checkSchedulerNetworkCreated(nwName string, expectedOp bool) error
 	waitForListeners() error
 	verifyVTEPs(expVTEPS map[string]bool) (string, error)
+	verifyAgents(expVTEPS map[string]bool) (string, error)
 	verifyEPs(epList []string) (string, error)
 	reloadNode(n *node) error
 	getMasterIP() (string, error)

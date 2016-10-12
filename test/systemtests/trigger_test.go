@@ -107,7 +107,9 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 		for _, node := range s.nodes {
 			c.Assert(node.stopNetplugin(), IsNil)
 			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
-			time.Sleep(50 * time.Second)
+			time.Sleep(15 * time.Second)
+			c.Assert(s.verifyNodeRemoved(node), IsNil)
+			time.Sleep(5 * time.Second)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
 			c.Assert(node.startNetplugin(""), IsNil)
 

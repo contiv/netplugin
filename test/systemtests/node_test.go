@@ -196,6 +196,10 @@ func (n *node) waitForListeners() error {
 	return n.exec.waitForListeners()
 }
 
+func (n *node) verifyAgentDB(expAgents map[string]bool) (string, error) {
+	return n.exec.verifyAgents(expAgents)
+}
+
 func (n *node) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	return n.exec.verifyVTEPs(expVTEPS)
 }
