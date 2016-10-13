@@ -32,7 +32,7 @@ import (
 // container start and die event*/
 func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interface{}) {
 
-	log.Debugf("Received Docker event: {%#v}\n", *event)
+	log.Infof("Received Docker event: {%#v}\n", *event)
 	endpointUpdReq := &master.UpdateEndpointRequest{}
 	switch event.Status {
 	case "start":
@@ -52,11 +52,12 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 		if event.ID != "" {
 			labelMap := getLabelsFromContainerInspect(&containerInfo)
 			containerTenant := getTenantFromContainerInspect(&containerInfo)
-			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
+			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo, "")
 			if err != nil {
 				log.Errorf("Error getting container network info for %v.Err:%s", event.ID, err)
 			}
-			endpoint := getEndpointFromContainerInspect(&containerInfo)
+			endpoint := getEndpointFromContainerInspect(&containerInfo,
+				networkName, containerTenant)
 
 			if ipAddress != "" {
 				//Create provider info
@@ -94,7 +95,69 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 		if err != nil {
 			log.Errorf("Event:'die' Http error posting endpoint update, Error:%s", err)
 		}
-	}
+
+	case "":
+
+		/* Handles the case when we get a docker event with null event status
+		   such as when we proactively create containers ourselves rather than the end user
+		   Look for the "connect" action in such cases.
+		*/
+
+		containerID := event.Actor.Attributes["container"]
+		networkID := event.Actor.ID
+
+		if event.Action == "connect" && containerID != "" {
+
+			endpointUpdReq.Event = "connect"
+			defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+			cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.21", nil, defaultHeaders)
+			if err != nil {
+				panic(err)
+			}
+
+			containerInfo, err := cli.ContainerInspect(context.Background(), containerID)
+
+			if err != nil {
+				log.Errorf("Container Inspect failed :%s", err)
+				return
+			}
+
+			labelMap := getLabelsFromContainerInspect(&containerInfo)
+			containerTenant := getTenantFromContainerInspect(&containerInfo)
+			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo, networkID)
+			if err != nil {
+				log.Errorf("Error getting container network info for %v.Err:%s", containerID, err)
+			}
+
+			endpoint := getEndpointFromContainerInspect(&containerInfo,
+				networkName, containerTenant)
+
+			if ipAddress != "" {
+				//Create provider info
+				endpointUpdReq.IPAddress = ipAddress
+				endpointUpdReq.ContainerID = containerID
+				endpointUpdReq.Tenant = containerTenant
+				endpointUpdReq.Network = networkName
+				endpointUpdReq.Event = "start"
+				endpointUpdReq.EndpointID = endpoint
+				endpointUpdReq.ContainerName = containerInfo.Name
+				endpointUpdReq.Labels = make(map[string]string)
+
+				for k, v := range labelMap {
+					endpointUpdReq.Labels[k] = v
+				}
+			}
+
+			var epUpdResp master.UpdateEndpointResponse
+
+			log.Infof("Sending Endpoint update request to master: {%+v}", endpointUpdReq)
+
+			err = cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
+			if err != nil {
+				log.Errorf("Event: 'start' , Http error posting endpoint update, Error:%s", err)
+			}
+		}
+	} /*switch() */
 }
 
 //getLabelsFromContainerInspect returns the labels associated with the container
@@ -120,14 +183,21 @@ func getTenantFromContainerInspect(containerInfo *types.ContainerJSON) string {
 }
 
 /*getEpNetworkInfoFromContainerInspect inspects the network info from containerinfo returned by dockerclient*/
-func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (string, string, error) {
+func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON,
+	networkID string) (string, string, error) {
+
 	var networkName string
 	var IPAddress string
 	var networkUUID string
+
+	networkName = ""
+	IPAddress = ""
+
 	if containerInfo != nil && containerInfo.NetworkSettings != nil {
 		for _, endpoint := range containerInfo.NetworkSettings.Networks {
 			IPAddress = endpoint.IPAddress
 			networkUUID = endpoint.NetworkID
+
 			_, network, serviceName, err := dockplugin.GetDockerNetworkName(networkUUID)
 			if err != nil {
 				log.Errorf("Error getting docker networkname for network uuid : %s", networkUUID)
@@ -138,8 +208,13 @@ func getEpNetworkInfoFromContainerInspect(containerInfo *types.ContainerJSON) (s
 			} else {
 				networkName = network
 			}
+
+			if networkID != "" && strings.EqualFold(networkID, networkUUID) {
+				break
+			}
 		}
 	}
+
 	return networkName, IPAddress, nil
 }
 
@@ -155,14 +230,25 @@ func getContainerFromContainerInspect(containerInfo *types.ContainerJSON) string
 
 }
 
-func getEndpointFromContainerInspect(containerInfo *types.ContainerJSON) string {
+func getEndpointFromContainerInspect(containerInfo *types.ContainerJSON,
+	networkName string,
+	tenantName string,
+) string {
 
 	endpointID := ""
+	qualifiedName := ""
+
+	if 0 == strings.Compare(tenantName, "default") {
+		qualifiedName = networkName
+	} else {
+		qualifiedName = networkName + "/" + tenantName
+	}
+
 	if containerInfo != nil && containerInfo.NetworkSettings != nil {
-		for _, endpoint := range containerInfo.NetworkSettings.Networks {
+		endpoint, ok := containerInfo.NetworkSettings.Networks[qualifiedName]
+		if ok {
 			endpointID = endpoint.EndpointID
 		}
 	}
 	return endpointID
-
 }

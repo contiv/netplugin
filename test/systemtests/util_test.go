@@ -1260,9 +1260,11 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 
 	time.Sleep(15 * time.Second)
 
-	// temporarily enable DNS for service discovery tests
+	// temporarily enable DNS for service discovery tests or for network test requiring dns
 	prevDNSEnabled := s.basicInfo.EnableDNS
-	if strings.Contains(c.TestName(), "SvcDiscovery") {
+	if strings.Contains(c.TestName(), "SvcDiscovery") ||
+		strings.Contains(c.TestName(), "NetworkAddDeleteWithDns") ||
+		strings.Contains(c.TestName(), "NetworkAddDeleteTenantWithDns") {
 		s.basicInfo.EnableDNS = true
 	}
 

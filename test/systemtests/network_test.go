@@ -3,6 +3,8 @@ package systemtests
 import (
 	"fmt"
 
+	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,12 +83,46 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 	}
 }
 
+/* Confirm network inspect includes a dns endpoint (assumes this is the only endpoint on the network currently) */
+func (s *systemtestSuite) testNetworkInspectDNS(tenant, network string) (bool, error) {
+
+	netInspect, err := s.cli.NetworkInspect(tenant, network)
+	// Network inspect must succeed
+	if err != nil {
+		return false, err
+	}
+
+	//	logrus.Infof("   %+v   \n", netInspect)
+
+	// Network inspect should show exactly 1 endpoint
+	if len(netInspect.Oper.Endpoints) != 1 {
+		logrus.Infof("testNetworkInspectDNS has %d endpoints (should have 1)!", len(netInspect.Oper.Endpoints))
+		return false, errors.New("testNetworkInspectDNS has incorrect # of endpoints (should have 1)!")
+	}
+
+	// First endpoint in network inspect should not have a null container ID
+	if netInspect.Oper.Endpoints[0].ContainerID == "" {
+		return false, errors.New("testNetworkInspectDNS endpoint has null containerID!")
+	}
+
+	// First endpoint in network inspect should incude dns in the container name
+	if !strings.Contains(netInspect.Oper.Endpoints[0].ContainerName, "dns") {
+		return false, errors.New("testNetworkInspectDNS has no endpoint with dns in containerName!")
+	}
+
+	return true, nil
+}
+
 func (s *systemtestSuite) TestNetworkAddDeleteVXLAN(c *C) {
 	s.testNetworkAddDelete(c, "vxlan")
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteVLAN(c *C) {
 	s.testNetworkAddDelete(c, "vlan")
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteWithDns(c *C) {
+	s.testNetworkAddDeleteWithDns(c, "vlan")
 }
 
 func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
@@ -190,6 +226,58 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 	}
 }
 
+func (s *systemtestSuite) testNetworkAddDeleteWithDns(c *C, encap string) {
+
+	var err error
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		var (
+			netNames = []string{}
+		)
+
+		for networkNum := 0; networkNum < 3; networkNum++ {
+			var v6subnet, v6gateway string
+			if networkNum%2 == 0 {
+				v6subnet = ""
+				v6gateway = ""
+			} else {
+				v6subnet = fmt.Sprintf("1001:%d::/120", networkNum)
+				v6gateway = fmt.Sprintf("1001:%d::254", networkNum)
+			}
+			network := &client.Network{
+				TenantName:  "default",
+				NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
+				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
+				Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
+				Ipv6Subnet:  v6subnet,
+				Ipv6Gateway: v6gateway,
+				PktTag:      1001 + networkNum,
+				Encap:       encap,
+			}
+
+			c.Assert(s.cli.NetworkPost(network), IsNil)
+			netNames = append(netNames, network.NetworkName)
+		}
+
+		// Wait 5 seconds for the call backs to come through
+
+		time.Sleep(5 * time.Second)
+
+		for _, netName := range netNames {
+
+			/*
+			   Now that the networks are created, check that there is a dns endpoint on each network
+			*/
+			_, err = s.testNetworkInspectDNS("default", netName)
+			c.Assert(err, IsNil)
+		}
+
+		for _, netName := range netNames {
+			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
+		}
+	}
+}
+
 func (s *systemtestSuite) TestNetworkAddDeleteNoGatewayVXLAN(c *C) {
 	s.testNetworkAddDeleteNoGateway(c, "vxlan")
 }
@@ -277,6 +365,10 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantVXLAN(c *C) {
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantVLAN(c *C) {
 	s.testNetworkAddDeleteTenant(c, "vlan", s.fwdMode)
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteTenantWithDns(c *C) {
+	s.testNetworkAddDeleteTenantWithDns(c, "vlan", s.fwdMode)
 }
 
 func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string) {
@@ -367,6 +459,72 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 	}
 	if encap == "vlan" && fwdmode == "routing" {
 		s.TearDownBgp(c)
+	}
+
+}
+
+func (s *systemtestSuite) testNetworkAddDeleteTenantWithDns(c *C, encap, fwdmode string) {
+
+	var err error
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		var (
+			tenantNames = map[string][]string{}
+			netNames    = []string{}
+			pktTag      = 0
+		)
+
+		for tenantNum := 0; tenantNum < 3; tenantNum++ {
+			tenantName := fmt.Sprintf("tenant%d", tenantNum)
+			c.Assert(s.cli.TenantPost(&client.Tenant{TenantName: tenantName}), IsNil)
+			tenantNames[tenantName] = []string{}
+
+			for networkNum := 0; networkNum < 3; networkNum++ {
+				var v6subnet, v6gateway string
+				if networkNum%2 == 0 {
+					v6subnet = ""
+					v6gateway = ""
+				} else {
+					v6subnet = fmt.Sprintf("1001:%d:%d::/120", tenantNum, networkNum)
+					v6gateway = fmt.Sprintf("1001:%d:%d::254", tenantNum, networkNum)
+				}
+				network := &client.Network{
+					TenantName:  tenantName,
+					NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
+					Subnet:      fmt.Sprintf("10.%d.%d.0/24", tenantNum, networkNum),
+					Gateway:     fmt.Sprintf("10.%d.%d.254", tenantNum, networkNum),
+					Ipv6Subnet:  v6subnet,
+					Ipv6Gateway: v6gateway,
+					PktTag:      pktTag + 1000,
+					Encap:       encap,
+				}
+
+				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
+
+				c.Assert(s.cli.NetworkPost(network), IsNil)
+				netNames = append(netNames, network.NetworkName)
+				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
+				pktTag++
+			}
+		}
+
+		// Wait 10 seconds for the call backs to come through
+
+		time.Sleep(10 * time.Second)
+
+		for tenant, networks := range tenantNames {
+			for _, network := range networks {
+				_, err = s.testNetworkInspectDNS(tenant, network)
+				c.Assert(err, IsNil)
+			}
+		}
+
+		for tenant, networks := range tenantNames {
+			for _, network := range networks {
+				c.Assert(s.cli.NetworkDelete(tenant, network), IsNil)
+			}
+			c.Assert(s.cli.TenantDelete(tenant), IsNil)
+		}
 	}
 
 }
