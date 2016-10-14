@@ -35,9 +35,10 @@ import (
 // This file implements netplugin <-> netmaster clustering
 
 const (
-	netmasterRPCPort = 9001
-	netpluginRPCPort = 9002
-	vxlanUDPPort     = 4789
+	netmasterRPCPort  = 9001
+	netpluginRPCPort1 = 9002
+	netpluginRPCPort2 = 9003
+	vxlanUDPPort      = 4789
 )
 
 // ObjdbClient client
@@ -194,12 +195,27 @@ func registerService(objClient objdb.API, ctrlIP, vtepIP, hostname string) error
 		ServiceName: "netplugin",
 		TTL:         10,
 		HostAddr:    ctrlIP,
-		Port:        netpluginRPCPort,
+		Port:        netpluginRPCPort1,
 		Hostname:    hostname,
 	}
 
 	// Register the node with service registry
 	err := objClient.RegisterService(srvInfo)
+	if err != nil {
+		log.Fatalf("Error registering service. Err: %v", err)
+		return err
+	}
+
+	srvInfo = objdb.ServiceInfo{
+		ServiceName: "netplugin",
+		TTL:         10,
+		HostAddr:    ctrlIP,
+		Port:        netpluginRPCPort2,
+		Hostname:    hostname,
+	}
+
+	// Register the node with service registry
+	err = objClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 		return err
