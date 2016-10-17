@@ -5,6 +5,7 @@ function dockerBuildIt {
 
     if [[ $imgId =~ [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f] ]]; then
        echo "$2 Image has been built with ID $imgId"
+       docker tag $imgId $2
        return 0
     fi
     echo "$2 Image was not built properly"
@@ -28,25 +29,25 @@ fi
 
 sudo modprobe openvswitch
 
-imgId="Contiv"
-dockerBuildIt . $imgId
+imgName="Contiv"
+dockerBuildIt . $imgName
 if [ $? != 0 ]; then
    echo "Failed building Contiv Image Bailing out Err $?"
    exit
 fi
 
-docker run --name=$imgId $imgId  2> /dev/null
+docker run --name=$imgName $imgName  2> /dev/null
 
 echo "Copying the Contiv Binaries from the built container"
-docker cp $imgId:/go/bin/netplugin scripts/netContain/
-docker cp $imgId:/go/bin/netmaster scripts/netContain/
-docker cp $imgId:/go/bin/netctl scripts/netContain/
-docker cp $imgId:/go/bin/contivk8s scripts/netContain/
+docker cp $imgName:/go/bin/netplugin scripts/netContain/
+docker cp $imgName:/go/bin/netmaster scripts/netContain/
+docker cp $imgName:/go/bin/netctl scripts/netContain/
+docker cp $imgName:/go/bin/contivk8s scripts/netContain/
 
 
 echo "Removing Intermediate Contiv Container"
-docker rm -f $imgId
-docker rmi -f $imgId
+docker rm -f $imgName
+docker rmi -f $imgName
 
 
 dockerBuildIt scripts/netContain contivbase
@@ -56,4 +57,4 @@ if [ $? != 0 ]; then
 fi
 
 #echo "Build Contiv Image $imgId ..., tagging it as contivbase"
-#docker tag $imgId contivbase
+# docker tag contivbase netplugin

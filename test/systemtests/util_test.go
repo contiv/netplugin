@@ -1025,13 +1025,13 @@ func (s *systemtestSuite) verifyEPs(containers []*container) error {
 		}
 
 		if err == nil {
-			logrus.Info("EPs %+v verified on all nodes", epList)
+			logrus.Infof("EPs %v verified on all nodes", epList)
 			return nil
 		}
 		time.Sleep(1 * time.Second)
 	}
 	logrus.Errorf("Failed to verify EPs after 20 sec %v", err)
-	logrus.Info("Debug output:\n %s", dbgOut)
+	logrus.Infof("Debug output:\n %s", dbgOut)
 	return err
 }
 

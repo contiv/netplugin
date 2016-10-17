@@ -192,6 +192,49 @@ func (n *node) restartClusterStore() error {
 	return nil
 }
 
+// bring down an interface on a node
+func (n *node) bringDownIf(ifname string) error {
+	logrus.Infof("Bringing down interface %s on node %s", ifname, n.Name())
+	out, err := n.runCommand(fmt.Sprintf("sudo ifconfig %s down", ifname))
+	if err != nil {
+		logrus.Errorf("Failed to bring down interface %s on node %v", ifname, n.Name())
+		logrus.Println(out)
+		return err
+	}
+
+	return nil
+}
+
+// bring up an interface on a node
+func (n *node) bringUpIf(ifname, ipAddr string) error {
+	logrus.Infof("Bringing up interface %s with addr %s/24 on node %s", ifname, ipAddr, n.Name())
+
+	for i := 0; i < 3; i++ {
+		// bring up the interface
+		out, err := n.runCommand(fmt.Sprintf("sudo ifconfig %s %s/24 up", ifname, ipAddr))
+		if err != nil {
+			logrus.Errorf("Failed to bring up interface %s on node %v", ifname, n.Name())
+			logrus.Println(out)
+			return err
+		}
+
+		// verify link is up
+		out, err = n.runCommand(fmt.Sprintf("sudo ifconfig %s", ifname))
+		if err != nil {
+			logrus.Errorf("Failed to check interface %s status on node %v", ifname, n.Name())
+			logrus.Println(out)
+			return err
+		}
+
+		// if the interface is up, we are done
+		if strings.Contains(out, "RUNNING") {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Failed to bring up interface")
+}
+
 func (n *node) waitForListeners() error {
 	return n.exec.waitForListeners()
 }
