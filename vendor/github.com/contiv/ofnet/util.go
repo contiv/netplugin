@@ -17,6 +17,9 @@ package ofnet
 
 import (
 	"errors"
+	"fmt"
+	"hash/fnv"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -24,6 +27,7 @@ import (
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"github.com/shaleman/libOpenflow/protocol"
+	"github.com/vishvananda/netlink"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -205,4 +209,85 @@ func createDscpFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, endpo
 	}
 
 	return dscpV4Flow, dscpV6Flow, nil
+}
+
+// getActiveLink returns an active member link
+func (port *PortInfo) getActiveLink(hashParams ...string) *LinkInfo {
+	if len(port.ActiveLinks) == 0 {
+		return nil
+	}
+
+	if len(hashParams) == 0 {
+		// If no hash parameters are specified, pick a random link
+		return port.ActiveLinks[rand.Intn(len(port.ActiveLinks))]
+	} else {
+		// Pick an active link based on the hash parameters specified
+		var hashBytes []byte
+		h := fnv.New32a()
+		for _, param := range hashParams {
+			hashBytes = append(hashBytes, []byte(param)...)
+		}
+		h.Write(hashBytes)
+		return port.ActiveLinks[h.Sum32()%uint32(len(port.ActiveLinks))]
+	}
+}
+
+func (port *PortInfo) checkLinkStatus() error {
+	port.LinkStatus = linkDown
+	for _, link := range port.MbrLinks {
+		linkInfo, err := netlink.LinkByName(link.Name)
+		if err != nil {
+			err := fmt.Errorf("Error getting link information for %+v", link)
+			log.Errorf("%+v", err)
+			return err
+		}
+		if linkInfo.Attrs().Flags&net.FlagUp != 0 {
+			link.setLinkStatus(linkUp)
+			port.LinkStatus = linkUp
+		} else {
+			link.setLinkStatus(linkDown)
+		}
+	}
+
+	return nil
+}
+
+// setLinkStatus sets interface link status and updates active links of the port
+func (link *LinkInfo) setLinkStatus(status linkStatus) {
+	if link.LinkStatus == status {
+		// Duplicate link notification. Nothing to do
+		return
+	}
+
+	link.LinkStatus = status
+	port := link.Port
+	if status == linkUp {
+		linkExists := false
+		for _, activeLink := range port.ActiveLinks {
+			if link == activeLink {
+				linkExists = true
+				break
+			}
+		}
+		if !linkExists {
+			port.ActiveLinks = append(port.ActiveLinks, link)
+		}
+		port.LinkStatus = linkUp
+		log.Debugf("Added %+v to port's active links: %+v", link, port)
+	} else {
+		for idx, activeLink := range port.ActiveLinks {
+			if link == activeLink {
+				if idx == len(port.ActiveLinks) {
+					port.ActiveLinks = port.ActiveLinks[:idx-1]
+				} else {
+					port.ActiveLinks = append(port.ActiveLinks[:idx], port.ActiveLinks[idx+1:]...)
+				}
+				if len(port.ActiveLinks) == 0 {
+					port.LinkStatus = linkDown
+				}
+				log.Debugf("Removed %+v from active links in port: %+v", link, port)
+				return
+			}
+		}
+	}
 }
