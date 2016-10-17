@@ -276,6 +276,48 @@ func TestOvsDriverDeinit(t *testing.T) {
 
 }
 
+func TestOvsDriverStateUpgrade(t *testing.T) {
+	driver := &OvsDriver{}
+	fMode := "bridge"
+	stateDriver := &state.FakeStateDriver{}
+	stateDriver.Init(nil)
+	instInfo := &core.InstanceInfo{HostLabel: testHostLabelStateful,
+		StateDriver: stateDriver, FwdMode: fMode}
+
+	operOvs := &OvsDriverOperState{CurrPortNum: testCurrPortNum}
+	operOvs.StateDriver = stateDriver
+	operOvs.ID = testHostLabelStateful
+	err := operOvs.Write()
+	if err != nil {
+		t.Fatalf("writing driver oper state failed. Error: %s", err)
+	}
+
+	err = driver.Init(instInfo)
+	if err != nil {
+		t.Fatalf("driver init failed. Error: %s", err)
+	}
+
+	if driver.oper.CurrPortNum != testCurrPortNum {
+		t.Fatalf("Unexpected driver oper state. Expected port num: %d, rcvd port number: %d",
+			testCurrPortNum, driver.oper.CurrPortNum)
+	}
+
+	// Try to save local endpoint info
+	driver.oper.localEpInfoMutex.Lock()
+	driver.oper.LocalEpInfo["testID"] = &EpInfo{
+		Ovsportname: "testVport",
+		EpgKey:      "testTen:testEpg",
+		BridgeType:  "vlan",
+	}
+	driver.oper.localEpInfoMutex.Unlock()
+	err = driver.oper.Write()
+	if err != nil {
+		t.Fatalf("driver opern write failed. Error: %s", err)
+	}
+
+	defer func() { driver.Deinit() }()
+}
+
 func TestOvsDriverCreateEndpoint(t *testing.T) {
 	driver := initOvsDriver(t)
 	defer func() { driver.Deinit() }()

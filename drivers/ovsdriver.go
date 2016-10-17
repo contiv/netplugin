@@ -151,6 +151,16 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 		}
 	}
 
+	// make sure LocalEpInfo exists
+	if d.oper.LocalEpInfo == nil {
+		d.oper.LocalEpInfo = make(map[string]*EpInfo)
+		// write the oper
+		err = d.oper.Write()
+		if err != nil {
+			return err
+		}
+	}
+
 	log.Infof("Initializing ovsdriver")
 
 	// Init switch DB
