@@ -105,7 +105,7 @@ class Node:
 
     # Remove all containers on this node
     def cleanupContainers(self):
-        self.runCmd("docker ps -a | grep alpine | awk '{print $1}' | xargs -r docker rm -fv ")
+        self.runCmd("docker ps -a | grep -v swarm | awk '{print $1}' | xargs -r docker rm -fv ")
 
     # Cleanup all state created by netplugin
     def cleanupSlave(self):
