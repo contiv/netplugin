@@ -896,11 +896,8 @@ func (s *systemtestSuite) startListenersOnProviders(containers []*container, por
 	return nil
 }
 
-func (s *systemtestSuite) verifyVTEPs() error {
-	// get all expected VTEPs
-	var err error
-
-	expVTEPs := make(map[string]bool)
+func (s *systemtestSuite) getVTEPList() (map[string]bool, error) {
+	vtepMap := make(map[string]bool)
 	for _, n := range s.nodes {
 		if s.basicInfo.Scheduler == "k8" && n.Name() == "k8master" {
 			continue
@@ -908,10 +905,75 @@ func (s *systemtestSuite) verifyVTEPs() error {
 		vtep, err := n.getIPAddr(s.hostInfo.HostMgmtInterface)
 		if err != nil {
 			logrus.Errorf("Error getting eth1 IP address for node %s", n.Name())
-			return err
+			return nil, err
 		}
 
-		expVTEPs[vtep] = true
+		vtepMap[vtep] = true
+	}
+
+	return vtepMap, nil
+}
+
+// Verify that the node is removed from VTEP table and the agentDB
+func (s *systemtestSuite) verifyNodeRemoved(removed *node) error {
+	vteps, err := s.getVTEPList()
+	if err != nil {
+		logrus.Errorf("Failed to get VTEPs")
+		return err
+	}
+
+	nutIP, err := removed.getIPAddr(s.hostInfo.HostMgmtInterface)
+	if err != nil {
+		logrus.Errorf("Failed to get node VTEP")
+		return err
+	}
+
+	// Exclude the node-under-test
+	delete(vteps, nutIP)
+	failNode := ""
+	err = nil
+	dbgOut := ""
+	for try := 0; try < 20; try++ {
+		for _, n := range s.nodes {
+			if n.Name() == removed.Name() {
+				continue
+			}
+
+			dbgOut, err = n.verifyAgentDB(vteps)
+			if err != nil {
+				failNode = n.Name()
+				break
+			}
+
+			if n.Name() == "k8master" {
+				continue
+			}
+
+			dbgOut, err = n.verifyVTEPs(vteps)
+			if err != nil {
+				failNode = n.Name()
+				break
+			}
+		}
+
+		if err == nil {
+			return nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+	logrus.Errorf("Node %s failed to verify node removal ERR: %v", failNode, err)
+	logrus.Infof("Debug output:\n %s", dbgOut)
+	return errors.New("Failed to verify VTEPs after 20 sec")
+}
+
+func (s *systemtestSuite) verifyVTEPs() error {
+	// get all expected VTEPs
+	var err error
+
+	expVTEPs, err := s.getVTEPList()
+	if err != nil {
+		logrus.Errorf("Failed to get VTEPs")
+		return err
 	}
 
 	failNode := ""
@@ -963,13 +1025,13 @@ func (s *systemtestSuite) verifyEPs(containers []*container) error {
 		}
 
 		if err == nil {
-			logrus.Info("EPs %+v verified on all nodes", epList)
+			logrus.Infof("EPs %v verified on all nodes", epList)
 			return nil
 		}
 		time.Sleep(1 * time.Second)
 	}
 	logrus.Errorf("Failed to verify EPs after 20 sec %v", err)
-	logrus.Info("Debug output:\n %s", dbgOut)
+	logrus.Infof("Debug output:\n %s", dbgOut)
 	return err
 }
 

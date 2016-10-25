@@ -623,6 +623,61 @@ func (k *kubernetes) waitForListeners() error {
 	return k.node.runCommandWithTimeOut("netstat -tlpn | grep 9090 | grep LISTEN", 500*time.Millisecond, 50*time.Second)
 }
 
+func (k *kubernetes) verifyAgents(agentIPs map[string]bool) (string, error) {
+	if k.node.Name() != "k8master" {
+		return "", nil
+	}
+
+	var data interface{}
+	actAgents := make(map[string]uint32)
+
+	// read vtep information from inspect
+	cmd := "curl -s localhost:9999/debug/ofnet | python -mjson.tool"
+	str, err := k.node.tbnode.RunCommandWithOutput(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	err = json.Unmarshal([]byte(str), &data)
+	if err != nil {
+		logrus.Errorf("Unmarshal error: %v", err)
+		return str, err
+	}
+
+	dd := data.(map[string]interface{})
+	adb := dd["AgentDb"].(map[string]interface{})
+	for key := range adb {
+		actAgents[key] = 1
+	}
+
+	// build expected agentRpc
+	rpcSet := []string{":9002", ":9003"}
+	expAgents := make(map[string]uint32)
+	for agent := range agentIPs {
+		for _, rpc := range rpcSet {
+			k := agent + rpc
+			expAgents[k] = 1
+		}
+	}
+
+	for agent := range expAgents {
+		_, found := actAgents[agent]
+		if !found {
+			return str, errors.New("Agent " + agent + " not found")
+		}
+	}
+
+	// verify there are no extraneous Agents
+	for agent := range actAgents {
+		_, found := expAgents[agent]
+		if !found {
+			return str, errors.New("Unexpected Agent " + agent + " found on " + k.node.Name())
+		}
+	}
+
+	return "", nil
+}
+
 func (k *kubernetes) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	var data interface{}
 	actVTEPs := make(map[string]uint32)
@@ -662,11 +717,12 @@ func (k *kubernetes) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	}
 
 	// read local ip
+	localVtep := ""
 	l, found := vt["LocalIp"]
 	if found {
 		switch l.(type) {
 		case string:
-			localVtep := l.(string)
+			localVtep = l.(string)
 			actVTEPs[localVtep] = 1
 		}
 	}
@@ -675,6 +731,14 @@ func (k *kubernetes) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 		_, found := actVTEPs[vtep]
 		if !found {
 			return str, errors.New("VTEP " + vtep + " not found")
+		}
+	}
+
+	// verify there are no extraneous VTEPs
+	for vtep := range actVTEPs {
+		_, found := expVTEPS[vtep]
+		if !found {
+			return str, errors.New("Unexpected VTEP " + vtep + " found on " + localVtep)
 		}
 	}
 

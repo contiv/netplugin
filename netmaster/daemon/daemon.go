@@ -86,6 +86,12 @@ func (d *MasterDaemon) Init() {
 	if err != nil {
 		log.Fatalf("Failed to init resource manager. Error: %s", err)
 	}
+
+	// Create an objdb client
+	d.objdbClient, err = objdb.NewClient(d.ClusterStore)
+	if err != nil {
+		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
+	}
 }
 
 func (d *MasterDaemon) registerService() {
@@ -105,7 +111,7 @@ func (d *MasterDaemon) registerService() {
 	}
 
 	// Register the node with service registry
-	err = master.ObjdbClient.RegisterService(srvInfo)
+	err = d.objdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 	}
@@ -120,7 +126,7 @@ func (d *MasterDaemon) registerService() {
 	}
 
 	// Register the node with service registry
-	err = master.ObjdbClient.RegisterService(srvInfo)
+	err = d.objdbClient.RegisterService(srvInfo)
 	if err != nil {
 		log.Fatalf("Error registering service. Err: %v", err)
 	}
@@ -128,31 +134,42 @@ func (d *MasterDaemon) registerService() {
 	log.Infof("Registered netmaster service with registry")
 }
 
-// Find all netplugin nodes and register them
-func (d *MasterDaemon) registerNetpluginNodes() error {
-	// Get all netplugin services
-	srvList, err := master.ObjdbClient.GetService("netplugin")
+// Find all netplugin nodes and add them to ofnet master
+func (d *MasterDaemon) agentDiscoveryLoop() {
+
+	// Create channels for watch thread
+	agentEventCh := make(chan objdb.WatchServiceEvent, 1)
+	watchStopCh := make(chan bool, 1)
+
+	// Start a watch on netplugin service
+	err := d.objdbClient.WatchService("netplugin", agentEventCh, watchStopCh)
 	if err != nil {
-		log.Errorf("Error getting netplugin nodes. Err: %v", err)
-		return err
+		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
 	}
 
-	// Add each node
-	for _, srv := range srvList {
+	for {
+		agentEv := <-agentEventCh
+		log.Debugf("Received netplugin watch event: %+v", agentEv)
 		// build host info
 		nodeInfo := ofnet.OfnetNode{
-			HostAddr: srv.HostAddr,
-			HostPort: uint16(srv.Port),
+			HostAddr: agentEv.ServiceInfo.HostAddr,
+			HostPort: uint16(agentEv.ServiceInfo.Port),
 		}
 
-		// Add the node
-		err = d.ofnetMaster.AddNode(nodeInfo)
-		if err != nil {
-			log.Errorf("Error adding node %v. Err: %v", srv, err)
+		if agentEv.EventType == objdb.WatchServiceEventAdd {
+			err = d.ofnetMaster.AddNode(nodeInfo)
+			if err != nil {
+				log.Errorf("Error adding node %v. Err: %v", nodeInfo, err)
+			}
+		} else if agentEv.EventType == objdb.WatchServiceEventDel {
+			var res bool
+			log.Infof("Unregister node %+v", nodeInfo)
+			d.ofnetMaster.UnRegisterNode(&nodeInfo, &res)
 		}
+
+		// Dont process next peer event for another 100ms
+		time.Sleep(100 * time.Millisecond)
 	}
-
-	return nil
 }
 
 // registerRoutes registers HTTP route handlers
@@ -219,7 +236,7 @@ func (d *MasterDaemon) runLeader() {
 	defer d.listenerMutex.Unlock()
 
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router, d.ClusterStore)
+	d.apiController = objApi.NewAPIController(router, d.objdbClient, d.ClusterStore)
 
 	//Restore state from clusterStore
 	d.restoreCache()
@@ -331,17 +348,11 @@ func (d *MasterDaemon) RunMasterFsm() {
 		log.Fatalf("Error creating ofnet master")
 	}
 
-	// Create an objdb client
-	master.ObjdbClient, err = objdb.NewClient(d.ClusterStore)
-	if err != nil {
-		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
-	}
-
 	// Register all existing netplugins in the background
-	go d.registerNetpluginNodes()
+	go d.agentDiscoveryLoop()
 
 	// Create the lock
-	leaderLock, err = master.ObjdbClient.NewLock("netmaster/leader", localIP, leaderLockTTL)
+	leaderLock, err = d.objdbClient.NewLock("netmaster/leader", localIP, leaderLockTTL)
 	if err != nil {
 		log.Fatalf("Could not create leader lock. Err: %v", err)
 	}

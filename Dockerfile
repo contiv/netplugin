@@ -20,7 +20,7 @@
 # docker run --net=host <image> -host-label=<label>
 ##
 
-FROM golang:1.5.1
+FROM golang:1.6.1
 MAINTAINER Madhav Puri <mapuri@cisco.com> (@mapuri)
 
 

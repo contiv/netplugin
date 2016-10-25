@@ -569,6 +569,58 @@ func (w *swarm) waitForListeners() error {
 	return w.node.runCommandWithTimeOut("netstat -tlpn | grep 9090 | grep LISTEN", 500*time.Millisecond, 50*time.Second)
 }
 
+func (w *swarm) verifyAgents(agentIPs map[string]bool) (string, error) {
+
+	var data interface{}
+	actAgents := make(map[string]uint32)
+
+	// read vtep information from inspect
+	cmd := "curl -s localhost:9999/debug/ofnet | python -mjson.tool"
+	str, err := w.node.tbnode.RunCommandWithOutput(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	err = json.Unmarshal([]byte(str), &data)
+	if err != nil {
+		logrus.Errorf("Unmarshal error: %v", err)
+		return str, err
+	}
+
+	dd := data.(map[string]interface{})
+	adb := dd["AgentDb"].(map[string]interface{})
+	for key := range adb {
+		actAgents[key] = 1
+	}
+
+	// build expected agentRpc
+	rpcSet := []string{":9002", ":9003"}
+	expAgents := make(map[string]uint32)
+	for agent := range agentIPs {
+		for _, rpc := range rpcSet {
+			k := agent + rpc
+			expAgents[k] = 1
+		}
+	}
+
+	for agent := range expAgents {
+		_, found := actAgents[agent]
+		if !found {
+			return str, errors.New("Agent " + agent + " not found")
+		}
+	}
+
+	// verify there are no extraneous Agents
+	for agent := range actAgents {
+		_, found := expAgents[agent]
+		if !found {
+			return str, errors.New("Unexpected Agent " + agent + " found on " + w.node.Name())
+		}
+	}
+
+	return "", nil
+}
+
 func (w *swarm) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	var data interface{}
 	actVTEPs := make(map[string]uint32)

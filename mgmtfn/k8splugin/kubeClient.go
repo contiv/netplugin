@@ -27,6 +27,7 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 	"io/ioutil"
 	"net/http"
+	"sync"
 )
 
 const (
@@ -72,9 +73,10 @@ type watchSvcEpStatus struct {
 }
 
 type podInfo struct {
-	nameSpace string
-	name      string
-	labels    map[string]string
+	nameSpace   string
+	name        string
+	labels      map[string]string
+	labelsMutex sync.Mutex
 }
 
 // NewAPIClient creates an instance of the k8s api client
@@ -165,6 +167,8 @@ func (c *APIClient) fetchPodLabels(ns, name string) error {
 	}
 
 	p := &c.podCache
+	p.labelsMutex.Lock()
+	defer p.labelsMutex.Unlock()
 	p.setDefaults(ns, name)
 
 	meta := m.(map[string]interface{})

@@ -29,6 +29,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
+	"github.com/contiv/objdb"
 	"github.com/contiv/objdb/modeldb"
 
 	"encoding/json"
@@ -42,7 +43,8 @@ import (
 
 // APIController stores the api controller state
 type APIController struct {
-	router *mux.Router
+	router      *mux.Router
+	objdbClient objdb.API // Objdb client
 }
 
 // BgpInspect is bgp inspect struct
@@ -54,9 +56,10 @@ type BgpInspect struct {
 var apiCtrler *APIController
 
 // NewAPIController creates a new controller
-func NewAPIController(router *mux.Router, storeURL string) *APIController {
+func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string) *APIController {
 	ctrler := new(APIController)
 	ctrler.router = router
+	ctrler.objdbClient = objdbClient
 
 	// init modeldb
 	modeldb.Init(storeURL)
@@ -1841,7 +1844,7 @@ func (ac *APIController) BgpGetOper(bgp *contivModel.BgpInspect) error {
 	var obj *BgpInspect
 	var host string
 
-	srvList, err := master.ObjdbClient.GetService("netplugin")
+	srvList, err := ac.objdbClient.GetService("netplugin")
 	if err != nil {
 		log.Errorf("Error getting netplugin nodes. Err: %v", err)
 		return err

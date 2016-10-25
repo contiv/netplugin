@@ -107,7 +107,9 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 		for _, node := range s.nodes {
 			c.Assert(node.stopNetplugin(), IsNil)
 			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
-			time.Sleep(50 * time.Second)
+			time.Sleep(15 * time.Second)
+			c.Assert(s.verifyNodeRemoved(node), IsNil)
+			time.Sleep(5 * time.Second)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
 			c.Assert(node.startNetplugin(""), IsNil)
 
@@ -128,12 +130,11 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 }
 
 func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
-	c.Skip("Skipping this tests temporarily")
-
 	// can not run this test on docker 1.10 & k8s
 	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" || s.basicInfo.Scheduler == "k8" {
 		c.Skip("Skipping node reload test on [older docker version | consul | k8s]")
 	}
+
 	network := &client.Network{
 		TenantName:  "default",
 		NetworkName: "private",
@@ -230,6 +231,52 @@ func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
 		// reload VMs one at a time
 		for _, node := range s.nodes {
 			c.Assert(node.restartClusterStore(), IsNil)
+
+			time.Sleep(20 * time.Second)
+			c.Assert(s.verifyVTEPs(), IsNil)
+
+			c.Assert(s.verifyEPs(containers), IsNil)
+			time.Sleep(2 * time.Second)
+
+			// test ping for all containers
+			c.Assert(s.pingTest(containers), IsNil)
+		}
+
+		c.Assert(s.removeContainers(containers), IsNil)
+	}
+
+	// delete the network
+	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
+}
+
+// TestTriggerNetPartition tests network partition by flapping uplink
+func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
+	// create network
+	network := &client.Network{
+		TenantName:  "default",
+		NetworkName: "private",
+		Subnet:      "10.1.1.0/24",
+		Gateway:     "10.1.1.254",
+		Encap:       "vxlan",
+	}
+	c.Assert(s.cli.NetworkPost(network), IsNil)
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "default", nil, nil)
+		c.Assert(err, IsNil)
+
+		// test ping for all containers
+		c.Assert(s.pingTest(containers), IsNil)
+
+		// reload VMs one at a time
+		for _, node := range s.nodes {
+			nodeIP, err := node.getIPAddr("eth1")
+			c.Assert(err, IsNil)
+
+			// flap the control interface
+			c.Assert(node.bringDownIf("eth1"), IsNil)
+			time.Sleep(50 * time.Second) // wait till sessions/locks timeout
+			c.Assert(node.bringUpIf("eth1", nodeIP), IsNil)
 
 			time.Sleep(20 * time.Second)
 			c.Assert(s.verifyVTEPs(), IsNil)
