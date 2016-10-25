@@ -28,65 +28,80 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Handles docker events monitored by dockerclient. Currently we only handle
-// container start and die event*/
+// Handles docker events monitored by dockerclient. Currently we only handle // container start and die event*/
 func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interface{}) {
 
-	log.Infof("Received Docker event: {%#v}\n", *event)
+	log.Debugf("Received Docker event: {%#v}\n", *event)
 	endpointUpdReq := &master.UpdateEndpointRequest{}
-	switch event.Status {
-	case "start":
+
+	var containerID string
+	var networkID string
+
+	if (event.Type == "container" && event.Action == "start") ||
+		(event.Type == "network" && event.Action == "connect") {
+
+		if event.Type == "container" {
+			containerID = event.ID
+			networkID = ""
+		} else {
+			containerID = event.Actor.Attributes["container"]
+			networkID = event.Actor.ID
+		}
+
+		if containerID == "" {
+			log.Errorf("Container ID missing in docker event {%#v}\n", *event)
+			return
+		}
+
 		defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 		cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.21", nil, defaultHeaders)
 		if err != nil {
-			panic(err)
+			log.Errorf("Client lookup failed :%s", err)
+			return
 		}
 
-		containerInfo, err := cli.ContainerInspect(context.Background(), event.ID)
+		containerInfo, err := cli.ContainerInspect(context.Background(), containerID)
 
 		if err != nil {
 			log.Errorf("Container Inspect failed :%s", err)
 			return
 		}
 
-		if event.ID != "" {
-			labelMap := getLabelsFromContainerInspect(&containerInfo)
-			containerTenant := getTenantFromContainerInspect(&containerInfo)
-			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo, "")
-			if err != nil {
-				log.Errorf("Error getting container network info for %v.Err:%s", event.ID, err)
-			}
-			endpoint := getEndpointFromContainerInspect(&containerInfo,
-				networkName, containerTenant)
-
-			if ipAddress != "" {
-				//Create provider info
-				endpointUpdReq.IPAddress = ipAddress
-				endpointUpdReq.ContainerID = event.ID
-				endpointUpdReq.Tenant = containerTenant
-				endpointUpdReq.Network = networkName
-				endpointUpdReq.Event = "start"
-				endpointUpdReq.EndpointID = endpoint
-				endpointUpdReq.ContainerName = containerInfo.Name
-				endpointUpdReq.Labels = make(map[string]string)
-
-				for k, v := range labelMap {
-					endpointUpdReq.Labels[k] = v
-				}
-			}
-
-			var epUpdResp master.UpdateEndpointResponse
-
-			log.Infof("Sending Endpoint update request to master: {%+v}", endpointUpdReq)
-
-			err = cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
-			if err != nil {
-				log.Errorf("Event: 'start' , Http error posting endpoint update, Error:%s", err)
-			}
-		} else {
-			log.Errorf("Unable to fetch container labels for container %s ", event.ID)
+		labelMap := getLabelsFromContainerInspect(&containerInfo)
+		containerTenant := getTenantFromContainerInspect(&containerInfo)
+		networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo, networkID)
+		if err != nil {
+			log.Errorf("Error getting container network info for %v.Err:%s", containerID, err)
 		}
-	case "die":
+		endpoint := getEndpointFromContainerInspect(&containerInfo,
+			networkName, containerTenant)
+
+		if ipAddress != "" {
+			//Create provider info
+			endpointUpdReq.IPAddress = ipAddress
+			endpointUpdReq.ContainerID = containerID
+			endpointUpdReq.Tenant = containerTenant
+			endpointUpdReq.Network = networkName
+			endpointUpdReq.Event = event.Action
+			endpointUpdReq.EndpointID = endpoint
+			endpointUpdReq.ContainerName = containerInfo.Name
+			endpointUpdReq.Labels = make(map[string]string)
+
+			for k, v := range labelMap {
+				endpointUpdReq.Labels[k] = v
+			}
+		}
+
+		var epUpdResp master.UpdateEndpointResponse
+
+		log.Infof("Sending Endpoint update request to master: {%+v}", endpointUpdReq)
+
+		err = cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
+		if err != nil {
+			log.Errorf("Event: 'start' , Http error posting endpoint update, Error:%s", err)
+		}
+
+	} else if event.Type == "container" && event.Action == "die" {
 		endpointUpdReq.ContainerID = event.ID
 		endpointUpdReq.Event = "die"
 		var epUpdResp master.UpdateEndpointResponse
@@ -95,69 +110,7 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 		if err != nil {
 			log.Errorf("Event:'die' Http error posting endpoint update, Error:%s", err)
 		}
-
-	case "":
-
-		/* Handles the case when we get a docker event with null event status
-		   such as when we proactively create containers ourselves rather than the end user
-		   Look for the "connect" action in such cases.
-		*/
-
-		containerID := event.Actor.Attributes["container"]
-		networkID := event.Actor.ID
-
-		if event.Action == "connect" && containerID != "" {
-
-			endpointUpdReq.Event = "connect"
-			defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-			cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.21", nil, defaultHeaders)
-			if err != nil {
-				panic(err)
-			}
-
-			containerInfo, err := cli.ContainerInspect(context.Background(), containerID)
-
-			if err != nil {
-				log.Errorf("Container Inspect failed :%s", err)
-				return
-			}
-
-			labelMap := getLabelsFromContainerInspect(&containerInfo)
-			containerTenant := getTenantFromContainerInspect(&containerInfo)
-			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo, networkID)
-			if err != nil {
-				log.Errorf("Error getting container network info for %v.Err:%s", containerID, err)
-			}
-
-			endpoint := getEndpointFromContainerInspect(&containerInfo,
-				networkName, containerTenant)
-
-			if ipAddress != "" {
-				//Create provider info
-				endpointUpdReq.IPAddress = ipAddress
-				endpointUpdReq.ContainerID = containerID
-				endpointUpdReq.Tenant = containerTenant
-				endpointUpdReq.Network = networkName
-				endpointUpdReq.Event = "start"
-				endpointUpdReq.EndpointID = endpoint
-				endpointUpdReq.ContainerName = containerInfo.Name
-				endpointUpdReq.Labels = make(map[string]string)
-
-				for k, v := range labelMap {
-					endpointUpdReq.Labels[k] = v
-				}
-			}
-
-			var epUpdResp master.UpdateEndpointResponse
-
-			log.Infof("Sending Endpoint update request to master: {%+v}", endpointUpdReq)
-
-			err = cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
-			if err != nil {
-				log.Errorf("Event: 'start' , Http error posting endpoint update, Error:%s", err)
-			}
-		}
-	} /*switch() */
+	}
 }
 
 //getLabelsFromContainerInspect returns the labels associated with the container

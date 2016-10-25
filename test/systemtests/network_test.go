@@ -3,8 +3,6 @@ package systemtests
 import (
 	"fmt"
 
-	"errors"
-	"strings"
 	"sync"
 	"time"
 
@@ -83,36 +81,6 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 	}
 }
 
-/* Confirm network inspect includes a dns endpoint (assumes this is the only endpoint on the network currently) */
-func (s *systemtestSuite) testNetworkInspectDNS(tenant, network string) (bool, error) {
-
-	netInspect, err := s.cli.NetworkInspect(tenant, network)
-	// Network inspect must succeed
-	if err != nil {
-		return false, err
-	}
-
-	//	logrus.Infof("   %+v   \n", netInspect)
-
-	// Network inspect should show exactly 1 endpoint
-	if len(netInspect.Oper.Endpoints) != 1 {
-		logrus.Infof("testNetworkInspectDNS has %d endpoints (should have 1)!", len(netInspect.Oper.Endpoints))
-		return false, errors.New("testNetworkInspectDNS has incorrect # of endpoints (should have 1)!")
-	}
-
-	// First endpoint in network inspect should not have a null container ID
-	if netInspect.Oper.Endpoints[0].ContainerID == "" {
-		return false, errors.New("testNetworkInspectDNS endpoint has null containerID!")
-	}
-
-	// First endpoint in network inspect should incude dns in the container name
-	if !strings.Contains(netInspect.Oper.Endpoints[0].ContainerName, "dns") {
-		return false, errors.New("testNetworkInspectDNS has no endpoint with dns in containerName!")
-	}
-
-	return true, nil
-}
-
 func (s *systemtestSuite) TestNetworkAddDeleteVXLAN(c *C) {
 	s.testNetworkAddDelete(c, "vxlan")
 }
@@ -121,8 +89,12 @@ func (s *systemtestSuite) TestNetworkAddDeleteVLAN(c *C) {
 	s.testNetworkAddDelete(c, "vlan")
 }
 
-func (s *systemtestSuite) TestNetworkAddDeleteWithDns(c *C) {
+func (s *systemtestSuite) TestNetworkAddDeleteVLANWithDns(c *C) {
 	s.testNetworkAddDeleteWithDns(c, "vlan")
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteVXLANWithDns(c *C) {
+	s.testNetworkAddDeleteWithDns(c, "vxlan")
 }
 
 func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
