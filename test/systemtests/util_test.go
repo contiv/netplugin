@@ -1066,7 +1066,7 @@ func (s *systemtestSuite) verifyIPs(ipaddrs []string) error {
 }
 
 /* Confirm network inspect includes a dns endpoint (assumes this is the only endpoint on the network currently) */
-func (s *systemtestSuite) testNetworkInspectDNS(tenant, network string) (bool, error) {
+func (s *systemtestSuite) checkNetworkInspectDNS(tenant, network string) (bool, error) {
 
 	netInspect, err := s.cli.NetworkInspect(tenant, network)
 	// Network inspect must succeed

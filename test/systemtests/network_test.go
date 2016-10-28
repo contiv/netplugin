@@ -240,7 +240,7 @@ func (s *systemtestSuite) testNetworkAddDeleteWithDns(c *C, encap string) {
 			/*
 			   Now that the networks are created, check that there is a dns endpoint on each network
 			*/
-			_, err = s.testNetworkInspectDNS("default", netName)
+			_, err = s.checkNetworkInspectDNS("default", netName)
 			c.Assert(err, IsNil)
 		}
 
