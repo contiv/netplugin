@@ -14,7 +14,7 @@ import (
 // EPSpec for aci-gw
 type EPSpec struct {
 	Tenant string `json:"tenant,omitempty"`
-	App    string `json:"app,omitempty"`
+	App    string `json:"app-prof,omitempty"`
 	Epg    string `json:"epg,omitempty"`
 	EpMac  string `json:"epmac,omitempty"`
 }
