@@ -1,6 +1,7 @@
 
 .PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src golint-src govet-src
 
+DEFAULT_DOCKER_VERSION := 1.12.3
 SHELL := /bin/bash
 EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
@@ -100,7 +101,7 @@ ifdef NET_CONTAINER_BUILD
 start:
 else
 start:
-	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
+	CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-$(DEFAULT_DOCKER_VERSION)}" CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 endif
 
 #kubernetes demo targets
