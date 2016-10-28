@@ -17,28 +17,28 @@ type driverConfigTypes struct {
 }
 
 var networkDriverRegistry = map[string]driverConfigTypes{
-	OvsNameStr: driverConfigTypes{
+	OvsNameStr: {
 		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
 		ConfigType: reflect.TypeOf(drivers.OvsDriver{}),
 	},
 	// fakedriver is used for tests, so not exposing a public name for it.
-	"fakedriver": driverConfigTypes{
+	"fakedriver": {
 		DriverType: reflect.TypeOf(drivers.FakeNetEpDriver{}),
 		ConfigType: reflect.TypeOf(drivers.FakeNetEpDriverConfig{}),
 	},
 }
 
 var stateDriverRegistry = map[string]driverConfigTypes{
-	EtcdNameStr: driverConfigTypes{
+	EtcdNameStr: {
 		DriverType: reflect.TypeOf(state.EtcdStateDriver{}),
 		ConfigType: reflect.TypeOf(state.EtcdStateDriverConfig{}),
 	},
-	ConsulNameStr: driverConfigTypes{
+	ConsulNameStr: {
 		DriverType: reflect.TypeOf(state.ConsulStateDriver{}),
 		ConfigType: reflect.TypeOf(state.ConsulStateDriverConfig{}),
 	},
 	// fakestate-driver is used for tests, so not exposing a public name for it.
-	"fakedriver": driverConfigTypes{
+	"fakedriver": {
 		DriverType: reflect.TypeOf(state.FakeStateDriver{}),
 		ConfigType: reflect.TypeOf(state.FakeStateDriverConfig{}),
 	},

@@ -125,7 +125,7 @@ const (
 )
 
 var vlanRsrcValidationStateMap = map[string]*vlanRsrcValidator{
-	VlanRsrcValidInitID: &vlanRsrcValidator{
+	VlanRsrcValidInitID: {
 		expCfg: []AutoVLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcValidInitID},
@@ -139,7 +139,7 @@ var vlanRsrcValidationStateMap = map[string]*vlanRsrcValidator{
 			},
 		},
 	},
-	VlanRsrcValidDeinitID: &vlanRsrcValidator{
+	VlanRsrcValidDeinitID: {
 		expCfg: []AutoVLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcValidDeinitID},
@@ -157,7 +157,7 @@ var vlanRsrcValidationStateMap = map[string]*vlanRsrcValidator{
 			},
 		},
 	},
-	VlanRsrcAllocateID: &vlanRsrcValidator{
+	VlanRsrcAllocateID: {
 		expCfg: []AutoVLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcAllocateID},
@@ -179,7 +179,7 @@ var vlanRsrcValidationStateMap = map[string]*vlanRsrcValidator{
 			},
 		},
 	},
-	VlanRsrcAllocateExhaustID: &vlanRsrcValidator{
+	VlanRsrcAllocateExhaustID: {
 		expCfg: []AutoVLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcAllocateExhaustID},
@@ -197,7 +197,7 @@ var vlanRsrcValidationStateMap = map[string]*vlanRsrcValidator{
 			},
 		},
 	},
-	VlanRsrcDeallocateID: &vlanRsrcValidator{
+	VlanRsrcDeallocateID: {
 		expCfg: []AutoVLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcDeallocateID},
@@ -227,7 +227,7 @@ var vlanRsrcValidationStateMap = map[string]*vlanRsrcValidator{
 			},
 		},
 	},
-	VlanRsrcGetListID: &vlanRsrcValidator{
+	VlanRsrcGetListID: {
 		expCfg: []AutoVLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VlanRsrcGetListID},

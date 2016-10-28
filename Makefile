@@ -21,7 +21,7 @@ GO_MIN_VERSION := 1.5.1
 GO_MAX_VERSION := 1.6.2
 GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
 GOLINT_CMD := golint -set_exit_status
-GOFMT_CMD := gofmt -l
+GOFMT_CMD := gofmt -s -l
 GOVET_CMD := go tool vet
 
 all: build unit-test system-test ubuntu-tests

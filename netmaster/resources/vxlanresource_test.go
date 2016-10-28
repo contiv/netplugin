@@ -130,7 +130,7 @@ const (
 )
 
 var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
-	VXLANRsrcValidInitID: &vxlanRsrcValidator{
+	VXLANRsrcValidInitID: {
 		expCfg: []AutoVXLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcValidInitID},
@@ -146,7 +146,7 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 			},
 		},
 	},
-	VXLANRsrcValidDeinitID: &vxlanRsrcValidator{
+	VXLANRsrcValidDeinitID: {
 		expCfg: []AutoVXLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcValidDeinitID},
@@ -167,7 +167,7 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 			},
 		},
 	},
-	VXLANRsrcAllocateID: &vxlanRsrcValidator{
+	VXLANRsrcAllocateID: {
 		expCfg: []AutoVXLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateID},
@@ -193,7 +193,7 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 			},
 		},
 	},
-	VXLANRsrcAllocateExhaustVXLANID: &vxlanRsrcValidator{
+	VXLANRsrcAllocateExhaustVXLANID: {
 		expCfg: []AutoVXLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateExhaustVXLANID},
@@ -214,7 +214,7 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 			},
 		},
 	},
-	VXLANRsrcAllocateExhaustVLANID: &vxlanRsrcValidator{
+	VXLANRsrcAllocateExhaustVLANID: {
 		expCfg: []AutoVXLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcAllocateExhaustVLANID},
@@ -235,7 +235,7 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 			},
 		},
 	},
-	VXLANRsrcDeallocateID: &vxlanRsrcValidator{
+	VXLANRsrcDeallocateID: {
 		expCfg: []AutoVXLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcDeallocateID},
@@ -271,7 +271,7 @@ var vxlanRsrcValidationStateMap = map[string]*vxlanRsrcValidator{
 			},
 		},
 	},
-	VXLANRsrcGetListID: &vxlanRsrcValidator{
+	VXLANRsrcGetListID: {
 		expCfg: []AutoVXLANCfgResource{
 			{
 				CommonState: core.CommonState{StateDriver: nil, ID: VXLANRsrcGetListID},

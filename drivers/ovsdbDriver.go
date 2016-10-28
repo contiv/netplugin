@@ -180,7 +180,7 @@ func (d *OvsdbDriver) performOvsdbOps(ops []libovsdb.Operation) error {
 // Create or delete an OVS bridge instance
 func (d *OvsdbDriver) createDeleteBridge(bridgeName, failMode string, op oper) error {
 	namedUUIDStr := "netplugin"
-	brUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: namedUUIDStr}}
+	brUUID := []libovsdb.UUID{{GoUuid: namedUUIDStr}}
 	protocols := []string{"OpenFlow10", "OpenFlow11", "OpenFlow12", "OpenFlow13"}
 	opStr := "insert"
 	if op != operCreateBridge {
@@ -270,8 +270,8 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, 
 	// intfName is assumed to be unique enough to become uuid
 	portUUIDStr := intfName
 	intfUUIDStr := fmt.Sprintf("Intf%s", intfName)
-	portUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: portUUIDStr}}
-	intfUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: intfUUIDStr}}
+	portUUID := []libovsdb.UUID{{GoUuid: portUUIDStr}}
+	intfUUID := []libovsdb.UUID{{GoUuid: intfUUIDStr}}
 	opStr := "insert"
 
 	var err error
@@ -493,7 +493,7 @@ func (d *OvsdbDriver) AddController(ipAddr string, portNo uint16) error {
 	// Format target string
 	target := fmt.Sprintf("tcp:%s:%d", ipAddr, portNo)
 	ctrlerUUIDStr := fmt.Sprintf("local")
-	ctrlerUUID := []libovsdb.UUID{libovsdb.UUID{GoUuid: ctrlerUUIDStr}}
+	ctrlerUUID := []libovsdb.UUID{{GoUuid: ctrlerUUIDStr}}
 
 	// If controller already exists, nothing to do
 	if d.IsControllerPresent(target) {
