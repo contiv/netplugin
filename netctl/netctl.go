@@ -65,7 +65,7 @@ func inspectPolicy(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
 
-	fmt.Printf("Inspecting policy: %s tenant: %s\n", policy, tenant)
+	fmt.Printf("Inspeting policy: %s tenant: %s\n", policy, tenant)
 
 	pol, err := getClient(ctx).PolicyInspect(tenant, policy)
 	errCheck(ctx, err)
@@ -471,7 +471,7 @@ func inspectNetwork(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 
-	fmt.Printf("Inspecting network: %s tenant: %s\n", network, tenant)
+	fmt.Printf("Inspeting network: %s tenant: %s\n", network, tenant)
 
 	net, err := getClient(ctx).NetworkInspect(tenant, network)
 	errCheck(ctx, err)
@@ -661,7 +661,7 @@ func inspectEndpointGroup(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
 
-	fmt.Printf("Inspecting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
+	fmt.Printf("Inspeting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
 
 	epg, err := getClient(ctx).EndpointGroupInspect(tenant, endpointGroup)
 	errCheck(ctx, err)

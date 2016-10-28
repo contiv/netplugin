@@ -346,7 +346,7 @@ func UpdateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 		return nil, err
 	}
 
-	if epUpdReq.Event == "start" || epUpdReq.Event == "connect" {
+	if epUpdReq.Event == "start" {
 		//Received container start event from netplugin. Check if the Provider
 		//matches any service and perform service provider update if there is a matching
 		//service.
