@@ -91,6 +91,8 @@ func HTTPPost(url string, req interface{}, resp interface{}) error {
 		return err
 	}
 
+	defer res.Body.Close()
+
 	// Check the response code
 	if res.StatusCode == http.StatusInternalServerError {
 		eBody, err := ioutil.ReadAll(res.Body)
