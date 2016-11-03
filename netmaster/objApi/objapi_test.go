@@ -996,10 +996,10 @@ func TestNetworkAddDeleteACIMode(t *testing.T) {
 	checkCreateNetwork(t, false, "default", "contiv-ipv6", "", "vxlan", "10.1.1.1/16", "", 1, "2016:0617::/120", "")
 	verifyNetworkState(t, "default", "contiv-ipv6", "data", "vxlan", "10.1.1.1", "", 16, 1, 1, "2016:0617::", "", 120)
 	checkDeleteNetwork(t, false, "default", "contiv-ipv6")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
 
 }
 
-/*
 // TestNetworkAddDelete tests network create/delete REST api
 func TestNetworkAddDelete(t *testing.T) {
 	// Basic vlan network
@@ -1095,7 +1095,6 @@ func TestNetworkAddDelete(t *testing.T) {
 	// Try deleting a non-existing network
 	checkDeleteNetwork(t, true, "default", "contiv")
 }
-*/
 
 func TestDynamicGlobalVlanRange(t *testing.T) {
 
