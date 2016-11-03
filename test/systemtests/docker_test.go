@@ -603,6 +603,38 @@ func (d *docker) checkSchedulerNetworkCreated(nwName string, expectedOp bool) er
 	return err
 }
 
+func (d *docker) checkSchedulerNetworkOnNodeCreated(nwNames []string, n *node) error {
+	ch := make(chan error, 1)
+	for _, nwName := range nwNames {
+		go func(nwName string, n *node, ch chan error) {
+			logrus.Infof("Checking whether docker network %s is created on node %s", nwName, n.Name())
+			cmd := fmt.Sprintf("docker network ls | grep netplugin | grep %s | awk \"{print \\$2}\"", nwName)
+			logrus.Infof("Command to be executed is = %s", cmd)
+			count := 0
+			//check if docker network is created for a minute
+			for count < 60 {
+				op, err := n.runCommand(cmd)
+
+				if err == nil {
+					ret := strings.Contains(op, nwName)
+					if ret == true {
+						ch <- nil
+					}
+					count++
+					time.Sleep(1 * time.Second)
+				}
+			}
+			ch <- fmt.Errorf("Docker Network %s not created on node %s \n", nwName, n.Name())
+		}(nwName, n, ch)
+	}
+	for range nwNames {
+		if err := <-ch; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (d *docker) waitForListeners() error {
 	return d.node.runCommandWithTimeOut("netstat -tlpn | grep 9090 | grep LISTEN", 500*time.Millisecond, 50*time.Second)
 }

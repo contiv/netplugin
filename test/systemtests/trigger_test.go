@@ -262,6 +262,7 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
+
 		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "default", nil, nil)
 		c.Assert(err, IsNil)
 
@@ -283,12 +284,14 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 
 			c.Assert(s.verifyEPs(containers), IsNil)
 			time.Sleep(2 * time.Second)
-
 			// test ping for all containers
 			c.Assert(s.pingTest(containers), IsNil)
 		}
 
 		c.Assert(s.removeContainers(containers), IsNil)
+		for _, node := range s.nodes {
+			c.Assert(node.checkSchedulerNetworkOnNodeCreated([]string{"private"}), IsNil)
+		}
 	}
 
 	// delete the network

@@ -616,6 +616,10 @@ func (k *kubernetes) checkSchedulerNetworkCreated(nwName string, expectedOp bool
 	return nil
 }
 
+func (k *kubernetes) checkSchedulerNetworkOnNodeCreated(nwName []string, n *node) error {
+	return nil
+}
+
 func (k *kubernetes) waitForListeners() error {
 	if k.node.Name() == "k8master" {
 		return nil
