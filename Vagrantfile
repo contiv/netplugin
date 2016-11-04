@@ -3,6 +3,14 @@
 
 require 'fileutils'
 
+BEGIN {
+  STATEFILE = ".vagrant-state"
+
+  if File.exist?(STATEFILE)
+    File.open(STATEFILE).read.lines.map { |x| x.split("=", 2) }.each { |x,y| ENV[x] = y }
+  end
+}
+
 # netplugin_synced_gopath="/opt/golang"
 go_version = ENV["GO_VERSION"] || "1.7.3"
 gopath_folder="/opt/gopath"
@@ -103,6 +111,44 @@ echo "export http_proxy='$1'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$2'" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 SCRIPT
+
+module VagrantPlugins
+  module EnvState
+    class Plugin < Vagrant.plugin('2')
+      name 'EnvState'
+
+      description <<-DESC
+      Environment State tracker; saves the environment at `vagrant up` time and
+      restores it for all other commands, and removes it at `vagrant destroy`
+      time.
+      DESC
+
+      def self.up_hook(arg)
+        unless File.exist?(STATEFILE) # prevent it from writing more than once.
+          f = File.open(STATEFILE, "w") 
+          ENV.each do |x,y|
+            f.puts "%s=%s" % [x,y]
+          end
+          f.close
+        end
+      end
+
+      def self.destroy_hook(arg)
+        if File.exist?(STATEFILE) # prevent it from trying to delete more than once.
+          File.unlink(STATEFILE)
+        end
+      end
+
+      action_hook(:EnvState, :machine_action_up) do |hook|
+        hook.prepend(method(:up_hook))
+      end
+
+      action_hook(:EnvState, :machine_action_destroy) do |hook|
+        hook.prepend(method(:destroy_hook))
+      end
+    end
+  end
+end
 
 
 VAGRANTFILE_API_VERSION = "2"
