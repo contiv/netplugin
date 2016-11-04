@@ -4,6 +4,7 @@
 require 'fileutils'
 
 # netplugin_synced_gopath="/opt/golang"
+go_version = ENV["GO_VERSION"] || "1.7.3"
 gopath_folder="/opt/gopath"
 
 cluster_ip_nodes = ""
@@ -25,6 +26,10 @@ echo "export no_proxy=$3,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar
 echo "export CLUSTER_NODE_IPS=$3" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_CLUSTER_STORE=$7" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
+
+rm -rf /usr/local/go
+
+curl -sSL https://storage.googleapis.com/golang/go#{go_version}.linux-amd64.tar.gz  | sudo tar -xz -C /usr/local
 
 if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
     shift; shift; shift; shift; shift; shift; shift; shift; shift
