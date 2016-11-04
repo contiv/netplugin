@@ -45,6 +45,7 @@ type epSpec struct {
 	Network    string `json:"network,omitempty"`
 	Group      string `json:"group,omitempty"`
 	EndpointID string `json:"endpointid,omitempty"`
+	Name       string `json:"name,omitempty"`
 }
 
 // epAttr contains the assigned attributes of the created ep
@@ -128,10 +129,11 @@ func createEP(req *epSpec) (*epAttr, error) {
 
 	// Build endpoint request
 	mreq := master.CreateEndpointRequest{
-		TenantName:  req.Tenant,
-		NetworkName: req.Network,
-		ServiceName: req.Group,
-		EndpointID:  req.EndpointID,
+		TenantName:   req.Tenant,
+		NetworkName:  req.Network,
+		ServiceName:  req.Group,
+		EndpointID:   req.EndpointID,
+		EPCommonName: req.Name,
 		ConfigEP: intent.ConfigEP{
 			Container:   req.EndpointID,
 			Host:        pluginHost,
@@ -360,6 +362,7 @@ func getEPSpec(pInfo *cniapi.CNIPodAttr) (*epSpec, error) {
 	resp.Network = netw
 	resp.Group = epg
 	resp.EndpointID = pInfo.InfraContainerID
+	resp.Name = pInfo.Name
 
 	return &resp, nil
 }

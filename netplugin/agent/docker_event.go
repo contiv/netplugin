@@ -66,7 +66,7 @@ func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interf
 				endpointUpdReq.Network = networkName
 				endpointUpdReq.Event = "start"
 				endpointUpdReq.EndpointID = endpoint
-				endpointUpdReq.ContainerName = containerInfo.Name
+				endpointUpdReq.EPCommonName = containerInfo.Name
 				endpointUpdReq.Labels = make(map[string]string)
 
 				for k, v := range labelMap {

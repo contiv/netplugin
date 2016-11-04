@@ -1963,7 +1963,7 @@ func triggerProviderUpdate(t *testing.T, providerIP, network, containerID, endpo
 	endpointUpdReq.Event = event
 	endpointUpdReq.Labels = make(map[string]string)
 	endpointUpdReq.EndpointID = endpointID
-	endpointUpdReq.ContainerName = containerName
+	endpointUpdReq.EPCommonName = containerName
 
 	for _, v := range labels {
 		key := strings.Split(v, "=")[0]

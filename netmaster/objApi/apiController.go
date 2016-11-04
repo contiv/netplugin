@@ -414,7 +414,7 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 			ep := epCfg.(*mastercfg.CfgEndpointState)
 			if strings.Contains(ep.EndpointID, endpoint.Oper.Key) ||
 				strings.Contains(ep.ContainerID, endpoint.Oper.Key) ||
-				strings.Contains(ep.ContainerName, endpoint.Oper.Key) {
+				strings.Contains(ep.EPCommonName, endpoint.Oper.Key) {
 
 				endpoint.Oper.Network = ep.NetID
 				endpoint.Oper.EndpointID = ep.EndpointID
@@ -428,7 +428,7 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 				endpoint.Oper.VtepIP = ep.VtepIP
 				endpoint.Oper.Labels = fmt.Sprintf("%s", ep.Labels)
 				endpoint.Oper.ContainerID = ep.ContainerID
-				endpoint.Oper.ContainerName = ep.ContainerName
+				endpoint.Oper.ContainerName = ep.EPCommonName
 
 				return nil
 			}
@@ -852,7 +852,7 @@ func (ac *APIController) EndpointGroupGetOper(endpointGroup *contivModel.Endpoin
 				epOper.VtepIP = ep.VtepIP
 				epOper.Labels = fmt.Sprintf("%s", ep.Labels)
 				epOper.ContainerID = ep.ContainerID
-				epOper.ContainerName = ep.ContainerName
+				epOper.ContainerName = ep.EPCommonName
 				endpointGroup.Oper.Endpoints = append(endpointGroup.Oper.Endpoints, epOper)
 			}
 		}
@@ -1021,7 +1021,7 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 				epOper.VtepIP = ep.VtepIP
 				epOper.Labels = fmt.Sprintf("%s", ep.Labels)
 				epOper.ContainerID = ep.ContainerID
-				epOper.ContainerName = ep.ContainerName
+				epOper.ContainerName = ep.EPCommonName
 				network.Oper.Endpoints = append(network.Oper.Endpoints, epOper)
 			}
 		}
@@ -1254,7 +1254,7 @@ func (ac *APIController) PolicyGetOper(policy *contivModel.PolicyInspect) error 
 					epOper.VtepIP = ep.VtepIP
 					epOper.Labels = fmt.Sprintf("%s", ep.Labels)
 					epOper.ContainerID = ep.ContainerID
-					epOper.ContainerName = ep.ContainerName
+					epOper.ContainerName = ep.EPCommonName
 					policy.Oper.Endpoints = append(policy.Oper.Endpoints, epOper)
 				}
 			}
@@ -1597,7 +1597,7 @@ func getTenantNetworks(tenant *contivModel.TenantInspect) error {
 						epOper.VtepIP = ep.VtepIP
 						epOper.Labels = fmt.Sprintf("%s", ep.Labels)
 						epOper.ContainerID = ep.ContainerID
-						epOper.ContainerName = ep.ContainerName
+						epOper.ContainerName = ep.EPCommonName
 						netOper.Endpoints = append(netOper.Endpoints, epOper)
 					}
 				}
@@ -1660,7 +1660,7 @@ func getTenantEPGs(tenant *contivModel.TenantInspect) error {
 						epOper.VtepIP = ep.VtepIP
 						epOper.Labels = fmt.Sprintf("%s", ep.Labels)
 						epOper.ContainerID = ep.ContainerID
-						epOper.ContainerName = ep.ContainerName
+						epOper.ContainerName = ep.EPCommonName
 						epgOper.Endpoints = append(epgOper.Endpoints, epOper)
 					}
 				}
@@ -2081,7 +2081,7 @@ func (ac *APIController) ServiceLBGetOper(serviceLB *contivModel.ServiceLBInspec
 		epOper.VtepIP = epCfg.VtepIP
 		epOper.Labels = fmt.Sprintf("%s", epCfg.Labels)
 		epOper.ContainerID = epCfg.ContainerID
-		epOper.ContainerName = epCfg.ContainerName
+		epOper.ContainerName = epCfg.EPCommonName
 		serviceLB.Oper.Providers = append(serviceLB.Oper.Providers, epOper)
 		count++
 		epCfg = nil
