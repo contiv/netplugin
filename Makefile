@@ -87,7 +87,7 @@ build:
 	make stop
 
 clean: deps
-	rm -rf $(GOPATH)/pkg/*
+	rm -rf $(GOPATH)/pkg/*/github.com/contiv/netplugin/
 	go clean -i -v ./...
 
 update:
