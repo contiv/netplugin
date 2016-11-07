@@ -39,7 +39,7 @@ type CfgEndpointState struct {
 	VtepIP           string            `json:"vtepIP"`
 	Labels           map[string]string `json:"labels"`
 	ContainerID      string            `json:"containerId"`
-	ContainerName    string            `json:"containerName"`
+	EPCommonName     string            `json:"epCommonName"`
 }
 
 // Write the state.

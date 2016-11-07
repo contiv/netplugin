@@ -98,8 +98,9 @@ func freeAddrOnErr(nwCfg *mastercfg.CfgNetworkState, ipAddress string, pErr *err
 
 // CreateEndpoint creates an endpoint
 func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkState,
-	ep *intent.ConfigEP) (*mastercfg.CfgEndpointState, error) {
+	epReq *CreateEndpointRequest) (*mastercfg.CfgEndpointState, error) {
 
+	ep := &epReq.ConfigEP
 	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
 	epCfg.ID = getEpName(nwCfg.ID, ep)
@@ -113,6 +114,7 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 	epCfg.EndpointID = ep.Container
 	epCfg.HomingHost = ep.Host
 	epCfg.ServiceName = ep.ServiceName
+	epCfg.EPCommonName = epReq.EPCommonName
 
 	// Allocate addresses
 	err = allocSetEpAddress(ep, epCfg, nwCfg)
@@ -187,7 +189,9 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 		}
 
 		for _, ep := range network.Endpoints {
-			_, err = CreateEndpoint(stateDriver, nwCfg, &ep)
+			epReq := CreateEndpointRequest{}
+			epReq.ConfigEP = ep
+			_, err = CreateEndpoint(stateDriver, nwCfg, &epReq)
 			if err != nil {
 				log.Errorf("Error creating endpoint %+v. Err: %v", ep, err)
 				return err

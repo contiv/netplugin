@@ -51,11 +51,12 @@ type AddressReleaseRequest struct {
 
 // CreateEndpointRequest has the endpoint create request from netplugin
 type CreateEndpointRequest struct {
-	TenantName  string          // tenant name
-	NetworkName string          // network name
-	ServiceName string          // service name
-	EndpointID  string          // Unique identifier for the endpoint
-	ConfigEP    intent.ConfigEP // Endpoint configuration
+	TenantName   string          // tenant name
+	NetworkName  string          // network name
+	ServiceName  string          // service name
+	EndpointID   string          // Unique identifier for the endpoint
+	EPCommonName string          // Common name for the endpoint
+	ConfigEP     intent.ConfigEP // Endpoint configuration
 }
 
 // CreateEndpointResponse has the endpoint create response from netmaster
@@ -74,14 +75,14 @@ type DeleteEndpointRequest struct {
 
 //UpdateEndpointRequest has the update endpoint request from netplugin
 type UpdateEndpointRequest struct {
-	IPAddress     string            // provider IP
-	ContainerID   string            // container id
-	Labels        map[string]string // lables
-	Tenant        string
-	Network       string
-	Event         string
-	EndpointID    string
-	ContainerName string
+	IPAddress    string            // provider IP
+	ContainerID  string            // container id
+	Labels       map[string]string // lables
+	Tenant       string
+	Network      string
+	Event        string
+	EndpointID   string
+	EPCommonName string // Common name for the endpoint
 }
 
 //UpdateEndpointResponse is service provider update request from netplugin
@@ -268,7 +269,7 @@ func CreateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 	}
 
 	// Create the endpoint
-	epCfg, err := CreateEndpoint(stateDriver, nwCfg, &epReq.ConfigEP)
+	epCfg, err := CreateEndpoint(stateDriver, nwCfg, &epReq)
 	if err != nil {
 		log.Errorf("CreateEndpoint failure for ep: %v. Err: %v", epReq.ConfigEP, err)
 		return nil, err
@@ -401,7 +402,7 @@ func UpdateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 		provider.EpIDKey = epCfg.ID
 		//maintain the containerId in endpointstat for recovery
 		epCfg.ContainerID = epUpdReq.ContainerID
-		epCfg.ContainerName = epUpdReq.ContainerName
+		epCfg.EPCommonName = epUpdReq.EPCommonName
 
 		err = epCfg.Write()
 		if err != nil {
