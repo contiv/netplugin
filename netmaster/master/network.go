@@ -119,23 +119,6 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 	nwCfg.ID = networkID
 	nwCfg.StateDriver = stateDriver
 
-	// Allocate pkt tags
-	reqPktTag := uint(network.PktTag)
-	if nwCfg.PktTagType == "vlan" {
-		pktTag, err = gCfg.AllocVLAN(reqPktTag)
-		if err != nil {
-			return err
-		}
-	} else if nwCfg.PktTagType == "vxlan" {
-		extPktTag, pktTag, err = gCfg.AllocVXLAN(reqPktTag)
-		if err != nil {
-			return err
-		}
-	}
-
-	nwCfg.ExtPktTag = int(extPktTag)
-	nwCfg.PktTag = int(pktTag)
-
 	netutils.InitSubnetBitset(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
 	subnetAddr := netutils.GetSubnetAddr(nwCfg.SubnetIP, nwCfg.SubnetLen)
 	nwCfg.SubnetIP = subnetAddr
@@ -168,6 +151,23 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		}
 		netutils.ReserveIPv6HostID(hostID, &nwCfg.IPv6AllocMap)
 	}
+
+	// Allocate pkt tags
+	reqPktTag := uint(network.PktTag)
+	if nwCfg.PktTagType == "vlan" {
+		pktTag, err = gCfg.AllocVLAN(reqPktTag)
+		if err != nil {
+			return err
+		}
+	} else if nwCfg.PktTagType == "vxlan" {
+		extPktTag, pktTag, err = gCfg.AllocVXLAN(reqPktTag)
+		if err != nil {
+			return err
+		}
+	}
+
+	nwCfg.ExtPktTag = int(extPktTag)
+	nwCfg.PktTag = int(pktTag)
 
 	err = nwCfg.Write()
 	if err != nil {
