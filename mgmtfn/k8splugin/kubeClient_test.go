@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	"os"
 	osexec "os/exec"
 	"strings"
 	"testing"
@@ -32,6 +31,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/gorilla/mux"
+	. "gopkg.in/check.v1"
 )
 
 const (
@@ -344,7 +344,7 @@ func epWatch(r *http.Request, iter int) (interface{}, bool, error) {
 }
 
 // setupTestServer creates a listener for the rest requests.
-func setupTestServer(m *testing.M) {
+func setupTestServer(c *C) {
 
 	// Read client cert
 	cert, err := tls.LoadX509KeyPair("/tmp/certs/server.crt", "/tmp/certs/server.key")
@@ -405,7 +405,7 @@ func setupTestServer(m *testing.M) {
 	log.Fatalf("Kube server not ready after 5 sec")
 }
 
-func setupCerts(m *testing.M) {
+func setupCerts(c *C) {
 	_, err := osexec.Command("mkdir", "-p", contivKubeCfgDir).CombinedOutput()
 	if err != nil {
 		log.Fatalf("mkdir failed: %v", err)
@@ -419,43 +419,50 @@ func setupCerts(m *testing.M) {
 	}
 }
 
-// TestMain sets up a fake kube server to enable testing the client
-func TestMain(m *testing.M) {
-	setupCerts(m)
-	setupTestServer(m)
-	os.Exit(m.Run())
-}
-
-func verifySvc(m *testing.T, drv *KubeTestNetDrv) {
+func verifySvc(c *C, drv *KubeTestNetDrv) {
 	ls, ok := drv.services["LipService"]
 	if !ok {
-		m.Errorf("Service was not correctly updated on client")
+		c.Errorf("Service was not correctly updated on client")
 	} else {
-		m.Logf("service: %+v", ls)
+		c.Logf("service: %+v", ls)
 		if ls.IPAddress != testClusterIP {
-			m.Errorf("ClusterIP is incorrect")
+			c.Errorf("ClusterIP is incorrect")
 		}
 
 		if len(ls.Ports) != 1 {
-			m.Errorf("Noumber of ports is incorrect")
+			c.Errorf("Noumber of ports is incorrect")
 		}
 
 		if ls.Ports[0].Protocol != "TCP" {
-			m.Errorf("Protocol is incorrect")
+			c.Errorf("Protocol is incorrect")
 		}
 
 		if ls.Ports[0].SvcPort != testSvcPort {
-			m.Errorf("Svc port is incorrect")
+			c.Errorf("Svc port is incorrect")
 		}
 
 		if ls.Ports[0].ProvPort != testTgtPort {
-			m.Errorf("Prov port is incorrect")
+			c.Errorf("Prov port is incorrect")
 		}
 	}
 }
 
+func Test(t *testing.T) {
+	TestingT(t)
+}
+
+type TestKube struct{}
+
+var _ = Suite(&TestKube{})
+
+//  sets up a fake kube server to enable testing the client
+func (s *TestKube) SetUpSuite(c *C) {
+	setupCerts(c)
+	setupTestServer(c)
+}
+
 // TestKubeWatch tests the watch interface
-func TestKubeWatch(m *testing.T) {
+func (s *TestKube) TestKubeWatch(c *C) {
 	drv := &KubeTestNetDrv{}
 	np := &plugin.NetPlugin{
 		NetworkDriver: drv,
@@ -465,64 +472,64 @@ func TestKubeWatch(m *testing.T) {
 	totalEPResp = 0
 
 	InitKubServiceWatch(np)
-	m.Logf("--ADD--")
+	c.Logf("--ADD--")
 	maxEPResp = 0
 	maxSvcResp = 1
 	for ix := 0; ix < 2; ix++ {
 		time.Sleep(time.Second)
 	}
-	m.Logf("Drv: %+v", drv)
+	c.Logf("Drv: %+v", drv)
 	if drv.numAddSvc != 1 {
-		m.Errorf("Add service was not seen by client")
+		c.Errorf("Add service was not seen by client")
 	} else {
-		m.Logf("Add service seen by client, as expected")
+		c.Logf("Add service seen by client, as expected")
 	}
 
-	verifySvc(m, drv)
+	verifySvc(c, drv)
 
 	if len(drv.providers) != 0 {
-		m.Errorf("Provider list is incorrect")
+		c.Errorf("Provider list is incorrect")
 
 	}
 
-	m.Logf("--DEL--")
+	c.Logf("--DEL--")
 	maxEPResp = 0
 	maxSvcResp = 2
 	for ix := 0; ix < 3; ix++ {
 		time.Sleep(time.Second)
 	}
-	m.Logf("Drv: %+v", drv)
+	c.Logf("Drv: %+v", drv)
 	if drv.numDelSvc != 1 {
-		m.Errorf("Del service was not seen by client")
+		c.Errorf("Del service was not seen by client")
 	} else {
-		m.Logf("Del service seen by client, as expected")
+		c.Logf("Del service seen by client, as expected")
 	}
 
 	_, ok := drv.services["LipService"]
 	if ok {
-		m.Errorf("Service was not deleted on client")
+		c.Errorf("Service was not deleted on client")
 	}
 
-	m.Logf("--CLOSE--")
+	c.Logf("--CLOSE--")
 	maxEPResp = 6
 	maxSvcResp = 4
 	for ix := 0; ix < 8; ix++ {
 		time.Sleep(time.Second)
 	}
-	m.Logf("Drv: %+v", drv)
-	m.Logf("services: %+v", drv.services["LipService"])
+	c.Logf("Drv: %+v", drv)
+	c.Logf("services: %+v", drv.services["LipService"])
 	if (drv.numAddSvc != 3) || (drv.numDelSvc != 1) || (drv.numProvUpd != 6) {
-		m.Errorf("All updates were not seen by client")
+		c.Errorf("All updates were not seen by client")
 	}
 
-	verifySvc(m, drv)
+	verifySvc(c, drv)
 
 	provs, ok := drv.providers["LipService"]
 	if !ok {
-		m.Errorf("Providers were not updated on client")
+		c.Errorf("Providers were not updated on client")
 	} else {
 		if len(provs) != 2 {
-			m.Errorf("Providers were not updated correctly on client")
+			c.Errorf("Providers were not updated correctly on client")
 		}
 	}
 }
