@@ -24,9 +24,9 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
 		PktTag:      1001,
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		network.Ipv6Subnet = "2016:0617::/100"
 		network.Ipv6Gateway = "2016:0617::254"
 	}
@@ -92,9 +92,9 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
 		PktTag:      1001,
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		network.Ipv6Subnet = "2016:0617::/100"
 		network.Ipv6Gateway = "2016:0617::254"
 	}
@@ -140,9 +140,9 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 		NetworkName: "private",
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		network.Ipv6Subnet = "2016:0617::/100"
 		network.Ipv6Gateway = "2016:0617::254"
 	}
@@ -217,7 +217,7 @@ func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
 		NetworkName: "private",
 		Subnet:      "10.1.1.0/24",
 		Gateway:     "10.1.1.254",
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
@@ -257,7 +257,7 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 		NetworkName: "private",
 		Subnet:      "10.1.1.0/24",
 		Gateway:     "10.1.1.254",
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
 
@@ -307,9 +307,9 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
 		PktTag:      1001,
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		network.Ipv6Subnet = "2016:0617::/100"
 		network.Ipv6Gateway = "2016:0617::254"
 	}
@@ -321,9 +321,9 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 		Subnet:      "10.2.0.0/16",
 		Gateway:     "10.2.1.254",
 		PktTag:      1002,
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		network.Ipv6Subnet = "2016:0718::/100"
 		network.Ipv6Gateway = "2016:0718::254"
 	}

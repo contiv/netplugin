@@ -3,12 +3,21 @@ package systemtests
 import (
 	"flag"
 	"fmt"
+	"os"
+	. "testing"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"
 	. "gopkg.in/check.v1"
-	"os"
-	. "testing"
+)
+
+const (
+	FwdModeBridge  = "bridge"
+	FwdModeRouting = "routing"
+
+	EncapVLAN  = "vlan"
+	EncapVXLAN = "vxlan"
 )
 
 type systemtestSuite struct {
@@ -62,9 +71,9 @@ func TestMain(m *M) {
 	mastbasic, _, _ := getInfo("cfg.json")
 
 	if mastbasic.ContivL3 == "" {
-		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
+		flag.StringVar(&sts.fwdMode, "fwd-mode", FwdModeBridge, "forwarding mode to start the test ")
 	} else {
-		flag.StringVar(&sts.fwdMode, "fwd-mode", "routing", "forwarding mode to start the test ")
+		flag.StringVar(&sts.fwdMode, "fwd-mode", FwdModeRouting, "forwarding mode to start the test ")
 	}
 
 	flag.Parse()

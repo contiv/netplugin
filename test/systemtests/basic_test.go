@@ -12,19 +12,18 @@ import (
 )
 
 func (s *systemtestSuite) TestBasicStartRemoveContainerVXLAN(c *C) {
-	s.testBasicStartRemoveContainer(c, "vxlan")
+	s.testBasicStartRemoveContainer(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestBasicStartRemoveContainerVLAN(c *C) {
-	s.testBasicStartRemoveContainer(c, "vlan")
+	s.testBasicStartRemoveContainer(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
+
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		PktTag:      1001,
 		NetworkName: "private",
@@ -38,7 +37,7 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 		c.Assert(err, IsNil)
 
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.isBGP(encap) {
 			var err error
 			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
@@ -52,18 +51,17 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestBasicStartStopContainerVXLAN(c *C) {
-	s.testBasicStartStopContainer(c, "vxlan")
+	s.testBasicStartStopContainer(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestBasicStartStopContainerVLAN(c *C) {
-	s.testBasicStartStopContainer(c, "vlan")
+	s.testBasicStartStopContainer(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
+
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		PktTag:      1001,
 		NetworkName: "private",
@@ -75,7 +73,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 
 	containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" && encap == "vlan" {
+	if s.isBGP(encap) {
 		var err error
 		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
@@ -101,7 +99,7 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 			c.Assert(<-errChan, IsNil)
 		}
 
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.isBGP(encap) {
 			var err error
 			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
@@ -117,14 +115,14 @@ func (s *systemtestSuite) TestBasicSvcDiscoveryVXLAN(c *C) {
 	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
-	s.testBasicSvcDiscovery(c, "vxlan")
+	s.testBasicSvcDiscovery(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestBasicSvcDiscoveryVLAN(c *C) {
 	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
-	s.testBasicSvcDiscovery(c, "vlan")
+	s.testBasicSvcDiscovery(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
@@ -136,10 +134,9 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		c.Skip("Skipping dns test docker 1.10.3")
 	}
 
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
+
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		PktTag:      1001,
 		NetworkName: "private",
@@ -173,12 +170,11 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		c.Assert(err, IsNil)
 
 		containers := append(containers1, containers2...)
-		if s.fwdMode == "routing" && encap == "vlan" {
+
+		if s.isBGP(encap) {
 			var err error
 			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
-		}
-		if s.fwdMode == "routing" && encap == "vlan" {
 			time.Sleep(5 * time.Second)
 		}
 

@@ -11,11 +11,11 @@ import (
 )
 
 func (s *systemtestSuite) TestNetprofileBasicUpdateVXLAN(c *C) {
-	s.testNetprofileBasicUpdate(c, "vxlan")
+	s.testNetprofileBasicUpdate(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestNetprofileBasicUpdateVLAN(c *C) {
-	s.testNetprofileBasicUpdate(c, "vlan")
+	s.testNetprofileBasicUpdate(c, EncapVLAN)
 }
 
 //func testNetprofileBasicUpdate will check :
@@ -25,11 +25,8 @@ func (s *systemtestSuite) TestNetprofileBasicUpdateVLAN(c *C) {
 //attach the groups to a netprofile and check iperf.
 func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 
-	if encap == "vlan" && s.fwdMode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	network := &client.Network{
 		TenantName:  "default",
@@ -60,7 +57,7 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 
 	containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" && encap == "vlan" {
+	if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
@@ -144,20 +141,17 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 //4) create another netprofile, attach the same group-g1 to it to check if no stale state is present.
 //5)make the netprofile.Bandwidth ="" and check if group also has no limit.
 func (s *systemtestSuite) TestNetprofileUpdateVXLAN(c *C) {
-	s.testNetprofileUpdate(c, "vxlan")
+	s.testNetprofileUpdate(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestNetprofileUpdateVLAN(c *C) {
-	s.testNetprofileUpdate(c, "vlan")
+	s.testNetprofileUpdate(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 
-	if encap == "vlan" && s.fwdMode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	network := &client.Network{
 		TenantName:  "default",
@@ -199,7 +193,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 
 		containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
@@ -292,20 +286,17 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 
 //TestNetprofileMultipleTenantVXLAN creates multiple tenants which has multiple networks, netprofile and groups under it.
 func (s *systemtestSuite) TestNetprofileMultipleTenantVXLAN(c *C) {
-	s.testNetprofileMultipleTenant(c, "vxlan")
+	s.testNetprofileMultipleTenant(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestNetprofileMultipleTenantVLAN(c *C) {
-	s.testNetprofileMultipleTenant(c, "vlan")
+	s.testNetprofileMultipleTenant(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 	mutex := sync.Mutex{}
-	if encap == "vlan" && s.fwdMode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	for i := 0; i < s.basicInfo.Iterations-2; i++ {
 
@@ -386,7 +377,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 					mutex.Unlock()
 					endChan <- err
 
-					if s.fwdMode == "routing" && encap == "vlan" {
+					if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 						err := s.CheckBgpRouteDistribution(c, containers[groupName])
 						c.Assert(err, IsNil)
 					}
@@ -431,26 +422,21 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 		}
 	}
 
-	if encap == "vlan" && s.fwdMode == "routing" {
-		s.TearDownBgp(c)
-	}
+	s.TearDownBgp(c, encap)
 }
 
 //testNetprofileTriggerNetpluginRestart function checks if netprofile can be updated when netplugin is down.
 //and the netplugin comes back up with the updated bandwidth.
 func (s *systemtestSuite) TestNetprofileTriggerNetpluginRestartVLAN(c *C) {
-	s.testNetprofileTriggerNetpluginRestart(c, "vlan")
+	s.testNetprofileTriggerNetpluginRestart(c, EncapVLAN)
 }
 func (s *systemtestSuite) TestNetprofileTriggerNetpluginRestartVXLAN(c *C) {
-	s.testNetprofileTriggerNetpluginRestart(c, "vxlan")
+	s.testNetprofileTriggerNetpluginRestart(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap string) {
-	if encap == "vlan" && s.fwdMode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	network := &client.Network{
 		TenantName:  "default",
@@ -490,7 +476,7 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 
 	containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" && encap == "vlan" {
+	if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
@@ -567,7 +553,7 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 		Subnet:      "10.1.1.1/24",
 		Gateway:     "10.1.1.254",
 		PktTag:      1001,
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}
 
 	c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -675,18 +661,16 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 //It verifies that no matter source bandwidth limit be more or less than the limit of client,
 //It will never affect the client's traffic.
 func (s *systemtestSuite) TestNetprofileAcrossGroupVXLAN(c *C) {
-	s.testNetprofileAcrossGroup(c, "vxlan")
+	s.testNetprofileAcrossGroup(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestNetprofileAcrossGroupVLAN(c *C) {
-	s.testNetprofileAcrossGroup(c, "vlan")
+	s.testNetprofileAcrossGroup(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
-	if encap == "vlan" && s.fwdMode == "routing" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	network := &client.Network{
 		TenantName:  "default",
@@ -755,14 +739,14 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 
 	containersNew, err := s.runContainers(s.basicInfo.Containers, true, "private", "", NewGroupNames, nil)
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" && encap == "vlan" {
+	if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 		err = s.CheckBgpRouteDistribution(c, containersNew)
 		c.Assert(err, IsNil)
 	}
 
 	containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" && encap == "vlan" {
+	if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}

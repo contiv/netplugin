@@ -19,6 +19,14 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+func (s *systemtestSuite) isBridge() bool {
+	return s.fwdMode == FwdModeBridge
+}
+
+func (s *systemtestSuite) isBGP(encap string) bool {
+	return s.fwdMode == FwdModeRouting && encap == EncapVLAN
+}
+
 func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*container, port int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
@@ -1171,7 +1179,7 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 	}
 
 	s.nodes = []*node{}
-	if s.fwdMode == "routing" {
+	if s.fwdMode == FwdModeRouting {
 		contivL3Nodes := 2
 		switch s.basicInfo.Scheduler {
 		case "k8":
@@ -1287,8 +1295,8 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
-	if s.fwdMode == "routing" {
-		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+	if s.fwdMode == FwdModeRouting {
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: FwdModeRouting,
 			Name:             "global",
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
@@ -1350,8 +1358,8 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		}
 	}
 
-	if s.fwdMode == "routing" {
-		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+	if s.fwdMode == FwdModeRouting {
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: FwdModeRouting,
 			Name:             "global",
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",

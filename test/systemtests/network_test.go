@@ -15,22 +15,19 @@ func (s *systemtestSuite) TestInfraNetworkAddDeleteVXLAN(c *C) {
 	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
-	s.testInfraNetworkAddDelete(c, "vxlan")
+	s.testInfraNetworkAddDelete(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestInfraNetworkAddDeleteVLAN(c *C) {
 	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
-	s.testInfraNetworkAddDelete(c, "vlan")
+	s.testInfraNetworkAddDelete(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
-
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
@@ -65,7 +62,7 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 				for nodeNum := 1; nodeNum <= len(s.nodes); nodeNum++ {
 					logrus.Infof("Running ping test for network %q node %d", netNames[networkNum], nodeNum)
 					ipaddr := fmt.Sprintf("10.1.%d.%d", networkNum, nodeNum)
-					if s.fwdMode == "routing" && encap == "vlan" {
+					if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 						err := s.verifyIPs([]string{ipaddr})
 						c.Assert(err, IsNil)
 					}
@@ -82,20 +79,16 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteVXLAN(c *C) {
-	s.testNetworkAddDelete(c, "vxlan")
+	s.testNetworkAddDelete(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteVLAN(c *C) {
-	s.testNetworkAddDelete(c, "vlan")
+	s.testNetworkAddDelete(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
-
-	if s.fwdMode == "routing" && encap == "vlan" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
@@ -138,7 +131,7 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 			c.Assert(err, IsNil)
 		}
 
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 			var err error
 			for _, name := range netNames {
 				err = s.CheckBgpRouteDistribution(c, containers[name])
@@ -159,7 +152,7 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 
 		count := 0
 
-		if s.fwdMode != "routing" {
+		if s.fwdMode != FwdModeRouting {
 			for key := range containers {
 				for key2 := range containers {
 					if key == key2 {
@@ -191,19 +184,15 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteNoGatewayVXLAN(c *C) {
-	s.testNetworkAddDeleteNoGateway(c, "vxlan")
+	s.testNetworkAddDeleteNoGateway(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteNoGatewayVLAN(c *C) {
-	s.testNetworkAddDeleteNoGateway(c, "vlan")
+	s.testNetworkAddDeleteNoGateway(c, EncapVLAN)
 }
 func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
-
-	if s.fwdMode == "routing" && encap == "vlan" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
@@ -243,7 +232,7 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 			c.Assert(err, IsNil)
 		}
 
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 			for _, name := range netNames {
 				err := s.CheckBgpRouteDistribution(c, containers[name])
 				c.Assert(err, IsNil)
@@ -272,21 +261,17 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantVXLAN(c *C) {
-	s.testNetworkAddDeleteTenant(c, "vxlan", s.fwdMode)
+	s.testNetworkAddDeleteTenant(c, EncapVXLAN, s.fwdMode)
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantVLAN(c *C) {
-	s.testNetworkAddDeleteTenant(c, "vlan", s.fwdMode)
+	s.testNetworkAddDeleteTenant(c, EncapVLAN, s.fwdMode)
 }
 
 func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string) {
 	mutex := sync.Mutex{}
-
-	if encap == "vlan" && fwdmode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
@@ -345,7 +330,7 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 					mutex.Unlock()
 					endChan <- err
 
-					if fwdmode == "routing" && encap == "vlan" {
+					if fwdmode == FwdModeRouting && encap == EncapVLAN {
 						err = s.CheckBgpRouteDistribution(c, containers[network])
 						c.Assert(err, IsNil)
 					}
@@ -365,36 +350,34 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 			c.Assert(s.cli.TenantDelete(tenant), IsNil)
 		}
 	}
-	if encap == "vlan" && fwdmode == "routing" {
-		s.TearDownBgp(c)
-	}
 
+	s.TearDownBgp(c, encap)
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 	fwdMode := s.fwdMode
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-		s.testNetworkAddDeleteTenant(c, "vxlan", fwdMode)
-		if fwdMode == "routing" {
-			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
+		s.testNetworkAddDeleteTenant(c, EncapVXLAN, fwdMode)
+		if fwdMode == FwdModeRouting {
+			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: FwdModeBridge,
 				Name:             "global",
 				NetworkInfraType: "default",
 				Vlans:            "1-4094",
 				Vxlans:           "1-10000",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
-			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
-			fwdMode = "bridge"
+			s.testNetworkAddDeleteTenant(c, EncapVXLAN, FwdModeBridge)
+			fwdMode = FwdModeBridge
 		} else {
-			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: FwdModeRouting,
 				Name:             "global",
 				NetworkInfraType: "default",
 				Vlans:            "100-2094",
 				Vxlans:           "1-10000",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
-			s.testNetworkAddDeleteTenant(c, "vxlan", "routing")
-			fwdMode = "routing"
+			s.testNetworkAddDeleteTenant(c, EncapVXLAN, FwdModeRouting)
+			fwdMode = FwdModeRouting
 		}
 	}
 }
@@ -403,20 +386,20 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 
 	c.Skip("Skipping this tests temporarily")
 
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		return
 	}
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-		s.testNetworkAddDeleteTenant(c, "vlan", s.fwdMode)
-		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
+		s.testNetworkAddDeleteTenant(c, EncapVLAN, s.fwdMode)
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: FwdModeBridge,
 			Name:             "global",
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 		}), IsNil)
 		time.Sleep(60 * time.Second)
-		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: FwdModeRouting,
 			Name:             "global",
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",

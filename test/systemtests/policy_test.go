@@ -11,20 +11,16 @@ import (
 )
 
 func (s *systemtestSuite) TestPolicyBasicVXLAN(c *C) {
-	s.testPolicyBasic(c, "vxlan")
+	s.testPolicyBasic(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestPolicyBasicVLAN(c *C) {
-	s.testPolicyBasic(c, "vlan")
+	s.testPolicyBasic(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
-
-	if encap == "vlan" && s.fwdMode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	network := &client.Network{
 		TenantName:  "default",
@@ -87,7 +83,7 @@ func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
 
 		containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
@@ -115,20 +111,17 @@ func (s *systemtestSuite) testPolicyBasic(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestPolicyAddDeleteRuleVXLAN(c *C) {
-	s.testPolicyAddDeleteRule(c, "vxlan")
+	s.testPolicyAddDeleteRule(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestPolicyAddDeleteRuleVLAN(c *C) {
-	s.testPolicyAddDeleteRule(c, "vlan")
+	s.testPolicyAddDeleteRule(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 
-	if encap == "vlan" && s.fwdMode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	network := &client.Network{
 		TenantName:  "default",
@@ -188,7 +181,7 @@ func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 
 	containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" && encap == "vlan" {
+	if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}
@@ -233,20 +226,16 @@ func (s *systemtestSuite) testPolicyAddDeleteRule(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestPolicyFromEPGVXLAN(c *C) {
-	s.testPolicyFromEPG(c, "vxlan")
+	s.testPolicyFromEPG(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestPolicyFromEPGVLAN(c *C) {
-	s.testPolicyFromEPG(c, "vlan")
+	s.testPolicyFromEPG(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
-
-	if encap == "vlan" && s.fwdMode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	network := &client.Network{
 		TenantName:  "default",
@@ -329,7 +318,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 
 		containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", policyNames, nil)
 		c.Assert(err, IsNil)
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 			err = s.CheckBgpRouteDistribution(c, containers)
 			c.Assert(err, IsNil)
 		}
@@ -342,7 +331,7 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 		cmnContainers, err := s.runContainersInService(s.basicInfo.Containers, "common", "private", "", commonNames)
 		c.Assert(err, IsNil)
 
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 			err = s.CheckBgpRouteDistribution(c, cmnContainers)
 			c.Assert(err, IsNil)
 		}
@@ -369,20 +358,16 @@ func (s *systemtestSuite) testPolicyFromEPG(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestPolicyFeaturesVXLAN(c *C) {
-	s.testPolicyFeatures(c, "vxlan")
+	s.testPolicyFeatures(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestPolicyFeaturesVLAN(c *C) {
-	s.testPolicyFeatures(c, "vlan")
+	s.testPolicyFeatures(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
-
-	if encap == "vlan" && s.fwdMode == "routing" {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	network := &client.Network{
 		TenantName:  "default",
@@ -439,7 +424,7 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 	c.Assert(err, IsNil)
 	container2, err := s.nodes[0].exec.runContainer(containerSpec{name: "srv2-private", serviceName: "srv2", networkName: "private"})
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" && encap == "vlan" {
+	if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 		err = s.CheckBgpRouteDistribution(c, []*container{container1})
 		c.Assert(err, IsNil)
 		err = s.CheckBgpRouteDistribution(c, []*container{container2})
