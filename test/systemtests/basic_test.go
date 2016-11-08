@@ -11,30 +11,39 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *systemtestSuite) TestBasicStartRemoveContainerVXLAN(c *C) {
-	s.testBasicStartRemoveContainer(c, EncapVXLAN)
+func (s *systemtestSuite) TestBasicStart(c *C) {
+	s.testBasicStartRemoveContainerWrap(c)
+	s.testBasicStartStopContainerWrap(c)
 }
 
-func (s *systemtestSuite) TestBasicStartRemoveContainerVLAN(c *C) {
-	s.testBasicStartRemoveContainer(c, EncapVLAN)
+func (s *systemtestSuite) testBasicStartRemoveContainerWrap(c *C) {
+	doneChan := make(chan struct{}, 2)
+
+	go s.testBasicStartRemoveContainer(c, EncapVXLAN, doneChan, 0)
+	go s.testBasicStartRemoveContainer(c, EncapVLAN, doneChan, 1)
+
+	for i := 0; i < 2; i++ {
+		<-doneChan
+	}
 }
 
-func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
+func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string, doneChan chan struct{}, seq int) {
+	defer func() { doneChan <- struct{}{} }()
 
 	s.SetupBgp(c, encap, false)
 	s.CheckBgpConnection(c, encap)
 
 	c.Assert(s.cli.NetworkPost(&client.Network{
-		PktTag:      1001,
-		NetworkName: "private",
-		Subnet:      "10.1.0.0/16",
-		Gateway:     "10.1.1.254",
+		PktTag:      1001 + seq,
+		NetworkName: encap,
+		Subnet:      fmt.Sprintf("10.1.%d.0/24", seq),
+		Gateway:     fmt.Sprintf("10.1.%d.254", seq),
 		Encap:       encap,
 		TenantName:  "default",
 	}), IsNil)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
+		containers, err := s.runContainers(s.basicInfo.Containers, false, encap, "", nil, nil)
 		c.Assert(err, IsNil)
 
 		if s.isBGP(encap) {
@@ -47,31 +56,36 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 		c.Assert(s.removeContainers(containers), IsNil)
 	}
 
-	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
+	c.Assert(s.cli.NetworkDelete("default", encap), IsNil)
 }
 
-func (s *systemtestSuite) TestBasicStartStopContainerVXLAN(c *C) {
-	s.testBasicStartStopContainer(c, EncapVXLAN)
+func (s *systemtestSuite) testBasicStartStopContainerWrap(c *C) {
+	doneChan := make(chan struct{}, 2)
+
+	go s.testBasicStartStopContainer(c, EncapVXLAN, doneChan, 0)
+	go s.testBasicStartStopContainer(c, EncapVLAN, doneChan, 1)
+
+	for i := 0; i < 2; i++ {
+		<-doneChan
+	}
 }
 
-func (s *systemtestSuite) TestBasicStartStopContainerVLAN(c *C) {
-	s.testBasicStartStopContainer(c, EncapVLAN)
-}
+func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string, doneChan chan struct{}, seq int) {
+	defer func() { doneChan <- struct{}{} }()
 
-func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 	s.SetupBgp(c, encap, false)
 	s.CheckBgpConnection(c, encap)
 
 	c.Assert(s.cli.NetworkPost(&client.Network{
-		PktTag:      1001,
-		NetworkName: "private",
-		Subnet:      "10.1.0.0/16",
-		Gateway:     "10.1.1.254",
+		PktTag:      1001 + seq,
+		NetworkName: encap,
+		Subnet:      fmt.Sprintf("10.1.%d.0/24", seq),
+		Gateway:     fmt.Sprintf("10.1.%d.254", seq),
 		Encap:       encap,
 		TenantName:  "default",
 	}), IsNil)
 
-	containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
+	containers, err := s.runContainers(s.basicInfo.Containers, false, encap, "", nil, nil)
 	c.Assert(err, IsNil)
 	if s.isBGP(encap) {
 		var err error
@@ -108,24 +122,27 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 	}
 
 	c.Assert(s.removeContainers(containers), IsNil)
-	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
+	c.Assert(s.cli.NetworkDelete("default", encap), IsNil)
 }
 
-func (s *systemtestSuite) TestBasicSvcDiscoveryVXLAN(c *C) {
+func (s *systemtestSuite) TestBasicSvcDiscovery(c *C) {
 	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
-	s.testBasicSvcDiscovery(c, EncapVXLAN)
-}
 
-func (s *systemtestSuite) TestBasicSvcDiscoveryVLAN(c *C) {
-	if s.basicInfo.Scheduler == "k8" {
-		return
+	doneChan := make(chan struct{}, 2)
+
+	go s.testBasicSvcDiscovery(c, EncapVXLAN, doneChan, 0)
+	go s.testBasicSvcDiscovery(c, EncapVLAN, doneChan, 1)
+
+	for i := 0; i < 2; i++ {
+		<-doneChan
 	}
-	s.testBasicSvcDiscovery(c, EncapVLAN)
 }
 
-func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
+func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string, doneChan chan struct{}, seq int) {
+	defer func() { doneChan <- struct{}{} }()
+
 	if !strings.Contains(s.basicInfo.ClusterStore, "etcd") {
 		c.Skip("Skipping test")
 	}
@@ -138,24 +155,24 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 	s.CheckBgpConnection(c, encap)
 
 	c.Assert(s.cli.NetworkPost(&client.Network{
-		PktTag:      1001,
-		NetworkName: "private",
-		Subnet:      "10.1.1.0/24",
-		Gateway:     "10.1.1.254",
+		PktTag:      1000 + seq,
+		NetworkName: encap,
+		Subnet:      fmt.Sprintf("10.1.%d.0/24", seq),
+		Gateway:     fmt.Sprintf("10.1.%d.254", seq),
 		Encap:       encap,
 		TenantName:  "default",
 	}), IsNil)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		group1 := &client.EndpointGroup{
-			GroupName:   fmt.Sprintf("svc1%d", i),
-			NetworkName: "private",
+			GroupName:   fmt.Sprintf("svc1%d-%d", i, seq),
+			NetworkName: encap,
 			Policies:    []string{},
 			TenantName:  "default",
 		}
 		group2 := &client.EndpointGroup{
-			GroupName:   fmt.Sprintf("svc2%d", i),
-			NetworkName: "private",
+			GroupName:   fmt.Sprintf("svc2%d-%d", i, seq),
+			NetworkName: encap,
 			Policies:    []string{},
 			TenantName:  "default",
 		}
@@ -164,9 +181,9 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		logrus.Infof("Creating epg: %s", group2.GroupName)
 		c.Assert(s.cli.EndpointGroupPost(group2), IsNil)
 
-		containers1, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private", fmt.Sprintf("svc1%d", i))
+		containers1, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", encap, fmt.Sprintf("svc1%d-%d", i, seq))
 		c.Assert(err, IsNil)
-		containers2, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private", fmt.Sprintf("svc2%d", i))
+		containers2, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", encap, fmt.Sprintf("svc2%d-%d", i, seq))
 		c.Assert(err, IsNil)
 
 		containers := append(containers1, containers2...)
@@ -179,8 +196,8 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		}
 
 		// Check name resolution
-		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc1%d.default", i)), IsNil)
-		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc2%d.default", i)), IsNil)
+		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc1%d-%d.default", i, seq)), IsNil)
+		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc2%d-%d.default", i, seq)), IsNil)
 
 		// cleanup
 		c.Assert(s.removeContainers(containers), IsNil)
@@ -188,5 +205,5 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		c.Assert(s.cli.EndpointGroupDelete(group2.TenantName, group2.GroupName), IsNil)
 	}
 
-	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
+	c.Assert(s.cli.NetworkDelete("default", encap), IsNil)
 }

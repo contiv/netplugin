@@ -370,6 +370,10 @@ func (d *docker) tcFilterShow(bw string) error {
 		return err
 	}
 	qdiscoutput := strings.Split(qdiscShow, "ingress")
+	if len(qdiscoutput) < 2 {
+		return fmt.Errorf("invalid output from `tc qdisc show`: %v", qdiscShow)
+	}
+
 	vvport := strings.Split(qdiscoutput[1], "parent")
 	vvPort := strings.Split(vvport[0], "dev ")
 	cmd := fmt.Sprintf("tc -s filter show dev %s parent ffff:", vvPort[1])
