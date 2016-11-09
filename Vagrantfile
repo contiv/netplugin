@@ -18,6 +18,80 @@ gopath_folder="/opt/gopath"
 
 cluster_ip_nodes = ""
 
+SUBNET_PREFIX          = "192.168."
+SUBNET_ASSIGNMENT_DIR  = "/tmp/vagrant_subnets/"
+SUBNET_ASSIGNMENT_FILE = File.expand_path(File.join(File.dirname(__FILE__), "subnet_assignment.state"))
+
+class SubnetAssignmentFileError < Exception; end
+class NoAvailableSubnetsError < Exception; end
+
+# This method allocates a random subnet for Vagrant to use by combining the prefix
+# specified in vagrant_variables.yml with a random third octet guaranteed to be
+# unused by other environments.  If a previous subnet was allocated, it will be used.
+#
+# The subnet reservation process is locked, so multiple environments can be brought
+# up in parallel with no issues.
+def random_subnet
+  begin
+    Dir.mkdir(SUBNET_ASSIGNMENT_DIR)
+  rescue Errno::EEXIST
+  end
+
+  if File.exists?(SUBNET_ASSIGNMENT_FILE)
+    assigned_octet = File.read(SUBNET_ASSIGNMENT_FILE).strip
+
+    # only use the existing assignment if the master assignment file still exists
+    # i.e., the machine hasn't been rebooted
+    if File.exists?(SUBNET_ASSIGNMENT_DIR + assigned_octet)
+      return SUBNET_PREFIX + assigned_octet
+    else
+      msg = [
+        "Subnet assignment database is missing.",
+        "Are you trying to re-use an existing environment after a reboot?",
+        "To continue, you should delete #{SUBNET_ASSIGNMENT_FILE}",
+        "and rebuild the environment from scratch."
+      ]
+      raise SubnetAssignmentFileError.new(msg.join(" "))
+    end
+  end
+
+  # no existing subnet assignment, so reserve a new one
+
+  all_octets = (0..255).to_a.map(&:to_s)
+  assigned_octet = nil
+
+  loop do
+    # filter out . and ..
+    used_octets = Dir.entries(SUBNET_ASSIGNMENT_DIR).reject { |e| "." == e || ".." == e }
+
+    # sanity check to make sure we can't loop forever
+    if used_octets.size >= all_octets.size
+      msg = [
+        "All available subnets have been assigned.",
+        "Delete #{SUBNET_ASSIGNMENT_DIR} or reboot to clear Vagrant's memory of what has been previously assigned."
+      ]
+      raise NoAvailableSubnetsError.new(msg.join(" "))
+    end
+
+    assigned_octet = (all_octets - used_octets).sample
+
+    # make sure nothing else has taken the assigned_octet since our last directory check
+    begin
+      Dir.mkdir(SUBNET_ASSIGNMENT_DIR + assigned_octet)
+    rescue Errno::EEXIST
+      next
+    end
+
+    # subsequent invocations of vagrant will just use the octet from this file
+    File.write(SUBNET_ASSIGNMENT_FILE, assigned_octet)
+    break
+  end
+
+  SUBNET_PREFIX + assigned_octet
+end
+
+SUBNET = random_subnet
+
 provision_common_once = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
@@ -171,11 +245,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i
     end
-    base_ip = "192.168.2."
+
+    base_ip = SUBNET
+
     if ENV['CONTIV_IP_PREFIX'] && ENV['CONTIV_IP_PREFIX'] != "" then
         base_ip = ENV['CONTIV_IP_PREFIX']
     end
-    node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
+
+    node_ips = num_nodes.times.collect { |n| base_ip + ".#{n+10}" }
     cluster_ip_nodes = node_ips.join(",")
 
     config.ssh.insert_key = false
@@ -247,13 +324,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         end
         config.vm.define node_name do |node|
             # create an interface for etcd cluster
-            node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
+            node.vm.network :private_network, ip: node_addr, virtualbox__intnet: base_ip.tr(".", "_") + "-0", auto_config: false
             # create an interface for bridged network
             if ENV['CONTIV_L3'] then
               # create an interface for bridged network
               node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: network_name, auto_config: false
             else
-              node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true", auto_config: false
+              node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: base_ip.tr(".", "_") + "-1", auto_config: false
             end
             node.vm.provider "virtualbox" do |v|
                 # make all nics 'virtio' to take benefit of builtin vlan tag
@@ -334,9 +411,9 @@ SCRIPT
             end
 
             # forward netmaster port
-            if n == 0 then
-                node.vm.network "forwarded_port", guest: 9999, host: 9999
-                node.vm.network "forwarded_port", guest: 80, host: 9998
+            if n == 0 && !ENV["CONTIV_NOFORWARD"]
+              node.vm.network "forwarded_port", guest: 9999, host: 9999
+              node.vm.network "forwarded_port", guest: 80, host: 9998
             end
         end
     end
