@@ -105,6 +105,8 @@ clean: deps
 update:
 	vagrant box update
 
+test-config:
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py
 
 # setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
 # up a cluster of <number> nodes. By default <number> = 1
@@ -178,14 +180,13 @@ ssh-build: start
 		vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 endif
 
-unit-test: stop clean 
+unit-test: stop clean test-config
 	./scripts/unittests -vagrant
 
 ubuntu-tests:
-	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
+	CONTIV_NODE_OS=ubuntu make clean build test-config unit-test system-test stop
 
-system-test:start
-	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py 
+system-test:start test-config
 	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 
 l3-test:
