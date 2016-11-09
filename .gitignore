@@ -44,3 +44,5 @@ cscope*
 
 # version
 version/version_gen.go
+
+.vagrant-state
