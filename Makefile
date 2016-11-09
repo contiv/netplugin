@@ -187,7 +187,7 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build test-config unit-test system-test stop
 
 system-test:start test-config
-	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
+	go test -v -timeout 480m ./test/systemtests -check.v -check.f "$${TESTRUN:-00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile}"
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
