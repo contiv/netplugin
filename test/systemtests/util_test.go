@@ -1344,17 +1344,19 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != "k8" {
-		for i := 0; i < 11; i++ {
-
+		after := time.After(1 * time.Minute)
+		for {
 			_, err := s.cli.TenantGet("default")
 			if err == nil {
 				break
 			}
-			// Fail if we reached last iteration
-			c.Assert((i < 10), Equals, true)
-			time.Sleep(500 * time.Millisecond)
+
+			select {
+			case <-after:
+				c.Assert(nil, NotNil, Commentf("Deadline timeout"))
+			default:
+			}
 		}
 	}
 
