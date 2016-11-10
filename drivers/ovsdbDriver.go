@@ -368,7 +368,7 @@ func (d *OvsdbDriver) UpdatePolicingRate(intfName string, burst int, bandwidth i
 // DeletePort deletes a port from OVS
 func (d *OvsdbDriver) DeletePort(intfName string) error {
 	portUUIDStr := intfName
-	portUUID := []libovsdb.UUID{{portUUIDStr}}
+	portUUID := []libovsdb.UUID{{GoUuid: portUUIDStr}}
 	opStr := "delete"
 
 	// insert/delete a row in Interface table
@@ -418,8 +418,8 @@ func (d *OvsdbDriver) DeletePort(intfName string) error {
 func (d *OvsdbDriver) CreateVtep(intfName string, vtepRemoteIP string) error {
 	portUUIDStr := intfName
 	intfUUIDStr := fmt.Sprintf("Intf%s", intfName)
-	portUUID := []libovsdb.UUID{{portUUIDStr}}
-	intfUUID := []libovsdb.UUID{{intfUUIDStr}}
+	portUUID := []libovsdb.UUID{{GoUuid: portUUIDStr}}
+	intfUUID := []libovsdb.UUID{{GoUuid: intfUUIDStr}}
 	opStr := "insert"
 	intfType := "vxlan"
 	var err error
