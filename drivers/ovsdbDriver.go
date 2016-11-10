@@ -29,7 +29,7 @@ import (
 )
 
 // Max number of retries to get ofp port number
-const maxOfportRetry = 10
+const maxOfportRetry = 20
 
 // OvsdbDriver is responsible for programming OVS using ovsdb protocol. It also
 // implements the libovsdb.Notifier interface to keep cache of ovs table state.
