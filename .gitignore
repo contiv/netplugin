@@ -50,3 +50,4 @@ subnet_assignment.state
 
 # test configuration
 test/systemtests/cfg.json
+test/systemtests/port_assignment.state

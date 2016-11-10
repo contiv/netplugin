@@ -1170,6 +1170,15 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 		}
 	}
 
+	f, err := os.Open("port_assignment.state")
+	c.Assert(err, IsNil)
+	defer f.Close()
+
+	content, err := ioutil.ReadAll(f)
+	c.Assert(err, IsNil)
+
+	s.netmasterPort = fmt.Sprintf("20%s", strings.TrimSpace(string(content)))
+
 	s.nodes = []*node{}
 	if s.fwdMode == "routing" {
 		contivL3Nodes := 2
