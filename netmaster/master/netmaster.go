@@ -153,6 +153,7 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		gCfg.Auto.VXLANs = gc.VXLANs
 		gcfgUpdateList = append(gcfgUpdateList, "vxlan")
 	}
+	gcfgUpdateList = append(gcfgUpdateList, "epg")
 
 	if gc.FwdMode != "" {
 		masterGc.FwdMode = gc.FwdMode
@@ -309,6 +310,10 @@ func DeleteGlobal(stateDriver core.StateDriver) error {
 			return err
 		}
 		err = gCfg.DeleteResources("vxlan")
+		if err != nil {
+			return err
+		}
+		err = gCfg.DeleteResources("epg")
 		if err != nil {
 			return err
 		}

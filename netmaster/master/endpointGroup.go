@@ -17,7 +17,6 @@ package master
 
 import (
 	"errors"
-	"strconv"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/docknet"
@@ -28,14 +27,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const maxEpgID = 65535
-
-// FIXME: hack to allocate unique endpoint group ids
-var globalEpgID = 1
-
 // CreateEndpointGroup handles creation of endpoint group
 func CreateEndpointGroup(tenantName, networkName, groupName string) error {
-	var epgID int
 
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
@@ -73,28 +66,20 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 			return err
 		}
 	}
-	// assign unique endpoint group ids
-	// FIXME: This is a hack. need to add a epgID resource
-	for i := 0; i < maxEpgID; i++ {
-		epgID = globalEpgID
-		globalEpgID = globalEpgID + 1
-		if globalEpgID > maxEpgID {
-			globalEpgID = 1
-		}
-		epgCfg := &mastercfg.EndpointGroupState{}
-		epgCfg.StateDriver = stateDriver
-		err = epgCfg.Read(strconv.Itoa(epgID))
-		if err != nil {
-			break
-		}
+
+	epgID, err := gCfg.AllocNextEPG()
+	if err != nil {
+		log.Errorf("Error allocating EPG ID")
+		return err
 	}
+	log.Debugf("Allocated EPG ID: %d for EPG: %s", epgID, groupName)
 
 	// Create epGroup state
 	epgCfg := &mastercfg.EndpointGroupState{
 		GroupName:       groupName,
 		TenantName:      tenantName,
 		NetworkName:     networkName,
-		EndpointGroupID: epgID,
+		EndpointGroupID: int(epgID),
 		PktTagType:      nwCfg.PktTagType,
 		PktTag:          nwCfg.PktTag,
 		ExtPktTag:       nwCfg.ExtPktTag,
@@ -180,6 +165,12 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 			log.Debugf("Freed vlan %v\n", epgCfg.PktTag)
 		}
 	}
+
+	err = gCfg.FreeEPG(uint(epgCfg.EndpointGroupID))
+	if err != nil {
+		log.Errorf("Could not free EPG ID: %d. Err: %+v", epgCfg.EndpointGroupID, err)
+	}
+	log.Debugf("Freeing EPG ID: %d", epgCfg.EndpointGroupID)
 
 	// Delete endpoint group
 	err = epgCfg.Clear()

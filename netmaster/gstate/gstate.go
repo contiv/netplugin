@@ -18,6 +18,7 @@ package gstate
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -73,16 +74,15 @@ func (gc *Cfg) Dump() error {
 
 func (gc *Cfg) checkErrors(res string) error {
 	var err error
-	if res == "vlan" {
+	switch res {
+	case "vlan":
 		_, err = netutils.ParseTagRanges(gc.Auto.VLANs, "vlan")
-		if err != nil {
-			return err
-		}
-	} else if res == "vxlan" {
+	case "vxlan":
 		_, err = netutils.ParseTagRanges(gc.Auto.VXLANs, "vxlan")
-		if err != nil {
-			return err
-		}
+	case "epg":
+		return nil
+	default:
+		err = core.Errorf("Undefined resource")
 	}
 	return err
 }
@@ -102,6 +102,11 @@ func Parse(configBytes []byte) (*Cfg, error) {
 	}
 
 	err = gc.checkErrors("vxlan")
+	if err != nil {
+		return nil, err
+	}
+
+	err = gc.checkErrors("epg")
 	if err != nil {
 		return nil, err
 	}
@@ -315,6 +320,64 @@ func (gc *Cfg) FreeVLAN(vlan uint) error {
 	return ra.DeallocateResourceVal("global", resources.AutoVLANResource, vlan)
 }
 
+func (gc *Cfg) initEPGBitset() (*bitset.BitSet, error) {
+
+	epgBitset := netutils.CreateBitset(16)
+
+	maxEpgID := int(math.Pow(2, 16))
+	for epg := 1; epg <= maxEpgID; epg++ {
+		epgBitset.Set(uint(epg))
+	}
+	epgBitset.Clear(0)
+
+	return epgBitset, nil
+}
+
+// GetEpgsInUse gets the epgs that are currently in use
+func (gc *Cfg) GetEpgsInUse() (uint, string) {
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		log.Errorf("error getting resource manager: %s", err)
+		return 0, ""
+	}
+	ra := core.ResourceManager(tempRm)
+
+	return ra.GetResourceList("global", resources.AutoEPGResource)
+}
+
+// AllocNextEPG allocates the next free EPG resource. Returns an ID.
+func (gc *Cfg) AllocNextEPG() (uint, error) {
+	return gc.AllocEPG(0)
+}
+
+// AllocEPG allocates a new EPG resource. Returns an ID.
+func (gc *Cfg) AllocEPG(reqEpgID uint) (uint, error) {
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		return 0, err
+	}
+	ra := core.ResourceManager(tempRm)
+
+	epg, err := ra.AllocateResourceVal("global", resources.AutoEPGResource, reqEpgID)
+	if err != nil {
+		log.Errorf("alloc epg failed: %q", err)
+		return 0, err
+	}
+
+	return epg.(uint), err
+}
+
+// FreeEPG releases a EPG for a given ID.
+func (gc *Cfg) FreeEPG(epg uint) error {
+	tempRm, err := resources.GetStateResourceManager()
+	if err != nil {
+		return err
+	}
+	ra := core.ResourceManager(tempRm)
+
+	return ra.DeallocateResourceVal("global", resources.AutoEPGResource, epg)
+}
+
 // Process validates, implements, and writes the state.
 func (gc *Cfg) Process(res string) error {
 	var err error
@@ -368,6 +431,18 @@ func (gc *Cfg) Process(res string) error {
 			return err
 		}
 	}
+	// Define a epg resource
+	if res == "epg" {
+		var epgRsrcCfg *bitset.BitSet
+		epgRsrcCfg, err = gc.initEPGBitset()
+		if err != nil {
+			return err
+		}
+		err = ra.DefineResource("global", resources.AutoEPGResource, epgRsrcCfg)
+		if err != nil {
+			return err
+		}
+	}
 
 	log.Debugf("updating the global config to new state %v \n", gc)
 	return nil
@@ -390,6 +465,11 @@ func (gc *Cfg) DeleteResources(res string) error {
 		err = ra.UndefineResource("global", resources.AutoVXLANResource)
 		if err != nil {
 			log.Errorf("Error deleting vxlan resource. Err: %v", err)
+		}
+	} else if res == "epg" {
+		err = ra.UndefineResource("global", resources.AutoEPGResource)
+		if err != nil {
+			log.Errorf("Error deleting epg resource. Err: %v", err)
 		}
 	}
 	return err
@@ -438,7 +518,18 @@ func (gc *Cfg) UpdateResources(res string) error {
 			log.Errorf("error '%s' updating global oper state %v \n", err, g)
 			return err
 		}
+	} else if res == "epg" {
+		var epgRsrcCfg *bitset.BitSet
+		epgRsrcCfg, err = gc.initEPGBitset()
+		if err != nil {
+			return err
+		}
+		err = ra.RedefineResource("global", resources.AutoEPGResource, epgRsrcCfg)
+		if err != nil {
+			log.Errorf("Error deleting epg resource. Err: %v", err)
+		}
 	}
+
 	return err
 }
 

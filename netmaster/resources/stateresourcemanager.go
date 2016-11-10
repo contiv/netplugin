@@ -25,6 +25,7 @@ import (
 var resourceRegistry = map[string]reflect.Type{
 	AutoVLANResource:  reflect.TypeOf(AutoVLANCfgResource{}),
 	AutoVXLANResource: reflect.TypeOf(AutoVXLANCfgResource{}),
+	AutoEPGResource:   reflect.TypeOf(AutoEPGCfgResource{}),
 }
 
 // StateResourceManager implements the core.ResourceManager interface.
@@ -76,8 +77,9 @@ func (rm *StateResourceManager) Init() error { return nil }
 // Deinit cleans up the resource manager
 func (rm *StateResourceManager) Deinit() {}
 
+// FindResource returns the requested resource
 // XXX: It might be better to keep cache of resources and avoid frequent etcd reads
-func (rm *StateResourceManager) findResource(id, desc string) (core.Resource, bool, error) {
+func (rm *StateResourceManager) FindResource(id, desc string) (core.Resource, bool, error) {
 	alreadyExists := false
 	rsrcType, ok := resourceRegistry[desc]
 	if !ok {
@@ -118,7 +120,7 @@ func (rm *StateResourceManager) findResource(id, desc string) (core.Resource, bo
 func (rm *StateResourceManager) DefineResource(id, desc string,
 	rsrcCfg interface{}) error {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, alreadyExists, err := rm.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.FindResource(id, desc)
 	if err != nil {
 		return err
 	}
@@ -138,7 +140,7 @@ func (rm *StateResourceManager) DefineResource(id, desc string,
 // UndefineResource deinitializes a resource.
 func (rm *StateResourceManager) UndefineResource(id, desc string) error {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, alreadyExists, err := rm.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.FindResource(id, desc)
 	if err != nil {
 		return err
 	}
@@ -156,7 +158,7 @@ func (rm *StateResourceManager) UndefineResource(id, desc string) error {
 // RedefineResource deinitializes a resource.
 func (rm *StateResourceManager) RedefineResource(id, desc string, rsrcCfg interface{}) error {
 
-	rsrc, alreadyExists, err := rm.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.FindResource(id, desc)
 	if err != nil {
 		return err
 	}
@@ -174,7 +176,7 @@ func (rm *StateResourceManager) RedefineResource(id, desc string, rsrcCfg interf
 // GetResourceList get the list of allocated as string for inspection
 func (rm *StateResourceManager) GetResourceList(id, desc string) (uint, string) {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, _, err := rm.findResource(id, desc)
+	rsrc, _, err := rm.FindResource(id, desc)
 	if err != nil {
 		log.Errorf("unable to find resource %s desc %s", id, desc)
 		return 0, ""
@@ -187,7 +189,7 @@ func (rm *StateResourceManager) GetResourceList(id, desc string) (uint, string) 
 func (rm *StateResourceManager) AllocateResourceVal(id, desc string, reqValue interface{}) (interface{},
 	error) {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, alreadyExists, err := rm.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.FindResource(id, desc)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +206,7 @@ func (rm *StateResourceManager) AllocateResourceVal(id, desc string, reqValue in
 func (rm *StateResourceManager) DeallocateResourceVal(id, desc string,
 	value interface{}) error {
 	// XXX: need to take care of distibuted updates, locks etc here
-	rsrc, alreadyExists, err := rm.findResource(id, desc)
+	rsrc, alreadyExists, err := rm.FindResource(id, desc)
 	if err != nil {
 		return err
 	}
