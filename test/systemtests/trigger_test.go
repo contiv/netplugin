@@ -275,10 +275,10 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 
 			// flap the control interface
 			c.Assert(node.bringDownIf("eth1"), IsNil)
-			time.Sleep(50 * time.Second) // wait till sessions/locks timeout
+			time.Sleep(40 * time.Second) // wait till sessions/locks timeout
 			c.Assert(node.bringUpIf("eth1", nodeIP), IsNil)
 
-			time.Sleep(20 * time.Second)
+			time.Sleep(30 * time.Second)
 			c.Assert(s.verifyVTEPs(), IsNil)
 
 			c.Assert(s.verifyEPs(containers), IsNil)
