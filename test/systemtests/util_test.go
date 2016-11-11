@@ -583,18 +583,31 @@ func (s *systemtestSuite) startIperfClients(containers []*container, limit strin
 		ips = append(ips, cont.eth0.ip)
 	}
 
+	errChan := make(chan error, len(containers))
 	for _, cont := range containers {
-		for _, ip := range ips {
-			if cont.eth0.ip == ip {
-				continue
+		go func(cont *container, ips []string) {
+			for _, ip := range ips {
+				if cont.eth0.ip == ip {
+					continue
+				}
+				err := cont.node.exec.startIperfClient(cont, ip, limit, isErr)
+				if err != nil {
+					logrus.Errorf("Error starting the iperf client")
+					errChan <- err
+					return
+				}
 			}
-			err := cont.node.exec.startIperfClient(cont, ip, limit, isErr)
-			if err != nil {
-				logrus.Errorf("Error starting the iperf client")
-				return err
-			}
+			errChan <- nil
+		}(cont, ips)
+	}
+
+	for i := 0; i < len(containers); i++ {
+		err := <-errChan
+		if err != nil {
+			return err
 		}
 	}
+
 	return nil
 }
 
