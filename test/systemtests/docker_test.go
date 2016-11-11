@@ -279,7 +279,9 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 		err     error
 	)
 
-	for i := 0; i < 3; i++ {
+	after := time.After(2 * time.Minute)
+
+	for {
 		bw, err = d.exec(c, fmt.Sprintf("iperf -c %s -u -b 20mbps", ip))
 		if err != nil {
 			return err
@@ -288,8 +290,13 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 			success = true
 			break
 		} else if strings.Contains(bw, "read failed:") {
-			time.Sleep(2 * time.Second)
-			i++
+			time.Sleep(1 * time.Second)
+		}
+
+		select {
+		case <-after:
+			return errors.New("Deadline exceeded")
+		default:
 		}
 	}
 
