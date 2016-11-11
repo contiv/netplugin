@@ -19,8 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
-	osexec "os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -35,6 +36,7 @@ import (
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 // epSpec contains the spec of the Endpoint to be created
@@ -210,20 +212,24 @@ func nsToPID(ns string) (int, error) {
 	return strconv.Atoi(elements[2])
 }
 
-func moveToNS(pid int, ifname string) error {
-	// find the link
-	link, err := getLink(ifname)
+func setLinkAddress(link netlink.Link, address string) error {
+	addr, err := netlink.ParseAddr(address)
 	if err != nil {
-		log.Errorf("unable to find link %q. Error %q", ifname, err)
-		return err
+		return fmt.Errorf("failed to parse address %s: %v", address, err)
 	}
 
-	// move to the desired netns
-	err = netlink.LinkSetNsPid(link, pid)
+	return netlink.AddrAdd(link, addr)
+}
+
+func enterPIDNetNS(pid int) error {
+	netNS, err := netns.GetFromPid(pid)
 	if err != nil {
-		log.Errorf("unable to move interface %s to pid %d. Error: %s",
-			ifname, pid, err)
-		return err
+		return fmt.Errorf("failed to get the netns of pid %v: %v", pid, err)
+	}
+	defer netNS.Close()
+
+	if err = netns.Set(netNS); err != nil {
+		return fmt.Errorf("failed to enter network namespace of pid %v: %v", pid, err)
 	}
 
 	return nil
@@ -231,86 +237,101 @@ func moveToNS(pid int, ifname string) error {
 
 // setIfAttrs sets the required attributes for the container interface
 func setIfAttrs(pid int, ifname, cidr, newname string) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
-	nsenterPath, err := osexec.LookPath("nsenter")
+	globalNS, err := netns.Get()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get the global network namespace: %v", err)
 	}
-	ipPath, err := osexec.LookPath("ip")
-	if err != nil {
-		return err
-	}
+
+	defer func() {
+		netns.Set(globalNS)
+		globalNS.Close()
+	}()
 
 	// find the link
 	link, err := getLink(ifname)
 	if err != nil {
-		log.Errorf("unable to find link %q. Error %q", ifname, err)
-		return err
+		return fmt.Errorf("unable to find link %q. Error %q", ifname, err)
 	}
 
 	// move to the desired netns
-	err = netlink.LinkSetNsPid(link, pid)
-	if err != nil {
-		log.Errorf("unable to move interface %s to pid %d. Error: %s",
+	if err = netlink.LinkSetNsPid(link, pid); err != nil {
+		return fmt.Errorf("unable to move interface %s to pid %d. Error: %s",
 			ifname, pid, err)
-		return err
 	}
 
-	// rename to the desired ifname
-	nsPid := fmt.Sprintf("%d", pid)
-	rename, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath, "link",
-		"set", "dev", ifname, "name", newname).CombinedOutput()
+	netNS, err := netns.GetFromPid(pid)
 	if err != nil {
-		log.Errorf("unable to rename interface %s to %s. Error: %s",
-			ifname, newname, err)
-		return nil
+		return fmt.Errorf("failed to get the netns of pid %v: %v", pid, err)
 	}
-	log.Infof("Output from rename: %v", rename)
+
+	if err = netns.Set(netNS); err != nil {
+		return fmt.Errorf("failed to enter network namespace of pid %v: %v", pid, err)
+	}
+
+	link, err = getLink(ifname)
+	if err != nil {
+		return fmt.Errorf("unable to find link %q. Error %q", ifname, err)
+	}
+
+	// rename the interface from ifname to newname
+	if err := netlink.LinkSetName(link, newname); err != nil {
+		return fmt.Errorf("failed to rename interface %v to %v: %v",
+			link, newname, err)
+	}
 
 	// set the ip address
-	assignIP, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
-		"address", "add", cidr, "dev", newname).CombinedOutput()
-
-	if err != nil {
-		log.Errorf("unable to assign ip %s to %s. Error: %s",
-			cidr, newname, err)
-		return nil
+	if err = setLinkAddress(link, cidr); err != nil {
+		return fmt.Errorf("failed to bring up link %v: %v", newname, err)
 	}
-	log.Infof("Output from ip assign: %v", assignIP)
 
-	// Finally, mark the link up
-	bringUp, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
-		"link", "set", "dev", newname, "up").CombinedOutput()
-
-	if err != nil {
-		log.Errorf("unable to assign ip %s to %s. Error: %s",
-			cidr, newname, err)
-		return nil
+	// set the link up
+	if err = netlink.LinkSetUp(link); err != nil {
+		return fmt.Errorf("unable to bring up interface %v with address %v: %v",
+			newname, cidr, err)
 	}
-	log.Debugf("Output from ip assign: %v", bringUp)
+
 	return nil
-
 }
 
 func addStaticRoute(pid int, subnet, intfName string) error {
-	nsenterPath, err := osexec.LookPath("nsenter")
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	globalNS, err := netns.Get()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get the global network namespace: %v", err)
 	}
 
-	ipPath, err := osexec.LookPath("ip")
-	if err != nil {
-		return err
+	defer func() {
+		netns.Set(globalNS)
+		globalNS.Close()
+	}()
+
+	if err = enterPIDNetNS(pid); err != nil {
+		return fmt.Errorf("failed to enter network namespace of pid %v: %v", pid, err)
 	}
 
-	nsPid := fmt.Sprintf("%d", pid)
-	_, err = osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
-		"route", "add", subnet, "dev", intfName).CombinedOutput()
-
+	parsedSubnet, err := netlink.ParseIPNet(subnet)
 	if err != nil {
-		log.Errorf("unable to add route %s via %s. Error: %s",
-			subnet, intfName, err)
-		return err
+		return fmt.Errorf("failed to parse subnet %v", subnet)
+	}
+
+	// find the link
+	link, err := getLink(intfName)
+	if err != nil {
+		return fmt.Errorf("unable to find link %q. Error %q", intfName, err)
+	}
+
+	r := netlink.Route{LinkIndex: link.Attrs().Index,
+		Dst: parsedSubnet,
+	}
+
+	// set static route
+	if err = netlink.RouteAdd(&r); err != nil {
+		return fmt.Errorf("failed to set default gw %v. Error: %v", parsedSubnet, err)
 	}
 
 	return nil
@@ -318,23 +339,43 @@ func addStaticRoute(pid int, subnet, intfName string) error {
 
 // setDefGw sets the default gateway for the container namespace
 func setDefGw(pid int, gw, intfName string) error {
-	nsenterPath, err := osexec.LookPath("nsenter")
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	globalNS, err := netns.Get()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get the global network namespace: %v", err)
 	}
-	routePath, err := osexec.LookPath("route")
+
+	defer func() {
+		netns.Set(globalNS)
+		globalNS.Close()
+	}()
+
+	if err = enterPIDNetNS(pid); err != nil {
+		return fmt.Errorf("failed to enter network namespace of pid %v: %v", pid, err)
+	}
+
+	addr := net.ParseIP(gw)
+	if addr == nil {
+		return fmt.Errorf("failed to parse address %v", gw)
+	}
+
+	// find the link
+	link, err := getLink(intfName)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to find link %q. Error %q", intfName, err)
 	}
+
+	r := netlink.Route{LinkIndex: link.Attrs().Index,
+		Gw: addr,
+	}
+
 	// set default gw
-	nsPid := fmt.Sprintf("%d", pid)
-	out, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", routePath, "add",
-		"default", "gw", gw, intfName).CombinedOutput()
-	if err != nil {
-		log.Errorf("unable to set default gw %s. Error: %s - %s",
-			gw, err, out)
-		return nil
+	if err = netlink.RouteAdd(&r); err != nil {
+		return fmt.Errorf("failed to set default gw %v. Error: %v", gw, err)
 	}
+
 	return nil
 }
 
