@@ -13,6 +13,7 @@ BEGIN {
 
 # netplugin_synced_gopath="/opt/golang"
 go_version = ENV["GO_VERSION"] || "1.7.3"
+docker_version = ENV["CONTIV_DOCKER_VERSION"] || "1.12.3"
 gopath_folder="/opt/gopath"
 
 cluster_ip_nodes = ""
@@ -48,32 +49,34 @@ fi
 chown -R vagrant #{gopath_folder}
 
 # Install specific docker version if required
-if [[ $8 != "" ]]; then
-    echo "Installing docker version " $8
-    if [[ $9 == "ubuntu" ]]; then
-        curl https://get.docker.com | sed s/docker-engine/docker-engine=$8-0~vivid/ | bash
-    else
-        # cleanup openstack-kilo repo if required
-        yum-config-manager --disable openstack-kilo
-        curl https://get.docker.com | sed s/docker-engine/docker-engine-$8/ | bash
-    fi
+echo "Cleaning docker up to reinstall"
+service docker stop || :
+rm -rf /var/lib/docker
+echo "Installing docker version " $8
+if [[ $9 == "ubuntu" ]]; then
+    sudo apt-get purge docker-engine -y || :
+    curl https://get.docker.com | sed s/docker-engine/docker-engine=#{docker_version}-0~xenial/g | bash
+else
+    # cleanup openstack-kilo repo if required
+    yum remove docker-engine -y || :
+    yum-config-manager --disable openstack-kilo
+    curl https://get.docker.com | sed s/docker-engine/docker-engine-#{docker_version}/ | bash
 fi
+
 # setup docker cluster store
 if [[ $7 == *"consul:"* ]]
 then
-    cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service.consul /lib/systemd/system/docker.service
+    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 --cluster-store=consul://localhost:8500!' /lib/systemd/system/docker.service
 else
-    cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service /lib/systemd/system/docker.service
+    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 --cluster-store=etcd://localhost:2379!' /lib/systemd/system/docker.service
 fi
+
 # setup docker remote api
-cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker-tcp.socket /etc/systemd/system/docker-tcp.socket
-systemctl enable docker-tcp.socket
 mkdir /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 echo "Environment=\\\"no_proxy=$CLUSTER_NODE_IPS,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
 sudo systemctl stop docker
-systemctl start docker-tcp.socket
 sudo systemctl start docker
 
 # remove duplicate docker key
@@ -277,7 +280,18 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common_once
-                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
+                s.args = [
+                  node_name,
+                  node_addr,
+                  cluster_ip_nodes,
+                  ENV["http_proxy"] || "",
+                  ENV["https_proxy"] || "",
+                  ENV["USE_RELEASE"] || "",
+                  ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379",
+                  ENV["CONTIV_DOCKER_VERSION"] || docker_version,
+                  ENV['CONTIV_NODE_OS'] || "",
+                  *ENV['CONTIV_ENV'],
+                ]
             end
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_common_always
