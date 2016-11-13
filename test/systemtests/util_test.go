@@ -1319,27 +1319,31 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 	}
 }
 
+func (s *systemtestSuite) fanout(nodeFunc func(*node)) {
+	doneChan := make(chan struct{}, len(s.nodes))
+	for _, n := range s.nodes {
+		go func(n *node) {
+			defer func() { doneChan <- struct{}{} }()
+			nodeFunc(n)
+		}(n)
+	}
+	for i := 0; i < len(s.nodes); i++ {
+		<-doneChan
+	}
+}
+
 func (s *systemtestSuite) SetUpTestVagrant(c *C) {
-	for _, node := range s.nodes {
+	s.fanout(func(node *node) {
 		node.exec.cleanupContainers()
 		node.stopNetplugin()
 		node.cleanupSlave()
-	}
-
-	for _, node := range s.nodes {
-		node.stopNetmaster()
-
-	}
-	for _, node := range s.nodes {
-		node.cleanupMaster()
-	}
-
-	for _, node := range s.nodes {
-
+	})
+	s.fanout(func(node *node) { node.stopNetmaster() })
+	s.fanout(func(node *node) { node.cleanupMaster() })
+	s.fanout(func(node *node) {
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-
-	}
+	})
 
 	time.Sleep(15 * time.Second)
 
