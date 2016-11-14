@@ -1282,13 +1282,9 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 	}
 
 	for _, node := range s.nodes {
-
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-
 	}
-
-	time.Sleep(15 * time.Second)
 
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(), IsNil)
@@ -1296,7 +1292,6 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != "k8" {
 		for i := 0; i < 11; i++ {
 			_, err := s.cli.TenantGet("default")
@@ -1345,8 +1340,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 	})
 
-	time.Sleep(15 * time.Second)
-
 	// temporarily enable DNS for service discovery tests
 	prevDNSEnabled := s.basicInfo.EnableDNS
 	if strings.Contains(c.TestName(), "SvcDiscovery") {
@@ -1355,13 +1348,16 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 
 	defer func() { s.basicInfo.EnableDNS = prevDNSEnabled }()
 
-	for _, node := range s.nodes {
+	s.fanout(func(node *node) {
 		c.Assert(node.startNetmaster(), IsNil)
-		time.Sleep(1 * time.Second)
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
-	}
+	})
 
 	if s.basicInfo.Scheduler != "k8" {
+		for _, node := range s.nodes {
+			c.Assert(node.runCommandUntilNoError("curl -s http://localhost:9999"), IsNil)
+		}
+
 		after := time.After(1 * time.Minute)
 		for {
 			_, err := s.cli.TenantGet("default")
