@@ -55,7 +55,10 @@ func (s *NetSetup) SetUpTest(c *C) {
 	}
 	s.globalNS = globalNS
 	defer func() {
-		netns.Set(globalNS)
+		currNS, _ := netns.Get()
+		if !globalNS.Equal(currNS) {
+			netns.Set(globalNS)
+		}
 	}()
 
 	newNS, err := netns.New()
