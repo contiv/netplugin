@@ -21,13 +21,14 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"sync"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
-	"io/ioutil"
-	"net/http"
-	"sync"
 )
 
 const (
@@ -141,9 +142,9 @@ func (c *APIClient) fetchPodLabels(ns, name string) error {
 	defer r.Body.Close()
 	switch {
 	case r.StatusCode == int(404):
-		return fmt.Errorf("Page not found!")
+		return fmt.Errorf("page not found")
 	case r.StatusCode == int(403):
-		return fmt.Errorf("Access denied!")
+		return fmt.Errorf("access denied")
 	case r.StatusCode != int(200):
 		log.Errorf("GET Status '%s' status code %d \n", r.Status, r.StatusCode)
 		return fmt.Errorf("%s", r.Status)

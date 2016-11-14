@@ -17,6 +17,7 @@ package master
 
 import (
 	"errors"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -30,7 +31,7 @@ func AddBgp(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) error {
 	aci, _ := IsAciConfigured()
 	if aci {
 		log.Errorf("Invalid configuration. Not supported in ACI fabric mode.")
-		return errors.New("Not supported in ACI fabric mode.")
+		return errors.New("not supported in ACI fabric mode")
 	}
 	bgpState := &mastercfg.CfgBgpState{}
 	bgpState.Hostname = bgpCfg.Hostname
