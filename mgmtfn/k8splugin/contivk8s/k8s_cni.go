@@ -91,8 +91,8 @@ func addPodToContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
 
 	log.Infof("EP created IP: %s\n", result.IPAddress)
 	// Write the ip address of the created endpoint to stdout
-	fmt.Printf("{\n\"cniVersion\": \"0.1.0\",\n")
-	fmt.Printf("\"ip4\": {\n")
+	fmt.Print("{\n\"cniVersion\": \"0.1.0\",\n")
+	fmt.Print("\"ip4\": {\n")
 	fmt.Printf("\"ip\": \"%s\"\n}\n}\n", result.IPAddress)
 }
 
@@ -140,7 +140,7 @@ func main() {
 		logger.Fatalf("Failed to parse command. Error: %s", err)
 	}
 	if showVersion {
-		fmt.Printf(version.String())
+		fmt.Print(version.String())
 		os.Exit(0)
 	}
 

@@ -866,7 +866,7 @@ func inspectGlobal(ctx *cli.Context) {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
-	fmt.Printf("Inspecting global\n")
+	fmt.Print("Inspecting global\n")
 
 	ginfo, err := getClient(ctx).GlobalInspect("global")
 	errCheck(ctx, err)
@@ -932,13 +932,11 @@ func showVersion(ctx *cli.Context) {
 
 	ver := version.Info{}
 	if err := getObject(ctx, versionURL(ctx), &ver); err != nil {
-		fmt.Printf("Unable to fetch version information\n")
+		fmt.Print("Unable to fetch version information\n")
 	} else {
-		fmt.Printf("Client Version:\n")
-		fmt.Printf(version.String())
-		fmt.Printf("\n")
-		fmt.Printf("Server Version:\n")
-		fmt.Printf(version.StringFromInfo(&ver))
+		fmt.Printf("Client Version:\n%v\n", version.String())
+		fmt.Print("Server Version:\n")
+		fmt.Print(version.StringFromInfo(&ver))
 	}
 }
 
