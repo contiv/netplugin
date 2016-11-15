@@ -21,7 +21,7 @@ func init() {
 type Factory struct{}
 
 // New function to register Skydns2Adapter
-func (f *Factory) New(uri *url.URL) bridge.RegistryAdapter {
+func (f *Factory) New(uri *url.URL) (bridge.RegistryAdapter, error) {
 	if uri.Host == "" {
 		uri.Host = "localhost:2379"
 	}
@@ -33,9 +33,10 @@ func (f *Factory) New(uri *url.URL) bridge.RegistryAdapter {
 	etcdClient, err := client.New(etcdConfig)
 	if err != nil {
 		log.Fatalf("Error creating etcd client. Err: %v", err)
+		return nil, err
 	}
 
-	return &Skydns2Adapter{client: client.NewKeysAPI(etcdClient)}
+	return &Skydns2Adapter{client: client.NewKeysAPI(etcdClient)}, nil
 }
 
 // Skydns2Adapter implements skydns2 client interface

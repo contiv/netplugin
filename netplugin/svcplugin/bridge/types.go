@@ -8,7 +8,7 @@ import (
 
 // AdapterFactory implements the ServiceRegistrator
 type AdapterFactory interface {
-	New(uri *url.URL) RegistryAdapter
+	New(uri *url.URL) (RegistryAdapter, error)
 }
 
 // RegistryAdapter defines the interface that ServiceRegistrators must implement
