@@ -21,7 +21,7 @@ limitations under the License.
 // hardware/kernel/device specific programming implementation, if any.
 package core
 
-// Address is a string represenation of a network address (mac, ip, dns-name, url etc)
+// Address is a string representation of a network address (mac, ip, dns-name, url etc)
 type Address struct {
 	addr string
 }

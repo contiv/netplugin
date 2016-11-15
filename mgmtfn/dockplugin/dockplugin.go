@@ -129,7 +129,7 @@ func httpError(w http.ResponseWriter, message string, err error) {
 
 	content, errc := json.Marshal(api.Response{Err: fullError})
 	if errc != nil {
-		log.Warnf("Error received marshalling error response: %v, original error: %s", errc, fullError)
+		log.Warnf("Error received marshaling error response: %v, original error: %s", errc, fullError)
 		return
 	}
 

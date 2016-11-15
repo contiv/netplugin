@@ -12,7 +12,7 @@ netplugin=false
 vlan_if="invalid"
 
 #This needs to be fixed, we cant rely on the value being supplied from 
-# paramters, just explosion of parameters is not a great solution
+# parameters, just explosion of parameters is not a great solution
 #export no_proxy="0.0.0.0, 172.28.11.253" 
 #echo "172.28.11.253 netmaster" > /etc/hosts
 

@@ -353,7 +353,7 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 	// verify expected rate
 	expBw = expBw * 1024 * 1024 / 1000
 	if expBw != outputInt {
-		log.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d\n Output: %s", expBw, outputInt, str)
+		log.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d\n Output: %s", expBw, outputInt, str)
 		return errors.New("Applied bandwidth does not match the tc qdisc rate")
 	}
 

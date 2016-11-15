@@ -194,7 +194,7 @@ func (cniApp *cniAppInfo) handleHTTP(url string, jsonReq *bytes.Buffer) int {
 	switch httpResp.StatusCode {
 
 	case http.StatusOK:
-		cniLog.Infof("received http OK reponse from netplugin")
+		cniLog.Infof("received http OK response from netplugin")
 		info, err := ioutil.ReadAll(httpResp.Body)
 		if err != nil {
 			return cniApp.sendCniErrorResp("failed to read success response from netplugin :" + err.Error())
@@ -202,7 +202,7 @@ func (cniApp *cniAppInfo) handleHTTP(url string, jsonReq *bytes.Buffer) int {
 		return cniApp.sendCniResp(info, cniapi.CniStatusSuccess)
 
 	case http.StatusInternalServerError:
-		cniLog.Infof("received http error reponse from netplugin")
+		cniLog.Infof("received http error response from netplugin")
 		info, err := ioutil.ReadAll(httpResp.Body)
 		if err != nil {
 			return cniApp.sendCniErrorResp("failed to read error response from netplugin :" + err.Error())

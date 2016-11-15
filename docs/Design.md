@@ -23,7 +23,7 @@ This section provides a brief overview of some terms used in rest of the documen
 
 In application delivery environments, a management system coordinates the efforts of agents to accomplish the goal of placing applications in a cluster of resources (like compute, storage and network) based on their requirements, using the available resources efficiently and effectively. The management system also provides a front end (a central command control) to accept/input the application requirements. In other contexts, application delivery environments are also referred to as orchestration or scheduling platforms, container runtimes etc and the applications are also referred to as compute jobs or services.
 
-In application delivery environments there is usually atleast one agent per managed resource. And the application requirements may include (but are not limited to) specification of resource constraints and affinities; communication patterns etc.
+In application delivery environments there is usually at least one agent per managed resource. And the application requirements may include (but are not limited to) specification of resource constraints and affinities; communication patterns etc.
 
 Unless explicitly stated otherwise, for the logic performed at the managed resource the Management Function refers to the agent running on that resource, otherwise it refers to the central command control for the user facing logic like accepting/processing application requirement. 
 
@@ -44,7 +44,7 @@ Logically centralized decision making refers to the act of reaching consensus on
 
 ##Design Goals
 Integrating a management function with a network function usually requires a coupling of the two, thereby resulting in following challenges:
-- There is often unclarity/uncertainity of the definition of the integrating interfaces between the two without an available implementation of atleast one. This becomes even harder if both the implementations are a work in progress by independent teams, which is usually the case.
+- There is often unclarity/uncertainty of the definition of the integrating interfaces between the two without an available implementation of at least one. This becomes even harder if both the implementations are a work in progress by independent teams, which is usually the case.
 - It is difficulty to intermix the available implementations of functions without re-writing/modifying the functions themselves.
 - There is a risk of exposing network function configuration (usually technology specific, imperative, procedural in nature) as management function configuration (which can be intent-based/declarative, promise-based etc), thereby complicating user experience. Example, to use a switch capable of supporting multi-teanancy using vlans and qos if the APIs exposed by the management function need to take care of specifying these values then it impedes defining a high-level API at management function.
 
@@ -148,7 +148,7 @@ As discussed above the Plugin interface implementation invokes the Driver interf
 4. Resource deallocation for a network (vlan ids, vxlan ids) and endpoint (ip address) happens before the deletion of network and endpoint respectively.
 
 Notes:
- - The above constraints provide guarantees wrt the order of Driver interface invocation. However, they do not guarantee the presence/absence of the state when the Driver interface is actually invoked. The driver implementations are expected to deal with such scenarios. Example, when a delete for endpoint is received it is not guranteed that the network state will exist. So a driver implementation might need to cache/keep enough state to handle endpoint deletion gracefully.
+ - The above constraints provide guarantees wrt the order of Driver interface invocation. However, they do not guarantee the presence/absence of the state when the Driver interface is actually invoked. The driver implementations are expected to deal with such scenarios. Example, when a delete for endpoint is received it is not guaranteed that the network state will exist. So a driver implementation might need to cache/keep enough state to handle endpoint deletion gracefully.
  - The Constraints 'c' and 'd' might become out of scope of the Plugin interface based on design approach we pick. See section on [open design items](#open-items-and-ongoing-work>)
 
 ##Integration Details

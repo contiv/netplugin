@@ -218,7 +218,7 @@ func (ag *Agent) HandleEvents() error {
 	}
 	err := <-recvErr
 	if err != nil {
-		log.Errorf("Failure occured. Error: %s", err)
+		log.Errorf("Failure occurred. Error: %s", err)
 		return err
 	}
 

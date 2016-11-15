@@ -42,7 +42,7 @@ def testConnections(testbed, numContainer):
 	if testbed.checkConnections(containers, 8000, True) != True:
 		api.tutils.exit("Connection failed")
 	if testbed.checkConnections(containers, 7999, False) != False:
-		api.tutils.exit("Connection succeded while expecting it to fail")
+		api.tutils.exit("Connection succeeded while expecting it to fail")
 
 	# stop netcast listeners
 	testbed.stopListeners(containers)

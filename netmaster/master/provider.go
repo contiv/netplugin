@@ -21,7 +21,7 @@ import (
 	"github.com/contiv/netplugin/utils"
 )
 
-//SvcProviderUpdate propogates service provider updates to netplugins
+//SvcProviderUpdate propagates service provider updates to netplugins
 func SvcProviderUpdate(serviceID string, isDelete bool) error {
 	providerList := []string{}
 
