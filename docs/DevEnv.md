@@ -5,6 +5,10 @@ making incremental changes and doing frequent compilation for a quicker developm
 
 Happy hacking!
 
+### Pre-requisites
+Vagarant 1.8.7
+VirtualBox 5.1.x
+
 ### 1. Check-out a tree. `Estimated time: 2 minutes`
 Notes: Make sure GOPATH is set. This is a one time activity.
 ```
