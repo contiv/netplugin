@@ -310,6 +310,7 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	ArpMode          string `json:"arpMode,omitempty"`          // ARP Mode
 	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
