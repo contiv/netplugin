@@ -93,9 +93,9 @@ func httpPost(url string, jdata interface{}) (*gwResp, error) {
 
 	switch {
 	case r.StatusCode == int(404):
-		return nil, errors.New("Page not found!")
+		return nil, errors.New("page not found")
 	case r.StatusCode == int(403):
-		return nil, errors.New("Access denied!")
+		return nil, errors.New("access denied")
 	case r.StatusCode != int(200):
 		log.Debugf("POST Status '%s' status code %d \n", r.Status, r.StatusCode)
 		return nil, errors.New(r.Status)
