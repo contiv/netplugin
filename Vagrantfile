@@ -288,7 +288,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                   ENV["https_proxy"] || "",
                   ENV["USE_RELEASE"] || "",
                   ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379",
-                  ENV["CONTIV_DOCKER_VERSION"] || docker_version,
+                  docker_version,
                   ENV['CONTIV_NODE_OS'] || "",
                   *ENV['CONTIV_ENV'],
                 ]
