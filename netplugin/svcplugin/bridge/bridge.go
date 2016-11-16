@@ -42,9 +42,14 @@ func New(adapterURI string, config Config) (*Bridge, error) {
 	}
 
 	log.Infof("Using", uri.Scheme, "service adapter:", uri)
+	reg, err := factory.New(uri)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Bridge{
 		config:   config,
-		registry: factory.New(uri),
+		registry: reg,
 		services: make(map[string][]*Service),
 	}, nil
 }
