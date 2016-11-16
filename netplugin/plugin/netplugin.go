@@ -190,7 +190,7 @@ func (p *NetPlugin) DeleteServiceLB(servicename string, spec *core.ServiceSpec) 
 	return p.NetworkDriver.DelSvcSpec(servicename, spec)
 }
 
-//SvcProviderUpdate hhhh
+//SvcProviderUpdate function
 func (p *NetPlugin) SvcProviderUpdate(servicename string, providers []string) {
 	p.NetworkDriver.SvcProviderUpdate(servicename, providers)
 }
@@ -210,7 +210,12 @@ func (p *NetPlugin) InspectBgp() ([]byte, error) {
 	return p.NetworkDriver.InspectBgp()
 }
 
-//GlobalFwdModeUpdate update the forwarding mode
+//GlobalConfigUpdate update global config
+func (p *NetPlugin) GlobalConfigUpdate(cfg Config) error {
+	return p.NetworkDriver.GlobalConfigUpdate(cfg.Instance)
+}
+
+//GlobalFwdModeUpdate update the global config
 func (p *NetPlugin) GlobalFwdModeUpdate(cfg Config) {
 	var err error
 

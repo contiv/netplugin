@@ -150,6 +150,11 @@ func (self *Vrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 func (self *Vrouter) InjectGARPs(epgID int) {
 }
 
+// GlobalConfigUpdate not implemented
+func (self *Vrouter) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	return nil
+}
+
 // Add a local endpoint and install associated local route
 func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	dNATTbl := self.ofSwitch.GetTable(SRV_PROXY_DNAT_TBL_ID)

@@ -855,6 +855,7 @@ func showGlobal(ctx *cli.Context) {
 		for _, gl := range *list {
 			writer.Write([]byte(fmt.Sprintf("Fabric mode: %v\n", gl.NetworkInfraType)))
 			writer.Write([]byte(fmt.Sprintf("Forward mode: %v\n", gl.FwdMode)))
+			writer.Write([]byte(fmt.Sprintf("ARP mode: %v\n", gl.ArpMode)))
 			writer.Write([]byte(fmt.Sprintf("Vlan Range: %v\n", gl.Vlans)))
 			writer.Write([]byte(fmt.Sprintf("Vxlan range: %v\n", gl.Vxlans)))
 		}
@@ -884,6 +885,7 @@ func setGlobal(ctx *cli.Context) {
 	vlans := ctx.String("vlan-range")
 	vxlans := ctx.String("vxlan-range")
 	fwdMode := ctx.String("fwd-mode")
+	arpMode := ctx.String("arp-mode")
 
 	global, _ := getClient(ctx).GlobalGet("global")
 
@@ -899,6 +901,9 @@ func setGlobal(ctx *cli.Context) {
 	}
 	if fwdMode != "" {
 		global.FwdMode = fwdMode
+	}
+	if arpMode != "" {
+		global.ArpMode = arpMode
 	}
 
 	errCheck(ctx, getClient(ctx).GlobalPost(global))

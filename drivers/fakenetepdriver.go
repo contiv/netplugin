@@ -113,3 +113,8 @@ func (d *FakeNetEpDriver) InspectState() ([]byte, error) {
 func (d *FakeNetEpDriver) InspectBgp() ([]byte, error) {
 	return []byte{}, core.Errorf("Not implemented")
 }
+
+// GlobalConfigUpdate is not implemented
+func (d *FakeNetEpDriver) GlobalConfigUpdate(inst core.InstanceInfo) error {
+	return core.Errorf("Not implemented")
+}

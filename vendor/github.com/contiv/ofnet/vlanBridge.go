@@ -51,14 +51,19 @@ type VlanBridge struct {
 	vlanTable  *ofctrl.Table // Vlan Table. map port or VNI to vlan
 	nmlTable   *ofctrl.Table // OVS normal lookup table
 
+	// Flow Database
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
-	uplinkDb       map[uint32]uint32         // Database of uplink ports
-	garpMutex      *sync.Mutex
-	epgToEPs       map[int]epgGARPInfo // Database of eps per epg
-	garpBGActive   bool
-	uplinkName     string
-	nlCloser       chan struct{} // channel to close the netlink listener
+
+	// Arp Flow
+	arpRedirectFlow *ofctrl.Flow // ARP redirect flow entry
+
+	uplinkDb     map[uint32]uint32 // Database of uplink ports
+	garpMutex    *sync.Mutex
+	epgToEPs     map[int]epgGARPInfo // Database of eps per epg
+	garpBGActive bool
+	uplinkName   string
+	nlCloser     chan struct{} // channel to close the netlink listener
 }
 
 // epgGARPInfo holds info for epg
@@ -217,6 +222,17 @@ func (vl *VlanBridge) sendGARPAll() {
 		log.Infof("GARPs will be send for %d epgs", count)
 		go vl.backGroundGARPs()
 	}
+}
+
+// Update global config
+func (vl *VlanBridge) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	if vl.agent.arpMode == cfg.ArpMode {
+		log.Warnf("no change in ARP mode %s", vl.agent.arpMode)
+	} else {
+		vl.agent.arpMode = cfg.ArpMode
+		vl.updateArpRedirectFlow(cfg.ArpMode, cfg.ArpMode == ArpFlood)
+	}
+	return nil
 }
 
 // AddLocalEndpoint Add a local endpoint and install associated local route
@@ -583,13 +599,12 @@ func (vl *VlanBridge) initFgraph() error {
 	dstGrpTbl := vl.ofSwitch.GetTable(DST_GRP_TBL_ID)
 	vlanMissFlow.Next(dstGrpTbl)
 
-	// Redirect ARP Request packets to controller
-	arpFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY,
-		Ethertype: 0x0806,
-		ArpOper:   protocol.Type_Request,
-	})
-	arpFlow.Next(sw.SendToController())
+	// if arp-mode is ArpProxy, redirect ARP packets to controller
+	// In ArpFlood mode, ARP packets are flooded in datapath and
+	// there is no proxy-arp functionality
+	if vl.agent.arpMode == ArpProxy {
+		vl.updateArpRedirectFlow(vl.agent.arpMode, false)
+	}
 
 	// All packets that have gone thru policy lookup go thru normal OVS switching
 	normalLookupFlow, _ := vl.nmlTable.NewFlow(ofctrl.FlowMatch{
@@ -624,6 +639,33 @@ func getProxyARPResp(arpIn *protocol.ARP, tgtMac string, vid uint16, inPort uint
 	pktOut.AddAction(openflow13.NewActionOutput(inPort))
 
 	return pktOut
+}
+
+// add a flow to redirect ARP packet to controller for arp-proxy
+func (vl *VlanBridge) updateArpRedirectFlow(newArpMode ArpModeT, sendGARPs bool) {
+	sw := vl.ofSwitch
+
+	add := (newArpMode == ArpProxy)
+	if add {
+		// Redirect ARP Request packets to controller
+		arpFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:  FLOW_MATCH_PRIORITY,
+			Ethertype: 0x0806,
+			ArpOper:   protocol.Type_Request,
+		})
+		arpFlow.Next(sw.SendToController())
+		vl.arpRedirectFlow = arpFlow
+	} else {
+		if vl.arpRedirectFlow != nil {
+			vl.arpRedirectFlow.Delete()
+		}
+	}
+
+	if sendGARPs {
+		// When arp mode changes to ArpFlood, send GARP for all endpoints
+		// so that external network can learn endpoints from ARP packets
+		vl.sendGARPAll()
+	}
 }
 
 /*

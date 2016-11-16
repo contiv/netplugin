@@ -95,6 +95,7 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			FwdMode:          "bridge",
+			ArpMode:          "proxy",
 		})
 		if err != nil {
 			log.Fatalf("Error creating global state. Err: %v", err)
@@ -174,6 +175,7 @@ func (ac *APIController) GlobalCreate(global *contivModel.Global) error {
 		VLANs:       global.Vlans,
 		VXLANs:      global.Vxlans,
 		FwdMode:     global.FwdMode,
+		ArpMode:     global.ArpMode,
 	}
 
 	// Create the object
@@ -223,6 +225,9 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 		}
 		globalCfg.FwdMode = params.FwdMode
 	}
+	if global.ArpMode != params.ArpMode {
+		globalCfg.ArpMode = params.ArpMode
+	}
 	if global.Vlans != params.Vlans {
 		globalCfg.VLANs = params.Vlans
 	}
@@ -244,6 +249,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	global.Vlans = params.Vlans
 	global.Vxlans = params.Vxlans
 	global.FwdMode = params.FwdMode
+	global.ArpMode = params.ArpMode
 
 	return nil
 }

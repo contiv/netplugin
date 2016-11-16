@@ -914,3 +914,11 @@ func (sw *OvsSwitch) InspectBgp() (interface{}, error) {
 	}
 	return sw.ofnetAgent.InspectBgp()
 }
+
+// GlobalConfigUpdate updates the global configs like arp-mode
+func (sw *OvsSwitch) GlobalConfigUpdate(cfg ofnet.OfnetGlobalConfig) error {
+	if sw.ofnetAgent == nil {
+		return errors.New("No ofnet agent")
+	}
+	return sw.ofnetAgent.GlobalConfigUpdate(cfg)
+}

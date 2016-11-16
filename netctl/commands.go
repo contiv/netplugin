@@ -444,6 +444,10 @@ var Commands = []cli.Command{
 						Name:  "fwd-mode, b",
 						Usage: "forwarding mode (bridge,routing)",
 					},
+					cli.StringFlag{
+						Name:  "arp-mode, a",
+						Usage: "arp mode (proxy,flood)",
+					},
 				},
 				Action: setGlobal,
 			},

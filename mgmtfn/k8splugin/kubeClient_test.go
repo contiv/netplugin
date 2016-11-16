@@ -165,6 +165,11 @@ func (d *KubeTestNetDrv) InspectState() ([]byte, error) {
 	return []byte{}, core.Errorf("Not implemented")
 }
 
+// GlobalConfigUpdate is not implemented
+func (d *KubeTestNetDrv) GlobalConfigUpdate(inst core.InstanceInfo) error {
+	return core.Errorf("Not implemented")
+}
+
 // AddSvcSpec is implemented.
 func (d *KubeTestNetDrv) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
 	d.services[svcName] = spec

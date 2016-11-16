@@ -15,6 +15,7 @@ func (s *systemtestSuite) TestHostBridge(c *C) {
 		Vlans:            "1-4094",
 		Vxlans:           "1-10000",
 		FwdMode:          "bridge",
+		ArpMode:          "proxy",
 	}), IsNil)
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		TenantName:  "default",

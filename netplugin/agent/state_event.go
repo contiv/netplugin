@@ -263,6 +263,28 @@ func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instanc
 
 }
 
+func processGlobalConfigUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, cfg *mastercfg.GlobConfig) {
+
+	// parse store URL
+	parts := strings.Split(opts.DbURL, "://")
+	if len(parts) < 2 {
+		log.Fatalf("Invalid cluster-store-url %s", opts.DbURL)
+	}
+	stateStore := parts[0]
+	// initialize the config
+	pluginConfig := plugin.Config{
+		Drivers: plugin.Drivers{
+			Network: "ovs",
+			State:   stateStore,
+		},
+		Instance: opts,
+	}
+	pluginConfig.Instance.ArpMode = cfg.ArpMode
+	netPlugin.GlobalConfigUpdate(pluginConfig)
+
+	log.Infof("Global Config updated")
+}
+
 //processServiceLBEvent processes service load balancer object events
 func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgServiceLBState, isDelete bool) error {
 	var err error
@@ -360,9 +382,19 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 			}
 
 			if gCfg, ok := currentState.(*mastercfg.GlobConfig); ok {
-				log.Infof("Received %q for global config current state - %s , prev state - %s ", eventStr, gCfg.FwdMode, rsp.Prev.(*mastercfg.GlobConfig).FwdMode)
+				log.Infof("Received %q for global config current state - %s,%s , prev state - %s,%s ", eventStr,
+					gCfg.FwdMode, gCfg.ArpMode, rsp.Prev.(*mastercfg.GlobConfig).FwdMode, rsp.Prev.(*mastercfg.GlobConfig).ArpMode)
+
+				// if its a forwarding mode change, the network driver needs to be restarted
 				if gCfg.FwdMode != rsp.Prev.(*mastercfg.GlobConfig).FwdMode {
 					processGlobalFwdModeUpdEvent(netPlugin, opts, gCfg.FwdMode)
+				} else {
+					// if its any other global config change, dynamically process the change
+					if gCfg.ArpMode != rsp.Prev.(*mastercfg.GlobConfig).ArpMode &&
+						gCfg.FwdMode == "routing" && gCfg.ArpMode == "flood" {
+						log.Infof("Global ARP mode config is not effective when forwarding mode is routing. Proxy-arp will be enabled.")
+					}
+					processGlobalConfigUpdEvent(netPlugin, opts, gCfg)
 				}
 			}
 

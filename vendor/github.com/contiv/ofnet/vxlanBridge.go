@@ -67,6 +67,9 @@ type Vxlan struct {
 	macFlowDb      map[string]*ofctrl.Flow   // Database of flow entries
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
+
+	// Arp Flow
+	arpRedirectFlow *ofctrl.Flow // ARP redirect flow entry
 }
 
 // Vlan info
@@ -161,6 +164,17 @@ func (self *Vxlan) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 
 // InjectGARPs not implemented
 func (self *Vxlan) InjectGARPs(epgID int) {
+}
+
+// Update global config
+func (self *Vxlan) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	if self.agent.arpMode == cfg.ArpMode {
+		log.Warnf("no change in ARP mode %s", self.agent.arpMode)
+	} else {
+		self.agent.arpMode = cfg.ArpMode
+		self.updateArpRedirectFlow(self.agent.arpMode)
+	}
+	return nil
 }
 
 // Add a local endpoint and install associated local route
@@ -857,13 +871,12 @@ func (self *Vxlan) initFgraph() error {
 	})
 	vlanMissFlow.Next(sw.DropAction())
 
-	// Redirect ARP Request packets to controller
-	arpFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY,
-		Ethertype: 0x0806,
-		ArpOper:   protocol.Type_Request,
-	})
-	arpFlow.Next(sw.SendToController())
+	// if arp-mode is ArpProxy, redirect ARP packets to controller
+	// In ArpFlood mode, ARP packets are flooded in datapath and
+	// there is no proxy-arp functionality
+	if self.agent.arpMode == ArpProxy {
+		self.updateArpRedirectFlow(self.agent.arpMode)
+	}
 
 	// Drop all packets that miss mac dest lookup AND vlan flood lookup
 	floodMissFlow, _ := self.macDestTable.NewFlow(ofctrl.FlowMatch{
@@ -886,6 +899,27 @@ func (self *Vxlan) isVtepPort(inPort uint32) bool {
 	}
 
 	return false
+}
+
+// add a flow to redirect ARP packet to controller for arp-proxy
+func (self *Vxlan) updateArpRedirectFlow(newArpMode ArpModeT) {
+	sw := self.ofSwitch
+
+	add := (newArpMode == ArpProxy)
+	if add {
+		// Redirect ARP Request packets to controller
+		arpFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:  FLOW_MATCH_PRIORITY,
+			Ethertype: 0x0806,
+			ArpOper:   protocol.Type_Request,
+		})
+		arpFlow.Next(sw.SendToController())
+		self.arpRedirectFlow = arpFlow
+	} else {
+		if self.arpRedirectFlow != nil {
+			self.arpRedirectFlow.Delete()
+		}
+	}
 }
 
 /*

@@ -170,10 +170,11 @@ func createCommonState(stateDriver core.StateDriver) error {
 func initOvsDriver(t *testing.T) *OvsDriver {
 	driver := &OvsDriver{}
 	fMode := "bridge"
+	arpMode := "proxy"
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabel,
-		StateDriver: stateDriver, FwdMode: fMode}
+		StateDriver: stateDriver, FwdMode: fMode, ArpMode: arpMode}
 
 	err := createCommonState(stateDriver)
 	if err != nil {
@@ -196,10 +197,11 @@ func TestOvsDriverInit(t *testing.T) {
 func TestOvsDriverInitStatefulStart(t *testing.T) {
 	driver := &OvsDriver{}
 	fMode := "bridge"
+	arpMode := "proxy"
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabelStateful,
-		StateDriver: stateDriver, FwdMode: fMode}
+		StateDriver: stateDriver, FwdMode: fMode, ArpMode: arpMode}
 
 	operOvs := &OvsDriverOperState{CurrPortNum: 10}
 	operOvs.StateDriver = stateDriver
@@ -225,7 +227,7 @@ func TestOvsDriverInitStatefulStart(t *testing.T) {
 func TestOvsDriverInitInvalidConfig(t *testing.T) {
 	driver := &OvsDriver{}
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabel,
-		StateDriver: nil, FwdMode: "bridge"}
+		StateDriver: nil, FwdMode: "bridge", ArpMode: "proxy"}
 
 	err := driver.Init(nil)
 	if err == nil {
@@ -243,8 +245,9 @@ func TestOvsDriverInitInvalidConfig(t *testing.T) {
 func TestOvsDriverInitInvalidState(t *testing.T) {
 	driver := &OvsDriver{}
 	fMode := "bridge"
+	arpMode := "proxy"
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabel, StateDriver: nil,
-		FwdMode: fMode}
+		FwdMode: fMode, ArpMode: arpMode}
 
 	err := driver.Init(instInfo)
 	if err == nil {
@@ -279,10 +282,11 @@ func TestOvsDriverDeinit(t *testing.T) {
 func TestOvsDriverStateUpgrade(t *testing.T) {
 	driver := &OvsDriver{}
 	fMode := "bridge"
+	arpMode := "proxy"
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabelStateful,
-		StateDriver: stateDriver, FwdMode: fMode}
+		StateDriver: stateDriver, FwdMode: fMode, ArpMode: arpMode}
 
 	operOvs := &OvsDriverOperState{CurrPortNum: testCurrPortNum}
 	operOvs.StateDriver = stateDriver

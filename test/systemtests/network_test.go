@@ -381,6 +381,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				NetworkInfraType: "default",
 				Vlans:            "1-4094",
 				Vxlans:           "1-10000",
+				ArpMode:          "proxy",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
 			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
@@ -391,6 +392,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				NetworkInfraType: "default",
 				Vlans:            "100-2094",
 				Vxlans:           "1-10000",
+				ArpMode:          "proxy",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
 			s.testNetworkAddDeleteTenant(c, "vxlan", "routing")
@@ -414,6 +416,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
+			ArpMode:          "proxy",
 		}), IsNil)
 		time.Sleep(60 * time.Second)
 		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
@@ -421,7 +424,63 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
+			ArpMode:          "proxy",
 		}), IsNil)
 		time.Sleep(60 * time.Second)
+	}
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVXLAN(c *C) {
+	arpMode := "proxy"
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
+		if arpMode == "proxy" {
+			c.Assert(s.cli.GlobalPost(&client.Global{
+				FwdMode:          "bridge",
+				Name:             "global",
+				NetworkInfraType: "default",
+				Vlans:            "1-4094",
+				Vxlans:           "1-10000",
+				ArpMode:          "flood",
+			}), IsNil)
+			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
+			arpMode = "flood"
+		} else {
+			c.Assert(s.cli.GlobalPost(&client.Global{
+				FwdMode:          "bridge",
+				Name:             "global",
+				NetworkInfraType: "default",
+				Vlans:            "100-2094",
+				Vxlans:           "1-10000",
+				ArpMode:          "proxy",
+			}), IsNil)
+			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
+			arpMode = "proxy"
+		}
+	}
+}
+
+func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVLAN(c *C) {
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		s.testNetworkAddDeleteTenant(c, "vlan", s.fwdMode)
+		c.Assert(s.cli.GlobalPost(&client.Global{
+			FwdMode:          "bridge",
+			Name:             "global",
+			NetworkInfraType: "default",
+			Vlans:            "1-4094",
+			Vxlans:           "1-10000",
+			ArpMode:          "proxy",
+		}), IsNil)
+		s.testNetworkAddDeleteTenant(c, "vlan", "bridge")
+		c.Assert(s.cli.GlobalPost(&client.Global{
+			FwdMode:          "bridge",
+			Name:             "global",
+			NetworkInfraType: "default",
+			Vlans:            "1-4094",
+			Vxlans:           "1-10000",
+			ArpMode:          "flood",
+		}), IsNil)
+		s.testNetworkAddDeleteTenant(c, "vlan", "bridge")
 	}
 }

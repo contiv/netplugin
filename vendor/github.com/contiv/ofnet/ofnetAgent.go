@@ -86,7 +86,8 @@ type OfnetAgent struct {
 	vlanVrf      map[uint16]*string //vlan to vrf mapping
 	vlanVrfMutex sync.RWMutex       // Sync mutex for vlan-vrf table
 
-	fwdMode   string         ///forwarding mode routing or bridge
+	fwdMode   string         // forwarding mode routing or bridge
+	arpMode   ArpModeT       // ArpProxy by default
 	GARPStats map[int]uint32 // per EPG garp stats.
 
 	mutex sync.RWMutex
@@ -137,6 +138,7 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	agent.MyPort = rpcPort
 	agent.MyAddr = localIp.String()
 	agent.dpName = dpName
+	agent.arpMode = ArpProxy
 
 	agent.masterDb = make(map[string]*OfnetNode)
 	agent.portVlanMap = make(map[uint32]*uint16)
@@ -491,6 +493,11 @@ func (self *OfnetAgent) InjectGARPs(epgID int, resp *bool) error {
 	self.incrStats("InjectGARPs")
 
 	return nil
+}
+
+// Update global config
+func (self *OfnetAgent) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	return self.datapath.GlobalConfigUpdate(cfg)
 }
 
 // Add a local endpoint.
@@ -1055,7 +1062,8 @@ func (self *OfnetAgent) InspectState() (interface{}, error) {
 		// VrfIdNameMap    map[uint16]*string        // Map vrf id to vrf Name
 		VrfDb map[string]*OfnetVrfInfo // Db of all the global vrfs
 		// VlanVrf         map[uint16]*string        //vlan to vrf mapping
-		FwdMode  string            ///forwarding mode routing or bridge
+		FwdMode  string            // forwarding mode routing or bridge
+		ArpMode  ArpModeT          // arp mode: proxy or flood
 		Stats    map[string]uint64 // arbitrary stats
 		ErrStats map[string]uint64 // error stats
 		Datapath interface{}       // datapath state
@@ -1078,6 +1086,7 @@ func (self *OfnetAgent) InspectState() (interface{}, error) {
 		self.vrfDb,
 		// self.vlanVrf,
 		self.fwdMode,
+		self.arpMode,
 		self.stats,
 		self.errStats,
 		dpState,

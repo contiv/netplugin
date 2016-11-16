@@ -146,6 +146,11 @@ func (self *Vlrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 func (self *Vlrouter) InjectGARPs(epgID int) {
 }
 
+// GlobalConfigUpdate not implemented
+func (self *Vlrouter) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	return nil
+}
+
 /*AddLocalEndpoint does the following:
 1) Adds endpoint to the OVS and the associated flows
 2) Populates BGP RIB with local route to be propogated to neighbor

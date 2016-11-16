@@ -92,6 +92,9 @@ type OfnetDatapath interface {
 
 	// Return the datapath state
 	InspectState() (interface{}, error)
+
+	// Set global config
+	GlobalConfigUpdate(cfg OfnetGlobalConfig) error
 }
 
 // Interface implemented by each control protocol.
@@ -190,6 +193,21 @@ type OfnetProtoRouteInfo struct {
 	ProtocolType string // type of protocol
 	localEpIP    string
 	nextHopIP    string
+}
+
+type ArpModeT string
+
+const (
+	// ArpFlood - ARP packets will be flooded in this mode
+	ArpFlood ArpModeT = "flood"
+
+	// ArpProxy - ARP packets will be redirected to controller
+	ArpProxy ArpModeT = "proxy"
+)
+
+// OfnetGlobalConfig has global level configs for ofnet
+type OfnetGlobalConfig struct {
+	ArpMode ArpModeT // arp mode: proxy or flood
 }
 
 // OfnetVrfInfo has info about a VRF
