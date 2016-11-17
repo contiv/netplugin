@@ -10,7 +10,7 @@ import argparse
 # Parse command line args
 # Create the parser and sub parser
 parser = argparse.ArgumentParser()
-parser.add_argument("-nodes", required=True, help="list of nodes(comma seperated)")
+parser.add_argument("-nodes", required=True, help="list of nodes(comma separated)")
 parser.add_argument("-user", default='vagrant', help="User id for ssh")
 parser.add_argument("-password", default='vagrant', help="password for ssh")
 parser.add_argument("-binpath", default='/opt/gopath/bin', help="netplugin/netmaster binary path")

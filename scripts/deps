@@ -10,6 +10,12 @@ then
   exit 1
 fi
 
+if ! go get -u github.com/client9/misspell/cmd/misspell
+then
+  echo "!!! Could not install misspell"
+  exit 1
+fi
+
 # this is necessary because presumably the `vet` tool needs to be installed in
 # $GOROOT. I have not investigated the reason fully yet.
 # the check right below this line is to avoid a sudo call on each invocation,

@@ -147,7 +147,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 1) Checks withdrawal of bgp external routes learnt on Peer
 2) Checks readdition of external routes on peer up
 3) Checks ping success to remote endpoints
-4) Checks bgp peering and route distribution for pre exsiting containers (before bgp peering)
+4) Checks bgp peering and route distribution for pre existing containers (before bgp peering)
 */
 func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 	if s.fwdMode != "routing" {

@@ -42,7 +42,7 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 	resp, err := json.Marshal(ver)
 	if err != nil {
 		http.Error(w,
-			core.Errorf("marshalling json failed. Error: %s", err).Error(),
+			core.Errorf("marshaling json failed. Error: %s", err).Error(),
 			http.StatusInternalServerError)
 		return
 	}
@@ -185,7 +185,7 @@ func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.Resp
 
 		if resp, err = json.Marshal(states); err != nil {
 			http.Error(w,
-				core.Errorf("marshalling json failed. Error: %s", err).Error(),
+				core.Errorf("marshaling json failed. Error: %s", err).Error(),
 				http.StatusInternalServerError)
 			return
 		}

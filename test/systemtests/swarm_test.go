@@ -285,7 +285,7 @@ func (w *swarm) startIperfClient(c *container, ip, limit string, isErr bool) err
 	}
 
 	if success {
-		logrus.Infof("starting iperf client on conatiner:%s for server ip: %s", c, ip)
+		logrus.Infof("starting iperf client on container:%s for server ip: %s", c, ip)
 		bwFormat := strings.Split(bw, "Server Report:")
 		bwString := strings.Split(bwFormat[1], "Bytes ")
 		newBandwidth := strings.Split(bwString[1], "bits/sec")
@@ -344,7 +344,7 @@ func (w *swarm) tcFilterShow(bw string) error {
 	if bwInt == outputInt {
 		logrus.Infof("Applied bandwidth: %dkbits equals tc qdisc rate: %dkbits", bwInt, outputInt)
 	} else {
-		logrus.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
+		logrus.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
 		return errors.New("Applied bandwidth does not match the tc qdisc rate")
 	}
 	return nil

@@ -195,7 +195,7 @@ const (
 	ServiceAffinityNone ServiceAffinity = "None"
 )
 
-// Protocol defines network protocols supported for things like conatiner ports.
+// Protocol defines network protocols supported for things like container ports.
 type Protocol string
 
 const (
@@ -288,7 +288,7 @@ type ServiceSpec struct {
 	SessionAffinity ServiceAffinity `json:"sessionAffinity,omitempty"`
 }
 
-// ServicePort conatins information on service's port.
+// ServicePort contains information on service's port.
 type ServicePort struct {
 	// The name of this port within the service. This must be a DNS_LABEL.
 	// All ports within a ServiceSpec must have unique names. This maps to

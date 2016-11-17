@@ -200,7 +200,7 @@ func (d *MasterDaemon) registerRoutes(router *mux.Router) {
 		resp, err := json.Marshal(info)
 		if err != nil {
 			http.Error(w,
-				core.Errorf("marshalling json failed. Error: %s", err).Error(),
+				core.Errorf("marshaling json failed. Error: %s", err).Error(),
 				http.StatusInternalServerError)
 			return
 		}

@@ -55,6 +55,10 @@ govet-src: $(PKG_DIRS)
 	$(info +++ govet $(PKG_DIRS))
 	@for dir in $?; do $(GOVET_CMD) $${dir} || exit 1;done
 
+misspell-src: $(PKG_DIRS)
+	$(info +++ check spelling $(PKG_DIRS))
+	misspell -locale US -error $?
+
 go-version:
 	$(info +++ check go version)
 ifneq ($(GO_VERSION), $(lastword $(sort $(GO_VERSION) $(GO_MIN_VERSION))))
@@ -64,7 +68,7 @@ ifneq ($(GO_VERSION), $(firstword $(sort $(GO_VERSION) $(GO_MAX_VERSION))))
 	$(error go version check failed, expected <= $(GO_MAX_VERSION), found $(GO_VERSION))
 endif
 
-checks: go-version gofmt-src golint-src govet-src
+checks: go-version gofmt-src golint-src govet-src misspell-src
 
 # We cannot perform sudo inside a golang, the only reason to split the rules
 # here

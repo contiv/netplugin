@@ -202,7 +202,7 @@ func (d *EtcdStateDriver) ClearState(key string) error {
 	return err
 }
 
-// ReadState reads key into a core.State with the unmarshalling function.
+// ReadState reads key into a core.State with the unmarshaling function.
 func (d *EtcdStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
 	encodedState, err := d.Read(key)
@@ -322,7 +322,7 @@ func (d *EtcdStateDriver) WatchAllState(baseKey string, sType core.State,
 
 }
 
-// WriteState writes a value of core.State into a key with a given marshalling function.
+// WriteState writes a value of core.State into a key with a given marshaling function.
 func (d *EtcdStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	encodedState, err := marshal(value)

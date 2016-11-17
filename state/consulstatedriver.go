@@ -261,7 +261,7 @@ func (d *ConsulStateDriver) ClearState(key string) error {
 	return err
 }
 
-// ReadState reads key into a core.State with the unmarshalling function.
+// ReadState reads key into a core.State with the unmarshaling function.
 func (d *ConsulStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
 	key = processKey(key)
@@ -304,7 +304,7 @@ func (d *ConsulStateDriver) WatchAllState(baseKey string, sType core.State,
 
 }
 
-// WriteState writes a value of core.State into a key with a given marshalling function.
+// WriteState writes a value of core.State into a key with a given marshaling function.
 func (d *ConsulStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	key = processKey(key)

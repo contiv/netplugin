@@ -130,7 +130,7 @@ func cleanupState() {
 	}
 }
 
-// checkError checks for error and fails teh test
+// checkError checks for error and fails the test
 func checkError(t *testing.T, testStr string, err error) {
 	if err != nil {
 		t.Fatalf("Error during %s. Err: %v", testStr, err)
@@ -405,7 +405,7 @@ func checkCreateNetProfile(t *testing.T, expError bool, dscp, burst int, bandwid
 	if err != nil && !expError {
 		t.Fatalf("Error creating Netprofile {%+v}. Err: %v", np, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create NetProfile {%+v} succeded while expecing error", np)
+		t.Fatalf("Create NetProfile {%+v} succeeded while expecing error", np)
 	} else if err == nil {
 		//check if netprofile is created.
 		_, err := contivClient.NetprofileGet(tenantName, profileName)
@@ -435,7 +435,7 @@ func checkDeleteNetProfile(t *testing.T, expError bool, profileName, tenantName 
 	if err != nil && !expError {
 		t.Fatalf("Error deleting Netprofile %s/%s Err: %v", profileName, tenantName, err)
 	} else if err == nil && expError {
-		t.Fatalf("delete NetProfile %s/%s succeded while expecing error", profileName, tenantName)
+		t.Fatalf("delete NetProfile %s/%s succeeded while expecing error", profileName, tenantName)
 	} else if err == nil {
 		//check if netprofile is deleted.
 		_, err := contivClient.NetprofileGet(tenantName, profileName)
@@ -491,7 +491,7 @@ func checkCreateEpgNp(t *testing.T, expError bool, tenant, ProfileName, network,
 	if err != nil && !expError {
 		t.Fatalf("Error creating epg {%+v}. Err: %v", epg, err)
 	} else if err == nil && expError {
-		t.Fatalf("Create epg {%+v} succeded while expecing error", epg)
+		t.Fatalf("Create epg {%+v} succeeded while expecing error", epg)
 	} else if err == nil {
 		// verify epg is created
 		_, err := contivClient.EndpointGroupGet(tenant, group)
@@ -834,34 +834,34 @@ func TestTenantAddDelete(t *testing.T) {
 
 	// Try creating invalid names and verify we get an error
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant:invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant|invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant\\invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant#invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "-tenant"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant@invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant!invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant~invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant*invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 	if contivClient.TenantPost(&client.Tenant{TenantName: "tenant^invalid"}) == nil {
-		t.Fatalf("tenant create succedded while expecting error")
+		t.Fatalf("tenant create succeeded while expecting error")
 	}
 
 	// delete tenant
@@ -1921,11 +1921,11 @@ func verifyServiceCreate(t *testing.T, tenant, network, serviceName string, port
 	}
 
 	if serviceLbState.IPAddress == "" {
-		t.Fatalf("Service Created does not have an ip addres allocated")
+		t.Fatalf("Service Created does not have an ip address allocated")
 	}
 
 	if preferredIP != "" && serviceLbState.IPAddress != preferredIP {
-		t.Fatalf("Service Created does not have preferred ip addres allocated")
+		t.Fatalf("Service Created does not have preferred ip address allocated")
 	}
 
 }
@@ -2100,7 +2100,7 @@ func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.Resp
 
 		if resp, err = json.Marshal(states); err != nil {
 			http.Error(w,
-				core.Errorf("marshalling json failed. Error: %s", err).Error(),
+				core.Errorf("marshaling json failed. Error: %s", err).Error(),
 				http.StatusInternalServerError)
 			return
 		}

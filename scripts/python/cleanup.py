@@ -10,7 +10,7 @@ import argparse
 # Create the parser and sub parser
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', action='version', version='1.0.0')
-parser.add_argument("-nodes", required=True, help="list of nodes(comma seperated)")
+parser.add_argument("-nodes", required=True, help="list of nodes(comma separated)")
 parser.add_argument("-user", default='vagrant', help="User id for ssh")
 parser.add_argument("-password", default='vagrant', help="password for ssh")
 

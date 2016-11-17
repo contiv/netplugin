@@ -313,20 +313,20 @@ func processHTTP(c *C, url string, jsonReq *bytes.Buffer) (int, []byte) {
 	switch httpResp.StatusCode {
 
 	case http.StatusOK:
-		intLog.Infof("received http OK reponse from netplugin")
+		intLog.Infof("received http OK response from netplugin")
 		info, err := ioutil.ReadAll(httpResp.Body)
 		assertNoErr(err, c, "receive http data")
 		return httpResp.StatusCode, info
 
 	case http.StatusInternalServerError:
-		intLog.Infof("received http error reponse from netplugin")
+		intLog.Infof("received http error response from netplugin")
 		info, err := ioutil.ReadAll(httpResp.Body)
 		assertNoErr(err, c, "receive http data")
 		return httpResp.StatusCode, info
 
 	default:
 		intLog.Errorf("received unknown error from netplugin")
-		assertNoErr(fmt.Errorf("unknwon error from netplugin"), c, "unknown")
+		assertNoErr(fmt.Errorf("unknown error from netplugin"), c, "unknown")
 	}
 
 	return 0, nil

@@ -371,8 +371,8 @@ func (k *kubernetes) tcFilterShow(bw string) error {
 	if bwInt == outputInt {
 		logrus.Infof("Applied bandwidth: %dkbits equals tc qdisc rate: %dkbits", bwInt, outputInt)
 	} else {
-		logrus.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
-		return errors.New("Applied bandwidth doe sot match teh tc qdisc rate")
+		logrus.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
+		return errors.New("Applied bandwidth doe sot match the tc qdisc rate")
 	}
 	return nil
 }
