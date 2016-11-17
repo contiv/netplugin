@@ -18,6 +18,8 @@ gopath_folder="/opt/gopath"
 
 cluster_ip_nodes = ""
 
+MEMORY = "4096"
+
 provision_common_once = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
@@ -156,6 +158,7 @@ end
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
         config.vm.box = "contiv/ubuntu1604-netplugin"
         config.vm.box_version = "0.7.0"
@@ -246,6 +249,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
            end
         end
         config.vm.define node_name do |node|
+
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
             # create an interface for bridged network
@@ -255,7 +259,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             else
               node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true", auto_config: false
             end
+
             node.vm.provider "virtualbox" do |v|
+                v.customize ['modifyvm', :id, '--memory', MEMORY]
                 # make all nics 'virtio' to take benefit of builtin vlan tag
                 # support, which otherwise needs to be enabled in Intel drivers,
                 # which are used by default by virtualbox
