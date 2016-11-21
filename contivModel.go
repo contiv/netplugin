@@ -1592,10 +1592,6 @@ func ValidateBgp(obj *Bgp) error {
 		return errors.New("neighbor-as string too long")
 	}
 
-	if len(obj.Routerip) > 15 {
-		return errors.New("routerip string too long")
-	}
-
 	routeripMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?/(3[0-1]|2[0-9]|1[0-9]|[1-9])$")
 	if routeripMatch.MatchString(obj.Routerip) == false {
 		return errors.New("routerip string invalid format")
