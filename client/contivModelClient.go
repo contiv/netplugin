@@ -146,6 +146,30 @@ func NewContivClient(baseURL string) (*ContivClient, error) {
 	return &client, nil
 }
 
+type AciGw struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	EnforcePolicies     string `json:"enforcePolicies,omitempty"`     // Enforce security policy
+	IncludeCommonTenant string `json:"includeCommonTenant,omitempty"` // Include common tenant when searching for objects
+	Name                string `json:"name,omitempty"`                // name of this block(must be 'aciGw')
+	NodeBindings        string `json:"nodeBindings,omitempty"`        // List of ACI complete nodes to be bound
+	PathBindings        string `json:"pathBindings,omitempty"`        // List of ACI fabric ports connected to cluster
+	PhysicalDomain      string `json:"physicalDomain,omitempty"`      // Name of the physical domain
+
+}
+
+type AciGwOper struct {
+	NumAppProfiles int `json:"numAppProfiles,omitempty"` //
+
+}
+
+type AciGwInspect struct {
+	Config AciGw
+
+	Oper AciGwOper
+}
+
 type AppProfile struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -583,6 +607,88 @@ type VolumeProfileLinks struct {
 
 type VolumeProfileInspect struct {
 	Config VolumeProfile
+}
+
+// AciGwPost posts the aciGw object
+func (c *ContivClient) AciGwPost(obj *AciGw) error {
+	// build key and URL
+	keyStr := obj.Name
+	url := c.baseURL + "/api/v1/aciGws/" + keyStr + "/"
+
+	// http post the object
+	err := httpPost(url, obj)
+	if err != nil {
+		log.Debugf("Error creating aciGw %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
+}
+
+// AciGwList lists all aciGw objects
+func (c *ContivClient) AciGwList() (*[]*AciGw, error) {
+	// build key and URL
+	url := c.baseURL + "/api/v1/aciGws/"
+
+	// http get the object
+	var objList []*AciGw
+	err := httpGet(url, &objList)
+	if err != nil {
+		log.Debugf("Error getting aciGws. Err: %v", err)
+		return nil, err
+	}
+
+	return &objList, nil
+}
+
+// AciGwGet gets the aciGw object
+func (c *ContivClient) AciGwGet(name string) (*AciGw, error) {
+	// build key and URL
+	keyStr := name
+	url := c.baseURL + "/api/v1/aciGws/" + keyStr + "/"
+
+	// http get the object
+	var obj AciGw
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting aciGw %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
+}
+
+// AciGwDelete deletes the aciGw object
+func (c *ContivClient) AciGwDelete(name string) error {
+	// build key and URL
+	keyStr := name
+	url := c.baseURL + "/api/v1/aciGws/" + keyStr + "/"
+
+	// http get the object
+	err := httpDelete(url)
+	if err != nil {
+		log.Debugf("Error deleting aciGw %s. Err: %v", keyStr, err)
+		return err
+	}
+
+	return nil
+}
+
+// AciGwInspect gets the aciGwInspect object
+func (c *ContivClient) AciGwInspect(name string) (*AciGwInspect, error) {
+	// build key and URL
+	keyStr := name
+	url := c.baseURL + "/api/v1/inspect/aciGws/" + keyStr + "/"
+
+	// http get the object
+	var obj AciGwInspect
+	err := httpGet(url, &obj)
+	if err != nil {
+		log.Debugf("Error getting aciGw %+v. Err: %v", keyStr, err)
+		return nil, err
+	}
+
+	return &obj, nil
 }
 
 // AppProfilePost posts the appProfile object
