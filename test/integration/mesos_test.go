@@ -25,19 +25,23 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/mgmtfn/mesosplugin/cniapi"
-	"github.com/samalba/dockerclient"
+	dockerClient "github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
+	"golang.org/x/net/context"
 	. "gopkg.in/check.v1"
+	"io"
+	"time"
 )
 
 // track containers
 var containerInfo = map[string]cniapi.CniCmdReqAttr{}
 var intLog = log.New()
-var docker *dockerclient.DockerClient
+var docker *dockerClient.Client
 
 type testConfigData struct {
 	name          string
@@ -222,19 +226,9 @@ func (cfg1 *testConfigData) runContainer(its *integTestSuite, c *C) {
 	containerName := cfg1.containerName
 	intLog.Infof("creating container: %s", containerName)
 
-	err := fmt.Errorf("")
-	for c := 0; c < 10 && err != nil; c++ {
-		// could fail in docker 1.10
-		if err = docker.PullImage("alpine", nil); err != nil {
-			intLog.Warnf("failed to pull alpine, %s", err)
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	assertNoErr(err, c, "pull alpine image")
-
 	// Create a container
-	containerConfig := &dockerclient.ContainerConfig{
-		Image: "alpine",
+	containerConfig := &container.Config{
+		Image: "contiv/alpine",
 		// self clean up after a few sec.
 		Cmd:             []string{"sleep", "60"},
 		AttachStdin:     false,
@@ -243,17 +237,18 @@ func (cfg1 *testConfigData) runContainer(its *integTestSuite, c *C) {
 			cfg1.agentIPAddr)},
 		Tty: false}
 
-	containerID, err := docker.CreateContainer(containerConfig,
-		containerName, nil)
+	hostConfig := &container.HostConfig{}
+	resp, err := docker.ContainerCreate(context.Background(), containerConfig, hostConfig, nil,
+		containerName)
 	assertNoErr(err, c, fmt.Sprintf("create container %s", containerName))
+	containerID := resp.ID
 
 	// Start the container
-	hostConfig := &dockerclient.HostConfig{}
-	err = docker.StartContainer(containerID, hostConfig)
+	err = docker.ContainerStart(context.Background(), containerID)
 	assertNoErr(err, c, fmt.Sprintf("start container %s", containerName))
 
 	cfg1.reqAttr.CniContainerid = containerID
-	inspect, err := docker.InspectContainer(containerID)
+	inspect, err := docker.ContainerInspect(context.Background(), containerID)
 	assertNoErr(err, c, fmt.Sprintf("inspect container %s", containerName))
 	cfg1.reqAttr.CniNetns = fmt.Sprintf("/proc/%d/ns/net", inspect.State.Pid)
 	containerInfo[containerName] = cfg1.reqAttr
@@ -274,21 +269,23 @@ func (cfg1 *testConfigData) destroyContainer(its *integTestSuite, c *C) {
 
 	cinfo := &cfg1.reqAttr
 	intLog.Infof("stop container %s", cinfo.CniContainerid)
-	err := docker.StopContainer(cinfo.CniContainerid, 0)
+	err := docker.ContainerStop(context.Background(), cinfo.CniContainerid, 0)
 	assertNoErr(err, c, fmt.Sprintf("stop container %s", cinfo.CniContainerid))
-	err = docker.RemoveContainer(cinfo.CniContainerid, true, true)
+	err = docker.ContainerRemove(context.Background(),
+		cinfo.CniContainerid, types.ContainerRemoveOptions{})
 	assertNoErr(err, c, fmt.Sprintf("remove container %s", cinfo.CniContainerid))
 	delete(containerInfo, cfg1.containerName)
 }
 
 func cleanupContainers() {
 	intLog.Infof("######### cleaning containers ########")
-	for containerName := range containerInfo {
-		intLog.Infof("cleanup container %s", containerName)
-		if err := docker.StopContainer(containerName, 0); err != nil {
+	for containerName, attr := range containerInfo {
+		intLog.Infof("cleanup container %s(%s)", containerName, attr.CniContainerid)
+		if err := docker.ContainerStop(context.Background(), attr.CniContainerid, 0); err != nil {
 			intLog.Warnf("failed to stop container %s, %s", containerName, err)
 		}
-		if err := docker.RemoveContainer(containerName, true, true); err != nil {
+		if err := docker.ContainerRemove(context.Background(),
+			attr.CniContainerid, types.ContainerRemoveOptions{}); err != nil {
 			intLog.Warnf("failed to remove container %s,  %s", containerName, err)
 		}
 	}
@@ -340,10 +337,9 @@ func (t *intgFmt) Format(e *log.Entry) ([]byte, error) {
 	return nt.Format(e)
 }
 
-// TestMesosCniEndpoints : test cni endpoints, disabled to move to new docker client
+// TestMesosCniEndpoints : test cni endpoints
 func (its *integTestSuite) TestMesosCniEndpoints(c *C) {
 	intLog.Formatter = new(intgFmt)
-	c.Skip("skipping mesos it suite")
 	defer cleanupContainers()
 
 	defaultCfg := []testConfigData{
@@ -573,9 +569,25 @@ func (its *integTestSuite) TestMesosCniEndpoints(c *C) {
 		},
 	}
 
-	dkc, err := dockerclient.NewDockerClient("http://localhost:2385", nil)
+	dkc, err := dockerClient.NewClient("unix:///var/run/docker.sock", "", nil,
+		map[string]string{"User-Agent": "engine-api-cli-1.0"})
 	assertNoErr(err, c, "new docker client")
 	docker = dkc
+	t, err := docker.ContainerList(context.Background(), types.ContainerListOptions{})
+	assertNoErr(err, c, "check client")
+	intLog.Infof("list containers: %+v", t)
+
+	pr, err := docker.ImagePull(context.Background(), "contiv/alpine", types.ImagePullOptions{})
+	assertNoErr(err, c, "pull alpine image")
+	defer pr.Close()
+	buf := make([]byte, 512)
+	for l := 0; l < 180; l++ {
+		_, err := pr.Read(buf[0:])
+		if err == io.EOF {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 
 	for i, cfg1 := range defaultCfg {
 		if strings.Split(cfg1.name, "-")[1] != strconv.Itoa(i+1) {
