@@ -1,76 +1,29 @@
 # Dependency management in netplugin
-This document explains the steps for vendoring update packages in netplugin
+This document explains the steps for vendoring update packages in netplugin.
 
-## Table of Contents
-- [Audience](#audience)
-- [Restoring dependencies](#restoring-dependencies)
-- [Adding new dependencies](#adding-new-dependencies)
-- [Updating existing dependencies](#updating-existing-dependencies)
+## Obtaining Godep
 
-## Audience
-This document is targeted towards the developers looking into or working on
-adding/updating vendored packages in netplugin/Godeps.
-
-## Restoring dependencies
-- netplugin/Godeps/Godeps.json has information about the vendored packages.
-- `godep restore` can be used to copy these packages to $GOPATH/src
-- It restores the packages in $GOPATH to a state expected by netplugin
-- note: changes(if any) in $GOPATH/src will be over-written
-```
-cd netplugin
-godep restore
+```bash
+$ go get -d -u github.com/tools/godep
 ```
 
-## Adding new dependencies
+## Make Tasks
 
-- Add the new package to your $GOPATH/src
-```
-go get pkg_url 
-```
+Please review the make tasks in the
+[Makefile](https://github.com/contiv/netplugin/blob/master/Makefile) to see how
+these tasks are implemented, they will assist with debugging godep issues in
+your `$GOPATH`, etc.
 
-- From within the netplugin directory run `godep save`, which will copy relevant 
-packages from `$GOPATH/src` to `netplugin/Godeps/_workspace`. It will also update 
-`netplugin/Godeps/Godeps.json`
+* `make godep-save` saves the godeps from your `$GOPATH` to the repository,
+  overwiting all Godeps as necessary.
+* `make godep-restore` restores the godeps to your `$GOPATH`, populating or
+  changing the revisions as necessary of the repositories within.
 
-```
-cd netplugin
-godep save ./...
-```
+## Workflow
 
-- Verify the changes by running `git status` in netplugin directory. 
-Verify that package is added to `Godeps/_workspace/src` and that 
-`Godeps/Godeps.json` also reflects it
-
-```
-git status
-```
-
-## Updating existing dependencies
-- Go to the `$GOPATH/directory` which hosts the package and update the package
-```
-cd $GOPATH/src/github.com/samalba/dockerclient
-
-# update the package to the master
-git checkout master
-```
-
-- From within the netplugin directory execute a `godep update pkg` to update the
-Godeps
-```
-godep udpate github.com/samalba/dockerclient
-```
-
-In case above does not work try update as follows:
-```
-godep udpate github.com/samalba/dockerclient/...
-```
-
-- Verify the changes by running `git status` in netplugin directory. 
-Verify that package is added to `Godeps/_workspace/src` and that 
-`Godeps/Godeps.json` also reflects the version change 
-
-```
-git status
-```
-
-
+1. `make godep-restore` to update your repositories with the latest godeps we use.
+1. Enter your `$GOPATH` and make the revisions you need or check out the versions you want.
+  * all changes must be committed, godep does not work with uncommitted data in any repository.
+1. `make godep-save` to commit your changes from `$GOPATH` to the repository.
+1. `git add vendor Godeps` to add your changes and `git commit -s` to commit them to the repository.
+  * **it is strongly advised you do this in a commit with just these changes to avoid problems with rebasing later**
