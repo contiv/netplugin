@@ -37,6 +37,7 @@ type systemTestScheduler interface {
 	checkPingWithCount(c *container, ipaddr string, count int) error
 	checkPing6WithCount(c *container, ipaddr string, count int) error
 	checkSchedulerNetworkCreated(nwName string, expectedOp bool) error
+	checkSchedulerNetworkOnNodeCreated(nwName []string, n *node) error
 	waitForListeners() error
 	verifyVTEPs(expVTEPS map[string]bool) (string, error)
 	verifyAgents(expVTEPS map[string]bool) (string, error)

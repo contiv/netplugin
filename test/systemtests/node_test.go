@@ -258,3 +258,7 @@ func (c *container) String() string {
 func (n *node) checkSchedulerNetworkCreated(nwName string, expectedOp bool) error {
 	return n.exec.checkSchedulerNetworkCreated(nwName, expectedOp)
 }
+
+func (n *node) checkSchedulerNetworkOnNodeCreated(nwName []string) error {
+	return n.exec.checkSchedulerNetworkOnNodeCreated(nwName, n)
+}
