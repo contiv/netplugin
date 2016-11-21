@@ -309,6 +309,45 @@ func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode
 	}
 }
 
+// checkAciGwSet sets AciGw state and verifies verifies it
+func checkAciGwSet(t *testing.T, expError bool, enf, comTen, paths, nodes, domain string) {
+	aciConf := client.AciGw{
+		Name:                "aciGw",
+		IncludeCommonTenant: comTen,
+		EnforcePolicies:     enf,
+		PathBindings:        paths,
+		NodeBindings:        nodes,
+		PhysicalDomain:      domain,
+	}
+	err := contivClient.AciGwPost(&aciConf)
+	if err != nil && !expError {
+		t.Fatalf("Error setting aci {%+v}. Err: %v", aciConf, err)
+	} else if err == nil && expError {
+		t.Fatalf("Set aci {%+v} succeeded while expecting error", aciConf)
+	} else if err == nil {
+		// verify global state
+		gotAciGw, err := contivClient.AciGwGet("aciGw")
+		if err != nil {
+			t.Fatalf("Error getting aci object. Err: %v", err)
+		}
+
+		// verify expected values
+		if gotAciGw.EnforcePolicies != enf || gotAciGw.PathBindings != paths || gotAciGw.NodeBindings != nodes || gotAciGw.PhysicalDomain != domain || gotAciGw.IncludeCommonTenant != comTen {
+			t.Fatalf("Error Got aci state {%+v} does not match expected %s, %s, %s, %s, %s", gotAciGw, enf, comTen, paths, nodes, domain)
+		}
+
+	}
+}
+
+func checkAciGwDelete(t *testing.T, expError bool, name string) {
+	err := contivClient.AciGwDelete(name)
+	if err != nil && !expError {
+		t.Fatalf("Error deleting aci. Err: %v", err)
+	} else if err == nil && expError {
+		t.Fatalf("Delete aci succeeded while expecting error")
+	}
+}
+
 // checkCreatePolicy creates policy and verifies
 func checkCreatePolicy(t *testing.T, expError bool, tenant, policy string) {
 	pol := client.Policy{
@@ -1237,6 +1276,31 @@ func TestGlobalSetting(t *testing.T) {
 
 	// reset back to default values
 	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+}
+
+// TestAciGwSetting tests AciGw object REST api
+func TestAciGwSetting(t *testing.T) {
+	// basic create and delete
+	checkAciGwSet(t, false, "yes", "yes", "topology/pod-1/paths-101/pathep-[eth1/14]", "", "testDom")
+	checkAciGwDelete(t, false, "aciGw")
+
+	checkAciGwSet(t, true, "yes", "yes", "pod-1/paths-101/pathep-[eth1/14]", "", "testDom")
+	checkAciGwSet(t, false, "yes", "no", "topology/pod-1/paths-101/pathep-[eth1/14]", "", "testDom")
+	checkAciGwSet(t, true, "yes", "no", "topology/pod-1/paths-101/pathep-[eth1/14],pod-1/paths-101/pathep-[eth1/15]", "", "testDom")
+	checkAciGwSet(t, false, "yes", "no", "topology/pod-1/paths-101/pathep-[eth1/14],topology/pod-1/paths-101/pathep-[eth1/15]", "", "testDom")
+	checkAciGwSet(t, true, "yes", "yes", "topology/pod-1/paths-101/pathep-[eth1/14],topology/pod-1/paths-101/pathep-[eth1/15]", "topology/tor-1/node-101", "testDom")
+	checkAciGwSet(t, false, "yes", "yes", "topology/pod-1/paths-101/pathep-[eth1/14],topology/pod-1/paths-101/pathep-[eth1/15]", "topology/pod-1/node-101", "testDom")
+
+	// create an app-profile and verify aci delete is rejected.
+	checkCreateNetwork(t, false, "default", "aci-net", "data", "vlan", "23.1.2.1/16", "23.1.2.254", 1, "", "")
+	checkCreateEpg(t, false, "default", "aci-net", "epg1", []string{}, []string{})
+	checkCreateAppProfile(t, false, "default", "app-prof-1", []string{"epg1"})
+	checkAciGwDelete(t, true, "aciGw")
+	// delete the app-prof
+	checkDeleteAppProfile(t, false, "default", "app-prof-1")
+	checkAciGwDelete(t, false, "aciGw")
+	checkDeleteEpg(t, false, "default", "", "epg1")
+	checkDeleteNetwork(t, false, "default", "aci-net")
 }
 
 // TestNetworkPktRanges tests pkt-tag ranges in network REST api

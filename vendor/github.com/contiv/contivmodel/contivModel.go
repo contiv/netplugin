@@ -17,6 +17,30 @@ import (
 
 type HttpApiFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
 
+type AciGw struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	EnforcePolicies     string `json:"enforcePolicies,omitempty"`     // Enforce security policy
+	IncludeCommonTenant string `json:"includeCommonTenant,omitempty"` // Include common tenant when searching for objects
+	Name                string `json:"name,omitempty"`                // name of this block(must be 'aciGw')
+	NodeBindings        string `json:"nodeBindings,omitempty"`        // List of ACI complete nodes to be bound
+	PathBindings        string `json:"pathBindings,omitempty"`        // List of ACI fabric ports connected to cluster
+	PhysicalDomain      string `json:"physicalDomain,omitempty"`      // Name of the physical domain
+
+}
+
+type AciGwOper struct {
+	NumAppProfiles int `json:"numAppProfiles,omitempty"` //
+
+}
+
+type AciGwInspect struct {
+	Config AciGw
+
+	Oper AciGwOper
+}
+
 type AppProfile struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
@@ -477,6 +501,9 @@ type VolumeProfileInspect struct {
 	Config VolumeProfile
 }
 type Collections struct {
+	aciGwMutex sync.Mutex
+	aciGws     map[string]*AciGw
+
 	appProfileMutex sync.Mutex
 	appProfiles     map[string]*AppProfile
 
@@ -518,6 +545,14 @@ type Collections struct {
 }
 
 var collections Collections
+
+type AciGwCallbacks interface {
+	AciGwGetOper(aciGw *AciGwInspect) error
+
+	AciGwCreate(aciGw *AciGw) error
+	AciGwUpdate(aciGw, params *AciGw) error
+	AciGwDelete(aciGw *AciGw) error
+}
 
 type AppProfileCallbacks interface {
 	AppProfileCreate(appProfile *AppProfile) error
@@ -616,6 +651,7 @@ type VolumeProfileCallbacks interface {
 }
 
 type CallbackHandlers struct {
+	AciGwCb             AciGwCallbacks
 	AppProfileCb        AppProfileCallbacks
 	BgpCb               BgpCallbacks
 	EndpointCb          EndpointCallbacks
@@ -635,6 +671,8 @@ type CallbackHandlers struct {
 var objCallbackHandler CallbackHandlers
 
 func Init() {
+
+	collections.aciGws = make(map[string]*AciGw)
 
 	collections.appProfiles = make(map[string]*AppProfile)
 
@@ -662,6 +700,7 @@ func Init() {
 
 	collections.volumeProfiles = make(map[string]*VolumeProfile)
 
+	restoreAciGw()
 	restoreAppProfile()
 	restoreBgp()
 
@@ -677,6 +716,66 @@ func Init() {
 	restoreVolume()
 	restoreVolumeProfile()
 
+}
+
+func GetAciGwCount() int {
+	return len(collections.aciGws)
+}
+
+func GetAppProfileCount() int {
+	return len(collections.appProfiles)
+}
+
+func GetBgpCount() int {
+	return len(collections.Bgps)
+}
+
+func GetEndpointGroupCount() int {
+	return len(collections.endpointGroups)
+}
+
+func GetExtContractsGroupCount() int {
+	return len(collections.extContractsGroups)
+}
+
+func GetGlobalCount() int {
+	return len(collections.globals)
+}
+
+func GetNetprofileCount() int {
+	return len(collections.netprofiles)
+}
+
+func GetNetworkCount() int {
+	return len(collections.networks)
+}
+
+func GetPolicyCount() int {
+	return len(collections.policys)
+}
+
+func GetRuleCount() int {
+	return len(collections.rules)
+}
+
+func GetServiceLBCount() int {
+	return len(collections.serviceLBs)
+}
+
+func GetTenantCount() int {
+	return len(collections.tenants)
+}
+
+func GetVolumeCount() int {
+	return len(collections.volumes)
+}
+
+func GetVolumeProfileCount() int {
+	return len(collections.volumeProfiles)
+}
+
+func RegisterAciGwCallbacks(handler AciGwCallbacks) {
+	objCallbackHandler.AciGwCb = handler
 }
 
 func RegisterAppProfileCallbacks(handler AppProfileCallbacks) {
@@ -773,6 +872,19 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 // Add all routes for REST handlers
 func AddRoutes(router *mux.Router) {
 	var route, listRoute, inspectRoute string
+
+	// Register aciGw
+	route = "/api/v1/aciGws/{key}/"
+	listRoute = "/api/v1/aciGws/"
+	log.Infof("Registering %s", route)
+	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListAciGws))
+	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetAciGw))
+	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateAciGw))
+	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateAciGw))
+	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteAciGw))
+
+	inspectRoute = "/api/v1/inspect/aciGws/{key}/"
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectAciGw))
 
 	// Register appProfile
 	route = "/api/v1/appProfiles/{key}/"
@@ -946,6 +1058,373 @@ func AddRoutes(router *mux.Router) {
 	inspectRoute = "/api/v1/inspect/volumeProfiles/{key}/"
 	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectVolumeProfile))
 
+}
+
+// GET Oper REST call
+func httpInspectAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	var obj AciGwInspect
+	log.Debugf("Received httpInspectAciGw: %+v", vars)
+
+	key := vars["key"]
+
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+	objConfig := collections.aciGws[key]
+	if objConfig == nil {
+		log.Errorf("aciGw %s not found", key)
+		return nil, errors.New("aciGw not found")
+	}
+	obj.Config = *objConfig
+
+	if err := GetOperAciGw(&obj); err != nil {
+		log.Errorf("GetAciGw error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return &obj, nil
+}
+
+// Get a aciGwOper object
+func GetOperAciGw(obj *AciGwInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.AciGwCb == nil {
+		log.Errorf("No callback registered for aciGw object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.AciGwCb.AciGwGetOper(obj)
+	if err != nil {
+		log.Errorf("AciGwDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
+}
+
+// LIST REST call
+func httpListAciGws(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpListAciGws: %+v", vars)
+
+	list := make([]*AciGw, 0)
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+	for _, obj := range collections.aciGws {
+		list = append(list, obj)
+	}
+
+	// Return the list
+	return list, nil
+}
+
+// GET REST call
+func httpGetAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetAciGw: %+v", vars)
+
+	key := vars["key"]
+
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+	obj := collections.aciGws[key]
+	if obj == nil {
+		log.Errorf("aciGw %s not found", key)
+		return nil, errors.New("aciGw not found")
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// CREATE REST call
+func httpCreateAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetAciGw: %+v", vars)
+
+	var obj AciGw
+	key := vars["key"]
+
+	// Get object from the request
+	err := json.NewDecoder(r.Body).Decode(&obj)
+	if err != nil {
+		log.Errorf("Error decoding aciGw create request. Err %v", err)
+		return nil, err
+	}
+
+	// set the key
+	obj.Key = key
+
+	// Create the object
+	err = CreateAciGw(&obj)
+	if err != nil {
+		log.Errorf("CreateAciGw error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// DELETE rest call
+func httpDeleteAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpDeleteAciGw: %+v", vars)
+
+	key := vars["key"]
+
+	// Delete the object
+	err := DeleteAciGw(key)
+	if err != nil {
+		log.Errorf("DeleteAciGw error for: %s. Err: %v", key, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return key, nil
+}
+
+// Create a aciGw object
+func CreateAciGw(obj *AciGw) error {
+	// Validate parameters
+	err := ValidateAciGw(obj)
+	if err != nil {
+		log.Errorf("ValidateAciGw retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.AciGwCb == nil {
+		log.Errorf("No callback registered for aciGw object")
+		return errors.New("Invalid object type")
+	}
+
+	saveObj := obj
+
+	collections.aciGwMutex.Lock()
+	key := collections.aciGws[obj.Key]
+	collections.aciGwMutex.Unlock()
+
+	// Check if object already exists
+	if key != nil {
+		// Perform Update callback
+		err = objCallbackHandler.AciGwCb.AciGwUpdate(collections.aciGws[obj.Key], obj)
+		if err != nil {
+			log.Errorf("AciGwUpdate retruned error for: %+v. Err: %v", obj, err)
+			return err
+		}
+
+		// save the original object after update
+		collections.aciGwMutex.Lock()
+		saveObj = collections.aciGws[obj.Key]
+		collections.aciGwMutex.Unlock()
+	} else {
+		// save it in cache
+		collections.aciGwMutex.Lock()
+		collections.aciGws[obj.Key] = obj
+		collections.aciGwMutex.Unlock()
+
+		// Perform Create callback
+		err = objCallbackHandler.AciGwCb.AciGwCreate(obj)
+		if err != nil {
+			log.Errorf("AciGwCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.aciGwMutex.Lock()
+			delete(collections.aciGws, obj.Key)
+			collections.aciGwMutex.Unlock()
+			return err
+		}
+	}
+
+	// Write it to modeldb
+	collections.aciGwMutex.Lock()
+	err = saveObj.Write()
+	collections.aciGwMutex.Unlock()
+	if err != nil {
+		log.Errorf("Error saving aciGw %s to db. Err: %v", saveObj.Key, err)
+		return err
+	}
+
+	return nil
+}
+
+// Return a pointer to aciGw from collection
+func FindAciGw(key string) *AciGw {
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+
+	obj := collections.aciGws[key]
+	if obj == nil {
+		return nil
+	}
+
+	return obj
+}
+
+// Delete a aciGw object
+func DeleteAciGw(key string) error {
+	collections.aciGwMutex.Lock()
+	obj := collections.aciGws[key]
+	collections.aciGwMutex.Unlock()
+	if obj == nil {
+		log.Errorf("aciGw %s not found", key)
+		return errors.New("aciGw not found")
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.AciGwCb == nil {
+		log.Errorf("No callback registered for aciGw object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.AciGwCb.AciGwDelete(obj)
+	if err != nil {
+		log.Errorf("AciGwDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// delete it from modeldb
+	collections.aciGwMutex.Lock()
+	err = obj.Delete()
+	collections.aciGwMutex.Unlock()
+	if err != nil {
+		log.Errorf("Error deleting aciGw %s. Err: %v", obj.Key, err)
+	}
+
+	// delete it from cache
+	collections.aciGwMutex.Lock()
+	delete(collections.aciGws, key)
+	collections.aciGwMutex.Unlock()
+
+	return nil
+}
+
+func (self *AciGw) GetType() string {
+	return "aciGw"
+}
+
+func (self *AciGw) GetKey() string {
+	return self.Key
+}
+
+func (self *AciGw) Read() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to read aciGw object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.ReadObj("aciGw", self.Key, self)
+}
+
+func (self *AciGw) Write() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Write aciGw object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.WriteObj("aciGw", self.Key, self)
+}
+
+func (self *AciGw) Delete() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Delete aciGw object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.DeleteObj("aciGw", self.Key)
+}
+
+func restoreAciGw() error {
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+
+	strList, err := modeldb.ReadAllObj("aciGw")
+	if err != nil {
+		log.Errorf("Error reading aciGw list. Err: %v", err)
+	}
+
+	for _, objStr := range strList {
+		// Parse the json model
+		var aciGw AciGw
+		err = json.Unmarshal([]byte(objStr), &aciGw)
+		if err != nil {
+			log.Errorf("Error parsing object %s, Err %v", objStr, err)
+			return err
+		}
+
+		// add it to the collection
+		collections.aciGws[aciGw.Key] = &aciGw
+	}
+
+	return nil
+}
+
+// Validate a aciGw object
+func ValidateAciGw(obj *AciGw) error {
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+
+	// Validate key is correct
+	keyStr := obj.Name
+	if obj.Key != keyStr {
+		log.Errorf("Expecting AciGw Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	if len(obj.EnforcePolicies) > 64 {
+		return errors.New("enforcePolicies string too long")
+	}
+
+	enforcePoliciesMatch := regexp.MustCompile("^(yes|no){1}$")
+	if enforcePoliciesMatch.MatchString(obj.EnforcePolicies) == false {
+		return errors.New("enforcePolicies string invalid format")
+	}
+
+	if len(obj.IncludeCommonTenant) > 64 {
+		return errors.New("includeCommonTenant string too long")
+	}
+
+	includeCommonTenantMatch := regexp.MustCompile("^(yes|no){1}$")
+	if includeCommonTenantMatch.MatchString(obj.IncludeCommonTenant) == false {
+		return errors.New("includeCommonTenant string invalid format")
+	}
+
+	if len(obj.Name) > 64 {
+		return errors.New("name string too long")
+	}
+
+	nameMatch := regexp.MustCompile("^(aciGw)$")
+	if nameMatch.MatchString(obj.Name) == false {
+		return errors.New("name string invalid format")
+	}
+
+	if len(obj.NodeBindings) > 2048 {
+		return errors.New("nodeBindings string too long")
+	}
+
+	nodeBindingsMatch := regexp.MustCompile("^$|^(topology/pod-[0-9]{1,4}/node-[0-9]{1,4}){1}(,topology/pod-[0-9]{1,4}/node-[0-9]{1,4})?$")
+	if nodeBindingsMatch.MatchString(obj.NodeBindings) == false {
+		return errors.New("nodeBindings string invalid format")
+	}
+
+	if len(obj.PathBindings) > 2048 {
+		return errors.New("pathBindings string too long")
+	}
+
+	pathBindingsMatch := regexp.MustCompile("^$|^(topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\[eth[0-9]{1,2}/[0-9]{1,2}\\]){1}(,topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\[eth[0-9]{1,2}/[0-9]{1,2}\\])?$")
+	if pathBindingsMatch.MatchString(obj.PathBindings) == false {
+		return errors.New("pathBindings string invalid format")
+	}
+
+	if len(obj.PhysicalDomain) > 128 {
+		return errors.New("physicalDomain string too long")
+	}
+
+	physicalDomainMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
+	if physicalDomainMatch.MatchString(obj.PhysicalDomain) == false {
+		return errors.New("physicalDomain string invalid format")
+	}
+
+	return nil
 }
 
 // GET Oper REST call

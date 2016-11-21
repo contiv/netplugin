@@ -416,7 +416,7 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, re
 	cfg := mastercfg.CfgNetworkState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	retErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleNetworkEvents")
 }
 
 func handleBgpEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -426,7 +426,7 @@ func handleBgpEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvEr
 	cfg := mastercfg.CfgBgpState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleBgpEvents")
 }
 
 func handleEpgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -436,7 +436,7 @@ func handleEpgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvEr
 	cfg := mastercfg.EndpointGroupState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleEpgEvents")
 }
 
 func handleServiceLBEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -446,7 +446,7 @@ func handleServiceLBEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, 
 	cfg := mastercfg.CfgServiceLBState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleLBEvents")
 }
 
 func handleSvcProviderUpdEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -455,7 +455,7 @@ func handleSvcProviderUpdEvents(netPlugin *plugin.NetPlugin, opts core.InstanceI
 	cfg := mastercfg.SvcProvider{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleSvcProviderUpdEvents")
 }
 
 func handleGlobalCfgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -465,5 +465,5 @@ func handleGlobalCfgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, 
 	cfg := mastercfg.GlobConfig{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleGlobalCfgEvents")
 }

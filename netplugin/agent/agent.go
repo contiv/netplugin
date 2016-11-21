@@ -18,6 +18,7 @@ package agent
 import (
 	"net"
 	"net/http"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
@@ -191,6 +192,28 @@ func (ag *Agent) PostInit() error {
 	return nil
 }
 
+func (ag *Agent) monitorDockerEvents(de chan error) {
+	mErr := make(chan error, 1)
+
+	// watch for docker events
+	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	if err != nil {
+		log.Errorf("Error connecting to docker - %v", err)
+		de <- err
+		return
+	}
+
+	for {
+		go docker.StartMonitorEvents(handleDockerEvents, mErr, ag.netPlugin, mErr)
+		err = <-mErr
+
+		if err != nil {
+			log.Errorf("Error - %v from docker monitor, retry...", err)
+			time.Sleep(2 * time.Second)
+		}
+	}
+}
+
 // HandleEvents handles events
 func (ag *Agent) HandleEvents() error {
 	opts := ag.pluginConfig.Instance
@@ -209,15 +232,14 @@ func (ag *Agent) HandleEvents() error {
 	go handleGlobalCfgEvents(ag.netPlugin, opts, recvErr)
 
 	if ag.pluginConfig.Instance.PluginMode == "docker" {
-		// watch for docker events
-		docker, _ := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
-		go docker.StartMonitorEvents(handleDockerEvents, recvErr, ag.netPlugin, recvErr)
+		go ag.monitorDockerEvents(recvErr)
 	} else if ag.pluginConfig.Instance.PluginMode == "kubernetes" {
 		// start watching kubernetes events
 		k8splugin.InitKubServiceWatch(ag.netPlugin)
 	}
 	err := <-recvErr
 	if err != nil {
+		time.Sleep(1 * time.Second)
 		log.Errorf("Failure occurred. Error: %s", err)
 		return err
 	}
