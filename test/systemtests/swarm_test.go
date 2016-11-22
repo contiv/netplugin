@@ -306,7 +306,7 @@ func (w *swarm) startIperfClient(c *container, ip, limit string, isErr bool) err
 					logrus.Errorf("Obtained Bandwidth:%sbits is more than the limit: %s", newBandwidth[0], limit)
 				} else {
 					logrus.Errorf("Obtained bandwidth:%sbits is more than the limit %s", newBandwidth[0], limit)
-					return errors.New("Applied bandwidth is more than bandwidth rate!")
+					return errors.New("applied bandwidth is more than bandwidth rate")
 				}
 			} else {
 				logrus.Errorf("Bandwidth rate :%s not applied", limit)
@@ -376,7 +376,7 @@ func (w *swarm) checkNoConnection(c *container, ipaddr, protocol string, port in
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILEw.", port, ipaddr, c)
+	return fmt.Errorf("connection SUCCEEDED on port %d from %s from %v when it should have FAILEw", port, ipaddr, c)
 }
 
 func (w *swarm) cleanupDockerNetwork() error {
@@ -509,7 +509,7 @@ func (w *swarm) checkNoConnectionRetry(c *container, ipaddr, protocol string, po
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("connection SUCCEEDED on port %d from %s from %s when it should have FAILED", port, ipaddr, c)
 }
 
 func (w *swarm) checkPing6WithCount(c *container, ipaddr string, count int) error {
@@ -586,7 +586,7 @@ func (w *swarm) checkSchedulerNetworkOnNodeCreated(nwNames []string, n *node) er
 					time.Sleep(1 * time.Second)
 				}
 			}
-			ch <- fmt.Errorf("Swarm Network %s not created on node %s \n", nwName, n.Name())
+			ch <- fmt.Errorf("swarm Network %s not created on node %s", nwName, n.Name())
 		}(nwName, n, ch)
 	}
 	for range nwNames {
