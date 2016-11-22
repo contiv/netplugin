@@ -43,6 +43,13 @@ default: build
 deps:
 	./scripts/deps
 
+godep-save:
+	rm -rf vendor Godeps
+	godep save ./...
+
+godep-restore:
+	godep restore ./...
+
 gofmt-src: $(PKG_DIRS)
 	$(info +++ gofmt $(PKG_DIRS))
 	@for dir in $?; do $(GOFMT_CMD) $${dir} | grep "go"; [[ $$? -ne 0 ]] || exit 1; done
