@@ -281,6 +281,7 @@ func channelStateEvents(d core.StateDriver, sType core.State,
 			value := reflect.New(stateType)
 			err := unmarshal(byteRsp[i], value.Interface())
 			if err != nil {
+				log.Errorf("unmarshal error: %v", err)
 				retErr <- err
 				return
 			}
@@ -310,16 +311,19 @@ func (d *EtcdStateDriver) WatchAllState(baseKey string, sType core.State,
 	byteRsps := make(chan [2][]byte, 1)
 	recvErr := make(chan error, 1)
 
-	go channelStateEvents(d, sType, unmarshal, byteRsps, rsps, recvErr)
-
 	err := d.WatchAll(baseKey, byteRsps)
 	if err != nil {
+		log.Errorf("WatchAll returned %v", err)
 		return err
 	}
 
-	err = <-recvErr
-	return err
+	for {
+		go channelStateEvents(d, sType, unmarshal, byteRsps, rsps, recvErr)
 
+		err = <-recvErr
+		log.Errorf("Err from channelStateEvents %v", err)
+		time.Sleep(time.Second)
+	}
 }
 
 // WriteState writes a value of core.State into a key with a given marshaling function.

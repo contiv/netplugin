@@ -738,7 +738,7 @@ func listEndpointGroups(ctx *cli.Context) {
 //addBgp is a netctl interface routine to add
 //bgp config
 func addBgp(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) < 1 {
 		errExit(ctx, exitHelp, "Host name required", true)
 	}
 
@@ -904,6 +904,65 @@ func setGlobal(ctx *cli.Context) {
 	errCheck(ctx, getClient(ctx).GlobalPost(global))
 }
 
+func setAciGw(ctx *cli.Context) {
+	paths := ctx.String("path-bindings")
+	nodes := ctx.String("node-bindings")
+	dom := ctx.String("phys-dom")
+	enf := ctx.String("enforce-policies")
+	comTen := ctx.String("include-common-tenant")
+
+	acigw, _ := getClient(ctx).AciGwGet("aciGw")
+	if acigw == nil {
+		acigw = &contivClient.AciGw{}
+		acigw.Name = "aciGw"
+	}
+	acigw.EnforcePolicies = enf
+	acigw.IncludeCommonTenant = comTen
+	acigw.NodeBindings = nodes
+	acigw.PathBindings = paths
+	acigw.PhysicalDomain = dom
+
+	errCheck(ctx, getClient(ctx).AciGwPost(acigw))
+}
+
+func showAciGw(ctx *cli.Context) {
+	if len(ctx.Args()) != 0 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
+
+	list, err := getClient(ctx).AciGwList()
+	errCheck(ctx, err)
+
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, list)
+	} else {
+		writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		defer writer.Flush()
+		for _, gw := range *list {
+			writer.Write([]byte(fmt.Sprintf("Path bindings: %v\n", gw.PathBindings)))
+			writer.Write([]byte(fmt.Sprintf("Node bindings: %v\n", gw.NodeBindings)))
+			writer.Write([]byte(fmt.Sprintf("Physical domain: %v\n", gw.PhysicalDomain)))
+			writer.Write([]byte(fmt.Sprintf("Enforce policies: %v\n", gw.EnforcePolicies)))
+			writer.Write([]byte(fmt.Sprintf("Include Common-Tenant: %v\n", gw.IncludeCommonTenant)))
+		}
+	}
+}
+
+func inspectAciGw(ctx *cli.Context) {
+	if len(ctx.Args()) != 0 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
+
+	gwInfo, err := getClient(ctx).AciGwInspect("aciGw")
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(gwInfo, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}
 func dumpJSONList(ctx *cli.Context, list interface{}) {
 	content, err := json.MarshalIndent(list, "", "  ")
 	if err != nil {

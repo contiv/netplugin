@@ -80,6 +80,7 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 	contivModel.RegisterExtContractsGroupCallbacks(ctrler)
 	contivModel.RegisterEndpointCallbacks(ctrler)
 	contivModel.RegisterNetprofileCallbacks(ctrler)
+	contivModel.RegisterAciGwCallbacks(ctrler)
 	// Register routes
 	contivModel.AddRoutes(router)
 
@@ -263,6 +264,56 @@ func (ac *APIController) GlobalDelete(global *contivModel.Global) error {
 		log.Errorf("Error deleting global config. Err: %v", err)
 		return err
 	}
+	return nil
+}
+
+// AciGwCreate creates aci state
+func (ac *APIController) AciGwCreate(aci *contivModel.AciGw) error {
+	log.Infof("Received AciGwCreate: %+v", aci)
+	// Fail the create if app profiles exist
+	profCount := contivModel.GetAppProfileCount()
+	if profCount != 0 {
+		log.Warnf("AciGwCreate: %d existing App-Profiles found.",
+			profCount)
+	}
+
+	return nil
+}
+
+// AciGwUpdate updates aci state
+func (ac *APIController) AciGwUpdate(aci, params *contivModel.AciGw) error {
+	log.Infof("Received AciGwUpdate: %+v", params)
+	// Fail the update if app profiles exist
+	profCount := contivModel.GetAppProfileCount()
+	if profCount != 0 {
+		log.Warnf("AciGwUpdate: %d existing App-Profiles found.",
+			profCount)
+	}
+
+	aci.EnforcePolicies = params.EnforcePolicies
+	aci.IncludeCommonTenant = params.IncludeCommonTenant
+	aci.NodeBindings = params.NodeBindings
+	aci.PathBindings = params.PathBindings
+	aci.PhysicalDomain = params.PhysicalDomain
+	return nil
+}
+
+// AciGwDelete deletes aci state
+func (ac *APIController) AciGwDelete(aci *contivModel.AciGw) error {
+	log.Infof("Received AciGwDelete")
+	// Fail the delete if app profiles exist
+	profCount := contivModel.GetAppProfileCount()
+	if profCount != 0 {
+		return core.Errorf("%d App-Profiles found. Delete them first",
+			profCount)
+	}
+
+	return nil
+}
+
+// AciGwGetOper provides operational info for the aci object
+func (ac *APIController) AciGwGetOper(op *contivModel.AciGwInspect) error {
+	op.Oper.NumAppProfiles = contivModel.GetAppProfileCount()
 	return nil
 }
 
