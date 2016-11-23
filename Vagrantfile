@@ -21,6 +21,9 @@ cluster_ip_nodes = ""
 MEMORY = "4096"
 
 provision_common_once = <<SCRIPT
+sudo sed -i.bak -e 's/^MaxStartups.*$/MaxStartups 1000:100:1000/g' /etc/ssh/sshd_config
+sudo systemctl restart sshd
+
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
 echo -n "$1" > /etc/hostname
