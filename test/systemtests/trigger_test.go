@@ -147,6 +147,9 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 		network.Ipv6Gateway = "2016:0617::254"
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
+	for _, node := range s.nodes {
+		c.Assert(node.checkSchedulerNetworkOnNodeCreated([]string{"private"}), IsNil)
+	}
 
 	numContainers := s.basicInfo.Containers
 	if numContainers < (len(s.nodes) * 2) {

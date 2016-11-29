@@ -24,15 +24,16 @@ const (
 	cProvide        = "PROVIDE"
 	cInternal       = "INTERNAL"
 	cExternal       = "EXTERNAL"
-	aciGwAPIVersion = "v1.1"
+	aciGwAPIVersion = "v1.2"
 )
 
 // appNwSpec Applications network spec per the composition
 type appNwSpec struct {
-	ACIGwAPIVersion string      `json:"aci-gw-api-version,omitempty"`
-	TenantName      string      `json:"tenant,omitempty"`
-	AppName         string      `json:"app-prof,omitempty"`
-	ContractDefs    []contrSpec `json:"contract-defs,omitempty"` // defined by this app
+	ACIGwAPIVersion string             `json:"aci-gw-api-version,omitempty"`
+	GWConfig        *contivModel.AciGw `json:"gw-config,omitempty"`
+	TenantName      string             `json:"tenant,omitempty"`
+	AppName         string             `json:"app-prof,omitempty"`
+	ContractDefs    []contrSpec        `json:"contract-defs,omitempty"` // defined by this app
 
 	Epgs []epgSpec `json:"epgs,omitempty"`
 }
@@ -362,6 +363,13 @@ func CreateAppNw(app *contivModel.AppProfile) error {
 	ans := &appNwSpec{}
 
 	ans.ACIGwAPIVersion = aciGwAPIVersion
+	gwConfig := contivModel.FindAciGw("aciGw")
+	if gwConfig == nil {
+		log.Infof("aciGw object not found -- gw will use env settings")
+	} else {
+		ans.GWConfig = gwConfig
+		log.Infof("gwConfig: %+v", gwConfig)
+	}
 	ans.TenantName = app.TenantName
 	ans.AppName = app.AppProfileName
 

@@ -47,9 +47,9 @@ func assertNoErr(err error, c *C, msg string) {
 // assertErr utility function to assert no error
 func assertErr(err error, c *C, msg string) {
 	if err == nil {
-		log.Errorf("Expected Error %s.", err)
+		log.Errorf("Expected Error %s.", msg)
 		debug.PrintStack()
-		c.Fatalf("Expected Error %s.", err)
+		c.Fatalf("Expected Error %s.", msg)
 	}
 }
 
