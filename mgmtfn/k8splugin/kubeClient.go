@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -41,6 +42,7 @@ type APIClient struct {
 	watchBase string
 	client    *http.Client
 	podCache  podInfo
+	authToken string
 }
 
 // SvcWatchResp is the response to a service watch
@@ -81,17 +83,11 @@ type podInfo struct {
 }
 
 // NewAPIClient creates an instance of the k8s api client
-func NewAPIClient(serverURL, caFile, keyFile, certFile string) *APIClient {
+func NewAPIClient(serverURL, caFile, keyFile, certFile, authToken string) *APIClient {
+	useClientCerts := true
 	c := APIClient{}
 	c.baseURL = serverURL + "/api/v1/namespaces/"
 	c.watchBase = serverURL + "/api/v1/watch/"
-
-	// Read client cert
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		log.Fatalf("%s", err)
-		return nil
-	}
 
 	// Read CA cert
 	ca, err := ioutil.ReadFile(caFile)
@@ -103,14 +99,30 @@ func NewAPIClient(serverURL, caFile, keyFile, certFile string) *APIClient {
 	caPool := x509.NewCertPool()
 	caPool.AppendCertsFromPEM(ca)
 
+	// Read client cert
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	// We need either the client certs or a non-empty authToken to proceed
+	if err != nil {
+		// We cannot use client certs now
+		useClientCerts = false
+		// Check for a non-empty token
+		if len(strings.TrimSpace(authToken)) == 0 {
+			log.Fatalf("Error %s loading the client certificates and missing auth token", err)
+			return nil
+		}
+	}
 	// Setup HTTPS client
 	tlsCfg := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      caPool,
+		RootCAs: caPool,
 	}
-	tlsCfg.BuildNameToCertificate()
+	// Setup client cert based authentication
+	if useClientCerts {
+		tlsCfg.Certificates = []tls.Certificate{cert}
+		tlsCfg.BuildNameToCertificate()
+	}
 	transport := &http.Transport{TLSClientConfig: tlsCfg}
 	c.client = &http.Client{Transport: transport}
+	c.authToken = authToken
 
 	p := &c.podCache
 	p.labels = make(map[string]string)
@@ -134,7 +146,14 @@ func (c *APIClient) fetchPodLabels(ns, name string) error {
 
 	// initiate a get request to the api server
 	podURL := c.baseURL + ns + "/pods/" + name
-	r, err := c.client.Get(podURL)
+	req, err := http.NewRequest("GET", podURL, nil)
+	if err != nil {
+		return err
+	}
+	if len(strings.TrimSpace(c.authToken)) > 0 {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.authToken))
+	}
+	r, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -226,6 +245,9 @@ func (c *APIClient) WatchServices(respCh chan SvcWatchResp) {
 			respCh <- SvcWatchResp{opcode: "FATAL", errStr: fmt.Sprintf("Req %v", err)}
 			return
 		}
+		if len(strings.TrimSpace(c.authToken)) > 0 {
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.authToken))
+		}
 		res, err := ctxhttp.Do(ctx, c.client, req)
 		if err != nil {
 			log.Errorf("Watch error: %v", err)
@@ -300,6 +322,7 @@ func (c *APIClient) WatchSvcEps(respCh chan EpWatchResp) {
 			respCh <- EpWatchResp{opcode: "FATAL", errStr: fmt.Sprintf("Req %v", err)}
 			return
 		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.authToken))
 		res, err := ctxhttp.Do(ctx, c.client, req)
 		if err != nil {
 			log.Errorf("EP Watch error: %v", err)

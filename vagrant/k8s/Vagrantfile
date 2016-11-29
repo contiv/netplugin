@@ -7,6 +7,10 @@ require 'fileutils'
 # netplugin_synced_gopath="/opt/golang"
 gopath_folder="/opt/gopath"
 
+# python -c 'import random; print "%0x.%0x" % (random.SystemRandom().getrandbits(3*8), random.SystemRandom().getrandbits(8*8))
+token = "d900e1.8a392798f13b33a4"
+master_ip = "192.168.2.10"
+
 # method to create an etc_hosts file based on the cluster info
 def create_etc_hosts(cluster)
   if ENV['VAGRANT_CWD'] then
@@ -22,6 +26,7 @@ def create_etc_hosts(cluster)
       etc_file.write("#{member_info['contiv_control_ip']}   #{member_info['name']}\n")
       if role == "master" then
 	etc_file.write("#{member_info['contiv_control_ip']}   netmaster \n")
+        master_ip = member_info['contiv_control_ip']
       end
     end
   end
@@ -130,6 +135,12 @@ Vagrant.configure(2) do |config|
         c.vm.network :private_network, ip: member_info["contiv_control_ip"]
         c.vm.network :private_network, ip: member_info["contiv_network_ip"], virtualbox__intnet: "true", auto_config: false
                     c.vm.provider "virtualbox" do |v|
+
+                if vm_name == "k8master" then
+                  v.memory = 2048
+                else
+                  v.memory = 1024
+                end  
                 # make all nics 'virtio' to take benefit of builtin vlan tag
                 # support, which otherwise needs to be enabled in Intel drivers,
                 # which are used by default by virtualbox
@@ -139,14 +150,28 @@ Vagrant.configure(2) do |config|
                 v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
                 v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
-            end
+        end # v
         c.vm.provision "shell", inline: <<-EOS
           sudo setenforce 0
           sudo systemctl stop firewalld
-	  sudo /etc/init.d/network restart
+          sudo /etc/init.d/network restart
           #copy the etc_hosts file we created
           sudo cp /shared/.etc_hosts /etc/hosts
           EOS
+        if ENV['VAGRANT_USE_KUBEADM'] then
+            c.vm.provision :shell, path: "../../install/k8s/cluster/bootstrap_centos.sh"
+            if  role == "master" then
+               # Install kubernetes on master
+               # With the latest 1.4.4 kube*, kubeadm hangs frequently while waiting for the control plane to be available.
+               # So using v1.4.1 as per https://github.com/kubernetes/kubernetes/issues/33729 
+              c.vm.provision :shell, path: "../../install/k8s/cluster/k8smaster_centos.sh", args:[token, member_info["contiv_control_ip"], "v1.4.1"]
+               # Now install contiv
+               c.vm.provision :shell, inline: "kubectl apply -f /shared/.contiv.yaml"
+            else
+               # Install kubernetes on nodes
+              c.vm.provision :shell, path: "../../install/k8s/cluster/k8sworker_centos.sh", args:[token, master_ip]
+            end # if
+        end
       end # c
     end # member_info
   end #role

@@ -24,12 +24,12 @@ MAINTAINER Rajesh Nataraja <rajenata@cisco.com>
 # ENV export https_proxy=https://proxy.localhost.com:8080
 
 
-#Install the Open vSwitch package on this ubuntu container.
+# Install the Open vSwitch package on this ubuntu container.
 RUN apt update
 RUN apt --assume-yes  install openvswitch-switch
 RUN apt --assume-yes  install net-tools iptables
 
-#Copy the Net Plugin Binaries  and the Scripts required to 
+# Copy the Net Plugin Binaries  and the Scripts required to 
 # start the Net Plugin and Net Master. 
 
 RUN mkdir -p /contiv/bin
@@ -41,7 +41,6 @@ COPY ./contivk8s /contiv/bin/
 COPY ./netctl /contiv/bin/
 COPY ./ovsInit.sh /contiv/scripts/
 COPY ./contivNet.sh /contiv/scripts/
-#COPY ./contivRc /contiv/scripts/
 
 
 ENTRYPOINT ["/contiv/scripts/contivNet.sh"]
