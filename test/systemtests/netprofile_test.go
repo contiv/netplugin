@@ -605,6 +605,9 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 		c.Assert(s.startIperfServers(containers), IsNil)
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
+		for _, node := range s.nodes {
+			c.Assert(node.checkSchedulerNetworkOnNodeCreated([]string{"private"}), IsNil)
+		}
 
 		var leader, oldLeader *node
 
@@ -648,6 +651,9 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 		time.Sleep(5 * time.Second)
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
+		for _, node := range s.nodes {
+			c.Assert(node.checkSchedulerNetworkOnNodeCreated([]string{"private"}), IsNil)
+		}
 
 		netProfile = &client.Netprofile{
 			ProfileName: "Netprofile",
@@ -659,6 +665,9 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 		c.Assert(s.cli.NetprofilePost(netProfile), IsNil)
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
+		for _, node := range s.nodes {
+			c.Assert(node.checkSchedulerNetworkOnNodeCreated([]string{"private"}), IsNil)
+		}
 
 		c.Assert(s.removeContainers(containers), IsNil)
 
