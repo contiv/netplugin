@@ -1021,8 +1021,11 @@ func (self *OfnetAgent) GetEndpointStats() (map[string]*OfnetEndpointStats, erro
 
 // InspectBgp returns ofnet bgp state
 func (self *OfnetAgent) InspectBgp() (interface{}, error) {
-	peer, err := self.protopath.InspectProto()
-	return peer, err
+	if self.protopath != nil {
+		peer, err := self.protopath.InspectProto()
+		return peer, err
+	}
+	return nil, fmt.Errorf("Ofnet not initialized in routing mode")
 }
 
 // InspectState returns ofnet agent state

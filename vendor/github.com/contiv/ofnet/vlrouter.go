@@ -59,6 +59,7 @@ type Vlrouter struct {
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
 
 	myRouterMac   net.HardwareAddr   //Router mac used for external proxy
+	anycastMac    net.HardwareAddr   //Anycast mac used for local endpoints
 	myBgpPeer     string             // bgp neighbor
 	unresolvedEPs cmap.ConcurrentMap // unresolved endpoint map
 }
@@ -78,7 +79,7 @@ func NewVlrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vlrouter {
 	vlrouter.flowDb = make(map[string]*ofctrl.Flow)
 	vlrouter.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
 	vlrouter.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
-	vlrouter.myRouterMac, _ = net.ParseMAC("00:00:11:11:11:11")
+	vlrouter.anycastMac, _ = net.ParseMAC("00:00:11:11:11:11")
 	vlrouter.unresolvedEPs = cmap.New()
 
 	return vlrouter
@@ -202,7 +203,7 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 	// Set Mac addresses
 	ipFlow.SetMacDa(destMacAddr)
-	ipFlow.SetMacSa(self.myRouterMac)
+	ipFlow.SetMacSa(self.anycastMac)
 
 	// Point the route at output port
 	err = ipFlow.Next(outPort)
@@ -378,7 +379,7 @@ func (self *Vlrouter) AddLocalIpv6Flow(endpoint OfnetEndpoint) error {
 
 	// Set Mac addresses
 	ipv6Flow.SetMacDa(destMacAddr)
-	ipv6Flow.SetMacSa(self.myRouterMac)
+	ipv6Flow.SetMacSa(self.anycastMac)
 
 	// Point the route at output port
 	err = ipv6Flow.Next(outPort)
@@ -849,7 +850,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 					endpoint = self.agent.getEndpointByIpVrf(arpHdr.IPSrc, "default")
 					if endpoint != nil {
 						if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
-							srcMac = self.myRouterMac
+							srcMac = self.anycastMac
 						} else {
 							self.agent.incrStats("ArpReqUnknownEndpointType")
 							return
@@ -983,7 +984,12 @@ func (self *Vlrouter) AddUplink(portNo uint32, ifname string) error {
 
 	// save the flow entry
 	self.portVlanFlowDb[portNo] = portVlanFlow
-
+	intf, err := net.InterfaceByName(ifname)
+	if err != nil {
+		log.Debugf("Unable to update router mac to uplink mac:err", err)
+		return err
+	}
+	self.myRouterMac = intf.HardwareAddr
 	return nil
 }
 

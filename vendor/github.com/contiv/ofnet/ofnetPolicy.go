@@ -131,7 +131,7 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 	vrf := self.agent.getvlanVrf(endpoint.Vlan)
 
 	if vrf == nil {
-		log.Errorf("Error finding vrf for vlan %s", endpoint.Vlan)
+		log.Errorf("Error finding vrf for vlan %d", endpoint.Vlan)
 		return errors.New("Error finding vrf for vlan")
 	}
 	log.Infof("Recevied add endpoint for vrf %v", *vrf)
@@ -222,7 +222,7 @@ func (self *PolicyAgent) AddIpv6Endpoint(endpoint *OfnetEndpoint) error {
 	vrf := self.agent.getvlanVrf(endpoint.Vlan)
 
 	if vrf == nil {
-		log.Errorf("Error finding vrf for vlan %s", endpoint.Vlan)
+		log.Errorf("Error finding vrf for vlan %d", endpoint.Vlan)
 		return errors.New("Error finding vrf for vlan")
 	}
 	log.Infof("Recevied add endpoint for vrf %v", *vrf)
