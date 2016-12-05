@@ -83,7 +83,7 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 	go md.RunMasterFsm()
 
 	// Wait for a second for master to initialize
-	time.Sleep(10*time.Second)
+	time.Sleep(10 * time.Second)
 
 	// set forwarding mode if required
 	if its.fwdMode != "bridge" || its.fabricMode != "default" {
