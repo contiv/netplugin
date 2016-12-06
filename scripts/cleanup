@@ -27,8 +27,8 @@ then
 fi
 
 # stop netmaster and netplugin if they are running
-killall netplugin
-killall netmaster
+pkill netplugin
+pkill netmaster
 
 # Cleanup etcd and consul state
 etcdctl rm -recursive /contiv > /dev/null 2>&1
@@ -38,8 +38,7 @@ curl -X DELETE http://localhost:8500/v1/kv/contiv?recurse > /dev/null 2>&1
 curl -X DELETE http://localhost:8500/v1/kv/contiv.io?recurse > /dev/null 2>&1
 
 # Cleanup ovs state
-ovs-vsctl del-br contivVlanBridge > /dev/null 2>&1
-ovs-vsctl del-br contivVxlanBridge > /dev/null 2>&1
+ovs-vsctl list-br | grep contiv | xargs -I % ovs-vsctl del-br % > /dev/null 2>&1
 
 for p in `ifconfig  | grep vport | awk '{print $1}'`
 do
