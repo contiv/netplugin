@@ -91,12 +91,7 @@ func (r *AutoVLANCfgResource) Init(rsrcCfg interface{}) error {
 	oper := &AutoVLANOperResource{FreeVLANs: r.VLANs}
 	oper.StateDriver = r.StateDriver
 	oper.ID = r.ID
-	err = oper.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return oper.Write()
 }
 
 // Deinit the resource.
@@ -148,12 +143,7 @@ func (r *AutoVLANCfgResource) Reinit(rsrcCfg interface{}) error {
 		oper.FreeVLANs.Clear(i)
 	}
 
-	err = oper.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return oper.Write()
 }
 
 // Description is a description of this resource. returns AutoVLANResource.
@@ -268,11 +258,7 @@ func (r *AutoVLANCfgResource) Deallocate(value interface{}) error {
 	}
 	oper.FreeVLANs.Set(vlan)
 
-	err = oper.Write()
-	if err != nil {
-		return err
-	}
-	return nil
+	return oper.Write()
 }
 
 // AutoVLANOperResource is an implementation of core.State.

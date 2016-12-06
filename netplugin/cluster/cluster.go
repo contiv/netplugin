@@ -348,11 +348,8 @@ func Init(storeURL string) error {
 
 	// Create an objdb client
 	ObjdbClient, err = objdb.NewClient(storeURL)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 // RunLoop registers netplugin service with cluster store and runs peer discovery

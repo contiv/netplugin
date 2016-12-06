@@ -74,11 +74,7 @@ func parseOpts(opts *cliOpts) error {
 		false,
 		"prints current version")
 
-	if err := flagSet.Parse(os.Args[1:]); err != nil {
-		return err
-	}
-
-	return nil
+	return flagSet.Parse(os.Args[1:])
 }
 
 func execOpts(opts *cliOpts) {

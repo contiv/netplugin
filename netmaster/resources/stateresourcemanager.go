@@ -127,12 +127,7 @@ func (rm *StateResourceManager) DefineResource(id, desc string,
 		return core.Errorf("Resource with id: %q already exists", id)
 	}
 
-	err = rsrc.Init(rsrcCfg)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return rsrc.Init(rsrcCfg)
 }
 
 // UndefineResource deinitializes a resource.

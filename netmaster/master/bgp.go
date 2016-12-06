@@ -41,12 +41,7 @@ func AddBgp(stateDriver core.StateDriver, bgpCfg *intent.ConfigBgp) error {
 	bgpState.Neighbor = bgpCfg.Neighbor
 	bgpState.StateDriver = stateDriver
 	bgpState.ID = bgpCfg.Hostname
-	err := bgpState.Write()
-
-	if err != nil {
-		return err
-	}
-	return nil
+	return bgpState.Write()
 }
 
 //DeleteBgp deletes from etcd state

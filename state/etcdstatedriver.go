@@ -210,12 +210,7 @@ func (d *EtcdStateDriver) ReadState(key string, value core.State,
 		return err
 	}
 
-	err = unmarshal(encodedState, value)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return unmarshal(encodedState, value)
 }
 
 // readAllStateCommon reads and unmarshals (given a function) all state into a
@@ -334,10 +329,5 @@ func (d *EtcdStateDriver) WriteState(key string, value core.State,
 		return err
 	}
 
-	err = d.Write(key, encodedState)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.Write(key, encodedState)
 }

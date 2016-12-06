@@ -196,12 +196,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 	dnetOper.StateDriver = stateDriver
 
 	// write the dnet oper state
-	err = dnetOper.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return dnetOper.Write()
 }
 
 // DeleteDockNet deletes a network in docker daemon
@@ -238,12 +233,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	dnetOper.StateDriver = stateDriver
 
 	// write the dnet oper state
-	err = dnetOper.Clear()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return dnetOper.Clear()
 }
 
 // FindDocknetByUUID find the docknet by UUID
