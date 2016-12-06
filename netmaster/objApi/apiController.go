@@ -1938,6 +1938,11 @@ func (ac *APIController) BgpGetOper(bgp *contivModel.BgpInspect) error {
 	if err := json.Unmarshal(response, &obj); err != nil {
 		return err
 	}
+
+	if obj == nil {
+		return errors.New("Invalid json response: BGP object was nil")
+	}
+
 	//Assuming bgp peer state will be only for one neighbor
 	if obj.Peers != nil {
 		nConf := obj.Peers[0]

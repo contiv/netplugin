@@ -123,6 +123,10 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 		}
 	}
 
+	if err != nil { // catch any errors from the inner loop that weren't caught
+		return []byte{}, err
+	}
+
 	return []byte(resp.Node.Value), err
 }
 

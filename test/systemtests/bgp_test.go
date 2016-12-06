@@ -12,6 +12,8 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+const BgpWait = time.Minute
+
 /*TestBgpContainerToContainerPing tests the following:
 1) Checks pings between containers on the same host
 2) Checks pings between containers on different hosts connected to same Tor
@@ -19,72 +21,83 @@ import (
 4) Checks ping between containers on different networks
 */
 func (s *systemtestSuite) TestBgpContainerToContainerPing(c *C) {
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 
-	s.SetupBgp(c, false)
-	s.CheckBgpConnection(c)
+	doneChan := make(chan struct{}, s.basicInfo.Iterations)
+	s.SetupBgp(c, EncapVLAN, false)
+	s.CheckBgpConnection(c, EncapVLAN)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-		var (
-			netNames      = []string{}
-			containers    = map[string][]*container{}
-			allcontainers = []*container{}
-		)
+		go func(i int) {
 
-		numContainer := s.basicInfo.Containers
-		if numContainer < 3 {
-			numContainer = 3
-		}
+			fmt.Println("here")
+			defer func() { doneChan <- struct{}{} }()
+			var (
+				netNames      = []string{}
+				containers    = map[string][]*container{}
+				allcontainers = []*container{}
+			)
 
-		for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
-			network := &client.Network{
-				TenantName:  "default",
-				NetworkName: fmt.Sprintf("net%d-%d", networkNum+1, 1),
-				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum+1),
-				Gateway:     fmt.Sprintf("10.1.%d.254", networkNum+1),
-				Encap:       "vlan",
+			numContainer := s.basicInfo.Containers
+			if numContainer < 3 {
+				numContainer = 3
 			}
 
-			c.Assert(s.cli.NetworkPost(network), IsNil)
-			netNames = append(netNames, network.NetworkName)
-		}
+			for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+				network := &client.Network{
+					TenantName:  "default",
+					NetworkName: fmt.Sprintf("net%d-%d-%d", networkNum+1, 1, i),
+					Subnet:      fmt.Sprintf("10.%d.%d.0/24", i, networkNum+1),
+					Gateway:     fmt.Sprintf("10.%d.%d.254", i, networkNum+1),
+					Encap:       EncapVLAN,
+				}
 
-		for _, name := range netNames {
-			var err error
-			containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
+				c.Assert(s.cli.NetworkPost(network), IsNil)
+				netNames = append(netNames, network.NetworkName)
+			}
+
+			for _, name := range netNames {
+				var err error
+				containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
+				c.Assert(err, IsNil)
+				allcontainers = append(allcontainers, containers[name]...)
+			}
+
+			err := s.CheckBgpRouteDistribution(c, allcontainers)
 			c.Assert(err, IsNil)
-			allcontainers = append(allcontainers, containers[name]...)
-		}
+			endChan := make(chan error)
 
-		err := s.CheckBgpRouteDistribution(c, allcontainers)
-		c.Assert(err, IsNil)
-		endChan := make(chan error)
+			logrus.Infof("Running ping test ")
+			c.Assert(s.pingTest(allcontainers), IsNil)
 
-		logrus.Infof("Running ping test ")
-		c.Assert(s.pingTest(allcontainers), IsNil)
+			for name := range containers {
+				go func(conts []*container) { endChan <- s.removeContainers(conts) }(containers[name])
+			}
 
-		for name := range containers {
-			go func(conts []*container) { endChan <- s.removeContainers(conts) }(containers[name])
-		}
+			for range containers {
+				<-endChan
+			}
 
-		for range containers {
-			<-endChan
-		}
-
-		for _, netName := range netNames {
-			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
-		}
+			for _, netName := range netNames {
+				c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
+			}
+		}(i)
 	}
-	s.TearDownBgp(c)
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		<-doneChan
+	}
+
+	s.TearDownBgp(c, EncapVLAN)
 }
 
 /*TestBgpContainerBareMetalPing tests the following:
 1) Checks pings between containers and non container workloads
 */
 func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		return
 	}
 
@@ -99,8 +112,8 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 		numContainer = 3
 	}
 
-	s.SetupBgp(c, false)
-	s.CheckBgpConnection(c)
+	s.SetupBgp(c, EncapVLAN, false)
+	s.CheckBgpConnection(c, EncapVLAN)
 
 	for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
 		network := &client.Network{
@@ -108,7 +121,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 			NetworkName: fmt.Sprintf("net%d-%d", networkNum+1, 1),
 			Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum+1),
 			Gateway:     fmt.Sprintf("10.1.%d.254", networkNum+1),
-			Encap:       "vlan",
+			Encap:       EncapVLAN,
 		}
 
 		c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -140,7 +153,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 		go func(conts []*container) { endChan <- s.removeContainers(conts) }(containers[name])
 	}
 
-	s.TearDownBgp(c)
+	s.TearDownBgp(c, EncapVLAN)
 }
 
 /*TestBgpTriggerPeerAddDelete tests the following:
@@ -150,7 +163,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 4) Checks bgp peering and route distribution for pre existing containers (before bgp peering)
 */
 func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 
@@ -172,7 +185,7 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 			Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 			Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 			PktTag:      1001 + networkNum,
-			Encap:       "vlan",
+			Encap:       EncapVLAN,
 		}
 
 		c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -188,14 +201,14 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 
 	time.Sleep(5 * time.Second)
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
+		s.SetupBgp(c, EncapVLAN, false)
+		s.CheckBgpConnection(c, EncapVLAN)
 		err := s.CheckBgpRouteDistribution(c, allcontainers)
 		c.Assert(err, IsNil)
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
 
-		s.TearDownBgp(c)
+		s.TearDownBgp(c, EncapVLAN)
 	}
 }
 
@@ -206,14 +219,14 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 */
 func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
+
+	s.SetupBgp(c, EncapVLAN, false)
+	s.CheckBgpConnection(c, EncapVLAN)
+
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-
 		var (
 			netNames      = []string{}
 			containers    = map[string][]*container{}
@@ -232,7 +245,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 				Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 				PktTag:      1001 + networkNum,
-				Encap:       "vlan",
+				Encap:       EncapVLAN,
 			}
 
 			c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -273,7 +286,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
 		}
 	}
-	s.TearDownBgp(c)
+	s.TearDownBgp(c, EncapVLAN)
 }
 
 /*TestBgpTriggerLoopbackDownUp tests the following:
@@ -283,7 +296,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 */
 func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 
@@ -305,7 +318,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 			Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 			Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 			PktTag:      1001 + networkNum,
-			Encap:       "vlan",
+			Encap:       EncapVLAN,
 		}
 
 		c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -321,8 +334,8 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 	}
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
+		s.SetupBgp(c, EncapVLAN, false)
+		s.CheckBgpConnection(c, EncapVLAN)
 
 		err := s.CheckBgpRouteDistribution(c, allcontainers)
 		c.Assert(err, IsNil)
@@ -340,7 +353,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
 
-		s.TearDownBgp(c)
+		s.TearDownBgp(c, EncapVLAN)
 	}
 
 	for name := range containers {
@@ -364,12 +377,12 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 
 func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 
-	s.SetupBgp(c, false)
-	s.CheckBgpConnection(c)
+	s.SetupBgp(c, EncapVLAN, false)
+	s.CheckBgpConnection(c, EncapVLAN)
 
 	var (
 		netNames = []string{}
@@ -387,7 +400,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 			Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 			Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 			PktTag:      1001 + networkNum,
-			Encap:       "vlan",
+			Encap:       EncapVLAN,
 		}
 
 		c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -450,8 +463,8 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 		}
 		allcontainers = nil
 	}
-	s.TearDownBgp(c)
 
+	s.TearDownBgp(c, EncapVLAN)
 }
 
 /*TestBgpTriggerNetpluginRestart tests the following:
@@ -461,12 +474,12 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 */
 func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 
-	s.SetupBgp(c, false)
-	s.CheckBgpConnection(c)
+	s.SetupBgp(c, EncapVLAN, false)
+	s.CheckBgpConnection(c, EncapVLAN)
 
 	var (
 		netNames      = []string{}
@@ -486,7 +499,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 			Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 			Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 			PktTag:      1001 + networkNum,
-			Encap:       "vlan",
+			Encap:       EncapVLAN,
 		}
 
 		c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -517,7 +530,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 		time.Sleep(15 * time.Second)
-		s.CheckBgpConnection(c)
+		s.CheckBgpConnection(c, EncapVLAN)
 		err = s.CheckBgpRouteDistribution(c, allcontainers)
 		c.Assert(err, IsNil)
 		logrus.Infof("Running ping test")
@@ -537,8 +550,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 		c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
 	}
 
-	s.TearDownBgp(c)
-
+	s.TearDownBgp(c, EncapVLAN)
 }
 
 /*TestBgpTriggerNetmasterRestart tests the following:
@@ -548,7 +560,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 */
 /*
 func (s *systemtestSuite) TestBgpTriggerNetmasterRestart(c *C) {
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 	s.SetupBgp(c, false)
@@ -569,7 +581,7 @@ func (s *systemtestSuite) TestBgpTriggerNetmasterRestart(c *C) {
 			Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 			Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 			PktTag:      1001 + networkNum,
-			Encap:       "vlan",
+			Encap:       EncapVLAN,
 		}
 		c.Assert(s.cli.NetworkPost(network), IsNil)
 		netNames = append(netNames, network.NetworkName)
@@ -611,7 +623,7 @@ func (s *systemtestSuite) TestBgpTriggerNetmasterRestart(c *C) {
 
 func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 	var (
@@ -628,7 +640,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 		c.Assert(nodeToStop.stopNetplugin(), IsNil)
 		logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
 		time.Sleep(2 * time.Minute)
-		s.SetupBgp(c, false)
+		s.SetupBgp(c, EncapVLAN, false)
 		for _, node := range s.nodes {
 
 			if node != nodeToStop {
@@ -653,7 +665,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 				Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 				PktTag:      1001 + networkNum,
-				Encap:       "vlan",
+				Encap:       EncapVLAN,
 			}
 
 			c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -686,7 +698,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
 		}
 
-		s.TearDownBgp(c)
+		s.TearDownBgp(c, EncapVLAN)
 	}
 }
 
@@ -696,20 +708,20 @@ link up established bgp.
 */
 func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 	for _, node := range s.nodes {
 		logrus.Infof("Bringing down uplink")
 		node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s down", s.hostInfo.HostDataInterface))
 	}
-	s.SetupBgp(c, false)
+	s.SetupBgp(c, EncapVLAN, false)
 
 	for _, node := range s.nodes {
 		logrus.Infof("Bringing up uplink")
 		node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s up", s.hostInfo.HostDataInterface))
 	}
-	s.CheckBgpConnection(c)
+	s.CheckBgpConnection(c, EncapVLAN)
 
 	var (
 		netNames      = []string{}
@@ -729,7 +741,7 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 			Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 			Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 			PktTag:      1001 + networkNum,
-			Encap:       "vlan",
+			Encap:       EncapVLAN,
 		}
 
 		c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -746,7 +758,7 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 	c.Assert(err, IsNil)
 	logrus.Infof("Running ping test")
 	c.Assert(s.pingTest(allcontainers), IsNil)
-	s.TearDownBgp(c)
+	s.TearDownBgp(c, EncapVLAN)
 
 }
 
@@ -754,17 +766,17 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 1) if after a misconfig bgp can be reconfigured
 2) Bgp is established and ping works*/
 func (s *systemtestSuite) TestBgpMisconfigRecovery(c *C) {
-	if s.fwdMode != "routing" {
+	if s.fwdMode != FwdModeRouting {
 		c.Skip("Skipping test")
 	}
 
-	s.SetupBgp(c, true)
+	s.SetupBgp(c, EncapVLAN, true)
 
 	time.Sleep(2 * time.Second)
 
-	s.SetupBgp(c, false)
+	s.SetupBgp(c, EncapVLAN, false)
 
-	s.CheckBgpConnection(c)
+	s.CheckBgpConnection(c, EncapVLAN)
 
 	var (
 		netNames      = []string{}
@@ -784,7 +796,7 @@ func (s *systemtestSuite) TestBgpMisconfigRecovery(c *C) {
 			Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
 			Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
 			PktTag:      1001 + networkNum,
-			Encap:       "vlan",
+			Encap:       EncapVLAN,
 		}
 
 		c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -815,11 +827,15 @@ func (s *systemtestSuite) TestBgpMisconfigRecovery(c *C) {
 	for _, netName := range netNames {
 		c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
 	}
-	s.TearDownBgp(c)
+	s.TearDownBgp(c, EncapVLAN)
 
 }
 
-func (s *systemtestSuite) SetupBgp(c *C, misConfig bool) {
+func (s *systemtestSuite) SetupBgp(c *C, encap string, misConfig bool) {
+	if !s.isBGP(encap) {
+		return
+	}
+
 	var neighborIP, routerIP, hostname string
 	for num := 0; num < len(s.nodes); num++ {
 		hostname = fmt.Sprintf("netplugin-node%d", num+1)
@@ -852,9 +868,14 @@ func (s *systemtestSuite) SetupBgp(c *C, misConfig bool) {
 		}
 		c.Assert(s.cli.BgpPost(bgpCfg), IsNil)
 	}
+
 }
 
-func (s *systemtestSuite) TearDownBgp(c *C) {
+func (s *systemtestSuite) TearDownBgp(c *C, encap string) {
+	if !s.isBGP(encap) {
+		return
+	}
+
 	var hostname string
 	for num := 0; num < len(s.nodes); num++ {
 		hostname = fmt.Sprintf("netplugin-node%d", num+1)
@@ -862,13 +883,16 @@ func (s *systemtestSuite) TearDownBgp(c *C) {
 	}
 }
 
-func (s *systemtestSuite) CheckBgpConnection(c *C) {
+func (s *systemtestSuite) CheckBgpConnection(c *C, encap string) {
+	if !s.isBGP(encap) {
+		return
+	}
 
 	endChan := make(chan error)
 	for _, n := range s.nodes {
 		go func(n node) {
-			for i := 0; i < 100; i++ {
-				time.Sleep(3 * time.Second)
+			after := time.After(time.Minute)
+			for {
 				bgp, err := s.cli.BgpInspect(n.Name())
 				if err != nil {
 					continue
@@ -878,8 +902,13 @@ func (s *systemtestSuite) CheckBgpConnection(c *C) {
 					endChan <- nil
 					return
 				}
+				select {
+				case <-after:
+					endChan <- errors.New("bgp connection failed")
+					return
+				default:
+				}
 			}
-			endChan <- errors.New("bgp connection failed")
 		}(*n)
 	}
 
@@ -889,12 +918,11 @@ func (s *systemtestSuite) CheckBgpConnection(c *C) {
 }
 
 func (s *systemtestSuite) CheckBgpNoConnection(c *C) {
-
-	endChan := make(chan error)
+	endChan := make(chan error, len(s.nodes))
 	for _, n := range s.nodes {
 		go func(n node) {
-			for i := 0; i < 100; i++ {
-				time.Sleep(3 * time.Second)
+			after := time.After(BgpWait)
+			for {
 				bgp, err := s.cli.BgpInspect(n.Name())
 				if err != nil {
 					continue
@@ -904,8 +932,13 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) {
 					endChan <- nil
 					return
 				}
+
+				select {
+				case <-after:
+					endChan <- errors.New("bgp connection failed")
+				default:
+				}
 			}
-			endChan <- errors.New("bgp connection failed")
 		}(*n)
 	}
 
@@ -915,8 +948,8 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) {
 }
 
 func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.TestbedNode) error {
-	for i := 0; i < 100; i++ {
-		time.Sleep(3 * time.Second)
+	after := time.After(BgpWait)
+	for {
 		bgp, err := s.cli.BgpInspect(node.GetName())
 		if err != nil {
 			continue
@@ -925,13 +958,17 @@ func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.Testbe
 			logrus.Infof("Bgp Connection on Node:%s established", node.GetName())
 			return nil
 		}
+		select {
+		case <-after:
+			return errors.New("BGP connection not established")
+		default:
+		}
 	}
-	return errors.New("BGP connection not established")
 }
 
 func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.TestbedNode) error {
-	for i := 0; i < 100; i++ {
-		time.Sleep(3 * time.Second)
+	after := time.After(BgpWait)
+	for {
 		bgp, err := s.cli.BgpInspect(node.GetName())
 		if err != nil {
 			continue
@@ -940,14 +977,21 @@ func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.Test
 			logrus.Infof("Bgp Connection on Node:%s Disconnected", node.GetName())
 			return nil
 		}
+
+		select {
+		case <-after:
+			return errors.New("BGP connection persists")
+		default:
+		}
 	}
-	return errors.New("BGP connection persists")
 }
 
 func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*container) error {
 	endChan := make(chan error)
 	for _, n := range s.nodes {
 		go func(n *node, containers []*container) {
+			after := time.After(BgpWait)
+
 			logrus.Infof("Checking Bgp container route distribution on node %s", n.Name())
 			remoteRoutes := 0
 			for _, cont := range containers {
@@ -955,8 +999,7 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 					remoteRoutes++
 				}
 			}
-			for i := 0; i < 120; i++ {
-				time.Sleep(1 * time.Second)
+			for {
 				contCount := 0
 				bgp, err := s.cli.BgpInspect(n.Name())
 				if err == nil {
@@ -972,24 +1015,29 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 					logrus.Infof("Done checking container route distribution on node %s", n.Name())
 					return
 				}
-				time.Sleep(1 * time.Second)
+				select {
+				case <-after:
+					endChan <- errors.New("Bgp Route distribution not complete")
+					return
+				default:
+				}
 			}
-			endChan <- errors.New("Bgp Route distribution not complete")
 		}(n, containers)
 	}
+
 	for range s.nodes {
 		c.Assert(<-endChan, IsNil)
 	}
-	time.Sleep(4 * time.Second)
+
 	return nil
 }
 
 func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) error {
 	ipList := []string{}
 	nodeCount := 0
-	for i := 0; i < 120; i++ {
+	after := time.After(BgpWait)
+	for {
 		logrus.Infof("Checking Bgp container route distribution")
-		time.Sleep(1 * time.Second)
 		ipList = nil
 		for _, ip := range ips {
 			nodeCount = 0
@@ -1011,7 +1059,10 @@ func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) er
 				return nil
 			}
 		}
-		time.Sleep(1 * time.Second)
+		select {
+		case <-after:
+			return errors.New("Bgp Route distribution not complete")
+		default:
+		}
 	}
-	return errors.New("Bgp Route distribution not complete")
 }

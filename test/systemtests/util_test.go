@@ -19,6 +19,14 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+func (s *systemtestSuite) isBridge() bool {
+	return s.fwdMode == FwdModeBridge
+}
+
+func (s *systemtestSuite) isBGP(encap string) bool {
+	return s.fwdMode == FwdModeRouting && encap == EncapVLAN
+}
+
 func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*container, port int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
@@ -557,18 +565,31 @@ func (s *systemtestSuite) startIperfClients(containers []*container, limit strin
 		ips = append(ips, cont.eth0.ip)
 	}
 
+	errChan := make(chan error, len(containers))
 	for _, cont := range containers {
-		for _, ip := range ips {
-			if cont.eth0.ip == ip {
-				continue
+		go func(cont *container, ips []string) {
+			for _, ip := range ips {
+				if cont.eth0.ip == ip {
+					continue
+				}
+				err := cont.node.exec.startIperfClient(cont, ip, limit, isErr)
+				if err != nil {
+					logrus.Errorf("Error starting the iperf client")
+					errChan <- err
+					return
+				}
 			}
-			err := cont.node.exec.startIperfClient(cont, ip, limit, isErr)
-			if err != nil {
-				logrus.Errorf("Error starting the iperf client")
-				return err
-			}
+			errChan <- nil
+		}(cont, ips)
+	}
+
+	for i := 0; i < len(containers); i++ {
+		err := <-errChan
+		if err != nil {
+			return err
 		}
 	}
+
 	return nil
 }
 
@@ -1171,7 +1192,7 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 	}
 
 	s.nodes = []*node{}
-	if s.fwdMode == "routing" {
+	if s.fwdMode == FwdModeRouting {
 		contivL3Nodes := 2
 		switch s.basicInfo.Scheduler {
 		case "k8":
@@ -1261,13 +1282,9 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 	}
 
 	for _, node := range s.nodes {
-
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-
 	}
-
-	time.Sleep(15 * time.Second)
 
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(), IsNil)
@@ -1275,7 +1292,6 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != "k8" {
 		for i := 0; i < 11; i++ {
 			_, err := s.cli.TenantGet("default")
@@ -1287,8 +1303,8 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
-	if s.fwdMode == "routing" {
-		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+	if s.fwdMode == FwdModeRouting {
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: FwdModeRouting,
 			Name:             "global",
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
@@ -1298,29 +1314,31 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 	}
 }
 
+func (s *systemtestSuite) fanout(nodeFunc func(*node)) {
+	doneChan := make(chan struct{}, len(s.nodes))
+	for _, n := range s.nodes {
+		go func(n *node) {
+			defer func() { doneChan <- struct{}{} }()
+			nodeFunc(n)
+		}(n)
+	}
+	for i := 0; i < len(s.nodes); i++ {
+		<-doneChan
+	}
+}
+
 func (s *systemtestSuite) SetUpTestVagrant(c *C) {
-	for _, node := range s.nodes {
+	s.fanout(func(node *node) {
 		node.exec.cleanupContainers()
 		node.stopNetplugin()
 		node.cleanupSlave()
-	}
-
-	for _, node := range s.nodes {
-		node.stopNetmaster()
-
-	}
-	for _, node := range s.nodes {
-		node.cleanupMaster()
-	}
-
-	for _, node := range s.nodes {
-
+	})
+	s.fanout(func(node *node) { node.stopNetmaster() })
+	s.fanout(func(node *node) { node.cleanupMaster() })
+	s.fanout(func(node *node) {
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-
-	}
-
-	time.Sleep(15 * time.Second)
+	})
 
 	// temporarily enable DNS for service discovery tests
 	prevDNSEnabled := s.basicInfo.EnableDNS
@@ -1330,28 +1348,33 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 
 	defer func() { s.basicInfo.EnableDNS = prevDNSEnabled }()
 
-	for _, node := range s.nodes {
+	s.fanout(func(node *node) {
 		c.Assert(node.startNetmaster(), IsNil)
-		time.Sleep(1 * time.Second)
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
-	}
+	})
 
-	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != "k8" {
-		for i := 0; i < 11; i++ {
+		for _, node := range s.nodes {
+			c.Assert(node.runCommandUntilNoError("curl -s http://localhost:9999"), IsNil)
+		}
 
+		after := time.After(1 * time.Minute)
+		for {
 			_, err := s.cli.TenantGet("default")
 			if err == nil {
 				break
 			}
-			// Fail if we reached last iteration
-			c.Assert((i < 10), Equals, true)
-			time.Sleep(500 * time.Millisecond)
+
+			select {
+			case <-after:
+				c.Assert(nil, NotNil, Commentf("Deadline timeout"))
+			default:
+			}
 		}
 	}
 
-	if s.fwdMode == "routing" {
-		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
+	if s.fwdMode == FwdModeRouting {
+		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: FwdModeRouting,
 			Name:             "global",
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",

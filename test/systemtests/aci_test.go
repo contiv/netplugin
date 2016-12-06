@@ -15,7 +15,7 @@ import (
 3). Checks this behavior once netplugin is restarted.
 */
 func (s *systemtestSuite) TestACIMode(c *C) {
-	if s.fwdMode == "routing" {
+	if s.fwdMode == FwdModeRouting {
 		return
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
@@ -23,7 +23,7 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 		NetworkInfraType: "aci",
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
-		FwdMode:          "bridge",
+		FwdMode:          FwdModeBridge,
 	}), IsNil)
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		TenantName:  "default",
@@ -87,13 +87,13 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 
 /* TesACIPingGateway checks ping success from containers running in a EPG to the default gateway */
 func (s *systemtestSuite) TestACIPingGateway(c *C) {
-	if s.fwdMode == "routing" {
+	if s.fwdMode == FwdModeRouting {
 		return
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
 		NetworkInfraType: "aci",
-		FwdMode:          "bridge",
+		FwdMode:          FwdModeBridge,
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
 	}), IsNil)
@@ -153,13 +153,13 @@ func (s *systemtestSuite) TestACIPingGateway(c *C) {
 3). Checks policies behavior before and after deleting app-profiles.
 */
 func (s *systemtestSuite) TestACIProfile(c *C) {
-	if s.fwdMode == "routing" {
+	if s.fwdMode == FwdModeRouting {
 		return
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
 		NetworkInfraType: "aci",
-		FwdMode:          "bridge",
+		FwdMode:          FwdModeBridge,
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
 	}), IsNil)
@@ -450,7 +450,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 }
 
 func (s *systemtestSuite) TestACIGWRestart(c *C) {
-	if s.fwdMode == "routing" {
+	if s.fwdMode == FwdModeRouting {
 		return
 	}
 

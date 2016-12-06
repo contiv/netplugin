@@ -22,21 +22,18 @@ var providerIndex int
 6) Checks reachability to service ip from consumer containers
 */
 func (s *systemtestSuite) TestServiceAddDeleteServiceVxlan(c *C) {
-	s.testServiceAddDeleteService(c, "vxlan")
+	s.testServiceAddDeleteService(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestServiceAddDeleteServiceVlan(c *C) {
-	s.testServiceAddDeleteService(c, "vlan")
+	s.testServiceAddDeleteService(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
-
 	mutex := sync.Mutex{}
 
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
@@ -104,7 +101,7 @@ func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 				}(network, tenant, containers)
 			}
 		}
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.isBGP(encap) {
 			for _, cList := range containers {
 				err := s.CheckBgpRouteDistribution(c, cList)
 				c.Assert(err, IsNil)
@@ -178,9 +175,8 @@ func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 			}
 		}
 	}
-	if encap == "vlan" && s.fwdMode == "routing" {
-		s.TearDownBgp(c)
-	}
+
+	s.TearDownBgp(c, encap)
 }
 
 /*TestServiceAddDeleteProviders does the following:
@@ -192,20 +188,18 @@ func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 */
 
 func (s *systemtestSuite) TestServiceAddDeleteProvidersVxlan(c *C) {
-	s.testServiceAddDeleteProviders(c, "vxlan")
+	s.testServiceAddDeleteProviders(c, EncapVXLAN)
 }
 
 func (s *systemtestSuite) TestServiceAddDeleteProvidersVlan(c *C) {
-	s.testServiceAddDeleteProviders(c, "vlan")
+	s.testServiceAddDeleteProviders(c, EncapVLAN)
 }
 
 func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 
 	mutex := sync.Mutex{}
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
@@ -272,7 +266,7 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 			}
 		}
 
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.fwdMode == FwdModeRouting && encap == EncapVLAN {
 			for _, cList := range containers {
 				err := s.CheckBgpRouteDistribution(c, cList)
 				c.Assert(err, IsNil)
@@ -377,9 +371,8 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 			}
 		}
 	}
-	if encap == "vlan" && s.fwdMode == "routing" {
-		s.TearDownBgp(c)
-	}
+
+	s.TearDownBgp(c, encap)
 }
 
 /*TestServiceAddDeleteProviders does the following:
@@ -391,21 +384,18 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 service creation will appropriately update service providers
 */
 func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAddVxlan(c *C) {
-	s.testServiceSequenceProviderAddServiceAdd(c, "vxlan")
+	s.testServiceSequenceProviderAddServiceAdd(c, EncapVXLAN)
 
 }
 
 func (s *systemtestSuite) TestServiceSequenceProviderAddServiceAddVlan(c *C) {
-	s.testServiceSequenceProviderAddServiceAdd(c, "vlan")
+	s.testServiceSequenceProviderAddServiceAdd(c, EncapVLAN)
 
 }
 
 func (s *systemtestSuite) testServiceSequenceProviderAddServiceAdd(c *C, encap string) {
-
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	mutex := sync.Mutex{}
 
@@ -471,7 +461,8 @@ func (s *systemtestSuite) testServiceSequenceProviderAddServiceAdd(c *C, encap s
 			}(network, tenant, containers)
 		}
 	}
-	if s.fwdMode == "routing" && encap == "vlan" {
+
+	if s.isBGP(encap) {
 		for _, cList := range containers {
 			err := s.CheckBgpRouteDistribution(c, cList)
 			c.Assert(err, IsNil)
@@ -544,9 +535,8 @@ func (s *systemtestSuite) testServiceSequenceProviderAddServiceAdd(c *C, encap s
 		}
 		delete(tenantNames, tenant)
 	}
-	if encap == "vlan" && s.fwdMode == "routing" {
-		s.TearDownBgp(c)
-	}
+
+	s.TearDownBgp(c, encap)
 }
 
 /*TestServiceAddDeleteProviders does the following:
@@ -560,18 +550,16 @@ and verfies the reachability.
 */
 
 func (s systemtestSuite) TestServiceTriggerNetmasterSwitchoverVxlan(c *C) {
-	s.testServiceTriggerNetmasterSwitchover(c, "vxlan")
+	s.testServiceTriggerNetmasterSwitchover(c, EncapVXLAN)
 }
 func (s systemtestSuite) TestServiceTriggerNetmasterSwitchoverVlan(c *C) {
-	s.testServiceTriggerNetmasterSwitchover(c, "vlan")
+	s.testServiceTriggerNetmasterSwitchover(c, EncapVLAN)
 }
 
 func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap string) {
 
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	mutex := sync.Mutex{}
 
@@ -643,7 +631,7 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 				}(network, tenant, containers)
 			}
 		}
-		if s.fwdMode == "routing" && encap == "vlan" {
+		if s.isBGP(encap) {
 			for _, cList := range containers {
 				err := s.CheckBgpRouteDistribution(c, cList)
 				c.Assert(err, IsNil)
@@ -759,9 +747,8 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 			}
 		}
 	}
-	if encap == "vlan" && s.fwdMode == "routing" {
-		s.TearDownBgp(c)
-	}
+
+	s.TearDownBgp(c, encap)
 }
 
 /*TestServiceAddDeleteProviders does the following:
@@ -775,19 +762,17 @@ and verfies the reachability.
 */
 
 func (s systemtestSuite) TestServiceTriggerNetpluginRestartVlan(c *C) {
-	s.testServiceTriggerNetpluginRestart(c, "vlan")
+	s.testServiceTriggerNetpluginRestart(c, EncapVLAN)
 }
 func (s systemtestSuite) TestServiceTriggerNetpluginRestartVxlan(c *C) {
-	s.testServiceTriggerNetpluginRestart(c, "vxlan")
+	s.testServiceTriggerNetpluginRestart(c, EncapVXLAN)
 }
 
 func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) {
 
 	mutex := sync.Mutex{}
-	if s.fwdMode == "routing" && encap == "vlan" {
-		s.SetupBgp(c, false)
-		s.CheckBgpConnection(c)
-	}
+	s.SetupBgp(c, encap, false)
+	s.CheckBgpConnection(c, encap)
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		var (
@@ -858,7 +843,8 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 				}(network, tenant, containers)
 			}
 		}
-		if s.fwdMode == "routing" && encap == "vlan" {
+
+		if s.isBGP(encap) {
 			for _, cList := range containers {
 				err := s.CheckBgpRouteDistribution(c, cList)
 				c.Assert(err, IsNil)
@@ -904,8 +890,8 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 			c.Assert(node.startNetplugin(""), IsNil)
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 			time.Sleep(20 * time.Second)
-			if s.fwdMode == "routing" && encap == "vlan" {
-				s.CheckBgpConnection(c)
+			if s.isBGP(encap) {
+				s.CheckBgpConnection(c, encap)
 				for _, cList := range containers {
 					err := s.CheckBgpRouteDistribution(c, cList)
 					c.Assert(err, IsNil)
@@ -953,9 +939,8 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 			}
 		}
 	}
-	if encap == "vlan" && s.fwdMode == "routing" {
-		s.TearDownBgp(c)
-	}
+
+	s.TearDownBgp(c, encap)
 }
 
 func (s *systemtestSuite) createServiceNetworks(c *C, i int, numNets int, tenant, encap string) []string {
@@ -1018,7 +1003,7 @@ func (s *systemtestSuite) addProviders(c *C, labels []string, numProviders int, 
 
 	containers, err = s.runContainers(numProviders, false, netName, tenant, names, labels)
 	c.Assert(err, IsNil)
-	if s.fwdMode == "routing" && encap == "vlan" {
+	if s.isBGP(encap) {
 		err = s.CheckBgpRouteDistribution(c, containers)
 		c.Assert(err, IsNil)
 	}

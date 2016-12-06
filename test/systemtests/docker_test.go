@@ -279,7 +279,9 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 		err     error
 	)
 
-	for i := 0; i < 3; i++ {
+	after := time.After(2 * time.Minute)
+
+	for {
 		bw, err = d.exec(c, fmt.Sprintf("iperf -c %s -u -b 20mbps", ip))
 		if err != nil {
 			return err
@@ -288,8 +290,13 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 			success = true
 			break
 		} else if strings.Contains(bw, "read failed:") {
-			time.Sleep(2 * time.Second)
-			i++
+			time.Sleep(1 * time.Second)
+		}
+
+		select {
+		case <-after:
+			return errors.New("Deadline exceeded")
+		default:
 		}
 	}
 
@@ -363,6 +370,10 @@ func (d *docker) tcFilterShow(bw string) error {
 		return err
 	}
 	qdiscoutput := strings.Split(qdiscShow, "ingress")
+	if len(qdiscoutput) < 2 {
+		return fmt.Errorf("invalid output from `tc qdisc show`: %v", qdiscShow)
+	}
+
 	vvport := strings.Split(qdiscoutput[1], "parent")
 	vvPort := strings.Split(vvport[0], "dev ")
 	cmd := fmt.Sprintf("tc -s filter show dev %s parent ffff:", vvPort[1])
@@ -708,7 +719,7 @@ func (d *docker) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	}
 
 	drvInfo := data.(map[string]interface{})
-	vx, found := drvInfo["vxlan"]
+	vx, found := drvInfo[EncapVXLAN]
 	if !found {
 		logrus.Errorf("vxlan not found in driver info")
 		return str, errors.New("vxlan not found in driver info")

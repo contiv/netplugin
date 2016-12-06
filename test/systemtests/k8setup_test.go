@@ -702,7 +702,7 @@ func (k *kubernetes) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	}
 
 	drvInfo := data.(map[string]interface{})
-	vx, found := drvInfo["vxlan"]
+	vx, found := drvInfo[EncapVXLAN]
 	if !found {
 		logrus.Errorf("vxlan not found in driver info")
 		return str, errors.New("vxlan not found in driver info")

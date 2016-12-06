@@ -14,13 +14,13 @@ func (s *systemtestSuite) TestHostBridge(c *C) {
 		NetworkInfraType: "default",
 		Vlans:            "1-4094",
 		Vxlans:           "1-10000",
-		FwdMode:          "bridge",
+		FwdMode:          FwdModeBridge,
 	}), IsNil)
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		TenantName:  "default",
 		NetworkName: "rogue-net",
 		Subnet:      "23.4.5.0/24",
-		Encap:       "vxlan",
+		Encap:       EncapVXLAN,
 	}), IsNil)
 
 	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
