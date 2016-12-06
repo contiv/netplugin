@@ -32,6 +32,7 @@ type integTestSuite struct {
 	iterations   int    // number of iterations for multi-iteration tests
 	parallels    int    // number of parallel tests to run
 	fwdMode      string // forwarding mode bridging/routing
+	arpMode      string // ARP mode proxy/flood
 	encap        string // encap vlan/vxlan
 	fabricMode   string // aci or default
 	clusterStore string // cluster store URL
@@ -49,6 +50,7 @@ func TestMain(m *M) {
 	flag.IntVar(&integ.iterations, "iterations", 3, "Number of iterations")
 	flag.IntVar(&integ.parallels, "parallels", 10, "Number of parallel actions")
 	flag.StringVar(&integ.fwdMode, "fwd-mode", "bridge", "forwarding mode [ bridge | routing ]")
+	flag.StringVar(&integ.arpMode, "arp-mode", "proxy", "ARP mode [ proxy | flood ]")
 	flag.StringVar(&integ.encap, "encap", "vlan", "Encap [ vlan | vxlan ]")
 	flag.StringVar(&integ.fabricMode, "fabric-mode", "default", "fabric-mode [ aci | default ]")
 	flag.StringVar(&integ.clusterStore, "cluster-store", "etcd://127.0.0.1:2379", "Cluster store URL")

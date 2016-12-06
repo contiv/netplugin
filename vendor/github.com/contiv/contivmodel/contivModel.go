@@ -191,6 +191,7 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	ArpMode          string `json:"arpMode,omitempty"`          // ARP Mode
 	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
@@ -3074,6 +3075,15 @@ func ValidateGlobal(obj *Global) error {
 	}
 
 	// Validate each field
+
+	if len(obj.ArpMode) > 64 {
+		return errors.New("arpMode string too long")
+	}
+
+	arpModeMatch := regexp.MustCompile("^(proxy|flood)?$")
+	if arpModeMatch.MatchString(obj.ArpMode) == false {
+		return errors.New("arpMode string invalid format")
+	}
 
 	if len(obj.FwdMode) > 64 {
 		return errors.New("fwdMode string too long")

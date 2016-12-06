@@ -23,6 +23,7 @@ type ConfigGlobal struct {
 	VLANs       string
 	VXLANs      string
 	FwdMode     string
+	ArpMode     string
 }
 
 // ConfigEP encapulsates an endpoint: a leg into a network

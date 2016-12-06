@@ -158,6 +158,10 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		masterGc.FwdMode = gc.FwdMode
 	}
 
+	if gc.ArpMode != "" {
+		masterGc.ArpMode = gc.ArpMode
+	}
+
 	if len(gcfgUpdateList) > 0 {
 		// Delete old state
 
@@ -255,6 +259,10 @@ func UpdateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 
 	if gc.FwdMode != "" {
 		masterGc.FwdMode = gc.FwdMode
+	}
+
+	if gc.ArpMode != "" {
+		masterGc.ArpMode = gc.ArpMode
 	}
 
 	if len(gcfgUpdateList) > 0 {

@@ -24,6 +24,7 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
 		FwdMode:          "bridge",
+		ArpMode:          "flood",
 	}), IsNil)
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		TenantName:  "default",
@@ -94,6 +95,7 @@ func (s *systemtestSuite) TestACIPingGateway(c *C) {
 		Name:             "global",
 		NetworkInfraType: "aci",
 		FwdMode:          "bridge",
+		ArpMode:          "flood",
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
 	}), IsNil)
@@ -160,6 +162,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		Name:             "global",
 		NetworkInfraType: "aci",
 		FwdMode:          "bridge",
+		ArpMode:          "flood",
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
 	}), IsNil)

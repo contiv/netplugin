@@ -1293,6 +1293,7 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
+			ArpMode:          "proxy",
 		}), IsNil)
 		time.Sleep(40 * time.Second)
 	}
@@ -1356,6 +1357,7 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
+			ArpMode:          "proxy",
 		}), IsNil)
 		time.Sleep(120 * time.Second)
 	}

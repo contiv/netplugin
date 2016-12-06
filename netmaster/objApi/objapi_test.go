@@ -247,13 +247,14 @@ func checkInspectGlobal(t *testing.T, expError bool, allocedVlans, allocedVxlans
 }
 
 // checkGlobalSet sets global state and verifies state
-func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode string) {
+func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode string, arpMode string) {
 	gl := client.Global{
 		Name:             "global",
 		NetworkInfraType: fabMode,
 		Vlans:            vlans,
 		Vxlans:           vxlans,
 		FwdMode:          fwdMode,
+		ArpMode:          arpMode,
 	}
 	err := contivClient.GlobalPost(&gl)
 	if err != nil && !expError {
@@ -1015,7 +1016,7 @@ func TestOverlappingSubnets(t *testing.T) {
 func TestNetworkAddDeleteACIMode(t *testing.T) {
 
 	// set aci mode
-	checkGlobalSet(t, false, "aci", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, false, "aci", "1-4094", "1-10000", "bridge", "flood")
 
 	// Create Network and Delete it
 	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "")
@@ -1035,7 +1036,7 @@ func TestNetworkAddDeleteACIMode(t *testing.T) {
 	checkCreateNetwork(t, false, "default", "contiv-ipv6", "", "vxlan", "10.1.1.1/16", "", 1, "2016:0617::/120", "")
 	verifyNetworkState(t, "default", "contiv-ipv6", "data", "vxlan", "10.1.1.1", "", 16, 1, 1, "2016:0617::", "", 120)
 	checkDeleteNetwork(t, false, "default", "contiv-ipv6")
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy")
 
 }
 
@@ -1155,7 +1156,7 @@ func TestDynamicGlobalVlanRange(t *testing.T) {
 	verifyNetworkState(t, "default", "contiv3", "data", "vlan", "12.1.1.1", "12.1.1.254", 24, 300, 0, "", "", 0)
 
 	//Change global state
-	checkGlobalSet(t, false, "default", "9-301", "1-10000", "bridge")
+	checkGlobalSet(t, false, "default", "9-301", "1-10000", "bridge", "proxy")
 
 	//verify creation of network with active tag fails after change in global vlan range
 	checkCreateNetwork(t, true, "default", "contiv4", "", "vlan", "13.1.1.1/24", "13.1.1.254", 10, "", "")
@@ -1170,12 +1171,12 @@ func TestDynamicGlobalVlanRange(t *testing.T) {
 	verifyNetworkState(t, "default", "contiv6", "data", "vlan", "15.1.1.1", "15.1.1.254", 24, 299, 0, "", "", 0)
 
 	//check global state change fails if there are active tags
-	checkGlobalSet(t, true, "default", "50-301", "1-10000", "bridge")
+	checkGlobalSet(t, true, "default", "50-301", "1-10000", "bridge", "proxy")
 	//check global state change fails if there are active tags
-	checkGlobalSet(t, true, "default", "1-200", "1-10000", "bridge")
+	checkGlobalSet(t, true, "default", "1-200", "1-10000", "bridge", "proxy")
 
 	//check global vlan range can be changed to bigger range
-	checkGlobalSet(t, false, "default", "1-800", "1-10000", "bridge")
+	checkGlobalSet(t, false, "default", "1-800", "1-10000", "bridge", "flood")
 	checkCreateNetwork(t, false, "default", "contiv7", "", "vlan", "16.1.1.1/24", "16.1.1.254", 700, "", "")
 	checkInspectNetwork(t, false, "default", "contiv7", "16.1.1.254", 700, 0)
 	//checkInspectGlobal(t, false, "5", "")
@@ -1195,7 +1196,7 @@ func TestDynamicGlobalVlanRange(t *testing.T) {
 	checkDeleteNetwork(t, false, "default", "contiv2")
 	checkDeleteNetwork(t, false, "default", "contiv1")
 
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy")
 
 }
 
@@ -1214,7 +1215,7 @@ func TestDynamicGlobalVxlanRange(t *testing.T) {
 	verifyNetworkState(t, "default", "contiv3", "data", "vxlan", "12.1.1.1", "12.1.1.254", 24, 3, 2000, "", "", 0)
 
 	//Change global state
-	checkGlobalSet(t, false, "default", "1-4094", "1000-2500", "bridge")
+	checkGlobalSet(t, false, "default", "1-4094", "1000-2500", "bridge", "proxy")
 
 	//verify creation of network with active tag fails after change in global vlan range
 	checkCreateNetwork(t, true, "default", "contiv4", "", "vxlan", "13.1.1.1/24", "13.1.1.254", 1000, "", "")
@@ -1227,12 +1228,12 @@ func TestDynamicGlobalVxlanRange(t *testing.T) {
 	verifyNetworkState(t, "default", "contiv6", "data", "vxlan", "14.1.1.1", "14.1.1.254", 24, 4, 2200, "", "", 0)
 
 	//check global state change fails if there are active tags
-	checkGlobalSet(t, true, "default", "1-4094", "2000-10000", "bridge")
+	checkGlobalSet(t, true, "default", "1-4094", "2000-10000", "bridge", "proxy")
 	//check global state change fails if there are active tags
-	checkGlobalSet(t, true, "default", "1-4094", "1000-2000", "bridge")
+	checkGlobalSet(t, true, "default", "1-4094", "1000-2000", "bridge", "proxy")
 
 	//check global vlan range can be changed to bigger range
-	checkGlobalSet(t, false, "default", "1-4094", "1000-9000", "bridge")
+	checkGlobalSet(t, false, "default", "1-4094", "1000-9000", "bridge", "proxy")
 	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "15.1.1.1/24", "15.1.1.254", 3200, "", "")
 	verifyNetworkState(t, "default", "contiv7", "data", "vxlan", "15.1.1.1", "15.1.1.254", 24, 5, 3200, "", "", 0)
 
@@ -1248,34 +1249,34 @@ func TestDynamicGlobalVxlanRange(t *testing.T) {
 	checkDeleteNetwork(t, false, "default", "contiv2")
 	checkDeleteNetwork(t, false, "default", "contiv1")
 
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy")
 
 }
 
 // TestGlobalSetting tests global REST api
 func TestGlobalSetting(t *testing.T) {
 	// try basic modification
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy")
 	// set aci mode
-	checkGlobalSet(t, false, "aci", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, false, "aci", "1-4094", "1-10000", "bridge", "flood")
 
 	// modify vlan/vxlan range
-	checkGlobalSet(t, false, "default", "1-1000", "1001-2000", "bridge")
+	checkGlobalSet(t, false, "default", "1-1000", "1001-2000", "bridge", "proxy")
 
 	// try invalid fabric mode
-	checkGlobalSet(t, true, "xyz", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, true, "xyz", "1-4094", "1-10000", "bridge", "proxy")
 
 	// try invalid vlan/vxlan range
-	checkGlobalSet(t, true, "default", "1-5000", "1-10000", "bridge")
-	checkGlobalSet(t, true, "default", "0-4094", "1-10000", "bridge")
-	checkGlobalSet(t, true, "default", "1", "1-10000", "bridge")
-	checkGlobalSet(t, true, "default", "1?2", "1-10000", "bridge")
-	checkGlobalSet(t, true, "default", "abcd", "1-10000", "bridge")
-	checkGlobalSet(t, true, "default", "1-4094", "1-100000", "bridge")
-	checkGlobalSet(t, true, "default", "1-4094", "1-20000", "bridge")
+	checkGlobalSet(t, true, "default", "1-5000", "1-10000", "bridge", "proxy")
+	checkGlobalSet(t, true, "default", "0-4094", "1-10000", "bridge", "proxy")
+	checkGlobalSet(t, true, "default", "1", "1-10000", "bridge", "proxy")
+	checkGlobalSet(t, true, "default", "1?2", "1-10000", "bridge", "proxy")
+	checkGlobalSet(t, true, "default", "abcd", "1-10000", "bridge", "proxy")
+	checkGlobalSet(t, true, "default", "1-4094", "1-100000", "bridge", "proxy")
+	checkGlobalSet(t, true, "default", "1-4094", "1-20000", "bridge", "proxy")
 
 	// reset back to default values
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy")
 }
 
 // TestAciGwSetting tests AciGw object REST api
@@ -1331,14 +1332,14 @@ func TestNetworkPktRanges(t *testing.T) {
 	checkDeleteNetwork(t, false, "default", "contiv1")
 
 	// shrink ranges and try allocating
-	checkGlobalSet(t, false, "default", "100-1000", "1001-2000", "bridge")
+	checkGlobalSet(t, false, "default", "100-1000", "1001-2000", "bridge", "proxy")
 	checkCreateNetwork(t, true, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 1001, "", "")
 	checkCreateNetwork(t, true, "default", "contiv1", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 99, "", "")
 	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 2001, "", "")
 	checkCreateNetwork(t, true, "default", "contiv2", "data", "vxlan", "10.1.2.1/24", "10.1.2.254", 1000, "", "")
 
 	// reset back to default values
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge")
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy")
 }
 
 // TestPolicyRules tests policy and rule REST objects

@@ -82,6 +82,7 @@ type InstanceInfo struct {
 	VlanIntf    string      `json:"vlan-if"`
 	RouterIP    string      `json:"router-ip"`
 	FwdMode     string      `json:"fwd-mode"`
+	ArpMode     string      `json:"arp-mode"`
 	DbURL       string      `json:"db-url"`
 	PluginMode  string      `json:"plugin-mode"`
 }
@@ -134,6 +135,8 @@ type NetworkDriver interface {
 	InspectState() ([]byte, error)
 	// return bgp in json form
 	InspectBgp() ([]byte, error)
+	// Set global config
+	GlobalConfigUpdate(inst InstanceInfo) error
 }
 
 // WatchState is used to provide a difference between core.State structs by

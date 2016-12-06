@@ -809,3 +809,30 @@ func (d *OvsDriver) InspectBgp() ([]byte, error) {
 
 	return jsonState, nil
 }
+
+// GlobalConfigUpdate sets the global level configs like arp-mode
+func (d *OvsDriver) GlobalConfigUpdate(inst core.InstanceInfo) error {
+	// convert the netplugin config to ofnet config
+	// currently, its only ArpMode
+	var cfg ofnet.OfnetGlobalConfig
+	switch inst.ArpMode {
+	case "flood":
+		cfg.ArpMode = ofnet.ArpFlood
+	default:
+		// set the default to proxy for graceful upgrade
+		cfg.ArpMode = ofnet.ArpProxy
+	}
+
+	errs := ""
+	for _, sw := range d.switchDb {
+		err := sw.GlobalConfigUpdate(cfg)
+		if err != nil {
+			errs += err.Error()
+		}
+	}
+	if errs != "" {
+		return errors.New(errs)
+	}
+
+	return nil
+}

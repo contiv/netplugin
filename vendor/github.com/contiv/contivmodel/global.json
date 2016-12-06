@@ -31,13 +31,20 @@
 					"title": "Allwed vxlan range",
 					"format": "^([0-9]{1,8}?-[0-9]{1,8}?)$"
 				},
-                                "fwdMode": {
-                                        "type": "string",
-                                        "title": "Forwarding Mode",
-                                        "length": 64,
-                                        "format": "^(bridge|routing)?$",
-                                        "ShowSummary": true
-                                }
+				"fwdMode": {
+					"type": "string",
+					"title": "Forwarding Mode",
+					"length": 64,
+					"format": "^(bridge|routing)?$",
+					"ShowSummary": true
+				},
+				"arpMode": {
+					"type": "string",
+					"title": "ARP Mode",
+					"length": 64,
+					"format": "^(proxy|flood)?$",
+					"ShowSummary": true
+				}
 			},
 			"operProperties": {
 				"numNetworks": {
