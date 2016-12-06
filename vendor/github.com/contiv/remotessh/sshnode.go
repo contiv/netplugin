@@ -17,10 +17,13 @@ package remotessh
 
 import (
 	"fmt"
+	"os"
+	"io"
 	"io/ioutil"
 	"net"
 	"strings"
 	"time"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -176,4 +179,121 @@ func (n *SSHNode) RunCommandBackground(cmd string) error {
 // GetName returns vagrant node's name
 func (n *SSHNode) GetName() string {
 	return n.Name
+}
+
+// ScpFromRemoteToLocal scp remote file to local dir
+func (n *SSHNode) ScpFromRemoteToLocal(remoteFilename string, localFilename string) error {
+	client, s, err := n.getClientAndSession()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	defer s.Close()
+
+	w, err := s.StdinPipe()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	r, err := s.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		// write a null byte to remote to initiate
+		nullByte := []byte{0}
+		w.Write(nullByte)
+
+		// read commands from remote 
+		data := make ([]byte, 100) 
+		bytesRead, err := r.Read(data)
+		if err != nil && err != io.EOF {
+			log.Errorf("scp command failed to start. err=%s", err.Error())
+			return
+		}
+		cmds := strings.Split(string(data[:bytesRead]), " ")
+		filesize := "0"
+		if len(cmds) > 2 {
+			filesize = cmds[1]
+		}
+		log.Debugf("remotessh: scp %s %s : filesize %s, Cmd %d bytes.. Cmd data %s", 
+			remoteFilename, localFilename, filesize,
+			bytesRead, string(data[:bytesRead]))
+
+		f,err := os.Create(localFilename)
+		if err != nil {
+			log.Errorf("failed to create local file %s", localFilename)
+			return
+		}
+		defer f.Close()
+
+		fileContents := make ([]byte, 100) 
+		more := true
+		for more {
+			// write a null byte to remote to initiate
+			w.Write(nullByte)
+
+			bytesRead, err = r.Read(fileContents)
+			if err == io.EOF {
+				more = false
+			} else if err != nil {
+				log.Errorf("could not scp file %s completely. err=%s", 
+					remoteFilename, err.Error())
+			}
+			f.Write(fileContents[:bytesRead])
+		}
+		f.Sync()
+	} ()
+
+	s.Run("/usr/bin/scp -f " + remoteFilename)
+	wg.Wait()
+	return nil
+}
+
+// ScpFromLocalToRemote scp file to remote node
+func (n *SSHNode) ScpFromLocalToRemote(localFilename string, remoteFilename string) error {
+	client, s, err := n.getClientAndSession()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	defer s.Close()
+
+	w, err := s.StdinPipe()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		fileContents, err := ioutil.ReadFile(localFilename)
+		if err != nil {
+			return 
+		}
+		log.Debugf("Local file (%d bytes) contents: %s\n", len(string(fileContents)), string(fileContents))
+
+		cmds := []byte(fmt.Sprintf("C0664 %d %s\n", len(fileContents), remoteFilename))
+		w.Write(cmds)
+		log.Debugf("remotessh: scp %s %s : filesize %d ", 
+			localFilename, remoteFilename, len(fileContents))
+
+		w.Write(fileContents)
+		fmt.Fprintln(w, "\x00")
+	} ()
+
+	s.Run("/usr/bin/scp -t " + remoteFilename)
+	wg.Wait()
+	return nil
 }

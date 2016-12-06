@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"errors"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/remotessh"
@@ -146,6 +147,53 @@ func (n *node) runCommandWithTimeOut(cmd string, tick, timeout time.Duration) er
 
 func (n *node) runCommandUntilNoError(cmd string) error {
 	return n.runCommandWithTimeOut(cmd, 10*time.Millisecond, 10*time.Second)
+}
+
+func (n *node) copyLog(substr string) error {
+	remoteFilename := substr + "-logs.tgz"
+	localFilename := "logs/" + n.tbnode.GetName() + "-" + remoteFilename
+
+	_ = n.tbnode.RunCommand("rm " + remoteFilename)
+	var cmd string
+	var err error
+	switch substr {
+	case "netmaster":
+		fallthrough
+	case "netplugin":
+		cmd = fmt.Sprintf("tar czf %s /tmp/*%s*.log", remoteFilename, substr)
+	case "ovs":
+		cmd = fmt.Sprintf("tar czf %s /var/log/openvswitch/*%s*.log", remoteFilename, substr)
+	}
+	err = n.tbnode.RunCommand(cmd)
+	if err != nil {
+		fmt.Printf("Command failed for %s . Err: %s", cmd, err.Error())
+		return err
+	}
+	err = n.tbnode.ScpFromRemoteToLocal(remoteFilename, localFilename)
+	return err
+}
+
+func (n *node) copyOverLogs() error {
+	var errStr string
+	err := n.copyLog("netmaster")
+	if err != nil {
+		fmt.Println("scp failed for netmaster logs")
+		errStr = err.Error()
+	}
+	err = n.copyLog("netplugin")
+	if err != nil {
+		fmt.Println("scp failed for netplugin logs")
+		errStr += err.Error()
+	}
+	err = n.copyLog("ovs")
+	if err != nil {
+		fmt.Println("scp failed for ovs logs")
+		errStr += err.Error()
+	}
+	if errStr != "" {
+		return errors.New(errStr)
+	}
+	return nil
 }
 
 func (n *node) checkPingWithCount(ipaddr string, count int) error {
