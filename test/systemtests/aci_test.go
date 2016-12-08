@@ -16,7 +16,7 @@ import (
 */
 func (s *systemtestSuite) TestACIMode(c *C) {
 	if s.fwdMode == "routing" {
-		return
+		c.Skip("Skipping test for routing mode")
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
@@ -89,7 +89,7 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 /* TesACIPingGateway checks ping success from containers running in a EPG to the default gateway */
 func (s *systemtestSuite) TestACIPingGateway(c *C) {
 	if s.fwdMode == "routing" {
-		return
+		c.Skip("Skipping test for routing mode")
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
@@ -156,7 +156,7 @@ func (s *systemtestSuite) TestACIPingGateway(c *C) {
 */
 func (s *systemtestSuite) TestACIProfile(c *C) {
 	if s.fwdMode == "routing" {
-		return
+		c.Skip("Skipping test for routing mode")
 	}
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
@@ -454,7 +454,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 
 func (s *systemtestSuite) TestACIGWRestart(c *C) {
 	if s.fwdMode == "routing" {
-		return
+		c.Skip("Skipping test for routing mode")
 	}
 
 	c.Assert(s.cli.GlobalPost(&client.Global{

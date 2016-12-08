@@ -48,7 +48,11 @@ func (s *StringSlice) Get() interface{} {
 // Set function for StringSlice sets the appropriate field for flag handling
 func (s *StringSlice) Set(value string) error {
 	optVal := strings.Split(value, ",")
-	*s = append(*s, optVal...)
+	for _, option := range optVal {
+		if !strings.Contains(s.String(), option) {
+			*s = append(*s, option)
+		}
+	}
 	return nil
 }
 

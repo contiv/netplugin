@@ -32,7 +32,7 @@ type BasicInfo struct {
 	Iterations   int    `json:"iterations"`
 	EnableDNS    bool   `json:"enableDNS"`
 	ClusterStore string `json:"contiv_cluster_store"`
-	ContivL3     int `json:"contiv_l3"`
+	ContivL3     string `json:"contiv_l3"`
 	KeyFile      string `json:"keyFile"`
 	BinPath      string `json:"binpath"` // /home/admin/bin or /opt/gopath/bin
 }
@@ -61,7 +61,7 @@ var _ = Suite(sts)
 func TestMain(m *M) {
 	mastbasic, _, _ := getInfo("cfg.json")
 
-	if mastbasic.ContivL3 == 0 {
+	if mastbasic.ContivL3 == "" {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
 	} else {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "routing", "forwarding mode to start the test ")

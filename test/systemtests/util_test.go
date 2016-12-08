@@ -1160,6 +1160,7 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 	nodesStr := os.Getenv("CONTIV_NODES")
 	var contivNodes int
 
+	logrus.Infof("Running tests with Forwarding mode: %s", s.fwdMode)
 	if nodesStr == "" {
 		contivNodes = 3
 	} else {
