@@ -955,3 +955,10 @@ func (sw *OvsSwitch) GlobalConfigUpdate(cfg ofnet.OfnetGlobalConfig) error {
 	}
 	return sw.ofnetAgent.GlobalConfigUpdate(cfg)
 }
+
+// AddNameServer returns ofnet state in json form
+func (sw *OvsSwitch) AddNameServer(ns ofnet.NameServer) {
+	if sw.ofnetAgent != nil {
+		sw.ofnetAgent.AddNameServer(ns)
+	}
+}

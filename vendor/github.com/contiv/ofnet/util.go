@@ -101,6 +101,72 @@ func BuildGarpPkt(ip net.IP, mac net.HardwareAddr, vlanID uint16) *openflow13.Pa
 	return pktOut
 }
 
+func ipChecksum(data []byte) uint16 {
+	csum := uint32(0)
+	length := len(data) - 1
+	for i := 0; i < length; i += 2 {
+		csum += uint32(data[i]) << 8
+		csum += uint32(data[i+1])
+	}
+	if len(data)%2 == 1 {
+		csum += uint32(data[length]) << 8
+	}
+	for csum > 0xffff {
+		csum = (csum >> 16) + (csum & 0xffff)
+	}
+	return ^uint16(csum)
+}
+
+func buildDnsForwardPkt(ethInPkt *protocol.Ethernet) *protocol.Ethernet {
+	ipPkt := ethInPkt.Data.(*protocol.IPv4)
+	ethPkt := protocol.NewEthernet()
+	ethPkt.HWSrc = ethInPkt.HWSrc
+	ethPkt.HWDst = ethInPkt.HWDst
+	ethPkt.VLANID.VID = nameServerInternalVlanId
+	ethPkt.Ethertype = ethInPkt.Ethertype
+	ethPkt.Data = ipPkt
+	return ethPkt
+}
+
+func buildUDPRespPkt(inEth *protocol.Ethernet, uData []byte) (*protocol.Ethernet, error) {
+	inIp := inEth.Data.(*protocol.IPv4)
+	inUdp := inIp.Data.(*protocol.UDP)
+
+	outUdp := protocol.NewUDP()
+	outUdp.PortDst = inUdp.PortSrc
+	outUdp.PortSrc = inUdp.PortDst
+	outUdp.Length = uint16(8 + len(uData))
+	outUdp.Data = append(outUdp.Data, uData...)
+
+	outIp := protocol.NewIPv4()
+	outIp.Version = inIp.Version
+	outIp.IHL = 5
+	outIp.DSCP = inIp.DSCP
+	outIp.ECN = inIp.ECN
+	outIp.Length = uint16(20 + outUdp.Len())
+	outIp.Id = inIp.Id
+	outIp.Flags = inIp.Flags
+	outIp.FragmentOffset = inIp.FragmentOffset
+	outIp.TTL = 64
+	outIp.Protocol = protocol.Type_UDP
+	outIp.NWSrc = inIp.NWDst
+	outIp.NWDst = inIp.NWSrc
+	if d, e := outIp.MarshalBinary(); e != nil {
+		return nil, e
+	} else {
+		outIp.Checksum = ipChecksum(d)
+	}
+	outIp.Data = outUdp
+
+	outEth := protocol.NewEthernet()
+	outEth.VLANID.VID = inEth.VLANID.VID
+	outEth.HWDst = inEth.HWSrc
+	outEth.HWSrc = inEth.HWDst
+	outEth.Ethertype = inEth.Ethertype
+	outEth.Data = outIp
+	return outEth, nil
+}
+
 // createPortVlanFlow creates port vlan flow based on endpoint metadata
 func createPortVlanFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, endpoint *OfnetEndpoint) (*ofctrl.Flow, error) {
 	// Install a flow entry for vlan mapping

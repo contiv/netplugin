@@ -27,6 +27,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/netplugin/nameserver"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
 	"github.com/vishvananda/netlink"
@@ -82,11 +83,12 @@ func (s *OvsDriverOperState) Clear() error {
 // OvsDriver implements the Layer 2 Network and Endpoint Driver interfaces
 // specific to vlan based open-vswitch.
 type OvsDriver struct {
-	oper      OvsDriverOperState    // Oper state of the driver
-	localIP   string                // Local IP address
-	switchDb  map[string]*OvsSwitch // OVS switch instances
-	lock      sync.Mutex            // lock for modifying shared state
-	HostProxy *NodeSvcProxy
+	oper       OvsDriverOperState    // Oper state of the driver
+	localIP    string                // Local IP address
+	switchDb   map[string]*OvsSwitch // OVS switch instances
+	lock       sync.Mutex            // lock for modifying shared state
+	HostProxy  *NodeSvcProxy
+	nameServer *nameserver.NetpluginNameServer
 }
 
 func (d *OvsDriver) getIntfName() (string, error) {
@@ -178,6 +180,13 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
+
+	// Add name server
+	d.nameServer = new(nameserver.NetpluginNameServer)
+	d.nameServer.Init(info.StateDriver)
+	d.switchDb["vxlan"].AddNameServer(d.nameServer)
+	d.switchDb["vlan"].AddNameServer(d.nameServer)
+	log.Infof("initialized nameserver")
 
 	// Add uplink to VLAN switch
 	if len(info.UplinkIntf) != 0 {
@@ -834,4 +843,21 @@ func (d *OvsDriver) GlobalConfigUpdate(inst core.InstanceInfo) error {
 	}
 
 	return nil
+}
+
+// InspectNameserver returns nameserver state as json string
+func (d *OvsDriver) InspectNameserver() ([]byte, error) {
+	if d.nameServer == nil {
+		return []byte{}, nil
+
+	}
+
+	ns, err := d.nameServer.InspectState()
+	jsonState, err := json.Marshal(ns)
+	if err != nil {
+		log.Errorf("Error encoding nameserver state. Err: %v", err)
+		return []byte{}, err
+	}
+
+	return jsonState, nil
 }

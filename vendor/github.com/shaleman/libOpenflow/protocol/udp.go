@@ -44,9 +44,7 @@ func (u *UDP) UnmarshalBinary(data []byte) error {
 	u.PortDst = binary.BigEndian.Uint16(data[2:4])
 	u.Length = binary.BigEndian.Uint16(data[4:6])
 	u.Checksum = binary.BigEndian.Uint16(data[6:8])
+	u.Data = append(u.Data, data[8:]...)
 
-	for n, _ := range data[8:] {
-		u.Data = append(u.Data, data[n])
-	}
 	return nil
 }

@@ -210,6 +210,11 @@ func (p *NetPlugin) InspectBgp() ([]byte, error) {
 	return p.NetworkDriver.InspectBgp()
 }
 
+// InspectNameserver returns current state of the nameserver
+func (p *NetPlugin) InspectNameserver() ([]byte, error) {
+	return p.NetworkDriver.InspectNameserver()
+}
+
 //GlobalConfigUpdate update global config
 func (p *NetPlugin) GlobalConfigUpdate(cfg Config) error {
 	return p.NetworkDriver.GlobalConfigUpdate(cfg.Instance)

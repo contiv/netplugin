@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/contiv/netplugin",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GodepVersion": "v75",
 	"Packages": [
 		"./..."
 	],
@@ -75,23 +75,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "28a85950351e948ba93db21bad3204b2f4215beb"
+			"Rev": "ec547608cb51ef62865f225f98631f2635b8edac"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "28a85950351e948ba93db21bad3204b2f4215beb"
+			"Rev": "ec547608cb51ef62865f225f98631f2635b8edac"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "28a85950351e948ba93db21bad3204b2f4215beb"
+			"Rev": "ec547608cb51ef62865f225f98631f2635b8edac"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "28a85950351e948ba93db21bad3204b2f4215beb"
+			"Rev": "ec547608cb51ef62865f225f98631f2635b8edac"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "28a85950351e948ba93db21bad3204b2f4215beb"
+			"Rev": "ec547608cb51ef62865f225f98631f2635b8edac"
 		},
 		{
 			"ImportPath": "github.com/contiv/remotessh",
@@ -363,6 +363,10 @@
 			"Rev": "c81f9d71af8f8cba1466501d30326b99a4e56c19"
 		},
 		{
+			"ImportPath": "github.com/miekg/dns",
+			"Rev": "4744e915eb51a9defb5fb13c24ce2c8408d2fd98"
+		},
+		{
 			"ImportPath": "github.com/mitchellh/mapstructure",
 			"Rev": "281073eb9eb092240d33ef253c404f1cca550309"
 		},
@@ -435,19 +439,19 @@
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "11954d9e46275d5cd47788dd8bc31420a238e34e"
+			"Rev": "ef74a407cc85370620a5515d627580b20f18a582"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "11954d9e46275d5cd47788dd8bc31420a238e34e"
+			"Rev": "ef74a407cc85370620a5515d627580b20f18a582"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "11954d9e46275d5cd47788dd8bc31420a238e34e"
+			"Rev": "ef74a407cc85370620a5515d627580b20f18a582"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "11954d9e46275d5cd47788dd8bc31420a238e34e"
+			"Rev": "ef74a407cc85370620a5515d627580b20f18a582"
 		},
 		{
 			"ImportPath": "github.com/spf13/afero",

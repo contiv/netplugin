@@ -283,6 +283,16 @@ func (ag *Agent) serveRequests() {
 		w.Write(bgpState)
 	})
 
+	s.HandleFunc("/inspect/nameserver", func(w http.ResponseWriter, r *http.Request) {
+		ns, err := ag.netPlugin.NetworkDriver.InspectNameserver()
+		if err != nil {
+			log.Errorf("Error fetching nameserver state. Err: %v", err)
+			http.Error(w, "Error fetching nameserver state", http.StatusInternalServerError)
+			return
+		}
+		w.Write(ns)
+	})
+
 	// Create HTTP server and listener
 	server := &http.Server{Handler: router}
 	listener, err := net.Listen("tcp", listenURL)

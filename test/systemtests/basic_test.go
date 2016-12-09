@@ -183,8 +183,8 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		}
 
 		// Check name resolution
-		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc1%d.default", i)), IsNil)
-		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc2%d.default", i)), IsNil)
+		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc1%d", i)), IsNil)
+		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc2%d", i)), IsNil)
 
 		// cleanup
 		c.Assert(s.removeContainers(containers), IsNil)

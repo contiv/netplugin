@@ -17,6 +17,7 @@ package ofnet
 // This file implements the vlan bridging datapath
 
 import (
+	"fmt"
 	"net"
 	"net/rpc"
 	"sync"
@@ -54,6 +55,7 @@ type VlanBridge struct {
 
 	// Flow Database
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
+	portDnsFlowDb  cmap.ConcurrentMap        // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
 
 	// Arp Flow
@@ -108,6 +110,7 @@ func NewVlanBridge(agent *OfnetAgent, rpcServ *rpc.Server) *VlanBridge {
 
 	// init maps
 	vlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
+	vlan.portDnsFlowDb = cmap.New()
 	vlan.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
 	vlan.uplinkPortDb = cmap.New()
 	vlan.linkDb = cmap.New()
@@ -173,6 +176,55 @@ func (vl *VlanBridge) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 				inPortFld = *t
 
 				vl.processArp(pkt.Data, inPortFld.InPort)
+			}
+		}
+
+	case protocol.IPv4_MSG:
+		var inPort uint32
+		if (pkt.TableId == 0) && (pkt.Match.Type == openflow13.MatchType_OXM) &&
+			(pkt.Match.Fields[0].Class == openflow13.OXM_CLASS_OPENFLOW_BASIC) &&
+			(pkt.Match.Fields[0].Field == openflow13.OXM_FIELD_IN_PORT) {
+			// Get the input port number
+			switch t := pkt.Match.Fields[0].Value.(type) {
+			case *openflow13.InPortField:
+				inPort = t.InPort
+			default:
+				log.Debugf("unknown match type %v for ipv4 pkt", t)
+				return
+			}
+		}
+		ipPkt := pkt.Data.Data.(*protocol.IPv4)
+		switch ipPkt.Protocol {
+		case protocol.Type_UDP:
+			udpPkt := ipPkt.Data.(*protocol.UDP)
+			switch udpPkt.PortDst {
+			case 53:
+				if pkt.Data.VLANID.VID != 0 {
+					vl.agent.incrErrStats("dnsPktUplink")
+					return
+				}
+
+				if dnsResp, err := processDNSPkt(vl.agent, inPort, udpPkt.Data); err == nil {
+					if respPkt, err := buildUDPRespPkt(&pkt.Data, dnsResp); err == nil {
+						vl.agent.incrStats("dnsPktReply")
+						pktOut := openflow13.NewPacketOut()
+						pktOut.Data = respPkt
+						pktOut.AddAction(openflow13.NewActionOutput(inPort))
+						vl.ofSwitch.Send(pktOut)
+						return
+					}
+				}
+
+				// re-inject DNS packet
+				ethPkt := buildDnsForwardPkt(&pkt.Data)
+				pktOut := openflow13.NewPacketOut()
+				pktOut.Data = ethPkt
+				pktOut.InPort = inPort
+
+				pktOut.AddAction(openflow13.NewActionOutput(openflow13.P_TABLE))
+				vl.agent.incrStats("dnsPktForward")
+				vl.ofSwitch.Send(pktOut)
+				return
 			}
 		}
 	}
@@ -489,7 +541,6 @@ func (vl *VlanBridge) handleLinkUpDown() {
 			if update.IfInfomsg.Flags&syscall.IFF_UP != 0 {
 				log.Infof("Link up received for %s", link.Name)
 				vl.agent.incrStats("LinkupRcvd")
-
 				port := link.Port
 
 				prevPortStatus := port.LinkStatus
@@ -531,6 +582,19 @@ func (vl *VlanBridge) AddUplink(uplinkPort *PortInfo) error {
 	log.Infof("Adding uplink port: %+v", uplinkPort)
 
 	for _, link := range uplinkPort.MbrLinks {
+		dnsUplinkFlow, err := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
+			InputPort:  link.OfPort,
+			Ethertype:  protocol.IPv4_MSG,
+			IpProto:    protocol.Type_UDP,
+			UdpDstPort: 53,
+		})
+		if err != nil {
+			log.Errorf("Error creating nameserver flow entry. Err: %v", err)
+			return err
+		}
+		dnsUplinkFlow.Next(vl.vlanTable)
+
 		// Install a flow entry for vlan mapping and point it to Mac table
 		portVlanFlow, err := vl.vlanTable.NewFlow(ofctrl.FlowMatch{
 			Priority:  FLOW_MATCH_PRIORITY,
@@ -551,6 +615,7 @@ func (vl *VlanBridge) AddUplink(uplinkPort *PortInfo) error {
 
 		// save the flow entry
 		vl.portVlanFlowDb[link.OfPort] = portVlanFlow
+		vl.portDnsFlowDb.Set(fmt.Sprintf("%d", link.OfPort), dnsUplinkFlow)
 	}
 
 	err := uplinkPort.checkLinkStatus()
@@ -575,9 +640,30 @@ func (vl *VlanBridge) AddUplink(uplinkPort *PortInfo) error {
 func (vl *VlanBridge) RemoveUplink(uplinkName string) error {
 	uplinkPort := vl.GetUplink(uplinkName)
 
+	if uplinkPort == nil {
+		err := fmt.Errorf("Could not get uplink with name: %s", uplinkName)
+		return err
+	}
+
 	// Stop monitoring links in the port
 	for _, link := range uplinkPort.MbrLinks {
+		// Uninstall the flow entry
+		portVlanFlow := vl.portVlanFlowDb[link.OfPort]
+		if portVlanFlow != nil {
+			portVlanFlow.Delete()
+			delete(vl.portVlanFlowDb, link.OfPort)
+		}
+
+		// Remove from linkDb
 		vl.linkDb.Remove(link.Name)
+		if f, ok := vl.portDnsFlowDb.Get(fmt.Sprintf("%d", link.OfPort)); ok {
+			if dnsUplinkFlow, ok := f.(*ofctrl.Flow); ok {
+				if err := dnsUplinkFlow.Delete(); err != nil {
+					log.Errorf("Error deleting nameserver flow. Err: %v", err)
+				}
+			}
+		}
+		vl.portDnsFlowDb.Remove(fmt.Sprintf("%d", link.OfPort))
 	}
 	vl.uplinkPortDb.Remove(uplinkName)
 
@@ -673,6 +759,32 @@ func (vl *VlanBridge) initFgraph() error {
 	if vl.agent.arpMode == ArpProxy {
 		vl.updateArpRedirectFlow(vl.agent.arpMode, false)
 	}
+
+	// redirect dns requests from containers (oui 02:02:xx) to controller
+	macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
+	macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
+	dnsRedirectFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	dnsRedirectFlow.Next(sw.SendToController())
+
+	// re-inject dns requests
+	dnsReinjectFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		VlanId:     nameServerInternalVlanId,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	dnsReinjectFlow.PopVlan()
+	dnsReinjectFlow.Next(vl.vlanTable)
 
 	// All packets that have gone thru policy lookup go thru normal OVS switching
 	normalLookupFlow, _ := vl.nmlTable.NewFlow(ofctrl.FlowMatch{
