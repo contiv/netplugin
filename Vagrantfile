@@ -15,6 +15,8 @@ BEGIN {
 go_version = ENV["GO_VERSION"] || "1.7.4"
 docker_version = ENV["CONTIV_DOCKER_VERSION"] || "1.12.3"
 gopath_folder="/opt/gopath"
+http_proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || ''
+https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
 
 cluster_ip_nodes = ""
 
@@ -196,7 +198,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                          virtualbox__intnet: "contiv_blue"
         quagga1.vm.provision "shell" do |s|
           s.inline = provision_bird
-          s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+          s.args = [http_proxy, https_proxy]
         end
       end
       config.vm.define "quagga2" do |quagga2|
@@ -217,7 +219,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
         quagga2.vm.provision "shell" do |s|
           s.inline = provision_bird
-          s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+          s.args = [http_proxy, https_proxy]
         end
       end
     end
@@ -284,8 +286,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                   node_name,
                   node_addr,
                   cluster_ip_nodes,
-                  ENV["http_proxy"] || "",
-                  ENV["https_proxy"] || "",
+                  http_proxy,
+                  https_proxy,
                   ENV["USE_RELEASE"] || "",
                   ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379",
                   ENV["CONTIV_DOCKER_VERSION"] || docker_version,
