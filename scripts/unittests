@@ -13,6 +13,7 @@ cp -rf $GOSRC/github.com/contiv/netplugin/mgmtfn/k8splugin/certs /tmp
 run_in_vagrant=false
 coverage_basic=false
 coverage_detail=false
+timeout=${TIMEOUT:=10m}
 test_packages="github.com/contiv/netplugin/drivers \
     github.com/contiv/netplugin/state \
     github.com/contiv/netplugin/netplugin/plugin \
@@ -86,14 +87,14 @@ do
   # running in the sand box
   if ${coverage_basic}; then
       (cd $GOSRC/github.com/contiv/netplugin && \
-      go test ${pkg} -coverprofile=cover.out) || exit 1
+      go test ${pkg} -timeout ${timeout} -coverprofile=cover.out) || exit 1
   elif ${coverage_detail}; then
       (cd $GOSRC/github.com/contiv/netplugin && \
-      go test ${pkg} -coverprofile=cover.out && \
+      go test ${pkg} -timeout ${timeout} -coverprofile=cover.out && \
       go tool cover -func=cover.out) || exit 1
   else
       (cd $GOSRC/github.com/contiv/netplugin && \
-      go test -v ${pkg}) || exit 1
+      go test -timeout ${timeout} -v ${pkg}) || exit 1
   fi
 done
 
