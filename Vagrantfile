@@ -20,6 +20,77 @@ https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
 
 cluster_ip_nodes = ""
 
+SUBNET_PREFIX          = "192.168."
+SUBNET_ASSIGNMENT_DIR  = "/tmp/subnets/"
+SUBNET_ASSIGNMENT_FILE = File.expand_path(File.join(File.dirname(__FILE__), "subnet_assignment.state"))
+PORT_ASSIGNMENT_DIR = "/tmp/port_assignment/"
+PORT_ASSIGNMENT_FILE = File.expand_path(File.join(File.dirname(__FILE__), "test/systemtests/port_assignment.state"))
+
+class SubnetAssignmentFileError < Exception; end
+class NoAvailableSubnetsError < Exception; end
+
+def random_lease(dir, file)
+  begin
+    Dir.mkdir(dir)
+  rescue Errno::EEXIST
+  end
+
+  if File.exists?(file)
+    assigned_octet = File.read(file).strip
+
+    # only use the existing assignment if the master assignment file still exists
+    # i.e., the machine hasn't been rebooted
+    if File.exists?(dir + assigned_octet)
+      return assigned_octet
+    else
+      msg = [
+        "Subnet assignment database is missing.",
+        "Are you trying to re-use an existing environment after a reboot?",
+        "To continue, you should delete #{file}",
+        "and rebuild the environment from scratch."
+      ]
+      raise SubnetAssignmentFileError.new(msg.join(" "))
+    end
+  end
+
+  # no existing subnet assignment, so reserve a new one
+
+  all_octets = (0..255).to_a.map(&:to_s)
+  assigned_octet = nil
+
+  loop do
+    # filter out . and ..
+    used_octets = Dir.entries(dir).reject { |e| "." == e || ".." == e }
+
+    # sanity check to make sure we can't loop forever
+    if used_octets.size >= all_octets.size
+      msg = [
+        "All available subnets have been assigned.",
+        "Delete #{dir} or reboot to clear Vagrant's memory of what has been previously assigned."
+      ]
+      raise NoAvailableSubnetsError.new(msg.join(" "))
+    end
+
+    assigned_octet = (all_octets - used_octets).sample
+
+    # make sure nothing else has taken the assigned_octet since our last directory check
+    begin
+      Dir.mkdir(dir + assigned_octet)
+    rescue Errno::EEXIST
+      next
+    end
+
+    # subsequent invocations of vagrant will just use the octet from this file
+    File.write(file, assigned_octet)
+    break
+  end
+
+  assigned_octet
+end
+
+SUBNET = SUBNET_PREFIX + random_lease(SUBNET_ASSIGNMENT_DIR, SUBNET_ASSIGNMENT_FILE)
+NETMASTER_PORT = "20"+random_lease(PORT_ASSIGNMENT_DIR, PORT_ASSIGNMENT_FILE)
+
 provision_common_once = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
@@ -177,7 +248,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     if ENV['CONTIV_IP_PREFIX'] && ENV['CONTIV_IP_PREFIX'] != "" then
         base_ip = ENV['CONTIV_IP_PREFIX']
     end
-    node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
+    node_ips = num_nodes.times.collect { |n| SUBNET + ".#{n+10}" }
     cluster_ip_nodes = node_ips.join(",")
 
     config.ssh.insert_key = false
@@ -249,13 +320,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         end
         config.vm.define node_name do |node|
             # create an interface for etcd cluster
-            node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
+            node.vm.network :private_network, ip: node_addr, virtualbox__intnet: SUBNET.tr(".", "_") + "-0", auto_config: false
             # create an interface for bridged network
             if ENV['CONTIV_L3'] then
               # create an interface for bridged network
               node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: network_name, auto_config: false
             else
-              node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "true", auto_config: false
+              node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: SUBNET.tr(".", "_") + "-1", auto_config: false
             end
             node.vm.provider "virtualbox" do |v|
                 # make all nics 'virtio' to take benefit of builtin vlan tag
@@ -336,9 +407,8 @@ SCRIPT
             end
 
             # forward netmaster port
-            if n == 0 then
-                node.vm.network "forwarded_port", guest: 9999, host: 9999
-                node.vm.network "forwarded_port", guest: 80, host: 9998
+            if n == 0 && !ENV["CONTIV_NOFORWARD"]
+              node.vm.network "forwarded_port", guest: 9999, host: NETMASTER_PORT
             end
         end
     end

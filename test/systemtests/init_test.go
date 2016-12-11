@@ -3,23 +3,25 @@ package systemtests
 import (
 	"flag"
 	"fmt"
+	"os"
+	. "testing"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"
 	. "gopkg.in/check.v1"
-	"os"
-	. "testing"
 )
 
 type systemtestSuite struct {
-	vagrant   remotessh.Vagrant
-	baremetal remotessh.Baremetal
-	cli       *client.ContivClient
-	nodes     []*node
-	fwdMode   string
-	basicInfo BasicInfo
-	hostInfo  HostInfo
-	globInfo  GlobInfo
+	vagrant       remotessh.Vagrant
+	baremetal     remotessh.Baremetal
+	cli           *client.ContivClient
+	nodes         []*node
+	fwdMode       string
+	netmasterPort string
+	basicInfo     BasicInfo
+	hostInfo      HostInfo
+	globInfo      GlobInfo
 }
 type BasicInfo struct {
 	Scheduler    string `json:"scheduler"`      //swarm, k8s or plain docker
@@ -91,7 +93,9 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 		s.SetUpSuiteVagrant(c)
 	}
 
-	s.cli, _ = client.NewContivClient("http://localhost:9999")
+	var err error
+	s.cli, err = client.NewContivClient(fmt.Sprintf("http://localhost:%s", s.netmasterPort))
+	c.Assert(err, IsNil)
 }
 
 func (s *systemtestSuite) SetUpTest(c *C) {

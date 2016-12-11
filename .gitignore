@@ -46,3 +46,5 @@ cscope*
 version/version_gen.go
 
 .vagrant-state
+subnet_assignment.state
+test/systemtests/port_assignment.state
