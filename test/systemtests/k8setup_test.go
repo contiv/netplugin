@@ -432,7 +432,7 @@ func (k *kubernetes) startNetplugin(args string) error {
 		return nil
 	}
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterface + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
+	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
 }
 
 func (k *kubernetes) stopNetplugin() error {

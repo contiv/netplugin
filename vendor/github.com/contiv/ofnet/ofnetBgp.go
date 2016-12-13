@@ -37,9 +37,9 @@ import (
 
 type OfnetBgp struct {
 	sync.Mutex
-	routerIP string      // virtual interface ip for bgp
-	vlanIntf string      // uplink port name
-	agent    *OfnetAgent // Pointer back to ofnet agent that owns this
+	routerIP   string      // virtual interface ip for bgp
+	uplinkPort *PortInfo   // uplink port name
+	agent      *OfnetAgent // Pointer back to ofnet agent that owns this
 
 	//bgp resources
 	bgpServer  *gobgp.BgpServer // bgp server instance
@@ -63,23 +63,42 @@ type OfnetBgpInspect struct {
 }
 
 // Create a new vlrouter instance
-func NewOfnetBgp(agent *OfnetAgent, routerInfo []string) *OfnetBgp {
+func NewOfnetBgp(agent *OfnetAgent, uplinkPort []string) *OfnetBgp {
 	//Sanity checks
 	if agent == nil || agent.datapath == nil {
 		log.Errorf("Invilid OfnetAgent")
 		return nil
 	}
+
+	if len(uplinkPort) != 1 {
+		log.Errorf("OfnetBgp currently supports only one uplink interface. Num uplinks configured: %d", len(uplinkPort))
+		return nil
+	}
+
 	ofnetBgp := new(OfnetBgp)
 	// Keep a reference to the agent
 	ofnetBgp.agent = agent
 
-	if len(routerInfo) > 0 {
-		ofnetBgp.vlanIntf = routerInfo[0]
-	} else {
-		log.Errorf("Error creating ofnetBgp. Missing uplink port")
-		return nil
+	uplink := &PortInfo{
+		Name:       uplinkPort[0],
+		Type:       PortType,
+		LinkStatus: linkDown,
 	}
 
+	for _, linkName := range uplinkPort {
+		link := LinkInfo{
+			Name:       linkName,
+			Port:       uplink,
+			LinkStatus: linkDown,
+		}
+		link.OfPort, _ = ofnetBgp.agent.ovsDriver.GetOfpPortNo(linkName)
+		uplink.MbrLinks = append(uplink.MbrLinks, &link)
+		uplink.ActiveLinks = append(uplink.ActiveLinks, &link)
+	}
+
+	uplink.checkLinkStatus()
+
+	ofnetBgp.uplinkPort = uplink
 	ofnetBgp.bgpServer, ofnetBgp.grpcServer = createBgpServer()
 
 	if ofnetBgp.bgpServer == nil || ofnetBgp.grpcServer == nil {
@@ -249,11 +268,10 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 	self.agent.endpointDb.Remove(bgpEndpoint.EndpointID)
 	self.myBgpPeer = ""
 
-	uplink, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
 	var ep *OfnetEndpoint
 	for endpoint := range self.agent.endpointDb.IterBuffered() {
 		ep = endpoint.Val.(*OfnetEndpoint)
-		if ep.PortNo == uplink {
+		if self.isUplinkPort(ep.PortNo) {
 			self.agent.datapath.RemoveEndpoint(ep)
 			if ep.EndpointType == "internal" {
 				ep.PortNo = 0
@@ -267,6 +285,15 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 		}
 	}
 	return nil
+}
+
+func (self *OfnetBgp) isUplinkPort(portNo uint32) bool {
+	for _, link := range self.uplinkPort.MbrLinks {
+		if link.OfPort == portNo {
+			return true
+		}
+	}
+	return false
 }
 
 //AddProtoNeighbor adds bgp neighbor
@@ -341,7 +368,7 @@ func (self *OfnetBgp) GetRouterInfo() *OfnetProtoRouterInfo {
 	routerInfo := &OfnetProtoRouterInfo{
 		ProtocolType: "bgp",
 		RouterIP:     self.routerIP,
-		VlanIntf:     self.vlanIntf,
+		UplinkPort:   *(self.uplinkPort),
 	}
 	return routerInfo
 }
@@ -423,7 +450,6 @@ func (self *OfnetBgp) peerUpdate(s *gobgp.WatchEventPeerState) {
 	fmt.Printf("[NEIGH] %s fsm: %s admin: %v\n", s.PeerAddress,
 		s.State, s.AdminState.String())
 	if self.oldState == "BGP_FSM_ESTABLISHED" && self.oldAdminState == "ADMIN_STATE_UP" {
-		uplink, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
 		/*If the state changed from being established to idle or active:
 		   1) delete all endpoints learnt via bgp Peer
 			 2) mark routes pointing to the bgp nexthop as unresolved
@@ -442,7 +468,7 @@ func (self *OfnetBgp) peerUpdate(s *gobgp.WatchEventPeerState) {
 		var ep *OfnetEndpoint
 		for endpoint := range self.agent.endpointDb.IterBuffered() {
 			ep = endpoint.Val.(*OfnetEndpoint)
-			if ep.PortNo == uplink {
+			if self.isUplinkPort(ep.PortNo) {
 				self.agent.datapath.RemoveEndpoint(ep)
 				if ep.EndpointType == "internal" {
 					ep.PortNo = 0
@@ -590,8 +616,16 @@ func (self *OfnetBgp) sendArpPacketOut() {
 	if self.myBgpPeer == "" {
 		return
 	}
-	intf, _ := net.InterfaceByName(self.vlanIntf)
-	ofPortno, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
+
+	uplinkMemberLink := self.uplinkPort.getActiveLink(self.routerIP, self.myBgpPeer)
+	if uplinkMemberLink == nil {
+		log.Debugf("No active links on uplink port. Not sending ARP request")
+		return
+	}
+
+	ofPortno := uplinkMemberLink.OfPort
+	intf, _ := net.InterfaceByName(uplinkMemberLink.Name)
+
 	bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
 	zeroMac, _ := net.ParseMAC("00:00:00:00:00:00")
 

@@ -342,6 +342,138 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, 
 	return d.performOvsdbOps(operations)
 }
 
+//CreatePortBond creates port bond in OVS
+func (d *OvsdbDriver) CreatePortBond(intfList []string, bondName string) error {
+
+	var err error
+	var ops []libovsdb.Operation
+	var intfUUIDList []libovsdb.UUID
+	opStr := "insert"
+
+	// Add all the interfaces to the interface table
+	for _, intf := range intfList {
+		intfUUIDStr := fmt.Sprintf("Intf%s", intf)
+		intfUUID := []libovsdb.UUID{{GoUuid: intfUUIDStr}}
+		intfUUIDList = append(intfUUIDList, intfUUID...)
+
+		// insert/delete a row in Interface table
+		intfOp := libovsdb.Operation{}
+		iface := make(map[string]interface{})
+		iface["name"] = intf
+
+		// interface table ops
+		intfOp = libovsdb.Operation{
+			Op:       opStr,
+			Table:    interfaceTable,
+			Row:      iface,
+			UUIDName: intfUUIDStr,
+		}
+		ops = append(ops, intfOp)
+	}
+
+	// Insert bond information in Port table
+	portOp := libovsdb.Operation{}
+	port := make(map[string]interface{})
+	port["name"] = bondName
+	port["vlan_mode"] = "trunk"
+	port["interfaces"], err = libovsdb.NewOvsSet(intfUUIDList)
+	if err != nil {
+		return err
+	}
+
+	// Set LACP and Hash properties
+	// "balance-tcp" - balances flows among slaves based on L2, L3, and L4 protocol information such as
+	// destination MAC address, IP address, and TCP port
+	// lacp-fallback-ab:true - Fall back to activ-backup mode when LACP negotiation fails
+	port["bond_mode"] = "balance-tcp"
+
+	port["lacp"] = "active"
+	lacpMap := make(map[string]string)
+	lacpMap["lacp-fallback-ab"] = "true"
+	port["other_config"], err = libovsdb.NewOvsMap(lacpMap)
+
+	portUUIDStr := bondName
+	portUUID := []libovsdb.UUID{{GoUuid: portUUIDStr}}
+	portOp = libovsdb.Operation{
+		Op:       opStr,
+		Table:    portTable,
+		Row:      port,
+		UUIDName: portUUIDStr,
+	}
+	ops = append(ops, portOp)
+
+	// Mutate the Ports column of the row in the Bridge table to include bond name
+	mutateSet, _ := libovsdb.NewOvsSet(portUUID)
+	mutation := libovsdb.NewMutation("ports", opStr, mutateSet)
+	condition := libovsdb.NewCondition("name", "==", d.bridgeName)
+	mutateOp := libovsdb.Operation{
+		Op:        "mutate",
+		Table:     bridgeTable,
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+	ops = append(ops, mutateOp)
+
+	return d.performOvsdbOps(ops)
+
+}
+
+// DeletePortBond deletes a port bond from OVS
+func (d *OvsdbDriver) DeletePortBond(bondName string, intfList []string) error {
+
+	var ops []libovsdb.Operation
+	var condition []interface{}
+	portUUIDStr := bondName
+	portUUID := []libovsdb.UUID{{GoUuid: portUUIDStr}}
+	opStr := "delete"
+
+	for _, intfName := range intfList {
+		// insert/delete a row in Interface table
+		condition = libovsdb.NewCondition("name", "==", intfName)
+		intfOp := libovsdb.Operation{
+			Op:    opStr,
+			Table: interfaceTable,
+			Where: []interface{}{condition},
+		}
+		ops = append(ops, intfOp)
+	}
+
+	// insert/delete a row in Port table
+	condition = libovsdb.NewCondition("name", "==", bondName)
+	portOp := libovsdb.Operation{
+		Op:    opStr,
+		Table: portTable,
+		Where: []interface{}{condition},
+	}
+	ops = append(ops, portOp)
+
+	// also fetch the port-uuid from cache
+	d.cacheLock.RLock()
+	for uuid, row := range d.cache["Port"] {
+		name := row.Fields["name"].(string)
+		if name == bondName {
+			portUUID = []libovsdb.UUID{uuid}
+			break
+		}
+	}
+	d.cacheLock.RUnlock()
+
+	// mutate the Ports column of the row in the Bridge table
+	mutateSet, _ := libovsdb.NewOvsSet(portUUID)
+	mutation := libovsdb.NewMutation("ports", opStr, mutateSet)
+	condition = libovsdb.NewCondition("name", "==", d.bridgeName)
+	mutateOp := libovsdb.Operation{
+		Op:        "mutate",
+		Table:     bridgeTable,
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+	ops = append(ops, mutateOp)
+
+	// Perform OVS transaction
+	return d.performOvsdbOps(ops)
+}
+
 //UpdatePolicingRate will update the ingress policing rate in interface table.
 func (d *OvsdbDriver) UpdatePolicingRate(intfName string, burst int, bandwidth int64) error {
 	bw := int(bandwidth)

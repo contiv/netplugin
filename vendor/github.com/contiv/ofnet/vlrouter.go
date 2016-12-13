@@ -27,8 +27,8 @@ package ofnet
 //
 
 import (
-	//"fmt"
 	"errors"
+	"fmt"
 	"net"
 	"net/rpc"
 	"strings"
@@ -822,6 +822,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		var arpHdr protocol.ARP = *t
 		var srcMac net.HardwareAddr
 		var intf *net.Interface
+		var err error
 
 		self.agent.incrStats("ArpPktRcvd")
 
@@ -845,7 +846,12 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 				if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
 					//srcMac, _ = net.ParseMAC(endpoint.MacAddrStr)
 					if self.agent.GetRouterInfo() != nil {
-						intf, _ = net.InterfaceByName(self.agent.GetRouterInfo().VlanIntf)
+						uplink := self.agent.GetRouterInfo().UplinkPort
+						intf, err = net.InterfaceByName(uplink.Name)
+						if err != nil {
+							log.Errorf("Error getting interface information. Err: %+v", err)
+							return
+						}
 					} else {
 						log.Debugf("Uplink intf not present. Ignoring Arp")
 						return
@@ -962,13 +968,21 @@ func (self *Vlrouter) resolveUnresolvedEPs(MacAddrStr string, portNo uint32) {
 }
 
 // AddUplink adds an uplink to the switch
-func (self *Vlrouter) AddUplink(portNo uint32, ifname string) error {
-	log.Infof("Adding uplink port: %+v", portNo)
+func (self *Vlrouter) AddUplink(uplinkPort *PortInfo) error {
+	log.Infof("Adding uplink: %+v", uplinkPort)
+
+	if len(uplinkPort.MbrLinks) != 1 {
+		err := fmt.Errorf("Only one uplink interface supported in vlrouter mode. Num uplinks configured: %d", len(uplinkPort.MbrLinks))
+		log.Errorf("Error adding uplink: %+v", err)
+		return err
+	}
+
+	linkInfo := uplinkPort.MbrLinks[0]
 
 	// Install a flow entry for vlan mapping and point it to Mac table
 	portVlanFlow, err := self.vlanTable.NewFlow(ofctrl.FlowMatch{
 		Priority:  FLOW_MATCH_PRIORITY,
-		InputPort: portNo,
+		InputPort: linkInfo.OfPort,
 	})
 	if err != nil {
 		log.Errorf("Error creating portvlan entry. Err: %v", err)
@@ -988,8 +1002,9 @@ func (self *Vlrouter) AddUplink(portNo uint32, ifname string) error {
 	}
 
 	// save the flow entry
-	self.portVlanFlowDb[portNo] = portVlanFlow
-	intf, err := net.InterfaceByName(ifname)
+	self.portVlanFlowDb[linkInfo.OfPort] = portVlanFlow
+
+	intf, err := net.InterfaceByName(linkInfo.Name)
 	if err != nil {
 		log.Debugf("Unable to update router mac to uplink mac:err", err)
 		return err
@@ -998,7 +1013,7 @@ func (self *Vlrouter) AddUplink(portNo uint32, ifname string) error {
 	return nil
 }
 
-func (self *Vlrouter) RemoveUplink(portNo uint32) error {
+func (self *Vlrouter) RemoveUplink(uplinkName string) error {
 	return nil
 }
 

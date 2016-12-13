@@ -168,28 +168,28 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 
 	// Create Vxlan switch
 	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP,
-		info.FwdMode)
+		info.FwdMode, nil)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
 	// Create Vlan switch
 	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP,
-		info.FwdMode, info.VlanIntf)
+		info.FwdMode, info.UplinkIntf)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
 
 	// Add uplink to VLAN switch
-	if info.VlanIntf != "" {
-		err = d.switchDb["vlan"].AddUplinkPort(info.VlanIntf)
+	if len(info.UplinkIntf) != 0 {
+		err = d.switchDb["vlan"].AddUplink("uplinkBond", info.UplinkIntf)
 		if err != nil {
-			log.Errorf("Could not add uplink %s to vlan OVS. Err: %v", info.VlanIntf, err)
+			log.Errorf("Could not add uplink %v to vlan OVS. Err: %v", info.UplinkIntf, err)
 		}
 	}
 
 	// Create Host Access switch
 	d.switchDb["host"], err = NewOvsSwitch(hostBridgeName, "host", info.VtepIP,
-		info.FwdMode)
+		info.FwdMode, nil)
 	if err != nil {
 		log.Fatalf("Error creating host switch. Err: %v", err)
 	}
@@ -258,7 +258,7 @@ func (d *OvsDriver) Deinit() {
 
 	// cleanup both vlan and vxlan OVS instances
 	if d.switchDb["vlan"] != nil {
-		d.switchDb["vlan"].RemoveUplinkPort()
+		d.switchDb["vlan"].RemoveUplinks()
 		d.switchDb["vlan"].Delete()
 	}
 	if d.switchDb["vxlan"] != nil {
@@ -363,7 +363,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			pktTag = cfgEpGroup.PktTag
 			epgKey = cfgEp.EndpointGroupKey
 			dscp = cfgEpGroup.DSCP
-			log.Infof("Received endpoint create with bandwidth:%s", cfgEpGroup.Bandwidth)
 			if cfgEpGroup.Bandwidth != "" {
 				epgBandwidth = netutils.ConvertBandwidth(cfgEpGroup.Bandwidth)
 			}

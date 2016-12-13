@@ -67,10 +67,10 @@ type OfnetDatapath interface {
 	RemoveVlan(vlanId uint16, vni uint32, vrf string) error
 
 	//Add uplink port
-	AddUplink(portNo uint32, ifname string) error
+	AddUplink(uplinkPort *PortInfo) error
 
 	//Delete uplink port
-	RemoveUplink(portNo uint32) error
+	RemoveUplink(uplinkName string) error
 
 	//Inject GARPs
 	InjectGARPs(epgID int)
@@ -182,10 +182,10 @@ type OfnetProtoNeighborInfo struct {
 
 // OfnetProtoRouterInfo has local router info
 type OfnetProtoRouterInfo struct {
-	ProtocolType string // type of protocol
-	RouterIP     string // ip address of the router
-	VlanIntf     string // uplink L2 intf
-	As           string // As for Bgp protocol
+	ProtocolType string   // type of protocol
+	RouterIP     string   // ip address of the router
+	UplinkPort   PortInfo // uplink L2 intf
+	As           string   // As for Bgp protocol
 }
 
 // OfnetProtoRouteInfo contains a route
@@ -250,4 +250,37 @@ type OfnetEndpointStats struct {
 	VrfName    string                   // vrf name
 	PortStats  OfnetDatapathStats       // Aggregate port stats
 	SvcStats   map[string]OfnetSvcStats // Service level stats
+}
+
+type linkStatus int
+
+// LinkStatus maintains link up/down information
+const (
+	linkDown linkStatus = iota
+	linkUp
+)
+
+const (
+	// PortType - individual port
+	PortType = "individual"
+
+	// BondType - bonded port
+	BondType = "bond"
+)
+
+// LinkInfo maintains individual link information
+type LinkInfo struct {
+	Name       string
+	Port       *PortInfo
+	LinkStatus linkStatus
+	OfPort     uint32
+}
+
+// PortInfo maintains port information
+type PortInfo struct {
+	Name        string
+	Type        string
+	LinkStatus  linkStatus
+	MbrLinks    []*LinkInfo
+	ActiveLinks []*LinkInfo
 }

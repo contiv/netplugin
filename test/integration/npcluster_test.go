@@ -70,7 +70,7 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 			HostLabel:  hostLabel,
 			CtrlIP:     localIP,
 			VtepIP:     localIP,
-			VlanIntf:   "eth2",
+			UplinkIntf:   []string{"eth2"},
 			DbURL:      its.clusterStore,
 			PluginMode: "test",
 		},

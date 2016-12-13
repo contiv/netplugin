@@ -20,7 +20,7 @@ import (
 */
 func (s *systemtestSuite) TestBgpContainerToContainerPing(c *C) {
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 
 	s.SetupBgp(c, false)
@@ -85,7 +85,7 @@ func (s *systemtestSuite) TestBgpContainerToContainerPing(c *C) {
 */
 func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 	if s.fwdMode != "routing" {
-		return
+		c.Skip("Skipping test for bridge mode")
 	}
 
 	var (
@@ -151,7 +151,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 */
 func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 
 	var (
@@ -207,7 +207,7 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 
@@ -284,7 +284,7 @@ func (s *systemtestSuite) TestBgpTriggerLinkUpDown(c *C) {
 func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 
 	var (
@@ -365,7 +365,7 @@ func (s *systemtestSuite) TestBgpTriggerLoopbackDownUp(c *C) {
 func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 
 	s.SetupBgp(c, false)
@@ -462,7 +462,7 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 
 	s.SetupBgp(c, false)
@@ -549,7 +549,7 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 /*
 func (s *systemtestSuite) TestBgpTriggerNetmasterRestart(c *C) {
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 	s.SetupBgp(c, false)
 	s.CheckBgpConnection(c)
@@ -612,7 +612,7 @@ func (s *systemtestSuite) TestBgpTriggerNetmasterRestart(c *C) {
 func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 	var (
 		iter = 0
@@ -636,7 +636,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 				s.CheckBgpConnectionForaNode(c, node.tbnode)
 			}
 		}
-		c.Assert(nodeToStop.startNetplugin("-vlan-if=eth2"), IsNil)
+		c.Assert(nodeToStop.startNetplugin(""), IsNil)
 		time.Sleep(120 * time.Second)
 		nodeToStop.tbnode.RunCommandWithOutput("sudo ip link set inb01 up")
 		s.CheckBgpConnectionForaNode(c, nodeToStop.tbnode)
@@ -697,17 +697,23 @@ link up established bgp.
 func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 	for _, node := range s.nodes {
-		logrus.Infof("Bringing down uplink")
-		node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s down", s.hostInfo.HostDataInterface))
+		logrus.Infof("Bringing down uplinks")
+		dataIntfs := strings.Split(s.hostInfo.HostDataInterfaces, ",")
+		for _, dataIntf := range dataIntfs {
+			node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s down", dataIntf))
+		}
 	}
 	s.SetupBgp(c, false)
 
 	for _, node := range s.nodes {
-		logrus.Infof("Bringing up uplink")
-		node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s up", s.hostInfo.HostDataInterface))
+		logrus.Infof("Bringing up uplinks")
+		dataIntfs := strings.Split(s.hostInfo.HostDataInterfaces, ",")
+		for _, dataIntf := range dataIntfs {
+			node.tbnode.RunCommandWithOutput(fmt.Sprintf("sudo ip link set %s up", dataIntf))
+		}
 	}
 	s.CheckBgpConnection(c)
 
@@ -755,7 +761,7 @@ func (s *systemtestSuite) TestBgpSequencePeerAddLinkDown(c *C) {
 2) Bgp is established and ping works*/
 func (s *systemtestSuite) TestBgpMisconfigRecovery(c *C) {
 	if s.fwdMode != "routing" {
-		c.Skip("Skipping test")
+		c.Skip("Skipping test for bridge mode")
 	}
 
 	s.SetupBgp(c, true)

@@ -241,6 +241,10 @@ func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instanc
 		},
 		Instance: opts,
 	}
+	if len(pluginConfig.Instance.UplinkIntf) > 1 && fwdMode == "routing" {
+		pluginConfig.Instance.UplinkIntf = []string{pluginConfig.Instance.UplinkIntf[0]}
+		log.Warnf("Routing mode supports only one uplink interface. Using %s as uplink interface", pluginConfig.Instance.UplinkIntf[0])
+	}
 	pluginConfig.Instance.FwdMode = fwdMode
 	netPlugin.GlobalFwdModeUpdate(pluginConfig)
 
