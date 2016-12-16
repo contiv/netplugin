@@ -118,3 +118,8 @@ func (d *FakeNetEpDriver) InspectBgp() ([]byte, error) {
 func (d *FakeNetEpDriver) GlobalConfigUpdate(inst core.InstanceInfo) error {
 	return core.Errorf("Not implemented")
 }
+
+// InspectNameserver returns nameserver state as json string
+func (d *FakeNetEpDriver) InspectNameserver() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}

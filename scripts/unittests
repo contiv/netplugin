@@ -17,6 +17,7 @@ timeout=${TIMEOUT:=10m}
 test_packages="github.com/contiv/netplugin/drivers \
     github.com/contiv/netplugin/state \
     github.com/contiv/netplugin/netplugin/plugin \
+    github.com/contiv/netplugin/netplugin/nameserver \
     github.com/contiv/netplugin/utils/netutils \
     github.com/contiv/netplugin/netmaster/gstate \
     github.com/contiv/netplugin/netmaster/master \

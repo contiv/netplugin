@@ -137,6 +137,7 @@ type NetworkDriver interface {
 	InspectBgp() ([]byte, error)
 	// Set global config
 	GlobalConfigUpdate(inst InstanceInfo) error
+	InspectNameserver() ([]byte, error)
 }
 
 // WatchState is used to provide a difference between core.State structs by

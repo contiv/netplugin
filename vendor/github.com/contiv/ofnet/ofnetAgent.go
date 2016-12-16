@@ -95,6 +95,7 @@ type OfnetAgent struct {
 	stats      map[string]uint64 // arbitrary stats
 	errStats   map[string]uint64 // error stats
 	statsMutex sync.Mutex        // Sync mutext for modifying stats
+	nameServer NameServer        // DNS lookup
 }
 
 // local End point information
@@ -110,6 +111,7 @@ type EndpointInfo struct {
 	Dscp              int              // DSCP value for the endpoint
 }
 
+const DNS_FLOW_MATCH_PRIORITY = 100    // Priority for dns match flows
 const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
 const FLOW_FLOOD_PRIORITY = 10         // Priority for flood entries
 const FLOW_MISS_PRIORITY = 1           // priority for table miss flow
@@ -1178,4 +1180,8 @@ func (self *OfnetAgent) getvlanVrf(vlan uint16) *string {
 	self.vlanVrfMutex.Lock()
 	defer self.vlanVrfMutex.Unlock()
 	return self.vlanVrf[vlan]
+}
+
+func (self *OfnetAgent) AddNameServer(ns NameServer) {
+	self.nameServer = ns
 }

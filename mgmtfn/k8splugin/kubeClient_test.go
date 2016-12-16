@@ -170,6 +170,11 @@ func (d *KubeTestNetDrv) GlobalConfigUpdate(inst core.InstanceInfo) error {
 	return core.Errorf("Not implemented")
 }
 
+// InspectNameserver returns nameserver state as json string
+func (d *KubeTestNetDrv) InspectNameserver() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}
+
 // AddSvcSpec is implemented.
 func (d *KubeTestNetDrv) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
 	d.services[svcName] = spec
