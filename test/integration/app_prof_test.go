@@ -26,7 +26,7 @@ import (
 func (its *integTestSuite) TestSingleAppProfile(c *C) {
 
 	if its.fabricMode != "aci" {
-		return  // run only in aci mode
+		return // run only in aci mode
 	}
 
 	// Create a tenant
@@ -126,9 +126,9 @@ func (its *integTestSuite) TestSingleAppProfile(c *C) {
 
 	// set aci-gw config
 	err = its.client.AciGwPost(&client.AciGw{
-		Name: "aciGw",
-		PhysicalDomain: "testDomain",
-		EnforcePolicies: "yes",
+		Name:                "aciGw",
+		PhysicalDomain:      "testDomain",
+		EnforcePolicies:     "yes",
 		IncludeCommonTenant: "no",
 	})
 	assertNoErr(err, c, "creating aciGw config")
@@ -141,13 +141,12 @@ func (its *integTestSuite) TestSingleAppProfile(c *C) {
 	})
 	assertErr(err, c, "creating application-profile without bindings")
 
-
 	// set aci-gw config
 	err = its.client.AciGwPost(&client.AciGw{
-		Name: "aciGw",
-		PathBindings: "topology/pod-1/paths-101/pathep-[eth1/14]",
-		PhysicalDomain: "testDomain",
-		EnforcePolicies: "yes",
+		Name:                "aciGw",
+		PathBindings:        "topology/pod-1/paths-101/pathep-[eth1/14]",
+		PhysicalDomain:      "testDomain",
+		EnforcePolicies:     "yes",
 		IncludeCommonTenant: "no",
 	})
 	assertNoErr(err, c, "creating aciGw config")
@@ -191,7 +190,7 @@ func (its *integTestSuite) TestSingleAppProfile(c *C) {
 
 func (its *integTestSuite) TestMultiAppProfile(c *C) {
 	if its.fabricMode != "aci" {
-		return  // run only in aci mode
+		return // run only in aci mode
 	}
 
 	// Create a tenant
@@ -296,10 +295,10 @@ func (its *integTestSuite) TestMultiAppProfile(c *C) {
 
 	// set aci-gw config
 	err = its.client.AciGwPost(&client.AciGw{
-		Name: "aciGw",
-		PathBindings: "topology/pod-1/paths-101/pathep-[eth1/14]",
-		PhysicalDomain: "testDomain",
-		EnforcePolicies: "yes",
+		Name:                "aciGw",
+		PathBindings:        "topology/pod-1/paths-101/pathep-[eth1/14]",
+		PhysicalDomain:      "testDomain",
+		EnforcePolicies:     "yes",
 		IncludeCommonTenant: "no",
 	})
 	assertNoErr(err, c, "creating aciGw config")
