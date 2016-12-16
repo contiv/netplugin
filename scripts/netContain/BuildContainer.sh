@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 function dockerBuildIt {
     imgId=`docker build $1 | grep "Successfully built" | cut -d " " -f 3`
@@ -29,7 +29,7 @@ fi
 
 sudo modprobe openvswitch
 
-imgName="Contiv"
+imgName="contiv-network-plugin"
 dockerBuildIt . $imgName
 if [ $? != 0 ]; then
    echo "Failed building Contiv Image Bailing out Err $?"
