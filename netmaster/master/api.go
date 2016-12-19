@@ -101,6 +101,7 @@ var addrMutex sync.Mutex
 // AllocAddressHandler allocates addresses
 func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	var allocReq AddressAllocRequest
+	var epgCfg *mastercfg.EndpointGroupState
 
 	// Get object from the request
 	err := json.NewDecoder(r.Body).Decode(&allocReq)
@@ -126,7 +127,23 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 
 	// Determine the network id to use
 	if allocReq.NetworkID != "" {
-		networkID = allocReq.NetworkID
+		s := strings.Split(allocReq.NetworkID, ":")
+		if len(s) > 1 { // nw + epg + tenant specified
+			networkID = s[0]
+			s = strings.Split(s[1], ".")
+			epgName := s[0] + ":" + s[1]
+			networkID = networkID + "." + s[1]
+			epgCfg = &mastercfg.EndpointGroupState{}
+			epgCfg.StateDriver = stateDriver
+			if err = epgCfg.Read(epgName); err != nil {
+				log.Errorf("failed to read epg %s, %s", epgName, err)
+				return nil, err
+			}
+			log.Infof("AddressAllocRequest for network: %s epg: %s", networkID, epgName)
+
+		} else {
+			networkID = allocReq.NetworkID
+		}
 	} else {
 		// find the network from address pool
 		subnetIP := strings.Split(allocReq.AddressPool, "/")[0]
@@ -172,12 +189,12 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 	nwCfg.StateDriver = stateDriver
 	err = nwCfg.Read(networkID)
 	if err != nil {
-		log.Errorf("network %s is not operational", allocReq.NetworkID)
+		log.Errorf("network %s is not operational", networkID)
 		return nil, err
 	}
 
 	// Alloc addresses
-	addr, err := networkAllocAddress(nwCfg, allocReq.PreferredIPv4Address, netutils.IsIPv6(allocReq.AddressPool))
+	addr, err := networkAllocAddress(nwCfg, epgCfg, allocReq.PreferredIPv4Address, netutils.IsIPv6(allocReq.AddressPool))
 	if err != nil {
 		log.Errorf("Failed to allocate address. Err: %v", err)
 		return nil, err
@@ -202,6 +219,8 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 // ReleaseAddressHandler releases addresses
 func ReleaseAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	var relReq AddressReleaseRequest
+	var networkID string
+	var epgCfg *mastercfg.EndpointGroupState
 
 	// Get object from the request
 	err := json.NewDecoder(r.Body).Decode(&relReq)
@@ -217,17 +236,35 @@ func ReleaseAddressHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 		return nil, err
 	}
 
+	s := strings.Split(relReq.NetworkID, ":")
+	if len(s) > 1 { // nw + epg + tenant specified
+		networkID = s[0]
+		s = strings.Split(s[1], ".")
+		epgName := s[0] + ":" + s[1]
+		networkID = networkID + "." + s[1]
+		epgCfg = &mastercfg.EndpointGroupState{}
+		epgCfg.StateDriver = stateDriver
+		if err = epgCfg.Read(epgName); err != nil {
+			log.Errorf("failed to read epg %s, %s", epgName, err)
+			return nil, err
+		}
+		log.Infof("AddressReleaseRequest for network: %s epg: %s", networkID, epgName)
+
+	} else {
+		networkID = relReq.NetworkID
+	}
+
 	// find the network from network id
 	nwCfg := &mastercfg.CfgNetworkState{}
 	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(relReq.NetworkID)
+	err = nwCfg.Read(networkID)
 	if err != nil {
 		log.Errorf("network %s is not operational", relReq.NetworkID)
 		return nil, err
 	}
 
 	// release addresses
-	err = networkReleaseAddress(nwCfg, relReq.IPv4Address)
+	err = networkReleaseAddress(nwCfg, epgCfg, relReq.IPv4Address)
 	if err != nil {
 		log.Errorf("Failed to release address. Err: %v", err)
 		return nil, err

@@ -640,7 +640,7 @@ func createEndpointGroup(ctx *cli.Context) {
 	network := ctx.Args()[0]
 	group := ctx.Args()[1]
 	netprofile := ctx.String("networkprofile")
-
+	ipPool := ctx.String("ip-pool")
 	policies := ctx.StringSlice("policy")
 
 	extContractsGrps := ctx.StringSlice("external-contract")
@@ -649,6 +649,7 @@ func createEndpointGroup(ctx *cli.Context) {
 		NetworkName:      network,
 		GroupName:        group,
 		NetProfile:       netprofile,
+		IpPool:           ipPool,
 		Policies:         policies,
 		ExtContractsGrps: extContractsGrps,
 	}))
@@ -715,7 +716,7 @@ func listEndpointGroups(ctx *cli.Context) {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tGroup\tNetwork\tPolicies\tNetwork profile\n"))
+		writer.Write([]byte("Tenant\tGroup\tNetwork\tIP Pool\tPolicies\tNetwork profile\n"))
 		writer.Write([]byte("------\t-----\t-------\t--------\t---------------\n"))
 		for _, group := range filtered {
 			policies := ""
@@ -727,10 +728,11 @@ func listEndpointGroups(ctx *cli.Context) {
 				policies = strings.Join(policyList, ",")
 			}
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\n",
 					group.TenantName,
 					group.GroupName,
 					group.NetworkName,
+					group.IpPool,
 					policies,
 					group.NetProfile,
 				)))

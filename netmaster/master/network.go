@@ -325,93 +325,19 @@ func DeleteNetworks(stateDriver core.StateDriver, tenant *intent.ConfigTenant) e
 	return err
 }
 
-func getIPRange(nwCfg *mastercfg.CfgNetworkState, startIdx, endIdx uint) string {
-	startAddress, err := netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, startIdx)
-	if err != nil {
-		log.Errorf("GetAllocatedIPs: getting ipAddress for idx %d: %s", startIdx, err)
-		startAddress = ""
-	}
-	if startIdx == endIdx {
-		return startAddress
-	}
-	endAddress, err := netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, endIdx)
-	if err != nil {
-		log.Errorf("GetAllocatedIPs: getting ipAddress for idx %d: %s", endIdx, err)
-		endAddress = ""
-	}
-	return startAddress + "-" + endAddress
-}
-
 // ListAllocatedIPs returns a string of allocated IPs in a network
 func ListAllocatedIPs(nwCfg *mastercfg.CfgNetworkState) string {
-	idx := uint(0)
-	startIdx := idx
-	list := []string{}
-	inRange := false
-
-	netutils.ClearReservedEntries(&nwCfg.IPAllocMap, nwCfg.SubnetLen)
-	netutils.ClearBitsOutsideRange(&nwCfg.IPAllocMap, nwCfg.IPAddrRange, nwCfg.SubnetLen)
-	for {
-		foundValue, found := nwCfg.IPAllocMap.NextSet(idx)
-		if !found {
-			break
-		}
-
-		if !inRange { // begin of range
-			startIdx = foundValue
-			inRange = true
-		} else if foundValue > idx { // end of range
-			thisRange := getIPRange(nwCfg, startIdx, idx-1)
-			list = append(list, thisRange)
-			startIdx = foundValue
-		}
-		idx = foundValue + 1
-	}
-
-	// list end with allocated value
-	if inRange {
-		thisRange := getIPRange(nwCfg, startIdx, idx-1)
-		list = append(list, thisRange)
-	}
-
-	return strings.Join(list, ", ")
+	return netutils.ListAllocatedIPs(nwCfg.IPAllocMap, nwCfg.IPAddrRange, nwCfg.SubnetIP, nwCfg.SubnetLen)
 }
 
 // ListAvailableIPs returns a string of available IPs in a network
 func ListAvailableIPs(nwCfg *mastercfg.CfgNetworkState) string {
-	idx := uint(0)
-	startIdx := idx
-	list := []string{}
-	inRange := false
-
-	for {
-		foundValue, found := nwCfg.IPAllocMap.NextClear(idx)
-		if !found {
-			break
-		}
-
-		if !inRange { // begin of range
-			startIdx = foundValue
-			inRange = true
-		} else if foundValue > idx { // end of range
-			thisRange := getIPRange(nwCfg, startIdx, idx-1)
-			list = append(list, thisRange)
-			startIdx = foundValue
-		}
-		idx = foundValue + 1
-	}
-
-	// list end with allocated value
-	if inRange {
-		thisRange := getIPRange(nwCfg, startIdx, idx-1)
-		list = append(list, thisRange)
-	}
-
-	return strings.Join(list, ", ")
+	return netutils.ListAvailableIPs(nwCfg.IPAllocMap, nwCfg.SubnetIP, nwCfg.SubnetLen)
 }
 
 // Allocate an address from the network
-func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv6 bool) (string, error) {
+func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, epgCfg *mastercfg.EndpointGroupState,
+	reqAddr string, isIPv6 bool) (string, error) {
 	var ipAddress string
 	var ipAddrValue uint
 	var found bool
@@ -433,19 +359,39 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv
 				return "", err
 			}
 			nwCfg.IPv6LastHost = hostID
+			netutils.ReserveIPv6HostID(hostID, &nwCfg.IPv6AllocMap)
 		} else {
-			ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0)
-			if !found {
-				log.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
-					nwCfg.SubnetIP, nwCfg.SubnetLen)
-				err = core.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
-					nwCfg.SubnetIP, nwCfg.SubnetLen)
-				return "", err
-			}
-			ipAddress, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
-			if err != nil {
-				log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
-				return "", err
+			if epgCfg != nil && len(epgCfg.IPPool) > 0 { // allocate from epg network
+				log.Infof("allocating ip address from epg pool %s", epgCfg.IPPool)
+				ipAddrValue, found = epgCfg.EPGIPAllocMap.NextClear(0)
+				if !found {
+					log.Errorf("auto allocation failed - address exhaustion in pool %s",
+						epgCfg.IPPool)
+					err = core.Errorf("auto allocation failed - address exhaustion in pool %s",
+						epgCfg.IPPool)
+					return "", err
+				}
+				ipAddress, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
+				if err != nil {
+					log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
+					return "", err
+				}
+				epgCfg.EPGIPAllocMap.Set(ipAddrValue)
+			} else {
+				ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0)
+				if !found {
+					log.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
+						nwCfg.SubnetIP, nwCfg.SubnetLen)
+					err = core.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
+						nwCfg.SubnetIP, nwCfg.SubnetLen)
+					return "", err
+				}
+				ipAddress, err = netutils.GetSubnetIP(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddrValue)
+				if err != nil {
+					log.Errorf("create eps: error acquiring subnet ip. Error: %s", err)
+					return "", err
+				}
+				nwCfg.IPAllocMap.Set(ipAddrValue)
 			}
 		}
 
@@ -465,23 +411,37 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv
 					reqAddr, nwCfg.IPv6Subnet, nwCfg.IPv6SubnetLen, err)
 				return "", err
 			}
+			netutils.ReserveIPv6HostID(hostID, &nwCfg.IPv6AllocMap)
 		} else {
-			ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
-			if err != nil {
-				log.Errorf("create eps: error getting host id from hostIP %s Subnet %s/%d. Error: %s",
-					reqAddr, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
-				return "", err
+
+			if epgCfg != nil && len(epgCfg.IPPool) > 0 { // allocate from epg network
+				ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
+				if err != nil {
+					log.Errorf("create eps: error getting host id from hostIP %s pool %s. Error: %s",
+						reqAddr, epgCfg.IPPool, err)
+					return "", err
+				}
+				epgCfg.EPGIPAllocMap.Set(ipAddrValue)
+			} else {
+				ipAddrValue, err = netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, reqAddr)
+				if err != nil {
+					log.Errorf("create eps: error getting host id from hostIP %s Subnet %s/%d. Error: %s",
+						reqAddr, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
+					return "", err
+				}
+				nwCfg.IPAllocMap.Set(ipAddrValue)
 			}
 		}
 
 		ipAddress = reqAddr
 	}
 
-	if isIPv6 {
-		netutils.ReserveIPv6HostID(hostID, &nwCfg.IPv6AllocMap)
-	} else {
-		// Set the bitmap
-		nwCfg.IPAllocMap.Set(ipAddrValue)
+	if epgCfg != nil && len(epgCfg.IPPool) > 0 {
+		err = epgCfg.Write()
+		if err != nil {
+			log.Errorf("error writing epg config. Error: %s", err)
+			return "", err
+		}
 	}
 
 	err = nwCfg.Write()
@@ -494,7 +454,7 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, reqAddr string, isIPv
 }
 
 // networkReleaseAddress release the ip address
-func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) error {
+func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, epgCfg *mastercfg.EndpointGroupState, ipAddress string) error {
 	isIPv6 := netutils.IsIPv6(ipAddress)
 	if isIPv6 {
 		hostID, err := netutils.GetIPv6HostID(nwCfg.SubnetIP, nwCfg.SubnetLen, ipAddress)
@@ -511,19 +471,41 @@ func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) e
 		}
 		delete(nwCfg.IPv6AllocMap, hostID)
 	} else {
-		ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddress)
-		if err != nil {
-			log.Errorf("error getting host id from hostIP %s Subnet %s/%d. Error: %s",
-				ipAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
-			return err
+		if epgCfg != nil && len(epgCfg.IPPool) > 0 {
+			log.Infof("releasing epg ip: %s", ipAddress)
+			ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddress)
+			if err != nil {
+				log.Errorf("error getting host id from hostIP %s pool %s. Error: %s",
+					ipAddress, epgCfg.IPPool, err)
+				return err
+			}
+			// networkReleaseAddress is called from multiple places
+			// Make sure we decrement the EpCount only if the IPAddress
+			// was not already freed earlier
+			if epgCfg.EPGIPAllocMap.Test(ipAddrValue) {
+				nwCfg.EpAddrCount--
+			}
+			epgCfg.EPGIPAllocMap.Clear(ipAddrValue)
+			if err := epgCfg.Write(); err != nil {
+				log.Errorf("error writing epg config. Error: %s", err)
+				return err
+			}
+
+		} else {
+			ipAddrValue, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, ipAddress)
+			if err != nil {
+				log.Errorf("error getting host id from hostIP %s Subnet %s/%d. Error: %s",
+					ipAddress, nwCfg.SubnetIP, nwCfg.SubnetLen, err)
+				return err
+			}
+			// networkReleaseAddress is called from multiple places
+			// Make sure we decrement the EpCount only if the IPAddress
+			// was not already freed earlier
+			if nwCfg.IPAllocMap.Test(ipAddrValue) {
+				nwCfg.EpAddrCount--
+			}
+			nwCfg.IPAllocMap.Clear(ipAddrValue)
 		}
-		// networkReleaseAddress is called from multiple places
-		// Make sure we decrement the EpCount only if the IPAddress
-		// was not already freed earlier
-		if nwCfg.IPAllocMap.Test(ipAddrValue) {
-			nwCfg.EpAddrCount--
-		}
-		nwCfg.IPAllocMap.Clear(ipAddrValue)
 	}
 
 	err := nwCfg.Write()

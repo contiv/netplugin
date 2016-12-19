@@ -22,6 +22,7 @@ import (
 	"github.com/contiv/contivmodel/client"
 
 	. "gopkg.in/check.v1"
+	"strings"
 )
 
 // TestEndpointCreateDelete test endpoint create and delete ops
@@ -187,6 +188,9 @@ func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
 			Policies:         []string{},
 			ExtContractsGrps: []string{},
 		})
+
+		assertNoErr(err, c, "creating epg")
+
 		addr, err := its.allocAddress("", "test.default", "")
 		assertNoErr(err, c, "allocating address")
 		c.Assert(addr, Equals, "10.1.1.1")
@@ -211,6 +215,117 @@ func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
 		its.verifyEndpointFlowRemoved(epCfg1, c)
 	}
 
+	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
+}
+
+// TestEndpointGrouIPPoolCreateDelete tests EPG with IPAM create delete ops
+func (its *integTestSuite) TestEndpointGroupIPPoolCreateDelete(c *C) {
+	// Create a network
+	err := its.client.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: "test",
+		Subnet:      "10.1.1.0/24",
+		Encap:       its.encap,
+	})
+	assertNoErr(err, c, "creating network")
+	epgSeg := []string{"10.1.1.10-10.1.1.20", "10.1.1.40-10.1.1.42", "10.1.1.110-10.1.1.120"}
+
+	for i := 0; i < its.iterations; i++ {
+		for _, epgPool := range epgSeg {
+			err := its.client.EndpointGroupPost(&client.EndpointGroup{
+				TenantName:       "default",
+				NetworkName:      "test",
+				GroupName:        "epg1",
+				IpPool:           epgPool,
+				Policies:         []string{},
+				ExtContractsGrps: []string{},
+			})
+
+			assertNoErr(err, c, "create epg")
+			addr, err := its.allocAddress("", "test:epg1.default", "")
+			assertNoErr(err, c, "allocating address")
+			c.Assert(addr, Equals, strings.Split(epgPool, "-")[0])
+
+			// create an endpoint in the network
+			epCfg1, err := its.createEndpoint("default", "test", "epg1", addr, "")
+			assertNoErr(err, c, "creating endpoint")
+
+			// delete epg with active endpoints - should FAIL
+			err = its.client.EndpointGroupDelete("default", "epg1")
+			assertErr(err, c, "deleting epg")
+
+			// delete the endpoints
+			err = its.deleteEndpoint("default", "test", "epg1", epCfg1)
+			assertNoErr(err, c, "deleting endpoint")
+
+			// delete epg
+			err = its.client.EndpointGroupDelete("default", "epg1")
+			assertNoErr(err, c, "deleting epg")
+
+			// verify flows are also gone
+			its.verifyEndpointFlowRemoved(epCfg1, c)
+		}
+	}
+
+	epgSeg = []string{"10.1.1.0-10.1.1.20", "10.1.1.254-10.1.1.255",
+		"10.1.1.110-10.1.1.320", "10.1.2.0-10.1.2.20", "10.1.2.0/24"}
+	for _, epgPool := range epgSeg {
+		err := its.client.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:       "default",
+			NetworkName:      "test",
+			GroupName:        "epg1",
+			IpPool:           epgPool,
+			Policies:         []string{},
+			ExtContractsGrps: []string{},
+		})
+		assertErr(err, c, fmt.Sprintf("create epg %+v", epgPool))
+	}
+
+	epgSeg = []string{"10.1.1.30-10.1.1.50", "", "10.1.1.1-19.1.1.21"}
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:       "default",
+		NetworkName:      "test",
+		GroupName:        "epg1",
+		IpPool:           "10.1.1.10-10.1.1.20",
+		Policies:         []string{},
+		ExtContractsGrps: []string{},
+	})
+
+	for _, epgPool := range epgSeg {
+		err := its.client.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:       "default",
+			NetworkName:      "test",
+			GroupName:        "epg1",
+			IpPool:           epgPool,
+			Policies:         []string{},
+			ExtContractsGrps: []string{},
+		})
+		assertErr(err, c, fmt.Sprintf("create epg %+v", epgPool))
+	}
+	err = its.client.EndpointGroupDelete("default", "epg1")
+	assertNoErr(err, c, "deleting epg")
+
+	// exhaust pool
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:       "default",
+		NetworkName:      "test",
+		GroupName:        "epg1",
+		IpPool:           "10.1.1.11-10.1.1.11",
+		Policies:         []string{},
+		ExtContractsGrps: []string{},
+	})
+	assertNoErr(err, c, "create epg")
+	addr, err := its.allocAddress("", "test:epg1.default", "")
+	assertNoErr(err, c, "allocating address")
+	// create an endpoint in the network
+	epCfg1, err := its.createEndpoint("default", "test", "epg1", addr, "")
+	assertNoErr(err, c, "creating endpoint")
+	addr, err = its.allocAddress("", "test:epg1.default", "")
+	assertErr(err, c, "allocating address")
+	err = its.deleteEndpoint("default", "test", "epg1", epCfg1)
+	assertNoErr(err, c, "deleting endpoint")
+	err = its.client.EndpointGroupDelete("default", "epg1")
+	assertNoErr(err, c, "deleting epg")
 	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
 }
 

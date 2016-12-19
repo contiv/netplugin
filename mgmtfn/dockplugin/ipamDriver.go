@@ -85,8 +85,13 @@ func requestPool(w http.ResponseWriter, r *http.Request) {
 	// HACK alert: This is very fragile. SImplify this when we stop supporting docker 1.9
 	tenant, okt := preq.Options["tenant"]
 	network, okn := preq.Options["network"]
+	epg, oke := preq.Options["group"]
 	if okt && okn {
-		PoolID = network + "." + tenant + "|" + preq.Pool
+		if oke {
+			PoolID = network + ":" + epg + "." + tenant + "|" + preq.Pool
+		} else {
+			PoolID = network + "." + tenant + "|" + preq.Pool
+		}
 	}
 	presp := api.RequestPoolResponse{
 		PoolID: PoolID,
