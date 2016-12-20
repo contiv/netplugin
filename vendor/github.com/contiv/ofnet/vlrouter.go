@@ -1115,6 +1115,11 @@ func (self *Vlrouter) AddUplink(uplinkPort *PortInfo) error {
 	return nil
 }
 
+// UpdateUplink updates uplink info
+func (self *Vlrouter) UpdateUplink(uplinkName string, updates PortUpdates) error {
+	return nil
+}
+
 func (self *Vlrouter) RemoveUplink(uplinkName string) error {
 	uplinkPort := self.GetUplink(uplinkName)
 

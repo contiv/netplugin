@@ -849,6 +849,11 @@ func (vx *Vxlan) AddUplink(uplinkPort *PortInfo) error {
 	return nil
 }
 
+// UpdateUplink updates uplink info
+func (vx *Vxlan) UpdateUplink(uplinkName string, updates PortUpdates) error {
+	return nil
+}
+
 // RemoveUplink remove an uplink to the switch
 func (vx *Vxlan) RemoveUplink(uplinkName string) error {
 	return nil

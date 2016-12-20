@@ -906,6 +906,11 @@ func (vr *Vrouter) AddUplink(uplinkPort *PortInfo) error {
 	return nil
 }
 
+// UpdateUplink updates uplink info
+func (vr *Vrouter) UpdateUplink(uplinkName string, updates PortUpdates) error {
+	return nil
+}
+
 // RemoveUplink remove an uplink to the switch
 func (vr *Vrouter) RemoveUplink(uplinkName string) error {
 	// Nothing to do
