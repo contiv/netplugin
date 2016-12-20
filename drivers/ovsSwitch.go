@@ -81,6 +81,8 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 		log.Fatalf("Error creating ovsdb driver. Err: %v", err)
 	}
 
+	sw.ovsdbDriver.ovsSwitch = sw
+
 	if netType == "vxlan" {
 		ofnetPort = vxlanOfnetPort
 		ctrlrPort = vxlanCtrlerPort
@@ -652,6 +654,32 @@ func (sw *OvsSwitch) AddUplink(uplinkName string, intfList []string) error {
 	}()
 
 	return nil
+}
+
+// HandleLinkUpdates handle link updates and update the datapath
+func (sw *OvsSwitch) HandleLinkUpdates(linkUpd ofnet.LinkUpdateInfo) {
+	for intfListObj := range sw.uplinkDb.IterBuffered() {
+		intfList := intfListObj.Val.([]string)
+		for _, intf := range intfList {
+			if intf == linkUpd.LinkName {
+				portName := intfListObj.Key
+				portUpds := ofnet.PortUpdates{
+					PortName: portName,
+					Updates: []ofnet.PortUpdate{
+						{
+							UpdateType: ofnet.LacpUpdate,
+							UpdateInfo: linkUpd,
+						},
+					},
+				}
+				err := sw.ofnetAgent.UpdateUplink(portName, portUpds)
+				if err != nil {
+					log.Errorf("Update uplink failed. Err: %+v", err)
+				}
+				return
+			}
+		}
+	}
 }
 
 // RemoveUplinks removes uplink ports from the OVS
