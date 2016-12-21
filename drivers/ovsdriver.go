@@ -611,12 +611,7 @@ func (d *OvsDriver) AddMaster(node core.ServiceInfo) error {
 	if err != nil {
 		return err
 	}
-	err = d.switchDb["vxlan"].AddMaster(node)
-
-	if err != nil {
-		return err
-	}
-	return nil
+	return d.switchDb["vxlan"].AddMaster(node)
 }
 
 // DeleteMaster deletes master node
@@ -628,13 +623,7 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 	if err != nil {
 		return err
 	}
-	err = d.switchDb["vxlan"].DeleteMaster(node)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.switchDb["vxlan"].DeleteMaster(node)
 }
 
 // AddBgp adds bgp config by named identifier

@@ -297,12 +297,7 @@ func attachServiceContainer(tenantName, networkName string, stateDriver core.Sta
 	log.Infof("Dns server for network %s: %s", networkName, nwCfg.DNSServer)
 
 	// write the network config
-	err = nwCfg.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return nwCfg.Write()
 }
 
 // detachServiceContainer detaches the service container's endpoint during network delete

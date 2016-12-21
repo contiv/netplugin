@@ -125,12 +125,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 		log.Debugf("ACI -- Allocated vlan %v for epg %v", pktTag, groupName)
 
 	}
-	err = epgCfg.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return epgCfg.Write()
 }
 
 // DeleteEndpointGroup handles endpoint group deletes
@@ -224,9 +219,5 @@ func UpdateEndpointGroup(bandwidth, groupName, tenantName string, Dscp, burst in
 	epCfg.Burst = burst
 
 	//Write to etcd
-	err = epCfg.Write()
-	if err != nil {
-		return err
-	}
-	return nil
+	return epCfg.Write()
 }

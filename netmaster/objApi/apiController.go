@@ -1133,12 +1133,7 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	}
 
 	// Save the tenant too since we removed the links
-	err = tenant.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return tenant.Write()
 }
 
 // NetprofileCreate creates the network rule
@@ -2149,10 +2144,7 @@ func (ac *APIController) ServiceLBGetOper(serviceLB *contivModel.ServiceLBInspec
 }
 
 func validateSelectors(selector string) bool {
-	if strings.Count(selector, "=") == 1 {
-		return true
-	}
-	return false
+	return strings.Count(selector, "=") == 1
 }
 
 func validatePorts(ports []string) bool {

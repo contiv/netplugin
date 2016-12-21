@@ -47,10 +47,8 @@ type Skydns2Adapter struct {
 // Ping will try to connect to skydns2 by attempting to retrieve a key
 func (r *Skydns2Adapter) Ping() error {
 	_, err := r.client.Get(context.Background(), "/", &client.GetOptions{Recursive: true, Sort: true})
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return err
 }
 
 // Register will register Skydns2Adapter's interface with RegistryAdapter

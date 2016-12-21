@@ -35,11 +35,7 @@ func SvcProviderUpdate(serviceID string, isDelete bool) error {
 
 	if _, present := mastercfg.ServiceLBDb[serviceID]; !present {
 		svcProvider.ID = serviceID
-		err = svcProvider.Clear()
-		if err != nil {
-			return err
-		}
-		return nil
+		return svcProvider.Clear()
 	}
 
 	for _, provider := range mastercfg.ServiceLBDb[serviceID].Providers {
@@ -55,12 +51,7 @@ func SvcProviderUpdate(serviceID string, isDelete bool) error {
 
 	log.Infof("Updating service providers with {%v} on service %s", svcProvider.Providers, serviceID)
 
-	err = svcProvider.Write()
-
-	if err != nil {
-		return err
-	}
-	return nil
+	return svcProvider.Write()
 }
 
 func getProviderID(provider *mastercfg.Provider) string {

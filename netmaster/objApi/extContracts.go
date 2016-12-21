@@ -81,11 +81,7 @@ func setupExternalContracts(endpointGroup *contivModel.EndpointGroup, extContrac
 
 // Check if the external contracts are being used by any of the EPGs.
 func isExtContractsGroupUsed(contractsGroup *contivModel.ExtContractsGroup) bool {
-	if len(contractsGroup.LinkSets.EndpointGroups) > 0 {
-		return true
-	}
-
-	return false
+	return len(contractsGroup.LinkSets.EndpointGroups) > 0
 }
 
 // ExtContractsGroupCreate creates a new group of external contracts
