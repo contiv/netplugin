@@ -130,7 +130,7 @@ func (v *Vagrant) setup(start bool, env []string, numNodes int) error {
 	}
 	nodeNamesBytes := re.FindAll(output, -1)
 	if nodeNamesBytes == nil {
-		err = fmt.Errorf("No running nodes found in vagrant status output: \n%s\n",
+		err = fmt.Errorf("no running nodes found in vagrant status output: %s",
 			output)
 		return err
 	}
@@ -141,7 +141,7 @@ func (v *Vagrant) setup(start bool, env []string, numNodes int) error {
 	}
 
 	if len(nodeNames) != numNodes {
-		err = fmt.Errorf("Number of running node(s) (%d) is not equal to number of expected node(s) (%d) in vagrant status output: \n%s\n",
+		err = fmt.Errorf("number of running node(s) (%d) is not equal to number of expected node(s) (%d) in vagrant status output: %s",
 			len(nodeNames), numNodes, output)
 		return err
 	}
@@ -151,7 +151,7 @@ func (v *Vagrant) setup(start bool, env []string, numNodes int) error {
 	// correctly filter the output based on passed host-name. So filtering
 	// the output ourselves below.
 	if output, err = vCmd.RunWithOutput("ssh-config"); err != nil {
-		return fmt.Errorf("Error running vagrant ssh-config. Error: %s. Output: \n%s\n", err, output)
+		return fmt.Errorf("error running vagrant ssh-config. Error: %s. Output: %s", err, output)
 	}
 
 	if re, err = regexp.Compile("Host [a-zA-Z0-9_-]+|HostName.*|Port [0-9]+|IdentityFile .*"); err != nil {
@@ -160,7 +160,7 @@ func (v *Vagrant) setup(start bool, env []string, numNodes int) error {
 
 	nodeInfosBytes := re.FindAll(output, -1)
 	if nodeInfosBytes == nil {
-		return fmt.Errorf("Failed to find node info in vagrant ssh-config output: \n%s\n", output)
+		return fmt.Errorf("failed to find node info in vagrant ssh-config output: %s", output)
 	}
 
 	// got the names, now fill up the vagrant-nodes structure
@@ -174,7 +174,7 @@ func (v *Vagrant) setup(start bool, env []string, numNodes int) error {
 			}
 		}
 		if nodeInfoPos == -1 {
-			return fmt.Errorf("Failed to find %q info in vagrant ssh-config output: \n%s\n", nodeName, output)
+			return fmt.Errorf("failed to find %q info in vagrant ssh-config output: %s", nodeName, output)
 		}
 
 		hostnameInfo := string(nodeInfosBytes[nodeInfoPos+1])
@@ -183,18 +183,18 @@ func (v *Vagrant) setup(start bool, env []string, numNodes int) error {
 
 		hostname := strings.Split(hostnameInfo, " ")
 		if len(hostname) != 2 {
-			return fmt.Errorf("Failed to find hostname in vagrant ssh-config output:\n%s\n", nodeName)
+			return fmt.Errorf("failed to find hostname in vagrant ssh-config output: %s", nodeName)
 		}
 
 		port := portRegexp.FindStringSubmatch(portInfo)
 		if port == nil || len(port) < 2 {
-			return fmt.Errorf("Failed to find %q port info in vagrant ssh-config output: \n%s\n",
+			return fmt.Errorf("failed to find %q port info in vagrant ssh-config output: %s",
 				nodeName, portInfo)
 		}
 
 		privKeyFile := identityFileRegexp.FindStringSubmatch(idInfo)
 		if privKeyFile == nil || len(port) < 2 {
-			return fmt.Errorf("Failed to find %q identity file info in vagrant ssh-config output: \n%s\n.", nodeName, idInfo)
+			return fmt.Errorf("failed to find %q identity file info in vagrant ssh-config output: %s", nodeName, idInfo)
 		}
 
 		log.Infof("Adding node: %q(%s:%s)", nodeName, port[1], privKeyFile[1])
