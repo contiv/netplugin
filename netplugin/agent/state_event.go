@@ -227,6 +227,9 @@ func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID str
 
 func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, fwdMode string) {
 
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
+
 	// parse store URL
 	parts := strings.Split(opts.DbURL, "://")
 	if len(parts) < 2 {
@@ -268,6 +271,9 @@ func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instanc
 }
 
 func processGlobalConfigUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, cfg *mastercfg.GlobConfig) {
+
+	netPlugin.Lock()
+	defer func() { netPlugin.Unlock() }()
 
 	// parse store URL
 	parts := strings.Split(opts.DbURL, "://")

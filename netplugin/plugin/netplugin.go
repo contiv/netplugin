@@ -225,12 +225,14 @@ func (p *NetPlugin) GlobalFwdModeUpdate(cfg Config) {
 	var err error
 
 	if p.NetworkDriver != nil {
+		logrus.Infof("GlobalFwdModeUpdate De-initializing NetworkDriver")
 		p.NetworkDriver.Deinit()
 		p.NetworkDriver = nil
 	}
 
 	cfg.Instance.StateDriver, _ = utils.GetStateDriver()
 	p.NetworkDriver, err = utils.NewNetworkDriver(cfg.Drivers.Network, &cfg.Instance)
+	logrus.Infof("GlobalFwdModeUpdate Initializing NetworkDriver")
 
 	if err != nil {
 		logrus.Errorf("Error updating global forwarding mode %v", err)
@@ -239,6 +241,7 @@ func (p *NetPlugin) GlobalFwdModeUpdate(cfg Config) {
 
 	defer func() {
 		if err != nil {
+			logrus.Errorf("GlobalFwdModeUpdate De-initializing due to error: %v", err)
 			p.NetworkDriver.Deinit()
 		}
 	}()

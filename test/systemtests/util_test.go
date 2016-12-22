@@ -1340,15 +1340,15 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 
 	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != "k8" {
-		for i := 0; i < 11; i++ {
+		for i := 0; i < 21; i++ {
 
 			_, err := s.cli.TenantGet("default")
 			if err == nil {
 				break
 			}
 			// Fail if we reached last iteration
-			c.Assert((i < 10), Equals, true)
-			time.Sleep(500 * time.Millisecond)
+			c.Assert((i < 20), Equals, true)
+			time.Sleep(1 * time.Second)
 		}
 	}
 

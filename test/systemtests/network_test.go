@@ -431,6 +431,10 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVXLAN(c *C) {
+	// Not applicable for routing mode
+	if s.fwdMode == "routing" {
+		return
+	}
 	arpMode := "proxy"
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
@@ -461,9 +465,11 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVXLAN(c *C) {
 }
 
 func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVLAN(c *C) {
-
+	// Not applicable for routing mode
+	if s.fwdMode == "routing" {
+		return
+	}
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-		s.testNetworkAddDeleteTenant(c, "vlan", s.fwdMode)
 		c.Assert(s.cli.GlobalPost(&client.Global{
 			FwdMode:          "bridge",
 			Name:             "global",

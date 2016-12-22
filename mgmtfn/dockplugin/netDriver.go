@@ -155,7 +155,9 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 		}
 
 		// delete the endpoint
+		netPlugin.Lock()
 		err = netPlugin.DeleteEndpoint(netID + "-" + delreq.EndpointID)
+		netPlugin.Unlock()
 		if err != nil {
 			log.Errorf("Error deleting endpoint %s. Err: %v", delreq.EndpointID, err)
 			httpError(w, "failed to delete endpoint", err)
@@ -225,7 +227,9 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 		netID := netName + "." + tenantName
 
 		// Ask netplugin to create the endpoint
+		netPlugin.Lock()
 		err = netPlugin.CreateEndpoint(netID + "-" + cereq.EndpointID)
+		netPlugin.Unlock()
 		if err != nil {
 			log.Errorf("Endpoint creation failed. Error: %s", err)
 			httpError(w, "Could not create endpoint", err)
