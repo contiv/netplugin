@@ -556,6 +556,19 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	return nil
 }
 
+// CreateRemoteEndpoint creates a remote endpoint by named identifier
+func (d *OvsDriver) CreateRemoteEndpoint(id string) error {
+
+	log.Debug("OVS driver ignoring remote EP create as it uses its own EP sync")
+	return nil
+}
+
+// DeleteRemoteEndpoint deletes a remote endpoint by named identifier
+func (d *OvsDriver) DeleteRemoteEndpoint(id string) error {
+	log.Debug("OVS driver ignoring remote EP delete as it uses its own EP sync")
+	return nil
+}
+
 // AddPeerHost adds VTEPs if necessary
 func (d *OvsDriver) AddPeerHost(node core.ServiceInfo) error {
 	// Nothing to do if this is our own IP
@@ -834,7 +847,6 @@ func (d *OvsDriver) GlobalConfigUpdate(inst core.InstanceInfo) error {
 func (d *OvsDriver) InspectNameserver() ([]byte, error) {
 	if d.nameServer == nil {
 		return []byte{}, nil
-
 	}
 
 	ns, err := d.nameServer.InspectState()
@@ -845,4 +857,16 @@ func (d *OvsDriver) InspectNameserver() ([]byte, error) {
 	}
 
 	return jsonState, nil
+}
+
+// AddPolicyRule creates a policy rule
+func (d *OvsDriver) AddPolicyRule(id string) error {
+	log.Debug("OVS driver ignoring PolicyRule create as it uses ofnet sync")
+	return nil
+}
+
+// DelPolicyRule deletes a policy rule
+func (d *OvsDriver) DelPolicyRule(id string) error {
+	log.Debug("OVS driver ignoring PolicyRule delete as it uses ofnet sync")
+	return nil
 }

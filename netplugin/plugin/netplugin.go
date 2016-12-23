@@ -149,6 +149,16 @@ func (p *NetPlugin) DeleteEndpoint(id string) error {
 	return p.NetworkDriver.DeleteEndpoint(id)
 }
 
+// CreateRemoteEndpoint creates an endpoint for a given ID.
+func (p *NetPlugin) CreateRemoteEndpoint(id string) error {
+	return p.NetworkDriver.CreateRemoteEndpoint(id)
+}
+
+// DeleteRemoteEndpoint destroys an endpoint for an ID.
+func (p *NetPlugin) DeleteRemoteEndpoint(id string) error {
+	return p.NetworkDriver.DeleteRemoteEndpoint(id)
+}
+
 // CreateHostAccPort creates a host access port
 func (p *NetPlugin) CreateHostAccPort(portName, globalIP string) (string, error) {
 	p.Lock()
@@ -324,4 +334,14 @@ func (p *NetPlugin) DelSvcSpec(svcName string, spec *core.ServiceSpec) {
 	p.Lock()
 	defer p.Unlock()
 	p.NetworkDriver.DelSvcSpec(svcName, spec)
+}
+
+// AddPolicyRule creates a policy rule
+func (p *NetPlugin) AddPolicyRule(id string) error {
+	return p.NetworkDriver.AddPolicyRule(id)
+}
+
+// DelPolicyRule creates a policy rule
+func (p *NetPlugin) DelPolicyRule(id string) error {
+	return p.NetworkDriver.DelPolicyRule(id)
 }

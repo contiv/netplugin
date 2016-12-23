@@ -293,6 +293,13 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		return nil, err
 	}
 
+	// Send AddRule to netplugin agents
+	err = addPolicyRuleState(ofnetRule)
+	if err != nil {
+		log.Errorf("Error creating rule {%+v}. Err: %v", ofnetRule, err)
+		return nil, err
+	}
+
 	log.Infof("Added rule {%+v} to policyDB", ofnetRule)
 
 	return ofnetRule, nil
@@ -368,6 +375,12 @@ func (gp *EpgPolicy) DelRule(rule *contivModel.Rule) error {
 
 		// Delete the rule from policyDB
 		err := ofnetMaster.DelRule(ofnetRule)
+		if err != nil {
+			log.Errorf("Error deleting the ofnet rule {%+v}. Err: %v", ofnetRule, err)
+		}
+
+		// Send DelRule to netplugin agents
+		err = delPolicyRuleState(ofnetRule)
 		if err != nil {
 			log.Errorf("Error deleting the ofnet rule {%+v}. Err: %v", ofnetRule, err)
 		}

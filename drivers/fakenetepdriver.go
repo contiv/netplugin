@@ -45,6 +45,16 @@ func (d *FakeNetEpDriver) DeleteEndpoint(id string) (err error) {
 	return core.Errorf("Not implemented")
 }
 
+// CreateRemoteEndpoint is not implemented.
+func (d *FakeNetEpDriver) CreateRemoteEndpoint(id string) error {
+	return core.Errorf("Not implemented")
+}
+
+// DeleteRemoteEndpoint is not implemented.
+func (d *FakeNetEpDriver) DeleteRemoteEndpoint(id string) (err error) {
+	return core.Errorf("Not implemented")
+}
+
 // CreateHostAccPort is not implemented.
 func (d *FakeNetEpDriver) CreateHostAccPort(id, a string, nw int) (string, error) {
 	return "", core.Errorf("Not implemented")
@@ -122,4 +132,14 @@ func (d *FakeNetEpDriver) GlobalConfigUpdate(inst core.InstanceInfo) error {
 // InspectNameserver returns nameserver state as json string
 func (d *FakeNetEpDriver) InspectNameserver() ([]byte, error) {
 	return []byte{}, core.Errorf("Not implemented")
+}
+
+// AddPolicyRule is not implemented
+func (d *FakeNetEpDriver) AddPolicyRule(id string) error {
+	return core.Errorf("Not implemented")
+}
+
+// DelPolicyRule is not implemented
+func (d *FakeNetEpDriver) DelPolicyRule(id string) error {
+	return core.Errorf("Not implemented")
 }
