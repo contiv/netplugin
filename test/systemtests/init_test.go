@@ -116,6 +116,7 @@ func (s *systemtestSuite) TearDownTest(c *C) {
 }
 
 func (s *systemtestSuite) TearDownSuite(c *C) {
+	_ = os.Mkdir("logs", os.ModeDir+os.ModePerm)
 	for _, node := range s.nodes {
 		node.exec.cleanupContainers()
 	}
@@ -128,6 +129,7 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 			logrus.Errorf("Errors in logfiles on %s: \n", node.Name())
 			fmt.Printf("%s\n==========================\n\n", out)
 		}
+		c.Check(node.copyOverLogs(), IsNil)
 	}
 }
 

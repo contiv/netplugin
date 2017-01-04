@@ -21,4 +21,6 @@ type TestbedNode interface {
 	RunCommandWithOutput(cmd string) (output string, err error)
 	RunCommandBackground(cmd string) (err error)
 	GetName() string
+	ScpFromRemoteToLocal(remoteFilename string, localFilename string) (err error)
+	ScpFromLocalToRemote(localFilename string, remoteFilename string) (err error)
 }
