@@ -69,6 +69,9 @@ type OfnetDatapath interface {
 	//Add uplink port
 	AddUplink(uplinkPort *PortInfo) error
 
+	//Update uplink port
+	UpdateUplink(uplinkName string, update PortUpdates) error
+
 	//Delete uplink port
 	RemoveUplink(uplinkName string) error
 
@@ -206,6 +209,18 @@ const (
 
 	// ArpProxy - ARP packets will be redirected to controller
 	ArpProxy ArpModeT = "proxy"
+
+	// PortType - individual port
+	PortType = "individual"
+
+	// BondType - bonded port
+	BondType = "bond"
+
+	// LACPUpdate - for port update info
+	LacpUpdate = "lacp-upd"
+
+	// AddLink - for port update info
+	AddLink = "add-link"
 )
 
 // OfnetGlobalConfig has global level configs for ofnet
@@ -263,14 +278,6 @@ const (
 	linkUp
 )
 
-const (
-	// PortType - individual port
-	PortType = "individual"
-
-	// BondType - bonded port
-	BondType = "bond"
-)
-
 // LinkInfo maintains individual link information
 type LinkInfo struct {
 	Name       string
@@ -286,4 +293,22 @@ type PortInfo struct {
 	LinkStatus  linkStatus
 	MbrLinks    []*LinkInfo
 	ActiveLinks []*LinkInfo
+}
+
+// PortUpdates maintains multiplae port update info
+type PortUpdates struct {
+	PortName string
+	Updates  []PortUpdate `json:"updates,overflow"`
+}
+
+// PortUpdate maintains information about port update
+type PortUpdate struct {
+	UpdateType string      `json:"update-type,omitinfo"`
+	UpdateInfo interface{} `json:"update-info,omitinfo"`
+}
+
+// LACP update
+type LinkUpdateInfo struct {
+	LinkName   string `json:"-,omitempty"`
+	LacpStatus bool   `json:"lacp-status,omitinfo"`
 }

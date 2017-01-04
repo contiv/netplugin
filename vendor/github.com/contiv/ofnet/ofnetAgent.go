@@ -819,6 +819,12 @@ func (self *OfnetAgent) AddUplink(uplinkPort *PortInfo) error {
 	return self.datapath.AddUplink(uplinkPort)
 }
 
+// UpdateUplink Updates an uplink to the switch
+func (self *OfnetAgent) UpdateUplink(uplinkName string, portUpds PortUpdates) error {
+	// Call the datapath
+	return self.datapath.UpdateUplink(uplinkName, portUpds)
+}
+
 // RemoveUplink remove an uplink to the switch
 func (self *OfnetAgent) RemoveUplink(uplinkName string) error {
 	// Call the datapath

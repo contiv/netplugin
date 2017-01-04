@@ -636,6 +636,32 @@ func (vl *VlanBridge) AddUplink(uplinkPort *PortInfo) error {
 	return nil
 }
 
+// UpdateUplink updates uplink info
+func (vl *VlanBridge) UpdateUplink(uplinkName string, updates PortUpdates) error {
+	for uplinkObj := range vl.uplinkPortDb.IterBuffered() {
+		uplink := uplinkObj.Val.(*PortInfo)
+		if uplink.Name != uplinkName {
+			continue
+		}
+		for _, update := range updates.Updates {
+			switch update.UpdateType {
+			case LacpUpdate:
+				lacpUpd := update.UpdateInfo.(LinkUpdateInfo)
+				linkName := lacpUpd.LinkName
+				for _, link := range uplink.MbrLinks {
+					if link.Name == linkName {
+						link.handleLacpUpdate(lacpUpd.LacpStatus)
+					}
+				}
+			default:
+				log.Errorf("Unknown update: (%s, %+v)", update.UpdateType, update.UpdateInfo)
+			}
+		}
+	}
+
+	return nil
+}
+
 // RemoveUplink remove an uplink to the switch
 func (vl *VlanBridge) RemoveUplink(uplinkName string) error {
 	uplinkPort := vl.GetUplink(uplinkName)

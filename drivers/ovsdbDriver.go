@@ -24,6 +24,7 @@ import (
 
 	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -34,6 +35,7 @@ const maxOfportRetry = 20
 // OvsdbDriver is responsible for programming OVS using ovsdb protocol. It also
 // implements the libovsdb.Notifier interface to keep cache of ovs table state.
 type OvsdbDriver struct {
+	ovsSwitch  *OvsSwitch
 	bridgeName string // Name of the bridge we are operating on
 	ovs        *libovsdb.OvsdbClient
 	cache      map[string]map[libovsdb.UUID]libovsdb.Row
@@ -136,6 +138,32 @@ func (d *OvsdbDriver) populateCache(updates libovsdb.TableUpdates) {
 // Update updates the ovsdb with the libovsdb.TableUpdates.
 func (d *OvsdbDriver) Update(context interface{}, tableUpdates libovsdb.TableUpdates) {
 	d.populateCache(tableUpdates)
+	intfUpds, ok := tableUpdates.Updates["Interface"]
+	if !ok {
+		return
+	}
+
+	for _, intfUpd := range intfUpds.Rows {
+		intf := intfUpd.New.Fields["name"]
+		oldLacpStatus, ok := intfUpd.Old.Fields["lacp_current"]
+		if !ok {
+			return
+		}
+		newLacpStatus, ok := intfUpd.New.Fields["lacp_current"]
+		if !ok {
+			return
+		}
+		if oldLacpStatus == newLacpStatus || d.ovsSwitch == nil {
+			return
+		}
+
+		linkUpd := ofnet.LinkUpdateInfo{
+			LinkName:   intf.(string),
+			LacpStatus: newLacpStatus.(bool),
+		}
+		log.Debugf("LACP_UPD: Interface: %+v. LACP Status - (Old: %+v, New: %+v)\n", intf, oldLacpStatus, newLacpStatus)
+		d.ovsSwitch.HandleLinkUpdates(linkUpd)
+	}
 }
 
 // Locked satisfies a libovsdb interface dependency.
