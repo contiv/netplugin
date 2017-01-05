@@ -325,8 +325,8 @@ func (link *LinkInfo) handleLacpUpdate(lacpActive bool) {
 	if !lacpActive {
 		for idx, activeLink := range port.ActiveLinks {
 			if link == activeLink {
-				if idx == len(port.ActiveLinks) {
-					port.ActiveLinks = port.ActiveLinks[:idx-1]
+				if idx == (len(port.ActiveLinks) - 1) {
+					port.ActiveLinks = port.ActiveLinks[:idx]
 				} else {
 					port.ActiveLinks = append(port.ActiveLinks[:idx], port.ActiveLinks[idx+1:]...)
 				}
@@ -369,8 +369,8 @@ func (link *LinkInfo) setLinkStatus(status linkStatus) {
 	} else {
 		for idx, activeLink := range port.ActiveLinks {
 			if link == activeLink {
-				if idx == len(port.ActiveLinks) {
-					port.ActiveLinks = port.ActiveLinks[:idx-1]
+				if idx == (len(port.ActiveLinks) - 1) {
+					port.ActiveLinks = port.ActiveLinks[:idx]
 				} else {
 					port.ActiveLinks = append(port.ActiveLinks[:idx], port.ActiveLinks[idx+1:]...)
 				}
