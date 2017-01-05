@@ -26,7 +26,7 @@ func unexpectedSetupArgError(exptdTypes string, rcvdArgs ...interface{}) error {
 	for _, arg := range rcvdArgs {
 		rcvdTypes = fmt.Sprintf("%s, %T", rcvdTypes, arg)
 	}
-	return fmt.Errorf("Unexpected args to Setup(). Expected: %s, Received: %s", rcvdTypes, exptdTypes)
+	return fmt.Errorf("unexpected args to Setup(). Expected: %s, Received: %s", rcvdTypes, exptdTypes)
 }
 
 // HostInfo contains host specific connectivity info for setting up testbed node

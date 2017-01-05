@@ -95,7 +95,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/remotessh",
-			"Rev": "873176beee0ae1cdcd5ecefb7009d979419138af"
+			"Rev": "ced733d4710e93b663da5d09df720c6216796d0a"
 		},
 		{
 			"ImportPath": "github.com/contiv/systemtests-utils",
