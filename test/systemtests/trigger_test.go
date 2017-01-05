@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	. "gopkg.in/check.v1"
@@ -11,6 +12,60 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 )
+
+func (s *systemtestSuite) TestTriggerNetpluginUplinkUpgrade(c *C) {
+	uplinkIntfs := strings.Split(s.hostInfo.HostDataInterfaces, ",")
+	if len(uplinkIntfs) == 1 {
+		c.Skip("Skipping upgrade test for single uplink interface")
+	}
+
+	// Take backup of interfaces
+	originalUplinks := s.hostInfo.HostDataInterfaces
+	singleUplink := uplinkIntfs[0]
+
+	for _, node := range s.nodes {
+		// Stop Netplugin
+		c.Assert(node.exec.stopNetplugin(), IsNil)
+		c.Assert(node.rotateLog("netplugin"), IsNil)
+		node.cleanupSlave()
+
+		// Run test case with just one single uplink
+		logrus.Info("Verifying single uplink case")
+		s.hostInfo.HostDataInterfaces = singleUplink
+		c.Assert(node.startNetplugin(""), IsNil)
+		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
+		time.Sleep(20 * time.Second)
+		c.Assert(node.waitForListeners(), IsNil)
+		// Verify uplink state on each node
+		c.Assert(node.verifyUplinkState([]string{singleUplink}), IsNil)
+
+		// Uplink upgrade case. Run test case with multiple uplinks
+		c.Assert(node.exec.stopNetplugin(), IsNil)
+		c.Assert(node.rotateLog("netplugin"), IsNil)
+		logrus.Info("Verifying uplink upgrade case with multiple uplinks")
+		s.hostInfo.HostDataInterfaces = originalUplinks
+		c.Assert(node.startNetplugin(""), IsNil)
+		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
+		time.Sleep(20 * time.Second)
+		c.Assert(node.waitForListeners(), IsNil)
+		// Verify uplink state on each node
+		c.Assert(node.verifyUplinkState(uplinkIntfs), IsNil)
+
+		// Uplink downgrade Rerun test case with just one single uplink
+		logrus.Info("Verifying uplink downgrade case with single uplink")
+		c.Assert(node.exec.stopNetplugin(), IsNil)
+		c.Assert(node.rotateLog("netplugin"), IsNil)
+		s.hostInfo.HostDataInterfaces = singleUplink
+		c.Assert(node.startNetplugin(""), IsNil)
+		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
+		time.Sleep(20 * time.Second)
+		c.Assert(node.waitForListeners(), IsNil)
+		// Verify uplink state on each node
+		c.Assert(node.verifyUplinkState([]string{singleUplink}), IsNil)
+
+		s.hostInfo.HostDataInterfaces = originalUplinks
+	}
+}
 
 func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
