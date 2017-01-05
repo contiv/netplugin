@@ -837,7 +837,7 @@ func (sw *OvsSwitch) DelHostPort(intfName string, isHostNS bool) error {
 	if isHostNS {
 		err = sw.hostBridge.DelHostPort(ofpPort)
 		if err != nil {
-			log.Errorf("Error adding host port %s. Err: %v", intfName, err)
+			log.Errorf("Error deleting host port %s. Err: %v", intfName, err)
 			return err
 		}
 	} else {
