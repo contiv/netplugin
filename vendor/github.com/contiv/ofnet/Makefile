@@ -15,7 +15,7 @@ start: update
 stop:
 	vagrant destroy -f
 
-test: start
+test: build 
 	vagrant ssh node1 -c 'cd /opt/gopath/src/github.com/contiv/ofnet && make host-test'
 
 host-build:
