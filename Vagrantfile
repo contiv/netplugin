@@ -1,6 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+require File.join(File.dirname(__FILE__), "vagrant", "vagrant_version_check")
+
 require 'fileutils'
 
 BEGIN {
