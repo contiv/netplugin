@@ -73,7 +73,7 @@ func netdGetEndpoint(epID string) (*drivers.OvsOperEndpointState, error) {
 	return operEp, nil
 }
 
-// netdGetNetwork is a utility that reads the n/w oper state
+// netdGetNetwork is a utility that reads the nw oper state
 func netdGetNetwork(networkID string) (*mastercfg.CfgNetworkState, error) {
 	// Get hold of the state driver
 	stateDriver, err := utils.GetStateDriver()

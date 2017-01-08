@@ -261,7 +261,7 @@ func (c *APIClient) WatchServices(respCh chan SvcWatchResp) {
 
 		// bufio.Reader.ReadBytes is blocking, so we watch for
 		// context timeout or cancellation in a goroutine
-		// and close the response body when see see it. The
+		// and close the response body when see it. The
 		// response body is also closed via defer when the
 		// request is made, but closing twice is OK.
 		go func() {
@@ -336,7 +336,7 @@ func (c *APIClient) WatchSvcEps(respCh chan EpWatchResp) {
 
 		// bufio.Reader.ReadBytes is blocking, so we watch for
 		// context timeout or cancellation in a goroutine
-		// and close the response body when see see it. The
+		// and close the response body when see it. The
 		// response body is also closed via defer when the
 		// request is made, but closing twice is OK.
 		go func() {
