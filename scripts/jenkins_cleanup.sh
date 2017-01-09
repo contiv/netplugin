@@ -16,7 +16,7 @@ rm -rf /home/admin/VirtualBox\ VMs/* || true
 rm -rf .vagrant/* || true
 rm -f *.vdi || true
 
-for f in $(vboxmanage list vms | grep inaccessible | awk {'print $2'} | cut -d'{' -f2 | cut -d'}' -f1); do
+for f in $(vboxmanage list vms | awk {'print $2'} | cut -d'{' -f2 | cut -d'}' -f1); do
     echo $f
     vboxmanage unregistervm --delete $f || true
 done
