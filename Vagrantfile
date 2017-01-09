@@ -93,8 +93,6 @@ rm /etc/docker/key.json
 (service docker restart) || exit 1
 
 usermod -aG docker vagrant
-docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar || echo "Loading skydns container failed"
-
 SCRIPT
 
 provision_common_always = <<SCRIPT
