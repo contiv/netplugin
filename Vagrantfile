@@ -25,26 +25,24 @@ cluster_ip_nodes = ""
 provision_common_once = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
-echo -n "$1" > /etc/hostname
-hostname -F /etc/hostname
 
 echo 'export GOPATH=#{gopath_folder}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
-echo "export http_proxy='$4'" >> /etc/profile.d/envvar.sh
-echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
-echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
-echo "export no_proxy=$3,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
-echo "export CLUSTER_NODE_IPS=$3" >> /etc/profile.d/envvar.sh
-echo "export CONTIV_CLUSTER_STORE=$7" >> /etc/profile.d/envvar.sh
+echo "export http_proxy='$3'" >> /etc/profile.d/envvar.sh
+echo "export https_proxy='$4'" >> /etc/profile.d/envvar.sh
+echo "export USE_RELEASE=$5" >> /etc/profile.d/envvar.sh
+echo "export no_proxy=$2,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
+echo "export CLUSTER_NODE_IPS=$2" >> /etc/profile.d/envvar.sh
+echo "export CONTIV_CLUSTER_STORE=$6" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
 rm -rf /usr/local/go
 
 curl -sSL https://storage.googleapis.com/golang/go#{go_version}.linux-amd64.tar.gz  | sudo tar -xz -C /usr/local
 
-if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
+if [[ $# -gt 9 ]] && [[ $9 != "" ]]; then
     shift; shift; shift; shift; shift; shift; shift; shift; shift
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
@@ -61,8 +59,8 @@ yum clean all
 echo "Cleaning docker up to reinstall"
 service docker stop || :
 rm -rf /var/lib/docker
-echo "Installing docker version " $8
-if [[ $9 == "ubuntu" ]]; then
+echo "Installing docker version " $7
+if [[ $8 == "ubuntu" ]]; then
     sudo apt-get purge docker-engine -y || :
     curl https://get.docker.com | sed s/docker-engine/docker-engine=#{docker_version}-0~xenial/g | bash
 else
@@ -73,7 +71,7 @@ else
 fi
 
 # setup docker cluster store
-if [[ $7 == *"consul:"* ]]
+if [[ $6 == *"consul:"* ]]
 then
     perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=consul://localhost:8500!' /lib/systemd/system/docker.service
 else
@@ -96,7 +94,7 @@ usermod -aG docker vagrant
 SCRIPT
 
 provision_common_always = <<SCRIPT
-/sbin/ip addr add "$2/24" dev eth1
+/sbin/ip addr add "$1/24" dev eth1
 /sbin/ip link set eth1 up
 /sbin/ip link set eth2 up
 /sbin/ip link set eth3 up
@@ -255,6 +253,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
            end
         end
         config.vm.define node_name do |node|
+            node.vm.hostname = node_name
             # create an interface for etcd cluster
             node.vm.network :private_network, ip: node_addr, virtualbox__intnet: "true", auto_config: false
             # create an interface for bridged network
@@ -288,7 +287,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             node.vm.provision "shell" do |s|
                 s.inline = provision_common_once
                 s.args = [
-                  node_name,
                   node_addr,
                   cluster_ip_nodes,
                   http_proxy,
@@ -302,7 +300,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_common_always
-                s.args = [node_name, node_addr]
+                s.args = [node_addr]
             end
 
 provision_node = <<SCRIPT
