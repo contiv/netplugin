@@ -18,5 +18,5 @@ rm -f *.vdi || true
 
 for f in $(vboxmanage list vms | grep inaccessible | awk {'print $2'} | cut -d'{' -f2 | cut -d'}' -f1); do
     echo $f
-    vboxmanage unregistervm $f || true
+    vboxmanage unregistervm --delete $f || true
 done
