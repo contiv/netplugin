@@ -160,6 +160,9 @@ end
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.box_check_update = false
+    if Vagrant.has_plugin?("vagrant-vbguest")
+        config.vbguest.auto_update = false
+    end 
     if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "ubuntu" then
         config.vm.box = "contiv/ubuntu1604-netplugin"
         config.vm.box_version = "0.7.0"
