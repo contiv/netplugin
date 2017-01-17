@@ -11,11 +11,11 @@ file_name=version_gen.go
 
 if [ -z "$USE_RELEASE" ]
 then
-  useDefaultVersionString="True"
-  VersionStr="pv`cat ./CURRENT_VERSION`-$BuildTimeStr"
-else
   useDefaultVersionString="False"
-  VersionStr="v`cat ./CURRENT_VERSION`-$BuildTimeStr"
+  VersionStr="$(cat ./CURRENT_VERSION)-$BuildTimeStr"
+else
+  useDefaultVersionString="True"
+  VersionStr="$(cat ./CURRENT_VERSION)"
 fi
 
 if command -v git &> /dev/null && git rev-parse &> /dev/null; then
