@@ -225,9 +225,6 @@ spec:
             - mountPath: /etc/openvswitch
               name: etc-openvswitch
               readOnly: false
-            - mountPath: /lib/modules
-              name: lib-modules
-              readOnly: false
             - mountPath: /var/run
               name: var-run
               readOnly: false
@@ -245,9 +242,6 @@ spec:
         - name: etc-openvswitch
           hostPath:
             path: /etc/openvswitch
-        - name: lib-modules
-          hostPath:
-            path: /lib/modules
         - name: var-run
           hostPath:
             path: /var/run
@@ -260,4 +254,55 @@ spec:
         - name: cni-bin-dir
           hostPath:
             path: /opt/cni/bin
+---
+# This manifest installs contiv-aci-gw container on
+# each master and worker node in a Kubernetes cluster.
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: contiv-aci-gw
+  namespace: kube-system
+  labels:
+    k8s-app: contiv-aci-gw
+spec:
+  selector:
+    matchLabels:
+      k8s-app: contiv-aci-gw
+  template:
+    metadata:
+      labels:
+        k8s-app: contiv-aci-gw
+    spec:
+      hostNetwork: true
+      containers:
+        # Runs aci-gw container on each Kubernetes node. 
+        - name: contiv-aci-gw
+          image: contiv/aci-gw
+          env:
+            - name: APIC_URL
+              value: "__APIC_URL__"
+            - name: APIC_USERNAME
+              value: "__APIC_USERNAME__"
+            - name: APIC_PASSWORD
+              value: "__APIC_PASSWORD__"
+            - name: APIC_CERT_DN
+              value: "__APIC_CERT_DN__"
+            - name: APIC_LEAF_NODE
+              value: "__APIC_LEAF_NODE__"
+            - name: APIC_PHYS_DOMAIN
+              value: "__APIC_PHYS_DOMAIN__"
+            - name: APIC_EPG_BRIDGE_DOMAIN
+              value: "__APIC_EPG_BRIDGE_DOMAIN__"
+            - name: APIC_CONTRACTS_UNRESTRICTED_MODE
+              value: "__APIC_CONTRACTS_UNRESTRICTED_MODE__"
+          securityContext:
+            privileged: false
+          volumeMounts:
+            - mountPath: /aciconfig
+              name: aci-config
+      volumes:
+        - name: aci-config
+          secret:
+            secretName: aci.key
+
 ---
