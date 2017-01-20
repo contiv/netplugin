@@ -7,7 +7,7 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
-swarm_version=1.2.0
+swarm_version=1.2.5
 node_addr=$2
 source /etc/profile.d/envvar.sh
 
