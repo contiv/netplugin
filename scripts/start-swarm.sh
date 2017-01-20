@@ -31,18 +31,25 @@ start)
     echo "Setting IPtables rules for swarm"
     sudo iptables -L INPUT | grep "swarm traffic 2375" || \
       sudo iptables -I INPUT 1 -p tcp --dport 2375 -j ACCEPT -m comment --comment "swarm traffic 2375"
+    sudo iptables -L INPUT | grep "swarm traffic 3375" || \
+      sudo iptables -I INPUT 1 -p tcp --dport 3375 -j ACCEPT -m comment --comment "swarm traffic 3375"
 
-    echo starting swarm as master on $node_addr
-    /usr/bin/docker run -t -d -p 2375:2375 --name=swarm-manager \
+    echo starting swarm as manager on $node_addr
+    /usr/bin/docker run -t -d -p 3375:3375 --name=swarm-manager \
+        --privileged \
         swarm:$swarm_version manage \
-        -H :2375 \
+        -H :3375 \
         --strategy spread \
-        --replication --advertise=$node_addr:2375 \
+        --replication --advertise=$node_addr:3375 \
         etcd://$node_addr:2379
-        /usr/bin/docker run -t --name=swarm-agent \
+
+    echo starting swarm as agent on $node_addr
+    /usr/bin/docker run -t --name=swarm-agent \
+        --privileged \
         swarm:$swarm_version join \
-        --advertise=$node_addr:2385 \
+        --advertise=$node_addr:2375 \
         etcd://$node_addr:2379
+
     ;;
 
 stop)
@@ -54,6 +61,7 @@ stop)
 
     echo "Clearing IPtables for docker swarm"
     sudo iptables -D INPUT -p tcp --dport 2375 -j ACCEPT -m comment --comment "swarm traffic 2375"
+    sudo iptables -D INPUT -p tcp --dport 3375 -j ACCEPT -m comment --comment "swarm traffic 3375"
     ;;
 
 *)
