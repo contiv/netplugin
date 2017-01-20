@@ -3,7 +3,7 @@
 
 DEFAULT_DOCKER_VERSION := 1.12.3
 SHELL := /bin/bash
-EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor
+EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor install
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/netcontiv/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
