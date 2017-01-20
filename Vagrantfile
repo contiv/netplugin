@@ -52,6 +52,11 @@ fi
 # Change ownership for gopath folder
 chown -R vagrant #{gopath_folder}
 
+# Remove the unneeded ceph repository if it exists
+echo "Remove the unneeded ceph repository if it exists"
+rm -f /etc/yum.repos.d/ceph.repo
+yum clean all
+
 # Install specific docker version if required
 echo "Cleaning docker up to reinstall"
 service docker stop || :
