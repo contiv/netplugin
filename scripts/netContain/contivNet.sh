@@ -89,9 +89,9 @@ if [ $netmaster == true ]; then
    mkdir -p /var/contiv/log/
    while [ true ]; do
        if [ "$cstore" != "" ]; then
-           /contiv/bin/netmaster  -cluster-mode $plugin -dns-enable=false -cluster-store $cstore &> /var/contiv/log/netmaster.log
+           /contiv/bin/netmaster  -cluster-mode $plugin -cluster-store $cstore &> /var/contiv/log/netmaster.log
        else
-           /contiv/bin/netmaster -cluster-mode $plugin -dns-enable=false  &> /var/contiv/log/netmaster.log
+           /contiv/bin/netmaster -cluster-mode $plugin  &> /var/contiv/log/netmaster.log
        fi
        echo "CRITICAL : Net Master has exited, Respawn in 5"
        sleep 5

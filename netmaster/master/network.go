@@ -16,7 +16,6 @@ limitations under the License.
 package master
 
 import (
-	"errors"
 	"net"
 	"strings"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 
 	log "github.com/Sirupsen/logrus"
@@ -194,168 +192,6 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		}
 	}
 
-	if IsDNSEnabled() {
-		// Attach service container endpoint to the network
-		err = attachServiceContainer(tenantName, network.Name, stateDriver)
-		if err != nil {
-			log.Errorf("Error attaching service container to network: %s. Err: %v",
-				networkID, err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func attachServiceContainer(tenantName, networkName string, stateDriver core.StateDriver) error {
-	contName := getDNSName(tenantName)
-	docker, err := utils.GetDockerClient()
-	if err != nil {
-		log.Errorf("Unable to connect to docker. Error %v", err)
-		return err
-	}
-
-	cinfo, err := docker.InspectContainer(contName)
-	if err != nil {
-		if strings.Contains(err.Error(), "no such id") {
-			// DNS container not started for this tenant. Start skydns container
-			err = startServiceContainer(tenantName)
-			if err != nil {
-				log.Warnf("Error starting service container. "+
-					"Continuing without DNS provider. Error: %v", err)
-				return nil
-			}
-			cinfo, err = docker.InspectContainer(contName)
-			if err != nil {
-				log.Warnf("Error fetching container info after starting %s"+
-					"Continuing without DNS provider. Error: %s", contName, err)
-				return nil
-			}
-		}
-	}
-
-	// If it's not in running state, restart the container.
-	// This case can occur if the host is reloaded
-	if !cinfo.State.Running {
-		log.Debugf("Container %s not running. Restarting the container", contName)
-		err = docker.RestartContainer(contName, 0)
-		if err != nil {
-			log.Warnf("Error restarting service container %s. "+
-				"Continuing without DNS provider. Error: %v",
-				contName, err)
-			return nil
-		}
-
-		// Refetch container info after restart
-		cinfo, err = docker.InspectContainer(contName)
-		if err != nil {
-			log.Warnf("Error fetching container info after restarting %s"+
-				"Continuing without DNS provider. Error: %s", contName, err)
-			return nil
-		}
-	}
-
-	log.Debugf("Container info: %+v\n Hostconfig: %+v", cinfo, cinfo.HostConfig)
-
-	// Trim default tenant
-	dnetName := docknet.GetDocknetName(tenantName, networkName, "")
-
-	err = docker.ConnectNetwork(dnetName, contName)
-	if err != nil {
-		log.Warnf("Could not attach container(%s) to network %s. "+
-			"Continuing without DNS provider. Error: %s",
-			contName, dnetName, err)
-		return nil
-	}
-
-	ninfo, err := docker.InspectNetwork(dnetName)
-	if err != nil {
-		log.Errorf("Error getting network info for %s. Err: %v", dnetName, err)
-		return err
-	}
-
-	log.Debugf("Network info: %+v", ninfo)
-
-	// find the container in network info
-	epInfo, ok := ninfo.Containers[cinfo.Id]
-	if !ok {
-		log.Errorf("Could not find container %s in network info", cinfo.Id)
-		return errors.New("Endpoint not found")
-	}
-
-	// read network Config
-	nwCfg := &mastercfg.CfgNetworkState{}
-	networkID := networkName + "." + tenantName
-	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(networkID)
-	if err != nil {
-		return err
-	}
-
-	// set the dns server Info
-	nwCfg.DNSServer = strings.Split(epInfo.IPv4Address, "/")[0]
-	log.Infof("Dns server for network %s: %s", networkName, nwCfg.DNSServer)
-
-	// write the network config
-	return nwCfg.Write()
-}
-
-// detachServiceContainer detaches the service container's endpoint during network delete
-//      - detach happens only if all other endpoints in the network are already removed
-func detachServiceContainer(tenantName, networkName string) error {
-	docker, err := utils.GetDockerClient()
-	if err != nil {
-		log.Errorf("Unable to connect to docker. Error %v", err)
-		return errors.New("Unable to connect to docker")
-	}
-
-	dnsContName := getDNSName(tenantName)
-	cinfo, err := docker.InspectContainer(dnsContName)
-	if err != nil {
-		log.Errorf("Error inspecting the container %s. Err: %v", dnsContName, err)
-		return err
-	}
-
-	// Trim default tenant
-	dnetName := docknet.GetDocknetName(tenantName, networkName, "")
-
-	// inspect docker network
-	nwState, err := docker.InspectNetwork(dnetName)
-	if err != nil {
-		log.Errorf("Error while inspecting network: %+v", dnetName)
-		return err
-	}
-
-	log.Infof("Containers in network: %+v are {%+v}", dnetName, nwState.Containers)
-	dnsServerIP := strings.Split(nwState.Containers[cinfo.Id].IPv4Address, "/")[0]
-
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		log.Errorf("Could not get StateDriver while trying to disconnect dnsContainer from %+v", networkName)
-		return err
-	}
-
-	// Read network config and get DNSServer information
-	nwCfg := &mastercfg.CfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	networkID := networkName + "." + tenantName
-	err = nwCfg.Read(networkID)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("dnsServerIP: %+v, nwCfg.dnsip: %+v", dnsServerIP, nwCfg.DNSServer)
-	// Remove dns container from network if all other endpoints are withdrawn
-	if len(nwState.Containers) == 1 && (dnsServerIP == nwCfg.DNSServer) {
-		log.Infof("Disconnecting dns container from network as all other endpoints are removed: %+v", networkName)
-		err = docker.DisconnectNetwork(dnetName, dnsContName, false)
-		if err != nil {
-			log.Errorf("Could not detach container(%s) from network %s. Error: %s",
-				dnsContName, dnetName, err)
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -421,14 +257,6 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 			return core.Errorf("Error: Network has active endpoints")
 		}
 
-		if IsDNSEnabled() {
-			// detach Dns container
-			err = detachServiceContainer(nwCfg.Tenant, nwCfg.NetworkName)
-			if err != nil {
-				log.Errorf("Error detaching service container. Err: %v", err)
-			}
-		}
-
 		if GetClusterMode() == "docker" && aci == false {
 			// Delete the docker network
 			err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
@@ -436,9 +264,6 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 				log.Errorf("Error deleting network %s. Err: %v", netID, err)
 				// DeleteDockNet will fail when network has active endpoints.
 				// No damage is done yet. It is safe to fail.
-				// We do not have to call attachServiceContainer here,
-				// as detachServiceContainer detaches only when there are no
-				// endpoints remaining.
 				return err
 			}
 		}
@@ -711,7 +536,5 @@ func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, ipAddress string) e
 }
 
 func hasActiveEndpoints(nwCfg *mastercfg.CfgNetworkState) bool {
-	// We spin a dns container if IsDNSEnabled() == true
-	// We need to exlude that from Active EPs check.
-	return (IsDNSEnabled() && nwCfg.EpCount > 1) || ((!IsDNSEnabled()) && nwCfg.EpCount > 0)
+	return nwCfg.EpCount > 0
 }

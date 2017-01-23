@@ -1054,7 +1054,6 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 	network.Oper.AllocatedAddressesCount = nwCfg.EpAddrCount
 	network.Oper.AvailableIPAddresses = master.ListAvailableIPs(nwCfg)
 	network.Oper.AllocatedIPAddresses = master.ListAllocatedIPs(nwCfg)
-	network.Oper.DnsServerIP = nwCfg.DNSServer
 	network.Oper.ExternalPktTag = nwCfg.ExtPktTag
 	network.Oper.NumEndpoints = nwCfg.EpCount
 	network.Oper.PktTag = nwCfg.PktTag
@@ -1626,7 +1625,6 @@ func getTenantNetworks(tenant *contivModel.TenantInspect) error {
 			netOper.AllocatedAddressesCount = nwCfg.EpAddrCount
 			netOper.AvailableIPAddresses = master.ListAvailableIPs(nwCfg)
 			netOper.AllocatedIPAddresses = master.ListAllocatedIPs(nwCfg)
-			netOper.DnsServerIP = nwCfg.DNSServer
 			netOper.ExternalPktTag = nwCfg.ExtPktTag
 			netOper.PktTag = nwCfg.PktTag
 			netOper.NumEndpoints = nwCfg.EpCount
@@ -1792,8 +1790,14 @@ func (ac *APIController) TenantDelete(tenant *contivModel.Tenant) error {
 			tenant.TenantName, nwCount)
 	}
 
+	// Build tenant config
+	tenantCfg := intent.ConfigTenant{
+		Name:           tenant.TenantName,
+		DefaultNetwork: tenant.DefaultNetwork,
+	}
+
 	// Delete the tenant
-	err = master.DeleteTenantID(stateDriver, tenant.TenantName)
+	err = master.DeleteTenant(stateDriver, &tenantCfg)
 	if err != nil {
 		log.Errorf("Error deleting tenant %s. Err: %v", tenant.TenantName, err)
 	}

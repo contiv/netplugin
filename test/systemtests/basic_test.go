@@ -143,8 +143,8 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		PktTag:      1001,
 		NetworkName: "private",
-		Subnet:      "10.1.1.0/24",
-		Gateway:     "10.1.1.254",
+		Subnet:      "10.100.1.0/24",
+		Gateway:     "10.100.1.254",
 		Encap:       encap,
 		TenantName:  "default",
 	}), IsNil)
@@ -167,9 +167,16 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		logrus.Infof("Creating epg: %s", group2.GroupName)
 		c.Assert(s.cli.EndpointGroupPost(group2), IsNil)
 
-		containers1, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private", fmt.Sprintf("svc1%d", i))
+                // create DNS container
+                dnsContainer, err := s.runContainersOnNode(1, "private", "default", "", s.nodes[0])
+                c.Assert(err, IsNil)
+                dnsIpAddr := dnsContainer[0].eth0.ip
+
+		containers1, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private",
+                        fmt.Sprintf("svc1%d", i), dnsIpAddr)
 		c.Assert(err, IsNil)
-		containers2, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private", fmt.Sprintf("svc2%d", i))
+		containers2, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private",
+                        fmt.Sprintf("svc2%d", i), dnsIpAddr)
 		c.Assert(err, IsNil)
 
 		containers := append(containers1, containers2...)
@@ -187,6 +194,7 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		c.Assert(s.pingTestByName(containers, fmt.Sprintf("svc2%d", i)), IsNil)
 
 		// cleanup
+                c.Assert(s.removeContainers(dnsContainer), IsNil)
 		c.Assert(s.removeContainers(containers), IsNil)
 		c.Assert(s.cli.EndpointGroupDelete(group1.TenantName, group1.GroupName), IsNil)
 		c.Assert(s.cli.EndpointGroupDelete(group2.TenantName, group2.GroupName), IsNil)

@@ -57,7 +57,6 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 		ListenURL:    ":9999",
 		ClusterStore: its.clusterStore,
 		ClusterMode:  "test",
-		DNSEnabled:   false,
 	}
 
 	// initialize the plugin config
@@ -70,7 +69,7 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 			HostLabel:  hostLabel,
 			CtrlIP:     localIP,
 			VtepIP:     localIP,
-			UplinkIntf:   []string{"eth2"},
+			UplinkIntf: []string{"eth2"},
 			DbURL:      its.clusterStore,
 			PluginMode: "test",
 		},

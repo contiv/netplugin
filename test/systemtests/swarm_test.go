@@ -408,11 +408,7 @@ func (w *swarm) stopNetmaster() error {
 
 func (w *swarm) startNetmaster() error {
 	logrus.Infof("Starting netmaster on %s", w.node.Name())
-	dnsOpt := " --dns-enable=false "
-	if w.node.suite.basicInfo.EnableDNS {
-		dnsOpt = " --dns-enable=true "
-	}
-	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + dnsOpt + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log")
+	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log")
 }
 func (w *swarm) cleanupMaster() {
 	logrus.Infof("Cleaning up master on %s", w.node.Name())
@@ -420,7 +416,6 @@ func (w *swarm) cleanupMaster() {
 	vNode.RunCommand("etcdctl rm --recursive /contiv")
 	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
 	vNode.RunCommand("etcdctl rm --recursive /docker")
-	vNode.RunCommand("etcdctl rm --recursive /skydns")
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 }

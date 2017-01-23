@@ -56,7 +56,6 @@ type CfgNetworkState struct {
 	EpAddrCount   int             `json:"epAddrCount"`
 	EpCount       int             `json:"epCount"`
 	IPAllocMap    bitset.BitSet   `json:"ipAllocMap"`
-	DNSServer     string          `json:"dnsServer"`
 	IPv6Subnet    string          `json:"ipv6SubnetIP"`
 	IPv6SubnetLen uint            `json:"ipv6SubnetLen"`
 	IPv6Gateway   string          `json:"ipv6Gateway"`

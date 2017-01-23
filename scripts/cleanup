@@ -33,7 +33,6 @@ pkill netmaster
 # Cleanup etcd and consul state
 etcdctl rm -recursive /contiv > /dev/null 2>&1
 etcdctl rm -recursive /contiv.io > /dev/null 2>&1
-etcdctl rm -recursive /skydns > /dev/null 2>&1
 curl -X DELETE http://localhost:8500/v1/kv/contiv?recurse > /dev/null 2>&1
 curl -X DELETE http://localhost:8500/v1/kv/contiv.io?recurse > /dev/null 2>&1
 
