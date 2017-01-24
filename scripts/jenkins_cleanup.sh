@@ -9,6 +9,11 @@
 
 set -e
 
+echo "Starting cleanup."
+echo "Existing VMs:"
+vboxmanage list vms
+echo "------------"
+
 cd $WORKSPACE/src/github.com/contiv/netplugin
 vagrant destroy -f || true
 
@@ -18,5 +23,12 @@ rm -f *.vdi || true
 
 for f in $(vboxmanage list vms | awk {'print $2'} | cut -d'{' -f2 | cut -d'}' -f1); do
     echo $f
+    vboxmanage controlvm $f poweroff || true
+    sleep 5
     vboxmanage unregistervm --delete $f || true
 done
+
+echo "Cleanup finished."
+echo "any VMs still left?"
+vboxmanage list vms
+echo "------------"

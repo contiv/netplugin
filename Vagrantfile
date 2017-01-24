@@ -15,7 +15,7 @@ BEGIN {
 
 # netplugin_synced_gopath="/opt/golang"
 go_version = ENV["GO_VERSION"] || "1.7.4"
-docker_version = ENV["CONTIV_DOCKER_VERSION"] || "1.12.3"
+docker_version = ENV["CONTIV_DOCKER_VERSION"] || "1.12.6"
 gopath_folder="/opt/gopath"
 http_proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || ''
 https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
@@ -70,9 +70,9 @@ fi
 # setup docker cluster store
 if [[ $7 == *"consul:"* ]]
 then
-    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 --cluster-store=consul://localhost:8500!' /lib/systemd/system/docker.service
+    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=consul://localhost:8500!' /lib/systemd/system/docker.service
 else
-    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 --cluster-store=etcd://localhost:2379!' /lib/systemd/system/docker.service
+    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=etcd://localhost:2379!' /lib/systemd/system/docker.service
 fi
 
 # setup docker remote api
@@ -170,7 +170,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         config.vm.box_version = "0.7.0"
     end
     config.vm.provider 'virtualbox' do |v|
-        v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
+        v.linked_clone = true if Vagrant::VERSION >= "1.8"
     end
 
     num_nodes = 3
