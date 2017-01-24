@@ -1,7 +1,7 @@
 
 .PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src golint-src govet-src
 
-DEFAULT_DOCKER_VERSION := 1.12.3
+DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
 EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor install
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
