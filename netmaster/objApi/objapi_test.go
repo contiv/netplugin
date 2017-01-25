@@ -2260,4 +2260,26 @@ func TestEPCreate(t *testing.T) {
 	checkInspectNetwork(t, false, "teatwo", "t2-net", "60.1.1.1-60.1.1.3, 60.1.1.254", 1, 3)
 }
 
+// TestClusterMode verifies cluster mode is correctly reflected.
+func TestClusterMode(t *testing.T) {
+
+	master.SetClusterMode("kubernetes")
+	insp, err := contivClient.GlobalInspect("global")
+	if err != nil {
+		t.Fatalf("Error inspecting global %v", err)
+	}
+	if insp.Oper.ClusterMode != "kubernetes" {
+		t.Fatalf("Error expected kubernetes, got %s", insp.Oper.ClusterMode)
+	}
+
+	master.SetClusterMode("docker")
+	insp, err = contivClient.GlobalInspect("global")
+	if err != nil {
+		t.Fatalf("Error inspecting global %v", err)
+	}
+	if insp.Oper.ClusterMode != "docker" {
+		t.Fatalf("Error expected docker, got %s", insp.Oper.ClusterMode)
+	}
+}
+
 type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
