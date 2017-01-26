@@ -8,9 +8,9 @@ import (
 	. "testing"
 
 	"github.com/Sirupsen/logrus"
+	. "github.com/contiv/check"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"
-	. "gopkg.in/check.v1"
 )
 
 type systemtestSuite struct {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	. "gopkg.in/check.v1"
+	. "github.com/contiv/check"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"

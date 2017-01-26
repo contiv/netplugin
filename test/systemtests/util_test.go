@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	. "github.com/contiv/check"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"
-	. "gopkg.in/check.v1"
 )
 
 func (s *systemtestSuite) parallelExec(fn func(*node) error) []error {

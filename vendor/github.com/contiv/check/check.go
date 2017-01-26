@@ -52,6 +52,11 @@ type methodType struct {
 	Info reflect.Method
 }
 
+func init() {
+	timeStamp := time.Now()
+	rand.Seed(timeStamp.UnixNano())
+}
+
 func newMethod(receiver reflect.Value, i int) *methodType {
 	return &methodType{receiver.Method(i), receiver.Type().Method(i)}
 }
@@ -156,7 +161,7 @@ func (td *tempDir) newPath() string {
 		}
 	}
 	result := filepath.Join(td.path, strconv.Itoa(td.counter))
-	td.counter += 1
+	td.counter++
 	return result
 }
 
@@ -274,7 +279,7 @@ func (c *C) logString(issue string) {
 
 func (c *C) logCaller(skip int) {
 	// This is a bit heavier than it ought to be.
-	skip += 1 // Our own frame.
+	skip++ // Our own frame.
 	pc, callerFile, callerLine, ok := runtime.Caller(skip)
 	if !ok {
 		return
@@ -284,7 +289,7 @@ func (c *C) logCaller(skip int) {
 	testFunc := runtime.FuncForPC(c.method.PC())
 	if runtime.FuncForPC(pc) != testFunc {
 		for {
-			skip += 1
+			skip++
 			if pc, file, line, ok := runtime.Caller(skip); ok {
 				// Note that the test line may be different on
 				// distinct calls for the same test.  Showing
@@ -329,7 +334,7 @@ func (c *C) logPanic(skip int, value interface{}) {
 			}
 			name := niceFuncName(pc)
 			path := nicePath(file)
-			if strings.Contains(path, "/gopkg.in/check.v") {
+			if strings.Contains(path, "/contiv/check") {
 				continue
 			}
 			if name == "Value.call" && strings.HasSuffix(path, valueGo) {
@@ -460,10 +465,10 @@ func (tracker *resultTracker) _loopRoutine() {
 			// Calls still running. Can't stop.
 			select {
 			// XXX Reindent this (not now to make diff clear)
-			case c = <-tracker._expectChan:
-				tracker._waiting += 1
+			case <-tracker._expectChan:
+				tracker._waiting++
 			case c = <-tracker._doneChan:
-				tracker._waiting -= 1
+				tracker._waiting--
 				switch c.status() {
 				case succeededSt:
 					if c.kind == testKd {
@@ -498,9 +503,9 @@ func (tracker *resultTracker) _loopRoutine() {
 			select {
 			case tracker._stopChan <- true:
 				return
-			case c = <-tracker._expectChan:
-				tracker._waiting += 1
-			case c = <-tracker._doneChan:
+			case <-tracker._expectChan:
+				tracker._waiting++
+			case <-tracker._doneChan:
 				panic("Tracker got an unexpected done call.")
 			}
 		}
@@ -522,6 +527,8 @@ type suiteRunner struct {
 	reportedProblemLast       bool
 	benchTime                 time.Duration
 	benchMem                  bool
+	abort                     bool
+	testTimeout               time.Duration
 }
 
 type RunConf struct {
@@ -533,6 +540,8 @@ type RunConf struct {
 	BenchmarkTime time.Duration // Defaults to 1 second
 	BenchmarkMem  bool
 	KeepWorkDir   bool
+	Abort         bool
+	TestTimeout   time.Duration
 }
 
 // Create a new suiteRunner able to run all methods in the given suite.
@@ -553,14 +562,16 @@ func newSuiteRunner(suite interface{}, runConf *RunConf) *suiteRunner {
 	suiteValue := reflect.ValueOf(suite)
 
 	runner := &suiteRunner{
-		suite:     suite,
-		output:    newOutputWriter(conf.Output, conf.Stream, conf.Verbose),
-		tracker:   newResultTracker(),
-		benchTime: conf.BenchmarkTime,
-		benchMem:  conf.BenchmarkMem,
-		tempDir:   &tempDir{},
-		keepDir:   conf.KeepWorkDir,
-		tests:     make([]*methodType, 0, suiteNumMethods),
+		suite:       suite,
+		output:      newOutputWriter(conf.Output, conf.Stream, conf.Verbose),
+		tracker:     newResultTracker(),
+		benchTime:   conf.BenchmarkTime,
+		benchMem:    conf.BenchmarkMem,
+		tempDir:     &tempDir{},
+		keepDir:     conf.KeepWorkDir,
+		tests:       make([]*methodType, 0, suiteNumMethods),
+		abort:       conf.Abort,
+		testTimeout: conf.TestTimeout,
 	}
 	if runner.benchTime == 0 {
 		runner.benchTime = 1 * time.Second
@@ -568,13 +579,13 @@ func newSuiteRunner(suite interface{}, runConf *RunConf) *suiteRunner {
 
 	var filterRegexp *regexp.Regexp
 	if conf.Filter != "" {
-		if regexp, err := regexp.Compile(conf.Filter); err != nil {
+		regexp, err := regexp.Compile(conf.Filter)
+		if err != nil {
 			msg := "Bad filter expression: " + err.Error()
 			runner.tracker.result.RunError = errors.New(msg)
 			return runner
-		} else {
-			filterRegexp = regexp
 		}
+		filterRegexp = regexp
 	}
 
 	for i := 0; i != suiteNumMethods; i++ {
@@ -613,7 +624,9 @@ func (runner *suiteRunner) run() *Result {
 			if c == nil || c.status() == succeededSt {
 				for i := 0; i != len(runner.tests); i++ {
 					c := runner.runTest(runner.tests[i])
-					if c.status() == fixturePanickedSt {
+					status := c.status()
+					if status == fixturePanickedSt || runner.abort &&
+						(status == failedSt || status == panickedSt) {
 						runner.skipTests(missedSt, runner.tests[i+1:])
 						break
 					}
@@ -633,6 +646,16 @@ func (runner *suiteRunner) run() *Result {
 		} else {
 			runner.tempDir.removeAll()
 		}
+	}
+	return &runner.tracker.result
+}
+
+// Skip all methods in the given suite.
+func (runner *suiteRunner) skip() *Result {
+	if runner.tracker.result.RunError == nil && len(runner.tests) > 0 {
+		runner.tracker.start()
+		runner.skipTests(missedSt, runner.tests)
+		runner.tracker.waitAndStop()
 	}
 	return &runner.tracker.result
 }
@@ -660,11 +683,21 @@ func (runner *suiteRunner) forkCall(method *methodType, kind funcKind, testName 
 		benchMem:  runner.benchMem,
 	}
 	runner.tracker.expectCall(c)
+	var timeout <-chan time.Time
+	if runner.testTimeout != 0 {
+		timeout = time.After(runner.testTimeout)
+	}
 	go (func() {
 		runner.reportCallStarted(c)
 		defer runner.callDone(c)
 		dispatcher(c)
 	})()
+	select {
+	case <-c.done:
+		c.done <- c
+	case <-timeout:
+		panic(fmt.Sprintf("test timed out after %v", runner.testTimeout))
+	}
 	return c
 }
 
@@ -870,85 +903,4 @@ func (runner *suiteRunner) reportCallDone(c *C) {
 	case missedSt:
 		runner.output.WriteCallSuccess("MISS", c)
 	}
-}
-
-// -----------------------------------------------------------------------
-// Output writer manages atomic output writing according to settings.
-
-type outputWriter struct {
-	m                    sync.Mutex
-	writer               io.Writer
-	wroteCallProblemLast bool
-	Stream               bool
-	Verbose              bool
-}
-
-func newOutputWriter(writer io.Writer, stream, verbose bool) *outputWriter {
-	return &outputWriter{writer: writer, Stream: stream, Verbose: verbose}
-}
-
-func (ow *outputWriter) Write(content []byte) (n int, err error) {
-	ow.m.Lock()
-	n, err = ow.writer.Write(content)
-	ow.m.Unlock()
-	return
-}
-
-func (ow *outputWriter) WriteCallStarted(label string, c *C) {
-	if ow.Stream {
-		header := renderCallHeader(label, c, "", "\n")
-		ow.m.Lock()
-		ow.writer.Write([]byte(header))
-		ow.m.Unlock()
-	}
-}
-
-func (ow *outputWriter) WriteCallProblem(label string, c *C) {
-	var prefix string
-	if !ow.Stream {
-		prefix = "\n-----------------------------------" +
-			"-----------------------------------\n"
-	}
-	header := renderCallHeader(label, c, prefix, "\n\n")
-	ow.m.Lock()
-	ow.wroteCallProblemLast = true
-	ow.writer.Write([]byte(header))
-	if !ow.Stream {
-		c.logb.WriteTo(ow.writer)
-	}
-	ow.m.Unlock()
-}
-
-func (ow *outputWriter) WriteCallSuccess(label string, c *C) {
-	if ow.Stream || (ow.Verbose && c.kind == testKd) {
-		// TODO Use a buffer here.
-		var suffix string
-		if c.reason != "" {
-			suffix = " (" + c.reason + ")"
-		}
-		if c.status() == succeededSt {
-			suffix += "\t" + c.timerString()
-		}
-		suffix += "\n"
-		if ow.Stream {
-			suffix += "\n"
-		}
-		header := renderCallHeader(label, c, "", suffix)
-		ow.m.Lock()
-		// Resist temptation of using line as prefix above due to race.
-		if !ow.Stream && ow.wroteCallProblemLast {
-			header = "\n-----------------------------------" +
-				"-----------------------------------\n" +
-				header
-		}
-		ow.wroteCallProblemLast = false
-		ow.writer.Write([]byte(header))
-		ow.m.Unlock()
-	}
-}
-
-func renderCallHeader(label string, c *C, prefix, suffix string) string {
-	pc := c.method.PC()
-	return fmt.Sprintf("%s%s: %s: %s%s", prefix, label, niceFuncPath(pc),
-		niceFuncName(pc), suffix)
 }
