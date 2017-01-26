@@ -156,6 +156,7 @@ func (ac *APIController) GlobalGetOper(global *contivModel.GlobalInspect) error 
 	global.Oper.NumNetworks = int(numVlans + numVxlans)
 	global.Oper.VlansInUse = vlansInUse
 	global.Oper.VxlansInUse = vxlansInUse
+	global.Oper.ClusterMode = master.GetClusterMode()
 	return nil
 }
 

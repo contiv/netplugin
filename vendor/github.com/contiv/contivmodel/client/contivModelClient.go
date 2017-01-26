@@ -320,6 +320,7 @@ type Global struct {
 }
 
 type GlobalOper struct {
+	ClusterMode     string `json:"clusterMode,omitempty"`     //
 	DefaultNetwork  string `json:"defaultNetwork,omitempty"`  //
 	FreeVXLANsStart int    `json:"freeVXLANsStart,omitempty"` //
 	NumNetworks     int    `json:"numNetworks,omitempty"`     //
