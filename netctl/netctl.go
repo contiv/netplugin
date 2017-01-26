@@ -887,7 +887,8 @@ func setGlobal(ctx *cli.Context) {
 	fwdMode := ctx.String("fwd-mode")
 	arpMode := ctx.String("arp-mode")
 
-	global, _ := getClient(ctx).GlobalGet("global")
+	global, err := getClient(ctx).GlobalGet("global")
+	errCheck(ctx, err)
 
 	if fabMode != "" {
 		global.NetworkInfraType = fabMode
@@ -916,7 +917,8 @@ func setAciGw(ctx *cli.Context) {
 	enf := ctx.String("enforce-policies")
 	comTen := ctx.String("include-common-tenant")
 
-	acigw, _ := getClient(ctx).AciGwGet("aciGw")
+	acigw, err := getClient(ctx).AciGwGet("aciGw")
+	errCheck(ctx, err)
 	if acigw == nil {
 		acigw = &contivClient.AciGw{}
 		acigw.Name = "aciGw"
