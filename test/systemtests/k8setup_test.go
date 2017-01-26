@@ -269,7 +269,7 @@ func (k *kubernetes) stop(c *container) error {
 
 func (k *kubernetes) rm(c *container) error {
 	logrus.Infof("Removing Pod: %s on %s", c.containerID, c.node.Name())
-	k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete job %s", c.name))
+	k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod %s", c.name))
 	for i := 0; i < 80; i++ {
 		out, _ := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl get pod %s", c.containerID))
 		if strings.Contains(out, "not found") {
@@ -347,7 +347,8 @@ func (k *kubernetes) tcFilterShow(bw string) error {
 	if k.node.Name() == "k8master" {
 		return nil
 	}
-	qdiscShow, err := k.node.runCommand("tc qdisc show")
+
+	qdiscShow, err := k.node.tbnode.RunCommandWithOutput("tc qdisc show")
 	if err != nil {
 		return err
 	}
@@ -384,7 +385,7 @@ func (k *kubernetes) checkConnection(c *container, ipaddr, protocol string, port
 		protoStr = "-u"
 	}
 
-	logrus.Infof("Checking connection from %v to ip %s on port %d", *c, ipaddr, port)
+	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
 	out, err := k.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil && !strings.Contains(out, "open") {
@@ -415,14 +416,14 @@ func (n *node) cleanupDockerNetwork() error {
 func (k *kubernetes) cleanupContainers() error {
 	if k.node.Name() == "k8master" {
 		logrus.Infof("Cleaning up containers on %s", k.node.Name())
-		cmd := "kubectl get job -o name"
+		cmd := "kubectl get pod -o name"
 		out, err := k8master.tbnode.RunCommandWithOutput(cmd)
 		if err != nil {
 			logrus.Infof("cmd %q failed: output below", cmd)
 			logrus.Println(out)
 			return err
 		}
-		k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete jobs --all "))
+		k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod --all "))
 	}
 	return nil
 }

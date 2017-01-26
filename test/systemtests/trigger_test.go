@@ -169,7 +169,7 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 			c.Assert(node.startNetplugin(""), IsNil)
 
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-			time.Sleep(20 * time.Second)
+			time.Sleep(30 * time.Second)
 			c.Assert(node.waitForListeners(), IsNil)
 			c.Assert(s.verifyVTEPs(), IsNil)
 			c.Assert(s.verifyEPs(containers), IsNil)
@@ -329,6 +329,9 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 
 		// reload VMs one at a time
 		for _, node := range s.nodes {
+			if s.basicInfo.Scheduler == "k8" && node.Name()=="k8master"{
+				continue
+			}
 			nodeIP, err := node.getIPAddr("eth1")
 			c.Assert(err, IsNil)
 
@@ -337,7 +340,6 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 			time.Sleep(25 * time.Second) // wait till sessions/locks timeout
 			c.Assert(node.bringUpIf("eth1", nodeIP), IsNil)
 
-			time.Sleep(23 * time.Second)
 			c.Assert(s.verifyVTEPs(), IsNil)
 
 			c.Assert(s.verifyEPs(containers), IsNil)
@@ -460,7 +462,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 				c.Assert(node.rotateLog("netplugin"), IsNil)
 				c.Assert(node.startNetplugin(""), IsNil)
 				c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-				time.Sleep(20 * time.Second)
+				time.Sleep(30 * time.Second)
 			}
 		case 1:
 			logrus.Info("Triggering netmaster restart")

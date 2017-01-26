@@ -395,7 +395,7 @@ func (d *docker) checkConnection(c *container, ipaddr, protocol string, port int
 		protoStr = "-u"
 	}
 
-	logrus.Infof("Checking connection from %v to ip %s on port %d", c, ipaddr, port)
+	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
 	_, err := d.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil {
@@ -521,7 +521,7 @@ func (d *docker) checkConnectionRetry(c *container, ipaddr, protocol string, por
 		protoStr = "-u"
 	}
 
-	logrus.Infof("Checking connection from %c to ip %s on port %d, delay: %d, retries: %d",
+	logrus.Infof("Checking connection from %s to ip %s on port %d, delay: %d, retries: %d",
 		c, ipaddr, port, delay, retries)
 
 	for i := 0; i < retries; i++ {
