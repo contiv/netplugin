@@ -73,12 +73,8 @@ function GetContrib {
 top_dir=$(git rev-parse --show-toplevel | sed 's|/[^/]*$||')
 
 # kubernetes installation mechanism
-k8_sanity=${CONTIV_K8}
+k8_devtest=$CONTIV_K8
 legacyInstall=0
-
-if [ "$k8_sanity" == "1" ]; then
-    legacyInstall=1
-fi
 
 if [ "`printf "v1.4\n$k8sVer" | sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g | head -n 1`" != "v1.4" ]; then
    legacyInstall=1
@@ -104,7 +100,11 @@ if [ "$legacyInstall" == 1 ]; then
    vagrant up
 else
    # Copy the contiv installation file to shared folder
-   cp -f ../../install/k8s/contiv/contiv.yaml ./export/.contiv.yaml
+   if [ "$k8_devtest" == 1 ]; then
+       cp -f ../../install/k8s/contiv/contiv_devtest.yaml ./export/.contiv.yaml
+   else
+       cp -f ../../install/k8s/contiv/contiv.yaml ./export/.contiv.yaml
+   fi
    # Replace __NETMASTER_IP__ and __VLAN_IF__
    sed -i.bak 's/__NETMASTER_IP__/192.168.2.10/g' ./export/.contiv.yaml
    sed -i.bak 's/__VLAN_IF__/eth2/g' ./export/.contiv.yaml

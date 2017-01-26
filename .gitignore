@@ -64,3 +64,6 @@ test/systemtests/cfg.json
 .vagrant-state
 
 netplugin-version
+vagrant/k8s/export/.contiv.yaml*
+vagrant/k8s/contrib
+test/systemtests/cfg.json

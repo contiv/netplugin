@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	//"sync"
+	"github.com/contiv/contivmodel/client"
 	"os"
 	"time"
 )
@@ -20,6 +20,13 @@ type kubernetes struct {
 }
 
 var k8master *node
+
+const (
+	netmasterRestartFile = "/tmp/restart_netmaster"
+	netpluginRestartFile = "/tmp/restart_netplugin"
+	netmasterLogLocation = "/var/contiv/log/netmaster.log"
+	netpluginLogLocation = "/var/contiv/log/netplugin.log"
+)
 
 //var master sync.Mutex
 
@@ -31,6 +38,31 @@ func (s *systemtestSuite) NewK8sExec(n *node) *kubernetes {
 		k8master = n
 	}
 	return k8
+}
+
+func (s *systemtestSuite) TearDownInfraNetwork() error {
+	err := s.cli.NetworkDelete("default", "default-net")
+	if err != nil {
+		logrus.Errorf("default-net not deleted. Err: %+v", err)
+		return err
+	}
+	time.Sleep(time.Second)
+	return nil
+}
+
+func (s *systemtestSuite) SetupInfraNetwork() error {
+	err := s.cli.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: "default-net",
+		Subnet:      "100.10.1.0/24",
+		Encap:       "vxlan",
+	})
+	if err != nil {
+		logrus.Errorf("default-net not created. Err: %+v", err)
+		return err
+	}
+	time.Sleep(time.Second)
+	return nil
 }
 
 func (k *kubernetes) newContainer(node *node, containerID, name string, spec containerSpec) (*container, error) {
@@ -153,7 +185,7 @@ func (k *kubernetes) checkPingFailure(c *container, ipaddr string) error {
 
 func (k *kubernetes) checkPing(c *container, ipaddr string) error {
 	logrus.Infof("Checking ping from %v to %s", c, ipaddr)
-	out, err := k.exec(c, "ping -c 1 "+ipaddr)
+	out, err := k.exec(c.containerID, "ping -c 1 "+ipaddr)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %s to %s FAILED: %q - %v", c, ipaddr, out, err)
@@ -175,7 +207,7 @@ func (k *kubernetes) checkPing6Failure(c *container, ipaddr string) error {
 
 func (k *kubernetes) checkPing6(c *container, ipaddr string) error {
 	logrus.Infof("Checking ping6 from %v to %s", c, ipaddr)
-	out, err := k.exec(c, "ping6 -c 1 "+ipaddr)
+	out, err := k.exec(c.containerID, "ping6 -c 1 "+ipaddr)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %v to %s FAILED: %q - %v", c, ipaddr, out, err)
@@ -187,9 +219,7 @@ func (k *kubernetes) checkPing6(c *container, ipaddr string) error {
 }
 
 func (k *kubernetes) getIPAddr(c *container, dev string) (string, error) {
-	////master.lock()
-	out, err := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl exec %s ip addr show dev %s | grep inet | head -1", c.containerID, dev))
-	//master.unlock()
+	out, err := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl exec %s -- ip addr show dev %s | grep inet | head -1", c.containerID, dev))
 	if err != nil {
 		logrus.Errorf("Failed to get IP for container %q", c.containerID)
 		logrus.Println(out)
@@ -211,9 +241,7 @@ func (k *kubernetes) getIPv6Addr(c *container, dev string) (string, error) {
 }
 
 func (k *kubernetes) getMACAddr(c *container, dev string) (string, error) {
-	////master.lock()
 	out, err := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl exec %s -- ip addr show dev %s | grep ether | head -1", c.containerID, dev))
-	//master.unlock()
 	if err != nil {
 		logrus.Errorf("Failed to get IP for container %q", c.containerID)
 		logrus.Println(out)
@@ -229,32 +257,76 @@ func (k *kubernetes) getMACAddr(c *container, dev string) (string, error) {
 	return out, err
 }
 
-func (k *kubernetes) exec(c *container, args string) (string, error) {
-	cmd := fmt.Sprintf("kubectl exec %s -- %s", c.containerID, args)
-	logrus.Infof("Exec: Running command %s", cmd)
+/*
+* exec is used to run a specific command using kubectl on the host
+ */
+func (k *kubernetes) exec(podName, args string, ns ...string) (string, error) {
+	namespace := "default"
+	if len(ns) != 0 {
+		namespace = ns[0]
+	}
+	cmd := `kubectl -n ` + namespace + ` exec ` + podName + ` -- ` + args
+	logrus.Debugf("Exec: Running command -- %s", cmd)
 	out, err := k8master.runCommand(cmd)
 	if err != nil {
-		logrus.Println(out)
 		return out, err
 	}
 
 	return out, nil
 }
 
-func (k *kubernetes) execBG(c *container, args string) {
-	cmd := fmt.Sprintf("kubectl exec %s -- %s", c.containerID, args)
-	logrus.Infof("ExecBG:Running command %s", cmd)
+/*
+* execBG executes a background process on the node
+ */
+func (k *kubernetes) execBG(podName, args string, ns ...string) {
+	namespace := "default"
+	if len(ns) != 0 {
+		namespace = ns[0]
+	}
+	cmd := `kubectl -n ` + namespace + ` exec ` + podName + ` -- ` + args
+	logrus.Debugf("ExecBG: Running command -- %s", cmd)
 	k8master.tbnode.RunCommandBackground(cmd)
 }
 
-func (k *kubernetes) kubeCmd(c *container, arg string) error {
-	out, err := k8master.runCommand(fmt.Sprintf("kubectl %s %s", arg, c.name))
-	if err != nil {
-		logrus.Errorf(out)
-		return err
+/*
+* podExec function is used to run a command typically multiple commands
+* with pipes and redirections within the pod rather than the node
+ */
+func (k *kubernetes) podExec(podName, args string, ns ...string) (string, error) {
+	// NOTE:
+	// Remotessh library wraps this command as follows:
+	// ssh <hostip> <port> <env-var> bash -lc '<cmd>'
+	//
+	// Backticks and quotes here ensure that the command
+	// is properly wrapped to execute on pod rather than on the node
+	podCmd := `sh -c '\''` + args + `'\''`
+	return k.exec(podName, podCmd, ns...)
+}
+
+/*
+* podExecBG function is used to run a background command
+* within the pod rather than the node
+ */
+func (k *kubernetes) podExecBG(podName, args string, ns ...string) error {
+	namespace := "default"
+	if len(ns) != 0 {
+		namespace = ns[0]
 	}
 
-	return nil
+	// NOTE:
+	// Remotessh library wraps this command as follows:
+	// ssh <hostip> <port> <env-var> bash -lc '<cmd>'
+	//
+	//  - Backticks and quotes here ensure that the command
+	//    is properly wrapped to execute on pod rather than on the node
+	//  - nohup along with & ensures that the process continues to live
+	//    after the shell is terminated
+	// Since the command is to run in BG in the pod and not on the node,
+	// RunCommandBackground is not required here
+
+	podCmd := `kubectl -n ` + namespace + ` exec ` + podName + ` -- nohup sh -c '\''` + args + ` &'\''`
+	logrus.Debugf("Pod Exec BG: Running command -- %s", podCmd)
+	return k8master.tbnode.RunCommand(podCmd)
 }
 
 func (k *kubernetes) start(c *container) error {
@@ -287,14 +359,14 @@ func (k *kubernetes) startListener(c *container, port int, protocol string) erro
 		protoStr = "-u"
 	}
 
-	k.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
+	k.execBG(c.containerID, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
 	return nil
 
 }
 
 func (k *kubernetes) startIperfServer(c *container) error {
 
-	k.execBG(c, fmt.Sprintf("iperf -s"))
+	k.execBG(c.containerID, fmt.Sprintf("iperf -s"))
 	return nil
 }
 
@@ -304,7 +376,7 @@ func (k *kubernetes) startIperfClient(c *container, ip, limit string, isErr bool
 		bwLimit int64
 		bwInt64 int64
 	)
-	bw, err := k.exec(c, fmt.Sprintf("iperf -c %s ", ip))
+	bw, err := k.exec(c.containerID, fmt.Sprintf("iperf -c %s ", ip))
 	logrus.Infof("starting iperf client on : %v for server ip: %s", c, ip)
 	if err != nil {
 		logrus.Errorf("Error starting the iperf client")
@@ -387,7 +459,7 @@ func (k *kubernetes) checkConnection(c *container, ipaddr, protocol string, port
 
 	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
-	out, err := k.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
+	out, err := k.exec(c.containerID, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil && !strings.Contains(out, "open") {
 		logrus.Errorf("Connection from %v to ip %s on port %d FAILED", *c, ipaddr, port)
 	} else {
@@ -416,14 +488,7 @@ func (n *node) cleanupDockerNetwork() error {
 func (k *kubernetes) cleanupContainers() error {
 	if k.node.Name() == "k8master" {
 		logrus.Infof("Cleaning up containers on %s", k.node.Name())
-		cmd := "kubectl get pod -o name"
-		out, err := k8master.tbnode.RunCommandWithOutput(cmd)
-		if err != nil {
-			logrus.Infof("cmd %q failed: output below", cmd)
-			logrus.Println(out)
-			return err
-		}
-		k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod --all "))
+		k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod --all"))
 	}
 	return nil
 }
@@ -432,24 +497,51 @@ func (k *kubernetes) startNetplugin(args string) error {
 	if k.node.Name() == "k8master" {
 		return nil
 	}
+	podName, err := getPodName("netplugin", k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return err
+	}
+
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
+	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin -plugin-mode=kubernetes -vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + ` -cluster-store=` + k.node.suite.basicInfo.ClusterStore + ` ` + args + ` > ` + netpluginLogLocation + ` 2>&1`
+
+	return k.podExecBG(podName, startNetpluginCmd, "kube-system")
 }
 
 func (k *kubernetes) stopNetplugin() error {
-	if k.node.Name() == "k8master" {
-		return nil
+	podName, err := getPodName("netplugin", k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return err
 	}
+
+	stopRestartCmd := `rm ` + netpluginRestartFile
+	k.exec(podName, stopRestartCmd, "kube-system")
+
 	logrus.Infof("Stopping netplugin on %s", k.node.Name())
-	return k.node.tbnode.RunCommand("sudo pkill netplugin")
+	killNetpluginCmd := `pkill netplugin`
+	_, err = k.exec(podName, killNetpluginCmd, "kube-system")
+	return err
 }
 
 func (k *kubernetes) stopNetmaster() error {
 	if k.node.Name() != "k8master" {
 		return nil
 	}
+	podName, err := getPodName("netmaster", k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return err
+	}
+
+	stopRestartCmd := `rm ` + netmasterRestartFile
+	k.exec(podName, stopRestartCmd, "kube-system")
+
 	logrus.Infof("Stopping netmaster on %s", k.node.Name())
-	return k.node.tbnode.RunCommand("sudo pkill netmaster")
+	killNetmasterCmd := `pkill netmaster`
+	_, err = k.exec(podName, killNetmasterCmd, "kube-system")
+	return err
 }
 
 func (k *kubernetes) startNetmaster(args string) error {
@@ -457,22 +549,46 @@ func (k *kubernetes) startNetmaster(args string) error {
 		return nil
 	}
 	logrus.Infof("Starting netmaster on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes " + args + " &> /tmp/netmaster.log")
+	podName, err := getPodName("netmaster", k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return err
+	}
+
+	netmasterStartCmd := k.node.suite.basicInfo.BinPath + `/netmaster` + ` -cluster-store=` + k.node.suite.basicInfo.ClusterStore + ` -cluster-mode=kubernetes ` + args + ` > ` + netmasterLogLocation + ` 2>&1`
+
+	return k.podExecBG(podName, netmasterStartCmd, "kube-system")
 }
 
 func (k *kubernetes) cleanupMaster() {
 	if k.node.Name() != "k8master" {
 		return
 	}
-	//master.lock()
-	//defer master.Unlock()
 	logrus.Infof("Cleaning up master on %s", k8master.Name())
-	vNode := k8master.tbnode
-	vNode.RunCommand("etcdctl rm --recursive /contiv")
-	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
-	vNode.RunCommand("etcdctl rm --recursive /docker")
-	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
-	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
+	podName, err := getPodName("contiv-etcd", k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return
+	}
+	clusterStoreInfo := strings.Split(k.node.suite.basicInfo.ClusterStore, "//")
+	etcdIP := clusterStoreInfo[len(clusterStoreInfo)-1]
+	logrus.Infof("Cleaning out etcd info on %s", etcdIP)
+
+	k.podExec(podName, `etcdctl -C `+etcdIP+` rm --recursive /contiv`, "kube-system")
+	k.podExec(podName, `etcdctl -C `+etcdIP+` rm --recursive /contiv.io`, "kube-system")
+	k.podExec(podName, `etcdctl -C `+etcdIP+` rm --recursive /docker`, "kube-system")
+	k.podExec(podName, `etcdctl -C `+etcdIP+` rm --recursive /skydns`, "kube-system")
+}
+
+func getPodName(podRegex, nodeName string) (string, error) {
+	podNameCmd := `kubectl -n kube-system get pods -o wide | grep ` + podRegex + ` | grep ` + nodeName + ` | cut -d " " -f 1`
+	podName, err := k8master.tbnode.RunCommandWithOutput(podNameCmd)
+	if err != nil {
+		logrus.Errorf("Couldn't fetch pod info on %s", nodeName)
+		return "", err
+	}
+	podName = strings.TrimSpace(podName)
+	return podName, nil
 }
 
 func (k *kubernetes) cleanupSlave() {
@@ -480,25 +596,47 @@ func (k *kubernetes) cleanupSlave() {
 		return
 	}
 	logrus.Infof("Cleaning up slave on %s", k.node.Name())
-	vNode := k.node.tbnode
-	vNode.RunCommand("sudo ovs-vsctl del-br contivVxlanBridge")
-	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
-	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
-	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
-	vNode.RunCommand("sudo service docker restart")
+	podName, err := getPodName("netplugin", k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return
+	}
+
+	ovsCleanupCmd := `ovs-vsctl list-br | grep contiv | xargs -rt -I % ovs-vsctl del-br %`
+	_, err = k.podExec(podName, ovsCleanupCmd, "kube-system")
+
+	linkCleanupCmd := `ifconfig | grep vport | cut -d " " -f 1 | xargs -rt -I % ip link delete %`
+	_, err = k.podExec(podName, linkCleanupCmd, "kube-system")
 }
 
 func (k *kubernetes) runCommandUntilNoNetmasterError() error {
-	if k.node.Name() == "k8master" {
-		return k.node.runCommandUntilNoError("pgrep netmaster")
-	}
-	return nil
-}
-func (k *kubernetes) runCommandUntilNoNetpluginError() error {
 	if k.node.Name() != "k8master" {
-		return k.node.runCommandUntilNoError("pgrep netplugin")
+		return nil
 	}
-	return nil
+	logrus.Infof("Checking for netmaster status on: %s", k.node.Name())
+	podName, err := getPodName("netmaster", k.node.Name())
+	if err != nil {
+		logrus.Errorf("OVS cleanup on slave failed: %+v", err)
+		return err
+	}
+
+	processCheckCmd := `kubectl -n kube-system exec ` + podName + ` -- pgrep netmaster`
+	return k8master.runCommandUntilNoError(processCheckCmd)
+}
+
+func (k *kubernetes) runCommandUntilNoNetpluginError() error {
+	if k.node.Name() == "k8master" {
+		return nil
+	}
+	logrus.Infof("Checking for netplugin status on: %s", k.node.Name())
+	podName, err := getPodName("netplugin", k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return err
+	}
+
+	processCheckCmd := `kubectl -n kube-system exec ` + podName + ` -- pgrep netplugin`
+	return k8master.runCommandUntilNoError(processCheckCmd)
 }
 
 func (k *kubernetes) rotateNetmasterLog() error {
@@ -520,14 +658,24 @@ func (k *kubernetes) checkForNetpluginErrors() error {
 		return nil
 	}
 
-	out, _ := k.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep -A 5 "panic\|fatal" $i; done`)
-	if out != "" {
-		logrus.Errorf("Fatal error in logs on %s: \n", k.node.Name())
-		fmt.Printf("%s\n==========================================\n", out)
-		return fmt.Errorf("fatal error in netplugin logs")
+	podName, err := getPodName("netplugin", k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return err
 	}
 
-	out, _ = k.node.tbnode.RunCommandWithOutput(`for i in /tmp/net*; do grep "error" $i; done`)
+	// NOTE: Checking for error here could result in Error code: 123
+	// Err code 123 might be the case when grep results in no output
+	fatalCheckCmd := `ls /var/contiv/log/net* | xargs -r -I % grep --text -A 5 "panic\|fatal" %`
+	out, _ := k.podExec(podName, fatalCheckCmd, "kube-system")
+	if out != "" {
+		logrus.Errorf("Fatal error in logs on %s: Err - %s\n", k.node.Name(), err)
+		fmt.Printf("%s\n==========================================\n", out)
+		return fmt.Errorf("fatal error in netplugin logs on %s", k.node.Name())
+	}
+
+	errCheckCmd := `ls /var/contiv/log/net* | xargs -r -I {} grep --text "error" {}`
+	out, _ = k.exec(podName, errCheckCmd, "kube-system")
 	if out != "" {
 		logrus.Errorf("error output in netplugin logs on %s: \n", k.node.Name())
 		fmt.Printf("%s==========================================\n\n", out)
@@ -538,10 +686,17 @@ func (k *kubernetes) checkForNetpluginErrors() error {
 	return nil
 }
 
-func (k *kubernetes) rotateLog(prefix string) error {
-	oldPrefix := fmt.Sprintf("/tmp/%s", prefix)
-	newPrefix := fmt.Sprintf("/tmp/_%s", prefix)
-	_, err := k.node.runCommand(fmt.Sprintf("mv %s.log %s-`date +%%s`.log", oldPrefix, newPrefix))
+func (k *kubernetes) rotateLog(processName string) error {
+	podName, err := getPodName(processName, k.node.Name())
+	if err != nil {
+		logrus.Errorf("pod not found: %+v", err)
+		return err
+	}
+
+	oldLogFile := fmt.Sprintf("/var/contiv/log/%s.log", processName)
+	newLogFilePrefix := fmt.Sprintf("/var/contiv/log/_%s", processName)
+	rotateLogCmd := `echo` + " `date +%s` " + `| xargs -I {} mv ` + oldLogFile + ` ` + newLogFilePrefix + `-{}.log`
+	_, err = k.podExec(podName, rotateLogCmd, "kube-system")
 	return err
 }
 
@@ -560,7 +715,7 @@ func (k *kubernetes) checkConnectionRetry(c *container, ipaddr, protocol string,
 
 	for i := 0; i < retries; i++ {
 
-		_, err = k.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
+		_, err = k.exec(c.containerID, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 		if err == nil {
 			logrus.Infof("Connection to ip %s on port %d SUCCEEDED, tries: %d", ipaddr, port, i+1)
 			return nil
@@ -585,7 +740,7 @@ func (k *kubernetes) checkNoConnectionRetry(c *container, ipaddr, protocol strin
 func (k *kubernetes) checkPing6WithCount(c *container, ipaddr string, count int) error {
 	logrus.Infof("Checking ping6 from %v to %s", c, ipaddr)
 	cmd := fmt.Sprintf("ping6 -c %d %s", count, ipaddr)
-	out, err := k.exec(c, cmd)
+	out, err := k.exec(c.containerID, cmd)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping6 from %s to %s FAILED: %q - %v", c, ipaddr, out, err)
@@ -599,7 +754,7 @@ func (k *kubernetes) checkPing6WithCount(c *container, ipaddr string, count int)
 func (k *kubernetes) checkPingWithCount(c *container, ipaddr string, count int) error {
 	logrus.Infof("Checking ping from %s to %s", c, ipaddr)
 	cmd := fmt.Sprintf("ping -c %d %s", count, ipaddr)
-	out, err := k.exec(c, cmd)
+	out, err := k.exec(c.containerID, cmd)
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %s to %s FAILED: %q - %v", c, ipaddr, out, err)
