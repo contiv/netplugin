@@ -95,7 +95,7 @@ spec:
         # container programs network policy and routes on each
         # host.
         - name: contiv-netplugin
-          image: contiv/netplugin:v0.1-11-30-2016.20-08-20.UTC
+          image: contiv/netplugin:v1.0.0-alpha-01-28-2017.10-23-11.UTC
           args:
             - -pkubernetes
           env:
@@ -209,7 +209,7 @@ spec:
       hostPID: true
       containers:
         - name: contiv-netmaster
-          image: contiv/netplugin:v0.1-11-30-2016.20-08-20.UTC
+          image: contiv/netplugin:v1.0.0-alpha-01-28-2017.10-23-11.UTC
           args:
             - -m
             - -pkubernetes
