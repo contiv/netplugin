@@ -42,10 +42,15 @@ netctl global set --fabric-mode aci --vlan-range 1150-1170
 
 ### Using Contiv
 
-1. On the managment node, create the default network and EPG. For example, a vxlan network can be created as follows:
+* On the managment node, create the default network and EPG. For example, a vxlan network can be created as follows:
 ```sh
 netctl net create -t default --subnet=20.1.1.0/24 default-net
 netctl group create -t default default-net default-epg
+```
+
+* When in vxlan mode, delete the kube-dns deployment as follows:
+```sh
+kubectl delete deployment/kube-dns -n kube-system
 ```
 
 Note: netctl uses "netmaster" as the default netmaster host. So add a reference for "netmaster" in /etc/hosts or explicitly specify it as a parameter to all netctl calls.
