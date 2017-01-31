@@ -6,7 +6,7 @@
 
 # Doing each command with "|| true" so that even if a command fails, it won't
 # cause Jenkins to mark the build as failed.
-
+#null comment -- doug
 
 set -e
 
