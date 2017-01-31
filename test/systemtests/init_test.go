@@ -33,7 +33,7 @@ type BasicInfo struct {
 	EnableDNS    bool   `json:"enableDNS"`
 	ClusterStore string `json:"contiv_cluster_store"`
 	ContivL3     string `json:"contiv_l3"`
-	KeyFile      string `json:"keyFile"`
+	KeyFile      string `json:"key_file"`
 	BinPath      string `json:"binpath"` // /home/admin/bin or /opt/gopath/bin
 }
 
