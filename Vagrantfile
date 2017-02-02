@@ -14,7 +14,7 @@ BEGIN {
 }
 
 # netplugin_synced_gopath="/opt/golang"
-go_version = ENV["GO_VERSION"] || "1.7.4"
+go_version = ENV["GO_VERSION"] || "1.7.5"
 docker_version = ENV["CONTIV_DOCKER_VERSION"] || "1.12.6"
 gopath_folder="/opt/gopath"
 http_proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || ''
