@@ -486,6 +486,7 @@ func (k *kubernetes) cleanupSlave() {
 	vNode := k.node.tbnode
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVxlanBridge")
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
+	vNode.RunCommand("sudo ovs-vsctl del-br contivHostBridge")
 	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
 	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
 	vNode.RunCommand("sudo service docker restart")

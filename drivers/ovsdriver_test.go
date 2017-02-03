@@ -518,7 +518,7 @@ func TestOvsDriverUplinkBridgeMode(t *testing.T) {
 		t.Fatalf("Could not add uplink %+v to vlan OVS. Err: %v", uplinkPorts, err)
 	}
 
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(time.Second)
 
 	// verify uplink port
 	output, err := exec.Command("ovs-vsctl", "list", "Port").CombinedOutput()

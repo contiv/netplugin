@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 	"time"
 
@@ -368,6 +369,57 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, 
 
 	operations := []libovsdb.Operation{intfOp, portOp, mutateOp}
 	return d.performOvsdbOps(operations)
+}
+
+// GetInterfacesInPort gets list of interfaces in a port in sorted order
+func (d *OvsdbDriver) GetInterfacesInPort(portName string) []string {
+	var intfList []string
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	for _, row := range d.cache["Port"] {
+		name := row.Fields["name"].(string)
+		if name == portName {
+			// Port found
+			// Iterate over the list of interfaces
+			switch (row.Fields["interfaces"]).(type) {
+			case libovsdb.UUID: // Individual interface case
+				intfUUID := row.Fields["interfaces"].(libovsdb.UUID)
+				intfInfo := d.GetIntfInfo(intfUUID)
+				if reflect.DeepEqual(intfInfo, libovsdb.Row{}) {
+					log.Errorf("could not find interface with UUID: %+v", intfUUID)
+					break
+				}
+				intfList = append(intfList, intfInfo.Fields["name"].(string))
+			case libovsdb.OvsSet: // Port bond case
+				intfUUIDList := row.Fields["interfaces"].(libovsdb.OvsSet)
+				for _, intfUUID := range intfUUIDList.GoSet {
+					intfInfo := d.GetIntfInfo(intfUUID.(libovsdb.UUID))
+					if reflect.DeepEqual(intfInfo, libovsdb.Row{}) {
+						continue
+					}
+					intfList = append(intfList, intfInfo.Fields["name"].(string))
+				}
+			}
+			sort.Strings(intfList)
+			break
+		}
+	}
+	return intfList
+}
+
+// GetIntfInfo gets interface information from "Interface" table
+func (d *OvsdbDriver) GetIntfInfo(uuid libovsdb.UUID) libovsdb.Row {
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	for intfUUID, row := range d.cache["Interface"] {
+		if intfUUID == uuid {
+			return row
+		}
+	}
+
+	return libovsdb.Row{}
 }
 
 //CreatePortBond creates port bond in OVS
@@ -720,13 +772,38 @@ func (d *OvsdbDriver) IsControllerPresent(target string) bool {
 }
 
 // IsPortNamePresent checks if port already exists in OVS bridge
-func (d *OvsdbDriver) IsPortNamePresent(intfName string) bool {
+func (d *OvsdbDriver) IsPortNamePresent(portName string) bool {
 	d.cacheLock.RLock()
 	defer d.cacheLock.RUnlock()
 
 	// walk the local cache
 	for tName, table := range d.cache {
 		if tName == "Port" {
+			for _, row := range table {
+				for fieldName, value := range row.Fields {
+					if fieldName == "name" {
+						if value == portName {
+							// Port name exists.
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// We could not find the port name
+	return false
+}
+
+// IsIntfNamePresent checks if intf already exists in OVS bridge
+func (d *OvsdbDriver) IsIntfNamePresent(intfName string) bool {
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	// walk the local cache
+	for tName, table := range d.cache {
+		if tName == "Interface" {
 			for _, row := range table {
 				for fieldName, value := range row.Fields {
 					if fieldName == "name" {
