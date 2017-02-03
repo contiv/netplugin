@@ -5,4 +5,4 @@
 
 . `dirname $0`/env.sh
 cd $GOSRC/github.com/contiv/netplugin
-USE_RELEASE=1 make release
+make release

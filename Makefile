@@ -252,12 +252,6 @@ clean-tar:
 
 # GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
 release: tar
-	@latest_tag=$$(git describe --tags `git rev-list --tags --max-count=1`); \
-		comparison="$$latest_tag..HEAD"; \
-		changelog=$$(git log $$comparison --oneline --no-merges --reverse); \
-		if [ -z "$$changelog" ]; then echo "No new changes to release!"; exit 0; fi; \
-		set -x; \
-		( ( github-release -v release -p -r netplugin -t $(VERSION) -d "**Changelog**<br/>$$changelog" ) && \
-		( github-release -v upload -r netplugin -t $(VERSION) -n $(TAR_FILENAME) -f $(TAR_FILE) || \
-		github-release -v delete -r netplugin -t $(VERSION) ) ) || exit 1
+	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) VERSION=$(VERSION) \
+	OLD_VERSION=${OLD_VERSION} USE_RELEASE=${USE_RELEASE} scripts/release.sh
 	@make clean-tar
