@@ -38,10 +38,10 @@ type BasicInfo struct {
 }
 
 type HostInfo struct {
-	HostIPs           string `json:"hostips"`
-	HostUsernames     string `json:"hostusernames"`
+	HostIPs            string `json:"hostips"`
+	HostUsernames      string `json:"hostusernames"`
 	HostDataInterfaces string `json:"dataInterfaces"`
-	HostMgmtInterface string `json:"mgmtInterface"`
+	HostMgmtInterface  string `json:"mgmtInterface"`
 }
 
 type GlobInfo struct {
