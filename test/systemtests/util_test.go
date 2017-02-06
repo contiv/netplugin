@@ -1086,7 +1086,7 @@ func getInfo(file string) (BasicInfo, HostInfo, GlobInfo, error) {
 		return b, c, d, err
 	}
 	err = json.Unmarshal(raw, &d)
-	return b, c, d, nil
+	return b, c, d, err
 }
 
 // Setup suite and test methods for all platforms
