@@ -1065,6 +1065,33 @@ func (s *systemtestSuite) verifyIPs(ipaddrs []string) error {
 	return err
 }
 
+/* Confirm network inspect includes a dns endpoint (assumes this is the only endpoint on the network currently) */
+func (s *systemtestSuite) checkNetworkInspectDNS(tenant, network string) (bool, error) {
+
+	netInspect, err := s.cli.NetworkInspect(tenant, network)
+	// Network inspect must succeed
+	if err != nil {
+		return false, err
+	}
+
+	// Network inspect should show exactly 1 endpoint
+	if len(netInspect.Oper.Endpoints) != 1 {
+		return false, errors.New("checkNetworkInspectDNS has incorrect # of endpoints (should have 1)!")
+	}
+
+	// First endpoint in network inspect should not have a null container ID
+	if netInspect.Oper.Endpoints[0].ContainerID == "" {
+		return false, errors.New("checkNetworkInspectDNS endpoint has null containerID!")
+	}
+
+	// First endpoint in network inspect should incude dns in the container name
+	if !strings.Contains(netInspect.Oper.Endpoints[0].ContainerName, "dns") {
+		return false, errors.New("checkNetworkInspectDNS has no endpoint with dns in containerName!")
+	}
+
+	return true, nil
+}
+
 //Function to extract cfg Info from JSON file
 func getInfo(file string) (BasicInfo, HostInfo, GlobInfo) {
 	raw, err := ioutil.ReadFile(file)
@@ -1324,9 +1351,10 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 
 	time.Sleep(15 * time.Second)
 
-	// temporarily enable DNS for service discovery tests
+	// temporarily enable DNS for service discovery tests or for network test requiring dns
 	prevDNSEnabled := s.basicInfo.EnableDNS
-	if strings.Contains(c.TestName(), "SvcDiscovery") {
+	if strings.Contains(c.TestName(), "SvcDiscovery") ||
+		strings.Contains(c.TestName(), "WithDns") {
 		s.basicInfo.EnableDNS = true
 	}
 
