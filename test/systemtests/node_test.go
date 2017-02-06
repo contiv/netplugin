@@ -84,7 +84,7 @@ func (s *systemtestSuite) copyBinary(fileName string) error {
 	destFile := s.basicInfo.BinPath + "/" + fileName
 	for i := 1; i < len(s.nodes); i++ {
 		logrus.Infof("Copying %s binary to IP= %s and Directory = %s", srcFile, hostIPs[i], destFile)
-		s.nodes[0].tbnode.RunCommand("scp -i " + s.basicInfo.KeyFile + " " + srcFile + " " + hostIPs[i] + ":" + destFile)
+		s.nodes[0].tbnode.RunCommand("scp -oStrictHostKeyChecking=no -i " + s.basicInfo.KeyFile + " " + srcFile + " " + hostIPs[i] + ":" + destFile)
 	}
 	return nil
 }
