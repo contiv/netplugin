@@ -195,6 +195,7 @@ type Global struct {
 	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
+	PvtSubnet        string `json:"pvtSubnet,omitempty"`        // Private Subnet used by host bridge
 	Vlans            string `json:"vlans,omitempty"`            // Allowed vlan range
 	Vxlans           string `json:"vxlans,omitempty"`           // Allwed vxlan range
 
@@ -3110,6 +3111,11 @@ func ValidateGlobal(obj *Global) error {
 	networkInfraTypeMatch := regexp.MustCompile("^(aci|aci-opflex|default)?$")
 	if networkInfraTypeMatch.MatchString(obj.NetworkInfraType) == false {
 		return errors.New("networkInfraType string invalid format")
+	}
+
+	pvtSubnetMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})/16$")
+	if pvtSubnetMatch.MatchString(obj.PvtSubnet) == false {
+		return errors.New("pvtSubnet string invalid format")
 	}
 
 	vlansMatch := regexp.MustCompile("^([0-9]{1,4}?-[0-9]{1,4}?)$")

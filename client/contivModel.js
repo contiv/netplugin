@@ -378,7 +378,7 @@ var GlobalSummaryView = React.createClass({
 				<ModalTrigger modal={<GlobalModalView global={ global }/>}>
 					<tr key={ global.key } className="info">
 						
-						      
+						       
 					</tr>
 				</ModalTrigger>
 			);
@@ -390,7 +390,7 @@ var GlobalSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					      
+					       
 					</tr>
 				</thead>
 				<tbody>
@@ -417,6 +417,8 @@ var GlobalModalView = React.createClass({
 				<Input type='text' label='name of this block(must be 'global')' ref='name' defaultValue={obj.name} placeholder='name of this block(must be 'global')' />
 			
 				<Input type='text' label='Network infrastructure type' ref='networkInfraType' defaultValue={obj.networkInfraType} placeholder='Network infrastructure type' />
+			
+				<Input type='text' label='Private Subnet used by host bridge' ref='pvtSubnet' defaultValue={obj.pvtSubnet} placeholder='Private Subnet used by host bridge' />
 			
 				<Input type='text' label='Allowed vlan range' ref='vlans' defaultValue={obj.vlans} placeholder='Allowed vlan range' />
 			
