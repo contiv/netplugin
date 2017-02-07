@@ -49,7 +49,10 @@
 				},
 				"containerName": {
 					"type": "string"
-				}
+				},
+                                "virtualPort": {
+                                        "type": "string"
+                                }
 			}
 		}
 	]
