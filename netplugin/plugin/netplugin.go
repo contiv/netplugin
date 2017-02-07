@@ -20,6 +20,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"sync"
 )
 
@@ -46,7 +47,10 @@ type NetPlugin struct {
 	ConfigFile    string
 	NetworkDriver core.NetworkDriver
 	StateDriver   core.StateDriver
+	PluginConfig  Config
 }
+
+const defaultPvtSubnet = 0xac130000
 
 // Init initializes the NetPlugin instance via the configuration string passed.
 func (p *NetPlugin) Init(pluginConfig Config) error {
@@ -72,17 +76,14 @@ func (p *NetPlugin) Init(pluginConfig Config) error {
 	// set state driver in instance info
 	pluginConfig.Instance.StateDriver = p.StateDriver
 
-	fwdMode := GetFwdMode(p.StateDriver)
-	if fwdMode == "" {
-		fwdMode = "bridge"
-	}
-	pluginConfig.Instance.FwdMode = fwdMode
+	InitGlobalSettings(p.StateDriver, &pluginConfig.Instance)
 
 	// initialize network driver
 	p.NetworkDriver, err = utils.NewNetworkDriver(pluginConfig.Drivers.Network, &pluginConfig.Instance)
 	if err != nil {
 		return err
 	}
+	p.PluginConfig = pluginConfig
 
 	defer func() {
 		if err != nil {
@@ -136,8 +137,8 @@ func (p *NetPlugin) DeleteEndpoint(id string) error {
 }
 
 // CreateHostAccPort creates a host access port
-func (p *NetPlugin) CreateHostAccPort(portName, globalIP, localIP string) error {
-	return p.NetworkDriver.CreateHostAccPort(portName, globalIP, localIP)
+func (p *NetPlugin) CreateHostAccPort(portName, globalIP string) (string, error) {
+	return p.NetworkDriver.CreateHostAccPort(portName, globalIP, p.PluginConfig.Instance.HostPvtNW)
 }
 
 // DeleteHostAccPort creates a host access port
@@ -220,45 +221,53 @@ func (p *NetPlugin) GlobalConfigUpdate(cfg Config) error {
 	return p.NetworkDriver.GlobalConfigUpdate(cfg.Instance)
 }
 
-//GlobalFwdModeUpdate update the global config
-func (p *NetPlugin) GlobalFwdModeUpdate(cfg Config) {
+//Reinit reinitialize the network driver
+func (p *NetPlugin) Reinit(cfg Config) {
 	var err error
 
 	if p.NetworkDriver != nil {
-		logrus.Infof("GlobalFwdModeUpdate De-initializing NetworkDriver")
+		logrus.Infof("Reinit de-initializing NetworkDriver")
 		p.NetworkDriver.Deinit()
 		p.NetworkDriver = nil
 	}
 
 	cfg.Instance.StateDriver, _ = utils.GetStateDriver()
 	p.NetworkDriver, err = utils.NewNetworkDriver(cfg.Drivers.Network, &cfg.Instance)
-	logrus.Infof("GlobalFwdModeUpdate Initializing NetworkDriver")
+	logrus.Infof("Reinit Initializing NetworkDriver")
 
 	if err != nil {
-		logrus.Errorf("Error updating global forwarding mode %v", err)
+		logrus.Errorf("Error initializing NetworkDriver %v", err)
 		return
 	}
 
 	defer func() {
 		if err != nil {
-			logrus.Errorf("GlobalFwdModeUpdate De-initializing due to error: %v", err)
+			logrus.Errorf("Reinit De-initializing due to error: %v", err)
 			p.NetworkDriver.Deinit()
 		}
 	}()
-
-	return
 }
 
-//GetFwdMode returns the fabric forwarding mode
-func GetFwdMode(stateDriver core.StateDriver) string {
+//InitGlobalSettings initializes cluster-wide settings (e.g. fwd-mode)
+func InitGlobalSettings(stateDriver core.StateDriver, inst *core.InstanceInfo) {
 
 	gCfg := mastercfg.GlobConfig{}
 	gCfg.StateDriver = stateDriver
 	err := gCfg.Read("")
 	if err != nil {
-		core.Errorf("Error reading forwarding mode from cluster store")
-		return ""
+		logrus.Errorf("Error reading forwarding mode from cluster store")
+		inst.FwdMode = "bridge"
+		inst.HostPvtNW = defaultPvtSubnet
+		return
 	}
-	return gCfg.FwdMode
 
+	inst.FwdMode = gCfg.FwdMode
+	net, err := netutils.CIDRToMask(gCfg.PvtSubnet)
+	if err != nil {
+		logrus.Errorf("%s %v, will use default", gCfg.PvtSubnet, err)
+		inst.HostPvtNW = defaultPvtSubnet
+	} else {
+		inst.HostPvtNW = net
+		logrus.Infof("HostPvtNW: %v", net)
+	}
 }

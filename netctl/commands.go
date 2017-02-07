@@ -448,6 +448,11 @@ var Commands = []cli.Command{
 						Name:  "arp-mode, a",
 						Usage: "arp mode (proxy,flood)",
 					},
+					cli.StringFlag{
+						Name:  "private-subnet, s",
+						Usage: "Select a /16 private subnet for host access",
+						Value: "172.19.0.0/16",
+					},
 				},
 				Action: setGlobal,
 			},

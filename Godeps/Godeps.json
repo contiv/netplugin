@@ -54,11 +54,11 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
-			"Rev": "7bceb0047652707a3b232f18b696c4713f22f1bf"
+			"Rev": "97190bbfaa11ce9f68f3c2d4467438d836f17887"
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel/client",
-			"Rev": "7bceb0047652707a3b232f18b696c4713f22f1bf"
+			"Rev": "97190bbfaa11ce9f68f3c2d4467438d836f17887"
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",
@@ -610,6 +610,20 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "f7716cbe52baa25d2e9b0d0da546fcf909fc16b4"
+		},
+		{
+			"ImportPath": "github.com/pelletier/go-toml",
+			"Comment": "v0.4.0-6-gd1fa211",
+			"Rev": "d1fa2118c12c44e4f5004da216d1efad10cb4924"
+		},
+		{
+			"ImportPath": "github.com/pelletier/go-buffruneio",
+			"Rev": "df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-semver/semver",
+			"Comment": "v0.2.0-5-g5e3acbb",
+			"Rev": "5e3acbb5668c4c3deb4842615c4098eb61fb6b1e"
 		}
 	]
 }

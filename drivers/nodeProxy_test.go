@@ -35,7 +35,7 @@ func verifyNATRule(nodePort uint16, destIP string, destPort uint16) error {
 }
 
 func TestNodeProxy(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 	defer func() { driver.Deinit() }()
 	var err error
 	ipTablesPath, err = osexec.LookPath("iptables")

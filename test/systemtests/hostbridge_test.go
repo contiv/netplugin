@@ -9,6 +9,12 @@ func (s *systemtestSuite) TestHostBridge(c *C) {
 	if s.basicInfo.Scheduler != "k8" {
 		return
 	}
+
+	s.HostBridgeTest(c, "172.20.0.0")
+	s.HostBridgeTest(c, "172.22.0.0")
+}
+func (s *systemtestSuite) HostBridgeTest(c *C, pNet string) {
+	ps := pNet + "/16"
 	c.Assert(s.cli.GlobalPost(&client.Global{
 		Name:             "global",
 		NetworkInfraType: "default",
@@ -16,6 +22,7 @@ func (s *systemtestSuite) TestHostBridge(c *C) {
 		Vxlans:           "1-10000",
 		FwdMode:          "bridge",
 		ArpMode:          "proxy",
+		PvtSubnet:        ps,
 	}), IsNil)
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		TenantName:  "default",
@@ -49,6 +56,7 @@ func (s *systemtestSuite) TestHostBridge(c *C) {
 	c.Assert(s.pingTestToNonContainer(cList, dest), IsNil)
 	// verify the containers cannot ping each other on the host bridge interface
 	c.Assert(s.hostIsolationTest(cList), IsNil)
+	c.Assert(s.verifyPvtIP(cList, pNet), IsNil)
 
 	c.Assert(s.removeContainers(cList), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete("default", "epg-a"), IsNil)

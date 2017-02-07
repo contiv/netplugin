@@ -91,7 +91,6 @@ func parseMesosAgentIPAddr(pidList []byte) (string, error) {
 func (cniReq *cniServer) createHostBrIntf(ovsEpDriver *drivers.OvsOperEndpointState) error {
 
 	hostBrIfName := netutils.GetHostIntfName(ovsEpDriver.PortName)
-	hostBrIfIPaddr, _ := netutils.HostIfToIP(hostBrIfName)
 
 	// find executor info
 	pidList, err := exec.Command("ip", "netns", "pids",
@@ -109,7 +108,8 @@ func (cniReq *cniServer) createHostBrIntf(ovsEpDriver *drivers.OvsOperEndpointSt
 
 	// add host interface
 	cniLog.Infof("create host-br interface %s", hostBrIfName)
-	if err := netPlugin.CreateHostAccPort(hostBrIfName, cniReq.ipv4Addr, hostBrIfIPaddr); err != nil {
+	hostBrIfIPaddr, err := netPlugin.CreateHostAccPort(hostBrIfName, cniReq.ipv4Addr)
+	if err != nil {
 		cniLog.Errorf("failed to create [%s] in host-br: %s",
 			hostBrIfName, err.Error())
 		return err

@@ -132,8 +132,8 @@ func (d *KubeTestNetDrv) DeleteMaster(node core.ServiceInfo) error {
 }
 
 // CreateHostAccPort is not implemented.
-func (d *KubeTestNetDrv) CreateHostAccPort(id, a, b string) (err error) {
-	return core.Errorf("Not implemented")
+func (d *KubeTestNetDrv) CreateHostAccPort(id, a string, n int) (string, error) {
+	return "", core.Errorf("Not implemented")
 }
 
 // DeleteHostAccPort is not implemented.

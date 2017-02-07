@@ -96,6 +96,7 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 			Vxlans:           "1-10000",
 			FwdMode:          "bridge",
 			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		})
 		if err != nil {
 			log.Fatalf("Error creating global state. Err: %v", err)
@@ -177,6 +178,7 @@ func (ac *APIController) GlobalCreate(global *contivModel.Global) error {
 		VXLANs:      global.Vxlans,
 		FwdMode:     global.FwdMode,
 		ArpMode:     global.ArpMode,
+		PvtSubnet:   global.PvtSubnet,
 	}
 
 	// Create the object
@@ -238,6 +240,13 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	if global.NetworkInfraType != params.NetworkInfraType {
 		globalCfg.NwInfraType = params.NetworkInfraType
 	}
+	if global.PvtSubnet != params.PvtSubnet {
+		if numVlans+numVxlans > 0 {
+			log.Errorf("Unable to update provate subnet due to existing networks")
+			return fmt.Errorf("Please delete %v vlans and %v vxlans before changing private subnet", vlansInUse, vxlansInUse)
+		}
+		globalCfg.PvtSubnet = params.PvtSubnet
+	}
 
 	// Create the object
 	err = master.UpdateGlobal(stateDriver, &globalCfg)
@@ -251,6 +260,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	global.Vxlans = params.Vxlans
 	global.FwdMode = params.FwdMode
 	global.ArpMode = params.ArpMode
+	global.PvtSubnet = params.PvtSubnet
 
 	return nil
 }

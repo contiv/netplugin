@@ -225,7 +225,7 @@ func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID str
 	return err
 }
 
-func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, fwdMode string) {
+func processReinit(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, newCfg *mastercfg.GlobConfig) {
 
 	netPlugin.Lock()
 	defer func() { netPlugin.Unlock() }()
@@ -244,12 +244,19 @@ func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instanc
 		},
 		Instance: opts,
 	}
-	if len(pluginConfig.Instance.UplinkIntf) > 1 && fwdMode == "routing" {
+	if len(pluginConfig.Instance.UplinkIntf) > 1 && newCfg.FwdMode == "routing" {
 		pluginConfig.Instance.UplinkIntf = []string{pluginConfig.Instance.UplinkIntf[0]}
 		log.Warnf("Routing mode supports only one uplink interface. Using %s as uplink interface", pluginConfig.Instance.UplinkIntf[0])
 	}
-	pluginConfig.Instance.FwdMode = fwdMode
-	netPlugin.GlobalFwdModeUpdate(pluginConfig)
+	pluginConfig.Instance.FwdMode = newCfg.FwdMode
+	pluginConfig.Instance.ArpMode = newCfg.ArpMode
+	net, err := netutils.CIDRToMask(newCfg.PvtSubnet)
+	if err != nil {
+		log.Errorf("ERROR: %v", err)
+	} else {
+		pluginConfig.Instance.HostPvtNW = net
+	}
+	netPlugin.Reinit(pluginConfig)
 
 	for _, master := range cluster.MasterDB {
 		netPlugin.AddMaster(core.ServiceInfo{
@@ -270,8 +277,20 @@ func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instanc
 
 }
 
-func processGlobalConfigUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, cfg *mastercfg.GlobConfig) {
+func processGlobalConfigUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, oldCfg, newCfg *mastercfg.GlobConfig) {
+	// determine the type of change.
 
+	if newCfg.FwdMode != oldCfg.FwdMode || newCfg.PvtSubnet != oldCfg.PvtSubnet {
+		// this requires re-init
+		processReinit(netPlugin, opts, newCfg)
+	} else if newCfg.ArpMode != oldCfg.ArpMode {
+		processARPModeChange(netPlugin, opts, newCfg.ArpMode)
+	} else {
+		log.Infof("No change to netplugin confg")
+	}
+}
+
+func processARPModeChange(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, arpMode string) {
 	netPlugin.Lock()
 	defer func() { netPlugin.Unlock() }()
 
@@ -289,10 +308,13 @@ func processGlobalConfigUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instance
 		},
 		Instance: opts,
 	}
-	pluginConfig.Instance.ArpMode = cfg.ArpMode
+	pluginConfig.Instance.ArpMode = arpMode
+	if pluginConfig.Instance.FwdMode == "routing" && arpMode == "flood" {
+		log.Infof("Global ARP mode config is not effective when forwarding mode is routing. Proxy-arp will be retained.")
+	}
 	netPlugin.GlobalConfigUpdate(pluginConfig)
 
-	log.Infof("Global Config updated")
+	log.Infof("ARP mode updated")
 }
 
 //processServiceLBEvent processes service load balancer object events
@@ -392,20 +414,10 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 			}
 
 			if gCfg, ok := currentState.(*mastercfg.GlobConfig); ok {
-				log.Infof("Received %q for global config current state - %s,%s , prev state - %s,%s ", eventStr,
-					gCfg.FwdMode, gCfg.ArpMode, rsp.Prev.(*mastercfg.GlobConfig).FwdMode, rsp.Prev.(*mastercfg.GlobConfig).ArpMode)
-
-				// if its a forwarding mode change, the network driver needs to be restarted
-				if gCfg.FwdMode != rsp.Prev.(*mastercfg.GlobConfig).FwdMode {
-					processGlobalFwdModeUpdEvent(netPlugin, opts, gCfg.FwdMode)
-				} else {
-					// if its any other global config change, dynamically process the change
-					if gCfg.ArpMode != rsp.Prev.(*mastercfg.GlobConfig).ArpMode &&
-						gCfg.FwdMode == "routing" && gCfg.ArpMode == "flood" {
-						log.Infof("Global ARP mode config is not effective when forwarding mode is routing. Proxy-arp will be enabled.")
-					}
-					processGlobalConfigUpdEvent(netPlugin, opts, gCfg)
-				}
+				prevCfg := rsp.Prev.(*mastercfg.GlobConfig)
+				log.Infof("Received %q for global config current state - %+v, prev state - %+v ", eventStr,
+					gCfg, prevCfg)
+				processGlobalConfigUpdEvent(netPlugin, opts, prevCfg, gCfg)
 			}
 
 			// Ignore modify event on network state

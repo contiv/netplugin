@@ -181,6 +181,10 @@ endif
 unit-test: stop clean 
 	./scripts/unittests -vagrant
 
+integ-test: stop clean start
+	make ssh-build
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-integ-test"'
+
 ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 

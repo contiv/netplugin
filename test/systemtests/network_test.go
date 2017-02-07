@@ -382,6 +382,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				Vlans:            "1-4094",
 				Vxlans:           "1-10000",
 				ArpMode:          "proxy",
+				PvtSubnet:        "172.19.0.0/16",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
 			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
@@ -393,6 +394,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				Vlans:            "100-2094",
 				Vxlans:           "1-10000",
 				ArpMode:          "proxy",
+				PvtSubnet:        "172.19.0.0/16",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
 			s.testNetworkAddDeleteTenant(c, "vxlan", "routing")
@@ -417,6 +419,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		}), IsNil)
 		time.Sleep(60 * time.Second)
 		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
@@ -425,6 +428,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		}), IsNil)
 		time.Sleep(60 * time.Second)
 	}
@@ -446,6 +450,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVXLAN(c *C) {
 				Vlans:            "1-4094",
 				Vxlans:           "1-10000",
 				ArpMode:          "flood",
+				PvtSubnet:        "172.19.0.0/16",
 			}), IsNil)
 			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
 			arpMode = "flood"
@@ -457,6 +462,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVXLAN(c *C) {
 				Vlans:            "100-2094",
 				Vxlans:           "1-10000",
 				ArpMode:          "proxy",
+				PvtSubnet:        "172.19.0.0/16",
 			}), IsNil)
 			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
 			arpMode = "proxy"
@@ -477,6 +483,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVLAN(c *C) {
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		}), IsNil)
 		s.testNetworkAddDeleteTenant(c, "vlan", "bridge")
 		c.Assert(s.cli.GlobalPost(&client.Global{
@@ -486,6 +493,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantArpModeChangeVLAN(c *C) {
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			ArpMode:          "flood",
+			PvtSubnet:        "172.19.0.0/16",
 		}), IsNil)
 		s.testNetworkAddDeleteTenant(c, "vlan", "bridge")
 	}
