@@ -2,7 +2,7 @@
 
 ## Netplugin
 
-Generic network plugin is designed to handle networking use
+Generic network plugin is designed to handle networking use.
 cases in clustered multi-host systems. It is specifically designed to handle:
 
 - Multi-tenant environment where disjoint networks are offered to containers on the same host
