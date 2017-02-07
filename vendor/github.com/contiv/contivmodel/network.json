@@ -89,10 +89,6 @@
 					"type": "string",
 					"title": "Available IP addresses"
 				},
-				"dnsServerIP": {
-					"type": "string",
-					"title": "dns IP for the network"
-				},
 				"endpoints": {
 					"type": "array",
 					"items": "endpoint",
