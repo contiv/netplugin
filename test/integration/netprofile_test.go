@@ -69,7 +69,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp flow is created
 		its.verifyPortVlanFlow(epCfg1, 10, c)
@@ -82,7 +82,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp value changes in OVS
 		its.verifyPortVlanFlow(epCfg1, 20, c)
@@ -95,7 +95,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp flow is removed
 		its.verifyPortVlanFlowRemoved(epCfg1, 20, true, c)
@@ -108,7 +108,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp value changes in OVS
 		its.verifyPortVlanFlow(epCfg1, 30, c)
@@ -129,7 +129,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp value changes in OVS
 		its.verifyPortVlanFlow(epCfg1, 40, c)
@@ -143,7 +143,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp flows are gone
 		its.verifyPortVlanFlowRemoved(epCfg1, 40, true, c)
@@ -243,7 +243,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify tc qdisc is empty
 		c.Assert(tcFilterVerifyEmpty(), IsNil)
