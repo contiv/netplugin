@@ -38,10 +38,10 @@ type BasicInfo struct {
 }
 
 type HostInfo struct {
-	HostIPs           string `json:"hostips"`
-	HostUsernames     string `json:"hostusernames"`
+	HostIPs            string `json:"hostips"`
+	HostUsernames      string `json:"hostusernames"`
 	HostDataInterfaces string `json:"dataInterfaces"`
-	HostMgmtInterface string `json:"mgmtInterface"`
+	HostMgmtInterface  string `json:"mgmtInterface"`
 }
 
 type GlobInfo struct {
@@ -59,7 +59,11 @@ var sts = &systemtestSuite{}
 var _ = Suite(sts)
 
 func TestMain(m *M) {
-	mastbasic, _, _ := getInfo("cfg.json")
+	mastbasic, _, _, err := getInfo("cfg.json")
+	if err != nil {
+		logrus.Errorf("failed to load cfg.json config: %v", err)
+		os.Exit(1)
+	}
 
 	if mastbasic.ContivL3 == "" {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
@@ -80,8 +84,13 @@ func TestSystem(t *T) {
 }
 
 func (s *systemtestSuite) SetUpSuite(c *C) {
+	var err error
 	logrus.Infof("Bootstrapping system tests")
-	s.basicInfo, s.hostInfo, s.globInfo = getInfo("cfg.json")
+	s.basicInfo, s.hostInfo, s.globInfo, err = getInfo("cfg.json")
+	if err != nil {
+		logrus.Infof("failed to load cfg.json: %v", err)
+		os.Exit(1)
+	}
 
 	switch s.basicInfo.Platform {
 	case "baremetal":
@@ -89,6 +98,9 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 	case "vagrant":
 		s.SetUpSuiteVagrant(c)
+	default:
+		logrus.Errorf("unsupported platform: %v", s.basicInfo.Platform)
+		os.Exit(1)
 	}
 
 	s.cli, _ = client.NewContivClient("http://localhost:9999")

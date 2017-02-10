@@ -26,7 +26,7 @@ Customize the JSON file netplugin/systemtests/cfg.json according to your environ
       "enableDNS" : false,     //Enable DNS service discovery
       "contiv_cluster_store" : "etcd://localhost:2379",      //cluster store URL for etcd or consul
       "contiv_l3" : "",       //For running in routing mode
-      "key_file" : "",     //Insecure private key for swarm setup on Baremetal
+      "keyFile" : "",     //Insecure private key for swarm setup on Baremetal
       "binpath" : "/opt/gopath/bin",    //netplugin/netmaster binary path. /home/admin/bin for baremetal
 
       "hostips" : "",         // host IPs for swarm setup on Baremetal, separated by comma

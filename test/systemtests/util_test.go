@@ -1057,19 +1057,27 @@ func (s *systemtestSuite) verifyIPs(ipaddrs []string) error {
 }
 
 //Function to extract cfg Info from JSON file
-func getInfo(file string) (BasicInfo, HostInfo, GlobInfo) {
+func getInfo(file string) (BasicInfo, HostInfo, GlobInfo, error) {
+	var (
+		b BasicInfo
+		c HostInfo
+		d GlobInfo
+	)
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	var b BasicInfo
-	json.Unmarshal(raw, &b)
-	var c HostInfo
-	json.Unmarshal(raw, &c)
-	var d GlobInfo
-	json.Unmarshal(raw, &d)
-	return b, c, d
+	err = json.Unmarshal(raw, &b)
+	if err != nil {
+		return b, c, d, err
+	}
+	err = json.Unmarshal(raw, &c)
+	if err != nil {
+		return b, c, d, err
+	}
+	err = json.Unmarshal(raw, &d)
+	return b, c, d, err
 }
 
 // Setup suite and test methods for all platforms

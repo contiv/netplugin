@@ -9,7 +9,7 @@ parser.add_argument("-scheduler", default='docker', help="Scheduler used, if any
 parser.add_argument("-swarm_var", default='', help="Swarm host variable")
 parser.add_argument("-platform", default='vagrant', help="Vagrant/baremetal")
 parser.add_argument("-product", default='netplugin', help="netplugin/volplugin")
-parser.add_argument("-contiv_l3", default=0, help="Running in L3 mode")
+parser.add_argument("-contiv_l3", default='', help="Running in L3 mode")
 parser.add_argument("-key_file", default="/home/admin/.ssh/id_rsa", help="file path of key_file")
 parser.add_argument("-binpath", default="/opt/gopath/bin", help="GOBIN path")
 parser.add_argument("-hostips", default="192.168.2.10,192.168.2.11,192.168.2.12", help="Host IPs in the system")
@@ -45,11 +45,11 @@ data['iterations'] = args.iterations
 data['enableDNS'] = args.enableDNS
 data['contiv_cluster_store'] = args.contiv_cluster_store
 data['contiv_l3'] = args.contiv_l3
-data['key_file'] = args.key_file
+data['keyFile'] = args.key_file
 data['binpath'] = args.binpath
 data['hostips'] = args.hostips
 data['hostusernames'] = args.hostnames
-if args.contiv_l3 == 0:
+if args.contiv_l3 == '':
     data['dataInterfaces'] = args.datainterfaces
 else:
     data['dataInterfaces'] = args.l3_datainterfaces
