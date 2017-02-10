@@ -32,7 +32,6 @@ type cliOpts struct {
 	clusterStore string
 	listenURL    string
 	clusterMode  string
-	dnsEnabled   bool
 	version      bool
 }
 
@@ -65,10 +64,6 @@ func parseOpts(opts *cliOpts) error {
 		"cluster-mode",
 		"docker",
 		"{docker, kubernetes}")
-	flagSet.BoolVar(&opts.dnsEnabled,
-		"dns-enable",
-		false,
-		"Turn on DNS {true, false}")
 	flagSet.BoolVar(&opts.version,
 		"version",
 		false,
@@ -112,7 +107,6 @@ func main() {
 		ListenURL:    opts.listenURL,
 		ClusterStore: opts.clusterStore,
 		ClusterMode:  opts.clusterMode,
-		DNSEnabled:   opts.dnsEnabled,
 	}
 
 	// initialize master daemon

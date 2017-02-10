@@ -302,18 +302,18 @@ func (s *systemtestSuite) runContainersOnNode(num int, networkName, tenantName, 
 	return containers, nil
 }
 
-func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName, serviceName string) ([]*container, error) {
+func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName,
+	serviceName, dnsServer string) ([]*container, error) {
+
 	containers := []*container{}
 	mutex := sync.Mutex{}
 
 	errChan := make(chan error)
 
-	// Get the dns server for the network
-	dnsServer, err := s.getNetworkDNSServer(tenantName, networkName)
-	if err != nil {
-		logrus.Errorf("Error getting DNS server for network %s/%s", networkName, tenantName)
-		return nil, err
-	}
+        if len(dnsServer) <= 0 {
+           logrus.Errorf("no dns specified")
+           return nil, fmt.Errorf("no dns")
+        }
 
 	docknetName := fmt.Sprintf("%s/%s", networkName, tenantName)
 	if tenantName == "default" {
@@ -847,15 +847,6 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 	}
 }
 
-func (s *systemtestSuite) getNetworkDNSServer(tenant, network string) (string, error) {
-	netInspect, err := s.cli.NetworkInspect(tenant, network)
-	if err != nil {
-		return "", err
-	}
-
-	return netInspect.Oper.DnsServerIP, nil
-}
-
 func (s *systemtestSuite) checkConnectionToService(containers []*container, ips []string, port int, protocol string) error {
 
 	for _, cont := range containers {
@@ -1323,14 +1314,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 	}
 
 	time.Sleep(15 * time.Second)
-
-	// temporarily enable DNS for service discovery tests
-	prevDNSEnabled := s.basicInfo.EnableDNS
-	if strings.Contains(c.TestName(), "SvcDiscovery") {
-		s.basicInfo.EnableDNS = true
-	}
-
-	defer func() { s.basicInfo.EnableDNS = prevDNSEnabled }()
 
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(), IsNil)

@@ -121,7 +121,6 @@ class Node:
         self.runCmd("etcdctl ls /contiv > /dev/null 2>&1 && etcdctl rm --recursive /contiv")
         self.runCmd("etcdctl ls /contiv.io > /dev/null 2>&1 && etcdctl rm --recursive /contiv.io")
         self.runCmd("etcdctl ls /docker > /dev/null 2>&1 && etcdctl rm --recursive /docker")
-        self.runCmd("etcdctl ls /skydns > /dev/null 2>&1 && etcdctl rm --recursive /skydns")
         self.runCmd("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
         self.runCmd("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 

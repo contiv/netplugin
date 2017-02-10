@@ -209,10 +209,6 @@ func (cniReq *cniServer) configureNetNs(ovsEpDriver *drivers.OvsOperEndpointStat
 		cniLog.Infof("ipv6 gateway of endpoint %s", nwState.IPv6Gateway)
 	}
 
-	if len(nwState.DNSServer) > 0 {
-		cniReq.cniSuccessResp.DNS.NameServers = append(cniReq.cniSuccessResp.DNS.NameServers, nwState.DNSServer)
-	}
-
 	if _, err := cniReq.ipnsBatchExecute(cniReq.pluginArgs.CniContainerid, nsCmds); err != nil {
 		cniLog.Errorf("failed to execute commands in namespace %s: %s",
 			cniReq.pluginArgs.CniNetns, err.Error())

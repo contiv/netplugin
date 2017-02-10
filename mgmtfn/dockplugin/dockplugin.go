@@ -29,7 +29,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/netplugin/plugin"
-	"github.com/contiv/netplugin/netplugin/svcplugin"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/gorilla/mux"
@@ -39,13 +38,11 @@ const pluginPath = "/run/docker/plugins"
 const driverName = "netplugin"
 
 var netPlugin *plugin.NetPlugin
-var svcPlugin svcplugin.SvcregPlugin
 
 // InitDockPlugin initializes the docker plugin
-func InitDockPlugin(np *plugin.NetPlugin, sp svcplugin.SvcregPlugin) error {
+func InitDockPlugin(np *plugin.NetPlugin) error {
 	// Save state
 	netPlugin = np
-	svcPlugin = sp
 
 	// Get local hostname
 	hostname, err := os.Hostname()

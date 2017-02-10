@@ -47,6 +47,10 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.box = "contiv/centos72"
     config.vm.box_version = "0.7.0"
+    config.vm.provider 'virtualbox' do |v|
+        v.linked_clone = true if Vagrant::VERSION >= "1.8.0"
+    end
+
     config.ssh.insert_key = false
     num_nodes = 1
     base_ip = "192.168.11."
@@ -74,6 +78,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 v.customize ['modifyvm', :id, '--nictype3', 'virtio']
                 v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
+                v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
             end
 
             # mount the host directories

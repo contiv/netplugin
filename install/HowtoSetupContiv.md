@@ -22,8 +22,6 @@ Usage: netmaster [OPTION]...
         Etcd or Consul cluster store url. (default "etcd://127.0.0.1:2379") << we support consul as well, you need to change it here.
   -debug
         Turn on debugging information
-  -dns-enable
-        Turn on DNS {true, false} (default true)
   -help
         prints this message
   -listen-url string

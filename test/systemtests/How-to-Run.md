@@ -92,7 +92,6 @@ Troubleshooting
 sudo etcdctl rm --recursive /contiv
 sudo etcdctl rm --recursive /contiv.io
 sudo etcdctl rm --recursive /docker
-sudo etcdctl rm --recursive /skydns
 ```
 * You can restart the nodes (sudo /sbin/shutdown -r now)
 * Run net_demo_installer script with -suitable options again to launch Swarm cluster and all other services properly. This infra basically relies on this script to start all the services correctly and then it kills netplugin and netmaster services and start those from the source binaries which you build.

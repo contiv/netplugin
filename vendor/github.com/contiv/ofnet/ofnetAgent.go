@@ -297,7 +297,7 @@ func (self *OfnetAgent) getLocalEndpoint(portNo uint32) *OfnetEndpoint {
 func (self *OfnetAgent) Delete() error {
 	var resp bool
 	// Disconnect from the switch
-	log.Infof("Received Delete for switch %s", self.ofSwitch.DPID().String)
+	log.Infof("OfnetAgent: Received Delete")
 	if self.GetRouterInfo() != nil {
 		err := self.DeleteBgp()
 		if err != nil {
@@ -306,6 +306,7 @@ func (self *OfnetAgent) Delete() error {
 		}
 	}
 	if self.ofSwitch != nil {
+		log.Infof("Delete for switch %s", self.ofSwitch.DPID().String)
 		self.ofSwitch.Disconnect()
 	}
 

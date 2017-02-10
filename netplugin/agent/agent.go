@@ -27,21 +27,14 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
-	"github.com/contiv/netplugin/netplugin/svcplugin"
 	"github.com/gorilla/mux"
 	"github.com/samalba/dockerclient"
-
-	// import and init skydns libraries
-	_ "github.com/contiv/netplugin/netplugin/svcplugin/consulextension"
-	_ "github.com/contiv/netplugin/netplugin/svcplugin/skydns2extension"
 )
 
 // Agent holds the netplugin agent state
 type Agent struct {
-	netPlugin    *plugin.NetPlugin      // driver plugin
-	pluginConfig *plugin.Config         // plugin configuration
-	svcPlugin    svcplugin.SvcregPlugin // svc plugin
-	svcQuitCh    chan struct{}          // channel to stop svc plugin
+	netPlugin    *plugin.NetPlugin // driver plugin
+	pluginConfig *plugin.Config    // plugin configuration
 }
 
 // NewAgent creates a new netplugin agent
@@ -49,14 +42,8 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	opts := pluginConfig.Instance
 	netPlugin := &plugin.NetPlugin{}
 
-	// Initialize service registry plugin
-	svcPlugin, quitCh, err := svcplugin.NewSvcregPlugin(opts.DbURL, nil)
-	if err != nil {
-		log.Fatalf("Error initializing service registry plugin")
-	}
-
 	// init cluster state
-	err = cluster.Init(opts.DbURL)
+	err := cluster.Init(opts.DbURL)
 	if err != nil {
 		log.Fatalf("Error initializing cluster. Err: %v", err)
 	}
@@ -70,7 +57,7 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	// Initialize appropriate plugin
 	switch opts.PluginMode {
 	case "docker":
-		dockplugin.InitDockPlugin(netPlugin, svcPlugin)
+		dockplugin.InitDockPlugin(netPlugin)
 
 	case "kubernetes":
 		k8splugin.InitCNIServer(netPlugin)
@@ -87,8 +74,6 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	agent := &Agent{
 		netPlugin:    netPlugin,
 		pluginConfig: pluginConfig,
-		svcPlugin:    svcPlugin,
-		svcQuitCh:    quitCh,
 	}
 
 	return agent

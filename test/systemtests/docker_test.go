@@ -444,11 +444,7 @@ func (d *docker) stopNetmaster() error {
 }
 
 func (d *docker) startNetmaster() error {
-	dnsOpt := " --dns-enable=false "
-	if d.node.suite.basicInfo.EnableDNS {
-		dnsOpt = " --dns-enable=true "
-	}
-	cmd := d.node.suite.basicInfo.BinPath + "/netmaster" + dnsOpt + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log"
+	cmd := d.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log"
 	logrus.Infof("Starting netmaster on %s with command: %s", d.node.Name(), cmd)
 	return d.node.tbnode.RunCommandBackground(cmd)
 }
@@ -458,7 +454,6 @@ func (d *docker) cleanupMaster() {
 	vNode.RunCommand("etcdctl rm --recursive /contiv")
 	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
 	vNode.RunCommand("etcdctl rm --recursive /docker")
-	vNode.RunCommand("etcdctl rm --recursive /skydns")
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 }
