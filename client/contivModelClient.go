@@ -393,6 +393,7 @@ type Global struct {
 	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
+	PvtSubnet        string `json:"pvtSubnet,omitempty"`        // Private Subnet used by host bridge
 	Vlans            string `json:"vlans,omitempty"`            // Allowed vlan range
 	Vxlans           string `json:"vxlans,omitempty"`           // Allwed vxlan range
 
