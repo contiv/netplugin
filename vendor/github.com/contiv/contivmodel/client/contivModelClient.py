@@ -319,6 +319,7 @@ class objmodelClient:
 			"fwdMode": obj.fwdMode, 
 			"name": obj.name, 
 			"networkInfraType": obj.networkInfraType, 
+			"pvtSubnet": obj.pvtSubnet, 
 			"vlans": obj.vlans, 
 			"vxlans": obj.vxlans, 
 	    })

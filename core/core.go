@@ -85,6 +85,7 @@ type InstanceInfo struct {
 	ArpMode     string      `json:"arp-mode"`
 	DbURL       string      `json:"db-url"`
 	PluginMode  string      `json:"plugin-mode"`
+	HostPvtNW   int         `json:"host-pvt-nw"`
 }
 
 // PortSpec defines protocol/port info required to host the service
@@ -115,7 +116,7 @@ type NetworkDriver interface {
 	CreateEndpoint(id string) error
 	UpdateEndpointGroup(id string) error
 	DeleteEndpoint(id string) error
-	CreateHostAccPort(portName, globalIP, localIP string) error
+	CreateHostAccPort(portName, globalIP string, nw int) (string, error)
 	DeleteHostAccPort(id string) error
 	AddPeerHost(node ServiceInfo) error
 	DeletePeerHost(node ServiceInfo) error

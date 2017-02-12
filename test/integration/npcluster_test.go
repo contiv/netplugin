@@ -94,6 +94,7 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 			Vxlans:           "1-10000",
 			FwdMode:          its.fwdMode,
 			ArpMode:          its.arpMode,
+			PvtSubnet:        "172.19.0.0/16",
 		})
 		if err != nil {
 			log.Fatalf("Error creating global state. Err: %v", err)

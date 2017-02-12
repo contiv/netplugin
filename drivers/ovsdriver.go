@@ -208,13 +208,14 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 	}
 
 	// Add host port.
-	err = d.switchDb["host"].AddHostPort(hostPortName, maxPortNum, true)
+	_, err = d.switchDb["host"].AddHostPort(hostPortName, maxPortNum, info.HostPvtNW, true)
 	if err != nil {
 		log.Errorf("Could not add host port %s to OVS. Err: %v", hostPortName, err)
 	}
 
 	// Add a masquerade rule to ip tables.
-	netutils.SetIPMasquerade(hostPortName, hostPvtSubnet)
+	netmask, _ := netutils.PortToHostIPMAC(0, info.HostPvtNW)
+	netutils.SetIPMasquerade(hostPortName, netmask)
 
 	// Initialize the node proxy
 	d.HostProxy, err = NewNodeProxy()
@@ -242,23 +243,23 @@ func (d *OvsDriver) DeleteHostAccPort(id string) error {
 }
 
 // CreateHostAccPort creates an access port
-func (d *OvsDriver) CreateHostAccPort(portName, globalIP, hostIP string) error {
+func (d *OvsDriver) CreateHostAccPort(portName, globalIP string, net int) (string, error) {
 	sw, found := d.switchDb["host"]
 	if found {
 		num := strings.Replace(portName, "hport", "", 1)
 		intfNum, err := strconv.Atoi(num)
 		if err != nil {
-			return err
+			return "", err
 		}
 
-		err = sw.AddHostPort(portName, intfNum, false)
+		hostIP, err := sw.AddHostPort(portName, intfNum, net, false)
 		if err == nil {
 			d.HostProxy.AddLocalIP(globalIP, hostIP)
-			return nil
+			return hostIP, nil
 		}
 	}
 
-	return errors.New("host bridge not found")
+	return "", errors.New("host bridge not found")
 }
 
 // Deinit performs cleanup prior to destruction of the OvsDriver

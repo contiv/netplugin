@@ -25,6 +25,7 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 		Vxlans:           s.globInfo.Vxlan,
 		FwdMode:          "bridge",
 		ArpMode:          "flood",
+		PvtSubnet:        "172.19.0.0/16",
 	}), IsNil)
 	c.Assert(s.cli.NetworkPost(&client.Network{
 		TenantName:  "default",
@@ -98,6 +99,7 @@ func (s *systemtestSuite) TestACIPingGateway(c *C) {
 		ArpMode:          "flood",
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
+		PvtSubnet:        "172.19.0.0/16",
 	}), IsNil)
 	c.Assert(s.cli.TenantPost(&client.Tenant{
 		TenantName: s.globInfo.Tenant,
@@ -165,6 +167,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		ArpMode:          "flood",
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
+		PvtSubnet:        "172.19.0.0/16",
 	}), IsNil)
 	c.Assert(s.cli.TenantPost(&client.Tenant{
 		TenantName: s.globInfo.Tenant,
@@ -462,6 +465,9 @@ func (s *systemtestSuite) TestACIGWRestart(c *C) {
 		NetworkInfraType: "aci",
 		Vlans:            s.globInfo.Vlan,
 		Vxlans:           s.globInfo.Vxlan,
+		PvtSubnet:        "172.19.0.0/16",
+		FwdMode:          "bridge",
+		ArpMode:          "flood",
 	}), IsNil)
 
 	c.Assert(s.cli.TenantPost(&client.Tenant{

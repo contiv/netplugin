@@ -787,7 +787,7 @@ func (sw *OvsSwitch) RemoveUplinks() error {
 }
 
 // AddHostPort adds a host port to the OVS
-func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) error {
+func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS bool) (string, error) {
 	var err error
 
 	// some error checking
@@ -811,7 +811,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 		err = setLinkUp(ovsPortName)
 		if err != nil {
 			log.Errorf("Error setting link %s up. Err: %v", ovsPortName, err)
-			return err
+			return "", err
 		}
 	}
 
@@ -819,7 +819,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 
 	// If the port already exists in OVS, remove it first
 	if sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
-		log.Debugf("Removing existing interface entry %s from OVS", ovsPortName)
+		log.Infof("Removing existing interface entry %s from OVS", ovsPortName)
 
 		// Delete it from ovsdb
 		err := sw.ovsdbDriver.DeletePort(ovsPortName)
@@ -832,18 +832,18 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN, 0, 0)
 	if err != nil {
 		log.Errorf("Error adding hostport %s to OVS. Err: %v", intfName, err)
-		return err
+		return "", err
 	}
 
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
 	if err != nil {
 		log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
-		return err
+		return "", err
 	}
 
 	// Assign an IP based on the intfnumber
-	ipStr, macStr := netutils.PortToHostIPMAC(intfNum)
+	ipStr, macStr := netutils.PortToHostIPMAC(intfNum, network)
 	mac, _ := net.ParseMAC(macStr)
 	ip := net.ParseIP(ipStr)
 
@@ -861,7 +861,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 		err = sw.hostBridge.AddHostPort(portInfo)
 		if err != nil {
 			log.Errorf("Error adding host port %s. Err: %v", intfName, err)
-			return err
+			return "", err
 		}
 
 		log.Infof("Added host port %s to OVS switch %s.", intfName, sw.bridgeName)
@@ -873,7 +873,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 		}
 	}()
 
-	return nil
+	return ipStr, nil
 }
 
 // DelHostPort removes a host port from the OVS

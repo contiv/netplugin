@@ -366,20 +366,28 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 	return nil
 }
 
-func tcFilterVerifyEmpty() error {
-	qdiscShow, err := runCmd("tc qdisc show")
-	if err != nil {
-		return err
-	}
-	qdiscoutput := strings.Split(qdiscShow, "ingress")
+func tcFilterVerifyEmpty(tries int) error {
 
-	// make sure length of the string is 1. i.e, empty
-	if len(qdiscoutput) != 1 {
-		log.Errorf("Unexpected 'tc qdisco show' output:\n%s", qdiscShow)
-		return fmt.Errorf("tcp qdisc not empty")
+	var err error
+	var qdiscShow string
+
+	for ; tries > 0; tries-- {
+		qdiscShow, err = runCmd("tc qdisc show")
+		if err != nil {
+			return err
+		}
+		qdiscoutput := strings.Split(qdiscShow, "ingress")
+
+		// make sure length of the string is 1. i.e, empty
+		if len(qdiscoutput) == 1 {
+			return nil
+		}
+
+		time.Sleep(100 * time.Millisecond)
 	}
 
-	return nil
+	log.Errorf("Unexpected 'tc qdisco show' output:\n%s", qdiscShow)
+	return fmt.Errorf("tcp qdisc not empty")
 }
 
 // verifyEndpointFlow verifies endpoint flow exists

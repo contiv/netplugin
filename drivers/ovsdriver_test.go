@@ -53,6 +53,10 @@ const (
 	testMultiUplinkPorts       = "eth2,eth3"
 	testGateway                = "10.1.1.254"
 	testTenant                 = "default"
+	defPvtNW                   = 0xac130000
+	defPvtHostIP               = "172.19.255.254/16"
+	testPvtNW                  = 0xac160000
+	testPvtHostIP              = "172.22.255.254/16"
 )
 
 // General constants
@@ -174,13 +178,13 @@ func createCommonState(stateDriver core.StateDriver) error {
 	return nil
 }
 
-func initOvsDriver(t *testing.T, fMode string) *OvsDriver {
+func initOvsDriver(t *testing.T, fMode string, pvtNW int) *OvsDriver {
 	driver := &OvsDriver{}
 	arpMode := "proxy"
 	stateDriver := &state.FakeStateDriver{}
 	stateDriver.Init(nil)
 	instInfo := &core.InstanceInfo{HostLabel: testHostLabel,
-		StateDriver: stateDriver, FwdMode: fMode, ArpMode: arpMode}
+		StateDriver: stateDriver, FwdMode: fMode, ArpMode: arpMode, HostPvtNW: pvtNW}
 
 	err := createCommonState(stateDriver)
 	if err != nil {
@@ -196,7 +200,7 @@ func initOvsDriver(t *testing.T, fMode string) *OvsDriver {
 }
 
 func TestOvsDriverInit(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 	defer func() { driver.Deinit() }()
 }
 
@@ -273,7 +277,7 @@ func TestOvsDriverInitInvalidInstanceInfo(t *testing.T) {
 }
 
 func TestOvsDriverDeinit(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 
 	driver.Deinit()
 
@@ -329,7 +333,7 @@ func TestOvsDriverStateUpgrade(t *testing.T) {
 }
 
 func TestOvsDriverCreateEndpoint(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 	defer func() { driver.Deinit() }()
 	id := createEpID
 
@@ -363,7 +367,7 @@ func TestOvsDriverCreateEndpoint(t *testing.T) {
 }
 
 func TestOvsDriverCreateEndpointStateful(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 	defer func() { driver.Deinit() }()
 	id := createEpIDStateful
 
@@ -404,7 +408,7 @@ func TestOvsDriverCreateEndpointStateful(t *testing.T) {
 }
 
 func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 	defer func() { driver.Deinit() }()
 	id := createEpIDStatefulMismatch
 
@@ -465,7 +469,7 @@ func TestOvsDriverCreateEndpointStatefulStateMismatch(t *testing.T) {
 }
 
 func TestOvsDriverDeleteEndpoint(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 	defer func() { driver.Deinit() }()
 	id := deleteEpID
 
@@ -507,7 +511,7 @@ func TestOvsDriverDeleteEndpoint(t *testing.T) {
 }
 
 func TestOvsDriverUplinkBridgeMode(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 	defer func() { driver.Deinit() }()
 
 	uplinkName := "uplinkPort"
@@ -537,7 +541,7 @@ func TestOvsDriverUplinkBridgeMode(t *testing.T) {
 }
 
 func TestOvsDriverVethNameConflict(t *testing.T) {
-	driver := initOvsDriver(t, bridgeMode)
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
 	defer func() { driver.Deinit() }()
 
 	// Create conflicting Veth interface pairs
@@ -573,4 +577,30 @@ func TestOvsDriverVethNameConflict(t *testing.T) {
 		t.Fatalf("interface lookup failed. Error: %s expected port: %s Output: %s",
 			err, fmt.Sprintf("vport%d", intfNum+3), output)
 	}
+}
+
+func TestHostPort(t *testing.T) {
+	driver := initOvsDriver(t, bridgeMode, defPvtNW)
+	// verify hostport IP
+	output, err := exec.Command("ip", "addr", "show", "contivh0").CombinedOutput()
+	if err != nil || !strings.Contains(string(output), defPvtHostIP) {
+		t.Fatalf("Host port lookup failed. Error: %s expected IP: %s Output: %s",
+			err, defPvtHostIP, output)
+	}
+	driver.Deinit()
+	time.Sleep(2 * time.Second)
+	// verify interface deleted
+	output, err = exec.Command("ip", "addr", "show", "contivh0").CombinedOutput()
+	if err == nil {
+		t.Fatalf("Host port not deleted. Output: %s", output)
+	}
+
+	driver = initOvsDriver(t, bridgeMode, testPvtNW)
+	// verify new hostport IP
+	output, err = exec.Command("ip", "addr", "show", "contivh0").CombinedOutput()
+	if err != nil || !strings.Contains(string(output), testPvtHostIP) {
+		t.Fatalf("Host port lookup failed. Error: %s expected IP: %s Output: %s",
+			err, testPvtHostIP, output)
+	}
+	driver.Deinit()
 }

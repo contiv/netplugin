@@ -475,6 +475,32 @@ func (s *systemtestSuite) hostIsolationTest(containers []*container) error {
 	return nil
 }
 
+func (s *systemtestSuite) verifyPvtIP(containers []*container, pvtNet string) error {
+	for _, cont := range containers {
+		ip, err := cont.node.exec.getIPAddr(cont, "host1")
+		if err != nil {
+			logrus.Errorf("Error getting host1 ip for container: %+v err: %v",
+				cont, err)
+			return err
+		}
+
+		ipBytes := strings.Split(ip, ".")
+		if len(ipBytes) != 4 {
+			logrus.Errorf("Error bad host1 ip for container: %+v ip: %s",
+				cont, ip)
+			return errors.New("Bad host1 IP")
+		}
+
+		ipStr := ipBytes[0] + ipBytes[1] + "0.0"
+		if ipStr != pvtNet {
+			logrus.Errorf("Incorrect pvt subnet %s for container %v, exp: %s", ipStr, cont, pvtNet)
+			return errors.New("Pvt subnet does not match")
+		}
+	}
+
+	return nil
+}
+
 func (s *systemtestSuite) removeContainers(containers []*container) error {
 	errChan := make(chan error, len(containers))
 	for _, cont := range containers {
@@ -1294,6 +1320,7 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		}), IsNil)
 		time.Sleep(40 * time.Second)
 	}
@@ -1350,6 +1377,7 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		}), IsNil)
 		time.Sleep(120 * time.Second)
 	}

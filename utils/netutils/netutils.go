@@ -16,6 +16,7 @@ limitations under the License.
 package netutils
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -35,8 +36,6 @@ import (
 
 	"github.com/contiv/netplugin/core"
 )
-
-const hostPvtSubnet = 0xac140000
 
 var endianNess string
 
@@ -790,9 +789,9 @@ func GetMyAddr() (string, error) {
 }
 
 // PortToHostIPMAC gets IP and MAC based on port number
-func PortToHostIPMAC(port int) (string, string) {
-	b0 := hostPvtSubnet >> 24
-	b1 := (hostPvtSubnet >> 16) & 0xff
+func PortToHostIPMAC(port, subnet int) (string, string) {
+	b0 := subnet >> 24
+	b1 := (subnet >> 16) & 0xff
 	b2 := (port >> 8) & 0xff
 	b3 := port & 0xff
 	ipStr := fmt.Sprintf("%d.%d.%d.%d/16", b0, b1, b2, b3)
@@ -831,19 +830,32 @@ func SetIPMasquerade(intf, netmask string) error {
 	return err
 }
 
-// HostIfToIP gets IP based on ifname
-func HostIfToIP(hostIf string) (string, error) {
-	num := strings.Replace(hostIf, "hport", "", 1)
-	port, err := strconv.Atoi(num)
-	if err != nil {
-		return "", err
+// HostIPToGateway gets the gateway based on the IP
+func HostIPToGateway(hostIP string) (string, error) {
+	ip := strings.Split(hostIP, ".")
+	if len(ip) != 4 {
+		return "", errors.New("Bad host IP")
 	}
 
-	b0 := hostPvtSubnet >> 24
-	b1 := (hostPvtSubnet >> 16) & 0xff
-	b2 := (port >> 8) & 0xff
-	b3 := port & 0xff
-	ipStr := fmt.Sprintf("%d.%d.%d.%d/16", b0, b1, b2, b3)
+	return ip[0] + "." + ip[1] + ".255.254", nil
+}
 
-	return ipStr, nil
+// CIDRToMask converts a mask to corresponding netmask
+func CIDRToMask(cidr string) (int, error) {
+
+	n := strings.Split(cidr, "/")
+	if len(n) != 2 {
+		return -1, core.Errorf("Error bad cidr %s", cidr)
+	}
+
+	ip := net.ParseIP(n[0])
+	if ip == nil {
+		return -1, core.Errorf("Error bad cidr %s", cidr)
+	}
+
+	if len(ip) == 16 {
+		return int(binary.BigEndian.Uint32(ip[12:16])), nil
+	}
+
+	return int(binary.BigEndian.Uint32(ip)), nil
 }
