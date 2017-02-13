@@ -118,6 +118,8 @@ endif
 #kubernetes demo targets
 k8s-cluster:
 	cd vagrant/k8s/ && ./setup_cluster.sh
+k8s-l3-cluster:
+	CONTIV_L3=1 make k8s-cluster
 k8s-demo:
 	cd vagrant/k8s/ && ./copy_demo.sh
 k8s-demo-start:
