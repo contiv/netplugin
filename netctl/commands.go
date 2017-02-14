@@ -430,7 +430,6 @@ var Commands = []cli.Command{
 					cli.StringFlag{
 						Name:  "fabric-mode, f",
 						Usage: "Fabric mode (aci, aci-opflex or default)",
-						Value: "default",
 					},
 					cli.StringFlag{
 						Name:  "vlan-range, v",
