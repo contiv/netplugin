@@ -657,6 +657,9 @@ func createEndpointGroup(ctx *cli.Context) {
 }
 
 func inspectEndpointGroup(ctx *cli.Context) {
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "EndpointGroup name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
