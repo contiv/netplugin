@@ -108,6 +108,7 @@ type EndpointOper struct {
 	MacAddress       string   `json:"macAddress,omitempty"`  //
 	Network          string   `json:"network,omitempty"`     //
 	ServiceName      string   `json:"serviceName,omitempty"` //
+	VirtualPort      string   `json:"virtualPort,omitempty"` //
 	VtepIP           string   `json:"vtepIP,omitempty"`      //
 
 }
