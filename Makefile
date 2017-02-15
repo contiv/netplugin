@@ -31,10 +31,10 @@ all: build unit-test system-test ubuntu-tests
 # ENV variables (from the jenkins job) to run OS (centos, ubuntu etc) and
 # sandbox specific(vagrant, docker-in-docker)
 all-CI: stop clean start
-	make ssh-build
+	make ssh-build-nostart
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-unit-test"'
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-integ-test"'
-	make system-test
+	make system-test-nostart
 
 test: build unit-test system-test ubuntu-tests
 
@@ -171,12 +171,17 @@ ssh:
 	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
 
 ifdef NET_CONTAINER_BUILD
-ssh-build:
+ssh-build: ssh-build-nostart
+
+ssh-build-nostart:
 	cd /go/src/github.com/contiv/netplugin && make run-build
 else
-ssh-build: start
-		vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
+ssh-build: start ssh-build-nostart
+
+ssh-build-nostart:
+	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 endif
+
 
 unit-test: stop clean 
 	./scripts/unittests -vagrant
@@ -188,9 +193,11 @@ integ-test: stop clean start
 ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
-system-test:start
+system-test-nostart:
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py 
 	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
+
+system-test: start system-test-nostart
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
