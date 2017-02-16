@@ -1,5 +1,5 @@
 ##
-#Copyright 2014 Cisco Systems Inc. All rights reserved.
+#Copyright 2017 Cisco Systems Inc. All rights reserved.
 #
 #Licensed under the Apache License, Version 2.0 (the "License");
 #you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 # One Container for OVS / netplugin / netmaster 
 
-FROM ubuntu:15.10
+FROM ubuntu:16.04
 
 MAINTAINER Rajesh Nataraja <rajenata@cisco.com>
 
@@ -26,7 +26,7 @@ MAINTAINER Rajesh Nataraja <rajenata@cisco.com>
 
 # Install the Open vSwitch package on this ubuntu container.
 RUN apt update
-RUN apt --assume-yes  install openvswitch-switch
+RUN apt --assume-yes  install openvswitch-switch=2.5.0-0ubuntu1
 RUN apt --assume-yes  install net-tools iptables
 
 # Copy the Net Plugin Binaries  and the Scripts required to 
