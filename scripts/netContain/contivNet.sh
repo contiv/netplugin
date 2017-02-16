@@ -10,6 +10,7 @@ cmode="bridge"
 netmaster=false
 netplugin=true
 vlan_if="$VLAN_IF"
+debug=""
 
 #This needs to be fixed, we cant rely on the value being supplied from 
 # parameters, just explosion of parameters is not a great solution
@@ -20,7 +21,7 @@ vlan_if="$VLAN_IF"
 #fixed as well. netplugin should have OVS locally. 
 echo "0.0.0.0 localhost" >> /etc/hosts
 
-while getopts ":xmp:v:i:f:c:" opt; do
+while getopts ":xmp:v:i:f:c:d" opt; do
     case $opt in
        m) 
           netmaster=true
@@ -45,6 +46,9 @@ while getopts ":xmp:v:i:f:c:" opt; do
           ;;
        x)
           reinit=true
+          ;;
+       d)
+          debug="-debug"
           ;;
        :)
           echo "An argument required for $OPTARG was not passed"
@@ -89,9 +93,9 @@ if [ $netmaster == true ]; then
    mkdir -p /var/contiv/log/
    while [ true ]; do
        if [ "$cstore" != "" ]; then
-           /contiv/bin/netmaster  -cluster-mode $plugin -cluster-store $cstore &> /var/contiv/log/netmaster.log
+           /contiv/bin/netmaster $debug -cluster-mode $plugin -cluster-store $cstore &> /var/contiv/log/netmaster.log
        else
-           /contiv/bin/netmaster -cluster-mode $plugin  &> /var/contiv/log/netmaster.log
+           /contiv/bin/netmaster $debug -cluster-mode $plugin  &> /var/contiv/log/netmaster.log
        fi
        echo "CRITICAL : Net Master has exited, Respawn in 5"
        sleep 5
@@ -111,7 +115,7 @@ if [ $netplugin == true ]; then
        if [ "$vlan_if" != "" ]; then
            vlan_if_param="-vlan-if"
        fi
-       /contiv/bin/netplugin $cstore_param $cstore $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if -plugin-mode $plugin &> /var/contiv/log/netplugin.log
+       /contiv/bin/netplugin $debug $cstore_param $cstore $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if -plugin-mode $plugin &> /var/contiv/log/netplugin.log
        echo "CRITICAL : Net Plugin has exited, Respawn in 5"
        sleep 5
    done &
