@@ -3,6 +3,12 @@
 require "json"
 require "yaml"
 
+class Hash
+  def to_raml
+    self.to_yaml.gsub("---", "#%RAML 1.0 Library")
+  end
+end
+
 outfile = "netmaster.raml"
 output = Hash.new { |h, k| h[k] = {} }
 
@@ -14,16 +20,15 @@ Dir["../*.json"].each do |infile|
 
   object = data["objects"][0]
 
-  # autovivification... allows assignment at any depth without declaring each key as a new hash
   properties = Hash.new { |h, k| h[k] = {} }
 
   if object["cfgProperties"]
-    
+
     # for each entry under "cfgProperties", copy the relevant entries to the new
     # properties hash, changing key names as necessary.
     object["cfgProperties"].each do |name, value|
       p = properties[name]
-    
+
       if value["type"] == "int"
         p["type"] = "integer"
       else
@@ -32,8 +37,8 @@ Dir["../*.json"].each do |infile|
 
       if p["type"] == "array"
         p["items"] = {
-		"type" => value["items"]
-	}
+          "type" => value["items"]
+        }
       end
 
       if value["length"] && value["type"] == "string"
@@ -49,37 +54,40 @@ Dir["../*.json"].each do |infile|
       end
 
     end
-    
+
   end
-  
+
   # insert properties into desired output structure
   output["types"][object["name"]] = {
-        "properties" => properties
+    "properties" => properties
   }
-  output["types"][object["name"]+"s"] = {
-        "type" => "array",
-        "items" => {
-	  "type" => object["name"]
-	}
+
+  output["types"]["#{object["name"]}s"] = {
+    "type" => "array",
+    "items" => {
+      "type" => object["name"]
+    }
   }
+
   # update structure, used with put/patch on main route
   #
-  output["types"]["upd_"+object["name"]] = {
-         "type" => object["name"]
+  output["types"]["upd_#{object["name"]}"] = {
+    "type" => object["name"]
   }
+
   # inspect structure, contains operational and config properties
-  output["types"]["inspect_"+object["name"]] = {
-        "properties" => {
-          "Config" => {
-  	    "type" => object["name"]
-  	    }
-        }
+  output["types"]["inspect_#{object["name"]}"] = {
+    "properties" => {
+      "Config" => {
+        "type" => object["name"]
+      }
+    }
   }
-  
+
   if object["operProperties"]
-  
+
     opProperties = Hash.new { |h, k| h[k] = {} }
-  
+
     object["operProperties"].each do |name, value|
       p = opProperties[name]
 
@@ -91,8 +99,8 @@ Dir["../*.json"].each do |infile|
 
       if p["type"] == "array"
         p["items"] = {
-		"type" => value["items"]
-	}   
+          "type" => value["items"]
+        }
       end
 
       if value["length"] && value["type"] == "string"
@@ -106,14 +114,16 @@ Dir["../*.json"].each do |infile|
       if value["format"]
         p["pattern"] = value["format"]
       end
-    
+
     end
-  
+
     # add operational properties if present
-    output["types"]["inspect_"+object["name"]]["properties"]["Oper"] = { "properties" => opProperties }
+    output["types"]["inspect_#{object["name"]}"]["properties"]["Oper"] = {
+      "properties" => opProperties
+    }
 
   end
-  
+
 end
 
-File.write(outfile, output.to_yaml.gsub("---", "#%RAML 1.0 Library"))
+File.write(outfile, output.to_raml)
