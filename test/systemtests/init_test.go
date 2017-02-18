@@ -3,12 +3,14 @@ package systemtests
 import (
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+	. "testing"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"
 	. "gopkg.in/check.v1"
-	"os"
-	. "testing"
 )
 
 type systemtestSuite struct {
@@ -136,6 +138,9 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 	for _, node := range s.nodes {
 		logrus.Infof("Checking for errors on %v", node.Name())
 		out, _ := node.runCommand(`for i in /tmp/net*; do grep "error\|fatal\|panic" $i; done`)
+		if strings.Contains(out, "No such file or directory") {
+			continue
+		}
 		if out != "" {
 			logrus.Errorf("Errors in logfiles on %s: \n", node.Name())
 			fmt.Printf("%s\n==========================\n\n", out)
