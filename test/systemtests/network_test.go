@@ -11,28 +11,35 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *systemtestSuite) TestInfraNetworkAddDeleteVXLAN(c *C) {
+func (s *systemtestSuite) TestInfraNetworkAddDelete(c *C) {
 	if s.basicInfo.Scheduler == "k8" {
 		return
 	}
-	s.testInfraNetworkAddDelete(c, "vxlan")
-}
 
-func (s *systemtestSuite) TestInfraNetworkAddDeleteVLAN(c *C) {
-	if s.basicInfo.Scheduler == "k8" {
-		return
+	doneChan := make(chan struct{}, 2)
+
+	go s.testInfraNetworkAddDelete(c, EncapVXLAN, doneChan, 0)
+	go s.testInfraNetworkAddDelete(c, EncapVLAN, doneChan, 1)
+
+	for i := 0; i < 2; i++ {
+		<-doneChan
 	}
-	s.testInfraNetworkAddDelete(c, "vlan")
 }
 
-func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
+func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string, doneChan chan struct{}, seq int) {
 
 	if s.fwdMode == "routing" && encap == "vlan" {
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
 	}
 
-	for i := 0; i < s.basicInfo.Iterations; i++ {
+	defer func() { doneChan <- struct{}{} }()
+
+	tenantName := fmt.Sprintf("tenant-%d", seq)
+	tenant := &client.Tenant{TenantName: tenantName}
+	c.Assert(s.cli.TenantPost(tenant), IsNil)
+
+	for i := 0; i < 1; i++ {
 		var (
 			netNames = []string{}
 		)
@@ -40,22 +47,16 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 		numInfraNw := 3
 		for networkNum := 0; networkNum < numInfraNw; networkNum++ {
 			network := &client.Network{
-				TenantName:  "default",
+				TenantName:  tenantName,
 				NwType:      "infra",
-				NetworkName: fmt.Sprintf("net%d", networkNum),
-				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
-				Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
-				PktTag:      1001 + networkNum,
+				NetworkName: fmt.Sprintf("%s-%d-%d", encap, networkNum, seq),
+				Subnet:      fmt.Sprintf("10.%d.%d.0/24", 100+seq, networkNum),
+				Gateway:     fmt.Sprintf("10.%d.%d.254", 100+seq, networkNum),
+				PktTag:      1001 + 10*seq + networkNum,
 				Encap:       encap,
 			}
 
 			c.Assert(s.cli.NetworkPost(network), IsNil)
-
-			// TBD: Need to fix timing issue
-			// where endpoint create is received on non-master node
-			// before network create is received
-			time.Sleep(5 * time.Second)
-
 			netNames = append(netNames, network.NetworkName)
 		}
 
@@ -64,7 +65,7 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 				// From first node, ping every node on this network
 				for nodeNum := 1; nodeNum <= len(s.nodes); nodeNum++ {
 					logrus.Infof("Running ping test for network %q node %d", netNames[networkNum], nodeNum)
-					ipaddr := fmt.Sprintf("10.1.%d.%d", networkNum, nodeNum)
+					ipaddr := fmt.Sprintf("10.%d.%d.%d", 100+seq, networkNum, nodeNum)
 					if s.fwdMode == "routing" && encap == "vlan" {
 						err := s.verifyIPs([]string{ipaddr})
 						c.Assert(err, IsNil)
@@ -73,23 +74,32 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 				}
 			}
 		}
-		for _, netName := range netNames {
-			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
-		}
+
+		/*
+			for _, netName := range netNames {
+				//c.Assert(s.cli.NetworkDelete(tenantName, netName), IsNil)
+			}
+		*/
 
 		time.Sleep(5 * time.Second)
 	}
+
+	//c.Assert(s.cli.TenantDelete(tenantName), IsNil)
 }
 
-func (s *systemtestSuite) TestNetworkAddDeleteVXLAN(c *C) {
-	s.testNetworkAddDelete(c, "vxlan")
+func (s *systemtestSuite) TestNetworkAddDelete(c *C) {
+	doneChan := make(chan struct{}, 2)
+
+	go s.testNetworkAddDelete(c, EncapVXLAN, doneChan, 0)
+	go s.testNetworkAddDelete(c, EncapVLAN, doneChan, 1)
+
+	for i := 0; i < 2; i++ {
+		<-doneChan
+	}
 }
 
-func (s *systemtestSuite) TestNetworkAddDeleteVLAN(c *C) {
-	s.testNetworkAddDelete(c, "vlan")
-}
-
-func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
+func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string, doneChan chan struct{}, seq int) {
+	defer func() { doneChan <- struct{}{} }()
 
 	if s.fwdMode == "routing" && encap == "vlan" {
 
@@ -114,14 +124,14 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 				v6subnet = ""
 				v6gateway = ""
 			} else {
-				v6subnet = fmt.Sprintf("1001:%d::/120", networkNum)
-				v6gateway = fmt.Sprintf("1001:%d::254", networkNum)
+				v6subnet = fmt.Sprintf("%d:%d::/120", 1000+seq, networkNum)
+				v6gateway = fmt.Sprintf("%d:%d::254", 1000+seq, networkNum)
 			}
 			network := &client.Network{
 				TenantName:  "default",
-				NetworkName: fmt.Sprintf("net%d-%d", networkNum, i),
-				Subnet:      fmt.Sprintf("10.1.%d.0/24", networkNum),
-				Gateway:     fmt.Sprintf("10.1.%d.254", networkNum),
+				NetworkName: fmt.Sprintf("net%d-%d-%d", seq, networkNum, i),
+				Subnet:      fmt.Sprintf("10.%d.%d.0/24", seq, networkNum),
+				Gateway:     fmt.Sprintf("10.%d.%d.254", seq, networkNum),
 				Ipv6Subnet:  v6subnet,
 				Ipv6Gateway: v6gateway,
 				PktTag:      1001 + networkNum,
