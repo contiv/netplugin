@@ -72,7 +72,13 @@ function GetContrib {
 top_dir=$(git rev-parse --show-toplevel | sed 's|/[^/]*$||')
 
 # kubernetes installation mechanism
+k8_sanity=${CONTIV_K8}
 legacyInstall=0
+
+if [ $k8_sanity == "1" ]; then
+    legacyInstall=1
+fi
+
 if [ "`printf "v1.4\n$k8sVer" | sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g | head -n 1`" != "v1.4" ]; then
    legacyInstall=1
 fi
@@ -85,7 +91,6 @@ else
    echo "Using kubeadm/kubectl installation"
 fi
 
-k8_sanity=${CONTIV_K8}
 if [ $legacyInstall == 1 ] && [ "$k8_sanity" == "" ]; then
    GetContiv
 fi

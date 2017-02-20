@@ -55,8 +55,6 @@ func masterKey(srvInfo objdb.ServiceInfo) string {
 func addMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 	// save it in db
 	MasterDB[masterKey(srvInfo)] = &srvInfo
-	netplugin.Lock()
-	defer netplugin.Unlock()
 	// tell the plugin about the master
 	return netplugin.AddMaster(core.ServiceInfo{
 		HostAddr: srvInfo.HostAddr,
@@ -68,9 +66,6 @@ func addMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 func deleteMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 	// delete from the db
 	delete(MasterDB, masterKey(srvInfo))
-
-	netplugin.Lock()
-	defer netplugin.Unlock()
 
 	// tel plugin about it
 	return netplugin.DeleteMaster(core.ServiceInfo{
@@ -284,12 +279,10 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, ctrlIP,
 				log.Infof("Node add event for {%+v}", nodeInfo)
 
 				// add the node
-				netplugin.Lock()
 				err := netplugin.AddPeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
 					Port:     vxlanUDPPort,
 				})
-				netplugin.Unlock()
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
 				}
@@ -297,12 +290,10 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, ctrlIP,
 				log.Infof("Node delete event for {%+v}", nodeInfo)
 
 				// remove the node
-				netplugin.Lock()
 				err := netplugin.DeletePeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
 					Port:     vxlanUDPPort,
 				})
-				netplugin.Unlock()
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
 				}

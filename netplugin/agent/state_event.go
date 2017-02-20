@@ -62,8 +62,6 @@ func processInfraNwCreate(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetwo
 	log.Infof("Got endpoint create resp from master: %+v", mresp)
 
 	// Take lock to ensure netPlugin processes only one cmd at a time
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	// Ask netplugin to create the endpoint
 	netID := nwCfg.NetworkName + "." + nwCfg.Tenant
@@ -116,8 +114,6 @@ func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkSta
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
 	// so we don't need to worry about that here
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	operStr := ""
 	if isDelete {
@@ -143,8 +139,6 @@ func processEpState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, epID st
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
 	// so we don't need to worry about that here
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	// read endpoint config
 	epCfg := &mastercfg.CfgEndpointState{}
@@ -182,8 +176,6 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, hostID
 		log.Debugf("Ignoring Bgp Event on this host")
 		return err
 	}
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	operStr := ""
 	if isDelete {
@@ -206,9 +198,6 @@ func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID str
 	log.Infof("Received processEpgEvent")
 	var err error
 
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
-
 	operStr := ""
 	if isDelete {
 		operStr = "delete"
@@ -226,9 +215,6 @@ func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID str
 }
 
 func processReinit(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, newCfg *mastercfg.GlobConfig) {
-
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	// parse store URL
 	parts := strings.Split(opts.DbURL, "://")
@@ -291,8 +277,6 @@ func processGlobalConfigUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instance
 }
 
 func processARPModeChange(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, arpMode string) {
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	// parse store URL
 	parts := strings.Split(opts.DbURL, "://")
@@ -323,8 +307,6 @@ func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgS
 	portSpecList := []core.PortSpec{}
 	portSpec := core.PortSpec{}
 
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 	serviceID := svcLBCfg.ID
 
 	log.Infof("Recevied Process Service load balancer event {%v}", svcLBCfg)
@@ -354,6 +336,7 @@ func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgS
 		IPAddress: svcLBCfg.IPAddress,
 		Ports:     portSpecList,
 	}
+
 	operStr := ""
 	if isDelete {
 		err = netPlugin.DeleteServiceLB(serviceID, spec)

@@ -96,6 +96,9 @@ func (p *NetPlugin) Init(pluginConfig Config) error {
 
 // Deinit is a destructor for the NetPlugin configuration.
 func (p *NetPlugin) Deinit() {
+	p.Lock()
+	defer p.Unlock()
+
 	if p.NetworkDriver != nil {
 		p.NetworkDriver.Deinit()
 		p.NetworkDriver = nil
@@ -108,11 +111,15 @@ func (p *NetPlugin) Deinit() {
 
 // CreateNetwork creates a network for a given ID.
 func (p *NetPlugin) CreateNetwork(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.CreateNetwork(id)
 }
 
 // DeleteNetwork deletes a network provided by the ID.
 func (p *NetPlugin) DeleteNetwork(id, nwType, encap string, pktTag, extPktTag int, Gw string, tenant string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DeleteNetwork(id, nwType, encap, pktTag, extPktTag, Gw, tenant)
 }
 
@@ -123,26 +130,36 @@ func (p *NetPlugin) FetchNetwork(id string) (core.State, error) {
 
 // CreateEndpoint creates an endpoint for a given ID.
 func (p *NetPlugin) CreateEndpoint(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.CreateEndpoint(id)
 }
 
 //UpdateEndpointGroup updates the endpoint with the new endpointgroup specification for the given ID.
 func (p *NetPlugin) UpdateEndpointGroup(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.UpdateEndpointGroup(id)
 }
 
 // DeleteEndpoint destroys an endpoint for an ID.
 func (p *NetPlugin) DeleteEndpoint(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DeleteEndpoint(id)
 }
 
 // CreateHostAccPort creates a host access port
 func (p *NetPlugin) CreateHostAccPort(portName, globalIP string) (string, error) {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.CreateHostAccPort(portName, globalIP, p.PluginConfig.Instance.HostPvtNW)
 }
 
 // DeleteHostAccPort creates a host access port
 func (p *NetPlugin) DeleteHostAccPort(portName string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DeleteHostAccPort(portName)
 }
 
@@ -153,71 +170,99 @@ func (p *NetPlugin) FetchEndpoint(id string) (core.State, error) {
 
 // AddPeerHost adds an peer host.
 func (p *NetPlugin) AddPeerHost(node core.ServiceInfo) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.AddPeerHost(node)
 }
 
 // DeletePeerHost removes a peer host.
 func (p *NetPlugin) DeletePeerHost(node core.ServiceInfo) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DeletePeerHost(node)
 }
 
 // AddMaster adds a master node.
 func (p *NetPlugin) AddMaster(node core.ServiceInfo) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.AddMaster(node)
 }
 
 // DeleteMaster removes a master node
 func (p *NetPlugin) DeleteMaster(node core.ServiceInfo) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DeleteMaster(node)
 }
 
 //AddBgp adds bgp configs
 func (p *NetPlugin) AddBgp(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.AddBgp(id)
 }
 
 //DeleteBgp deletes bgp configs
 func (p *NetPlugin) DeleteBgp(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DeleteBgp(id)
 }
 
 //AddServiceLB adds service
 func (p *NetPlugin) AddServiceLB(servicename string, spec *core.ServiceSpec) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.AddSvcSpec(servicename, spec)
 }
 
 //DeleteServiceLB deletes service
 func (p *NetPlugin) DeleteServiceLB(servicename string, spec *core.ServiceSpec) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DelSvcSpec(servicename, spec)
 }
 
 //SvcProviderUpdate function
 func (p *NetPlugin) SvcProviderUpdate(servicename string, providers []string) {
+	p.Lock()
+	defer p.Unlock()
 	p.NetworkDriver.SvcProviderUpdate(servicename, providers)
 }
 
 // GetEndpointStats returns all endpoint stats
 func (p *NetPlugin) GetEndpointStats() ([]byte, error) {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.GetEndpointStats()
 }
 
 // InspectState returns current state of the plugin
 func (p *NetPlugin) InspectState() ([]byte, error) {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.InspectState()
 }
 
 // InspectBgp returns current state of the plugin
 func (p *NetPlugin) InspectBgp() ([]byte, error) {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.InspectBgp()
 }
 
 // InspectNameserver returns current state of the nameserver
 func (p *NetPlugin) InspectNameserver() ([]byte, error) {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.InspectNameserver()
 }
 
 //GlobalConfigUpdate update global config
 func (p *NetPlugin) GlobalConfigUpdate(cfg Config) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.GlobalConfigUpdate(cfg.Instance)
 }
 
@@ -225,6 +270,8 @@ func (p *NetPlugin) GlobalConfigUpdate(cfg Config) error {
 func (p *NetPlugin) Reinit(cfg Config) {
 	var err error
 
+	p.Lock()
+	defer p.Unlock()
 	if p.NetworkDriver != nil {
 		logrus.Infof("Reinit de-initializing NetworkDriver")
 		p.NetworkDriver.Deinit()
@@ -236,16 +283,9 @@ func (p *NetPlugin) Reinit(cfg Config) {
 	logrus.Infof("Reinit Initializing NetworkDriver")
 
 	if err != nil {
-		logrus.Errorf("Error initializing NetworkDriver %v", err)
-		return
+		logrus.Errorf("Reinit De-initializing due to error: %v", err)
+		p.NetworkDriver.Deinit()
 	}
-
-	defer func() {
-		if err != nil {
-			logrus.Errorf("Reinit De-initializing due to error: %v", err)
-			p.NetworkDriver.Deinit()
-		}
-	}()
 }
 
 //InitGlobalSettings initializes cluster-wide settings (e.g. fwd-mode)
@@ -270,4 +310,18 @@ func InitGlobalSettings(stateDriver core.StateDriver, inst *core.InstanceInfo) {
 		inst.HostPvtNW = net
 		logrus.Infof("HostPvtNW: %v", net)
 	}
+}
+
+//AddSvcSpec adds k8 service spec
+func (p *NetPlugin) AddSvcSpec(svcName string, spec *core.ServiceSpec) {
+	p.Lock()
+	defer p.Unlock()
+	p.NetworkDriver.AddSvcSpec(svcName, spec)
+}
+
+//DelSvcSpec deletes k8 service spec
+func (p *NetPlugin) DelSvcSpec(svcName string, spec *core.ServiceSpec) {
+	p.Lock()
+	defer p.Unlock()
+	p.NetworkDriver.DelSvcSpec(svcName, spec)
 }

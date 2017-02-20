@@ -17,11 +17,11 @@ package state
 
 import (
 	"errors"
+	"fmt"
+	"golang.org/x/net/context"
 	"reflect"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/coreos/etcd/client"
@@ -106,12 +106,12 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 	defer cancel()
 
 	resp, err := d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
-	if err != nil {
+	if err != nil || resp == nil || resp.Node == nil {
 		// Retry few times if cluster is unavailable
 		if err.Error() == client.ErrClusterUnavailable.Error() {
 			for i := 0; i < maxEtcdRetries; i++ {
 				resp, err = d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
-				if err == nil {
+				if err == nil && resp.Node != nil {
 					break
 				}
 
@@ -122,8 +122,11 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 			return []byte{}, err
 		}
 	}
+	if resp != nil && resp.Node != nil {
+		return []byte(resp.Node.Value), err
+	}
+	return []byte{}, fmt.Errorf("Error reading from etcd")
 
-	return []byte(resp.Node.Value), err
 }
 
 // ReadAll state from baseKey.

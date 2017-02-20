@@ -166,10 +166,10 @@ func InitKubServiceWatch(np *plugin.NetPlugin) {
 					break
 
 				case "DELETED":
-					np.NetworkDriver.DelSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
+					np.DelSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
 					break
 				default:
-					np.NetworkDriver.AddSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
+					np.AddSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
 				}
 			case epEvent := <-epCh:
 				switch epEvent.opcode {
@@ -185,7 +185,7 @@ func InitKubServiceWatch(np *plugin.NetPlugin) {
 					break
 
 				default:
-					np.NetworkDriver.SvcProviderUpdate(epEvent.svcName, epEvent.providers)
+					np.SvcProviderUpdate(epEvent.svcName, epEvent.providers)
 				}
 			}
 		}
