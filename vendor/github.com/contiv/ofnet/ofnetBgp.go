@@ -55,6 +55,7 @@ type OfnetBgp struct {
 	intfName      string //loopback intf to run bgp
 	oldState      string
 	oldAdminState string
+	eBGP          bool
 }
 
 type OfnetBgpInspect struct {
@@ -343,6 +344,9 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 	self.agent.endpointDb.Set(epreg.EndpointID, epreg)
 
 	self.myBgpPeer = neighborInfo.NeighborIP
+	if self.myBgpAs != uint32(peerAs) {
+		self.eBGP = true
+	}
 	go self.sendArp(self.stopArp)
 
 	paths := []*OfnetProtoRouteInfo{}
@@ -387,10 +391,15 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo []*OfnetProtoRouteInfo) error 
 	attrs := []bgp.PathAttributeInterface{
 		bgp.NewPathAttributeOrigin(1),
 		bgp.NewPathAttributeNextHop(pathInfo[0].nextHopIP),
-		bgp.NewPathAttributeAsPath([]bgp.AsPathParamInterface{bgp.NewAs4PathParam(bgp.BGP_ASPATH_ATTR_TYPE_SEQ, []uint32{self.myBgpAs})}),
+	}
+	if self.eBGP {
+		attrs = append(attrs, bgp.NewPathAttributeAsPath([]bgp.AsPathParamInterface{bgp.NewAs4PathParam(bgp.BGP_ASPATH_ATTR_TYPE_SEQ, []uint32{self.myBgpAs})}))
 	}
 	paths := []*table.Path{}
 	for _, path := range pathInfo {
+		if path.localEpIP == self.routerIP {
+			continue
+		}
 		paths = append(paths, table.NewPath(nil, bgp.NewIPAddrPrefix(32, path.localEpIP), false, attrs, time.Now(), false))
 	}
 
