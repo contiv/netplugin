@@ -121,6 +121,17 @@ echo "export https_proxy='$2'" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 SCRIPT
 
+def customize(v, id)
+  # make all nics 'virtio' to take benefit of builtin vlan tag
+  # support, which otherwise needs to be enabled in Intel drivers,
+  # which are used by default by virtualbox
+  # changes the settings for the first 5 NICs, regardless of presence
+  1.upto(5) do |n|
+    v.customize ['modifyvm', :id, "--nictype#{n}", 'virtio']
+  end
+  v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
+end
+
 module VagrantPlugins
   module EnvState
     class Plugin < Vagrant.plugin('2')
@@ -204,6 +215,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         quagga1.vm.network "private_network",
                          ip: "70.1.1.2",
                          virtualbox__intnet: "contiv_blue"
+        quagga1.vm.provider "virtualbox" do |v|
+            customize(v, :id)
+        end
+
         quagga1.vm.provision "shell" do |s|
           s.inline = provision_bird
           s.args = [http_proxy, https_proxy]
@@ -224,6 +239,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         quagga2.vm.network "private_network",
                          ip: "50.1.1.200",
                          virtualbox__intnet: "contiv_yellow"
+
+        quagga2.vm.provider "virtualbox" do |v|
+            customize(v, :id)
+        end
 
         quagga2.vm.provision "shell" do |s|
           s.inline = provision_bird
@@ -263,17 +282,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: network_name, auto_config: false
             node.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "contiv_purple", auto_config: false
             node.vm.provider "virtualbox" do |v|
-                # make all nics 'virtio' to take benefit of builtin vlan tag
-                # support, which otherwise needs to be enabled in Intel drivers,
-                # which are used by default by virtualbox
-                v.customize ['modifyvm', :id, '--nictype1', 'virtio']
-                v.customize ['modifyvm', :id, '--nictype2', 'virtio']
-                v.customize ['modifyvm', :id, '--nictype3', 'virtio']
-                v.customize ['modifyvm', :id, '--nictype4', 'virtio']
+                customize(v, :id)
                 v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
                 v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
                 v.customize ['modifyvm', :id, '--nicpromisc4', 'allow-all']
-                v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
             end
 
             # mount the host directories
