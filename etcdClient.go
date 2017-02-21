@@ -18,8 +18,6 @@ package objdb
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"net/http"
 	"sync"
 	"time"
 
@@ -39,15 +37,6 @@ type EtcdClient struct {
 	kapi   client.KeysAPI
 
 	serviceDb map[string]*etcdServiceState
-}
-
-type member struct {
-	Name       string   `json:"name"`
-	ClientURLs []string `json:"clientURLs"`
-}
-
-type memData struct {
-	Members []member `json:"members"`
 }
 
 // Max retry count
@@ -252,27 +241,4 @@ func (ep *EtcdClient) DelObj(key string) error {
 	}
 
 	return nil
-}
-
-// Get JSON output from a http request
-func httpGetJSON(url string, data interface{}) (interface{}, error) {
-	res, err := http.Get(url)
-	if err != nil {
-		log.Errorf("Error during http get. Err: %v", err)
-		return nil, err
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Errorf("Error during ioutil readall. Err: %v", err)
-		return nil, err
-	}
-
-	if err := json.Unmarshal(body, data); err != nil {
-		log.Errorf("Error during json unmarshall. Err: %v", err)
-		return nil, err
-	}
-
-	log.Debugf("Results for (%s): %+v\n", url, data)
-
-	return data, nil
 }
