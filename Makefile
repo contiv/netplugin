@@ -3,7 +3,7 @@
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
-EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor install 
+EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor install
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/netcontiv/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
@@ -50,21 +50,21 @@ godep-save:
 godep-restore:
 	godep restore ./...
 
-gofmt-src: $(PKG_DIRS)
+gofmt-src:
 	$(info +++ gofmt $(PKG_DIRS))
-	@for dir in $?; do $(GOFMT_CMD) $${dir} | grep "go"; [[ $$? -ne 0 ]] || exit 1; done
+	@for dir in $(PKG_DIRS); do $(GOFMT_CMD) $${dir} | grep "go"; [[ $$? -ne 0 ]] || exit 1; done
 
-golint-src: $(PKG_DIRS)
+golint-src:
 	$(info +++ golint $(PKG_DIRS))
-	@for dir in $?; do $(GOLINT_CMD) $${dir}/... || exit 1;done
+	@for dir in $(PKG_DIRS); do $(GOLINT_CMD) $${dir}/... || exit 1;done
 
-govet-src: $(PKG_DIRS)
+govet-src:
 	$(info +++ govet $(PKG_DIRS))
-	@for dir in $?; do $(GOVET_CMD) $${dir} || exit 1;done
+	@for dir in $(PKG_DIRS); do $(GOVET_CMD) $${dir} || exit 1;done
 
-misspell-src: $(PKG_DIRS)
+misspell-src:
 	$(info +++ check spelling $(PKG_DIRS))
-	misspell -locale US -error $?
+	misspell -locale US -error $(PKG_DIRS)
 
 go-version:
 	$(info +++ check go version)
@@ -77,19 +77,16 @@ endif
 
 checks: go-version gofmt-src golint-src govet-src misspell-src
 
-# We cannot perform sudo inside a golang, the only reason to split the rules
-# here
-ifdef NET_CONTAINER_BUILD
 run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	GOGC=1500 go install -v $(TO_BUILD) && \
+	GOGC=1500 go install -v $(TO_BUILD)
+
+ifdef NET_CONTAINER_BUILD
+install-shell-completion:
 	cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
 else
-run-build: deps checks clean
-	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
-	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	GOGC=1500 go install -v $(TO_BUILD) && \
+install-shell-completion:
 	sudo cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
 endif
 
@@ -134,8 +131,8 @@ k8s-test:
 	cd vagrant/k8s/ && CONTIV_K8=1 vagrant ssh k8master -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	CONTIV_K8=1 cd vagrant/k8s/ && ./start_sanity_service.sh
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8'
-	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|TestBasic|TestNetwork|TestPolicy|TestTrigger"   
-	cd vagrant/k8s && vagrant destroy -f 
+	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|TestBasic|TestNetwork|TestPolicy|TestTrigger"
+	cd vagrant/k8s && vagrant destroy -f
 # Mesos demo targets
 mesos-docker-demo:
 	cd vagrant/mesos-docker && vagrant up
@@ -174,13 +171,13 @@ ssh:
 
 ifdef NET_CONTAINER_BUILD
 ssh-build:
-	cd /go/src/github.com/contiv/netplugin && make run-build
+	cd /go/src/github.com/contiv/netplugin && make run-build install-shell-completion
 else
 ssh-build: start
-		vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
+	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build install-shell-completion"'
 endif
 
-unit-test: stop clean 
+unit-test: stop clean
 	./scripts/unittests -vagrant
 
 integ-test: stop clean start
@@ -191,7 +188,7 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
-	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py 
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py
 	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 
 l3-test:
@@ -199,7 +196,7 @@ l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make start
 	CONTIV_L3=2 CONTIV_NODES=3 make ssh-build
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -contiv_l3 2
-	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v  
+	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 l3-demo:
 	CONTIV_L3=1 CONTIV_NODES=3 vagrant up
@@ -249,7 +246,7 @@ host-restart:
 # create the rootfs for v2plugin. this is required for docker plugin create command
 host-pluginfs-create:
 	@echo dev: creating a docker v2plugin rootfs ...
-	sh scripts/v2plugin_rootfs.sh 
+	sh scripts/v2plugin_rootfs.sh
 
 # if rootfs already exists, copy newly compiled contiv binaries and start plugin on local host
 host-plugin-update:
@@ -273,7 +270,7 @@ demo-v2plugin:
 
 only-tar:
 
-tar: clean-tar 
+tar: clean-tar
 	CONTIV_NODES=1 ${MAKE} build
 	@cat ${GOPATH}/src/github.com/contiv/netplugin/version/version_gen.go | grep versionStr | cut -f 4 -d " " | tr -d \" > $(VERSION_FILE)
 	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s netcontiv -C $(GOPATH)/src/github.com/contiv/netplugin/scripts contrib/completion/bash/netctl
