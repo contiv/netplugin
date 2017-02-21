@@ -451,22 +451,25 @@ func (d *docker) startNetmaster() error {
 func (d *docker) cleanupMaster() {
 	logrus.Infof("Cleaning up master on %s", d.node.Name())
 	vNode := d.node.tbnode
-	vNode.RunCommand("etcdctl rm --recursive /contiv")
-	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
-	vNode.RunCommand("etcdctl rm --recursive /docker")
-	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
-	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
+	vNode.RunCommand(`etcdctl rm --recursive /contiv || true &
+	etcdctl rm --recursive /contiv.io || true &
+	etcdctl rm --recursive /docker || true &
+	curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true || true &
+	curl -X DELETE localhost:8500/v1/kv/docker?recurse=true || true &
+	wait`)
 }
 
 func (d *docker) cleanupSlave() {
 	logrus.Infof("Cleaning up slave on %s", d.node.Name())
 	vNode := d.node.tbnode
-	vNode.RunCommand("sudo ovs-vsctl del-br contivVxlanBridge")
-	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
-	vNode.RunCommand("sudo ovs-vsctl del-br contivHostBridge")
-	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
-	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
-	vNode.RunCommand("sudo service docker restart")
+	vNode.RunCommand(`sudo ovs-vsctl del-br contivVxlanBridge || true &
+	sudo ovs-vsctl del-br contivVlanBridge || true &
+	sudo ovs-vsctl del-br contivHostBridge || true &
+	sudo service docker restart &
+	interfaces=$(ip link | grep vport | awk '"'"'{ print $2 }'"'"' | tr -d : > /tmp/vports || true)
+	for p in $interfaces; do sudo ip link delete $p type veth || true; done &
+	sudo rm /var/run/docker/plugins/netplugin.sock || true &
+	wait`)
 }
 
 func (d *docker) runCommandUntilNoNetpluginError() error {

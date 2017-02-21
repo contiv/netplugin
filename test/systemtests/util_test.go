@@ -310,10 +310,10 @@ func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName,
 
 	errChan := make(chan error)
 
-        if len(dnsServer) <= 0 {
-           logrus.Errorf("no dns specified")
-           return nil, fmt.Errorf("no dns")
-        }
+	if len(dnsServer) <= 0 {
+		logrus.Errorf("no dns specified")
+		return nil, fmt.Errorf("no dns")
+	}
 
 	docknetName := fmt.Sprintf("%s/%s", networkName, tenantName)
 	if tenantName == "default" {
