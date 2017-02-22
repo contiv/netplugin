@@ -1,3 +1,7 @@
+#!/bin/bash
+
+set -euo pipefail
+
 $GOPATH/bin/modelgen ./ ./
-gofmt -w *.go
-gofmt -w client/*.go
+gofmt -s -w *.go
+gofmt -s -w client/*.go
