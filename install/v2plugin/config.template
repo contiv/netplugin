@@ -1,0 +1,76 @@
+{
+    "manifestVersion": "v0",
+    "description": "Contiv network plugin for Docker",
+    "documentation": "https://contiv.github.io",
+    "entrypoint": ["/startcontiv.sh"],
+    "network": {
+           "type": "host"
+    },
+    "env": [
+       {
+          "Description": "",
+          "Name": "dbg_flag",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "",
+          "Name": "iflist",
+          "Settable": [
+             "value"
+          ],
+          "Value": "eth2,eth3"
+       },
+       {
+          "Description": "",
+          "Name": "cluster_store",
+          "Settable": [
+             "value"
+          ],
+          "Value": "etcd://localhost:2379"
+       },
+       {
+          "Description": "",
+          "Name": "plugin_name",
+          "Settable": [
+             "value"
+          ],
+          "Value": "PluginName"
+       }
+    ],
+    "mounts": [
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/etc/openvswitch",
+          "destination": "/etc/openvswitch"
+       },
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/var/log/openvswitch",
+          "destination": "/var/log/openvswitch"
+       },
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/var/run",
+          "destination": "/var/run"
+       },
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/lib/modules",
+          "destination": "/lib/modules"
+       }
+    ],
+    "interface" : {
+          "types": ["docker.networkdriver/1.0", "docker.ipamdriver/1.0"],
+          "socket": "netplugin.sock"
+    },
+    "Linux": {
+          "Capabilities": ["CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_MODULE"]
+    }
+}

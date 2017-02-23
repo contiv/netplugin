@@ -244,6 +244,23 @@ host-restart:
 	@echo dev: restarting services...
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./startPlugin.py -nodes ${CLUSTER_NODE_IPS}
 
+host-pluginfs-create:
+	@echo dev: creating a docker v2plugin rootfs ...
+	sh scripts/v2plugin_rootfs.sh 
+
+host-plugin-update:
+	@echo dev: updating a docker v2plugin ...
+	cp bin/netplugin bin/netmaster bin/netctl install/v2plugin/rootfs
+	docker plugin create contiv/netplugin:0.1 install/v2plugin
+
+host-plugin-restart:
+	@echo dev: restarting services...
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./startPlugin.py -nodes ${CLUSTER_NODE_IPS} -plugintype "v2plugin"
+
+demo-v2plugin:
+	CONTIV_V2PLUGIN_NAME="$${CONTIV_V2PLUGIN_NAME:-contiv/v2plugin:0.1}" CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-1.13.1}" make ssh-build
+	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-pluginfs-create && make host-plugin-restart && make host-swarm-restart"'
+
 only-tar:
 
 tar: clean-tar 

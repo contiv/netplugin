@@ -36,6 +36,7 @@ echo "export USE_RELEASE=$5" >> /etc/profile.d/envvar.sh
 echo "export no_proxy=$2,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 echo "export CLUSTER_NODE_IPS=$2" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_CLUSTER_STORE=$6" >> /etc/profile.d/envvar.sh
+echo "export CONTIV_V2PLUGIN_NAME=$9" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
 rm -rf /usr/local/go
@@ -67,7 +68,13 @@ else
     # cleanup openstack-kilo repo if required
     yum remove docker-engine -y || :
     yum-config-manager --disable openstack-kilo
-    curl https://get.docker.com | sed s/docker-engine/docker-engine-#{docker_version}/ | bash
+    if [[ #{docker_version} == *"rc"* ]]; then
+        echo "Getting pre-release docker version #{docker_version} "
+        curl -fsSL https://test.docker.com/ | sh
+    else
+        echo "Getting released docker version #{docker_version} "
+        curl https://get.docker.com | sed s/docker-engine/docker-engine-#{docker_version}/ | bash
+    fi
 fi
 
 # setup docker cluster store
@@ -310,6 +317,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                   ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379",
                   ENV["CONTIV_DOCKER_VERSION"] || docker_version,
                   ENV['CONTIV_NODE_OS'] || "",
+                  ENV['CONTIV_V2PLUGIN_NAME'] || "contiv/v2netplugin:0.1",
                   *ENV['CONTIV_ENV'],
                 ]
             end

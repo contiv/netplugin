@@ -23,12 +23,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/netmaster/daemon"
+	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/version"
 )
 
 type cliOpts struct {
 	help         bool
 	debug        bool
+	pluginName   string
 	clusterStore string
 	listenURL    string
 	clusterMode  string
@@ -43,7 +45,7 @@ func usage() {
 }
 
 func parseOpts(opts *cliOpts) error {
-	flagSet = flag.NewFlagSet("netm", flag.ExitOnError)
+	flagSet = flag.NewFlagSet("netmaster", flag.ExitOnError)
 	flagSet.BoolVar(&opts.help,
 		"help",
 		false,
@@ -52,6 +54,10 @@ func parseOpts(opts *cliOpts) error {
 		"debug",
 		false,
 		"Turn on debugging information")
+	flagSet.StringVar(&opts.pluginName,
+		"plugin-name",
+		"netplugin",
+		"Plugin name used for docker v2 plugin")
 	flagSet.StringVar(&opts.clusterStore,
 		"cluster-store",
 		"etcd://127.0.0.1:2379",
@@ -90,6 +96,8 @@ func execOpts(opts *cliOpts) {
 	if opts.debug {
 		log.SetLevel(log.DebugLevel)
 	}
+
+	docknet.UpdatePluginName(opts.pluginName)
 }
 
 func main() {

@@ -367,6 +367,54 @@ func leave(w http.ResponseWriter, r *http.Request) {
 	w.Write(content)
 }
 
+func allocateNetwork(w http.ResponseWriter, r *http.Request) {
+	resp := api.AllocateNetworkResponse{}
+
+	content, err := json.Marshal(resp)
+	if err != nil {
+		httpError(w, "Could not generate a response", err)
+		return
+	}
+
+	w.Write(content)
+}
+
+func freeNetwork(w http.ResponseWriter, r *http.Request) {
+	resp := api.FreeNetworkResponse{}
+
+	content, err := json.Marshal(resp)
+	if err != nil {
+		httpError(w, "Could not generate a response", err)
+		return
+	}
+
+	w.Write(content)
+}
+
+func programExternalConnectivity(w http.ResponseWriter, r *http.Request) {
+	resp := api.ProgramExternalConnectivityResponse{}
+
+	content, err := json.Marshal(resp)
+	if err != nil {
+		httpError(w, "Could not generate a response", err)
+		return
+	}
+
+	w.Write(content)
+}
+
+func revokeExternalConnectivity(w http.ResponseWriter, r *http.Request) {
+	resp := api.RevokeExternalConnectivityResponse{}
+
+	content, err := json.Marshal(resp)
+	if err != nil {
+		httpError(w, "Could not generate a response", err)
+		return
+	}
+
+	w.Write(content)
+}
+
 func netdGetEndpoint(epID string) (*drivers.OvsOperEndpointState, error) {
 	// Get hold of the state driver
 	stateDriver, err := utils.GetStateDriver()
