@@ -38,9 +38,17 @@ echo "export CLUSTER_NODE_IPS=$2" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_CLUSTER_STORE=$6" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
-rm -rf /usr/local/go
+installed_go=$(go version | awk '{ print $3}')
+if [ "$installed_go" == "go#{go_version}" ]; then
+    echo "The installed Go version is already #{go_version}."
+    echo "Skipping Go reinstall"
+else
+    echo "The installed Go version is $installed_go"
+    echo "Uninstalling Go $installed_go & installing Go #{go_version}"
+    rm -rf /usr/local/go
 
-curl -sSL https://storage.googleapis.com/golang/go#{go_version}.linux-amd64.tar.gz  | sudo tar -xz -C /usr/local
+    curl -sSL https://storage.googleapis.com/golang/go#{go_version}.linux-amd64.tar.gz  | sudo tar -xz -C /usr/local
+fi
 
 if [[ $# -gt 9 ]] && [[ $9 != "" ]]; then
     shift; shift; shift; shift; shift; shift; shift; shift; shift
@@ -50,20 +58,30 @@ fi
 # Change ownership for gopath folder
 chown -R vagrant #{gopath_folder}
 
-# Remove the unneeded ceph repository if it exists
-echo "Remove the unneeded ceph repository if it exists"
-rm -f /etc/yum.repos.d/ceph.repo
-yum clean all
+if [[ $8 != "ubuntu" ]]; then
+    # Remove the unneeded ceph repository if it exists
+    echo "Remove the unneeded ceph repository if it exists"
+    rm -f /etc/yum.repos.d/ceph.repo
+    yum clean all
+fi
 
 # Install specific docker version if required
-echo "Cleaning docker up to reinstall"
+installed_docker=$(sudo docker version | grep Version | tail -1 | awk '{ print $2 }')
+if [[ "$installed_docker" != "#{docker_version}" ]]; then
+    reinstall=1
+    echo "Installing Docker #{docker_version}"
+else
+    echo "Docker #{docker_version} is already installed"
+fi
+
+echo "Cleaning up the Docker directory"
 service docker stop || :
 rm -rf /var/lib/docker
-echo "Installing docker version " $7
-if [[ $8 == "ubuntu" ]]; then
+
+if [[ $8 == "ubuntu" ]] && [[ "$reinstall" -eq 1 ]]; then
     sudo apt-get purge docker-engine -y || :
     curl https://get.docker.com | sed s/docker-engine/docker-engine=#{docker_version}-0~xenial/g | bash
-else
+elif [[ "$reinstall" -eq 1 ]]; then
     # cleanup openstack-kilo repo if required
     yum remove docker-engine -y || :
     yum-config-manager --disable openstack-kilo
@@ -181,8 +199,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         config.vm.box = "contiv/ubuntu1604-netplugin"
         config.vm.box_version = "0.7.0"
     else
-        config.vm.box = "contiv/centos72"
-        config.vm.box_version = "0.7.0"
+        config.vm.box = "contiv/centos73"
+        config.vm.box_version = "0.10.0"
     end
     config.vm.provider 'virtualbox' do |v|
         v.linked_clone = true if Vagrant::VERSION >= "1.8"
