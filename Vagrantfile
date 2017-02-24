@@ -35,8 +35,8 @@ SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-    config.vm.box = "contiv/ubuntu1504-netplugin"
-    config.vm.box_version = "0.3.1"
+    config.vm.box = "contiv/centos73"
+    config.vm.box_version = "0.10.0"
     num_nodes = 1
     base_ip = "192.168.10."
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }

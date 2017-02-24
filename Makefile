@@ -1,5 +1,5 @@
 
-.PHONY: all build test
+.PHONY: all build update start stop test host-build host-test godep
 
 all: build test
 
@@ -25,6 +25,7 @@ host-build:
 	go install ./ ./modeldb
 
 host-test:
+	etcdctl rm --recursive /contiv.io || true
 	go test -v ./ ./modeldb
 	go test -bench=. -run "Benchmark"
 
