@@ -22,10 +22,10 @@ rm -rf .vagrant/* || true
 rm -f *.vdi || true
 
 for f in $(vboxmanage list vms | awk {'print $2'} | cut -d'{' -f2 | cut -d'}' -f1); do
-    echo $f
-    vboxmanage controlvm $f poweroff || true
-    sleep 5
-    vboxmanage unregistervm --delete $f || true
+	echo $f
+	vboxmanage controlvm $f poweroff || true
+	sleep 5
+	vboxmanage unregistervm --delete $f || true
 done
 
 echo "Cleanup finished."
