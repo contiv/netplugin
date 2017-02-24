@@ -573,9 +573,6 @@ func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) error {
 	return nil
 }
 
-// FIXME: hack to allocate unique endpoint group ids
-var globalEpgID = 1
-
 // EndpointGroupCreate creates Endpoint Group
 func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.EndpointGroup) error {
 	log.Infof("Received EndpointGroupCreate: %+v", endpointGroup)

@@ -16,6 +16,7 @@ limitations under the License.
 package gstate
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/contiv/netplugin/netmaster/resources"
@@ -29,16 +30,9 @@ var (
 func TestGlobalConfigAutoVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Tenant"  : "default",
             "Auto" : {
-                "SubnetPool"        : "11.5.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
                 "VLANs"             : "1-10",
                 "VXLANs"            : "15000-17000"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vlan"
             }
         }`)
 	var vlan uint
@@ -86,16 +80,9 @@ func TestGlobalConfigAutoVLANs(t *testing.T) {
 func TestGlobalConfigAutoVXLAN(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Tenant"  : "default",
             "Auto" : {
-                "SubnetPool"        : "11.5.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
                 "VLANs"             : "1-10",
                 "VXLANs"            : "15000-17000"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vxlan"
             }
         }`)
 	var vxlan, localVLAN uint
@@ -143,16 +130,9 @@ func TestGlobalConfigAutoVXLAN(t *testing.T) {
 func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Tenant"  : "default",
             "Auto" : {
-                "SubnetPool"        : "11.5.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
                 "VLANs"             : "100-400,500-900",
                 "VXLANs"            : "10000-12000"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vxlan"
             }
         }`)
 	var vlan, localVLAN, vxlan uint
@@ -213,16 +193,9 @@ func TestGlobalConfigDefaultVXLANWithVLANs(t *testing.T) {
 func TestInvalidGlobalConfigMoreThan4KVLANs(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Tenant"  : "default",
             "Auto" : {
-                "SubnetPool"        : "11.5.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
                 "VLANs"             : "1-5000",
                 "VXLANs"            : "10000-10001"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vlan"
             }
         }`)
 
@@ -235,16 +208,9 @@ func TestInvalidGlobalConfigMoreThan4KVLANs(t *testing.T) {
 func TestInvalidGlobalConfig(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Tenant"  : "default",
             "Auto" : {
-                "SubnetPool"        : "11.5.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
                 "VLANs"             : "100-400,900-500",
                 "VXLANs"            : "10000-20000"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vlan"
             }
         }`)
 
@@ -257,16 +223,8 @@ func TestInvalidGlobalConfig(t *testing.T) {
 func TestDefaultNetwork(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Tenant"  : "default",
             "Auto" : {
-                "SubnetPool"        : "11.1.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
                 "VLANs"             : "100-400"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vlan",
-                "DefaultNetwork"    : "purple"
             }
         }`)
 
@@ -296,15 +254,8 @@ func TestDefaultNetwork(t *testing.T) {
 func TestAutoDefaultNetwork(t *testing.T) {
 	cfgData := []byte(`
         {
-            "Tenant"  : "default",
             "Auto" : {
-                "SubnetPool"        : "11.1.0.0",
-                "SubnetLen"         : 16,
-                "AllocSubnetLen"    : 24,
                 "VLANs"             : "100-400"
-            },
-            "Deploy" : {
-                "DefaultNetType"    : "vlan"
             }
         }`)
 
@@ -329,4 +280,57 @@ func TestAutoDefaultNetwork(t *testing.T) {
 	if err := gc.UnassignNetwork("orange"); err != nil {
 		t.Fatalf("Error: '%s' could not unassign default network", err)
 	}
+}
+
+func TestGlobalEPGResource(t *testing.T) {
+	var gc Cfg
+
+	gstateSD.Init(nil)
+	defer func() { gstateSD.Deinit() }()
+	gc.StateDriver = gstateSD
+
+	_, err := resources.NewStateResourceManager(gstateSD)
+	if err != nil {
+		t.Fatalf("Failed to instantiate resource manager. Error: %s", err)
+	}
+	defer func() { resources.ReleaseStateResourceManager() }()
+
+	err = gc.Process("epg")
+	if err != nil {
+		t.Fatalf("error '%s' processing config %v for EPG resource\n", err, gc)
+	}
+
+	// Check if allocation of EPGs start from 1
+	epgID, err := gc.AllocNextEPG()
+	if epgID != 1 {
+		t.Fatalf("EPG allocation doesn't start from 1")
+	}
+
+	// Allocate a few more EPGs
+	for i := 1; i < 10; i++ {
+		epgID, err = gc.AllocNextEPG()
+		if err != nil {
+			t.Fatalf("Error allocation next EPG\n", err)
+		}
+	}
+
+	// Check allocation of the same EPG fails
+	reqEpgID := uint(10)
+	_, err = gc.AllocEPG(reqEpgID)
+	if err == nil {
+		t.Fatalf("Same EPG allocated again")
+	}
+
+	// Check if the freed EPG IDs are getting re-used
+	freeEpgID := uint(rand.Intn(int(epgID)))
+	err = gc.FreeEPG(freeEpgID)
+	if err != nil {
+		t.Fatalf("Error freeing EPG: %d", epgID)
+	}
+
+	epgID, err = gc.AllocNextEPG()
+	if epgID != freeEpgID {
+		t.Fatalf("Freed EPG not getting re-used. Freed EPG: %d, Allocated EPG: %d", freeEpgID, epgID)
+	}
+
 }
