@@ -31,5 +31,6 @@ for node in nodes:
 	node.stopNetmaster()
 	node.cleanupDockerNetwork()
 	node.stopNetplugin()
+	node.stopV2Plugin()
 	node.cleanupMaster()
 	node.cleanupSlave()

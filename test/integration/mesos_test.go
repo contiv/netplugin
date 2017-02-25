@@ -244,7 +244,8 @@ func (cfg1 *testConfigData) runContainer(its *integTestSuite, c *C) {
 	containerID := resp.ID
 
 	// Start the container
-	err = docker.ContainerStart(context.Background(), containerID)
+	containerOpts := types.ContainerStartOptions{}
+	err = docker.ContainerStart(context.Background(), containerID, containerOpts)
 	assertNoErr(err, c, fmt.Sprintf("start container %s", containerName))
 
 	cfg1.reqAttr.CniContainerid = containerID
@@ -269,7 +270,7 @@ func (cfg1 *testConfigData) destroyContainer(its *integTestSuite, c *C) {
 
 	cinfo := &cfg1.reqAttr
 	intLog.Infof("stop container %s", cinfo.CniContainerid)
-	err := docker.ContainerStop(context.Background(), cinfo.CniContainerid, 0)
+	err := docker.ContainerStop(context.Background(), cinfo.CniContainerid, nil)
 	assertNoErr(err, c, fmt.Sprintf("stop container %s", cinfo.CniContainerid))
 	err = docker.ContainerRemove(context.Background(),
 		cinfo.CniContainerid, types.ContainerRemoveOptions{})
@@ -281,7 +282,7 @@ func cleanupContainers() {
 	intLog.Infof("######### cleaning containers ########")
 	for containerName, attr := range containerInfo {
 		intLog.Infof("cleanup container %s(%s)", containerName, attr.CniContainerid)
-		if err := docker.ContainerStop(context.Background(), attr.CniContainerid, 0); err != nil {
+		if err := docker.ContainerStop(context.Background(), attr.CniContainerid, nil); err != nil {
 			intLog.Warnf("failed to stop container %s, %s", containerName, err)
 		}
 		if err := docker.ContainerRemove(context.Background(),

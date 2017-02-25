@@ -95,6 +95,13 @@ func GetDocknetName(tenantName, networkName, epgName string) string {
 	return netName
 }
 
+// UpdatePluginName update the docker v2 plugin name
+func UpdatePluginName(pluginName string) {
+	log.Infof("docker v2plugin name (%s) updated to %s", netDriverName, pluginName)
+	netDriverName = pluginName
+	ipamDriverName = pluginName
+}
+
 // CreateDockNet Creates a network in docker daemon
 func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg.CfgNetworkState) error {
 	var nwID string
@@ -211,13 +218,24 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 		return errors.New("Unable to connect to docker")
 	}
 
+	// check whether the network is present in docker
+	_, err = docker.InspectNetwork(docknetName)
+	if err != nil {
+		log.Warnf("Couldnt find network %s in docker", docknetName)
+	}
+	docknetDeleted := (err != nil)
+
 	log.Infof("Deleting docker network: %+v", docknetName)
 
 	// Delete network
 	err = docker.RemoveNetwork(docknetName)
 	if err != nil {
-		log.Errorf("Error deleting network %s. Err: %v", docknetName, err)
-		return err
+		if !docknetDeleted {
+			log.Errorf("Error deleting network %s. Err: %v", docknetName, err)
+			return err
+		}
+		// since it was already deleted from docker ignore the error
+		log.Infof("Ignoring error in deleting docker network %s. Err: %v", docknetName, err)
 	}
 
 	// Get the state driver
