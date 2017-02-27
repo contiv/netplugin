@@ -26,6 +26,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 // decorator log
@@ -621,7 +622,7 @@ func (ens *NetpluginNameServer) processStateEvent() {
 		case <-ens.svcErrChan:
 			dnsLog.Warnf("nameserver restarted service watcher")
 			ens.incTenantErrStats("", "svcWatchRestart")
-			ens.startSvcWatch()
+			go ens.startSvcWatch()
 
 		case svcState := <-ens.svcChan:
 			if svcState.Prev == nil {
@@ -636,7 +637,7 @@ func (ens *NetpluginNameServer) processStateEvent() {
 		case <-ens.epErrChan:
 			dnsLog.Warnf("nameserver restarted endpoint watcher")
 			ens.incTenantErrStats("", "epWatchRestart")
-			ens.startEndpointWatch()
+			go ens.startEndpointWatch()
 
 		case state := <-ens.epChan:
 			dnsLog.Infof("endpoint event %+v", state)
@@ -658,6 +659,7 @@ func (ens *NetpluginNameServer) startEndpointWatch() {
 	if err := ens.stateDriver.WatchAllState(ens.epKeyPath,
 		&ep, json.Unmarshal, ens.epChan); err != nil {
 		dnsLog.Errorf("failed to watch endpoint events from nameserver %s", err)
+		time.Sleep(5 * time.Second)
 		ens.epErrChan <- err
 	}
 }
@@ -668,6 +670,7 @@ func (ens *NetpluginNameServer) startSvcWatch() {
 	if err := ens.stateDriver.WatchAllState(ens.svcKeyPath,
 		&svc, json.Unmarshal, ens.svcChan); err != nil {
 		dnsLog.Errorf("failed to watch endpoint events from nameserver %s", err)
+		time.Sleep(5 * time.Second)
 		ens.svcErrChan <- err
 	}
 }

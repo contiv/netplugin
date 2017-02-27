@@ -65,7 +65,8 @@ func (d *FakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 
 // WatchAll values from baseKey
 func (d *FakeStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return core.Errorf("not supported")
+	log.Warnf("watchall not supported")
+	select {} // block forever
 }
 
 // ClearState clears key
