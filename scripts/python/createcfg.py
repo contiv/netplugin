@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # script to create the config JSON input for the system tests
 import os 
 import json
