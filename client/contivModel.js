@@ -252,7 +252,7 @@ var EndpointGroupSummaryView = React.createClass({
 				<ModalTrigger modal={<EndpointGroupModalView endpointGroup={ endpointGroup }/>}>
 					<tr key={ endpointGroup.key } className="info">
 						
-						      
+						       
 					</tr>
 				</ModalTrigger>
 			);
@@ -264,7 +264,7 @@ var EndpointGroupSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					      
+					       
 					</tr>
 				</thead>
 				<tbody>
@@ -287,6 +287,8 @@ var EndpointGroupModalView = React.createClass({
 				<Input type='text' label='External contracts' ref='extContractsGrps' defaultValue={obj.extContractsGrps} placeholder='External contracts' />
 			
 				<Input type='text' label='Group name' ref='groupName' defaultValue={obj.groupName} placeholder='Group name' />
+			
+				<Input type='text' label='IP-pool' ref='ipPool' defaultValue={obj.ipPool} placeholder='IP-pool' />
 			
 				<Input type='text' label='Network profile name' ref='netProfile' defaultValue={obj.netProfile} placeholder='Network profile name' />
 			
