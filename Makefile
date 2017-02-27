@@ -3,7 +3,7 @@
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
-EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor install
+EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor install 
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/netcontiv/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
@@ -134,7 +134,7 @@ k8s-test:
 	cd vagrant/k8s/ && CONTIV_K8=1 vagrant ssh k8master -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	CONTIV_K8=1 cd vagrant/k8s/ && ./start_sanity_service.sh
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8'
-	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|HostBridge|Netprofile" 
+	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|TestBasic|TestNetwork|TestPolicy|TestTrigger"   
 	cd vagrant/k8s && vagrant destroy -f 
 # Mesos demo targets
 mesos-docker-demo:
