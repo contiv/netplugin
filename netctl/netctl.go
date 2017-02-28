@@ -925,8 +925,7 @@ func setAciGw(ctx *cli.Context) {
 	enf := ctx.String("enforce-policies")
 	comTen := ctx.String("include-common-tenant")
 
-	acigw, err := getClient(ctx).AciGwGet("aciGw")
-	errCheck(ctx, err)
+	acigw, _ := getClient(ctx).AciGwGet("aciGw")
 	if acigw == nil {
 		acigw = &contivClient.AciGw{}
 		acigw.Name = "aciGw"
