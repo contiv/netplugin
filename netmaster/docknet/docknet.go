@@ -24,7 +24,10 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
-	"github.com/samalba/dockerclient"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/network"
+	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -115,14 +118,15 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 	docknetName := GetDocknetName(tenantName, networkName, serviceName)
 
 	// connect to docker
-	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+	docker, err := client.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
 		return errors.New("Unable to connect to docker")
 	}
 
 	// Check if the network already exists
-	nw, err := docker.InspectNetwork(docknetName)
+	nw, err := docker.NetworkInspect(context.Background(), docknetName)
 	if err == nil && nw.Driver == netDriverName {
 		log.Infof("docker network: %s already exists", docknetName)
 		nwID = nw.ID
@@ -142,15 +146,15 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 
 		subnetCIDR := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
 
-		var ipams []dockerclient.IPAMConfig
-		var IPAMv4 = dockerclient.IPAMConfig{
+		var ipams []network.IPAMConfig
+		var IPAMv4 = network.IPAMConfig{
 			Subnet:  subnetCIDR,
 			Gateway: nwCfg.Gateway,
 		}
 		ipams = append(ipams, IPAMv4)
-		var IPAMv6 dockerclient.IPAMConfig
+		var IPAMv6 network.IPAMConfig
 		if subnetCIDRv6 != "" {
-			IPAMv6 = dockerclient.IPAMConfig{
+			IPAMv6 = network.IPAMConfig{
 				Subnet:  subnetCIDRv6,
 				Gateway: nwCfg.IPv6Gateway,
 			}
@@ -160,23 +164,24 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 		ipamOptions["tenant"] = nwCfg.Tenant
 		ipamOptions["network"] = nwCfg.NetworkName
 
+		ipamCfg := network.IPAM{
+			Driver:  ipamDriverName,
+			Config:  ipams,
+			Options: ipamOptions,
+		}
 		// Build network parameters
-		nwCreate := dockerclient.NetworkCreate{
-			Name:           docknetName,
+		nwCreate := types.NetworkCreate{
 			CheckDuplicate: true,
 			Driver:         netDriverName,
-			IPAM: dockerclient.IPAM{
-				Driver:  ipamDriverName,
-				Config:  ipams,
-				Options: ipamOptions,
-			},
-			Options: netPluginOptions,
+			IPAM:           &ipamCfg,
+			Options:        netPluginOptions,
+			Attachable:     true,
 		}
 
 		log.Infof("Creating docker network: %+v", nwCreate)
 
 		// Create network
-		resp, err := docker.CreateNetwork(&nwCreate)
+		resp, err := docker.NetworkCreate(context.Background(), docknetName, nwCreate)
 		if err != nil {
 			log.Errorf("Error creating network %s. Err: %v", docknetName, err)
 			return err
@@ -212,14 +217,15 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	docknetName := GetDocknetName(tenantName, networkName, serviceName)
 
 	// connect to docker
-	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+	docker, err := client.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
 		return errors.New("Unable to connect to docker")
 	}
 
 	// check whether the network is present in docker
-	_, err = docker.InspectNetwork(docknetName)
+	_, err = docker.NetworkInspect(context.Background(), docknetName)
 	if err != nil {
 		log.Warnf("Couldnt find network %s in docker", docknetName)
 	}
@@ -228,7 +234,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	log.Infof("Deleting docker network: %+v", docknetName)
 
 	// Delete network
-	err = docker.RemoveNetwork(docknetName)
+	err = docker.NetworkRemove(context.Background(), docknetName)
 	if err != nil {
 		if !docknetDeleted {
 			log.Errorf("Error deleting network %s. Err: %v", docknetName, err)
@@ -251,7 +257,12 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	dnetOper.StateDriver = stateDriver
 
 	// write the dnet oper state
-	return dnetOper.Clear()
+	err = dnetOper.Clear()
+	if docknetDeleted && err != nil {
+		// Ignore the error as docknet was already deleted
+		err = nil
+	}
+	return err
 }
 
 // FindDocknetByUUID find the docknet by UUID

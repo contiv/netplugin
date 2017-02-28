@@ -8,23 +8,23 @@
     },
     "env": [
        {
-          "Description": "",
+          "Description": "To enable debug mode, set to '-debug'",
           "Name": "dbg_flag",
+          "Settable": [
+             "value"
+          ],
+          "Value": "-debug"
+       },
+       {
+          "Description": "VLAN uplink interface used by OVS",
+          "Name": "iflist",
           "Settable": [
              "value"
           ],
           "Value": ""
        },
        {
-          "Description": "",
-          "Name": "iflist",
-          "Settable": [
-             "value"
-          ],
-          "Value": "eth2,eth3"
-       },
-       {
-          "Description": "",
+          "Description": "Etcd or Consul cluster store url",
           "Name": "cluster_store",
           "Settable": [
              "value"
@@ -32,11 +32,44 @@
           "Value": "etcd://localhost:2379"
        },
        {
-          "Description": "",
+          "Description": "Local IP address to be used by netplugin for control communication",
+          "Name": "ctrl_ip",
+          "Settable": [
+             "value"
+          ],
+          "Value": "none"
+       },
+       {
+          "Description": "Local VTEP IP address to be used by netplugin",
+          "Name": "vtep_ip",
+          "Settable": [
+             "value"
+          ],
+          "Value": "none"
+       },
+       {
+          "Description": "In 'master' role, plugin runs netmaster and netplugin",
+          "Name": "plugin_role",
+          "Settable": [
+             "value"
+          ],
+          "Value": "master"
+       },
+       {
+          "Description": "Netmaster url to listen http requests on",
+          "Name": "listen_url",
+          "Settable": [
+             "value"
+          ],
+          "Value": ":9999"
+       },
+       {
+          "Description": "Network Driver name for requests to dockerd. Should be same as name:tag of the plugin",
           "Name": "plugin_name",
           "Settable": [
              "value"
           ],
+          ## Do not change the default value, this will be replaced with $CONTIV_V2PLUGIN_NAME
           "Value": "PluginName"
        }
     ],

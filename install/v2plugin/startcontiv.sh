@@ -1,48 +1,70 @@
 #!/bin/bash
-#Initialize complete contiv container. Start OVS and Net Plugin
 
 set -e 
 
 ### Pre-requisite on the host
-# etcd 
-# sudo modprobe openvswitch
-# sudo mkdir -p /var/contiv
+# run a cluster store like etcd or consul
 
 mkdir -p /var/run/contiv/log
 mkdir -p /var/run/openvswitch
 mkdir -p /etc/openvswitch
 
-echo "V2 Plugin logs" > /var/run/contiv/log/plugin_bootup.log
+BOOTUP_LOGFILE="/var/run/contiv/log/plugin_bootup.log"
 
-echo "Loading OVS" >> /var/run/contiv/log/plugin_bootup.log
-(modprobe openvswitch) || (echo "Load ovs FAILED!!! run 'sudo modprobe openvswitch' from the host before re-enabling the plugin" >> /var/run/contiv/log/plugin_bootup.log && while true; do sleep 1; done)
+echo "V2 Plugin logs" > $BOOTUP_LOGFILE
 
-echo "Starting OVS" >> /var/run/contiv/log/plugin_bootup.log
+if [ $iflist == "" ]; then
+    echo "iflist is empty. Host interface(s) should be specified to use vlan mode" >> $BOOTUP_LOGFILE
+fi
+if [ $ctrl_ip != "none" ]; then
+    ctrl_ip_cfg="-ctrl-ip=$ctrl_ip"
+fi
+if [ $vtep_ip != "none" ]; then
+    vtep_ip_cfg="-vtep-ip=$vtep_ip"
+fi
+if [ $listen_url != ":9999" ]; then
+    listen_url_cfg="-listen-url=$listen_url"
+fi
+
+echo "Loading OVS" >> $BOOTUP_LOGFILE
+(modprobe openvswitch) || (echo "Load ovs FAILED!!! " >> $BOOTUP_LOGFILE && while true; do sleep 1; done)
+
+echo "Starting OVS" >> $BOOTUP_LOGFILE
 /usr/share/openvswitch/scripts/ovs-ctl restart --system-id=random --with-logdir=/var/run/contiv/log
 
-echo "Starting Netplugin " >> /var/run/contiv/log/plugin_bootup.log
-set netplugin_retry='0'
+echo "Starting Netplugin " >> $BOOTUP_LOGFILE
+netplugin_retry="0"
 while [ true ]; do
-    echo "Redirecting Netplugin logs" >> /var/run/contiv/log/plugin_bootup.log
-    /netplugin $dbg_flag -plugin-mode docker -vlan-if $iflist -cluster-store $cluster_store &> /var/run/contiv/log/netplugin.log.$netplugin_retry
-    echo "CRITICAL : Net Plugin has exited, Respawn in 5" >> /var/run/contiv/log/plugin_bootup.log
+    echo "/netplugin $dbg_flag -plugin-mode docker -vlan-if $iflist -cluster-store $cluster_store $ctrl_ip_cfg $vtep_ip_cfg" >> $BOOTUP_LOGFILE
+    /netplugin $dbg_flag -plugin-mode docker -vlan-if $iflist -cluster-store $cluster_store $ctrl_ip_cfg $vtep_ip_cfg &>> /var/run/contiv/log/netplugin.log
     ((netplugin_retry++))
+    if [ $netplugin_retry == "10" ] ; then 
+        echo "Giving up after $netplugin_retry retries" >> $BOOTUP_LOGFILE
+        exit
+    fi
+    echo "CRITICAL : Net Plugin has exited, Respawn in 5" >> $BOOTUP_LOGFILE
     sleep 5
+    echo "Restarting Netplugin " >> $BOOTUP_LOGFILE
 done &
 
-echo "Starting Netmaster " >> /var/run/contiv/log/plugin_bootup.log
-set netmaster_retry=0
-while [ true ]; do
-    echo "Redirecting Netmaster logs" >> /var/run/contiv/log/plugin_bootup.log
-    /netmaster $dbg_flag -plugin-name=$plugin_name -cluster-store=$cluster_store &> /var/run/contiv/log/netmaster.log.$netmaster_retry
-    ((netmaster_retry++))
-    echo "CRITICAL : Net Master has exited, Respawn in 5" >> /var/run/contiv/log/plugin_bootup.log
-    sleep 5
-done &
-
-#until pids=$(pgrep netmaster); do  sleep 1 ; done
-#(/netctl global set -p netplugin) || (echo "failed to reset plugin_name" >> /var/run/contiv/log/plugin_bootup.log)
-#(/netctl global set -p $plugin_name) || (echo "failed to set plugin_name to $plugin_name" >> /var/run/contiv/log/plugin_bootup.log)
+if [ $plugin_role == "master" ]; then
+    echo "Starting Netmaster " >> $BOOTUP_LOGFILE
+    netmaster_retry=0
+    while [ true ]; do
+        echo "/netmaster $dbg_flag -plugin-name=$plugin_name -cluster-store=$cluster_store $listen_url_cfg " >> $BOOTUP_LOGFILE
+        /netmaster $dbg_flag -plugin-name=$plugin_name -cluster-store=$cluster_store $listen_url_cfg &>> /var/run/contiv/log/netmaster.log
+        ((netmaster_retry++))
+        if [ $netmaster_retry == "10" ] ; then 
+            echo "Giving up after $netmaster_retry retries" >> $BOOTUP_LOGFILE
+            exit
+        fi
+        echo "CRITICAL : Net Master has exited, Respawn in 5" >> $BOOTUP_LOGFILE
+        echo "Restarting Netmaster " >> $BOOTUP_LOGFILE
+        sleep 5
+    done &
+else
+    echo "Not starting netmaster as plugin role is" $plugin_role >> $BOOTUP_LOGFILE
+fi
 
 while true; do sleep 1; done
 
