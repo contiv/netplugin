@@ -70,7 +70,7 @@ func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) erro
 	// check epg range is with in network
 	if len(ipPool) > 0 {
 		if netutils.IsIPv6(ipPool) == true {
-			return fmt.Errorf("ipv6 address range is not supported")
+			return fmt.Errorf("ipv6 address pool is not supported for Endpoint Groups")
 		}
 
 		if err = netutils.ValidateNetworkRangeParams(ipPool, nwCfg.SubnetLen); err != nil {
@@ -79,11 +79,11 @@ func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) erro
 
 		addrRangeList := strings.Split(ipPool, "-")
 		if _, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, addrRangeList[0]); err != nil {
-			return fmt.Errorf("ip-pool %s is not part of network %s/%d", ipPool, nwCfg.SubnetIP,
+			return fmt.Errorf("bad ip-pool %s, EPG ip-pool must be a subset of network %s/%d", ipPool, nwCfg.SubnetIP,
 				nwCfg.SubnetLen)
 		}
 		if _, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, addrRangeList[1]); err != nil {
-			return fmt.Errorf("ip-pool %s is not part of network %s/%d", ipPool, nwCfg.SubnetIP,
+			return fmt.Errorf("bad ip-pool %s, EPG ip-pool must be a subset of network %s/%d", ipPool, nwCfg.SubnetIP,
 				nwCfg.SubnetLen)
 		}
 
