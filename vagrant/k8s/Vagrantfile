@@ -98,6 +98,18 @@ SCRIPT
 cluster = read_cluster_config
 create_etc_hosts(cluster)
 
+def customize(v)
+  # make all nics 'virtio' to take benefit of builtin vlan tag
+  # support, which otherwise needs to be enabled in Intel drivers,
+  # which are used by default by virtualbox
+  # changes the settings for the first 5 NICs, regardless of presence
+  1.upto(5) do |n|
+    v.customize ['modifyvm', :id, "--nictype#{n}", 'virtio']
+  end
+  v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
+  v.linked_clone = true if Vagrant::VERSION >= "1.8"
+end
+
 Vagrant.configure(2) do |config|
   if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "rhel7" then
     config.registration.manager = 'subscription_manager'
@@ -117,6 +129,11 @@ Vagrant.configure(2) do |config|
       quagga1.vm.network "private_network",
                        ip: "70.1.1.2",
                        virtualbox__intnet: "contiv_blue"
+
+      config.vm.provider 'virtualbox' do |v|
+        customize(v)
+      end
+
       quagga1.vm.provision "shell" do |s|
         s.inline = provision_quagga
         s.args = [http_proxy, https_proxy]
@@ -137,6 +154,10 @@ Vagrant.configure(2) do |config|
       quagga2.vm.network "private_network",
                        ip: "50.1.1.200",
                        virtualbox__intnet: "contiv_yellow"
+
+      config.vm.provider 'virtualbox' do |v|
+        customize(v)
+      end
 
       quagga2.vm.provision "shell" do |s|
         s.inline = provision_quagga
@@ -192,22 +213,11 @@ Vagrant.configure(2) do |config|
         c.vm.hostname = vm_name
         c.vm.network :private_network, ip: member_info["contiv_control_ip"], virtualbox__intnet: "true"
         c.vm.network :private_network, ip: member_info["contiv_network_ip"], virtualbox__intnet: network_name, auto_config: false
-
         c.vm.provider "virtualbox" do |v|
-          if vm_name == "k8master" then
-            v.memory = 2048
-          else
-            v.memory = 1024
-          end
-          # make all nics 'virtio' to take benefit of builtin vlan tag
-          # support, which otherwise needs to be enabled in Intel drivers,
-          # which are used by default by virtualbox
-          v.customize ['modifyvm', :id, '--nictype1', 'virtio']
-          v.customize ['modifyvm', :id, '--nictype2', 'virtio']
-          v.customize ['modifyvm', :id, '--nictype3', 'virtio']
+          customize(v)
+          v.memory = 2048
           v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
           v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
-          v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
         end # v
 
         # RHEL box that is available with the CDK comes with an older version
