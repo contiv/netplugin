@@ -24,16 +24,20 @@ These releases are releases made by hand. Some configuration options
 need to be provided manually.
 
 You'll find a few examples below:
-```
-# version/CURRENT_VERSION is 1.0.1
-$ USE_RELEASE=1 OLD_VERSION=1.0 make release
-# will release version 1.0.1 on GitHub
-```
 
-```
-# version/CURRENT_VERSION is 1.0
-$ USE_RELEASE=1 OLD_VERSION=none make release
-# will release version 1.0 when no previous stable release exists
-```
+	# version/CURRENT_VERSION is 1.0.1
+	$ USE_RELEASE=1 OLD_VERSION=1.0 make release
+	# will release version 1.0.1 on GitHub
+
+	# version/CURRENT_VERSION is 1.0
+	$ USE_RELEASE=1 OLD_VERSION=none make release
+	# will release version 1.0 when no previous stable release exists
 
 Please keep in mind that the release notes can be updated further manually.
+
+## Build and upload container image (manual only)
+
+	1. cd scripts/netContain
+	2. ./ReleaseContainer.sh -v <version> -u contiv -i contiv/netplugin
+
+Here <version> is a version that has been released using steps above and exists on github.
