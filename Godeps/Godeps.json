@@ -1,33 +1,44 @@
 {
 	"ImportPath": "github.com/contiv/objdb",
-	"GoVersion": "go1.5",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v79",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.8.7-55-gf7f79f7",
-			"Rev": "f7f79f729e0fbe2fcc061db48a9ba0263f588252"
+			"Comment": "v0.11.2-6-g7f4b1ad",
+			"Rev": "7f4b1adc791766938c29457bed0703fb9134421a"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/Godeps/_workspace/src/github.com/ugorji/go/codec",
+			"Comment": "v2.3.8",
+			"Rev": "7e4fc7eaa931298732c880a703bccc9c177ae1de"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context",
+			"Comment": "v2.3.8",
+			"Rev": "7e4fc7eaa931298732c880a703bccc9c177ae1de"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
-			"Comment": "v2.3.0-alpha.0-1349-g7d2545c",
-			"Rev": "7d2545c72e5cbf1f072e99537dafc3883c73740e"
+			"Comment": "v2.3.8",
+			"Rev": "7e4fc7eaa931298732c880a703bccc9c177ae1de"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
-			"Comment": "v2.3.0-alpha.0-1349-g7d2545c",
-			"Rev": "7d2545c72e5cbf1f072e99537dafc3883c73740e"
+			"Comment": "v2.3.8",
+			"Rev": "7e4fc7eaa931298732c880a703bccc9c177ae1de"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/types",
-			"Comment": "v2.3.0-alpha.0-1349-g7d2545c",
-			"Rev": "7d2545c72e5cbf1f072e99537dafc3883c73740e"
+			"Comment": "v2.3.8",
+			"Rev": "7e4fc7eaa931298732c880a703bccc9c177ae1de"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
-			"Comment": "v0.6.3-293-g3340d7c",
+			"Comment": "v0.6.4-39-g3340d7c",
 			"Rev": "3340d7ccd74d4185b1c126833988457da5e414c8"
 		},
 		{
@@ -38,10 +49,6 @@
 			"ImportPath": "github.com/hashicorp/serf/coordinate",
 			"Comment": "v0.7.0-47-g598c548",
 			"Rev": "598c54895cc5a7b1a24a398d635e8c0ea0959870"
-		},
-		{
-			"ImportPath": "github.com/ugorji/go/codec",
-			"Rev": "c062049c1793b01a3cc3fe786108edabbaf7756b"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
