@@ -16,6 +16,7 @@ BEGIN {
 # netplugin_synced_gopath="/opt/golang"
 go_version = ENV["GO_VERSION"] || "1.7.5"
 docker_version = ENV["CONTIV_DOCKER_VERSION"] || "1.12.6"
+docker_swarm = ENV["CONTIV_DOCKER_SWARM"] || "classic_mode"
 gopath_folder="/opt/gopath"
 http_proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || ''
 https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
@@ -37,6 +38,7 @@ echo "export no_proxy=$2,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar
 echo "export CLUSTER_NODE_IPS=$2" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_CLUSTER_STORE=$6" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_V2PLUGIN_NAME=$9" >> /etc/profile.d/envvar.sh
+echo "export CONTIV_DOCKER_SWARM=${10}" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
 installed_go=$(go version | awk '{ print $3}')
@@ -96,11 +98,16 @@ elif [[ "$reinstall" -eq 1 ]]; then
 fi
 
 # setup docker cluster store
-if [[ $6 == *"consul:"* ]]
-then
-    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=consul://localhost:8500!' /lib/systemd/system/docker.service
+# No cluster store needed for swarm_mode
+if [[ #{docker_swarm} == "swarm_mode" ]]; then
+    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock!' /lib/systemd/system/docker.service
 else
-    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=etcd://localhost:2379!' /lib/systemd/system/docker.service
+    if [[ $6 == *"consul:"* ]]
+    then
+        perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=consul://localhost:8500!' /lib/systemd/system/docker.service
+    else
+        perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=etcd://localhost:2379!' /lib/systemd/system/docker.service
+    fi
 fi
 
 # setup docker remote api
@@ -336,6 +343,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                   ENV["CONTIV_DOCKER_VERSION"] || docker_version,
                   ENV['CONTIV_NODE_OS'] || "",
                   ENV['CONTIV_V2PLUGIN_NAME'] || "contiv/v2netplugin:0.1",
+                  ENV['CONTIV_DOCKER_SWARM'] || "classic_mode",
                   *ENV['CONTIV_ENV'],
                 ]
             end
