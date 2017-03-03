@@ -48,6 +48,27 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 		c.Assert(s.removeContainers(containers), IsNil)
 	}
 
+	// epg pool
+	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+		GroupName:   "epg1",
+		NetworkName: "private",
+		IpPool:      "10.1.0.1-10.1.0.10",
+		TenantName:  "default",
+	}), IsNil)
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		containers, err := s.runContainersInService(s.basicInfo.Containers, "epg1", "private", "default",
+			[]string{})
+		c.Assert(err, IsNil)
+		if s.fwdMode == "routing" && encap == "vlan" {
+			var err error
+			err = s.CheckBgpRouteDistribution(c, containers)
+			c.Assert(err, IsNil)
+		}
+		c.Assert(s.pingTest(containers), IsNil)
+		c.Assert(s.removeContainers(containers), IsNil)
+	}
+	c.Assert(s.cli.EndpointGroupDelete("default", "epg1"), IsNil)
 	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
 }
 

@@ -302,6 +302,7 @@ type EndpointOper struct {
 	MacAddress       string   `json:"macAddress,omitempty"`  //
 	Network          string   `json:"network,omitempty"`     //
 	ServiceName      string   `json:"serviceName,omitempty"` //
+	VirtualPort      string   `json:"virtualPort,omitempty"` //
 	VtepIP           string   `json:"vtepIP,omitempty"`      //
 
 }
@@ -318,6 +319,7 @@ type EndpointGroup struct {
 
 	ExtContractsGrps []string `json:"extContractsGrps,omitempty"`
 	GroupName        string   `json:"groupName,omitempty"`   // Group name
+	IpPool           string   `json:"ipPool,omitempty"`      // IP-pool
 	NetProfile       string   `json:"netProfile,omitempty"`  // Network profile name
 	NetworkName      string   `json:"networkName,omitempty"` // Network
 	Policies         []string `json:"policies,omitempty"`
@@ -346,10 +348,12 @@ type EndpointGroupLinks struct {
 
 // EndpointGroupOper runtime operations
 type EndpointGroupOper struct {
-	Endpoints      []EndpointOper `json:"endpoints,omitempty"`
-	ExternalPktTag int            `json:"externalPktTag,omitempty"` // external packet tag
-	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // number of endpoints
-	PktTag         int            `json:"pktTag,omitempty"`         // internal packet tag
+	AllocatedIPAddresses string         `json:"allocatedIPAddresses,omitempty"` // allocated IP addresses
+	AvailableIPAddresses string         `json:"availableIPAddresses,omitempty"` // Available IP addresses
+	Endpoints            []EndpointOper `json:"endpoints,omitempty"`
+	ExternalPktTag       int            `json:"externalPktTag,omitempty"` // external packet tag
+	NumEndpoints         int            `json:"numEndpoints,omitempty"`   // number of endpoints
+	PktTag               int            `json:"pktTag,omitempty"`         // internal packet tag
 
 }
 

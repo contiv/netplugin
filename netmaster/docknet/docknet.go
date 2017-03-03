@@ -163,6 +163,9 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 		ipamOptions := make(map[string]string)
 		ipamOptions["tenant"] = nwCfg.Tenant
 		ipamOptions["network"] = nwCfg.NetworkName
+		if len(serviceName) > 0 {
+			ipamOptions["group"] = serviceName
+		}
 
 		ipamCfg := network.IPAM{
 			Driver:  ipamDriverName,

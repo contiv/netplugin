@@ -77,7 +77,7 @@ func CreateServiceLB(stateDriver core.StateDriver, serviceLbCfg *intent.ConfigSe
 	}
 
 	// Alloc addresses
-	addr, err := networkAllocAddress(nwCfg, serviceIP, false)
+	addr, err := networkAllocAddress(nwCfg, nil, serviceIP, false)
 	if err != nil {
 		log.Errorf("Failed to allocate address. Err: %v", err)
 		return err
@@ -169,7 +169,7 @@ func DeleteServiceLB(stateDriver core.StateDriver, serviceName string, tenantNam
 		log.Errorf("network %s is not operational. Service object deletion failed", networkID)
 		return err
 	}
-	err = networkReleaseAddress(nwCfg, serviceLBState.IPAddress)
+	err = networkReleaseAddress(nwCfg, nil, serviceLBState.IPAddress)
 	if err != nil {
 		log.Errorf("Network release address  failed %s", err)
 	}

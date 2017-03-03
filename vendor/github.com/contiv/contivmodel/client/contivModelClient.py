@@ -229,6 +229,7 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"extContractsGrps": obj.extContractsGrps, 
 			"groupName": obj.groupName, 
+			"ipPool": obj.ipPool, 
 			"netProfile": obj.netProfile, 
 			"networkName": obj.networkName, 
 			"policies": obj.policies, 

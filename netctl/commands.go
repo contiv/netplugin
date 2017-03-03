@@ -63,6 +63,10 @@ var Commands = []cli.Command{
 						Name:  "external-contract, e",
 						Usage: "External contract",
 					},
+					cli.StringFlag{
+						Name:  "ip-pool, r",
+						Usage: "IP Address range, example 10.36.0.1-10.36.0.10",
+					},
 				},
 				Action: createEndpointGroup,
 			},

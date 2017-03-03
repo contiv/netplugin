@@ -21,7 +21,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	. "gopkg.in/check.v1"
+	"strings"
 )
 
 // TestEndpointCreateDelete test endpoint create and delete ops
@@ -187,6 +189,9 @@ func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
 			Policies:         []string{},
 			ExtContractsGrps: []string{},
 		})
+
+		assertNoErr(err, c, "creating epg")
+
 		addr, err := its.allocAddress("", "test.default", "")
 		assertNoErr(err, c, "allocating address")
 		c.Assert(addr, Equals, "10.1.1.1")
@@ -212,6 +217,284 @@ func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
 	}
 
 	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
+}
+
+// TestEndpointGrouIPPoolCreateDelete tests EPG with IPAM create delete ops
+func (its *integTestSuite) TestEndpointGroupIPPoolCreateDelete(c *C) {
+	// Create a network
+	nwName := "poolTest"
+	err := its.client.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: nwName,
+		Subnet:      "10.3.1.0/24",
+		Encap:       its.encap,
+	})
+	assertNoErr(err, c, "creating network")
+	epgSeg := []string{"10.3.1.10-10.3.1.20", "10.3.1.40-10.3.1.42", "10.3.1.110-10.3.1.120"}
+
+	for i := 0; i < its.iterations; i++ {
+		for _, epgPool := range epgSeg {
+			err := its.client.EndpointGroupPost(&client.EndpointGroup{
+				TenantName:       "default",
+				NetworkName:      nwName,
+				GroupName:        "epg1",
+				IpPool:           epgPool,
+				Policies:         []string{},
+				ExtContractsGrps: []string{},
+			})
+
+			assertNoErr(err, c, "create epg")
+			addr, err := its.allocAddress("", fmt.Sprintf("%s:epg1.default", nwName), "")
+			assertNoErr(err, c, "allocating address")
+			c.Assert(addr, Equals, strings.Split(epgPool, "-")[0])
+
+			// create an endpoint in the network
+			epCfg1, err := its.createEndpoint("default", nwName, "epg1", addr, "")
+			assertNoErr(err, c, "creating endpoint")
+
+			// delete epg with active endpoints - should FAIL
+			err = its.client.EndpointGroupDelete("default", "epg1")
+			assertErr(err, c, "deleting epg")
+
+			// delete the endpoints
+			err = its.deleteEndpoint("default", nwName, "epg1", epCfg1)
+			assertNoErr(err, c, "deleting endpoint")
+
+			// delete epg
+			err = its.client.EndpointGroupDelete("default", "epg1")
+			assertNoErr(err, c, "deleting epg")
+
+			// verify flows are also gone
+			its.verifyEndpointFlowRemoved(epCfg1, c)
+		}
+	}
+
+	epgSeg = []string{"10.3.1.0-10.3.1.20", "10.3.1.254-10.3.1.255",
+		"10.3.1.110-10.3.1.320", "10.3.2.0-10.3.2.20", "10.3.2.0/24"}
+	for _, epgPool := range epgSeg {
+		err := its.client.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:       "default",
+			NetworkName:      nwName,
+			GroupName:        "epg1",
+			IpPool:           epgPool,
+			Policies:         []string{},
+			ExtContractsGrps: []string{},
+		})
+		assertErr(err, c, fmt.Sprintf("create epg %+v", epgPool))
+	}
+
+	epgSeg = []string{"10.3.1.30-10.3.1.50", "", "10.3.1.1-19.3.1.21"}
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:       "default",
+		NetworkName:      nwName,
+		GroupName:        "epg1",
+		IpPool:           "10.3.1.10-10.3.1.20",
+		Policies:         []string{},
+		ExtContractsGrps: []string{},
+	})
+
+	for _, epgPool := range epgSeg {
+		err := its.client.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:       "default",
+			NetworkName:      nwName,
+			GroupName:        "epg1",
+			IpPool:           epgPool,
+			Policies:         []string{},
+			ExtContractsGrps: []string{},
+		})
+		assertErr(err, c, fmt.Sprintf("create epg %+v", epgPool))
+	}
+	err = its.client.EndpointGroupDelete("default", "epg1")
+	assertNoErr(err, c, "deleting epg")
+
+	// exhaust pool
+	err = its.client.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:       "default",
+		NetworkName:      nwName,
+		GroupName:        "epg1",
+		IpPool:           "10.3.1.11-10.3.1.11",
+		Policies:         []string{},
+		ExtContractsGrps: []string{},
+	})
+	assertNoErr(err, c, "create epg")
+	addr, err := its.allocAddress("", fmt.Sprintf("%s:epg1.default", nwName), "")
+	assertNoErr(err, c, "allocating address")
+	// create an endpoint in the network
+	epCfg1, err := its.createEndpoint("default", nwName, "epg1", addr, "")
+	assertNoErr(err, c, "creating endpoint")
+	addr, err = its.allocAddress("", fmt.Sprintf("%s:epg1.default", nwName), "")
+	assertErr(err, c, "allocating address")
+	err = its.deleteEndpoint("default", nwName, "epg1", epCfg1)
+	assertNoErr(err, c, "deleting endpoint")
+	err = its.client.EndpointGroupDelete("default", "epg1")
+	assertNoErr(err, c, "deleting epg")
+	assertNoErr(its.client.NetworkDelete("default", nwName), c, "deleting network")
+
+	// Test multiple epgs with/without ip pool
+	nwName = "epgPoolTest"
+	nwSubnet := "10.2.2.0/24"
+	err = its.client.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: nwName,
+		Subnet:      nwSubnet,
+		Encap:       its.encap,
+	})
+	assertNoErr(err, c, "creating network")
+
+	epgStruct := []struct {
+		ipPool      string
+		availableIP string
+		allocatedIP string
+	}{
+		{ipPool: "", availableIP: "10.2.2.2-10.2.2.4, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.1, 10.2.2.5-10.2.2.180"},
+		{ipPool: "10.2.2.5-10.2.2.10", availableIP: "10.2.2.6-10.2.2.10",
+			allocatedIP: "10.2.2.5"},
+		{ipPool: "10.2.2.11-10.2.2.30", availableIP: "10.2.2.12-10.2.2.30",
+			allocatedIP: "10.2.2.11"},
+		{ipPool: "", availableIP: "10.2.2.3-10.2.2.4, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.1-10.2.2.2, 10.2.2.5-10.2.2.180"},
+		{ipPool: "10.2.2.31-10.2.2.132", availableIP: "10.2.2.32-10.2.2.132",
+			allocatedIP: "10.2.2.31"},
+		{ipPool: "10.2.2.133-10.2.2.180", availableIP: "10.2.2.134-10.2.2.180",
+			allocatedIP: "10.2.2.133"},
+	}
+
+	for epgIndex, epgPool1 := range epgStruct {
+		epgName := fmt.Sprintf("epgC-%d", epgIndex)
+		err := its.client.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:       "default",
+			NetworkName:      nwName,
+			GroupName:        epgName,
+			IpPool:           epgPool1.ipPool,
+			Policies:         []string{},
+			ExtContractsGrps: []string{},
+		})
+		assertNoErr(err, c, fmt.Sprintf("create epg %s  %+v", epgName, epgPool1.ipPool))
+	}
+
+	inspNw, err := its.client.NetworkInspect("default", nwName)
+	assertNoErr(err, c, fmt.Sprintf("inspecting network %s", nwName))
+	assertOnTrue(c, inspNw.Oper.AllocatedIPAddresses != "10.2.2.5-10.2.2.180",
+		fmt.Sprintf("invalid alloc addr %s for nw %s", inspNw.Oper.AllocatedIPAddresses, nwName))
+	assertOnTrue(c, inspNw.Oper.AvailableIPAddresses != "10.2.2.1-10.2.2.4, 10.2.2.181-10.2.2.254",
+		fmt.Sprintf("invalid avail addr %s for nw %s", inspNw.Oper.AvailableIPAddresses, nwName))
+
+	epgCfg := make([]*mastercfg.CfgEndpointState, len(epgStruct))
+	for epgIndex, epgPool1 := range epgStruct {
+		epgName := fmt.Sprintf("epgC-%d", epgIndex)
+		addr, err := its.allocAddress("", fmt.Sprintf("%s:%s.default", nwName, epgName), "")
+		assertNoErr(err, c, "allocating address")
+		if len(epgPool1.ipPool) > 0 {
+			c.Assert(addr, Equals, strings.Split(epgPool1.ipPool, "-")[0])
+			inspEpg, err := its.client.EndpointGroupInspect("default", epgName)
+			assertNoErr(err, c, fmt.Sprintf("inspecting epg %s", epgName))
+			assertOnTrue(c, inspEpg.Oper.AllocatedIPAddresses != epgPool1.allocatedIP,
+				fmt.Sprintf("invalid alloc addr %s for epg %s", inspEpg.Oper.AllocatedIPAddresses, epgName))
+			assertOnTrue(c, inspEpg.Oper.AvailableIPAddresses != epgPool1.availableIP,
+				fmt.Sprintf("invalid avail addr %s for epg %s", inspEpg.Oper.AvailableIPAddresses, epgName))
+		} else {
+			epIPList := strings.Split(strings.Split(epgPool1.allocatedIP, ",")[0], "-")
+			epIP := ""
+			if len(epIPList) > 1 {
+				epIP = epIPList[1]
+			} else {
+				epIP = epIPList[0]
+			}
+
+			c.Assert(addr, Equals, epIP)
+			inspNw, err = its.client.NetworkInspect("default", nwName)
+			assertNoErr(err, c, fmt.Sprintf("inspecting network %s", nwName))
+			assertOnTrue(c, inspNw.Oper.AllocatedIPAddresses != epgPool1.allocatedIP,
+				fmt.Sprintf("invalid alloc addr %s for nw %s", inspNw.Oper.AllocatedIPAddresses, nwName))
+			assertOnTrue(c, inspNw.Oper.AvailableIPAddresses != epgPool1.availableIP,
+				fmt.Sprintf("invalid avail addr %s for nw %s", inspNw.Oper.AvailableIPAddresses, nwName))
+		}
+
+		// create an endpoint in the network
+		epCfg1, err := its.createEndpoint("default", nwName, fmt.Sprintf("epgC-%d", epgIndex), addr, "")
+		assertNoErr(err, c, "creating endpoint")
+		epgCfg[epgIndex] = epCfg1
+	}
+
+	epgDelStr := []struct {
+		ipPool      string
+		availableIP string
+		allocatedIP string
+	}{
+		{ipPool: "", availableIP: "10.2.2.1, 10.2.2.3-10.2.2.4, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.2, 10.2.2.5-10.2.2.180"},
+		{ipPool: "10.2.2.5-10.2.2.10", availableIP: "10.2.2.5-10.2.2.10",
+			allocatedIP: ""},
+		{ipPool: "10.2.2.11-10.2.2.30", availableIP: "10.2.2.11-10.2.2.30",
+			allocatedIP: ""},
+		{ipPool: "", availableIP: "10.2.2.1-10.2.2.4, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.5-10.2.2.180"},
+		{ipPool: "10.2.2.31-10.2.2.132", availableIP: "10.2.2.31-10.2.2.132",
+			allocatedIP: ""},
+		{ipPool: "10.2.2.133-10.2.2.180", availableIP: "10.2.2.133-10.2.2.180",
+			allocatedIP: ""},
+	}
+
+	for epgIndex, epgDelPool := range epgDelStr {
+		epgName := fmt.Sprintf("epgC-%d", epgIndex)
+		// delete the endpoints
+		err = its.deleteEndpoint("default", nwName, fmt.Sprintf("epgC-%d", epgIndex), epgCfg[epgIndex])
+		assertNoErr(err, c, "deleting endpoint")
+
+		if len(epgDelPool.ipPool) > 0 {
+			inspEpg, err := its.client.EndpointGroupInspect("default", epgName)
+			assertNoErr(err, c, fmt.Sprintf("inspecting epg %s", epgName))
+			assertOnTrue(c, inspEpg.Oper.AllocatedIPAddresses != epgDelPool.allocatedIP,
+				fmt.Sprintf("invalid alloc addr %s for epg %s", inspEpg.Oper.AllocatedIPAddresses, epgName))
+			assertOnTrue(c, inspEpg.Oper.AvailableIPAddresses != epgDelPool.availableIP,
+				fmt.Sprintf("invalid avail addr %s for epg %s", inspEpg.Oper.AvailableIPAddresses, epgName))
+		} else {
+			inspNw, err = its.client.NetworkInspect("default", nwName)
+			assertNoErr(err, c, fmt.Sprintf("inspecting network %s", nwName))
+			assertOnTrue(c, inspNw.Oper.AllocatedIPAddresses != epgDelPool.allocatedIP,
+				fmt.Sprintf("invalid alloc addr %s for nw %s", inspNw.Oper.AllocatedIPAddresses, nwName))
+			assertOnTrue(c, inspNw.Oper.AvailableIPAddresses != epgDelPool.availableIP,
+				fmt.Sprintf("invalid avail addr %s for nw %s", inspNw.Oper.AvailableIPAddresses, nwName))
+		}
+
+	}
+
+	epgDelStr = []struct {
+		ipPool      string
+		availableIP string
+		allocatedIP string
+	}{
+		{ipPool: "", availableIP: "10.2.2.1-10.2.2.4, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.5-10.2.2.180"},
+		{ipPool: "10.2.2.5-10.2.2.10", availableIP: "10.2.2.1-10.2.2.10, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.11-10.2.2.180"},
+		{ipPool: "10.2.2.11-10.2.2.30", availableIP: "10.2.2.1-10.2.2.30, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.31-10.2.2.180"},
+		{ipPool: "", availableIP: "10.2.2.1-10.2.2.30, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.31-10.2.2.180"},
+		{ipPool: "10.2.2.31-10.2.2.132", availableIP: "10.2.2.1-10.2.2.132, 10.2.2.181-10.2.2.254",
+			allocatedIP: "10.2.2.133-10.2.2.180"},
+		{ipPool: "10.2.2.133-10.2.2.180", availableIP: "10.2.2.1-10.2.2.254",
+			allocatedIP: ""},
+	}
+
+	for epgIndex, epgDelPool := range epgDelStr {
+		// delete epg
+		err = its.client.EndpointGroupDelete("default", fmt.Sprintf("epgC-%d", epgIndex))
+		assertNoErr(err, c, "deleting epg")
+		// verify flows are also gone
+		its.verifyEndpointFlowRemoved(epgCfg[epgIndex], c)
+
+		inspNw, err = its.client.NetworkInspect("default", nwName)
+		assertNoErr(err, c, fmt.Sprintf("inspecting network %s", nwName))
+		assertOnTrue(c, inspNw.Oper.AllocatedIPAddresses != epgDelPool.allocatedIP,
+			fmt.Sprintf("invalid alloc addr %s for nw %s", inspNw.Oper.AllocatedIPAddresses, nwName))
+		assertOnTrue(c, inspNw.Oper.AvailableIPAddresses != epgDelPool.availableIP,
+			fmt.Sprintf("invalid avail addr %s for nw %s", inspNw.Oper.AvailableIPAddresses, nwName))
+	}
+
+	assertNoErr(its.client.NetworkDelete("default", nwName), c, "deleting network")
 }
 
 // TestEndpointGroupInspect test endpointGroup inspect command

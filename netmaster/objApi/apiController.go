@@ -599,7 +599,8 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	}
 
 	// create the endpoint group state
-	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName,
+		endpointGroup.IpPool, endpointGroup.GroupName)
 	if err != nil {
 		log.Errorf("Error creating endpoint group %+v. Err: %v", endpointGroup, err)
 		return err
@@ -702,6 +703,10 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 	// if the network association was changed, reject the update.
 	if endpointGroup.NetworkName != params.NetworkName {
 		return core.Errorf("Cannot change network association after epg is created.")
+	}
+
+	if endpointGroup.IpPool != params.IpPool {
+		return core.Errorf("Cannot change IP pool after epg is created.")
 	}
 
 	// Only update policy attachments
@@ -896,10 +901,21 @@ func (ac *APIController) EndpointGroupGetOper(endpointGroup *contivModel.Endpoin
 		return err
 	}
 
+	nwName := epgCfg.NetworkName + "." + epgCfg.TenantName
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	if err := nwCfg.Read(nwName); err != nil {
+		log.Errorf("Error fetching network config %s", nwName)
+		return err
+	}
+
 	endpointGroup.Oper.ExternalPktTag = epgCfg.ExtPktTag
 	endpointGroup.Oper.PktTag = epgCfg.PktTag
 	endpointGroup.Oper.NumEndpoints = epgCfg.EpCount
-
+	endpointGroup.Oper.AvailableIPAddresses = netutils.ListAvailableIPs(epgCfg.EPGIPAllocMap,
+		nwCfg.SubnetIP, nwCfg.SubnetLen)
+	endpointGroup.Oper.AllocatedIPAddresses = netutils.ListAllocatedIPs(epgCfg.EPGIPAllocMap,
+		epgCfg.IPPool, nwCfg.SubnetIP, nwCfg.SubnetLen)
 	readEp := &mastercfg.CfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()

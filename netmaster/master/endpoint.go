@@ -59,9 +59,9 @@ func validateEndpointConfig(stateDriver core.StateDriver, tenant *intent.ConfigT
 }
 
 func allocSetEpAddress(ep *intent.ConfigEP, epCfg *mastercfg.CfgEndpointState,
-	nwCfg *mastercfg.CfgNetworkState) (err error) {
+	nwCfg *mastercfg.CfgNetworkState, epgCfg *mastercfg.EndpointGroupState) (err error) {
 
-	ipAddress, err := networkAllocAddress(nwCfg, ep.IPAddress, false)
+	ipAddress, err := networkAllocAddress(nwCfg, epgCfg, ep.IPAddress, false)
 	if err != nil {
 		log.Errorf("Error allocating IP address. Err: %v", err)
 		return
@@ -77,7 +77,7 @@ func allocSetEpAddress(ep *intent.ConfigEP, epCfg *mastercfg.CfgEndpointState,
 
 	if nwCfg.IPv6Subnet != "" {
 		var ipv6Address string
-		ipv6Address, err = networkAllocAddress(nwCfg, ep.IPv6Address, true)
+		ipv6Address, err = networkAllocAddress(nwCfg, nil, ep.IPv6Address, true)
 		if err != nil {
 			log.Errorf("Error allocating IP address. Err: %v", err)
 			return
@@ -89,10 +89,11 @@ func allocSetEpAddress(ep *intent.ConfigEP, epCfg *mastercfg.CfgEndpointState,
 }
 
 // freeAddrOnErr deferred function that cleans up on error
-func freeAddrOnErr(nwCfg *mastercfg.CfgNetworkState, ipAddress string, pErr *error) {
+func freeAddrOnErr(nwCfg *mastercfg.CfgNetworkState, epgCfg *mastercfg.EndpointGroupState,
+	ipAddress string, pErr *error) {
 	if *pErr != nil {
 		log.Infof("Freeing %s on error", ipAddress)
-		networkReleaseAddress(nwCfg, ipAddress)
+		networkReleaseAddress(nwCfg, epgCfg, ipAddress)
 	}
 }
 
@@ -100,6 +101,7 @@ func freeAddrOnErr(nwCfg *mastercfg.CfgNetworkState, ipAddress string, pErr *err
 func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkState,
 	epReq *CreateEndpointRequest) (*mastercfg.CfgEndpointState, error) {
 
+	var epgCfg *mastercfg.EndpointGroupState
 	ep := &epReq.ConfigEP
 	epCfg := &mastercfg.CfgEndpointState{}
 	epCfg.StateDriver = stateDriver
@@ -116,15 +118,25 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 	epCfg.ServiceName = ep.ServiceName
 	epCfg.EPCommonName = epReq.EPCommonName
 
+	if len(epCfg.ServiceName) > 0 {
+		epgCfg = &mastercfg.EndpointGroupState{}
+		epgCfg.StateDriver = stateDriver
+		if err := epgCfg.Read(epCfg.ServiceName + ":" + nwCfg.Tenant); err != nil {
+			log.Errorf("failed to read endpoint group %s, %v",
+				epgCfg.GroupName+":"+epgCfg.TenantName, err)
+			return nil, err
+		}
+	}
+
 	// Allocate addresses
-	err = allocSetEpAddress(ep, epCfg, nwCfg)
+	err = allocSetEpAddress(ep, epCfg, nwCfg, epgCfg)
 	if err != nil {
 		log.Errorf("error allocating and/or reserving IP. Error: %s", err)
 		return nil, err
 	}
 
 	// cleanup relies on var err being used for all error checking
-	defer freeAddrOnErr(nwCfg, epCfg.IPAddress, &err)
+	defer freeAddrOnErr(nwCfg, epgCfg, epCfg.IPAddress, &err)
 
 	// Set endpoint group
 	// Skip for infra nw
@@ -211,6 +223,8 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 // DeleteEndpointID deletes an endpoint by ID.
 func DeleteEndpointID(stateDriver core.StateDriver, epID string) (*mastercfg.CfgEndpointState, error) {
 	epCfg := &mastercfg.CfgEndpointState{}
+	var epgCfg *mastercfg.EndpointGroupState
+
 	epCfg.StateDriver = stateDriver
 	err := epCfg.Read(epID)
 	if err != nil {
@@ -224,7 +238,17 @@ func DeleteEndpointID(stateDriver core.StateDriver, epID string) (*mastercfg.Cfg
 	// Network may already be deleted if infra nw
 	// If network present, free up nw resources
 	if err == nil && epCfg.IPAddress != "" {
-		err = networkReleaseAddress(nwCfg, epCfg.IPAddress)
+		if len(epCfg.ServiceName) > 0 {
+			epgCfg = &mastercfg.EndpointGroupState{}
+			epgCfg.StateDriver = stateDriver
+			if err := epgCfg.Read(epCfg.ServiceName + ":" + nwCfg.Tenant); err != nil {
+				log.Errorf("failed to read endpoint group %s, error %s",
+					epCfg.ServiceName+":"+epgCfg.TenantName, err)
+				return nil, err
+			}
+		}
+
+		err = networkReleaseAddress(nwCfg, epgCfg, epCfg.IPAddress)
 		if err != nil {
 			log.Errorf("Error releasing endpoint state for: %s. Err: %v", epCfg.IPAddress, err)
 		}
