@@ -224,8 +224,7 @@ Vagrant.configure(2) do |config|
         c.vm.hostname = vm_name
         c.vm.network :private_network, ip: member_info["contiv_control_ip"], virtualbox__intnet: "true"
         c.vm.network :private_network, ip: member_info["contiv_network_ip"], virtualbox__intnet: network_name, auto_config: false
-        c.vm.network :private_network, ip: "0.0.0.0", virtualbox__intnet: "contiv_purple", auto_config: false
-	c.vm.provider "virtualbox" do |v|
+        c.vm.provider "virtualbox" do |v|
 
                 if vm_name == "k8master" then
                   v.memory = 2048

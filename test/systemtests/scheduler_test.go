@@ -47,4 +47,5 @@ type systemTestScheduler interface {
 	startIperfServer(containers *container) error
 	startIperfClient(containers *container, ip, limit string, isErr bool) error
 	tcFilterShow(bw string) error
+	verifyUplinkState(n *node,uplinks []string) error
 }
