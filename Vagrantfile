@@ -8,8 +8,9 @@ require 'fileutils'
 BEGIN {
   STATEFILE = ".vagrant-state"
 
+  # if there's a state file, set all the envvars in the current environment
   if File.exist?(STATEFILE)
-    File.open(STATEFILE).read.lines.map { |x| x.split("=", 2) }.each { |x,y| ENV[x] = y }
+    File.read(STATEFILE).lines.map { |x| x.split("=", 2) }.each { |x,y| ENV[x] = y.strip }
   end
 }
 
