@@ -21,8 +21,10 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
@@ -31,8 +33,6 @@ import (
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
 	"github.com/contiv/objdb/modeldb"
-
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -497,6 +497,13 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 				endpoint.Oper.Labels = fmt.Sprintf("%s", ep.Labels)
 				endpoint.Oper.ContainerID = ep.ContainerID
 				endpoint.Oper.ContainerName = ep.EPCommonName
+
+				epOper := &drivers.OvsOperEndpointState{}
+				epOper.StateDriver = stateDriver
+				err := epOper.Read(ep.NetID + "-" + ep.EndpointID)
+				if err == nil {
+					endpoint.Oper.VirtualPort = "v" + epOper.PortName
+				}
 
 				return nil
 			}
