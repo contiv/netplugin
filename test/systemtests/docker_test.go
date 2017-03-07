@@ -786,3 +786,35 @@ func (d *docker) reloadNode(n *node) error {
 func (d *docker) getMasterIP() (string, error) {
 	return d.node.getIPAddr("eth1")
 }
+
+func (d *docker) verifyUplinkState(n *node, uplinks []string) error {
+	var err error
+	var portName string
+	var cmd, output string
+
+	if len(uplinks) > 1 {
+		portName = "uplinkPort"
+	} else {
+		portName = uplinks[0]
+	}
+
+	// Verify port state
+	cmd = fmt.Sprintf("sudo ovs-vsctl find Port name=%s", portName)
+	output, err = n.runCommand(cmd)
+	if err != nil || !(strings.Contains(string(output), portName)) {
+		err = fmt.Errorf("Lookup failed for uplink Port %s. Err: %+v", portName, err)
+		return err
+	}
+
+	// Verify Interface state
+	for _, uplink := range uplinks {
+		cmd = fmt.Sprintf("sudo ovs-vsctl find Interface name=%s", uplink)
+		output, err = n.runCommand(cmd)
+		if err != nil || !(strings.Contains(string(output), uplink)) {
+			err = fmt.Errorf("Lookup failed for uplink interface %s for uplink cfg:%+v. Err: %+v", uplink, uplinks, err)
+			return err
+		}
+	}
+
+	return err
+}

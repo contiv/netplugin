@@ -53,8 +53,9 @@ function GetContiv {
 function GetContrib {
 	pushd .
 	if [ -f $top_dir/contrib ]; then
-    		echo "netplugin-$contivVer.tar.bz2 found, not fetching."
+    		echo "contrib found, not fetching."
   	else
+		echo "Fetching contrib....."
 		git clone https://github.com/jojimt/contrib -b contiv 
   	fi
 	popd
@@ -93,12 +94,6 @@ fi
 
 if [ "$legacyInstall" == 1 ] && [ "$k8_sanity" == "" ]; then
    GetContiv
-fi
-
-if [ "$legacyInstall" == 1 ] && [ "$k8_sanity" == "1" ]; then
-   if [ ! -f ./contrib ]; then
-      git clone https://github.com/jojimt/contrib -b contiv
-   fi
 fi
 
 # exit on any error
