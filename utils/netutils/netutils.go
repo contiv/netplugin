@@ -994,6 +994,17 @@ func ListAllocatedIPs(allocMap bitset.BitSet, ipPool string, subnetIP string, su
 	return strings.Join(list, ", ")
 }
 
+// NextClear wrapper around Bitset to check max id
+func NextClear(allocMap bitset.BitSet, idx uint, subnetLen uint) (uint, bool) {
+	maxHosts := uint(1 << (32 - subnetLen))
+
+	value, found := allocMap.NextClear(idx)
+	if found && value >= maxHosts {
+		return 0, false
+	}
+	return value, found
+}
+
 // ListAvailableIPs returns a string of available IPs in a network
 func ListAvailableIPs(allocMap bitset.BitSet, subnetIP string, subnetLen uint) string {
 	idx := uint(0)
@@ -1002,7 +1013,7 @@ func ListAvailableIPs(allocMap bitset.BitSet, subnetIP string, subnetLen uint) s
 	inRange := false
 
 	for {
-		foundValue, found := allocMap.NextClear(idx)
+		foundValue, found := NextClear(allocMap, idx, subnetLen)
 		if !found {
 			break
 		}
