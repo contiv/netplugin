@@ -19,6 +19,45 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+func (s *systemtestSuite) parallelExec(fn func(*node) error) []error {
+	errChan := make(chan map[int]error, len(s.nodes))
+	nodeError := "encountered error on node %v: %v"
+	runner := func(n *node, i int, wg *sync.WaitGroup) {
+		defer wg.Done()
+		err := fn(n)
+		if err != nil {
+			err = fmt.Errorf(nodeError, n.Name(), err)
+		}
+		errChan <- map[int]error{i: err}
+	}
+	var wg sync.WaitGroup
+	for i, n := range s.nodes {
+		wg.Add(1)
+		go runner(n, i, &wg)
+	}
+	wg.Wait()
+
+	errors := map[int]error{}
+	for i := 0; i < len(s.nodes); i++ {
+		res := <-errChan
+		for k, v := range res {
+			if v != nil {
+				errors[k] = v
+			}
+		}
+	}
+
+	finalErrors := make([]error, len(errors))
+	for i := range s.nodes {
+		err, ok := errors[i]
+		if !ok {
+			finalErrors = append(finalErrors, err)
+		}
+	}
+
+	return finalErrors
+}
+
 func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*container, port int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
@@ -1328,33 +1367,48 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 }
 
 func (s *systemtestSuite) SetUpTestVagrant(c *C) {
-	for _, node := range s.nodes {
+	s.parallelExec(func(node *node) error {
 		node.exec.cleanupContainers()
 		node.stopNetplugin()
 		node.cleanupSlave()
-	}
+		return nil
+	})
 
-	for _, node := range s.nodes {
+	s.parallelExec(func(node *node) error {
 		node.stopNetmaster()
-
-	}
-	for _, node := range s.nodes {
 		node.cleanupMaster()
+		return nil
+	})
+
+	errors := s.parallelExec(func(node *node) error {
+		return node.startNetplugin("")
+
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
 	}
 
-	for _, node := range s.nodes {
-
-		c.Assert(node.startNetplugin(""), IsNil)
-		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-
+	errors = s.parallelExec(func(node *node) error {
+		return node.exec.runCommandUntilNoNetpluginError()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
 	}
 
 	time.Sleep(15 * time.Second)
 
-	for _, node := range s.nodes {
-		c.Assert(node.startNetmaster(), IsNil)
-		time.Sleep(1 * time.Second)
-		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
+	errors = s.parallelExec(func(node *node) error {
+		return node.startNetmaster()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
+	}
+
+	errors = s.parallelExec(func(node *node) error {
+		return node.exec.runCommandUntilNoNetmasterError()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
 	}
 
 	time.Sleep(5 * time.Second)

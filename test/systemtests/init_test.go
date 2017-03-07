@@ -121,11 +121,28 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 }
 
 func (s *systemtestSuite) TearDownTest(c *C) {
-	for _, node := range s.nodes {
-		c.Check(node.checkForNetpluginErrors(), IsNil)
-		c.Assert(node.exec.rotateNetpluginLog(), IsNil)
-		c.Assert(node.exec.rotateNetmasterLog(), IsNil)
+
+	errors := s.parallelExec(func(node *node) error {
+		return node.checkForNetpluginErrors()
+	})
+	for _, err := range errors {
+		c.Check(err, IsNil)
 	}
+
+	errors = s.parallelExec(func(node *node) error {
+		return node.exec.rotateNetpluginLog()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
+	}
+
+	errors = s.parallelExec(func(node *node) error {
+		return node.exec.rotateNetmasterLog()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
+	}
+
 	logrus.Infof("============================= %s completed ==========================", c.TestName())
 }
 
