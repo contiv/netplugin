@@ -258,7 +258,7 @@ func (cp *ConsulClient) DeregisterService(serviceInfo ServiceInfo) error {
 	return nil
 }
 
-//--------------------- Internal funcitons -------------------
+//--------------------- Internal functions -------------------
 func (cp *ConsulClient) renewService(keyName, ttl, sessionID string, jsonVal []byte, stopChan chan struct{}) {
 	for {
 		err := cp.client.Session().RenewPeriodic(ttl, sessionID, nil, stopChan)

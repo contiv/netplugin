@@ -21,7 +21,7 @@ import (
 	"net/url"
 	"path"
 
-	"golang.org/x/net/context"
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
 )
 
 var (
@@ -34,6 +34,12 @@ type User struct {
 	Roles    []string `json:"roles"`
 	Grant    []string `json:"grant,omitempty"`
 	Revoke   []string `json:"revoke,omitempty"`
+}
+
+// userListEntry is the user representation given by the server for ListUsers
+type userListEntry struct {
+	User  string `json:"user"`
+	Roles []Role `json:"roles"`
 }
 
 type UserRoles struct {
@@ -198,7 +204,7 @@ func (u *httpAuthUserAPI) ListUsers(ctx context.Context) ([]string, error) {
 	}
 
 	var userList struct {
-		Users []User `json:"users"`
+		Users []userListEntry `json:"users"`
 	}
 
 	if err = json.Unmarshal(body, &userList); err != nil {
