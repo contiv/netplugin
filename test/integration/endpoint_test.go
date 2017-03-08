@@ -217,6 +217,61 @@ func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
 	}
 
 	assertNoErr(its.client.NetworkDelete("default", "test"), c, "deleting network")
+
+	// test network/epg subnet
+	nwData := []struct {
+		subnet      string
+		availableIP string
+	}{
+
+		{subnet: "10.100.100.194-10.100.100.222/27", availableIP: "10.100.100.194-10.100.100.222"},
+		{subnet: "10.1.1.5-10.1.1.15/27", availableIP: "10.1.1.5-10.1.1.15"},
+		{subnet: "10.1.1.0/27", availableIP: "10.1.1.1-10.1.1.30"},
+		{subnet: "10.1.1.0/28", availableIP: "10.1.1.1-10.1.1.14"},
+		{subnet: "10.1.1.0/29", availableIP: "10.1.1.1-10.1.1.6"},
+		{subnet: "10.1.1.0/30", availableIP: "10.1.1.1-10.1.1.2"},
+		{subnet: "10.1.1.0/31"},
+	}
+	for _, nwRange := range nwData {
+		err := its.client.NetworkPost(&client.Network{
+			TenantName:  "default",
+			NetworkName: "subnet-test1",
+			Subnet:      nwRange.subnet,
+			Encap:       its.encap,
+		})
+		assertNoErr(err, c, "creating network")
+
+		// inspect
+		nInspect, err := its.client.NetworkInspect("default", "subnet-test1")
+		assertNoErr(err, c, fmt.Sprintf("inspect failed for %+v", nwRange.subnet))
+		assertOnTrue(c, nInspect.Oper.AllocatedIPAddresses != "",
+			fmt.Sprintf("invalid allocated address %+v", nInspect))
+		assertOnTrue(c, nInspect.Oper.AvailableIPAddresses != nwRange.availableIP,
+			fmt.Sprintf("invalid available  address %+v", nInspect))
+
+
+		// check epg
+		err = its.client.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:       "default",
+			NetworkName:      "subnet-test1",
+			GroupName:        "epg1",
+			IpPool:           nwRange.availableIP,
+			Policies:         []string{},
+			ExtContractsGrps: []string{},
+		})
+		assertNoErr(err, c, fmt.Sprintf("create epg %+v", "epg1"))
+		// inspect
+		dInspect, e := its.client.EndpointGroupInspect("default", "epg1")
+		assertNoErr(e, c, fmt.Sprintf("inspect failed for %+v", nwRange))
+		assertOnTrue(c, dInspect.Oper.AllocatedIPAddresses != "",
+			fmt.Sprintf("invalid allocated address %+v", dInspect))
+		assertOnTrue(c, dInspect.Oper.AvailableIPAddresses != nwRange.availableIP,
+			fmt.Sprintf("invalid available  address %+v", dInspect))
+		assertNoErr(its.client.EndpointGroupDelete("default", "epg1"), c, "delete epg")
+
+		assertNoErr(its.client.NetworkDelete("default", "subnet-test1"), c, "deleting network")
+	}
+
 }
 
 // TestEndpointGrouIPPoolCreateDelete tests EPG with IPAM create delete ops

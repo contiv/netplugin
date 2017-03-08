@@ -363,7 +363,7 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, epgCfg *mastercfg.End
 		} else {
 			if epgCfg != nil && len(epgCfg.IPPool) > 0 { // allocate from epg network
 				log.Infof("allocating ip address from epg pool %s", epgCfg.IPPool)
-				ipAddrValue, found = epgCfg.EPGIPAllocMap.NextClear(0)
+				ipAddrValue, found = netutils.NextClear(epgCfg.EPGIPAllocMap, 0, nwCfg.SubnetLen)
 				if !found {
 					log.Errorf("auto allocation failed - address exhaustion in pool %s",
 						epgCfg.IPPool)
@@ -378,7 +378,7 @@ func networkAllocAddress(nwCfg *mastercfg.CfgNetworkState, epgCfg *mastercfg.End
 				}
 				epgCfg.EPGIPAllocMap.Set(ipAddrValue)
 			} else {
-				ipAddrValue, found = nwCfg.IPAllocMap.NextClear(0)
+				ipAddrValue, found = netutils.NextClear(nwCfg.IPAllocMap, 0, nwCfg.SubnetLen)
 				if !found {
 					log.Errorf("auto allocation failed - address exhaustion in subnet %s/%d",
 						nwCfg.SubnetIP, nwCfg.SubnetLen)
