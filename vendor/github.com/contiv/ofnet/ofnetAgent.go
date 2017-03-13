@@ -45,6 +45,7 @@ type OfnetAgent struct {
 	ctrler      *ofctrl.Controller // Controller instance
 	ofSwitch    *ofctrl.OFSwitch   // Switch instance. Assumes single switch per agent
 	localIp     net.IP             // Local IP to be used for tunnel end points
+	localMac    string             // local mac information
 	MyPort      uint16             // Port where the agent's RPC server is listening
 	MyAddr      string             // RPC server addr. same as localIp. different in testing environments
 	isConnected bool               // Is the switch connected
@@ -142,7 +143,7 @@ const (
 // Create a new Ofnet agent and initialize it
 func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uint16,
 	ovsPort uint16, uplinkInfo []string) (*OfnetAgent, error) {
-	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d,%v \n", bridgeName, dpName, localIp, rpcPort, ovsPort, uplinkInfo)
+	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d,%v \n", bridgeName, dpName, localIp, rpcPort, ovsPort)
 	agent := new(OfnetAgent)
 
 	// Init params
@@ -151,7 +152,15 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	agent.MyAddr = localIp.String()
 	agent.dpName = dpName
 	agent.arpMode = ArpProxy
-
+	if len(uplinkInfo) > 0 {
+		intf, err := net.InterfaceByName(uplinkInfo[0])
+		if err == nil {
+			agent.localMac = intf.HardwareAddr.String()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	agent.masterDb = make(map[string]*OfnetNode)
 	agent.portVlanMap = make(map[uint32]*uint16)
 	agent.vniVlanMap = make(map[uint32]*uint16)
@@ -202,7 +211,7 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 		agent.datapath = NewVlrouter(agent, rpcServ)
 		agent.fwdMode = "routing"
 		agent.ovsDriver = ovsdbDriver.NewOvsDriver(bridgeName)
-		agent.protopath = NewOfnetBgp(agent, uplinkInfo)
+		agent.protopath = NewOfnetBgp(agent)
 	default:
 		log.Fatalf("Unknown Datapath %s", dpName)
 	}
@@ -559,7 +568,6 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	// Build endpoint registry info
 	epreg := &OfnetEndpoint{
 		EndpointID:        epId,
-		EndpointType:      "internal",
 		EndpointGroup:     endpoint.EndpointGroup,
 		IpAddr:            endpoint.IpAddr,
 		IpMask:            net.ParseIP("255.255.255.255"),
@@ -570,12 +578,14 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		Vlan:              endpoint.Vlan,
 		Vni:               *vni,
 		OriginatorIp:      self.localIp,
+		OriginatorMac:     self.localMac,
 		PortNo:            endpoint.PortNo,
 		Dscp:              endpoint.Dscp,
 		Timestamp:         time.Now(),
 		EndpointGroupVlan: endpoint.EndpointGroupVlan,
 		HostPvtIP:         endpoint.HostPvtIP,
 	}
+	self.setInternal(epreg)
 
 	// Call the datapath
 	err := self.datapath.AddLocalEndpoint(*epreg)
@@ -769,16 +779,16 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 	if Gw != "" && self.fwdMode == "routing" {
 		// Call the datapath
 		epreg := &OfnetEndpoint{
-			EndpointID:   gwEpid,
-			EndpointType: "internal",
-			IpAddr:       net.ParseIP(Gw),
-			IpMask:       net.ParseIP("255.255.255.255"),
-			Vrf:          *vrf,
-			Vni:          vni,
-			Vlan:         vlanId,
-			PortNo:       0,
-			Timestamp:    time.Now(),
+			EndpointID: gwEpid,
+			IpAddr:     net.ParseIP(Gw),
+			IpMask:     net.ParseIP("255.255.255.255"),
+			Vrf:        *vrf,
+			Vni:        vni,
+			Vlan:       vlanId,
+			PortNo:     0,
+			Timestamp:  time.Now(),
 		}
+		self.setInternal(epreg)
 		self.endpointDb.Set(gwEpid, epreg)
 		// increment stats
 	}
@@ -811,7 +821,7 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 		if (vni != 0) && (ep.Vni == vni) {
 			if ep.OriginatorIp.String() == self.localIp.String() {
 				log.Fatalf("Vlan %d still has routes. Route: %+v", vlanId, ep)
-			} else if ep.EndpointType == "internal" {
+			} else if self.isInternal(ep) {
 				// Network delete arrived before other hosts cleanup endpoint
 				log.Warnf("Vlan %d still has routes, cleaning up. Route: %+v", vlanId, ep)
 				// Uninstall the endpoint from datapath
@@ -840,7 +850,15 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 // AddUplink adds an uplink to the switch
 func (self *OfnetAgent) AddUplink(uplinkPort *PortInfo) error {
 	// Call the datapath
-	return self.datapath.AddUplink(uplinkPort)
+	err := self.datapath.AddUplink(uplinkPort)
+	if err != nil {
+		return err
+	}
+
+	if self.protopath != nil {
+		self.protopath.SetRouterInfo(uplinkPort)
+	}
+	return nil
 }
 
 // UpdateUplink Updates an uplink to the switch
@@ -1000,6 +1018,7 @@ func (self *OfnetAgent) AddBgp(routerIP string, As string, neighborAs string, pe
 		log.Errorf("Error adding protocol neighbor")
 		return err
 	}
+
 	return nil
 }
 
@@ -1032,13 +1051,13 @@ func (self *OfnetAgent) GetRouterInfo() *OfnetProtoRouterInfo {
 }
 
 func (self *OfnetAgent) AddLocalProtoRoute(path []*OfnetProtoRouteInfo) {
-	if self.protopath != nil {
+	if self.GetRouterInfo() != nil {
 		self.protopath.AddLocalProtoRoute(path)
 	}
 }
 
 func (self *OfnetAgent) DeleteLocalProtoRoute(path []*OfnetProtoRouteInfo) {
-	if self.protopath != nil {
+	if self.GetRouterInfo() != nil {
 		self.protopath.DeleteLocalProtoRoute(path)
 	}
 }
@@ -1058,7 +1077,7 @@ func (self *OfnetAgent) GetEndpointStats() (map[string]*OfnetEndpointStats, erro
 
 // InspectBgp returns ofnet bgp state
 func (self *OfnetAgent) InspectBgp() (interface{}, error) {
-	if self.protopath != nil {
+	if self.GetRouterInfo() != nil {
 		peer, err := self.protopath.InspectProto()
 		return peer, err
 	}
@@ -1214,4 +1233,75 @@ func (self *OfnetAgent) getvlanVrf(vlan uint16) *string {
 
 func (self *OfnetAgent) AddNameServer(ns NameServer) {
 	self.nameServer = ns
+}
+
+func (self *OfnetAgent) isInternal(endpoint *OfnetEndpoint) bool {
+	if endpoint.EndpointType&(1<<OFNET_INTERNAL) > 0 {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) setInternal(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType | (1 << OFNET_INTERNAL)
+}
+
+func (self *OfnetAgent) unsetInternal(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType ^ (1 << OFNET_INTERNAL)
+}
+
+func (self *OfnetAgent) isExternal(endpoint *OfnetEndpoint) bool {
+	if endpoint.EndpointType&(1<<OFNET_EXTERNAL) > 0 {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) isExternalOnly(endpoint *OfnetEndpoint) bool {
+	if (endpoint.EndpointType&(1<<OFNET_EXTERNAL) > 0) && !self.isInternal(endpoint) {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) setExternal(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType | (1 << OFNET_EXTERNAL)
+}
+
+func (self *OfnetAgent) unsetExternal(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType ^ (1 << OFNET_EXTERNAL)
+}
+
+func (self *OfnetAgent) isExternalBgp(endpoint *OfnetEndpoint) bool {
+	if endpoint.EndpointType&(1<<OFNET_EXTERNAL_BGP) > 0 {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) setExternalBgp(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType | (1 << OFNET_EXTERNAL_BGP)
+}
+
+func (self *OfnetAgent) unsetExternalBgp(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType ^ (1 << OFNET_EXTERNAL_BGP)
+}
+
+func (self *OfnetAgent) isInternalBgp(endpoint *OfnetEndpoint) bool {
+	if endpoint.EndpointType&(1<<OFNET_INTERNAL_BGP) > 0 {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) setInternalBgp(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType | (1 << OFNET_INTERNAL_BGP)
+}
+
+func (self *OfnetAgent) unsetInternalBgp(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType ^ (1 << OFNET_INTERNAL_BGP)
+}
+
+func (self *OfnetAgent) FlushEndpoints(endpointType int) {
+	self.datapath.FlushEndpoints(endpointType)
 }

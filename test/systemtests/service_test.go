@@ -499,6 +499,8 @@ func (s *systemtestSuite) testServiceSequenceProviderAddServiceAdd(c *C, encap s
 				serviceIPs[tenant] = append(serviceIPs[tenant], ips...)
 			}
 		}
+		//wait for providers to be attached to service
+		time.Sleep(10*time.Second)
 
 		endChan := make(chan error)
 		for tenantNetwork, conts := range containers {

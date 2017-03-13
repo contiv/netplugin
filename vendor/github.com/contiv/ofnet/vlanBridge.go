@@ -1094,3 +1094,7 @@ func (vl *VlanBridge) listLinks() []string {
 
 	return links
 }
+
+//FlushEndpoints flushes endpoints from ovs
+func (vl *VlanBridge) FlushEndpoints(endpointType int) {
+}

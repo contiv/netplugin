@@ -25,6 +25,13 @@ import (
 	"github.com/shaleman/libOpenflow/openflow13"
 )
 
+const (
+	OFNET_INTERNAL     = 1 //Internal contiv cluster ep type
+	OFNET_INTERNAL_BGP = 2 //Internal contiv bgp intf ep
+	OFNET_EXTERNAL_BGP = 3 //External contiv bgp neighbor ep
+	OFNET_EXTERNAL     = 4 //External eps (non contiv eps)
+)
+
 // Interface implemented by each datapath
 type OfnetDatapath interface {
 	// New master was added.
@@ -104,6 +111,9 @@ type OfnetDatapath interface {
 
 	// Set global config
 	GlobalConfigUpdate(cfg OfnetGlobalConfig) error
+
+	// flush the endpoints
+	FlushEndpoints(endpointType int)
 }
 
 // Interface implemented by each control protocol.
@@ -122,6 +132,9 @@ type OfnetProto interface {
 
 	//Get Protocol router info
 	GetRouterInfo() *OfnetProtoRouterInfo
+
+	//Set Protocol router info
+	SetRouterInfo(uplinkPort *PortInfo)
 
 	//Add Local Route
 	AddLocalProtoRoute(path []*OfnetProtoRouteInfo) error
@@ -153,7 +166,7 @@ type OfnetNode struct {
 // OfnetEndpoint has info about an endpoint
 type OfnetEndpoint struct {
 	EndpointID        string    // Unique identifier for the endpoint
-	EndpointType      string    // Type of the endpoint "internal", "external" or "externalRoute"
+	EndpointType      int       // Type of the endpoint , "external" or "externalRoute"
 	EndpointGroup     int       // Endpoint group identifier for policies.
 	IpAddr            net.IP    // IP address of the end point
 	IpMask            net.IP    // IP mask for the end point
@@ -165,6 +178,7 @@ type OfnetEndpoint struct {
 	Vni               uint32    // Vxlan VNI
 	EndpointGroupVlan uint16    // EnpointGroup Vlan, needed in non-Standalone mode of netplugin
 	OriginatorIp      net.IP    // Originating switch
+	OriginatorMac     string    // Mac address of the endpoint host
 	PortNo            uint32    `json:"-"` // Port number on originating switch
 	Dscp              int       `json:"-"` // DSCP value for the endpoint
 	Timestamp         time.Time // Timestamp of the last event
@@ -195,10 +209,10 @@ type OfnetProtoNeighborInfo struct {
 
 // OfnetProtoRouterInfo has local router info
 type OfnetProtoRouterInfo struct {
-	ProtocolType string   // type of protocol
-	RouterIP     string   // ip address of the router
-	UplinkPort   PortInfo // uplink L2 intf
-	As           string   // As for Bgp protocol
+	ProtocolType string    // type of protocol
+	RouterIP     string    // ip address of the router
+	UplinkPort   *PortInfo // uplink L2 intf
+	As           string    // As for Bgp protocol
 }
 
 // OfnetProtoRouteInfo contains a route
