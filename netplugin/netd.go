@@ -113,6 +113,9 @@ func main() {
 	var flagSet *flag.FlagSet
 
 	defHostLabel, err := os.Hostname()
+	if err != nil {
+		log.Fatalf("Failed to fetch hostname: %v", err)
+	}
 
 	// parse rest of the args that require creating state
 	flagSet = flag.NewFlagSet("netplugin", flag.ExitOnError)

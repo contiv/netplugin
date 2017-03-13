@@ -77,6 +77,9 @@ func TestNetPluginInitInvalidConfigMissingInstance(t *testing.T) {
 	// Parse the config
 	pluginConfig := Config{}
 	err := json.Unmarshal([]byte(configStr), &pluginConfig)
+	if err != nil {
+		t.Fatalf("Error parsing config. Err: %v", err)
+	}
 
 	plugin := NetPlugin{}
 	err = plugin.Init(pluginConfig)
@@ -188,31 +191,6 @@ func TestNetPluginInitInvalidConfigMissingNetworkDriverName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error parsing config. Err: %v", err)
 	}
-
-	plugin := NetPlugin{}
-	err = plugin.Init(pluginConfig)
-	if err == nil {
-		t.Fatalf("plugin init succeeded, should have failed!")
-	}
-}
-
-func TestNetPluginInitInvalidConfigMissingFwdMode(t *testing.T) {
-	configStr := `{
-                    "drivers" : {
-                       "network": "ovs",
-                       "endpoint": "ovs",
-                       "state": "fakedriver",
-                       "container": "docker",
-                    },
-					"plugin-instance": {
-						 "host-label": "testHost",
-						 "db-url": "etcd://127.0.0.1:4001"
-					}
-                  }`
-
-	// Parse the config
-	pluginConfig := Config{}
-	err := json.Unmarshal([]byte(configStr), &pluginConfig)
 
 	plugin := NetPlugin{}
 	err = plugin.Init(pluginConfig)

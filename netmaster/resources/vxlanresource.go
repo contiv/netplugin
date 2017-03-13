@@ -238,7 +238,7 @@ func (r *AutoVXLANCfgResource) Allocate(reqVal interface{}) (interface{}, error)
 			return nil, fmt.Errorf("requested vxlan not available")
 		}
 	} else {
-		ok := false
+		var ok bool
 		vxlan, ok = oper.FreeVXLANs.NextSet(0)
 		if !ok {
 			return nil, errors.New("no vxlans available")

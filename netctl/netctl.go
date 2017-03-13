@@ -576,6 +576,10 @@ func inspectTenant(ctx *cli.Context) {
 	errCheck(ctx, err)
 
 	content, err := json.MarshalIndent(ten, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
 	os.Stdout.Write(content)
 	os.Stdout.WriteString("\n")
 }
@@ -671,6 +675,10 @@ func inspectEndpointGroup(ctx *cli.Context) {
 	errCheck(ctx, err)
 
 	content, err := json.MarshalIndent(epg, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
 	os.Stdout.Write(content)
 	os.Stdout.WriteString("\n")
 }
@@ -840,6 +848,10 @@ func inspectBgp(ctx *cli.Context) {
 	errCheck(ctx, err)
 
 	content, err := json.MarshalIndent(bgp, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
 	os.Stdout.Write(content)
 	os.Stdout.WriteString("\n")
 }

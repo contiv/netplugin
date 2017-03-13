@@ -1,7 +1,6 @@
 package systemtests
 
 import (
-	"errors"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -144,7 +143,6 @@ func (s *systemtestSuite) TestACIPingGateway(c *C) {
 	c.Assert(s.pingTestByName(containersA, s.globInfo.Gateway), IsNil)
 
 	c.Assert(s.removeContainers(containersA), IsNil)
-	containersA = nil
 	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1"), IsNil)
 	time.Sleep(time.Second * 5)
 	c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epga"), IsNil)
@@ -390,8 +388,6 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		"epgb",
 		containersB), IsNil)
 	c.Assert(s.removeContainers(append(containersA, containersB...)), IsNil)
-	containersA = nil
-	containersB = nil
 	containers, err = s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, groups)
 	c.Assert(err, IsNil)
 	time.Sleep(time.Second * 20)
@@ -419,8 +415,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		Port:              8000,
 		Action:            "allow",
 	}), IsNil)
-	err = errors.New("Forced")
-	//c.Assert(err, IsNil)
+
 	time.Sleep(time.Second * 10)
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile2",
@@ -444,8 +439,6 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 	c.Assert(s.pingFailureTest(containersA2, containersB2), IsNil)
 
 	c.Assert(s.removeContainers(append(containersA2, containersB2...)), IsNil)
-	containersA2 = nil
-	containersB2 = nil
 	c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epga"), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epgb"), IsNil)
 	c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "2"), IsNil)
@@ -642,8 +635,6 @@ func (s *systemtestSuite) TestACIGWRestart(c *C) {
 	time.Sleep(time.Second * 5)
 
 	c.Assert(s.removeContainers(append(containersA, containersB...)), IsNil)
-	containersA = nil
-	containersB = nil
 	c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epga"), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epgb"), IsNil)
 	c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "2"), IsNil)

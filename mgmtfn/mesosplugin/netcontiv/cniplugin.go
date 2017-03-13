@@ -19,9 +19,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	logger "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/mgmtfn/mesosplugin/cniapi"
-	"github.com/contiv/netplugin/version"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -29,6 +26,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	logger "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/mgmtfn/mesosplugin/cniapi"
+	"github.com/contiv/netplugin/version"
 )
 
 const (
@@ -61,7 +62,7 @@ var cniLog *logger.Entry
 func (cniApp *cniAppInfo) parseEnv() error {
 
 	cniApp.logFields = make(logger.Fields)
-	envVal := ""
+	var envVal string
 
 	for _, envName := range cniEnvList {
 

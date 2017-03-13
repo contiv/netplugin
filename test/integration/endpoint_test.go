@@ -21,9 +21,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 
+	"strings"
+
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	. "gopkg.in/check.v1"
-	"strings"
 )
 
 // TestEndpointCreateDelete test endpoint create and delete ops
@@ -249,7 +250,6 @@ func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
 		assertOnTrue(c, nInspect.Oper.AvailableIPAddresses != nwRange.availableIP,
 			fmt.Sprintf("invalid available  address %+v", nInspect))
 
-
 		// check epg
 		err = its.client.EndpointGroupPost(&client.EndpointGroup{
 			TenantName:       "default",
@@ -347,6 +347,7 @@ func (its *integTestSuite) TestEndpointGroupIPPoolCreateDelete(c *C) {
 		Policies:         []string{},
 		ExtContractsGrps: []string{},
 	})
+	assertNoErr(err, c, fmt.Sprintf("create epg 10.3.1.10-10.3.1.20"))
 
 	for _, epgPool := range epgSeg {
 		err := its.client.EndpointGroupPost(&client.EndpointGroup{
@@ -377,7 +378,7 @@ func (its *integTestSuite) TestEndpointGroupIPPoolCreateDelete(c *C) {
 	// create an endpoint in the network
 	epCfg1, err := its.createEndpoint("default", nwName, "epg1", addr, "")
 	assertNoErr(err, c, "creating endpoint")
-	addr, err = its.allocAddress("", fmt.Sprintf("%s:epg1.default", nwName), "")
+	_, err = its.allocAddress("", fmt.Sprintf("%s:epg1.default", nwName), "")
 	assertErr(err, c, "allocating address")
 	err = its.deleteEndpoint("default", nwName, "epg1", epCfg1)
 	assertNoErr(err, c, "deleting endpoint")
@@ -450,7 +451,7 @@ func (its *integTestSuite) TestEndpointGroupIPPoolCreateDelete(c *C) {
 				fmt.Sprintf("invalid avail addr %s for epg %s", inspEpg.Oper.AvailableIPAddresses, epgName))
 		} else {
 			epIPList := strings.Split(strings.Split(epgPool1.allocatedIP, ",")[0], "-")
-			epIP := ""
+			var epIP string
 			if len(epIPList) > 1 {
 				epIP = epIPList[1]
 			} else {

@@ -448,7 +448,6 @@ func (s *systemtestSuite) TestBgpTriggerContainerAddDelete(c *C) {
 		for range containers {
 			<-endChan
 		}
-		allcontainers = nil
 	}
 	s.TearDownBgp(c)
 
@@ -991,8 +990,8 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 }
 
 func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) error {
-	ipList := []string{}
-	nodeCount := 0
+	var ipList []string
+	var nodeCount int
 	for i := 0; i < 120; i++ {
 		logrus.Infof("Checking Bgp container route distribution")
 		time.Sleep(1 * time.Second)

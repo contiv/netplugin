@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"fmt"
+
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -105,7 +106,7 @@ func verifyKeys(t *testing.T, keys []string) {
 func verifyKeysDoNotExist(t *testing.T, keys []string) {
 
 	for _, key := range keys {
-		found := false
+		var found bool
 		for stateKey := range fakeDriver.TestState {
 			if found = strings.Contains(stateKey, key); found {
 				t.Fatalf("key '%s' was populated in db", key)

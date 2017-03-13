@@ -112,8 +112,8 @@ func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 		}
 
 		for tenant, networks := range serviceNetworks {
-			ips := []string{}
-			sv := []*client.ServiceLB{}
+			var ips []string
+			var sv []*client.ServiceLB
 			for _, network := range networks {
 				sv, ips = s.createServices(c, numSvcs, tenant, network, numLabels)
 				services[tenant] = append(services[tenant], sv...)
@@ -279,7 +279,7 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 			}
 		}
 		for tenant, networks := range serviceNetworks {
-			ips := []string{}
+			var ips []string
 			for _, network := range networks {
 				services[tenant], ips = s.createServices(c, numSvcs, tenant, network, numLabels)
 				serviceIPs[tenant] = append(serviceIPs[tenant], ips...)
@@ -305,12 +305,13 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 			}
 		}
 
+		var contTenant string
 		for tenant, service := range services {
 			for _, svc := range service {
 				endChan := make(chan error)
 				for iter := 0; iter < s.basicInfo.Iterations; iter++ {
 					for tenantNetwork, conts := range containers {
-						contTenant := "default"
+						contTenant = "default"
 						if strings.Contains(tenantNetwork, ":") {
 							contTenant = strings.Split(tenantNetwork, ":")[1]
 							if contTenant != tenant {
@@ -331,7 +332,7 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 					servicesPerTenant[tenant] = serviceContainers
 
 					for tenantNetwork, conts := range containers {
-						contTenant := "default"
+						contTenant = "default"
 						if strings.Contains(tenantNetwork, ":") {
 							contTenant = strings.Split(tenantNetwork, ":")[1]
 							if contTenant != tenant {
@@ -491,8 +492,8 @@ func (s *systemtestSuite) testServiceSequenceProviderAddServiceAdd(c *C, encap s
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		for tenant, networks := range serviceNetworks {
-			ips := []string{}
-			sv := []*client.ServiceLB{}
+			var ips []string
+			var sv []*client.ServiceLB
 			for _, network := range networks {
 				sv, ips = s.createServices(c, numSvcs, tenant, network, numLabels)
 				services[tenant] = append(services[tenant], sv...)
@@ -652,8 +653,8 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 		for x := 0; x < s.basicInfo.Iterations; x++ {
 
 			for tenant, networks := range serviceNetworks {
-				ips := []string{}
-				sv := []*client.ServiceLB{}
+				var ips []string
+				var sv []*client.ServiceLB
 				for _, network := range networks {
 					sv, ips = s.createServices(c, numSvcs, tenant, network, numLabels)
 					services[tenant] = append(services[tenant], sv...)
@@ -867,8 +868,8 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 
 		for _, node := range s.nodes {
 			for tenant, networks := range serviceNetworks {
-				ips := []string{}
-				sv := []*client.ServiceLB{}
+				var ips []string
+				var sv []*client.ServiceLB
 				for _, network := range networks {
 					sv, ips = s.createServices(c, numSvcs, tenant, network, numLabels)
 					services[tenant] = append(services[tenant], sv...)
@@ -1009,7 +1010,7 @@ func (s *systemtestSuite) createServices(c *C, numServices int, tenant string, s
 
 func (s *systemtestSuite) addProviders(c *C, labels []string, numProviders int, tenant string, netName string, encap string) []*container {
 
-	containers := []*container{}
+	var containers []*container
 	logrus.Infof("Adding Providers with labels %v , on tenant %s , network %s", labels, tenant, netName)
 
 	names := generateProviderNames(numProviders, netName, tenant)

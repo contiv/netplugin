@@ -225,7 +225,7 @@ func (r *AutoVLANCfgResource) Allocate(reqVal interface{}) (interface{}, error) 
 			return nil, fmt.Errorf("requested vlan not available - vlan:%d", vlan)
 		}
 	} else {
-		ok := false
+		var ok bool
 		vlan, ok = oper.FreeVLANs.NextSet(0)
 		if !ok {
 			return nil, errors.New("no vlans available")

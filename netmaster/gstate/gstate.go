@@ -497,8 +497,9 @@ func (gc *Cfg) CheckInBitRange(ranges, inUse, pktTagType string) bool {
 	if len(inUse) == 0 {
 		return true
 	}
-	minUsed := 0
-	maxUsed := 0
+
+	var minUsed int
+	var maxUsed int
 	if strings.Contains(tags[0], "-") {
 		minUsed, _ = strconv.Atoi(strings.Split(tags[0], "-")[0])
 		maxUsed, _ = strconv.Atoi(strings.Split(tags[0], "-")[1])

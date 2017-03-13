@@ -22,6 +22,9 @@ import (
 	"strings"
 
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
@@ -33,8 +36,6 @@ import (
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
 	"github.com/contiv/objdb/modeldb"
-	"io/ioutil"
-	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -1639,8 +1640,8 @@ func getTenantNetworks(tenant *contivModel.TenantInspect) error {
 
 	tenantID := tenant.Config.TenantName
 	numEPs := 0
-	s := []string{}
-	networkID := ""
+	var s []string
+	var networkID string
 	for _, net := range tenant.Config.LinkSets.Networks {
 		networkID = net.ObjKey
 		log.Infof("network has ID %s", networkID)
@@ -1704,8 +1705,8 @@ func getTenantEPGs(tenant *contivModel.TenantInspect) error {
 	}
 
 	tenantID := tenant.Config.TenantName
-	s := []string{}
-	epgID := ""
+	var s []string
+	var epgID string
 	for _, epg := range tenant.Config.LinkSets.EndpointGroups {
 		epgID = epg.ObjKey
 		log.Infof("EPG ID is  %s", epgID)
