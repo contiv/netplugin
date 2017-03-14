@@ -52,4 +52,7 @@ scripts/netContain/bin
 # version
 version/version_gen.go
 
+# test files
+test/systemtests/cfg.json
+
 .vagrant-state

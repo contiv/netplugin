@@ -19,14 +19,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 	"strconv"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
-	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/network"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
+	dockerclient "github.com/docker/docker/client"
+	"github.com/docker/docker/dockerversion"
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
@@ -118,8 +120,8 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 	docknetName := GetDocknetName(tenantName, networkName, serviceName)
 
 	// connect to docker
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	docker, err := client.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
+	defaultHeaders := map[string]string{"User-Agent": "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"}
+	docker, err := dockerclient.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
 		return errors.New("Unable to connect to docker")
@@ -220,8 +222,8 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	docknetName := GetDocknetName(tenantName, networkName, serviceName)
 
 	// connect to docker
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	docker, err := client.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
+	defaultHeaders := map[string]string{"User-Agent": "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"}
+	docker, err := dockerclient.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
 		return errors.New("Unable to connect to docker")

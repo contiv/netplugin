@@ -23,15 +23,17 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/mgmtfn/mesosplugin/cniapi"
-	dockerClient "github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	dockerClient "github.com/docker/docker/client"
+	"github.com/docker/docker/dockerversion"
 	"golang.org/x/net/context"
 	. "gopkg.in/check.v1"
 	"io"
@@ -570,8 +572,8 @@ func (its *integTestSuite) TestMesosCniEndpoints(c *C) {
 		},
 	}
 
-	dkc, err := dockerClient.NewClient("unix:///var/run/docker.sock", "", nil,
-		map[string]string{"User-Agent": "engine-api-cli-1.0"})
+	defaultHeaders := map[string]string{"User-Agent": "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"}
+	dkc, err := dockerClient.NewClient("unix:///var/run/docker.sock", "", nil, defaultHeaders)
 	assertNoErr(err, c, "new docker client")
 	docker = dkc
 	t, err := docker.ContainerList(context.Background(), types.ContainerListOptions{})

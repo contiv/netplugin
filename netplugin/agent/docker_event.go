@@ -16,83 +16,100 @@ limitations under the License.
 package agent
 
 import (
+	"io"
+	"runtime"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netplugin/cluster"
-	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
-	"github.com/samalba/dockerclient"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
+	dockerclient "github.com/docker/docker/client"
+	"github.com/docker/docker/dockerversion"
 	"golang.org/x/net/context"
 )
 
 // Handles docker events monitored by dockerclient. Currently we only handle
-// container start and die event*/
-func handleDockerEvents(event *dockerclient.Event, ec chan error, args ...interface{}) {
+// container start and die event
+func handleDockerEvents(events <-chan events.Message, errs <-chan error) {
 
-	log.Debugf("Received Docker event: {%#v}\n", *event)
-	endpointUpdReq := &master.UpdateEndpointRequest{}
-	switch event.Status {
-	case "start":
-		defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-		cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.21", nil, defaultHeaders)
-		if err != nil {
-			panic(err)
-		}
-
-		containerInfo, err := cli.ContainerInspect(context.Background(), event.ID)
-
-		if err != nil {
-			log.Errorf("Container Inspect failed :%s", err)
-			return
-		}
-
-		if event.ID != "" {
-			labelMap := getLabelsFromContainerInspect(&containerInfo)
-			containerTenant := getTenantFromContainerInspect(&containerInfo)
-			networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
-			if err != nil {
-				log.Errorf("Error getting container network info for %v.Err:%s", event.ID, err)
+	for {
+		select {
+		case err := <-errs:
+			if err != nil && err == io.EOF {
+				log.Errorf("Closing the events channel. Err: %+v", err)
+				return
 			}
-			endpoint := getEndpointFromContainerInspect(&containerInfo)
+			if err != nil && err != io.EOF {
+				log.Errorf("Received error from docker events. Err: %+v", err)
+			}
+		case event := <-events:
+			log.Debugf("Received Docker event: {%#v}\n", event)
+			switch event.Status {
+			case "start":
+				endpointUpdReq := &master.UpdateEndpointRequest{}
+				defaultHeaders := map[string]string{"User-Agent": "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"}
+				cli, err := dockerclient.NewClient("unix:///var/run/docker.sock", "v1.21", nil, defaultHeaders)
+				if err != nil {
+					panic(err)
+				}
 
-			if ipAddress != "" {
-				//Create provider info
-				endpointUpdReq.IPAddress = ipAddress
+				containerInfo, err := cli.ContainerInspect(context.Background(), event.ID)
+
+				if err != nil {
+					log.Errorf("Container Inspect failed :%s", err)
+					break
+				}
+
+				if event.ID != "" {
+					labelMap := getLabelsFromContainerInspect(&containerInfo)
+					containerTenant := getTenantFromContainerInspect(&containerInfo)
+					networkName, ipAddress, err := getEpNetworkInfoFromContainerInspect(&containerInfo)
+					if err != nil {
+						log.Errorf("Error getting container network info for %v.Err:%s", event.ID, err)
+					}
+					endpoint := getEndpointFromContainerInspect(&containerInfo)
+
+					if ipAddress != "" {
+						//Create provider info
+						endpointUpdReq.IPAddress = ipAddress
+						endpointUpdReq.ContainerID = event.ID
+						endpointUpdReq.Tenant = containerTenant
+						endpointUpdReq.Network = networkName
+						endpointUpdReq.Event = "start"
+						endpointUpdReq.EndpointID = endpoint
+						endpointUpdReq.EPCommonName = containerInfo.Name
+						endpointUpdReq.Labels = make(map[string]string)
+
+						for k, v := range labelMap {
+							endpointUpdReq.Labels[k] = v
+						}
+					}
+
+					var epUpdResp master.UpdateEndpointResponse
+
+					log.Infof("Sending Endpoint update request to master: {%+v}", endpointUpdReq)
+
+					err = cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
+					if err != nil {
+						log.Errorf("Event: 'start' , Http error posting endpoint update, Error:%s", err)
+					}
+				} else {
+					log.Errorf("Unable to fetch container labels for container %s ", event.ID)
+				}
+			case "die":
+				endpointUpdReq := &master.UpdateEndpointRequest{}
 				endpointUpdReq.ContainerID = event.ID
-				endpointUpdReq.Tenant = containerTenant
-				endpointUpdReq.Network = networkName
-				endpointUpdReq.Event = "start"
-				endpointUpdReq.EndpointID = endpoint
-				endpointUpdReq.EPCommonName = containerInfo.Name
-				endpointUpdReq.Labels = make(map[string]string)
-
-				for k, v := range labelMap {
-					endpointUpdReq.Labels[k] = v
+				endpointUpdReq.Event = "die"
+				var epUpdResp master.UpdateEndpointResponse
+				log.Infof("Sending Endpoint update request to master: {%+v} on container delete", endpointUpdReq)
+				err := cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
+				if err != nil {
+					log.Errorf("Event:'die' Http error posting endpoint update, Error:%s", err)
 				}
 			}
-
-			var epUpdResp master.UpdateEndpointResponse
-
-			log.Infof("Sending Endpoint update request to master: {%+v}", endpointUpdReq)
-
-			err = cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
-			if err != nil {
-				log.Errorf("Event: 'start' , Http error posting endpoint update, Error:%s", err)
-			}
-		} else {
-			log.Errorf("Unable to fetch container labels for container %s ", event.ID)
-		}
-	case "die":
-		endpointUpdReq.ContainerID = event.ID
-		endpointUpdReq.Event = "die"
-		var epUpdResp master.UpdateEndpointResponse
-		log.Infof("Sending Endpoint update request to master: {%+v} on container delete", endpointUpdReq)
-		err := cluster.MasterPostReq("/plugin/updateEndpoint", endpointUpdReq, &epUpdResp)
-		if err != nil {
-			log.Errorf("Event:'die' Http error posting endpoint update, Error:%s", err)
 		}
 	}
 }
