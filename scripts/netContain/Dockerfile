@@ -17,30 +17,18 @@
 
 FROM ubuntu:16.04
 
-MAINTAINER Rajesh Nataraja <rajenata@cisco.com>
-
 # Make sure to Modify the Proxy Server values if required 
 # ENV export http_proxy=http://proxy.localhost.com:8080
 # ENV export https_proxy=https://proxy.localhost.com:8080
 
+RUN apt-get update \
+ && apt-get install -y openvswitch-switch=2.5.0-0ubuntu1 \
+        net-tools \
+        iptables \
+ && rm -rf /var/lib/apt/lists/*
 
-# Install the Open vSwitch package on this ubuntu container.
-RUN apt update
-RUN apt --assume-yes  install openvswitch-switch=2.5.0-0ubuntu1
-RUN apt --assume-yes  install net-tools iptables
-
-# Copy the Net Plugin Binaries  and the Scripts required to 
-# start the Net Plugin and Net Master. 
-
-RUN mkdir -p /contiv/bin
-RUN mkdir -p /contiv/scripts
-
-COPY ./netplugin /contiv/bin/
-COPY ./netmaster /contiv/bin/
-COPY ./contivk8s /contiv/bin/
-COPY ./netctl /contiv/bin/
-COPY ./ovsInit.sh /contiv/scripts/
-COPY ./contivNet.sh /contiv/scripts/
+COPY ./bin /contiv/bin/
+COPY ./scripts /contiv/scripts/
 
 
 ENTRYPOINT ["/contiv/scripts/contivNet.sh"]

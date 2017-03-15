@@ -46,6 +46,9 @@ cscope*
 install/v2plugin/rootfs
 install/v2plugin/config.json
 
+# netcontain temporary build files
+scripts/netContain/bin
+
 # version
 version/version_gen.go
 
