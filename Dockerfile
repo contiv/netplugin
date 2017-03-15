@@ -26,9 +26,12 @@ FROM golang:1.7.5
 # a proxy.
 #ENV http_proxy ""
 #ENV https_proxy ""
-ENV GOPATH /go/
+ARG http_proxy
+ARG https_proxy
+ENV GOPATH=/go/ NET_CONTAINER_BUILD=1
 
-ENV NET_CONTAINER_BUILD 1
+ENTRYPOINT ["netplugin"]
+CMD ["--help"]
 
 COPY ./ /go/src/github.com/contiv/netplugin/
 
@@ -36,5 +39,3 @@ WORKDIR /go/src/github.com/contiv/netplugin/
 
 RUN make build
 
-ENTRYPOINT ["netplugin"]
-CMD ["--help"]
