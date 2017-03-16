@@ -565,7 +565,7 @@ func (d *OvsdbDriver) UpdatePolicingRate(intfName string, burst int, bandwidth i
 
 	condition := libovsdb.NewCondition("name", "==", intfName)
 	if condition == nil {
-		return errors.New("Error getting the new condition")
+		return errors.New("error getting the new condition")
 	}
 	mutateOp := libovsdb.Operation{
 		Op:    "update",

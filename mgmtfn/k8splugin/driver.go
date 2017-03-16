@@ -130,7 +130,7 @@ func createEP(req *epSpec) (*epAttr, error) {
 	netID := req.Network + "." + req.Tenant
 	ep, err := netdGetEndpoint(netID + "-" + req.EndpointID)
 	if err == nil {
-		return nil, fmt.Errorf("EP %s already exists", req.EndpointID)
+		return nil, fmt.Errorf("the EP %s already exists", req.EndpointID)
 	}
 
 	// Build endpoint request
@@ -218,7 +218,7 @@ func nsToPID(ns string) (int, error) {
 	// Make sure ns is well formed
 	ok := strings.HasPrefix(ns, "/proc/")
 	if !ok {
-		return -1, fmt.Errorf("Invalid nw name space: %v", ns)
+		return -1, fmt.Errorf("invalid nw name space: %v", ns)
 	}
 
 	elements := strings.Split(ns, "/")

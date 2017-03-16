@@ -119,7 +119,7 @@ func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
 			datapath = "vrouter"
 		default:
 			log.Errorf("Invalid datapath mode")
-			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
+			return nil, errors.New("invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
@@ -140,7 +140,7 @@ func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
 			datapath = "vlrouter"
 		default:
 			log.Errorf("Invalid datapath mode")
-			return nil, errors.New("Invalid forwarding mode. Expects 'bridge' or 'routing'")
+			return nil, errors.New("invalid forwarding mode. Expects 'bridge' or 'routing'")
 		}
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
@@ -1029,7 +1029,7 @@ func (sw *OvsSwitch) SvcProviderUpdate(svcName string, providers []string) {
 // GetEndpointStats invokes ofnetAgent api
 func (sw *OvsSwitch) GetEndpointStats() (map[string]*ofnet.OfnetEndpointStats, error) {
 	if sw.ofnetAgent == nil {
-		return nil, errors.New("No ofnet agent")
+		return nil, errors.New("no ofnet agent")
 	}
 
 	stats, err := sw.ofnetAgent.GetEndpointStats()
@@ -1046,7 +1046,7 @@ func (sw *OvsSwitch) GetEndpointStats() (map[string]*ofnet.OfnetEndpointStats, e
 // InspectState ireturns ofnet state in json form
 func (sw *OvsSwitch) InspectState() (interface{}, error) {
 	if sw.ofnetAgent == nil {
-		return nil, errors.New("No ofnet agent")
+		return nil, errors.New("no ofnet agent")
 	}
 	return sw.ofnetAgent.InspectState()
 }
@@ -1054,7 +1054,7 @@ func (sw *OvsSwitch) InspectState() (interface{}, error) {
 // InspectBgp returns ofnet state in json form
 func (sw *OvsSwitch) InspectBgp() (interface{}, error) {
 	if sw.ofnetAgent == nil {
-		return nil, errors.New("No ofnet agent")
+		return nil, errors.New("no ofnet agent")
 	}
 	return sw.ofnetAgent.InspectBgp()
 }
@@ -1062,7 +1062,7 @@ func (sw *OvsSwitch) InspectBgp() (interface{}, error) {
 // GlobalConfigUpdate updates the global configs like arp-mode
 func (sw *OvsSwitch) GlobalConfigUpdate(cfg ofnet.OfnetGlobalConfig) error {
 	if sw.ofnetAgent == nil {
-		return errors.New("No ofnet agent")
+		return errors.New("no ofnet agent")
 	}
 	return sw.ofnetAgent.GlobalConfigUpdate(cfg)
 }

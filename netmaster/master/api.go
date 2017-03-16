@@ -160,7 +160,7 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 		readNet.StateDriver = stateDriver
 		netList, err := readNet.ReadAll()
 		if err != nil {
-			if !strings.Contains(err.Error(), "Key not found") {
+			if !strings.Contains(err.Error(), "key not found") {
 				log.Errorf("error reading keys during host create. Error: %s", err)
 				return nil, err
 			}
@@ -232,7 +232,7 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 			return aresp, nil
 		}
 		log.Errorf("Could not find the network for: %s", allocReq.NetworkID)
-		return nil, errors.New("Network not found")
+		return nil, errors.New("network not found")
 	}
 
 	// find the network from network id
@@ -443,7 +443,7 @@ func UpdateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 		key := mastercfg.GetNwCfgKey(epUpdReq.Network, epUpdReq.Tenant)
 		err := nwCfg.Read(key)
 		if err != nil {
-			if !strings.Contains(err.Error(), "Key not found") {
+			if !strings.Contains(err.Error(), "key not found") {
 				return nil, err
 			}
 			//If network is not found then networkname is epg
@@ -495,7 +495,7 @@ func UpdateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 		providerID := getProviderID(provider)
 		providerDbID := getProviderDbID(provider)
 		if providerID == "" || providerDbID == "" {
-			return nil, fmt.Errorf("Invalid ProviderID from providerInfo:{%v}", provider)
+			return nil, fmt.Errorf("invalid ProviderID from providerInfo:{%v}", provider)
 		}
 
 		//update provider db
@@ -541,7 +541,7 @@ func UpdateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 
 		providerDbID := epUpdReq.ContainerID
 		if providerDbID == "" {
-			return nil, fmt.Errorf("Invalid containerID in UpdateEndpointRequest:(nil)")
+			return nil, fmt.Errorf("invalid containerID in UpdateEndpointRequest:(nil)")
 		}
 
 		mastercfg.SvcMutex.Lock()
@@ -557,7 +557,7 @@ func UpdateEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 			providerID := getProviderID(provider)
 			if providerID == "" {
 				mastercfg.SvcMutex.Unlock()
-				return nil, fmt.Errorf("Invalid ProviderID from providerInfo:{%v}", provider)
+				return nil, fmt.Errorf("invalid ProviderID from providerInfo:{%v}", provider)
 			}
 			if service.Providers[providerID] != nil {
 				delete(service.Providers, providerID)

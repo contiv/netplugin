@@ -46,7 +46,7 @@ func (d *ConsulStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var err error
 
 	if instInfo == nil || !strings.Contains(instInfo.DbURL, "consul://") {
-		return errors.New("Invalid consul config")
+		return errors.New("invalid consul config")
 	}
 
 	cfg := api.Config{
@@ -109,7 +109,7 @@ func (d *ConsulStateDriver) Read(key string) ([]byte, error) {
 
 		// err == nil
 		if kv == nil {
-			return []byte{}, core.Errorf("Key not found")
+			return []byte{}, core.Errorf("key not found")
 		}
 
 		return kv.Value, err
@@ -139,8 +139,8 @@ func (d *ConsulStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 		// err == nil
 		if kvs == nil {
 			// Consul returns success and a nil kv when a key is not found,
-			// translate it to 'Key not found' error
-			return nil, core.Errorf("Key not found")
+			// translate it to 'key not found' error
+			return nil, core.Errorf("key not found")
 		}
 
 		values := [][]byte{}

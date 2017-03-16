@@ -527,13 +527,13 @@ func (s *systemtestSuite) verifyPvtIP(containers []*container, pvtNet string) er
 		if len(ipBytes) != 4 {
 			logrus.Errorf("Error bad host1 ip for container: %+v ip: %s",
 				cont, ip)
-			return errors.New("Bad host1 IP")
+			return errors.New("bad host1 IP")
 		}
 
 		ipStr := ipBytes[0] + ipBytes[1] + "0.0"
 		if ipStr != pvtNet {
 			logrus.Errorf("Incorrect pvt subnet %s for container %v, exp: %s", ipStr, cont, pvtNet)
-			return errors.New("Pvt subnet does not match")
+			return errors.New("pvt subnet does not match")
 		}
 	}
 
@@ -794,7 +794,7 @@ func (s *systemtestSuite) checkAllConnection(netContainers map[*container]string
 	}
 
 	if err := s.checkConnectionsAcrossGroup(groupContainers, 8001, true); err != nil {
-		return fmt.Errorf("Connections across group achieved for port 8001")
+		return fmt.Errorf("connections across group achieved for port 8001")
 	}
 
 	return nil
@@ -882,7 +882,7 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 		value, ok := node.(map[string]interface{})["value"]
 		if !ok {
 			logrus.Errorf("Invalid json from etcd. %+v", etcdKv)
-			return "", errors.New("Value not found")
+			return "", errors.New("value not found")
 		}
 
 		return value.(string), nil
@@ -902,14 +902,14 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 		value, ok := consulKv[0]["Value"]
 		if !ok {
 			logrus.Errorf("Invalid json from consul. %+v", consulKv)
-			return "", errors.New("Value not found")
+			return "", errors.New("value not found")
 		}
 
 		retVal, err := base64.StdEncoding.DecodeString(value.(string))
 		return string(retVal), err
 	} else {
 		// Unknown cluster store
-		return "", errors.New("Unknown cluster store")
+		return "", errors.New("unknown cluster store")
 	}
 }
 
@@ -1020,7 +1020,7 @@ func (s *systemtestSuite) verifyNodeRemoved(removed *node) error {
 	}
 	logrus.Errorf("Node %s failed to verify node removal ERR: %v", failNode, err)
 	logrus.Infof("Debug output:\n %s", dbgOut)
-	return errors.New("Failed to verify VTEPs after 20 sec")
+	return errors.New("failed to verify VTEPs after 20 sec")
 }
 
 func (s *systemtestSuite) verifyVTEPs() error {
@@ -1056,7 +1056,7 @@ func (s *systemtestSuite) verifyVTEPs() error {
 
 	logrus.Errorf("Node %s failed to verify all VTEPs. ERR: %v", failNode, err)
 	logrus.Infof("Debug output:\n %s", dbgOut)
-	return errors.New("Failed to verify VTEPs after 60 sec")
+	return errors.New("failed to verify VTEPs after 60 sec")
 }
 
 func (s *systemtestSuite) verifyEPs(containers []*container) error {

@@ -55,7 +55,7 @@ func (d *EtcdStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var err error
 
 	if instInfo == nil || !strings.Contains(instInfo.DbURL, "etcd://") {
-		return errors.New("Invalid etcd config")
+		return errors.New("invalid etcd config")
 	}
 
 	etcdURL := strings.Replace(instInfo.DbURL, "etcd://", "http://", 1)
@@ -114,11 +114,11 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 				return []byte(resp.Node.Value), nil
 			}
 
-			return []byte{}, fmt.Errorf("Error reading from etcd")
+			return []byte{}, fmt.Errorf("error reading from etcd")
 		}
 
 		if client.IsKeyNotFound(err) {
-			return []byte{}, core.Errorf("Key not found")
+			return []byte{}, core.Errorf("key not found")
 		}
 
 		if err.Error() == client.ErrClusterUnavailable.Error() {
@@ -152,7 +152,7 @@ func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 		}
 
 		if client.IsKeyNotFound(err) {
-			return [][]byte{}, core.Errorf("Key not found")
+			return [][]byte{}, core.Errorf("key not found")
 		}
 
 		if err.Error() == client.ErrClusterUnavailable.Error() {
@@ -208,7 +208,7 @@ func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 	watcher := d.KeysAPI.Watcher(baseKey, &client.WatcherOptions{Recursive: true})
 	if watcher == nil {
 		log.Errorf("etcd watch failed.")
-		return errors.New("Etcd watch failed")
+		return errors.New("etcd watch failed")
 	}
 
 	go d.channelEtcdEvents(watcher, rsps)

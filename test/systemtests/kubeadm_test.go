@@ -388,7 +388,7 @@ func (k *kubePod) startIperfClient(c *container, ip, limit string, isErr bool) e
 					logrus.Errorf("Obtained Bandwidth: %s is more than the limit: %s", strings.TrimSpace(bwString[1]), limit)
 				} else {
 					logrus.Errorf("Obtained bandwidth: %s is more than the limit %s", bwString[1], limit)
-					return errors.New("Applied bandwidth is more than bandwidth rate!")
+					return errors.New("the applied bandwidth is more than bandwidth rate")
 				}
 			} else {
 				errStr := fmt.Sprintf("Bandwidth rate: %s not applied", limit)
@@ -465,7 +465,7 @@ func (k *kubePod) checkNoConnection(c *container, ipaddr, protocol string, port 
 	if err := k.checkConnection(c, ipaddr, protocol, port); err != nil {
 		return nil
 	}
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("the connection SUCCEEDED on port %d from %s from %v when it should have FAILED", port, ipaddr, c)
 }
 
 func (k *kubePod) cleanupContainers() error {
@@ -723,7 +723,7 @@ func (k *kubePod) checkNoConnectionRetry(c *container, ipaddr, protocol string, 
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("the connection SUCCEEDED on port %d from %s from %s when it should have FAILED", port, ipaddr, c)
 }
 
 func (k *kubePod) checkPing6WithCount(c *container, ipaddr string, count int) error {

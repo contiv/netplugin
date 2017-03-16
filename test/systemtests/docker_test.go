@@ -120,7 +120,7 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 func (d *docker) checkPingFailure(c *container, ipaddr string) error {
 	logrus.Infof("Expecting ping failure from %v to %s", c, ipaddr)
 	if err := d.checkPing(c, ipaddr); err == nil {
-		return fmt.Errorf("Ping succeeded when expected to fail from %v to %s", c, ipaddr)
+		return fmt.Errorf("ping succeeded when expected to fail from %v to %s", c, ipaddr)
 	}
 
 	return nil
@@ -132,7 +132,7 @@ func (d *docker) checkPing(c *container, ipaddr string) error {
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %v to %s FAILED: %q - %v", c, ipaddr, out, err)
-		return fmt.Errorf("Ping failed from %v to %s: %q - %v", c, ipaddr, out, err)
+		return fmt.Errorf("ping failed from %v to %s: %q - %v", c, ipaddr, out, err)
 	}
 
 	logrus.Infof("Ping from %v to %s SUCCEEDED", c, ipaddr)
@@ -142,7 +142,7 @@ func (d *docker) checkPing(c *container, ipaddr string) error {
 func (d *docker) checkPing6Failure(c *container, ipaddr string) error {
 	logrus.Infof("Expecting ping6 failure from %v to %s", c, ipaddr)
 	if err := d.checkPing6(c, ipaddr); err == nil {
-		return fmt.Errorf("Ping6 succeeded when expected to fail from %v to %s", c, ipaddr)
+		return fmt.Errorf("ping6 succeeded when expected to fail from %v to %s", c, ipaddr)
 	}
 
 	return nil
@@ -154,7 +154,7 @@ func (d *docker) checkPing6(c *container, ipaddr string) error {
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping6 from %v to %s FAILED: %q - %v", c, ipaddr, out, err)
-		return fmt.Errorf("Ping6 failed from %v to %s: %q - %v", c, ipaddr, out, err)
+		return fmt.Errorf("ping6 failed from %v to %s: %q - %v", c, ipaddr, out, err)
 	}
 
 	logrus.Infof("Ping6 from %v to %s SUCCEEDED", c, ipaddr)
@@ -170,7 +170,7 @@ func (d *docker) getIPAddr(c *container, dev string) (string, error) {
 
 	parts := regexp.MustCompile(`\s+`).Split(strings.TrimSpace(out), -1)
 	if len(parts) < 2 {
-		return "", fmt.Errorf("Invalid output from container %q: %s", c.containerID, out)
+		return "", fmt.Errorf("invalid output from container %q: %s", c.containerID, out)
 	}
 
 	parts = strings.Split(parts[1], "/")
@@ -187,7 +187,7 @@ func (d *docker) getIPv6Addr(c *container, dev string) (string, error) {
 
 	parts := regexp.MustCompile(`\s+`).Split(strings.TrimSpace(out), -1)
 	if len(parts) < 2 {
-		return "", fmt.Errorf("Invalid output from container %q: %s", c.containerID, out)
+		return "", fmt.Errorf("invalid output from container %q: %s", c.containerID, out)
 	}
 
 	parts = strings.Split(parts[1], "/")
@@ -204,7 +204,7 @@ func (d *docker) getMACAddr(c *container, dev string) (string, error) {
 
 	parts := regexp.MustCompile(`\s+`).Split(strings.TrimSpace(out), -1)
 	if len(parts) < 2 {
-		return "", fmt.Errorf("Invalid output from container %q: %s", c.containerID, out)
+		return "", fmt.Errorf("invalid output from container %q: %s", c.containerID, out)
 	}
 
 	parts = strings.Split(parts[1], "/")
@@ -316,11 +316,11 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 					logrus.Errorf("Obtained Bandwidth:%sbits is more than the limit:%s", newBandwidth[0], limit)
 				} else {
 					logrus.Errorf("Obtained bandwidth:%sbits is more than the limit:%s", newBandwidth[0], limit)
-					return errors.New("Applied bandwidth is more than bandwidth rate!")
+					return errors.New("applied bandwidth is more than bandwidth rate")
 				}
 			} else {
 				logrus.Errorf("Bandwidth rate:%s not applied", limit)
-				return errors.New("Bandwidth rate is not applied")
+				return errors.New("bandwidth rate is not applied")
 			}
 		} else {
 			logrus.Infof("Obtained bandwidth:%s", newBandwidth[0])
@@ -384,7 +384,7 @@ func (d *docker) tcFilterShow(bw string) error {
 		logrus.Infof("Applied bandwidth: %dkbits equals tc qdisc rate: %dkbits", bwInt, outputInt)
 	} else {
 		logrus.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
-		return errors.New("Applied bandwidth does not match the tc qdisc rate")
+		return errors.New("applied bandwidth does not match the tc qdisc rate")
 	}
 	return nil
 }
@@ -415,7 +415,7 @@ func (d *docker) checkNoConnection(c *container, ipaddr, protocol string, port i
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("connection SUCCEEDED on port %d from %s from %v when it should have FAILED", port, ipaddr, c)
 }
 
 func (d *docker) cleanupDockerNetwork() error {
@@ -548,7 +548,7 @@ func (d *docker) checkNoConnectionRetry(c *container, ipaddr, protocol string, p
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("connection SUCCEEDED on port %d from %s from %s when it should have FAILED", port, ipaddr, c)
 }
 
 func (d *docker) checkPing6WithCount(c *container, ipaddr string, count int) error {
@@ -558,7 +558,7 @@ func (d *docker) checkPing6WithCount(c *container, ipaddr string, count int) err
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping6 from %s to %s FAILED: %q - %v", c, ipaddr, out, err)
-		return fmt.Errorf("Ping6 failed from %s to %s: %q - %v", c, ipaddr, out, err)
+		return fmt.Errorf("ping6 failed from %s to %s: %q - %v", c, ipaddr, out, err)
 	}
 
 	logrus.Infof("Ping6 from %s to %s SUCCEEDED", c, ipaddr)
@@ -572,7 +572,7 @@ func (d *docker) checkPingWithCount(c *container, ipaddr string, count int) erro
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %s to %s FAILED: %q - %v", c, ipaddr, out, err)
-		return fmt.Errorf("Ping failed from %s to %s: %q - %v", c, ipaddr, out, err)
+		return fmt.Errorf("ping failed from %s to %s: %q - %v", c, ipaddr, out, err)
 	}
 
 	logrus.Infof("Ping from %s to %s SUCCEEDED", c, ipaddr)
@@ -625,7 +625,7 @@ func (d *docker) checkSchedulerNetworkOnNodeCreated(nwNames []string, n *node) e
 					time.Sleep(1 * time.Second)
 				}
 			}
-			ch <- fmt.Errorf("Docker Network %s not created on node %s \n", nwName, n.Name())
+			ch <- fmt.Errorf("docker Network %s not created on node %s", nwName, n.Name())
 		}(nwName, n, ch)
 	}
 	for range nwNames {
@@ -676,7 +676,7 @@ func (d *docker) verifyAgents(agentIPs map[string]bool) (string, error) {
 	for agent := range expAgents {
 		_, found := actAgents[agent]
 		if !found {
-			return str, errors.New("Agent " + agent + " not found")
+			return str, errors.New("agent " + agent + " not found")
 		}
 	}
 
@@ -684,7 +684,7 @@ func (d *docker) verifyAgents(agentIPs map[string]bool) (string, error) {
 	for agent := range actAgents {
 		_, found := expAgents[agent]
 		if !found {
-			return str, errors.New("Unexpected Agent " + agent + " found on " + d.node.Name())
+			return str, errors.New("unexpected Agent " + agent + " found on " + d.node.Name())
 		}
 	}
 
@@ -719,7 +719,7 @@ func (d *docker) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	v, found := vt["VtepTable"]
 	if !found {
 		logrus.Errorf("VtepTable not found in driver info")
-		return str, errors.New("VtepTable not found in driver info")
+		return str, errors.New("vtepTable not found in driver info")
 	}
 
 	vteps := v.(map[string]interface{})
@@ -740,7 +740,7 @@ func (d *docker) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	for vtep := range expVTEPS {
 		_, found := actVTEPs[vtep]
 		if !found {
-			return str, errors.New("VTEP " + vtep + " not found")
+			return str, errors.New("the VTEP " + vtep + " was not found")
 		}
 	}
 
@@ -748,7 +748,7 @@ func (d *docker) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	for vtep := range actVTEPs {
 		_, found := expVTEPS[vtep]
 		if !found {
-			return str, errors.New("Unexpected VTEP " + vtep + " found on " + localVtep)
+			return str, errors.New("unexpected VTEP " + vtep + " found on " + localVtep)
 		}
 	}
 
@@ -802,7 +802,7 @@ func (d *docker) verifyUplinkState(n *node, uplinks []string) error {
 	cmd = fmt.Sprintf("sudo ovs-vsctl find Port name=%s", portName)
 	output, err = n.runCommand(cmd)
 	if err != nil || !(strings.Contains(string(output), portName)) {
-		err = fmt.Errorf("Lookup failed for uplink Port %s. Err: %+v", portName, err)
+		err = fmt.Errorf("lookup failed for uplink Port %s. Err: %+v", portName, err)
 		return err
 	}
 
@@ -811,7 +811,7 @@ func (d *docker) verifyUplinkState(n *node, uplinks []string) error {
 		cmd = fmt.Sprintf("sudo ovs-vsctl find Interface name=%s", uplink)
 		output, err = n.runCommand(cmd)
 		if err != nil || !(strings.Contains(string(output), uplink)) {
-			err = fmt.Errorf("Lookup failed for uplink interface %s for uplink cfg:%+v. Err: %+v", uplink, uplinks, err)
+			err = fmt.Errorf("lookup failed for uplink interface %s for uplink cfg:%+v. Err: %+v", uplink, uplinks, err)
 			return err
 		}
 	}

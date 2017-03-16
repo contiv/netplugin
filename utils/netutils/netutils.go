@@ -786,7 +786,7 @@ func GetFirstLocalAddr() (string, error) {
 		return addrList[0], nil
 	}
 
-	return "", errors.New("No address was found")
+	return "", errors.New("no address was found")
 }
 
 // GetSubnetAddr returns a subnet given a subnet range
@@ -853,7 +853,7 @@ func GetMyAddr() (string, error) {
 	}
 
 	if host == "localhost" {
-		return "", errors.New("Could not get hostname")
+		return "", errors.New("could not get hostname")
 	}
 
 	addrs, err := net.LookupIP(host)
@@ -867,7 +867,7 @@ func GetMyAddr() (string, error) {
 		}
 	}
 
-	return "", errors.New("Could not find ip addr")
+	return "", errors.New("could not find ip addr")
 }
 
 // PortToHostIPMAC gets IP and MAC based on port number
@@ -916,7 +916,7 @@ func SetIPMasquerade(intf, netmask string) error {
 func HostIPToGateway(hostIP string) (string, error) {
 	ip := strings.Split(hostIP, ".")
 	if len(ip) != 4 {
-		return "", errors.New("Bad host IP")
+		return "", errors.New("bad host IP")
 	}
 
 	return ip[0] + "." + ip[1] + ".255.254", nil
