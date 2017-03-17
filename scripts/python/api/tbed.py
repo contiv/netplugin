@@ -6,7 +6,7 @@ import tutils
 # This class represents a testbed i.e, collection of nodes
 class Testbed:
     # Initialize a testbed
-    def __init__(self, addrList, username='vagrant', password='vagrant', binpath='/opt/gopath/bin'):
+    def __init__(self, addrList, username='vagrant', password='vagrant', binpath='/opt/gopath/bin', plugintype='binary'):
         self.nodes = []
         self.failOnError = True
         # Basic error checking
@@ -25,12 +25,20 @@ class Testbed:
             node.stopNetmaster()
             node.cleanupDockerNetwork()
             node.stopNetplugin()
+            node.stopV2Plugin()
 
         # cleanup master and slave state
         for node in self.nodes:
             node.cleanupMaster()
             node.cleanupSlave()
+        # start the plugins
+        if plugintype == 'v2plugin':
+            self.startV2Plugin()
+        else:
+            self.startPluginBinaries()
 
+    # Start legacy plugin
+    def startPluginBinaries(self):
         # Start netplugin on all nodes
         for node in self.nodes:
             print "Starting netplugin on " + node.hostname
@@ -45,6 +53,15 @@ class Testbed:
             if nidx < 3:
                 print "Starting netmaster on " + node.hostname
                 node.startNetmaster()
+
+    # Start legacy plugin
+    def startV2Plugin(self):
+        # Start netplugin on all nodes
+        for node in self.nodes:
+            print "Creating v2plugin on " + node.hostname
+            node.createV2Plugin()
+            print "Enabling v2plugin on " + node.hostname
+            node.enableV2Plugin()
 
     # Cleanup a testbed once test is done
     def cleanup(self):
@@ -61,6 +78,7 @@ class Testbed:
         for node in self.nodes:
             print "Cleaning up node " + node.addr
             node.stopNetplugin()
+            node.stopV2Plugin()
             node.cleanupSlave()
 
         # cleanup master

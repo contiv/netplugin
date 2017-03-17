@@ -27,6 +27,9 @@ const (
 	// ExposedPorts constant represents the container's Exposed Ports
 	ExposedPorts = Prefix + ".endpoint.exposedports"
 
+	// DNSServers A list of DNS servers associated with the endpoint
+	DNSServers = Prefix + ".endpoint.dnsservers"
+
 	//EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
 
@@ -38,6 +41,9 @@ const (
 
 	// OverlayNeighborIP constant represents overlay driver neighbor IP
 	OverlayNeighborIP = DriverPrefix + ".overlay.neighbor_ip"
+
+	// OverlayVxlanIDList constant represents a list of VXLAN Ids as csv
+	OverlayVxlanIDList = DriverPrefix + ".overlay.vxlanid_list"
 
 	// Gateway represents the gateway for the network
 	Gateway = Prefix + ".gateway"
@@ -56,6 +62,9 @@ var (
 	// GlobalKVProviderConfig constant represents the KV provider Config
 	GlobalKVProviderConfig = MakeKVProviderConfig("global")
 
+	// GlobalKVClient constants represents the global kv store client
+	GlobalKVClient = MakeKVClient("global")
+
 	// LocalKVProvider constant represents the KV provider backend
 	LocalKVProvider = MakeKVProvider("local")
 
@@ -64,6 +73,9 @@ var (
 
 	// LocalKVProviderConfig constant represents the KV provider Config
 	LocalKVProviderConfig = MakeKVProviderConfig("local")
+
+	// LocalKVClient constants represents the local kv store client
+	LocalKVClient = MakeKVClient("local")
 )
 
 // MakeKVProvider returns the kvprovider label for the scope
@@ -79,6 +91,11 @@ func MakeKVProviderURL(scope string) string {
 // MakeKVProviderConfig returns the kvprovider config label for the scope
 func MakeKVProviderConfig(scope string) string {
 	return DriverPrivatePrefix + scope + "kv_provider_config"
+}
+
+// MakeKVClient returns the kv client label for the scope
+func MakeKVClient(scope string) string {
+	return DriverPrivatePrefix + scope + "kv_client"
 }
 
 // Key extracts the key portion of the label

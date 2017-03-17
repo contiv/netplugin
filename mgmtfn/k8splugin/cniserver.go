@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
@@ -33,6 +34,7 @@ import (
 const (
 	contivKubeCfgFile = "/opt/contiv/config/contiv.json"
 	defSvcSubnet      = "10.254.0.0/16"
+	tokenFile         = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
 
 // ContivConfig holds information passed via config file during cluster set up
@@ -41,6 +43,7 @@ type ContivConfig struct {
 	K8sCa        string `json:"K8S_CA,omitempty"`
 	K8sKey       string `json:"K8S_KEY,omitempty"`
 	K8sCert      string `json:"K8S_CERT,omitempty"`
+	K8sToken     string `json:"K8S_TOKEN,omitempty"`
 	SvcSubnet    string `json:"SVC_SUBNET,omitempty"`
 }
 
@@ -67,6 +70,17 @@ func getConfig(cfgFile string, pCfg *ContivConfig) error {
 	return nil
 }
 
+// getDefaultToken gets the token to access kubernetes API Server
+// from the secrets loaded on the container
+func getDefaultToken() (string, error) {
+	bytes, err := ioutil.ReadFile(tokenFile)
+	if err != nil {
+		log.Errorf("Failed: %v", err)
+		return "", err
+	}
+	return string(bytes), nil
+}
+
 // setUpAPIClient sets up an instance of the k8s api server
 func setUpAPIClient() *APIClient {
 	// Read config
@@ -75,9 +89,17 @@ func setUpAPIClient() *APIClient {
 		log.Errorf("Failed: %v", err)
 		return nil
 	}
+	// If no client certs or token is specified, get the default token
+	if len(strings.TrimSpace(contivK8Config.K8sCert)) == 0 && len(strings.TrimSpace(contivK8Config.K8sToken)) == 0 {
+		contivK8Config.K8sToken, err = getDefaultToken()
+		if err != nil {
+			log.Errorf("Failed: %v", err)
+			return nil
+		}
+	}
 
 	return NewAPIClient(contivK8Config.K8sAPIServer, contivK8Config.K8sCa,
-		contivK8Config.K8sKey, contivK8Config.K8sCert)
+		contivK8Config.K8sKey, contivK8Config.K8sCert, contivK8Config.K8sToken)
 
 }
 
@@ -133,10 +155,10 @@ func InitKubServiceWatch(np *plugin.NetPlugin) {
 			case svcEvent := <-svcCh:
 				switch svcEvent.opcode {
 				case "WARN":
-					log.Debugf("epWatch : %s", svcEvent.errStr)
+					log.Debugf("svcWatch : %s", svcEvent.errStr)
 					break
 				case "FATAL":
-					log.Errorf("epWatch : %s", svcEvent.errStr)
+					log.Errorf("svcWatch : %s", svcEvent.errStr)
 					break
 				case "ERROR":
 					log.Warnf("svcWatch : %s", svcEvent.errStr)
@@ -144,10 +166,10 @@ func InitKubServiceWatch(np *plugin.NetPlugin) {
 					break
 
 				case "DELETED":
-					np.NetworkDriver.DelSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
+					np.DelSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
 					break
 				default:
-					np.NetworkDriver.AddSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
+					np.AddSvcSpec(svcEvent.svcName, &svcEvent.svcSpec)
 				}
 			case epEvent := <-epCh:
 				switch epEvent.opcode {
@@ -163,7 +185,7 @@ func InitKubServiceWatch(np *plugin.NetPlugin) {
 					break
 
 				default:
-					np.NetworkDriver.SvcProviderUpdate(epEvent.svcName, epEvent.providers)
+					np.SvcProviderUpdate(epEvent.svcName, epEvent.providers)
 				}
 			}
 		}

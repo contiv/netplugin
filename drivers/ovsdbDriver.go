@@ -19,11 +19,13 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/contiv/libovsdb"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -34,6 +36,7 @@ const maxOfportRetry = 20
 // OvsdbDriver is responsible for programming OVS using ovsdb protocol. It also
 // implements the libovsdb.Notifier interface to keep cache of ovs table state.
 type OvsdbDriver struct {
+	ovsSwitch  *OvsSwitch
 	bridgeName string // Name of the bridge we are operating on
 	ovs        *libovsdb.OvsdbClient
 	cache      map[string]map[libovsdb.UUID]libovsdb.Row
@@ -136,6 +139,32 @@ func (d *OvsdbDriver) populateCache(updates libovsdb.TableUpdates) {
 // Update updates the ovsdb with the libovsdb.TableUpdates.
 func (d *OvsdbDriver) Update(context interface{}, tableUpdates libovsdb.TableUpdates) {
 	d.populateCache(tableUpdates)
+	intfUpds, ok := tableUpdates.Updates["Interface"]
+	if !ok {
+		return
+	}
+
+	for _, intfUpd := range intfUpds.Rows {
+		intf := intfUpd.New.Fields["name"]
+		oldLacpStatus, ok := intfUpd.Old.Fields["lacp_current"]
+		if !ok {
+			return
+		}
+		newLacpStatus, ok := intfUpd.New.Fields["lacp_current"]
+		if !ok {
+			return
+		}
+		if oldLacpStatus == newLacpStatus || d.ovsSwitch == nil {
+			return
+		}
+
+		linkUpd := ofnet.LinkUpdateInfo{
+			LinkName:   intf.(string),
+			LacpStatus: newLacpStatus.(bool),
+		}
+		log.Debugf("LACP_UPD: Interface: %+v. LACP Status - (Old: %+v, New: %+v)\n", intf, oldLacpStatus, newLacpStatus)
+		d.ovsSwitch.HandleLinkUpdates(linkUpd)
+	}
 }
 
 // Locked satisfies a libovsdb interface dependency.
@@ -340,6 +369,189 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, 
 
 	operations := []libovsdb.Operation{intfOp, portOp, mutateOp}
 	return d.performOvsdbOps(operations)
+}
+
+// GetInterfacesInPort gets list of interfaces in a port in sorted order
+func (d *OvsdbDriver) GetInterfacesInPort(portName string) []string {
+	var intfList []string
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	for _, row := range d.cache["Port"] {
+		name := row.Fields["name"].(string)
+		if name == portName {
+			// Port found
+			// Iterate over the list of interfaces
+			switch (row.Fields["interfaces"]).(type) {
+			case libovsdb.UUID: // Individual interface case
+				intfUUID := row.Fields["interfaces"].(libovsdb.UUID)
+				intfInfo := d.GetIntfInfo(intfUUID)
+				if reflect.DeepEqual(intfInfo, libovsdb.Row{}) {
+					log.Errorf("could not find interface with UUID: %+v", intfUUID)
+					break
+				}
+				intfList = append(intfList, intfInfo.Fields["name"].(string))
+			case libovsdb.OvsSet: // Port bond case
+				intfUUIDList := row.Fields["interfaces"].(libovsdb.OvsSet)
+				for _, intfUUID := range intfUUIDList.GoSet {
+					intfInfo := d.GetIntfInfo(intfUUID.(libovsdb.UUID))
+					if reflect.DeepEqual(intfInfo, libovsdb.Row{}) {
+						continue
+					}
+					intfList = append(intfList, intfInfo.Fields["name"].(string))
+				}
+			}
+			sort.Strings(intfList)
+			break
+		}
+	}
+	return intfList
+}
+
+// GetIntfInfo gets interface information from "Interface" table
+func (d *OvsdbDriver) GetIntfInfo(uuid libovsdb.UUID) libovsdb.Row {
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	for intfUUID, row := range d.cache["Interface"] {
+		if intfUUID == uuid {
+			return row
+		}
+	}
+
+	return libovsdb.Row{}
+}
+
+//CreatePortBond creates port bond in OVS
+func (d *OvsdbDriver) CreatePortBond(intfList []string, bondName string) error {
+
+	var err error
+	var ops []libovsdb.Operation
+	var intfUUIDList []libovsdb.UUID
+	opStr := "insert"
+
+	// Add all the interfaces to the interface table
+	for _, intf := range intfList {
+		intfUUIDStr := fmt.Sprintf("Intf%s", intf)
+		intfUUID := []libovsdb.UUID{{GoUuid: intfUUIDStr}}
+		intfUUIDList = append(intfUUIDList, intfUUID...)
+
+		// insert/delete a row in Interface table
+		intfOp := libovsdb.Operation{}
+		iface := make(map[string]interface{})
+		iface["name"] = intf
+
+		// interface table ops
+		intfOp = libovsdb.Operation{
+			Op:       opStr,
+			Table:    interfaceTable,
+			Row:      iface,
+			UUIDName: intfUUIDStr,
+		}
+		ops = append(ops, intfOp)
+	}
+
+	// Insert bond information in Port table
+	portOp := libovsdb.Operation{}
+	port := make(map[string]interface{})
+	port["name"] = bondName
+	port["vlan_mode"] = "trunk"
+	port["interfaces"], err = libovsdb.NewOvsSet(intfUUIDList)
+	if err != nil {
+		return err
+	}
+
+	// Set LACP and Hash properties
+	// "balance-tcp" - balances flows among slaves based on L2, L3, and L4 protocol information such as
+	// destination MAC address, IP address, and TCP port
+	// lacp-fallback-ab:true - Fall back to activ-backup mode when LACP negotiation fails
+	port["bond_mode"] = "balance-tcp"
+
+	port["lacp"] = "active"
+	lacpMap := make(map[string]string)
+	lacpMap["lacp-fallback-ab"] = "true"
+	port["other_config"], err = libovsdb.NewOvsMap(lacpMap)
+
+	portUUIDStr := bondName
+	portUUID := []libovsdb.UUID{{GoUuid: portUUIDStr}}
+	portOp = libovsdb.Operation{
+		Op:       opStr,
+		Table:    portTable,
+		Row:      port,
+		UUIDName: portUUIDStr,
+	}
+	ops = append(ops, portOp)
+
+	// Mutate the Ports column of the row in the Bridge table to include bond name
+	mutateSet, _ := libovsdb.NewOvsSet(portUUID)
+	mutation := libovsdb.NewMutation("ports", opStr, mutateSet)
+	condition := libovsdb.NewCondition("name", "==", d.bridgeName)
+	mutateOp := libovsdb.Operation{
+		Op:        "mutate",
+		Table:     bridgeTable,
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+	ops = append(ops, mutateOp)
+
+	return d.performOvsdbOps(ops)
+
+}
+
+// DeletePortBond deletes a port bond from OVS
+func (d *OvsdbDriver) DeletePortBond(bondName string, intfList []string) error {
+
+	var ops []libovsdb.Operation
+	var condition []interface{}
+	portUUIDStr := bondName
+	portUUID := []libovsdb.UUID{{GoUuid: portUUIDStr}}
+	opStr := "delete"
+
+	for _, intfName := range intfList {
+		// insert/delete a row in Interface table
+		condition = libovsdb.NewCondition("name", "==", intfName)
+		intfOp := libovsdb.Operation{
+			Op:    opStr,
+			Table: interfaceTable,
+			Where: []interface{}{condition},
+		}
+		ops = append(ops, intfOp)
+	}
+
+	// insert/delete a row in Port table
+	condition = libovsdb.NewCondition("name", "==", bondName)
+	portOp := libovsdb.Operation{
+		Op:    opStr,
+		Table: portTable,
+		Where: []interface{}{condition},
+	}
+	ops = append(ops, portOp)
+
+	// also fetch the port-uuid from cache
+	d.cacheLock.RLock()
+	for uuid, row := range d.cache["Port"] {
+		name := row.Fields["name"].(string)
+		if name == bondName {
+			portUUID = []libovsdb.UUID{uuid}
+			break
+		}
+	}
+	d.cacheLock.RUnlock()
+
+	// mutate the Ports column of the row in the Bridge table
+	mutateSet, _ := libovsdb.NewOvsSet(portUUID)
+	mutation := libovsdb.NewMutation("ports", opStr, mutateSet)
+	condition = libovsdb.NewCondition("name", "==", d.bridgeName)
+	mutateOp := libovsdb.Operation{
+		Op:        "mutate",
+		Table:     bridgeTable,
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+	ops = append(ops, mutateOp)
+
+	// Perform OVS transaction
+	return d.performOvsdbOps(ops)
 }
 
 //UpdatePolicingRate will update the ingress policing rate in interface table.
@@ -560,13 +772,38 @@ func (d *OvsdbDriver) IsControllerPresent(target string) bool {
 }
 
 // IsPortNamePresent checks if port already exists in OVS bridge
-func (d *OvsdbDriver) IsPortNamePresent(intfName string) bool {
+func (d *OvsdbDriver) IsPortNamePresent(portName string) bool {
 	d.cacheLock.RLock()
 	defer d.cacheLock.RUnlock()
 
 	// walk the local cache
 	for tName, table := range d.cache {
 		if tName == "Port" {
+			for _, row := range table {
+				for fieldName, value := range row.Fields {
+					if fieldName == "name" {
+						if value == portName {
+							// Port name exists.
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// We could not find the port name
+	return false
+}
+
+// IsIntfNamePresent checks if intf already exists in OVS bridge
+func (d *OvsdbDriver) IsIntfNamePresent(intfName string) bool {
+	d.cacheLock.RLock()
+	defer d.cacheLock.RUnlock()
+
+	// walk the local cache
+	for tName, table := range d.cache {
+		if tName == "Interface" {
 			for _, row := range table {
 				for fieldName, value := range row.Fields {
 					if fieldName == "name" {

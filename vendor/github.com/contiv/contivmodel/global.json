@@ -31,13 +31,27 @@
 					"title": "Allwed vxlan range",
 					"format": "^([0-9]{1,8}?-[0-9]{1,8}?)$"
 				},
-                                "fwdMode": {
+				"fwdMode": {
+					"type": "string",
+					"title": "Forwarding Mode",
+					"length": 64,
+					"format": "^(bridge|routing)?$",
+					"ShowSummary": true
+				},
+				"arpMode": {
+					"type": "string",
+					"title": "ARP Mode",
+					"length": 64,
+					"format": "^(proxy|flood)?$",
+					"ShowSummary": true
+				},
+                                "pvtSubnet": {
                                         "type": "string",
-                                        "title": "Forwarding Mode",
-                                        "length": 64,
-                                        "format": "^(bridge|routing)?$",
-                                        "ShowSummary": true
+                                        "format": "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})/16$",
+                                        "title": "Private Subnet used by host bridge",
+                                        "showSummary": true
                                 }
+
 			},
 			"operProperties": {
 				"numNetworks": {
@@ -54,6 +68,9 @@
 				},
 				"freeVXLANsStart": {
 					"type": "int"
+				},
+				"clusterMode": {
+					"type": "string"
 				}
 			}
 		}

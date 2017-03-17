@@ -19,14 +19,16 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
+	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
+	cmap "github.com/streamrail/concurrent-map"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -48,16 +50,24 @@ const (
 type OvsSwitch struct {
 	bridgeName  string
 	netType     string
-	uplinkDb    map[string]string //map of uplink intf name and intf type (bond,port)
+	uplinkDb    cmap.ConcurrentMap
 	ovsdbDriver *OvsdbDriver
 	ofnetAgent  *ofnet.OfnetAgent
 	hostBridge  *ofnet.HostBridge
-	mutex       sync.RWMutex
+}
+
+// GetUplinkInterfaces returns the list of interface associated with the uplink port
+func (sw *OvsSwitch) GetUplinkInterfaces(uplinkID string) []string {
+	uplink, _ := sw.uplinkDb.Get(uplinkID)
+	if uplink == nil {
+		return nil
+	}
+	return uplink.([]string)
 }
 
 // NewOvsSwitch Creates a new OVS switch instance
 func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
-	routerInfo ...string) (*OvsSwitch, error) {
+	vlanIntf []string) (*OvsSwitch, error) {
 	var err error
 	var datapath string
 	var ofnetPort, ctrlrPort uint16
@@ -65,13 +75,15 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 	sw := new(OvsSwitch)
 	sw.bridgeName = bridgeName
 	sw.netType = netType
-	sw.uplinkDb = make(map[string]string)
+	sw.uplinkDb = cmap.New()
 
 	// Create OVS db driver
 	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure")
 	if err != nil {
 		log.Fatalf("Error creating ovsdb driver. Err: %v", err)
 	}
+
+	sw.ovsdbDriver.ovsSwitch = sw
 
 	if netType == "vxlan" {
 		ofnetPort = vxlanOfnetPort
@@ -87,7 +99,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 		}
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
-			ofnetPort, ctrlrPort, routerInfo...)
+			ofnetPort, ctrlrPort, vlanIntf)
 
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
@@ -108,7 +120,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 		}
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
-			ofnetPort, ctrlrPort, routerInfo...)
+			ofnetPort, ctrlrPort, vlanIntf)
 
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
@@ -562,104 +574,220 @@ func (sw *OvsSwitch) DeleteVtep(vtepIP string) error {
 	return sw.ovsdbDriver.DeleteVtep(intfName)
 }
 
-// AddUplinkPort adds uplink port to the OVS
-func (sw *OvsSwitch) AddUplinkPort(intfName string) error {
+func (sw *OvsSwitch) cleanupOldUplinkState(portName string, intfList []string) (bool, error) {
 	var err error
+	var oldUplinkIntf []string
+	portCreateReq := true
+
+	// Check if uplink is already created
+	// Case 1: Bonded ports - port name is the uplinkName
+	// Case 2: Indiviual port - port name is the interface name
+	portPresent := sw.ovsdbDriver.IsPortNamePresent(portName)
+	if portPresent {
+		/* If port already exists, make sure it has the same member links
+		   If not, a cleanup is required */
+		sort.Strings(intfList)
+		oldUplinkIntf = sw.ovsdbDriver.GetInterfacesInPort(portName)
+		if reflect.DeepEqual(intfList, oldUplinkIntf) {
+			log.Warnf("Uplink already part of %s", sw.bridgeName)
+			portCreateReq = false
+		} else {
+			log.Warnf("Deleting old uplink bond with intfs: %+v", oldUplinkIntf)
+			err = sw.ovsdbDriver.DeletePortBond(portName, oldUplinkIntf)
+			if err == nil {
+				portCreateReq = true
+			}
+		}
+		return portCreateReq, err
+	}
+
+	if len(intfList) == 1 && sw.ovsdbDriver.IsPortNamePresent(intfList[0]) {
+		// Uplink port already part of switch. No change required.
+		log.Debugf("Uplink intf %s already part of %s", intfList[0], sw.bridgeName)
+		return false, nil
+	}
+
+	/* Cleanup any other individual ports that may exist */
+	for _, intf := range intfList {
+		if sw.ovsdbDriver.IsIntfNamePresent(intf) {
+			log.Infof("Deleting old uplink port: %+v", intf)
+			err = sw.ovsdbDriver.DeletePort(intf)
+			if err != nil {
+				break
+			}
+			portCreateReq = true
+		}
+	}
+
+	// No cleanup done and new port creation required
+	return portCreateReq, err
+}
+
+// AddUplink adds uplink port(s) to the OVS
+func (sw *OvsSwitch) AddUplink(uplinkName string, intfList []string) error {
+	var err error
+	var links []*ofnet.LinkInfo
+	var uplinkType string
 
 	// some error checking
 	if sw.netType != "vlan" {
 		log.Fatalf("Can not add uplink to OVS type %s.", sw.netType)
 	}
 
-	uplinkID := "uplink" + intfName
+	createUplink, err := sw.cleanupOldUplinkState(uplinkName, intfList)
+	if err != nil {
+		log.Errorf("Could not cleanup previous uplink state")
+		return err
+	}
 
-	// Check if port is already part of the OVS and add it
-	if !sw.ovsdbDriver.IsPortNamePresent(intfName) {
-		// Ask OVSDB driver to add the port as a trunk port
-		err = sw.ovsdbDriver.CreatePort(intfName, "", uplinkID, 0, 0, 0)
+	if createUplink {
+		if len(intfList) > 1 {
+			log.Debugf("Creating uplink port bond: %s with intf: %+v", uplinkName, intfList)
+			err = sw.ovsdbDriver.CreatePortBond(intfList, uplinkName)
+			if err != nil {
+				log.Errorf("Error adding uplink %s to OVS. Err: %v", intfList, err)
+				return err
+			}
+			uplinkType = ofnet.BondType
+		} else {
+			log.Debugf("Creating uplink port: %s", intfList[0])
+			// Ask OVSDB driver to add the port as a trunk port
+			err = sw.ovsdbDriver.CreatePort(intfList[0], "", uplinkName, 0, 0, 0)
+			if err != nil {
+				log.Errorf("Error adding uplink %s to OVS. Err: %v", intfList[0], err)
+				return err
+			}
+			uplinkType = ofnet.PortType
+		}
+
+		// HACK: When an uplink is added to OVS, it disconnects the controller connection.
+		//       This is a hack to workaround this issue. We wait for the OVS to reconnect
+		//       to the controller.
+		// Wait for a while for OVS switch to disconnect/connect to ofnet agent
+		time.Sleep(time.Second)
+		sw.ofnetAgent.WaitForSwitchConnection()
+	}
+
+	uplinkInfo := ofnet.PortInfo{
+		Name: uplinkName,
+		Type: uplinkType,
+	}
+
+	for _, intf := range intfList {
+		// Get the openflow port number for the interface
+		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intf)
 		if err != nil {
-			log.Errorf("Error adding uplink %s to OVS. Err: %v", intfName, err)
+			log.Errorf("Could not find the OVS port %s. Err: %v", intfList, err)
 			return err
 		}
+
+		linkInfo := &ofnet.LinkInfo{
+			Name:   intf,
+			Port:   &uplinkInfo,
+			OfPort: ofpPort,
+		}
+
+		links = append(links, linkInfo)
 	}
+	uplinkInfo.MbrLinks = links
 
-	// HACK: When an uplink is added to OVS, it disconnects the controller connection.
-	//       This is a hack to workaround this issue. We wait for the OVS to reconnect
-	//       to the controller.
-	// Wait for a while for OVS switch to disconnect/connect to ofnet agent
-	time.Sleep(time.Second)
-	sw.ofnetAgent.WaitForSwitchConnection()
-
-	// Get the openflow port number for the interface
-	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
+	// Add the uplink to OVS switch
+	err = sw.ofnetAgent.AddUplink(&uplinkInfo)
 	if err != nil {
-		log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+		log.Errorf("Error adding uplink %+v. Err: %v", uplinkInfo, err)
 		return err
 	}
-
-	// Add the master
-	err = sw.ofnetAgent.AddUplink(ofpPort, intfName)
-	if err != nil {
-		log.Errorf("Error adding uplink %s. Err: %v", uplinkID, err)
-		return err
-	}
-	sw.mutex.Lock()
-	sw.uplinkDb[intfName] = "port"
-	sw.mutex.Unlock()
-	log.Infof("Added uplink %s to OVS switch %s.", intfName, sw.bridgeName)
+	sw.uplinkDb.Set(uplinkName, intfList)
+	log.Infof("Added uplink %s to OVS switch %s.", intfList, sw.bridgeName)
 
 	defer func() {
 		if err != nil {
-			sw.ovsdbDriver.DeletePort(intfName)
+			sw.uplinkDb.Remove(uplinkName)
+			if uplinkType == ofnet.BondType {
+				sw.ovsdbDriver.DeletePortBond(uplinkName, intfList)
+			} else {
+				sw.ovsdbDriver.DeletePort(intfList[0])
+			}
 		}
 	}()
 
 	return nil
 }
 
-// RemoveUplinkPort removes uplink port from the OVS
-func (sw *OvsSwitch) RemoveUplinkPort() error {
+// HandleLinkUpdates handle link updates and update the datapath
+func (sw *OvsSwitch) HandleLinkUpdates(linkUpd ofnet.LinkUpdateInfo) {
+	for intfListObj := range sw.uplinkDb.IterBuffered() {
+		intfList := intfListObj.Val.([]string)
+		for _, intf := range intfList {
+			if intf == linkUpd.LinkName {
+				portName := intfListObj.Key
+				portUpds := ofnet.PortUpdates{
+					PortName: portName,
+					Updates: []ofnet.PortUpdate{
+						{
+							UpdateType: ofnet.LacpUpdate,
+							UpdateInfo: linkUpd,
+						},
+					},
+				}
+				err := sw.ofnetAgent.UpdateUplink(portName, portUpds)
+				if err != nil {
+					log.Errorf("Update uplink failed. Err: %+v", err)
+				}
+				return
+			}
+		}
+	}
+}
+
+// RemoveUplinks removes uplink ports from the OVS
+func (sw *OvsSwitch) RemoveUplinks() error {
+
+	var err error
 
 	// some error checking
 	if sw.netType != "vlan" {
 		log.Fatalf("Can not remove uplink from OVS type %s.", sw.netType)
 	}
-	sw.mutex.Lock()
-	defer sw.mutex.Unlock()
-	for intfName := range sw.uplinkDb {
-		// Get the openflow port number for the interface
-		ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(intfName)
+
+	for intfListObj := range sw.uplinkDb.IterBuffered() {
+		intfList := intfListObj.Val.([]string)
+		portName := intfListObj.Key
+
+		// Remove uplink from agent
+		err = sw.ofnetAgent.RemoveUplink(portName)
 		if err != nil {
-			log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
+			log.Errorf("Error removing uplink %s. Err: %v", portName, err)
 			return err
 		}
+		log.Infof("Removed uplink %s from ofnet", portName)
 
-		// Check if port is already part of the OVS and add it
-		if !sw.ovsdbDriver.IsPortNamePresent(intfName) {
-			// Ask OVSDB driver to add the port as a trunk port
-			err = sw.ovsdbDriver.DeletePort(intfName)
+		isPortPresent := sw.ovsdbDriver.IsPortNamePresent(portName)
+		if len(intfList) == 1 {
+			isPortPresent = sw.ovsdbDriver.IsPortNamePresent(intfList[0])
+		}
+		if isPortPresent {
+			if len(intfList) == 1 {
+				err = sw.ovsdbDriver.DeletePort(intfList[0])
+			} else {
+				err = sw.ovsdbDriver.DeletePortBond(portName, intfList)
+			}
 			if err != nil {
-				log.Errorf("Error deleting uplink %s from OVS. Err: %v", intfName, err)
+				log.Errorf("Error deleting uplink %s from OVS. Err: %v", portName, err)
 				return err
 			}
 		}
 		time.Sleep(time.Second)
+		sw.uplinkDb.Remove(portName)
 
-		// Remove uplink from agent
-		err = sw.ofnetAgent.RemoveUplink(ofpPort)
-		if err != nil {
-			log.Errorf("Error removing uplink %s. Err: %v", intfName, err)
-			return err
-		}
-		delete(sw.uplinkDb, intfName)
-
-		log.Infof("Removed uplink %s from OVS switch %s.", intfName, sw.bridgeName)
+		log.Infof("Removed uplink %s(%+v) from OVS switch %s.", portName, intfList, sw.bridgeName)
 	}
+
 	return nil
 }
 
 // AddHostPort adds a host port to the OVS
-func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) error {
+func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS bool) (string, error) {
 	var err error
 
 	// some error checking
@@ -683,7 +811,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 		err = setLinkUp(ovsPortName)
 		if err != nil {
 			log.Errorf("Error setting link %s up. Err: %v", ovsPortName, err)
-			return err
+			return "", err
 		}
 	}
 
@@ -691,7 +819,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 
 	// If the port already exists in OVS, remove it first
 	if sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
-		log.Debugf("Removing existing interface entry %s from OVS", ovsPortName)
+		log.Infof("Removing existing interface entry %s from OVS", ovsPortName)
 
 		// Delete it from ovsdb
 		err := sw.ovsdbDriver.DeletePort(ovsPortName)
@@ -704,18 +832,18 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN, 0, 0)
 	if err != nil {
 		log.Errorf("Error adding hostport %s to OVS. Err: %v", intfName, err)
-		return err
+		return "", err
 	}
 
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
 	if err != nil {
 		log.Errorf("Could not find the OVS port %s. Err: %v", intfName, err)
-		return err
+		return "", err
 	}
 
 	// Assign an IP based on the intfnumber
-	ipStr, macStr := netutils.PortToHostIPMAC(intfNum)
+	ipStr, macStr := netutils.PortToHostIPMAC(intfNum, network)
 	mac, _ := net.ParseMAC(macStr)
 	ip := net.ParseIP(ipStr)
 
@@ -733,7 +861,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 		err = sw.hostBridge.AddHostPort(portInfo)
 		if err != nil {
 			log.Errorf("Error adding host port %s. Err: %v", intfName, err)
-			return err
+			return "", err
 		}
 
 		log.Infof("Added host port %s to OVS switch %s.", intfName, sw.bridgeName)
@@ -745,7 +873,7 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum int, isHostNS bool) er
 		}
 	}()
 
-	return nil
+	return ipStr, nil
 }
 
 // DelHostPort removes a host port from the OVS
@@ -776,7 +904,7 @@ func (sw *OvsSwitch) DelHostPort(intfName string, isHostNS bool) error {
 	if isHostNS {
 		err = sw.hostBridge.DelHostPort(ofpPort)
 		if err != nil {
-			log.Errorf("Error adding host port %s. Err: %v", intfName, err)
+			log.Errorf("Error deleting host port %s. Err: %v", intfName, err)
 			return err
 		}
 	} else {
@@ -913,4 +1041,19 @@ func (sw *OvsSwitch) InspectBgp() (interface{}, error) {
 		return nil, errors.New("No ofnet agent")
 	}
 	return sw.ofnetAgent.InspectBgp()
+}
+
+// GlobalConfigUpdate updates the global configs like arp-mode
+func (sw *OvsSwitch) GlobalConfigUpdate(cfg ofnet.OfnetGlobalConfig) error {
+	if sw.ofnetAgent == nil {
+		return errors.New("No ofnet agent")
+	}
+	return sw.ofnetAgent.GlobalConfigUpdate(cfg)
+}
+
+// AddNameServer returns ofnet state in json form
+func (sw *OvsSwitch) AddNameServer(ns ofnet.NameServer) {
+	if sw.ofnetAgent != nil {
+		sw.ofnetAgent.AddNameServer(ns)
+	}
 }

@@ -62,8 +62,6 @@ func processInfraNwCreate(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetwo
 	log.Infof("Got endpoint create resp from master: %+v", mresp)
 
 	// Take lock to ensure netPlugin processes only one cmd at a time
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	// Ask netplugin to create the endpoint
 	netID := nwCfg.NetworkName + "." + nwCfg.Tenant
@@ -116,8 +114,6 @@ func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkSta
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
 	// so we don't need to worry about that here
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	operStr := ""
 	if isDelete {
@@ -143,8 +139,6 @@ func processEpState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, epID st
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
 	// so we don't need to worry about that here
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	// read endpoint config
 	epCfg := &mastercfg.CfgEndpointState{}
@@ -182,8 +176,6 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, hostID
 		log.Debugf("Ignoring Bgp Event on this host")
 		return err
 	}
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 
 	operStr := ""
 	if isDelete {
@@ -206,9 +198,6 @@ func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID str
 	log.Infof("Received processEpgEvent")
 	var err error
 
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
-
 	operStr := ""
 	if isDelete {
 		operStr = "delete"
@@ -225,7 +214,7 @@ func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID str
 	return err
 }
 
-func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, fwdMode string) {
+func processReinit(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, newCfg *mastercfg.GlobConfig) {
 
 	// parse store URL
 	parts := strings.Split(opts.DbURL, "://")
@@ -241,8 +230,19 @@ func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instanc
 		},
 		Instance: opts,
 	}
-	pluginConfig.Instance.FwdMode = fwdMode
-	netPlugin.GlobalFwdModeUpdate(pluginConfig)
+	if len(pluginConfig.Instance.UplinkIntf) > 1 && newCfg.FwdMode == "routing" {
+		pluginConfig.Instance.UplinkIntf = []string{pluginConfig.Instance.UplinkIntf[0]}
+		log.Warnf("Routing mode supports only one uplink interface. Using %s as uplink interface", pluginConfig.Instance.UplinkIntf[0])
+	}
+	pluginConfig.Instance.FwdMode = newCfg.FwdMode
+	pluginConfig.Instance.ArpMode = newCfg.ArpMode
+	net, err := netutils.CIDRToMask(newCfg.PvtSubnet)
+	if err != nil {
+		log.Errorf("ERROR: %v", err)
+	} else {
+		pluginConfig.Instance.HostPvtNW = net
+	}
+	netPlugin.Reinit(pluginConfig)
 
 	for _, master := range cluster.MasterDB {
 		netPlugin.AddMaster(core.ServiceInfo{
@@ -263,14 +263,50 @@ func processGlobalFwdModeUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instanc
 
 }
 
+func processGlobalConfigUpdEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, oldCfg, newCfg *mastercfg.GlobConfig) {
+	// determine the type of change.
+
+	if newCfg.FwdMode != oldCfg.FwdMode || newCfg.PvtSubnet != oldCfg.PvtSubnet {
+		// this requires re-init
+		processReinit(netPlugin, opts, newCfg)
+	} else if newCfg.ArpMode != oldCfg.ArpMode {
+		processARPModeChange(netPlugin, opts, newCfg.ArpMode)
+	} else {
+		log.Infof("No change to netplugin confg")
+	}
+}
+
+func processARPModeChange(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, arpMode string) {
+
+	// parse store URL
+	parts := strings.Split(opts.DbURL, "://")
+	if len(parts) < 2 {
+		log.Fatalf("Invalid cluster-store-url %s", opts.DbURL)
+	}
+	stateStore := parts[0]
+	// initialize the config
+	pluginConfig := plugin.Config{
+		Drivers: plugin.Drivers{
+			Network: "ovs",
+			State:   stateStore,
+		},
+		Instance: opts,
+	}
+	pluginConfig.Instance.ArpMode = arpMode
+	if pluginConfig.Instance.FwdMode == "routing" && arpMode == "flood" {
+		log.Infof("Global ARP mode config is not effective when forwarding mode is routing. Proxy-arp will be retained.")
+	}
+	netPlugin.GlobalConfigUpdate(pluginConfig)
+
+	log.Infof("ARP mode updated")
+}
+
 //processServiceLBEvent processes service load balancer object events
 func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgServiceLBState, isDelete bool) error {
 	var err error
 	portSpecList := []core.PortSpec{}
 	portSpec := core.PortSpec{}
 
-	netPlugin.Lock()
-	defer func() { netPlugin.Unlock() }()
 	serviceID := svcLBCfg.ID
 
 	log.Infof("Recevied Process Service load balancer event {%v}", svcLBCfg)
@@ -300,6 +336,7 @@ func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgS
 		IPAddress: svcLBCfg.IPAddress,
 		Ports:     portSpecList,
 	}
+
 	operStr := ""
 	if isDelete {
 		err = netPlugin.DeleteServiceLB(serviceID, spec)
@@ -360,10 +397,10 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 			}
 
 			if gCfg, ok := currentState.(*mastercfg.GlobConfig); ok {
-				log.Infof("Received %q for global config current state - %s , prev state - %s ", eventStr, gCfg.FwdMode, rsp.Prev.(*mastercfg.GlobConfig).FwdMode)
-				if gCfg.FwdMode != rsp.Prev.(*mastercfg.GlobConfig).FwdMode {
-					processGlobalFwdModeUpdEvent(netPlugin, opts, gCfg.FwdMode)
-				}
+				prevCfg := rsp.Prev.(*mastercfg.GlobConfig)
+				log.Infof("Received %q for global config current state - %+v, prev state - %+v ", eventStr,
+					gCfg, prevCfg)
+				processGlobalConfigUpdEvent(netPlugin, opts, prevCfg, gCfg)
 			}
 
 			// Ignore modify event on network state
@@ -416,7 +453,7 @@ func handleNetworkEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, re
 	cfg := mastercfg.CfgNetworkState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	retErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleNetworkEvents")
 }
 
 func handleBgpEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -426,7 +463,7 @@ func handleBgpEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvEr
 	cfg := mastercfg.CfgBgpState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleBgpEvents")
 }
 
 func handleEpgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -436,7 +473,7 @@ func handleEpgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvEr
 	cfg := mastercfg.EndpointGroupState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleEpgEvents")
 }
 
 func handleServiceLBEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -446,7 +483,7 @@ func handleServiceLBEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, 
 	cfg := mastercfg.CfgServiceLBState{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleLBEvents")
 }
 
 func handleSvcProviderUpdEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -455,7 +492,7 @@ func handleSvcProviderUpdEvents(netPlugin *plugin.NetPlugin, opts core.InstanceI
 	cfg := mastercfg.SvcProvider{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleSvcProviderUpdEvents")
 }
 
 func handleGlobalCfgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -465,5 +502,5 @@ func handleGlobalCfgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, 
 	cfg := mastercfg.GlobConfig{}
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
-	return
+	log.Errorf("Error from handleGlobalCfgEvents")
 }

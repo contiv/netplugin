@@ -54,6 +54,7 @@ var totalSvcResp int
 var totalEPResp int
 var maxSvcResp int
 var maxEPResp int
+var token string
 
 type podStruct struct {
 	ObjectMeta `json:"metadata,omitempty"`
@@ -131,8 +132,8 @@ func (d *KubeTestNetDrv) DeleteMaster(node core.ServiceInfo) error {
 }
 
 // CreateHostAccPort is not implemented.
-func (d *KubeTestNetDrv) CreateHostAccPort(id, a, b string) (err error) {
-	return core.Errorf("Not implemented")
+func (d *KubeTestNetDrv) CreateHostAccPort(id, a string, n int) (string, error) {
+	return "", core.Errorf("Not implemented")
 }
 
 // DeleteHostAccPort is not implemented.
@@ -165,6 +166,16 @@ func (d *KubeTestNetDrv) InspectState() ([]byte, error) {
 	return []byte{}, core.Errorf("Not implemented")
 }
 
+// GlobalConfigUpdate is not implemented
+func (d *KubeTestNetDrv) GlobalConfigUpdate(inst core.InstanceInfo) error {
+	return core.Errorf("Not implemented")
+}
+
+// InspectNameserver returns nameserver state as json string
+func (d *KubeTestNetDrv) InspectNameserver() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}
+
 // AddSvcSpec is implemented.
 func (d *KubeTestNetDrv) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
 	d.services[svcName] = spec
@@ -189,6 +200,16 @@ func (d *KubeTestNetDrv) SvcProviderUpdate(svcName string, provs []string) {
 func restWrapper(handlerFunc restFunc) http.HandlerFunc {
 	// Create a closure and return an anonymous function
 	return func(w1 http.ResponseWriter, r *http.Request) {
+		// If there is an authorization header, check that it has
+		// the correct bearer token
+		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+		bearer := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer"))
+		log.Infof("bearer: ", bearer)
+		if len(authHeader) > 0 && bearer != token {
+			// Send HTTP response
+			http.Error(w1, "", http.StatusUnauthorized)
+			return
+		}
 		w := httputil.NewChunkedWriter(w1)
 		flusher, ok := w1.(http.Flusher)
 		if !ok {
@@ -367,8 +388,16 @@ func setupTestServer(c *C) {
 	tlsCfg := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      caPool,
+		ClientAuth:   tls.VerifyClientCertIfGiven,
+		ClientCAs:    caPool,
 	}
 	tlsCfg.BuildNameToCertificate()
+	// Read the token
+	var contivK8Config ContivConfig
+
+	err = getConfig(testCfgFile, &contivK8Config)
+	token = contivK8Config.K8sToken
+
 	router := mux.NewRouter()
 
 	// register handlers

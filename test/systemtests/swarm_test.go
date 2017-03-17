@@ -285,7 +285,7 @@ func (w *swarm) startIperfClient(c *container, ip, limit string, isErr bool) err
 	}
 
 	if success {
-		logrus.Infof("starting iperf client on conatiner:%s for server ip: %s", c, ip)
+		logrus.Infof("starting iperf client on container:%s for server ip: %s", c, ip)
 		bwFormat := strings.Split(bw, "Server Report:")
 		bwString := strings.Split(bwFormat[1], "Bytes ")
 		newBandwidth := strings.Split(bwString[1], "bits/sec")
@@ -344,7 +344,7 @@ func (w *swarm) tcFilterShow(bw string) error {
 	if bwInt == outputInt {
 		logrus.Infof("Applied bandwidth: %dkbits equals tc qdisc rate: %dkbits", bwInt, outputInt)
 	} else {
-		logrus.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
+		logrus.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
 		return errors.New("Applied bandwidth does not match the tc qdisc rate")
 	}
 	return nil
@@ -392,7 +392,7 @@ func (w *swarm) cleanupContainers() error {
 }
 func (w *swarm) startNetplugin(args string) error {
 	logrus.Infof("Starting netplugin on %s", w.node.Name())
-	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + w.node.suite.hostInfo.HostDataInterface + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log"
+	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + w.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log"
 	return w.node.tbnode.RunCommandBackground(cmd)
 }
 
@@ -408,11 +408,7 @@ func (w *swarm) stopNetmaster() error {
 
 func (w *swarm) startNetmaster() error {
 	logrus.Infof("Starting netmaster on %s", w.node.Name())
-	dnsOpt := " --dns-enable=false "
-	if w.node.suite.basicInfo.EnableDNS {
-		dnsOpt = " --dns-enable=true "
-	}
-	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + dnsOpt + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log")
+	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log")
 }
 func (w *swarm) cleanupMaster() {
 	logrus.Infof("Cleaning up master on %s", w.node.Name())
@@ -420,7 +416,6 @@ func (w *swarm) cleanupMaster() {
 	vNode.RunCommand("etcdctl rm --recursive /contiv")
 	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
 	vNode.RunCommand("etcdctl rm --recursive /docker")
-	vNode.RunCommand("etcdctl rm --recursive /skydns")
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 }
@@ -430,6 +425,7 @@ func (w *swarm) cleanupSlave() {
 	vNode := w.node.tbnode
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVxlanBridge")
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
+	vNode.RunCommand("sudo ovs-vsctl del-br contivHostBridge")
 	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
 }
 
@@ -563,6 +559,38 @@ func (w *swarm) checkSchedulerNetworkCreated(nwName string, expectedOp bool) err
 		return nil
 	}
 	return err
+}
+
+func (w *swarm) checkSchedulerNetworkOnNodeCreated(nwNames []string, n *node) error {
+	ch := make(chan error, 1)
+	for _, nwName := range nwNames {
+		go func(nwName string, n *node, ch chan error) {
+			logrus.Infof("Checking whether docker network %s is created on node %s", nwName, n.Name())
+			cmd := fmt.Sprintf("docker network ls | grep netplugin | grep %s | awk \"{print \\$2}\"", nwName)
+			logrus.Infof("Command to be executed is = %s", cmd)
+			count := 0
+			//check if docker network is created for a minute
+			for count < 60 {
+				op, err := n.runCommand(cmd)
+
+				if err == nil {
+					ret := strings.Contains(op, nwName)
+					if ret == true {
+						ch <- nil
+					}
+					count++
+					time.Sleep(1 * time.Second)
+				}
+			}
+			ch <- fmt.Errorf("Swarm Network %s not created on node %s \n", nwName, n.Name())
+		}(nwName, n, ch)
+	}
+	for range nwNames {
+		if err := <-ch; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (w *swarm) waitForListeners() error {
@@ -707,4 +735,36 @@ func (w *swarm) reloadNode(n *node) error {
 }
 func (w *swarm) getMasterIP() (string, error) {
 	return w.node.getIPAddr("eth1")
+}
+
+func (w *swarm) verifyUplinkState(n *node, uplinks []string) error {
+	var err error
+	var portName string
+	var cmd, output string
+
+	if len(uplinks) > 1 {
+		portName = "uplinkPort"
+	} else {
+		portName = uplinks[0]
+	}
+
+	// Verify port state
+	cmd = fmt.Sprintf("sudo ovs-vsctl find Port name=%s", portName)
+	output, err = n.runCommand(cmd)
+	if err != nil || !(strings.Contains(string(output), portName)) {
+		err = fmt.Errorf("Lookup failed for uplink Port %s. Err: %+v", portName, err)
+		return err
+	}
+
+	// Verify Interface state
+	for _, uplink := range uplinks {
+		cmd = fmt.Sprintf("sudo ovs-vsctl find Interface name=%s", uplink)
+		output, err = n.runCommand(cmd)
+		if err != nil || !(strings.Contains(string(output), uplink)) {
+			err = fmt.Errorf("Lookup failed for uplink interface %s for uplink cfg:%+v. Err: %+v", uplink, uplinks, err)
+			return err
+		}
+	}
+
+	return err
 }

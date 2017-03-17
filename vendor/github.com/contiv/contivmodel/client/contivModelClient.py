@@ -73,6 +73,56 @@ class objmodelClient:
 	def __init__(self, baseUrl):
 		self.baseUrl = baseUrl
 
+	# Create aciGw
+	def createAciGw(self, obj):
+	    postUrl = self.baseUrl + '/api/v1/aciGws/' + obj.name  + '/'
+
+	    jdata = json.dumps({ 
+			"enforcePolicies": obj.enforcePolicies, 
+			"includeCommonTenant": obj.includeCommonTenant, 
+			"name": obj.name, 
+			"nodeBindings": obj.nodeBindings, 
+			"pathBindings": obj.pathBindings, 
+			"physicalDomain": obj.physicalDomain, 
+	    })
+
+	    # Post the data
+	    response = httpPost(postUrl, jdata)
+
+	    if response == "Error":
+	        errorExit("AciGw create failure")
+
+	# Delete aciGw
+	def deleteAciGw(self, name):
+	    # Delete AciGw
+	    deleteUrl = self.baseUrl + '/api/v1/aciGws/' + name  + '/'
+	    response = httpDelete(deleteUrl)
+
+	    if response == "Error":
+	        errorExit("AciGw create failure")
+
+	# List all aciGw objects
+	def listAciGw(self):
+	    # Get a list of aciGw objects
+	    retDate = urllib2.urlopen(self.baseUrl + '/api/v1/aciGws/')
+	    if retData == "Error":
+	        errorExit("list AciGw failed")
+
+	    return json.loads(retData)
+
+
+
+	# Inspect aciGw
+	def createAciGw(self, obj):
+	    postUrl = self.baseUrl + '/api/v1/inspect/aciGw/' + obj.name  + '/'
+
+	    retDate = urllib2.urlopen(postUrl)
+	    if retData == "Error":
+	        errorExit("list AciGw failed")
+
+	    return json.loads(retData)
+
+
 	# Create appProfile
 	def createAppProfile(self, obj):
 	    postUrl = self.baseUrl + '/api/v1/appProfiles/' + obj.tenantName + ":" + obj.appProfileName  + '/'
@@ -179,6 +229,7 @@ class objmodelClient:
 	    jdata = json.dumps({ 
 			"extContractsGrps": obj.extContractsGrps, 
 			"groupName": obj.groupName, 
+			"ipPool": obj.ipPool, 
 			"netProfile": obj.netProfile, 
 			"networkName": obj.networkName, 
 			"policies": obj.policies, 
@@ -265,9 +316,11 @@ class objmodelClient:
 	    postUrl = self.baseUrl + '/api/v1/globals/' + obj.name  + '/'
 
 	    jdata = json.dumps({ 
+			"arpMode": obj.arpMode, 
 			"fwdMode": obj.fwdMode, 
 			"name": obj.name, 
 			"networkInfraType": obj.networkInfraType, 
+			"pvtSubnet": obj.pvtSubnet, 
 			"vlans": obj.vlans, 
 			"vxlans": obj.vxlans, 
 	    })

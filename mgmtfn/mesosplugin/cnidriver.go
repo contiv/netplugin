@@ -91,7 +91,6 @@ func parseMesosAgentIPAddr(pidList []byte) (string, error) {
 func (cniReq *cniServer) createHostBrIntf(ovsEpDriver *drivers.OvsOperEndpointState) error {
 
 	hostBrIfName := netutils.GetHostIntfName(ovsEpDriver.PortName)
-	hostBrIfIPaddr, _ := netutils.HostIfToIP(hostBrIfName)
 
 	// find executor info
 	pidList, err := exec.Command("ip", "netns", "pids",
@@ -109,7 +108,8 @@ func (cniReq *cniServer) createHostBrIntf(ovsEpDriver *drivers.OvsOperEndpointSt
 
 	// add host interface
 	cniLog.Infof("create host-br interface %s", hostBrIfName)
-	if err := netPlugin.CreateHostAccPort(hostBrIfName, cniReq.ipv4Addr, hostBrIfIPaddr); err != nil {
+	hostBrIfIPaddr, err := netPlugin.CreateHostAccPort(hostBrIfName, cniReq.ipv4Addr)
+	if err != nil {
 		cniLog.Errorf("failed to create [%s] in host-br: %s",
 			hostBrIfName, err.Error())
 		return err
@@ -207,10 +207,6 @@ func (cniReq *cniServer) configureNetNs(ovsEpDriver *drivers.OvsOperEndpointStat
 		nsCmds = append(nsCmds, ipv6gwCmd)
 		cniReq.cniSuccessResp.IP6.Gateway = nwState.IPv6Gateway
 		cniLog.Infof("ipv6 gateway of endpoint %s", nwState.IPv6Gateway)
-	}
-
-	if len(nwState.DNSServer) > 0 {
-		cniReq.cniSuccessResp.DNS.NameServers = append(cniReq.cniSuccessResp.DNS.NameServers, nwState.DNSServer)
 	}
 
 	if _, err := cniReq.ipnsBatchExecute(cniReq.pluginArgs.CniContainerid, nsCmds); err != nil {

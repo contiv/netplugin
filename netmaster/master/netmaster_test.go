@@ -22,6 +22,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"fmt"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -686,5 +687,32 @@ func TestGetAllocatedIPs(t *testing.T) {
 	networks = ListAllocatedIPs(nwCfg)
 	if networks != expectedAllocedIPs {
 		log.Fatalf("got networks '%s' expected '%s'", networks, expectedAllocedIPs)
+	}
+}
+
+func assertOnTrue(t *testing.T, c bool, msg string) {
+	if c {
+		t.Fatalf("%s", msg)
+	}
+}
+
+func TestGetNwAndEpgFromAddrReq(t *testing.T) {
+	testData := []struct {
+		allocID string
+		nwName  string
+		epgName string
+	}{
+		{"abc:xyz.def", "abc.def", "xyz:def"},
+		{"net1:epg1.default", "net1.default", "epg1:default"},
+		{"net1.default", "net1.default", ""},
+		{"abcd", "abcd", ""},
+		{"abcd.1234.12", "abcd.1234.12", ""},
+		{"abcd:xyz.zyz.abc", "abcd:xyz.zyz.abc", ""},
+	}
+
+	for _, d := range testData {
+		n, e := getNwAndEpgFromAddrReq(d.allocID)
+		assertOnTrue(t, n != d.nwName, fmt.Sprintf("networkname mismatch [%s] != [%s]", n, d.nwName))
+		assertOnTrue(t, e != d.epgName, fmt.Sprintf("epgname mismatch [%s] != [%s]", e, d.epgName))
 	}
 }

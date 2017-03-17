@@ -25,7 +25,10 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 
+	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/utils/netutils"
+	"strings"
 )
 
 const maxEpgID = 65535
@@ -34,7 +37,7 @@ const maxEpgID = 65535
 var globalEpgID = 1
 
 // CreateEndpointGroup handles creation of endpoint group
-func CreateEndpointGroup(tenantName, networkName, groupName string) error {
+func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) error {
 	var epgID int
 
 	// Get the state driver
@@ -62,6 +65,32 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 	if err != nil {
 		log.Errorf("Could not find network %s. Err: %v", networkID, err)
 		return err
+	}
+
+	// check epg range is with in network
+	if len(ipPool) > 0 {
+		if netutils.IsIPv6(ipPool) == true {
+			return fmt.Errorf("ipv6 address pool is not supported for Endpoint Groups")
+		}
+
+		if err = netutils.ValidateNetworkRangeParams(ipPool, nwCfg.SubnetLen); err != nil {
+			return fmt.Errorf("invalid ip-pool %s", ipPool)
+		}
+
+		addrRangeList := strings.Split(ipPool, "-")
+		if _, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, addrRangeList[0]); err != nil {
+			return fmt.Errorf("bad ip-pool %s, EPG ip-pool must be a subset of network %s/%d", ipPool, nwCfg.SubnetIP,
+				nwCfg.SubnetLen)
+		}
+		if _, err := netutils.GetIPNumber(nwCfg.SubnetIP, nwCfg.SubnetLen, 32, addrRangeList[1]); err != nil {
+			return fmt.Errorf("bad ip-pool %s, EPG ip-pool must be a subset of network %s/%d", ipPool, nwCfg.SubnetIP,
+				nwCfg.SubnetLen)
+		}
+
+		if err := netutils.TestIPAddrRange(&nwCfg.IPAllocMap, ipPool, nwCfg.SubnetIP,
+			nwCfg.SubnetLen); err != nil {
+			return err
+		}
 	}
 
 	// params for docker network
@@ -94,6 +123,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 		GroupName:       groupName,
 		TenantName:      tenantName,
 		NetworkName:     networkName,
+		IPPool:          ipPool,
 		EndpointGroupID: epgID,
 		PktTagType:      nwCfg.PktTagType,
 		PktTag:          nwCfg.PktTag,
@@ -125,12 +155,18 @@ func CreateEndpointGroup(tenantName, networkName, groupName string) error {
 		log.Debugf("ACI -- Allocated vlan %v for epg %v", pktTag, groupName)
 
 	}
-	err = epgCfg.Write()
-	if err != nil {
-		return err
-	}
 
-	return nil
+	if len(ipPool) > 0 {
+		// mark range as used
+		netutils.SetIPAddrRange(&nwCfg.IPAllocMap, ipPool, nwCfg.SubnetIP, nwCfg.SubnetLen)
+
+		if err := nwCfg.Write(); err != nil {
+			return fmt.Errorf("updating epg ipaddress in network failed: %s", err)
+		}
+		netutils.InitSubnetBitset(&epgCfg.EPGIPAllocMap, nwCfg.SubnetLen)
+		netutils.SetBitsOutsideRange(&epgCfg.EPGIPAllocMap, ipPool, nwCfg.SubnetLen)
+	}
+	return epgCfg.Write()
 }
 
 // DeleteEndpointGroup handles endpoint group deletes
@@ -152,6 +188,15 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 
 	if epgCfg.EpCount != 0 {
 		return core.Errorf("Error: EPG %s has active endpoints", groupName)
+	}
+
+	networkID := epgCfg.NetworkName + "." + epgCfg.TenantName
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	err = nwCfg.Read(networkID)
+	if err != nil {
+		log.Errorf("Could not find network %s. Err: %v", networkID, err)
+		return err
 	}
 
 	// Delete the endpoint group state
@@ -178,6 +223,15 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 				return err
 			}
 			log.Debugf("Freed vlan %v\n", epgCfg.PktTag)
+		}
+	}
+
+	// mark it as unused
+	if len(epgCfg.IPPool) > 0 {
+		netutils.ClearIPAddrRange(&nwCfg.IPAllocMap, epgCfg.IPPool, nwCfg.SubnetIP, nwCfg.SubnetLen)
+		if err = nwCfg.Write(); err != nil {
+			log.Errorf("error writing nw config after releasing subnet. Error: %v", err)
+			return err
 		}
 	}
 
@@ -224,9 +278,5 @@ func UpdateEndpointGroup(bandwidth, groupName, tenantName string, Dscp, burst in
 	epCfg.Burst = burst
 
 	//Write to etcd
-	err = epCfg.Write()
-	if err != nil {
-		return err
-	}
-	return nil
+	return epCfg.Write()
 }

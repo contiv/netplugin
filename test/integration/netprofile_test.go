@@ -69,7 +69,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp flow is created
 		its.verifyPortVlanFlow(epCfg1, 10, c)
@@ -82,7 +82,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp value changes in OVS
 		its.verifyPortVlanFlow(epCfg1, 20, c)
@@ -95,7 +95,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp flow is removed
 		its.verifyPortVlanFlowRemoved(epCfg1, 20, true, c)
@@ -108,7 +108,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp value changes in OVS
 		its.verifyPortVlanFlow(epCfg1, 30, c)
@@ -129,7 +129,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp value changes in OVS
 		its.verifyPortVlanFlow(epCfg1, 40, c)
@@ -143,7 +143,7 @@ func (its *integTestSuite) TestNetprofileDscp(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify dscp flows are gone
 		its.verifyPortVlanFlowRemoved(epCfg1, 40, true, c)
@@ -204,7 +204,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		assertNoErr(err, c, "creating endpoint")
 
 		// verify tc qdisc is empty
-		c.Assert(tcFilterVerifyEmpty(), IsNil)
+		c.Assert(tcFilterVerifyEmpty(20), IsNil)
 
 		// add net profile to epg
 		c.Assert(its.client.EndpointGroupPost(&client.EndpointGroup{
@@ -215,7 +215,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 
 		// verify TC bandwidth
 		c.Assert(tcFilterCheckBwRetry(10, 100), IsNil)
@@ -229,7 +229,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 
 		// verify TC bandwidth
 		c.Assert(tcFilterCheckBwRetry(20, 200), IsNil)
@@ -243,10 +243,10 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		// verify tc qdisc is empty
-		c.Assert(tcFilterVerifyEmpty(), IsNil)
+		c.Assert(tcFilterVerifyEmpty(20), IsNil)
 
 		// add bandwidth again
 		c.Assert(its.client.NetprofilePost(&client.Netprofile{
@@ -257,7 +257,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 
 		// verify TC bandwidth
 		c.Assert(tcFilterCheckBwRetry(30, 300), IsNil)
@@ -279,7 +279,7 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 
 		// verify TC bandwidth
 		c.Assert(tcFilterCheckBwRetry(40, 400), IsNil)
@@ -293,10 +293,10 @@ func (its *integTestSuite) TestNetprofileBandwidth(c *C) {
 		}), IsNil)
 
 		// wait for a little for update to propagate
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 
 		// verify tc qdisc is empty
-		c.Assert(tcFilterVerifyEmpty(), IsNil)
+		c.Assert(tcFilterVerifyEmpty(20), IsNil)
 
 		// delete the endpoint
 		err = its.deleteEndpoint("default", "test", "", epCfg1)

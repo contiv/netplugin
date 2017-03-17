@@ -5,6 +5,10 @@ making incremental changes and doing frequent compilation for a quicker developm
 
 Happy hacking!
 
+### Pre-requisites
+Vagarant 1.8.7
+VirtualBox 5.1.x
+
 ### 1. Check-out a tree. `Estimated time: 2 minutes`
 Notes: Make sure GOPATH is set. This is a one time activity.
 ```
@@ -67,7 +71,7 @@ Please see [here](./GoDep.md) for working with godep
 
 ### How to trigger a Jenkins CI run on my fork?
 
-1. Go go http://contiv.ngrok.io/view/Netplugin/
+1. Go go http://contiv-ci.ngrok.io/view/Netplugin/
 2. Click on `log in` button on top right corner and log in as user: `guest`, password: `guest`
 3. Click on `Netplugin_OnDemand_Build` job
 4. Click on `Build with Parameters` link on the left side

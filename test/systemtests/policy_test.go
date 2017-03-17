@@ -533,7 +533,9 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Protocol:      "tcp",
 		Action:        "allow",
 	}), IsNil)
-
+	
+	time.Sleep(2 *time.Second)
+	
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:    "first",
 		FromIpAddress: dummyNet.Subnet,
@@ -544,12 +546,14 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Protocol:      "tcp",
 		Action:        "deny",
 	}), IsNil)
+	time.Sleep(2 *time.Second)
 
 	c.Assert(container2.node.exec.checkConnection(container2, container1.eth0.ip, "tcp", 8001), IsNil)
 
 	for i := 1; i <= 4; i++ {
 		c.Assert(s.cli.RuleDelete("default", "first", strconv.Itoa(i)), IsNil)
 	}
+	time.Sleep(2 *time.Second)
 
 	c.Assert(container2.node.exec.checkConnection(container2, container1.eth0.ip, "tcp", 8000), IsNil)
 
@@ -561,6 +565,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Protocol:   "tcp",
 		Action:     "deny",
 	}), IsNil)
+
+	time.Sleep(2 *time.Second)
 
 	c.Assert(container1.node.exec.checkNoConnection(container1, container2.eth0.ip, "tcp", 8000), IsNil)
 
@@ -574,6 +580,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Port:       8000,
 		Action:     "allow",
 	}), IsNil)
+
+	time.Sleep(2 *time.Second)
 
 	c.Assert(container1.node.exec.checkConnection(container1, container2.eth0.ip, "tcp", 8000), IsNil)
 	c.Assert(container1.node.exec.checkNoConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
@@ -589,6 +597,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Port:            8001,
 		Action:          "allow",
 	}), IsNil)
+
+	time.Sleep(2 *time.Second)
 
 	c.Assert(container1.node.exec.checkConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
@@ -617,6 +627,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:     "deny",
 	}), IsNil)
 
+	time.Sleep(2 *time.Second)
+
 	c.Assert(container1.node.exec.checkConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "3"), IsNil)
@@ -635,6 +647,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:      "allow",
 	}), IsNil)
 
+	time.Sleep(2 *time.Second)
+
 	c.Assert(s.cli.RulePost(&client.Rule{
 		PolicyName:  "first",
 		TenantName:  "default",
@@ -646,11 +660,14 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:      "deny",
 	}), IsNil)
 
+	time.Sleep(2 *time.Second)
 	c.Assert(container1.node.exec.checkConnection(container1, container2.eth0.ip, "tcp", 8001), IsNil)
 
 	for i := 1; i <= 4; i++ {
 		c.Assert(s.cli.RuleDelete("default", "first", strconv.Itoa(i)), IsNil)
 	}
+	
+	time.Sleep(2 *time.Second)
 
 	c.Assert(container1.node.exec.checkPing(container1, container2.eth0.ip), IsNil)
 
@@ -662,6 +679,8 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Protocol:   "icmp",
 		Action:     "deny",
 	}), IsNil)
+
+	time.Sleep(2 *time.Second)
 
 	c.Assert(container1.node.exec.checkPingFailure(container1, container2.eth0.ip), IsNil)
 
@@ -676,13 +695,21 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		Action:        "allow",
 	}), IsNil)
 
+	time.Sleep(2 *time.Second)
+
 	c.Assert(container1.node.exec.checkPing(container1, container2.eth0.ip), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "2"), IsNil)
+
+	time.Sleep(2 *time.Second)
+
 	c.Assert(container1.node.exec.checkPingFailure(container1, container2.eth0.ip), IsNil)
 
 	c.Assert(s.cli.RuleDelete("default", "first", "1"), IsNil)
+	time.Sleep(2 *time.Second)
+
 	c.Assert(container1.node.exec.checkPing(container1, container2.eth0.ip), IsNil)
+
 
 	c.Assert(s.removeContainers([]*container{container1, container2}), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete("default", "srv1"), IsNil)

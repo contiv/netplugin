@@ -21,8 +21,10 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
@@ -31,8 +33,6 @@ import (
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
 	"github.com/contiv/objdb/modeldb"
-
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -80,6 +80,7 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 	contivModel.RegisterExtContractsGroupCallbacks(ctrler)
 	contivModel.RegisterEndpointCallbacks(ctrler)
 	contivModel.RegisterNetprofileCallbacks(ctrler)
+	contivModel.RegisterAciGwCallbacks(ctrler)
 	// Register routes
 	contivModel.AddRoutes(router)
 
@@ -94,6 +95,8 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			FwdMode:          "bridge",
+			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		})
 		if err != nil {
 			log.Fatalf("Error creating global state. Err: %v", err)
@@ -154,6 +157,7 @@ func (ac *APIController) GlobalGetOper(global *contivModel.GlobalInspect) error 
 	global.Oper.NumNetworks = int(numVlans + numVxlans)
 	global.Oper.VlansInUse = vlansInUse
 	global.Oper.VxlansInUse = vxlansInUse
+	global.Oper.ClusterMode = master.GetClusterMode()
 	return nil
 }
 
@@ -173,6 +177,8 @@ func (ac *APIController) GlobalCreate(global *contivModel.Global) error {
 		VLANs:       global.Vlans,
 		VXLANs:      global.Vxlans,
 		FwdMode:     global.FwdMode,
+		ArpMode:     global.ArpMode,
+		PvtSubnet:   global.PvtSubnet,
 	}
 
 	// Create the object
@@ -222,6 +228,9 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 		}
 		globalCfg.FwdMode = params.FwdMode
 	}
+	if global.ArpMode != params.ArpMode {
+		globalCfg.ArpMode = params.ArpMode
+	}
 	if global.Vlans != params.Vlans {
 		globalCfg.VLANs = params.Vlans
 	}
@@ -230,6 +239,13 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	}
 	if global.NetworkInfraType != params.NetworkInfraType {
 		globalCfg.NwInfraType = params.NetworkInfraType
+	}
+	if global.PvtSubnet != params.PvtSubnet {
+		if numVlans+numVxlans > 0 {
+			log.Errorf("Unable to update provate subnet due to existing networks")
+			return fmt.Errorf("Please delete %v vlans and %v vxlans before changing private subnet", vlansInUse, vxlansInUse)
+		}
+		globalCfg.PvtSubnet = params.PvtSubnet
 	}
 
 	// Create the object
@@ -243,6 +259,8 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	global.Vlans = params.Vlans
 	global.Vxlans = params.Vxlans
 	global.FwdMode = params.FwdMode
+	global.ArpMode = params.ArpMode
+	global.PvtSubnet = params.PvtSubnet
 
 	return nil
 }
@@ -263,6 +281,56 @@ func (ac *APIController) GlobalDelete(global *contivModel.Global) error {
 		log.Errorf("Error deleting global config. Err: %v", err)
 		return err
 	}
+	return nil
+}
+
+// AciGwCreate creates aci state
+func (ac *APIController) AciGwCreate(aci *contivModel.AciGw) error {
+	log.Infof("Received AciGwCreate: %+v", aci)
+	// Fail the create if app profiles exist
+	profCount := contivModel.GetAppProfileCount()
+	if profCount != 0 {
+		log.Warnf("AciGwCreate: %d existing App-Profiles found.",
+			profCount)
+	}
+
+	return nil
+}
+
+// AciGwUpdate updates aci state
+func (ac *APIController) AciGwUpdate(aci, params *contivModel.AciGw) error {
+	log.Infof("Received AciGwUpdate: %+v", params)
+	// Fail the update if app profiles exist
+	profCount := contivModel.GetAppProfileCount()
+	if profCount != 0 {
+		log.Warnf("AciGwUpdate: %d existing App-Profiles found.",
+			profCount)
+	}
+
+	aci.EnforcePolicies = params.EnforcePolicies
+	aci.IncludeCommonTenant = params.IncludeCommonTenant
+	aci.NodeBindings = params.NodeBindings
+	aci.PathBindings = params.PathBindings
+	aci.PhysicalDomain = params.PhysicalDomain
+	return nil
+}
+
+// AciGwDelete deletes aci state
+func (ac *APIController) AciGwDelete(aci *contivModel.AciGw) error {
+	log.Infof("Received AciGwDelete")
+	// Fail the delete if app profiles exist
+	profCount := contivModel.GetAppProfileCount()
+	if profCount != 0 {
+		return core.Errorf("%d App-Profiles found. Delete them first",
+			profCount)
+	}
+
+	return nil
+}
+
+// AciGwGetOper provides operational info for the aci object
+func (ac *APIController) AciGwGetOper(op *contivModel.AciGwInspect) error {
+	op.Oper.NumAppProfiles = contivModel.GetAppProfileCount()
 	return nil
 }
 
@@ -430,6 +498,13 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 				endpoint.Oper.ContainerID = ep.ContainerID
 				endpoint.Oper.ContainerName = ep.EPCommonName
 
+				epOper := &drivers.OvsOperEndpointState{}
+				epOper.StateDriver = stateDriver
+				err := epOper.Read(ep.NetID + "-" + ep.EndpointID)
+				if err == nil {
+					endpoint.Oper.VirtualPort = "v" + epOper.PortName
+				}
+
 				return nil
 			}
 		}
@@ -531,7 +606,8 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 	}
 
 	// create the endpoint group state
-	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName,
+		endpointGroup.IpPool, endpointGroup.GroupName)
 	if err != nil {
 		log.Errorf("Error creating endpoint group %+v. Err: %v", endpointGroup, err)
 		return err
@@ -634,6 +710,10 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 	// if the network association was changed, reject the update.
 	if endpointGroup.NetworkName != params.NetworkName {
 		return core.Errorf("Cannot change network association after epg is created.")
+	}
+
+	if endpointGroup.IpPool != params.IpPool {
+		return core.Errorf("Cannot change IP pool after epg is created.")
 	}
 
 	// Only update policy attachments
@@ -828,10 +908,21 @@ func (ac *APIController) EndpointGroupGetOper(endpointGroup *contivModel.Endpoin
 		return err
 	}
 
+	nwName := epgCfg.NetworkName + "." + epgCfg.TenantName
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	if err := nwCfg.Read(nwName); err != nil {
+		log.Errorf("Error fetching network config %s", nwName)
+		return err
+	}
+
 	endpointGroup.Oper.ExternalPktTag = epgCfg.ExtPktTag
 	endpointGroup.Oper.PktTag = epgCfg.PktTag
 	endpointGroup.Oper.NumEndpoints = epgCfg.EpCount
-
+	endpointGroup.Oper.AvailableIPAddresses = netutils.ListAvailableIPs(epgCfg.EPGIPAllocMap,
+		nwCfg.SubnetIP, nwCfg.SubnetLen)
+	endpointGroup.Oper.AllocatedIPAddresses = netutils.ListAllocatedIPs(epgCfg.EPGIPAllocMap,
+		epgCfg.IPPool, nwCfg.SubnetIP, nwCfg.SubnetLen)
 	readEp := &mastercfg.CfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
@@ -996,7 +1087,6 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 	network.Oper.AllocatedAddressesCount = nwCfg.EpAddrCount
 	network.Oper.AvailableIPAddresses = master.ListAvailableIPs(nwCfg)
 	network.Oper.AllocatedIPAddresses = master.ListAllocatedIPs(nwCfg)
-	network.Oper.DnsServerIP = nwCfg.DNSServer
 	network.Oper.ExternalPktTag = nwCfg.ExtPktTag
 	network.Oper.NumEndpoints = nwCfg.EpCount
 	network.Oper.PktTag = nwCfg.PktTag
@@ -1076,12 +1166,7 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	}
 
 	// Save the tenant too since we removed the links
-	err = tenant.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return tenant.Write()
 }
 
 // NetprofileCreate creates the network rule
@@ -1573,7 +1658,6 @@ func getTenantNetworks(tenant *contivModel.TenantInspect) error {
 			netOper.AllocatedAddressesCount = nwCfg.EpAddrCount
 			netOper.AvailableIPAddresses = master.ListAvailableIPs(nwCfg)
 			netOper.AllocatedIPAddresses = master.ListAllocatedIPs(nwCfg)
-			netOper.DnsServerIP = nwCfg.DNSServer
 			netOper.ExternalPktTag = nwCfg.ExtPktTag
 			netOper.PktTag = nwCfg.PktTag
 			netOper.NumEndpoints = nwCfg.EpCount
@@ -1739,8 +1823,14 @@ func (ac *APIController) TenantDelete(tenant *contivModel.Tenant) error {
 			tenant.TenantName, nwCount)
 	}
 
+	// Build tenant config
+	tenantCfg := intent.ConfigTenant{
+		Name:           tenant.TenantName,
+		DefaultNetwork: tenant.DefaultNetwork,
+	}
+
 	// Delete the tenant
-	err = master.DeleteTenantID(stateDriver, tenant.TenantName)
+	err = master.DeleteTenant(stateDriver, &tenantCfg)
 	if err != nil {
 		log.Errorf("Error deleting tenant %s. Err: %v", tenant.TenantName, err)
 	}
@@ -1865,9 +1955,9 @@ func (ac *APIController) BgpGetOper(bgp *contivModel.BgpInspect) error {
 
 	switch {
 	case r.StatusCode == int(404):
-		return errors.New("Page not found!")
+		return errors.New("page not found")
 	case r.StatusCode == int(403):
-		return errors.New("Access denied!")
+		return errors.New("access denied")
 	case r.StatusCode == int(500):
 		response, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -2092,10 +2182,7 @@ func (ac *APIController) ServiceLBGetOper(serviceLB *contivModel.ServiceLBInspec
 }
 
 func validateSelectors(selector string) bool {
-	if strings.Count(selector, "=") == 1 {
-		return true
-	}
-	return false
+	return strings.Count(selector, "=") == 1
 }
 
 func validatePorts(ports []string) bool {

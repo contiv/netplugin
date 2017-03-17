@@ -67,10 +67,34 @@ class Node:
             print "Ignoring EOF errors executing command"
             return [], [], 0
 
+    # Install v2plugin on vagrant node
+    def installV2Plugin(self, args=""):
+        ssh_object = self.sshConnect(self.username, self.password)
+        command = "docker plugin install " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") + " --grant-all-permissions iflist=eth2,eth3 " + " plugin-name=" + os.environ["CONTIV_V2PLUGIN_NAME"] + args + " > /tmp/netplugin.log 2>&1"
+        self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
+        # npThread.setDaemon(True)
+        self.npThread.start()
+
+    # Create v2plugin on vagrant node
+    def createV2Plugin(self, args=""):
+        ssh_object = self.sshConnect(self.username, self.password)
+        command = "docker plugin create " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") + " /opt/gopath/src/github.com/contiv/netplugin/install/v2plugin/ " + args + ">> /tmp/netplugin.log 2>&1"
+        self.runCmd(command)
+
+    # Enable v2plugin on vagrant node
+    def enableV2Plugin(self, args=""):
+        ssh_object = self.sshConnect(self.username, self.password)
+        command = "docker plugin set " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") + " iflist=eth2,eth3 plugin_name=" + os.environ["CONTIV_V2PLUGIN_NAME"] + args + " >> /tmp/netplugin.log 2>&1"
+        self.runCmd(command)
+        command = "docker plugin enable " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") +  args + " >> /tmp/netplugin.log 2>&1"
+        self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
+        # npThread.setDaemon(True)
+        self.npThread.start()
+
     # Start netplugin process on vagrant node
     def startNetplugin(self, args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "sudo " + self.binpath + "/netplugin -plugin-mode docker -vlan-if eth2 -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " " + args + "> /tmp/netplugin.log 2>&1"
+        command = "sudo " + self.binpath + "/netplugin -plugin-mode docker -vlan-if eth2 -vlan-if eth3 -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " " + args + "> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()
@@ -83,12 +107,17 @@ class Node:
         # npThread.setDaemon(True)
         self.nmThread.start()
 
-    # Start Swarm Containers
-    def utilSwarmContainer(self, command):
+    # Execute command in a thread 
+    def runCmdThread(self, command):
         ssh_object = self.sshConnect(self.username, self.password)
         self.swThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         self.swThread.start()
     
+    # Stop v2plugin by force rm 
+    def stopV2Plugin(self, args=""):
+        command = "docker plugin rm -f " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") + "> /tmp/netplugin.log 2>&1"
+        self.runCmd(command)
+
     # Stop netplugin by killing it
     def stopNetplugin(self):
         self.runCmd("sudo pkill netplugin")
@@ -121,7 +150,6 @@ class Node:
         self.runCmd("etcdctl ls /contiv > /dev/null 2>&1 && etcdctl rm --recursive /contiv")
         self.runCmd("etcdctl ls /contiv.io > /dev/null 2>&1 && etcdctl rm --recursive /contiv.io")
         self.runCmd("etcdctl ls /docker > /dev/null 2>&1 && etcdctl rm --recursive /docker")
-        self.runCmd("etcdctl ls /skydns > /dev/null 2>&1 && etcdctl rm --recursive /skydns")
         self.runCmd("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
         self.runCmd("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 

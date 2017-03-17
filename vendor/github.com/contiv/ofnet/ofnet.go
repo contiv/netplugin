@@ -67,10 +67,13 @@ type OfnetDatapath interface {
 	RemoveVlan(vlanId uint16, vni uint32, vrf string) error
 
 	//Add uplink port
-	AddUplink(portNo uint32, ifname string) error
+	AddUplink(uplinkPort *PortInfo) error
+
+	//Update uplink port
+	UpdateUplink(uplinkName string, update PortUpdates) error
 
 	//Delete uplink port
-	RemoveUplink(portNo uint32) error
+	RemoveUplink(uplinkName string) error
 
 	//Inject GARPs
 	InjectGARPs(epgID int)
@@ -92,6 +95,9 @@ type OfnetDatapath interface {
 
 	// Return the datapath state
 	InspectState() (interface{}, error)
+
+	// Set global config
+	GlobalConfigUpdate(cfg OfnetGlobalConfig) error
 }
 
 // Interface implemented by each control protocol.
@@ -128,6 +134,9 @@ type OfnetProto interface {
 const OFNET_MASTER_PORT = 9001
 const OFNET_AGENT_VXLAN_PORT = 9002
 const OFNET_AGENT_VLAN_PORT = 9010
+
+// internal vlan id
+const nameServerInternalVlanId = 4093
 
 // Information about each node
 type OfnetNode struct {
@@ -179,10 +188,10 @@ type OfnetProtoNeighborInfo struct {
 
 // OfnetProtoRouterInfo has local router info
 type OfnetProtoRouterInfo struct {
-	ProtocolType string // type of protocol
-	RouterIP     string // ip address of the router
-	VlanIntf     string // uplink L2 intf
-	As           string // As for Bgp protocol
+	ProtocolType string   // type of protocol
+	RouterIP     string   // ip address of the router
+	UplinkPort   PortInfo // uplink L2 intf
+	As           string   // As for Bgp protocol
 }
 
 // OfnetProtoRouteInfo contains a route
@@ -190,6 +199,28 @@ type OfnetProtoRouteInfo struct {
 	ProtocolType string // type of protocol
 	localEpIP    string
 	nextHopIP    string
+}
+
+type ArpModeT string
+
+const (
+	// ArpFlood - ARP packets will be flooded in this mode
+	ArpFlood ArpModeT = "flood"
+	// ArpProxy - ARP packets will be redirected to controller
+	ArpProxy ArpModeT = "proxy"
+
+	// PortType - individual port
+	PortType = "individual"
+	// BondType - bonded port
+	BondType = "bond"
+
+	// LacpUpdate - for port update info
+	LacpUpdate = "lacp-upd"
+)
+
+// OfnetGlobalConfig has global level configs for ofnet
+type OfnetGlobalConfig struct {
+	ArpMode ArpModeT // arp mode: proxy or flood
 }
 
 // OfnetVrfInfo has info about a VRF
@@ -232,4 +263,47 @@ type OfnetEndpointStats struct {
 	VrfName    string                   // vrf name
 	PortStats  OfnetDatapathStats       // Aggregate port stats
 	SvcStats   map[string]OfnetSvcStats // Service level stats
+}
+
+type linkStatus int
+
+// LinkStatus maintains link up/down information
+const (
+	linkDown linkStatus = iota
+	linkUp
+)
+
+// LinkInfo maintains individual link information
+type LinkInfo struct {
+	Name       string
+	Port       *PortInfo
+	LinkStatus linkStatus
+	OfPort     uint32
+}
+
+// PortInfo maintains port information
+type PortInfo struct {
+	Name        string
+	Type        string
+	LinkStatus  linkStatus
+	MbrLinks    []*LinkInfo
+	ActiveLinks []*LinkInfo
+}
+
+// PortUpdates maintains multiplae port update info
+type PortUpdates struct {
+	PortName string
+	Updates  []PortUpdate
+}
+
+// PortUpdate maintains information about port update
+type PortUpdate struct {
+	UpdateType string
+	UpdateInfo interface{}
+}
+
+// LACP update
+type LinkUpdateInfo struct {
+	LinkName   string
+	LacpStatus bool
 }

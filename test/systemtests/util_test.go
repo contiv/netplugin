@@ -19,6 +19,45 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+func (s *systemtestSuite) parallelExec(fn func(*node) error) []error {
+	errChan := make(chan map[int]error, len(s.nodes))
+	nodeError := "encountered error on node %v: %v"
+	runner := func(n *node, i int, wg *sync.WaitGroup) {
+		defer wg.Done()
+		err := fn(n)
+		if err != nil {
+			err = fmt.Errorf(nodeError, n.Name(), err)
+		}
+		errChan <- map[int]error{i: err}
+	}
+	var wg sync.WaitGroup
+	for i, n := range s.nodes {
+		wg.Add(1)
+		go runner(n, i, &wg)
+	}
+	wg.Wait()
+
+	errors := map[int]error{}
+	for i := 0; i < len(s.nodes); i++ {
+		res := <-errChan
+		for k, v := range res {
+			if v != nil {
+				errors[k] = v
+			}
+		}
+	}
+
+	finalErrors := make([]error, len(errors))
+	for i := range s.nodes {
+		err, ok := errors[i]
+		if !ok {
+			finalErrors = append(finalErrors, err)
+		}
+	}
+
+	return finalErrors
+}
+
 func (s *systemtestSuite) checkConnectionPair(containers1, containers2 []*container, port int) error {
 	for _, cont := range containers1 {
 		for _, cont2 := range containers2 {
@@ -302,17 +341,17 @@ func (s *systemtestSuite) runContainersOnNode(num int, networkName, tenantName, 
 	return containers, nil
 }
 
-func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName, serviceName string) ([]*container, error) {
+func (s *systemtestSuite) runContainersWithDNS(num int, tenantName, networkName,
+	serviceName, dnsServer string) ([]*container, error) {
+
 	containers := []*container{}
 	mutex := sync.Mutex{}
 
 	errChan := make(chan error)
 
-	// Get the dns server for the network
-	dnsServer, err := s.getNetworkDNSServer(tenantName, networkName)
-	if err != nil {
-		logrus.Errorf("Error getting DNS server for network %s/%s", networkName, tenantName)
-		return nil, err
+	if len(dnsServer) <= 0 {
+		logrus.Errorf("no dns specified")
+		return nil, fmt.Errorf("no dns")
 	}
 
 	docknetName := fmt.Sprintf("%s/%s", networkName, tenantName)
@@ -475,6 +514,32 @@ func (s *systemtestSuite) hostIsolationTest(containers []*container) error {
 	return nil
 }
 
+func (s *systemtestSuite) verifyPvtIP(containers []*container, pvtNet string) error {
+	for _, cont := range containers {
+		ip, err := cont.node.exec.getIPAddr(cont, "host1")
+		if err != nil {
+			logrus.Errorf("Error getting host1 ip for container: %+v err: %v",
+				cont, err)
+			return err
+		}
+
+		ipBytes := strings.Split(ip, ".")
+		if len(ipBytes) != 4 {
+			logrus.Errorf("Error bad host1 ip for container: %+v ip: %s",
+				cont, ip)
+			return errors.New("Bad host1 IP")
+		}
+
+		ipStr := ipBytes[0] + ipBytes[1] + "0.0"
+		if ipStr != pvtNet {
+			logrus.Errorf("Incorrect pvt subnet %s for container %v, exp: %s", ipStr, cont, pvtNet)
+			return errors.New("Pvt subnet does not match")
+		}
+	}
+
+	return nil
+}
+
 func (s *systemtestSuite) removeContainers(containers []*container) error {
 	errChan := make(chan error, len(containers))
 	for _, cont := range containers {
@@ -596,6 +661,7 @@ func (s *systemtestSuite) checkIperfAcrossGroup(containers []*container, contain
 
 func (s *systemtestSuite) checkIngressRate(containers []*container, bw string) error {
 	for _, cont := range containers {
+	  fmt.Printf("Checking IngressRate for container %s for bw :%s ",cont,bw)
 		err := cont.node.exec.tcFilterShow(bw)
 		return err
 	}
@@ -847,15 +913,6 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 	}
 }
 
-func (s *systemtestSuite) getNetworkDNSServer(tenant, network string) (string, error) {
-	netInspect, err := s.cli.NetworkInspect(tenant, network)
-	if err != nil {
-		return "", err
-	}
-
-	return netInspect.Oper.DnsServerIP, nil
-}
-
 func (s *systemtestSuite) checkConnectionToService(containers []*container, ips []string, port int, protocol string) error {
 
 	for _, cont := range containers {
@@ -979,7 +1036,7 @@ func (s *systemtestSuite) verifyVTEPs() error {
 	failNode := ""
 	err = nil
 	dbgOut := ""
-	for try := 0; try < 20; try++ {
+	for try := 0; try < 60; try++ {
 		for _, n := range s.nodes {
 			if n.Name() == "k8master" {
 				continue
@@ -1066,19 +1123,27 @@ func (s *systemtestSuite) verifyIPs(ipaddrs []string) error {
 }
 
 //Function to extract cfg Info from JSON file
-func getInfo(file string) (BasicInfo, HostInfo, GlobInfo) {
+func getInfo(file string) (BasicInfo, HostInfo, GlobInfo, error) {
+	var (
+		b BasicInfo
+		c HostInfo
+		d GlobInfo
+	)
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	var b BasicInfo
-	json.Unmarshal(raw, &b)
-	var c HostInfo
-	json.Unmarshal(raw, &c)
-	var d GlobInfo
-	json.Unmarshal(raw, &d)
-	return b, c, d
+	err = json.Unmarshal(raw, &b)
+	if err != nil {
+		return b, c, d, err
+	}
+	err = json.Unmarshal(raw, &c)
+	if err != nil {
+		return b, c, d, err
+	}
+	err = json.Unmarshal(raw, &d)
+	return b, c, d, err
 }
 
 // Setup suite and test methods for all platforms
@@ -1086,7 +1151,7 @@ func (s *systemtestSuite) SetUpSuiteBaremetal(c *C) {
 
 	logrus.Infof("Private keyFile = %s", s.basicInfo.KeyFile)
 	logrus.Infof("Binary binpath = %s", s.basicInfo.BinPath)
-	logrus.Infof("Interface vlanIf = %s", s.hostInfo.HostDataInterface)
+	logrus.Infof("Uplink data Interface(s) = %s", s.hostInfo.HostDataInterfaces)
 
 	s.baremetal = remotessh.Baremetal{}
 	bm := &s.baremetal
@@ -1160,6 +1225,7 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 	nodesStr := os.Getenv("CONTIV_NODES")
 	var contivNodes int
 
+	logrus.Infof("Running tests with Forwarding mode: %s", s.fwdMode)
 	if nodesStr == "" {
 		contivNodes = 3
 	} else {
@@ -1293,60 +1359,69 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
+			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		}), IsNil)
 		time.Sleep(40 * time.Second)
 	}
 }
 
 func (s *systemtestSuite) SetUpTestVagrant(c *C) {
-	for _, node := range s.nodes {
+	s.parallelExec(func(node *node) error {
 		node.exec.cleanupContainers()
 		node.stopNetplugin()
 		node.cleanupSlave()
-	}
+		return nil
+	})
 
-	for _, node := range s.nodes {
+	s.parallelExec(func(node *node) error {
 		node.stopNetmaster()
-
-	}
-	for _, node := range s.nodes {
 		node.cleanupMaster()
+		return nil
+	})
+
+	errors := s.parallelExec(func(node *node) error {
+		return node.startNetplugin("")
+
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
 	}
 
-	for _, node := range s.nodes {
-
-		c.Assert(node.startNetplugin(""), IsNil)
-		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-
+	errors = s.parallelExec(func(node *node) error {
+		return node.exec.runCommandUntilNoNetpluginError()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
 	}
 
 	time.Sleep(15 * time.Second)
 
-	// temporarily enable DNS for service discovery tests
-	prevDNSEnabled := s.basicInfo.EnableDNS
-	if strings.Contains(c.TestName(), "SvcDiscovery") {
-		s.basicInfo.EnableDNS = true
+	errors = s.parallelExec(func(node *node) error {
+		return node.startNetmaster()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
 	}
 
-	defer func() { s.basicInfo.EnableDNS = prevDNSEnabled }()
-
-	for _, node := range s.nodes {
-		c.Assert(node.startNetmaster(), IsNil)
-		time.Sleep(1 * time.Second)
-		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
+	errors = s.parallelExec(func(node *node) error {
+		return node.exec.runCommandUntilNoNetmasterError()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
 	}
 
 	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != "k8" {
-		for i := 0; i < 11; i++ {
+		for i := 0; i < 21; i++ {
 
 			_, err := s.cli.TenantGet("default")
 			if err == nil {
 				break
 			}
 			// Fail if we reached last iteration
-			c.Assert((i < 10), Equals, true)
-			time.Sleep(500 * time.Millisecond)
+			c.Assert((i < 20), Equals, true)
+			time.Sleep(1 * time.Second)
 		}
 	}
 
@@ -1356,6 +1431,8 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
+			ArpMode:          "proxy",
+			PvtSubnet:        "172.19.0.0/16",
 		}), IsNil)
 		time.Sleep(120 * time.Second)
 	}

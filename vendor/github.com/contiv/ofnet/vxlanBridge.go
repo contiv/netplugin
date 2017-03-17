@@ -28,6 +28,7 @@ import (
 	"github.com/shaleman/libOpenflow/protocol"
 
 	log "github.com/Sirupsen/logrus"
+	cmap "github.com/streamrail/concurrent-map"
 )
 
 // VXLAN tables are structured as follows
@@ -66,7 +67,11 @@ type Vxlan struct {
 	// Flow Database
 	macFlowDb      map[string]*ofctrl.Flow   // Database of flow entries
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
+	portDnsFlowDb  cmap.ConcurrentMap        // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
+
+	// Arp Flow
+	arpRedirectFlow *ofctrl.Flow // ARP redirect flow entry
 }
 
 // Vlan info
@@ -100,6 +105,7 @@ func NewVxlan(agent *OfnetAgent, rpcServ *rpc.Server) *Vxlan {
 	vxlan.vlanDb = make(map[uint16]*Vlan)
 	vxlan.macFlowDb = make(map[string]*ofctrl.Flow)
 	vxlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
+	vxlan.portDnsFlowDb = cmap.New()
 	vxlan.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
 
 	return vxlan
@@ -156,11 +162,74 @@ func (self *Vxlan) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 				self.processArp(pkt.Data, inPortFld.InPort)
 			}
 		}
+
+	case protocol.IPv4_MSG:
+		var inPort uint32
+		if (pkt.TableId == 0) && (pkt.Match.Type == openflow13.MatchType_OXM) &&
+			(pkt.Match.Fields[0].Class == openflow13.OXM_CLASS_OPENFLOW_BASIC) &&
+			(pkt.Match.Fields[0].Field == openflow13.OXM_FIELD_IN_PORT) {
+
+			// get the input port number
+			switch t := pkt.Match.Fields[0].Value.(type) {
+			case *openflow13.InPortField:
+				inPort = t.InPort
+			default:
+				log.Debugf("unknown match type %v for ipv4 pkt", t)
+				return
+			}
+		}
+
+		ipPkt := pkt.Data.Data.(*protocol.IPv4)
+		switch ipPkt.Protocol {
+		case protocol.Type_UDP:
+			udpPkt := ipPkt.Data.(*protocol.UDP)
+			switch udpPkt.PortDst {
+			case 53:
+				isVtepPort := self.isVtepPort(inPort)
+				if isVtepPort {
+					self.agent.incrErrStats("dnsPktVtep")
+					return
+				}
+
+				if dnsResp, err := processDNSPkt(self.agent, inPort, udpPkt.Data); err == nil {
+					if respPkt, err := buildUDPRespPkt(&pkt.Data, dnsResp); err == nil {
+						self.agent.incrStats("dnsPktReply")
+						pktOut := openflow13.NewPacketOut()
+						pktOut.Data = respPkt
+						pktOut.AddAction(openflow13.NewActionOutput(inPort))
+						self.ofSwitch.Send(pktOut)
+						return
+					}
+				}
+
+				// re-inject DNS packet
+				ethPkt := buildDnsForwardPkt(&pkt.Data)
+				pktOut := openflow13.NewPacketOut()
+				pktOut.Data = ethPkt
+				pktOut.InPort = inPort
+
+				pktOut.AddAction(openflow13.NewActionOutput(openflow13.P_TABLE))
+				self.agent.incrStats("dnsPktForward")
+				self.ofSwitch.Send(pktOut)
+				return
+			}
+		}
 	}
 }
 
 // InjectGARPs not implemented
 func (self *Vxlan) InjectGARPs(epgID int) {
+}
+
+// Update global config
+func (self *Vxlan) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	if self.agent.arpMode == cfg.ArpMode {
+		log.Warnf("no change in ARP mode %s", self.agent.arpMode)
+	} else {
+		self.agent.arpMode = cfg.ArpMode
+		self.updateArpRedirectFlow(self.agent.arpMode)
+	}
+	return nil
 }
 
 // Add a local endpoint and install associated local route
@@ -372,8 +441,22 @@ func (self *Vxlan) UpdateLocalEndpoint(endpoint *OfnetEndpoint, epInfo EndpointI
 // Add virtual tunnel end point. This is mainly used for mapping remote vtep IP
 // to ofp port number.
 func (self *Vxlan) AddVtepPort(portNo uint32, remoteIp net.IP) error {
-	// Install VNI to vlan mapping for each vni
 
+	dnsVtepFlow, err := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
+		InputPort:  portNo,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	if err != nil {
+		log.Errorf("Error creating nameserver flow entry. Err: %v", err)
+		return err
+	}
+	dnsVtepFlow.Next(self.vlanTable)
+	self.portDnsFlowDb.Set(fmt.Sprintf("%d", portNo), dnsVtepFlow)
+
+	// Install VNI to vlan mapping for each vni
 	sNATTbl := self.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
 	self.agent.vlanVniMutex.RLock()
 	for vni, vlan := range self.agent.vniVlanMap {
@@ -448,11 +531,21 @@ func (self *Vxlan) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 			}
 		}
 	}
+
 	return nil
 }
 
 // Remove a VTEP port
 func (self *Vxlan) RemoveVtepPort(portNo uint32, remoteIp net.IP) error {
+	if f, ok := self.portDnsFlowDb.Get(fmt.Sprintf("%d", portNo)); ok {
+		if dnsVtepFlow, ok := f.(*ofctrl.Flow); ok {
+			if err := dnsVtepFlow.Delete(); err != nil {
+				log.Errorf("Error deleting nameserver flow. Err: %v", err)
+			}
+		}
+	}
+	self.portDnsFlowDb.Remove(fmt.Sprintf("%d", portNo))
+
 	// Remove the VTEP from flood lists
 	output, _ := self.ofSwitch.OutputPort(portNo)
 	for _, vlan := range self.vlanDb {
@@ -752,12 +845,17 @@ func (self *Vxlan) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 }
 
 // AddUplink adds an uplink to the switch
-func (vx *Vxlan) AddUplink(portNo uint32, ifname string) error {
+func (vx *Vxlan) AddUplink(uplinkPort *PortInfo) error {
+	return nil
+}
+
+// UpdateUplink updates uplink info
+func (vx *Vxlan) UpdateUplink(uplinkName string, updates PortUpdates) error {
 	return nil
 }
 
 // RemoveUplink remove an uplink to the switch
-func (vx *Vxlan) RemoveUplink(portNo uint32) error {
+func (vx *Vxlan) RemoveUplink(uplinkName string) error {
 	return nil
 }
 
@@ -857,13 +955,38 @@ func (self *Vxlan) initFgraph() error {
 	})
 	vlanMissFlow.Next(sw.DropAction())
 
-	// Redirect ARP Request packets to controller
-	arpFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY,
-		Ethertype: 0x0806,
-		ArpOper:   protocol.Type_Request,
+	// if arp-mode is ArpProxy, redirect ARP packets to controller
+	// In ArpFlood mode, ARP packets are flooded in datapath and
+	// there is no proxy-arp functionality
+	if self.agent.arpMode == ArpProxy {
+		self.updateArpRedirectFlow(self.agent.arpMode)
+	}
+
+	// redirect dns requests from containers (oui 02:02:xx) to controller
+	macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
+	macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
+	dnsRedirectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
 	})
-	arpFlow.Next(sw.SendToController())
+	dnsRedirectFlow.Next(sw.SendToController())
+
+	// re-inject dns requests
+	dnsReinjectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		VlanId:     nameServerInternalVlanId,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	dnsReinjectFlow.PopVlan()
+	dnsReinjectFlow.Next(self.vlanTable)
 
 	// Drop all packets that miss mac dest lookup AND vlan flood lookup
 	floodMissFlow, _ := self.macDestTable.NewFlow(ofctrl.FlowMatch{
@@ -886,6 +1009,27 @@ func (self *Vxlan) isVtepPort(inPort uint32) bool {
 	}
 
 	return false
+}
+
+// add a flow to redirect ARP packet to controller for arp-proxy
+func (self *Vxlan) updateArpRedirectFlow(newArpMode ArpModeT) {
+	sw := self.ofSwitch
+
+	add := (newArpMode == ArpProxy)
+	if add {
+		// Redirect ARP Request packets to controller
+		arpFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:  FLOW_MATCH_PRIORITY,
+			Ethertype: 0x0806,
+			ArpOper:   protocol.Type_Request,
+		})
+		arpFlow.Next(sw.SendToController())
+		self.arpRedirectFlow = arpFlow
+	} else {
+		if self.arpRedirectFlow != nil {
+			self.arpRedirectFlow.Delete()
+		}
+	}
 }
 
 /*

@@ -17,6 +17,7 @@ package ofnet
 // This file implements the vlan bridging datapath
 
 import (
+	"fmt"
 	"net"
 	"net/rpc"
 	"sync"
@@ -26,6 +27,7 @@ import (
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"github.com/shaleman/libOpenflow/protocol"
+	cmap "github.com/streamrail/concurrent-map"
 	"github.com/vishvananda/netlink"
 
 	log "github.com/Sirupsen/logrus"
@@ -51,14 +53,21 @@ type VlanBridge struct {
 	vlanTable  *ofctrl.Table // Vlan Table. map port or VNI to vlan
 	nmlTable   *ofctrl.Table // OVS normal lookup table
 
+	// Flow Database
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
+	portDnsFlowDb  cmap.ConcurrentMap        // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
-	uplinkDb       map[uint32]uint32         // Database of uplink ports
-	garpMutex      *sync.Mutex
-	epgToEPs       map[int]epgGARPInfo // Database of eps per epg
-	garpBGActive   bool
-	uplinkName     string
-	nlCloser       chan struct{} // channel to close the netlink listener
+
+	// Arp Flow
+	arpRedirectFlow *ofctrl.Flow // ARP redirect flow entry
+
+	uplinkPortDb cmap.ConcurrentMap // Database of uplink ports
+	linkDb       cmap.ConcurrentMap // Database of all links
+	garpMutex    *sync.Mutex
+	epgToEPs     map[int]epgGARPInfo // Database of eps per epg
+	garpBGActive bool
+	updChan      chan netlink.LinkUpdate // channel to monitor for link events
+	nlChan       chan struct{}           // channel to close the netlink listener
 }
 
 // epgGARPInfo holds info for epg
@@ -74,6 +83,24 @@ type GARPInfo struct {
 	vlan uint16
 }
 
+// GetUplink API gets the uplink port with uplinkID from uplink DB
+func (vl *VlanBridge) GetUplink(uplinkID string) *PortInfo {
+	uplink, ok := vl.uplinkPortDb.Get(uplinkID)
+	if !ok {
+		return nil
+	}
+	return uplink.(*PortInfo)
+}
+
+// GetLink API gets the interface with linkID from interface DB
+func (vl *VlanBridge) GetLink(linkID string) *LinkInfo {
+	link, ok := vl.linkDb.Get(linkID)
+	if !ok {
+		return nil
+	}
+	return link.(*LinkInfo)
+}
+
 // NewVlanBridge Create a new vlan instance
 func NewVlanBridge(agent *OfnetAgent, rpcServ *rpc.Server) *VlanBridge {
 	vlan := new(VlanBridge)
@@ -83,8 +110,10 @@ func NewVlanBridge(agent *OfnetAgent, rpcServ *rpc.Server) *VlanBridge {
 
 	// init maps
 	vlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
+	vlan.portDnsFlowDb = cmap.New()
 	vlan.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
-	vlan.uplinkDb = make(map[uint32]uint32)
+	vlan.uplinkPortDb = cmap.New()
+	vlan.linkDb = cmap.New()
 	vlan.epgToEPs = make(map[int]epgGARPInfo)
 	vlan.garpMutex = &sync.Mutex{}
 	vlan.garpBGActive = false
@@ -147,6 +176,55 @@ func (vl *VlanBridge) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 				inPortFld = *t
 
 				vl.processArp(pkt.Data, inPortFld.InPort)
+			}
+		}
+
+	case protocol.IPv4_MSG:
+		var inPort uint32
+		if (pkt.TableId == 0) && (pkt.Match.Type == openflow13.MatchType_OXM) &&
+			(pkt.Match.Fields[0].Class == openflow13.OXM_CLASS_OPENFLOW_BASIC) &&
+			(pkt.Match.Fields[0].Field == openflow13.OXM_FIELD_IN_PORT) {
+			// Get the input port number
+			switch t := pkt.Match.Fields[0].Value.(type) {
+			case *openflow13.InPortField:
+				inPort = t.InPort
+			default:
+				log.Debugf("unknown match type %v for ipv4 pkt", t)
+				return
+			}
+		}
+		ipPkt := pkt.Data.Data.(*protocol.IPv4)
+		switch ipPkt.Protocol {
+		case protocol.Type_UDP:
+			udpPkt := ipPkt.Data.(*protocol.UDP)
+			switch udpPkt.PortDst {
+			case 53:
+				if pkt.Data.VLANID.VID != 0 {
+					vl.agent.incrErrStats("dnsPktUplink")
+					return
+				}
+
+				if dnsResp, err := processDNSPkt(vl.agent, inPort, udpPkt.Data); err == nil {
+					if respPkt, err := buildUDPRespPkt(&pkt.Data, dnsResp); err == nil {
+						vl.agent.incrStats("dnsPktReply")
+						pktOut := openflow13.NewPacketOut()
+						pktOut.Data = respPkt
+						pktOut.AddAction(openflow13.NewActionOutput(inPort))
+						vl.ofSwitch.Send(pktOut)
+						return
+					}
+				}
+
+				// re-inject DNS packet
+				ethPkt := buildDnsForwardPkt(&pkt.Data)
+				pktOut := openflow13.NewPacketOut()
+				pktOut.Data = ethPkt
+				pktOut.InPort = inPort
+
+				pktOut.AddAction(openflow13.NewActionOutput(openflow13.P_TABLE))
+				vl.agent.incrStats("dnsPktForward")
+				vl.ofSwitch.Send(pktOut)
+				return
 			}
 		}
 	}
@@ -214,9 +292,20 @@ func (vl *VlanBridge) sendGARPAll() {
 	}
 
 	if !vl.garpBGActive && count > 0 {
-		log.Infof("GARPs will be send for %d epgs", count)
+		log.Infof("GARPs will be sent for %d epgs", count)
 		go vl.backGroundGARPs()
 	}
+}
+
+// Update global config
+func (vl *VlanBridge) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	if vl.agent.arpMode == cfg.ArpMode {
+		log.Warnf("no change in ARP mode %s", vl.agent.arpMode)
+	} else {
+		vl.agent.arpMode = cfg.ArpMode
+		vl.updateArpRedirectFlow(cfg.ArpMode, cfg.ArpMode == ArpFlood)
+	}
+	return nil
 }
 
 // AddLocalEndpoint Add a local endpoint and install associated local route
@@ -432,75 +521,182 @@ func (vl *VlanBridge) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 	return nil
 }
 
-// handlePortUp triggers GARPs on all eps when a link flap is detected.
-func (vl *VlanBridge) handlePortUp(ch <-chan netlink.LinkUpdate, ifname string) {
-	log.Infof("Start listening for link status")
+// handleLinkUpDown triggers GARPs on all eps when a link flap is detected.
+func (vl *VlanBridge) handleLinkUpDown() {
+
 	for {
 		select {
-
-		case update := <-ch:
-			if ifname == update.Link.Attrs().Name && (update.IfInfomsg.Flags&syscall.IFF_UP != 0) == true {
-				log.Infof("Linkup received for %s", ifname)
-				vl.sendGARPAll()
+		case update := <-vl.updChan:
+			if vl.linkDb.Count() == 0 {
+				// We do not have any links that we are interested in
+				// Skip further processing
+				break
+			}
+			link := vl.GetLink(update.Link.Attrs().Name)
+			if link == nil {
+				// We are not interested in this interface
+				// Skip further processing
+				break
+			}
+			if update.IfInfomsg.Flags&syscall.IFF_UP != 0 {
+				log.Infof("Link up received for %s", link.Name)
 				vl.agent.incrStats("LinkupRcvd")
+				port := link.Port
+
+				prevPortStatus := port.LinkStatus
+				link.setLinkStatus(linkUp)
+
+				// If the uplink's link status has changed, send GARPs
+				if prevPortStatus != port.LinkStatus {
+					vl.sendGARPAll()
+				}
+			} else if update.IfInfomsg.Flags&^syscall.IFF_UP != 0 {
+				log.Infof("Link down received for %s", link.Name)
+				vl.agent.incrStats("LinkDownRcvd")
+				link.setLinkStatus(linkDown)
 			}
 
-		case <-vl.nlCloser:
-			log.Infof("Stop listening for link status")
+		case <-vl.nlChan:
+			log.Debugf("Stop listening for netlink events")
 			return
+
 		}
 	}
-
 }
 
-// monitorPort watches for link flap events
-func (vl *VlanBridge) monitorPort(ifname string) {
-	vl.nlCloser = make(chan struct{})
-	updChan := make(chan netlink.LinkUpdate)
-	if err := netlink.LinkSubscribe(updChan, vl.nlCloser); err != nil {
+// startMonitoringLinks starts monitoring for Link Updates
+func (vl *VlanBridge) startMonitoringLinks() {
+	vl.updChan = make(chan netlink.LinkUpdate)
+	vl.nlChan = make(chan struct{})
+	if err := netlink.LinkSubscribe(vl.updChan, vl.nlChan); err != nil {
 		log.Errorf("Error listening on netlink: %v", err)
 		return
 	}
 
-	go vl.handlePortUp(updChan, ifname)
-
+	// Handle port up/down events
+	go vl.handleLinkUpDown()
 }
 
 // AddUplink adds an uplink to the switch
-func (vl *VlanBridge) AddUplink(portNo uint32, ifname string) error {
-	log.Infof("Adding uplink port: %+v", portNo)
+func (vl *VlanBridge) AddUplink(uplinkPort *PortInfo) error {
+	log.Infof("Adding uplink port: %+v", uplinkPort)
 
-	// Install a flow entry for vlan mapping and point it to Mac table
-	portVlanFlow, err := vl.vlanTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY,
-		InputPort: portNo,
-	})
+	for _, link := range uplinkPort.MbrLinks {
+		dnsUplinkFlow, err := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
+			InputPort:  link.OfPort,
+			Ethertype:  protocol.IPv4_MSG,
+			IpProto:    protocol.Type_UDP,
+			UdpDstPort: 53,
+		})
+		if err != nil {
+			log.Errorf("Error creating nameserver flow entry. Err: %v", err)
+			return err
+		}
+		dnsUplinkFlow.Next(vl.vlanTable)
+
+		// Install a flow entry for vlan mapping and point it to Mac table
+		portVlanFlow, err := vl.vlanTable.NewFlow(ofctrl.FlowMatch{
+			Priority:  FLOW_MATCH_PRIORITY,
+			InputPort: link.OfPort,
+		})
+		if err != nil {
+			log.Errorf("Error creating portvlan entry. Err: %v", err)
+			return err
+		}
+
+		// Packets coming from uplink go thru normal lookup(bypass policy)
+		sNATTbl := vl.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
+		err = portVlanFlow.Next(sNATTbl)
+		if err != nil {
+			log.Errorf("Error installing portvlan entry. Err: %v", err)
+			return err
+		}
+
+		// save the flow entry
+		vl.portVlanFlowDb[link.OfPort] = portVlanFlow
+		vl.portDnsFlowDb.Set(fmt.Sprintf("%d", link.OfPort), dnsUplinkFlow)
+	}
+
+	err := uplinkPort.checkLinkStatus()
 	if err != nil {
-		log.Errorf("Error creating portvlan entry. Err: %v", err)
+		log.Errorf("Error checking link status. Err: %+v", err)
 		return err
 	}
 
-	// Packets coming from uplink go thru normal lookup(bypass policy)
-	sNATTbl := vl.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
-	err = portVlanFlow.Next(sNATTbl)
-	if err != nil {
-		log.Errorf("Error installing portvlan entry. Err: %v", err)
-		return err
+	if vl.uplinkPortDb.Count() == 0 {
+		vl.startMonitoringLinks()
 	}
 
-	// save the flow entry
-	vl.portVlanFlowDb[portNo] = portVlanFlow
-	vl.uplinkDb[portNo] = portNo
-	vl.uplinkName = ifname
-	vl.monitorPort(ifname)
+	vl.uplinkPortDb.Set(uplinkPort.Name, uplinkPort)
+	for _, link := range uplinkPort.MbrLinks {
+		vl.linkDb.Set(link.Name, link)
+	}
+
+	return nil
+}
+
+// UpdateUplink updates uplink info
+func (vl *VlanBridge) UpdateUplink(uplinkName string, updates PortUpdates) error {
+	for uplinkObj := range vl.uplinkPortDb.IterBuffered() {
+		uplink := uplinkObj.Val.(*PortInfo)
+		if uplink.Name != uplinkName {
+			continue
+		}
+		for _, update := range updates.Updates {
+			switch update.UpdateType {
+			case LacpUpdate:
+				lacpUpd := update.UpdateInfo.(LinkUpdateInfo)
+				linkName := lacpUpd.LinkName
+				for _, link := range uplink.MbrLinks {
+					if link.Name == linkName {
+						link.handleLacpUpdate(lacpUpd.LacpStatus)
+					}
+				}
+			default:
+				log.Errorf("Unknown update: (%s, %+v)", update.UpdateType, update.UpdateInfo)
+			}
+		}
+	}
 
 	return nil
 }
 
 // RemoveUplink remove an uplink to the switch
-func (vl *VlanBridge) RemoveUplink(portNo uint32) error {
-	delete(vl.uplinkDb, portNo)
-	close(vl.nlCloser)
+func (vl *VlanBridge) RemoveUplink(uplinkName string) error {
+	uplinkPort := vl.GetUplink(uplinkName)
+
+	if uplinkPort == nil {
+		err := fmt.Errorf("Could not get uplink with name: %s", uplinkName)
+		return err
+	}
+
+	// Stop monitoring links in the port
+	for _, link := range uplinkPort.MbrLinks {
+		// Uninstall the flow entry
+		portVlanFlow := vl.portVlanFlowDb[link.OfPort]
+		if portVlanFlow != nil {
+			portVlanFlow.Delete()
+			delete(vl.portVlanFlowDb, link.OfPort)
+		}
+
+		// Remove from linkDb
+		vl.linkDb.Remove(link.Name)
+		if f, ok := vl.portDnsFlowDb.Get(fmt.Sprintf("%d", link.OfPort)); ok {
+			if dnsUplinkFlow, ok := f.(*ofctrl.Flow); ok {
+				if err := dnsUplinkFlow.Delete(); err != nil {
+					log.Errorf("Error deleting nameserver flow. Err: %v", err)
+				}
+			}
+		}
+		vl.portDnsFlowDb.Remove(fmt.Sprintf("%d", link.OfPort))
+	}
+	vl.uplinkPortDb.Remove(uplinkName)
+
+	// Stop receving link updates when there are no more ports to monitor
+	if vl.uplinkPortDb.Count() == 0 {
+		close(vl.nlChan)
+	}
 	return nil
 }
 
@@ -583,13 +779,38 @@ func (vl *VlanBridge) initFgraph() error {
 	dstGrpTbl := vl.ofSwitch.GetTable(DST_GRP_TBL_ID)
 	vlanMissFlow.Next(dstGrpTbl)
 
-	// Redirect ARP Request packets to controller
-	arpFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY,
-		Ethertype: 0x0806,
-		ArpOper:   protocol.Type_Request,
+	// if arp-mode is ArpProxy, redirect ARP packets to controller
+	// In ArpFlood mode, ARP packets are flooded in datapath and
+	// there is no proxy-arp functionality
+	if vl.agent.arpMode == ArpProxy {
+		vl.updateArpRedirectFlow(vl.agent.arpMode, false)
+	}
+
+	// redirect dns requests from containers (oui 02:02:xx) to controller
+	macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
+	macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
+	dnsRedirectFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
 	})
-	arpFlow.Next(sw.SendToController())
+	dnsRedirectFlow.Next(sw.SendToController())
+
+	// re-inject dns requests
+	dnsReinjectFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		VlanId:     nameServerInternalVlanId,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	dnsReinjectFlow.PopVlan()
+	dnsReinjectFlow.Next(vl.vlanTable)
 
 	// All packets that have gone thru policy lookup go thru normal OVS switching
 	normalLookupFlow, _ := vl.nmlTable.NewFlow(ofctrl.FlowMatch{
@@ -626,6 +847,33 @@ func getProxyARPResp(arpIn *protocol.ARP, tgtMac string, vid uint16, inPort uint
 	return pktOut
 }
 
+// add a flow to redirect ARP packet to controller for arp-proxy
+func (vl *VlanBridge) updateArpRedirectFlow(newArpMode ArpModeT, sendGARPs bool) {
+	sw := vl.ofSwitch
+
+	add := (newArpMode == ArpProxy)
+	if add {
+		// Redirect ARP Request packets to controller
+		arpFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:  FLOW_MATCH_PRIORITY,
+			Ethertype: 0x0806,
+			ArpOper:   protocol.Type_Request,
+		})
+		arpFlow.Next(sw.SendToController())
+		vl.arpRedirectFlow = arpFlow
+	} else {
+		if vl.arpRedirectFlow != nil {
+			vl.arpRedirectFlow.Delete()
+		}
+	}
+
+	if sendGARPs {
+		// When arp mode changes to ArpFlood, send GARP for all endpoints
+		// so that external network can learn endpoints from ARP packets
+		vl.sendGARPAll()
+	}
+}
+
 /*
  * Process incoming ARP packets
  * ARP request handling in various scenarios:
@@ -659,7 +907,21 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 			// Lookup the Source and Dest IP in the endpoint table
 			//Vrf derivation logic :
 			var vlan uint16
-			_, fromUplink := vl.uplinkDb[inPort]
+
+			fromUplink := false
+			for uplinkObj := range vl.uplinkPortDb.IterBuffered() {
+				uplink := uplinkObj.Val.(*PortInfo)
+				for _, link := range uplink.MbrLinks {
+					if link.OfPort == inPort {
+						fromUplink = true
+						break
+					}
+				}
+				if fromUplink {
+					break
+				}
+			}
+
 			if fromUplink {
 				//arp packet came in from uplink hence tagged
 				vlan = pkt.VLANID.VID
@@ -741,9 +1003,16 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 				pktOut := openflow13.NewPacketOut()
 				pktOut.InPort = inPort
 				pktOut.Data = ethPkt
-				for _, portNo := range vl.uplinkDb {
-					log.Debugf("Sending to uplink: %+v", portNo)
-					pktOut.AddAction(openflow13.NewActionOutput(portNo))
+				for uplinkObj := range vl.uplinkPortDb.IterBuffered() {
+					uplink := uplinkObj.Val.(*PortInfo)
+					uplinkMemberLink := uplink.getActiveLink(pkt.HWSrc.String())
+					if uplinkMemberLink == nil {
+						log.Infof("No active interface on uplink. Not reinjecting ARP request pkt(%+v)", ethPkt)
+						return
+					}
+
+					log.Infof("Sending to uplink: %+v on interface: %d", uplink, uplinkMemberLink.OfPort)
+					pktOut.AddAction(openflow13.NewActionOutput(uplinkMemberLink.OfPort))
 				}
 
 				// Send the packet out
@@ -781,9 +1050,16 @@ func (vl *VlanBridge) processArp(pkt protocol.Ethernet, inPort uint32) {
 func (vl *VlanBridge) sendGARP(ip net.IP, mac net.HardwareAddr, vlanID uint16) error {
 	pktOut := BuildGarpPkt(ip, mac, vlanID)
 
-	for _, portNo := range vl.uplinkDb {
-		log.Debugf("Sending to uplink: %+v, ip:%v vlan: %d", portNo, ip.String(), vlanID)
-		pktOut.AddAction(openflow13.NewActionOutput(portNo))
+	for uplinkObj := range vl.uplinkPortDb.IterBuffered() {
+		uplink := uplinkObj.Val.(*PortInfo)
+		uplinkMemberLink := uplink.getActiveLink(mac.String())
+		if uplinkMemberLink == nil {
+			log.Debugf("No active interface on uplink. Not sending GARP for ip:%v mac:%v vlan:%d", ip.String(), mac.String(), vlanID)
+			break
+		}
+
+		log.Debugf("Sending GARP on uplink: %+v on interface %d, ip:%v vlan: %d", uplink, uplinkMemberLink.OfPort, ip.String(), vlanID)
+		pktOut.AddAction(openflow13.NewActionOutput(uplinkMemberLink.OfPort))
 
 		// NOTE: Sending it on only one uplink to avoid loops
 		// Once MAC pinning mode is supported, this logic has to change
@@ -797,4 +1073,14 @@ func (vl *VlanBridge) sendGARP(ip net.IP, mac net.HardwareAddr, vlanID uint16) e
 	}
 
 	return nil
+}
+
+func (vl *VlanBridge) listLinks() []string {
+	var links []string
+	for linkObj := range vl.linkDb.Iter() {
+		link := linkObj.Val.(*LinkInfo)
+		links = append(links, link.Name)
+	}
+
+	return links
 }

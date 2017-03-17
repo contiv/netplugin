@@ -57,7 +57,6 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 		ListenURL:    ":9999",
 		ClusterStore: its.clusterStore,
 		ClusterMode:  "test",
-		DNSEnabled:   false,
 	}
 
 	// initialize the plugin config
@@ -70,7 +69,7 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 			HostLabel:  hostLabel,
 			CtrlIP:     localIP,
 			VtepIP:     localIP,
-			VlanIntf:   "eth2",
+			UplinkIntf: []string{"eth2"},
 			DbURL:      its.clusterStore,
 			PluginMode: "test",
 		},
@@ -83,7 +82,7 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 	go md.RunMasterFsm()
 
 	// Wait for a second for master to initialize
-	time.Sleep(10*time.Second)
+	time.Sleep(10 * time.Second)
 
 	// set forwarding mode if required
 	if its.fwdMode != "bridge" || its.fabricMode != "default" {
@@ -94,6 +93,8 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
 			FwdMode:          its.fwdMode,
+			ArpMode:          its.arpMode,
+			PvtSubnet:        "172.19.0.0/16",
 		})
 		if err != nil {
 			log.Fatalf("Error creating global state. Err: %v", err)

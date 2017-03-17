@@ -3,12 +3,14 @@ package systemtests
 import (
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+	. "testing"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"
 	. "gopkg.in/check.v1"
-	"os"
-	. "testing"
 )
 
 type systemtestSuite struct {
@@ -33,15 +35,15 @@ type BasicInfo struct {
 	EnableDNS    bool   `json:"enableDNS"`
 	ClusterStore string `json:"contiv_cluster_store"`
 	ContivL3     string `json:"contiv_l3"`
-	KeyFile      string `json:"key_file"`
+	KeyFile      string `json:"keyFile"`
 	BinPath      string `json:"binpath"` // /home/admin/bin or /opt/gopath/bin
 }
 
 type HostInfo struct {
-	HostIPs           string `json:"hostips"`
-	HostUsernames     string `json:"hostusernames"`
-	HostDataInterface string `json:"dataInterface"`
-	HostMgmtInterface string `json:"mgmtInterface"`
+	HostIPs            string `json:"hostips"`
+	HostUsernames      string `json:"hostusernames"`
+	HostDataInterfaces string `json:"dataInterfaces"`
+	HostMgmtInterface  string `json:"mgmtInterface"`
 }
 
 type GlobInfo struct {
@@ -59,7 +61,11 @@ var sts = &systemtestSuite{}
 var _ = Suite(sts)
 
 func TestMain(m *M) {
-	mastbasic, _, _ := getInfo("cfg.json")
+	mastbasic, _, _, err := getInfo("cfg.json")
+	if err != nil {
+		logrus.Errorf("failed to load cfg.json config: %v", err)
+		os.Exit(1)
+	}
 
 	if mastbasic.ContivL3 == "" {
 		flag.StringVar(&sts.fwdMode, "fwd-mode", "bridge", "forwarding mode to start the test ")
@@ -80,8 +86,13 @@ func TestSystem(t *T) {
 }
 
 func (s *systemtestSuite) SetUpSuite(c *C) {
+	var err error
 	logrus.Infof("Bootstrapping system tests")
-	s.basicInfo, s.hostInfo, s.globInfo = getInfo("cfg.json")
+	s.basicInfo, s.hostInfo, s.globInfo, err = getInfo("cfg.json")
+	if err != nil {
+		logrus.Infof("failed to load cfg.json: %v", err)
+		os.Exit(1)
+	}
 
 	switch s.basicInfo.Platform {
 	case "baremetal":
@@ -89,6 +100,9 @@ func (s *systemtestSuite) SetUpSuite(c *C) {
 
 	case "vagrant":
 		s.SetUpSuiteVagrant(c)
+	default:
+		logrus.Errorf("unsupported platform: %v", s.basicInfo.Platform)
+		os.Exit(1)
 	}
 
 	s.cli, _ = client.NewContivClient("http://localhost:9999")
@@ -107,11 +121,28 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 }
 
 func (s *systemtestSuite) TearDownTest(c *C) {
-	for _, node := range s.nodes {
-		c.Check(node.checkForNetpluginErrors(), IsNil)
-		c.Assert(node.exec.rotateNetpluginLog(), IsNil)
-		c.Assert(node.exec.rotateNetmasterLog(), IsNil)
+
+	errors := s.parallelExec(func(node *node) error {
+		return node.checkForNetpluginErrors()
+	})
+	for _, err := range errors {
+		c.Check(err, IsNil)
 	}
+
+	errors = s.parallelExec(func(node *node) error {
+		return node.exec.rotateNetpluginLog()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
+	}
+
+	errors = s.parallelExec(func(node *node) error {
+		return node.exec.rotateNetmasterLog()
+	})
+	for _, err := range errors {
+		c.Assert(err, IsNil)
+	}
+
 	logrus.Infof("============================= %s completed ==========================", c.TestName())
 }
 
@@ -123,7 +154,10 @@ func (s *systemtestSuite) TearDownSuite(c *C) {
 	// Print all errors and fatal messages
 	for _, node := range s.nodes {
 		logrus.Infof("Checking for errors on %v", node.Name())
-		out, _ := node.runCommand(`for i in /tmp/_net*; do grep "error\|fatal\|panic" $i; done`)
+		out, _ := node.runCommand(`for i in /tmp/net*; do grep "error\|fatal\|panic" $i; done`)
+		if strings.Contains(out, "No such file or directory") {
+			continue
+		}
 		if out != "" {
 			logrus.Errorf("Errors in logfiles on %s: \n", node.Name())
 			fmt.Printf("%s\n==========================\n\n", out)

@@ -1,6 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+require File.join(File.dirname(__FILE__), "..", "vagrant_version_check")
+
 require 'fileutils'
 
 # netplugin_synced_gopath="/opt/golang"
@@ -84,8 +86,6 @@ rm /etc/docker/key.json
 
 (ovs-vsctl set-manager tcp:127.0.0.1:6640 && \
  ovs-vsctl set-manager ptcp:6640) || exit 1
-
-docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"

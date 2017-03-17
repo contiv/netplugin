@@ -27,8 +27,8 @@ package ofnet
 //
 
 import (
-	//"fmt"
 	"errors"
+	"fmt"
 	"net"
 	"net/rpc"
 	"strings"
@@ -57,10 +57,22 @@ type Vlrouter struct {
 	flowDb         map[string]*ofctrl.Flow   // Database of flow entries
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
+	portDnsFlowDb  cmap.ConcurrentMap        // Database of flow entries
 
+	uplinkPortDb  cmap.ConcurrentMap // Database of uplink ports
 	myRouterMac   net.HardwareAddr   //Router mac used for external proxy
+	anycastMac    net.HardwareAddr   //Anycast mac used for local endpoints
 	myBgpPeer     string             // bgp neighbor
 	unresolvedEPs cmap.ConcurrentMap // unresolved endpoint map
+}
+
+// GetUplink API gets the uplink port with uplinkID from uplink DB
+func (self *Vlrouter) GetUplink(uplinkID string) *PortInfo {
+	uplink, ok := self.uplinkPortDb.Get(uplinkID)
+	if !ok {
+		return nil
+	}
+	return uplink.(*PortInfo)
 }
 
 // Create a new vlrouter instance
@@ -78,8 +90,11 @@ func NewVlrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vlrouter {
 	vlrouter.flowDb = make(map[string]*ofctrl.Flow)
 	vlrouter.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
 	vlrouter.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
-	vlrouter.myRouterMac, _ = net.ParseMAC("00:00:11:11:11:11")
+	vlrouter.portDnsFlowDb = cmap.New()
+	vlrouter.anycastMac, _ = net.ParseMAC("00:00:11:11:11:11")
 	vlrouter.unresolvedEPs = cmap.New()
+
+	vlrouter.uplinkPortDb = cmap.New()
 
 	return vlrouter
 }
@@ -134,8 +149,54 @@ func (self *Vlrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 			}
 		}
 
-	case 0x0800:
-		// FIXME: We dont expect IP packets. Use this for statefull policies.
+	case protocol.IPv4_MSG:
+		var inPort uint32
+		if (pkt.TableId == 0) && (pkt.Match.Type == openflow13.MatchType_OXM) &&
+			(pkt.Match.Fields[0].Class == openflow13.OXM_CLASS_OPENFLOW_BASIC) &&
+			(pkt.Match.Fields[0].Field == openflow13.OXM_FIELD_IN_PORT) {
+			// Get the input port number
+			switch t := pkt.Match.Fields[0].Value.(type) {
+			case *openflow13.InPortField:
+				inPort = t.InPort
+			default:
+				log.Debugf("unknown match type %v for ipv4 pkt", t)
+				return
+			}
+		}
+		ipPkt := pkt.Data.Data.(*protocol.IPv4)
+		switch ipPkt.Protocol {
+		case protocol.Type_UDP:
+			udpPkt := ipPkt.Data.(*protocol.UDP)
+			switch udpPkt.PortDst {
+			case 53:
+				if pkt.Data.VLANID.VID != 0 {
+					self.agent.incrErrStats("dnsPktUplink")
+					return
+				}
+
+				if dnsResp, err := processDNSPkt(self.agent, inPort, udpPkt.Data); err == nil {
+					if respPkt, err := buildUDPRespPkt(&pkt.Data, dnsResp); err == nil {
+						self.agent.incrStats("dnsPktReply")
+						pktOut := openflow13.NewPacketOut()
+						pktOut.Data = respPkt
+						pktOut.AddAction(openflow13.NewActionOutput(inPort))
+						self.ofSwitch.Send(pktOut)
+						return
+					}
+				}
+
+				// re-inject DNS packet
+				ethPkt := buildDnsForwardPkt(&pkt.Data)
+				pktOut := openflow13.NewPacketOut()
+				pktOut.Data = ethPkt
+				pktOut.InPort = inPort
+
+				pktOut.AddAction(openflow13.NewActionOutput(openflow13.P_TABLE))
+				self.agent.incrStats("dnsPktForward")
+				self.ofSwitch.Send(pktOut)
+				return
+			}
+		}
 	default:
 		log.Errorf("Received unknown ethertype: %x", pkt.Data.Ethertype)
 	}
@@ -143,6 +204,11 @@ func (self *Vlrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 
 // InjectGARPs not implemented
 func (self *Vlrouter) InjectGARPs(epgID int) {
+}
+
+// GlobalConfigUpdate not implemented
+func (self *Vlrouter) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	return nil
 }
 
 /*AddLocalEndpoint does the following:
@@ -202,7 +268,7 @@ func (self *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 	// Set Mac addresses
 	ipFlow.SetMacDa(destMacAddr)
-	ipFlow.SetMacSa(self.myRouterMac)
+	ipFlow.SetMacSa(self.anycastMac)
 
 	// Point the route at output port
 	err = ipFlow.Next(outPort)
@@ -378,7 +444,7 @@ func (self *Vlrouter) AddLocalIpv6Flow(endpoint OfnetEndpoint) error {
 
 	// Set Mac addresses
 	ipv6Flow.SetMacDa(destMacAddr)
-	ipv6Flow.SetMacSa(self.myRouterMac)
+	ipv6Flow.SetMacSa(self.anycastMac)
 
 	// Point the route at output port
 	err = ipv6Flow.Next(outPort)
@@ -763,6 +829,32 @@ func (self *Vlrouter) initFgraph() error {
 	})
 	bcastSrcFlow.Next(sw.DropAction())
 
+	// redirect dns requests from containers (oui 02:02:xx) to controller
+	macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
+	macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
+	dnsRedirectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	dnsRedirectFlow.Next(sw.SendToController())
+
+	// re-inject dns requests
+	dnsReinjectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		VlanId:     nameServerInternalVlanId,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	dnsReinjectFlow.PopVlan()
+	dnsReinjectFlow.Next(self.vlanTable)
+
 	// Redirect ARP packets to controller
 	arpFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
 		Priority:  FLOW_MATCH_PRIORITY,
@@ -816,6 +908,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		var arpHdr protocol.ARP = *t
 		var srcMac net.HardwareAddr
 		var intf *net.Interface
+		var err error
 
 		self.agent.incrStats("ArpPktRcvd")
 
@@ -839,7 +932,12 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 				if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
 					//srcMac, _ = net.ParseMAC(endpoint.MacAddrStr)
 					if self.agent.GetRouterInfo() != nil {
-						intf, _ = net.InterfaceByName(self.agent.GetRouterInfo().VlanIntf)
+						uplink := self.agent.GetRouterInfo().UplinkPort
+						intf, err = net.InterfaceByName(uplink.Name)
+						if err != nil {
+							log.Errorf("Error getting interface information. Err: %+v", err)
+							return
+						}
 					} else {
 						log.Debugf("Uplink intf not present. Ignoring Arp")
 						return
@@ -849,7 +947,7 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 					endpoint = self.agent.getEndpointByIpVrf(arpHdr.IPSrc, "default")
 					if endpoint != nil {
 						if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
-							srcMac = self.myRouterMac
+							srcMac = self.anycastMac
 						} else {
 							self.agent.incrStats("ArpReqUnknownEndpointType")
 							return
@@ -956,13 +1054,34 @@ func (self *Vlrouter) resolveUnresolvedEPs(MacAddrStr string, portNo uint32) {
 }
 
 // AddUplink adds an uplink to the switch
-func (self *Vlrouter) AddUplink(portNo uint32, ifname string) error {
-	log.Infof("Adding uplink port: %+v", portNo)
+func (self *Vlrouter) AddUplink(uplinkPort *PortInfo) error {
+	log.Infof("Adding uplink: %+v", uplinkPort)
+
+	if len(uplinkPort.MbrLinks) != 1 {
+		err := fmt.Errorf("Only one uplink interface supported in vlrouter mode. Num uplinks configured: %d", len(uplinkPort.MbrLinks))
+		log.Errorf("Error adding uplink: %+v", err)
+		return err
+	}
+
+	linkInfo := uplinkPort.MbrLinks[0]
+
+	dnsUplinkFlow, err := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
+		InputPort:  linkInfo.OfPort,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	if err != nil {
+		log.Errorf("Error creating nameserver flow entry. Err: %v", err)
+		return err
+	}
+	dnsUplinkFlow.Next(self.vlanTable)
 
 	// Install a flow entry for vlan mapping and point it to Mac table
 	portVlanFlow, err := self.vlanTable.NewFlow(ofctrl.FlowMatch{
 		Priority:  FLOW_MATCH_PRIORITY,
-		InputPort: portNo,
+		InputPort: linkInfo.OfPort,
 	})
 	if err != nil {
 		log.Errorf("Error creating portvlan entry. Err: %v", err)
@@ -982,12 +1101,51 @@ func (self *Vlrouter) AddUplink(portNo uint32, ifname string) error {
 	}
 
 	// save the flow entry
-	self.portVlanFlowDb[portNo] = portVlanFlow
+	self.portVlanFlowDb[linkInfo.OfPort] = portVlanFlow
+	self.portDnsFlowDb.Set(fmt.Sprintf("%d", linkInfo.OfPort), dnsUplinkFlow)
 
+	intf, err := net.InterfaceByName(linkInfo.Name)
+	if err != nil {
+		log.Debugf("Unable to update router mac to uplink mac:err", err)
+		return err
+	}
+	self.myRouterMac = intf.HardwareAddr
+
+	self.uplinkPortDb.Set(uplinkPort.Name, uplinkPort)
 	return nil
 }
 
-func (self *Vlrouter) RemoveUplink(portNo uint32) error {
+// UpdateUplink updates uplink info
+func (self *Vlrouter) UpdateUplink(uplinkName string, updates PortUpdates) error {
+	return nil
+}
+
+func (self *Vlrouter) RemoveUplink(uplinkName string) error {
+	uplinkPort := self.GetUplink(uplinkName)
+
+	if uplinkPort == nil {
+		err := fmt.Errorf("Could not get uplink with name: %s", uplinkName)
+		return err
+	}
+
+	for _, link := range uplinkPort.MbrLinks {
+		// Uninstall the flow entry
+		portVlanFlow := self.portVlanFlowDb[link.OfPort]
+		if portVlanFlow != nil {
+			portVlanFlow.Delete()
+			delete(self.portVlanFlowDb, link.OfPort)
+		}
+		if f, ok := self.portDnsFlowDb.Get(fmt.Sprintf("%d", link.OfPort)); ok {
+			if dnsUplinkFlow, ok := f.(*ofctrl.Flow); ok {
+				if err := dnsUplinkFlow.Delete(); err != nil {
+					log.Errorf("Error deleting nameserver flow. Err: %v", err)
+				}
+			}
+		}
+		self.portDnsFlowDb.Remove(fmt.Sprintf("%d", link.OfPort))
+	}
+
+	self.uplinkPortDb.Remove(uplinkName)
 	return nil
 }
 

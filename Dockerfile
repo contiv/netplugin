@@ -20,9 +20,7 @@
 # docker run --net=host <image> -host-label=<label>
 ##
 
-FROM golang:1.6.1
-MAINTAINER Madhav Puri <mapuri@cisco.com> (@mapuri)
-
+FROM golang:1.7.5
 
 # Insert your proxy server settings if this build is running behind 
 # a proxy.

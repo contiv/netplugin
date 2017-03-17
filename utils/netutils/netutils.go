@@ -16,6 +16,7 @@ limitations under the License.
 package netutils
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -35,8 +36,6 @@ import (
 
 	"github.com/contiv/netplugin/core"
 )
-
-const hostPvtSubnet = 0xac140000
 
 var endianNess string
 
@@ -204,6 +203,88 @@ func SetBitsOutsideRange(ipAllocMap *bitset.BitSet, ipRange string, subnetLen ui
 	for i = ((rangeMin - firstAddr) + ((rangeMax - rangeMin) + 1)); i < (lastAddr - firstAddr); i++ {
 		ipAllocMap.Set(uint(i))
 	}
+}
+
+// ClearIPAddrRange marks range of IP address as used
+func ClearIPAddrRange(ipAllocMap *bitset.BitSet, ipPool string, nwSubnetIP string, nwSubnetLen uint) error {
+
+	addrRangeList := strings.Split(ipPool, "-")
+
+	hostMin, err := GetIPNumber(nwSubnetIP, nwSubnetLen, 32, addrRangeList[0])
+	if err != nil {
+		log.Errorf("Error parsing first address %s. Err: %v", addrRangeList[0], err)
+		return err
+	}
+
+	hostMax, err := GetIPNumber(nwSubnetIP, nwSubnetLen, 32, addrRangeList[1])
+	if err != nil {
+		log.Errorf("Error parsing last address %s. Err: %v", addrRangeList[1], err)
+		return err
+	}
+
+	// Clear a range
+	for i := hostMin; i <= hostMax; i++ {
+		ipAllocMap.Clear(uint(i))
+	}
+
+	return nil
+}
+
+// SetIPAddrRange marks range of IP address as used
+func SetIPAddrRange(ipAllocMap *bitset.BitSet, ipPool string, nwSubnetIP string,
+	nwSubnetLen uint) error {
+
+	addrRangeList := strings.Split(ipPool, "-")
+
+	hostMin, err := GetIPNumber(nwSubnetIP, nwSubnetLen, 32, addrRangeList[0])
+	if err != nil {
+		log.Errorf("Error parsing first address %s. Err: %v", addrRangeList[0], err)
+		return err
+	}
+
+	hostMax, err := GetIPNumber(nwSubnetIP, nwSubnetLen, 32, addrRangeList[1])
+	if err != nil {
+		log.Errorf("Error parsing last address %s. Err: %v", addrRangeList[1], err)
+		return err
+	}
+
+	// Set a range
+	for i := hostMin; i <= hostMax; i++ {
+		ipAllocMap.Set(uint(i))
+	}
+	return nil
+}
+
+// TestIPAddrRange checks if any IP address from the subnet is already used
+func TestIPAddrRange(ipAllocMap *bitset.BitSet, ipPool string, nwSubnetIP string,
+	nwSubnetLen uint) error {
+	addrRangeList := strings.Split(ipPool, "-")
+	hostMin, err := GetIPNumber(nwSubnetIP, nwSubnetLen, 32, addrRangeList[0])
+	if err != nil {
+		log.Errorf("failed to get host id for %s, Err: %v", addrRangeList[0], err)
+		return fmt.Errorf("failed to get host id for %s", addrRangeList[0])
+	}
+
+	hostMax, err := GetIPNumber(nwSubnetIP, nwSubnetLen, 32, addrRangeList[1])
+	if err != nil {
+		log.Errorf("failed to get host id for %s, Err: %v", addrRangeList[1], err)
+		return fmt.Errorf("failed to get host id for %s", addrRangeList[1])
+	}
+
+	// Test range
+	for i := hostMin; i <= hostMax; i++ {
+
+		if ipAllocMap.Test(uint(i)) != false {
+			if s, err := GetSubnetIP(nwSubnetIP, nwSubnetLen, 32, i); err == nil {
+				log.Infof("ip address %s, hostid %d is not available", s, i)
+				return fmt.Errorf("ip address %s is not available", s)
+			}
+			log.Errorf("failed to convert host id %d to ip address", i)
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetIPAddrRange returns IP CIDR as a ip address range
@@ -790,9 +871,9 @@ func GetMyAddr() (string, error) {
 }
 
 // PortToHostIPMAC gets IP and MAC based on port number
-func PortToHostIPMAC(port int) (string, string) {
-	b0 := hostPvtSubnet >> 24
-	b1 := (hostPvtSubnet >> 16) & 0xff
+func PortToHostIPMAC(port, subnet int) (string, string) {
+	b0 := subnet >> 24
+	b1 := (subnet >> 16) & 0xff
 	b2 := (port >> 8) & 0xff
 	b3 := port & 0xff
 	ipStr := fmt.Sprintf("%d.%d.%d.%d/16", b0, b1, b2, b3)
@@ -831,19 +912,128 @@ func SetIPMasquerade(intf, netmask string) error {
 	return err
 }
 
-// HostIfToIP gets IP based on ifname
-func HostIfToIP(hostIf string) (string, error) {
-	num := strings.Replace(hostIf, "hport", "", 1)
-	port, err := strconv.Atoi(num)
-	if err != nil {
-		return "", err
+// HostIPToGateway gets the gateway based on the IP
+func HostIPToGateway(hostIP string) (string, error) {
+	ip := strings.Split(hostIP, ".")
+	if len(ip) != 4 {
+		return "", errors.New("Bad host IP")
 	}
 
-	b0 := hostPvtSubnet >> 24
-	b1 := (hostPvtSubnet >> 16) & 0xff
-	b2 := (port >> 8) & 0xff
-	b3 := port & 0xff
-	ipStr := fmt.Sprintf("%d.%d.%d.%d/16", b0, b1, b2, b3)
+	return ip[0] + "." + ip[1] + ".255.254", nil
+}
 
-	return ipStr, nil
+// CIDRToMask converts a mask to corresponding netmask
+func CIDRToMask(cidr string) (int, error) {
+
+	n := strings.Split(cidr, "/")
+	if len(n) != 2 {
+		return -1, core.Errorf("Error bad cidr %s", cidr)
+	}
+
+	ip := net.ParseIP(n[0])
+	if ip == nil {
+		return -1, core.Errorf("Error bad cidr %s", cidr)
+	}
+
+	if len(ip) == 16 {
+		return int(binary.BigEndian.Uint32(ip[12:16])), nil
+	}
+
+	return int(binary.BigEndian.Uint32(ip)), nil
+}
+
+func getIPRange(subnetIP string, subnetLen uint, startIdx, endIdx uint) string {
+	startAddress, err := GetSubnetIP(subnetIP, subnetLen, 32, startIdx)
+	if err != nil {
+		log.Errorf("GetAllocatedIPs: getting ipAddress for idx %d: %s", startIdx, err)
+		startAddress = ""
+	}
+	if startIdx == endIdx {
+		return startAddress
+	}
+	endAddress, err := GetSubnetIP(subnetIP, subnetLen, 32, endIdx)
+	if err != nil {
+		log.Errorf("GetAllocatedIPs: getting ipAddress for idx %d: %s", endIdx, err)
+		endAddress = ""
+	}
+	return startAddress + "-" + endAddress
+}
+
+// ListAllocatedIPs returns a string of allocated IPs in a network
+func ListAllocatedIPs(allocMap bitset.BitSet, ipPool string, subnetIP string, subnetLen uint) string {
+	idx := uint(0)
+	startIdx := idx
+	list := []string{}
+	inRange := false
+
+	ClearReservedEntries(&allocMap, subnetLen)
+	ClearBitsOutsideRange(&allocMap, ipPool, subnetLen)
+	for {
+		foundValue, found := allocMap.NextSet(idx)
+		if !found {
+			break
+		}
+
+		if !inRange { // begin of range
+			startIdx = foundValue
+			inRange = true
+		} else if foundValue > idx { // end of range
+			thisRange := getIPRange(subnetIP, subnetLen, startIdx, idx-1)
+			list = append(list, thisRange)
+			startIdx = foundValue
+		}
+		idx = foundValue + 1
+	}
+
+	// list end with allocated value
+	if inRange {
+		thisRange := getIPRange(subnetIP, subnetLen, startIdx, idx-1)
+		list = append(list, thisRange)
+	}
+
+	return strings.Join(list, ", ")
+}
+
+// NextClear wrapper around Bitset to check max id
+func NextClear(allocMap bitset.BitSet, idx uint, subnetLen uint) (uint, bool) {
+	maxHosts := uint(1 << (32 - subnetLen))
+
+	value, found := allocMap.NextClear(idx)
+	if found && value >= maxHosts {
+		return 0, false
+	}
+	return value, found
+}
+
+// ListAvailableIPs returns a string of available IPs in a network
+func ListAvailableIPs(allocMap bitset.BitSet, subnetIP string, subnetLen uint) string {
+	idx := uint(0)
+	startIdx := idx
+	list := []string{}
+	inRange := false
+
+	for {
+		foundValue, found := NextClear(allocMap, idx, subnetLen)
+		if !found {
+			break
+		}
+
+		if !inRange { // begin of range
+			startIdx = foundValue
+			inRange = true
+		} else if foundValue > idx { // end of range
+			thisRange := getIPRange(subnetIP, subnetLen, startIdx, idx-1)
+			list = append(list, thisRange)
+			startIdx = foundValue
+		}
+		idx = foundValue + 1
+	}
+
+	// list end with allocated value
+	if inRange {
+		thisRange := getIPRange(subnetIP, subnetLen, startIdx, idx-1)
+		list = append(list, thisRange)
+	}
+
+	return strings.Join(list, ", ")
 }

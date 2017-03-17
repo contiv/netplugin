@@ -84,7 +84,7 @@ func (s *systemtestSuite) copyBinary(fileName string) error {
 	destFile := s.basicInfo.BinPath + "/" + fileName
 	for i := 1; i < len(s.nodes); i++ {
 		logrus.Infof("Copying %s binary to IP= %s and Directory = %s", srcFile, hostIPs[i], destFile)
-		s.nodes[0].tbnode.RunCommand("scp -i " + s.basicInfo.KeyFile + " " + srcFile + " " + hostIPs[i] + ":" + destFile)
+		s.nodes[0].tbnode.RunCommand("scp -oStrictHostKeyChecking=no -i " + s.basicInfo.KeyFile + " " + srcFile + " " + hostIPs[i] + ":" + destFile)
 	}
 	return nil
 }
@@ -108,6 +108,10 @@ func (n *node) cleanupSlave() {
 
 func (n *node) cleanupMaster() {
 	n.exec.cleanupMaster()
+}
+
+func (n *node) verifyUplinkState(uplinks []string) error {
+	return n.exec.verifyUplinkState(n, uplinks)
 }
 
 func (n *node) runCommand(cmd string) (string, error) {
@@ -257,4 +261,8 @@ func (c *container) String() string {
 
 func (n *node) checkSchedulerNetworkCreated(nwName string, expectedOp bool) error {
 	return n.exec.checkSchedulerNetworkCreated(nwName, expectedOp)
+}
+
+func (n *node) checkSchedulerNetworkOnNodeCreated(nwName []string) error {
+	return n.exec.checkSchedulerNetworkOnNodeCreated(nwName, n)
 }

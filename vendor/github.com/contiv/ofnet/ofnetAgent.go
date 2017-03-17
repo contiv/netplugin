@@ -86,7 +86,8 @@ type OfnetAgent struct {
 	vlanVrf      map[uint16]*string //vlan to vrf mapping
 	vlanVrfMutex sync.RWMutex       // Sync mutex for vlan-vrf table
 
-	fwdMode   string         ///forwarding mode routing or bridge
+	fwdMode   string         // forwarding mode routing or bridge
+	arpMode   ArpModeT       // ArpProxy by default
 	GARPStats map[int]uint32 // per EPG garp stats.
 
 	mutex sync.RWMutex
@@ -94,6 +95,7 @@ type OfnetAgent struct {
 	stats      map[string]uint64 // arbitrary stats
 	errStats   map[string]uint64 // error stats
 	statsMutex sync.Mutex        // Sync mutext for modifying stats
+	nameServer NameServer        // DNS lookup
 }
 
 // local End point information
@@ -109,6 +111,7 @@ type EndpointInfo struct {
 	Dscp              int              // DSCP value for the endpoint
 }
 
+const DNS_FLOW_MATCH_PRIORITY = 100    // Priority for dns match flows
 const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
 const FLOW_FLOOD_PRIORITY = 10         // Priority for flood entries
 const FLOW_MISS_PRIORITY = 1           // priority for table miss flow
@@ -125,11 +128,9 @@ const (
 )
 
 // Create a new Ofnet agent and initialize it
-/*  routerInfo[0] -> Uplink nexthop interface
- */
 func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uint16,
-	ovsPort uint16, routerInfo ...string) (*OfnetAgent, error) {
-	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d,%v \n", bridgeName, dpName, localIp, rpcPort, ovsPort, routerInfo)
+	ovsPort uint16, uplinkInfo []string) (*OfnetAgent, error) {
+	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d,%v \n", bridgeName, dpName, localIp, rpcPort, ovsPort, uplinkInfo)
 	agent := new(OfnetAgent)
 
 	// Init params
@@ -137,6 +138,7 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	agent.MyPort = rpcPort
 	agent.MyAddr = localIp.String()
 	agent.dpName = dpName
+	agent.arpMode = ArpProxy
 
 	agent.masterDb = make(map[string]*OfnetNode)
 	agent.portVlanMap = make(map[uint32]*uint16)
@@ -188,7 +190,7 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 		agent.datapath = NewVlrouter(agent, rpcServ)
 		agent.fwdMode = "routing"
 		agent.ovsDriver = ovsdbDriver.NewOvsDriver(bridgeName)
-		agent.protopath = NewOfnetBgp(agent, routerInfo)
+		agent.protopath = NewOfnetBgp(agent, uplinkInfo)
 	default:
 		log.Fatalf("Unknown Datapath %s", dpName)
 	}
@@ -295,7 +297,7 @@ func (self *OfnetAgent) getLocalEndpoint(portNo uint32) *OfnetEndpoint {
 func (self *OfnetAgent) Delete() error {
 	var resp bool
 	// Disconnect from the switch
-	log.Infof("Received Delete for switch %s", self.ofSwitch.DPID().String)
+	log.Infof("OfnetAgent: Received Delete")
 	if self.GetRouterInfo() != nil {
 		err := self.DeleteBgp()
 		if err != nil {
@@ -304,6 +306,7 @@ func (self *OfnetAgent) Delete() error {
 		}
 	}
 	if self.ofSwitch != nil {
+		log.Infof("Delete for switch %s", self.ofSwitch.DPID().String)
 		self.ofSwitch.Disconnect()
 	}
 
@@ -491,6 +494,11 @@ func (self *OfnetAgent) InjectGARPs(epgID int, resp *bool) error {
 	self.incrStats("InjectGARPs")
 
 	return nil
+}
+
+// Update global config
+func (self *OfnetAgent) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	return self.datapath.GlobalConfigUpdate(cfg)
 }
 
 // Add a local endpoint.
@@ -807,15 +815,21 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 }
 
 // AddUplink adds an uplink to the switch
-func (self *OfnetAgent) AddUplink(portNo uint32, ifname string) error {
+func (self *OfnetAgent) AddUplink(uplinkPort *PortInfo) error {
 	// Call the datapath
-	return self.datapath.AddUplink(portNo, ifname)
+	return self.datapath.AddUplink(uplinkPort)
+}
+
+// UpdateUplink Updates an uplink to the switch
+func (self *OfnetAgent) UpdateUplink(uplinkName string, portUpds PortUpdates) error {
+	// Call the datapath
+	return self.datapath.UpdateUplink(uplinkName, portUpds)
 }
 
 // RemoveUplink remove an uplink to the switch
-func (self *OfnetAgent) RemoveUplink(portNo uint32) error {
+func (self *OfnetAgent) RemoveUplink(uplinkName string) error {
 	// Call the datapath
-	return self.datapath.RemoveUplink(portNo)
+	return self.datapath.RemoveUplink(uplinkName)
 }
 
 // AddSvcSpec adds a service spec to proxy
@@ -1021,8 +1035,11 @@ func (self *OfnetAgent) GetEndpointStats() (map[string]*OfnetEndpointStats, erro
 
 // InspectBgp returns ofnet bgp state
 func (self *OfnetAgent) InspectBgp() (interface{}, error) {
-	peer, err := self.protopath.InspectProto()
-	return peer, err
+	if self.protopath != nil {
+		peer, err := self.protopath.InspectProto()
+		return peer, err
+	}
+	return nil, fmt.Errorf("Ofnet not initialized in routing mode")
 }
 
 // InspectState returns ofnet agent state
@@ -1052,7 +1069,8 @@ func (self *OfnetAgent) InspectState() (interface{}, error) {
 		// VrfIdNameMap    map[uint16]*string        // Map vrf id to vrf Name
 		VrfDb map[string]*OfnetVrfInfo // Db of all the global vrfs
 		// VlanVrf         map[uint16]*string        //vlan to vrf mapping
-		FwdMode  string            ///forwarding mode routing or bridge
+		FwdMode  string            // forwarding mode routing or bridge
+		ArpMode  ArpModeT          // arp mode: proxy or flood
 		Stats    map[string]uint64 // arbitrary stats
 		ErrStats map[string]uint64 // error stats
 		Datapath interface{}       // datapath state
@@ -1075,6 +1093,7 @@ func (self *OfnetAgent) InspectState() (interface{}, error) {
 		self.vrfDb,
 		// self.vlanVrf,
 		self.fwdMode,
+		self.arpMode,
 		self.stats,
 		self.errStats,
 		dpState,
@@ -1168,4 +1187,8 @@ func (self *OfnetAgent) getvlanVrf(vlan uint16) *string {
 	self.vlanVrfMutex.Lock()
 	defer self.vlanVrfMutex.Unlock()
 	return self.vlanVrf[vlan]
+}
+
+func (self *OfnetAgent) AddNameServer(ns NameServer) {
+	self.nameServer = ns
 }

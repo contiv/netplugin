@@ -269,7 +269,7 @@ func (k *kubernetes) stop(c *container) error {
 
 func (k *kubernetes) rm(c *container) error {
 	logrus.Infof("Removing Pod: %s on %s", c.containerID, c.node.Name())
-	k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete job %s", c.name))
+	k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod %s", c.name))
 	for i := 0; i < 80; i++ {
 		out, _ := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl get pod %s", c.containerID))
 		if strings.Contains(out, "not found") {
@@ -347,7 +347,8 @@ func (k *kubernetes) tcFilterShow(bw string) error {
 	if k.node.Name() == "k8master" {
 		return nil
 	}
-	qdiscShow, err := k.node.runCommand("tc qdisc show")
+
+	qdiscShow, err := k.node.tbnode.RunCommandWithOutput("tc qdisc show")
 	if err != nil {
 		return err
 	}
@@ -371,8 +372,8 @@ func (k *kubernetes) tcFilterShow(bw string) error {
 	if bwInt == outputInt {
 		logrus.Infof("Applied bandwidth: %dkbits equals tc qdisc rate: %dkbits", bwInt, outputInt)
 	} else {
-		logrus.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
-		return errors.New("Applied bandwidth doe sot match teh tc qdisc rate")
+		logrus.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
+		return errors.New("Applied bandwidth doe sot match the tc qdisc rate")
 	}
 	return nil
 }
@@ -384,7 +385,7 @@ func (k *kubernetes) checkConnection(c *container, ipaddr, protocol string, port
 		protoStr = "-u"
 	}
 
-	logrus.Infof("Checking connection from %v to ip %s on port %d", *c, ipaddr, port)
+	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
 	out, err := k.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil && !strings.Contains(out, "open") {
@@ -415,14 +416,14 @@ func (n *node) cleanupDockerNetwork() error {
 func (k *kubernetes) cleanupContainers() error {
 	if k.node.Name() == "k8master" {
 		logrus.Infof("Cleaning up containers on %s", k.node.Name())
-		cmd := "kubectl get job -o name"
+		cmd := "kubectl get pod -o name"
 		out, err := k8master.tbnode.RunCommandWithOutput(cmd)
 		if err != nil {
 			logrus.Infof("cmd %q failed: output below", cmd)
 			logrus.Println(out)
 			return err
 		}
-		k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete jobs --all "))
+		k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod --all "))
 	}
 	return nil
 }
@@ -432,7 +433,7 @@ func (k *kubernetes) startNetplugin(args string) error {
 		return nil
 	}
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterface + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
+	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
 }
 
 func (k *kubernetes) stopNetplugin() error {
@@ -456,11 +457,7 @@ func (k *kubernetes) startNetmaster() error {
 		return nil
 	}
 	logrus.Infof("Starting netmaster on %s", k.node.Name())
-	dnsOpt := " --dns-enable=false "
-	if k.node.suite.basicInfo.EnableDNS {
-		dnsOpt = " --dns-enable=true "
-	}
-	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + dnsOpt + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes &> /tmp/netmaster.log")
+	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes &> /tmp/netmaster.log")
 }
 func (k *kubernetes) cleanupMaster() {
 	if k.node.Name() != "k8master" {
@@ -473,7 +470,6 @@ func (k *kubernetes) cleanupMaster() {
 	vNode.RunCommand("etcdctl rm --recursive /contiv")
 	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
 	vNode.RunCommand("etcdctl rm --recursive /docker")
-	vNode.RunCommand("etcdctl rm --recursive /skydns")
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
 	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
 }
@@ -486,6 +482,7 @@ func (k *kubernetes) cleanupSlave() {
 	vNode := k.node.tbnode
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVxlanBridge")
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
+	vNode.RunCommand("sudo ovs-vsctl del-br contivHostBridge")
 	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
 	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
 	vNode.RunCommand("sudo service docker restart")
@@ -613,6 +610,10 @@ func (k *kubernetes) checkPingWithCount(c *container, ipaddr string, count int) 
 	return nil
 }
 func (k *kubernetes) checkSchedulerNetworkCreated(nwName string, expectedOp bool) error {
+	return nil
+}
+
+func (k *kubernetes) checkSchedulerNetworkOnNodeCreated(nwName []string, n *node) error {
 	return nil
 }
 
@@ -793,4 +794,40 @@ func (k *kubernetes) reloadNode(n *node) error {
 
 func (k *kubernetes) getMasterIP() (string, error) {
 	return k8master.getIPAddr("eth1")
+}
+
+func (k *kubernetes) verifyUplinkState(n *node, uplinks []string) error {
+	var err error
+	var portName string
+	var cmd, output string
+
+	if n.Name() == "k8master" {
+		return nil
+	}
+
+	if len(uplinks) > 1 {
+		portName = "uplinkPort"
+	} else {
+		portName = uplinks[0]
+	}
+
+	// Verify port state
+	cmd = fmt.Sprintf("sudo ovs-vsctl find Port name=%s", portName)
+	output, err = n.runCommand(cmd)
+	if err != nil || !(strings.Contains(string(output), portName)) {
+		err = fmt.Errorf("Lookup failed for uplink Port %s. Err: %+v", portName, err)
+		return err
+	}
+
+	// Verify Interface state
+	for _, uplink := range uplinks {
+		cmd = fmt.Sprintf("sudo ovs-vsctl find Interface name=%s", uplink)
+		output, err = n.runCommand(cmd)
+		if err != nil || !(strings.Contains(string(output), uplink)) {
+			err = fmt.Errorf("Lookup failed for uplink interface %s for uplink cfg:%+v. Err: %+v", uplink, uplinks, err)
+			return err
+		}
+	}
+
+	return err
 }

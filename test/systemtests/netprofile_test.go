@@ -77,7 +77,7 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetprofilePost(netProfile), IsNil)
-
+	
 	groups = []*client.EndpointGroup{}
 	groupNames = []string{}
 	for x := 0; x < s.basicInfo.Containers; x++ {
@@ -94,6 +94,7 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 		groups = append(groups, group)
 		groupNames = append(groupNames, epgName)
 	}
+
 	c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 	c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
 
@@ -197,6 +198,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 			groupNames = append(groupNames, epgName)
 		}
 
+
 		containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
 		if s.fwdMode == "routing" && encap == "vlan" {
@@ -217,6 +219,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 		}
 
 		c.Assert(s.cli.NetprofilePost(netProfile1), IsNil)
+
 		c.Assert(s.checkIngressRate(containers, netProfile1.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile1.Bandwidth, false), IsNil)
 
@@ -236,6 +239,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 			groups = append(groups, group)
 			groupNames = append(groupNames, epgName)
 		}
+
 		c.Assert(s.startIperfClients(containers, "", false), IsNil)
 
 		c.Assert(s.cli.NetprofileDelete("default", "Netprofile1"), IsNil)
@@ -266,6 +270,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 			groups = append(groups, group)
 			groupNames = append(groupNames, epgName)
 		}
+
 		c.Assert(s.checkIngressRate(containers, netProfile2.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile2.Bandwidth, false), IsNil)
 
@@ -277,6 +282,7 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 		}
 
 		c.Assert(s.cli.NetprofilePost(netProfile2), IsNil)
+
 		c.Assert(s.startIperfClients(containers, netProfile2.Bandwidth, false), IsNil)
 
 		c.Assert(s.removeContainers(containers), IsNil)
@@ -357,6 +363,7 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 				}
 
 				c.Assert(s.cli.NetprofilePost(netprofile), IsNil)
+
 				logrus.Infof("Creating:%s with %s", netprofile.ProfileName, netprofile.TenantName)
 				epgName = fmt.Sprintf("epg%d-%s", networkNum, networkName)
 				group := &client.EndpointGroup{
@@ -374,6 +381,8 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 				npTenant[tenantName] = append(npTenant[netprofile.TenantName], netprofile.ProfileName)
 			}
 		}
+
+
 
 		for tenant, groups := range groupNames {
 			endChan := make(chan error)
@@ -514,6 +523,7 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 		groups = append(groups, group)
 		groupNames = append(groupNames, epgName)
 	}
+
 	c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 	c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
 
@@ -605,6 +615,9 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 		c.Assert(s.startIperfServers(containers), IsNil)
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
+		for _, node := range s.nodes {
+			c.Assert(node.checkSchedulerNetworkOnNodeCreated([]string{"private"}), IsNil)
+		}
 
 		var leader, oldLeader *node
 
@@ -648,6 +661,9 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 		time.Sleep(5 * time.Second)
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
+		for _, node := range s.nodes {
+			c.Assert(node.checkSchedulerNetworkOnNodeCreated([]string{"private"}), IsNil)
+		}
 
 		netProfile = &client.Netprofile{
 			ProfileName: "Netprofile",
@@ -657,8 +673,12 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 			TenantName:  "default",
 		}
 		c.Assert(s.cli.NetprofilePost(netProfile), IsNil)
+
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
+		for _, node := range s.nodes {
+			c.Assert(node.checkSchedulerNetworkOnNodeCreated([]string{"private"}), IsNil)
+		}
 
 		c.Assert(s.removeContainers(containers), IsNil)
 
@@ -698,7 +718,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetworkPost(network), IsNil)
-
+	fmt.Printf("Creating a network %s \n",network.NetworkName)
 	netProfile := &client.Netprofile{
 		ProfileName: "Netprofile",
 		DSCP:        6,
@@ -706,6 +726,8 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 		Burst:       80,
 		TenantName:  "default",
 	}
+
+	fmt.Printf("Creating netprofile %#v \n",netProfile)
 
 	c.Assert(s.cli.NetprofilePost(netProfile), IsNil)
 
@@ -718,6 +740,9 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetprofilePost(netProfile1), IsNil)
+	fmt.Printf("Creating netprofile %#v \n",netProfile)
+
+
 
 	groups := []*client.EndpointGroup{}
 	groupNames := []string{}
@@ -731,6 +756,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 			TenantName:  "default",
 		}
 		c.Assert(s.cli.EndpointGroupPost(group), IsNil)
+		fmt.Printf("Creating epg %#v \n",group)
 
 		groups = append(groups, group)
 		groupNames = append(groupNames, epgName)
@@ -748,7 +774,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 			TenantName:  "default",
 		}
 		c.Assert(s.cli.EndpointGroupPost(group), IsNil)
-
+		fmt.Printf("Creating epg %#v \n",group)
 		groupsNew = append(groupsNew, group)
 		NewGroupNames = append(NewGroupNames, epgName)
 	}
@@ -780,6 +806,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetprofilePost(netProfile), IsNil)
+	fmt.Printf("Modifying netprofile %#v \n",netProfile)
 
 	c.Assert(s.checkIngressRate(containersNew, netProfile1.Bandwidth), IsNil)
 	c.Assert(s.checkIperfAcrossGroup(containersNew, containers, netProfile1.Bandwidth, false), IsNil)

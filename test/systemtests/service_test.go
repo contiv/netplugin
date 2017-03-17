@@ -152,7 +152,7 @@ func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 			}
 
 			for range serviceIPs {
-				for _ = range containers {
+				for range containers {
 					c.Assert(<-endChan, IsNil)
 				}
 			}
@@ -322,7 +322,7 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 						}(c, conts, serviceIPs[tenant], 80, "tcp")
 					}
 
-					for _ = range containers {
+					for range containers {
 						c.Assert(<-endChan, IsNil)
 					}
 					numSvcContainers := len(serviceContainers[svc.ServiceName])
@@ -343,7 +343,7 @@ func (s *systemtestSuite) testServiceAddDeleteProviders(c *C, encap string) {
 						}(c, conts, serviceIPs[tenant], 80, "tcp")
 					}
 
-					for _ = range containers {
+					for range containers {
 						c.Assert(<-endChan, IsNil)
 					}
 					serviceContainers[svc.ServiceName] = append(serviceContainers[svc.ServiceName],
@@ -511,7 +511,7 @@ func (s *systemtestSuite) testServiceSequenceProviderAddServiceAdd(c *C, encap s
 				endChan <- s.checkConnectionToService(conts, ips, port, "tcp")
 			}(c, conts, serviceIPs[contTenant], 80, "tcp")
 		}
-		for _ = range containers {
+		for range containers {
 			x := <-endChan
 			c.Assert(x, IsNil)
 		}
@@ -690,7 +690,7 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 				}
 
 				for range serviceIPs {
-					for _ = range containers {
+					for range containers {
 						c.Assert(<-endChan, IsNil)
 					}
 				}
@@ -921,7 +921,7 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 						endChan <- s.checkConnectionToService(conts, ips, port, "tcp")
 					}(c, conts, ips, 80, "tcp")
 				}
-				for _ = range containers {
+				for range containers {
 					c.Assert(<-endChan, IsNil)
 				}
 			}

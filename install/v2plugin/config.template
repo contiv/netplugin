@@ -1,0 +1,109 @@
+{
+    "manifestVersion": "v0",
+    "description": "Contiv network plugin for Docker",
+    "documentation": "https://contiv.github.io",
+    "entrypoint": ["/startcontiv.sh"],
+    "network": {
+           "type": "host"
+    },
+    "env": [
+       {
+          "Description": "To enable debug mode, set to '-debug'",
+          "Name": "dbg_flag",
+          "Settable": [
+             "value"
+          ],
+          "Value": "-debug"
+       },
+       {
+          "Description": "VLAN uplink interface used by OVS",
+          "Name": "iflist",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "Etcd or Consul cluster store url",
+          "Name": "cluster_store",
+          "Settable": [
+             "value"
+          ],
+          "Value": "etcd://localhost:2379"
+       },
+       {
+          "Description": "Local IP address to be used by netplugin for control communication",
+          "Name": "ctrl_ip",
+          "Settable": [
+             "value"
+          ],
+          "Value": "none"
+       },
+       {
+          "Description": "Local VTEP IP address to be used by netplugin",
+          "Name": "vtep_ip",
+          "Settable": [
+             "value"
+          ],
+          "Value": "none"
+       },
+       {
+          "Description": "In 'master' role, plugin runs netmaster and netplugin",
+          "Name": "plugin_role",
+          "Settable": [
+             "value"
+          ],
+          "Value": "master"
+       },
+       {
+          "Description": "Netmaster url to listen http requests on",
+          "Name": "listen_url",
+          "Settable": [
+             "value"
+          ],
+          "Value": ":9999"
+       },
+       {
+          "Description": "Network Driver name for requests to dockerd. Should be same as name:tag of the plugin",
+          "Name": "plugin_name",
+          "Settable": [
+             "value"
+          ],
+          ## Do not change the default value, this will be replaced with $CONTIV_V2PLUGIN_NAME
+          "Value": "PluginName"
+       }
+    ],
+    "mounts": [
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/etc/openvswitch",
+          "destination": "/etc/openvswitch"
+       },
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/var/log/openvswitch",
+          "destination": "/var/log/openvswitch"
+       },
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/var/run",
+          "destination": "/var/run"
+       },
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/lib/modules",
+          "destination": "/lib/modules"
+       }
+    ],
+    "interface" : {
+          "types": ["docker.networkdriver/1.0", "docker.ipamdriver/1.0"],
+          "socket": "netplugin.sock"
+    },
+    "Linux": {
+          "Capabilities": ["CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_MODULE"]
+    }
+}

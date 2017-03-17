@@ -98,9 +98,27 @@ type DeleteEndpointResponse struct {
 // Global mutex for address allocation
 var addrMutex sync.Mutex
 
+// getNwEpgFromAddrReq returns network/epg from addralloc request
+func getNwAndEpgFromAddrReq(allocID string) (string, string) {
+	nwList := strings.Split(allocID, ":")
+	if len(nwList) == 2 { // allocReqId is nw:epg.tenant
+		networkID := nwList[0]
+		epgList := strings.Split(nwList[1], ".")
+		if len(epgList) == 2 {
+			epgName := epgList[0] + ":" + epgList[1]
+			networkID = networkID + "." + epgList[1]
+			return networkID, epgName
+		}
+	}
+	return allocID, ""
+}
+
 // AllocAddressHandler allocates addresses
 func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	var allocReq AddressAllocRequest
+	var epgCfg *mastercfg.EndpointGroupState
+	var networkID string
+	var epgName string
 
 	// Get object from the request
 	err := json.NewDecoder(r.Body).Decode(&allocReq)
@@ -122,11 +140,10 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 	}
 
 	isIPv6 := netutils.IsIPv6(allocReq.AddressPool)
-	networkID := ""
 
 	// Determine the network id to use
 	if allocReq.NetworkID != "" {
-		networkID = allocReq.NetworkID
+		networkID, epgName = getNwAndEpgFromAddrReq(allocReq.NetworkID)
 	} else {
 		// find the network from address pool
 		subnetIP := strings.Split(allocReq.AddressPool, "/")[0]
@@ -162,6 +179,16 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 		}
 	}
 
+	if len(epgName) > 0 {
+		epgCfg = &mastercfg.EndpointGroupState{}
+		epgCfg.StateDriver = stateDriver
+		if err = epgCfg.Read(epgName); err != nil {
+			log.Errorf("failed to read epg %s, %s", epgName, err)
+			return nil, err
+		}
+		log.Infof("AddressAllocRequest for network: %s epg: %s", networkID, epgName)
+	}
+
 	if networkID == "" {
 		log.Errorf("Could not find the network for: %s", allocReq.NetworkID)
 		return nil, errors.New("Network not found")
@@ -172,12 +199,12 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 	nwCfg.StateDriver = stateDriver
 	err = nwCfg.Read(networkID)
 	if err != nil {
-		log.Errorf("network %s is not operational", allocReq.NetworkID)
+		log.Errorf("network %s is not operational", networkID)
 		return nil, err
 	}
 
 	// Alloc addresses
-	addr, err := networkAllocAddress(nwCfg, allocReq.PreferredIPv4Address, netutils.IsIPv6(allocReq.AddressPool))
+	addr, err := networkAllocAddress(nwCfg, epgCfg, allocReq.PreferredIPv4Address, netutils.IsIPv6(allocReq.AddressPool))
 	if err != nil {
 		log.Errorf("Failed to allocate address. Err: %v", err)
 		return nil, err
@@ -202,6 +229,9 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 // ReleaseAddressHandler releases addresses
 func ReleaseAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	var relReq AddressReleaseRequest
+	var networkID string
+	var epgName string
+	var epgCfg *mastercfg.EndpointGroupState
 
 	// Get object from the request
 	err := json.NewDecoder(r.Body).Decode(&relReq)
@@ -217,17 +247,28 @@ func ReleaseAddressHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 		return nil, err
 	}
 
+	networkID, epgName = getNwAndEpgFromAddrReq(relReq.NetworkID)
+	if len(epgName) > 0 {
+		epgCfg = &mastercfg.EndpointGroupState{}
+		epgCfg.StateDriver = stateDriver
+		if err = epgCfg.Read(epgName); err != nil {
+			log.Errorf("failed to read epg %s, %s", epgName, err)
+			return nil, err
+		}
+		log.Infof("AddressReleaseRequest for network: %s epg: %s", networkID, epgName)
+	}
+
 	// find the network from network id
 	nwCfg := &mastercfg.CfgNetworkState{}
 	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(relReq.NetworkID)
+	err = nwCfg.Read(networkID)
 	if err != nil {
 		log.Errorf("network %s is not operational", relReq.NetworkID)
 		return nil, err
 	}
 
 	// release addresses
-	err = networkReleaseAddress(nwCfg, relReq.IPv4Address)
+	err = networkReleaseAddress(nwCfg, epgCfg, relReq.IPv4Address)
 	if err != nil {
 		log.Errorf("Failed to release address. Err: %v", err)
 		return nil, err

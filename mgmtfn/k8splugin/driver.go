@@ -37,8 +37,6 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-const hostGWIP = "172.20.255.254"
-
 // epSpec contains the spec of the Endpoint to be created
 type epSpec struct {
 	Tenant     string `json:"tenant,omitempty"`
@@ -427,8 +425,7 @@ func addPod(r *http.Request) (interface{}, error) {
 	gw := ep.Gateway
 	if gw == "" {
 		hostIf := netutils.GetHostIntfName(ep.PortName)
-		hostIP, _ := netutils.HostIfToIP(hostIf)
-		err = netPlugin.CreateHostAccPort(hostIf, ep.IPAddress, hostIP)
+		hostIP, err := netPlugin.CreateHostAccPort(hostIf, ep.IPAddress)
 		if err != nil {
 			log.Errorf("Error setting host access. Err: %v", err)
 		} else {
@@ -436,11 +433,15 @@ func addPod(r *http.Request) (interface{}, error) {
 			if err != nil {
 				log.Errorf("Move to pid %d failed", pid)
 			} else {
-				gw = hostGWIP
-				gwIntf = "host1"
-				// make sure service subnet points to eth0
-				svcSubnet := contivK8Config.SvcSubnet
-				addStaticRoute(pid, svcSubnet, pInfo.IntfName)
+				gw, err = netutils.HostIPToGateway(hostIP)
+				if err != nil {
+					log.Errorf("Error getting host GW ip: %s, err: %v", hostIP, err)
+				} else {
+					gwIntf = "host1"
+					// make sure service subnet points to eth0
+					svcSubnet := contivK8Config.SvcSubnet
+					addStaticRoute(pid, svcSubnet, pInfo.IntfName)
+				}
 			}
 		}
 

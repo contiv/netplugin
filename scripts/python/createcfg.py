@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # script to create the config JSON input for the system tests
 import os 
 import json
@@ -9,7 +9,7 @@ parser.add_argument("-scheduler", default='docker', help="Scheduler used, if any
 parser.add_argument("-swarm_var", default='', help="Swarm host variable")
 parser.add_argument("-platform", default='vagrant', help="Vagrant/baremetal")
 parser.add_argument("-product", default='netplugin', help="netplugin/volplugin")
-parser.add_argument("-contiv_l3", default=0, help="Running in L3 mode")
+parser.add_argument("-contiv_l3", default='', help="Running in L3 mode")
 parser.add_argument("-key_file", default="/home/admin/.ssh/id_rsa", help="file path of key_file")
 parser.add_argument("-binpath", default="/opt/gopath/bin", help="GOBIN path")
 parser.add_argument("-hostips", default="192.168.2.10,192.168.2.11,192.168.2.12", help="Host IPs in the system")
@@ -21,7 +21,8 @@ parser.add_argument("-containers", default=3, help="Number of containers for eac
 parser.add_argument("-iterations", default=3, help="Number of iterations for each test")
 parser.add_argument("-enableDNS", default=False, help="Enabling DNS")
 parser.add_argument("-contiv_cluster_store", default="etcd://localhost:2379", help="cluster info")
-parser.add_argument("-datainterface", default="eth2", help="Data interface")
+parser.add_argument("-datainterfaces", default="eth2,eth3", help="Data interface")
+parser.add_argument("-l3_datainterfaces", default="eth2", help="Data interface")
 parser.add_argument("-mgmtinterface", default="eth1", help="Control interface")
 parser.add_argument("-vlan", default="1120-1150", help="vlan range")
 parser.add_argument("-vxlan", default="1-10000", help="vxlan range")
@@ -44,11 +45,14 @@ data['iterations'] = args.iterations
 data['enableDNS'] = args.enableDNS
 data['contiv_cluster_store'] = args.contiv_cluster_store
 data['contiv_l3'] = args.contiv_l3
-data['key_file'] = args.key_file
+data['keyFile'] = args.key_file
 data['binpath'] = args.binpath
 data['hostips'] = args.hostips
 data['hostusernames'] = args.hostnames
-data['dataInterface'] = args.datainterface
+if args.contiv_l3 == '':
+    data['dataInterfaces'] = args.datainterfaces
+else:
+    data['dataInterfaces'] = args.l3_datainterfaces
 data['mgmtInterface'] = args.mgmtinterface
 data['vlan'] = args.vlan
 data['vxlan'] = args.vxlan

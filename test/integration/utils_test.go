@@ -47,9 +47,9 @@ func assertNoErr(err error, c *C, msg string) {
 // assertErr utility function to assert no error
 func assertErr(err error, c *C, msg string) {
 	if err == nil {
-		log.Errorf("Expected Error %s.", err)
+		log.Errorf("Expected Error %s.", msg)
 		debug.PrintStack()
-		c.Fatalf("Expected Error %s.", err)
+		c.Fatalf("Expected Error %s.", msg)
 	}
 }
 
@@ -353,7 +353,7 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 	// verify expected rate
 	expBw = expBw * 1024 * 1024 / 1000
 	if expBw != outputInt {
-		log.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d\n Output: %s", expBw, outputInt, str)
+		log.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d\n Output: %s", expBw, outputInt, str)
 		return errors.New("Applied bandwidth does not match the tc qdisc rate")
 	}
 
@@ -366,20 +366,28 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 	return nil
 }
 
-func tcFilterVerifyEmpty() error {
-	qdiscShow, err := runCmd("tc qdisc show")
-	if err != nil {
-		return err
-	}
-	qdiscoutput := strings.Split(qdiscShow, "ingress")
+func tcFilterVerifyEmpty(tries int) error {
 
-	// make sure length of the string is 1. i.e, empty
-	if len(qdiscoutput) != 1 {
-		log.Errorf("Unexpected 'tc qdisco show' output:\n%s", qdiscShow)
-		return fmt.Errorf("tcp qdisc not empty")
+	var err error
+	var qdiscShow string
+
+	for ; tries > 0; tries-- {
+		qdiscShow, err = runCmd("tc qdisc show")
+		if err != nil {
+			return err
+		}
+		qdiscoutput := strings.Split(qdiscShow, "ingress")
+
+		// make sure length of the string is 1. i.e, empty
+		if len(qdiscoutput) == 1 {
+			return nil
+		}
+
+		time.Sleep(100 * time.Millisecond)
 	}
 
-	return nil
+	log.Errorf("Unexpected 'tc qdisco show' output:\n%s", qdiscShow)
+	return fmt.Errorf("tcp qdisc not empty")
 }
 
 // verifyEndpointFlow verifies endpoint flow exists

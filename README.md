@@ -1,4 +1,5 @@
-[![Build Status](http://contiv.ngrok.io/job/Netplugin%20Push%20Build%20Master/badge/icon)](http://contiv.ngrok.io/job/Netplugin%20Push%20Build%20Master/)
+[![Build Status](https://contiv-ci.ngrok.io/job/Netplugin%20Push%20Build%20Master/badge/icon)](https://contiv-ci.ngrok.io/job/Netplugin%20Push%20Build%20Master/) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/contiv/netplugin)](https://goreportcard.com/report/github.com/contiv/netplugin)
 
 ## Netplugin
 

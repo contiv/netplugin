@@ -13,9 +13,11 @@ cp -rf $GOSRC/github.com/contiv/netplugin/mgmtfn/k8splugin/certs /tmp
 run_in_vagrant=false
 coverage_basic=false
 coverage_detail=false
+timeout=${TIMEOUT:=10m}
 test_packages="github.com/contiv/netplugin/drivers \
     github.com/contiv/netplugin/state \
     github.com/contiv/netplugin/netplugin/plugin \
+    github.com/contiv/netplugin/netplugin/nameserver \
     github.com/contiv/netplugin/utils/netutils \
     github.com/contiv/netplugin/netmaster/gstate \
     github.com/contiv/netplugin/netmaster/master \
@@ -29,73 +31,81 @@ test_packages="github.com/contiv/netplugin/drivers \
     github.com/contiv/netplugin/mgmtfn/k8splugin/contivk8s \
     github.com/contiv/netplugin/mgmtfn/mesosplugin/netcontiv \
     "
-while [ "${#}" -gt 0 ]
-do
-    case "${1}" in
-        -vagrant)
-            run_in_vagrant=true
-	    ;;
-        -c0|--coverage-basic)
-            coverage_basic=true
-            ;;
-        -c1|--coverage-detail)
-            coverage_detail=true
-            ;;
-        *)
-            echo "${USAGE}" 1>&2
-            exit 1;;
-    esac
-    shift
+while [ "${#}" -gt 0 ]; do
+	case "${1}" in
+		-vagrant)
+			run_in_vagrant=true
+			;;
+		-c0 | --coverage-basic)
+			coverage_basic=true
+			;;
+		-c1 | --coverage-detail)
+			coverage_detail=true
+			;;
+		*)
+			echo "${USAGE}" 1>&2
+			exit 1
+			;;
+	esac
+	shift
 done
 
 # running on host
 if ${run_in_vagrant}; then
-    (CONTIV_NODE_OS="${CONTIV_NODE_OS}" CONTIV_NODES=1 vagrant up)
-    ret=$?
-    if [ ${ret} -ne 0 ]; then
-        (CONTIV_NODES=1 vagrant destroy -f)
-        exit 1
-    fi
+	(CONTIV_NODE_OS="${CONTIV_NODE_OS}" CONTIV_NODES=1 vagrant up)
+	ret=$?
+	if [ ${ret} -ne 0 ]; then
+		(CONTIV_NODES=1 vagrant destroy -f)
+		exit 1
+	fi
 
-    # time for vagrant folder sync
-    sleep 2
+	# time for vagrant folder sync
+	sleep 2
 
-    # XXX: running unit-tests require root permission due to dependence on ovs
-    # utilities. Need to find a way without 'sudo'.
-    (CONTIV_NODES=1 vagrant ssh netplugin-node1 -c 'sudo -E PATH=$PATH $GOSRC/github.com/contiv/netplugin/'${0})
-    ret=$?
-    if [ ${ret} -ne 0 ]; then
-        if [ -f /var/log/contivk8s.log ]; then
-	    cat /var/log/contivk8s.log
-        fi
+	# XXX: running unit-tests require root permission due to dependence on ovs
+	# utilities. Need to find a way without 'sudo'.
+	(CONTIV_NODES=1 vagrant ssh netplugin-node1 -c 'sudo -E PATH=$PATH $GOSRC/github.com/contiv/netplugin/'${0})
+	ret=$?
+	if [ ${ret} -ne 0 ]; then
+		if [ -f /var/log/contivk8s.log ]; then
+			cat /var/log/contivk8s.log
+		fi
 
-        (CONTIV_NODES=1 vagrant destroy -f)
-        exit 1
-    fi
+		(CONTIV_NODES=1 vagrant destroy -f)
+		exit 1
+	fi
 
-    (CONTIV_NODES=1 vagrant destroy -f)
-    echo "Host: Tests succeeded!"
-    exit 0
+	(CONTIV_NODES=1 vagrant destroy -f)
+	echo "Host: Tests succeeded!"
+	exit 0
 fi
 
 cd $GOSRC/github.com/contiv/netplugin
-find . -follow -type f -exec tail -1 {} \; >& /dev/null
+find . -follow -type f -exec tail -1 {} \; >&/dev/null
 
-for pkg in ${test_packages}
-do
-  # running in the sand box
-  if ${coverage_basic}; then
-      (cd $GOSRC/github.com/contiv/netplugin && \
-      go test ${pkg} -coverprofile=cover.out) || exit 1
-  elif ${coverage_detail}; then
-      (cd $GOSRC/github.com/contiv/netplugin && \
-      go test ${pkg} -coverprofile=cover.out && \
-      go tool cover -func=cover.out) || exit 1
-  else
-      (cd $GOSRC/github.com/contiv/netplugin && \
-      go test -v ${pkg}) || exit 1
-  fi
+function test_package() {
+	# running in the sand box
+	if ${coverage_basic}; then
+		(cd $GOSRC/github.com/contiv/netplugin \
+			&& go test $1 -timeout ${timeout} -coverprofile=cover.out) || exit 1
+	elif ${coverage_detail}; then
+		(cd $GOSRC/github.com/contiv/netplugin \
+			&& go test $1 -timeout ${timeout} -coverprofile=cover.out \
+			&& go tool cover -func=cover.out) || exit 1
+	else
+		(cd $GOSRC/github.com/contiv/netplugin \
+			&& go test -timeout ${timeout} -v $1) || exit 1
+	fi
+}
+
+for pkg in ${test_packages}; do
+	test_package ${pkg}
 done
+
+cp -f $GOSRC/github.com/contiv/netplugin/mgmtfn/k8splugin/certs/contiv_token.json /tmp/certs/contiv.json
+test_package github.com/contiv/netplugin/mgmtfn/k8splugin
+cp -f $GOSRC/github.com/contiv/netplugin/mgmtfn/k8splugin/certs/contiv_certs.json /tmp/certs/contiv.json
+test_package github.com/contiv/netplugin/mgmtfn/k8splugin
 
 echo "Sandbox: Tests succeeded!"
 exit 0

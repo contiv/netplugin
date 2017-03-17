@@ -294,7 +294,7 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 	}
 
 	if success {
-		logrus.Infof("starting iperf client on conatiner:%s for server ip: %s", c, ip)
+		logrus.Infof("starting iperf client on container:%s for server ip: %s", c, ip)
 		bwFormat := strings.Split(bw, "Server Report:")
 		bwString := strings.Split(bwFormat[1], "Bytes ")
 		newBandwidth := strings.Split(bwString[1], "bits/sec")
@@ -382,7 +382,7 @@ func (d *docker) tcFilterShow(bw string) error {
 	if bwInt == outputInt {
 		logrus.Infof("Applied bandwidth: %dkbits equals tc qdisc rate: %dkbits", bwInt, outputInt)
 	} else {
-		logrus.Errorf("Applied bandiwdth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
+		logrus.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d ", bwInt, outputInt)
 		return errors.New("Applied bandwidth does not match the tc qdisc rate")
 	}
 	return nil
@@ -395,7 +395,7 @@ func (d *docker) checkConnection(c *container, ipaddr, protocol string, port int
 		protoStr = "-u"
 	}
 
-	logrus.Infof("Checking connection from %v to ip %s on port %d", c, ipaddr, port)
+	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
 	_, err := d.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil {
@@ -428,8 +428,9 @@ func (d *docker) cleanupContainers() error {
 }
 
 func (d *docker) startNetplugin(args string) error {
-	logrus.Infof("Starting netplugin on %s", d.node.Name())
-	return d.node.tbnode.RunCommandBackground("sudo " + d.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterface + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
+	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log"
+	logrus.Infof("Starting netplugin on %s with command: %s", d.node.Name(), cmd)
+	return d.node.tbnode.RunCommandBackground(cmd)
 }
 
 func (d *docker) stopNetplugin() error {
@@ -443,32 +444,32 @@ func (d *docker) stopNetmaster() error {
 }
 
 func (d *docker) startNetmaster() error {
-	logrus.Infof("Starting netmaster on %s", d.node.Name())
-	dnsOpt := " --dns-enable=false "
-	if d.node.suite.basicInfo.EnableDNS {
-		dnsOpt = " --dns-enable=true "
-	}
-	return d.node.tbnode.RunCommandBackground(d.node.suite.basicInfo.BinPath + "/netmaster" + dnsOpt + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log")
+	cmd := d.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log"
+	logrus.Infof("Starting netmaster on %s with command: %s", d.node.Name(), cmd)
+	return d.node.tbnode.RunCommandBackground(cmd)
 }
 func (d *docker) cleanupMaster() {
 	logrus.Infof("Cleaning up master on %s", d.node.Name())
 	vNode := d.node.tbnode
-	vNode.RunCommand("etcdctl rm --recursive /contiv")
-	vNode.RunCommand("etcdctl rm --recursive /contiv.io")
-	vNode.RunCommand("etcdctl rm --recursive /docker")
-	vNode.RunCommand("etcdctl rm --recursive /skydns")
-	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true")
-	vNode.RunCommand("curl -X DELETE localhost:8500/v1/kv/docker?recurse=true")
+	vNode.RunCommand(`etcdctl rm --recursive /contiv || true &
+	etcdctl rm --recursive /contiv.io || true &
+	etcdctl rm --recursive /docker || true &
+	curl -X DELETE localhost:8500/v1/kv/contiv.io?recurse=true || true &
+	curl -X DELETE localhost:8500/v1/kv/docker?recurse=true || true &
+	wait`)
 }
 
 func (d *docker) cleanupSlave() {
 	logrus.Infof("Cleaning up slave on %s", d.node.Name())
 	vNode := d.node.tbnode
-	vNode.RunCommand("sudo ovs-vsctl del-br contivVxlanBridge")
-	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
-	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
-	vNode.RunCommand("sudo rm /var/run/docker/plugins/netplugin.sock")
-	vNode.RunCommand("sudo service docker restart")
+	vNode.RunCommand(`sudo ovs-vsctl del-br contivVxlanBridge || true &
+	sudo ovs-vsctl del-br contivVlanBridge || true &
+	sudo ovs-vsctl del-br contivHostBridge || true &
+	sudo service docker restart &
+	interfaces=$(ip link | grep vport | awk '"'"'{ print $2 }'"'"' | tr -d : > /tmp/vports || true)
+	for p in $interfaces; do sudo ip link delete $p type veth || true; done &
+	sudo rm /var/run/docker/plugins/netplugin.sock || true &
+	wait`)
 }
 
 func (d *docker) runCommandUntilNoNetpluginError() error {
@@ -523,7 +524,7 @@ func (d *docker) checkConnectionRetry(c *container, ipaddr, protocol string, por
 		protoStr = "-u"
 	}
 
-	logrus.Infof("Checking connection from %c to ip %s on port %d, delay: %d, retries: %d",
+	logrus.Infof("Checking connection from %s to ip %s on port %d, delay: %d, retries: %d",
 		c, ipaddr, port, delay, retries)
 
 	for i := 0; i < retries; i++ {
@@ -601,6 +602,38 @@ func (d *docker) checkSchedulerNetworkCreated(nwName string, expectedOp bool) er
 		return nil
 	}
 	return err
+}
+
+func (d *docker) checkSchedulerNetworkOnNodeCreated(nwNames []string, n *node) error {
+	ch := make(chan error, 1)
+	for _, nwName := range nwNames {
+		go func(nwName string, n *node, ch chan error) {
+			logrus.Infof("Checking whether docker network %s is created on node %s", nwName, n.Name())
+			cmd := fmt.Sprintf("docker network ls | grep netplugin | grep %s | awk \"{print \\$2}\"", nwName)
+			logrus.Infof("Command to be executed is = %s", cmd)
+			count := 0
+			//check if docker network is created for a minute
+			for count < 60 {
+				op, err := n.runCommand(cmd)
+
+				if err == nil {
+					ret := strings.Contains(op, nwName)
+					if ret == true {
+						ch <- nil
+					}
+					count++
+					time.Sleep(1 * time.Second)
+				}
+			}
+			ch <- fmt.Errorf("Docker Network %s not created on node %s \n", nwName, n.Name())
+		}(nwName, n, ch)
+	}
+	for range nwNames {
+		if err := <-ch; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *docker) waitForListeners() error {
@@ -752,4 +785,36 @@ func (d *docker) reloadNode(n *node) error {
 }
 func (d *docker) getMasterIP() (string, error) {
 	return d.node.getIPAddr("eth1")
+}
+
+func (d *docker) verifyUplinkState(n *node, uplinks []string) error {
+	var err error
+	var portName string
+	var cmd, output string
+
+	if len(uplinks) > 1 {
+		portName = "uplinkPort"
+	} else {
+		portName = uplinks[0]
+	}
+
+	// Verify port state
+	cmd = fmt.Sprintf("sudo ovs-vsctl find Port name=%s", portName)
+	output, err = n.runCommand(cmd)
+	if err != nil || !(strings.Contains(string(output), portName)) {
+		err = fmt.Errorf("Lookup failed for uplink Port %s. Err: %+v", portName, err)
+		return err
+	}
+
+	// Verify Interface state
+	for _, uplink := range uplinks {
+		cmd = fmt.Sprintf("sudo ovs-vsctl find Interface name=%s", uplink)
+		output, err = n.runCommand(cmd)
+		if err != nil || !(strings.Contains(string(output), uplink)) {
+			err = fmt.Errorf("Lookup failed for uplink interface %s for uplink cfg:%+v. Err: %+v", uplink, uplinks, err)
+			return err
+		}
+	}
+
+	return err
 }

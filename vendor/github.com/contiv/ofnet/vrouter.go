@@ -27,8 +27,8 @@ package ofnet
 //
 
 import (
-	//"fmt"
 	"errors"
+	"fmt"
 	"net"
 	"net/rpc"
 	"strings"
@@ -38,6 +38,7 @@ import (
 	"github.com/shaleman/libOpenflow/protocol"
 
 	log "github.com/Sirupsen/logrus"
+	cmap "github.com/streamrail/concurrent-map"
 )
 
 // Vrouter state.
@@ -57,6 +58,7 @@ type Vrouter struct {
 	flowDb         map[string]*ofctrl.Flow   // Database of flow entries
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
+	portDnsFlowDb  cmap.ConcurrentMap        // Database of flow entries
 	vlanDb         map[uint16]*Vlan          // Database of known vlans
 
 	myRouterMac net.HardwareAddr // Router Mac to be used
@@ -77,6 +79,7 @@ func NewVrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vrouter {
 	vrouter.flowDb = make(map[string]*ofctrl.Flow)
 	vrouter.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
 	vrouter.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
+	vrouter.portDnsFlowDb = cmap.New()
 	vrouter.myRouterMac, _ = net.ParseMAC("00:00:11:11:11:11")
 	vrouter.vlanDb = make(map[uint16]*Vlan)
 
@@ -139,8 +142,59 @@ func (self *Vrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 
 		}
 
-	case 0x0800:
-		// FIXME: We dont expect IP packets. Use this for statefull policies.
+	case protocol.IPv4_MSG:
+		var inPort uint32
+		if (pkt.TableId == 0) && (pkt.Match.Type == openflow13.MatchType_OXM) &&
+			(pkt.Match.Fields[0].Class == openflow13.OXM_CLASS_OPENFLOW_BASIC) &&
+			(pkt.Match.Fields[0].Field == openflow13.OXM_FIELD_IN_PORT) {
+
+			// get the input port number
+			switch t := pkt.Match.Fields[0].Value.(type) {
+			case *openflow13.InPortField:
+				inPort = t.InPort
+			default:
+				log.Debugf("unknown match type %v for ipv4 pkt", t)
+				return
+			}
+		}
+
+		ipPkt := pkt.Data.Data.(*protocol.IPv4)
+		switch ipPkt.Protocol {
+		case protocol.Type_UDP:
+			udpPkt := ipPkt.Data.(*protocol.UDP)
+			switch udpPkt.PortDst {
+			case 53:
+				if (pkt.TableId == 0) && (pkt.Match.Type == openflow13.MatchType_OXM) &&
+					len(pkt.Match.Fields) >= 2 &&
+					(pkt.Match.Fields[1].Class == openflow13.OXM_CLASS_OPENFLOW_BASIC) &&
+					(pkt.Match.Fields[1].Field == openflow13.OXM_FIELD_TUNNEL_ID) {
+					self.agent.incrErrStats("dnsPktVtep")
+					return
+				}
+
+				if dnsResp, err := processDNSPkt(self.agent, inPort, udpPkt.Data); err == nil {
+					if respPkt, err := buildUDPRespPkt(&pkt.Data, dnsResp); err == nil {
+						self.agent.incrStats("dnsPktReply")
+						pktOut := openflow13.NewPacketOut()
+						pktOut.Data = respPkt
+						pktOut.AddAction(openflow13.NewActionOutput(inPort))
+						self.ofSwitch.Send(pktOut)
+						return
+					}
+				}
+
+				// re-inject DNS packet
+				ethPkt := buildDnsForwardPkt(&pkt.Data)
+				pktOut := openflow13.NewPacketOut()
+				pktOut.Data = ethPkt
+				pktOut.InPort = inPort
+
+				pktOut.AddAction(openflow13.NewActionOutput(openflow13.P_TABLE))
+				self.agent.incrStats("dnsPktForward")
+				self.ofSwitch.Send(pktOut)
+				return
+			}
+		}
 	default:
 		log.Errorf("Received unknown ethertype: %x", pkt.Data.Ethertype)
 	}
@@ -148,6 +202,11 @@ func (self *Vrouter) PacketRcvd(sw *ofctrl.OFSwitch, pkt *ofctrl.PacketIn) {
 
 // InjectGARPs not implemented
 func (self *Vrouter) InjectGARPs(epgID int) {
+}
+
+// GlobalConfigUpdate not implemented
+func (self *Vrouter) GlobalConfigUpdate(cfg OfnetGlobalConfig) error {
+	return nil
 }
 
 // Add a local endpoint and install associated local route
@@ -433,6 +492,19 @@ func (self *Vrouter) RemoveLocalIpv6Flow(endpoint OfnetEndpoint) error {
 func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 	// Install VNI to vlan mapping for each vni
 	log.Infof("Adding VTEP for portno %v , remote IP : %v", portNo, remoteIp)
+	dnsVtepFlow, err := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
+		InputPort:  portNo,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	if err != nil {
+		log.Errorf("Error creating nameserver flow entry. Err: %v", err)
+		return err
+	}
+	dnsVtepFlow.Next(self.vlanTable)
+	self.portDnsFlowDb.Set(fmt.Sprintf("%d", portNo), dnsVtepFlow)
 
 	self.agent.vlanVniMutex.RLock()
 	for vni, vlan := range self.agent.vniVlanMap {
@@ -504,6 +576,14 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 
 // Remove a VTEP port
 func (self *Vrouter) RemoveVtepPort(portNo uint32, remoteIp net.IP) error {
+	if f, ok := self.portDnsFlowDb.Get(fmt.Sprintf("%d", portNo)); ok {
+		if dnsVtepFlow, ok := f.(*ofctrl.Flow); ok {
+			if err := dnsVtepFlow.Delete(); err != nil {
+				log.Errorf("Error deleting nameserver flow. Err: %v", err)
+			}
+		}
+	}
+	self.portDnsFlowDb.Remove(fmt.Sprintf("%d", portNo))
 
 	for _, vlan := range self.vlanDb {
 		portVlanFlow := vlan.vtepVlanFlowDb[portNo]
@@ -821,13 +901,18 @@ func (self *Vrouter) RemoveRemoteIpv6Flow(endpoint *OfnetEndpoint) error {
 }
 
 // AddUplink adds an uplink to the switch
-func (vr *Vrouter) AddUplink(portNo uint32, ifname string) error {
+func (vr *Vrouter) AddUplink(uplinkPort *PortInfo) error {
 	// Nothing to do
 	return nil
 }
 
+// UpdateUplink updates uplink info
+func (vr *Vrouter) UpdateUplink(uplinkName string, updates PortUpdates) error {
+	return nil
+}
+
 // RemoveUplink remove an uplink to the switch
-func (vr *Vrouter) RemoveUplink(portNo uint32) error {
+func (vr *Vrouter) RemoveUplink(uplinkName string) error {
 	// Nothing to do
 	return nil
 }
@@ -906,6 +991,32 @@ func (self *Vrouter) initFgraph() error {
 		MacSaMask: &bcastMac,
 	})
 	bcastSrcFlow.Next(sw.DropAction())
+
+	// redirect dns requests from containers (oui 02:02:xx) to controller
+	macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
+	macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
+	dnsRedirectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	dnsRedirectFlow.Next(sw.SendToController())
+
+	// re-inject dns requests
+	dnsReinjectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
+		MacSa:      &macSa,
+		MacSaMask:  &macSaMask,
+		VlanId:     nameServerInternalVlanId,
+		Ethertype:  protocol.IPv4_MSG,
+		IpProto:    protocol.Type_UDP,
+		UdpDstPort: 53,
+	})
+	dnsReinjectFlow.PopVlan()
+	dnsReinjectFlow.Next(self.vlanTable)
 
 	// Redirect ARP packets to controller
 	arpFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{

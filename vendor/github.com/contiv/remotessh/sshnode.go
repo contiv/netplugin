@@ -122,6 +122,15 @@ func (n *SSHNode) getClientAndSession() (*ssh.Client, *ssh.Session, error) {
 			time.Sleep(SSHRetryDelay)
 			continue
 		}
+		modes := ssh.TerminalModes{
+			ssh.ECHO:          0,
+			ssh.TTY_OP_ISPEED: 14400,
+			ssh.TTY_OP_OSPEED: 14400,
+		}
+		// Request pseudo terminal
+		if err := s.RequestPty("xterm", 40, 80, modes); err != nil {
+			return nil, nil, fmt.Errorf("failed to get pseudo-terminal: %v", err)
+		}
 
 		return client, s, nil
 	}

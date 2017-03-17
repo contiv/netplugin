@@ -17,11 +17,11 @@ package state
 
 import (
 	"errors"
+	"fmt"
+	"golang.org/x/net/context"
 	"reflect"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/coreos/etcd/client"
@@ -106,12 +106,12 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 	defer cancel()
 
 	resp, err := d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
-	if err != nil {
+	if err != nil || resp == nil || resp.Node == nil {
 		// Retry few times if cluster is unavailable
 		if err.Error() == client.ErrClusterUnavailable.Error() {
 			for i := 0; i < maxEtcdRetries; i++ {
 				resp, err = d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
-				if err == nil {
+				if err == nil && resp.Node != nil {
 					break
 				}
 
@@ -122,8 +122,11 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 			return []byte{}, err
 		}
 	}
+	if resp != nil && resp.Node != nil {
+		return []byte(resp.Node.Value), err
+	}
+	return []byte{}, fmt.Errorf("Error reading from etcd")
 
-	return []byte(resp.Node.Value), err
 }
 
 // ReadAll state from baseKey.
@@ -202,7 +205,7 @@ func (d *EtcdStateDriver) ClearState(key string) error {
 	return err
 }
 
-// ReadState reads key into a core.State with the unmarshalling function.
+// ReadState reads key into a core.State with the unmarshaling function.
 func (d *EtcdStateDriver) ReadState(key string, value core.State,
 	unmarshal func([]byte, interface{}) error) error {
 	encodedState, err := d.Read(key)
@@ -210,12 +213,7 @@ func (d *EtcdStateDriver) ReadState(key string, value core.State,
 		return err
 	}
 
-	err = unmarshal(encodedState, value)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return unmarshal(encodedState, value)
 }
 
 // readAllStateCommon reads and unmarshals (given a function) all state into a
@@ -281,6 +279,7 @@ func channelStateEvents(d core.StateDriver, sType core.State,
 			value := reflect.New(stateType)
 			err := unmarshal(byteRsp[i], value.Interface())
 			if err != nil {
+				log.Errorf("unmarshal error: %v", err)
 				retErr <- err
 				return
 			}
@@ -310,19 +309,22 @@ func (d *EtcdStateDriver) WatchAllState(baseKey string, sType core.State,
 	byteRsps := make(chan [2][]byte, 1)
 	recvErr := make(chan error, 1)
 
-	go channelStateEvents(d, sType, unmarshal, byteRsps, rsps, recvErr)
-
 	err := d.WatchAll(baseKey, byteRsps)
 	if err != nil {
+		log.Errorf("WatchAll returned %v", err)
 		return err
 	}
 
-	err = <-recvErr
-	return err
+	for {
+		go channelStateEvents(d, sType, unmarshal, byteRsps, rsps, recvErr)
 
+		err = <-recvErr
+		log.Errorf("Err from channelStateEvents %v", err)
+		time.Sleep(time.Second)
+	}
 }
 
-// WriteState writes a value of core.State into a key with a given marshalling function.
+// WriteState writes a value of core.State into a key with a given marshaling function.
 func (d *EtcdStateDriver) WriteState(key string, value core.State,
 	marshal func(interface{}) ([]byte, error)) error {
 	encodedState, err := marshal(value)
@@ -330,10 +332,5 @@ func (d *EtcdStateDriver) WriteState(key string, value core.State,
 		return err
 	}
 
-	err = d.Write(key, encodedState)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.Write(key, encodedState)
 }

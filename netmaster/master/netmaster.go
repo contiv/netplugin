@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cenkalti/backoff"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -28,18 +27,15 @@ import (
 	"github.com/contiv/netplugin/utils/netutils"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/samalba/dockerclient"
 )
 
 const (
 	defaultInfraNetName = "infra"
-	defaultSkyDNSImage  = "skynetservices/skydns:latest"
 )
 
 // Run Time config of netmaster
 type nmRunTimeConf struct {
 	clusterMode string
-	dnsEnabled  bool
 }
 
 var masterRTCfg nmRunTimeConf
@@ -62,22 +58,6 @@ func SetClusterMode(cm string) error {
 // GetClusterMode gets the cluster mode of the contiv plugin
 func GetClusterMode() string {
 	return masterRTCfg.clusterMode
-}
-
-// IsDNSEnabled gets the status of whether DNS is enabled
-func IsDNSEnabled() bool {
-	return masterRTCfg.dnsEnabled
-}
-
-// SetDNSEnabled sets the status of DNS Enable
-func SetDNSEnabled(dnsEnableFlag bool) error {
-	log.Infof("Setting dns flag to %v", dnsEnableFlag)
-	masterRTCfg.dnsEnabled = dnsEnableFlag
-	return nil
-}
-
-func getDNSName(tenantName string) string {
-	return tenantName + "dns"
 }
 
 func getEpName(networkName string, ep *intent.ConfigEP) string {
@@ -158,6 +138,14 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		masterGc.FwdMode = gc.FwdMode
 	}
 
+	if gc.ArpMode != "" {
+		masterGc.ArpMode = gc.ArpMode
+	}
+
+	if gc.PvtSubnet != "" {
+		masterGc.PvtSubnet = gc.PvtSubnet
+	}
+
 	if len(gcfgUpdateList) > 0 {
 		// Delete old state
 
@@ -189,12 +177,7 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 			return err
 		}
 	}
-	err = masterGc.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return masterGc.Write()
 }
 
 // UpdateGlobal updates the global state
@@ -257,6 +240,14 @@ func UpdateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		masterGc.FwdMode = gc.FwdMode
 	}
 
+	if gc.ArpMode != "" {
+		masterGc.ArpMode = gc.ArpMode
+	}
+
+	if gc.PvtSubnet != "" {
+		masterGc.PvtSubnet = gc.PvtSubnet
+	}
+
 	if len(gcfgUpdateList) > 0 {
 		// Delete old state
 
@@ -279,12 +270,7 @@ func UpdateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		}
 	}
 
-	err = masterGc.Write()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return masterGc.Write()
 }
 
 // DeleteGlobal delete global state
@@ -335,125 +321,12 @@ func DeleteGlobal(stateDriver core.StateDriver) error {
 
 // CreateTenant sets the tenant's state according to the passed ConfigTenant.
 func CreateTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-	err := validateTenantConfig(tenant)
-	if err != nil {
-		return err
-	}
-
-	if IsDNSEnabled() {
-		// start skydns container
-		err = startServiceContainer(tenant.Name)
-		if err != nil {
-			log.Errorf("Error starting service container. Err: %v. Disabling DNS option.", err)
-			SetDNSEnabled(false)
-		}
-	}
-
-	return nil
-}
-
-func startServiceContainer(tenantName string) error {
-	var err error
-	docker, err := utils.GetDockerClient()
-	if err != nil {
-		log.Errorf("Unable to connect to docker. Error %v", err)
-		return err
-	}
-
-	// pull the skydns image if it does not exist
-	imageName := defaultSkyDNSImage
-	_, err = docker.InspectImage(imageName)
-	if err != nil {
-		pullOperation := func() error {
-			err := docker.PullImage(imageName, nil)
-			if err != nil {
-				log.Errorf("Retrying to pull image: %s", imageName)
-				return err
-			}
-			return nil
-		}
-
-		err = backoff.Retry(pullOperation, backoff.NewExponentialBackOff())
-		if err != nil {
-			log.Errorf("Unable to pull image: %s", imageName)
-			return err
-		}
-	}
-
-	containerConfig := &dockerclient.ContainerConfig{
-		Image: imageName,
-		Env: []string{"ETCD_MACHINES=http://172.17.0.1:4001",
-			"SKYDNS_NAMESERVERS=8.8.8.8:53",
-			"SKYDNS_ADDR=0.0.0.0:53",
-			"SKYDNS_DOMAIN=" + tenantName}}
-
-	containerID, err := docker.CreateContainer(containerConfig, getDNSName(tenantName), nil)
-	if err != nil {
-		log.Errorf("Error creating DNS container for tenant: %s. Error: %s", tenantName, err)
-		return err
-	}
-
-	hostConfig := &dockerclient.HostConfig{
-		RestartPolicy: dockerclient.RestartPolicy{Name: "always"}}
-
-	// Start the container
-	err = docker.StartContainer(containerID, hostConfig)
-	if err != nil {
-		log.Errorf("Error starting DNS container for tenant: %s. Error: %s", tenantName, err)
-	}
-
-	return err
-}
-
-func stopAndRemoveServiceContainer(tenantName string) error {
-	var err error
-	docker, err := utils.GetDockerClient()
-	if err != nil {
-		log.Errorf("Unable to connect to docker. Error %v", err)
-		return err
-	}
-
-	dnsContName := getDNSName(tenantName)
-	// Stop the container
-	err = docker.StopContainer(dnsContName, 10)
-	if err != nil {
-		log.Errorf("Error stopping DNS container for tenant: %s. Error: %s", tenantName, err)
-		return err
-	}
-
-	err = docker.RemoveContainer(dnsContName, true, true)
-	if err != nil {
-		log.Errorf("Error removing DNS container for tenant: %s. Error: %s", tenantName, err)
-		return err
-	}
-	return err
-}
-
-// DeleteTenantID deletes a tenant from the state store, by ID.
-func DeleteTenantID(stateDriver core.StateDriver, tenantID string) error {
-	if IsDNSEnabled() {
-		err := stopAndRemoveServiceContainer(tenantID)
-		if err != nil {
-			log.Errorf("Error in stopping service container for tenant: %+v", tenantID)
-			return err
-		}
-	}
-
-	return nil
+	return validateTenantConfig(tenant)
 }
 
 // DeleteTenant deletes a tenant from the state store based on its ConfigTenant.
 func DeleteTenant(stateDriver core.StateDriver, tenant *intent.ConfigTenant) error {
-	err := validateTenantConfig(tenant)
-	if err != nil {
-		return err
-	}
-
-	if len(tenant.Networks) == 0 {
-		return DeleteTenantID(stateDriver, tenant.Name)
-	}
-
-	return nil
+	return validateTenantConfig(tenant)
 }
 
 // IsAciConfigured returns true if aci is configured on netmaster.

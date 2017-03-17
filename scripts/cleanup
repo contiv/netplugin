@@ -10,40 +10,35 @@
 # cleanup will silently fail. Make sure the caller invokes this script
 # as 'root' or 'sudo'.
 if [ "$(id -u)" != "0" ]; then
-    echo "Please run as root:$(id -u):"
-    exit 1
+	echo "Please run as root:$(id -u):"
+	exit 1
 fi
 
-if ! $(which etcdctl > /dev/null 2>&1)
-then
-    echo "etcdctl not found !\n"
-    exit 1
+if ! $(which etcdctl >/dev/null 2>&1); then
+	echo "etcdctl not found !\n"
+	exit 1
 fi
 
-if ! $(which ovs-vsctl > /dev/null 2>&1)
-then
-    echo "ovs-vsctl not found !\n"
-    exit 1
+if ! $(which ovs-vsctl >/dev/null 2>&1); then
+	echo "ovs-vsctl not found !\n"
+	exit 1
 fi
 
 # stop netmaster and netplugin if they are running
-killall netplugin
-killall netmaster
+pkill netplugin
+pkill netmaster
 
 # Cleanup etcd and consul state
-etcdctl rm -recursive /contiv > /dev/null 2>&1
-etcdctl rm -recursive /contiv.io > /dev/null 2>&1
-etcdctl rm -recursive /skydns > /dev/null 2>&1
-curl -X DELETE http://localhost:8500/v1/kv/contiv?recurse > /dev/null 2>&1
-curl -X DELETE http://localhost:8500/v1/kv/contiv.io?recurse > /dev/null 2>&1
+etcdctl rm -recursive /contiv >/dev/null 2>&1
+etcdctl rm -recursive /contiv.io >/dev/null 2>&1
+curl -X DELETE http://localhost:8500/v1/kv/contiv?recurse >/dev/null 2>&1
+curl -X DELETE http://localhost:8500/v1/kv/contiv.io?recurse >/dev/null 2>&1
 
 # Cleanup ovs state
-ovs-vsctl del-br contivVlanBridge > /dev/null 2>&1
-ovs-vsctl del-br contivVxlanBridge > /dev/null 2>&1
+ovs-vsctl list-br | grep contiv | xargs -I % ovs-vsctl del-br % >/dev/null 2>&1
 
-for p in `ifconfig  | grep vport | awk '{print $1}'`
-do
-    ip link delete $p type veth
+for p in $(ifconfig | grep vport | awk '{print $1}'); do
+	ip link delete $p type veth
 done
 
 echo "cleanup complete!"

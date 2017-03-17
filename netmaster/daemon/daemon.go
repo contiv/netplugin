@@ -45,7 +45,6 @@ type MasterDaemon struct {
 	ListenURL    string // URL where netmaster needs to listen
 	ClusterStore string // state store URL
 	ClusterMode  string // cluster scheduler used docker/kubernetes/mesos etc
-	DNSEnabled   bool   // Contiv skydns enabled?
 
 	// Private state
 	currState        string                          // Current state of the daemon
@@ -67,12 +66,6 @@ func (d *MasterDaemon) Init() {
 	err := master.SetClusterMode(d.ClusterMode)
 	if err != nil {
 		log.Fatalf("Failed to set cluster-mode. Error: %s", err)
-	}
-
-	// save dns flag
-	err = master.SetDNSEnabled(d.DNSEnabled)
-	if err != nil {
-		log.Fatalf("Failed to set dns-enable. Error: %s", err)
 	}
 
 	// initialize state driver
@@ -200,7 +193,7 @@ func (d *MasterDaemon) registerRoutes(router *mux.Router) {
 		resp, err := json.Marshal(info)
 		if err != nil {
 			http.Error(w,
-				core.Errorf("marshalling json failed. Error: %s", err).Error(),
+				core.Errorf("marshaling json failed. Error: %s", err).Error(),
 				http.StatusInternalServerError)
 			return
 		}

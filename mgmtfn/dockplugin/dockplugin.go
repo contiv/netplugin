@@ -29,7 +29,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/netplugin/plugin"
-	"github.com/contiv/netplugin/netplugin/svcplugin"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/gorilla/mux"
@@ -39,13 +38,11 @@ const pluginPath = "/run/docker/plugins"
 const driverName = "netplugin"
 
 var netPlugin *plugin.NetPlugin
-var svcPlugin svcplugin.SvcregPlugin
 
 // InitDockPlugin initializes the docker plugin
-func InitDockPlugin(np *plugin.NetPlugin, sp svcplugin.SvcregPlugin) error {
+func InitDockPlugin(np *plugin.NetPlugin) error {
 	// Save state
 	netPlugin = np
-	svcPlugin = sp
 
 	// Get local hostname
 	hostname, err := os.Hostname()
@@ -59,22 +56,26 @@ func InitDockPlugin(np *plugin.NetPlugin, sp svcplugin.SvcregPlugin) error {
 	s := router.Methods("POST").Subrouter()
 
 	dispatchMap := map[string]func(http.ResponseWriter, *http.Request){
-		"/Plugin.Activate":                    activate(hostname),
-		"/Plugin.Deactivate":                  deactivate(hostname),
-		"/NetworkDriver.GetCapabilities":      getCapability,
-		"/NetworkDriver.CreateNetwork":        createNetwork,
-		"/NetworkDriver.DeleteNetwork":        deleteNetwork,
-		"/NetworkDriver.CreateEndpoint":       createEndpoint(hostname),
-		"/NetworkDriver.DeleteEndpoint":       deleteEndpoint(hostname),
-		"/NetworkDriver.EndpointOperInfo":     endpointInfo,
-		"/NetworkDriver.Join":                 join,
-		"/NetworkDriver.Leave":                leave,
-		"/IpamDriver.GetDefaultAddressSpaces": getDefaultAddressSpaces,
-		"/IpamDriver.RequestPool":             requestPool,
-		"/IpamDriver.ReleasePool":             releasePool,
-		"/IpamDriver.RequestAddress":          requestAddress,
-		"/IpamDriver.ReleaseAddress":          releaseAddress,
-		"/IpamDriver.GetCapabilities":         getIpamCapability,
+		"/Plugin.Activate":                           activate(hostname),
+		"/Plugin.Deactivate":                         deactivate(hostname),
+		"/NetworkDriver.GetCapabilities":             getCapability,
+		"/NetworkDriver.CreateNetwork":               createNetwork,
+		"/NetworkDriver.DeleteNetwork":               deleteNetwork,
+		"/NetworkDriver.CreateEndpoint":              createEndpoint(hostname),
+		"/NetworkDriver.DeleteEndpoint":              deleteEndpoint(hostname),
+		"/NetworkDriver.EndpointOperInfo":            endpointInfo,
+		"/NetworkDriver.Join":                        join,
+		"/NetworkDriver.Leave":                       leave,
+		"/NetworkDriver.AllocateNetwork":             allocateNetwork,
+		"/NetworkDriver.FreeNetwork":                 freeNetwork,
+		"/NetworkDriver.ProgramExternalConnectivity": programExternalConnectivity,
+		"/NetworkDriver.RevokeExternalConnectivity":  revokeExternalConnectivity,
+		"/IpamDriver.GetDefaultAddressSpaces":        getDefaultAddressSpaces,
+		"/IpamDriver.RequestPool":                    requestPool,
+		"/IpamDriver.ReleasePool":                    releasePool,
+		"/IpamDriver.RequestAddress":                 requestAddress,
+		"/IpamDriver.ReleaseAddress":                 releaseAddress,
+		"/IpamDriver.GetCapabilities":                getIpamCapability,
 	}
 
 	for dispatchPath, dispatchFunc := range dispatchMap {
@@ -129,7 +130,7 @@ func httpError(w http.ResponseWriter, message string, err error) {
 
 	content, errc := json.Marshal(api.Response{Err: fullError})
 	if errc != nil {
-		log.Warnf("Error received marshalling error response: %v, original error: %s", errc, fullError)
+		log.Warnf("Error received marshaling error response: %v, original error: %s", errc, fullError)
 		return
 	}
 

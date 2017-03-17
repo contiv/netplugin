@@ -17,6 +17,7 @@ package netutils
 
 import (
 	"fmt"
+	"github.com/jainvipin/bitset"
 	"testing"
 )
 
@@ -349,4 +350,176 @@ func TestGetAddrList(t *testing.T) {
 	}
 
 	fmt.Printf("Got local address list: %v\n", addrList)
+}
+
+func TestGetIPRange(t *testing.T) {
+	testData := []struct {
+		subnetIP  string
+		subnetLen uint
+		startIdx  uint
+		endIdx    uint
+		result    string
+	}{
+		{subnetIP: "10.36.1.0", subnetLen: 24, startIdx: 1, endIdx: 2, result: "10.36.1.1-10.36.1.2"},
+		{subnetIP: "11.2.1.0", subnetLen: 24, startIdx: 5, endIdx: 11, result: "11.2.1.5-11.2.1.11"},
+		{subnetIP: "10.123.16.0", subnetLen: 22, startIdx: 1020, endIdx: 1022, result: "10.123.19.252-10.123.19.254"},
+		{subnetIP: "172.12.0.0", subnetLen: 8, startIdx: 261, endIdx: 266, result: "172.12.1.5-172.12.1.10"},
+		{subnetIP: "10.36.2.0", subnetLen: 24, startIdx: 5, endIdx: 6, result: "10.36.2.5-10.36.2.6"},
+	}
+	for _, i := range testData {
+		r := getIPRange(i.subnetIP, i.subnetLen, i.startIdx, i.endIdx)
+		if r != i.result {
+			t.Fatalf("test failed: got %s instead of %s for %+v", r, i.result, i)
+		}
+	}
+}
+
+func assertOnTrue(t *testing.T, val bool, msg string) {
+	if val == true {
+		t.Fatalf("Error %s", msg)
+	}
+	// else continue
+}
+
+func TestSetIPAddrRange(t *testing.T) {
+	var amap bitset.BitSet
+	var err error
+
+	testAddrRange := []struct {
+		addrRange []string
+		subnetIP  string
+		subnetLen uint
+		status    bool
+		allocAddr string
+		freeAddr  string
+	}{
+		{addrRange: []string{"10.36.1.1-10.36.1.10"}, subnetIP: "10.36.1.0", subnetLen: 24, status: true,
+			allocAddr: "10.36.1.1-10.36.1.10", freeAddr: "10.36.1.11-10.36.1.254"},
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.11-10.36.1.254"}, subnetIP: "10.36.1.0",
+			subnetLen: 24, status: true, allocAddr: "10.36.1.1-10.36.1.254", freeAddr: ""},
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.31-10.36.1.54"}, subnetIP: "10.36.1.0",
+			subnetLen: 24, status: true, allocAddr: "10.36.1.1-10.36.1.10, 10.36.1.31-10.36.1.54",
+			freeAddr: "10.36.1.11-10.36.1.30, 10.36.1.55-10.36.1.254"},
+		{addrRange: []string{"10.36.2.1-10.36.2.10", "10.36.0.1-10.36.0.10"}, subnetIP: "10.36.0.0",
+			subnetLen: 16, status: true, allocAddr: "10.36.0.1-10.36.0.10, 10.36.2.1-10.36.2.10",
+			freeAddr: "10.36.0.11-10.36.2.0, 10.36.2.11-10.36.255.254"},
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.1-10.36.1.10"}, subnetIP: "10.36.2.0",
+			subnetLen: 24, status: false},
+	}
+
+	for _, i := range testAddrRange {
+		amap.ClearAll()
+		InitSubnetBitset(&amap, i.subnetLen)
+		for _, pool := range i.addrRange {
+			err = SetIPAddrRange(&amap, pool, i.subnetIP, i.subnetLen)
+			assertOnTrue(t, (err != nil) == (i.status == true), fmt.Sprintf("set failed %s %+v", err, i))
+		}
+
+		if i.status == true {
+			assertOnTrue(t, err != nil, fmt.Sprintf("err: %s, failed for data %+v", err, i))
+			f := ListAvailableIPs(amap, i.subnetIP, i.subnetLen)
+			assertOnTrue(t, f != i.freeAddr, fmt.Sprintf("got avail addr: [%s], expected [%s] failed for data %+v",
+				f, i.freeAddr, i))
+			a := ListAllocatedIPs(amap, i.subnetIP, i.subnetIP, i.subnetLen)
+			assertOnTrue(t, a != i.allocAddr, fmt.Sprintf("got allocated addr: [%s], expected [%s] failed for data %+v",
+				a, i.allocAddr, i))
+		} else {
+			assertOnTrue(t, err == nil, fmt.Sprintf("err: %s, failed for data %+v", err, i))
+		}
+	}
+
+}
+
+func TestVerifyIPAddrRange(t *testing.T) {
+	var amap bitset.BitSet
+	var err error
+
+	testAddrRange := []struct {
+		addrRange []string
+		testRange string
+		subnetIP  string
+		subnetLen uint
+		status    bool
+	}{
+		{addrRange: []string{"10.36.1.1-10.36.1.10"}, testRange: "10.36.1.15-10.36.1.17", subnetIP: "10.36.1.0",
+			subnetLen: 24, status: true},
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.11-10.36.1.204"}, testRange: "10.36.1.205-10.36.1.254",
+			subnetIP: "10.36.1.0", subnetLen: 24, status: true},
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.11-10.36.1.54"}, testRange: "10.36.1.55-10.36.1.55",
+			subnetIP: "10.36.1.0", subnetLen: 24, status: true},
+		{addrRange: []string{"10.36.2.1-10.36.2.10", "10.36.0.1-10.36.0.10"}, subnetIP: "10.36.0.0",
+			subnetLen: 16, status: false, testRange: "10.36.2.1-10.36.2.2"},
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.1-10.36.1.10"}, subnetIP: "10.36.1.0",
+			testRange: "10.36.2.1-10.36.2.11", subnetLen: 24, status: false},
+	}
+
+	for _, i := range testAddrRange {
+		amap.ClearAll()
+		InitSubnetBitset(&amap, i.subnetLen)
+		for _, pool := range i.addrRange {
+			err = SetIPAddrRange(&amap, pool, i.subnetIP, i.subnetLen)
+			assertOnTrue(t, err != nil, fmt.Sprintf("set failed %s %+v", err, i))
+		}
+
+		err = TestIPAddrRange(&amap, i.testRange, i.subnetIP, i.subnetLen)
+		assertOnTrue(t, (err != nil) == (i.status == true), fmt.Sprintf("clear failed %s %+v", err, i))
+	}
+}
+
+func TestClearIPAddrRange(t *testing.T) {
+	var amap bitset.BitSet
+	var err error
+
+	testAddrRange := []struct {
+		addrRange  []string
+		clearRange string
+		subnetIP   string
+		subnetLen  uint
+		status     bool
+		allocAddr  string
+		freeAddr   string
+	}{
+		{addrRange: []string{"10.36.1.1-10.36.1.10"}, clearRange: "10.36.1.5-10.36.1.7", subnetIP: "10.36.1.0",
+			subnetLen: 24, status: true, allocAddr: "10.36.1.1-10.36.1.4, 10.36.1.8-10.36.1.10",
+			freeAddr: "10.36.1.5-10.36.1.7, 10.36.1.11-10.36.1.254"},
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.11-10.36.1.254"}, clearRange: "10.36.1.101-10.36.1.254",
+			subnetIP: "10.36.1.0", subnetLen: 24, status: true, allocAddr: "10.36.1.1-10.36.1.100",
+			freeAddr: "10.36.1.101-10.36.1.254"},
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.11-10.36.1.54"}, clearRange: "10.36.1.1-10.36.1.54",
+			subnetIP: "10.36.1.0", subnetLen: 24, status: true,
+			allocAddr: "",
+			freeAddr:  "10.36.1.1-10.36.1.254"},
+		{addrRange: []string{"10.36.2.1-10.36.2.10", "10.36.0.1-10.36.0.10"}, subnetIP: "10.36.0.0",
+			subnetLen: 16, status: true, allocAddr: "10.36.0.1-10.36.0.10, 10.36.2.3-10.36.2.10",
+			clearRange: "10.36.2.1-10.36.2.2",
+			freeAddr:   "10.36.0.11-10.36.2.2, 10.36.2.11-10.36.255.254"},
+
+		{addrRange: []string{"10.36.1.1-10.36.1.10", "10.36.1.1-10.36.1.10"}, subnetIP: "10.36.1.0",
+			clearRange: "10.36.2.1-10.36.2.11", subnetLen: 24, status: false},
+	}
+
+	for _, i := range testAddrRange {
+		amap.ClearAll()
+		InitSubnetBitset(&amap, i.subnetLen)
+		for _, pool := range i.addrRange {
+			err = SetIPAddrRange(&amap, pool, i.subnetIP, i.subnetLen)
+			assertOnTrue(t, err != nil, fmt.Sprintf("set failed %s %+v", err, i))
+		}
+
+		err = ClearIPAddrRange(&amap, i.clearRange, i.subnetIP, i.subnetLen)
+		assertOnTrue(t, (err != nil) == (i.status == true), fmt.Sprintf("clear failed %s %+v", err, i))
+
+		if i.status == true {
+			assertOnTrue(t, err != nil, fmt.Sprintf("err: %s, failed for data %+v", err, i))
+			f := ListAvailableIPs(amap, i.subnetIP, i.subnetLen)
+			assertOnTrue(t, f != i.freeAddr, fmt.Sprintf("got avail addr: [%s], expected [%s] failed for data %+v",
+				f, i.freeAddr, i))
+			a := ListAllocatedIPs(amap, i.subnetIP, i.subnetIP, i.subnetLen)
+			assertOnTrue(t, a != i.allocAddr, fmt.Sprintf("got allocated addr: [%s], expected [%s] failed for data %+v",
+				a, i.allocAddr, i))
+		} else {
+			assertOnTrue(t, err == nil, fmt.Sprintf("err: %s, failed for data %+v", err, i))
+		}
+	}
+
 }

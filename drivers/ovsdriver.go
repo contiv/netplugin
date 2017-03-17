@@ -27,6 +27,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/netplugin/nameserver"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
 	"github.com/vishvananda/netlink"
@@ -82,11 +83,12 @@ func (s *OvsDriverOperState) Clear() error {
 // OvsDriver implements the Layer 2 Network and Endpoint Driver interfaces
 // specific to vlan based open-vswitch.
 type OvsDriver struct {
-	oper      OvsDriverOperState    // Oper state of the driver
-	localIP   string                // Local IP address
-	switchDb  map[string]*OvsSwitch // OVS switch instances
-	lock      sync.Mutex            // lock for modifying shared state
-	HostProxy *NodeSvcProxy
+	oper       OvsDriverOperState    // Oper state of the driver
+	localIP    string                // Local IP address
+	switchDb   map[string]*OvsSwitch // OVS switch instances
+	lock       sync.Mutex            // lock for modifying shared state
+	HostProxy  *NodeSvcProxy
+	nameServer *nameserver.NetpluginNameServer
 }
 
 func (d *OvsDriver) getIntfName() (string, error) {
@@ -168,28 +170,35 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 
 	// Create Vxlan switch
 	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP,
-		info.FwdMode)
+		info.FwdMode, nil)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
 	// Create Vlan switch
 	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP,
-		info.FwdMode, info.VlanIntf)
+		info.FwdMode, info.UplinkIntf)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
 
+	// Add name server
+	d.nameServer = new(nameserver.NetpluginNameServer)
+	d.nameServer.Init(info.StateDriver)
+	d.switchDb["vxlan"].AddNameServer(d.nameServer)
+	d.switchDb["vlan"].AddNameServer(d.nameServer)
+	log.Infof("initialized nameserver")
+
 	// Add uplink to VLAN switch
-	if info.VlanIntf != "" {
-		err = d.switchDb["vlan"].AddUplinkPort(info.VlanIntf)
+	if len(info.UplinkIntf) != 0 {
+		err = d.switchDb["vlan"].AddUplink("uplinkPort", info.UplinkIntf)
 		if err != nil {
-			log.Errorf("Could not add uplink %s to vlan OVS. Err: %v", info.VlanIntf, err)
+			log.Errorf("Could not add uplink %v to vlan OVS. Err: %v", info.UplinkIntf, err)
 		}
 	}
 
 	// Create Host Access switch
 	d.switchDb["host"], err = NewOvsSwitch(hostBridgeName, "host", info.VtepIP,
-		info.FwdMode)
+		info.FwdMode, nil)
 	if err != nil {
 		log.Fatalf("Error creating host switch. Err: %v", err)
 	}
@@ -199,13 +208,14 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 	}
 
 	// Add host port.
-	err = d.switchDb["host"].AddHostPort(hostPortName, maxPortNum, true)
+	_, err = d.switchDb["host"].AddHostPort(hostPortName, maxPortNum, info.HostPvtNW, true)
 	if err != nil {
 		log.Errorf("Could not add host port %s to OVS. Err: %v", hostPortName, err)
 	}
 
 	// Add a masquerade rule to ip tables.
-	netutils.SetIPMasquerade(hostPortName, hostPvtSubnet)
+	netmask, _ := netutils.PortToHostIPMAC(0, info.HostPvtNW)
+	netutils.SetIPMasquerade(hostPortName, netmask)
 
 	// Initialize the node proxy
 	d.HostProxy, err = NewNodeProxy()
@@ -233,23 +243,23 @@ func (d *OvsDriver) DeleteHostAccPort(id string) error {
 }
 
 // CreateHostAccPort creates an access port
-func (d *OvsDriver) CreateHostAccPort(portName, globalIP, hostIP string) error {
+func (d *OvsDriver) CreateHostAccPort(portName, globalIP string, net int) (string, error) {
 	sw, found := d.switchDb["host"]
 	if found {
 		num := strings.Replace(portName, "hport", "", 1)
 		intfNum, err := strconv.Atoi(num)
 		if err != nil {
-			return err
+			return "", err
 		}
 
-		err = sw.AddHostPort(portName, intfNum, false)
+		hostIP, err := sw.AddHostPort(portName, intfNum, net, false)
 		if err == nil {
 			d.HostProxy.AddLocalIP(globalIP, hostIP)
-			return nil
+			return hostIP, nil
 		}
 	}
 
-	return errors.New("host bridge not found")
+	return "", errors.New("host bridge not found")
 }
 
 // Deinit performs cleanup prior to destruction of the OvsDriver
@@ -258,7 +268,7 @@ func (d *OvsDriver) Deinit() {
 
 	// cleanup both vlan and vxlan OVS instances
 	if d.switchDb["vlan"] != nil {
-		d.switchDb["vlan"].RemoveUplinkPort()
+		d.switchDb["vlan"].RemoveUplinks()
 		d.switchDb["vlan"].Delete()
 	}
 	if d.switchDb["vxlan"] != nil {
@@ -363,7 +373,6 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 			pktTag = cfgEpGroup.PktTag
 			epgKey = cfgEp.EndpointGroupKey
 			dscp = cfgEpGroup.DSCP
-			log.Infof("Received endpoint create with bandwidth:%s", cfgEpGroup.Bandwidth)
 			if cfgEpGroup.Bandwidth != "" {
 				epgBandwidth = netutils.ConvertBandwidth(cfgEpGroup.Bandwidth)
 			}
@@ -603,12 +612,7 @@ func (d *OvsDriver) AddMaster(node core.ServiceInfo) error {
 	if err != nil {
 		return err
 	}
-	err = d.switchDb["vxlan"].AddMaster(node)
-
-	if err != nil {
-		return err
-	}
-	return nil
+	return d.switchDb["vxlan"].AddMaster(node)
 }
 
 // DeleteMaster deletes master node
@@ -620,13 +624,7 @@ func (d *OvsDriver) DeleteMaster(node core.ServiceInfo) error {
 	if err != nil {
 		return err
 	}
-	err = d.switchDb["vxlan"].DeleteMaster(node)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.switchDb["vxlan"].DeleteMaster(node)
 }
 
 // AddBgp adds bgp config by named identifier
@@ -804,6 +802,50 @@ func (d *OvsDriver) InspectBgp() ([]byte, error) {
 	jsonState, err := json.Marshal(bgpState)
 	if err != nil {
 		log.Errorf("Error encoding epstats. Err: %v", err)
+		return []byte{}, err
+	}
+
+	return jsonState, nil
+}
+
+// GlobalConfigUpdate sets the global level configs like arp-mode
+func (d *OvsDriver) GlobalConfigUpdate(inst core.InstanceInfo) error {
+	// convert the netplugin config to ofnet config
+	// currently, its only ArpMode
+	var cfg ofnet.OfnetGlobalConfig
+	switch inst.ArpMode {
+	case "flood":
+		cfg.ArpMode = ofnet.ArpFlood
+	default:
+		// set the default to proxy for graceful upgrade
+		cfg.ArpMode = ofnet.ArpProxy
+	}
+
+	errs := ""
+	for _, sw := range d.switchDb {
+		err := sw.GlobalConfigUpdate(cfg)
+		if err != nil {
+			errs += err.Error()
+		}
+	}
+	if errs != "" {
+		return errors.New(errs)
+	}
+
+	return nil
+}
+
+// InspectNameserver returns nameserver state as json string
+func (d *OvsDriver) InspectNameserver() ([]byte, error) {
+	if d.nameServer == nil {
+		return []byte{}, nil
+
+	}
+
+	ns, err := d.nameServer.InspectState()
+	jsonState, err := json.Marshal(ns)
+	if err != nil {
+		log.Errorf("Error encoding nameserver state. Err: %v", err)
 		return []byte{}, err
 	}
 

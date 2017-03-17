@@ -37,6 +37,8 @@ type GlobConfig struct {
 	core.CommonState
 	NwInfraType string `json:"nw-infra-type"`
 	FwdMode     string `json:"fwd-mode"`
+	ArpMode     string `json:"arp-mode"`
+	PvtSubnet   string `json:"pvt-subnet"`
 }
 
 //OldResState is used for global resource update

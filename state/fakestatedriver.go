@@ -65,7 +65,8 @@ func (d *FakeStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 
 // WatchAll values from baseKey
 func (d *FakeStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	return core.Errorf("not supported")
+	log.Warnf("watchall not supported")
+	select {} // block forever
 }
 
 // ClearState clears key
@@ -84,12 +85,7 @@ func (d *FakeStateDriver) ReadState(key string, value core.State,
 		return err
 	}
 
-	err = unmarshal(encodedState, value)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return unmarshal(encodedState, value)
 }
 
 // ReadAllState reads all state from baseKey of a given type
@@ -112,12 +108,7 @@ func (d *FakeStateDriver) WriteState(key string, value core.State,
 		return err
 	}
 
-	err = d.Write(key, encodedState)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.Write(key, encodedState)
 }
 
 // DumpState is a debugging tool.

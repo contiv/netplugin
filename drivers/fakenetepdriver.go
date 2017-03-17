@@ -46,8 +46,8 @@ func (d *FakeNetEpDriver) DeleteEndpoint(id string) (err error) {
 }
 
 // CreateHostAccPort is not implemented.
-func (d *FakeNetEpDriver) CreateHostAccPort(id, a, b string) (err error) {
-	return core.Errorf("Not implemented")
+func (d *FakeNetEpDriver) CreateHostAccPort(id, a string, nw int) (string, error) {
+	return "", core.Errorf("Not implemented")
 }
 
 // DeleteHostAccPort is not implemented.
@@ -111,5 +111,15 @@ func (d *FakeNetEpDriver) InspectState() ([]byte, error) {
 
 // InspectBgp is not implemented
 func (d *FakeNetEpDriver) InspectBgp() ([]byte, error) {
+	return []byte{}, core.Errorf("Not implemented")
+}
+
+// GlobalConfigUpdate is not implemented
+func (d *FakeNetEpDriver) GlobalConfigUpdate(inst core.InstanceInfo) error {
+	return core.Errorf("Not implemented")
+}
+
+// InspectNameserver returns nameserver state as json string
+func (d *FakeNetEpDriver) InspectNameserver() ([]byte, error) {
 	return []byte{}, core.Errorf("Not implemented")
 }

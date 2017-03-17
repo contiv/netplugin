@@ -12,9 +12,34 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"regexp"
+	"sync"
 )
 
 type HttpApiFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
+
+type AciGw struct {
+	// every object has a key
+	Key string `json:"key,omitempty"`
+
+	EnforcePolicies     string `json:"enforcePolicies,omitempty"`     // Enforce security policy
+	IncludeCommonTenant string `json:"includeCommonTenant,omitempty"` // Include common tenant when searching for objects
+	Name                string `json:"name,omitempty"`                // name of this block(must be 'aciGw')
+	NodeBindings        string `json:"nodeBindings,omitempty"`        // List of ACI complete nodes to be bound
+	PathBindings        string `json:"pathBindings,omitempty"`        // List of ACI fabric ports connected to cluster
+	PhysicalDomain      string `json:"physicalDomain,omitempty"`      // Name of the physical domain
+
+}
+
+type AciGwOper struct {
+	NumAppProfiles int `json:"numAppProfiles,omitempty"` //
+
+}
+
+type AciGwInspect struct {
+	Config AciGw
+
+	Oper AciGwOper
+}
 
 type AppProfile struct {
 	// every object has a key
@@ -83,6 +108,7 @@ type EndpointOper struct {
 	MacAddress       string   `json:"macAddress,omitempty"`  //
 	Network          string   `json:"network,omitempty"`     //
 	ServiceName      string   `json:"serviceName,omitempty"` //
+	VirtualPort      string   `json:"virtualPort,omitempty"` //
 	VtepIP           string   `json:"vtepIP,omitempty"`      //
 
 }
@@ -97,6 +123,7 @@ type EndpointGroup struct {
 
 	ExtContractsGrps []string `json:"extContractsGrps,omitempty"`
 	GroupName        string   `json:"groupName,omitempty"`   // Group name
+	IpPool           string   `json:"ipPool,omitempty"`      // IP-pool
 	NetProfile       string   `json:"netProfile,omitempty"`  // Network profile name
 	NetworkName      string   `json:"networkName,omitempty"` // Network
 	Policies         []string `json:"policies,omitempty"`
@@ -109,23 +136,31 @@ type EndpointGroup struct {
 
 type EndpointGroupLinkSets struct {
 	ExtContractsGrps map[string]modeldb.Link `json:"ExtContractsGrps,omitempty"`
-	MatchRules       map[string]modeldb.Link `json:"MatchRules,omitempty"`
-	Policies         map[string]modeldb.Link `json:"Policies,omitempty"`
-	Services         map[string]modeldb.Link `json:"Services,omitempty"`
+
+	MatchRules map[string]modeldb.Link `json:"MatchRules,omitempty"`
+
+	Policies map[string]modeldb.Link `json:"Policies,omitempty"`
+
+	Services map[string]modeldb.Link `json:"Services,omitempty"`
 }
 
 type EndpointGroupLinks struct {
 	AppProfile modeldb.Link `json:"AppProfile,omitempty"`
+
 	NetProfile modeldb.Link `json:"NetProfile,omitempty"`
-	Network    modeldb.Link `json:"Network,omitempty"`
-	Tenant     modeldb.Link `json:"Tenant,omitempty"`
+
+	Network modeldb.Link `json:"Network,omitempty"`
+
+	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type EndpointGroupOper struct {
-	Endpoints      []EndpointOper `json:"endpoints,omitempty"`
-	ExternalPktTag int            `json:"externalPktTag,omitempty"` // external packet tag
-	NumEndpoints   int            `json:"numEndpoints,omitempty"`   // number of endpoints
-	PktTag         int            `json:"pktTag,omitempty"`         // internal packet tag
+	AllocatedIPAddresses string         `json:"allocatedIPAddresses,omitempty"` // allocated IP addresses
+	AvailableIPAddresses string         `json:"availableIPAddresses,omitempty"` // Available IP addresses
+	Endpoints            []EndpointOper `json:"endpoints,omitempty"`
+	ExternalPktTag       int            `json:"externalPktTag,omitempty"` // external packet tag
+	NumEndpoints         int            `json:"numEndpoints,omitempty"`   // number of endpoints
+	PktTag               int            `json:"pktTag,omitempty"`         // internal packet tag
 
 }
 
@@ -160,15 +195,18 @@ type Global struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	ArpMode          string `json:"arpMode,omitempty"`          // ARP Mode
 	FwdMode          string `json:"fwdMode,omitempty"`          // Forwarding Mode
 	Name             string `json:"name,omitempty"`             // name of this block(must be 'global')
 	NetworkInfraType string `json:"networkInfraType,omitempty"` // Network infrastructure type
+	PvtSubnet        string `json:"pvtSubnet,omitempty"`        // Private Subnet used by host bridge
 	Vlans            string `json:"vlans,omitempty"`            // Allowed vlan range
 	Vxlans           string `json:"vxlans,omitempty"`           // Allwed vxlan range
 
 }
 
 type GlobalOper struct {
+	ClusterMode     string `json:"clusterMode,omitempty"`     //
 	DefaultNetwork  string `json:"defaultNetwork,omitempty"`  //
 	FreeVXLANsStart int    `json:"freeVXLANsStart,omitempty"` //
 	NumNetworks     int    `json:"numNetworks,omitempty"`     //
@@ -231,8 +269,10 @@ type Network struct {
 
 type NetworkLinkSets struct {
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
-	Servicelbs     map[string]modeldb.Link `json:"Servicelbs,omitempty"`
-	Services       map[string]modeldb.Link `json:"Services,omitempty"`
+
+	Servicelbs map[string]modeldb.Link `json:"Servicelbs,omitempty"`
+
+	Services map[string]modeldb.Link `json:"Services,omitempty"`
 }
 
 type NetworkLinks struct {
@@ -243,7 +283,6 @@ type NetworkOper struct {
 	AllocatedAddressesCount int            `json:"allocatedAddressesCount,omitempty"` // Vlan/Vxlan Tag
 	AllocatedIPAddresses    string         `json:"allocatedIPAddresses,omitempty"`    // allocated IP addresses
 	AvailableIPAddresses    string         `json:"availableIPAddresses,omitempty"`    // Available IP addresses
-	DnsServerIP             string         `json:"dnsServerIP,omitempty"`             // dns IP for the network
 	Endpoints               []EndpointOper `json:"endpoints,omitempty"`
 	ExternalPktTag          int            `json:"externalPktTag,omitempty"` // external packet tag
 	NumEndpoints            int            `json:"numEndpoints,omitempty"`   // external packet tag
@@ -271,7 +310,8 @@ type Policy struct {
 
 type PolicyLinkSets struct {
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
-	Rules          map[string]modeldb.Link `json:"Rules,omitempty"`
+
+	Rules map[string]modeldb.Link `json:"Rules,omitempty"`
 }
 
 type PolicyLinks struct {
@@ -343,7 +383,8 @@ type ServiceLB struct {
 
 type ServiceLBLinks struct {
 	Network modeldb.Link `json:"Network,omitempty"`
-	Tenant  modeldb.Link `json:"Tenant,omitempty"`
+
+	Tenant modeldb.Link `json:"Tenant,omitempty"`
 }
 
 type ServiceLBOper struct {
@@ -371,14 +412,21 @@ type Tenant struct {
 }
 
 type TenantLinkSets struct {
-	AppProfiles    map[string]modeldb.Link `json:"AppProfiles,omitempty"`
+	AppProfiles map[string]modeldb.Link `json:"AppProfiles,omitempty"`
+
 	EndpointGroups map[string]modeldb.Link `json:"EndpointGroups,omitempty"`
-	NetProfiles    map[string]modeldb.Link `json:"NetProfiles,omitempty"`
-	Networks       map[string]modeldb.Link `json:"Networks,omitempty"`
-	Policies       map[string]modeldb.Link `json:"Policies,omitempty"`
-	Servicelbs     map[string]modeldb.Link `json:"Servicelbs,omitempty"`
+
+	NetProfiles map[string]modeldb.Link `json:"NetProfiles,omitempty"`
+
+	Networks map[string]modeldb.Link `json:"Networks,omitempty"`
+
+	Policies map[string]modeldb.Link `json:"Policies,omitempty"`
+
+	Servicelbs map[string]modeldb.Link `json:"Servicelbs,omitempty"`
+
 	VolumeProfiles map[string]modeldb.Link `json:"VolumeProfiles,omitempty"`
-	Volumes        map[string]modeldb.Link `json:"Volumes,omitempty"`
+
+	Volumes map[string]modeldb.Link `json:"Volumes,omitempty"`
 }
 
 type TenantOper struct {
@@ -459,23 +507,58 @@ type VolumeProfileInspect struct {
 	Config VolumeProfile
 }
 type Collections struct {
-	appProfiles map[string]*AppProfile
-	Bgps        map[string]*Bgp
+	aciGwMutex sync.Mutex
+	aciGws     map[string]*AciGw
 
+	appProfileMutex sync.Mutex
+	appProfiles     map[string]*AppProfile
+
+	BgpMutex sync.Mutex
+	Bgps     map[string]*Bgp
+
+	endpointGroupMutex sync.Mutex
 	endpointGroups     map[string]*EndpointGroup
-	extContractsGroups map[string]*ExtContractsGroup
-	globals            map[string]*Global
-	netprofiles        map[string]*Netprofile
-	networks           map[string]*Network
-	policys            map[string]*Policy
-	rules              map[string]*Rule
-	serviceLBs         map[string]*ServiceLB
-	tenants            map[string]*Tenant
-	volumes            map[string]*Volume
+
+	extContractsGroupMutex sync.Mutex
+	extContractsGroups     map[string]*ExtContractsGroup
+
+	globalMutex sync.Mutex
+	globals     map[string]*Global
+
+	netprofileMutex sync.Mutex
+	netprofiles     map[string]*Netprofile
+
+	networkMutex sync.Mutex
+	networks     map[string]*Network
+
+	policyMutex sync.Mutex
+	policys     map[string]*Policy
+
+	ruleMutex sync.Mutex
+	rules     map[string]*Rule
+
+	serviceLBMutex sync.Mutex
+	serviceLBs     map[string]*ServiceLB
+
+	tenantMutex sync.Mutex
+	tenants     map[string]*Tenant
+
+	volumeMutex sync.Mutex
+	volumes     map[string]*Volume
+
+	volumeProfileMutex sync.Mutex
 	volumeProfiles     map[string]*VolumeProfile
 }
 
 var collections Collections
+
+type AciGwCallbacks interface {
+	AciGwGetOper(aciGw *AciGwInspect) error
+
+	AciGwCreate(aciGw *AciGw) error
+	AciGwUpdate(aciGw, params *AciGw) error
+	AciGwDelete(aciGw *AciGw) error
+}
 
 type AppProfileCallbacks interface {
 	AppProfileCreate(appProfile *AppProfile) error
@@ -574,6 +657,7 @@ type VolumeProfileCallbacks interface {
 }
 
 type CallbackHandlers struct {
+	AciGwCb             AciGwCallbacks
 	AppProfileCb        AppProfileCallbacks
 	BgpCb               BgpCallbacks
 	EndpointCb          EndpointCallbacks
@@ -593,21 +677,36 @@ type CallbackHandlers struct {
 var objCallbackHandler CallbackHandlers
 
 func Init() {
+
+	collections.aciGws = make(map[string]*AciGw)
+
 	collections.appProfiles = make(map[string]*AppProfile)
+
 	collections.Bgps = make(map[string]*Bgp)
 
 	collections.endpointGroups = make(map[string]*EndpointGroup)
+
 	collections.extContractsGroups = make(map[string]*ExtContractsGroup)
+
 	collections.globals = make(map[string]*Global)
+
 	collections.netprofiles = make(map[string]*Netprofile)
+
 	collections.networks = make(map[string]*Network)
+
 	collections.policys = make(map[string]*Policy)
+
 	collections.rules = make(map[string]*Rule)
+
 	collections.serviceLBs = make(map[string]*ServiceLB)
+
 	collections.tenants = make(map[string]*Tenant)
+
 	collections.volumes = make(map[string]*Volume)
+
 	collections.volumeProfiles = make(map[string]*VolumeProfile)
 
+	restoreAciGw()
 	restoreAppProfile()
 	restoreBgp()
 
@@ -623,6 +722,66 @@ func Init() {
 	restoreVolume()
 	restoreVolumeProfile()
 
+}
+
+func GetAciGwCount() int {
+	return len(collections.aciGws)
+}
+
+func GetAppProfileCount() int {
+	return len(collections.appProfiles)
+}
+
+func GetBgpCount() int {
+	return len(collections.Bgps)
+}
+
+func GetEndpointGroupCount() int {
+	return len(collections.endpointGroups)
+}
+
+func GetExtContractsGroupCount() int {
+	return len(collections.extContractsGroups)
+}
+
+func GetGlobalCount() int {
+	return len(collections.globals)
+}
+
+func GetNetprofileCount() int {
+	return len(collections.netprofiles)
+}
+
+func GetNetworkCount() int {
+	return len(collections.networks)
+}
+
+func GetPolicyCount() int {
+	return len(collections.policys)
+}
+
+func GetRuleCount() int {
+	return len(collections.rules)
+}
+
+func GetServiceLBCount() int {
+	return len(collections.serviceLBs)
+}
+
+func GetTenantCount() int {
+	return len(collections.tenants)
+}
+
+func GetVolumeCount() int {
+	return len(collections.volumes)
+}
+
+func GetVolumeProfileCount() int {
+	return len(collections.volumeProfiles)
+}
+
+func RegisterAciGwCallbacks(handler AciGwCallbacks) {
+	objCallbackHandler.AciGwCb = handler
 }
 
 func RegisterAppProfileCallbacks(handler AppProfileCallbacks) {
@@ -719,6 +878,19 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 // Add all routes for REST handlers
 func AddRoutes(router *mux.Router) {
 	var route, listRoute, inspectRoute string
+
+	// Register aciGw
+	route = "/api/v1/aciGws/{key}/"
+	listRoute = "/api/v1/aciGws/"
+	log.Infof("Registering %s", route)
+	router.Path(listRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpListAciGws))
+	router.Path(route).Methods("GET").HandlerFunc(makeHttpHandler(httpGetAciGw))
+	router.Path(route).Methods("POST").HandlerFunc(makeHttpHandler(httpCreateAciGw))
+	router.Path(route).Methods("PUT").HandlerFunc(makeHttpHandler(httpCreateAciGw))
+	router.Path(route).Methods("DELETE").HandlerFunc(makeHttpHandler(httpDeleteAciGw))
+
+	inspectRoute = "/api/v1/inspect/aciGws/{key}/"
+	router.Path(inspectRoute).Methods("GET").HandlerFunc(makeHttpHandler(httpInspectAciGw))
 
 	// Register appProfile
 	route = "/api/v1/appProfiles/{key}/"
@@ -895,12 +1067,381 @@ func AddRoutes(router *mux.Router) {
 }
 
 // GET Oper REST call
+func httpInspectAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	var obj AciGwInspect
+	log.Debugf("Received httpInspectAciGw: %+v", vars)
+
+	key := vars["key"]
+
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+	objConfig := collections.aciGws[key]
+	if objConfig == nil {
+		log.Errorf("aciGw %s not found", key)
+		return nil, errors.New("aciGw not found")
+	}
+	obj.Config = *objConfig
+
+	if err := GetOperAciGw(&obj); err != nil {
+		log.Errorf("GetAciGw error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return &obj, nil
+}
+
+// Get a aciGwOper object
+func GetOperAciGw(obj *AciGwInspect) error {
+	// Check if we handle this object
+	if objCallbackHandler.AciGwCb == nil {
+		log.Errorf("No callback registered for aciGw object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.AciGwCb.AciGwGetOper(obj)
+	if err != nil {
+		log.Errorf("AciGwDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	return nil
+}
+
+// LIST REST call
+func httpListAciGws(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpListAciGws: %+v", vars)
+
+	list := make([]*AciGw, 0)
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+	for _, obj := range collections.aciGws {
+		list = append(list, obj)
+	}
+
+	// Return the list
+	return list, nil
+}
+
+// GET REST call
+func httpGetAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetAciGw: %+v", vars)
+
+	key := vars["key"]
+
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+	obj := collections.aciGws[key]
+	if obj == nil {
+		log.Errorf("aciGw %s not found", key)
+		return nil, errors.New("aciGw not found")
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// CREATE REST call
+func httpCreateAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpGetAciGw: %+v", vars)
+
+	var obj AciGw
+	key := vars["key"]
+
+	// Get object from the request
+	err := json.NewDecoder(r.Body).Decode(&obj)
+	if err != nil {
+		log.Errorf("Error decoding aciGw create request. Err %v", err)
+		return nil, err
+	}
+
+	// set the key
+	obj.Key = key
+
+	// Create the object
+	err = CreateAciGw(&obj)
+	if err != nil {
+		log.Errorf("CreateAciGw error for: %+v. Err: %v", obj, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return obj, nil
+}
+
+// DELETE rest call
+func httpDeleteAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	log.Debugf("Received httpDeleteAciGw: %+v", vars)
+
+	key := vars["key"]
+
+	// Delete the object
+	err := DeleteAciGw(key)
+	if err != nil {
+		log.Errorf("DeleteAciGw error for: %s. Err: %v", key, err)
+		return nil, err
+	}
+
+	// Return the obj
+	return key, nil
+}
+
+// Create a aciGw object
+func CreateAciGw(obj *AciGw) error {
+	// Validate parameters
+	err := ValidateAciGw(obj)
+	if err != nil {
+		log.Errorf("ValidateAciGw retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.AciGwCb == nil {
+		log.Errorf("No callback registered for aciGw object")
+		return errors.New("Invalid object type")
+	}
+
+	saveObj := obj
+
+	collections.aciGwMutex.Lock()
+	key := collections.aciGws[obj.Key]
+	collections.aciGwMutex.Unlock()
+
+	// Check if object already exists
+	if key != nil {
+		// Perform Update callback
+		err = objCallbackHandler.AciGwCb.AciGwUpdate(collections.aciGws[obj.Key], obj)
+		if err != nil {
+			log.Errorf("AciGwUpdate retruned error for: %+v. Err: %v", obj, err)
+			return err
+		}
+
+		// save the original object after update
+		collections.aciGwMutex.Lock()
+		saveObj = collections.aciGws[obj.Key]
+		collections.aciGwMutex.Unlock()
+	} else {
+		// save it in cache
+		collections.aciGwMutex.Lock()
+		collections.aciGws[obj.Key] = obj
+		collections.aciGwMutex.Unlock()
+
+		// Perform Create callback
+		err = objCallbackHandler.AciGwCb.AciGwCreate(obj)
+		if err != nil {
+			log.Errorf("AciGwCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.aciGwMutex.Lock()
+			delete(collections.aciGws, obj.Key)
+			collections.aciGwMutex.Unlock()
+			return err
+		}
+	}
+
+	// Write it to modeldb
+	collections.aciGwMutex.Lock()
+	err = saveObj.Write()
+	collections.aciGwMutex.Unlock()
+	if err != nil {
+		log.Errorf("Error saving aciGw %s to db. Err: %v", saveObj.Key, err)
+		return err
+	}
+
+	return nil
+}
+
+// Return a pointer to aciGw from collection
+func FindAciGw(key string) *AciGw {
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+
+	obj := collections.aciGws[key]
+	if obj == nil {
+		return nil
+	}
+
+	return obj
+}
+
+// Delete a aciGw object
+func DeleteAciGw(key string) error {
+	collections.aciGwMutex.Lock()
+	obj := collections.aciGws[key]
+	collections.aciGwMutex.Unlock()
+	if obj == nil {
+		log.Errorf("aciGw %s not found", key)
+		return errors.New("aciGw not found")
+	}
+
+	// Check if we handle this object
+	if objCallbackHandler.AciGwCb == nil {
+		log.Errorf("No callback registered for aciGw object")
+		return errors.New("Invalid object type")
+	}
+
+	// Perform callback
+	err := objCallbackHandler.AciGwCb.AciGwDelete(obj)
+	if err != nil {
+		log.Errorf("AciGwDelete retruned error for: %+v. Err: %v", obj, err)
+		return err
+	}
+
+	// delete it from modeldb
+	collections.aciGwMutex.Lock()
+	err = obj.Delete()
+	collections.aciGwMutex.Unlock()
+	if err != nil {
+		log.Errorf("Error deleting aciGw %s. Err: %v", obj.Key, err)
+	}
+
+	// delete it from cache
+	collections.aciGwMutex.Lock()
+	delete(collections.aciGws, key)
+	collections.aciGwMutex.Unlock()
+
+	return nil
+}
+
+func (self *AciGw) GetType() string {
+	return "aciGw"
+}
+
+func (self *AciGw) GetKey() string {
+	return self.Key
+}
+
+func (self *AciGw) Read() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to read aciGw object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.ReadObj("aciGw", self.Key, self)
+}
+
+func (self *AciGw) Write() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Write aciGw object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.WriteObj("aciGw", self.Key, self)
+}
+
+func (self *AciGw) Delete() error {
+	if self.Key == "" {
+		log.Errorf("Empty key while trying to Delete aciGw object")
+		return errors.New("Empty key")
+	}
+
+	return modeldb.DeleteObj("aciGw", self.Key)
+}
+
+func restoreAciGw() error {
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+
+	strList, err := modeldb.ReadAllObj("aciGw")
+	if err != nil {
+		log.Errorf("Error reading aciGw list. Err: %v", err)
+	}
+
+	for _, objStr := range strList {
+		// Parse the json model
+		var aciGw AciGw
+		err = json.Unmarshal([]byte(objStr), &aciGw)
+		if err != nil {
+			log.Errorf("Error parsing object %s, Err %v", objStr, err)
+			return err
+		}
+
+		// add it to the collection
+		collections.aciGws[aciGw.Key] = &aciGw
+	}
+
+	return nil
+}
+
+// Validate a aciGw object
+func ValidateAciGw(obj *AciGw) error {
+	collections.aciGwMutex.Lock()
+	defer collections.aciGwMutex.Unlock()
+
+	// Validate key is correct
+	keyStr := obj.Name
+	if obj.Key != keyStr {
+		log.Errorf("Expecting AciGw Key: %s. Got: %s", keyStr, obj.Key)
+		return errors.New("Invalid Key")
+	}
+
+	// Validate each field
+
+	if len(obj.EnforcePolicies) > 64 {
+		return errors.New("enforcePolicies string too long")
+	}
+
+	enforcePoliciesMatch := regexp.MustCompile("^(yes|no){1}$")
+	if enforcePoliciesMatch.MatchString(obj.EnforcePolicies) == false {
+		return errors.New("enforcePolicies string invalid format")
+	}
+
+	if len(obj.IncludeCommonTenant) > 64 {
+		return errors.New("includeCommonTenant string too long")
+	}
+
+	includeCommonTenantMatch := regexp.MustCompile("^(yes|no){1}$")
+	if includeCommonTenantMatch.MatchString(obj.IncludeCommonTenant) == false {
+		return errors.New("includeCommonTenant string invalid format")
+	}
+
+	if len(obj.Name) > 64 {
+		return errors.New("name string too long")
+	}
+
+	nameMatch := regexp.MustCompile("^(aciGw)$")
+	if nameMatch.MatchString(obj.Name) == false {
+		return errors.New("name string invalid format")
+	}
+
+	if len(obj.NodeBindings) > 2048 {
+		return errors.New("nodeBindings string too long")
+	}
+
+	nodeBindingsMatch := regexp.MustCompile("^$|^(topology/pod-[0-9]{1,4}/node-[0-9]{1,4}){1}(,topology/pod-[0-9]{1,4}/node-[0-9]{1,4})?$")
+	if nodeBindingsMatch.MatchString(obj.NodeBindings) == false {
+		return errors.New("nodeBindings string invalid format")
+	}
+
+	if len(obj.PathBindings) > 2048 {
+		return errors.New("pathBindings string too long")
+	}
+
+	pathBindingsMatch := regexp.MustCompile("^$|^(topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\[eth[0-9]{1,2}/[0-9]{1,2}\\]){1}(,topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\[eth[0-9]{1,2}/[0-9]{1,2}\\])?$")
+	if pathBindingsMatch.MatchString(obj.PathBindings) == false {
+		return errors.New("pathBindings string invalid format")
+	}
+
+	if len(obj.PhysicalDomain) > 128 {
+		return errors.New("physicalDomain string too long")
+	}
+
+	physicalDomainMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
+	if physicalDomainMatch.MatchString(obj.PhysicalDomain) == false {
+		return errors.New("physicalDomain string invalid format")
+	}
+
+	return nil
+}
+
+// GET Oper REST call
 func httpInspectAppProfile(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 	var obj AppProfileInspect
 	log.Debugf("Received httpInspectAppProfile: %+v", vars)
 
 	key := vars["key"]
 
+	collections.appProfileMutex.Lock()
+	defer collections.appProfileMutex.Unlock()
 	objConfig := collections.appProfiles[key]
 	if objConfig == nil {
 		log.Errorf("appProfile %s not found", key)
@@ -917,6 +1458,8 @@ func httpListAppProfiles(w http.ResponseWriter, r *http.Request, vars map[string
 	log.Debugf("Received httpListAppProfiles: %+v", vars)
 
 	list := make([]*AppProfile, 0)
+	collections.appProfileMutex.Lock()
+	defer collections.appProfileMutex.Unlock()
 	for _, obj := range collections.appProfiles {
 		list = append(list, obj)
 	}
@@ -931,6 +1474,8 @@ func httpGetAppProfile(w http.ResponseWriter, r *http.Request, vars map[string]s
 
 	key := vars["key"]
 
+	collections.appProfileMutex.Lock()
+	defer collections.appProfileMutex.Unlock()
 	obj := collections.appProfiles[key]
 	if obj == nil {
 		log.Errorf("appProfile %s not found", key)
@@ -1003,8 +1548,12 @@ func CreateAppProfile(obj *AppProfile) error {
 
 	saveObj := obj
 
+	collections.appProfileMutex.Lock()
+	key := collections.appProfiles[obj.Key]
+	collections.appProfileMutex.Unlock()
+
 	// Check if object already exists
-	if collections.appProfiles[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.AppProfileCb.AppProfileUpdate(collections.appProfiles[obj.Key], obj)
 		if err != nil {
@@ -1013,22 +1562,30 @@ func CreateAppProfile(obj *AppProfile) error {
 		}
 
 		// save the original object after update
+		collections.appProfileMutex.Lock()
 		saveObj = collections.appProfiles[obj.Key]
+		collections.appProfileMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.appProfileMutex.Lock()
 		collections.appProfiles[obj.Key] = obj
+		collections.appProfileMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.AppProfileCb.AppProfileCreate(obj)
 		if err != nil {
 			log.Errorf("AppProfileCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.appProfileMutex.Lock()
 			delete(collections.appProfiles, obj.Key)
+			collections.appProfileMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.appProfileMutex.Lock()
 	err = saveObj.Write()
+	collections.appProfileMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving appProfile %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -1039,6 +1596,9 @@ func CreateAppProfile(obj *AppProfile) error {
 
 // Return a pointer to appProfile from collection
 func FindAppProfile(key string) *AppProfile {
+	collections.appProfileMutex.Lock()
+	defer collections.appProfileMutex.Unlock()
+
 	obj := collections.appProfiles[key]
 	if obj == nil {
 		return nil
@@ -1049,7 +1609,9 @@ func FindAppProfile(key string) *AppProfile {
 
 // Delete a appProfile object
 func DeleteAppProfile(key string) error {
+	collections.appProfileMutex.Lock()
 	obj := collections.appProfiles[key]
+	collections.appProfileMutex.Unlock()
 	if obj == nil {
 		log.Errorf("appProfile %s not found", key)
 		return errors.New("appProfile not found")
@@ -1069,13 +1631,17 @@ func DeleteAppProfile(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.appProfileMutex.Lock()
 	err = obj.Delete()
+	collections.appProfileMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting appProfile %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.appProfileMutex.Lock()
 	delete(collections.appProfiles, key)
+	collections.appProfileMutex.Unlock()
 
 	return nil
 }
@@ -1116,6 +1682,9 @@ func (self *AppProfile) Delete() error {
 }
 
 func restoreAppProfile() error {
+	collections.appProfileMutex.Lock()
+	defer collections.appProfileMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("appProfile")
 	if err != nil {
 		log.Errorf("Error reading appProfile list. Err: %v", err)
@@ -1139,6 +1708,9 @@ func restoreAppProfile() error {
 
 // Validate a appProfile object
 func ValidateAppProfile(obj *AppProfile) error {
+	collections.appProfileMutex.Lock()
+	defer collections.appProfileMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.AppProfileName
 	if obj.Key != keyStr {
@@ -1176,6 +1748,8 @@ func httpInspectBgp(w http.ResponseWriter, r *http.Request, vars map[string]stri
 
 	key := vars["key"]
 
+	collections.BgpMutex.Lock()
+	defer collections.BgpMutex.Unlock()
 	objConfig := collections.Bgps[key]
 	if objConfig == nil {
 		log.Errorf("Bgp %s not found", key)
@@ -1215,6 +1789,8 @@ func httpListBgps(w http.ResponseWriter, r *http.Request, vars map[string]string
 	log.Debugf("Received httpListBgps: %+v", vars)
 
 	list := make([]*Bgp, 0)
+	collections.BgpMutex.Lock()
+	defer collections.BgpMutex.Unlock()
 	for _, obj := range collections.Bgps {
 		list = append(list, obj)
 	}
@@ -1229,6 +1805,8 @@ func httpGetBgp(w http.ResponseWriter, r *http.Request, vars map[string]string) 
 
 	key := vars["key"]
 
+	collections.BgpMutex.Lock()
+	defer collections.BgpMutex.Unlock()
 	obj := collections.Bgps[key]
 	if obj == nil {
 		log.Errorf("Bgp %s not found", key)
@@ -1301,8 +1879,12 @@ func CreateBgp(obj *Bgp) error {
 
 	saveObj := obj
 
+	collections.BgpMutex.Lock()
+	key := collections.Bgps[obj.Key]
+	collections.BgpMutex.Unlock()
+
 	// Check if object already exists
-	if collections.Bgps[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.BgpCb.BgpUpdate(collections.Bgps[obj.Key], obj)
 		if err != nil {
@@ -1311,22 +1893,30 @@ func CreateBgp(obj *Bgp) error {
 		}
 
 		// save the original object after update
+		collections.BgpMutex.Lock()
 		saveObj = collections.Bgps[obj.Key]
+		collections.BgpMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.BgpMutex.Lock()
 		collections.Bgps[obj.Key] = obj
+		collections.BgpMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.BgpCb.BgpCreate(obj)
 		if err != nil {
 			log.Errorf("BgpCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.BgpMutex.Lock()
 			delete(collections.Bgps, obj.Key)
+			collections.BgpMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.BgpMutex.Lock()
 	err = saveObj.Write()
+	collections.BgpMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving Bgp %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -1337,6 +1927,9 @@ func CreateBgp(obj *Bgp) error {
 
 // Return a pointer to Bgp from collection
 func FindBgp(key string) *Bgp {
+	collections.BgpMutex.Lock()
+	defer collections.BgpMutex.Unlock()
+
 	obj := collections.Bgps[key]
 	if obj == nil {
 		return nil
@@ -1347,7 +1940,9 @@ func FindBgp(key string) *Bgp {
 
 // Delete a Bgp object
 func DeleteBgp(key string) error {
+	collections.BgpMutex.Lock()
 	obj := collections.Bgps[key]
+	collections.BgpMutex.Unlock()
 	if obj == nil {
 		log.Errorf("Bgp %s not found", key)
 		return errors.New("Bgp not found")
@@ -1367,13 +1962,17 @@ func DeleteBgp(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.BgpMutex.Lock()
 	err = obj.Delete()
+	collections.BgpMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting Bgp %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.BgpMutex.Lock()
 	delete(collections.Bgps, key)
+	collections.BgpMutex.Unlock()
 
 	return nil
 }
@@ -1414,6 +2013,9 @@ func (self *Bgp) Delete() error {
 }
 
 func restoreBgp() error {
+	collections.BgpMutex.Lock()
+	defer collections.BgpMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("Bgp")
 	if err != nil {
 		log.Errorf("Error reading Bgp list. Err: %v", err)
@@ -1437,6 +2039,9 @@ func restoreBgp() error {
 
 // Validate a Bgp object
 func ValidateBgp(obj *Bgp) error {
+	collections.BgpMutex.Lock()
+	defer collections.BgpMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.Hostname
 	if obj.Key != keyStr {
@@ -1470,10 +2075,6 @@ func ValidateBgp(obj *Bgp) error {
 
 	if len(obj.NeighborAs) > 64 {
 		return errors.New("neighbor-as string too long")
-	}
-
-	if len(obj.Routerip) > 15 {
-		return errors.New("routerip string too long")
 	}
 
 	routeripMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?/(3[0-1]|2[0-9]|1[0-9]|[1-9])$")
@@ -1525,6 +2126,8 @@ func httpInspectEndpointGroup(w http.ResponseWriter, r *http.Request, vars map[s
 
 	key := vars["key"]
 
+	collections.endpointGroupMutex.Lock()
+	defer collections.endpointGroupMutex.Unlock()
 	objConfig := collections.endpointGroups[key]
 	if objConfig == nil {
 		log.Errorf("endpointGroup %s not found", key)
@@ -1564,6 +2167,8 @@ func httpListEndpointGroups(w http.ResponseWriter, r *http.Request, vars map[str
 	log.Debugf("Received httpListEndpointGroups: %+v", vars)
 
 	list := make([]*EndpointGroup, 0)
+	collections.endpointGroupMutex.Lock()
+	defer collections.endpointGroupMutex.Unlock()
 	for _, obj := range collections.endpointGroups {
 		list = append(list, obj)
 	}
@@ -1578,6 +2183,8 @@ func httpGetEndpointGroup(w http.ResponseWriter, r *http.Request, vars map[strin
 
 	key := vars["key"]
 
+	collections.endpointGroupMutex.Lock()
+	defer collections.endpointGroupMutex.Unlock()
 	obj := collections.endpointGroups[key]
 	if obj == nil {
 		log.Errorf("endpointGroup %s not found", key)
@@ -1650,8 +2257,12 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 
 	saveObj := obj
 
+	collections.endpointGroupMutex.Lock()
+	key := collections.endpointGroups[obj.Key]
+	collections.endpointGroupMutex.Unlock()
+
 	// Check if object already exists
-	if collections.endpointGroups[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.EndpointGroupCb.EndpointGroupUpdate(collections.endpointGroups[obj.Key], obj)
 		if err != nil {
@@ -1660,22 +2271,30 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 		}
 
 		// save the original object after update
+		collections.endpointGroupMutex.Lock()
 		saveObj = collections.endpointGroups[obj.Key]
+		collections.endpointGroupMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.endpointGroupMutex.Lock()
 		collections.endpointGroups[obj.Key] = obj
+		collections.endpointGroupMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.EndpointGroupCb.EndpointGroupCreate(obj)
 		if err != nil {
 			log.Errorf("EndpointGroupCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.endpointGroupMutex.Lock()
 			delete(collections.endpointGroups, obj.Key)
+			collections.endpointGroupMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.endpointGroupMutex.Lock()
 	err = saveObj.Write()
+	collections.endpointGroupMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving endpointGroup %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -1686,6 +2305,9 @@ func CreateEndpointGroup(obj *EndpointGroup) error {
 
 // Return a pointer to endpointGroup from collection
 func FindEndpointGroup(key string) *EndpointGroup {
+	collections.endpointGroupMutex.Lock()
+	defer collections.endpointGroupMutex.Unlock()
+
 	obj := collections.endpointGroups[key]
 	if obj == nil {
 		return nil
@@ -1696,7 +2318,9 @@ func FindEndpointGroup(key string) *EndpointGroup {
 
 // Delete a endpointGroup object
 func DeleteEndpointGroup(key string) error {
+	collections.endpointGroupMutex.Lock()
 	obj := collections.endpointGroups[key]
+	collections.endpointGroupMutex.Unlock()
 	if obj == nil {
 		log.Errorf("endpointGroup %s not found", key)
 		return errors.New("endpointGroup not found")
@@ -1716,13 +2340,17 @@ func DeleteEndpointGroup(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.endpointGroupMutex.Lock()
 	err = obj.Delete()
+	collections.endpointGroupMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting endpointGroup %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.endpointGroupMutex.Lock()
 	delete(collections.endpointGroups, key)
+	collections.endpointGroupMutex.Unlock()
 
 	return nil
 }
@@ -1763,6 +2391,9 @@ func (self *EndpointGroup) Delete() error {
 }
 
 func restoreEndpointGroup() error {
+	collections.endpointGroupMutex.Lock()
+	defer collections.endpointGroupMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("endpointGroup")
 	if err != nil {
 		log.Errorf("Error reading endpointGroup list. Err: %v", err)
@@ -1786,6 +2417,9 @@ func restoreEndpointGroup() error {
 
 // Validate a endpointGroup object
 func ValidateEndpointGroup(obj *EndpointGroup) error {
+	collections.endpointGroupMutex.Lock()
+	defer collections.endpointGroupMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.GroupName
 	if obj.Key != keyStr {
@@ -1802,6 +2436,11 @@ func ValidateEndpointGroup(obj *EndpointGroup) error {
 	groupNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
 	if groupNameMatch.MatchString(obj.GroupName) == false {
 		return errors.New("groupName string invalid format")
+	}
+
+	ipPoolMatch := regexp.MustCompile("^$|^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\-((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))?$")
+	if ipPoolMatch.MatchString(obj.IpPool) == false {
+		return errors.New("ipPool string invalid format")
 	}
 
 	if len(obj.NetProfile) > 64 {
@@ -1836,6 +2475,8 @@ func httpInspectExtContractsGroup(w http.ResponseWriter, r *http.Request, vars m
 
 	key := vars["key"]
 
+	collections.extContractsGroupMutex.Lock()
+	defer collections.extContractsGroupMutex.Unlock()
 	objConfig := collections.extContractsGroups[key]
 	if objConfig == nil {
 		log.Errorf("extContractsGroup %s not found", key)
@@ -1852,6 +2493,8 @@ func httpListExtContractsGroups(w http.ResponseWriter, r *http.Request, vars map
 	log.Debugf("Received httpListExtContractsGroups: %+v", vars)
 
 	list := make([]*ExtContractsGroup, 0)
+	collections.extContractsGroupMutex.Lock()
+	defer collections.extContractsGroupMutex.Unlock()
 	for _, obj := range collections.extContractsGroups {
 		list = append(list, obj)
 	}
@@ -1866,6 +2509,8 @@ func httpGetExtContractsGroup(w http.ResponseWriter, r *http.Request, vars map[s
 
 	key := vars["key"]
 
+	collections.extContractsGroupMutex.Lock()
+	defer collections.extContractsGroupMutex.Unlock()
 	obj := collections.extContractsGroups[key]
 	if obj == nil {
 		log.Errorf("extContractsGroup %s not found", key)
@@ -1938,8 +2583,12 @@ func CreateExtContractsGroup(obj *ExtContractsGroup) error {
 
 	saveObj := obj
 
+	collections.extContractsGroupMutex.Lock()
+	key := collections.extContractsGroups[obj.Key]
+	collections.extContractsGroupMutex.Unlock()
+
 	// Check if object already exists
-	if collections.extContractsGroups[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.ExtContractsGroupCb.ExtContractsGroupUpdate(collections.extContractsGroups[obj.Key], obj)
 		if err != nil {
@@ -1948,22 +2597,30 @@ func CreateExtContractsGroup(obj *ExtContractsGroup) error {
 		}
 
 		// save the original object after update
+		collections.extContractsGroupMutex.Lock()
 		saveObj = collections.extContractsGroups[obj.Key]
+		collections.extContractsGroupMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.extContractsGroupMutex.Lock()
 		collections.extContractsGroups[obj.Key] = obj
+		collections.extContractsGroupMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.ExtContractsGroupCb.ExtContractsGroupCreate(obj)
 		if err != nil {
 			log.Errorf("ExtContractsGroupCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.extContractsGroupMutex.Lock()
 			delete(collections.extContractsGroups, obj.Key)
+			collections.extContractsGroupMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.extContractsGroupMutex.Lock()
 	err = saveObj.Write()
+	collections.extContractsGroupMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving extContractsGroup %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -1974,6 +2631,9 @@ func CreateExtContractsGroup(obj *ExtContractsGroup) error {
 
 // Return a pointer to extContractsGroup from collection
 func FindExtContractsGroup(key string) *ExtContractsGroup {
+	collections.extContractsGroupMutex.Lock()
+	defer collections.extContractsGroupMutex.Unlock()
+
 	obj := collections.extContractsGroups[key]
 	if obj == nil {
 		return nil
@@ -1984,7 +2644,9 @@ func FindExtContractsGroup(key string) *ExtContractsGroup {
 
 // Delete a extContractsGroup object
 func DeleteExtContractsGroup(key string) error {
+	collections.extContractsGroupMutex.Lock()
 	obj := collections.extContractsGroups[key]
+	collections.extContractsGroupMutex.Unlock()
 	if obj == nil {
 		log.Errorf("extContractsGroup %s not found", key)
 		return errors.New("extContractsGroup not found")
@@ -2004,13 +2666,17 @@ func DeleteExtContractsGroup(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.extContractsGroupMutex.Lock()
 	err = obj.Delete()
+	collections.extContractsGroupMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting extContractsGroup %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.extContractsGroupMutex.Lock()
 	delete(collections.extContractsGroups, key)
+	collections.extContractsGroupMutex.Unlock()
 
 	return nil
 }
@@ -2051,6 +2717,9 @@ func (self *ExtContractsGroup) Delete() error {
 }
 
 func restoreExtContractsGroup() error {
+	collections.extContractsGroupMutex.Lock()
+	defer collections.extContractsGroupMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("extContractsGroup")
 	if err != nil {
 		log.Errorf("Error reading extContractsGroup list. Err: %v", err)
@@ -2074,6 +2743,9 @@ func restoreExtContractsGroup() error {
 
 // Validate a extContractsGroup object
 func ValidateExtContractsGroup(obj *ExtContractsGroup) error {
+	collections.extContractsGroupMutex.Lock()
+	defer collections.extContractsGroupMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.ContractsGroupName
 	if obj.Key != keyStr {
@@ -2111,6 +2783,8 @@ func httpInspectGlobal(w http.ResponseWriter, r *http.Request, vars map[string]s
 
 	key := vars["key"]
 
+	collections.globalMutex.Lock()
+	defer collections.globalMutex.Unlock()
 	objConfig := collections.globals[key]
 	if objConfig == nil {
 		log.Errorf("global %s not found", key)
@@ -2150,6 +2824,8 @@ func httpListGlobals(w http.ResponseWriter, r *http.Request, vars map[string]str
 	log.Debugf("Received httpListGlobals: %+v", vars)
 
 	list := make([]*Global, 0)
+	collections.globalMutex.Lock()
+	defer collections.globalMutex.Unlock()
 	for _, obj := range collections.globals {
 		list = append(list, obj)
 	}
@@ -2164,6 +2840,8 @@ func httpGetGlobal(w http.ResponseWriter, r *http.Request, vars map[string]strin
 
 	key := vars["key"]
 
+	collections.globalMutex.Lock()
+	defer collections.globalMutex.Unlock()
 	obj := collections.globals[key]
 	if obj == nil {
 		log.Errorf("global %s not found", key)
@@ -2236,8 +2914,12 @@ func CreateGlobal(obj *Global) error {
 
 	saveObj := obj
 
+	collections.globalMutex.Lock()
+	key := collections.globals[obj.Key]
+	collections.globalMutex.Unlock()
+
 	// Check if object already exists
-	if collections.globals[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.GlobalCb.GlobalUpdate(collections.globals[obj.Key], obj)
 		if err != nil {
@@ -2246,22 +2928,30 @@ func CreateGlobal(obj *Global) error {
 		}
 
 		// save the original object after update
+		collections.globalMutex.Lock()
 		saveObj = collections.globals[obj.Key]
+		collections.globalMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.globalMutex.Lock()
 		collections.globals[obj.Key] = obj
+		collections.globalMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.GlobalCb.GlobalCreate(obj)
 		if err != nil {
 			log.Errorf("GlobalCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.globalMutex.Lock()
 			delete(collections.globals, obj.Key)
+			collections.globalMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.globalMutex.Lock()
 	err = saveObj.Write()
+	collections.globalMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving global %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -2272,6 +2962,9 @@ func CreateGlobal(obj *Global) error {
 
 // Return a pointer to global from collection
 func FindGlobal(key string) *Global {
+	collections.globalMutex.Lock()
+	defer collections.globalMutex.Unlock()
+
 	obj := collections.globals[key]
 	if obj == nil {
 		return nil
@@ -2282,7 +2975,9 @@ func FindGlobal(key string) *Global {
 
 // Delete a global object
 func DeleteGlobal(key string) error {
+	collections.globalMutex.Lock()
 	obj := collections.globals[key]
+	collections.globalMutex.Unlock()
 	if obj == nil {
 		log.Errorf("global %s not found", key)
 		return errors.New("global not found")
@@ -2302,13 +2997,17 @@ func DeleteGlobal(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.globalMutex.Lock()
 	err = obj.Delete()
+	collections.globalMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting global %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.globalMutex.Lock()
 	delete(collections.globals, key)
+	collections.globalMutex.Unlock()
 
 	return nil
 }
@@ -2349,6 +3048,9 @@ func (self *Global) Delete() error {
 }
 
 func restoreGlobal() error {
+	collections.globalMutex.Lock()
+	defer collections.globalMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("global")
 	if err != nil {
 		log.Errorf("Error reading global list. Err: %v", err)
@@ -2372,6 +3074,9 @@ func restoreGlobal() error {
 
 // Validate a global object
 func ValidateGlobal(obj *Global) error {
+	collections.globalMutex.Lock()
+	defer collections.globalMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.Name
 	if obj.Key != keyStr {
@@ -2380,6 +3085,15 @@ func ValidateGlobal(obj *Global) error {
 	}
 
 	// Validate each field
+
+	if len(obj.ArpMode) > 64 {
+		return errors.New("arpMode string too long")
+	}
+
+	arpModeMatch := regexp.MustCompile("^(proxy|flood)?$")
+	if arpModeMatch.MatchString(obj.ArpMode) == false {
+		return errors.New("arpMode string invalid format")
+	}
 
 	if len(obj.FwdMode) > 64 {
 		return errors.New("fwdMode string too long")
@@ -2408,6 +3122,11 @@ func ValidateGlobal(obj *Global) error {
 		return errors.New("networkInfraType string invalid format")
 	}
 
+	pvtSubnetMatch := regexp.MustCompile("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})/16$")
+	if pvtSubnetMatch.MatchString(obj.PvtSubnet) == false {
+		return errors.New("pvtSubnet string invalid format")
+	}
+
 	vlansMatch := regexp.MustCompile("^([0-9]{1,4}?-[0-9]{1,4}?)$")
 	if vlansMatch.MatchString(obj.Vlans) == false {
 		return errors.New("vlans string invalid format")
@@ -2428,6 +3147,8 @@ func httpInspectNetprofile(w http.ResponseWriter, r *http.Request, vars map[stri
 
 	key := vars["key"]
 
+	collections.netprofileMutex.Lock()
+	defer collections.netprofileMutex.Unlock()
 	objConfig := collections.netprofiles[key]
 	if objConfig == nil {
 		log.Errorf("netprofile %s not found", key)
@@ -2444,6 +3165,8 @@ func httpListNetprofiles(w http.ResponseWriter, r *http.Request, vars map[string
 	log.Debugf("Received httpListNetprofiles: %+v", vars)
 
 	list := make([]*Netprofile, 0)
+	collections.netprofileMutex.Lock()
+	defer collections.netprofileMutex.Unlock()
 	for _, obj := range collections.netprofiles {
 		list = append(list, obj)
 	}
@@ -2458,6 +3181,8 @@ func httpGetNetprofile(w http.ResponseWriter, r *http.Request, vars map[string]s
 
 	key := vars["key"]
 
+	collections.netprofileMutex.Lock()
+	defer collections.netprofileMutex.Unlock()
 	obj := collections.netprofiles[key]
 	if obj == nil {
 		log.Errorf("netprofile %s not found", key)
@@ -2530,8 +3255,12 @@ func CreateNetprofile(obj *Netprofile) error {
 
 	saveObj := obj
 
+	collections.netprofileMutex.Lock()
+	key := collections.netprofiles[obj.Key]
+	collections.netprofileMutex.Unlock()
+
 	// Check if object already exists
-	if collections.netprofiles[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.NetprofileCb.NetprofileUpdate(collections.netprofiles[obj.Key], obj)
 		if err != nil {
@@ -2540,22 +3269,30 @@ func CreateNetprofile(obj *Netprofile) error {
 		}
 
 		// save the original object after update
+		collections.netprofileMutex.Lock()
 		saveObj = collections.netprofiles[obj.Key]
+		collections.netprofileMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.netprofileMutex.Lock()
 		collections.netprofiles[obj.Key] = obj
+		collections.netprofileMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.NetprofileCb.NetprofileCreate(obj)
 		if err != nil {
 			log.Errorf("NetprofileCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.netprofileMutex.Lock()
 			delete(collections.netprofiles, obj.Key)
+			collections.netprofileMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.netprofileMutex.Lock()
 	err = saveObj.Write()
+	collections.netprofileMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving netprofile %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -2566,6 +3303,9 @@ func CreateNetprofile(obj *Netprofile) error {
 
 // Return a pointer to netprofile from collection
 func FindNetprofile(key string) *Netprofile {
+	collections.netprofileMutex.Lock()
+	defer collections.netprofileMutex.Unlock()
+
 	obj := collections.netprofiles[key]
 	if obj == nil {
 		return nil
@@ -2576,7 +3316,9 @@ func FindNetprofile(key string) *Netprofile {
 
 // Delete a netprofile object
 func DeleteNetprofile(key string) error {
+	collections.netprofileMutex.Lock()
 	obj := collections.netprofiles[key]
+	collections.netprofileMutex.Unlock()
 	if obj == nil {
 		log.Errorf("netprofile %s not found", key)
 		return errors.New("netprofile not found")
@@ -2596,13 +3338,17 @@ func DeleteNetprofile(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.netprofileMutex.Lock()
 	err = obj.Delete()
+	collections.netprofileMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting netprofile %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.netprofileMutex.Lock()
 	delete(collections.netprofiles, key)
+	collections.netprofileMutex.Unlock()
 
 	return nil
 }
@@ -2643,6 +3389,9 @@ func (self *Netprofile) Delete() error {
 }
 
 func restoreNetprofile() error {
+	collections.netprofileMutex.Lock()
+	defer collections.netprofileMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("netprofile")
 	if err != nil {
 		log.Errorf("Error reading netprofile list. Err: %v", err)
@@ -2666,6 +3415,9 @@ func restoreNetprofile() error {
 
 // Validate a netprofile object
 func ValidateNetprofile(obj *Netprofile) error {
+	collections.netprofileMutex.Lock()
+	defer collections.netprofileMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.ProfileName
 	if obj.Key != keyStr {
@@ -2710,6 +3462,8 @@ func httpInspectNetwork(w http.ResponseWriter, r *http.Request, vars map[string]
 
 	key := vars["key"]
 
+	collections.networkMutex.Lock()
+	defer collections.networkMutex.Unlock()
 	objConfig := collections.networks[key]
 	if objConfig == nil {
 		log.Errorf("network %s not found", key)
@@ -2749,6 +3503,8 @@ func httpListNetworks(w http.ResponseWriter, r *http.Request, vars map[string]st
 	log.Debugf("Received httpListNetworks: %+v", vars)
 
 	list := make([]*Network, 0)
+	collections.networkMutex.Lock()
+	defer collections.networkMutex.Unlock()
 	for _, obj := range collections.networks {
 		list = append(list, obj)
 	}
@@ -2763,6 +3519,8 @@ func httpGetNetwork(w http.ResponseWriter, r *http.Request, vars map[string]stri
 
 	key := vars["key"]
 
+	collections.networkMutex.Lock()
+	defer collections.networkMutex.Unlock()
 	obj := collections.networks[key]
 	if obj == nil {
 		log.Errorf("network %s not found", key)
@@ -2835,8 +3593,12 @@ func CreateNetwork(obj *Network) error {
 
 	saveObj := obj
 
+	collections.networkMutex.Lock()
+	key := collections.networks[obj.Key]
+	collections.networkMutex.Unlock()
+
 	// Check if object already exists
-	if collections.networks[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.NetworkCb.NetworkUpdate(collections.networks[obj.Key], obj)
 		if err != nil {
@@ -2845,22 +3607,30 @@ func CreateNetwork(obj *Network) error {
 		}
 
 		// save the original object after update
+		collections.networkMutex.Lock()
 		saveObj = collections.networks[obj.Key]
+		collections.networkMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.networkMutex.Lock()
 		collections.networks[obj.Key] = obj
+		collections.networkMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.NetworkCb.NetworkCreate(obj)
 		if err != nil {
 			log.Errorf("NetworkCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.networkMutex.Lock()
 			delete(collections.networks, obj.Key)
+			collections.networkMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.networkMutex.Lock()
 	err = saveObj.Write()
+	collections.networkMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving network %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -2871,6 +3641,9 @@ func CreateNetwork(obj *Network) error {
 
 // Return a pointer to network from collection
 func FindNetwork(key string) *Network {
+	collections.networkMutex.Lock()
+	defer collections.networkMutex.Unlock()
+
 	obj := collections.networks[key]
 	if obj == nil {
 		return nil
@@ -2881,7 +3654,9 @@ func FindNetwork(key string) *Network {
 
 // Delete a network object
 func DeleteNetwork(key string) error {
+	collections.networkMutex.Lock()
 	obj := collections.networks[key]
+	collections.networkMutex.Unlock()
 	if obj == nil {
 		log.Errorf("network %s not found", key)
 		return errors.New("network not found")
@@ -2901,13 +3676,17 @@ func DeleteNetwork(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.networkMutex.Lock()
 	err = obj.Delete()
+	collections.networkMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting network %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.networkMutex.Lock()
 	delete(collections.networks, key)
+	collections.networkMutex.Unlock()
 
 	return nil
 }
@@ -2948,6 +3727,9 @@ func (self *Network) Delete() error {
 }
 
 func restoreNetwork() error {
+	collections.networkMutex.Lock()
+	defer collections.networkMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("network")
 	if err != nil {
 		log.Errorf("Error reading network list. Err: %v", err)
@@ -2971,6 +3753,9 @@ func restoreNetwork() error {
 
 // Validate a network object
 func ValidateNetwork(obj *Network) error {
+	collections.networkMutex.Lock()
+	defer collections.networkMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.NetworkName
 	if obj.Key != keyStr {
@@ -3046,6 +3831,8 @@ func httpInspectPolicy(w http.ResponseWriter, r *http.Request, vars map[string]s
 
 	key := vars["key"]
 
+	collections.policyMutex.Lock()
+	defer collections.policyMutex.Unlock()
 	objConfig := collections.policys[key]
 	if objConfig == nil {
 		log.Errorf("policy %s not found", key)
@@ -3085,6 +3872,8 @@ func httpListPolicys(w http.ResponseWriter, r *http.Request, vars map[string]str
 	log.Debugf("Received httpListPolicys: %+v", vars)
 
 	list := make([]*Policy, 0)
+	collections.policyMutex.Lock()
+	defer collections.policyMutex.Unlock()
 	for _, obj := range collections.policys {
 		list = append(list, obj)
 	}
@@ -3099,6 +3888,8 @@ func httpGetPolicy(w http.ResponseWriter, r *http.Request, vars map[string]strin
 
 	key := vars["key"]
 
+	collections.policyMutex.Lock()
+	defer collections.policyMutex.Unlock()
 	obj := collections.policys[key]
 	if obj == nil {
 		log.Errorf("policy %s not found", key)
@@ -3171,8 +3962,12 @@ func CreatePolicy(obj *Policy) error {
 
 	saveObj := obj
 
+	collections.policyMutex.Lock()
+	key := collections.policys[obj.Key]
+	collections.policyMutex.Unlock()
+
 	// Check if object already exists
-	if collections.policys[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.PolicyCb.PolicyUpdate(collections.policys[obj.Key], obj)
 		if err != nil {
@@ -3181,22 +3976,30 @@ func CreatePolicy(obj *Policy) error {
 		}
 
 		// save the original object after update
+		collections.policyMutex.Lock()
 		saveObj = collections.policys[obj.Key]
+		collections.policyMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.policyMutex.Lock()
 		collections.policys[obj.Key] = obj
+		collections.policyMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.PolicyCb.PolicyCreate(obj)
 		if err != nil {
 			log.Errorf("PolicyCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.policyMutex.Lock()
 			delete(collections.policys, obj.Key)
+			collections.policyMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.policyMutex.Lock()
 	err = saveObj.Write()
+	collections.policyMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving policy %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -3207,6 +4010,9 @@ func CreatePolicy(obj *Policy) error {
 
 // Return a pointer to policy from collection
 func FindPolicy(key string) *Policy {
+	collections.policyMutex.Lock()
+	defer collections.policyMutex.Unlock()
+
 	obj := collections.policys[key]
 	if obj == nil {
 		return nil
@@ -3217,7 +4023,9 @@ func FindPolicy(key string) *Policy {
 
 // Delete a policy object
 func DeletePolicy(key string) error {
+	collections.policyMutex.Lock()
 	obj := collections.policys[key]
+	collections.policyMutex.Unlock()
 	if obj == nil {
 		log.Errorf("policy %s not found", key)
 		return errors.New("policy not found")
@@ -3237,13 +4045,17 @@ func DeletePolicy(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.policyMutex.Lock()
 	err = obj.Delete()
+	collections.policyMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting policy %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.policyMutex.Lock()
 	delete(collections.policys, key)
+	collections.policyMutex.Unlock()
 
 	return nil
 }
@@ -3284,6 +4096,9 @@ func (self *Policy) Delete() error {
 }
 
 func restorePolicy() error {
+	collections.policyMutex.Lock()
+	defer collections.policyMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("policy")
 	if err != nil {
 		log.Errorf("Error reading policy list. Err: %v", err)
@@ -3307,6 +4122,9 @@ func restorePolicy() error {
 
 // Validate a policy object
 func ValidatePolicy(obj *Policy) error {
+	collections.policyMutex.Lock()
+	defer collections.policyMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.PolicyName
 	if obj.Key != keyStr {
@@ -3344,6 +4162,8 @@ func httpInspectRule(w http.ResponseWriter, r *http.Request, vars map[string]str
 
 	key := vars["key"]
 
+	collections.ruleMutex.Lock()
+	defer collections.ruleMutex.Unlock()
 	objConfig := collections.rules[key]
 	if objConfig == nil {
 		log.Errorf("rule %s not found", key)
@@ -3360,6 +4180,8 @@ func httpListRules(w http.ResponseWriter, r *http.Request, vars map[string]strin
 	log.Debugf("Received httpListRules: %+v", vars)
 
 	list := make([]*Rule, 0)
+	collections.ruleMutex.Lock()
+	defer collections.ruleMutex.Unlock()
 	for _, obj := range collections.rules {
 		list = append(list, obj)
 	}
@@ -3374,6 +4196,8 @@ func httpGetRule(w http.ResponseWriter, r *http.Request, vars map[string]string)
 
 	key := vars["key"]
 
+	collections.ruleMutex.Lock()
+	defer collections.ruleMutex.Unlock()
 	obj := collections.rules[key]
 	if obj == nil {
 		log.Errorf("rule %s not found", key)
@@ -3446,8 +4270,12 @@ func CreateRule(obj *Rule) error {
 
 	saveObj := obj
 
+	collections.ruleMutex.Lock()
+	key := collections.rules[obj.Key]
+	collections.ruleMutex.Unlock()
+
 	// Check if object already exists
-	if collections.rules[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.RuleCb.RuleUpdate(collections.rules[obj.Key], obj)
 		if err != nil {
@@ -3456,22 +4284,30 @@ func CreateRule(obj *Rule) error {
 		}
 
 		// save the original object after update
+		collections.ruleMutex.Lock()
 		saveObj = collections.rules[obj.Key]
+		collections.ruleMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.ruleMutex.Lock()
 		collections.rules[obj.Key] = obj
+		collections.ruleMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.RuleCb.RuleCreate(obj)
 		if err != nil {
 			log.Errorf("RuleCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.ruleMutex.Lock()
 			delete(collections.rules, obj.Key)
+			collections.ruleMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.ruleMutex.Lock()
 	err = saveObj.Write()
+	collections.ruleMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving rule %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -3482,6 +4318,9 @@ func CreateRule(obj *Rule) error {
 
 // Return a pointer to rule from collection
 func FindRule(key string) *Rule {
+	collections.ruleMutex.Lock()
+	defer collections.ruleMutex.Unlock()
+
 	obj := collections.rules[key]
 	if obj == nil {
 		return nil
@@ -3492,7 +4331,9 @@ func FindRule(key string) *Rule {
 
 // Delete a rule object
 func DeleteRule(key string) error {
+	collections.ruleMutex.Lock()
 	obj := collections.rules[key]
+	collections.ruleMutex.Unlock()
 	if obj == nil {
 		log.Errorf("rule %s not found", key)
 		return errors.New("rule not found")
@@ -3512,13 +4353,17 @@ func DeleteRule(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.ruleMutex.Lock()
 	err = obj.Delete()
+	collections.ruleMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting rule %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.ruleMutex.Lock()
 	delete(collections.rules, key)
+	collections.ruleMutex.Unlock()
 
 	return nil
 }
@@ -3559,6 +4404,9 @@ func (self *Rule) Delete() error {
 }
 
 func restoreRule() error {
+	collections.ruleMutex.Lock()
+	defer collections.ruleMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("rule")
 	if err != nil {
 		log.Errorf("Error reading rule list. Err: %v", err)
@@ -3582,6 +4430,9 @@ func restoreRule() error {
 
 // Validate a rule object
 func ValidateRule(obj *Rule) error {
+	collections.ruleMutex.Lock()
+	defer collections.ruleMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.PolicyName + ":" + obj.RuleID
 	if obj.Key != keyStr {
@@ -3705,6 +4556,8 @@ func httpInspectServiceLB(w http.ResponseWriter, r *http.Request, vars map[strin
 
 	key := vars["key"]
 
+	collections.serviceLBMutex.Lock()
+	defer collections.serviceLBMutex.Unlock()
 	objConfig := collections.serviceLBs[key]
 	if objConfig == nil {
 		log.Errorf("serviceLB %s not found", key)
@@ -3744,6 +4597,8 @@ func httpListServiceLBs(w http.ResponseWriter, r *http.Request, vars map[string]
 	log.Debugf("Received httpListServiceLBs: %+v", vars)
 
 	list := make([]*ServiceLB, 0)
+	collections.serviceLBMutex.Lock()
+	defer collections.serviceLBMutex.Unlock()
 	for _, obj := range collections.serviceLBs {
 		list = append(list, obj)
 	}
@@ -3758,6 +4613,8 @@ func httpGetServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]st
 
 	key := vars["key"]
 
+	collections.serviceLBMutex.Lock()
+	defer collections.serviceLBMutex.Unlock()
 	obj := collections.serviceLBs[key]
 	if obj == nil {
 		log.Errorf("serviceLB %s not found", key)
@@ -3830,8 +4687,12 @@ func CreateServiceLB(obj *ServiceLB) error {
 
 	saveObj := obj
 
+	collections.serviceLBMutex.Lock()
+	key := collections.serviceLBs[obj.Key]
+	collections.serviceLBMutex.Unlock()
+
 	// Check if object already exists
-	if collections.serviceLBs[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.ServiceLBCb.ServiceLBUpdate(collections.serviceLBs[obj.Key], obj)
 		if err != nil {
@@ -3840,22 +4701,30 @@ func CreateServiceLB(obj *ServiceLB) error {
 		}
 
 		// save the original object after update
+		collections.serviceLBMutex.Lock()
 		saveObj = collections.serviceLBs[obj.Key]
+		collections.serviceLBMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.serviceLBMutex.Lock()
 		collections.serviceLBs[obj.Key] = obj
+		collections.serviceLBMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.ServiceLBCb.ServiceLBCreate(obj)
 		if err != nil {
 			log.Errorf("ServiceLBCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.serviceLBMutex.Lock()
 			delete(collections.serviceLBs, obj.Key)
+			collections.serviceLBMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.serviceLBMutex.Lock()
 	err = saveObj.Write()
+	collections.serviceLBMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving serviceLB %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -3866,6 +4735,9 @@ func CreateServiceLB(obj *ServiceLB) error {
 
 // Return a pointer to serviceLB from collection
 func FindServiceLB(key string) *ServiceLB {
+	collections.serviceLBMutex.Lock()
+	defer collections.serviceLBMutex.Unlock()
+
 	obj := collections.serviceLBs[key]
 	if obj == nil {
 		return nil
@@ -3876,7 +4748,9 @@ func FindServiceLB(key string) *ServiceLB {
 
 // Delete a serviceLB object
 func DeleteServiceLB(key string) error {
+	collections.serviceLBMutex.Lock()
 	obj := collections.serviceLBs[key]
+	collections.serviceLBMutex.Unlock()
 	if obj == nil {
 		log.Errorf("serviceLB %s not found", key)
 		return errors.New("serviceLB not found")
@@ -3896,13 +4770,17 @@ func DeleteServiceLB(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.serviceLBMutex.Lock()
 	err = obj.Delete()
+	collections.serviceLBMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting serviceLB %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.serviceLBMutex.Lock()
 	delete(collections.serviceLBs, key)
+	collections.serviceLBMutex.Unlock()
 
 	return nil
 }
@@ -3943,6 +4821,9 @@ func (self *ServiceLB) Delete() error {
 }
 
 func restoreServiceLB() error {
+	collections.serviceLBMutex.Lock()
+	defer collections.serviceLBMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("serviceLB")
 	if err != nil {
 		log.Errorf("Error reading serviceLB list. Err: %v", err)
@@ -3966,6 +4847,9 @@ func restoreServiceLB() error {
 
 // Validate a serviceLB object
 func ValidateServiceLB(obj *ServiceLB) error {
+	collections.serviceLBMutex.Lock()
+	defer collections.serviceLBMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.ServiceName
 	if obj.Key != keyStr {
@@ -4021,6 +4905,8 @@ func httpInspectTenant(w http.ResponseWriter, r *http.Request, vars map[string]s
 
 	key := vars["key"]
 
+	collections.tenantMutex.Lock()
+	defer collections.tenantMutex.Unlock()
 	objConfig := collections.tenants[key]
 	if objConfig == nil {
 		log.Errorf("tenant %s not found", key)
@@ -4060,6 +4946,8 @@ func httpListTenants(w http.ResponseWriter, r *http.Request, vars map[string]str
 	log.Debugf("Received httpListTenants: %+v", vars)
 
 	list := make([]*Tenant, 0)
+	collections.tenantMutex.Lock()
+	defer collections.tenantMutex.Unlock()
 	for _, obj := range collections.tenants {
 		list = append(list, obj)
 	}
@@ -4074,6 +4962,8 @@ func httpGetTenant(w http.ResponseWriter, r *http.Request, vars map[string]strin
 
 	key := vars["key"]
 
+	collections.tenantMutex.Lock()
+	defer collections.tenantMutex.Unlock()
 	obj := collections.tenants[key]
 	if obj == nil {
 		log.Errorf("tenant %s not found", key)
@@ -4146,8 +5036,12 @@ func CreateTenant(obj *Tenant) error {
 
 	saveObj := obj
 
+	collections.tenantMutex.Lock()
+	key := collections.tenants[obj.Key]
+	collections.tenantMutex.Unlock()
+
 	// Check if object already exists
-	if collections.tenants[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.TenantCb.TenantUpdate(collections.tenants[obj.Key], obj)
 		if err != nil {
@@ -4156,22 +5050,30 @@ func CreateTenant(obj *Tenant) error {
 		}
 
 		// save the original object after update
+		collections.tenantMutex.Lock()
 		saveObj = collections.tenants[obj.Key]
+		collections.tenantMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.tenantMutex.Lock()
 		collections.tenants[obj.Key] = obj
+		collections.tenantMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.TenantCb.TenantCreate(obj)
 		if err != nil {
 			log.Errorf("TenantCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.tenantMutex.Lock()
 			delete(collections.tenants, obj.Key)
+			collections.tenantMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.tenantMutex.Lock()
 	err = saveObj.Write()
+	collections.tenantMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving tenant %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -4182,6 +5084,9 @@ func CreateTenant(obj *Tenant) error {
 
 // Return a pointer to tenant from collection
 func FindTenant(key string) *Tenant {
+	collections.tenantMutex.Lock()
+	defer collections.tenantMutex.Unlock()
+
 	obj := collections.tenants[key]
 	if obj == nil {
 		return nil
@@ -4192,7 +5097,9 @@ func FindTenant(key string) *Tenant {
 
 // Delete a tenant object
 func DeleteTenant(key string) error {
+	collections.tenantMutex.Lock()
 	obj := collections.tenants[key]
+	collections.tenantMutex.Unlock()
 	if obj == nil {
 		log.Errorf("tenant %s not found", key)
 		return errors.New("tenant not found")
@@ -4212,13 +5119,17 @@ func DeleteTenant(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.tenantMutex.Lock()
 	err = obj.Delete()
+	collections.tenantMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting tenant %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.tenantMutex.Lock()
 	delete(collections.tenants, key)
+	collections.tenantMutex.Unlock()
 
 	return nil
 }
@@ -4259,6 +5170,9 @@ func (self *Tenant) Delete() error {
 }
 
 func restoreTenant() error {
+	collections.tenantMutex.Lock()
+	defer collections.tenantMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("tenant")
 	if err != nil {
 		log.Errorf("Error reading tenant list. Err: %v", err)
@@ -4282,6 +5196,9 @@ func restoreTenant() error {
 
 // Validate a tenant object
 func ValidateTenant(obj *Tenant) error {
+	collections.tenantMutex.Lock()
+	defer collections.tenantMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName
 	if obj.Key != keyStr {
@@ -4319,6 +5236,8 @@ func httpInspectVolume(w http.ResponseWriter, r *http.Request, vars map[string]s
 
 	key := vars["key"]
 
+	collections.volumeMutex.Lock()
+	defer collections.volumeMutex.Unlock()
 	objConfig := collections.volumes[key]
 	if objConfig == nil {
 		log.Errorf("volume %s not found", key)
@@ -4335,6 +5254,8 @@ func httpListVolumes(w http.ResponseWriter, r *http.Request, vars map[string]str
 	log.Debugf("Received httpListVolumes: %+v", vars)
 
 	list := make([]*Volume, 0)
+	collections.volumeMutex.Lock()
+	defer collections.volumeMutex.Unlock()
 	for _, obj := range collections.volumes {
 		list = append(list, obj)
 	}
@@ -4349,6 +5270,8 @@ func httpGetVolume(w http.ResponseWriter, r *http.Request, vars map[string]strin
 
 	key := vars["key"]
 
+	collections.volumeMutex.Lock()
+	defer collections.volumeMutex.Unlock()
 	obj := collections.volumes[key]
 	if obj == nil {
 		log.Errorf("volume %s not found", key)
@@ -4421,8 +5344,12 @@ func CreateVolume(obj *Volume) error {
 
 	saveObj := obj
 
+	collections.volumeMutex.Lock()
+	key := collections.volumes[obj.Key]
+	collections.volumeMutex.Unlock()
+
 	// Check if object already exists
-	if collections.volumes[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.VolumeCb.VolumeUpdate(collections.volumes[obj.Key], obj)
 		if err != nil {
@@ -4431,22 +5358,30 @@ func CreateVolume(obj *Volume) error {
 		}
 
 		// save the original object after update
+		collections.volumeMutex.Lock()
 		saveObj = collections.volumes[obj.Key]
+		collections.volumeMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.volumeMutex.Lock()
 		collections.volumes[obj.Key] = obj
+		collections.volumeMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.VolumeCb.VolumeCreate(obj)
 		if err != nil {
 			log.Errorf("VolumeCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.volumeMutex.Lock()
 			delete(collections.volumes, obj.Key)
+			collections.volumeMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.volumeMutex.Lock()
 	err = saveObj.Write()
+	collections.volumeMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving volume %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -4457,6 +5392,9 @@ func CreateVolume(obj *Volume) error {
 
 // Return a pointer to volume from collection
 func FindVolume(key string) *Volume {
+	collections.volumeMutex.Lock()
+	defer collections.volumeMutex.Unlock()
+
 	obj := collections.volumes[key]
 	if obj == nil {
 		return nil
@@ -4467,7 +5405,9 @@ func FindVolume(key string) *Volume {
 
 // Delete a volume object
 func DeleteVolume(key string) error {
+	collections.volumeMutex.Lock()
 	obj := collections.volumes[key]
+	collections.volumeMutex.Unlock()
 	if obj == nil {
 		log.Errorf("volume %s not found", key)
 		return errors.New("volume not found")
@@ -4487,13 +5427,17 @@ func DeleteVolume(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.volumeMutex.Lock()
 	err = obj.Delete()
+	collections.volumeMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting volume %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.volumeMutex.Lock()
 	delete(collections.volumes, key)
+	collections.volumeMutex.Unlock()
 
 	return nil
 }
@@ -4534,6 +5478,9 @@ func (self *Volume) Delete() error {
 }
 
 func restoreVolume() error {
+	collections.volumeMutex.Lock()
+	defer collections.volumeMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("volume")
 	if err != nil {
 		log.Errorf("Error reading volume list. Err: %v", err)
@@ -4557,6 +5504,9 @@ func restoreVolume() error {
 
 // Validate a volume object
 func ValidateVolume(obj *Volume) error {
+	collections.volumeMutex.Lock()
+	defer collections.volumeMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.VolumeName
 	if obj.Key != keyStr {
@@ -4576,6 +5526,8 @@ func httpInspectVolumeProfile(w http.ResponseWriter, r *http.Request, vars map[s
 
 	key := vars["key"]
 
+	collections.volumeProfileMutex.Lock()
+	defer collections.volumeProfileMutex.Unlock()
 	objConfig := collections.volumeProfiles[key]
 	if objConfig == nil {
 		log.Errorf("volumeProfile %s not found", key)
@@ -4592,6 +5544,8 @@ func httpListVolumeProfiles(w http.ResponseWriter, r *http.Request, vars map[str
 	log.Debugf("Received httpListVolumeProfiles: %+v", vars)
 
 	list := make([]*VolumeProfile, 0)
+	collections.volumeProfileMutex.Lock()
+	defer collections.volumeProfileMutex.Unlock()
 	for _, obj := range collections.volumeProfiles {
 		list = append(list, obj)
 	}
@@ -4606,6 +5560,8 @@ func httpGetVolumeProfile(w http.ResponseWriter, r *http.Request, vars map[strin
 
 	key := vars["key"]
 
+	collections.volumeProfileMutex.Lock()
+	defer collections.volumeProfileMutex.Unlock()
 	obj := collections.volumeProfiles[key]
 	if obj == nil {
 		log.Errorf("volumeProfile %s not found", key)
@@ -4678,8 +5634,12 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 
 	saveObj := obj
 
+	collections.volumeProfileMutex.Lock()
+	key := collections.volumeProfiles[obj.Key]
+	collections.volumeProfileMutex.Unlock()
+
 	// Check if object already exists
-	if collections.volumeProfiles[obj.Key] != nil {
+	if key != nil {
 		// Perform Update callback
 		err = objCallbackHandler.VolumeProfileCb.VolumeProfileUpdate(collections.volumeProfiles[obj.Key], obj)
 		if err != nil {
@@ -4688,22 +5648,30 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 		}
 
 		// save the original object after update
+		collections.volumeProfileMutex.Lock()
 		saveObj = collections.volumeProfiles[obj.Key]
+		collections.volumeProfileMutex.Unlock()
 	} else {
 		// save it in cache
+		collections.volumeProfileMutex.Lock()
 		collections.volumeProfiles[obj.Key] = obj
+		collections.volumeProfileMutex.Unlock()
 
 		// Perform Create callback
 		err = objCallbackHandler.VolumeProfileCb.VolumeProfileCreate(obj)
 		if err != nil {
 			log.Errorf("VolumeProfileCreate retruned error for: %+v. Err: %v", obj, err)
+			collections.volumeProfileMutex.Lock()
 			delete(collections.volumeProfiles, obj.Key)
+			collections.volumeProfileMutex.Unlock()
 			return err
 		}
 	}
 
 	// Write it to modeldb
+	collections.volumeProfileMutex.Lock()
 	err = saveObj.Write()
+	collections.volumeProfileMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error saving volumeProfile %s to db. Err: %v", saveObj.Key, err)
 		return err
@@ -4714,6 +5682,9 @@ func CreateVolumeProfile(obj *VolumeProfile) error {
 
 // Return a pointer to volumeProfile from collection
 func FindVolumeProfile(key string) *VolumeProfile {
+	collections.volumeProfileMutex.Lock()
+	defer collections.volumeProfileMutex.Unlock()
+
 	obj := collections.volumeProfiles[key]
 	if obj == nil {
 		return nil
@@ -4724,7 +5695,9 @@ func FindVolumeProfile(key string) *VolumeProfile {
 
 // Delete a volumeProfile object
 func DeleteVolumeProfile(key string) error {
+	collections.volumeProfileMutex.Lock()
 	obj := collections.volumeProfiles[key]
+	collections.volumeProfileMutex.Unlock()
 	if obj == nil {
 		log.Errorf("volumeProfile %s not found", key)
 		return errors.New("volumeProfile not found")
@@ -4744,13 +5717,17 @@ func DeleteVolumeProfile(key string) error {
 	}
 
 	// delete it from modeldb
+	collections.volumeProfileMutex.Lock()
 	err = obj.Delete()
+	collections.volumeProfileMutex.Unlock()
 	if err != nil {
 		log.Errorf("Error deleting volumeProfile %s. Err: %v", obj.Key, err)
 	}
 
 	// delete it from cache
+	collections.volumeProfileMutex.Lock()
 	delete(collections.volumeProfiles, key)
+	collections.volumeProfileMutex.Unlock()
 
 	return nil
 }
@@ -4791,6 +5768,9 @@ func (self *VolumeProfile) Delete() error {
 }
 
 func restoreVolumeProfile() error {
+	collections.volumeProfileMutex.Lock()
+	defer collections.volumeProfileMutex.Unlock()
+
 	strList, err := modeldb.ReadAllObj("volumeProfile")
 	if err != nil {
 		log.Errorf("Error reading volumeProfile list. Err: %v", err)
@@ -4814,6 +5794,9 @@ func restoreVolumeProfile() error {
 
 // Validate a volumeProfile object
 func ValidateVolumeProfile(obj *VolumeProfile) error {
+	collections.volumeProfileMutex.Lock()
+	defer collections.volumeProfileMutex.Unlock()
+
 	// Validate key is correct
 	keyStr := obj.TenantName + ":" + obj.VolumeProfileName
 	if obj.Key != keyStr {

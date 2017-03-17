@@ -18,6 +18,7 @@ package agent
 import (
 	"net"
 	"net/http"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
@@ -26,21 +27,14 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
-	"github.com/contiv/netplugin/netplugin/svcplugin"
 	"github.com/gorilla/mux"
 	"github.com/samalba/dockerclient"
-
-	// import and init skydns libraries
-	_ "github.com/contiv/netplugin/netplugin/svcplugin/consulextension"
-	_ "github.com/contiv/netplugin/netplugin/svcplugin/skydns2extension"
 )
 
 // Agent holds the netplugin agent state
 type Agent struct {
-	netPlugin    *plugin.NetPlugin      // driver plugin
-	pluginConfig *plugin.Config         // plugin configuration
-	svcPlugin    svcplugin.SvcregPlugin // svc plugin
-	svcQuitCh    chan struct{}          // channel to stop svc plugin
+	netPlugin    *plugin.NetPlugin // driver plugin
+	pluginConfig *plugin.Config    // plugin configuration
 }
 
 // NewAgent creates a new netplugin agent
@@ -48,14 +42,8 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	opts := pluginConfig.Instance
 	netPlugin := &plugin.NetPlugin{}
 
-	// Initialize service registry plugin
-	svcPlugin, quitCh, err := svcplugin.NewSvcregPlugin(opts.DbURL, nil)
-	if err != nil {
-		log.Fatalf("Error initializing service registry plugin")
-	}
-
 	// init cluster state
-	err = cluster.Init(opts.DbURL)
+	err := cluster.Init(opts.DbURL)
 	if err != nil {
 		log.Fatalf("Error initializing cluster. Err: %v", err)
 	}
@@ -69,7 +57,7 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	// Initialize appropriate plugin
 	switch opts.PluginMode {
 	case "docker":
-		dockplugin.InitDockPlugin(netPlugin, svcPlugin)
+		dockplugin.InitDockPlugin(netPlugin)
 
 	case "kubernetes":
 		k8splugin.InitCNIServer(netPlugin)
@@ -86,8 +74,6 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	agent := &Agent{
 		netPlugin:    netPlugin,
 		pluginConfig: pluginConfig,
-		svcPlugin:    svcPlugin,
-		svcQuitCh:    quitCh,
 	}
 
 	return agent
@@ -191,6 +177,28 @@ func (ag *Agent) PostInit() error {
 	return nil
 }
 
+func (ag *Agent) monitorDockerEvents(de chan error) {
+	mErr := make(chan error, 1)
+
+	// watch for docker events
+	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	if err != nil {
+		log.Errorf("Error connecting to docker - %v", err)
+		de <- err
+		return
+	}
+
+	for {
+		go docker.StartMonitorEvents(handleDockerEvents, mErr, ag.netPlugin, mErr)
+		err = <-mErr
+
+		if err != nil {
+			log.Errorf("Error - %v from docker monitor, retry...", err)
+			time.Sleep(2 * time.Second)
+		}
+	}
+}
+
 // HandleEvents handles events
 func (ag *Agent) HandleEvents() error {
 	opts := ag.pluginConfig.Instance
@@ -209,16 +217,15 @@ func (ag *Agent) HandleEvents() error {
 	go handleGlobalCfgEvents(ag.netPlugin, opts, recvErr)
 
 	if ag.pluginConfig.Instance.PluginMode == "docker" {
-		// watch for docker events
-		docker, _ := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
-		go docker.StartMonitorEvents(handleDockerEvents, recvErr, ag.netPlugin, recvErr)
+		go ag.monitorDockerEvents(recvErr)
 	} else if ag.pluginConfig.Instance.PluginMode == "kubernetes" {
 		// start watching kubernetes events
 		k8splugin.InitKubServiceWatch(ag.netPlugin)
 	}
 	err := <-recvErr
 	if err != nil {
-		log.Errorf("Failure occured. Error: %s", err)
+		time.Sleep(1 * time.Second)
+		log.Errorf("Failure occurred. Error: %s", err)
 		return err
 	}
 
@@ -259,6 +266,16 @@ func (ag *Agent) serveRequests() {
 			return
 		}
 		w.Write(bgpState)
+	})
+
+	s.HandleFunc("/inspect/nameserver", func(w http.ResponseWriter, r *http.Request) {
+		ns, err := ag.netPlugin.NetworkDriver.InspectNameserver()
+		if err != nil {
+			log.Errorf("Error fetching nameserver state. Err: %v", err)
+			http.Error(w, "Error fetching nameserver state", http.StatusInternalServerError)
+			return
+		}
+		w.Write(ns)
 	})
 
 	// Create HTTP server and listener

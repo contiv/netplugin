@@ -10,15 +10,8 @@ then
   exit 1
 fi
 
-# this is necessary because presumably the `vet` tool needs to be installed in
-# $GOROOT. I have not investigated the reason fully yet.
-# the check right below this line is to avoid a sudo call on each invocation,
-# for those that use passworded sudo.
-if ! go vet -n ./netplugin &>/dev/null
+if ! go get -u github.com/client9/misspell/cmd/misspell
 then
-  if ! sudo -E `which go` get golang.org/x/tools/cmd/vet
-  then
-    echo "!!! Could not install go vet"
-    exit 1
-  fi
+  echo "!!! Could not install misspell"
+  exit 1
 fi

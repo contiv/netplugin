@@ -55,7 +55,6 @@ func masterKey(srvInfo objdb.ServiceInfo) string {
 func addMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error {
 	// save it in db
 	MasterDB[masterKey(srvInfo)] = &srvInfo
-
 	// tell the plugin about the master
 	return netplugin.AddMaster(core.ServiceInfo{
 		HostAddr: srvInfo.HostAddr,
@@ -348,11 +347,8 @@ func Init(storeURL string) error {
 
 	// Create an objdb client
 	ObjdbClient, err = objdb.NewClient(storeURL)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 // RunLoop registers netplugin service with cluster store and runs peer discovery

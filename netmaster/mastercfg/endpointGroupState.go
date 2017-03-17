@@ -21,23 +21,26 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
+	"github.com/jainvipin/bitset"
 )
 
 // EndpointGroupState implements the State interface for endpoint group implemented using
 // vlans with ovs. The state is stored as Json objects.
 type EndpointGroupState struct {
 	core.CommonState
-	GroupName       string `json:"groupName"`
-	TenantName      string `json:"tenantName"`
-	NetworkName     string `json:"networkName"`
-	EndpointGroupID int    `json:"endpointGroupId"`
-	PktTagType      string `json:"pktTagType"`
-	PktTag          int    `json:"pktTag"`
-	ExtPktTag       int    `json:"extPktTag"`
-	EpCount         int    `json:"epCount"` // To store endpoint Count
-	DSCP            int    `json:"DSCP"`
-	Bandwidth       string `json:"Bandwidth"`
-	Burst           int    `json:"Burst"`
+	GroupName       string        `json:"groupName"`
+	TenantName      string        `json:"tenantName"`
+	NetworkName     string        `json:"networkName"`
+	EndpointGroupID int           `json:"endpointGroupId"`
+	PktTagType      string        `json:"pktTagType"`
+	PktTag          int           `json:"pktTag"`
+	ExtPktTag       int           `json:"extPktTag"`
+	EpCount         int           `json:"epCount"` // To store endpoint Count
+	DSCP            int           `json:"DSCP"`
+	Bandwidth       string        `json:"Bandwidth"`
+	Burst           int           `json:"Burst"`
+	IPPool          string        `json:"IPPool"`
+	EPGIPAllocMap   bitset.BitSet `json:"epgIpAllocMap"`
 }
 
 // Write the state.

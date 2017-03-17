@@ -640,7 +640,7 @@ func createEndpointGroup(ctx *cli.Context) {
 	network := ctx.Args()[0]
 	group := ctx.Args()[1]
 	netprofile := ctx.String("networkprofile")
-
+	ipPool := ctx.String("ip-pool")
 	policies := ctx.StringSlice("policy")
 
 	extContractsGrps := ctx.StringSlice("external-contract")
@@ -649,6 +649,7 @@ func createEndpointGroup(ctx *cli.Context) {
 		NetworkName:      network,
 		GroupName:        group,
 		NetProfile:       netprofile,
+		IpPool:           ipPool,
 		Policies:         policies,
 		ExtContractsGrps: extContractsGrps,
 	}))
@@ -657,6 +658,9 @@ func createEndpointGroup(ctx *cli.Context) {
 }
 
 func inspectEndpointGroup(ctx *cli.Context) {
+	if len(ctx.Args()) != 1 {
+		errExit(ctx, exitHelp, "EndpointGroup name required", true)
+	}
 
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
@@ -712,7 +716,7 @@ func listEndpointGroups(ctx *cli.Context) {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tGroup\tNetwork\tPolicies\tNetwork profile\n"))
+		writer.Write([]byte("Tenant\tGroup\tNetwork\tIP Pool\tPolicies\tNetwork profile\n"))
 		writer.Write([]byte("------\t-----\t-------\t--------\t---------------\n"))
 		for _, group := range filtered {
 			policies := ""
@@ -724,10 +728,11 @@ func listEndpointGroups(ctx *cli.Context) {
 				policies = strings.Join(policyList, ",")
 			}
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\n",
 					group.TenantName,
 					group.GroupName,
 					group.NetworkName,
+					group.IpPool,
 					policies,
 					group.NetProfile,
 				)))
@@ -738,7 +743,7 @@ func listEndpointGroups(ctx *cli.Context) {
 //addBgp is a netctl interface routine to add
 //bgp config
 func addBgp(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
+	if len(ctx.Args()) < 1 {
 		errExit(ctx, exitHelp, "Host name required", true)
 	}
 
@@ -855,8 +860,10 @@ func showGlobal(ctx *cli.Context) {
 		for _, gl := range *list {
 			writer.Write([]byte(fmt.Sprintf("Fabric mode: %v\n", gl.NetworkInfraType)))
 			writer.Write([]byte(fmt.Sprintf("Forward mode: %v\n", gl.FwdMode)))
+			writer.Write([]byte(fmt.Sprintf("ARP mode: %v\n", gl.ArpMode)))
 			writer.Write([]byte(fmt.Sprintf("Vlan Range: %v\n", gl.Vlans)))
 			writer.Write([]byte(fmt.Sprintf("Vxlan range: %v\n", gl.Vxlans)))
+			writer.Write([]byte(fmt.Sprintf("Private subnet: %v\n", gl.PvtSubnet)))
 		}
 	}
 }
@@ -884,8 +891,11 @@ func setGlobal(ctx *cli.Context) {
 	vlans := ctx.String("vlan-range")
 	vxlans := ctx.String("vxlan-range")
 	fwdMode := ctx.String("fwd-mode")
+	arpMode := ctx.String("arp-mode")
+	ps := ctx.String("private-subnet")
 
-	global, _ := getClient(ctx).GlobalGet("global")
+	global, err := getClient(ctx).GlobalGet("global")
+	errCheck(ctx, err)
 
 	if fabMode != "" {
 		global.NetworkInfraType = fabMode
@@ -900,10 +910,75 @@ func setGlobal(ctx *cli.Context) {
 	if fwdMode != "" {
 		global.FwdMode = fwdMode
 	}
+	if arpMode != "" {
+		global.ArpMode = arpMode
+	}
+	if ps != "" {
+		global.PvtSubnet = ps
+	}
 
 	errCheck(ctx, getClient(ctx).GlobalPost(global))
 }
 
+func setAciGw(ctx *cli.Context) {
+	paths := ctx.String("path-bindings")
+	nodes := ctx.String("node-bindings")
+	dom := ctx.String("phys-dom")
+	enf := ctx.String("enforce-policies")
+	comTen := ctx.String("include-common-tenant")
+
+	acigw, _ := getClient(ctx).AciGwGet("aciGw")
+	if acigw == nil {
+		acigw = &contivClient.AciGw{}
+		acigw.Name = "aciGw"
+	}
+	acigw.EnforcePolicies = enf
+	acigw.IncludeCommonTenant = comTen
+	acigw.NodeBindings = nodes
+	acigw.PathBindings = paths
+	acigw.PhysicalDomain = dom
+
+	errCheck(ctx, getClient(ctx).AciGwPost(acigw))
+}
+
+func showAciGw(ctx *cli.Context) {
+	if len(ctx.Args()) != 0 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
+
+	list, err := getClient(ctx).AciGwList()
+	errCheck(ctx, err)
+
+	if ctx.Bool("json") {
+		dumpJSONList(ctx, list)
+	} else {
+		writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		defer writer.Flush()
+		for _, gw := range *list {
+			writer.Write([]byte(fmt.Sprintf("Path bindings: %v\n", gw.PathBindings)))
+			writer.Write([]byte(fmt.Sprintf("Node bindings: %v\n", gw.NodeBindings)))
+			writer.Write([]byte(fmt.Sprintf("Physical domain: %v\n", gw.PhysicalDomain)))
+			writer.Write([]byte(fmt.Sprintf("Enforce policies: %v\n", gw.EnforcePolicies)))
+			writer.Write([]byte(fmt.Sprintf("Include Common-Tenant: %v\n", gw.IncludeCommonTenant)))
+		}
+	}
+}
+
+func inspectAciGw(ctx *cli.Context) {
+	if len(ctx.Args()) != 0 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
+
+	gwInfo, err := getClient(ctx).AciGwInspect("aciGw")
+	errCheck(ctx, err)
+
+	content, err := json.MarshalIndent(gwInfo, "", "  ")
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+	os.Stdout.Write(content)
+	os.Stdout.WriteString("\n")
+}
 func dumpJSONList(ctx *cli.Context, list interface{}) {
 	content, err := json.MarshalIndent(list, "", "  ")
 	if err != nil {

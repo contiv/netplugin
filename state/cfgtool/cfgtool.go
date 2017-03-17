@@ -179,7 +179,7 @@ func processResource(stateDriver core.StateDriver, rsrcName, rsrcVal string) err
 func processState(stateDriver core.StateDriver, stateName, stateID, fieldName, setVal string) error {
 	var typeRegistry = make(map[string]core.State)
 
-	// build the type registery
+	// build the type registry
 	typeRegistry[reflect.TypeOf(mastercfg.CfgEndpointState{}).Name()] = &mastercfg.CfgEndpointState{}
 	typeRegistry[reflect.TypeOf(mastercfg.CfgNetworkState{}).Name()] = &mastercfg.CfgNetworkState{}
 	typeRegistry[reflect.TypeOf(mastercfg.CfgBgpState{}).Name()] = &mastercfg.CfgBgpState{}
@@ -231,7 +231,7 @@ func processState(stateDriver core.StateDriver, stateName, stateID, fieldName, s
 	// print the object
 	content, err := json.MarshalIndent(cfgType, "", "  ")
 	if err != nil {
-		log.Errorf("Error marshalling json: %+v", cfgType)
+		log.Errorf("Error marshaling json: %+v", cfgType)
 		return err
 	}
 	fmt.Printf("Current value of id: %s{ id: %s }\n%s\n", stateName, stateID, content)
@@ -282,7 +282,7 @@ func processState(stateDriver core.StateDriver, stateName, stateID, fieldName, s
 		// print the modified object
 		content, err := json.MarshalIndent(cfgType, "", "  ")
 		if err != nil {
-			log.Errorf("Error marshalling json: %+v", cfgType)
+			log.Errorf("Error marshaling json: %+v", cfgType)
 			return err
 		}
 		fmt.Printf("Writing values:\n%s\n", content)

@@ -1,6 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+require File.join(File.dirname(__FILE__), "..", "vagrant_version_check")
+
 require 'fileutils'
 
 # netplugin_synced_gopath="/opt/golang"
@@ -69,9 +71,6 @@ sudo systemctl restart docker
 # remove duplicate docker key
 rm /etc/docker/key.json
 service docker restart || exit 1
-
-docker load --input #{gopath_folder}/src/github.com/contiv/netplugin/scripts/dnscontainer.tar
-
 SCRIPT
 
 provision_common_always = <<SCRIPT

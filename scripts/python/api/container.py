@@ -39,7 +39,7 @@ class Container:
             return self.node.runCmd("docker exec " + self.cid + " " + cmd)
         return out, err, exitCode
 
-    # Execute a command inside a container in backgroud
+    # Execute a command inside a container in background
     def execBgndCmd(self, cmd):
         out, err, exitCode = self.node.runCmd("docker exec -d " + self.cid + " " + cmd)
         # Retry failures once to workaround docker issue #15713
@@ -90,7 +90,7 @@ class Container:
             print err
             tutils.exit("Ping failed")
 
-        # Check if ping succeded
+        # Check if ping succeeded
         pingOutput = ''.join(out)
         if "0 received, 100% packet loss" in pingOutput:
             print "Ping failed. Output: " + pingOutput
@@ -108,7 +108,7 @@ class Container:
             tutils.log("Ping failed as expected.")
             return True
 
-        # Check if ping succeded
+        # Check if ping succeeded
         if "0 received, 100% packet loss" in pingOutput:
             tutils.log("Ping failed as expected. Output: " + pingOutput)
             return True

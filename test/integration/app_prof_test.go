@@ -24,6 +24,11 @@ import (
 
 // TestSingleAppProfile verifies a simple app-profile creation
 func (its *integTestSuite) TestSingleAppProfile(c *C) {
+
+	if its.fabricMode != "aci" {
+		return // run only in aci mode
+	}
+
 	// Create a tenant
 	c.Assert(its.client.TenantPost(&client.Tenant{
 		TenantName: "BBTenant",
@@ -108,6 +113,44 @@ func (its *integTestSuite) TestSingleAppProfile(c *C) {
 		c.Assert(its.client.RulePost(rule), IsNil)
 	}
 
+	// if aciGw present, delete it
+	its.client.AciGwDelete("aciGw")
+
+	// Create an app-profile
+	err = its.client.AppProfilePost(&client.AppProfile{
+		TenantName:     "BBTenant",
+		AppProfileName: "TestProfile",
+		EndpointGroups: []string{"epgA", "epgB"},
+	})
+	assertErr(err, c, "creating application-profile without aci-gw config")
+
+	// set aci-gw config
+	err = its.client.AciGwPost(&client.AciGw{
+		Name:                "aciGw",
+		PhysicalDomain:      "testDomain",
+		EnforcePolicies:     "yes",
+		IncludeCommonTenant: "no",
+	})
+	assertNoErr(err, c, "creating aciGw config")
+
+	// Create an app-profile
+	err = its.client.AppProfilePost(&client.AppProfile{
+		TenantName:     "BBTenant",
+		AppProfileName: "TestProfile",
+		EndpointGroups: []string{"epgA", "epgB"},
+	})
+	assertErr(err, c, "creating application-profile without bindings")
+
+	// set aci-gw config
+	err = its.client.AciGwPost(&client.AciGw{
+		Name:                "aciGw",
+		PathBindings:        "topology/pod-1/paths-101/pathep-[eth1/14]",
+		PhysicalDomain:      "testDomain",
+		EnforcePolicies:     "yes",
+		IncludeCommonTenant: "no",
+	})
+	assertNoErr(err, c, "creating aciGw config")
+
 	// Create an app-profile
 	err = its.client.AppProfilePost(&client.AppProfile{
 		TenantName:     "BBTenant",
@@ -115,6 +158,10 @@ func (its *integTestSuite) TestSingleAppProfile(c *C) {
 		EndpointGroups: []string{"epgA", "epgB"},
 	})
 	assertNoErr(err, c, "creating application-profile")
+
+	gwInsp, err := its.client.AciGwInspect("aciGw")
+	assertNoErr(err, c, "inspecting aciGw")
+	c.Assert(gwInsp.Oper.NumAppProfiles, Equals, 1)
 
 	// verify tenant state is correct
 	insp, err := its.client.TenantInspect("BBTenant")
@@ -127,6 +174,10 @@ func (its *integTestSuite) TestSingleAppProfile(c *C) {
 	c.Assert(insp.Oper.TotalAppProfiles, Equals, 1)
 
 	assertNoErr(its.client.AppProfileDelete("BBTenant", "TestProfile"), c, "deleting app profile")
+	gwInsp, err = its.client.AciGwInspect("aciGw")
+	assertNoErr(err, c, "inspecting aciGw")
+	c.Assert(gwInsp.Oper.NumAppProfiles, Equals, 0)
+
 	assertNoErr(its.client.EndpointGroupDelete("BBTenant", "epgA"), c, "deleting endpointGroup")
 	assertNoErr(its.client.EndpointGroupDelete("BBTenant", "epgB"), c, "deleting endpointGroup")
 	assertNoErr(its.client.PolicyDelete("BBTenant", "Policy1"), c, "deleting policy")
@@ -134,9 +185,14 @@ func (its *integTestSuite) TestSingleAppProfile(c *C) {
 	assertNoErr(its.client.ExtContractsGroupDelete("BBTenant", "extWeb"), c, "deleting ext contract")
 	assertNoErr(its.client.ExtContractsGroupDelete("BBTenant", "extETCD"), c, "deleting ext contract")
 	assertNoErr(its.client.TenantDelete("BBTenant"), c, "deleting Tenant")
+	assertNoErr(its.client.AciGwDelete("aciGw"), c, "deleting aci gw config")
 }
 
 func (its *integTestSuite) TestMultiAppProfile(c *C) {
+	if its.fabricMode != "aci" {
+		return // run only in aci mode
+	}
+
 	// Create a tenant
 	c.Assert(its.client.TenantPost(&client.Tenant{
 		TenantName: "AATenant",
@@ -236,6 +292,16 @@ func (its *integTestSuite) TestMultiAppProfile(c *C) {
 	for _, rule := range rules {
 		c.Assert(its.client.RulePost(rule), IsNil)
 	}
+
+	// set aci-gw config
+	err = its.client.AciGwPost(&client.AciGw{
+		Name:                "aciGw",
+		PathBindings:        "topology/pod-1/paths-101/pathep-[eth1/14]",
+		PhysicalDomain:      "testDomain",
+		EnforcePolicies:     "yes",
+		IncludeCommonTenant: "no",
+	})
+	assertNoErr(err, c, "creating aciGw config")
 
 	// Create an app-profile
 	err = its.client.AppProfilePost(&client.AppProfile{
