@@ -26,6 +26,10 @@ var networkDriverRegistry = map[string]driverConfigTypes{
 		DriverType: reflect.TypeOf(drivers.FakeNetEpDriver{}),
 		ConfigType: reflect.TypeOf(drivers.FakeNetEpDriverConfig{}),
 	},
+	VppNameStr: {
+		DriverType: reflect.TypeOf(drivers.VppDriver{}),
+		ConfigType: reflect.TypeOf(drivers.VppDriver{}),
+	},
 }
 
 var stateDriverRegistry = map[string]driverConfigTypes{
@@ -51,6 +55,8 @@ const (
 	ConsulNameStr = "consul"
 	// OvsNameStr is a string constant for ovs driver
 	OvsNameStr = "ovs"
+	// VppNameStr is a string constant for vpp driver
+	VppNameStr = "vpp"
 )
 
 var (

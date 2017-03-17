@@ -1,0 +1,78 @@
+{
+    "types" : [
+        ["uflow_idx",
+            ["u32", "vslot"],
+            ["u32", "md"],
+            ["u32", "sid"],
+            {"crc" : "0x3310d92c"}
+        ],
+        ["uflow_ent",
+            ["u32", "cm_dpidx"],
+            ["u32", "vbundle_dpidx"],
+            {"crc" : "0x50fa3f43"}
+        ],
+        ["uflow_row",
+            ["vl_api_uflow_idx_t", "idx"],
+            ["vl_api_uflow_ent_t", "ent"],
+            {"crc" : "0x3b73b975"}
+        ]
+    ],
+    "messages" : [
+        ["uflow_enable_disable",
+            ["u16", "_vl_msg_id"],
+            ["u32", "client_index"],
+            ["u32", "context"],
+            ["u32", "sw_if_index"],
+            ["u8", "enable_disable"],
+            {"crc" : "0x4c7f1b8a"}
+        ],
+        ["uflow_enable_disable_reply",
+            ["u16", "_vl_msg_id"],
+            ["u32", "context"],
+            ["i32", "retval"],
+            {"crc" : "0xf47b6600"}
+        ],
+        ["uflow_set_ent",
+            ["u16", "_vl_msg_id"],
+            ["u32", "client_index"],
+            ["u32", "context"],
+            ["vl_api_uflow_idx_t", "idx"],
+            ["vl_api_uflow_ent_t", "ent"],
+            {"crc" : "0x6bfeac11"}
+        ],
+        ["uflow_set_ent_reply",
+            ["u16", "_vl_msg_id"],
+            ["u32", "context"],
+            ["i32", "retval"],
+            {"crc" : "0xc49943f5"}
+        ],
+        ["uflow_clr_ent",
+            ["u16", "_vl_msg_id"],
+            ["u32", "client_index"],
+            ["u32", "context"],
+            ["vl_api_uflow_idx_t", "idx"],
+            {"crc" : "0x9c0b61a7"}
+        ],
+        ["uflow_clr_ent_reply",
+            ["u16", "_vl_msg_id"],
+            ["u32", "context"],
+            ["i32", "retval"],
+            {"crc" : "0x6ca429f7"}
+        ],
+        ["uflow_dump",
+            ["u16", "_vl_msg_id"],
+            ["u32", "client_index"],
+            ["u32", "context"],
+            {"crc" : "0xf0ac7601"}
+        ],
+        ["uflow_dump_reply",
+            ["u16", "_vl_msg_id"],
+            ["u32", "context"],
+            ["i32", "retval"],
+            ["u32", "num"],
+            ["vl_api_uflow_row_t", "row", 0, "num"],
+            {"crc" : "0x85b96451"}
+        ]
+    ],
+"vl_api_version" :"0x85909300"
+}

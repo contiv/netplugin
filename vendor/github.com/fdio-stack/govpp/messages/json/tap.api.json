@@ -1,0 +1,78 @@
+{
+    "types" : [
+
+    ],
+    "messages" : [
+        ["tap_connect",
+            ["u16", "_vl_msg_id"],
+            ["u32", "client_index"],
+            ["u32", "context"],
+            ["u8", "use_random_mac"],
+            ["u8", "tap_name", 64],
+            ["u8", "mac_address", 6],
+            ["u8", "renumber"],
+            ["u32", "custom_dev_instance"],
+            ["u8", "ip4_address_set"],
+            ["u8", "ip4_address", 4],
+            ["u8", "ip4_mask_width"],
+            ["u8", "ip6_address_set"],
+            ["u8", "ip6_address", 16],
+            ["u8", "ip6_mask_width"],
+            ["u8", "tag", 64],
+            {"crc" : "0x91720de3"}
+        ],
+        ["tap_connect_reply",
+            ["u16", "_vl_msg_id"],
+            ["u32", "context"],
+            ["i32", "retval"],
+            ["u32", "sw_if_index"],
+            {"crc" : "0xf47feac1"}
+        ],
+        ["tap_modify",
+            ["u16", "_vl_msg_id"],
+            ["u32", "client_index"],
+            ["u32", "context"],
+            ["u32", "sw_if_index"],
+            ["u8", "use_random_mac"],
+            ["u8", "tap_name", 64],
+            ["u8", "mac_address", 6],
+            ["u8", "renumber"],
+            ["u32", "custom_dev_instance"],
+            {"crc" : "0x8abcd5f3"}
+        ],
+        ["tap_modify_reply",
+            ["u16", "_vl_msg_id"],
+            ["u32", "context"],
+            ["i32", "retval"],
+            ["u32", "sw_if_index"],
+            {"crc" : "0x00aaf940"}
+        ],
+        ["tap_delete",
+            ["u16", "_vl_msg_id"],
+            ["u32", "client_index"],
+            ["u32", "context"],
+            ["u32", "sw_if_index"],
+            {"crc" : "0xe99d41c1"}
+        ],
+        ["tap_delete_reply",
+            ["u16", "_vl_msg_id"],
+            ["u32", "context"],
+            ["i32", "retval"],
+            {"crc" : "0x0e47d140"}
+        ],
+        ["sw_interface_tap_dump",
+            ["u16", "_vl_msg_id"],
+            ["u32", "client_index"],
+            ["u32", "context"],
+            {"crc" : "0xbc6ddbe2"}
+        ],
+        ["sw_interface_tap_details",
+            ["u16", "_vl_msg_id"],
+            ["u32", "context"],
+            ["u32", "sw_if_index"],
+            ["u8", "dev_name", 64],
+            {"crc" : "0x0df07bc3"}
+        ]
+    ],
+"vl_api_version" :"0x1aedb9f2"
+}

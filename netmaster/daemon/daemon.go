@@ -132,13 +132,13 @@ func (d *MasterDaemon) agentDiscoveryLoop() {
 
 	// Create channels for watch thread
 	agentEventCh := make(chan objdb.WatchServiceEvent, 1)
-	watchStopCh := make(chan bool, 1)
+	// watchStopCh := make(chan bool, 1)
 
-	// Start a watch on netplugin service
-	err := d.objdbClient.WatchService("netplugin", agentEventCh, watchStopCh)
-	if err != nil {
-		log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
-	}
+	// // Start a watch on netplugin service
+	// err := d.objdbClient.WatchService("netplugin", agentEventCh, watchStopCh)
+	// if err != nil {
+	// 	log.Fatalf("Could not start a watch on netplugin service. Err: %v", err)
+	// }
 
 	for {
 		agentEv := <-agentEventCh
@@ -150,7 +150,7 @@ func (d *MasterDaemon) agentDiscoveryLoop() {
 		}
 
 		if agentEv.EventType == objdb.WatchServiceEventAdd {
-			err = d.ofnetMaster.AddNode(nodeInfo)
+			err := d.ofnetMaster.AddNode(nodeInfo)
 			if err != nil {
 				log.Errorf("Error adding node %v. Err: %v", nodeInfo, err)
 			}
@@ -238,7 +238,7 @@ func (d *MasterDaemon) runLeader() {
 	d.registerService()
 
 	// initialize policy manager
-	mastercfg.InitPolicyMgr(d.stateDriver, d.ofnetMaster)
+	mastercfg.InitPolicyMgr(d.stateDriver) //brecode - , d.ofnetMaster)
 
 	// setup HTTP routes
 	d.registerRoutes(router)

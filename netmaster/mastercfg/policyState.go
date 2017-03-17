@@ -23,7 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/contiv/contivmodel"
+	contivModel "github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/ofnet"
 )
@@ -57,10 +57,9 @@ var ofnetMaster *ofnet.OfnetMaster
 var stateStore core.StateDriver
 
 // InitPolicyMgr initializes the policy manager
-func InitPolicyMgr(stateDriver core.StateDriver, ofm *ofnet.OfnetMaster) error {
+func InitPolicyMgr(stateDriver core.StateDriver) error {
 	// save statestore and ofnet masters
 	stateStore = stateDriver
-	ofnetMaster = ofm
 
 	// restore all existing epg policies
 	err := restoreEpgPolicies(stateDriver)
