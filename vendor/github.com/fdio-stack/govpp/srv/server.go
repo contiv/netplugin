@@ -5,7 +5,6 @@ package srv
 
 import (
 	"errors"
-	"govpp-master/examples/go/acl"
 	"govpp-master/examples/go/interfaces"
 
 	log "github.com/Sirupsen/logrus"
@@ -143,17 +142,58 @@ func vpp_add_del_l2_bridge_domain(bdid uint32, isAdd uint8) error {
 
 	// receive the response - channel API instead of ReceiveReply
 	vppReply := <-ch.ReplyChan
-	reply := &acl.ACLAddReplaceReply{}
+	reply := &vpe.BridgeDomainAddDelReply{}
 	ch.Decoder.DecodeMsg(vppReply.Data, reply)
 
-	log.Info("%+v\n", reply)
+	if reply.Retval != 0 {
+		return errors.New("Could not add/del bridge domain")
+	}
+
+	return nil
+}
+
+func vpp_set_interface_l2_bridge(id string, vppIntf string) error {
+	conn := govpp.Connect()
+	defer conn.Disconnect()
+
+	ch := conn.NewApiChannel()
+	defer ch.Close()
+
+	_, ok := vppBridgeByID[id]
+	if !ok {
+		return errors.New("govpp: vpp_set_interface_l2_bridge: ID not found in vppBridgeByID")
+	}
+	_, ok = vppIntfByName[vppIntf]
+	if !ok {
+		return errors.New("Interface not found in vppIntfByName")
+	}
+
+	req := &vpe.SwInterfaceSetL2Bridge{
+		RxSwIfIndex: vppIntfByName[vppIntf].swIfIndex,
+		BdID:        vppBridgeByID[id].bridgeID,
+		Shg:         0,
+		Bvi:         0,
+		Enable:      1,
+	}
+
+	// send the request - channel API instead of SendRequest
+	ch.ReqChan <- &api.VppRequest{Message: req}
+
+	// receive the response - channel API instead of ReceiveReply
+	vppReply := <-ch.ReplyChan
+	reply := &vpe.SwInterfaceSetL2BridgeReply{}
+	ch.Decoder.DecodeMsg(vppReply.Data, reply)
+
+	if reply.Retval != 0 {
+		return errors.New("Could not set bridge mode for interface")
+	}
 	return nil
 }
 
 /*
  ***************************************************************
 
- *** VPP Interface Add / Del, Flags
+ *** VPP Interface Add / Del, Set Flags
 
  ***************************************************************
  */
@@ -200,7 +240,6 @@ func vpp_set_vpp_interface_adminup(vppIntf string) error {
 
 	_, ok := vppIntfByName[vppIntf]
 	if !ok {
-		log.Debug("%s not found in vppIntfByName\n", vppIntf)
 		return errors.New("Interface not found in vppIntfByName")
 	}
 
@@ -219,43 +258,6 @@ func vpp_set_vpp_interface_adminup(vppIntf string) error {
 
 	if reply.Retval != 0 {
 		return errors.New("Could not add set af_packet interface flag, admin state up")
-	}
-	return nil
-}
-
-func vpp_set_interface_l2_bridge(id string, vppIntf string) error {
-	conn := govpp.Connect()
-	defer conn.Disconnect()
-
-	ch := conn.NewApiChannel()
-	defer ch.Close()
-
-	_, ok := vppBridgeByID[id]
-	if !ok {
-		log.Debug("%s not found in vppBridgeByID\n", id)
-		return errors.New("ID not found in vppBridgeByID")
-	}
-	_, ok = vppIntfByName[vppIntf]
-	if !ok {
-		log.Debug("%s not found in vppIntfByName\n", vppIntf)
-		return errors.New("Interface not found in vppIntfByName")
-	}
-
-	req := &vpe.SwInterfaceSetL2Bridge{
-		RxSwIfIndex: vppIntfByName[vppIntf].swIfIndex,
-		BdID:        vppBridgeByID[id].bridgeID,
-	}
-
-	// send the request - channel API instead of SendRequest
-	ch.ReqChan <- &api.VppRequest{Message: req}
-
-	// receive the response - channel API instead of ReceiveReply
-	vppReply := <-ch.ReplyChan
-	reply := &vpe.SwInterfaceSetL2BridgeReply{}
-	ch.Decoder.DecodeMsg(vppReply.Data, reply)
-
-	if reply.Retval != 0 {
-		return errors.New("Could not set bridge mode for interface")
 	}
 	return nil
 }

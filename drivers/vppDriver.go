@@ -90,9 +90,9 @@ func (d *VppDriver) CreateNetwork(id string) error {
 	}
 	isAdd := true
 	log.Infof("Create net %+v \n", cfgNw)
-	bdID, _ := govpp.VppAddDelBridgeDomain(id, isAdd)
-	if bdID == 0 {
-		log.Infof("Could not create VPP bridge domain")
+	bdID, err := govpp.VppAddDelBridgeDomain(id, isAdd)
+	if err != nil {
+		return err
 	} else {
 		log.Infof("VPP Bridge domain successfully created with id: %d", bdID)
 	}
@@ -102,9 +102,9 @@ func (d *VppDriver) CreateNetwork(id string) error {
 // DeleteNetwork deletes a network for a given ID from VPP
 func (d *VppDriver) DeleteNetwork(id string, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error {
 	isAdd := false
-	bdID, _ := govpp.VppAddDelBridgeDomain(id, isAdd)
-	if bdID == 0 {
-		log.Infof("Could not delete VPP bridge domain")
+	bdID, err := govpp.VppAddDelBridgeDomain(id, isAdd)
+	if err != nil {
+		return err
 	} else {
 		log.Infof("VPP Bridge domain  with id: %d, successfully deleted", bdID)
 	}
@@ -289,7 +289,7 @@ func (d *VppDriver) getIntfName(cfgEp *mastercfg.CfgEndpointState) (string, erro
 	vethPrefix := "veth"
 	vethID := cfgEp.EndpointID[:9]
 	if vethID == "" {
-		err := errors.New("Could not get ID from cfgEp ID")
+		err := errors.New("Error getting ID from cfgEp ID")
 		return "", err
 	}
 	intfName := fmt.Sprint(vethPrefix + vethID)
@@ -301,7 +301,7 @@ func (d *VppDriver) addVppIntf(id string, intfName string) error {
 	// Get VPP name
 	vppIntfName, err := getVppIntfName(intfName)
 	if err != nil {
-		log.Errorf("Error getting vpp veth pair name. Err: %v", err)
+		log.Errorf("Error generating vpp veth pair name. Err: %v", err)
 		return err
 	}
 	// Create a Veth pair
@@ -310,8 +310,6 @@ func (d *VppDriver) addVppIntf(id string, intfName string) error {
 		log.Errorf("Error creating the veth pair. Err: %v", err)
 		return err
 	}
-	log.Infof("Veth Pair successfully created. int1:%s, int2:%s", intfName, vppIntfName)
-
 	// Set host-side link for the veth pair
 	vppLinkIntfName, err := netlink.LinkByName(vppIntfName)
 	if err != nil {
@@ -323,7 +321,6 @@ func (d *VppDriver) addVppIntf(id string, intfName string) error {
 		log.Errorf("Error setting state up for veth pair, Err: %v", err)
 		return err
 	}
-	log.Infof("Creating interface in VPP with name host-%s", vppIntfName)
 
 	err = govpp.VppAddInterface(vppIntfName)
 	if err != nil {
@@ -335,10 +332,10 @@ func (d *VppDriver) addVppIntf(id string, intfName string) error {
 		log.Errorf("Error setting the vpp-side interface state to up, Err: %v", err)
 		return err
 	}
-	// err = govpp.VppSetInterfaceL2Bridge(id, vppIntfName)
-	// if err != nil {
-	// 	log.Errorf("Error adding interface to bridge domain, Err: %v", err)
-	// 	return err
-	// }
+	err = govpp.VppSetInterfaceL2Bridge(id, vppIntfName)
+	if err != nil {
+		log.Errorf("Error adding interface to bridge domain, Err: %v", err)
+		return err
+	}
 	return nil
 }
