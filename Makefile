@@ -32,8 +32,9 @@ all: build unit-test system-test ubuntu-tests
 # sandbox specific(vagrant, docker-in-docker)
 all-CI: stop clean start
 	make ssh-build
-	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-unit-test"'
-	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-integ-test"'
+	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh \
+		&& cd /opt/gopath/src/github.com/contiv/netplugin \
+		&& make host-unit-test host-integ-test host-build-docker-image"'
 	make system-test
 
 test: build unit-test system-test ubuntu-tests
@@ -81,6 +82,10 @@ run-build: deps checks clean
 	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
 	GOGC=1500 go install -v $(TO_BUILD)
+
+build-docker-image: start
+	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-build-docker-image"'
+
 
 ifdef NET_CONTAINER_BUILD
 install-shell-completion:
@@ -230,6 +235,9 @@ start-aci-gw:
 	@echo dev: starting aci gw...
 	docker pull contiv/aci-gw:11-28-2016.1.3_2i
 	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" --name=contiv-aci-gw contiv/aci-gw:11-28-2016.1.3_2i
+
+host-build-docker-image:
+	./scripts/netContain/build_image.sh
 
 host-cleanup:
 	@echo dev: cleaning up services...
