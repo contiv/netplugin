@@ -65,8 +65,12 @@ else
 	docker login -u $docker_user -p $docker_password
 fi
 
+mkdir bin || true
 wget https://github.com/contiv/netplugin/releases/download/$contiv_version/netplugin-$contiv_version.tar.bz2
-tar xvfj netplugin-$contiv_version.tar.bz2
+tar xvfj netplugin-$contiv_version.tar.bz2 -C bin
+# remove the contrib directory, we don't need it in the image
+rm -rf bin/contrib || true
+
 if [ "$?" != "0" ]; then
 	error_ret "FAILED: Error getting contiv version $contiv_version"
 fi
