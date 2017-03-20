@@ -20,6 +20,10 @@ type ACLRule struct {
 	DstportOrIcmpcodeLast  uint16
 	TCPFlagsMask           uint8
 	TCPFlagsValue          uint8
+	RuleId                 string // Unique identifier for the rule
+	Priority               int    // Priority for the rule (1..100. 100 is highest)
+	SrcEndpointGroup       int    // Source endpoint group
+	DstEndpointGroup       int    // Destination endpoint group
 }
 
 func (*ACLRule) GetTypeName() string {

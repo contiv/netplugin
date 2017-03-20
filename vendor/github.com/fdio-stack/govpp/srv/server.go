@@ -5,11 +5,13 @@ package srv
 
 import (
 	"errors"
+	"fmt"
 	"govpp-master/examples/go/interfaces"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/fdio-stack/govpp"
 	"github.com/fdio-stack/govpp/api"
+	"github.com/fdio-stack/govpp/messages/go/acl"
 	"github.com/fdio-stack/govpp/messages/go/vpe"
 )
 
@@ -26,12 +28,18 @@ type vppInterface struct {
 	ipAddr    string
 }
 
+type vppRuleT struct {
+	index uint32
+}
+
 // Start with bridgedainID = 1
 var nextBdid uint32 = 1
+var aclIndex uint32
 
 // Keeps a map of the associated Contiv Network ID and VPP bridge domains
 var vppBridgeByID = make(map[string]*vppBridgeDomain)
 var vppIntfByName = make(map[string]*vppInterface)
+var vppRuleByID = make(map[string]*vppRuleT)
 
 /*
  ***************************************************************
@@ -91,6 +99,24 @@ func VppInterfaceAdminUp(vppIntf string) error {
 // VppSetInterfaceL2Bridge requests bridge mode for interface
 func VppSetInterfaceL2Bridge(id string, vppIntf string) error {
 	err := vpp_set_interface_l2_bridge(id, vppIntf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// VppACLAddReplaceRule adds/replaces a rule in VPP
+func VppACLAddReplaceRule(vppRule *acl.ACLRule) error {
+	err := vpp_acl_add_replace_rule(vppRule)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// VppACLDelRule deletes an ACL Rule in vpp
+func VppACLDelRule(vppRule *acl.ACLRule) error {
+	err := vpp_acl_del_rule(vppRule)
 	if err != nil {
 		return err
 	}
@@ -259,5 +285,86 @@ func vpp_set_vpp_interface_adminup(vppIntf string) error {
 	if reply.Retval != 0 {
 		return errors.New("Could not add set af_packet interface flag, admin state up")
 	}
+	return nil
+}
+
+/*
+ ***************************************************************
+
+ *** VPP ACL
+
+ ***************************************************************
+ */
+
+func vpp_acl_add_replace_rule(vppRule *acl.ACLRule) error {
+	conn := govpp.Connect()
+	defer conn.Disconnect()
+
+	ch := conn.NewApiChannel()
+	defer ch.Close()
+
+	req := &acl.ACLAddReplace{
+		ACLIndex: ^uint32(0),
+		Tag:      []byte(vppRule.RuleId),
+		R: []acl.ACLRule{
+			{
+				IsPermit:       vppRule.IsPermit,
+				SrcIPAddr:      vppRule.SrcIPAddr,
+				SrcIPPrefixLen: vppRule.SrcIPPrefixLen,
+				DstIPAddr:      vppRule.DstIPAddr,
+				DstIPPrefixLen: vppRule.DstIPPrefixLen,
+				Proto:          vppRule.Proto,
+				SrcportOrIcmptypeFirst: vppRule.SrcportOrIcmptypeFirst,
+				SrcportOrIcmptypeLast:  vppRule.SrcportOrIcmptypeLast,
+				DstportOrIcmpcodeFirst: vppRule.DstportOrIcmpcodeFirst,
+				DstportOrIcmpcodeLast:  vppRule.DstportOrIcmpcodeLast,
+			},
+		},
+	}
+
+	// send the request - channel API instead of SendRequest
+	ch.ReqChan <- &api.VppRequest{Message: req}
+
+	// receive the response - channel API instead of ReceiveReply
+	vppReply := <-ch.ReplyChan
+	reply := &acl.ACLAddReplaceReply{}
+	ch.Decoder.DecodeMsg(vppReply.Data, reply)
+
+	fmt.Printf("%+v\n", reply)
+	if reply.Retval != 0 {
+		return errors.New("Could not add set af_packet interface flag, admin state up")
+	}
+	aclIndex++
+	vppIndexValue := vppRuleT{
+		aclIndex,
+	}
+	vppRuleByID[vppRule.RuleId] = &vppIndexValue
+	return nil
+}
+
+func vpp_acl_del_rule(vppRule *acl.ACLRule) error {
+	conn := govpp.Connect()
+	defer conn.Disconnect()
+
+	ch := conn.NewApiChannel()
+	defer ch.Close()
+
+	req := &acl.ACLDel{
+		ACLIndex: vppRuleByID[vppRule.RuleId].index,
+	}
+
+	// send the request - channel API instead of SendRequest
+	ch.ReqChan <- &api.VppRequest{Message: req}
+
+	// receive the response - channel API instead of ReceiveReply
+	vppReply := <-ch.ReplyChan
+	reply := &acl.ACLDelReply{}
+	ch.Decoder.DecodeMsg(vppReply.Data, reply)
+
+	fmt.Printf("%+v\n", reply)
+	if reply.Retval != 0 {
+		return errors.New("Could not add set af_packet interface flag, admin state up")
+	}
+	aclIndex--
 	return nil
 }

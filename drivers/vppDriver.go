@@ -93,9 +93,8 @@ func (d *VppDriver) CreateNetwork(id string) error {
 	bdID, err := govpp.VppAddDelBridgeDomain(id, isAdd)
 	if err != nil {
 		return err
-	} else {
-		log.Infof("VPP Bridge domain successfully created with id: %d", bdID)
 	}
+	log.Infof("VPP Bridge domain successfully created with id: %d", bdID)
 	return nil
 }
 
@@ -105,9 +104,8 @@ func (d *VppDriver) DeleteNetwork(id string, nwType, encap string, pktTag, extPk
 	bdID, err := govpp.VppAddDelBridgeDomain(id, isAdd)
 	if err != nil {
 		return err
-	} else {
-		log.Infof("VPP Bridge domain  with id: %d, successfully deleted", bdID)
 	}
+	log.Infof("VPP Bridge domain  with id: %d, successfully deleted", bdID)
 	return nil
 }
 
