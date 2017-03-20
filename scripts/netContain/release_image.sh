@@ -1,3 +1,5 @@
+#!/bin/bash
+
 contiv_version=""
 docker_user="contiv"
 docker_password=""
@@ -69,7 +71,7 @@ if [ "$?" != "0" ]; then
 	error_ret "FAILED: Error getting contiv version $contiv_version"
 fi
 
-docker build . -t $image_name:$image_tag
+docker build . -t $image_name:$image_tag -t ${image_name}:latest
 if [ "$?" != "0" ]; then
 	error_ret "FAILED: Error building image for contiv version $contiv_version to $image_name:$image_tag"
 fi
