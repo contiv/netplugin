@@ -34,7 +34,6 @@ type vppRuleT struct {
 
 // Start with bridgedainID = 1
 var nextBdid uint32 = 1
-var aclIndex uint32
 
 // Keeps a map of the associated Contiv Network ID and VPP bridge domains
 var vppBridgeByID = make(map[string]*vppBridgeDomain)
@@ -334,9 +333,8 @@ func vpp_acl_add_replace_rule(vppRule *acl.ACLRule) error {
 	if reply.Retval != 0 {
 		return errors.New("Could not add set af_packet interface flag, admin state up")
 	}
-	aclIndex++
 	vppIndexValue := vppRuleT{
-		aclIndex,
+		reply.ACLIndex,
 	}
 	vppRuleByID[vppRule.RuleId] = &vppIndexValue
 	return nil
@@ -365,6 +363,5 @@ func vpp_acl_del_rule(vppRule *acl.ACLRule) error {
 	if reply.Retval != 0 {
 		return errors.New("Could not add set af_packet interface flag, admin state up")
 	}
-	aclIndex--
 	return nil
 }
