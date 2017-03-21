@@ -20,15 +20,15 @@ type OvsdbClient struct {
 func newOvsdbClient(c *rpc2.Client) *OvsdbClient {
 	ovs := &OvsdbClient{rpcClient: c, Schema: make(map[string]DatabaseSchema)}
 	connectionsMutex.Lock()
+	defer connectionsMutex.Unlock()
 	connections[c] = ovs
-	connectionsMutex.Unlock()
 	return ovs
 }
 
 // Would rather replace this connection map with an OvsdbClient Receiver scoped method
 // Unfortunately rpc2 package acts wierd with a receiver scoped method and needs some investigation.
 var connections map[*rpc2.Client]*OvsdbClient = make(map[*rpc2.Client]*OvsdbClient)
-var connectionsMutex sync.Mutex
+var connectionsMutex sync.RWMutex
 
 const DEFAULT_ADDR = "127.0.0.1"
 const DEFAULT_PORT = 6640
@@ -90,6 +90,8 @@ func Connect(ipAddr string, port int) (*OvsdbClient, error) {
 }
 
 func (ovs *OvsdbClient) Register(handler NotificationHandler) {
+	connectionsMutex.Lock()
+	defer connectionsMutex.Unlock()
 	ovs.handlers = append(ovs.handlers, handler)
 }
 
@@ -110,13 +112,13 @@ type NotificationHandler interface {
 // RFC 7047 : Section 4.1.6 : Echo
 func echo(client *rpc2.Client, args []interface{}, reply *[]interface{}) error {
 	*reply = args
-	connectionsMutex.Lock()
+	connectionsMutex.RLock()
+	defer connectionsMutex.RUnlock()
 	if _, ok := connections[client]; ok {
 		for _, handler := range connections[client].handlers {
 			handler.Echo(nil)
 		}
 	}
-	connectionsMutex.Unlock()
 	return nil
 }
 
@@ -145,13 +147,13 @@ func update(client *rpc2.Client, params []interface{}, reply *interface{}) error
 
 	// Update the local DB cache with the tableUpdates
 	tableUpdates := getTableUpdatesFromRawUnmarshal(rowUpdates)
-	connectionsMutex.Lock()
+	connectionsMutex.RLock()
+	defer connectionsMutex.RUnlock()
 	if _, ok := connections[client]; ok {
 		for _, handler := range connections[client].handlers {
 			handler.Update(params, tableUpdates)
 		}
 	}
-	connectionsMutex.Unlock()
 	return nil
 }
 
@@ -252,16 +254,14 @@ func getTableUpdatesFromRawUnmarshal(raw map[string]map[string]RowUpdate) TableU
 
 func clearConnection(c *rpc2.Client) {
 	connectionsMutex.Lock()
+	defer connectionsMutex.Unlock()
 	delete(connections, c)
-	connectionsMutex.Unlock()
 }
 
 func handleDisconnectNotification(c *rpc2.Client) {
 	disconnected := c.DisconnectNotify()
-	select {
-	case <-disconnected:
-		clearConnection(c)
-	}
+	<-disconnected
+	clearConnection(c)
 }
 
 func (ovs OvsdbClient) Disconnect() {
