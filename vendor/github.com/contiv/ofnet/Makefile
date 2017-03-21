@@ -1,5 +1,4 @@
-
-.PHONY: all build test
+.PHONY: all build update test start stop host-build host-test
 
 all: build test
 
@@ -19,7 +18,7 @@ test: build
 	vagrant ssh node1 -c 'cd /opt/gopath/src/github.com/contiv/ofnet && make host-test'
 
 host-build:
-	./checks "./*.go ./ofctrl/ ./ovsdbDriver/ ./pqueue/ ./rpcHub/"
+	./checks "./*.go ./libpkt/ ./ofctrl/ ./ovsdbDriver/ ./ovsSwitch/ ./pqueue/ ./rpcHub/"
 	go get github.com/tools/godep
 	godep go install ./ ./ofctrl
 

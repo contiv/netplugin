@@ -282,19 +282,9 @@ func (cniReq *cniServer) createCniEndPoint() error {
 		goto cleanupNetplugin
 	}
 
-	// host access
-	if strings.HasSuffix(cniReq.pluginArgs.CniIfname, "0") {
-		if err = cniReq.createHostBrIntf(ovsEpDriver); err != nil {
-			cniLog.Errorf("failed to configure host-br %s", err.Error())
-			goto cleanupNetns
-		}
-	}
-
 	return nil
 
 	// unwind the setup, ignore errors
-cleanupNetns:
-	cniReq.unlinkNetNs()
 cleanupNetplugin:
 	cniReq.deleteNetpluginEndPoint()
 cleanupMaster:

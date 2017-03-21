@@ -109,8 +109,18 @@ type EndpointInfo struct {
 	Vrf               string           // VRF name
 	EndpointGroupVlan uint16           // Endpoint group vlan when its different from network vlan
 	Dscp              int              // DSCP value for the endpoint
+	HostPvtIP         net.IP           // IPv4 address for NAT access to host
 }
 
+// HostPortInfo holds information about a host access port
+type HostPortInfo struct {
+	PortNo  uint32           // OVS port number
+	MacAddr net.HardwareAddr // mac address
+	IpAddr  string           // IP address in the a.b.c.d/N format
+	Kind    string           // NAT or Regular
+}
+
+const HOST_SNAT_DENY_PRIORITY = 101    // Priority for host snat deny
 const DNS_FLOW_MATCH_PRIORITY = 100    // Priority for dns match flows
 const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
 const FLOW_FLOOD_PRIORITY = 10         // Priority for flood entries
@@ -119,12 +129,14 @@ const FLOW_POLICY_PRIORITY_OFFSET = 10 // Priority offset for policy rules
 
 const (
 	VLAN_TBL_ID           = 1
-	SRV_PROXY_DNAT_TBL_ID = 2
-	DST_GRP_TBL_ID        = 3
-	POLICY_TBL_ID         = 4
-	SRV_PROXY_SNAT_TBL_ID = 5
-	IP_TBL_ID             = 6
-	MAC_DEST_TBL_ID       = 7
+	HOST_DNAT_TBL_ID      = 2
+	SRV_PROXY_DNAT_TBL_ID = 3
+	DST_GRP_TBL_ID        = 4
+	POLICY_TBL_ID         = 5
+	SRV_PROXY_SNAT_TBL_ID = 6
+	IP_TBL_ID             = 7
+	HOST_SNAT_TBL_ID      = 8
+	MAC_DEST_TBL_ID       = 9
 )
 
 // Create a new Ofnet agent and initialize it
@@ -562,6 +574,7 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		Dscp:              endpoint.Dscp,
 		Timestamp:         time.Now(),
 		EndpointGroupVlan: endpoint.EndpointGroupVlan,
+		HostPvtIP:         endpoint.HostPvtIP,
 	}
 
 	// Call the datapath
@@ -772,6 +785,16 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 	self.incrStats("AddNetwork")
 
 	return nil
+}
+
+// AddHostPort
+func (self *OfnetAgent) AddHostPort(hp HostPortInfo) error {
+	return self.datapath.AddHostPort(hp)
+}
+
+// RemoveHostPort
+func (self *OfnetAgent) RemoveHostPort(portNo uint32) error {
+	return self.datapath.RemoveHostPort(portNo)
 }
 
 // Remove a vlan from datapath

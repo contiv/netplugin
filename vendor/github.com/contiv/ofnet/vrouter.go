@@ -36,6 +36,7 @@ import (
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"github.com/shaleman/libOpenflow/protocol"
+	"github.com/spf13/pflag"
 
 	log "github.com/Sirupsen/logrus"
 	cmap "github.com/streamrail/concurrent-map"
@@ -50,9 +51,12 @@ type Vrouter struct {
 	svcProxy    *ServiceProxy    // Service proxy
 
 	// Fgraph tables
-	inputTable *ofctrl.Table // Packet lookup starts here
-	vlanTable  *ofctrl.Table // Vlan Table. map port or VNI to vlan
-	ipTable    *ofctrl.Table // IP lookup table
+	inputTable     *ofctrl.Table // Packet lookup starts here
+	vlanTable      *ofctrl.Table // Vlan Table. map port or VNI to vlan
+	ipTable        *ofctrl.Table // IP lookup table
+	proxySNATTable *ofctrl.Table // Svc proxy SNAT table
+	hostSNATTable  *ofctrl.Table // Egress via host nat port
+	hostDNATTable  *ofctrl.Table // Ingress via host nat port
 
 	// Flow Database
 	flowDb         map[string]*ofctrl.Flow   // Database of flow entries
@@ -61,7 +65,9 @@ type Vrouter struct {
 	portDnsFlowDb  cmap.ConcurrentMap        // Database of flow entries
 	vlanDb         map[uint16]*Vlan          // Database of known vlans
 
-	myRouterMac net.HardwareAddr // Router Mac to be used
+	myRouterMac   net.HardwareAddr   // Router Mac to be used
+	hostNATInfo   HostPortInfo       // Information for host NAT access
+	hostNATFlowDB cmap.ConcurrentMap // Database of host NAT flows
 }
 
 // Create a new vrouter instance
@@ -82,6 +88,7 @@ func NewVrouter(agent *OfnetAgent, rpcServ *rpc.Server) *Vrouter {
 	vrouter.portDnsFlowDb = cmap.New()
 	vrouter.myRouterMac, _ = net.ParseMAC("00:00:11:11:11:11")
 	vrouter.vlanDb = make(map[uint16]*Vlan)
+	vrouter.hostNATFlowDB = cmap.New()
 
 	return vrouter
 }
@@ -300,11 +307,87 @@ func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		}
 	}
 
+	if endpoint.HostPvtIP.String() != "<nil>" && self.hostNATInfo.PortNo != 0 {
+		return self.setupHostNAT(endpoint, vrfmetadata, vrfmetadataMask)
+	}
+	return nil
+}
+
+func (self *Vrouter) setupHostNAT(endpoint OfnetEndpoint, vrfmetadata, vrfmetadataMask uint64) error {
+	// setup the host NAT flows
+	hsNAT, err := self.hostSNATTable.NewFlow(ofctrl.FlowMatch{
+		Priority:  FLOW_MATCH_PRIORITY,
+		Ethertype: 0x0800,
+		InputPort: endpoint.PortNo,
+	})
+
+	if err != nil {
+		log.Errorf("Error adding endpoint to host SNAT {%+v}. Err: %v", endpoint, err)
+		return err
+	}
+
+	hsNAT.SetIPField(endpoint.HostPvtIP, "Src")
+	hsNAT.SetMacDa(self.hostNATInfo.MacAddr)
+	natOut, err := self.ofSwitch.OutputPort(self.hostNATInfo.PortNo)
+	if err != nil {
+		return err
+	}
+	// Point the route at output port
+	err = hsNAT.Next(natOut)
+	if err != nil {
+		log.Errorf("Error installing host NAT out flow for endpoint: %+v. Err: %v", endpoint, err)
+		return err
+	}
+	snatFlowKey := endpoint.HostPvtIP.String() + ".snat"
+	self.hostNATFlowDB.Set(snatFlowKey, hsNAT)
+
+	hdNAT, err := self.hostDNATTable.NewFlow(ofctrl.FlowMatch{
+		Priority:  FLOW_MATCH_PRIORITY,
+		InputPort: self.hostNATInfo.PortNo,
+		Ethertype: 0x0800,
+		IpDa:      &endpoint.HostPvtIP,
+	})
+
+	if err != nil {
+		log.Errorf("Error adding endpoint to host DNAT {%+v}. Err: %v", endpoint, err)
+		return err
+	}
+
+	hdNAT.SetIPField(endpoint.IpAddr, "Dst")
+	eMac, err := net.ParseMAC(endpoint.MacAddrStr)
+	if err != nil {
+		log.Errorf("Error parsing ep MAC: %s", endpoint.MacAddrStr)
+		return err
+	}
+	hdNAT.SetMacDa(eMac)
+	hdNAT.SetMetadata(vrfmetadata, vrfmetadataMask)
+	// Point to SNAT table
+	err = hdNAT.Next(self.proxySNATTable)
+	if err != nil {
+		log.Errorf("Error installing host NAT in flow for endpoint: %+v. Err: %v", endpoint, err)
+		return err
+	}
+	dnatFlowKey := endpoint.HostPvtIP.String() + ".dnat"
+	self.hostNATFlowDB.Set(dnatFlowKey, hdNAT)
 	return nil
 }
 
 // Remove local endpoint
 func (self *Vrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
+	// Remove host nat flows
+	dnatFlowKey := endpoint.HostPvtIP.String() + ".dnat"
+	hdFlow, _ := self.hostNATFlowDB.Get(dnatFlowKey)
+	if hdFlow != nil {
+		hdFlow.(*ofctrl.Flow).Delete()
+		self.hostNATFlowDB.Remove(dnatFlowKey)
+	}
+	snatFlowKey := endpoint.HostPvtIP.String() + ".snat"
+	hsFlow, _ := self.hostNATFlowDB.Get(snatFlowKey)
+	if hsFlow != nil {
+		hsFlow.(*ofctrl.Flow).Delete()
+		self.hostNATFlowDB.Remove(snatFlowKey)
+	}
+
 	// Remove the port vlan flow.
 	portVlanFlow := self.portVlanFlowDb[endpoint.PortNo]
 	if portVlanFlow != nil {
@@ -394,6 +477,78 @@ func (self *Vrouter) UpdateLocalEndpoint(endpoint *OfnetEndpoint, epInfo Endpoin
 		self.dscpFlowDb[endpoint.PortNo] = []*ofctrl.Flow{dscpV4Flow, dscpV6Flow}
 	}
 
+	return nil
+}
+
+// AddHostPort sets up host access.
+func (self *Vrouter) AddHostPort(hp HostPortInfo) error {
+	if hp.Kind == "NAT" && self.hostNATInfo.PortNo != 0 {
+		log.Errorf("Host NAT port exists: %+v", self.hostNATInfo)
+		return fmt.Errorf("Host NAT port exists")
+	}
+
+	ipDa, daMask, err := ParseIPAddrMaskString(hp.IpAddr)
+	if err != nil {
+		log.Errorf("Bad host route - %v", err)
+		return err
+	}
+
+	netMask := pflag.ParseIPv4Mask(daMask.String())
+	maskedIP := ipDa.Mask(netMask)
+
+	// Save the info
+	self.hostNATInfo = hp
+
+	// Set up DNAT for ingress traffic
+	inNATFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+		InputPort: self.hostNATInfo.PortNo,
+		Priority:  FLOW_MATCH_PRIORITY,
+	})
+	inNATFlow.Next(self.hostDNATTable)
+
+	// Packets from hostport that miss in IP table are dropped
+	inNATMiss, _ := self.ipTable.NewFlow(ofctrl.FlowMatch{
+		InputPort: self.hostNATInfo.PortNo,
+		Priority:  FLOW_FLOOD_PRIORITY,
+	})
+	inNATMiss.Next(self.ofSwitch.DropAction())
+
+	// Deny packets explicitly addressed to the NAT subnet
+	denyFlow, _ := self.hostSNATTable.NewFlow(ofctrl.FlowMatch{
+		Priority:  HOST_SNAT_DENY_PRIORITY,
+		Ethertype: 0x0800,
+		IpDa:      &maskedIP,
+		IpDaMask:  daMask,
+	})
+	denyFlow.Next(self.ofSwitch.DropAction())
+
+	self.hostNATFlowDB.Set("inNATFlow", inNATFlow)
+	self.hostNATFlowDB.Set("inNATMiss", inNATMiss)
+	self.hostNATFlowDB.Set("denyFlow", denyFlow)
+	return nil
+}
+
+// RemoveHostPort sets up host access.
+func (self *Vrouter) RemoveHostPort(hp uint32) error {
+	if hp == self.hostNATInfo.PortNo {
+		self.hostNATInfo.PortNo = 0
+		inNATFlow, _ := self.hostNATFlowDB.Get("inNATFlow")
+		inNATMiss, _ := self.hostNATFlowDB.Get("inNATMiss")
+		denyFlow, _ := self.hostNATFlowDB.Get("denyFlow")
+		if inNATFlow != nil {
+			inNATFlow.(*ofctrl.Flow).Delete()
+		}
+		if inNATMiss != nil {
+			inNATMiss.(*ofctrl.Flow).Delete()
+		}
+		if denyFlow != nil {
+			denyFlow.(*ofctrl.Flow).Delete()
+		}
+
+		self.hostNATFlowDB.Remove("inNATFlow")
+		self.hostNATFlowDB.Remove("inNATMiss")
+		self.hostNATFlowDB.Remove("denyFlow")
+	}
 	return nil
 }
 
@@ -967,10 +1122,17 @@ func (self *Vrouter) initFgraph() error {
 	self.inputTable = sw.DefaultTable()
 	self.vlanTable, _ = sw.NewTable(VLAN_TBL_ID)
 	self.ipTable, _ = sw.NewTable(IP_TBL_ID)
+	self.hostSNATTable, _ = sw.NewTable(HOST_SNAT_TBL_ID)
+	self.hostDNATTable, _ = sw.NewTable(HOST_DNAT_TBL_ID)
 
 	// setup SNAT table
 	// Matches in SNAT table (i.e. incoming) go to IP look up
 	self.svcProxy.InitSNATTable(IP_TBL_ID)
+	self.proxySNATTable = sw.GetTable(SRV_PROXY_SNAT_TBL_ID)
+	if self.proxySNATTable == nil {
+		log.Fatalf("Error creating service proxy table.")
+		return fmt.Errorf("Error creating service proxy table.")
+	}
 
 	// Init policy tables
 	err := self.policyAgent.InitTables(SRV_PROXY_SNAT_TBL_ID)
@@ -1039,11 +1201,21 @@ func (self *Vrouter) initFgraph() error {
 	})
 	vlanMissFlow.Next(sw.DropAction())
 
-	// Drop all packets that miss IP lookup
+	// Packets that miss IP lookup go to hostSNAT
 	ipMissFlow, _ := self.ipTable.NewFlow(ofctrl.FlowMatch{
 		Priority: FLOW_MISS_PRIORITY,
 	})
-	ipMissFlow.Next(sw.DropAction())
+	ipMissFlow.Next(self.hostSNATTable)
+
+	// Misses in host NAT tables are dropped
+	snatMissFlow, _ := self.hostSNATTable.NewFlow(ofctrl.FlowMatch{
+		Priority: FLOW_MISS_PRIORITY,
+	})
+	snatMissFlow.Next(sw.DropAction())
+	dnatMissFlow, _ := self.hostDNATTable.NewFlow(ofctrl.FlowMatch{
+		Priority: FLOW_MISS_PRIORITY,
+	})
+	dnatMissFlow.Next(sw.DropAction())
 
 	return nil
 }
@@ -1062,25 +1234,31 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 		case protocol.Type_Request:
 			self.agent.incrStats("ArpReqRcvd")
 
-			var vlan *uint16
-			if vlan = self.agent.getPortVlanMap(inPort); vlan == nil {
-				self.agent.incrStats("ArpReqInvalidPortVlan")
-				return
-			}
-			tgtMac := self.myRouterMac
-			endpointId := self.agent.getEndpointIdByIpVlan(arpHdr.IPDst, *vlan)
-			endpoint := self.agent.getEndpointByID(endpointId)
-			if endpoint == nil {
-				// Look for a service entry for the target IP
-				proxyMac := self.svcProxy.GetSvcProxyMAC(arpHdr.IPDst)
-				if proxyMac == "" {
-					// If we dont know the IP address, dont send an ARP response
-					log.Debugf("Received ARP request for unknown IP: %v", arpHdr.IPDst)
-					self.agent.incrStats("ArpReqUnknownDest")
+			var tgtMac net.HardwareAddr
+			if inPort != 0 && inPort == self.hostNATInfo.PortNo {
+				// respond to all arp requests from the NAT port
+				tgtMac = self.myRouterMac
+			} else {
+				var vlan *uint16
+				if vlan = self.agent.getPortVlanMap(inPort); vlan == nil {
+					self.agent.incrStats("ArpReqInvalidPortVlan")
 					return
 				}
+				tgtMac = self.myRouterMac
+				endpointId := self.agent.getEndpointIdByIpVlan(arpHdr.IPDst, *vlan)
+				endpoint := self.agent.getEndpointByID(endpointId)
+				if endpoint == nil {
+					// Look for a service entry for the target IP
+					proxyMac := self.svcProxy.GetSvcProxyMAC(arpHdr.IPDst)
+					if proxyMac == "" {
+						// If we dont know the IP address, dont send an ARP response
+						log.Debugf("Received ARP request for unknown IP: %v", arpHdr.IPDst)
+						self.agent.incrStats("ArpReqUnknownDest")
+						return
+					}
 
-				tgtMac, _ = net.ParseMAC(proxyMac)
+					tgtMac, _ = net.ParseMAC(proxyMac)
+				}
 			}
 
 			// Form an ARP response

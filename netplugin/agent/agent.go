@@ -98,7 +98,7 @@ func (ag *Agent) ProcessCurrentState() error {
 		for idx, netCfg := range netCfgs {
 			net := netCfg.(*mastercfg.CfgNetworkState)
 			log.Debugf("read net key[%d] %s, populating state \n", idx, net.ID)
-			processNetEvent(ag.netPlugin, net, false)
+			processNetEvent(ag.netPlugin, net, false, opts)
 			if net.NwType == "infra" {
 				processInfraNwCreate(ag.netPlugin, net, opts)
 			}

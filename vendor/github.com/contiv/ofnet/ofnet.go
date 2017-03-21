@@ -75,6 +75,12 @@ type OfnetDatapath interface {
 	//Delete uplink port
 	RemoveUplink(uplinkName string) error
 
+	// AddHostPort
+	AddHostPort(hp HostPortInfo) error
+
+	// RemoveHostPort
+	RemoveHostPort(portNo uint32) error
+
 	//Inject GARPs
 	InjectGARPs(epgID int)
 
@@ -162,6 +168,7 @@ type OfnetEndpoint struct {
 	PortNo            uint32    `json:"-"` // Port number on originating switch
 	Dscp              int       `json:"-"` // DSCP value for the endpoint
 	Timestamp         time.Time // Timestamp of the last event
+	HostPvtIP         net.IP    `json:"-"` // Private IP
 }
 
 // OfnetPolicyRule has security rule to be installed

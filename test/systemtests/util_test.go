@@ -661,7 +661,7 @@ func (s *systemtestSuite) checkIperfAcrossGroup(containers []*container, contain
 
 func (s *systemtestSuite) checkIngressRate(containers []*container, bw string) error {
 	for _, cont := range containers {
-	  fmt.Printf("Checking IngressRate for container %s for bw :%s ",cont,bw)
+		fmt.Printf("Checking IngressRate for container %s for bw :%s ", cont, bw)
 		err := cont.node.exec.tcFilterShow(bw)
 		return err
 	}
@@ -1420,7 +1420,7 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 				break
 			}
 			// Fail if we reached last iteration
-			c.Assert((i < 20), Equals, true)
+			c.Assert((i < 30), Equals, true)
 			time.Sleep(1 * time.Second)
 		}
 	}
@@ -1436,4 +1436,47 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		}), IsNil)
 		time.Sleep(120 * time.Second)
 	}
+}
+
+func (s *systemtestSuite) verifyHostRoutes(routes []string, expect bool) error {
+
+	for _, n := range s.nodes {
+		out, err := n.runCommand("ip route")
+		if err != nil {
+			logrus.Errorf("Error getting routes: %v", err)
+			return err
+		}
+
+		for _, r := range routes {
+			present := strings.Contains(out, r)
+			if expect != present {
+				logrus.Errorf("Node %s route: %s expected: %v actual: %v", n.Name(), r, expect, present)
+				logrus.Errorf("Out: %v", out)
+				return fmt.Errorf("Node %s route: %s expected: %v actual: %v", n.Name(), r, expect, present)
+			}
+		}
+	}
+
+	return nil
+}
+func (s *systemtestSuite) verifyHostPing(containers []*container) error {
+
+	for _, c := range containers {
+		err := c.node.checkPingWithCount(c.eth0.ip, 3)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+func (s *systemtestSuite) IsolationTest(containers []*container) error {
+	for _, c := range containers {
+		err := c.node.exec.checkPingFailure(c, "172.19.255.254")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -170,13 +170,13 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 
 	// Create Vxlan switch
 	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP,
-		info.FwdMode, nil)
+		info.FwdMode, nil, info.HostPvtNW)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
 	// Create Vlan switch
 	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP,
-		info.FwdMode, info.UplinkIntf)
+		info.FwdMode, info.UplinkIntf, info.HostPvtNW)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
@@ -196,19 +196,12 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 		}
 	}
 
-	// Create Host Access switch
-	d.switchDb["host"], err = NewOvsSwitch(hostBridgeName, "host", info.VtepIP,
-		info.FwdMode, nil)
-	if err != nil {
-		log.Fatalf("Error creating host switch. Err: %v", err)
-	}
-
 	if maxPortNum > 0xfffe {
 		log.Fatalf("Host bridge logic assumes maxPortNum <= 0xfffe")
 	}
 
 	// Add host port.
-	_, err = d.switchDb["host"].AddHostPort(hostPortName, maxPortNum, info.HostPvtNW, true)
+	_, err = d.switchDb["vxlan"].AddHostPort(hostPortName, maxPortNum, info.HostPvtNW, true)
 	if err != nil {
 		log.Errorf("Could not add host port %s to OVS. Err: %v", hostPortName, err)
 	}
@@ -272,10 +265,8 @@ func (d *OvsDriver) Deinit() {
 		d.switchDb["vlan"].Delete()
 	}
 	if d.switchDb["vxlan"] != nil {
+		d.switchDb["vxlan"].DelHostPort(hostPortName, true)
 		d.switchDb["vxlan"].Delete()
-	}
-	if d.switchDb["host"] != nil {
-		d.switchDb["host"].Delete()
 	}
 }
 
