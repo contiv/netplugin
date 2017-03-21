@@ -328,7 +328,7 @@ func (k *kubernetes) startIperfClient(c *container, ip, limit string, isErr bool
 					logrus.Errorf("Obtained Bandwidth:%s is more than the limit: %s", strings.TrimSpace(bwString[1]), limit)
 				} else {
 					logrus.Errorf("Obtained bandwidth:%s is more than the limit %s", bwString[1], limit)
-					return errors.New("Applied bandwidth is more than bandwidth rate!")
+					return errors.New("applied bandwidth is more than bandwidth rate")
 				}
 			} else {
 				logrus.Errorf("Bandwidth rate :%s not applied", limit)
@@ -403,7 +403,7 @@ func (k *kubernetes) checkNoConnection(c *container, ipaddr, protocol string, po
 	if err := k.checkConnection(c, ipaddr, protocol, port); err != nil {
 		return nil
 	}
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("connection SUCCEEDED on port %d from %s from %v when it should have FAILED", port, ipaddr, c)
 }
 
 /*
@@ -579,7 +579,7 @@ func (k *kubernetes) checkNoConnectionRetry(c *container, ipaddr, protocol strin
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("connection SUCCEEDED on port %d from %s from %s when it should have FAILED", port, ipaddr, c)
 }
 
 func (k *kubernetes) checkPing6WithCount(c *container, ipaddr string, count int) error {
