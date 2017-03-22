@@ -11,6 +11,14 @@ get:
       body:
         application/json: |
           {"message": "<<resourcePathName|!singularize>> not found" }
+post:
+  description: Add a new <<resourcePathName|!singularize>>.
+  body:
+    application/json:
+      type: <<provider>>.<<resourcePathName|!singularize>>
+  responses:
+    201:
+    404:
 delete:
   description: deletes <<resourcePathName|!singularize>>.
   responses:
