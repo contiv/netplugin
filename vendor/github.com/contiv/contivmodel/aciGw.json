@@ -18,14 +18,14 @@
 					"type": "string",
 					"title": "List of ACI fabric ports connected to cluster",
 					"length": 2048,
-					"format": "^$|^(topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\\\[eth[0-9]{1,2}/[0-9]{1,2}\\\\]){1}(,topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\\\[eth[0-9]{1,2}/[0-9]{1,2}\\\\])?$",
+					"format": "^$|^(topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\\\[eth[0-9]{1,2}/[0-9]{1,2}\\\\]){1}(,topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\\\[eth[0-9]{1,2}/[0-9]{1,2}\\\\])*$",
 					"ShowSummary": true
 				},
 				"nodeBindings": {
 					"type": "string",
 					"title": "List of ACI complete nodes to be bound",
 					"length": 2048,
-					"format": "^$|^(topology/pod-[0-9]{1,4}/node-[0-9]{1,4}){1}(,topology/pod-[0-9]{1,4}/node-[0-9]{1,4})?$",
+					"format": "^$|^(topology/pod-[0-9]{1,4}/node-[0-9]{1,4}){1}(,topology/pod-[0-9]{1,4}/node-[0-9]{1,4})*$",
 					"ShowSummary": true
 				},
 				"physicalDomain": {

@@ -1407,7 +1407,7 @@ func ValidateAciGw(obj *AciGw) error {
 		return errors.New("nodeBindings string too long")
 	}
 
-	nodeBindingsMatch := regexp.MustCompile("^$|^(topology/pod-[0-9]{1,4}/node-[0-9]{1,4}){1}(,topology/pod-[0-9]{1,4}/node-[0-9]{1,4})?$")
+	nodeBindingsMatch := regexp.MustCompile("^$|^(topology/pod-[0-9]{1,4}/node-[0-9]{1,4}){1}(,topology/pod-[0-9]{1,4}/node-[0-9]{1,4})*$")
 	if nodeBindingsMatch.MatchString(obj.NodeBindings) == false {
 		return errors.New("nodeBindings string invalid format")
 	}
@@ -1416,7 +1416,7 @@ func ValidateAciGw(obj *AciGw) error {
 		return errors.New("pathBindings string too long")
 	}
 
-	pathBindingsMatch := regexp.MustCompile("^$|^(topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\[eth[0-9]{1,2}/[0-9]{1,2}\\]){1}(,topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\[eth[0-9]{1,2}/[0-9]{1,2}\\])?$")
+	pathBindingsMatch := regexp.MustCompile("^$|^(topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\[eth[0-9]{1,2}/[0-9]{1,2}\\]){1}(,topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\[eth[0-9]{1,2}/[0-9]{1,2}\\])*$")
 	if pathBindingsMatch.MatchString(obj.PathBindings) == false {
 		return errors.New("pathBindings string invalid format")
 	}

@@ -41,6 +41,10 @@ import (
 	bgpconf "github.com/osrg/gobgp/config"
 )
 
+const (
+	defHostPvtNet = "172.19.0.0/16"
+)
+
 // APIController stores the api controller state
 type APIController struct {
 	router      *mux.Router
@@ -86,7 +90,24 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 
 	// Init global state
 	gc := contivModel.FindGlobal("global")
-	if gc == nil {
+	if gc != nil {
+		// Cover any upgrade scenario
+		if gc.ArpMode == "" || gc.PvtSubnet == "" {
+			updGC := *gc
+			if updGC.ArpMode == "" {
+				updGC.ArpMode = "proxy"
+			}
+
+			if updGC.PvtSubnet == "" {
+				updGC.PvtSubnet = defHostPvtNet
+			}
+			log.Infof("Upgrading default global config")
+			err := contivModel.CreateGlobal(&updGC)
+			if err != nil {
+				log.Fatalf("Error creating global state. Err: %v", err)
+			}
+		}
+	} else {
 		log.Infof("Creating default global config")
 		err := contivModel.CreateGlobal(&contivModel.Global{
 			Key:              "global",
@@ -96,7 +117,7 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 			Vxlans:           "1-10000",
 			FwdMode:          "bridge",
 			ArpMode:          "proxy",
-			PvtSubnet:        "172.19.0.0/16",
+			PvtSubnet:        defHostPvtNet,
 		})
 		if err != nil {
 			log.Fatalf("Error creating global state. Err: %v", err)
@@ -241,7 +262,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 		globalCfg.NwInfraType = params.NetworkInfraType
 	}
 	if global.PvtSubnet != params.PvtSubnet {
-		if numVlans+numVxlans > 0 {
+		if (global.PvtSubnet != "" || params.PvtSubnet != defHostPvtNet) && numVlans+numVxlans > 0 {
 			log.Errorf("Unable to update provate subnet due to existing networks")
 			return fmt.Errorf("Please delete %v vlans and %v vxlans before changing private subnet", vlansInUse, vxlansInUse)
 		}
