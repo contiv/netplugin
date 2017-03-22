@@ -11,20 +11,6 @@ get:
       body:
         application/json: |
           {"message": "<<resourcePathName|!singularize>> not found" }
-patch:
-  description: updates <<resourcePathName|!singularize>>.
-  body:
-    application/json: 
-      type: <<provider>>.upd_<<resourcePathName|!singularize>>
-  responses:
-    200:
-      body:
-        application/json:
-          type: <<provider>>.<<resourcePathName|!singularize>>
-    404:
-      body:
-        application/json: |
-          {"message": "<<resourcePathName|!singularize>> not found" }
 delete:
   description: deletes <<resourcePathName|!singularize>>.
   responses:
