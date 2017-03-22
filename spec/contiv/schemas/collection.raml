@@ -7,11 +7,3 @@ get:
       body:
         application/json:
           type: <<provider>>.<<resourcePathName>>
-post:
-  description: Add a new <<resourcePathName|!singularize>>.
-  body:
-    application/json:
-      type: <<provider>>.<<resourcePathName|!singularize>>
-  responses:
-    201:
-    404:
