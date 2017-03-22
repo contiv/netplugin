@@ -1301,6 +1301,7 @@ func TestAciGwSetting(t *testing.T) {
 	checkAciGwSet(t, false, "yes", "no", "topology/pod-1/paths-101/pathep-[eth1/14],topology/pod-1/paths-101/pathep-[eth1/15]", "", "testDom")
 	checkAciGwSet(t, true, "yes", "yes", "topology/pod-1/paths-101/pathep-[eth1/14],topology/pod-1/paths-101/pathep-[eth1/15]", "topology/tor-1/node-101", "testDom")
 	checkAciGwSet(t, false, "yes", "yes", "topology/pod-1/paths-101/pathep-[eth1/14],topology/pod-1/paths-101/pathep-[eth1/15]", "topology/pod-1/node-101", "testDom")
+	checkAciGwSet(t, false, "yes", "yes", "topology/pod-1/paths-101/pathep-[eth1/14],topology/pod-1/paths-101/pathep-[eth1/15],topology/pod-1/paths-102/pathep-[eth1/5],topology/pod-1/paths-101/pathep-[eth1/6]", "topology/pod-1/node-101,topology/pod-1/node-102,topology/pod-1/node-103", "testDom")
 
 	// create an app-profile and verify aci delete is rejected.
 	checkCreateNetwork(t, false, "default", "aci-net", "data", "vlan", "23.1.2.1/16", "23.1.2.254", 1, "", "")

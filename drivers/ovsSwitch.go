@@ -286,20 +286,34 @@ func getOvsPortName(intfName string, skipVethPair bool) string {
 // CreatePort creates a port in ovs switch
 func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointState, pktTag, nwPktTag, burst, dscp int, skipVethPair bool, bandwidth int64) error {
 	var ovsIntfType string
+	var err error
+	vethCreated := false
+	dbUpdated := false
 
 	// Get OVS port name
 	ovsPortName := getOvsPortName(intfName, skipVethPair)
+	defer func() {
+		if err != nil {
+			if vethCreated {
+				deleteVethPair(intfName, ovsPortName)
+			}
+			if dbUpdated {
+				sw.ovsdbDriver.DeletePort(intfName)
+			}
+		}
+	}()
 
 	// Create Veth pairs if required
 	if useVethPair && !skipVethPair {
 		ovsIntfType = ""
 
 		// Create a Veth pair
-		err := createVethPair(intfName, ovsPortName)
+		err = createVethPair(intfName, ovsPortName)
 		if err != nil {
 			log.Errorf("Error creating veth pairs. Err: %v", err)
 			return err
 		}
+		vethCreated = true
 
 		// Set the OVS side of the port as up
 		err = setLinkUp(ovsPortName)
@@ -317,21 +331,17 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		log.Debugf("Removing existing interface entry %s from OVS", ovsPortName)
 
 		// Delete it from ovsdb
-		err := sw.ovsdbDriver.DeletePort(ovsPortName)
+		err = sw.ovsdbDriver.DeletePort(ovsPortName)
 		if err != nil {
 			log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
 		}
 	}
 	// Ask OVSDB driver to add the port
-	err := sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag, burst, bandwidth)
+	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag, burst, bandwidth)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			sw.ovsdbDriver.DeletePort(intfName)
-		}
-	}()
+	dbUpdated = true
 
 	// Wait a little for OVS to create the interface
 	time.Sleep(300 * time.Millisecond)
