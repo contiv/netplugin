@@ -176,8 +176,37 @@
         margin-bottom: 1em;
       }
     </style>
+<link rel="shortcut icon" href="/assets/images/favicon.png">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
 </head>
-<body data-spy="scroll" data-target="#sidebar"><div class="container"><div class="row">
+<body data-spy="scroll" data-target="#sidebar">
+<div class="navbar-jumbotron">
+  <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="/" style="color:$white"> Contiv </a>
+      </div>
+      <div class="collapse navbar-collapse" id="navbar">
+        <ul class="nav navbar-nav navbar-right main-nav">
+          <li><a href="/documents/">Docs</a></li>
+          <li><a href="https://github.com/contiv/install/releases">Download</a></li>
+          <li><a href="/documents/support/index.html">Support</a></li>
+          <li><a href="http://blogs.cisco.com/contiv">Blog</a></li>
+
+          <li><a href="https://github.com/contiv" target="_blank"><i class="fa fa-github" style="color:$white"></i></a></li>
+          <li><a href="https://contiv.herokuapp.com" target="_blank"><i class="fa fa-slack" style="color:$white"></i></a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+</div>
+<div class="container"><div class="row">
 <div class="col-md-9" role="main">
 <div class="page-header">
 <h1>Contiv API documentation <small>version v1</small>
@@ -9774,5 +9803,6 @@
 <li><a href="#servicelbs">Service Load Balancers</a></li>
 <li><a href="#tenants">Tenants</a></li>
 </ul></div></div>
-</div></div></body>
+</div></div>
+</body>
 </html>
