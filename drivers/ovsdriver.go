@@ -696,6 +696,8 @@ func (d *OvsDriver) AddSvcSpec(svcName string, spec *core.ServiceSpec) error {
 		return errors.New(errs)
 	}
 
+	d.nameServer.AddLbService(nameserver.K8sDefaultTenant, svcName, spec.IPAddress)
+
 	return nil
 }
 
@@ -718,6 +720,8 @@ func (d *OvsDriver) DelSvcSpec(svcName string, spec *core.ServiceSpec) error {
 	if errs != "" {
 		return errors.New(errs)
 	}
+
+	d.nameServer.DelLbService(nameserver.K8sDefaultTenant, svcName)
 
 	return nil
 }
