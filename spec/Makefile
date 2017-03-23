@@ -1,6 +1,6 @@
 all: docs
 
 docs:
-	@./build.sh
+	@bash ./build.sh
 
 .PHONY: docs

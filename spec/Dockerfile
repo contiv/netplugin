@@ -2,10 +2,8 @@ FROM node:alpine
 
 RUN npm install -g raml2html
 
-COPY . /contiv
+RUN mkdir /contiv
 
 WORKDIR /contiv
 
-RUN raml2html -i contiv.raml -o contiv.html
-
-ENTRYPOINT ["/bin/sh"]
+ENTRYPOINT ["raml2html"]
