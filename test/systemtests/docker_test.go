@@ -315,7 +315,7 @@ func (d *docker) startIperfClient(c *container, ip, limit string, isErr bool) er
 					logrus.Errorf("Obtained Bandwidth:%sbits is more than the limit:%s", newBandwidth[0], limit)
 				} else {
 					logrus.Errorf("Obtained bandwidth:%sbits is more than the limit:%s", newBandwidth[0], limit)
-					return errors.New("Applied bandwidth is more than bandwidth rate!")
+					return errors.New("Applied bandwidth is more than bandwidth rate")
 				}
 			} else {
 				logrus.Errorf("Bandwidth rate:%s not applied", limit)
@@ -374,7 +374,7 @@ func (d *docker) tcFilterShow(bw string) error {
 	rate := strings.Split(output[1], "burst")
 	regex := regexp.MustCompile("[0-9]+")
 	outputStr := regex.FindAllString(rate[0], -1)
-	outputInt, err := strconv.ParseInt(outputStr[0], 10, 64)
+	outputInt, _ := strconv.ParseInt(outputStr[0], 10, 64)
 	bwInt, err := BwConvertInt64(bw)
 	if err != nil {
 		return err
@@ -414,7 +414,7 @@ func (d *docker) checkNoConnection(c *container, ipaddr, protocol string, port i
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED", port, ipaddr, c)
 }
 
 func (d *docker) cleanupDockerNetwork() error {
@@ -548,7 +548,7 @@ func (d *docker) checkNoConnectionRetry(c *container, ipaddr, protocol string, p
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED", port, ipaddr, c)
 }
 
 func (d *docker) checkPing6WithCount(c *container, ipaddr string, count int) error {
@@ -625,7 +625,7 @@ func (d *docker) checkSchedulerNetworkOnNodeCreated(nwNames []string, n *node) e
 					time.Sleep(1 * time.Second)
 				}
 			}
-			ch <- fmt.Errorf("Docker Network %s not created on node %s \n", nwName, n.Name())
+			ch <- fmt.Errorf("Docker Network %s not created on node %s", nwName, n.Name())
 		}(nwName, n, ch)
 	}
 	for range nwNames {

@@ -288,7 +288,8 @@ func serviceWatch(r *http.Request, iter int) (interface{}, bool, error) {
 		ObjectMeta: meta,
 		Spec:       sSpec,
 	}
-	typeStr := ""
+
+	var typeStr string
 	if iter == 1 {
 		typeStr = "DELETED"
 	} else {
@@ -396,6 +397,9 @@ func setupTestServer(c *C) {
 	var contivK8Config ContivConfig
 
 	err = getConfig(testCfgFile, &contivK8Config)
+	if err != nil {
+		log.Fatalf("failed to get contiv k8s config: %v", err)
+	}
 	token = contivK8Config.K8sToken
 
 	router := mux.NewRouter()

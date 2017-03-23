@@ -108,7 +108,7 @@ func (k *kubernetes) runContainer(spec containerSpec) (*container, error) {
 		cmd = fmt.Sprintf("kubectl get pods -o wide | grep %s", spec.name)
 		////master.lock()
 		out, err = k8master.tbnode.RunCommandWithOutput(cmd)
-		if strings.Contains(out, "Running") {
+		if err == nil && strings.Contains(out, "Running") {
 			break
 		}
 	}
@@ -328,7 +328,7 @@ func (k *kubernetes) startIperfClient(c *container, ip, limit string, isErr bool
 					logrus.Errorf("Obtained Bandwidth:%s is more than the limit: %s", strings.TrimSpace(bwString[1]), limit)
 				} else {
 					logrus.Errorf("Obtained bandwidth:%s is more than the limit %s", bwString[1], limit)
-					return errors.New("Applied bandwidth is more than bandwidth rate!")
+					return errors.New("Applied bandwidth is more than bandwidth rate")
 				}
 			} else {
 				logrus.Errorf("Bandwidth rate :%s not applied", limit)
@@ -364,7 +364,7 @@ func (k *kubernetes) tcFilterShow(bw string) error {
 	rate := strings.Split(output[1], "burst")
 	regex := regexp.MustCompile("[0-9]+")
 	outputStr := regex.FindAllString(rate[0], -1)
-	outputInt, err := strconv.ParseInt(outputStr[0], 10, 64)
+	outputInt, _ := strconv.ParseInt(outputStr[0], 10, 64)
 	bwInt, err := BwConvertInt64(bw)
 	if err != nil {
 		return err
@@ -403,7 +403,7 @@ func (k *kubernetes) checkNoConnection(c *container, ipaddr, protocol string, po
 	if err := k.checkConnection(c, ipaddr, protocol, port); err != nil {
 		return nil
 	}
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %v when it should have FAILED", port, ipaddr, c)
 }
 
 /*
@@ -579,7 +579,7 @@ func (k *kubernetes) checkNoConnectionRetry(c *container, ipaddr, protocol strin
 		return nil
 	}
 
-	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED.", port, ipaddr, c)
+	return fmt.Errorf("Connection SUCCEEDED on port %d from %s from %s when it should have FAILED", port, ipaddr, c)
 }
 
 func (k *kubernetes) checkPing6WithCount(c *container, ipaddr string, count int) error {

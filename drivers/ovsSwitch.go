@@ -129,7 +129,6 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 
 	} else if netType == "host" {
 		datapath = "hostbridge"
-		ofnetPort = unusedOfnetPort
 		ctrlrPort = hostCtrlerPort
 		sw.hostBridge, err = ofnet.NewHostBridge(bridgeName, datapath, ctrlrPort)
 		if err != nil {
@@ -816,7 +815,12 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS
 	} else {
 
 		// Create a Veth pair
-		err := createVethPair(intfName, ovsPortName)
+		err = createVethPair(intfName, ovsPortName)
+		if err != nil {
+			log.Errorf("Error creating Veth pair with interface: %v, port: %v", intfName, ovsPortName)
+			return "", err
+		}
+
 		// Set the OVS side of the port as up
 		err = setLinkUp(ovsPortName)
 		if err != nil {

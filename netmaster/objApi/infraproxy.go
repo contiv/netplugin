@@ -289,7 +289,7 @@ func appendEpgInfo(eMap *epgMap, epgObj *contivModel.EndpointGroup, stateDriver 
 		}
 		cn := getContractName(rule.PolicyName, rule.FromEndpointGroup,
 			rule.ToEndpointGroup)
-		lKind := ""
+		var lKind string
 		if rule.FromEndpointGroup != "" {
 			lKind = cConsume
 		} else {

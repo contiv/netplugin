@@ -14,13 +14,14 @@ package nameserver
 
 import (
 	"fmt"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/miekg/dns"
-	"os"
-	"testing"
-	"time"
 )
 
 var utlog = logrus.WithField("module", "nameserver-ut")
@@ -773,13 +774,13 @@ func TestK8sLbSvc(t *testing.T) {
 		fmt.Sprintf("singletenant LB count error%+v", ns.commonSvc.Keys()))
 
 	ns.DelLbService(commonK8sTenant, "lb2")
-	l, ok = ns.commonSvc.Get("lb2")
+	_, ok = ns.commonSvc.Get("lb2")
 	assertOnTrue(t, ok == true, fmt.Sprintf("lb2 found %+v", ns.commonSvc.Keys()))
 	assertOnTrue(t, ns.commonSvc.Count() != 1,
 		fmt.Sprintf("singletenant LB count error %+v", ns.commonSvc.Keys()))
 
 	ns.DelLbService(commonK8sTenant, "lb1")
-	l, ok = ns.commonSvc.Get("lb1")
+	_, ok = ns.commonSvc.Get("lb1")
 	assertOnTrue(t, ok == true, fmt.Sprintf("lb1 found %+v", ns.commonSvc.Keys()))
 	assertOnTrue(t, ns.commonSvc.Count() != 0,
 		fmt.Sprintf("singletenant LB count error %+v", ns.commonSvc.Keys()))

@@ -217,7 +217,7 @@ func (d *OvsdbDriver) createDeleteBridge(bridgeName, failMode string, op oper) e
 	}
 
 	// simple insert/delete operation
-	brOp := libovsdb.Operation{}
+	var brOp libovsdb.Operation
 	if op == operCreateBridge {
 		bridge := make(map[string]interface{})
 		bridge["name"] = bridgeName
@@ -307,7 +307,7 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, 
 
 	// insert/delete a row in Interface table
 	idMap := make(map[string]string)
-	intfOp := libovsdb.Operation{}
+	var intfOp libovsdb.Operation
 	intf := make(map[string]interface{})
 	intf["name"] = intfName
 	intf["type"] = intfType
@@ -332,7 +332,7 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, 
 	}
 
 	// insert/delete a row in Port table
-	portOp := libovsdb.Operation{}
+	var portOp libovsdb.Operation
 	port := make(map[string]interface{})
 	port["name"] = intfName
 	if tag != 0 {
@@ -437,7 +437,7 @@ func (d *OvsdbDriver) CreatePortBond(intfList []string, bondName string) error {
 		intfUUIDList = append(intfUUIDList, intfUUID...)
 
 		// insert/delete a row in Interface table
-		intfOp := libovsdb.Operation{}
+		var intfOp libovsdb.Operation
 		iface := make(map[string]interface{})
 		iface["name"] = intf
 
@@ -452,7 +452,7 @@ func (d *OvsdbDriver) CreatePortBond(intfList []string, bondName string) error {
 	}
 
 	// Insert bond information in Port table
-	portOp := libovsdb.Operation{}
+	var portOp libovsdb.Operation
 	port := make(map[string]interface{})
 	port["name"] = bondName
 	port["vlan_mode"] = "trunk"
@@ -471,6 +471,9 @@ func (d *OvsdbDriver) CreatePortBond(intfList []string, bondName string) error {
 	lacpMap := make(map[string]string)
 	lacpMap["lacp-fallback-ab"] = "true"
 	port["other_config"], err = libovsdb.NewOvsMap(lacpMap)
+	if err != nil {
+		return err
+	}
 
 	portUUIDStr := bondName
 	portUUID := []libovsdb.UUID{{GoUuid: portUUIDStr}}

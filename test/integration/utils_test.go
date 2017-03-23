@@ -347,7 +347,7 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 	rate := strings.Split(output[1], "burst")
 	regex := regexp.MustCompile("[0-9]+")
 	outputStr := regex.FindAllString(rate[0], -1)
-	outputInt, err := strconv.ParseInt(outputStr[0], 10, 64)
+	outputInt, _ := strconv.ParseInt(outputStr[0], 10, 64)
 	gotBurst := strings.Split(rate[1], "mtu")[0]
 
 	// verify expected rate

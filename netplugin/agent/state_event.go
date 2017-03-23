@@ -115,7 +115,7 @@ func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkSta
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
 	// so we don't need to worry about that here
 
-	operStr := ""
+	var operStr string
 	if isDelete {
 		err = netPlugin.DeleteNetwork(nwCfg.ID, nwCfg.NwType, nwCfg.PktTagType, nwCfg.PktTag, nwCfg.ExtPktTag,
 			nwCfg.Gateway, nwCfg.Tenant)
@@ -177,7 +177,7 @@ func processBgpEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, hostID
 		return err
 	}
 
-	operStr := ""
+	var operStr string
 	if isDelete {
 		err = netPlugin.DeleteBgp(hostID)
 		operStr = "delete"
@@ -198,7 +198,7 @@ func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID str
 	log.Infof("Received processEpgEvent")
 	var err error
 
-	operStr := ""
+	var operStr string
 	if isDelete {
 		operStr = "delete"
 	} else {
@@ -337,7 +337,7 @@ func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgS
 		Ports:     portSpecList,
 	}
 
-	operStr := ""
+	var operStr string
 	if isDelete {
 		err = netPlugin.DeleteServiceLB(serviceID, spec)
 		operStr = "delete"

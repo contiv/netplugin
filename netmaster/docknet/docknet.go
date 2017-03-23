@@ -82,7 +82,7 @@ func (s *DnetOperState) Clear() error {
 // GetDocknetName trims default tenant from network name
 func GetDocknetName(tenantName, networkName, epgName string) string {
 
-	netName := ""
+	var netName string
 	// if epg is specified, always use that, else use nw
 	if epgName == "" {
 		netName = networkName

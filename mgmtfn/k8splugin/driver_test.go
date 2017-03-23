@@ -155,6 +155,9 @@ func (s *NetSetup) TestNetSetup(c *C) {
 
 	// ensure that the interface's IP address has been set properly
 	addresses, err := netlink.AddrList(newLink, netlink.FAMILY_V4)
+	if err != nil {
+		c.Fatalf("failed to get address list for link: %v", newLink)
+	}
 	ifAddr := addresses[0].IPNet.String()
 	if address != ifAddr {
 		c.Errorf("expected IP address %v, found: %v", address, ifAddr)

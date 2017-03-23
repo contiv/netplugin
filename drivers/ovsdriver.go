@@ -843,6 +843,11 @@ func (d *OvsDriver) InspectNameserver() ([]byte, error) {
 	}
 
 	ns, err := d.nameServer.InspectState()
+	if err != nil {
+		log.Errorf("Error inspecting nameserver state: %v", err)
+		return []byte{}, err
+	}
+
 	jsonState, err := json.Marshal(ns)
 	if err != nil {
 		log.Errorf("Error encoding nameserver state. Err: %v", err)
