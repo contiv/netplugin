@@ -69,6 +69,9 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 						err := s.verifyIPs([]string{ipaddr})
 						c.Assert(err, IsNil)
 					}
+					if s.fwdMode == "routing" && encap == "vlan" {
+						c.Assert(s.CheckBgpRouteDistributionIPList(c, []string{ipaddr}, true), IsNil)
+					}
 					c.Assert(node.checkPing(ipaddr), IsNil)
 				}
 			}

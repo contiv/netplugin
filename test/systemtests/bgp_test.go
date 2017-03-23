@@ -990,27 +990,38 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 	return nil
 }
 
-func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string) error {
+func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string, inCluster bool) error {
 	ipList := []string{}
-	nodeCount := 0
+	expCount := len(s.nodes)
+	if inCluster {
+		expCount -= 1
+	}
 	for i := 0; i < 120; i++ {
 		logrus.Infof("Checking Bgp container route distribution")
 		time.Sleep(1 * time.Second)
 		ipList = nil
+		nodeCount := 0
+		ch := make(chan bool)
 		for _, ip := range ips {
-			nodeCount = 0
-			for _, node := range s.nodes {
-				bgp, err := s.cli.BgpInspect(node.Name())
-				if err == nil {
-					routes := strings.Join(bgp.Oper.Routes, ",")
-					if !strings.Contains(routes, ip) {
-						nodeCount++
-					} else {
-						break
+			for _, n := range s.nodes {
+				go func(n *node, ip string, ch chan bool) {
+					bgp, err := s.cli.BgpInspect(n.Name())
+					if err == nil {
+						routes := strings.Join(bgp.Oper.Routes, ",")
+						if strings.Contains(routes, ip) {
+							ch <- true
+							return
+						}
 					}
+					ch <- false
+				}(n, ip, ch)
+			}
+			for i := 0; i < len(s.nodes); i++ {
+				if <-ch {
+					nodeCount++
 				}
 			}
-			if nodeCount == len(s.nodes) {
+			if nodeCount == expCount {
 				ipList = append(ipList, ip)
 			}
 			if len(ipList) == len(ips) {
