@@ -18,10 +18,11 @@ package state
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"reflect"
 	"strings"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/coreos/etcd/client"
@@ -81,20 +82,18 @@ func (d *EtcdStateDriver) Write(key string, value []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
-	_, err := d.KeysAPI.Set(ctx, key, string(value[:]), nil)
-	if err != nil {
-		// Retry few times if cluster is unavailable
-		if err.Error() == client.ErrClusterUnavailable.Error() {
-			for i := 0; i < maxEtcdRetries; i++ {
-				_, err = d.KeysAPI.Set(ctx, key, string(value[:]), nil)
-				if err == nil {
-					break
-				}
+	var err error
 
-				// Retry after a delay
-				time.Sleep(time.Second)
-			}
+	for i := 0; i < maxEtcdRetries; i++ {
+		_, err = d.KeysAPI.Set(ctx, key, string(value[:]), nil)
+		if err != nil && err.Error() == client.ErrClusterUnavailable.Error() {
+			// Retry after a delay
+			time.Sleep(time.Second)
+			continue
 		}
+
+		// when err == nil or anything other than connection refused
+		return err
 	}
 
 	return err
@@ -105,28 +104,33 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
-	resp, err := d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
-	if err != nil || resp == nil || resp.Node == nil {
-		// Retry few times if cluster is unavailable
-		if err.Error() == client.ErrClusterUnavailable.Error() {
-			for i := 0; i < maxEtcdRetries; i++ {
-				resp, err = d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
-				if err == nil && resp.Node != nil {
-					break
-				}
+	var err error
+	var resp *client.Response
 
-				// Retry after a delay
-				time.Sleep(time.Second)
+	for i := 0; i < maxEtcdRetries; i++ {
+		resp, err = d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
+		if err == nil {
+			if resp != nil && resp.Node != nil {
+				return []byte(resp.Node.Value), nil
 			}
-		} else {
-			return []byte{}, err
-		}
-	}
-	if resp != nil && resp.Node != nil {
-		return []byte(resp.Node.Value), err
-	}
-	return []byte{}, fmt.Errorf("Error reading from etcd")
 
+			return []byte{}, fmt.Errorf("Error reading from etcd")
+		}
+
+		if client.IsKeyNotFound(err) {
+			return []byte{}, core.Errorf("Key not found")
+		}
+
+		if err.Error() == client.ErrClusterUnavailable.Error() {
+			// Retry after a delay
+			time.Sleep(time.Second)
+			continue
+		}
+
+		return []byte{}, err
+	}
+
+	return []byte{}, err
 }
 
 // ReadAll state from baseKey.
@@ -134,17 +138,33 @@ func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
-	resp, err := d.KeysAPI.Get(ctx, baseKey, &client.GetOptions{Recursive: true, Quorum: true})
-	if err != nil {
-		return nil, err
+	var err error
+	var resp *client.Response
+
+	for i := 0; i < maxEtcdRetries; i++ {
+		resp, err = d.KeysAPI.Get(ctx, baseKey, &client.GetOptions{Recursive: true, Quorum: true})
+		if err == nil {
+			values := [][]byte{}
+			for _, node := range resp.Node.Nodes {
+				values = append(values, []byte(node.Value))
+			}
+			return values, nil
+		}
+
+		if client.IsKeyNotFound(err) {
+			return [][]byte{}, core.Errorf("Key not found")
+		}
+
+		if err.Error() == client.ErrClusterUnavailable.Error() {
+			// Retry after a delay
+			time.Sleep(time.Second)
+			continue
+		}
+
+		return [][]byte{}, err
 	}
 
-	values := [][]byte{}
-	for _, node := range resp.Node.Nodes {
-		values = append(values, []byte(node.Value))
-	}
-
-	return values, nil
+	return [][]byte{}, err
 }
 
 func (d *EtcdStateDriver) channelEtcdEvents(watcher client.Watcher, rsps chan [2][]byte) {

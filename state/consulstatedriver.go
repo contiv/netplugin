@@ -70,71 +70,88 @@ func processKey(inKey string) string {
 // Write state to key with value.
 func (d *ConsulStateDriver) Write(key string, value []byte) error {
 	key = processKey(key)
-	_, err := d.Client.KV().Put(&api.KVPair{Key: key, Value: value}, nil)
-	if err != nil && (api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
-		strings.Contains(err.Error(), "connection refused")) {
-		for i := 0; i < maxConsulRetries; i++ {
-			_, err = d.Client.KV().Put(&api.KVPair{Key: key, Value: value}, nil)
-			if err == nil {
-				break
-			}
 
+	var err error
+
+	for i := 0; i < maxConsulRetries; i++ {
+		_, err = d.Client.KV().Put(&api.KVPair{Key: key, Value: value}, nil)
+		if err != nil && (api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused")) {
 			// Retry after a delay
 			time.Sleep(time.Second)
+			continue
 		}
+
+		// when err == nil or anything other than connection refused
+		return err
 	}
 
+	// err could be anything other than connection refused
 	return err
 }
 
 // Read state from key.
 func (d *ConsulStateDriver) Read(key string) ([]byte, error) {
 	key = processKey(key)
-	kv, _, err := d.Client.KV().Get(key, nil)
-	if err != nil {
-		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
-			strings.Contains(err.Error(), "connection refused") {
-			for i := 0; i < maxConsulRetries; i++ {
-				kv, _, err = d.Client.KV().Get(key, nil)
-				if err == nil {
-					break
-				}
 
-				// Retry after a delay
+	var err error
+	var kv *api.KVPair
+
+	for i := 0; i < maxConsulRetries; i++ {
+		kv, _, err = d.Client.KV().Get(key, nil)
+		if err != nil {
+			if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
 				time.Sleep(time.Second)
+				continue
 			}
-		} else {
+
 			return []byte{}, err
 		}
-	}
-	// Consul returns success and a nil kv when a key is not found,
-	// translate it to 'Key not found' error
-	if kv == nil {
-		return []byte{}, core.Errorf("Key not found")
+
+		// err == nil
+		if kv == nil {
+			return []byte{}, core.Errorf("Key not found")
+		}
+
+		return kv.Value, err
 	}
 
-	return kv.Value, err
+	return []byte{}, err
 }
 
 // ReadAll state from baseKey.
 func (d *ConsulStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	baseKey = processKey(baseKey)
-	kvs, _, err := d.Client.KV().List(baseKey, nil)
-	if err != nil {
-		return nil, err
-	}
-	// Consul returns success and a nil kv when a key is not found,
-	// translate it to 'Key not found' error
-	if kvs == nil {
-		return nil, core.Errorf("Key not found")
+
+	var err error
+	var kvs api.KVPairs
+
+	for i := 0; i < maxConsulRetries; i++ {
+		kvs, _, err = d.Client.KV().List(baseKey, nil)
+		if err != nil {
+			if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
+				time.Sleep(time.Second)
+				continue
+			}
+
+			return [][]byte{}, err
+		}
+
+		// err == nil
+		if kvs == nil {
+			// Consul returns success and a nil kv when a key is not found,
+			// translate it to 'Key not found' error
+			return nil, core.Errorf("Key not found")
+		}
+
+		values := [][]byte{}
+		for _, kv := range kvs {
+			values = append(values, kv.Value)
+		}
+		return values, nil
+
 	}
 
-	values := [][]byte{}
-	for _, kv := range kvs {
-		values = append(values, kv.Value)
-	}
-
-	return values, nil
+	return [][]byte{}, err
 }
 
 func (d *ConsulStateDriver) channelConsulEvents(baseKey string, kvCache map[string]*api.KVPair,
