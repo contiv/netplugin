@@ -1,0 +1,17 @@
+#%RAML 1.0 ResourceType
+description: A collection of <<resourcePathName>>
+get:
+  description: returns a list of <<resourcePathName|!singularize>>.
+  responses:
+    200:
+      body:
+        application/json:
+          type: <<provider>>.<<resourcePathName>>
+post:
+  description: Add a new <<resourcePathName|!singularize>>.
+  body:
+    application/json:
+      type: <<provider>>.<<resourcePathName|!singularize>>
+  responses:
+    201:
+    404:

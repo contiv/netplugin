@@ -3,7 +3,7 @@ title: Contiv
 description: Contiv API Specification
 version: v1
 baseUri:
-  value: http://{serverfqdn}:10000/api/{version}
+  value: https://{serverfqdn}:10000/api/{version}
   (rediractable): true
 baseUriParameters:
   serverfqdn:
@@ -31,70 +31,9 @@ securitySchemes:
 
 # Resource templates
 uses:
-  auth_proxy: contiv/libraries/auth_proxy.raml
   netmaster: contiv/libraries/netmaster.raml
 
 securedBy: custom_scheme
-
-# auth_proxy endpoints
-/auth_proxy:
-  displayName: Auth API
-  description: Authentication/Authorization related API 
-
-  /version:
-    get:
-      securedBy: [ null ]
-      responses:
-        200:
-          body:
-            application/json: |
-              { "version": "1.0.0-beta" }
-
-  /health:
-    get:
-      securedBy: [ null ]
-      responses:
-        200:
-          body:
-            application/json:
-              type: auth_proxy.health
-
-
-  /login:
-    post:
-      description: Login to Contiv API server
-      securedBy: [ null ]
-      body:
-        application/json:
-          type: auth_proxy.login
-      responses:
-        200:
-          body:
-            application/json:
-              type: auth_proxy.login_response
-        400:
-        401:
-
-  /local_users:
-    type: {collection: {provider: auth_proxy}}
-    displayName: Local Users
-
-    /{username}:
-      type: {collection-item: {provider: auth_proxy}}
-      displayName: Local User
-
-  /ldap_configuration:
-    type: {collection-item: {provider: auth_proxy}}
-    displayName: LDAP Configuration
-    put:
-
-  /authorizations:
-    type: {collection: {provider: auth_proxy}}
-    displayName: Authorizations
-    
-    /{authzUUID}:
-      type: {non-upd-collection-item: {provider: auth_proxy}}
-      displayName: Authorization
 
 #Netmaster endpoints. Most of this can be auto-gen
 /inspect:

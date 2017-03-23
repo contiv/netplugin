@@ -17,8 +17,6 @@ mv spec/netmaster.raml ./spec/contiv/libraries/netmaster.raml
 # run the raml2html tool to generate docs under spec/docs
 pushd spec
 make docs
-mkdir -p docs
-mv contiv.html docs/
 popd
 
 # because we have to do some tidying up of the output HTML and it requires some
