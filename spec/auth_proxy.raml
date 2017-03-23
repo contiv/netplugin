@@ -88,9 +88,10 @@ securedBy: custom_scheme
     /{username}:
       type: {collection-item: {provider: auth_proxy}}
       displayName: Local User
-      put:
+      patch:
 
   /ldap_configuration:
     type: {collection-item: {provider: auth_proxy}}
     displayName: LDAP Configuration
     put:
+    patch:

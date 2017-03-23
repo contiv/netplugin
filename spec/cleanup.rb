@@ -7,8 +7,23 @@ FILENAME = "docs/contiv.html"
 
 doc = Nokogiri::HTML(File.read(FILENAME))
 
-# add trailing slashes to all paths
+# ----- IMPORT AUTH_PROXY DATA ----------------------------------------------------------------------
 
+auth_doc = Nokogiri::HTML(File.read("docs/auth_proxy.html"))
+
+# extract the main panel and sidebar link nodes
+auth_panel = auth_doc.css(".panel-default").first
+sidebar_link = auth_doc.css("#sidebar ul li").first
+
+# add auth_proxy api panel under the header
+doc.at(".page-header").after(auth_panel)
+
+# add auth_proxy link to the top of the sidebar
+doc.at("#sidebar ul").prepend_child(sidebar_link)
+
+# ----- TIDY OUTPUT FILE ----------------------------------------------------------------------------
+
+# add trailing slashes to all paths
 node_groups = [
   doc.css(".panel-title a").select { |n| n.text.start_with?("/") },
   doc.css(".modal-title"),
@@ -19,13 +34,12 @@ node_groups.flatten.each do |node|
 end
 
 # insert additional <head> tag requirements for the contiv header
-
 doc.at("head") << Nokogiri::HTML::DocumentFragment.parse(File.read("docs/head.html"))
 
 # insert the contiv header html into the top of the <body>
-
 doc.at("body").prepend_child(Nokogiri::HTML::DocumentFragment.parse(File.read("docs/body.html")))
 
-# overwrite the original HTML file
+# ----- OUTPUT --------------------------------------------------------------------------------------
 
+# overwrite the original HTML file
 File.write(FILENAME, doc.to_html)
