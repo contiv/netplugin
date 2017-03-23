@@ -21,18 +21,17 @@ mkdir -p docs
 mv contiv.html docs/
 popd
 
-# RAML doesn't currently support trailing slashes so we add them manually here
-
-# altering the HTML requires a gem called Nokogiri
-# create a tiny docker image so we don't have to reinstall Nokogiri every time
-IMAGE_NAME="raml_trailing_slashes"
+# because we have to do some tidying up of the output HTML and it requires some
+# external dependencies, we use a small Docker image to do it.
+# this image uses the same ruby:2.4.0-slim base as above.
+IMAGE_NAME="contiv_api_documentation_cleanup"
 
 if [[ "$(docker images -q $IMAGE_NAME:latest 2>/dev/null)" == "" ]]; then
-    docker build -t $IMAGE_NAME -f spec/Dockerfile.raml_trailing_slashes .
+    docker build -t $IMAGE_NAME -f spec/Dockerfile.cleanup .
 fi
 
 docker run --rm \
        -u $(id -u):$(id -g) \
        -v $(pwd):/files \
        -w /files/spec \
-       $IMAGE_NAME /usr/local/bin/ruby raml_trailing_slashes.rb
+       $IMAGE_NAME /usr/local/bin/ruby cleanup.rb
