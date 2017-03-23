@@ -42,7 +42,8 @@ type tenantBucket struct {
 	tenantTables map[string]*dnsTables
 }
 
-const commonK8sTenant = "common"
+// K8sDefaultTenant is the default tenant in K8S
+const K8sDefaultTenant = "k8sDefaultTenant"
 
 // NetpluginNameServer config
 type NetpluginNameServer struct {
@@ -55,7 +56,7 @@ type NetpluginNameServer struct {
 	stateDriver core.StateDriver
 	bucketSize  uint
 	buckets     []tenantBucket
-	commonSvc   cmap.ConcurrentMap // for non-multi tenant LB service
+	k8sService  cmap.ConcurrentMap // for non-multi tenant LB service
 	stats       struct {
 		sync.RWMutex
 		tenantStats map[string]map[string]uint64
@@ -151,8 +152,9 @@ func (ens *NetpluginNameServer) getEpgName(key string) string {
 // AddLbService adds a LB service in non-multi tenant record
 func (ens *NetpluginNameServer) AddLbService(tenant string, name string, v4name string) {
 	if len(v4name) > 0 {
-		if tenant == commonK8sTenant {
-			ens.commonSvc.Set(name, nameRecord{v4Record: net.ParseIP(v4name)})
+		dnsLog.Infof("add k8s service %s ip %s", name, v4name)
+		if tenant == K8sDefaultTenant {
+			ens.k8sService.Set(name, nameRecord{v4Record: net.ParseIP(v4name)})
 		} else {
 			mc := mastercfg.CfgServiceLBState{
 				Tenant:      tenant,
@@ -166,16 +168,17 @@ func (ens *NetpluginNameServer) AddLbService(tenant string, name string, v4name 
 
 // DelLbService deletes LB service from non-multi tenant record
 func (ens *NetpluginNameServer) DelLbService(tenant string, name string) {
-	if tenant == commonK8sTenant {
-		ens.commonSvc.Remove(name)
+
+	dnsLog.Infof("delete k8s service %s ", name)
+	if tenant == K8sDefaultTenant {
+		ens.k8sService.Remove(name)
 	} else {
 		mc := mastercfg.CfgServiceLBState{
 			Tenant:      tenant,
 			ServiceName: name,
 		}
-		ens.addService(&mc)
+		ens.delService(&mc)
 	}
-
 }
 
 func (ens *NetpluginNameServer) addService(s core.State) {
@@ -369,8 +372,8 @@ func (ens *NetpluginNameServer) incTenantErrStats(tenant string, inName string) 
 func (ens *NetpluginNameServer) serveTypeA(tenant string, name string) ([]dns.RR, int) {
 
 	// check non-multi tenant services for k8s
-	if s, svcOk := ens.commonSvc.Get(name); svcOk {
-		if sr, nrOk := s.(nameRecord); nrOk {
+	if k8sSvc, svcOk := ens.k8sService.Get(name); svcOk {
+		if sr, nrOk := k8sSvc.(nameRecord); nrOk {
 			if rr, l := lookUpServiceV4Record(sr, name); l > 0 {
 				return rr, l
 			}
@@ -538,6 +541,17 @@ func (ens *NetpluginNameServer) inspectNameRecord() map[string]map[string]map[st
 
 		}
 	}
+
+	// k8s services
+	inspectMap[K8sDefaultTenant] = make(map[string]map[string][]string)
+	k8sSvcMap := make(map[string][]string)
+	for k8sKey, k8sVal := range ens.k8sService.Items() {
+		if nr, ok := k8sVal.(nameRecord); ok {
+			k8sSvcMap[k8sKey] = append(k8sSvcMap[k8sKey], fmt.Sprintf("ipv4:%s", nr.v4Record.String()))
+		}
+	}
+	inspectMap[K8sDefaultTenant]["k8sServices"] = k8sSvcMap
+
 	return inspectMap
 }
 
@@ -687,7 +701,7 @@ func (ens *NetpluginNameServer) Init(sd core.StateDriver) error {
 	ens.svcChan = make(chan core.WatchState, 8)
 	ens.svcErrChan = make(chan error)
 	ens.buckets = make([]tenantBucket, ens.bucketSize)
-	ens.commonSvc = cmap.New()
+	ens.k8sService = cmap.New()
 
 	for i := uint(0); i < ens.bucketSize; i++ {
 		ens.buckets[i].tenantTables = make(map[string]*dnsTables)

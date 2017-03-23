@@ -753,36 +753,36 @@ func TestK8sLbSvc(t *testing.T) {
 	ds := new(dummyState)
 	err := ns.Init(ds)
 	assertOnErr(t, err, "namespace init")
-	ns.AddLbService(commonK8sTenant, "lb1", "10.36.27.101")
-	l, ok := ns.commonSvc.Get("lb1")
-	assertOnTrue(t, ok != true, fmt.Sprintf("no lb1 found %+v", ns.commonSvc.Keys()))
+	ns.AddLbService(K8sDefaultTenant, "lb1", "10.36.27.101")
+	l, ok := ns.k8sService.Get("lb1")
+	assertOnTrue(t, ok != true, fmt.Sprintf("no lb1 found %+v", ns.k8sService.Keys()))
 	r, ok := l.(nameRecord)
 	assertOnTrue(t, ok != true, fmt.Sprintf("not namerecord"))
 	assertOnTrue(t, r.v4Record.String() != "10.36.27.101",
-		fmt.Sprintf("no singletenant LB %+v", ns.commonSvc.Keys()))
-	assertOnTrue(t, ns.commonSvc.Count() != 1,
-		fmt.Sprintf("singletenant LB count error %+v", ns.commonSvc.Keys()))
-	ns.AddLbService(commonK8sTenant, "lb2", "10.36.27.102")
-	l, ok = ns.commonSvc.Get("lb2")
-	assertOnTrue(t, ok != true, fmt.Sprintf("no lb2 found %+v", ns.commonSvc.Keys()))
+		fmt.Sprintf("no singletenant LB %+v", ns.k8sService.Keys()))
+	assertOnTrue(t, ns.k8sService.Count() != 1,
+		fmt.Sprintf("singletenant LB count error %+v", ns.k8sService.Keys()))
+	ns.AddLbService(K8sDefaultTenant, "lb2", "10.36.27.102")
+	l, ok = ns.k8sService.Get("lb2")
+	assertOnTrue(t, ok != true, fmt.Sprintf("no lb2 found %+v", ns.k8sService.Keys()))
 	r, ok = l.(nameRecord)
 	assertOnTrue(t, ok != true, fmt.Sprintf("no namerecord"))
 	assertOnTrue(t, r.v4Record.String() != "10.36.27.102",
-		fmt.Sprintf("no singletenant LB %+v", ns.commonSvc.Keys()))
-	assertOnTrue(t, ns.commonSvc.Count() != 2,
-		fmt.Sprintf("singletenant LB count error%+v", ns.commonSvc.Keys()))
+		fmt.Sprintf("no singletenant LB %+v", ns.k8sService.Keys()))
+	assertOnTrue(t, ns.k8sService.Count() != 2,
+		fmt.Sprintf("singletenant LB count error%+v", ns.k8sService.Keys()))
 
-	ns.DelLbService(commonK8sTenant, "lb2")
-	l, ok = ns.commonSvc.Get("lb2")
-	assertOnTrue(t, ok == true, fmt.Sprintf("lb2 found %+v", ns.commonSvc.Keys()))
-	assertOnTrue(t, ns.commonSvc.Count() != 1,
-		fmt.Sprintf("singletenant LB count error %+v", ns.commonSvc.Keys()))
+	ns.DelLbService(K8sDefaultTenant, "lb2")
+	l, ok = ns.k8sService.Get("lb2")
+	assertOnTrue(t, ok == true, fmt.Sprintf("lb2 found %+v", ns.k8sService.Keys()))
+	assertOnTrue(t, ns.k8sService.Count() != 1,
+		fmt.Sprintf("singletenant LB count error %+v", ns.k8sService.Keys()))
 
-	ns.DelLbService(commonK8sTenant, "lb1")
-	l, ok = ns.commonSvc.Get("lb1")
-	assertOnTrue(t, ok == true, fmt.Sprintf("lb1 found %+v", ns.commonSvc.Keys()))
-	assertOnTrue(t, ns.commonSvc.Count() != 0,
-		fmt.Sprintf("singletenant LB count error %+v", ns.commonSvc.Keys()))
+	ns.DelLbService(K8sDefaultTenant, "lb1")
+	l, ok = ns.k8sService.Get("lb1")
+	assertOnTrue(t, ok == true, fmt.Sprintf("lb1 found %+v", ns.k8sService.Keys()))
+	assertOnTrue(t, ns.k8sService.Count() != 0,
+		fmt.Sprintf("singletenant LB count error %+v", ns.k8sService.Keys()))
 }
 
 func TestK8sSvcLookup(t *testing.T) {
@@ -793,22 +793,22 @@ func TestK8sSvcLookup(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		IPAddr := fmt.Sprintf("10.36.25.%d", i+1)
-		ns.AddLbService(commonK8sTenant, fmt.Sprintf("kube%d", i+1), IPAddr)
+		ns.AddLbService(K8sDefaultTenant, fmt.Sprintf("kube%d", i+1), IPAddr)
 	}
 
-	assertOnTrue(t, len(ns.commonSvc.Keys()) != 5,
-		fmt.Sprintf("lb svc records missing %+v", ns.commonSvc.Keys()))
+	assertOnTrue(t, len(ns.k8sService.Keys()) != 5,
+		fmt.Sprintf("lb svc records missing %+v", ns.k8sService.Keys()))
 	for i := 0; i < 5; i++ {
 		IPAddr := fmt.Sprintf("10.36.25.%d", i+1)
-		s, ok := ns.commonSvc.Get(fmt.Sprintf("kube%d", i+1))
-		assertOnTrue(t, ok != true, fmt.Sprintf("no service %+v", ns.commonSvc.Keys()))
+		s, ok := ns.k8sService.Get(fmt.Sprintf("kube%d", i+1))
+		assertOnTrue(t, ok != true, fmt.Sprintf("no service %+v", ns.k8sService.Keys()))
 		r, ok := s.(nameRecord)
 		assertOnTrue(t, ok != true, fmt.Sprintf("not namerecord type %+v", s))
 		assertOnTrue(t, r.v4Record.String() != IPAddr, fmt.Sprintf("invalid ip %+v", r))
 	}
 
 	for i := 0; i < 5; i++ {
-		vrf := "common"
+		vrf := K8sDefaultTenant
 		IPAddr := fmt.Sprintf("10.36.25.%d", i+1)
 		q1 := new(dns.Msg)
 		q1.SetQuestion(fmt.Sprintf("kube%d.", i+1), dns.TypeA)
