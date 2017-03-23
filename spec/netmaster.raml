@@ -12,10 +12,10 @@ protocols: [  HTTPS ]
 mediaType: [ application/json ]
 
 resourceTypes:
-  collection: !include contiv/schemas/collection.raml
-  non-upd-collection-item: !include contiv/schemas/non-upd-collection-item.raml
-  collection-item: !include contiv/schemas/collection-item.raml
-  ro-collection-item: !include contiv/schemas/ro-collection-item.raml
+  collection: !include netmaster/schemas/collection.raml
+  non-upd-collection-item: !include netmaster/schemas/non-upd-collection-item.raml
+  collection-item: !include netmaster/schemas/collection-item.raml
+  ro-collection-item: !include netmaster/schemas/ro-collection-item.raml
 
 annotationTypes:
   info:
@@ -27,11 +27,11 @@ annotationTypes:
   rediractable: boolean
 
 securitySchemes:
-  custom_scheme: !include contiv/schemas/custom-scheme.raml
+  custom_scheme: !include netmaster/schemas/custom-scheme.raml
 
 # Resource templates
 uses:
-  netmaster: contiv/libraries/netmaster.raml
+  netmaster: netmaster/libraries/netmaster.raml
 
 securedBy: custom_scheme
 

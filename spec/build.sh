@@ -12,7 +12,7 @@ echo "generating netmaster docs"
 docker run --rm \
        -u $(id -u):$(id -g) \
        -v $(pwd):/contiv \
-       $IMAGE_NAME -i contiv.raml -o docs/contiv.html
+       $IMAGE_NAME -i netmaster.raml -o docs/contiv.html
 
 echo "generating auth_proxy docs"
 docker run --rm \

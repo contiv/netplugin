@@ -9,7 +9,9 @@ class Hash
   end
 end
 
-outfile = "netmaster.raml"
+raise "you must supply an output file, e.g., #{$PROGRAM_NAME} ./foo.raml" unless ARGV.size == 1
+
+outfile = ARGV[0]
 output = Hash.new { |h, k| h[k] = {} }
 
 Dir["../*.json"].each do |infile|

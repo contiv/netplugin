@@ -6,13 +6,12 @@ set -euo pipefail
 bash generate.sh
 go install ./ ./client/
 
-# regenerate netmaster.raml
+# regenerate libraries/netmaster.raml which holds the type netmaster type data
 docker run --rm \
        -u $(id -u):$(id -g) \
        -v $(pwd):/files \
        -w /files/spec \
-       ruby:2.4.0-slim /usr/local/bin/ruby contivModel2raml.rb
-mv spec/netmaster.raml ./spec/contiv/libraries/netmaster.raml
+       ruby:2.4.0-slim /usr/local/bin/ruby contivModel2raml.rb ./netmaster/libraries/netmaster.raml
 
 # run the raml2html tool to generate docs under spec/docs
 pushd spec
@@ -28,6 +27,7 @@ if [[ "$(docker images -q $IMAGE_NAME:latest 2>/dev/null)" == "" ]]; then
     docker build -t $IMAGE_NAME -f spec/Dockerfile.cleanup .
 fi
 
+echo "Cleaning up HTML output"
 docker run --rm \
        -u $(id -u):$(id -g) \
        -v $(pwd):/files \

@@ -12,10 +12,10 @@ protocols: [  HTTPS ]
 mediaType: [ application/json ]
 
 resourceTypes:
-  collection: !include contiv/schemas/collection.raml
-  non-upd-collection-item: !include contiv/schemas/non-upd-collection-item.raml
-  collection-item: !include contiv/schemas/collection-item.raml
-  ro-collection-item: !include contiv/schemas/ro-collection-item.raml
+  collection: !include auth_proxy/schemas/collection.raml
+  non-upd-collection-item: !include auth_proxy/schemas/non-upd-collection-item.raml
+  collection-item: !include auth_proxy/schemas/collection-item.raml
+  ro-collection-item: !include auth_proxy/schemas/ro-collection-item.raml
 
 annotationTypes:
   info:
@@ -27,11 +27,11 @@ annotationTypes:
   rediractable: boolean
 
 securitySchemes:
-  custom_scheme: !include contiv/schemas/custom-scheme.raml
+  custom_scheme: !include auth_proxy/schemas/custom-scheme.raml
 
 # Resource templates
 uses:
-  auth_proxy: contiv/libraries/auth_proxy.raml
+  auth_proxy: auth_proxy/libraries/auth_proxy.raml
 
 securedBy: custom_scheme
 
