@@ -42,6 +42,7 @@ securedBy: custom_scheme
 
   /health:
     get:
+      description: Returns the health status of Contiv API server and its netmaster
       securedBy: [ null ]
       responses:
         200:
@@ -66,12 +67,13 @@ securedBy: custom_scheme
 
   /version:
     get:
+      description: Returns the Contiv API server version
       securedBy: [ null ]
       responses:
         200:
           body:
             application/json: |
-              { "version": "1.0.0-beta" }
+              { "version": "1.0.0" }
 
   /authorizations:
     type: {collection: {provider: auth_proxy}}

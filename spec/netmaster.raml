@@ -44,9 +44,7 @@ securedBy: custom_scheme
     /aciGw:
       type: {ro-collection-item: {provider: netmaster}}
   /appProfiles:
-    /{appProfileName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{tenantName}:
+    /{tenantName}:{appProfileName}:
       type: {ro-collection-item: {provider: netmaster}}
   /Bgps:
     /{hostname}:
@@ -55,44 +53,28 @@ securedBy: custom_scheme
     /{endpointID}:
       type: {ro-collection-item: {provider: netmaster}}
   /endpointGroups:
-    /{tenantName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{groupName}:
+    /{tenantName}:{groupName}:
       type: {ro-collection-item: {provider: netmaster}}
   /extContractsGroups:
-    /{tenantName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{contractsGroupName}:
+    /{tenantName}:{contractsGroupName}:
       type: {ro-collection-item: {provider: netmaster}}
   /globals:
     /global:
       type: {ro-collection-item: {provider: netmaster}}
   /netprofiles:
-    /{tenantName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{profileName}:
+    /{tenantName}:{profileName}:
       type: {ro-collection-item: {provider: netmaster}}
   /networks:
-    /{tenantName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{networkName}:
+    /{tenantName}:{networkName}:
       type: {ro-collection-item: {provider: netmaster}}
   /policys:
-    /{tenantName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{policyName}:
+    /{tenantName}:{policyName}:
       type: {ro-collection-item: {provider: netmaster}}
   /rules:
-    /{tenantName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{policyName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{ruleId}:
+    /{tenantName}:{policyName}:{ruleId}:
       type: {ro-collection-item: {provider: netmaster}}
   /serviceLBs:
-    /{tenantName}:
-      type: {ro-collection-item: {provider: netmaster}}
-    /{serviceName}:
+    /{tenantName}:{serviceName}:
       type: {ro-collection-item: {provider: netmaster}}
   /tenants:
     /{tenantName}:
@@ -111,11 +93,7 @@ securedBy: custom_scheme
   type: {collection: {provider: netmaster}}
   displayName: Application Profiles
   
-  /{tenantName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-
-  /{appProfileName}:
+  /{tenantName}:{appProfileName}:
     type: {collection-item: {provider: netmaster}}
     put:
 
@@ -131,20 +109,14 @@ securedBy: custom_scheme
 /endpointGroups:
   type: {collection: {provider: netmaster}}
   displayName: Endpoint Groups
-  /{tenantName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-  /{groupName}:
+  /{tenantName}:{groupName}:
     type: {collection-item: {provider: netmaster}}
     put:
 
 /extContractsGroups:
   type: {collection: {provider: netmaster}}
   displayName: External Contract Groups
-  /{tenantName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-  /{contractsGroupName}:
+  /{tenantName}:{contractsGroupName}:
     type: {collection-item: {provider: netmaster}}
     put:
 
@@ -161,53 +133,35 @@ securedBy: custom_scheme
 /netprofiles:
   type: {collection: {provider: netmaster}}
   displayName: Network Profiles
-  /{tenantName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-  /{profileName}:
+  /{tenantName}:{profileName}:
     type: {collection-item: {provider: netmaster}}
     put:
 
 /networks:
   type: {collection: {provider: netmaster}}
   displayName: Networks
-  /{tenantName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-  /{networkName}:
+  /{tenantName}:{networkName}:
     type: {collection-item: {provider: netmaster}}
     put:
 
 /policys:
   type: {collection: {provider: netmaster}}
   displayName: Policies
-  /{tenantName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-  /{policyName}:
+  /{tenantName}:{policyName}:
     type: {collection-item: {provider: netmaster}}
     put:
 
 /rules:
   type: {collection: {provider: netmaster}}
   displayName: Rules
-  /{tenantName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-  /{policyName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-  /{ruleId}:
+  /{tenantName}:{policyName}:{ruleId}:
     type: {collection-item: {provider: netmaster}}
     put:
 
 /serviceLBs:
   type: {collection: {provider: netmaster}}
   displayName: Service Load Balancers
-  /{tenantName}:
-    type: {collection-item: {provider: netmaster}}
-    put:
-  /{serviceName}:
+  /{tenantName}:{serviceName}:
     type: {collection-item: {provider: netmaster}}
     put:
 
