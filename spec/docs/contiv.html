@@ -231,7 +231,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_auth_proxy_health"><span class="parent">/auth_proxy</span>/health/</a> <span class="methods"><a href="#auth_proxy_health_get"><span class="badge badge_get">get</span></a></span>
 </h4></div>
 <div id="panel_auth_proxy_health" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#auth_proxy_health_get'" class="list-group-item">
-<span class="badge badge_get">get</span><div class="method_description"></div>
+<span class="badge badge_get">get</span><div class="method_description"><p>Returns the health status of auth_proxy and its netmaster</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="auth_proxy_health_get"><div class="modal-dialog"><div class="modal-content">
@@ -240,6 +240,7 @@
 <span class="badge badge_get">get</span> <span class="parent">/auth_proxy</span>/health/</h4>
 </div>
 <div class="modal-body">
+<div class="alert alert-info"><p>Returns the health status of auth_proxy and its netmaster</p></div>
 <ul class="nav nav-tabs"><li class="active"><a href="#auth_proxy_health_get_response" data-toggle="tab">Response</a></li></ul>
 <div class="tab-content"><div class="tab-pane active" id="auth_proxy_health_get_response">
 <h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
@@ -269,7 +270,7 @@
 </li>
 </ul>
 <p><strong>Example</strong>:</p>
-<div class="examples"><pre><code>{"netmaster":{"status":"healthy","version":"pv1.0.0-alpha-01-27-2017.23-16-47.UTC"},"status":"healthy","version":"1.0.0-alpha"}
+<div class="examples"><pre><code>{"netmaster":{"status":"healthy","version":"1.0.0"},"status":"healthy","version":"1.0.0"}
 </code></pre></div>
 </div></div>
 </div>
@@ -336,7 +337,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_auth_proxy_version"><span class="parent">/auth_proxy</span>/version/</a> <span class="methods"><a href="#auth_proxy_version_get"><span class="badge badge_get">get</span></a></span>
 </h4></div>
 <div id="panel_auth_proxy_version" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#auth_proxy_version_get'" class="list-group-item">
-<span class="badge badge_get">get</span><div class="method_description"></div>
+<span class="badge badge_get">get</span><div class="method_description"><p>Returns the auth_proxy version</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="auth_proxy_version_get"><div class="modal-dialog"><div class="modal-content">
@@ -345,6 +346,7 @@
 <span class="badge badge_get">get</span> <span class="parent">/auth_proxy</span>/version/</h4>
 </div>
 <div class="modal-body">
+<div class="alert alert-info"><p>Returns the auth_proxy version</p></div>
 <ul class="nav nav-tabs"><li class="active"><a href="#auth_proxy_version_get_response" data-toggle="tab">Response</a></li></ul>
 <div class="tab-content"><div class="tab-pane active" id="auth_proxy_version_get_response">
 <h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
@@ -352,7 +354,7 @@
 <h3>Body</h3>
 <p><strong>Media type</strong>: application/json</p>
 <p><strong>Type</strong>:</p>
-<pre><code>{ "version": "1.0.0-beta" }
+<pre><code>{ "version": "1.0.0" }
 </code></pre>
 </div></div>
 </div>
@@ -366,11 +368,11 @@
 <div class="resource-description"><p>A collection of authorizations</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#auth_proxy_authorizations_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of authorization.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of authorizations.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#auth_proxy_authorizations_post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new authorization.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Create a new authorization.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -381,7 +383,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy</span>/authorizations/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of authorization.</p></div>
+<div class="alert alert-info"><p>Returns a list of authorizations.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -428,7 +430,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy</span>/authorizations/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new authorization.</p></div>
+<div class="alert alert-info"><p>Create a new authorization.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -489,11 +491,11 @@
 <div class="resource-description"><p>Entity representing authorization</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#auth_proxy_authorizations__authzuuid__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns authorization.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a authorization.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#auth_proxy_authorizations__authzuuid__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes authorization.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a authorization.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -504,7 +506,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy/authorizations</span>/{authzUUID}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns authorization.</p></div>
+<div class="alert alert-info"><p>Returns a authorization.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -571,7 +573,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy/authorizations</span>/{authzUUID}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes authorization.</p></div>
+<div class="alert alert-info"><p>Deletes a authorization.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -608,11 +610,11 @@
 <div class="resource-description"><p>A collection of local_users</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#auth_proxy_local_users_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of local_user.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of local_users.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#auth_proxy_local_users_post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new local_user.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Create a new local_user.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -623,7 +625,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy</span>/local_users/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of local_user.</p></div>
+<div class="alert alert-info"><p>Returns a list of local_users.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -675,7 +677,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy</span>/local_users/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new local_user.</p></div>
+<div class="alert alert-info"><p>Create a new local_user.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -739,15 +741,15 @@
 <div class="resource-description"><p>Entity representing local_user</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#auth_proxy_local_users__username__patch'" class="list-group-item">
-<span class="badge badge_patch">patch <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"></div>
+<span class="badge badge_patch">patch <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates part of a local_user</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#auth_proxy_local_users__username__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns local_user.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a local_user.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#auth_proxy_local_users__username__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes local_user.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a local_user.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -758,11 +760,13 @@
 <span class="badge badge_patch">patch <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy/local_users</span>/{username}/</h4>
 </div>
 <div class="modal-body">
+<div class="alert alert-info"><p>Updates part of a local_user</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
 <ul class="nav nav-tabs">
 <li class="active"><a href="#auth_proxy_local_users__username__patch_request" data-toggle="tab">Request</a></li>
+<li><a href="#auth_proxy_local_users__username__patch_response" data-toggle="tab">Response</a></li>
 <li><a href="#auth_proxy_local_users__username__patch_securedby" data-toggle="tab">Security</a></li>
 </ul>
 <div class="tab-content">
@@ -771,6 +775,66 @@
 <ul><li>
 <strong>username</strong>: <em>required (string)</em>
 </li></ul>
+<h3>Body</h3>
+<p><strong>Media type</strong>: application/json</p>
+<p><strong>Type</strong>: object</p>
+<strong>Properties</strong><ul>
+<li>
+<strong>firstname</strong>: <em>(string)</em>
+</li>
+<li>
+<strong>lastname</strong>: <em>(string)</em>
+</li>
+<li>
+<strong>disable</strong>: <em>(boolean)</em>
+</li>
+<li>
+<strong>password</strong>: <em>(string)</em>
+</li>
+</ul>
+<p><strong>Example</strong>:</p>
+<div class="examples"><pre><code>{
+  "firstname": "Jane",
+  "disable": true
+}</code></pre></div>
+</div>
+<div class="tab-pane" id="auth_proxy_local_users__username__patch_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h3>Body</h3>
+<p><strong>Media type</strong>: application/json</p>
+<p><strong>Type</strong>: object</p>
+<strong>Properties</strong><ul>
+<li>
+<strong>username</strong>: <em>required (string)</em>
+</li>
+<li>
+<strong>password</strong>: <em>required (string)</em>
+</li>
+<li>
+<strong>firstname</strong>: <em>(string)</em><p><strong>Example</strong>:</p>
+<div class="examples"><pre><code>John</code></pre></div>
+</li>
+<li>
+<strong>lastname</strong>: <em>(string)</em><p><strong>Example</strong>:</p>
+<div class="examples"><pre><code>Doe</code></pre></div>
+</li>
+<li>
+<strong>disable</strong>: <em>(boolean)</em>
+</li>
+</ul>
+<p><strong>Example</strong>:</p>
+<div class="examples"><pre><code>{
+  "username": "johndoe",
+  "password": "p@ssw0rd"
+}</code></pre></div>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+<h3>Body</h3>
+<p><strong>Media type</strong>: application/json</p>
+<p><strong>Type</strong>:</p>
+<pre><code>{"message": "local_user not found" }
+</code></pre>
 </div>
 <div class="tab-pane" id="auth_proxy_local_users__username__patch_securedby">
 <h1>Secured by custom_scheme</h1>
@@ -788,7 +852,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy/local_users</span>/{username}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns local_user.</p></div>
+<div class="alert alert-info"><p>Returns a local_user.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -858,7 +922,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy/local_users</span>/{username}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes local_user.</p></div>
+<div class="alert alert-info"><p>Deletes a local_user.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -895,19 +959,19 @@
 <div class="resource-description"><p>Entity representing ldap_configuration</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#auth_proxy_ldap_configuration_put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates ldap_configuration</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a ldap_configuration</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#auth_proxy_ldap_configuration_patch'" class="list-group-item">
-<span class="badge badge_patch">patch <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"></div>
+<span class="badge badge_patch">patch <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates part of a ldap_configuration</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#auth_proxy_ldap_configuration_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns ldap_configuration.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a ldap_configuration.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#auth_proxy_ldap_configuration_delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes ldap_configuration.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a ldap_configuration.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -918,7 +982,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy</span>/ldap_configuration/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates ldap_configuration</p></div>
+<div class="alert alert-info"><p>Updates a ldap_configuration</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1015,17 +1079,95 @@
 <span class="badge badge_patch">patch <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy</span>/ldap_configuration/</h4>
 </div>
 <div class="modal-body">
+<div class="alert alert-info"><p>Updates part of a ldap_configuration</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
-<ul class="nav nav-tabs"><li><a href="#auth_proxy_ldap_configuration_patch_securedby" data-toggle="tab">Security</a></li></ul>
-<div class="tab-content"><div class="tab-pane" id="auth_proxy_ldap_configuration_patch_securedby">
+<ul class="nav nav-tabs">
+<li class="active"><a href="#auth_proxy_ldap_configuration_patch_request" data-toggle="tab">Request</a></li>
+<li><a href="#auth_proxy_ldap_configuration_patch_response" data-toggle="tab">Response</a></li>
+<li><a href="#auth_proxy_ldap_configuration_patch_securedby" data-toggle="tab">Security</a></li>
+</ul>
+<div class="tab-content">
+<div class="tab-pane active" id="auth_proxy_ldap_configuration_patch_request">
+<h3>Body</h3>
+<p><strong>Media type</strong>: application/json</p>
+<p><strong>Type</strong>: object</p>
+<strong>Properties</strong><ul>
+<li>
+<strong>server</strong>: <em>required (string)</em><p>FQDN or IP address of AD server</p>
+</li>
+<li>
+<strong>port</strong>: <em>required (integer - minimum: 0)</em><p>port where AD server is listening</p>
+</li>
+<li>
+<strong>base_dn</strong>: <em>required (string)</em><p>Distinguished name for base entity. All search queries will be scope to this BaseDN</p>
+</li>
+<li>
+<strong>service_account_dn</strong>: <em>required (string)</em><p>DN of the service account. auth_proxy will use this account to communicate with AD server. Hence this account must have appropriate privileges, specifically for lookup.</p>
+</li>
+<li>
+<strong>service_account_password</strong>: <em>required (string)</em>
+</li>
+<li>
+<strong>start_tls</strong>: <em>required (boolean)</em><p>switch session to TLS after proxy connects to AD server. This option must be configured on AD server. Recommended to set to true in production environments.</p>
+</li>
+<li>
+<strong>insecure_skip_verify</strong>: <em>required (boolean)</em><p>skip cert check on AD server. Recommended to set to false for production environments.</p>
+</li>
+</ul>
+</div>
+<div class="tab-pane" id="auth_proxy_ldap_configuration_patch_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h3>Body</h3>
+<p><strong>Media type</strong>: application/json</p>
+<p><strong>Type</strong>: object</p>
+<strong>Properties</strong><ul>
+<li>
+<strong>server</strong>: <em>required (string)</em><p>FQDN or IP address of AD server</p>
+<p><strong>Example</strong>:</p>
+<div class="examples"><pre><code>auth.local.com</code></pre></div>
+</li>
+<li>
+<strong>port</strong>: <em>required (integer - minimum: 0)</em><p>port where AD server is listening</p>
+<p><strong>Example</strong>:</p>
+<div class="examples"><pre><code>389</code></pre></div>
+</li>
+<li>
+<strong>base_dn</strong>: <em>required (string)</em><p>Distinguished name for base entity. All search queries will be scope to this BaseDN</p>
+<p><strong>Example</strong>:</p>
+<div class="examples"><pre><code>ou=eng,dc=auth,dc=com</code></pre></div>
+</li>
+<li>
+<strong>service_account_dn</strong>: <em>required (string)</em><p>DN of the service account. auth_proxy will use this account to communicate with AD server. Hence this account must have appropriate privileges, specifically for lookup.</p>
+</li>
+<li>
+<strong>service_account_password</strong>: <em>required (string)</em>
+</li>
+<li>
+<strong>start_tls</strong>: <em>required (boolean)</em><p>switch session to TLS after proxy connects to AD server. This option must be configured on AD server. Recommended to set to true in production environments.</p>
+</li>
+<li>
+<strong>insecure_skip_verify</strong>: <em>required (boolean)</em><p>skip cert check on AD server. Recommended to set to false for production environments.</p>
+</li>
+</ul>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+<h3>Body</h3>
+<p><strong>Media type</strong>: application/json</p>
+<p><strong>Type</strong>:</p>
+<pre><code>{"message": "ldap_configuration not found" }
+</code></pre>
+</div>
+<div class="tab-pane" id="auth_proxy_ldap_configuration_patch_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
 <ul><li>
 <strong>X-Auth-Token</strong>: <em>required (string)</em><p>Used to send a custom token. Obtained via /login API.</p>
 </li></ul>
-</div></div>
+</div>
+</div>
 </div>
 </div></div></div>
 <div class="modal fade" tabindex="0" id="auth_proxy_ldap_configuration_get"><div class="modal-dialog"><div class="modal-content">
@@ -1034,7 +1176,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy</span>/ldap_configuration/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns ldap_configuration.</p></div>
+<div class="alert alert-info"><p>Returns a ldap_configuration.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1102,7 +1244,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/auth_proxy</span>/ldap_configuration/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes ldap_configuration.</p></div>
+<div class="alert alert-info"><p>Deletes a ldap_configuration.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1139,7 +1281,7 @@
 <div id="panel_inspect_acigws_acigw" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing aciGw</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_acigws_acigw_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns aciGw.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a aciGw.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1149,7 +1291,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/aciGws</span>/aciGw/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns aciGw.</p></div>
+<div class="alert alert-info"><p>Returns a aciGw.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1219,7 +1361,7 @@
 <div id="panel_inspect_appprofiles__tenantname___appprofilename_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing appProfile</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_appprofiles__tenantname___appprofilename__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns appProfile.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a appProfile.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1229,7 +1371,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/appProfiles</span>/{tenantName}:{appProfileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns appProfile.</p></div>
+<div class="alert alert-info"><p>Returns a appProfile.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1295,7 +1437,7 @@
 <div id="panel_inspect_bgps__hostname_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing Bgp</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_bgps__hostname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns Bgp.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a Bgp.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1305,7 +1447,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/Bgps</span>/{hostname}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns Bgp.</p></div>
+<div class="alert alert-info"><p>Returns a Bgp.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1390,7 +1532,7 @@
 <div id="panel_inspect_endpoints__endpointid_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing endpoint</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_endpoints__endpointid__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns endpoint.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a endpoint.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1400,7 +1542,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/endpoints</span>/{endpointID}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns endpoint.</p></div>
+<div class="alert alert-info"><p>Returns a endpoint.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1499,7 +1641,7 @@
 <div id="panel_inspect_endpointgroups__tenantname___groupname_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing endpointGroup</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_endpointgroups__tenantname___groupname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns endpointGroup.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a endpointGroup.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1509,7 +1651,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/endpointGroups</span>/{tenantName}:{groupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns endpointGroup.</p></div>
+<div class="alert alert-info"><p>Returns a endpointGroup.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1613,7 +1755,7 @@
 <div id="panel_inspect_extcontractsgroups__tenantname___contractsgroupname_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing extContractsGroup</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_extcontractsgroups__tenantname___contractsgroupname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns extContractsGroup.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a extContractsGroup.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1623,7 +1765,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/extContractsGroups</span>/{tenantName}:{contractsGroupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns extContractsGroup.</p></div>
+<div class="alert alert-info"><p>Returns a extContractsGroup.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1692,7 +1834,7 @@
 <div id="panel_inspect_globals_global" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing global</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_globals_global_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns global.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a global.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1702,7 +1844,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/globals</span>/global/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns global.</p></div>
+<div class="alert alert-info"><p>Returns a global.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1792,7 +1934,7 @@
 <div id="panel_inspect_netprofiles__tenantname___profilename_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing netprofile</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_netprofiles__tenantname___profilename__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns netprofile.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a netprofile.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1802,7 +1944,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/netprofiles</span>/{tenantName}:{profileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns netprofile.</p></div>
+<div class="alert alert-info"><p>Returns a netprofile.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1874,7 +2016,7 @@
 <div id="panel_inspect_networks__tenantname___networkname_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing network</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_networks__tenantname___networkname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns network.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a network.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -1884,7 +2026,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/networks</span>/{tenantName}:{networkName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns network.</p></div>
+<div class="alert alert-info"><p>Returns a network.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -1997,7 +2139,7 @@
 <div id="panel_inspect_policys__tenantname___policyname_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing policy</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_policys__tenantname___policyname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns policy.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a policy.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -2007,7 +2149,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/policys</span>/{tenantName}:{policyName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns policy.</p></div>
+<div class="alert alert-info"><p>Returns a policy.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2087,7 +2229,7 @@
 <div id="panel_inspect_rules__tenantname___policyname___ruleid_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing rule</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_rules__tenantname___policyname___ruleid__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns rule.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a rule.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -2097,7 +2239,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/rules</span>/{tenantName}:{policyName}:{ruleId}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns rule.</p></div>
+<div class="alert alert-info"><p>Returns a rule.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2199,7 +2341,7 @@
 <div id="panel_inspect_servicelbs__tenantname___servicename_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing serviceLB</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_servicelbs__tenantname___servicename__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns serviceLB.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a serviceLB.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -2209,7 +2351,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/serviceLBs</span>/{tenantName}:{serviceName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns serviceLB.</p></div>
+<div class="alert alert-info"><p>Returns a serviceLB.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2301,7 +2443,7 @@
 <div id="panel_inspect_tenants__tenantname_" class="panel-collapse collapse"><div class="panel-body">
 <div class="resource-description"><p>Entity representing tenant</p></div>
 <div class="list-group"><div onclick="window.location.href = '#inspect_tenants__tenantname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns tenant.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a tenant.</p></div>
 <div class="clearfix"></div>
 </div></div>
 </div></div>
@@ -2311,7 +2453,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/inspect/tenants</span>/{tenantName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns tenant.</p></div>
+<div class="alert alert-info"><p>Returns a tenant.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2503,7 +2645,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_acigws"><span class="parent"></span>/aciGws/</a> <span class="methods"><a href="#acigws_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_acigws" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#acigws_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of aciGw.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of aciGws.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="acigws_get"><div class="modal-dialog"><div class="modal-content">
@@ -2512,7 +2654,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/aciGws/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of aciGw.</p></div>
+<div class="alert alert-info"><p>Returns a list of aciGws.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2568,19 +2710,19 @@
 <div class="resource-description"><p>Entity representing aciGw</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#acigws_acigw_put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates aciGw</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a aciGw</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#acigws_acigw_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns aciGw.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a aciGw.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#acigws_acigw_post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new aciGw.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new aciGw.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#acigws_acigw_delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes aciGw.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a aciGw.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -2591,7 +2733,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/aciGws</span>/aciGw/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates aciGw</p></div>
+<div class="alert alert-info"><p>Updates a aciGw</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2676,7 +2818,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/aciGws</span>/aciGw/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns aciGw.</p></div>
+<div class="alert alert-info"><p>Returns a aciGw.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2735,7 +2877,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/aciGws</span>/aciGw/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new aciGw.</p></div>
+<div class="alert alert-info"><p>Creates a new aciGw.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2771,7 +2913,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="acigws_acigw_post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -2792,7 +2934,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/aciGws</span>/aciGw/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes aciGw.</p></div>
+<div class="alert alert-info"><p>Deletes a aciGw.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2801,8 +2943,12 @@
 <li><a href="#acigws_acigw_delete_securedby" data-toggle="tab">Security</a></li>
 </ul>
 <div class="tab-content">
-<div class="tab-pane active" id="acigws_acigw_delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane active" id="acigws_acigw_delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="acigws_acigw_delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -2827,7 +2973,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_appprofiles"><span class="parent"></span>/appProfiles/</a> <span class="methods"><a href="#appprofiles_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_appprofiles" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#appprofiles_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of appProfile.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of appProfiles.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="appprofiles_get"><div class="modal-dialog"><div class="modal-content">
@@ -2836,7 +2982,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/appProfiles/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of appProfile.</p></div>
+<div class="alert alert-info"><p>Returns a list of appProfiles.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2883,19 +3029,19 @@
 <div class="resource-description"><p>Entity representing appProfile</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#appprofiles__tenantname___appprofilename__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates appProfile</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a appProfile</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#appprofiles__tenantname___appprofilename__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns appProfile.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a appProfile.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#appprofiles__tenantname___appprofilename__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new appProfile.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new appProfile.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#appprofiles__tenantname___appprofilename__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes appProfile.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a appProfile.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -2906,7 +3052,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/appProfiles</span>/{tenantName}:{appProfileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates appProfile</p></div>
+<div class="alert alert-info"><p>Updates a appProfile</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -2971,7 +3117,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/appProfiles</span>/{tenantName}:{appProfileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns appProfile.</p></div>
+<div class="alert alert-info"><p>Returns a appProfile.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3033,7 +3179,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/appProfiles</span>/{tenantName}:{appProfileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new appProfile.</p></div>
+<div class="alert alert-info"><p>Creates a new appProfile.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3069,7 +3215,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="appprofiles__tenantname___appprofilename__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -3090,7 +3236,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/appProfiles</span>/{tenantName}:{appProfileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes appProfile.</p></div>
+<div class="alert alert-info"><p>Deletes a appProfile.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3111,8 +3257,12 @@
 </li>
 </ul>
 </div>
-<div class="tab-pane" id="appprofiles__tenantname___appprofilename__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="appprofiles__tenantname___appprofilename__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="appprofiles__tenantname___appprofilename__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -3137,7 +3287,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_bgps"><span class="parent"></span>/Bgps/</a> <span class="methods"><a href="#bgps_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_bgps" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#bgps_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of Bgp.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of Bgps.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="bgps_get"><div class="modal-dialog"><div class="modal-content">
@@ -3146,7 +3296,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/Bgps/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of Bgp.</p></div>
+<div class="alert alert-info"><p>Returns a list of Bgps.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3199,19 +3349,19 @@
 <div class="resource-description"><p>Entity representing Bgp</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#bgps__hostname__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates Bgp</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a Bgp</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#bgps__hostname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns Bgp.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a Bgp.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#bgps__hostname__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new Bgp.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new Bgp.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#bgps__hostname__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes Bgp.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a Bgp.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -3222,7 +3372,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/Bgps</span>/{hostname}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates Bgp</p></div>
+<div class="alert alert-info"><p>Updates a Bgp</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3305,7 +3455,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/Bgps</span>/{hostname}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns Bgp.</p></div>
+<div class="alert alert-info"><p>Returns a Bgp.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3368,7 +3518,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/Bgps</span>/{hostname}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new Bgp.</p></div>
+<div class="alert alert-info"><p>Creates a new Bgp.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3405,7 +3555,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="bgps__hostname__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -3426,7 +3576,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/Bgps</span>/{hostname}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes Bgp.</p></div>
+<div class="alert alert-info"><p>Deletes a Bgp.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3442,8 +3592,12 @@
 <strong>hostname</strong>: <em>required (string)</em>
 </li></ul>
 </div>
-<div class="tab-pane" id="bgps__hostname__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="bgps__hostname__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="bgps__hostname__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -3468,7 +3622,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_endpointgroups"><span class="parent"></span>/endpointGroups/</a> <span class="methods"><a href="#endpointgroups_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_endpointgroups" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#endpointgroups_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of endpointGroup.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of endpointGroups.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="endpointgroups_get"><div class="modal-dialog"><div class="modal-content">
@@ -3477,7 +3631,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/endpointGroups/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of endpointGroup.</p></div>
+<div class="alert alert-info"><p>Returns a list of endpointGroups.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3536,19 +3690,19 @@
 <div class="resource-description"><p>Entity representing endpointGroup</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#endpointgroups__tenantname___groupname__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates endpointGroup</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a endpointGroup</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#endpointgroups__tenantname___groupname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns endpointGroup.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a endpointGroup.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#endpointgroups__tenantname___groupname__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new endpointGroup.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new endpointGroup.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#endpointgroups__tenantname___groupname__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes endpointGroup.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a endpointGroup.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -3559,7 +3713,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/endpointGroups</span>/{tenantName}:{groupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates endpointGroup</p></div>
+<div class="alert alert-info"><p>Updates a endpointGroup</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3636,7 +3790,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/endpointGroups</span>/{tenantName}:{groupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns endpointGroup.</p></div>
+<div class="alert alert-info"><p>Returns a endpointGroup.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3710,7 +3864,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/endpointGroups</span>/{tenantName}:{groupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new endpointGroup.</p></div>
+<div class="alert alert-info"><p>Creates a new endpointGroup.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3758,7 +3912,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="endpointgroups__tenantname___groupname__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -3779,7 +3933,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/endpointGroups</span>/{tenantName}:{groupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes endpointGroup.</p></div>
+<div class="alert alert-info"><p>Deletes a endpointGroup.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3800,8 +3954,12 @@
 </li>
 </ul>
 </div>
-<div class="tab-pane" id="endpointgroups__tenantname___groupname__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="endpointgroups__tenantname___groupname__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="endpointgroups__tenantname___groupname__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -3826,7 +3984,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_extcontractsgroups"><span class="parent"></span>/extContractsGroups/</a> <span class="methods"><a href="#extcontractsgroups_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_extcontractsgroups" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#extcontractsgroups_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of extContractsGroup.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of extContractsGroups.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="extcontractsgroups_get"><div class="modal-dialog"><div class="modal-content">
@@ -3835,7 +3993,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/extContractsGroups/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of extContractsGroup.</p></div>
+<div class="alert alert-info"><p>Returns a list of extContractsGroups.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3885,19 +4043,19 @@
 <div class="resource-description"><p>Entity representing extContractsGroup</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#extcontractsgroups__tenantname___contractsgroupname__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates extContractsGroup</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a extContractsGroup</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#extcontractsgroups__tenantname___contractsgroupname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns extContractsGroup.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a extContractsGroup.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#extcontractsgroups__tenantname___contractsgroupname__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new extContractsGroup.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new extContractsGroup.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#extcontractsgroups__tenantname___contractsgroupname__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes extContractsGroup.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a extContractsGroup.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -3908,7 +4066,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/extContractsGroups</span>/{tenantName}:{contractsGroupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates extContractsGroup</p></div>
+<div class="alert alert-info"><p>Updates a extContractsGroup</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -3976,7 +4134,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/extContractsGroups</span>/{tenantName}:{contractsGroupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns extContractsGroup.</p></div>
+<div class="alert alert-info"><p>Returns a extContractsGroup.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4041,7 +4199,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/extContractsGroups</span>/{tenantName}:{contractsGroupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new extContractsGroup.</p></div>
+<div class="alert alert-info"><p>Creates a new extContractsGroup.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4080,7 +4238,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="extcontractsgroups__tenantname___contractsgroupname__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -4101,7 +4259,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/extContractsGroups</span>/{tenantName}:{contractsGroupName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes extContractsGroup.</p></div>
+<div class="alert alert-info"><p>Deletes a extContractsGroup.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4122,8 +4280,12 @@
 </li>
 </ul>
 </div>
-<div class="tab-pane" id="extcontractsgroups__tenantname___contractsgroupname__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="extcontractsgroups__tenantname___contractsgroupname__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="extcontractsgroups__tenantname___contractsgroupname__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -4148,7 +4310,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_globals"><span class="parent"></span>/globals/</a> <span class="methods"><a href="#globals_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_globals" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#globals_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of global.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of globals.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="globals_get"><div class="modal-dialog"><div class="modal-content">
@@ -4157,7 +4319,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/globals/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of global.</p></div>
+<div class="alert alert-info"><p>Returns a list of globals.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4216,19 +4378,19 @@
 <div class="resource-description"><p>Entity representing global</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#globals_global_put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates global</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a global</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#globals_global_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns global.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a global.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#globals_global_post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new global.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new global.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#globals_global_delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes global.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a global.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -4239,7 +4401,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/globals</span>/global/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates global</p></div>
+<div class="alert alert-info"><p>Updates a global</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4330,7 +4492,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/globals</span>/global/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns global.</p></div>
+<div class="alert alert-info"><p>Returns a global.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4392,7 +4554,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/globals</span>/global/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new global.</p></div>
+<div class="alert alert-info"><p>Creates a new global.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4431,7 +4593,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="globals_global_post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -4452,7 +4614,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/globals</span>/global/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes global.</p></div>
+<div class="alert alert-info"><p>Deletes a global.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4461,8 +4623,12 @@
 <li><a href="#globals_global_delete_securedby" data-toggle="tab">Security</a></li>
 </ul>
 <div class="tab-content">
-<div class="tab-pane active" id="globals_global_delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane active" id="globals_global_delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="globals_global_delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -4487,7 +4653,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_netprofiles"><span class="parent"></span>/netprofiles/</a> <span class="methods"><a href="#netprofiles_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_netprofiles" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#netprofiles_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of netprofile.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of netprofiles.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="netprofiles_get"><div class="modal-dialog"><div class="modal-content">
@@ -4496,7 +4662,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/netprofiles/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of netprofile.</p></div>
+<div class="alert alert-info"><p>Returns a list of netprofiles.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4549,19 +4715,19 @@
 <div class="resource-description"><p>Entity representing netprofile</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#netprofiles__tenantname___profilename__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates netprofile</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a netprofile</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#netprofiles__tenantname___profilename__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns netprofile.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a netprofile.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#netprofiles__tenantname___profilename__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new netprofile.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new netprofile.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#netprofiles__tenantname___profilename__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes netprofile.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a netprofile.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -4572,7 +4738,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/netprofiles</span>/{tenantName}:{profileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates netprofile</p></div>
+<div class="alert alert-info"><p>Updates a netprofile</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4660,7 +4826,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/netprofiles</span>/{tenantName}:{profileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns netprofile.</p></div>
+<div class="alert alert-info"><p>Returns a netprofile.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4728,7 +4894,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/netprofiles</span>/{tenantName}:{profileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new netprofile.</p></div>
+<div class="alert alert-info"><p>Creates a new netprofile.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4770,7 +4936,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="netprofiles__tenantname___profilename__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -4791,7 +4957,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/netprofiles</span>/{tenantName}:{profileName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes netprofile.</p></div>
+<div class="alert alert-info"><p>Deletes a netprofile.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4812,8 +4978,12 @@
 </li>
 </ul>
 </div>
-<div class="tab-pane" id="netprofiles__tenantname___profilename__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="netprofiles__tenantname___profilename__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="netprofiles__tenantname___profilename__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -4838,7 +5008,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_networks"><span class="parent"></span>/networks/</a> <span class="methods"><a href="#networks_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_networks" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#networks_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of network.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of networks.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="networks_get"><div class="modal-dialog"><div class="modal-content">
@@ -4847,7 +5017,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/networks/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of network.</p></div>
+<div class="alert alert-info"><p>Returns a list of networks.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -4912,19 +5082,19 @@
 <div class="resource-description"><p>Entity representing network</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#networks__tenantname___networkname__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates network</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a network</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#networks__tenantname___networkname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns network.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a network.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#networks__tenantname___networkname__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new network.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new network.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#networks__tenantname___networkname__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes network.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a network.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -4935,7 +5105,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/networks</span>/{tenantName}:{networkName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates network</p></div>
+<div class="alert alert-info"><p>Updates a network</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5047,7 +5217,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/networks</span>/{tenantName}:{networkName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns network.</p></div>
+<div class="alert alert-info"><p>Returns a network.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5127,7 +5297,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/networks</span>/{tenantName}:{networkName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new network.</p></div>
+<div class="alert alert-info"><p>Creates a new network.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5181,7 +5351,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="networks__tenantname___networkname__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -5202,7 +5372,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/networks</span>/{tenantName}:{networkName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes network.</p></div>
+<div class="alert alert-info"><p>Deletes a network.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5223,8 +5393,12 @@
 </li>
 </ul>
 </div>
-<div class="tab-pane" id="networks__tenantname___networkname__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="networks__tenantname___networkname__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="networks__tenantname___networkname__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -5249,7 +5423,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_policys"><span class="parent"></span>/policys/</a> <span class="methods"><a href="#policys_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_policys" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#policys_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of policy.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of policys.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="policys_get"><div class="modal-dialog"><div class="modal-content">
@@ -5258,7 +5432,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/policys/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of policy.</p></div>
+<div class="alert alert-info"><p>Returns a list of policys.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5302,19 +5476,19 @@
 <div class="resource-description"><p>Entity representing policy</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#policys__tenantname___policyname__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates policy</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a policy</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#policys__tenantname___policyname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns policy.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a policy.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#policys__tenantname___policyname__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new policy.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new policy.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#policys__tenantname___policyname__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes policy.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a policy.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -5325,7 +5499,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/policys</span>/{tenantName}:{policyName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates policy</p></div>
+<div class="alert alert-info"><p>Updates a policy</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5395,7 +5569,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/policys</span>/{tenantName}:{policyName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns policy.</p></div>
+<div class="alert alert-info"><p>Returns a policy.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5454,7 +5628,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/policys</span>/{tenantName}:{policyName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new policy.</p></div>
+<div class="alert alert-info"><p>Creates a new policy.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5487,7 +5661,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="policys__tenantname___policyname__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -5508,7 +5682,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/policys</span>/{tenantName}:{policyName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes policy.</p></div>
+<div class="alert alert-info"><p>Deletes a policy.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5529,8 +5703,12 @@
 </li>
 </ul>
 </div>
-<div class="tab-pane" id="policys__tenantname___policyname__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="policys__tenantname___policyname__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="policys__tenantname___policyname__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -5555,7 +5733,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_rules"><span class="parent"></span>/rules/</a> <span class="methods"><a href="#rules_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_rules" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#rules_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of rule.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of rules.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="rules_get"><div class="modal-dialog"><div class="modal-content">
@@ -5564,7 +5742,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/rules/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of rule.</p></div>
+<div class="alert alert-info"><p>Returns a list of rules.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5644,19 +5822,19 @@
 <div class="resource-description"><p>Entity representing rule</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#rules__tenantname___policyname___ruleid__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates rule</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a rule</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#rules__tenantname___policyname___ruleid__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns rule.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a rule.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#rules__tenantname___policyname___ruleid__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new rule.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new rule.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#rules__tenantname___policyname___ruleid__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes rule.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a rule.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -5667,7 +5845,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/rules</span>/{tenantName}:{policyName}:{ruleId}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates rule</p></div>
+<div class="alert alert-info"><p>Updates a rule</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5812,7 +5990,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/rules</span>/{tenantName}:{policyName}:{ruleId}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns rule.</p></div>
+<div class="alert alert-info"><p>Returns a rule.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5910,7 +6088,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/rules</span>/{tenantName}:{policyName}:{ruleId}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new rule.</p></div>
+<div class="alert alert-info"><p>Creates a new rule.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -5982,7 +6160,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="rules__tenantname___policyname___ruleid__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -6003,7 +6181,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/rules</span>/{tenantName}:{policyName}:{ruleId}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes rule.</p></div>
+<div class="alert alert-info"><p>Deletes a rule.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6027,8 +6205,12 @@
 </li>
 </ul>
 </div>
-<div class="tab-pane" id="rules__tenantname___policyname___ruleid__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="rules__tenantname___policyname___ruleid__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="rules__tenantname___policyname___ruleid__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -6053,7 +6235,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_servicelbs"><span class="parent"></span>/serviceLBs/</a> <span class="methods"><a href="#servicelbs_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_servicelbs" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#servicelbs_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of serviceLB.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of serviceLBs.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="servicelbs_get"><div class="modal-dialog"><div class="modal-content">
@@ -6062,7 +6244,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/serviceLBs/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of serviceLB.</p></div>
+<div class="alert alert-info"><p>Returns a list of serviceLBs.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6118,19 +6300,19 @@
 <div class="resource-description"><p>Entity representing serviceLB</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#servicelbs__tenantname___servicename__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates serviceLB</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a serviceLB</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#servicelbs__tenantname___servicename__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns serviceLB.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a serviceLB.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#servicelbs__tenantname___servicename__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new serviceLB.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new serviceLB.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#servicelbs__tenantname___servicename__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes serviceLB.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a serviceLB.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -6141,7 +6323,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/serviceLBs</span>/{tenantName}:{serviceName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates serviceLB</p></div>
+<div class="alert alert-info"><p>Updates a serviceLB</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6215,7 +6397,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/serviceLBs</span>/{tenantName}:{serviceName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns serviceLB.</p></div>
+<div class="alert alert-info"><p>Returns a serviceLB.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6286,7 +6468,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/serviceLBs</span>/{tenantName}:{serviceName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new serviceLB.</p></div>
+<div class="alert alert-info"><p>Creates a new serviceLB.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6331,7 +6513,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="servicelbs__tenantname___servicename__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -6352,7 +6534,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/serviceLBs</span>/{tenantName}:{serviceName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes serviceLB.</p></div>
+<div class="alert alert-info"><p>Deletes a serviceLB.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6373,8 +6555,12 @@
 </li>
 </ul>
 </div>
-<div class="tab-pane" id="servicelbs__tenantname___servicename__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="servicelbs__tenantname___servicename__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="servicelbs__tenantname___servicename__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>
@@ -6399,7 +6585,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_tenants"><span class="parent"></span>/tenants/</a> <span class="methods"><a href="#tenants_get"><span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span></a></span>
 </h4></div>
 <div id="panel_tenants" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#tenants_get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns a list of tenant.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a list of tenants.</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="tenants_get"><div class="modal-dialog"><div class="modal-content">
@@ -6408,7 +6594,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent"></span>/tenants/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns a list of tenant.</p></div>
+<div class="alert alert-info"><p>Returns a list of tenants.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6452,19 +6638,19 @@
 <div class="resource-description"><p>Entity representing tenant</p></div>
 <div class="list-group">
 <div onclick="window.location.href = '#tenants__tenantname__put'" class="list-group-item">
-<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>updates/creates tenant</p></div>
+<span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Updates a tenant</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#tenants__tenantname__get'" class="list-group-item">
-<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>returns tenant.</p></div>
+<span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Returns a tenant.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#tenants__tenantname__post'" class="list-group-item">
-<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Add a new tenant.</p></div>
+<span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Creates a new tenant.</p></div>
 <div class="clearfix"></div>
 </div>
 <div onclick="window.location.href = '#tenants__tenantname__delete'" class="list-group-item">
-<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>deletes tenant.</p></div>
+<span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span><div class="method_description"><p>Deletes a tenant.</p></div>
 <div class="clearfix"></div>
 </div>
 </div>
@@ -6475,7 +6661,7 @@
 <span class="badge badge_put">put <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/tenants</span>/{tenantName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>updates/creates tenant</p></div>
+<div class="alert alert-info"><p>Updates a tenant</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6540,7 +6726,7 @@
 <span class="badge badge_get">get <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/tenants</span>/{tenantName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>returns tenant.</p></div>
+<div class="alert alert-info"><p>Returns a tenant.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6594,7 +6780,7 @@
 <span class="badge badge_post">post <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/tenants</span>/{tenantName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Add a new tenant.</p></div>
+<div class="alert alert-info"><p>Creates a new tenant.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6622,7 +6808,7 @@
 </ul>
 </div>
 <div class="tab-pane" id="tenants__tenantname__post_response">
-<h2>HTTP status code <a href="http://httpstatus.es/201" target="_blank">201</a>
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
 </h2>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -6643,7 +6829,7 @@
 <span class="badge badge_delete">delete <span class="glyphicon glyphicon-lock" title="Authentication required"></span></span> <span class="parent">/tenants</span>/{tenantName}/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>deletes tenant.</p></div>
+<div class="alert alert-info"><p>Deletes a tenant.</p></div>
 <div class="alert alert-warning">
 <span class="glyphicon glyphicon-lock" title="Authentication required"></span> Secured by <b>custom_scheme</b><p>A custom security scheme for authenticating requests.</p>
 </div>
@@ -6659,8 +6845,12 @@
 <strong>tenantName</strong>: <em>required (string)</em>
 </li></ul>
 </div>
-<div class="tab-pane" id="tenants__tenantname__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a>
-</h2></div>
+<div class="tab-pane" id="tenants__tenantname__delete_response">
+<h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
+</h2>
+<h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
+</h2>
+</div>
 <div class="tab-pane" id="tenants__tenantname__delete_securedby">
 <h1>Secured by custom_scheme</h1>
 <h3>Headers</h3>

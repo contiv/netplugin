@@ -1,7 +1,7 @@
 #%RAML 1.0 ResourceType
 description: Entity representing <<resourcePathName|!singularize>>
 get:
-  description: returns <<resourcePathName|!singularize>>.
+  description: Returns a <<resourcePathName|!singularize>>.
   responses:
     200:
       body:
@@ -12,19 +12,20 @@ get:
         application/json: |
           {"message": "<<resourcePathName|!singularize>> not found" }
 post:
-  description: Add a new <<resourcePathName|!singularize>>.
+  description: Creates a new <<resourcePathName|!singularize>>.
   body:
     application/json:
       type: <<provider>>.<<resourcePathName|!singularize>>
   responses:
-    201:
+    200:
     404:
 delete:
-  description: deletes <<resourcePathName|!singularize>>.
+  description: Deletes a <<resourcePathName|!singularize>>.
   responses:
-    204:
+    200:
+    404:
 put?:
-  description: updates/creates <<resourcePathName|!singularize>>
+  description: Updates a <<resourcePathName|!singularize>>
   body:
     application/json: 
       type: <<provider>>.upd_<<resourcePathName|!singularize>>

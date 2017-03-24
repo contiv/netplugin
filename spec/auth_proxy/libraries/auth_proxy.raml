@@ -18,7 +18,7 @@ types:
             required: false
             description: omitted in case netmaster is unhealthy
     example: |
-      {"netmaster":{"status":"healthy","version":"pv1.0.0-alpha-01-27-2017.23-16-47.UTC"},"status":"healthy","version":"1.0.0-alpha"}
+      {"netmaster":{"status":"healthy","version":"1.0.0"},"status":"healthy","version":"1.0.0"}
       
   ldap_configuration:
     properties:
@@ -95,7 +95,7 @@ types:
     properties:
       username:
         type: string
-        description: user name. If a local user doesn't exist by that name, AD authentication will be tried using sAMAccountName=username in BaseDN scope of the AD server (see ldap configuration for more details)
+        description: "username. If a local user doesn't exist by that name, AD authentication will be tried using sAMAccountName=username in BaseDN scope of the AD server (see ldap configuration for more details)"
       password: string
     example:
       username: johndoe
