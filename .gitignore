@@ -49,6 +49,15 @@ install/v2plugin/config.json
 # netcontain temporary build files
 scripts/netContain/bin
 
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
 # version
 version/version_gen.go
 
