@@ -27,8 +27,12 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
+	dockerclient "github.com/docker/docker/client"
 	"github.com/gorilla/mux"
-	"github.com/samalba/dockerclient"
+	"golang.org/x/net/context"
 )
 
 // Agent holds the netplugin agent state
@@ -178,25 +182,19 @@ func (ag *Agent) PostInit() error {
 }
 
 func (ag *Agent) monitorDockerEvents(de chan error) {
-	mErr := make(chan error, 1)
-
 	// watch for docker events
-	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	docker, err := dockerclient.NewClient("unix:///var/run/docker.sock", "", nil, nil)
 	if err != nil {
 		log.Errorf("Error connecting to docker - %v", err)
 		de <- err
 		return
 	}
 
-	for {
-		go docker.StartMonitorEvents(handleDockerEvents, mErr, ag.netPlugin, mErr)
-		err = <-mErr
+	contFilter := filters.NewArgs()
+	contFilter.Add("type", events.ContainerEventType)
 
-		if err != nil {
-			log.Errorf("Error - %v from docker monitor, retry...", err)
-			time.Sleep(2 * time.Second)
-		}
-	}
+	events, errs := docker.Events(context.Background(), types.EventsOptions{Filters: contFilter})
+	go handleDockerEvents(events, errs)
 }
 
 // HandleEvents handles events

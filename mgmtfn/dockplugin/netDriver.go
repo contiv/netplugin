@@ -29,8 +29,11 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/utils"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/libnetwork/drivers/remote/api"
-	"github.com/samalba/dockerclient"
+	"golang.org/x/net/context"
 )
 
 const defaultTenantName = "default"
@@ -459,65 +462,64 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 	}
 
 	// create docker client
-	docker, err := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+	docker, err := dockerclient.NewClient("unix:///var/run/docker.sock", "", nil, nil)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
 		return "", "", "", errors.New("Unable to connect to docker")
 	}
 
-	nwList, err := docker.ListNetworks("")
+	nwIDFilter := filters.NewArgs()
+	nwIDFilter.Add("id", nwID)
+	nwList, err := docker.NetworkList(context.Background(), types.NetworkListOptions{Filters: nwIDFilter})
 	if err != nil {
 		log.Infof("Error: %v", err)
 		return "", "", "", err
 	}
 
-	log.Debugf("Got networks:")
-
-	// find the network by uuid
-	for _, nw := range nwList {
-		log.Debugf("%+v", nw)
-		if nw.ID == nwID {
-			log.Infof("Returning network name %s for ID %s", nw.Name, nwID)
-
-			// parse the network name
-			var tenantName, netName, serviceName string
-			names := strings.Split(nw.Name, "/")
-			if len(names) == 2 {
-				// has service.network/tenant format.
-				tenantName = names[1]
-
-				// parse service and network names
-				sNames := strings.Split(names[0], ".")
-				if len(sNames) == 2 {
-					// has service.network format
-					netName = sNames[1]
-					serviceName = sNames[0]
-				} else {
-					netName = sNames[0]
-				}
-			} else if len(names) == 1 {
-				// has ser.network in default tenant
-				tenantName = defaultTenantName
-
-				// parse service and network names
-				sNames := strings.Split(names[0], ".")
-				if len(sNames) == 2 {
-					// has service.network format
-					netName = sNames[1]
-					serviceName = sNames[0]
-				} else {
-					netName = sNames[0]
-				}
-			} else {
-				log.Errorf("Invalid network name format for network %s", nw.Name)
-				return "", "", "", errors.New("Invalid format")
-			}
-
-			return tenantName, netName, serviceName, nil
-
+	if len(nwList) != 1 {
+		if len(nwList) == 0 {
+			err = errors.New("Network UUID not found")
+		} else {
+			err = errors.New("More than one network found with the same ID")
 		}
+		return "", "", "", err
+	}
+	nw := nwList[0]
+	log.Infof("Returning network name %s for ID %s", nw.Name, nwID)
+
+	// parse the network name
+	var tenantName, netName, serviceName string
+	names := strings.Split(nw.Name, "/")
+	if len(names) == 2 {
+		// has service.network/tenant format.
+		tenantName = names[1]
+
+		// parse service and network names
+		sNames := strings.Split(names[0], ".")
+		if len(sNames) == 2 {
+			// has service.network format
+			netName = sNames[1]
+			serviceName = sNames[0]
+		} else {
+			netName = sNames[0]
+		}
+	} else if len(names) == 1 {
+		// has service.network in default tenant
+		tenantName = defaultTenantName
+
+		// parse service and network names
+		sNames := strings.Split(names[0], ".")
+		if len(sNames) == 2 {
+			// has service.network format
+			netName = sNames[1]
+			serviceName = sNames[0]
+		} else {
+			netName = sNames[0]
+		}
+	} else {
+		log.Errorf("Invalid network name format for network %s", nw.Name)
+		return "", "", "", errors.New("Invalid format")
 	}
 
-	// UUID was not Found
-	return "", "", "", errors.New("Network UUID not found")
+	return tenantName, netName, serviceName, nil
 }

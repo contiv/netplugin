@@ -5,7 +5,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/samalba/dockerclient"
+	dockerclient "github.com/docker/docker/client"
 )
 
 var (
@@ -33,6 +33,6 @@ func getDockerHost() string {
 }
 
 // GetDockerClient returns a new Docker Client based on the environment settings
-func GetDockerClient() (*dockerclient.DockerClient, error) {
-	return dockerclient.NewDockerClient(getDockerHost(), nil)
+func GetDockerClient() (*dockerclient.Client, error) {
+	return dockerclient.NewClient(getDockerHost(), "", nil, nil)
 }

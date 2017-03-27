@@ -24,6 +24,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
+	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -89,7 +90,7 @@ func checkDocknetCreate(t *testing.T, tenantName, networkName, serviceName, subn
 	if err != nil {
 		t.Fatalf("Unable to connect to docker. Error %v", err)
 	}
-	ninfo, err := docker.InspectNetwork(docknetName)
+	ninfo, err := docker.NetworkInspect(context.Background(), docknetName)
 	if err != nil {
 		t.Fatalf("Error getting network info for %s. Err: %v", docknetName, err)
 	}
@@ -148,7 +149,7 @@ func checkDocknetCreateIPv6(t *testing.T, tenantName, networkName, serviceName, 
 	if err != nil {
 		t.Fatalf("Unable to connect to docker. Error %v", err)
 	}
-	ninfo, err := docker.InspectNetwork(docknetName)
+	ninfo, err := docker.NetworkInspect(context.Background(), docknetName)
 	if err != nil {
 		t.Fatalf("Error getting network info for %s. Err: %v", docknetName, err)
 	}
@@ -195,7 +196,7 @@ func checkDocknetDelete(t *testing.T, tenantName, networkName, serviceName strin
 	if err != nil {
 		t.Fatalf("Unable to connect to docker. Error %v", err)
 	}
-	_, err = docker.InspectNetwork(docknetName)
+	_, err = docker.NetworkInspect(context.Background(), docknetName)
 	if err == nil {
 		t.Fatalf("docker net %s was not deleted. Err: %v", docknetName, err)
 	}
