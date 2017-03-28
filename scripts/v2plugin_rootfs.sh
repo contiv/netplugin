@@ -3,6 +3,8 @@
 # run this script from contiv/netplugin directory
 
 echo "Creating rootfs for v2plugin ", ${CONTIV_V2PLUGIN_NAME}
+rm -rf install/v2plugin/rootfs
+rm install/v2plugin/config.json
 cat install/v2plugin/config.template | grep -v "##" > install/v2plugin/config.json
 sed -i "s%PluginName%${CONTIV_V2PLUGIN_NAME}%" install/v2plugin/config.json
 cp bin/netplugin bin/netmaster bin/netctl install/v2plugin
