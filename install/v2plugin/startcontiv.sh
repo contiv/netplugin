@@ -1,6 +1,4 @@
-#!/bin/bash
-
-set -e 
+#!/bin/sh
 
 ### Pre-requisite on the host
 # run a cluster store like etcd or consul
@@ -29,36 +27,38 @@ fi
 echo "Loading OVS" >> $BOOTUP_LOGFILE
 (modprobe openvswitch) || (echo "Load ovs FAILED!!! " >> $BOOTUP_LOGFILE && while true; do sleep 1; done)
 
-echo "Starting OVS" >> $BOOTUP_LOGFILE
-/usr/share/openvswitch/scripts/ovs-ctl restart --system-id=random --with-logdir=/var/run/contiv/log
+echo "  Cleaning up ovsdb files" >> $BOOTUP_LOGFILE
+rm -rf /var/run/openvswitch/*
+rm -rf /etc/openvswitch/conf.db
+rm -rf /etc/openvswitch/.conf.db.~lock~
+
+echo "  Creating OVS DB" >> $BOOTUP_LOGFILE
+(ovsdb-tool create  /etc/openvswitch/conf.db /usr/share/openvswitch/vswitch.ovsschema) || (while true; do sleep 1; done)
+
+echo "  Starting OVSBD server " >> $BOOTUP_LOGFILE
+ovsdb-server --remote=punix:/var/run/openvswitch/db.sock --remote=db:Open_vSwitch,Open_vSwitch,manager_options --private-key=db:Open_vSwitch,SSL,private_key --certificate=db:Open_vSwitch,SSL,certificate --bootstrap-ca-cert=db:Open_vSwitch,SSL,ca_cert --log-file=/var/run/contiv/log/ovs-db.log -vsyslog:dbg -vfile:dbg --pidfile --detach /etc/openvswitch/conf.db >> $BOOTUP_LOGFILE
+echo "  Starting ovs-vswitchd " >> $BOOTUP_LOGFILE
+ovs-vswitchd -v --pidfile --detach --log-file=/var/run/contiv/log/ovs-vswitchd.log -vconsole:err -vsyslog:info -vfile:info &
+ovs-vsctl set-manager tcp:127.0.0.1:6640 
+ovs-vsctl set-manager ptcp:6640
+
+echo "Started OVS" >> $BOOTUP_LOGFILE
 
 echo "Starting Netplugin " >> $BOOTUP_LOGFILE
-netplugin_retry="0"
-while [ true ]; do
+while true ; do
     echo "/netplugin $dbg_flag -plugin-mode docker -vlan-if $iflist -cluster-store $cluster_store $ctrl_ip_cfg $vtep_ip_cfg" >> $BOOTUP_LOGFILE
-    /netplugin $dbg_flag -plugin-mode docker -vlan-if $iflist -cluster-store $cluster_store $ctrl_ip_cfg $vtep_ip_cfg &>> /var/run/contiv/log/netplugin.log
-    ((netplugin_retry++))
-    if [ $netplugin_retry == "10" ] ; then 
-        echo "Giving up after $netplugin_retry retries" >> $BOOTUP_LOGFILE
-        exit
-    fi
-    echo "CRITICAL : Net Plugin has exited, Respawn in 5" >> $BOOTUP_LOGFILE
+    /netplugin $dbg_flag -plugin-mode docker -vlan-if $iflist -cluster-store $cluster_store $ctrl_ip_cfg $vtep_ip_cfg &> /var/run/contiv/log/netplugin.log
+    echo "CRITICAL : Net Plugin has exited, Respawn in 5s" >> $BOOTUP_LOGFILE
     sleep 5
     echo "Restarting Netplugin " >> $BOOTUP_LOGFILE
 done &
 
 if [ $plugin_role == "master" ]; then
     echo "Starting Netmaster " >> $BOOTUP_LOGFILE
-    netmaster_retry=0
-    while [ true ]; do
+    while  true ; do
         echo "/netmaster $dbg_flag -plugin-name=$plugin_name -cluster-store=$cluster_store $listen_url_cfg " >> $BOOTUP_LOGFILE
-        /netmaster $dbg_flag -plugin-name=$plugin_name -cluster-store=$cluster_store $listen_url_cfg &>> /var/run/contiv/log/netmaster.log
-        ((netmaster_retry++))
-        if [ $netmaster_retry == "10" ] ; then 
-            echo "Giving up after $netmaster_retry retries" >> $BOOTUP_LOGFILE
-            exit
-        fi
-        echo "CRITICAL : Net Master has exited, Respawn in 5" >> $BOOTUP_LOGFILE
+        /netmaster $dbg_flag -plugin-name=$plugin_name -cluster-store=$cluster_store $listen_url_cfg &> /var/run/contiv/log/netmaster.log
+        echo "CRITICAL : Net Master has exited, Respawn in 5s" >> $BOOTUP_LOGFILE
         echo "Restarting Netmaster " >> $BOOTUP_LOGFILE
         sleep 5
     done &
