@@ -58,6 +58,8 @@ if [ "$image_tag" = "" ]; then
 	image_tag=$contiv_version
 fi
 
+cd -P -- "$(dirname -- "$0")"
+
 echo "Login to docker hub as $docker_user user"
 if [ "$docker_password" = "" ]; then
 	docker login -u $docker_user
