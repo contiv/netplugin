@@ -157,19 +157,8 @@ func (cfg1 *testConfigData) verifyEndpoint(its *integTestSuite, c *C, resp cniap
 		assertNoErr(epErr, c, fmt.Sprintf("epg not found for  %s", cfg1.reqAttr.CniContainerid))
 		assertOnTrue(c, endpoint.Oper.IpAddress[0] != strings.Split(resp.IP4.IPAddress, "/")[0],
 			fmt.Sprintf("expected %s, got %s", endpoint.Oper.IpAddress, resp.IP4.IPAddress))
-		out, err := exec.Command("ip", "netns", "exec", cfg1.reqAttr.CniContainerid,
-			"ip", "route", "get", cfg1.agentIPAddr).CombinedOutput()
-		assertNoErr(err, c, fmt.Sprintf("failed to get host route"))
-		rlist := strings.Fields(string(out))
-		assertOnTrue(c, rlist[0] != cfg1.agentIPAddr, fmt.Sprintf("invalid route %v", rlist))
-		assertOnTrue(c, strings.Contains(rlist[2], "hport") != true,
-			fmt.Sprintf("invalid host route %v", rlist))
 	} else {
 		assertOnTrue(c, epErr == nil, fmt.Sprintf("epg still exist, error: %s, %+v", epErr, endpoint))
-		out, err := exec.Command("ip", "netns", "exec", cfg1.reqAttr.CniContainerid,
-			"ip", "route", "get", cfg1.agentIPAddr).CombinedOutput()
-		assertOnTrue(c, err == nil, fmt.Sprintf("namespace %s still exist %s", cfg1.reqAttr.CniContainerid,
-			string(out)))
 		out, err1 := exec.Command("ip", "netns", "list").CombinedOutput()
 		assertNoErr(err1, c, "ip netns list")
 		if len(cfg1.reqAttr.CniContainerid) > 0 && strings.Contains(string(out), cfg1.reqAttr.CniContainerid) {

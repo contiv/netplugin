@@ -17,7 +17,7 @@ package ofctrl
 // This file implements the forwarding graph API for the table
 
 import (
-	"errors"
+	"fmt"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"sync"
 
@@ -65,7 +65,7 @@ func (self *Table) NewFlow(match FlowMatch) (*Flow, error) {
 	flowKey := flow.flowKey()
 	if self.flowDb[flowKey] != nil {
 		log.Errorf("Flow %s already exists", flowKey)
-		return nil, errors.New("Flow already exists")
+		return nil, fmt.Errorf("Flow %s already exists", flowKey)
 	}
 
 	log.Debugf("Added flow: %s", flowKey)

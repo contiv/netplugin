@@ -859,6 +859,16 @@ func (vx *Vxlan) RemoveUplink(uplinkName string) error {
 	return nil
 }
 
+// AddHostPort is not implemented
+func (vx *Vxlan) AddHostPort(hp HostPortInfo) error {
+	return nil
+}
+
+// RemoveHostPort is not implemented
+func (vx *Vxlan) RemoveHostPort(hp uint32) error {
+	return nil
+}
+
 // AddSvcSpec adds a service spec to proxy
 func (vx *Vxlan) AddSvcSpec(svcName string, spec *ServiceSpec) error {
 	return vx.svcProxy.AddSvcSpec(svcName, spec)

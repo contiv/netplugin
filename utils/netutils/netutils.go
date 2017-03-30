@@ -1037,3 +1037,53 @@ func ListAvailableIPs(allocMap bitset.BitSet, subnetIP string, subnetLen uint) s
 
 	return strings.Join(list, ", ")
 }
+
+// AddIPRoute adds the specified ip route
+func AddIPRoute(cidr, gw string) error {
+
+	_, dst, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return err
+	}
+
+	gwIP := net.ParseIP(gw)
+	if gwIP == nil {
+		return fmt.Errorf("Unable to parse gw %s", gw)
+	}
+
+	match, err := netlink.RouteListFiltered(netlink.FAMILY_V4,
+		&netlink.Route{Dst: dst}, netlink.RT_FILTER_DST)
+
+	if err == nil && len(match) != 0 {
+		if len(match) == 1 && match[0].Gw.Equal(gwIP) {
+			// the exact same route exists -- be idempotent
+			log.Infof("Route %s --> %s present", cidr, gw)
+			return nil
+		}
+		log.Errorf("AddIPRoute(%s, %s): exists %+v", cidr, gw, match)
+		return fmt.Errorf("Route exists")
+	}
+
+	newRoute := netlink.Route{
+		Dst: dst,
+		Gw:  gwIP,
+	}
+
+	return netlink.RouteAdd(&newRoute)
+}
+
+// DelIPRoute deletes the specified ip route
+func DelIPRoute(cidr, gw string) error {
+
+	_, dst, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return err
+	}
+
+	gwIP := net.ParseIP(gw)
+	if gwIP == nil {
+		return fmt.Errorf("Unable to parse gw %s", gw)
+	}
+
+	return netlink.RouteDel(&netlink.Route{Dst: dst, Gw: gwIP})
+}

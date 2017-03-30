@@ -21,6 +21,7 @@ import (
 	"net"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,7 +54,28 @@ type OvsSwitch struct {
 	uplinkDb    cmap.ConcurrentMap
 	ovsdbDriver *OvsdbDriver
 	ofnetAgent  *ofnet.OfnetAgent
-	hostBridge  *ofnet.HostBridge
+	hostPvtNW   int
+}
+
+// getPvtIP returns a private IP for the port
+func (sw *OvsSwitch) getPvtIP(portName string) net.IP {
+	if strings.Contains(portName, "vport") {
+		port := strings.Replace(portName, "vvport", "", 1)
+		portNum, err := strconv.Atoi(port)
+		if err == nil {
+			ipStr, _ := netutils.PortToHostIPMAC(portNum, sw.hostPvtNW)
+			log.Infof("PvtIP: %s", ipStr)
+			ips := strings.Split(ipStr, "/")
+			if len(ips) > 0 {
+				return net.ParseIP(ips[0])
+			}
+		}
+
+		log.Errorf("Error getting port number from %s - %v", port, err)
+	}
+	log.Infof("No pvt IP for port %s", portName)
+
+	return nil
 }
 
 // GetUplinkInterfaces returns the list of interface associated with the uplink port
@@ -66,8 +88,8 @@ func (sw *OvsSwitch) GetUplinkInterfaces(uplinkID string) []string {
 }
 
 // NewOvsSwitch Creates a new OVS switch instance
-func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
-	vlanIntf []string) (*OvsSwitch, error) {
+func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
+	vlanIntf []string, hostPvtNW int) (*OvsSwitch, error) {
 	var err error
 	var datapath string
 	var ofnetPort, ctrlrPort uint16
@@ -76,6 +98,7 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 	sw.bridgeName = bridgeName
 	sw.netType = netType
 	sw.uplinkDb = cmap.New()
+	sw.hostPvtNW = hostPvtNW
 
 	// Create OVS db driver
 	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure")
@@ -128,14 +151,8 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 		}
 
 	} else if netType == "host" {
-		datapath = "hostbridge"
-		ofnetPort = unusedOfnetPort
-		ctrlrPort = hostCtrlerPort
-		sw.hostBridge, err = ofnet.NewHostBridge(bridgeName, datapath, ctrlrPort)
-		if err != nil {
-			log.Fatalf("Error initializing hostBridge")
-			return nil, err
-		}
+		err = fmt.Errorf("Explicit host-net not supported")
+		return nil, err
 	}
 
 	// Add controller to the OVS
@@ -156,10 +173,6 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 		sw.ofnetAgent.WaitForSwitchConnection()
 	}
 
-	if sw.hostBridge != nil {
-		sw.hostBridge.WaitForSwitchConnection()
-	}
-
 	log.Infof("Switch (%s) connected.", netType)
 
 	return sw, nil
@@ -169,9 +182,6 @@ func NewOvsSwitch(bridgeName, netType, localIP string, fwdMode string,
 func (sw *OvsSwitch) Delete() {
 	if sw.ofnetAgent != nil {
 		sw.ofnetAgent.Delete()
-	}
-	if sw.hostBridge != nil {
-		sw.hostBridge.Delete()
 	}
 	if sw.ovsdbDriver != nil {
 		sw.ovsdbDriver.Delete()
@@ -371,6 +381,9 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 
 	macAddr, _ := net.ParseMAC(cfgEp.MacAddress)
 
+	// Assign an IP based on the intfnumber
+	pvtIP := sw.getPvtIP(ovsPortName)
+
 	// Build the endpoint info
 	endpoint := ofnet.EndpointInfo{
 		PortNo:            ofpPort,
@@ -381,6 +394,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		EndpointGroup:     cfgEp.EndpointGroupID,
 		EndpointGroupVlan: uint16(pktTag),
 		Dscp:              dscp,
+		HostPvtIP:         pvtIP,
 	}
 
 	log.Infof("Adding local endpoint: {%+v}", endpoint)
@@ -801,12 +815,8 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS
 	var err error
 
 	// some error checking
-	if sw.netType != "host" {
+	if sw.netType != "vxlan" {
 		log.Fatalf("Can not add host port to OVS type %s.", sw.netType)
-	}
-
-	if sw.hostBridge == nil {
-		log.Fatalf("Cannot add host port -- no host bridge")
 	}
 
 	ovsPortType := ""
@@ -814,15 +824,8 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS
 	if isHostNS {
 		ovsPortType = "internal"
 	} else {
-
-		// Create a Veth pair
-		err := createVethPair(intfName, ovsPortName)
-		// Set the OVS side of the port as up
-		err = setLinkUp(ovsPortName)
-		if err != nil {
-			log.Errorf("Error setting link %s up. Err: %v", ovsPortName, err)
-			return "", err
-		}
+		log.Infof("Host port in container name space -- ignore")
+		return "", nil
 	}
 
 	portID := "host" + intfName
@@ -855,27 +858,27 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS
 	// Assign an IP based on the intfnumber
 	ipStr, macStr := netutils.PortToHostIPMAC(intfNum, network)
 	mac, _ := net.ParseMAC(macStr)
-	ip := net.ParseIP(ipStr)
 
-	portInfo := ofnet.EndpointInfo{
+	portInfo := ofnet.HostPortInfo{
 		PortNo:  ofpPort,
 		MacAddr: mac,
-		IpAddr:  ip,
+		IpAddr:  ipStr,
+		Kind:    "NAT",
 	}
 	// Add to ofnet if this is the hostNS port.
 	netutils.SetInterfaceMac(intfName, macStr)
 	netutils.SetInterfaceIP(intfName, ipStr)
 	err = setLinkUp(intfName)
 
-	if isHostNS {
-		err = sw.hostBridge.AddHostPort(portInfo)
+	if sw.ofnetAgent != nil {
+		err = sw.ofnetAgent.AddHostPort(portInfo)
 		if err != nil {
 			log.Errorf("Error adding host port %s. Err: %v", intfName, err)
 			return "", err
 		}
-
-		log.Infof("Added host port %s to OVS switch %s.", intfName, sw.bridgeName)
 	}
+
+	log.Infof("Added host port %s to OVS switch %s.", intfName, sw.bridgeName)
 
 	defer func() {
 		if err != nil {
@@ -890,10 +893,6 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS
 func (sw *OvsSwitch) DelHostPort(intfName string, isHostNS bool) error {
 	var err error
 
-	if sw.hostBridge == nil {
-		log.Errorf("Cannot delete host port -- no host bridge")
-		return errors.New("no host bridge")
-	}
 	ovsPortName := getOvsPortName(intfName, isHostNS)
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
@@ -911,14 +910,12 @@ func (sw *OvsSwitch) DelHostPort(intfName string, isHostNS bool) error {
 		}
 	}
 
-	if isHostNS {
-		err = sw.hostBridge.DelHostPort(ofpPort)
+	if isHostNS && sw.ofnetAgent != nil {
+		err = sw.ofnetAgent.RemoveHostPort(ofpPort)
 		if err != nil {
 			log.Errorf("Error deleting host port %s. Err: %v", intfName, err)
 			return err
 		}
-	} else {
-		deleteVethPair(ovsPortName, intfName)
 	}
 
 	return nil

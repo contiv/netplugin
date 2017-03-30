@@ -29,8 +29,6 @@ import (
 	api "github.com/osrg/gobgp/api"
 	bgpconf "github.com/osrg/gobgp/config"
 	gobgp "github.com/osrg/gobgp/server"
-	"github.com/shaleman/libOpenflow/openflow13"
-	"github.com/shaleman/libOpenflow/protocol"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
 )
@@ -51,7 +49,6 @@ type OfnetBgp struct {
 	cc            *grpc.ClientConn //grpc client connection
 	stopWatch     chan bool
 	start         chan bool
-	stopArp       chan bool
 	intfName      string //loopback intf to run bgp
 	oldState      string
 	oldAdminState string
@@ -109,7 +106,6 @@ func NewOfnetBgp(agent *OfnetAgent, uplinkPort []string) *OfnetBgp {
 	ofnetBgp.stopWatch = make(chan bool, 1)
 	ofnetBgp.intfName = "inb01"
 	ofnetBgp.start = make(chan bool, 1)
-	ofnetBgp.stopArp = make(chan bool, 1)
 	return ofnetBgp
 }
 
@@ -262,7 +258,6 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 		},
 	}
 	self.bgpServer.DeleteNeighbor(n)
-	self.stopArp <- true
 	bgpEndpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
 
 	self.agent.datapath.RemoveEndpoint(bgpEndpoint)
@@ -347,7 +342,6 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 	if self.myBgpAs != uint32(peerAs) {
 		self.eBGP = true
 	}
-	go self.sendArp(self.stopArp)
 
 	paths := []*OfnetProtoRouteInfo{}
 	//Walk through all the localEndpointDb and them to protocol rib
@@ -467,13 +461,15 @@ func (self *OfnetBgp) peerUpdate(s *gobgp.WatchEventPeerState) {
 		endpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
 		self.agent.datapath.RemoveEndpoint(endpoint)
 		endpoint.PortNo = 0
-
-		err := self.agent.datapath.AddEndpoint(endpoint)
+		link, err := netlink.LinkByName(self.intfName)
+		if err == nil {
+			netlink.NeighDel(&netlink.Neigh{LinkIndex: link.Attrs().Index, IP: net.ParseIP(self.myBgpPeer)})
+		}
+		err = self.agent.datapath.AddEndpoint(endpoint)
 		if err != nil {
 			log.Errorf("Error unresolving bgp peer %s ", self.myBgpPeer)
 		}
 		self.agent.endpointDb.Set(endpoint.EndpointID, endpoint)
-
 		var ep *OfnetEndpoint
 		for endpoint := range self.agent.endpointDb.IterBuffered() {
 			ep = endpoint.Val.(*OfnetEndpoint)
@@ -599,73 +595,8 @@ func createBgpServer() (bgpServer *gobgp.BgpServer, grpcServer *api.Server) {
 	return
 }
 
-func (self *OfnetBgp) sendArp(stopArp chan bool) {
-
-	//Get the Mac of the vlan intf
-	//Get the portno of the uplink
-	//Build an arp packet and send on portno of uplink
-	time.Sleep(2 * time.Second)
-	self.sendArpPacketOut()
-
-	for {
-		select {
-		case <-stopArp:
-			return
-		case <-time.After(1800 * time.Second):
-			self.sendArpPacketOut()
-		}
-	}
-}
-
 func (self *OfnetBgp) ModifyProtoRib(path interface{}) {
 	self.modRib(path.(*table.Path))
-}
-
-func (self *OfnetBgp) sendArpPacketOut() {
-	if self.myBgpPeer == "" {
-		return
-	}
-
-	uplinkMemberLink := self.uplinkPort.getActiveLink(self.routerIP, self.myBgpPeer)
-	if uplinkMemberLink == nil {
-		log.Debugf("No active links on uplink port. Not sending ARP request")
-		return
-	}
-
-	ofPortno := uplinkMemberLink.OfPort
-	intf, _ := net.InterfaceByName(uplinkMemberLink.Name)
-
-	bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
-	zeroMac, _ := net.ParseMAC("00:00:00:00:00:00")
-
-	srcIP := net.ParseIP(self.routerIP)
-	dstIP := net.ParseIP(self.myBgpPeer)
-	arpReq, _ := protocol.NewARP(protocol.Type_Request)
-	arpReq.HWSrc = intf.HardwareAddr
-	arpReq.IPSrc = srcIP
-	arpReq.HWDst = zeroMac
-	arpReq.IPDst = dstIP
-
-	log.Debugf("Sending ARP Request: %+v", arpReq)
-
-	// build the ethernet packet
-	ethPkt := protocol.NewEthernet()
-	ethPkt.HWDst = bMac
-	ethPkt.HWSrc = arpReq.HWSrc
-	ethPkt.Ethertype = 0x0806
-	ethPkt.Data = arpReq
-
-	log.Debugf("Sending ARP Request Ethernet: %+v", ethPkt)
-
-	// Packet out
-	pktOut := openflow13.NewPacketOut()
-	pktOut.Data = ethPkt
-	pktOut.AddAction(openflow13.NewActionOutput(ofPortno))
-
-	log.Debugf("Sending ARP Request packet: %+v", pktOut)
-
-	// Send it out
-	self.agent.ofSwitch.Send(pktOut)
 }
 
 func (self *OfnetBgp) InspectProto() (interface{}, error) {

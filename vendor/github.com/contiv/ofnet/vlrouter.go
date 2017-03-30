@@ -944,14 +944,17 @@ func (self *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 					}
 					srcMac = intf.HardwareAddr
 				} else if endpoint.EndpointType == "external" || endpoint.EndpointType == "external-bgp" {
-					endpoint = self.agent.getEndpointByIpVrf(arpHdr.IPSrc, "default")
-					if endpoint != nil {
-						if endpoint.EndpointType == "internal" || endpoint.EndpointType == "internal-bgp" {
+					srcEp := self.agent.getLocalEndpoint(inPort)
+					if endpoint.PortNo != 0 && srcEp != nil {
+						if srcEp.EndpointType == "internal" || srcEp.EndpointType == "internal-bgp" {
 							srcMac = self.anycastMac
 						} else {
-							self.agent.incrStats("ArpReqUnknownEndpointType")
 							return
 						}
+					} else if srcEp != nil {
+						self.agent.incrStats("ArpReqUnknownEndpoint")
+						self.sendArpPacketOut(arpHdr.IPSrc, arpHdr.IPDst)
+						return
 					} else {
 						self.agent.incrStats("ArpReqUnknownEndpoint")
 						return
@@ -1149,6 +1152,16 @@ func (self *Vlrouter) RemoveUplink(uplinkName string) error {
 	return nil
 }
 
+// AddHostPort is not implemented
+func (self *Vlrouter) AddHostPort(hp HostPortInfo) error {
+	return nil
+}
+
+// RemoveHostPort is not implemented
+func (self *Vlrouter) RemoveHostPort(hp uint32) error {
+	return nil
+}
+
 // AddSvcSpec adds a service spec to proxy
 func (self *Vlrouter) AddSvcSpec(svcName string, spec *ServiceSpec) error {
 	return self.svcProxy.AddSvcSpec(svcName, spec)
@@ -1186,4 +1199,52 @@ func (self *Vlrouter) InspectState() (interface{}, error) {
 		self.svcProxy.InspectState(),
 	}
 	return vlrExport, nil
+}
+
+// send proxy arp packet
+func (self *Vlrouter) sendArpPacketOut(srcIP, dstIP net.IP) {
+	// routing mode supports 1 uplink with 1 active link
+	var uplinkMemberLink *LinkInfo
+	for uplinkObj := range self.uplinkPortDb.IterBuffered() {
+		uplink := uplinkObj.Val.(*PortInfo)
+		uplinkMemberLink = uplink.getActiveLink()
+		if uplinkMemberLink == nil {
+			log.Debugf("No active interface on uplink. Not sending ARP for IP:%s \n", dstIP.String())
+			return
+		}
+		break
+	}
+
+	ofPortno := uplinkMemberLink.OfPort
+	intf, _ := net.InterfaceByName(uplinkMemberLink.Name)
+
+	bMac, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
+	zeroMac, _ := net.ParseMAC("00:00:00:00:00:00")
+
+	arpReq, _ := protocol.NewARP(protocol.Type_Request)
+	arpReq.HWSrc = intf.HardwareAddr
+	arpReq.IPSrc = srcIP
+	arpReq.HWDst = zeroMac
+	arpReq.IPDst = dstIP
+
+	log.Debugf("Sending ARP Request: %+v", arpReq)
+
+	// build the ethernet packet
+	ethPkt := protocol.NewEthernet()
+	ethPkt.HWDst = bMac
+	ethPkt.HWSrc = arpReq.HWSrc
+	ethPkt.Ethertype = 0x0806
+	ethPkt.Data = arpReq
+
+	log.Debugf("Sending ARP Request Ethernet: %+v", ethPkt)
+
+	// Packet out
+	pktOut := openflow13.NewPacketOut()
+	pktOut.Data = ethPkt
+	pktOut.AddAction(openflow13.NewActionOutput(ofPortno))
+
+	log.Debugf("Sending ARP Request packet: %+v", pktOut)
+
+	// Send it out
+	self.agent.ofSwitch.Send(pktOut)
 }

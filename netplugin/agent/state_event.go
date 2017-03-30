@@ -31,9 +31,70 @@ import (
 	"github.com/contiv/netplugin/utils/netutils"
 )
 
+const (
+	contivVxGWName = "contivh1"
+)
+
 func skipHost(vtepIP, homingHost, myHostLabel string) bool {
 	return (vtepIP == "" && homingHost != myHostLabel ||
 		vtepIP != "" && homingHost == myHostLabel)
+}
+
+func getVxGWIP(netPlugin *plugin.NetPlugin, tenant, hostLabel string) (string, error) {
+	epCfg := &mastercfg.CfgEndpointState{}
+	epCfg.StateDriver = netPlugin.StateDriver
+	epID := contivVxGWName + "." + tenant + "-" + hostLabel
+	err := epCfg.Read(epID)
+	if err == nil {
+		return epCfg.IPAddress, nil
+	}
+
+	log.Errorf("Failed to read %s -- %v", epID, err)
+	return "", err
+}
+
+// Add routes for existing vxlan networks
+func addVxGWRoutes(netPlugin *plugin.NetPlugin, gwIP string) {
+	readNet := &mastercfg.CfgNetworkState{}
+	readNet.StateDriver = netPlugin.StateDriver
+	netCfgs, err := readNet.ReadAll()
+	if err != nil {
+		log.Errorf("Error reading netCfgs: %v", err)
+		return
+	}
+	for _, netCfg := range netCfgs {
+		net := netCfg.(*mastercfg.CfgNetworkState)
+		if net.NwType != "infra" && net.PktTagType == "vxlan" {
+			route := fmt.Sprintf("%s/%d", net.SubnetIP, net.SubnetLen)
+			err = netutils.AddIPRoute(route, gwIP)
+			if err != nil {
+				log.Errorf("Adding route %s --> %s: err: %v",
+					route, gwIP, err)
+			}
+		}
+	}
+}
+
+// Delete routes for existing vxlan networks
+func delVxGWRoutes(netPlugin *plugin.NetPlugin, gwIP string) {
+	readNet := &mastercfg.CfgNetworkState{}
+	readNet.StateDriver = netPlugin.StateDriver
+	netCfgs, err := readNet.ReadAll()
+	if err != nil {
+		log.Errorf("Error reading netCfgs: %v", err)
+		return
+	}
+	for _, netCfg := range netCfgs {
+		net := netCfg.(*mastercfg.CfgNetworkState)
+		if net.NwType != "infra" && net.PktTagType == "vxlan" {
+			route := fmt.Sprintf("%s/%d", net.SubnetIP, net.SubnetLen)
+			err = netutils.DelIPRoute(route, gwIP)
+			if err != nil {
+				log.Errorf("Deleting route %s --> %s: err: %v",
+					route, gwIP, err)
+			}
+		}
+	}
 }
 
 // Process Infra Nw Create
@@ -79,6 +140,11 @@ func processInfraNwCreate(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetwo
 		return err
 	}
 
+	// add host access routes for vxlan networks
+	if nwCfg.NetworkName == contivVxGWName {
+		addVxGWRoutes(netPlugin, mresp.EndpointConfig.IPAddress)
+	}
+
 	return nil
 }
 
@@ -87,6 +153,12 @@ func processInfraNwCreate(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetwo
 func processInfraNwDelete(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkState, opts core.InstanceInfo) (err error) {
 	pluginHost := opts.HostLabel
 
+	if nwCfg.NetworkName == contivVxGWName {
+		gwIP, err := getVxGWIP(netPlugin, nwCfg.Tenant, pluginHost)
+		if err == nil {
+			delVxGWRoutes(netPlugin, gwIP)
+		}
+	}
 	// Build endpoint request
 	mreq := master.DeleteEndpointRequest{
 		TenantName:  nwCfg.Tenant,
@@ -104,25 +176,35 @@ func processInfraNwDelete(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetwo
 	log.Infof("Got endpoint create resp from master: %+v", mresp)
 
 	// Network delete will take care of infra nw EP delete in plugin
-
-	return
+	return err
 }
 
 func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkState,
-	isDelete bool) (err error) {
+	isDelete bool, opts core.InstanceInfo) (err error) {
 	// take a lock to ensure we are programming one event at a time.
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
 	// so we don't need to worry about that here
 
+	gwIP := ""
+	route := fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
+	if nwCfg.NwType != "infra" && nwCfg.PktTagType == "vxlan" {
+		gwIP, _ = getVxGWIP(netPlugin, nwCfg.Tenant, opts.HostLabel)
+	}
 	operStr := ""
 	if isDelete {
 		err = netPlugin.DeleteNetwork(nwCfg.ID, nwCfg.NwType, nwCfg.PktTagType, nwCfg.PktTag, nwCfg.ExtPktTag,
 			nwCfg.Gateway, nwCfg.Tenant)
 		operStr = "delete"
+		if err == nil && gwIP != "" {
+			netutils.DelIPRoute(route, gwIP)
+		}
 	} else {
 		err = netPlugin.CreateNetwork(nwCfg.ID)
 		operStr = "create"
+		if err == nil && gwIP != "" {
+			netutils.AddIPRoute(route, gwIP)
+		}
 	}
 	if err != nil {
 		log.Errorf("Network operation %s failed. Error: %s", operStr, err)
@@ -414,7 +496,7 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 		if nwCfg, ok := currentState.(*mastercfg.CfgNetworkState); ok {
 			log.Infof("Received %q for network: %q", eventStr, nwCfg.ID)
 			if isDelete != true {
-				processNetEvent(netPlugin, nwCfg, isDelete)
+				processNetEvent(netPlugin, nwCfg, isDelete, opts)
 				if nwCfg.NwType == "infra" {
 					processInfraNwCreate(netPlugin, nwCfg, opts)
 				}
@@ -422,7 +504,7 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 				if nwCfg.NwType == "infra" {
 					processInfraNwDelete(netPlugin, nwCfg, opts)
 				}
-				processNetEvent(netPlugin, nwCfg, isDelete)
+				processNetEvent(netPlugin, nwCfg, isDelete, opts)
 			}
 		}
 		if bgpCfg, ok := currentState.(*mastercfg.CfgBgpState); ok {
