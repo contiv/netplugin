@@ -1,5 +1,3 @@
-package ofnet
-
 /***
 Copyright 2014 Cisco Systems Inc. All rights reserved.
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +10,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+package ofnet
 
 // This file implements the virtual router functionality using Vxlan overlay
 
@@ -258,7 +257,7 @@ func (vl *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 	// Install the IP address
 	ipFlow, err := vl.ipTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY + 3,
+		Priority:  LOCAL_ENDPOINT_FLOW_TAGGED_PRIORITY,
 		Ethertype: 0x0800,
 		VlanId:    endpoint.Vlan,
 		IpDa:      &endpoint.IpAddr,
@@ -270,7 +269,7 @@ func (vl *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	ipFlow.PopVlan()
 
 	ipFlow2, err := vl.ipTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY + 2,
+		Priority:  LOCAL_ENDPOINT_FLOW_PRIORITY,
 		Ethertype: 0x0800,
 		IpDa:      &endpoint.IpAddr,
 	})
@@ -361,7 +360,6 @@ func (vl *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	}
 
 	// Find the flow entry
-	//flowId := vl.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
 	flowId := endpoint.EndpointID
 	ipFlow := vl.flowDb[flowId]
 	if ipFlow == nil {
@@ -600,7 +598,7 @@ func (vl *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	//nexthopEp := vl.agent.getEndpointByIpVrf(net.ParseIP(vl.agent.GetNeighbor()), "default")
 	if vl.agent.isExternal(endpoint) {
 		endpoint.Vlan = 0
-		priority += 1
+		priority = EXTERNAL_FLOW_PRIORITY
 		flowId = flowId + "external"
 	} else {
 		//All Contiv endpoints will be stamped with originator host mac
@@ -623,7 +621,6 @@ func (vl *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	if vl.agent.isExternalBgp(endpoint) {
 		endpoint.Vlan = 0
 		if endpoint.PortNo == 0 {
-			log.Infof("COMING HERE WITH portno :%d \n", endpoint.PortNo)
 			return nil
 		}
 		flowId = flowId + "external"
@@ -722,7 +719,6 @@ func (vl *Vlrouter) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 		}
 	}
 
-	log.Infof("Deleting Flow ID : %s", flowId)
 	ipFlow := vl.flowDb[flowId]
 	if ipFlow == nil {
 		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
@@ -996,7 +992,7 @@ func (vl *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 				proxyMac := vl.svcProxy.GetSvcProxyMAC(arpHdr.IPDst)
 				if proxyMac == "" {
 					// If we dont know the IP address, dont send an ARP response
-					log.Infof("Received ARP request for unknown IP: %v", arpHdr.IPDst)
+					log.Debugf("Received ARP request for unknown IP: %v", arpHdr.IPDst)
 					vl.agent.incrStats("ArpReqUnknownDest")
 					return
 				}
@@ -1010,12 +1006,11 @@ func (vl *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 						if vl.agent.GetRouterInfo() != nil {
 							uplink := vl.agent.GetRouterInfo().UplinkPort
 
-							if uplink != nil && len(uplink.MbrLinks) == 0 {
+							if uplink == nil || len(uplink.MbrLinks) == 0 {
 								log.Errorf("Error getting interface information. Err: No member links present")
 								return
 							}
 
-							log.Infof("The uplinkg port is %+v \n", uplink)
 							intf, err = net.InterfaceByName(uplink.MbrLinks[0].Name)
 							if err != nil {
 								log.Errorf("Error getting interface information. Err: %+v", err)
@@ -1037,18 +1032,16 @@ func (vl *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 						}
 						srcMac = intf.HardwareAddr
 					}
-					srcMac = intf.HardwareAddr
-				} else if endpoint.EndpointType == "external" || endpoint.EndpointType == "external-bgp" {
-					srcEp := self.agent.getLocalEndpoint(inPort)
+				} else if vl.agent.isExternal(endpoint) || vl.agent.isExternalBgp(endpoint) {
 					if endpoint.PortNo != 0 && srcEp != nil {
-						if srcEp.EndpointType == "internal" || srcEp.EndpointType == "internal-bgp" {
-							srcMac = self.anycastMac
+						if vl.agent.isInternal(srcEp) || vl.agent.isInternalBgp(srcEp) {
+							srcMac = vl.anycastMac
 						} else {
 							return
 						}
 					} else if srcEp != nil {
-						self.agent.incrStats("ArpReqUnknownEndpoint")
-						self.sendArpPacketOut(arpHdr.IPSrc, arpHdr.IPDst)
+						vl.agent.incrStats("ArpReqUnknownEndpoint")
+						vl.sendArpPacketOut(arpHdr.IPSrc, arpHdr.IPDst)
 						return
 					} else {
 						vl.agent.incrStats("ArpReqUnknownEndpoint")
@@ -1116,7 +1109,6 @@ func (vl *Vlrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 					vl.agent.endpointDb.Set(endpoint.EndpointID, endpoint)
 					vl.AddEndpoint(endpoint)
 					//vl.resolveUnresolvedEPs(endpoint.MacAddrStr, inPort)
-
 				}
 			}
 
@@ -1155,12 +1147,12 @@ func (vl *Vlrouter) resolveUnresolvedEPs(MacAddrStr string, portNo uint32) {
 func (vl *Vlrouter) AddUplink(uplinkPort *PortInfo) error {
 	log.Infof("Adding uplink: %+v", uplinkPort)
 
-	if len(uplinkPort.MbrLinks) != 1 {
-		err := fmt.Errorf("Only one uplink interface supported in vlrouter mode. Num uplinks configured: %d", len(uplinkPort.MbrLinks))
-		log.Errorf("Error adding uplink: %+v", err)
+	if len(uplinkPort.MbrLinks) == 0 {
+		err := fmt.Errorf("Atleast one uplink is needed to be configured for routing mode. Num uplinks configured: %d", len(uplinkPort.MbrLinks))
 		return err
 	}
 
+	uplinkPort.MbrLinks = uplinkPort.MbrLinks[:1]
 	linkInfo := uplinkPort.MbrLinks[0]
 	vl.uplinkOfp = linkInfo.OfPort
 	dnsUplinkFlow, err := vl.inputTable.NewFlow(ofctrl.FlowMatch{
@@ -1299,17 +1291,17 @@ func (vl *Vlrouter) InspectState() (interface{}, error) {
 }
 
 // send proxy arp packet
-func (self *Vlrouter) sendArpPacketOut(srcIP, dstIP net.IP) {
+func (vl *Vlrouter) sendArpPacketOut(srcIP, dstIP net.IP) {
 	// routing mode supports 1 uplink with 1 active link
 	var uplinkMemberLink *LinkInfo
-	for uplinkObj := range self.uplinkPortDb.IterBuffered() {
+	for uplinkObj := range vl.uplinkPortDb.IterBuffered() {
 		uplink := uplinkObj.Val.(*PortInfo)
 		uplinkMemberLink = uplink.getActiveLink()
-		if uplinkMemberLink == nil {
-			log.Debugf("No active interface on uplink. Not sending ARP for IP:%s \n", dstIP.String())
-			return
-		}
 		break
+	}
+	if uplinkMemberLink == nil {
+		log.Debugf("No active interface on uplink. Not sending ARP for IP:%s \n", dstIP.String())
+		return
 	}
 
 	ofPortno := uplinkMemberLink.OfPort
@@ -1343,7 +1335,7 @@ func (self *Vlrouter) sendArpPacketOut(srcIP, dstIP net.IP) {
 	log.Debugf("Sending ARP Request packet: %+v", pktOut)
 
 	// Send it out
-	self.agent.ofSwitch.Send(pktOut)
+	vl.agent.ofSwitch.Send(pktOut)
 }
 
 //Flushendpoints - flushes out endpoints from ovs

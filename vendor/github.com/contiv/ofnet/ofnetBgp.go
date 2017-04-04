@@ -29,6 +29,7 @@ import (
 	api "github.com/osrg/gobgp/api"
 	bgpconf "github.com/osrg/gobgp/config"
 	gobgp "github.com/osrg/gobgp/server"
+	cmap "github.com/streamrail/concurrent-map"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
 )
@@ -96,6 +97,10 @@ Bgp serve routine does the following:
 */
 func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 
+	if self.uplinkPort == nil {
+		return fmt.Errorf("Unable to start protocol server without uplink")
+	}
+
 	log.Infof("Starting the Bgp Server with %#v", routerInfo)
 
 	//Flush previous external endpoints if any
@@ -115,7 +120,7 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 
 	self.cc = conn
 	link, err := netlink.LinkByName(self.intfName)
-	if err == nil {
+	if err == nil && link != nil {
 		netlink.LinkSetDown(link)
 		netlink.LinkSetUp(link)
 	} else {
@@ -243,7 +248,9 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 	3) Finally delete all routes learnt on the nexthop bgp port.
 	4) Mark the routes learn via json rpc as unresolved
 	*/
-
+	if self.myBgpPeer == "" {
+		return nil
+	}
 	log.Infof("Received DeleteProtoNeighbor to delete bgp neighbor %v", self.myBgpPeer)
 	n := &bgpconf.Neighbor{
 		Config: bgpconf.NeighborConfig{
@@ -341,6 +348,7 @@ func (self *OfnetBgp) GetRouterInfo() *OfnetProtoRouterInfo {
 	if self.routerIP == "" {
 		return nil
 	}
+
 	routerInfo := &OfnetProtoRouterInfo{
 		ProtocolType: "bgp",
 		RouterIP:     self.routerIP,
@@ -474,7 +482,6 @@ func (self *OfnetBgp) modRib(path *table.Path) error {
 	nextHop = path.GetNexthop().String()
 
 	if nextHop == "0.0.0.0" || nextHop == self.routerIP {
-		log.Infof("Ignoreing the update since nethop = %s ", nextHop)
 		return nil
 	}
 
@@ -487,13 +494,11 @@ func (self *OfnetBgp) modRib(path *table.Path) error {
 
 	nhEpid := self.agent.getEndpointIdByIpVrf(net.ParseIP(nextHop), "default")
 
-	log.Infof("The nexthop received is %s \n", nextHop)
 	if ep := self.agent.getEndpointByID(nhEpid); ep == nil {
 		//the nexthop is not the directly connected eBgp peer
 		macAddrStr = ""
 		portNo = 0
 	} else {
-		log.Infof("Next hop ep is %+v \n", ep)
 		macAddrStr = ep.MacAddrStr
 		portNo = ep.PortNo
 	}
@@ -526,7 +531,6 @@ func (self *OfnetBgp) modRib(path *table.Path) error {
 		// Install the endpoint in datapath
 		// First, add the endpoint to local routing table
 		self.bgpDb.Set(epreg.EndpointID, epreg)
-		log.Infof("the endpoint bgp is adding : {%+v} \n", epreg)
 		err := self.agent.datapath.AddEndpoint(epreg)
 		if err != nil {
 			log.Errorf("Error adding endpoint: {%+v}. Err: %v", epreg, err)
@@ -534,7 +538,7 @@ func (self *OfnetBgp) modRib(path *table.Path) error {
 		}
 	} else {
 		log.Info("Received route withdraw from BGP for ", endpointIPNet)
-		//If we receive bgp route for a contiv remote endpoint , unset the external route type
+		//If we receive bgp route withdraw for a contiv remote endpoint , unset the external route type
 		if e, ok := self.bgpDb.Get(epreg.EndpointID); ok {
 			ep := e.(*OfnetEndpoint)
 			self.agent.datapath.RemoveEndpoint(ep)
@@ -596,12 +600,18 @@ func (self *OfnetBgp) InspectProto() (interface{}, error) {
 	return OfnetBgpInspect, nil
 }
 
-func (self *OfnetBgp) SetRouterInfo(uplink *PortInfo) {
-	log.Infof("Received Set Router info for %v \n", uplink)
-	if uplink != nil && len(uplink.MbrLinks) != 1 {
-		log.Errorf("OfnetBgp currently supports only one uplink interface. Num uplinks active: %d", len(uplink.ActiveLinks))
-		return
+func (self *OfnetBgp) SetRouterInfo(uplink *PortInfo) error {
+	log.Infof("Received Set Router info for %+v \n", uplink)
+	if uplink == nil {
+		self.uplinkPort = nil
+		return nil
+	}
+	if len(uplink.MbrLinks) == 0 {
+		return fmt.Errorf("L3 routing mode currently requires atleast one uplink interface. Num uplinks active: 0")
 	}
 	uplink.checkLinkStatus()
+
 	self.uplinkPort = uplink
+	self.uplinkPort.MbrLinks = uplink.MbrLinks[:1]
+	return nil
 }

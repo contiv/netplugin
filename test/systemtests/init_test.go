@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	. "testing"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"

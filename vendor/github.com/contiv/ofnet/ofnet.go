@@ -134,7 +134,7 @@ type OfnetProto interface {
 	GetRouterInfo() *OfnetProtoRouterInfo
 
 	//Set Protocol router info
-	SetRouterInfo(uplinkPort *PortInfo)
+	SetRouterInfo(uplinkPort *PortInfo) error
 
 	//Add Local Route
 	AddLocalProtoRoute(path []*OfnetProtoRouteInfo) error
