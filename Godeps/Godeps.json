@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/contiv/netplugin",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v79",
+	"GodepVersion": "v75",
 	"Packages": [
 		"./..."
 	],
@@ -71,23 +71,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "95eedb68e7a615428c7ab49ba3d2fa4051cf0994"
+			"Rev": "f1c5ebe08a2c48ea8c0ab75e67a5e098d8cf7b48"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "95eedb68e7a615428c7ab49ba3d2fa4051cf0994"
+			"Rev": "f1c5ebe08a2c48ea8c0ab75e67a5e098d8cf7b48"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "95eedb68e7a615428c7ab49ba3d2fa4051cf0994"
+			"Rev": "f1c5ebe08a2c48ea8c0ab75e67a5e098d8cf7b48"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "95eedb68e7a615428c7ab49ba3d2fa4051cf0994"
+			"Rev": "f1c5ebe08a2c48ea8c0ab75e67a5e098d8cf7b48"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "95eedb68e7a615428c7ab49ba3d2fa4051cf0994"
+			"Rev": "f1c5ebe08a2c48ea8c0ab75e67a5e098d8cf7b48"
 		},
 		{
 			"ImportPath": "github.com/contiv/remotessh",

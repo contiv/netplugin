@@ -1304,3 +1304,7 @@ func Vrfmetadata(vrfid uint16) (uint64, uint64) {
 
 	return metadata, metadataMask
 }
+
+//FlushEndpoints flushes endpoints from ovs
+func (self *Vrouter) FlushEndpoints(endpointType int) {
+}

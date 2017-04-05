@@ -45,6 +45,7 @@ type OfnetAgent struct {
 	ctrler      *ofctrl.Controller // Controller instance
 	ofSwitch    *ofctrl.OFSwitch   // Switch instance. Assumes single switch per agent
 	localIp     net.IP             // Local IP to be used for tunnel end points
+	localMac    string             // local mac information
 	MyPort      uint16             // Port where the agent's RPC server is listening
 	MyAddr      string             // RPC server addr. same as localIp. different in testing environments
 	isConnected bool               // Is the switch connected
@@ -120,12 +121,17 @@ type HostPortInfo struct {
 	Kind    string           // NAT or Regular
 }
 
-const HOST_SNAT_DENY_PRIORITY = 101    // Priority for host snat deny
-const DNS_FLOW_MATCH_PRIORITY = 100    // Priority for dns match flows
-const FLOW_MATCH_PRIORITY = 100        // Priority for all match flows
-const FLOW_FLOOD_PRIORITY = 10         // Priority for flood entries
-const FLOW_MISS_PRIORITY = 1           // priority for table miss flow
-const FLOW_POLICY_PRIORITY_OFFSET = 10 // Priority offset for policy rules
+const (
+	DNS_FLOW_MATCH_PRIORITY             = 100 // Priority for dns match flows
+	FLOW_MATCH_PRIORITY                 = 100 // Priority for all match flows
+	FLOW_FLOOD_PRIORITY                 = 10  // Priority for flood entries
+	FLOW_MISS_PRIORITY                  = 1   // priority for table miss flow
+	FLOW_POLICY_PRIORITY_OFFSET         = 10  // Priority offset for policy rules
+	LOCAL_ENDPOINT_FLOW_TAGGED_PRIORITY = 103 // Priority for local tagged endpoints (currently used in l3 mode)
+	LOCAL_ENDPOINT_FLOW_PRIORITY        = 102 //Priority for local untagged endpoints (currently used in l3 mode)
+	EXTERNAL_FLOW_PRIORITY              = 101 // Priority for external flows (eg bgp routes)
+	HOST_SNAT_DENY_PRIORITY             = 101 // Priority for host snat deny
+)
 
 const (
 	VLAN_TBL_ID           = 1
@@ -142,7 +148,7 @@ const (
 // Create a new Ofnet agent and initialize it
 func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uint16,
 	ovsPort uint16, uplinkInfo []string) (*OfnetAgent, error) {
-	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d,%v \n", bridgeName, dpName, localIp, rpcPort, ovsPort, uplinkInfo)
+	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d\n", bridgeName, dpName, localIp, rpcPort, ovsPort)
 	agent := new(OfnetAgent)
 
 	// Init params
@@ -151,7 +157,12 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	agent.MyAddr = localIp.String()
 	agent.dpName = dpName
 	agent.arpMode = ArpProxy
-
+	if len(uplinkInfo) > 0 {
+		intf, err := net.InterfaceByName(uplinkInfo[0])
+		if err == nil {
+			agent.localMac = intf.HardwareAddr.String()
+		}
+	}
 	agent.masterDb = make(map[string]*OfnetNode)
 	agent.portVlanMap = make(map[uint32]*uint16)
 	agent.vniVlanMap = make(map[uint32]*uint16)
@@ -202,7 +213,7 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 		agent.datapath = NewVlrouter(agent, rpcServ)
 		agent.fwdMode = "routing"
 		agent.ovsDriver = ovsdbDriver.NewOvsDriver(bridgeName)
-		agent.protopath = NewOfnetBgp(agent, uplinkInfo)
+		agent.protopath = NewOfnetBgp(agent)
 	default:
 		log.Fatalf("Unknown Datapath %s", dpName)
 	}
@@ -559,7 +570,6 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	// Build endpoint registry info
 	epreg := &OfnetEndpoint{
 		EndpointID:        epId,
-		EndpointType:      "internal",
 		EndpointGroup:     endpoint.EndpointGroup,
 		IpAddr:            endpoint.IpAddr,
 		IpMask:            net.ParseIP("255.255.255.255"),
@@ -570,12 +580,14 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 		Vlan:              endpoint.Vlan,
 		Vni:               *vni,
 		OriginatorIp:      self.localIp,
+		OriginatorMac:     self.localMac,
 		PortNo:            endpoint.PortNo,
 		Dscp:              endpoint.Dscp,
 		Timestamp:         time.Now(),
 		EndpointGroupVlan: endpoint.EndpointGroupVlan,
 		HostPvtIP:         endpoint.HostPvtIP,
 	}
+	self.setInternal(epreg)
 
 	// Call the datapath
 	err := self.datapath.AddLocalEndpoint(*epreg)
@@ -769,16 +781,16 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 	if Gw != "" && self.fwdMode == "routing" {
 		// Call the datapath
 		epreg := &OfnetEndpoint{
-			EndpointID:   gwEpid,
-			EndpointType: "internal",
-			IpAddr:       net.ParseIP(Gw),
-			IpMask:       net.ParseIP("255.255.255.255"),
-			Vrf:          *vrf,
-			Vni:          vni,
-			Vlan:         vlanId,
-			PortNo:       0,
-			Timestamp:    time.Now(),
+			EndpointID: gwEpid,
+			IpAddr:     net.ParseIP(Gw),
+			IpMask:     net.ParseIP("255.255.255.255"),
+			Vrf:        *vrf,
+			Vni:        vni,
+			Vlan:       vlanId,
+			PortNo:     0,
+			Timestamp:  time.Now(),
 		}
+		self.setInternal(epreg)
 		self.endpointDb.Set(gwEpid, epreg)
 		// increment stats
 	}
@@ -811,7 +823,7 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 		if (vni != 0) && (ep.Vni == vni) {
 			if ep.OriginatorIp.String() == self.localIp.String() {
 				log.Fatalf("Vlan %d still has routes. Route: %+v", vlanId, ep)
-			} else if ep.EndpointType == "internal" {
+			} else if self.isInternal(ep) {
 				// Network delete arrived before other hosts cleanup endpoint
 				log.Warnf("Vlan %d still has routes, cleaning up. Route: %+v", vlanId, ep)
 				// Uninstall the endpoint from datapath
@@ -840,7 +852,15 @@ func (self *OfnetAgent) RemoveNetwork(vlanId uint16, vni uint32, Gw string, Vrf 
 // AddUplink adds an uplink to the switch
 func (self *OfnetAgent) AddUplink(uplinkPort *PortInfo) error {
 	// Call the datapath
-	return self.datapath.AddUplink(uplinkPort)
+	err := self.datapath.AddUplink(uplinkPort)
+	if err != nil {
+		return err
+	}
+
+	if self.protopath != nil {
+		self.protopath.SetRouterInfo(uplinkPort)
+	}
+	return nil
 }
 
 // UpdateUplink Updates an uplink to the switch
@@ -852,7 +872,14 @@ func (self *OfnetAgent) UpdateUplink(uplinkName string, portUpds PortUpdates) er
 // RemoveUplink remove an uplink to the switch
 func (self *OfnetAgent) RemoveUplink(uplinkName string) error {
 	// Call the datapath
-	return self.datapath.RemoveUplink(uplinkName)
+	err := self.datapath.RemoveUplink(uplinkName)
+	if err != nil {
+		return err
+	}
+	if self.protopath != nil {
+		self.protopath.SetRouterInfo(nil)
+	}
+	return nil
 }
 
 // AddSvcSpec adds a service spec to proxy
@@ -976,18 +1003,20 @@ func (self *OfnetAgent) AddBgp(routerIP string, As string, neighborAs string, pe
 		log.Errorf("Ofnet is not initialized in routing mode")
 		return errors.New("Ofnet not in routing mode")
 	}
+
 	routerInfo := &OfnetProtoRouterInfo{
 		ProtocolType: "bgp",
 		RouterIP:     routerIP,
 		As:           As,
 	}
+
 	neighborInfo := &OfnetProtoNeighborInfo{
 		ProtocolType: "bgp",
 		NeighborIP:   peer,
 		As:           neighborAs,
 	}
 	rinfo := self.GetRouterInfo()
-	if rinfo != nil {
+	if rinfo != nil && len(rinfo.RouterIP) != 0 {
 		self.DeleteBgp()
 	}
 
@@ -1000,6 +1029,7 @@ func (self *OfnetAgent) AddBgp(routerIP string, As string, neighborAs string, pe
 		log.Errorf("Error adding protocol neighbor")
 		return err
 	}
+
 	return nil
 }
 
@@ -1032,13 +1062,13 @@ func (self *OfnetAgent) GetRouterInfo() *OfnetProtoRouterInfo {
 }
 
 func (self *OfnetAgent) AddLocalProtoRoute(path []*OfnetProtoRouteInfo) {
-	if self.protopath != nil {
+	if self.GetRouterInfo() != nil {
 		self.protopath.AddLocalProtoRoute(path)
 	}
 }
 
 func (self *OfnetAgent) DeleteLocalProtoRoute(path []*OfnetProtoRouteInfo) {
-	if self.protopath != nil {
+	if self.GetRouterInfo() != nil {
 		self.protopath.DeleteLocalProtoRoute(path)
 	}
 }
@@ -1058,7 +1088,7 @@ func (self *OfnetAgent) GetEndpointStats() (map[string]*OfnetEndpointStats, erro
 
 // InspectBgp returns ofnet bgp state
 func (self *OfnetAgent) InspectBgp() (interface{}, error) {
-	if self.protopath != nil {
+	if self.GetRouterInfo() != nil {
 		peer, err := self.protopath.InspectProto()
 		return peer, err
 	}
@@ -1214,4 +1244,75 @@ func (self *OfnetAgent) getvlanVrf(vlan uint16) *string {
 
 func (self *OfnetAgent) AddNameServer(ns NameServer) {
 	self.nameServer = ns
+}
+
+func (self *OfnetAgent) isInternal(endpoint *OfnetEndpoint) bool {
+	if endpoint.EndpointType&(1<<OFNET_INTERNAL) > 0 {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) setInternal(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType | (1 << OFNET_INTERNAL)
+}
+
+func (self *OfnetAgent) unsetInternal(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType ^ (1 << OFNET_INTERNAL)
+}
+
+func (self *OfnetAgent) isExternal(endpoint *OfnetEndpoint) bool {
+	if endpoint.EndpointType&(1<<OFNET_EXTERNAL) > 0 {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) isExternalOnly(endpoint *OfnetEndpoint) bool {
+	if (endpoint.EndpointType&(1<<OFNET_EXTERNAL) > 0) && !self.isInternal(endpoint) {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) setExternal(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType | (1 << OFNET_EXTERNAL)
+}
+
+func (self *OfnetAgent) unsetExternal(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType ^ (1 << OFNET_EXTERNAL)
+}
+
+func (self *OfnetAgent) isExternalBgp(endpoint *OfnetEndpoint) bool {
+	if endpoint.EndpointType&(1<<OFNET_EXTERNAL_BGP) > 0 {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) setExternalBgp(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType | (1 << OFNET_EXTERNAL_BGP)
+}
+
+func (self *OfnetAgent) unsetExternalBgp(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType ^ (1 << OFNET_EXTERNAL_BGP)
+}
+
+func (self *OfnetAgent) isInternalBgp(endpoint *OfnetEndpoint) bool {
+	if endpoint.EndpointType&(1<<OFNET_INTERNAL_BGP) > 0 {
+		return true
+	}
+	return false
+}
+
+func (self *OfnetAgent) setInternalBgp(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType | (1 << OFNET_INTERNAL_BGP)
+}
+
+func (self *OfnetAgent) unsetInternalBgp(endpoint *OfnetEndpoint) {
+	endpoint.EndpointType = endpoint.EndpointType ^ (1 << OFNET_INTERNAL_BGP)
+}
+
+func (self *OfnetAgent) FlushEndpoints(endpointType int) {
+	self.datapath.FlushEndpoints(endpointType)
 }
