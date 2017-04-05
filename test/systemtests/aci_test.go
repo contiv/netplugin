@@ -87,6 +87,82 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	c.Assert(s.cli.NetworkDelete("default", s.globInfo.Network), IsNil)
 }
 
+/* TestACIDefaultGroup does the following:
+ Logic is similar to TestACIMode but with containers using "default-group" 
+ Containers get assigned to "default-group" either implicitly (when they have no group label)
+ or explicitly (when they have a group label set to "default-group")
+ The test covers both types of containers
+*/
+
+func (s *systemtestSuite) TestACIDefaultGroup(c *C) {
+	if s.fwdMode == "routing" {
+		c.Skip("Skipping test for routing mode")
+	}
+	c.Assert(s.cli.GlobalPost(&client.Global{
+		Name:             "global",
+		NetworkInfraType: "aci",
+		Vlans:            s.globInfo.Vlan,
+		Vxlans:           s.globInfo.Vxlan,
+		FwdMode:          "bridge",
+		ArpMode:          "flood",
+		PvtSubnet:        "172.19.0.0/16",
+	}), IsNil)
+	c.Assert(s.cli.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: "default-net-aci",
+		Subnet:      s.globInfo.Subnet,
+		Gateway:     s.globInfo.Gateway,
+		Encap:       s.globInfo.Encap,
+	}), IsNil)
+
+	err := s.nodes[0].checkSchedulerNetworkCreated("default-net-aci", true)
+	c.Assert(err, IsNil)
+
+	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:  "default",
+		NetworkName: "default-net-aci",
+		GroupName:   "default-group",
+	}), IsNil)
+
+	err = s.nodes[0].exec.checkSchedulerNetworkCreated("default-group", true)
+	c.Assert(err, IsNil)
+
+	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+		TenantName:  "default",
+		NetworkName: "default-net-aci",
+		GroupName:   "epgb",
+	}), IsNil)
+
+	err = s.nodes[0].checkSchedulerNetworkCreated("epgb", true)
+	c.Assert(err, IsNil)
+
+        // Containers created without any explicit group label
+	containersA, err := s.runContainersOnNode(s.basicInfo.Containers, "default-net-aci", "", "", s.nodes[0])
+	c.Assert(err, IsNil)
+        // Containers created with explicit group label "epgb"
+	containersB, err := s.runContainersOnNode(s.basicInfo.Containers, "default-net-aci", "", "epgb", s.nodes[0])
+	c.Assert(err, IsNil)
+        // Containers created with explicit group label "default-group"
+	containersC, err := s.runContainersOnNode(s.basicInfo.Containers, "default-net-aci", "", "default-group", s.nodes[0])
+	c.Assert(err, IsNil)
+
+        // Combine containersA and containersC since they are both effectively in the same default-group
+        containersDefault := append( containersA, containersC...)
+
+	// Verify containers within the combined default-group can ping each other 
+	c.Assert(s.pingTest(containersDefault), IsNil)
+	// Verify containers within epgb can ping each other
+	c.Assert(s.pingTest(containersB), IsNil)
+	// Verify containers within the combined default-group can't ping epgb containers
+	c.Assert(s.pingFailureTest(containersDefault, containersB), IsNil)
+
+	c.Assert(s.removeContainers(containersDefault), IsNil)
+	c.Assert(s.removeContainers(containersB), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("default", "default-group"), IsNil)
+	c.Assert(s.cli.EndpointGroupDelete("default", "epgb"), IsNil)
+	c.Assert(s.cli.NetworkDelete("default", "default-net-aci"), IsNil)
+}
+
 /* TesACIPingGateway checks ping success from containers running in a EPG to the default gateway */
 func (s *systemtestSuite) TestACIPingGateway(c *C) {
 	if s.fwdMode == "routing" {
