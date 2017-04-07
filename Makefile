@@ -79,9 +79,10 @@ endif
 checks: go-version gofmt-src golint-src govet-src misspell-src
 
 run-build: deps checks clean
-	cd ${GOPATH}/src/github.com/contiv/netplugin && version/generate_version ${USE_RELEASE} && \
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	GOGC=1500 go install -v $(TO_BUILD)
+	USE_RELEASE=${USE_RELEASE} \
+	TO_BUILD="${TO_BUILD}" VERSION_FILE=${VERSION_FILE} \
+	scripts/build.sh
 
 build-docker-image: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-build-docker-image"'
@@ -280,7 +281,6 @@ only-tar:
 
 tar: clean-tar
 	CONTIV_NODES=1 ${MAKE} build
-	@cat ${GOPATH}/src/github.com/contiv/netplugin/version/version_gen.go | grep versionStr | cut -f 4 -d " " | tr -d \" > $(VERSION_FILE)
 	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s netcontiv -C $(GOPATH)/src/github.com/contiv/netplugin/scripts contrib/completion/bash/netctl
 
 clean-tar:
