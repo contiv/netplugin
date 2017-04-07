@@ -57,6 +57,12 @@ func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) erro
 		return err
 	}
 
+	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
+	aciMode, err := IsAciConfigured()
+	if err != nil {
+		return err
+	}
+
 	// read the network config
 	networkID := networkName + "." + tenantName
 	nwCfg := &mastercfg.CfgNetworkState{}
@@ -96,10 +102,14 @@ func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) erro
 	// params for docker network
 	if GetClusterMode() == "docker" {
 		// Create each EPG as a docker network
-		err = docknet.CreateDockNet(tenantName, networkName, groupName, nwCfg)
-		if err != nil {
-			log.Errorf("Error creating docker network for group %s.%s. Err: %v", networkName, groupName, err)
-			return err
+		if aciMode && nwCfg.PktTagType == "vxlan" {
+			log.Info("Skipping docker network creation because of ACI mode and nwtype = %v", nwCfg.PktTagType)
+		} else {
+			err = docknet.CreateDockNet(tenantName, networkName, groupName, nwCfg)
+			if err != nil {
+				log.Errorf("Error creating docker network for group %s.%s. Err: %v", networkName, groupName, err)
+				return err
+			}
 		}
 	}
 	// assign unique endpoint group ids
@@ -133,12 +143,6 @@ func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) erro
 	epgCfg.StateDriver = stateDriver
 	epgCfg.ID = mastercfg.GetEndpointGroupKey(groupName, tenantName)
 	log.Debugf("##Create EpGroup %v network %v tagtype %v", groupName, networkName, nwCfg.PktTagType)
-
-	// if aci mode allocate per-epg vlan. otherwise, stick to per-network vlan
-	aciMode, rErr := IsAciConfigured()
-	if rErr != nil {
-		return rErr
-	}
 
 	// Special handling for ACI mode
 	if aciMode {
@@ -211,9 +215,9 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 	}
 
 	// if aci mode we allocate per-epg vlan. free it here.
-	aciMode, aErr := IsAciConfigured()
-	if aErr != nil {
-		return aErr
+	aciMode, err := IsAciConfigured()
+	if err != nil {
+		return err
 	}
 
 	if aciMode {
