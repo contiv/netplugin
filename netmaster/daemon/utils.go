@@ -75,8 +75,8 @@ func initStateDriver(clusterStore string) (core.StateDriver, error) {
 	return utils.NewStateDriver(stateStore, &instInfo)
 }
 
-// getLocalAddr gets local address to be used
-func getLocalAddr() (string, error) {
+// GetLocalAddr gets local address to be used
+func GetLocalAddr() (string, error) {
 	// get the ip address by local hostname
 	localIP, err := netutils.GetMyAddr()
 	if err == nil && netutils.IsAddrLocal(localIP) {
@@ -91,7 +91,7 @@ func getLocalAddr() (string, error) {
 func slaveProxyHandler(w http.ResponseWriter, r *http.Request) {
 	log.Infof("proxy handler for %q ", r.URL.Path)
 
-	localIP, err := getLocalAddr()
+	localIP, err := GetLocalAddr()
 	if err != nil {
 		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}

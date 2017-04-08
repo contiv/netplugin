@@ -44,7 +44,7 @@ const leaderLockTTL = 30
 // MasterDaemon runs the daemon FSM
 type MasterDaemon struct {
 	// Public state
-	ListenURL    string // URL where netmaster needs to listen
+	ListenURL    string // URL where netmaster listens for ext requests
 	ControlURL   string // URL where netmaster listens for ctrl pkts
 	ClusterStore string // state store URL
 	ClusterMode  string // cluster scheduler used docker/kubernetes/mesos etc
@@ -225,14 +225,7 @@ func (d *MasterDaemon) registerRoutes(router *mux.Router) {
 
 // runLeader runs leader loop
 func (d *MasterDaemon) runLeader() {
-	var ctrlListener, listener net.Listener
-	var err error
-
 	router := mux.NewRouter()
-
-	// acquire listener mutex
-	d.listenerMutex.Lock()
-	defer d.listenerMutex.Unlock()
 
 	// Create a new api controller
 	d.apiController = objApi.NewAPIController(router, d.objdbClient, d.ClusterStore)
@@ -249,90 +242,63 @@ func (d *MasterDaemon) runLeader() {
 	// setup HTTP routes
 	d.registerRoutes(router)
 
-	// Create HTTP server and listener
-	server := &http.Server{Handler: router}
-	server.SetKeepAlivesEnabled(false)
+	d.startListeners(router, d.stopLeaderChan)
 
-	ctrlListener, err = net.Listen("tcp", d.ControlURL)
-	if nil != err {
-		log.Fatalln(err)
-	}
-	log.Infof("Netmaster listening on %s for control packets", d.ControlURL)
-	ctrlListener = utils.ListenWrapper(ctrlListener)
-
-	go server.Serve(ctrlListener)
-
-	if !((len(d.ControlURL) == len(d.ListenURL)) && strings.Contains(d.ControlURL, d.ListenURL)) {
-		listener, err = net.Listen("tcp", d.ListenURL)
-		if nil != err {
-			log.Fatalln(err)
-		}
-		log.Infof("Netmaster listening on %s", d.ListenURL)
-		listener = utils.ListenWrapper(listener)
-
-		// start server
-		go server.Serve(listener)
-	}
-
-	// Wait till we are asked to stop
-	<-d.stopLeaderChan
-
-	// Close the listener(s) and exit
-	ctrlListener.Close()
-	if listener != nil {
-		listener.Close()
-	}
 	log.Infof("Exiting Leader mode")
 }
 
 // runFollower runs the follower FSM loop
 func (d *MasterDaemon) runFollower() {
-	var ctrlListener, listener net.Listener
-	var err error
-
 	router := mux.NewRouter()
 	router.PathPrefix("/").HandlerFunc(slaveProxyHandler)
-
-	// acquire listener mutex
-	d.listenerMutex.Lock()
-	defer d.listenerMutex.Unlock()
-
-	// start server
-	server := &http.Server{Handler: router}
-	server.SetKeepAlivesEnabled(false)
-
-	ctrlListener, err = net.Listen("tcp", d.ControlURL)
-	if nil != err {
-		log.Fatalln(err)
-	}
-	ctrlListener = utils.ListenWrapper(ctrlListener)
-
-	go server.Serve(ctrlListener)
-
-	if !((len(d.ControlURL) == len(d.ListenURL)) && strings.Contains(d.ControlURL, d.ListenURL)) {
-		listener, err = net.Listen("tcp", d.ListenURL)
-		if nil != err {
-			log.Fatalln(err)
-		}
-
-		listener = utils.ListenWrapper(listener)
-		// start server
-		go server.Serve(listener)
-	}
 
 	// Register netmaster service
 	d.registerService()
 
 	// just wait on stop channel
 	log.Infof("Listening in follower mode")
-	<-d.stopFollowerChan
+	d.startListeners(router, d.stopFollowerChan)
 
-	// Close the listener(s) and exit
-	ctrlListener.Close()
-	if listener != nil {
-		listener.Close()
-	}
 	log.Info("Exiting follower mode")
+}
+
+func (d *MasterDaemon) startListeners(router *mux.Router, stopChan chan bool) {
+	// acquire listener mutex
+	d.listenerMutex.Lock()
+	defer d.listenerMutex.Unlock()
+
+	// Create HTTP server and listener
+	server := &http.Server{Handler: router}
+	server.SetKeepAlivesEnabled(false)
+
+	listener, err := net.Listen("tcp", d.ListenURL)
+	if nil != err {
+		log.Fatalln(err)
+	}
+	log.Infof("Netmaster listening on %s", d.ListenURL)
+	listener = utils.ListenWrapper(listener)
+	defer listener.Close()
+
+	go server.Serve(listener)
+
+	listenURL := strings.Split(d.ListenURL, ":")
+	controlURL := strings.Split(d.ControlURL, ":")
+
+	if (strings.Compare(listenURL[1], controlURL[1]) != 0) || (len(listenURL[0]) != 0 && strings.Compare(listenURL[0], "0.0.0.0") != 0 && strings.Compare(listenURL[0], controlURL[0]) != 0) {
+		ctrlListener, err := net.Listen("tcp", d.ControlURL)
+		if nil != err {
+			log.Fatalln(err)
+		}
+		log.Infof("Netmaster listening on %s for control packets", d.ControlURL)
+		ctrlListener = utils.ListenWrapper(ctrlListener)
+		defer ctrlListener.Close()
+
+		// start server
+		go server.Serve(ctrlListener)
+	}
+
+	// Wait till we are asked to stop
+	<-stopChan
 }
 
 // becomeLeader changes daemon FSM state to master
@@ -432,7 +398,7 @@ func (d *MasterDaemon) getMasterInfo() (map[string]interface{}, error) {
 	info := make(map[string]interface{})
 
 	// get local ip
-	localIP, err := getLocalAddr()
+	localIP, err := GetLocalAddr()
 	if err != nil {
 		return nil, errors.New("Error getting local IP address")
 	}
