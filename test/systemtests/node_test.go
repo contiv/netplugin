@@ -98,8 +98,8 @@ func (n *node) stopNetmaster() error {
 	return n.exec.stopNetmaster()
 }
 
-func (n *node) startNetmaster() error {
-	return n.exec.startNetmaster()
+func (n *node) startNetmaster(args string) error {
+	return n.exec.startNetmaster(args)
 }
 
 func (n *node) cleanupSlave() {

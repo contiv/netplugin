@@ -698,8 +698,10 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 				}
 			}
 
-			leaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+			leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 			c.Assert(err, IsNil)
+
+			leaderIP := strings.Split(leaderURL, ":")[0]
 
 			for _, node := range s.nodes {
 				res, err := node.getIPAddr("eth1")
@@ -716,8 +718,10 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 
 			for x := 0; x < 15; x++ {
 				logrus.Info("Waiting 5s for leader to change...")
-				newLeaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+				newLeaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 				c.Assert(err, IsNil)
+
+				newLeaderIP := strings.Split(newLeaderURL, ":")[0]
 
 				for _, node := range s.nodes {
 					res, err := node.getIPAddr("eth1")
@@ -733,7 +737,7 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 				time.Sleep(5 * time.Second)
 			}
 		finished:
-			c.Assert(oldLeader.startNetmaster(), IsNil)
+			c.Assert(oldLeader.startNetmaster(""), IsNil)
 			time.Sleep(10 * time.Second)
 
 			for tenant, serviceContainers := range servicesPerTenant {

@@ -102,7 +102,15 @@ class Node:
     # Start netmaster process
     def startNetmaster(self):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "GOPATH=/opt/gopath " + self.binpath + "/netmaster -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " > /tmp/netmaster.log 2>&1"
+        listenUrlArg = ""
+        listenPort = os.environ["CONTIV_NETMASTER_LISTEN_PORT"]
+        if not listenPort:
+            listenUrlArg = " --listen-url " + os.environ["CONTIV_NETMASTER_LISTEN_IP"] + ":" + listenPort
+        ctrlUrlArg = ""
+        ctrlPort = os.environ["CONTIV_NETMASTER_CONTROL_PORT"]
+        if not ctrlPort:
+            ctrlUrlArg = " --control-url " + os.environ["CONTIV_NETMASTER_CONTROL_IP"] + ":" + ctrlPort
+        command = "GOPATH=/opt/gopath " + self.binpath + "/netmaster " + listenUrlArg + ctrlUrlArg + " -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " > /tmp/netmaster.log 2>&1"
         self.nmThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.nmThread.start()

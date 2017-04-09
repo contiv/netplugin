@@ -428,7 +428,7 @@ func (d *docker) cleanupContainers() error {
 }
 
 func (d *docker) startNetplugin(args string) error {
-	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log"
+	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netplugin.log"
 	logrus.Infof("Starting netplugin on %s with command: %s", d.node.Name(), cmd)
 	return d.node.tbnode.RunCommandBackground(cmd)
 }
@@ -443,8 +443,8 @@ func (d *docker) stopNetmaster() error {
 	return d.node.tbnode.RunCommand("sudo pkill netmaster")
 }
 
-func (d *docker) startNetmaster() error {
-	cmd := d.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log"
+func (d *docker) startNetmaster(args string) error {
+	cmd := d.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netmaster.log"
 	logrus.Infof("Starting netmaster on %s with command: %s", d.node.Name(), cmd)
 	return d.node.tbnode.RunCommandBackground(cmd)
 }

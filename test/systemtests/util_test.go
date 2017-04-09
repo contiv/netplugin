@@ -1336,7 +1336,7 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 	time.Sleep(15 * time.Second)
 
 	for _, node := range s.nodes {
-		c.Assert(node.startNetmaster(), IsNil)
+		c.Assert(node.startNetmaster(""), IsNil)
 		time.Sleep(1 * time.Second)
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 	}
@@ -1398,7 +1398,7 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 	time.Sleep(15 * time.Second)
 
 	errors = s.parallelExec(func(node *node) error {
-		return node.startNetmaster()
+		return node.startNetmaster("")
 	})
 	for _, err := range errors {
 		c.Assert(err, IsNil)

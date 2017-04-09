@@ -8,7 +8,7 @@ type systemTestScheduler interface {
 	runContainer(spec containerSpec) (*container, error)
 	stop(c *container) error
 	start(c *container) error
-	startNetmaster() error
+	startNetmaster(args string) error
 	stopNetmaster() error
 	stopNetplugin() error
 	startNetplugin(args string) error
@@ -47,5 +47,5 @@ type systemTestScheduler interface {
 	startIperfServer(containers *container) error
 	startIperfClient(containers *container, ip, limit string, isErr bool) error
 	tcFilterShow(bw string) error
-	verifyUplinkState(n *node,uplinks []string) error
+	verifyUplinkState(n *node, uplinks []string) error
 }

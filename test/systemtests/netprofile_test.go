@@ -2,6 +2,7 @@ package systemtests
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -77,7 +78,7 @@ func (s *systemtestSuite) testNetprofileBasicUpdate(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetprofilePost(netProfile), IsNil)
-	
+
 	groups = []*client.EndpointGroup{}
 	groupNames = []string{}
 	for x := 0; x < s.basicInfo.Containers; x++ {
@@ -197,7 +198,6 @@ func (s *systemtestSuite) testNetprofileUpdate(c *C, encap string) {
 			groups = append(groups, group)
 			groupNames = append(groupNames, epgName)
 		}
-
 
 		containers, err := s.runContainers(s.basicInfo.Containers, true, "private", "", groupNames, nil)
 		c.Assert(err, IsNil)
@@ -381,8 +381,6 @@ func (s *systemtestSuite) testNetprofileMultipleTenant(c *C, encap string) {
 				npTenant[tenantName] = append(npTenant[netprofile.TenantName], netprofile.ProfileName)
 			}
 		}
-
-
 
 		for tenant, groups := range groupNames {
 			endChan := make(chan error)
@@ -621,8 +619,10 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 
 		var leader, oldLeader *node
 
-		leaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+		leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 		c.Assert(err, IsNil)
+
+		leaderIP := strings.Split(leaderURL, ":")[0]
 
 		for _, node := range s.nodes {
 			res, err := node.getIPAddr("eth1")
@@ -638,8 +638,10 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 
 		for x := 0; x < 15; x++ {
 			logrus.Info("Waiting 5s for leader to change...")
-			newLeaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+			newLeaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 			c.Assert(err, IsNil)
+
+			newLeaderIP := strings.Split(newLeaderURL, ":")[0]
 
 			for _, node := range s.nodes {
 				res, err := node.getIPAddr("eth1")
@@ -657,7 +659,7 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 
 	finished:
 
-		c.Assert(oldLeader.exec.startNetmaster(), IsNil)
+		c.Assert(oldLeader.exec.startNetmaster(""), IsNil)
 		time.Sleep(5 * time.Second)
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
@@ -718,7 +720,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetworkPost(network), IsNil)
-	fmt.Printf("Creating a network %s \n",network.NetworkName)
+	fmt.Printf("Creating a network %s \n", network.NetworkName)
 	netProfile := &client.Netprofile{
 		ProfileName: "Netprofile",
 		DSCP:        6,
@@ -727,7 +729,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 		TenantName:  "default",
 	}
 
-	fmt.Printf("Creating netprofile %#v \n",netProfile)
+	fmt.Printf("Creating netprofile %#v \n", netProfile)
 
 	c.Assert(s.cli.NetprofilePost(netProfile), IsNil)
 
@@ -740,9 +742,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetprofilePost(netProfile1), IsNil)
-	fmt.Printf("Creating netprofile %#v \n",netProfile)
-
-
+	fmt.Printf("Creating netprofile %#v \n", netProfile)
 
 	groups := []*client.EndpointGroup{}
 	groupNames := []string{}
@@ -756,7 +756,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 			TenantName:  "default",
 		}
 		c.Assert(s.cli.EndpointGroupPost(group), IsNil)
-		fmt.Printf("Creating epg %#v \n",group)
+		fmt.Printf("Creating epg %#v \n", group)
 
 		groups = append(groups, group)
 		groupNames = append(groupNames, epgName)
@@ -774,7 +774,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 			TenantName:  "default",
 		}
 		c.Assert(s.cli.EndpointGroupPost(group), IsNil)
-		fmt.Printf("Creating epg %#v \n",group)
+		fmt.Printf("Creating epg %#v \n", group)
 		groupsNew = append(groupsNew, group)
 		NewGroupNames = append(NewGroupNames, epgName)
 	}
@@ -806,7 +806,7 @@ func (s *systemtestSuite) testNetprofileAcrossGroup(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetprofilePost(netProfile), IsNil)
-	fmt.Printf("Modifying netprofile %#v \n",netProfile)
+	fmt.Printf("Modifying netprofile %#v \n", netProfile)
 
 	c.Assert(s.checkIngressRate(containersNew, netProfile1.Bandwidth), IsNil)
 	c.Assert(s.checkIperfAcrossGroup(containersNew, containers, netProfile1.Bandwidth, false), IsNil)
