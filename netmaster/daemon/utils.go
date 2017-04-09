@@ -110,7 +110,7 @@ func slaveProxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// build the proxy url
-	url, _ := url.Parse(fmt.Sprintf("http://%s:9999", masterNode))
+	url, _ := url.Parse(fmt.Sprintf("http://%s", masterNode))
 
 	// Create a proxy for the URL
 	proxy := httputil.NewSingleHostReverseProxy(url)

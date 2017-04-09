@@ -33,6 +33,7 @@ type cliOpts struct {
 	pluginName   string
 	clusterStore string
 	listenURL    string
+	controlURL   string
 	clusterMode  string
 	version      bool
 }
@@ -62,10 +63,14 @@ func parseOpts(opts *cliOpts) error {
 		"cluster-store",
 		"etcd://127.0.0.1:2379",
 		"Etcd or Consul cluster store url.")
+	flagSet.StringVar(&opts.controlURL,
+		"control-url",
+		":9999",
+		"URL for control protocol")
 	flagSet.StringVar(&opts.listenURL,
 		"listen-url",
 		":9999",
-		"Url to listen http requests on")
+		"URL to listen http requests on")
 	flagSet.StringVar(&opts.clusterMode,
 		"cluster-mode",
 		"docker",
@@ -113,6 +118,7 @@ func main() {
 	// create master daemon
 	d := &daemon.MasterDaemon{
 		ListenURL:    opts.listenURL,
+		ControlURL:   opts.controlURL,
 		ClusterStore: opts.clusterStore,
 		ClusterMode:  opts.clusterMode,
 	}
