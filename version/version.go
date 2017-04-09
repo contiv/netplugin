@@ -19,6 +19,12 @@ package version
 
 import "fmt"
 
+var (
+	gitCommit string
+	version   string
+	buildTime string
+)
+
 // Info enlists version and build information as used by netplugin binaries
 type Info struct {
 	GitCommit string
@@ -30,7 +36,7 @@ type Info struct {
 func Get() *Info {
 	ver := Info{}
 	ver.GitCommit = gitCommit
-	ver.Version = versionStr
+	ver.Version = version
 	ver.BuildTime = buildTime
 
 	return &ver
