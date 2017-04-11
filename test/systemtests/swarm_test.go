@@ -406,9 +406,9 @@ func (w *swarm) stopNetmaster() error {
 	return w.node.tbnode.RunCommand("sudo pkill netmaster")
 }
 
-func (w *swarm) startNetmaster() error {
+func (w *swarm) startNetmaster(args string) error {
 	logrus.Infof("Starting netmaster on %s", w.node.Name())
-	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " &> /tmp/netmaster.log")
+	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netmaster.log")
 }
 func (w *swarm) cleanupMaster() {
 	logrus.Infof("Cleaning up master on %s", w.node.Name())

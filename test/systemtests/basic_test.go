@@ -2,6 +2,7 @@ package systemtests
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -222,4 +223,78 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 	}
 
 	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
+}
+
+func (s *systemtestSuite) TestBasicNetmasterPortListen(c *C) {
+	for _, node := range s.nodes {
+		// Stop all netmaster instances
+		c.Assert(node.stopNetmaster(), IsNil)
+	}
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		masterNodeIndex := rand.Int31n(int32(len(s.nodes)))
+		masterNode := s.nodes[masterNodeIndex]
+		masterIP, err := masterNode.getIPAddr(s.hostInfo.HostMgmtInterface)
+		c.Assert(err, IsNil)
+
+		masterDefaultPort := "9999"
+		masterListenPort := "999" + masterIP[len(masterIP)-1:]
+		masterCtrlPort := "888" + masterIP[len(masterIP)-1:]
+
+		// Case: --listen-url :XXXX (:XXXX is not default port :9999)
+		// Requests to port other than masterListenPort(:XXXX) should not be honored
+		logrus.Infof("Checking case: --listen-url :XXXX (:XXXX is not default port :9999)")
+		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s", masterListenPort)), IsNil)
+		time.Sleep(40 * time.Second)
+		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
+		c.Assert(checkNetmasterPortListener(masterListenPort), IsNil)
+		c.Assert(checkNetmasterPortListener(masterCtrlPort), NotNil)
+		c.Assert(masterNode.stopNetmaster(), IsNil)
+		time.Sleep(5 * time.Second)
+
+		// Case: --listen-url A.B.C.D:XXXX --control-url :YYYY
+		// Control port with non default port and wildcard IP is not valid
+		logrus.Infof("Checking case: --listen-url A.B.C.D:XXXX --control-url :YYYY")
+		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=%s:%s --control-url=:%s", masterIP, masterListenPort, masterCtrlPort)), IsNil)
+		c.Assert(masterNode.exec.runCommandUntilNoNetmasterError(), NotNil)
+
+		// Case: --listen-url :YYYY --control-url A.B.C.D:YYYY
+		// Requests to port other than YYYY(masterCtrlPort) should not be honored
+		logrus.Infof("Checking case: --listen-url :YYYY --control-url A.B.C.D:YYYY")
+		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s --control-url=%s:%s", masterCtrlPort, masterIP, masterCtrlPort)), IsNil)
+		time.Sleep(40 * time.Second)
+		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
+		c.Assert(checkNetmasterPortListener(masterListenPort), NotNil)
+		c.Assert(checkNetmasterPortListener(masterCtrlPort), IsNil)
+		c.Assert(masterNode.stopNetmaster(), IsNil)
+		time.Sleep(5 * time.Second)
+
+		// Case: --listen-url :XXXX --control-url=:YYYY
+		// Requests to port other than masterListenPort should not be honored
+		// masterCtrlPort is accessible only within the cluster for control pkts
+		logrus.Infof("Checking case: --listen-url :XXXX --control-url=:YYYY")
+		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s --control-url=%s:%s", masterListenPort, masterIP, masterCtrlPort)), IsNil)
+		time.Sleep(40 * time.Second)
+		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
+		c.Assert(checkNetmasterPortListener(masterListenPort), IsNil)
+		c.Assert(checkNetmasterPortListener(masterCtrlPort), NotNil)
+		c.Assert(masterNode.stopNetmaster(), IsNil)
+		time.Sleep(5 * time.Second)
+	}
+
+}
+
+func checkNetmasterPortListener(port string) error {
+	clientURL := fmt.Sprintf("http://localhost:%s", port)
+	cliClient, err := client.NewContivClient(clientURL)
+	if err != nil {
+		return fmt.Errorf("Error initializing the contiv client. Err: %+v", err)
+	}
+
+	tenant, err := cliClient.TenantGet("default")
+	if err != nil || !strings.Contains(tenant.TenantName, "default") {
+		return fmt.Errorf("Client request to %s failed. Tenant: %+v. Err: %+v.", clientURL, tenant, err)
+	}
+
+	return nil
 }

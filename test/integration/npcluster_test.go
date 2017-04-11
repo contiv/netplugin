@@ -55,6 +55,7 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 	// create master daemon
 	md := &daemon.MasterDaemon{
 		ListenURL:    ":9999",
+		ControlURL:   ":9999",
 		ClusterStore: its.clusterStore,
 		ClusterMode:  "test",
 	}

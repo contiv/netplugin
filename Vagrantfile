@@ -393,6 +393,10 @@ SCRIPT
                 node.vm.network "forwarded_port", guest: 9999, host: 9999
                 node.vm.network "forwarded_port", guest: 80, host: 9998
             end
+            fwd_port1 = 8880 + n
+            fwd_port2 = 9990 + n
+            node.vm.network "forwarded_port", guest: fwd_port1, host: fwd_port1
+            node.vm.network "forwarded_port", guest: fwd_port2, host: fwd_port2
         end
     end
 end

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -148,7 +149,7 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 	// first find the holder of master lock
 	masterNode, err := getMasterLockHolder()
 	if err == nil {
-		url := "http://" + masterNode + ":9999" + path
+		url := "http://" + masterNode + path
 		log.Infof("Making REST request to url: %s", url)
 
 		// Make the REST call to master
@@ -172,7 +173,8 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 
 	// Walk all netmasters and see if any of them respond
 	for _, master := range MasterDB {
-		url := "http://" + master.HostAddr + ":9999" + path
+		masterPort := strconv.Itoa(master.Port)
+		url := "http://" + master.HostAddr + ":" + masterPort + path
 
 		log.Infof("Making REST request to url: %s", url)
 

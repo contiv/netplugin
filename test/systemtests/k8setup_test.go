@@ -452,13 +452,14 @@ func (k *kubernetes) stopNetmaster() error {
 	return k.node.tbnode.RunCommand("sudo pkill netmaster")
 }
 
-func (k *kubernetes) startNetmaster() error {
+func (k *kubernetes) startNetmaster(args string) error {
 	if k.node.Name() != "k8master" {
 		return nil
 	}
 	logrus.Infof("Starting netmaster on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes &> /tmp/netmaster.log")
+	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes " + args + " &> /tmp/netmaster.log")
 }
+
 func (k *kubernetes) cleanupMaster() {
 	if k.node.Name() != "k8master" {
 		return

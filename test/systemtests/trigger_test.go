@@ -93,8 +93,10 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
 		var leader, oldLeader *node
 
-		leaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+		leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 		c.Assert(err, IsNil)
+
+		leaderIP := strings.Split(leaderURL, ":")[0]
 
 		for _, node := range s.nodes {
 			res, err := node.getIPAddr(s.hostInfo.HostMgmtInterface)
@@ -102,6 +104,7 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 			if leaderIP == res {
 				leader = node
 				logrus.Infof("Found leader %s/%s", node.Name(), leaderIP)
+				break
 			}
 		}
 
@@ -110,8 +113,10 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
 		for x := 0; x < 15; x++ {
 			logrus.Info("Waiting 5s for leader to change...")
-			newLeaderIP, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+			newLeaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 			c.Assert(err, IsNil)
+
+			newLeaderIP := strings.Split(newLeaderURL, ":")[0]
 
 			for _, node := range s.nodes {
 				res, err := node.getIPAddr(s.hostInfo.HostMgmtInterface)
@@ -128,7 +133,7 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 		}
 
 	finished:
-		c.Assert(oldLeader.exec.startNetmaster(), IsNil)
+		c.Assert(oldLeader.exec.startNetmaster(""), IsNil)
 		time.Sleep(5 * time.Second)
 
 		c.Assert(s.pingTest(containers), IsNil)
@@ -138,6 +143,63 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
 	// delete the network
 	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
+}
+
+func (s *systemtestSuite) TestTriggerNetmasterControlPortSwitch(c *C) {
+	var masterPort string
+	network := &client.Network{
+		TenantName:  "default",
+		NetworkName: "private",
+		Subnet:      "10.1.0.0/16",
+		Gateway:     "10.1.1.254",
+		PktTag:      1001,
+		Encap:       "vxlan",
+	}
+	if s.fwdMode != "routing" {
+		network.Ipv6Subnet = "2016:0617::/100"
+		network.Ipv6Gateway = "2016:0617::254"
+	}
+
+	portBase := []string{"888", "999"}
+
+	for i := 0; i < s.basicInfo.Iterations; i++ {
+		for _, node := range s.nodes {
+			c.Assert(node.stopNetmaster(), IsNil)
+			c.Assert(node.rotateLog("netmaster"), IsNil)
+			nodeIP, err := node.getIPAddr(s.hostInfo.HostMgmtInterface)
+			c.Assert(err, IsNil)
+			masterPort = portBase[i%2] + nodeIP[len(nodeIP)-1:]
+			controlURLArg := "--listen-url " + ":" + masterPort
+			c.Assert(node.startNetmaster(controlURLArg), IsNil)
+			logrus.Info("Sleeping for a while to wait for netmaster to restart")
+			time.Sleep(15 * time.Second)
+		}
+		time.Sleep(20 * time.Second)
+		leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+		c.Assert(err, IsNil)
+		leaderIP := strings.Split(leaderURL, ":")[0]
+		leaderPort := strings.Split(leaderURL, ":")[1]
+		masterPort = portBase[i%2] + leaderIP[len(leaderIP)-1:]
+
+		if strings.Compare(leaderPort, masterPort) != 0 {
+			err = fmt.Errorf("Netmaster port not using port %s. Using port: %s", masterPort, leaderPort)
+		}
+		c.Assert(err, IsNil)
+		clientURL := fmt.Sprintf("http://localhost:%s", leaderPort)
+		cliClient, err := client.NewContivClient(clientURL)
+		if err != nil {
+			logrus.Errorf("Error initializing the contiv client. Err: %+v", err)
+		}
+
+		c.Assert(cliClient.NetworkPost(network), IsNil)
+		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
+		c.Assert(err, IsNil)
+		c.Assert(s.pingTest(containers), IsNil)
+		c.Assert(s.removeContainers(containers), IsNil)
+
+		// delete the network
+		c.Assert(cliClient.NetworkDelete("default", "private"), IsNil)
+	}
 }
 
 func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
@@ -236,7 +298,7 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 			c.Assert(node.startNetplugin(""), IsNil)
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
 			time.Sleep(20 * time.Second)
-			c.Assert(node.startNetmaster(), IsNil)
+			c.Assert(node.startNetmaster(""), IsNil)
 			time.Sleep(1 * time.Second)
 			c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 			time.Sleep(20 * time.Second)
@@ -329,7 +391,7 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 
 		// reload VMs one at a time
 		for _, node := range s.nodes {
-			if s.basicInfo.Scheduler == "k8" && node.Name()=="k8master"{
+			if s.basicInfo.Scheduler == "k8" && node.Name() == "k8master" {
 				continue
 			}
 			nodeIP, err := node.getIPAddr("eth1")
@@ -472,7 +534,7 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 
 				time.Sleep(1 * time.Second)
 
-				c.Assert(node.exec.startNetmaster(), IsNil)
+				c.Assert(node.exec.startNetmaster(""), IsNil)
 				time.Sleep(1 * time.Second)
 				c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 			}
