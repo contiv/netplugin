@@ -118,6 +118,14 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 	epCfg.ServiceName = ep.ServiceName
 	epCfg.EPCommonName = epReq.EPCommonName
 
+	// In ACI mode, if a pod does not have a group label, we will assume "default-group"
+	isAci, _ := IsAciConfigured()
+
+	if isAci && (len(epCfg.ServiceName) == 0) {
+		epCfg.ServiceName = "default-group"
+		log.Infof("Over-riding null group with default-group for ep %s nw %s", epCfg.EndpointID, epCfg.NetID)
+	}
+
 	if len(epCfg.ServiceName) > 0 {
 		epgCfg = &mastercfg.EndpointGroupState{}
 		epgCfg.StateDriver = stateDriver
@@ -141,10 +149,10 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 	// Set endpoint group
 	// Skip for infra nw
 	if nwCfg.NwType != "infra" {
-		epCfg.EndpointGroupKey = mastercfg.GetEndpointGroupKey(ep.ServiceName, nwCfg.Tenant)
-		epCfg.EndpointGroupID, err = mastercfg.GetEndpointGroupID(stateDriver, ep.ServiceName, nwCfg.Tenant)
+		epCfg.EndpointGroupKey = mastercfg.GetEndpointGroupKey(epCfg.ServiceName, nwCfg.Tenant)
+		epCfg.EndpointGroupID, err = mastercfg.GetEndpointGroupID(stateDriver, epCfg.ServiceName, nwCfg.Tenant)
 		if err != nil {
-			log.Errorf("Error getting endpoint group ID for %s.%s. Err: %v", ep.ServiceName, nwCfg.ID, err)
+			log.Errorf("Error getting endpoint group ID for %s.%s. Err: %v", epCfg.ServiceName, nwCfg.ID, err)
 			return nil, err
 		}
 

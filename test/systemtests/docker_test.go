@@ -93,6 +93,7 @@ func (d *docker) runContainer(spec containerSpec) (*container, error) {
 	logrus.Infof("Starting a container running %q on %s", spec.commandName, d.node.Name())
 
 	cmd := fmt.Sprintf("docker run -itd %s %s %s %s %s %s", namestr, netstr, dnsStr, labelstr, spec.imageName, spec.commandName)
+
 	out, err := d.node.tbnode.RunCommandWithOutput(cmd)
 	if err != nil {
 		logrus.Infof("cmd %q failed: output below", cmd)
