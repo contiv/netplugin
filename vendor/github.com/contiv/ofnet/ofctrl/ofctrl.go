@@ -19,6 +19,7 @@ package ofctrl
 import (
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shaleman/libOpenflow/common"
@@ -55,6 +56,7 @@ type AppInterface interface {
 type Controller struct {
 	app      AppInterface
 	listener *net.TCPListener
+	wg       sync.WaitGroup
 }
 
 // Create a new controller
@@ -90,6 +92,8 @@ func (c *Controller) Listen(port string) {
 			}
 			log.Fatal(err)
 		}
+
+		c.wg.Add(1)
 		go c.handleConnection(conn)
 	}
 
@@ -97,12 +101,15 @@ func (c *Controller) Listen(port string) {
 
 // Cleanup the controller
 func (c *Controller) Delete() {
-	c.app = nil
 	c.listener.Close()
+	c.wg.Wait()
+	c.app = nil
 }
 
 // Handle TCP connection from the switch
 func (c *Controller) handleConnection(conn net.Conn) {
+	defer c.wg.Done()
+
 	stream := util.NewMessageStream(conn, c)
 
 	log.Println("New connection..")
