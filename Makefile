@@ -96,10 +96,7 @@ install-shell-completion:
 	sudo cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
 endif
 
-build:
-	make start
-	make ssh-build
-	make stop
+build: start ssh-build stop
 
 clean: deps
 	rm -rf $(GOPATH)/pkg/*/github.com/contiv/netplugin/
@@ -132,18 +129,20 @@ k8s-destroy:
 k8s-sanity-cluster:
 	cd vagrant/k8s/ && ./setup_cluster.sh
 k8s-test:
-	CONTIV_K8=1 make k8s-sanity-cluster
-	#make ssh-build
-	cd vagrant/k8s/ && CONTIV_K8=1 vagrant ssh k8master -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	CONTIV_K8=1 cd vagrant/k8s/ && ./start_sanity_service.sh
+	export CONTIV_K8=1 && \
+	make k8s-sanity-cluster && \
+	cd vagrant/k8s/ && \
+	vagrant ssh k8master -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"' && \
+	./start_sanity_service.sh
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8'
 	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|TestBasic|TestNetwork|ACID|TestPolicy|TestTrigger"
 	cd vagrant/k8s && vagrant destroy -f
 # Mesos demo targets
 mesos-docker-demo:
-	cd vagrant/mesos-docker && vagrant up
-	cd vagrant/mesos-docker && vagrant ssh node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	cd vagrant/mesos-docker && vagrant ssh node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && ./scripts/python/startPlugin.py -nodes 192.168.33.10,192.168.33.11"'
+	cd vagrant/mesos-docker && \
+	vagrant up && \
+	vagrant ssh node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"' && \
+	vagrant ssh node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && ./scripts/python/startPlugin.py -nodes 192.168.33.10,192.168.33.11"'
 
 mesos-docker-destroy:
 	cd vagrant/mesos-docker && vagrant destroy -f
@@ -168,9 +167,8 @@ stop:
 	CONTIV_NODES=$${CONTIV_NODES:-3} vagrant destroy -f
 endif
 
-demo:
-	make ssh-build
-	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart && make host-swarm-restart"'
+demo: ssh-build
+	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart host-swarm-restart"'
 
 ssh:
 	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
@@ -186,8 +184,7 @@ endif
 unit-test: stop clean
 	./scripts/unittests -vagrant
 
-integ-test: stop clean start
-	make ssh-build
+integ-test: stop clean start ssh-build
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-integ-test"'
 
 ubuntu-tests:
@@ -198,9 +195,7 @@ system-test:start
 	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 
 l3-test:
-	CONTIV_L3=2 CONTIV_NODES=3 make stop
-	CONTIV_L3=2 CONTIV_NODES=3 make start
-	CONTIV_L3=2 CONTIV_NODES=3 make ssh-build
+	CONTIV_L3=2 CONTIV_NODES=3 make stop start ssh-build
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -contiv_l3 2
 	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
@@ -275,7 +270,7 @@ host-plugin-restart:
 # complete workflow to create rootfs, create/enable plugin and start swarm-mode
 demo-v2plugin:
 	CONTIV_V2PLUGIN_NAME="$${CONTIV_V2PLUGIN_NAME:-contiv/v2plugin:0.1}" CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-1.13.1}" CONTIV_DOCKER_SWARM="$${CONTIV_DOCKER_SWARM:-classic_mode}" make ssh-build
-	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-pluginfs-create && make host-plugin-restart && make host-swarm-restart"'
+	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-pluginfs-create host-plugin-restart host-swarm-restart"'
 
 only-tar:
 
