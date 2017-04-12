@@ -33,7 +33,14 @@ You'll find a few examples below:
 	$ USE_RELEASE=1 OLD_VERSION=none make release
 	# will release version 1.0 when no previous stable release exists
 
-Please keep in mind that the release notes can be updated further manually.
+Please keep in mind that the release notes can be updated on GitHub manually.
+
+BUILD_VERSION can be used to override the version specified in
+version/CURRENT_VERSION. This variable should be used to avoid changing
+the version for every single beta/rc release.
+
+BUILD_VERSION shouln't be used to override the version for actual
+releases (1.0, 1.0.1, 1.1.0 and so on).
 
 ## Build and upload container image (manual only)
 

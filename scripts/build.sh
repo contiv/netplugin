@@ -4,6 +4,7 @@ BUILD_TIME=$(date -u +%m-%d-%Y.%H-%M-%S.UTC)
 VERSION=$(cat version/CURRENT_VERSION | tr -d '\n')
 PKG_NAME=github.com/contiv/netplugin/version
 
+# BUILD_VERSION overrides the version from CURRENT_VERSION
 if [ -n "$BUILD_VERSION" ]; then
 	VERSION=$BUILD_VERSION
 fi
