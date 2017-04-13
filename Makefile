@@ -12,7 +12,7 @@ NAME := netplugin
 # We are using date based versioning, so for consistent version during a build
 # we evaluate and set the value of version once in a file and use it in 'tar'
 # and 'release' targets.
-VERSION_FILE := /tmp/$(NAME)-version
+VERSION_FILE := $(NAME)-version
 VERSION := `cat $(VERSION_FILE)`
 TAR_EXT := tar.bz2
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
@@ -280,6 +280,7 @@ tar: clean-tar
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
+	@rm -f ${VERSION_FILE}
 
 # GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
 release: tar

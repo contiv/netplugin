@@ -21,6 +21,7 @@ docker_swarm = ENV["CONTIV_DOCKER_SWARM"] || "classic_mode"
 gopath_folder="/opt/gopath"
 http_proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || ''
 https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
+build_version = ENV['BUILD_VERSION'] || ''
 
 cluster_ip_nodes = ""
 
@@ -40,6 +41,7 @@ echo "export CLUSTER_NODE_IPS=$2" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_CLUSTER_STORE=$6" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_V2PLUGIN_NAME=$9" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_DOCKER_SWARM=${10}" >> /etc/profile.d/envvar.sh
+echo "export BUILD_VERSION=${11}" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
 installed_go=$(go version | awk '{ print $3}')
@@ -52,11 +54,6 @@ else
     rm -rf /usr/local/go
 
     curl -sSL https://storage.googleapis.com/golang/go#{go_version}.linux-amd64.tar.gz  | sudo tar -xz -C /usr/local
-fi
-
-if [[ $# -gt 9 ]] && [[ $9 != "" ]]; then
-    shift; shift; shift; shift; shift; shift; shift; shift; shift
-    echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
 # Change ownership for gopath folder
@@ -345,7 +342,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                   ENV['CONTIV_NODE_OS'] || "",
                   ENV['CONTIV_V2PLUGIN_NAME'] || "contiv/v2netplugin:0.1",
                   ENV['CONTIV_DOCKER_SWARM'] || "classic_mode",
-                  *ENV['CONTIV_ENV'],
+                  build_version,
                 ]
             end
             node.vm.provision "shell", run: "always" do |s|
