@@ -36,6 +36,7 @@ all-CI: stop clean start
 		&& cd /opt/gopath/src/github.com/contiv/netplugin \
 		&& make host-unit-test host-integ-test host-build-docker-image"'
 	make system-test
+	make tar clean-tar
 
 test: build unit-test system-test ubuntu-tests
 
