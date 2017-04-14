@@ -64,7 +64,7 @@
           "Value": ":9999"
        },
        {
-          "Description": "Netmaster url for control packets",
+          "Description": "Netmaster url for control messages",
           "Name": "control_url",
           "Settable": [
              "value"

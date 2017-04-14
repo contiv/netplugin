@@ -8,11 +8,27 @@ In Classic Swarm or Legacy Docker Swarm, swarm binary/container running on each 
 Docker introduced swarm-mode in 1.12 where the docker engines form a cluster without using an external key-value store. Swarm-mode in Docker 1.12 only supported docker overlay network driver. In this mode the swarm is initialized using docker swarm commands. From Docker 1.13.1, remote network drivers implemented as v2plugins are also supported in swarm-mode. Contiv v2plugin support for docker swarm-mode is still in progress.
 
 ## v2plugin 
-Docker managed plugins (https://docs.docker.com/engine/extend/) are run as runc containers and are managed using docker plugin commands. Docker engine running in swarm-mode (https://docs.docker.com/engine/swarm/) requires the remote drivers to implement v2plugin architecture.
+Docker managed [plugins](https://docs.docker.com/engine/extend/) are run as runc containers and are managed using docker plugin commands. Docker engine running in [swarm-mode](https://docs.docker.com/engine/swarm/) requires the remote drivers to implement v2plugin architecture.
 
 ## Contiv plugin install
+Contiv plugin config options should be specified if it is different from default:
+docker plugin install contiv/v2plugin:0.1 ARG1=VALUE1 ARG2=VALUE2 ...
+```
+ARG           : DESCRIPTION                                   : DEFAULT VALUE
+--------------:-----------------------------------------------:----------------------
+iflist        : VLAN uplink interface used by OVS             : ""
+cluster_store : Etcd or Consul cluster store url              : etcd://localhost:2379
+ctrl_ip       : Local IP address to be used by netplugin      : none
+                for control communication
+vtep_ip       : Local VTEP IP address to be used by netplugin : none
+plugin_role   : In 'master' role, plugin runs netmaster       : master
+                and netplugin
+listen_url    : Netmaster url to listen http requests on      : ":9999"
+control_url   : Netmaster url for control messages            : ":9999"
+dbg_flag      : To enable debug mode, set to '-debug'         : ""
+```
 ### docker store
-Docker certified contiv plugin is avaliable on Docker Store (https://store.docker.com/plugins/803eecee-0780-401a-a454-e9523ccf86b3?tab=description).
+Docker certified contiv plugin is avaliable on [Docker Store](https://store.docker.com/plugins/803eecee-0780-401a-a454-e9523ccf86b3?tab=description).
 ```
 docker plugin install store/contiv/v2plugin:1.0.0-beta.3 iflist=eth1,eth2
 ```
@@ -22,7 +38,7 @@ Contiv plugin released from contiv repo is also pushed to docker hub. iflist has
 docker plugin install contiv/v2plugin:1.0.0-beta.3 iflist=eth1,eth2
 ```
 ### vagrant dev/demo setup
-To create a plugin from repo (https://github.com/contiv/netplugin), enable v2plugin and run docker in swarm-mode, use the Makefile target demo-v2plugin
+To create a plugin from [contiv repo](https://github.com/contiv/netplugin), enable v2plugin and run docker in swarm-mode, use the Makefile target demo-v2plugin
 ```
 make demo-v2plugin
 ```
@@ -34,7 +50,7 @@ docker plugin install contiv/v2plugin:1.0.0-beta.3 iflist=eth1,eth2 plugin_role=
 ```
 
 ## Contiv plugin workflow
-  1. Etcd and OVS runs on the host. Check if they are installed
+  1. Etcd cluster should be brought up on the hosts on localhost:2379. If a different port (or Consul) is used, cluster-store option needs to be specified in the plugin install command.
 
   2. Install contiv v2plugin
   ```
