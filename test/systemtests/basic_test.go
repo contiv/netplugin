@@ -269,10 +269,10 @@ func (s *systemtestSuite) TestBasicNetmasterPortListen(c *C) {
 		c.Assert(masterNode.stopNetmaster(), IsNil)
 		time.Sleep(5 * time.Second)
 
-		// Case: --listen-url :XXXX --control-url=:YYYY
+		// Case: --listen-url :XXXX --control-url=A.B.C.D:YYYY
 		// Requests to port other than masterListenPort should not be honored
 		// masterCtrlPort is accessible only within the cluster for control pkts
-		logrus.Infof("Checking case: --listen-url :XXXX --control-url=:YYYY")
+		logrus.Infof("Checking case: --listen-url :XXXX --control-url=A.B.C.D:YYYY")
 		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s --control-url=%s:%s", masterListenPort, masterIP, masterCtrlPort)), IsNil)
 		time.Sleep(40 * time.Second)
 		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
