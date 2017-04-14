@@ -103,14 +103,14 @@ class Node:
     def startNetmaster(self):
         ssh_object = self.sshConnect(self.username, self.password)
         listenUrlArg = ""
-        listenPort = os.environ["CONTIV_NETMASTER_LISTEN_PORT"]
-        if not listenPort:
-            listenUrlArg = " --listen-url " + os.environ["CONTIV_NETMASTER_LISTEN_IP"] + ":" + listenPort
+        listenPort = os.environ.get("CONTIV_NETMASTER_LISTEN_PORT","")
+        if listenPort:
+            listenUrlArg = " --listen-url " + os.environ.get("CONTIV_NETMASTER_LISTEN_IP","") + ":" + listenPort
         ctrlUrlArg = ""
-        ctrlPort = os.environ["CONTIV_NETMASTER_CONTROL_PORT"]
-        if not ctrlPort:
-            ctrlUrlArg = " --control-url " + os.environ["CONTIV_NETMASTER_CONTROL_IP"] + ":" + ctrlPort
-        command = "GOPATH=/opt/gopath " + self.binpath + "/netmaster " + listenUrlArg + ctrlUrlArg + " -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " > /tmp/netmaster.log 2>&1"
+        ctrlPort = os.environ.get("CONTIV_NETMASTER_CONTROL_PORT","")
+        if ctrlPort:
+            ctrlUrlArg = " --control-url " + os.environ.get("CONTIV_NETMASTER_CONTROL_IP","") + ":" + ctrlPort
+        command = "GOPATH=/opt/gopath " + self.binpath + "/netmaster " + listenUrlArg + ctrlUrlArg + " -cluster-store " + os.environ.get("CONTIV_CLUSTER_STORE","etcd://localhost:2379") + " > /tmp/netmaster.log 2>&1"
         self.nmThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.nmThread.start()
@@ -142,14 +142,13 @@ class Node:
 
     # Remove all containers on this node
     def cleanupContainers(self):
-        self.runCmd("docker ps -a | grep -v swarm | awk '{print $1}' | xargs -r docker rm -fv ")
+        self.runCmd("docker ps -a | grep -v 'swarm\|CONTAINER ID' | awk '{print $1}' | xargs -r docker rm -fv ")
 
     # Cleanup all state created by netplugin
     def cleanupSlave(self):
         self.runCmd("docker ps -a | grep alpine | awk '{print $1}' | xargs -r docker rm -fv ")
-        self.runCmd("sudo ovs-vsctl del-br contivVxlanBridge")
-        self.runCmd("sudo ovs-vsctl del-br contivVlanBridge")
-        self.runCmd("ifconfig | grep -e vport | awk '{print $1}' | xargs -r -n1 -I{} sudo ip link delete {} type veth")
+        self.runCmd("sudo ovs-vsctl list-br | grep contiv | xargs -I % ovs-vsctl del-br % >/dev/null 2>&1")
+        self.runCmd("/sbin/ifconfig | grep -e vport | awk '{print $1}' | xargs -r -n1 -I{} sudo ip link delete {} type veth")
         self.runCmd("sudo rm -f /var/run/docker/plugins/netplugin.sock")
         self.runCmd("sudo rm -f /tmp/net*")
 
