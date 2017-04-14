@@ -29,24 +29,26 @@ use_release = ENV['USE_RELEASE'] || ''
 node_os = ENV['CONTIV_NODE_OS'] || 'centos'
 base_ip = ENV['CONTIV_IP_PREFIX'] || '192.168.2.'
 num_nodes = ENV['CONTIV_NODES'].to_i == 0 ? 3 : ENV['CONTIV_NODES'].to_i
+legacy_docker = docker_version >= "17.03" ? 0 : 1
 
 provision_common_once = <<SCRIPT
 ## setup the environment file. Export the env-vars passed as args to 'vagrant up'
 echo Args passed: [[ $@ ]]
-
-echo 'export GOPATH=#{gopath_folder}' > /etc/profile.d/envvar.sh
-echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
-echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
-echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
-echo "export http_proxy='#{http_proxy}'" >> /etc/profile.d/envvar.sh
-echo "export https_proxy='#{https_proxy}'" >> /etc/profile.d/envvar.sh
-echo "export USE_RELEASE=#{use_release}" >> /etc/profile.d/envvar.sh
-echo "export no_proxy=%{cluster_ip_nodes},127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
-echo "export CLUSTER_NODE_IPS=%{cluster_ip_nodes}" >> /etc/profile.d/envvar.sh
-echo "export CONTIV_CLUSTER_STORE=#{cluster_store}" >> /etc/profile.d/envvar.sh
-echo "export CONTIV_V2PLUGIN_NAME=#{v2plugin_name}" >> /etc/profile.d/envvar.sh
-echo "export CONTIV_DOCKER_SWARM=#{docker_swarm}" >> /etc/profile.d/envvar.sh
-echo "export BUILD_VERSION=#{build_version}" >> /etc/profile.d/envvar.sh
+cat >>/etc/profile.d/envvar.sh <<EOF
+export GOPATH=#{gopath_folder}
+export GOBIN=\\\$GOPATH/bin
+export GOSRC=\\\$GOPATH/src
+export PATH=\\\$PATH:/usr/local/go/bin:\\\$GOBIN
+export http_proxy='#{http_proxy}'
+export https_proxy='#{https_proxy}'
+export USE_RELEASE=#{use_release}
+export no_proxy=%{cluster_ip_nodes},127.0.0.1,localhost,netmaster
+export CLUSTER_NODE_IPS=%{cluster_ip_nodes}
+export CONTIV_CLUSTER_STORE=#{cluster_store}
+export CONTIV_V2PLUGIN_NAME=#{v2plugin_name}
+export CONTIV_DOCKER_SWARM=#{docker_swarm}
+export BUILD_VERSION=#{build_version}
+EOF
 source /etc/profile.d/envvar.sh
 
 installed_go=$(go version | awk '{ print $3}')
@@ -87,7 +89,7 @@ rm -rf /var/lib/docker
 if [[ "#{node_os}" == "ubuntu" ]] && [[ "$reinstall" -eq 1 ]]; then
     sudo apt-get purge docker-engine -y || :
     curl https://get.docker.com | sed s/docker-engine/docker-engine=#{docker_version}-0~xenial/g | bash
-elif [[ "$reinstall" -eq 1 ]]; then
+elif [[ "$reinstall" -eq 1 ]] && [[ "#{legacy_docker}" -eq 1 ]]; then
     # cleanup openstack-kilo repo if required
     yum remove docker-engine -y || :
     yum-config-manager --disable openstack-kilo
@@ -98,6 +100,14 @@ elif [[ "$reinstall" -eq 1 ]]; then
         echo "Getting released docker version #{docker_version} "
         curl https://get.docker.com | sed s/docker-engine/docker-engine-#{docker_version}/ | bash
     fi
+elif [[ "$reinstall" -eq 1 ]]; then
+    yum remove docker-engine -y || :
+    yum remove docker-ce || :
+    yum-config-manager --disable openstack-kilo
+    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    yum-config-manager --enable docker-ce-stable
+    yum makecache fast
+    yum install -y docker-ce-#{docker_version}
 fi
 
 # setup docker cluster store
