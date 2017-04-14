@@ -84,6 +84,8 @@ func listPolicies(ctx *cli.Context) {
 	}
 
 	tenant := ctx.String("tenant")
+	_, err := getClient(ctx).TenantGet(tenant)
+	errCheck(ctx, err)
 
 	policies, err := getClient(ctx).PolicyList()
 	errCheck(ctx, err)
@@ -192,6 +194,8 @@ func listRules(ctx *cli.Context) {
 	}
 
 	tenant := ctx.String("tenant")
+	_, err := getClient(ctx).TenantGet(tenant)
+	errCheck(ctx, err)
 	policy := ctx.Args()[0]
 
 	rules, err := getClient(ctx).RuleList()
@@ -321,6 +325,8 @@ func listNetProfiles(ctx *cli.Context) {
 	}
 
 	tenant := ctx.String("tenant")
+	_, err := getClient(ctx).TenantGet(tenant)
+	errCheck(ctx, err)
 
 	profileList, err := getClient(ctx).NetprofileList()
 	errCheck(ctx, err)
@@ -490,6 +496,8 @@ func listNetworks(ctx *cli.Context) {
 	}
 
 	tenant := ctx.String("tenant")
+	_, err := getClient(ctx).TenantGet(tenant)
+	errCheck(ctx, err)
 
 	netList, err := getClient(ctx).NetworkList()
 	errCheck(ctx, err)
@@ -692,6 +700,8 @@ func listEndpointGroups(ctx *cli.Context) {
 	}
 
 	tenant := ctx.String("tenant")
+	_, err := getClient(ctx).TenantGet(tenant)
+	errCheck(ctx, err)
 
 	epgList, err := getClient(ctx).EndpointGroupList()
 	errCheck(ctx, err)
@@ -1076,6 +1086,8 @@ func listAppProfiles(ctx *cli.Context) {
 	}
 
 	tenant := ctx.String("tenant")
+	_, err := getClient(ctx).TenantGet(tenant)
+	errCheck(ctx, err)
 
 	profList, err := getClient(ctx).AppProfileList()
 	errCheck(ctx, err)
@@ -1200,6 +1212,9 @@ func listServiceLB(ctx *cli.Context) {
 	if len(tenantName) == 0 {
 		tenantName = "default"
 	}
+	_, err := getClient(ctx).TenantGet(tenantName)
+	errCheck(ctx, err)
+
 	svcList, err := getClient(ctx).ServiceLBList()
 	errCheck(ctx, err)
 
@@ -1246,10 +1261,12 @@ func listExternalContracts(ctx *cli.Context) {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
 
-	extContractsGroupsList, err := getClient(ctx).ExtContractsGroupList()
+	tenant := ctx.String("tenant")
+	_, err := getClient(ctx).TenantGet(tenant)
 	errCheck(ctx, err)
 
-	tenant := ctx.String("tenant")
+	extContractsGroupsList, err := getClient(ctx).ExtContractsGroupList()
+	errCheck(ctx, err)
 
 	var filtered []*contivClient.ExtContractsGroup
 
