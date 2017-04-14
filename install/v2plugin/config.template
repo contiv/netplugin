@@ -13,7 +13,7 @@
           "Settable": [
              "value"
           ],
-          "Value": "-debug"
+          "Value": ""
        },
        {
           "Description": "VLAN uplink interface used by OVS",
@@ -58,6 +58,14 @@
        {
           "Description": "Netmaster url to listen http requests on",
           "Name": "listen_url",
+          "Settable": [
+             "value"
+          ],
+          "Value": ":9999"
+       },
+       {
+          "Description": "Netmaster url for control messages",
+          "Name": "control_url",
           "Settable": [
              "value"
           ],

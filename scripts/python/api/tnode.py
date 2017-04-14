@@ -67,26 +67,18 @@ class Node:
             print "Ignoring EOF errors executing command"
             return [], [], 0
 
-    # Install v2plugin on vagrant node
-    def installV2Plugin(self, args=""):
-        ssh_object = self.sshConnect(self.username, self.password)
-        command = "docker plugin install " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") + " --grant-all-permissions iflist=eth2,eth3 " + " plugin-name=" + os.environ["CONTIV_V2PLUGIN_NAME"] + args + " > /tmp/netplugin.log 2>&1"
-        self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
-        # npThread.setDaemon(True)
-        self.npThread.start()
-
     # Create v2plugin on vagrant node
     def createV2Plugin(self, args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "docker plugin create " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") + " /opt/gopath/src/github.com/contiv/netplugin/install/v2plugin/ " + args + ">> /tmp/netplugin.log 2>&1"
+        command = "docker plugin create " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + " /opt/gopath/src/github.com/contiv/netplugin/install/v2plugin/ " + args + ">> /tmp/netplugin.log 2>&1"
         self.runCmd(command)
 
     # Enable v2plugin on vagrant node
     def enableV2Plugin(self, args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "docker plugin set " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") + " iflist=eth2,eth3 plugin_name=" + os.environ["CONTIV_V2PLUGIN_NAME"] + args + " >> /tmp/netplugin.log 2>&1"
+        command = "docker plugin set " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + " ctrl_ip="+ self.addr + " control_url=" + self.addr + ":9999 iflist=eth2,eth3 plugin_name=" + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + args + " >> /tmp/netplugin.log 2>&1"
         self.runCmd(command)
-        command = "docker plugin enable " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") +  args + " >> /tmp/netplugin.log 2>&1"
+        command = "docker plugin enable " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") +  args + " >> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()
@@ -123,7 +115,7 @@ class Node:
     
     # Stop v2plugin by force rm 
     def stopV2Plugin(self, args=""):
-        command = "docker plugin rm -f " + os.environ.get("CONTIV_V2PLUGIN_NAME", "") + "> /tmp/netplugin.log 2>&1"
+        command = "docker plugin rm -f " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + "> /tmp/netplugin.log 2>&1"
         self.runCmd(command)
 
     # Stop netplugin by killing it
