@@ -16,6 +16,7 @@ package objApi
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"reflect"
@@ -56,6 +57,52 @@ func initStateDriver() (core.StateDriver, error) {
 	instInfo := core.InstanceInfo{DbURL: "etcd://127.0.0.1:2379"}
 
 	return utils.NewStateDriver(utils.EtcdNameStr, &instInfo)
+}
+
+type restAPIFunc func(r *http.Request) (interface{}, error)
+
+func httpWrapper(handlerFunc restAPIFunc) http.HandlerFunc {
+	// Create a closure and return an anonymous function
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Call the handler
+		resp, err := handlerFunc(r)
+		if err != nil {
+			// Log error
+			log.Fatalf("Handler for %s %s returned error: %s", r.Method, r.URL, err)
+		} else {
+			// Send HTTP response as Json
+			content, err := json.Marshal(resp)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write(content)
+		}
+	}
+}
+
+func bgpInspector(r *http.Request) (interface{}, error) {
+	return nil, nil
+}
+
+// setupBgpInspectServer
+func setupBgpInspectServer() (net.Listener, error) {
+	r := mux.NewRouter()
+	r.HandleFunc("/inspect/bgp", httpWrapper(bgpInspector))
+	listener, err := net.Listen("tcp", "127.0.0.1:9090")
+	if err != nil {
+		log.Fatalf("Error creating listener: %v", err)
+		return nil, err
+	}
+	srv := &http.Server{
+		Handler:      r,
+		WriteTimeout: 20 * time.Second,
+		ReadTimeout:  20 * time.Second,
+	}
+
+	go srv.Serve(listener)
+
+	return listener, nil
 }
 
 // setup the test netmaster REST server and client
@@ -100,6 +147,9 @@ func TestMain(m *testing.M) {
 
 	// Create HTTP server
 	go http.ListenAndServe(netmasterTestListenURL, router)
+	// Create bgp inspect server
+	l, _ := setupBgpInspectServer()
+	defer l.Close()
 	time.Sleep(time.Second)
 
 	// create a new contiv client
@@ -1949,6 +1999,35 @@ func TestServicePreferredIP(t *testing.T) {
 	verifyServiceCreate(t, "default", "yellow", "redis", port, labels, "10.1.1.3")
 	checkServiceDelete(t, "default", "redis")
 	deleteNetwork(t, "yellow", "default")
+}
+
+func TestBgp(t *testing.T) {
+
+	bgpCfg := &client.Bgp{
+		As:         "65001",
+		Hostname:   "hostA",
+		Neighbor:   "16.1.2.3",
+		NeighborAs: "65002",
+		Routerip:   "65.1.1.1/24",
+	}
+
+	err := contivClient.BgpPost(bgpCfg)
+	if err != nil {
+		t.Fatalf("Error creating bgp object. Err: %v", err)
+	}
+	gotBgp, err := contivClient.BgpGet("hostA")
+	if err != nil {
+		t.Fatalf("Error getting bgp object. Err: %v", err)
+	}
+
+	if gotBgp.As != "65001" || gotBgp.Hostname != "hostA" || gotBgp.Neighbor != "16.1.2.3" || gotBgp.NeighborAs != "65002" || gotBgp.Routerip != "65.1.1.1/24" {
+		t.Fatalf("Error bgp object exp %+v, got %+v", bgpCfg, gotBgp)
+	}
+
+	_, err = contivClient.BgpInspect("hostA")
+	if err != nil {
+		t.Fatalf("Error inspecting bgp object. Err: %v", err)
+	}
 }
 
 func checkServiceCreate(t *testing.T, tenant, network, serviceName string, port []string, label []string,

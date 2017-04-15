@@ -87,7 +87,7 @@ func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 
 			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName, encap)
 		}
-
+		time.Sleep(6*time.Second)
 		for tenant, networks := range tenantNames {
 			endChan := make(chan error)
 			for _, network := range networks {

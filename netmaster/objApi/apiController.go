@@ -1952,7 +1952,7 @@ func (ac *APIController) BgpUpdate(oldbgpCfg *contivModel.Bgp, NewbgpCfg *contiv
 
 //BgpGetOper inspects the oper state of bgp object
 func (ac *APIController) BgpGetOper(bgp *contivModel.BgpInspect) error {
-	var obj *BgpInspect
+	var obj BgpInspect
 	var host string
 
 	srvList, err := ac.objdbClient.GetService("netplugin")
