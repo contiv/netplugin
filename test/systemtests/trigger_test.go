@@ -401,6 +401,7 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 			c.Assert(node.bringDownIf("eth1"), IsNil)
 			time.Sleep(25 * time.Second) // wait till sessions/locks timeout
 			c.Assert(node.bringUpIf("eth1", nodeIP), IsNil)
+			time.Sleep(5 * time.Second) // wait till sessions/locks timeout
 
 			c.Assert(s.verifyVTEPs(), IsNil)
 
