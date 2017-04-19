@@ -172,11 +172,11 @@ func (cniApp *cniAppInfo) sendCniErrorResp(errorMsg string) int {
 	} else {
 		cniLog.Errorf("failed to convert CNI error response to JSON, %s ", err)
 		// send minimal response to stdout
-		fmt.Printf("{ \n")
+		fmt.Print("{ \n")
 		fmt.Printf("\"cniVersion\": \"%s\" \n", cniResp.CniVersion)
 		fmt.Printf("\"code\": \"%d\" \n", cniResp.ErrCode)
 		fmt.Printf("\"msg\": \"%s %s\" \n", "contiv", cniResp.ErrMsg)
-		fmt.Printf("} \n")
+		fmt.Print("} \n")
 	}
 	return int(cniResp.ErrCode)
 }

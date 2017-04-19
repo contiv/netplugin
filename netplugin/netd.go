@@ -166,7 +166,7 @@ func main() {
 	}
 
 	if opts.version {
-		fmt.Printf(version.String())
+		fmt.Print(version.String())
 		os.Exit(0)
 	}
 
