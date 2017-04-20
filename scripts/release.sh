@@ -1,4 +1,20 @@
 #!/bin/bash
+
+if [ -n "$VERSION" ]; then
+	echo "VERSION needs to be defined to make a release"
+	exit 1
+fi
+
+if [ -n "$TAR_FILENAME" ]; then
+	echo "TAR_FILENAME needs to be defined to make a release"
+	exit 1
+fi
+
+if [ ! -f "$TAR_FILE" ]; then
+	echo "TAR_FILE ($TAR_FILE) doesn't exist"
+	exit 1
+fi
+
 if [ -n "$USE_RELEASE" ]; then
 	if [ -z "$OLD_VERSION" ]; then
 		echo "A release requires OLD_VERSION to be defined"
@@ -12,6 +28,7 @@ else
 	latest_tag=$(git tag | egrep -v "^v" | grep UTC | sort -V | tail -1)
 
 	comparison="$latest_tag..HEAD"
+	echo "Making a pre-release..."
 	pre_release="-p"
 fi
 
