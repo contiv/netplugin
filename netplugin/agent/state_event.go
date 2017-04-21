@@ -35,7 +35,7 @@ const (
 	contivVxGWName = "contivh1"
 )
 
-func skipHost(vtepIP, homingHost, myHostLabel string) bool {
+func checkRemoteHost(vtepIP, homingHost, myHostLabel string) bool {
 	return (vtepIP == "" && homingHost != myHostLabel ||
 		vtepIP != "" && homingHost == myHostLabel)
 }
@@ -207,9 +207,9 @@ func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkSta
 		}
 	}
 	if err != nil {
-		log.Errorf("Network operation %s failed. Error: %s", operStr, err)
+		log.Errorf("Network %s operation %s failed. Error: %s", nwCfg.ID, operStr, err)
 	} else {
-		log.Infof("Network operation %s succeeded", operStr)
+		log.Infof("Network %s operation %s succeeded", nwCfg.ID, operStr)
 	}
 
 	return
@@ -231,15 +231,17 @@ func processEpState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, epID st
 		log.Errorf("Failed to read config for ep '%s' \n", epID)
 		return err
 	}
-	// if the endpoint is not for this host, ignore it
-	if skipHost(epCfg.VtepIP, epCfg.HomingHost, opts.HostLabel) {
-		log.Infof("skipping mismatching host for ep %s. EP's host %s (my host: %s)",
-			epID, epCfg.HomingHost, opts.HostLabel)
-		return nil
+	eptype := "local"
+	if checkRemoteHost(epCfg.VtepIP, epCfg.HomingHost, opts.HostLabel) {
+		eptype = "remote"
 	}
 
 	// Create the endpoint
-	err = netPlugin.CreateEndpoint(epID)
+	if eptype == "local" {
+		err = netPlugin.CreateEndpoint(epID)
+	} else {
+		err = netPlugin.CreateRemoteEndpoint(epID)
+	}
 	if err != nil {
 		log.Errorf("Endpoint operation create failed. Error: %s", err)
 		return err
@@ -248,6 +250,38 @@ func processEpState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, epID st
 	log.Infof("Endpoint operation create succeeded")
 
 	return err
+}
+
+// processRemoteEpState updates endpoint state
+func processRemoteEpState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, epCfg *mastercfg.CfgEndpointState, isDelete bool) error {
+	// take a lock to ensure we are programming one event at a time.
+	netPlugin.Lock()
+	defer netPlugin.Unlock()
+
+	if !checkRemoteHost(epCfg.VtepIP, epCfg.HomingHost, opts.HostLabel) {
+		// Skip local endpoint update, as they are handled directly in dockplugin
+		return nil
+	}
+
+	if isDelete {
+		// Delete remote endpoint
+		err := netPlugin.DeleteRemoteEndpoint(epCfg.ID)
+		if err != nil {
+			log.Errorf("Endpoint %s delete operation failed. Error: %s", epCfg.ID, err)
+			return err
+		}
+		log.Infof("Endpoint %s delete operation succeeded", epCfg.ID)
+	} else {
+		// Create remote endpoint
+		err := netPlugin.CreateRemoteEndpoint(epCfg.ID)
+		if err != nil {
+			log.Errorf("Endpoint %s create operation failed. Error: %s", epCfg.ID, err)
+			return err
+		}
+		log.Infof("Endpoint %s create operation succeeded", epCfg.ID)
+	}
+
+	return nil
 }
 
 //processBgpEvent processes Bgp neighbor add/delete events
@@ -446,6 +480,41 @@ func processSvcProviderUpdEvent(netPlugin *plugin.NetPlugin, svcProvider *master
 	return nil
 }
 
+// processPolicyRuleState updates policy rule state
+func processPolicyRuleState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ruleID string, isDelete bool) error {
+	netPlugin.Lock()
+	defer netPlugin.Unlock()
+
+	// read policy config
+	ruleCfg := &mastercfg.CfgPolicyRule{}
+	ruleCfg.StateDriver = netPlugin.StateDriver
+
+	err := ruleCfg.Read(ruleID)
+	if err != nil {
+		log.Errorf("Failed to read config for policy rule '%s' \n", ruleID)
+		return err
+	}
+	if isDelete {
+		// Delete endpoint
+		err = netPlugin.DelPolicyRule(ruleID)
+		if err != nil {
+			log.Errorf("PolicyRule %s delete operation failed. Error: %s", ruleID, err)
+			return err
+		}
+		log.Infof("PolicyRule %s delete operation succeeded", ruleID)
+	} else {
+		// Create endpoint
+		err = netPlugin.AddPolicyRule(ruleID)
+		if err != nil {
+			log.Errorf("PolicyRule %s create operation failed. Error: %s", ruleID, err)
+			return err
+		}
+		log.Infof("PolicyRule %s create operation succeeded", ruleID)
+	}
+
+	return err
+}
+
 func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps chan core.WatchState) {
 	for {
 		// block on change notifications
@@ -507,6 +576,10 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 				processNetEvent(netPlugin, nwCfg, isDelete, opts)
 			}
 		}
+		if epCfg, ok := currentState.(*mastercfg.CfgEndpointState); ok {
+			log.Infof("Received %q for Endpoint: %q", eventStr, epCfg.ID)
+			processRemoteEpState(netPlugin, opts, epCfg, isDelete)
+		}
 		if bgpCfg, ok := currentState.(*mastercfg.CfgBgpState); ok {
 			log.Infof("Received %q for Bgp: %q", eventStr, bgpCfg.Hostname)
 			processBgpEvent(netPlugin, opts, bgpCfg.Hostname, isDelete)
@@ -525,6 +598,10 @@ func processStateEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, rsps
 			log.Infof("Received %q for Service %s on tenant %s", eventStr,
 				svcProvider.ServiceName, svcProvider.Providers)
 			processSvcProviderUpdEvent(netPlugin, svcProvider, isDelete)
+		}
+		if ruleCfg, ok := currentState.(*mastercfg.CfgPolicyRule); ok {
+			log.Infof("Received %q for PolicyRule: %q", eventStr, ruleCfg.RuleId)
+			processPolicyRuleState(netPlugin, opts, ruleCfg.RuleId, isDelete)
 		}
 	}
 }
@@ -546,6 +623,15 @@ func handleBgpEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvEr
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
 	log.Errorf("Error from handleBgpEvents")
+}
+
+func handleEndpointEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, retErr chan error) {
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, opts, rsps)
+	cfg := mastercfg.CfgEndpointState{}
+	cfg.StateDriver = netPlugin.StateDriver
+	retErr <- cfg.WatchAll(rsps)
+	log.Errorf("Error from handleEndpointEvents")
 }
 
 func handleEpgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, recvErr chan error) {
@@ -585,4 +671,13 @@ func handleGlobalCfgEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, 
 	cfg.StateDriver = netPlugin.StateDriver
 	recvErr <- cfg.WatchAll(rsps)
 	log.Errorf("Error from handleGlobalCfgEvents")
+}
+
+func handlePolicyRuleEvents(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, retErr chan error) {
+	rsps := make(chan core.WatchState)
+	go processStateEvent(netPlugin, opts, rsps)
+	cfg := mastercfg.CfgPolicyRule{}
+	cfg.StateDriver = netPlugin.StateDriver
+	retErr <- cfg.WatchAll(rsps)
+	log.Errorf("Error from handlePolicyRuleEvents")
 }

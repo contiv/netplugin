@@ -111,6 +111,16 @@ func (d *KubeTestNetDrv) DeleteEndpoint(id string) (err error) {
 	return nil
 }
 
+// CreateRemoteEndpoint is not implemented.
+func (d *KubeTestNetDrv) CreateRemoteEndpoint(id string) error {
+	return core.Errorf("Not implemented")
+}
+
+// DeleteRemoteEndpoint is not implemented.
+func (d *KubeTestNetDrv) DeleteRemoteEndpoint(id string) (err error) {
+	return core.Errorf("Not implemented")
+}
+
 // AddPeerHost is not implemented.
 func (d *KubeTestNetDrv) AddPeerHost(node core.ServiceInfo) error {
 	return nil
@@ -174,6 +184,16 @@ func (d *KubeTestNetDrv) GlobalConfigUpdate(inst core.InstanceInfo) error {
 // InspectNameserver returns nameserver state as json string
 func (d *KubeTestNetDrv) InspectNameserver() ([]byte, error) {
 	return []byte{}, core.Errorf("Not implemented")
+}
+
+// AddPolicyRule is not implemented
+func (d *KubeTestNetDrv) AddPolicyRule(id string) error {
+	return core.Errorf("Not implemented")
+}
+
+// DelPolicyRule is not implemented
+func (d *KubeTestNetDrv) DelPolicyRule(id string) error {
+	return core.Errorf("Not implemented")
 }
 
 // AddSvcSpec is implemented.
