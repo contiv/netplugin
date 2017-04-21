@@ -1,7 +1,7 @@
 # Docker v2plugin container with OVS / netplugin / netmaster
 
 FROM alpine:3.5
-MAINTAINER Cisco Contiv (https://contiv.github.io/)
+LABEL maintainer "Cisco Contiv (https://contiv.github.io)"
 
 RUN mkdir -p /run/docker/plugins /etc/openvswitch /var/run/contiv/log \
  && echo 'http://dl-cdn.alpinelinux.org/alpine/v3.4/main' >> /etc/apk/repositories \
