@@ -871,6 +871,6 @@ func TestK8sMultiTenantServiceLookup(t *testing.T) {
 	assertOnTrue(t, s == true, fmt.Sprintf("service exist, %+v", ns.inspectNameRecord()))
 }
 
-func Testmain(m *testing.M) {
+func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
