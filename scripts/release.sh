@@ -1,11 +1,13 @@
 #!/bin/bash
 
-if [ -n "$VERSION" ]; then
+set -euo pipefail
+
+if [ -z "${VERSION-}" ]; then
 	echo "VERSION needs to be defined to make a release"
 	exit 1
 fi
 
-if [ -n "$TAR_FILENAME" ]; then
+if [ -z "${TAR_FILENAME-}" ]; then
 	echo "TAR_FILENAME needs to be defined to make a release"
 	exit 1
 fi
