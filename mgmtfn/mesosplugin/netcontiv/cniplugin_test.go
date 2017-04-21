@@ -27,7 +27,7 @@ import (
 	"testing"
 )
 
-func Testmain(m *testing.M) {
+func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
