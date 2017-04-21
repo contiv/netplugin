@@ -24,6 +24,7 @@ GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
 GOLINT_CMD := golint -set_exit_status
 GOFMT_CMD := gofmt -s -l
 GOVET_CMD := go tool vet
+CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
 
 all: build unit-test system-test ubuntu-tests
 
@@ -34,8 +35,12 @@ all-CI: stop clean start
 	make ssh-build
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh \
 		&& cd /opt/gopath/src/github.com/contiv/netplugin \
-		&& make host-unit-test host-integ-test host-build-docker-image"'
+		&& make ${CI_HOST_TARGETS}"'
+ifdef SKIP_SYSTEM_TEST
+	echo "Skipping system tests"
+else
 	make system-test
+endif
 
 test: build unit-test system-test ubuntu-tests
 
