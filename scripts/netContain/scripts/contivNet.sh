@@ -93,15 +93,18 @@ fi
 mkdir -p /opt/contiv/
 mkdir -p /var/contiv/log/
 
-if [ $netplugin == true ] && [ "$plugin" == "kubernetes" ]; then
+if [ "$plugin" == "kubernetes" ]; then
+   mkdir -p /opt/contiv/config
+   mkdir -p /var/contiv/config
+   echo ${CONTIV_CONFIG} >/var/contiv/config/contiv.json
+   cp /var/contiv/config/contiv.json /opt/contiv/config/contiv.json
+
+   if [ $netplugin == true ]; then
 	mkdir -p /opt/cni/bin
 	cp /contiv/bin/contivk8s /opt/cni/bin/
-	mkdir -p /opt/contiv/config
-	mkdir -p /var/contiv/config
-	echo ${CONTIV_CONFIG} >/var/contiv/config/contiv.json
-	cp /var/contiv/config/contiv.json /opt/contiv/config/contiv.json
 	mkdir -p /etc/cni/net.d/
 	echo ${CONTIV_CNI_CONFIG} >/etc/cni/net.d/1-contiv.conf
+   fi
 fi
 
 if [ $netmaster == true ]; then
