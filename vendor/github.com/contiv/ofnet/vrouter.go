@@ -258,6 +258,11 @@ func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 	//Ip table look up will be vrf,ip
 	vrfid := self.agent.getvrfId(endpoint.Vrf)
+	if vrfid == nil {
+		log.Errorf("Invalid vrf name:%v", endpoint.Vrf)
+		return errors.New("Invalid vrf name")
+	}
+
 	vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
 
 	// Install the IP address
@@ -691,7 +696,7 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 		}
 
 		vrfid := self.agent.getvrfId(*vrf)
-		if *vrfid == 0 {
+		if vrfid == nil || *vrfid == 0 {
 			log.Errorf("Invalid vrf name:%v", *vrf)
 			self.agent.vlanVniMutex.RUnlock()
 			return errors.New("Invalid vrf name")
@@ -839,7 +844,6 @@ func (self *Vrouter) RemoveVlan(vlanId uint16, vni uint32, vrf string) error {
 
 // AddEndpoint Add an endpoint to the datapath
 func (self *Vrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
-
 	if endpoint.Vni == 0 {
 		return nil
 	}
@@ -862,7 +866,7 @@ func (self *Vrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	vrfid := self.agent.getvrfId(endpoint.Vrf)
-	if *vrfid == 0 {
+	if vrfid == nil || *vrfid == 0 {
 		log.Errorf("Invalid vrf name:%v", endpoint.Vrf)
 		return errors.New("Invalid vrf name")
 	}
