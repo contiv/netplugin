@@ -1,11 +1,19 @@
-#! /bin/bash
+#!/bin/bash
 
 GLOBAL_COMMANDS="\
-    group\
-    network\
-    tenant\
-    policy\
+    aci-gw\
+    app-profile\
+    bgp\
+    endpoint\
+    external-contracts\
     global\
+    group\
+    netprofile\
+    network\
+    policy\
+    service\
+    tenant\
+    version\
     help"
 
 GLOBAL_OPTIONS="\
@@ -13,17 +21,23 @@ GLOBAL_OPTIONS="\
     --help\
     --version"
 
-# Fetch all tenant names
-_netctl_complete_tenants() {
-    fields='$1'
-    COMPREPLY=( $(compgen -W '$(netctl tenant ls -q)' -- "$cur") )
+# Fetch all netprofile names in the tenant
+_netctl_complete_netprofiles() {
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    COMPREPLY=( $(compgen -W '$(netctl netprofile ls --tenant $tenant -q)' -- "$cur") )
 }
 
 # Fetch all network names in the tenant
 _netctl_complete_networks() {
-   local tenant
-   tenant=$(_netctl_fetch_tenant_value)
-   COMPREPLY=( $(compgen -W '$(netctl network ls --tenant $tenant -q)' -- "$cur") )
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    COMPREPLY=( $(compgen -W '$(netctl network ls --tenant $tenant -q)' -- "$cur") )
+}
+
+# Fetch all tenant names
+_netctl_complete_tenants() {
+    COMPREPLY=( $(compgen -W '$(netctl tenant ls -q)' -- "$cur") )
 }
 
 # Fetch all policy names in the tenant
@@ -40,6 +54,7 @@ _netctl_complete_groups() {
     COMPREPLY=( $(compgen -W '$(netctl group ls --tenant $tenant -q)' -- "$cur") )
 }
 
+# Fetch all rule names in the tenant and policy
 _netctl_complete_rules() {
     local tenant
     tenant=$(_netctl_fetch_tenant_value)
@@ -51,6 +66,31 @@ _netctl_complete_rules() {
     COMPREPLY=( $(compgen -W '$(netctl policy rule-ls $policy --tenant $tenant -q)' -- "$cur") )
 }
 
+# Fetch all external-contract names in the tenant
+_netctl_complete_external-contracts() {
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    COMPREPLY=( $(compgen -W '$(netctl external-contracts ls --tenant $tenant -q)' -- "$cur") )
+}
+
+# Fetch all bgp names
+_netctl_complete_bgps() {
+    COMPREPLY=( $(compgen -W '$(netctl bgp ls -q)' -- "$cur") )
+}
+
+# Fetch all app-profile names in the tenant
+_netctl_complete_app-profiles() {
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    COMPREPLY=( $(compgen -W '$(netctl app-profile ls --tenant $tenant -q)' -- "$cur") )
+}
+
+# Fetch all service names in the tenant
+_netctl_complete_services() {
+    local tenant
+    tenant=$(_netctl_fetch_tenant_value)
+    COMPREPLY=( $(compgen -W '$(netctl service ls --tenant $tenant -q)' -- "$cur") )
+}
 
 _netctl() {
     local cur prev firstword secondword complete_words complete_options
@@ -62,19 +102,58 @@ _netctl() {
 
     #echo -e "\nprev = $prev, cur = $cur, firstword = $firstword, secondword = $secondword \n"
     case "${firstword}" in
+        version)
+            case "${secondword}" in
+                *)
+                    COMPREPLY=( $( compgen -W "" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
         group)
             case "${secondword}" in
                 create)
                     _netctl_group_create
                     ;;
-                rm|delete)
-                    _netctl_group_rm
+                inspect)
+                    _netctl_group_inspect
                     ;;
                 ls|list)
                     _netctl_group_ls
                     ;;
+                rm|delete)
+                    _netctl_group_rm
+                    ;;
                 *)
-                    COMPREPLY=( $( compgen -W "create rm ls help" -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W "create inspect ls rm help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        endpoint|ep)
+            case "${secondword}" in
+                inspect)
+                    _netctl_endpoint_inspect
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "inspect help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        netprofile)
+            case "${secondword}" in
+                create)
+                    _netctl_netprofile_create
+                    ;;
+                inspect)
+                    _netctl_netprofile_inspect
+                    ;;
+                ls|list)
+                    _netctl_netprofile_ls
+                    ;;
+                rm|delete)
+                    _netctl_netprofile_rm
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create inspect ls rm help" -- "$cur" ) )
                     ;;
             esac
             ;;
@@ -83,14 +162,17 @@ _netctl() {
                 create)
                     _netctl_network_create
                     ;;
-                rm|delete)
-                    _netctl_network_rm
+                inspect)
+                    _netctl_network_inspect
                     ;;
                 ls|list)
                     _netctl_network_ls
                     ;;
+                rm|delete)
+                    _netctl_network_rm
+                    ;;
                 *)
-                    COMPREPLY=( $( compgen -W "create rm ls help" -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W "create inspect ls rm help" -- "$cur" ) )
                     ;;
             esac
             ;;
@@ -99,26 +181,17 @@ _netctl() {
                 create)
                     _netctl_tenant_create
                     ;;
+                inspect)
+                    _netctl_tenant_inspect
+                    ;;
+                ls|list)
+                    _netctl_tenant_ls
+                    ;;
                 rm|delete)
                     _netctl_tenant_rm
                     ;;
-                ls|list)
-                    ;;
                 *)
-                    COMPREPLY=( $( compgen -W "create rm ls help" -- "$cur" ) )
-                    ;;
-            esac
-            ;;
-        global)
-            case "${secondword}" in
-                set)
-                    _netctl_global_set
-                    ;;
-                info)
-                    _netctl_global_info
-                    ;;
-                *)
-                    COMPREPLY=( $( compgen -W "set info help" -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W "create inspect ls rm help" -- "$cur" ) )
                     ;;
             esac
             ;;
@@ -127,23 +200,141 @@ _netctl() {
                 create)
                     _netctl_policy_create
                     ;;
-                rm|delete)
-                    _netctl_policy_rm
+                inspect)
+                    _netctl_policy_inspect
                     ;;
                 ls|list)
                     _netctl_policy_ls
                     ;;
+                rm|delete)
+                    _netctl_policy_rm
+                    ;;
                 rule-add)
                     _netctl_rule_create
-                    ;;
-                rule-rm)
-                    _netctl_rule_rm
                     ;;
                 rule-ls)
                     _netctl_rule_ls
                     ;;
+                rule-rm)
+                    _netctl_rule_rm
+                    ;;
                 *)
-                    COMPREPLY=( $( compgen -W "create rm ls rule-add rule-rm rule-ls help" -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W "create inspect ls rm rule-add rule-ls rule-rm help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        external-contracts)
+            case "${secondword}" in
+                create)
+                    _netctl_external-contracts_create
+                    ;;
+                ls|list)
+                    _netctl_external-contracts_ls
+                    ;;
+                rm|delete)
+                    _netctl_external-contracts_rm
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create ls rm help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        global)
+            case "${secondword}" in
+                info)
+                    _netctl_global_info
+                    ;;
+                inspect)
+                    _netctl_global_inspect
+                    ;;
+                set)
+                    _netctl_global_set
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "info inspect set help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        aci-gw)
+            case "${secondword}" in
+                info)
+                    _netctl_aci-gw_info
+                    ;;
+                inspect)
+                    _netctl_aci-gw_inspect
+                    ;;
+                set)
+                    _netctl_aci-gw_set
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "info inspect set help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        bgp)
+            case "${secondword}" in
+                create)
+                    _netctl_bgp_create
+                    ;;
+                inspect)
+                    _netctl_bgp_inspect
+                    ;;
+                ls|list)
+                    _netctl_bgp_ls
+                    ;;
+                rm|delete)
+                    _netctl_bgp_rm
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create inspect ls rm help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        app-profile)
+            case "${secondword}" in
+                create)
+                    _netctl_app-profile_create
+                    ;;
+                ls|list)
+                    _netctl_app-profile_ls
+                    ;;
+                group-ls|group-list)
+                    _netctl_app-profile_group-ls
+                    ;;
+                rm|delete)
+                    _netctl_app-profile_rm
+                    ;;
+                update)
+                    _netctl_app-profile_update
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create ls group-ls rm update help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        service)
+            case "${secondword}" in
+                create)
+                    _netctl_service_create
+                    ;;
+                inspect)
+                    _netctl_service_inspect
+                    ;;
+                ls|list)
+                    _netctl_service_ls
+                    ;;
+                rm|delete)
+                    _netctl_service_rm
+                    ;;
+                *)
+                    COMPREPLY=( $( compgen -W "create inspect ls rm help" -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        help|h)
+            case "${secondword}" in
+                *)
+                    COMPREPLY=( $( compgen -W "aci-gw app-profile bgp endpoint external-contracts global group netprofile network policy service tenant version help" -- "$cur" ) )
                     ;;
             esac
             ;;
@@ -247,14 +438,58 @@ _netctl_get_arg() {
     done
 }
 
+_netctl_endpoint_inspect() {
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
 
-
-_netctl_network_create() {
+_netctl_netprofile_create() {
     case "$prev" in
-        --encap|-e)
-            COMPREPLY=( $( compgen -W "vlan vxlan" -- "$cur" ) )
+        --tenant|-t)
+            _netctl_complete_tenants
             return
             ;;
+        --bandwidth|-b)
+            return
+            ;;
+        --dscp|-d)
+            return
+            ;;
+        --burst|-s)
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_netprofile_rm() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_netprofiles
+            ;;
+    esac
+}
+
+_netctl_netprofile_ls() {
+    case "$prev" in
         --tenant|-t)
             _netctl_complete_tenants
             return
@@ -264,7 +499,80 @@ _netctl_network_create() {
     case "$cur" in
         *)
             _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_netprofile_inspect() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
             return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_netprofiles
+            ;;
+    esac
+}
+
+_netctl_network_inspect() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_networks
+            ;;
+    esac
+}
+
+_netctl_network_create() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+        --nw-type|-n)
+            COMPREPLY=( $( compgen -W "infra data" -- "$cur" ) )
+            return
+            ;;
+        --encap|-e)
+            COMPREPLY=( $( compgen -W "vlan vxlan" -- "$cur" ) )
+            return
+            ;;
+        --pkt-tag|-p)
+            return
+            ;;
+        --subnet|-s)
+            return
+            ;;
+        --gateway|-g)
+            return
+            ;;
+        --subnetv6|-s6)
+            return
+            ;;
+        --gatewayv6|-g6)
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
             ;;
     esac
 }
@@ -275,7 +583,7 @@ _netctl_network_rm() {
             _netctl_complete_tenants
             return
             ;;
-   esac
+    esac
 
     case "$cur" in
         -*)
@@ -293,8 +601,16 @@ _netctl_network_ls() {
             _netctl_complete_tenants
             return
             ;;
-   esac
+    esac
 
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_tenant_ls() {
     case "$cur" in
         *)
             _netctl_fetch_options
@@ -306,13 +622,26 @@ _netctl_tenant_create() {
     case "$cur" in
         *)
             _netctl_fetch_options
-            return
             ;;
     esac
 }
 
 _netctl_tenant_rm() {
     case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_tenants
+            ;;
+    esac
+}
+
+_netctl_tenant_inspect() {
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
         *)
             _netctl_complete_tenants
             ;;
@@ -330,7 +659,6 @@ _netctl_policy_create() {
     case "$cur" in
         *)
             _netctl_fetch_options
-            return
             ;;
     esac
 }
@@ -341,7 +669,7 @@ _netctl_policy_rm() {
             _netctl_complete_tenants
             return
             ;;
-   esac
+    esac
 
     case "$cur" in
         -*)
@@ -359,11 +687,29 @@ _netctl_policy_ls() {
             _netctl_complete_tenants
             return
             ;;
-   esac
+    esac
 
     case "$cur" in
         *)
             _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_policy_inspect() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_policies
             ;;
     esac
 }
@@ -378,12 +724,43 @@ _netctl_group_create() {
             _netctl_complete_policies
             return
             ;;
+        --networkprofile|-n)
+            _netctl_complete_netprofiles
+            return
+            ;;
+        --external-contract|-e)
+            _netctl_complete_external-contracts
+            return
+            ;;
+        --ip-pool|-r)
+            return
+            ;;
     esac
 
     case "$cur" in
-        *)
+        -*)
             _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_networks
+            ;;
+    esac
+}
+
+_netctl_group_inspect() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
             return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_groups
             ;;
     esac
 }
@@ -394,7 +771,7 @@ _netctl_group_rm() {
             _netctl_complete_tenants
             return
             ;;
-   esac
+    esac
 
     case "$cur" in
         -*)
@@ -412,7 +789,7 @@ _netctl_group_ls() {
             _netctl_complete_tenants
             return
             ;;
-   esac
+    esac
 
     case "$cur" in
         *)
@@ -427,19 +804,43 @@ _netctl_rule_create() {
             _netctl_complete_tenants
             return
             ;;
+        --priority|-p)
+            return
+            ;;
         --direction|-d)
             COMPREPLY=( $( compgen -W "in out both" -- "$cur" ) )
             return
             ;;
-        --group|-g)
+        --from-group|-g)
             _netctl_complete_groups
             return
             ;;
-        --network|-n)
+        --to-group|-e)
+            _netctl_complete_groups
+            return
+            ;;
+        --from-network|-n)
             _netctl_complete_networks
             return
             ;;
-        --action|-a)
+        --to-network|-o)
+            _netctl_complete_networks
+            return
+            ;;
+        --from-ip-address|-i)
+            return
+            ;;
+        --to-ip-address|-s)
+            return
+            ;;
+        --protocol|-l)
+            COMPREPLY=( $( compgen -W "tcp udp icmp" -- "$cur" ) )
+            return
+            ;;
+        --port|-P)
+            return
+            ;;
+        --action|-j)
             COMPREPLY=( $( compgen -W "allow deny" -- "$cur" ) )
             return
             ;;
@@ -448,7 +849,6 @@ _netctl_rule_create() {
     case "$cur" in
         -*)
             _netctl_fetch_options
-            return
             ;;
         *)
             local argcount
@@ -458,7 +858,6 @@ _netctl_rule_create() {
             else
                 _netctl_fetch_options
             fi
-            return
             ;;
     esac
 }
@@ -475,9 +874,7 @@ _netctl_rule_rm() {
     case "$cur" in
         -*)
             _netctl_fetch_options
-            return
             ;;
-
         *)
             argcount=$(_netctl_get_argcount)
             is_tenant_specified=$(_netctl_cmd_tenant_is_specified)
@@ -495,8 +892,6 @@ _netctl_rule_rm() {
             else
                 _netctl_fetch_options
             fi
-
-            return
             ;;
     esac
 }
@@ -513,7 +908,6 @@ _netctl_rule_ls() {
         -*)
             _netctl_fetch_options
             ;;
-
         *)
             local argcount
             argcount=$(_netctl_get_argcount)
@@ -522,22 +916,94 @@ _netctl_rule_ls() {
             else
                 _netctl_fetch_options
             fi
-            return
-
             ;;
     esac
 }
 
-
-_netctl_global_set() {
+_netctl_external-contracts_ls() {
     case "$prev" in
-        --fabric-mode|-f)
-            COMPREPLY=( $( compgen -W "aci default" -- "$cur" ) )
+        --tenant|-t)
+            _netctl_complete_tenants
             return
             ;;
     esac
 
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
 
+_netctl_external-contracts_rm() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_external-contracts
+            ;;
+    esac
+}
+
+_netctl_external-contracts_create() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+        --contract|-a)
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_global_set() {
+    case "$prev" in
+        --fabric-mode|-f)
+            COMPREPLY=( $( compgen -W "aci aci-opflex default" -- "$cur" ) )
+            return
+            ;;
+        --vlan-range|-v)
+            return
+            ;;
+        --vxlan-range|-x)
+            return
+            ;;
+        --fwd-mode|-b)
+            COMPREPLY=( $( compgen -W "bridge routing" -- "$cur" ) )
+            return
+            ;;
+        --arp-mode|-a)
+            COMPREPLY=( $( compgen -W "proxy flood" -- "$cur" ) )
+            return
+            ;;
+        --private-subnet|-s)
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_global_inspect() {
     case "$cur" in
         *)
             _netctl_fetch_options
@@ -558,7 +1024,284 @@ _netctl_global_info() {
             _netctl_fetch_options
             ;;
     esac
+}
 
+_netctl_aci-gw_info() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_aci-gw_inspect() {
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_aci-gw_set() {
+    case "$prev" in
+        --path-bindings|-p)
+            return
+            ;;
+        --node-bindings|-n)
+            return
+            ;;
+        --phys-dom|-d)
+            return
+            ;;
+        --enforce-policies|-e)
+            COMPREPLY=( $( compgen -W "yes no" -- "$cur" ) )
+            return
+            ;;
+        --include-common-tenant|-i)
+            COMPREPLY=( $( compgen -W "yes no" -- "$cur" ) )
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_bgp_create() {
+    case "$prev" in
+        --hostname)
+            return
+            ;;
+        --router-ip)
+            return
+            ;;
+        --as)
+            return
+            ;;
+        --neighbor-as)
+            return
+            ;;
+        --neighbor)
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_bgp_rm() {
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_bgps
+            ;;
+    esac
+}
+
+_netctl_bgp_ls() {
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_bgp_inspect() {
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_bgps
+            ;;
+    esac
+}
+
+_netctl_app-profile_create() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+        --group|-g)
+            _netctl_complete_groups
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_app-profile_update() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+        --group|-g)
+            _netctl_complete_groups
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_app-profiles
+            ;;
+    esac
+}
+
+_netctl_app-profile_rm() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_app-profiles
+            ;;
+    esac
+}
+
+_netctl_app-profile_ls() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_app-profile_group-ls() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_app-profiles
+            ;;
+    esac
+}
+
+_netctl_service_ls() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
+}
+
+_netctl_service_inspect() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_services
+            ;;
+    esac
+}
+
+_netctl_service_rm() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            _netctl_fetch_options
+            ;;
+        *)
+            _netctl_complete_services
+            ;;
+    esac
+}
+
+_netctl_service_create() {
+    case "$prev" in
+        --tenant|-t)
+            _netctl_complete_tenants
+            return
+            ;;
+        --network|-s)
+            _netctl_complete_networks
+            return
+            ;;
+        --selector|-l)
+            return
+            ;;
+        --port|-p)
+            return
+            ;;
+        --preferred-ip|--ip)
+            return
+            ;;
+    esac
+
+    case "$cur" in
+        *)
+            _netctl_fetch_options
+            ;;
+    esac
 }
 
 # Parses the help output of cli to tokenize all strings
