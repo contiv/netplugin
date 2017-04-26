@@ -88,7 +88,7 @@ else
    echo "Using kubeadm/kubectl installation"
 fi
 
-if [ "$legacyInstall" == 1 ] && [ "$k8_sanity" == "" ]; then
+if [ "$legacyInstall" == 1 ] && [ "$k8s_devtest" == "" ]; then
    GetContiv
 fi
 
@@ -114,7 +114,7 @@ fi
 ./vagrant_cluster.py
 
 
-if [ "$legacyInstall" == 1 ] && [ "$k8_sanity" == "" ]; then
+if [ "$legacyInstall" == 1 ] && [ "$k8s_devtest" == "" ]; then
 # run ansible
 ansible-playbook -i .contiv_k8s_inventory ./contrib/ansible/cluster.yml --skip-tags "contiv_restart" -e "networking=contiv contiv_fabric_mode=default localBuildOutput=$top_dir/k8s-$k8sVer/kubernetes/server/bin contiv_bin_path=$top_dir/contiv_bin contiv_demo=True"
 fi

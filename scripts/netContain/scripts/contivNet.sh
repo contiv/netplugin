@@ -13,6 +13,8 @@ netmaster=false
 netplugin=true
 debug=""
 cleanup=false
+listen_url_param=""
+control_url_param=""
 cstore_param=""
 vtep_ip_param=""
 vlan_if_param=""
@@ -34,6 +36,12 @@ while getopts ":xmp:v:i:c:dr" opt; do
 		m)
 			netmaster=true
 			netplugin=false
+			;;
+		l)
+			listen_url=$OPTARG
+			;;
+		t)
+			ctrl_url=$OPTARG
 			;;
 		v)
 			vtep_ip=$OPTARG
@@ -126,7 +134,6 @@ if [ $netmaster == true ]; then
 elif [ $netplugin == true ]; then
 	echo "Starting netplugin"
 	modprobe openvswitch
-	mkdir -p /var/contiv/log/
 
 	while true; do
 		if [ -f /tmp/restart_netplugin ]; then
