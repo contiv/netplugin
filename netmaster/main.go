@@ -153,7 +153,9 @@ func execOpts(opts *cliOpts) {
 	}
 	log.Infof("Control IP:Port %s:%s", controlIP, controlURL[1])
 
-	docknet.UpdatePluginName(opts.pluginName)
+	if opts.clusterMode == "docker" {
+		docknet.UpdatePluginName(opts.pluginName)
+	}
 }
 
 func main() {
