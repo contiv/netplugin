@@ -673,8 +673,6 @@ func inspectEndpointGroup(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
 
-	fmt.Printf("Inspeting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
-
 	epg, err := getClient(ctx).EndpointGroupInspect(tenant, endpointGroup)
 	errCheck(ctx, err)
 
