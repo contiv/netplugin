@@ -414,6 +414,9 @@ func createNetwork(ctx *cli.Context) {
 		errExit(ctx, exitHelp, "Network name required", true)
 	}
 
+	global, err := getClient(ctx).GlobalGet("global")
+	errCheck(ctx, err)
+
 	subnet := ctx.String("subnet")
 	gateway := ctx.String("gateway")
 
@@ -423,6 +426,12 @@ func createNetwork(ctx *cli.Context) {
 	if subnet == "" {
 		errExit(ctx, exitHelp, "Subnet is required", true)
 	}
+
+	fwdMode := global.FwdMode
+	if fwdMode == "routing" && (gateway == "" || gatewayv6 == "") {
+		errExit(ctx, exitHelp, "Gateway is required in routing fwd_mode", true)
+	}
+
 	if gateway != "" {
 		if ok := net.ParseIP(gateway); ok == nil {
 			errExit(ctx, exitHelp, "Invalid gateway - Enter in A.B.C.D format", true)
