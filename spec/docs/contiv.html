@@ -4,7 +4,7 @@
 <title>Contiv API documentation</title>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="generator" content="https://github.com/raml2html/raml2html 5.0.0">
+<meta name="generator" content="https://github.com/raml2html/raml2html 6.3.0">
 <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/styles/default.min.css">
 <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script><script type="text/javascript" src="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script><script type="text/javascript">
@@ -212,6 +212,7 @@
 <h1>Contiv API documentation <small>version v1</small>
 </h1>
 <p>https://{serverfqdn}:10000/api/{version}</p>
+<p>Contiv API Specification</p>
 <ul>
 <li>
 <strong>serverfqdn</strong>: <em>required (string)</em>
@@ -231,7 +232,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_auth_proxy_health"><span class="parent">/auth_proxy</span>/health/</a> <span class="methods"><a href="#auth_proxy_health_get"><span class="badge badge_get">get</span></a></span>
 </h4></div>
 <div id="panel_auth_proxy_health" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#auth_proxy_health_get'" class="list-group-item">
-<span class="badge badge_get">get</span><div class="method_description"><p>Returns the health status of auth_proxy and its netmaster</p></div>
+<span class="badge badge_get">get</span><div class="method_description"><p>Returns the health status of Contiv API server and its netmaster</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="auth_proxy_health_get"><div class="modal-dialog"><div class="modal-content">
@@ -240,7 +241,7 @@
 <span class="badge badge_get">get</span> <span class="parent">/auth_proxy</span>/health/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Returns the health status of auth_proxy and its netmaster</p></div>
+<div class="alert alert-info"><p>Returns the health status of Contiv API server and its netmaster</p></div>
 <ul class="nav nav-tabs"><li class="active"><a href="#auth_proxy_health_get_response" data-toggle="tab">Response</a></li></ul>
 <div class="tab-content"><div class="tab-pane active" id="auth_proxy_health_get_response">
 <h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
@@ -302,7 +303,7 @@
 <p><strong>Type</strong>: object</p>
 <strong>Properties</strong><ul>
 <li>
-<strong>username</strong>: <em>required (string)</em><p>user name. If a local user doesn't exist by that name, AD authentication will be tried using sAMAccountName=username in BaseDN scope of the AD server (see ldap configuration for more details)</p>
+<strong>username</strong>: <em>required (string)</em><p>username. If a local user doesn't exist by that name, AD authentication will be tried using sAMAccountName=username in BaseDN scope of the AD server (see ldap configuration for more details)</p>
 </li>
 <li>
 <strong>password</strong>: <em>required (string)</em>
@@ -337,7 +338,7 @@
 <a class="collapsed" data-toggle="collapse" href="#panel_auth_proxy_version"><span class="parent">/auth_proxy</span>/version/</a> <span class="methods"><a href="#auth_proxy_version_get"><span class="badge badge_get">get</span></a></span>
 </h4></div>
 <div id="panel_auth_proxy_version" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#auth_proxy_version_get'" class="list-group-item">
-<span class="badge badge_get">get</span><div class="method_description"><p>Returns the auth_proxy version</p></div>
+<span class="badge badge_get">get</span><div class="method_description"><p>Returns the Contiv API server version</p></div>
 <div class="clearfix"></div>
 </div></div></div></div>
 <div class="modal fade" tabindex="0" id="auth_proxy_version_get"><div class="modal-dialog"><div class="modal-content">
@@ -346,7 +347,7 @@
 <span class="badge badge_get">get</span> <span class="parent">/auth_proxy</span>/version/</h4>
 </div>
 <div class="modal-body">
-<div class="alert alert-info"><p>Returns the auth_proxy version</p></div>
+<div class="alert alert-info"><p>Returns the Contiv API server version</p></div>
 <ul class="nav nav-tabs"><li class="active"><a href="#auth_proxy_version_get_response" data-toggle="tab">Response</a></li></ul>
 <div class="tab-content"><div class="tab-pane active" id="auth_proxy_version_get_response">
 <h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a>
@@ -1702,6 +1703,9 @@
 <li>
 <strong>netProfile</strong>: <em>required (string)</em>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em>
+</li>
 </ul>
 </li>
 <li>
@@ -1725,6 +1729,9 @@
 </li>
 <li>
 <strong>availableIPAddresses</strong>: <em>required (string)</em><p>Available IP addresses</p>
+</li>
+<li>
+<strong>groupTag</strong>: <em>required (string)</em><p>Derived EndpointGroup Tag</p>
 </li>
 </ul>
 </li>
@@ -2083,6 +2090,9 @@
 <li>
 <strong>nwType</strong>: <em>required (string - pattern: ^(infra|data)$)</em><p>Network Type</p>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - maxLength: 128 - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em><p>Configured Network Tag</p>
+</li>
 </ul>
 </li>
 <li>
@@ -2109,6 +2119,9 @@
 <strong>endpoints</strong>: <em>required (array of endpoint)</em><p>endpoints in the network</p>
 <p><strong>Items</strong>: endpoint</p>
 <div class="items"><ul></ul></div>
+</li>
+<li>
+<strong>networkTag</strong>: <em>required (string)</em><p>Derived Network Tag</p>
 </li>
 </ul>
 </li>
@@ -2545,6 +2558,9 @@
 <li>
 <strong>nwType</strong>: <em>required (string - pattern: ^(infra|data)$)</em><p>Network Type</p>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - maxLength: 128 - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em><p>Configured Network Tag</p>
+</li>
 </ul></div>
 </li>
 <li>
@@ -2571,6 +2587,9 @@
 </li>
 <li>
 <strong>netProfile</strong>: <em>required (string)</em>
+</li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em>
 </li>
 </ul></div>
 </li>
@@ -3669,6 +3688,9 @@
 <li>
 <strong>netProfile</strong>: <em>required (string)</em>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em>
+</li>
 </ul></div>
 </div>
 <div class="tab-pane" id="endpointgroups_get_securedby">
@@ -3765,6 +3787,9 @@
 <li>
 <strong>netProfile</strong>: <em>required (string)</em>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em>
+</li>
 </ul>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -3839,6 +3864,9 @@
 <li>
 <strong>netProfile</strong>: <em>required (string)</em>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em>
+</li>
 </ul>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -3908,6 +3936,9 @@
 </li>
 <li>
 <strong>netProfile</strong>: <em>required (string)</em>
+</li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em>
 </li>
 </ul>
 </div>
@@ -5061,6 +5092,9 @@
 <li>
 <strong>nwType</strong>: <em>required (string - pattern: ^(infra|data)$)</em><p>Network Type</p>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - maxLength: 128 - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em><p>Configured Network Tag</p>
+</li>
 </ul></div>
 </div>
 <div class="tab-pane" id="networks_get_securedby">
@@ -5156,6 +5190,9 @@
 <li>
 <strong>nwType</strong>: <em>required (string - pattern: ^(infra|data)$)</em><p>Network Type</p>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - maxLength: 128 - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em><p>Configured Network Tag</p>
+</li>
 </ul>
 </div>
 <div class="tab-pane" id="networks__tenantname___networkname__put_response">
@@ -5191,6 +5228,9 @@
 </li>
 <li>
 <strong>nwType</strong>: <em>required (string - pattern: ^(infra|data)$)</em><p>Network Type</p>
+</li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - maxLength: 128 - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em><p>Configured Network Tag</p>
 </li>
 </ul>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
@@ -5272,6 +5312,9 @@
 <li>
 <strong>nwType</strong>: <em>required (string - pattern: ^(infra|data)$)</em><p>Network Type</p>
 </li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - maxLength: 128 - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em><p>Configured Network Tag</p>
+</li>
 </ul>
 <h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a>
 </h2>
@@ -5347,6 +5390,9 @@
 </li>
 <li>
 <strong>nwType</strong>: <em>required (string - pattern: ^(infra|data)$)</em><p>Network Type</p>
+</li>
+<li>
+<strong>cfgdTag</strong>: <em>required (string - maxLength: 128 - pattern: ^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$)</em><p>Configured Network Tag</p>
 </li>
 </ul>
 </div>

@@ -252,7 +252,7 @@ var EndpointGroupSummaryView = React.createClass({
 				<ModalTrigger modal={<EndpointGroupModalView endpointGroup={ endpointGroup }/>}>
 					<tr key={ endpointGroup.key } className="info">
 						
-						       
+						        
 					</tr>
 				</ModalTrigger>
 			);
@@ -264,7 +264,7 @@ var EndpointGroupSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					       
+					        
 					</tr>
 				</thead>
 				<tbody>
@@ -283,6 +283,8 @@ var EndpointGroupModalView = React.createClass({
 	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='EndpointGroup' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
+			
+				<Input type='text' label='Configured Group Tag' ref='cfgdTag' defaultValue={obj.cfgdTag} placeholder='Configured Group Tag' />
 			
 				<Input type='text' label='External contracts' ref='extContractsGrps' defaultValue={obj.extContractsGrps} placeholder='External contracts' />
 			
@@ -510,7 +512,7 @@ var NetworkSummaryView = React.createClass({
 				<ModalTrigger modal={<NetworkModalView network={ network }/>}>
 					<tr key={ network.key } className="info">
 						
-						         
+						          
 					</tr>
 				</ModalTrigger>
 			);
@@ -522,7 +524,7 @@ var NetworkSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					         
+					          
 					</tr>
 				</thead>
 				<tbody>
@@ -541,6 +543,8 @@ var NetworkModalView = React.createClass({
 	      <Modal {...this.props} bsStyle='primary' bsSize='large' title='Network' animation={false}>
 	        <div className='modal-body' style={ {margin: '5%',} }>
 			
+			
+				<Input type='text' label='Configured Network Tag' ref='cfgdTag' defaultValue={obj.cfgdTag} placeholder='Configured Network Tag' />
 			
 				<Input type='text' label='Encapsulation' ref='encap' defaultValue={obj.encap} placeholder='Encapsulation' />
 			

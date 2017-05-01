@@ -53,6 +53,13 @@
 					"Title": "Network profile name",
 					"Length": 64,
 					"ShowSummary": true
+				},
+				"cfgdTag": {
+					"type": "string",
+					"Title": "Configured Group Tag",
+					"Length": 128,
+					"format": "^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9]))?$",
+					"ShowSummary": true
 				}
 			},
 			"operProperties": {
@@ -80,8 +87,11 @@
                                 "availableIPAddresses": {
                                         "type": "string",
                                         "title": "Available IP addresses"
+                                },
+                                "groupTag": {
+                                        "type": "string",
+                                        "title": "Derived EndpointGroup Tag"
                                 }
-
 			},
 			"link-sets": {
 				"services": {
