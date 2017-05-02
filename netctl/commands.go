@@ -31,6 +31,11 @@ var NetmasterFlags = []cli.Flag{
 		Usage:  "The hostname of the netmaster",
 		EnvVar: "NETMASTER",
 	},
+	cli.BoolFlag{
+		Name:   "insecure",
+		Usage:  "if true, strict certificate checking will be disabled",
+		EnvVar: "INSECURE",
+	},
 }
 
 // Commands are all the commands that go into `contivctl`, the end-user tool.
@@ -40,6 +45,11 @@ var Commands = []cli.Command{
 		Name:   "version",
 		Usage:  "Version Information",
 		Action: showVersion,
+	},
+	{
+		Name:   "login",
+		Usage:  "authenticate to Contiv (you must specify auth_proxy's HTTPS address in the --netmaster flag)",
+		Action: login,
 	},
 	{
 		Name:  "group",

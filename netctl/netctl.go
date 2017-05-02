@@ -1,15 +1,20 @@
 package netctl
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/codegangsta/cli"
 	contivClient "github.com/contiv/contivmodel/client"
@@ -25,7 +30,100 @@ func getClient(ctx *cli.Context) *contivClient.ContivClient {
 		errExit(ctx, 1, "Error connecting to netmaster", false)
 	}
 
+	// if the netctl config exists, apply it to the client
+	if configExists(ctx) {
+		if err := applyConfig(cl); err != nil {
+			errExit(ctx, exitInvalid, "error processing netctl config: "+err.Error(), false)
+		}
+	}
+
+	// if --insecure, set a custom http.Client with cert checking disabled
+	if ctx.GlobalBool("insecure") {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		httpClient := &http.Client{Transport: tr}
+
+		if err := cl.SetHTTPClient(httpClient); err != nil {
+			errExit(ctx, exitInvalid, "error setting custom HTTP client: "+err.Error(), false)
+		}
+	}
+
 	return cl
+}
+
+// readLoginCredentials prompts for a username and password and returns them.
+// password input is not echoed back to the user for security reasons.
+func readLoginCredentials(ctx *cli.Context) (string, string) {
+	fmt.Print("Username: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	username, err := reader.ReadString('\n')
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
+	username = strings.TrimSpace(username) // ReadString includes the newline
+	if len(username) == 0 {
+		errExit(ctx, exitInvalid, "you must specify a username", false)
+	}
+
+	fmt.Print("Password: ")
+
+	// use terminal.ReadPassword() so there's no echoing of what's typed
+	bytePassword, err := terminal.ReadPassword(0) // fd 0 = stdin
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+	password := string(bytePassword)
+	fmt.Println("")
+
+	return username, password
+}
+
+// login prompts for a username and password and authenticates against the specified
+// auth_proxy instance (via the --netmaster flag).
+func login(ctx *cli.Context) {
+	if len(ctx.Args()) != 0 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
+
+	// this check is redundant as ContivClient's Login() function also verifies
+	// that the URL is https.  this is just for a better UX.  prompting for username
+	// and password and then showing an error immediately is kind of lame.
+	if !strings.HasPrefix(baseURL(ctx), "https://") {
+		fmt.Println("login requires a https auth_proxy URL")
+		errExit(ctx, exitInvalid, "", true)
+	}
+
+	username, password := readLoginCredentials(ctx)
+
+	// perform the login
+	resp, body, err := getClient(ctx).Login(username, password)
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
+	// check the status code to see if the login succeeded
+	if resp.StatusCode != http.StatusOK {
+		fmt.Print("Login failed: ")
+
+		if resp.StatusCode == http.StatusUnauthorized {
+			fmt.Println("Bad username or password.")
+		} else {
+			fmt.Printf("unexpected response code (%d)\n\n", resp.StatusCode)
+			os.Stderr.Write(body)
+		}
+
+		// exit without any additional output
+		errExit(ctx, exitInvalid, "", false)
+	}
+
+	fmt.Println("Login succeeded.")
+
+	// for now, we will just write out the raw JSON response as the netctl config file since it
+	// contains nothing but the token.  we can extend the config file format in the future.
+	writeConfig(ctx, body)
 }
 
 func createPolicy(ctx *cli.Context) {
