@@ -62,6 +62,12 @@
 					"format": "^(((([0-9]|[a-f]|[A-F]){1,4})((\\\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\\\:){0,6}|\\\\:)((\\\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\\\:)))?$",
 					"title": "IPv6Gateway",
 					"showSummary": true
+				},
+				"cfgdTag": {
+					"type": "string",
+					"title": "Configured Network Tag",
+					"length": 128,
+					"format": "^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9]))?$"
 				}
 			},
 			"operProperties": {
@@ -93,6 +99,10 @@
 					"type": "array",
 					"items": "endpoint",
 					"title": "endpoints in the network"
+				},
+				"networkTag": {
+					"type": "string",
+					"title": "Derived Network Tag"
 				}
 			},
 			"link-sets": {

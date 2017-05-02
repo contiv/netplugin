@@ -227,6 +227,7 @@ class objmodelClient:
 	    postUrl = self.baseUrl + '/api/v1/endpointGroups/' + obj.tenantName + ":" + obj.groupName  + '/'
 
 	    jdata = json.dumps({ 
+			"cfgdTag": obj.cfgdTag, 
 			"extContractsGrps": obj.extContractsGrps, 
 			"groupName": obj.groupName, 
 			"ipPool": obj.ipPool, 
@@ -406,6 +407,7 @@ class objmodelClient:
 	    postUrl = self.baseUrl + '/api/v1/networks/' + obj.tenantName + ":" + obj.networkName  + '/'
 
 	    jdata = json.dumps({ 
+			"cfgdTag": obj.cfgdTag, 
 			"encap": obj.encap, 
 			"gateway": obj.gateway, 
 			"ipv6Gateway": obj.ipv6Gateway, 

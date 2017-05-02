@@ -50,11 +50,11 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
-			"Rev": "9e817dcdedb499997acefed5ace56fdd0ac652e4"
+			"Rev": "e00f6dded54d05d37acb451c4533fe09fd40c69f"
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel/client",
-			"Rev": "9e817dcdedb499997acefed5ace56fdd0ac652e4"
+			"Rev": "e00f6dded54d05d37acb451c4533fe09fd40c69f"
 		},
 		{
 			"ImportPath": "github.com/contiv/libovsdb",
@@ -582,6 +582,10 @@
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/ssh",
+			"Rev": "453249f01cfeb54c3d549ddb75ff152ca243f9d8"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh/terminal",
 			"Rev": "453249f01cfeb54c3d549ddb75ff152ca243f9d8"
 		},
 		{
