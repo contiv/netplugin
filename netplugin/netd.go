@@ -65,17 +65,18 @@ func (s *StringSlice) Value() []string {
 // network provisioning interfaces
 
 type cliOpts struct {
-	hostLabel  string
-	pluginMode string // plugin could be docker | kubernetes
-	cfgFile    string
-	debug      bool
-	syslog     string
-	jsonLog    bool
-	ctrlIP     string      // IP address to be used by control protocols
-	vtepIP     string      // IP address to be used by the VTEP
-	vlanIntf   StringSlice // Uplink interface for VLAN switching
-	version    bool
-	dbURL      string // state store URL
+	hostLabel    string
+	pluginMode   string // plugin could be docker | kubernetes
+	cfgFile      string
+	debug        bool
+	syslog       string
+	jsonLog      bool
+	ctrlIP       string      // IP address to be used by control protocols
+	vtepIP       string      // IP address to be used by the VTEP
+	vlanIntf     StringSlice // Uplink interface for VLAN switching
+	version      bool
+	dbURL        string // state store URL
+	vxlanUDPPort int    // Vxlan UDP port, default: 4789
 }
 
 func configureSyslog(syslogParam string) {
@@ -159,6 +160,10 @@ func main() {
 		"cluster-store",
 		"etcd://127.0.0.1:2379",
 		"state store url")
+	flagSet.IntVar(&opts.vxlanUDPPort,
+		"vxlan-port",
+		4789,
+		"VxLAN UDP port number")
 
 	err = flagSet.Parse(os.Args[1:])
 	if err != nil {
@@ -221,12 +226,13 @@ func main() {
 			State:   stateStore,
 		},
 		Instance: core.InstanceInfo{
-			HostLabel:  opts.hostLabel,
-			CtrlIP:     opts.ctrlIP,
-			VtepIP:     opts.vtepIP,
-			UplinkIntf: opts.vlanIntf,
-			DbURL:      opts.dbURL,
-			PluginMode: opts.pluginMode,
+			HostLabel:    opts.hostLabel,
+			CtrlIP:       opts.ctrlIP,
+			VtepIP:       opts.vtepIP,
+			UplinkIntf:   opts.vlanIntf,
+			DbURL:        opts.dbURL,
+			PluginMode:   opts.pluginMode,
+			VxlanUDPPort: opts.vxlanUDPPort,
 		},
 	}
 

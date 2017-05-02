@@ -625,10 +625,9 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		return core.Errorf("Network %s conflicts with the endpointGroup name",
 			nameClash.NetworkName)
 	}
-
 	// create the endpoint group state
 	err := master.CreateEndpointGroup(endpointGroup.TenantName, endpointGroup.NetworkName,
-		endpointGroup.IpPool, endpointGroup.GroupName)
+		endpointGroup.GroupName, endpointGroup.IpPool, endpointGroup.CfgdTag)
 	if err != nil {
 		log.Errorf("Error creating endpoint group %+v. Err: %v", endpointGroup, err)
 		return err
@@ -944,6 +943,8 @@ func (ac *APIController) EndpointGroupGetOper(endpointGroup *contivModel.Endpoin
 		nwCfg.SubnetIP, nwCfg.SubnetLen)
 	endpointGroup.Oper.AllocatedIPAddresses = netutils.ListAllocatedIPs(epgCfg.EPGIPAllocMap,
 		epgCfg.IPPool, nwCfg.SubnetIP, nwCfg.SubnetLen)
+	endpointGroup.Oper.GroupTag = epgCfg.GroupTag
+
 	readEp := &mastercfg.CfgEndpointState{}
 	readEp.StateDriver = stateDriver
 	epCfgs, err := readEp.ReadAll()
@@ -1064,6 +1065,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 		Gateway:        network.Gateway,
 		IPv6SubnetCIDR: network.Ipv6Subnet,
 		IPv6Gateway:    network.Ipv6Gateway,
+		CfgdTag:        network.CfgdTag,
 	}
 
 	// Create the network
@@ -1111,6 +1113,7 @@ func (ac *APIController) NetworkGetOper(network *contivModel.NetworkInspect) err
 	network.Oper.ExternalPktTag = nwCfg.ExtPktTag
 	network.Oper.NumEndpoints = nwCfg.EpCount
 	network.Oper.PktTag = nwCfg.PktTag
+	network.Oper.NetworkTag = nwCfg.NetworkTag
 
 	readEp := &mastercfg.CfgEndpointState{}
 	readEp.StateDriver = stateDriver

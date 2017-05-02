@@ -77,6 +77,10 @@ var Commands = []cli.Command{
 						Name:  "ip-pool, r",
 						Usage: "IP Address range, example 10.36.0.1-10.36.0.10",
 					},
+					cli.StringFlag{
+						Name:  "epg-tag, tag",
+						Usage: "Configured Group Tag",
+					},
 				},
 				Action: createEndpointGroup,
 			},
@@ -232,6 +236,10 @@ var Commands = []cli.Command{
 					cli.StringFlag{
 						Name:  "gatewayv6, g6",
 						Usage: "IPv6 Gateway",
+					},
+					cli.StringFlag{
+						Name:  "nw-tag, tag",
+						Usage: "Configured Network Tag",
 					},
 				},
 				Action: createNetwork,

@@ -75,17 +75,18 @@ type Plugin interface {
 // InstanceInfo encapsulates data that is specific to a running instance of
 // netplugin like label of host on which it is started.
 type InstanceInfo struct {
-	StateDriver StateDriver `json:"-"`
-	HostLabel   string      `json:"host-label"`
-	CtrlIP      string      `json:"ctrl-ip"`
-	VtepIP      string      `json:"vtep-ip"`
-	UplinkIntf  []string    `json:"uplink-if"`
-	RouterIP    string      `json:"router-ip"`
-	FwdMode     string      `json:"fwd-mode"`
-	ArpMode     string      `json:"arp-mode"`
-	DbURL       string      `json:"db-url"`
-	PluginMode  string      `json:"plugin-mode"`
-	HostPvtNW   int         `json:"host-pvt-nw"`
+	StateDriver  StateDriver `json:"-"`
+	HostLabel    string      `json:"host-label"`
+	CtrlIP       string      `json:"ctrl-ip"`
+	VtepIP       string      `json:"vtep-ip"`
+	UplinkIntf   []string    `json:"uplink-if"`
+	RouterIP     string      `json:"router-ip"`
+	FwdMode      string      `json:"fwd-mode"`
+	ArpMode      string      `json:"arp-mode"`
+	DbURL        string      `json:"db-url"`
+	PluginMode   string      `json:"plugin-mode"`
+	HostPvtNW    int         `json:"host-pvt-nw"`
+	VxlanUDPPort int         `json:"vxlan-port"`
 }
 
 // PortSpec defines protocol/port info required to host the service

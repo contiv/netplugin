@@ -74,9 +74,9 @@ class Node:
         self.runCmd(command)
 
     # Enable v2plugin on vagrant node
-    def enableV2Plugin(self, args=""):
+    def enableV2Plugin(self, role="master", args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "docker plugin set " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + " ctrl_ip="+ self.addr + " control_url=" + self.addr + ":9999 iflist=eth2,eth3 plugin_name=" + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + args + " >> /tmp/netplugin.log 2>&1"
+        command = "docker plugin set " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + " ctrl_ip="+ self.addr + " control_url=" + self.addr + ":9999 vxlan_port=8472 iflist=eth2,eth3 plugin_name=" + os.environ.get("CONTIV_V2PLUGIN_NAME","contiv/v2plugin:0.0") + args + " >> /tmp/netplugin.log 2>&1"
         self.runCmd(command)
         command = "docker plugin enable " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") +  args + " >> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
@@ -86,7 +86,7 @@ class Node:
     # Start netplugin process on vagrant node
     def startNetplugin(self, args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "sudo " + self.binpath + "/netplugin -plugin-mode docker -vlan-if eth2 -vlan-if eth3 -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " " + args + "> /tmp/netplugin.log 2>&1"
+        command = "sudo " + self.binpath + "/netplugin -vlan-if eth2 -vlan-if eth3 -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " " + args + "> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()
@@ -115,6 +115,7 @@ class Node:
     
     # Stop v2plugin by force rm 
     def stopV2Plugin(self, args=""):
+        command = "docker plugin disable " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + "> /tmp/netplugin.log 2>&1"
         command = "docker plugin rm -f " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + "> /tmp/netplugin.log 2>&1"
         self.runCmd(command)
 
@@ -128,13 +129,15 @@ class Node:
 
     def cleanupDockerNetwork(self):
         # cleanup docker network
-        out, err, exitCode = self.runCmd("docker network ls | grep -w netplugin | awk '{print $2}'")
+        out, err, exitCode = self.runCmd("docker network ls | grep -w 'netplugin\|contiv' | awk '{print $2}'")
         for net in out:
             self.runCmd("docker network rm " + net)
+            time.sleep(1)
 
     # Remove all containers on this node
     def cleanupContainers(self):
         self.runCmd("docker ps -a | grep -v 'swarm\|CONTAINER ID' | awk '{print $1}' | xargs -r docker rm -fv ")
+        self.runCmd("docker service rm `docker service ls -q`")
 
     # Cleanup all state created by netplugin
     def cleanupSlave(self):

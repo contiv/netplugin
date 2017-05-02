@@ -41,6 +41,7 @@ type EndpointGroupState struct {
 	Burst           int           `json:"Burst"`
 	IPPool          string        `json:"IPPool"`
 	EPGIPAllocMap   bitset.BitSet `json:"epgIpAllocMap"`
+	GroupTag        string        `json:"groupTag"`
 }
 
 // Write the state.

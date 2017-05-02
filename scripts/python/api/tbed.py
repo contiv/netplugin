@@ -57,11 +57,15 @@ class Testbed:
     # Start legacy plugin
     def startV2Plugin(self):
         # Start netplugin on all nodes
-        for node in self.nodes:
+        for nidx,node in enumerate(self.nodes):
             print "Creating v2plugin on " + node.hostname
             node.createV2Plugin()
             print "Enabling v2plugin on " + node.hostname
-            node.enableV2Plugin()
+            # first node is the swarm master
+            if nidx == 0:
+                node.enableV2Plugin()
+            else:
+                node.enableV2Plugin("worker")
 
     # Cleanup a testbed once test is done
     def cleanup(self):

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -190,6 +191,46 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 	}
 
 	if networkID == "" {
+		if GetClusterMode() == "swarm-mode" {
+			// If the network was created using docker command,
+			// we get allocReq before the network is created. Here,
+			// we return the first IP in the subnet as gateway IP.
+			// Subsequent createNetwork request will come with
+			// a subnet and gateway which will allocate the gateway IP
+			var ipAddress string
+			var subnetLen uint
+			subnetIP := strings.Split(allocReq.AddressPool, "/")[0]
+			subnetLen = func() uint {
+				p, err := strconv.Atoi(strings.Split(allocReq.AddressPool, "/")[1])
+				if err != nil {
+					log.Errorf("error acquiring subnet len. Error: %s", err)
+				}
+				return uint(p)
+			}()
+			if isIPv6 {
+				// Get first available IPv6 address
+				ipAddress, err = netutils.GetSubnetIPv6(subnetIP, subnetLen, "")
+				if err != nil {
+					log.Errorf("error acquiring subnet ip. Error: %s", err)
+					return "", err
+				}
+			} else {
+				// Get first available IPv4 address
+				subnetAddr := netutils.GetSubnetAddr(subnetIP, subnetLen)
+				ipAddress, err = netutils.GetSubnetIP(subnetAddr, subnetLen, 32, 1)
+				if err != nil {
+					log.Errorf("error acquiring subnet ip. Error: %s", err)
+					return "", err
+				}
+			}
+			// Build the response
+			aresp := AddressAllocResponse{
+				NetworkID:   allocReq.NetworkID,
+				IPv4Address: ipAddress + "/" + fmt.Sprintf("%d", subnetLen),
+			}
+
+			return aresp, nil
+		}
 		log.Errorf("Could not find the network for: %s", allocReq.NetworkID)
 		return nil, errors.New("Network not found")
 	}

@@ -163,7 +163,7 @@ func inspectPolicy(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
 
-	fmt.Printf("Inspeting policy: %s tenant: %s\n", policy, tenant)
+	fmt.Printf("Inspecting policy: %s tenant: %s\n", policy, tenant)
 
 	pol, err := getClient(ctx).PolicyInspect(tenant, policy)
 	errCheck(ctx, err)
@@ -537,6 +537,7 @@ func createNetwork(ctx *cli.Context) {
 	encap := ctx.String("encap")
 	pktTag := ctx.Int("pkt-tag")
 	nwType := ctx.String("nw-type")
+	nwTag := ctx.String("nw-tag")
 
 	errCheck(ctx, getClient(ctx).NetworkPost(&contivClient.Network{
 		TenantName:  tenant,
@@ -548,6 +549,7 @@ func createNetwork(ctx *cli.Context) {
 		Ipv6Gateway: gatewayv6,
 		PktTag:      pktTag,
 		NwType:      nwType,
+		CfgdTag:     nwTag,
 	}))
 
 	fmt.Printf("Creating network %s:%s\n", tenant, network)
@@ -575,7 +577,7 @@ func inspectNetwork(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 
-	fmt.Printf("Inspeting network: %s tenant: %s\n", network, tenant)
+	fmt.Printf("Inspecting network: %s tenant: %s\n", network, tenant)
 
 	net, err := getClient(ctx).NetworkInspect(tenant, network)
 	errCheck(ctx, err)
@@ -623,12 +625,12 @@ func listNetworks(ctx *cli.Context) {
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tNetwork\tNw Type\tEncap type\tPacket tag\tSubnet\tGateway\tIPv6Subnet\tIPv6Gateway\n"))
-		writer.Write([]byte("------\t-------\t-------\t----------\t----------\t-------\t------\t----------\t-----------\n"))
+		writer.Write([]byte("Tenant\tNetwork\tNw Type\tEncap type\tPacket tag\tSubnet\tGateway\tIPv6Subnet\tIPv6Gateway\tCfgd Tag \n"))
+		writer.Write([]byte("------\t-------\t-------\t----------\t----------\t-------\t------\t----------\t-----------\t---------\n"))
 
 		for _, net := range filtered {
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 					net.TenantName,
 					net.NetworkName,
 					net.NwType,
@@ -638,6 +640,7 @@ func listNetworks(ctx *cli.Context) {
 					net.Gateway,
 					net.Ipv6Subnet,
 					net.Ipv6Gateway,
+					net.CfgdTag,
 				)))
 		}
 	}
@@ -747,6 +750,7 @@ func createEndpointGroup(ctx *cli.Context) {
 	group := ctx.Args()[1]
 	netprofile := ctx.String("networkprofile")
 	ipPool := ctx.String("ip-pool")
+	epgTag := ctx.String("tag")
 	policies := ctx.StringSlice("policy")
 
 	extContractsGrps := ctx.StringSlice("external-contract")
@@ -758,6 +762,7 @@ func createEndpointGroup(ctx *cli.Context) {
 		IpPool:           ipPool,
 		Policies:         policies,
 		ExtContractsGrps: extContractsGrps,
+		CfgdTag:          epgTag,
 	}))
 
 	fmt.Printf("Creating EndpointGroup %s:%s\n", tenant, group)
@@ -771,7 +776,7 @@ func inspectEndpointGroup(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
 
-	fmt.Printf("Inspeting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
+	fmt.Printf("Inspecting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
 
 	epg, err := getClient(ctx).EndpointGroupInspect(tenant, endpointGroup)
 	errCheck(ctx, err)
@@ -824,8 +829,8 @@ func listEndpointGroups(ctx *cli.Context) {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tGroup\tNetwork\tIP Pool\tPolicies\tNetwork profile\n"))
-		writer.Write([]byte("------\t-----\t-------\t--------\t---------------\n"))
+		writer.Write([]byte("Tenant\tGroup\tNetwork\tIP Pool\tCfgdTag\tPolicies\tNetwork profile\n"))
+		writer.Write([]byte("------\t-----\t-------\t-------\t-------\t--------\t---------------\n"))
 		for _, group := range filtered {
 			policies := ""
 			if group.Policies != nil {
@@ -836,11 +841,12 @@ func listEndpointGroups(ctx *cli.Context) {
 				policies = strings.Join(policyList, ",")
 			}
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 					group.TenantName,
 					group.GroupName,
 					group.NetworkName,
 					group.IpPool,
+					group.CfgdTag,
 					policies,
 					group.NetProfile,
 				)))

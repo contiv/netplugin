@@ -102,6 +102,12 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 
 	ipv6Subnet, ipv6SubnetLen, _ := netutils.ParseCIDR(network.IPv6SubnetCIDR)
 
+	// if there is no label given generate one for the network
+	nwTag := network.CfgdTag
+	if nwTag == "" {
+		nwTag = network.Name + "." + tenantName
+	}
+
 	// construct and update network state
 	nwCfg = &mastercfg.CfgNetworkState{
 		Tenant:        tenantName,
@@ -112,6 +118,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		SubnetLen:     subnetLen,
 		IPv6Subnet:    ipv6Subnet,
 		IPv6SubnetLen: ipv6SubnetLen,
+		NetworkTag:    nwTag,
 	}
 
 	nwCfg.ID = networkID
