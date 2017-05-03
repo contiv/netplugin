@@ -67,6 +67,8 @@ fi
 chown -R vagrant #{gopath_folder}
 
 if [[ "#{node_os}" != "ubuntu" ]]; then
+    systemctl disable NetworkManager.service
+    systemctl stop NetworkManager.service
     # Remove the unneeded ceph repository if it exists
     echo "Remove the unneeded ceph repository if it exists"
     rm -f /etc/yum.repos.d/ceph.repo
