@@ -67,7 +67,6 @@ done
 if [ $cleanup == true ] || [ $reinit == true ]; then
 	ovs-vsctl del-br contivVlanBridge || true
 	ovs-vsctl del-br contivVxlanBridge || true
-	ovs-vsctl del-br contivHostBridge || true
 	for p in $(ifconfig | grep vport | awk '{print $1}'); do
 		ip link delete $p type veth
 	done
