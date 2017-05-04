@@ -1,5 +1,5 @@
 
-.PHONY: all build godep modelgen
+.PHONY: all build godep modelgen systemtests
 
 all: build
 
@@ -11,3 +11,7 @@ godep:
 
 modelgen:
 	@if [ -z "`which modelgen`" ]; then go get -v github.com/contiv/modelgen; fi
+
+# systemtest runs all of the systemtests
+systemtests:
+	go test -v -timeout 5m ./systemtests -check.v
