@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/netmaster/master"
+	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -31,9 +32,20 @@ import (
 	"golang.org/x/net/context"
 )
 
+func (ag *Agent) lbServiceExist() bool {
+	lbCfg := &mastercfg.CfgServiceLBState{}
+	plugin := ag.Plugin()
+	lbCfg.StateDriver = plugin.StateDriver
+
+	if lbList, err := lbCfg.ReadAll(); err == nil {
+		return len(lbList) > 0
+	}
+	return false
+}
+
 // Handles docker events monitored by dockerclient. Currently we only handle
 // container start and die event
-func handleDockerEvents(events <-chan events.Message, errs <-chan error) {
+func (ag *Agent) handleDockerEvents(events <-chan events.Message, errs <-chan error) {
 
 	for {
 		select {
@@ -47,6 +59,10 @@ func handleDockerEvents(events <-chan events.Message, errs <-chan error) {
 			}
 		case event := <-events:
 			log.Debugf("Received Docker event: {%#v}\n", event)
+			// process events only when LB services exist.
+			if !ag.lbServiceExist() {
+				continue
+			}
 			switch event.Status {
 			case "start":
 				endpointUpdReq := &master.UpdateEndpointRequest{}

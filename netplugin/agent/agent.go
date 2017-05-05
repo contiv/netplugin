@@ -194,7 +194,7 @@ func (ag *Agent) monitorDockerEvents(de chan error) {
 	contFilter.Add("type", events.ContainerEventType)
 
 	events, errs := docker.Events(context.Background(), types.EventsOptions{Filters: contFilter})
-	go handleDockerEvents(events, errs)
+	go ag.handleDockerEvents(events, errs)
 }
 
 // HandleEvents handles events
