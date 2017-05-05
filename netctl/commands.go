@@ -667,7 +667,7 @@ var Commands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name:  "network,s",
-						Usage: "service subnet",
+						Usage: "service network name",
 					},
 					cli.StringSliceFlag{
 						Name:  "selector,l",
