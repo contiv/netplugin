@@ -17,7 +17,6 @@ const (
 	interfaceTable  = "Interface"
 	vlanBridgeName  = "contivVlanBridge"
 	vxlanBridgeName = "contivVxlanBridge"
-	hostBridgeName  = "contivHostBridge"
 	portNameFmt     = "port%d"
 	vxlanIfNameFmt  = "vxif%s"
 	maxPortNum      = 0xfffe

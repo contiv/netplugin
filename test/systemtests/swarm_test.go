@@ -425,7 +425,6 @@ func (w *swarm) cleanupSlave() {
 	vNode := w.node.tbnode
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVxlanBridge")
 	vNode.RunCommand("sudo ovs-vsctl del-br contivVlanBridge")
-	vNode.RunCommand("sudo ovs-vsctl del-br contivHostBridge")
 	vNode.RunCommand("for p in `ifconfig  | grep vport | awk '{print $1}'`; do sudo ip link delete $p type veth; done")
 }
 
