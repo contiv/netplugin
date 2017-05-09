@@ -284,9 +284,11 @@ func (c *APIClient) WatchServices(respCh chan SvcWatchResp) {
 				continue
 			}
 
-			//if wss.Object.ObjectMeta.Namespace != "default" {
-			//	continue
-			//}
+			if wss.Object.ObjectMeta.Namespace == "kube-system" && (wss.Object.ObjectMeta.Name == "kube-scheduler" || wss.Object.ObjectMeta.Name == "kube-controller-manager") {
+				// Ignoring these frequent updates
+				continue
+			}
+
 			resp := SvcWatchResp{opcode: wss.Type}
 			resp.svcName = wss.Object.ObjectMeta.Name
 			sSpec := core.ServiceSpec{}
@@ -358,9 +360,11 @@ func (c *APIClient) WatchSvcEps(respCh chan EpWatchResp) {
 				respCh <- EpWatchResp{opcode: "WARN", errStr: fmt.Sprintf("unmarshal %v", err)}
 				continue
 			}
-			//if weps.Object.ObjectMeta.Namespace != "default" {
-			//	continue
-			//}
+
+			if weps.Object.ObjectMeta.Namespace == "kube-system" && (weps.Object.ObjectMeta.Name == "kube-scheduler" || weps.Object.ObjectMeta.Name == "kube-controller-manager") {
+				// Ignoring these frequent updates
+				continue
+			}
 
 			resp := EpWatchResp{opcode: weps.Type}
 			resp.svcName = weps.Object.ObjectMeta.Name
