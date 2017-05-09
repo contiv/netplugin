@@ -30,6 +30,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/contiv/netplugin/utils/k8sutils"
 	"github.com/gorilla/mux"
 	. "gopkg.in/check.v1"
 )
@@ -413,9 +414,9 @@ func setupTestServer(c *C) {
 	}
 	tlsCfg.BuildNameToCertificate()
 	// Read the token
-	var contivK8Config ContivConfig
+	var contivK8Config k8sutils.ContivConfig
 
-	err = getConfig(testCfgFile, &contivK8Config)
+	err = k8sutils.GetK8SConfig(&contivK8Config)
 	token = contivK8Config.K8sToken
 
 	router := mux.NewRouter()

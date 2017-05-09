@@ -179,6 +179,9 @@ func main() {
 	// initialize master daemon
 	d.Init()
 
+	// start monitoring services
+	d.InitServices()
+
 	// Run daemon FSM
 	d.RunMasterFsm()
 }
