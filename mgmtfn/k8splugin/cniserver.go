@@ -17,85 +17,32 @@ package k8splugin
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/contiv/netplugin/utils/k8sutils"
 	"github.com/gorilla/mux"
 )
-
-// contivKubeCfgFile holds credentials to access k8s api server
-const (
-	contivKubeCfgFile = "/opt/contiv/config/contiv.json"
-	defSvcSubnet      = "10.254.0.0/16"
-	tokenFile         = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-)
-
-// ContivConfig holds information passed via config file during cluster set up
-type ContivConfig struct {
-	K8sAPIServer string `json:"K8S_API_SERVER,omitempty"`
-	K8sCa        string `json:"K8S_CA,omitempty"`
-	K8sKey       string `json:"K8S_KEY,omitempty"`
-	K8sCert      string `json:"K8S_CERT,omitempty"`
-	K8sToken     string `json:"K8S_TOKEN,omitempty"`
-	SvcSubnet    string `json:"SVC_SUBNET,omitempty"`
-}
 
 type restAPIFunc func(r *http.Request) (interface{}, error)
 
 var netPlugin *plugin.NetPlugin
 var kubeAPIClient *APIClient
 var pluginHost string
-var contivK8Config ContivConfig
-
-// getConfig reads and parses the contivKubeCfgFile
-func getConfig(cfgFile string, pCfg *ContivConfig) error {
-	bytes, err := ioutil.ReadFile(cfgFile)
-	if err != nil {
-		return err
-	}
-
-	pCfg.SvcSubnet = defSvcSubnet
-	err = json.Unmarshal(bytes, pCfg)
-	if err != nil {
-		return fmt.Errorf("Error parsing config file: %s", err)
-	}
-
-	return nil
-}
-
-// getDefaultToken gets the token to access kubernetes API Server
-// from the secrets loaded on the container
-func getDefaultToken() (string, error) {
-	bytes, err := ioutil.ReadFile(tokenFile)
-	if err != nil {
-		log.Errorf("Failed: %v", err)
-		return "", err
-	}
-	return string(bytes), nil
-}
+var contivK8Config k8sutils.ContivConfig
 
 // setUpAPIClient sets up an instance of the k8s api server
 func setUpAPIClient() *APIClient {
 	// Read config
-	err := getConfig(contivKubeCfgFile, &contivK8Config)
+	err := k8sutils.GetK8SConfig(&contivK8Config)
 	if err != nil {
 		log.Errorf("Failed: %v", err)
 		return nil
-	}
-	// If no client certs or token is specified, get the default token
-	if len(strings.TrimSpace(contivK8Config.K8sCert)) == 0 && len(strings.TrimSpace(contivK8Config.K8sToken)) == 0 {
-		contivK8Config.K8sToken, err = getDefaultToken()
-		if err != nil {
-			log.Errorf("Failed: %v", err)
-			return nil
-		}
 	}
 
 	return NewAPIClient(contivK8Config.K8sAPIServer, contivK8Config.K8sCa,

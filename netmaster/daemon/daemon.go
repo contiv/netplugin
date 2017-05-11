@@ -37,6 +37,7 @@ import (
 	"github.com/gorilla/mux"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/netmaster/k8snetwork"
 )
 
 const leaderLockTTL = 30
@@ -324,6 +325,16 @@ func (d *MasterDaemon) becomeFollower() {
 
 	// run follower loop
 	go d.runFollower()
+}
+
+// InitServices init watch services
+func (d *MasterDaemon) InitServices() {
+	if d.ClusterMode == "kubernetes" {
+		isLeader := func() bool {
+			return d.currState == "leader"
+		}
+		networkpolicy.InitK8SServiceWatch(d.ListenURL, isLeader)
+	}
 }
 
 // RunMasterFsm runs netmaster FSM

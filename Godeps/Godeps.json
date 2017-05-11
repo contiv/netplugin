@@ -7,6 +7,11 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "cloud.google.com/go/compute/metadata",
+			"Comment": "v0.7.0-127-g30702f1",
+			"Rev": "30702f1fe4fb6561c6cae311b78d34c1df252c9b"
+		},
+		{
 			"ImportPath": "github.com/BurntSushi/toml",
 			"Comment": "v0.1.0-21-g056c9bc",
 			"Rev": "056c9bc7be7190eaa7715723883caffa5f8fa3e4"
@@ -15,6 +20,15 @@
 			"ImportPath": "github.com/Microsoft/go-winio",
 			"Comment": "v0.3.2",
 			"Rev": "862b6557927a5c5c81e411c12aa6de7e566cbb7a"
+		},
+		{
+			"ImportPath": "github.com/PuerkitoBio/purell",
+			"Comment": "v1.1.0-2-gb938d81",
+			"Rev": "b938d81255b5473c57635324295cb0fe398c7a58"
+		},
+		{
+			"ImportPath": "github.com/PuerkitoBio/urlesc",
+			"Rev": "bbf7a2afc14f93e1e0a5c06df524fbd75e5031e5"
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -47,6 +61,536 @@
 			"ImportPath": "github.com/codegangsta/cli",
 			"Comment": "v1.10.0",
 			"Rev": "96f1fedb28e10f2e5ad3fd4b7347101529a7ca56"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/discovery",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/apps/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/authentication/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/authorization/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/autoscaling/v1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/batch/v1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/batch/v2alpha1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/certificates/v1alpha1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/core/v1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/extensions/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/policy/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/rbac/v1alpha1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/kubernetes/typed/storage/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/api",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/api/errors",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/api/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/api/meta",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/api/resource",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/api/v1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/api/validation/path",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apimachinery",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apimachinery/announced",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apimachinery/registered",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/apps",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/apps/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/apps/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/authentication",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/authentication/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/authentication/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/authorization",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/authorization/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/authorization/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/autoscaling",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/autoscaling/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/autoscaling/v1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/batch",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/batch/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/batch/v1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/batch/v2alpha1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/certificates",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/certificates/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/certificates/v1alpha1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/extensions",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/extensions/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/extensions/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/meta/v1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/meta/v1/unstructured",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/policy",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/policy/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/policy/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/rbac",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/rbac/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/rbac/v1alpha1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/storage",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/storage/install",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/apis/storage/v1beta1",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/auth/user",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/conversion",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/conversion/queryparams",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/fields",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/genericapiserver/openapi/common",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/labels",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/runtime",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/runtime/schema",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/runtime/serializer",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/runtime/serializer/json",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/runtime/serializer/protobuf",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/runtime/serializer/recognizer",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/runtime/serializer/streaming",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/runtime/serializer/versioning",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/selection",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/third_party/forked/golang/reflect",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/third_party/forked/golang/template",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/types",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/cert",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/clock",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/errors",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/flowcontrol",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/framer",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/integer",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/intstr",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/json",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/jsonpath",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/labels",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/net",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/parsers",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/rand",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/runtime",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/sets",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/uuid",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/validation",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/validation/field",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/wait",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/util/yaml",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/version",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/watch",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/pkg/watch/versioned",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/plugin/pkg/client/auth",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/plugin/pkg/client/auth/gcp",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/plugin/pkg/client/auth/oidc",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/rest",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/tools/clientcmd/api",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/tools/metrics",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
+		},
+		{
+			"ImportPath": "github.com/contiv/client-go/transport",
+			"Comment": "v2.0.0-alpha.0-27-g5e51774",
+			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
@@ -121,6 +665,46 @@
 			"ImportPath": "github.com/coreos/etcd/pkg/types",
 			"Comment": "v2.3.8",
 			"Rev": "7e4fc7eaa931298732c880a703bccc9c177ae1de"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-oidc/http",
+			"Rev": "c797a55f1c1001ec3169f1d0fbb4c5523563bec6"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-oidc/jose",
+			"Rev": "c797a55f1c1001ec3169f1d0fbb4c5523563bec6"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-oidc/key",
+			"Rev": "c797a55f1c1001ec3169f1d0fbb4c5523563bec6"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-oidc/oauth2",
+			"Rev": "c797a55f1c1001ec3169f1d0fbb4c5523563bec6"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-oidc/oidc",
+			"Rev": "c797a55f1c1001ec3169f1d0fbb4c5523563bec6"
+		},
+		{
+			"ImportPath": "github.com/coreos/pkg/health",
+			"Comment": "v3-9-g8dbaa49",
+			"Rev": "8dbaa491b063ed47e2474b5363de0c0db91cf9f2"
+		},
+		{
+			"ImportPath": "github.com/coreos/pkg/httputil",
+			"Comment": "v3-9-g8dbaa49",
+			"Rev": "8dbaa491b063ed47e2474b5363de0c0db91cf9f2"
+		},
+		{
+			"ImportPath": "github.com/coreos/pkg/timeutil",
+			"Comment": "v3-9-g8dbaa49",
+			"Rev": "8dbaa491b063ed47e2474b5363de0c0db91cf9f2"
+		},
+		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Comment": "v1.1.0",
+			"Rev": "346938d642f2ec3594ed81d874461961cd0faa76"
 		},
 		{
 			"ImportPath": "github.com/docker/distribution/digest",
@@ -337,13 +921,67 @@
 			"Rev": "44cc805cf13205b55f69e14bcb69867d1ae92f98"
 		},
 		{
+			"ImportPath": "github.com/emicklei/go-restful",
+			"Comment": "2.2.0-4-gff4f55a",
+			"Rev": "ff4f55a206334ef123e4f79bbf348980da81ca46"
+		},
+		{
+			"ImportPath": "github.com/emicklei/go-restful-swagger12",
+			"Comment": "1.0.1",
+			"Rev": "dcef7f55730566d41eae5db10e7d6981829720f6"
+		},
+		{
+			"ImportPath": "github.com/emicklei/go-restful/log",
+			"Comment": "2.2.0-4-gff4f55a",
+			"Rev": "ff4f55a206334ef123e4f79bbf348980da81ca46"
+		},
+		{
 			"ImportPath": "github.com/fsnotify/fsnotify",
 			"Comment": "v1.3.1",
 			"Rev": "a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb"
 		},
 		{
+			"ImportPath": "github.com/ghodss/yaml",
+			"Comment": "v1.0.0",
+			"Rev": "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
+		},
+		{
+			"ImportPath": "github.com/go-openapi/jsonpointer",
+			"Rev": "779f45308c19820f1a69e9a4cd965f496e0da10f"
+		},
+		{
+			"ImportPath": "github.com/go-openapi/jsonreference",
+			"Rev": "36d33bfe519efae5632669801b180bf1a245da3b"
+		},
+		{
+			"ImportPath": "github.com/go-openapi/spec",
+			"Rev": "e51c28f07047ad90caff03f6450908720d337e0c"
+		},
+		{
+			"ImportPath": "github.com/go-openapi/swag",
+			"Rev": "24ebf76d720bab64f62824d76bced3184a65490d"
+		},
+		{
+			"ImportPath": "github.com/gogo/protobuf/proto",
+			"Comment": "v0.4-8-g3043356",
+			"Rev": "30433562cfbf487fe1df7cd26c7bab168d2f14d0"
+		},
+		{
+			"ImportPath": "github.com/gogo/protobuf/sortkeys",
+			"Comment": "v0.4-8-g3043356",
+			"Rev": "30433562cfbf487fe1df7cd26c7bab168d2f14d0"
+		},
+		{
+			"ImportPath": "github.com/golang/glog",
+			"Rev": "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
+		},
+		{
 			"ImportPath": "github.com/golang/protobuf/proto",
 			"Rev": "2c1988e8c18d14b142c0b472624f71647cf39adb"
+		},
+		{
+			"ImportPath": "github.com/google/gofuzz",
+			"Rev": "44d81051d367757e1c7c6a5a86423ece9afcf63c"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -424,6 +1062,15 @@
 			"Rev": "1f0c6de81a62732e75f6c97f1e28e5a009b5df68"
 		},
 		{
+			"ImportPath": "github.com/jonboulle/clockwork",
+			"Comment": "v0.1.0-4-gbcac988",
+			"Rev": "bcac9884e7502bb2b474c0339d889cb981a2f27f"
+		},
+		{
+			"ImportPath": "github.com/juju/ratelimit",
+			"Rev": "acf38b000a03e4ab89e40f20f1e548f4e6ac7f72"
+		},
+		{
 			"ImportPath": "github.com/kr/fs",
 			"Rev": "2788f0dbd16903de03cb8186e5c7d97b69ad387b"
 		},
@@ -431,6 +1078,18 @@
 			"ImportPath": "github.com/magiconair/properties",
 			"Comment": "v1.6.0-1-gc81f9d7",
 			"Rev": "c81f9d71af8f8cba1466501d30326b99a4e56c19"
+		},
+		{
+			"ImportPath": "github.com/mailru/easyjson/buffer",
+			"Rev": "3f09c2282fc5ad74b3d04a485311f3173c2431d3"
+		},
+		{
+			"ImportPath": "github.com/mailru/easyjson/jlexer",
+			"Rev": "3f09c2282fc5ad74b3d04a485311f3173c2431d3"
+		},
+		{
+			"ImportPath": "github.com/mailru/easyjson/jwriter",
+			"Rev": "3f09c2282fc5ad74b3d04a485311f3173c2431d3"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-shellwords",
@@ -496,6 +1155,11 @@
 			"Rev": "48bc1ed7a6c423322eaef4d7e29798fdba86f88c"
 		},
 		{
+			"ImportPath": "github.com/pborman/uuid",
+			"Comment": "v1.0-21-g1b00554",
+			"Rev": "1b00554d822231195d1babd97ff4a781231955c9"
+		},
+		{
 			"ImportPath": "github.com/pkg/errors",
 			"Comment": "v0.7.0-13-ga221380",
 			"Rev": "a22138067af1c4942683050411a841ade67fe1eb"
@@ -555,6 +1219,10 @@
 		{
 			"ImportPath": "github.com/streamrail/concurrent-map",
 			"Rev": "430cc620f036386dacc40e603921cc607f37366b"
+		},
+		{
+			"ImportPath": "github.com/ugorji/go/codec",
+			"Rev": "708a42d246822952f38190a8d8c4e6b16a0e600c"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
@@ -625,6 +1293,26 @@
 			"Rev": "906cda9512f77671ab44f8c8563b13a8e707b230"
 		},
 		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "e7a48207996f497ea86f5736d08d99d45c0b6461"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2/google",
+			"Rev": "e7a48207996f497ea86f5736d08d99d45c0b6461"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2/internal",
+			"Rev": "e7a48207996f497ea86f5736d08d99d45c0b6461"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2/jws",
+			"Rev": "e7a48207996f497ea86f5736d08d99d45c0b6461"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2/jwt",
+			"Rev": "e7a48207996f497ea86f5736d08d99d45c0b6461"
+		},
+		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "20457ee8ea8546920d3f4e19e405da45250dc5a5"
 		},
@@ -638,6 +1326,10 @@
 		},
 		{
 			"ImportPath": "golang.org/x/text/unicode/norm",
+			"Rev": "0ad425fe45e885577bef05dc1c50f72e33188b16"
+		},
+		{
+			"ImportPath": "golang.org/x/text/width",
 			"Rev": "0ad425fe45e885577bef05dc1c50f72e33188b16"
 		},
 		{
@@ -688,6 +1380,11 @@
 		{
 			"ImportPath": "gopkg.in/check.v1",
 			"Rev": "11d3bc7aa68e238947792f30573146a3231fc0f1"
+		},
+		{
+			"ImportPath": "gopkg.in/inf.v0",
+			"Comment": "v0.9.0",
+			"Rev": "3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4"
 		},
 		{
 			"ImportPath": "gopkg.in/tomb.v2",
