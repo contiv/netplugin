@@ -84,7 +84,7 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect a EndpointGroup",
 				ArgsUsage: "[group]",
-				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag},
 				Action:    inspectEndpointGroup,
 			},
 			{
@@ -114,7 +114,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect an Endpoint",
 				ArgsUsage: "[epid]",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectEndpoint,
 			},
 		},
@@ -186,7 +185,7 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect a Network",
 				ArgsUsage: "[network]",
-				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag},
 				Action:    inspectNetwork,
 			},
 			{
@@ -267,7 +266,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect a tenant",
 				ArgsUsage: "[tenant]",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectTenant,
 			},
 		},
@@ -433,7 +431,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect Global Operational Information",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectGlobal,
 			},
 			{
@@ -486,7 +483,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect aci gateway operational information",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectAciGw,
 			},
 			{
@@ -573,7 +569,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect Bgp",
 				ArgsUsage: "[hostname]",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectBgp,
 			},
 		},
@@ -650,7 +645,7 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect a Network",
 				ArgsUsage: "[servicename]",
-				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag},
 				Action:    inspectServiceLb,
 			},
 			{
