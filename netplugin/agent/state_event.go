@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/mgmtfn/k8splugin"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -73,6 +74,16 @@ func addVxGWRoutes(netPlugin *plugin.NetPlugin, gwIP string) {
 			}
 		}
 	}
+
+	// route add cluster-ip
+	clusterNet := k8splugin.GetK8sClusterIPRange()
+	log.Infof("configuring cluster-ip route [%s]", clusterNet)
+	if len(clusterNet) > 0 {
+		if err = netutils.AddIPRoute(clusterNet, gwIP); err != nil {
+			log.Errorf("Adding route [%s] --> %s: err: %v",
+				clusterNet, gwIP, err)
+		}
+	}
 }
 
 // Delete routes for existing vxlan networks
@@ -93,6 +104,16 @@ func delVxGWRoutes(netPlugin *plugin.NetPlugin, gwIP string) {
 				log.Errorf("Deleting route %s --> %s: err: %v",
 					route, gwIP, err)
 			}
+		}
+	}
+
+	// route del cluster-ip
+	clusterNet := k8splugin.GetK8sClusterIPRange()
+	log.Infof("removing cluster-ip route [%s]", clusterNet)
+	if len(clusterNet) > 0 {
+		if err = netutils.DelIPRoute(clusterNet, gwIP); err != nil {
+			log.Errorf("deleteing route [%s] --> %s: err: %v",
+				clusterNet, gwIP, err)
 		}
 	}
 }
