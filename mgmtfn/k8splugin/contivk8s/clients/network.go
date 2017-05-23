@@ -31,7 +31,7 @@ const (
 	nwURL = "http://localhost"
 )
 
-// NWClient defines informatio needed for the k8s api client
+// NWClient defines information needed for the k8s api client
 type NWClient struct {
 	baseURL string
 	client  *http.Client

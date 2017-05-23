@@ -893,7 +893,7 @@ func (m *TunnelIdField) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Return a MatchField for tunel id matching
+// Return a MatchField for tunnel id matching
 func NewTunnelIdField(tunnelId uint64) *MatchField {
 	f := new(MatchField)
 	f.Class = OXM_CLASS_OPENFLOW_BASIC
@@ -927,7 +927,7 @@ func (m *MetadataField) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Return a MatchField for tunel id matching
+// Return a MatchField for tunnel id matching
 func NewMetadataField(metadata uint64, metadataMask *uint64) *MatchField {
 	f := new(MatchField)
 	f.Class = OXM_CLASS_OPENFLOW_BASIC
