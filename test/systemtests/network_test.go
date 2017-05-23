@@ -380,6 +380,10 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		s.testNetworkAddDeleteTenant(c, "vxlan", fwdMode)
 		if fwdMode == "routing" {
+			if s.basicInfo.Scheduler == "k8" {
+				c.Assert(s.TearDownInfraNetwork(), IsNil)
+			}
+
 			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
 				Name:             "global",
 				NetworkInfraType: "default",
@@ -389,9 +393,15 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				PvtSubnet:        "172.19.0.0/16",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
+			if s.basicInfo.Scheduler == "k8" {
+				c.Assert(s.SetupInfraNetwork(), IsNil)
+			}
 			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
 			fwdMode = "bridge"
 		} else {
+			if s.basicInfo.Scheduler == "k8" {
+				c.Assert(s.TearDownInfraNetwork(), IsNil)
+			}
 			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
 				Name:             "global",
 				NetworkInfraType: "default",
@@ -401,6 +411,9 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				PvtSubnet:        "172.19.0.0/16",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
+			if s.basicInfo.Scheduler == "k8" {
+				c.Assert(s.SetupInfraNetwork(), IsNil)
+			}
 			s.testNetworkAddDeleteTenant(c, "vxlan", "routing")
 			fwdMode = "routing"
 		}

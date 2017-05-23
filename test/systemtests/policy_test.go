@@ -389,7 +389,7 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		NetworkName: "private",
 		Subnet:      "10.1.0.0/16",
 		Gateway:     "10.1.1.254",
-		PktTag:      1,
+		PktTag:      10,
 		Encap:       encap,
 	}
 	c.Assert(s.cli.NetworkPost(network), IsNil)
@@ -398,7 +398,7 @@ func (s *systemtestSuite) testPolicyFeatures(c *C, encap string) {
 		NetworkName: "dummy",
 		Subnet:      "20.1.0.0/16",
 		Gateway:     "20.1.1.254",
-		PktTag:      2,
+		PktTag:      20,
 		Encap:       encap,
 	}
 	c.Assert(s.cli.NetworkPost(dummyNet), IsNil)

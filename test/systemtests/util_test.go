@@ -1054,9 +1054,9 @@ func (s *systemtestSuite) verifyVTEPs() error {
 		time.Sleep(1 * time.Second)
 	}
 
-	logrus.Errorf("Node %s failed to verify all VTEPs", failNode)
+	logrus.Errorf("Node %s failed to verify all VTEPs. ERR: %v", failNode, err)
 	logrus.Infof("Debug output:\n %s", dbgOut)
-	return errors.New("Failed to verify VTEPs after 20 sec")
+	return errors.New("Failed to verify VTEPs after 60 sec")
 }
 
 func (s *systemtestSuite) verifyEPs(containers []*container) error {
@@ -1248,6 +1248,10 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 			contivNodes = 4 // 3 contiv nodes + 1 k8master
 			c.Assert(s.vagrant.Setup(false, []string{"CONTIV_L3=1 VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
 
+			// Sleep to give enough time for the netplugin pods to come up
+			logrus.Infof("Sleeping for 1 minute for pods to come up")
+			time.Sleep(time.Minute)
+
 		case "swarm":
 			c.Assert(s.vagrant.Setup(false, append([]string{"CONTIV_NODES=3 CONTIV_L3=1"}, s.basicInfo.SwarmEnv), contivNodes+contivL3Nodes), IsNil)
 		default:
@@ -1270,6 +1274,10 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 			}
 
 			c.Assert(s.vagrant.Setup(false, []string{"VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
+
+			// Sleep to give enough time for the netplugin pods to come up
+			logrus.Infof("Sleeping for 1 minute for pods to come up")
+			time.Sleep(time.Minute)
 
 		case "swarm":
 			c.Assert(s.vagrant.Setup(false, append([]string{}, s.basicInfo.SwarmEnv), contivNodes), IsNil)
@@ -1412,6 +1420,7 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 	}
 
 	time.Sleep(5 * time.Second)
+
 	if s.basicInfo.Scheduler != "k8" {
 		for i := 0; i < 21; i++ {
 
@@ -1423,6 +1432,10 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			c.Assert((i < 30), Equals, true)
 			time.Sleep(1 * time.Second)
 		}
+	}
+
+	if s.basicInfo.Scheduler == "k8" {
+		c.Assert(s.SetupInfraNetwork(), IsNil)
 	}
 
 	if s.fwdMode == "routing" {
