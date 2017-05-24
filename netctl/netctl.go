@@ -163,8 +163,6 @@ func inspectPolicy(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
 
-	fmt.Printf("Inspeting policy: %s tenant: %s\n", policy, tenant)
-
 	pol, err := getClient(ctx).PolicyInspect(tenant, policy)
 	errCheck(ctx, err)
 
@@ -492,7 +490,6 @@ func inspectNetprofile(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 	netprofile := ctx.Args()[0]
-	fmt.Printf("Inspecting netprofile:%s for %s", netprofile, tenant)
 
 	profileList, err := getClient(ctx).NetprofileInspect(tenant, netprofile)
 	errCheck(ctx, err)
@@ -574,8 +571,6 @@ func inspectNetwork(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
-
-	fmt.Printf("Inspeting network: %s tenant: %s\n", network, tenant)
 
 	net, err := getClient(ctx).NetworkInspect(tenant, network)
 	errCheck(ctx, err)
@@ -676,8 +671,6 @@ func inspectTenant(ctx *cli.Context) {
 
 	tenant := ctx.Args()[0]
 
-	fmt.Printf("Inspecting tenant: %s  ", tenant)
-
 	ten, err := getClient(ctx).TenantInspect(tenant)
 	errCheck(ctx, err)
 
@@ -724,8 +717,6 @@ func inspectEndpoint(ctx *cli.Context) {
 
 	epid := ctx.Args()[0]
 
-	fmt.Printf("Inspecting endpoint: %s\n", epid)
-
 	net, err := getClient(ctx).EndpointInspect(epid)
 	errCheck(ctx, err)
 
@@ -770,8 +761,6 @@ func inspectEndpointGroup(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
-
-	fmt.Printf("Inspeting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
 
 	epg, err := getClient(ctx).EndpointGroupInspect(tenant, endpointGroup)
 	errCheck(ctx, err)
@@ -942,8 +931,6 @@ func inspectBgp(ctx *cli.Context) {
 
 	hostname := ctx.Args()[0]
 
-	fmt.Printf("netctl. Inspecting bgp: %s\n", hostname)
-
 	bgp, err := getClient(ctx).BgpInspect(hostname)
 	errCheck(ctx, err)
 
@@ -980,8 +967,6 @@ func inspectGlobal(ctx *cli.Context) {
 	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
-
-	fmt.Printf("Inspecting global\n")
 
 	ginfo, err := getClient(ctx).GlobalInspect("global")
 	errCheck(ctx, err)
@@ -1451,8 +1436,6 @@ func inspectServiceLb(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 	service := ctx.Args()[0]
-
-	fmt.Printf("Inspecting service: %s tenant: %s\n", service, tenant)
 
 	net, err := getClient(ctx).ServiceLBInspect(tenant, service)
 	errCheck(ctx, err)
