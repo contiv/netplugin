@@ -21,9 +21,9 @@ import (
 	"os/exec"
 	"runtime"
 
+	. "github.com/contiv/check"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
-	. "gopkg.in/check.v1"
 )
 
 type NetSetup struct {

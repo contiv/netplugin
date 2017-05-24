@@ -20,7 +20,7 @@ import (
 
 	"github.com/contiv/contivmodel/client"
 
-	. "gopkg.in/check.v1"
+	. "github.com/contiv/check"
 )
 
 // TestNetprofileDscp tests dscp settings in net profile

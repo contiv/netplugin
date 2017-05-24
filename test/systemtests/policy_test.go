@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	. "github.com/contiv/check"
 	"github.com/contiv/contivmodel/client"
-	. "gopkg.in/check.v1"
 )
 
 func (s *systemtestSuite) TestPolicyBasicVXLAN(c *C) {

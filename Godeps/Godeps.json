@@ -63,6 +63,10 @@
 			"Rev": "96f1fedb28e10f2e5ad3fd4b7347101529a7ca56"
 		},
 		{
+			"ImportPath": "github.com/contiv/check",
+			"Rev": "9ae71e3cef5aeb7385a2cf1a10a84e5d4246b568"
+		},
+		{
 			"ImportPath": "github.com/contiv/client-go/discovery",
 			"Comment": "v2.0.0-alpha.0-27-g5e51774",
 			"Rev": "5e51774bcc09bc9fa9f96c9a9afab9229f8354a5"
@@ -1376,10 +1380,6 @@
 			"ImportPath": "google.golang.org/grpc/transport",
 			"Comment": "v1.0.0-164-gedc5ccf",
 			"Rev": "edc5ccf8cbfd321723e26d2cf177b05c16132ad9"
-		},
-		{
-			"ImportPath": "gopkg.in/check.v1",
-			"Rev": "11d3bc7aa68e238947792f30573146a3231fc0f1"
 		},
 		{
 			"ImportPath": "gopkg.in/inf.v0",

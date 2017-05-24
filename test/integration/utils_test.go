@@ -32,7 +32,7 @@ import (
 	"github.com/contiv/ofnet"
 
 	log "github.com/Sirupsen/logrus"
-	. "gopkg.in/check.v1"
+	. "github.com/contiv/check"
 )
 
 // assertNoErr utility function to assert no error

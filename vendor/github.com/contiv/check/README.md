@@ -3,11 +3,11 @@ Instructions
 
 Install the package with:
 
-    go get gopkg.in/check.v1
+    go get unclejack/check
     
 Import it with:
 
-    import "gopkg.in/check.v1"
+    import "unclejack/check"
 
 and use _check_ as the package name inside the code.
 
@@ -17,4 +17,4 @@ For more details, visit the project page:
 
 and the API documentation:
 
-* https://gopkg.in/check.v1
+* https://unclejack/check

@@ -34,14 +34,16 @@ var (
 	oldListFlag    = flag.Bool("gocheck.list", false, "List the names of all tests that will be run")
 	oldWorkFlag    = flag.Bool("gocheck.work", false, "Display and do not remove the test working directory")
 
-	newFilterFlag  = flag.String("check.f", "", "Regular expression selecting which tests and/or suites to run")
-	newVerboseFlag = flag.Bool("check.v", false, "Verbose mode")
-	newStreamFlag  = flag.Bool("check.vv", false, "Super verbose mode (disables output caching)")
-	newBenchFlag   = flag.Bool("check.b", false, "Run benchmarks")
-	newBenchTime   = flag.Duration("check.btime", 1*time.Second, "approximate run time for each benchmark")
-	newBenchMem    = flag.Bool("check.bmem", false, "Report memory benchmarks")
-	newListFlag    = flag.Bool("check.list", false, "List the names of all tests that will be run")
-	newWorkFlag    = flag.Bool("check.work", false, "Display and do not remove the test working directory")
+	newFilterFlag   = flag.String("check.f", "", "Regular expression selecting which tests and/or suites to run")
+	newVerboseFlag  = flag.Bool("check.v", false, "Verbose mode")
+	newStreamFlag   = flag.Bool("check.vv", false, "Super verbose mode (disables output caching)")
+	newBenchFlag    = flag.Bool("check.b", false, "Run benchmarks")
+	newBenchTime    = flag.Duration("check.btime", 1*time.Second, "approximate run time for each benchmark")
+	newBenchMem     = flag.Bool("check.bmem", false, "Report memory benchmarks")
+	newListFlag     = flag.Bool("check.list", false, "List the names of all tests that will be run")
+	newWorkFlag     = flag.Bool("check.work", false, "Display and do not remove the test working directory")
+	abort           = flag.Bool("check.abort", false, "Stop testing the suite if a test has failed")
+	testTimeoutFlag = flag.String("check.timeout", "", "Panic if test runs longer than specified duration")
 )
 
 // TestingT runs all test suites registered with the Suite function,
@@ -60,7 +62,17 @@ func TestingT(testingT *testing.T) {
 		BenchmarkTime: benchTime,
 		BenchmarkMem:  *newBenchMem,
 		KeepWorkDir:   *oldWorkFlag || *newWorkFlag,
+		Abort:         *abort,
 	}
+
+	if *testTimeoutFlag != "" {
+		timeout, err := time.ParseDuration(*testTimeoutFlag)
+		if err != nil {
+			testingT.Fatalf("error parsing specified timeout flag: %v", err)
+		}
+		conf.TestTimeout = timeout
+	}
+
 	if *oldListFlag || *newListFlag {
 		w := bufio.NewWriter(os.Stdout)
 		for _, name := range ListAll(conf) {
@@ -80,8 +92,21 @@ func TestingT(testingT *testing.T) {
 // provided run configuration.
 func RunAll(runConf *RunConf) *Result {
 	result := Result{}
+	skipTests := false
 	for _, suite := range allSuites {
-		result.Add(Run(suite, runConf))
+		var res *Result
+		if skipTests {
+			// Count missed tests.
+			res = skipSuite(suite, runConf)
+		} else {
+			res = Run(suite, runConf)
+		}
+
+		result.Add(res)
+		if runConf.Abort && (res.Failed > 0 || res.Panicked > 0) {
+			skipTests = true
+			continue
+		}
 	}
 	return &result
 }
@@ -90,6 +115,11 @@ func RunAll(runConf *RunConf) *Result {
 func Run(suite interface{}, runConf *RunConf) *Result {
 	runner := newSuiteRunner(suite, runConf)
 	return runner.run()
+}
+
+func skipSuite(suite interface{}, runConf *RunConf) *Result {
+	runner := newSuiteRunner(suite, runConf)
+	return runner.skip()
 }
 
 // ListAll returns the names of all the test functions registered with the

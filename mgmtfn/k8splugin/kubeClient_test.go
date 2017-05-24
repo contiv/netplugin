@@ -28,11 +28,11 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	. "github.com/contiv/check"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/utils/k8sutils"
 	"github.com/gorilla/mux"
-	. "gopkg.in/check.v1"
 )
 
 const (

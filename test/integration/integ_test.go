@@ -24,7 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
 
-	. "gopkg.in/check.v1"
+	. "github.com/contiv/check"
 )
 
 type integTestSuite struct {

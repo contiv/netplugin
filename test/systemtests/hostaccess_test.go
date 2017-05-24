@@ -3,7 +3,7 @@ package systemtests
 import (
 	"time"
 	"github.com/contiv/contivmodel/client"
-	. "gopkg.in/check.v1"
+	. "github.com/contiv/check"
 )
 
 func (s *systemtestSuite) TestBasicHostAccess(c *C) {
