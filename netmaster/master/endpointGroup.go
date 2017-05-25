@@ -37,7 +37,7 @@ const maxEpgID = 65535
 var globalEpgID = 1
 
 // CreateEndpointGroup handles creation of endpoint group
-func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) error {
+func CreateEndpointGroup(tenantName, networkName, groupName, ipPool, cfgdTag string) error {
 	var epgID int
 
 	// Get the state driver
@@ -93,6 +93,12 @@ func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) erro
 		}
 	}
 
+	// if there is no label given generate one for the epg
+	epgTag := cfgdTag
+	if epgTag == "" {
+		epgTag = groupName + "." + tenantName
+	}
+
 	// params for docker network
 	if GetClusterMode() == "docker" {
 		// Create each EPG as a docker network
@@ -128,6 +134,7 @@ func CreateEndpointGroup(tenantName, networkName, ipPool, groupName string) erro
 		PktTagType:      nwCfg.PktTagType,
 		PktTag:          nwCfg.PktTag,
 		ExtPktTag:       nwCfg.ExtPktTag,
+		GroupTag:        epgTag,
 	}
 
 	epgCfg.StateDriver = stateDriver

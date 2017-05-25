@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -26,8 +27,10 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
+	. "github.com/contiv/check"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/mgmtfn/mesosplugin/cniapi"
 	"github.com/docker/docker/api/types"
@@ -35,9 +38,6 @@ import (
 	dockerClient "github.com/docker/docker/client"
 	"github.com/docker/docker/dockerversion"
 	"golang.org/x/net/context"
-	. "gopkg.in/check.v1"
-	"io"
-	"time"
 )
 
 // track containers

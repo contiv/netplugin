@@ -1,15 +1,20 @@
 package netctl
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/codegangsta/cli"
 	contivClient "github.com/contiv/contivmodel/client"
@@ -25,7 +30,100 @@ func getClient(ctx *cli.Context) *contivClient.ContivClient {
 		errExit(ctx, 1, "Error connecting to netmaster", false)
 	}
 
+	// if the netctl config exists, apply it to the client
+	if configExists(ctx) {
+		if err := applyConfig(cl); err != nil {
+			errExit(ctx, exitInvalid, "error processing netctl config: "+err.Error(), false)
+		}
+	}
+
+	// if --insecure, set a custom http.Client with cert checking disabled
+	if ctx.GlobalBool("insecure") {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		httpClient := &http.Client{Transport: tr}
+
+		if err := cl.SetHTTPClient(httpClient); err != nil {
+			errExit(ctx, exitInvalid, "error setting custom HTTP client: "+err.Error(), false)
+		}
+	}
+
 	return cl
+}
+
+// readLoginCredentials prompts for a username and password and returns them.
+// password input is not echoed back to the user for security reasons.
+func readLoginCredentials(ctx *cli.Context) (string, string) {
+	fmt.Print("Username: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	username, err := reader.ReadString('\n')
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
+	username = strings.TrimSpace(username) // ReadString includes the newline
+	if len(username) == 0 {
+		errExit(ctx, exitInvalid, "you must specify a username", false)
+	}
+
+	fmt.Print("Password: ")
+
+	// use terminal.ReadPassword() so there's no echoing of what's typed
+	bytePassword, err := terminal.ReadPassword(0) // fd 0 = stdin
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+	password := string(bytePassword)
+	fmt.Println("")
+
+	return username, password
+}
+
+// login prompts for a username and password and authenticates against the specified
+// auth_proxy instance (via the --netmaster flag).
+func login(ctx *cli.Context) {
+	if len(ctx.Args()) != 0 {
+		errExit(ctx, exitHelp, "More arguments than required", true)
+	}
+
+	// this check is redundant as ContivClient's Login() function also verifies
+	// that the URL is https.  this is just for a better UX.  prompting for username
+	// and password and then showing an error immediately is kind of lame.
+	if !strings.HasPrefix(baseURL(ctx), "https://") {
+		fmt.Println("login requires a https auth_proxy URL")
+		errExit(ctx, exitInvalid, "", true)
+	}
+
+	username, password := readLoginCredentials(ctx)
+
+	// perform the login
+	resp, body, err := getClient(ctx).Login(username, password)
+	if err != nil {
+		errExit(ctx, exitIO, err.Error(), false)
+	}
+
+	// check the status code to see if the login succeeded
+	if resp.StatusCode != http.StatusOK {
+		fmt.Print("Login failed: ")
+
+		if resp.StatusCode == http.StatusUnauthorized {
+			fmt.Println("Bad username or password.")
+		} else {
+			fmt.Printf("unexpected response code (%d)\n\n", resp.StatusCode)
+			os.Stderr.Write(body)
+		}
+
+		// exit without any additional output
+		errExit(ctx, exitInvalid, "", false)
+	}
+
+	fmt.Println("Login succeeded.")
+
+	// for now, we will just write out the raw JSON response as the netctl config file since it
+	// contains nothing but the token.  we can extend the config file format in the future.
+	writeConfig(ctx, body)
 }
 
 func createPolicy(ctx *cli.Context) {
@@ -65,7 +163,7 @@ func inspectPolicy(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
 
-	fmt.Printf("Inspeting policy: %s tenant: %s\n", policy, tenant)
+	fmt.Printf("Inspecting policy: %s tenant: %s\n", policy, tenant)
 
 	pol, err := getClient(ctx).PolicyInspect(tenant, policy)
 	errCheck(ctx, err)
@@ -439,6 +537,7 @@ func createNetwork(ctx *cli.Context) {
 	encap := ctx.String("encap")
 	pktTag := ctx.Int("pkt-tag")
 	nwType := ctx.String("nw-type")
+	nwTag := ctx.String("nw-tag")
 
 	errCheck(ctx, getClient(ctx).NetworkPost(&contivClient.Network{
 		TenantName:  tenant,
@@ -450,6 +549,7 @@ func createNetwork(ctx *cli.Context) {
 		Ipv6Gateway: gatewayv6,
 		PktTag:      pktTag,
 		NwType:      nwType,
+		CfgdTag:     nwTag,
 	}))
 
 	fmt.Printf("Creating network %s:%s\n", tenant, network)
@@ -477,7 +577,7 @@ func inspectNetwork(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 
-	fmt.Printf("Inspeting network: %s tenant: %s\n", network, tenant)
+	fmt.Printf("Inspecting network: %s tenant: %s\n", network, tenant)
 
 	net, err := getClient(ctx).NetworkInspect(tenant, network)
 	errCheck(ctx, err)
@@ -525,12 +625,12 @@ func listNetworks(ctx *cli.Context) {
 	} else {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tNetwork\tNw Type\tEncap type\tPacket tag\tSubnet\tGateway\tIPv6Subnet\tIPv6Gateway\n"))
-		writer.Write([]byte("------\t-------\t-------\t----------\t----------\t-------\t------\t----------\t-----------\n"))
+		writer.Write([]byte("Tenant\tNetwork\tNw Type\tEncap type\tPacket tag\tSubnet\tGateway\tIPv6Subnet\tIPv6Gateway\tCfgd Tag \n"))
+		writer.Write([]byte("------\t-------\t-------\t----------\t----------\t-------\t------\t----------\t-----------\t---------\n"))
 
 		for _, net := range filtered {
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 					net.TenantName,
 					net.NetworkName,
 					net.NwType,
@@ -540,6 +640,7 @@ func listNetworks(ctx *cli.Context) {
 					net.Gateway,
 					net.Ipv6Subnet,
 					net.Ipv6Gateway,
+					net.CfgdTag,
 				)))
 		}
 	}
@@ -649,6 +750,7 @@ func createEndpointGroup(ctx *cli.Context) {
 	group := ctx.Args()[1]
 	netprofile := ctx.String("networkprofile")
 	ipPool := ctx.String("ip-pool")
+	epgTag := ctx.String("tag")
 	policies := ctx.StringSlice("policy")
 
 	extContractsGrps := ctx.StringSlice("external-contract")
@@ -660,6 +762,7 @@ func createEndpointGroup(ctx *cli.Context) {
 		IpPool:           ipPool,
 		Policies:         policies,
 		ExtContractsGrps: extContractsGrps,
+		CfgdTag:          epgTag,
 	}))
 
 	fmt.Printf("Creating EndpointGroup %s:%s\n", tenant, group)
@@ -673,7 +776,7 @@ func inspectEndpointGroup(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
 
-	fmt.Printf("Inspeting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
+	fmt.Printf("Inspecting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
 
 	epg, err := getClient(ctx).EndpointGroupInspect(tenant, endpointGroup)
 	errCheck(ctx, err)
@@ -726,8 +829,8 @@ func listEndpointGroups(ctx *cli.Context) {
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
-		writer.Write([]byte("Tenant\tGroup\tNetwork\tIP Pool\tPolicies\tNetwork profile\n"))
-		writer.Write([]byte("------\t-----\t-------\t--------\t---------------\n"))
+		writer.Write([]byte("Tenant\tGroup\tNetwork\tIP Pool\tCfgdTag\tPolicies\tNetwork profile\n"))
+		writer.Write([]byte("------\t-----\t-------\t-------\t-------\t--------\t---------------\n"))
 		for _, group := range filtered {
 			policies := ""
 			if group.Policies != nil {
@@ -738,11 +841,12 @@ func listEndpointGroups(ctx *cli.Context) {
 				policies = strings.Join(policyList, ",")
 			}
 			writer.Write(
-				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\n",
+				[]byte(fmt.Sprintf("%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 					group.TenantName,
 					group.GroupName,
 					group.NetworkName,
 					group.IpPool,
+					group.CfgdTag,
 					policies,
 					group.NetProfile,
 				)))

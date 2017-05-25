@@ -372,7 +372,7 @@ func processReinit(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, newCfg *
 		if serviceInfo.HostAddr != opts.VtepIP {
 			netPlugin.AddPeerHost(core.ServiceInfo{
 				HostAddr: serviceInfo.HostAddr,
-				Port:     4789, //vxlanUDPPort
+				Port:     opts.VxlanUDPPort,
 			})
 		}
 	}

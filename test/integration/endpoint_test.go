@@ -17,13 +17,13 @@ package integration
 
 import (
 	"fmt"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
-
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	. "gopkg.in/check.v1"
-	"strings"
+
+	. "github.com/contiv/check"
 )
 
 // TestEndpointCreateDelete test endpoint create and delete ops

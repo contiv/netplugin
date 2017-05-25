@@ -465,7 +465,6 @@ func (d *docker) cleanupSlave() {
 	vNode := d.node.tbnode
 	vNode.RunCommand(`sudo ovs-vsctl del-br contivVxlanBridge || true &
 	sudo ovs-vsctl del-br contivVlanBridge || true &
-	sudo ovs-vsctl del-br contivHostBridge || true &
 	sudo service docker restart &
 	interfaces=$(ip link | grep vport | awk '"'"'{ print $2 }'"'"' | tr -d : > /tmp/vports || true)
 	for p in $interfaces; do sudo ip link delete $p type veth || true; done &

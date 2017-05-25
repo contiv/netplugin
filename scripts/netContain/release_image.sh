@@ -1,38 +1,31 @@
 #!/bin/bash
 
+set -euo pipefail
+
 contiv_version=""
-docker_user="contiv"
-docker_password=""
 image_name="contiv/netplugin"
 image_tag=""
 
 function usage() {
+	echo "$0: push the target netplugin release to Docker Hub as an image"
+	echo ""
+	echo "Note: the image is uploaded as whatever user you are logged in as."
+	echo "Please \`docker login\` beforehand and ensure your user has access to the \"contiv\" organization."
+	echo ""
 	echo "Usage:"
-	echo "./release_image.sh -v <contiv version> -u <docker user> -p <docker password> -i <image name> -t <image tag>"
-	echo "Example: ./release_image.sh -v v0.1-11-30-2016.20-08-20.UTC -u contiv -i contiv/netplugin"
+	echo "./release_image.sh -v <contiv version> [-i <image name>] [-t <image tag>]"
+	echo "Example: ./release_image.sh -v 1.2.3"
 	echo "Released versions are available from https://github.com/contiv/netplugin/releases"
 	echo "Default values are:"
-	echo "User:contiv, image contiv/netplugin and tag contiv version"
-	echo "Omit -p to provide password interactively"
+	echo "  Image name: \"contiv/netplugin\""
+	echo "  Image tag: value of -v switch"
 	exit 1
 }
 
-function error_ret() {
-	echo ""
-	echo $1
-	exit 1
-}
-
-while getopts ":v:u:p:i:t:" opt; do
+while getopts ":v:i:t:" opt; do
 	case $opt in
 		v)
 			contiv_version=$OPTARG
-			;;
-		u)
-			docker_user=$OPTARG
-			;;
-		p)
-			docker_password=$OPTARG
 			;;
 		i)
 			image_name=$OPTARG
@@ -58,34 +51,22 @@ if [ "$image_tag" = "" ]; then
 	image_tag=$contiv_version
 fi
 
+filename="netplugin-$contiv_version.tar.bz2"
+image="$image_name:$image_tag"
+
 cd -P -- "$(dirname -- "$0")"
 
-echo "Login to docker hub as $docker_user user"
-if [ "$docker_password" = "" ]; then
-	docker login -u $docker_user
-else
-	docker login -u $docker_user -p $docker_password
-fi
+# empty this directory or tar will fail to extract
+rm -rf bin && mkdir bin
 
-mkdir bin || true
-wget https://github.com/contiv/netplugin/releases/download/$contiv_version/netplugin-$contiv_version.tar.bz2
-tar xvfj netplugin-$contiv_version.tar.bz2 -C bin
+curl -L -o $filename https://github.com/contiv/netplugin/releases/download/$contiv_version/$filename
+tar xvfj $filename -C bin
+
 # remove the contrib directory, we don't need it in the image
-rm -rf bin/contrib || true
+rm -rf bin/contrib
 
-if [ "$?" != "0" ]; then
-	error_ret "FAILED: Error getting contiv version $contiv_version"
-fi
+docker build . -t $image -t ${image_name}:latest
+docker push $image
 
-docker build . -t $image_name:$image_tag -t ${image_name}:latest
-if [ "$?" != "0" ]; then
-	error_ret "FAILED: Error building image for contiv version $contiv_version to $image_name:$image_tag"
-fi
-
-docker push $image_name:$image_tag
-if [ "$?" = "0" ]; then
-	echo ""
-	echo "SUCCESS: Pushed contiv version $contiv_version to $image_name:$image_tag"
-else
-	error_ret "FAILED: Error pushing contiv version $contiv_version to $image_name:$image_tag"
-fi
+echo ""
+echo "SUCCESS: Pushed contiv version $contiv_version to $image"

@@ -36,19 +36,21 @@ const maxOfportRetry = 20
 // OvsdbDriver is responsible for programming OVS using ovsdb protocol. It also
 // implements the libovsdb.Notifier interface to keep cache of ovs table state.
 type OvsdbDriver struct {
-	ovsSwitch  *OvsSwitch
-	bridgeName string // Name of the bridge we are operating on
-	ovs        *libovsdb.OvsdbClient
-	cache      map[string]map[libovsdb.UUID]libovsdb.Row
-	cacheLock  sync.RWMutex // lock to protect cache accesses
+	ovsSwitch    *OvsSwitch
+	bridgeName   string // Name of the bridge we are operating on
+	ovs          *libovsdb.OvsdbClient
+	cache        map[string]map[libovsdb.UUID]libovsdb.Row
+	cacheLock    sync.RWMutex // lock to protect cache accesses
+	vxlanUDPPort string       // VxLAN UDP port number
 }
 
 // NewOvsdbDriver creates a new OVSDB driver instance.
 // Create one ovsdb driver instance per OVS bridge that needs to be managed
-func NewOvsdbDriver(bridgeName string, failMode string) (*OvsdbDriver, error) {
+func NewOvsdbDriver(bridgeName string, failMode string, vxlanUDPPort int) (*OvsdbDriver, error) {
 	// Create a new driver instance
 	d := new(OvsdbDriver)
 	d.bridgeName = bridgeName
+	d.vxlanUDPPort = fmt.Sprintf("%d", vxlanUDPPort)
 
 	// Connect to OVS
 	ovs, err := libovsdb.ConnectUnix("")
@@ -644,8 +646,9 @@ func (d *OvsdbDriver) CreateVtep(intfName string, vtepRemoteIP string) error {
 	// Special handling for VTEP ports
 	intfOptions := make(map[string]interface{})
 	intfOptions["remote_ip"] = vtepRemoteIP
-	intfOptions["key"] = "flow"    // Insert VNI per flow
-	intfOptions["tos"] = "inherit" // Copy DSCP from inner to outer IP header
+	intfOptions["key"] = "flow"              // Insert VNI per flow
+	intfOptions["tos"] = "inherit"           // Copy DSCP from inner to outer IP header
+	intfOptions["dst_port"] = d.vxlanUDPPort // Set the UDP port for VXLAN
 
 	intf["options"], err = libovsdb.NewOvsMap(intfOptions)
 	if err != nil {

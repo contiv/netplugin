@@ -5,8 +5,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	. "github.com/contiv/check"
 	"github.com/contiv/contivmodel/client"
-	. "gopkg.in/check.v1"
 )
 
 /* TestACIMode does the following:

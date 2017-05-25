@@ -38,11 +38,13 @@ const pluginPath = "/run/docker/plugins"
 const driverName = "netplugin"
 
 var netPlugin *plugin.NetPlugin
+var pluginMode string
 
 // InitDockPlugin initializes the docker plugin
-func InitDockPlugin(np *plugin.NetPlugin) error {
+func InitDockPlugin(np *plugin.NetPlugin, mode string) error {
 	// Save state
 	netPlugin = np
+	pluginMode = mode
 
 	// Get local hostname
 	hostname, err := os.Hostname()
@@ -70,6 +72,8 @@ func InitDockPlugin(np *plugin.NetPlugin) error {
 		"/NetworkDriver.FreeNetwork":                 freeNetwork,
 		"/NetworkDriver.ProgramExternalConnectivity": programExternalConnectivity,
 		"/NetworkDriver.RevokeExternalConnectivity":  revokeExternalConnectivity,
+		"/NetworkDriver.DiscoverNew":                 discoverNew,
+		"/NetworkDriver.DiscoverDelete":              discoverDelete,
 		"/IpamDriver.GetDefaultAddressSpaces":        getDefaultAddressSpaces,
 		"/IpamDriver.RequestPool":                    requestPool,
 		"/IpamDriver.ReleasePool":                    releasePool,
@@ -133,13 +137,14 @@ func httpError(w http.ResponseWriter, message string, err error) {
 		log.Warnf("Error received marshaling error response: %v, original error: %s", errc, fullError)
 		return
 	}
+	w.Write(content)
 
 	log.Errorf("Returning HTTP error handling plugin negotiation: %s", fullError)
 	http.Error(w, string(content), http.StatusInternalServerError)
 }
 
 func logEvent(typ string) {
-	log.Infof("Handling %q event", typ)
+	log.Infof("Handling %q event from libnetwork", typ)
 }
 
 // Catchall for additional driver functions.

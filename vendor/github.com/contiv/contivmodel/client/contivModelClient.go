@@ -68,6 +68,8 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"regexp"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -78,9 +80,16 @@ type Link struct {
 	ObjKey  string `json:"key,omitempty"`
 }
 
-func httpGet(url string, jdata interface{}) error {
+func (c *ContivClient) httpGet(url string, jdata interface{}) error {
 
-	r, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	c.processCustomHeaders(req)
+
+	r, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -116,13 +125,18 @@ func httpGet(url string, jdata interface{}) error {
 	return nil
 }
 
-func httpDelete(url string) error {
+func (c *ContivClient) httpDelete(url string) error {
 
 	req, err := http.NewRequest("DELETE", url, nil)
-
-	r, err := http.DefaultClient.Do(req)
 	if err != nil {
-		panic(err)
+		return err
+	}
+
+	c.processCustomHeaders(req)
+
+	r, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
 	}
 	defer r.Body.Close()
 
@@ -150,14 +164,22 @@ func httpDelete(url string) error {
 	return nil
 }
 
-func httpPost(url string, jdata interface{}) error {
+func (c *ContivClient) httpPost(url string, jdata interface{}) error {
 	buf, err := json.Marshal(jdata)
 	if err != nil {
 		return err
 	}
 
 	body := bytes.NewBuffer(buf)
-	r, err := http.Post(url, "application/json", body)
+
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return err
+	}
+
+	c.processCustomHeaders(req)
+
+	r, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -192,16 +214,143 @@ func httpPost(url string, jdata interface{}) error {
 
 // ContivClient has the contiv model client instance
 type ContivClient struct {
+	// URL of netmaster (http) or auth_proxy (https)
 	baseURL string
+
+	// these pairs will be added as HTTP request headers before any request
+	// is sent by this client. (each pair = one "Name: value" header).
+	// names stored in this list will be lowercase but later canonicalized
+	// internally by Go when the request headers are added.
+	customRequestHeaders [][2]string
+
+	// even if not later overriden by SetHttpClient(), having a per-client
+	// http.Client means each client has its own dedicated pool of TCP
+	// keepalive connections for the target netmaster/auth_proxy.
+	httpClient *http.Client
 }
 
 // NewContivClient creates a new client instance
 func NewContivClient(baseURL string) (*ContivClient, error) {
+	ok, err := regexp.Match(`^https?://`, []byte(baseURL))
+	if !ok {
+		return nil, errors.New("invalid URL: must begin with http:// or https://")
+	} else if err != nil {
+		return nil, err
+	}
+
 	client := ContivClient{
-		baseURL: baseURL,
+		baseURL:              baseURL,
+		customRequestHeaders: [][2]string{},
+		httpClient:           &http.Client{},
 	}
 
 	return &client, nil
+}
+
+// SetHTTPClient replaces the internal *http.Client with a custom http client.
+// This can be used to disable cert checking, set timeouts, and so on.
+func (c *ContivClient) SetHTTPClient(newClient *http.Client) error {
+	if newClient == nil {
+		return errors.New("new http client cannot be nil")
+	}
+
+	c.httpClient = newClient
+
+	return nil
+}
+
+const authTokenHeader = "x-auth-token"
+
+// SetAuthToken sets the token used to authenticate with auth_proxy
+func (c *ContivClient) SetAuthToken(token string) error {
+
+	// setting an auth token is only allowed on secure requests.
+	// if we didn't enforce this, the client could potentially send auth
+	// tokens in plain text across the network.
+	if !c.isHTTPS() {
+		return errors.New("setting auth token requires a https auth_proxy URL")
+	}
+
+	// having multiple auth token headers is confusing and makes no sense and
+	// which one is actually used depends on the implementation of the server.
+	// therefore, we will raise an error if there's already an auth token set.
+	for _, pair := range c.customRequestHeaders {
+		if pair[0] == authTokenHeader {
+			return errors.New("an auth token has already been set")
+		}
+	}
+
+	c.addCustomRequestHeader(authTokenHeader, token)
+
+	return nil
+}
+
+func (c *ContivClient) isHTTPS() bool {
+	return strings.HasPrefix(c.baseURL, "https://")
+}
+
+type loginPayload struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// LoginPath is the path of auth_proxy's login endpoint
+const LoginPath = "/api/v1/auth_proxy/login/"
+
+// Login performs a login to auth_proxy and returns the response and body
+func (c *ContivClient) Login(username, password string) (*http.Response, []byte, error) {
+
+	// login is only allowed over a secure channel
+	if !c.isHTTPS() {
+		return nil, nil, errors.New("login requires a https auth_proxy URL")
+	}
+
+	url := c.baseURL + LoginPath
+
+	// create the POST payload for login
+	lp := loginPayload{
+		Username: username,
+		Password: password,
+	}
+
+	payload, err := json.Marshal(lp)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// send the login POST request
+	resp, err := c.httpClient.Post(url, "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, body, nil
+}
+
+// addCustomRequestHeader records a custom request header to be added to all outgoing requests
+func (c *ContivClient) addCustomRequestHeader(name, value string) {
+
+	// lowercase the header name so we can easily check for duplicates in other places.
+	// there can legitimately be many headers with the same name, but in some cases
+	// (e.g., auth token) we want to enforce that there is only one.
+	// Go internally canonicalizes them when we call Header.Add() anyways.
+	name = strings.ToLower(name)
+
+	c.customRequestHeaders = append(c.customRequestHeaders, [2]string{name, value})
+}
+
+// processCustomHeaders adds all custom request headers to the target request.
+// this function is called before a GET, POST, or DELETE is sent by the client.
+func (c *ContivClient) processCustomHeaders(req *http.Request) {
+	for _, pair := range c.customRequestHeaders {
+		req.Header.Add(pair[0], pair[1])
+	}
 }
 
 // AciGw object
@@ -317,6 +466,7 @@ type EndpointGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	CfgdTag          string   `json:"cfgdTag,omitempty"` // Configured Group Tag
 	ExtContractsGrps []string `json:"extContractsGrps,omitempty"`
 	GroupName        string   `json:"groupName,omitempty"`   // Group name
 	IpPool           string   `json:"ipPool,omitempty"`      // IP-pool
@@ -352,6 +502,7 @@ type EndpointGroupOper struct {
 	AvailableIPAddresses string         `json:"availableIPAddresses,omitempty"` // Available IP addresses
 	Endpoints            []EndpointOper `json:"endpoints,omitempty"`
 	ExternalPktTag       int            `json:"externalPktTag,omitempty"` // external packet tag
+	GroupTag             string         `json:"groupTag,omitempty"`       // Derived EndpointGroup Tag
 	NumEndpoints         int            `json:"numEndpoints,omitempty"`   // number of endpoints
 	PktTag               int            `json:"pktTag,omitempty"`         // internal packet tag
 
@@ -457,6 +608,7 @@ type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	CfgdTag     string `json:"cfgdTag,omitempty"`     // Configured Network Tag
 	Encap       string `json:"encap,omitempty"`       // Encapsulation
 	Gateway     string `json:"gateway,omitempty"`     // Gateway
 	Ipv6Gateway string `json:"ipv6Gateway,omitempty"` // IPv6Gateway
@@ -491,6 +643,7 @@ type NetworkOper struct {
 	AvailableIPAddresses    string         `json:"availableIPAddresses,omitempty"`    // Available IP addresses
 	Endpoints               []EndpointOper `json:"endpoints,omitempty"`
 	ExternalPktTag          int            `json:"externalPktTag,omitempty"` // external packet tag
+	NetworkTag              string         `json:"networkTag,omitempty"`     // Derived Network Tag
 	NumEndpoints            int            `json:"numEndpoints,omitempty"`   // external packet tag
 	PktTag                  int            `json:"pktTag,omitempty"`         // internal packet tag
 
@@ -737,7 +890,7 @@ func (c *ContivClient) AciGwPost(obj *AciGw) error {
 	url := c.baseURL + "/api/v1/aciGws/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating aciGw %+v. Err: %v", obj, err)
 		return err
@@ -753,7 +906,7 @@ func (c *ContivClient) AciGwList() (*[]*AciGw, error) {
 
 	// http get the object
 	var objList []*AciGw
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting aciGws. Err: %v", err)
 		return nil, err
@@ -770,7 +923,7 @@ func (c *ContivClient) AciGwGet(name string) (*AciGw, error) {
 
 	// http get the object
 	var obj AciGw
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting aciGw %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -786,7 +939,7 @@ func (c *ContivClient) AciGwDelete(name string) error {
 	url := c.baseURL + "/api/v1/aciGws/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting aciGw %s. Err: %v", keyStr, err)
 		return err
@@ -803,7 +956,7 @@ func (c *ContivClient) AciGwInspect(name string) (*AciGwInspect, error) {
 
 	// http get the object
 	var obj AciGwInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting aciGw %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -819,7 +972,7 @@ func (c *ContivClient) AppProfilePost(obj *AppProfile) error {
 	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating appProfile %+v. Err: %v", obj, err)
 		return err
@@ -835,7 +988,7 @@ func (c *ContivClient) AppProfileList() (*[]*AppProfile, error) {
 
 	// http get the object
 	var objList []*AppProfile
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting appProfiles. Err: %v", err)
 		return nil, err
@@ -852,7 +1005,7 @@ func (c *ContivClient) AppProfileGet(tenantName string, appProfileName string) (
 
 	// http get the object
 	var obj AppProfile
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting appProfile %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -868,7 +1021,7 @@ func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string
 	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting appProfile %s. Err: %v", keyStr, err)
 		return err
@@ -885,7 +1038,7 @@ func (c *ContivClient) AppProfileInspect(tenantName string, appProfileName strin
 
 	// http get the object
 	var obj AppProfileInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting appProfile %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -901,7 +1054,7 @@ func (c *ContivClient) BgpPost(obj *Bgp) error {
 	url := c.baseURL + "/api/v1/Bgps/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating Bgp %+v. Err: %v", obj, err)
 		return err
@@ -917,7 +1070,7 @@ func (c *ContivClient) BgpList() (*[]*Bgp, error) {
 
 	// http get the object
 	var objList []*Bgp
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting Bgps. Err: %v", err)
 		return nil, err
@@ -934,7 +1087,7 @@ func (c *ContivClient) BgpGet(hostname string) (*Bgp, error) {
 
 	// http get the object
 	var obj Bgp
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting Bgp %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -950,7 +1103,7 @@ func (c *ContivClient) BgpDelete(hostname string) error {
 	url := c.baseURL + "/api/v1/Bgps/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting Bgp %s. Err: %v", keyStr, err)
 		return err
@@ -967,7 +1120,7 @@ func (c *ContivClient) BgpInspect(hostname string) (*BgpInspect, error) {
 
 	// http get the object
 	var obj BgpInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting Bgp %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -984,7 +1137,7 @@ func (c *ContivClient) EndpointInspect(endpointID string) (*EndpointInspect, err
 
 	// http get the object
 	var obj EndpointInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting endpoint %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1000,7 +1153,7 @@ func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 	url := c.baseURL + "/api/v1/endpointGroups/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating endpointGroup %+v. Err: %v", obj, err)
 		return err
@@ -1016,7 +1169,7 @@ func (c *ContivClient) EndpointGroupList() (*[]*EndpointGroup, error) {
 
 	// http get the object
 	var objList []*EndpointGroup
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting endpointGroups. Err: %v", err)
 		return nil, err
@@ -1033,7 +1186,7 @@ func (c *ContivClient) EndpointGroupGet(tenantName string, groupName string) (*E
 
 	// http get the object
 	var obj EndpointGroup
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting endpointGroup %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1049,7 +1202,7 @@ func (c *ContivClient) EndpointGroupDelete(tenantName string, groupName string) 
 	url := c.baseURL + "/api/v1/endpointGroups/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting endpointGroup %s. Err: %v", keyStr, err)
 		return err
@@ -1066,7 +1219,7 @@ func (c *ContivClient) EndpointGroupInspect(tenantName string, groupName string)
 
 	// http get the object
 	var obj EndpointGroupInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting endpointGroup %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1082,7 +1235,7 @@ func (c *ContivClient) ExtContractsGroupPost(obj *ExtContractsGroup) error {
 	url := c.baseURL + "/api/v1/extContractsGroups/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating extContractsGroup %+v. Err: %v", obj, err)
 		return err
@@ -1098,7 +1251,7 @@ func (c *ContivClient) ExtContractsGroupList() (*[]*ExtContractsGroup, error) {
 
 	// http get the object
 	var objList []*ExtContractsGroup
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting extContractsGroups. Err: %v", err)
 		return nil, err
@@ -1115,7 +1268,7 @@ func (c *ContivClient) ExtContractsGroupGet(tenantName string, contractsGroupNam
 
 	// http get the object
 	var obj ExtContractsGroup
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting extContractsGroup %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1131,7 +1284,7 @@ func (c *ContivClient) ExtContractsGroupDelete(tenantName string, contractsGroup
 	url := c.baseURL + "/api/v1/extContractsGroups/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting extContractsGroup %s. Err: %v", keyStr, err)
 		return err
@@ -1148,7 +1301,7 @@ func (c *ContivClient) ExtContractsGroupInspect(tenantName string, contractsGrou
 
 	// http get the object
 	var obj ExtContractsGroupInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting extContractsGroup %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1164,7 +1317,7 @@ func (c *ContivClient) GlobalPost(obj *Global) error {
 	url := c.baseURL + "/api/v1/globals/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating global %+v. Err: %v", obj, err)
 		return err
@@ -1180,7 +1333,7 @@ func (c *ContivClient) GlobalList() (*[]*Global, error) {
 
 	// http get the object
 	var objList []*Global
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting globals. Err: %v", err)
 		return nil, err
@@ -1197,7 +1350,7 @@ func (c *ContivClient) GlobalGet(name string) (*Global, error) {
 
 	// http get the object
 	var obj Global
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting global %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1213,7 +1366,7 @@ func (c *ContivClient) GlobalDelete(name string) error {
 	url := c.baseURL + "/api/v1/globals/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting global %s. Err: %v", keyStr, err)
 		return err
@@ -1230,7 +1383,7 @@ func (c *ContivClient) GlobalInspect(name string) (*GlobalInspect, error) {
 
 	// http get the object
 	var obj GlobalInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting global %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1246,7 +1399,7 @@ func (c *ContivClient) NetprofilePost(obj *Netprofile) error {
 	url := c.baseURL + "/api/v1/netprofiles/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating netprofile %+v. Err: %v", obj, err)
 		return err
@@ -1262,7 +1415,7 @@ func (c *ContivClient) NetprofileList() (*[]*Netprofile, error) {
 
 	// http get the object
 	var objList []*Netprofile
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting netprofiles. Err: %v", err)
 		return nil, err
@@ -1279,7 +1432,7 @@ func (c *ContivClient) NetprofileGet(tenantName string, profileName string) (*Ne
 
 	// http get the object
 	var obj Netprofile
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting netprofile %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1295,7 +1448,7 @@ func (c *ContivClient) NetprofileDelete(tenantName string, profileName string) e
 	url := c.baseURL + "/api/v1/netprofiles/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting netprofile %s. Err: %v", keyStr, err)
 		return err
@@ -1312,7 +1465,7 @@ func (c *ContivClient) NetprofileInspect(tenantName string, profileName string) 
 
 	// http get the object
 	var obj NetprofileInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting netprofile %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1328,7 +1481,7 @@ func (c *ContivClient) NetworkPost(obj *Network) error {
 	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating network %+v. Err: %v", obj, err)
 		return err
@@ -1344,7 +1497,7 @@ func (c *ContivClient) NetworkList() (*[]*Network, error) {
 
 	// http get the object
 	var objList []*Network
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting networks. Err: %v", err)
 		return nil, err
@@ -1361,7 +1514,7 @@ func (c *ContivClient) NetworkGet(tenantName string, networkName string) (*Netwo
 
 	// http get the object
 	var obj Network
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting network %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1377,7 +1530,7 @@ func (c *ContivClient) NetworkDelete(tenantName string, networkName string) erro
 	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting network %s. Err: %v", keyStr, err)
 		return err
@@ -1394,7 +1547,7 @@ func (c *ContivClient) NetworkInspect(tenantName string, networkName string) (*N
 
 	// http get the object
 	var obj NetworkInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting network %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1410,7 +1563,7 @@ func (c *ContivClient) PolicyPost(obj *Policy) error {
 	url := c.baseURL + "/api/v1/policys/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating policy %+v. Err: %v", obj, err)
 		return err
@@ -1426,7 +1579,7 @@ func (c *ContivClient) PolicyList() (*[]*Policy, error) {
 
 	// http get the object
 	var objList []*Policy
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting policys. Err: %v", err)
 		return nil, err
@@ -1443,7 +1596,7 @@ func (c *ContivClient) PolicyGet(tenantName string, policyName string) (*Policy,
 
 	// http get the object
 	var obj Policy
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting policy %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1459,7 +1612,7 @@ func (c *ContivClient) PolicyDelete(tenantName string, policyName string) error 
 	url := c.baseURL + "/api/v1/policys/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting policy %s. Err: %v", keyStr, err)
 		return err
@@ -1476,7 +1629,7 @@ func (c *ContivClient) PolicyInspect(tenantName string, policyName string) (*Pol
 
 	// http get the object
 	var obj PolicyInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting policy %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1492,7 +1645,7 @@ func (c *ContivClient) RulePost(obj *Rule) error {
 	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating rule %+v. Err: %v", obj, err)
 		return err
@@ -1508,7 +1661,7 @@ func (c *ContivClient) RuleList() (*[]*Rule, error) {
 
 	// http get the object
 	var objList []*Rule
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting rules. Err: %v", err)
 		return nil, err
@@ -1525,7 +1678,7 @@ func (c *ContivClient) RuleGet(tenantName string, policyName string, ruleId stri
 
 	// http get the object
 	var obj Rule
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting rule %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1541,7 +1694,7 @@ func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId s
 	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting rule %s. Err: %v", keyStr, err)
 		return err
@@ -1558,7 +1711,7 @@ func (c *ContivClient) RuleInspect(tenantName string, policyName string, ruleId 
 
 	// http get the object
 	var obj RuleInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting rule %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1574,7 +1727,7 @@ func (c *ContivClient) ServiceLBPost(obj *ServiceLB) error {
 	url := c.baseURL + "/api/v1/serviceLBs/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating serviceLB %+v. Err: %v", obj, err)
 		return err
@@ -1590,7 +1743,7 @@ func (c *ContivClient) ServiceLBList() (*[]*ServiceLB, error) {
 
 	// http get the object
 	var objList []*ServiceLB
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting serviceLBs. Err: %v", err)
 		return nil, err
@@ -1607,7 +1760,7 @@ func (c *ContivClient) ServiceLBGet(tenantName string, serviceName string) (*Ser
 
 	// http get the object
 	var obj ServiceLB
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting serviceLB %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1623,7 +1776,7 @@ func (c *ContivClient) ServiceLBDelete(tenantName string, serviceName string) er
 	url := c.baseURL + "/api/v1/serviceLBs/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting serviceLB %s. Err: %v", keyStr, err)
 		return err
@@ -1640,7 +1793,7 @@ func (c *ContivClient) ServiceLBInspect(tenantName string, serviceName string) (
 
 	// http get the object
 	var obj ServiceLBInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting serviceLB %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1656,7 +1809,7 @@ func (c *ContivClient) TenantPost(obj *Tenant) error {
 	url := c.baseURL + "/api/v1/tenants/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating tenant %+v. Err: %v", obj, err)
 		return err
@@ -1672,7 +1825,7 @@ func (c *ContivClient) TenantList() (*[]*Tenant, error) {
 
 	// http get the object
 	var objList []*Tenant
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting tenants. Err: %v", err)
 		return nil, err
@@ -1689,7 +1842,7 @@ func (c *ContivClient) TenantGet(tenantName string) (*Tenant, error) {
 
 	// http get the object
 	var obj Tenant
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting tenant %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1705,7 +1858,7 @@ func (c *ContivClient) TenantDelete(tenantName string) error {
 	url := c.baseURL + "/api/v1/tenants/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting tenant %s. Err: %v", keyStr, err)
 		return err
@@ -1722,7 +1875,7 @@ func (c *ContivClient) TenantInspect(tenantName string) (*TenantInspect, error) 
 
 	// http get the object
 	var obj TenantInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting tenant %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1738,7 +1891,7 @@ func (c *ContivClient) VolumePost(obj *Volume) error {
 	url := c.baseURL + "/api/v1/volumes/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating volume %+v. Err: %v", obj, err)
 		return err
@@ -1754,7 +1907,7 @@ func (c *ContivClient) VolumeList() (*[]*Volume, error) {
 
 	// http get the object
 	var objList []*Volume
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting volumes. Err: %v", err)
 		return nil, err
@@ -1771,7 +1924,7 @@ func (c *ContivClient) VolumeGet(tenantName string, volumeName string) (*Volume,
 
 	// http get the object
 	var obj Volume
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting volume %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1787,7 +1940,7 @@ func (c *ContivClient) VolumeDelete(tenantName string, volumeName string) error 
 	url := c.baseURL + "/api/v1/volumes/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting volume %s. Err: %v", keyStr, err)
 		return err
@@ -1804,7 +1957,7 @@ func (c *ContivClient) VolumeInspect(tenantName string, volumeName string) (*Vol
 
 	// http get the object
 	var obj VolumeInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting volume %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1820,7 +1973,7 @@ func (c *ContivClient) VolumeProfilePost(obj *VolumeProfile) error {
 	url := c.baseURL + "/api/v1/volumeProfiles/" + keyStr + "/"
 
 	// http post the object
-	err := httpPost(url, obj)
+	err := c.httpPost(url, obj)
 	if err != nil {
 		log.Debugf("Error creating volumeProfile %+v. Err: %v", obj, err)
 		return err
@@ -1836,7 +1989,7 @@ func (c *ContivClient) VolumeProfileList() (*[]*VolumeProfile, error) {
 
 	// http get the object
 	var objList []*VolumeProfile
-	err := httpGet(url, &objList)
+	err := c.httpGet(url, &objList)
 	if err != nil {
 		log.Debugf("Error getting volumeProfiles. Err: %v", err)
 		return nil, err
@@ -1853,7 +2006,7 @@ func (c *ContivClient) VolumeProfileGet(tenantName string, volumeProfileName str
 
 	// http get the object
 	var obj VolumeProfile
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting volumeProfile %+v. Err: %v", keyStr, err)
 		return nil, err
@@ -1869,7 +2022,7 @@ func (c *ContivClient) VolumeProfileDelete(tenantName string, volumeProfileName 
 	url := c.baseURL + "/api/v1/volumeProfiles/" + keyStr + "/"
 
 	// http get the object
-	err := httpDelete(url)
+	err := c.httpDelete(url)
 	if err != nil {
 		log.Debugf("Error deleting volumeProfile %s. Err: %v", keyStr, err)
 		return err
@@ -1886,7 +2039,7 @@ func (c *ContivClient) VolumeProfileInspect(tenantName string, volumeProfileName
 
 	// http get the object
 	var obj VolumeProfileInspect
-	err := httpGet(url, &obj)
+	err := c.httpGet(url, &obj)
 	if err != nil {
 		log.Debugf("Error getting volumeProfile %+v. Err: %v", keyStr, err)
 		return nil, err

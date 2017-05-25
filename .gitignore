@@ -64,3 +64,7 @@ test/systemtests/cfg.json
 .vagrant-state
 
 netplugin-version
+
+# release artifacts
+scripts/netContain/*.tgz
+scripts/netContain/*.tar.bz2

@@ -24,6 +24,7 @@ GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
 GOLINT_CMD := golint -set_exit_status
 GOFMT_CMD := gofmt -s -l
 GOVET_CMD := go tool vet
+CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
 
 all: build unit-test system-test ubuntu-tests
 
@@ -34,8 +35,12 @@ all-CI: stop clean start
 	make ssh-build
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "source /etc/profile.d/envvar.sh \
 		&& cd /opt/gopath/src/github.com/contiv/netplugin \
-		&& make host-unit-test host-integ-test host-build-docker-image"'
+		&& make ${CI_HOST_TARGETS}"'
+ifdef SKIP_SYSTEM_TEST
+	echo "Skipping system tests"
+else
 	make system-test
+endif
 
 test: build unit-test system-test ubuntu-tests
 
@@ -192,7 +197,7 @@ ubuntu-tests:
 
 system-test:start
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py
-	go test -v -timeout 480m ./test/systemtests -check.v -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
+	go test -v -timeout 480m ./test/systemtests -check.v -check.abort -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop start ssh-build
@@ -269,8 +274,17 @@ host-plugin-restart:
 
 # complete workflow to create rootfs, create/enable plugin and start swarm-mode
 demo-v2plugin:
-	CONTIV_V2PLUGIN_NAME="$${CONTIV_V2PLUGIN_NAME:-contiv/v2plugin:0.1}" CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-1.13.1}" CONTIV_DOCKER_SWARM="$${CONTIV_DOCKER_SWARM:-classic_mode}" make ssh-build
+	CONTIV_V2PLUGIN_NAME="$${CONTIV_V2PLUGIN_NAME:-contiv/v2plugin:0.1}" CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-1.13.1}" CONTIV_DOCKER_SWARM="$${CONTIV_DOCKER_SWARM:-swarm_mode}" make ssh-build
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-pluginfs-create host-plugin-restart host-swarm-restart"'
+
+# release a v2 plugin
+host-plugin-release: 
+	@echo dev: creating a docker v2plugin ...
+	sh scripts/v2plugin_rootfs.sh 
+	docker plugin create ${CONTIV_V2PLUGIN_NAME} install/v2plugin
+	@echo dev: pushing ${CONTIV_V2PLUGIN_NAME} to docker hub 
+	@echo dev: (need docker login with user in contiv org)
+	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
 only-tar:
 
@@ -288,3 +302,4 @@ release: tar
 	OLD_VERSION=${OLD_VERSION} BUILD_VERSION=${BUILD_VERSION} \
 	USE_RELEASE=${USE_RELEASE} scripts/release.sh
 	@make clean-tar
+

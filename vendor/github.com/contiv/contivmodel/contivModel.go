@@ -121,6 +121,7 @@ type EndpointGroup struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	CfgdTag          string   `json:"cfgdTag,omitempty"` // Configured Group Tag
 	ExtContractsGrps []string `json:"extContractsGrps,omitempty"`
 	GroupName        string   `json:"groupName,omitempty"`   // Group name
 	IpPool           string   `json:"ipPool,omitempty"`      // IP-pool
@@ -159,6 +160,7 @@ type EndpointGroupOper struct {
 	AvailableIPAddresses string         `json:"availableIPAddresses,omitempty"` // Available IP addresses
 	Endpoints            []EndpointOper `json:"endpoints,omitempty"`
 	ExternalPktTag       int            `json:"externalPktTag,omitempty"` // external packet tag
+	GroupTag             string         `json:"groupTag,omitempty"`       // Derived EndpointGroup Tag
 	NumEndpoints         int            `json:"numEndpoints,omitempty"`   // number of endpoints
 	PktTag               int            `json:"pktTag,omitempty"`         // internal packet tag
 
@@ -252,6 +254,7 @@ type Network struct {
 	// every object has a key
 	Key string `json:"key,omitempty"`
 
+	CfgdTag     string `json:"cfgdTag,omitempty"`     // Configured Network Tag
 	Encap       string `json:"encap,omitempty"`       // Encapsulation
 	Gateway     string `json:"gateway,omitempty"`     // Gateway
 	Ipv6Gateway string `json:"ipv6Gateway,omitempty"` // IPv6Gateway
@@ -285,6 +288,7 @@ type NetworkOper struct {
 	AvailableIPAddresses    string         `json:"availableIPAddresses,omitempty"`    // Available IP addresses
 	Endpoints               []EndpointOper `json:"endpoints,omitempty"`
 	ExternalPktTag          int            `json:"externalPktTag,omitempty"` // external packet tag
+	NetworkTag              string         `json:"networkTag,omitempty"`     // Derived Network Tag
 	NumEndpoints            int            `json:"numEndpoints,omitempty"`   // external packet tag
 	PktTag                  int            `json:"pktTag,omitempty"`         // internal packet tag
 
@@ -2429,6 +2433,15 @@ func ValidateEndpointGroup(obj *EndpointGroup) error {
 
 	// Validate each field
 
+	if len(obj.CfgdTag) > 128 {
+		return errors.New("cfgdTag string too long")
+	}
+
+	cfgdTagMatch := regexp.MustCompile("^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$")
+	if cfgdTagMatch.MatchString(obj.CfgdTag) == false {
+		return errors.New("cfgdTag string invalid format")
+	}
+
 	if len(obj.GroupName) > 64 {
 		return errors.New("groupName string too long")
 	}
@@ -3764,6 +3777,15 @@ func ValidateNetwork(obj *Network) error {
 	}
 
 	// Validate each field
+
+	if len(obj.CfgdTag) > 128 {
+		return errors.New("cfgdTag string too long")
+	}
+
+	cfgdTagMatch := regexp.MustCompile("^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]))?$")
+	if cfgdTagMatch.MatchString(obj.CfgdTag) == false {
+		return errors.New("cfgdTag string invalid format")
+	}
 
 	encapMatch := regexp.MustCompile("^(vlan|vxlan)$")
 	if encapMatch.MatchString(obj.Encap) == false {

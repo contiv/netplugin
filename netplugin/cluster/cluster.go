@@ -39,7 +39,6 @@ const (
 	netmasterRPCPort  = 9001
 	netpluginRPCPort1 = 9002
 	netpluginRPCPort2 = 9003
-	vxlanUDPPort      = 4789
 )
 
 // ObjdbClient client
@@ -104,7 +103,7 @@ func HTTPPost(url string, req interface{}, resp interface{}) error {
 
 	if res.StatusCode != http.StatusOK {
 		log.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
-		return errors.New("HTTP Error response")
+		return fmt.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
 	}
 
 	// Read the entire response
@@ -126,6 +125,34 @@ func HTTPPost(url string, req interface{}, resp interface{}) error {
 	return nil
 }
 
+// HTTPDel performs http DELETE operation
+func HTTPDel(url string) error {
+	req, err := http.NewRequest("DELETE", url, nil)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	// Check the response code
+	if res.StatusCode == http.StatusInternalServerError {
+		eBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return errors.New("HTTP StatusInternalServerError " + err.Error())
+		}
+		return errors.New(string(eBody))
+	}
+
+	if res.StatusCode != http.StatusOK {
+		log.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
+		return fmt.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
+	}
+
+	log.Infof("Results for (%s): %+v\n", url, res)
+	return nil
+}
+
 // getMasterLockHolder returns the IP of current master lock hoder
 func getMasterLockHolder() (string, error) {
 	// Create the lock
@@ -144,8 +171,15 @@ func getMasterLockHolder() (string, error) {
 	return masterNode, nil
 }
 
-// MasterPostReq makes a POST request to master node
-func MasterPostReq(path string, req interface{}, resp interface{}) error {
+// GetLeaderNetmaster returns the IP of current leader netmaster
+func GetLeaderNetmaster() (string, error) {
+	return getMasterLockHolder()
+}
+
+// masterReq makes a POST/DELETE request to master node
+func masterReq(path string, req interface{}, resp interface{}, isDel bool) error {
+	const retryCount = 3
+
 	// first find the holder of master lock
 	masterNode, err := getMasterLockHolder()
 	if err == nil {
@@ -153,8 +187,12 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 		log.Infof("Making REST request to url: %s", url)
 
 		// Make the REST call to master
-		for i := 0; i < 3; i++ {
-			err = HTTPPost(url, req, resp)
+		for i := 0; i < retryCount; i++ {
+			if isDel {
+				err = HTTPDel(url)
+			} else {
+				err = HTTPPost(url, req, resp)
+			}
 			if err != nil && strings.Contains(err.Error(), "connection refused") {
 				log.Warnf("Error making POST request. Retrying...: Err: %v", err)
 				// Wait a little before retrying
@@ -178,7 +216,11 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 
 		log.Infof("Making REST request to url: %s", url)
 
-		err := HTTPPost(url, req, resp)
+		if isDel {
+			err = HTTPDel(url)
+		} else {
+			err = HTTPPost(url, req, resp)
+		}
 		if err != nil {
 			log.Warnf("Error making POST request: Err: %v", err)
 			// continue and try making POST call to next master
@@ -191,8 +233,18 @@ func MasterPostReq(path string, req interface{}, resp interface{}) error {
 	return errors.New("POST request failed")
 }
 
+// MasterPostReq makes a POST request to master node
+func MasterPostReq(path string, req interface{}, resp interface{}) error {
+	return masterReq(path, req, resp, false)
+}
+
+// MasterDelReq makes a DELETE request to master node
+func MasterDelReq(path string) error {
+	return masterReq(path, nil, nil, true)
+}
+
 // Register netplugin with service registry
-func registerService(objClient objdb.API, ctrlIP, vtepIP, hostname string) error {
+func registerService(objClient objdb.API, ctrlIP, vtepIP, hostname string, vxlanUDPPort int) error {
 	// netplugin service info
 	srvInfo := objdb.ServiceInfo{
 		ServiceName: "netplugin",
@@ -283,7 +335,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, ctrlIP,
 				// add the node
 				err := netplugin.AddPeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
-					Port:     vxlanUDPPort,
+					Port:     netplugin.PluginConfig.Instance.VxlanUDPPort,
 				})
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
@@ -294,7 +346,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, ctrlIP,
 				// remove the node
 				err := netplugin.DeletePeerHost(core.ServiceInfo{
 					HostAddr: nodeInfo.HostAddr,
-					Port:     vxlanUDPPort,
+					Port:     netplugin.PluginConfig.Instance.VxlanUDPPort,
 				})
 				if err != nil {
 					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
@@ -356,7 +408,7 @@ func Init(storeURL string) error {
 // RunLoop registers netplugin service with cluster store and runs peer discovery
 func RunLoop(netplugin *plugin.NetPlugin, ctrlIP, vtepIP, hostname string) error {
 	// Register ourselves
-	err := registerService(ObjdbClient, ctrlIP, vtepIP, hostname)
+	err := registerService(ObjdbClient, ctrlIP, vtepIP, hostname, netplugin.PluginConfig.Instance.VxlanUDPPort)
 
 	// Start peer discovery loop
 	go peerDiscoveryLoop(netplugin, ObjdbClient, ctrlIP, vtepIP)

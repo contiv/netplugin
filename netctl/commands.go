@@ -31,6 +31,11 @@ var NetmasterFlags = []cli.Flag{
 		Usage:  "The hostname of the netmaster",
 		EnvVar: "NETMASTER",
 	},
+	cli.BoolFlag{
+		Name:   "insecure",
+		Usage:  "if true, strict certificate checking will be disabled",
+		EnvVar: "INSECURE",
+	},
 }
 
 // Commands are all the commands that go into `contivctl`, the end-user tool.
@@ -40,6 +45,11 @@ var Commands = []cli.Command{
 		Name:   "version",
 		Usage:  "Version Information",
 		Action: showVersion,
+	},
+	{
+		Name:   "login",
+		Usage:  "authenticate to Contiv (you must specify auth_proxy's HTTPS address in the --netmaster flag)",
+		Action: login,
 	},
 	{
 		Name:  "group",
@@ -67,6 +77,10 @@ var Commands = []cli.Command{
 						Name:  "ip-pool, r",
 						Usage: "IP Address range, example 10.36.0.1-10.36.0.10",
 					},
+					cli.StringFlag{
+						Name:  "epg-tag, tag",
+						Usage: "Configured Group Tag",
+					},
 				},
 				Action: createEndpointGroup,
 			},
@@ -74,7 +88,7 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect a EndpointGroup",
 				ArgsUsage: "[group]",
-				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag},
 				Action:    inspectEndpointGroup,
 			},
 			{
@@ -104,7 +118,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect an Endpoint",
 				ArgsUsage: "[epid]",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectEndpoint,
 			},
 		},
@@ -176,7 +189,7 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect a Network",
 				ArgsUsage: "[network]",
-				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag},
 				Action:    inspectNetwork,
 			},
 			{
@@ -223,6 +236,10 @@ var Commands = []cli.Command{
 						Name:  "gatewayv6, g6",
 						Usage: "IPv6 Gateway",
 					},
+					cli.StringFlag{
+						Name:  "nw-tag, tag",
+						Usage: "Configured Network Tag",
+					},
 				},
 				Action: createNetwork,
 			},
@@ -257,7 +274,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect a tenant",
 				ArgsUsage: "[tenant]",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectTenant,
 			},
 		},
@@ -423,7 +439,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect Global Operational Information",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectGlobal,
 			},
 			{
@@ -476,7 +491,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect aci gateway operational information",
 				ArgsUsage: " ",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectAciGw,
 			},
 			{
@@ -563,7 +577,6 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect Bgp",
 				ArgsUsage: "[hostname]",
-				Flags:     []cli.Flag{jsonFlag},
 				Action:    inspectBgp,
 			},
 		},
@@ -640,7 +653,7 @@ var Commands = []cli.Command{
 				Name:      "inspect",
 				Usage:     "Inspect a Network",
 				ArgsUsage: "[servicename]",
-				Flags:     []cli.Flag{tenantFlag, jsonFlag},
+				Flags:     []cli.Flag{tenantFlag},
 				Action:    inspectServiceLb,
 			},
 			{
@@ -667,7 +680,7 @@ var Commands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name:  "network,s",
-						Usage: "service subnet",
+						Usage: "service network name",
 					},
 					cli.StringSliceFlag{
 						Name:  "selector,l",

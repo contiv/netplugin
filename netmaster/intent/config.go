@@ -50,6 +50,7 @@ type ConfigNetwork struct {
 	IPv6SubnetCIDR string
 	IPv6Gateway    string
 	Vrf            string
+	CfgdTag        string
 
 	// eps associated with the network
 	Endpoints []ConfigEP

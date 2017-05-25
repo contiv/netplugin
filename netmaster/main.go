@@ -81,7 +81,7 @@ func parseOpts(opts *cliOpts) error {
 	flagSet.StringVar(&opts.clusterMode,
 		"cluster-mode",
 		"docker",
-		"{docker, kubernetes}")
+		"{docker, kubernetes, swarm-mode}")
 	flagSet.BoolVar(&opts.version,
 		"version",
 		false,
@@ -153,7 +153,9 @@ func execOpts(opts *cliOpts) {
 	}
 	log.Infof("Control IP:Port %s:%s", controlIP, controlURL[1])
 
-	docknet.UpdatePluginName(opts.pluginName)
+	if opts.clusterMode == "docker" || opts.clusterMode == "swarm-mode" {
+		docknet.UpdatePluginName(opts.pluginName)
+	}
 }
 
 func main() {
@@ -176,6 +178,9 @@ func main() {
 
 	// initialize master daemon
 	d.Init()
+
+	// start monitoring services
+	d.InitServices()
 
 	// Run daemon FSM
 	d.RunMasterFsm()

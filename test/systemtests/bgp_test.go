@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	. "github.com/contiv/check"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/remotessh"
-	. "gopkg.in/check.v1"
 )
 
 /*TestBgpContainerToContainerPing tests the following:

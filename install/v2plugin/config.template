@@ -16,6 +16,14 @@
           "Value": ""
        },
        {
+          "Description": "Change the directory where the logs are saved",
+          "Name": "log_dir",
+          "Settable": [
+             "value"
+          ],
+          "Value": "/var/log/contiv"
+       },
+       {
           "Description": "VLAN uplink interface used by OVS",
           "Name": "iflist",
           "Settable": [
@@ -32,6 +40,14 @@
           "Value": "etcd://localhost:2379"
        },
        {
+          "Description": "Plugin mode set to docker or swarm-mode",
+          "Name": "plugin_mode",
+          "Settable": [
+             "value"
+          ],
+          "Value": "swarm-mode"
+       },
+       {
           "Description": "Local IP address to be used by netplugin for control communication",
           "Name": "ctrl_ip",
           "Settable": [
@@ -46,6 +62,14 @@
              "value"
           ],
           "Value": "none"
+       },
+       {
+          "Description": "Vxlan UDP port number used for encapsulating vxlan packets",
+          "Name": "vxlan_port",
+          "Settable": [
+             "value"
+          ],
+          "Value": "8742"
        },
        {
           "Description": "In 'master' role, plugin runs netmaster and netplugin",
@@ -91,8 +115,8 @@
        {
           "type": "bind",
           "options": ["rbind"],
-          "source": "/var/log/openvswitch",
-          "destination": "/var/log/openvswitch"
+          "source": "/var/log",
+          "destination": "/var/log"
        },
        {
           "type": "bind",

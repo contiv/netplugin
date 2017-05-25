@@ -89,7 +89,7 @@ func (sw *OvsSwitch) GetUplinkInterfaces(uplinkID string) []string {
 
 // NewOvsSwitch Creates a new OVS switch instance
 func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
-	vlanIntf []string, hostPvtNW int) (*OvsSwitch, error) {
+	vlanIntf []string, hostPvtNW int, vxlanUDPPort int) (*OvsSwitch, error) {
 	var err error
 	var datapath string
 	var ofnetPort, ctrlrPort uint16
@@ -101,7 +101,7 @@ func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
 	sw.hostPvtNW = hostPvtNW
 
 	// Create OVS db driver
-	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure")
+	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure", vxlanUDPPort)
 	if err != nil {
 		log.Fatalf("Error creating ovsdb driver. Err: %v", err)
 	}
