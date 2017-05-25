@@ -60,8 +60,10 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 
 	// Initialize appropriate plugin
 	switch opts.PluginMode {
+	case "swarm-mode":
+		fallthrough
 	case "docker":
-		dockplugin.InitDockPlugin(netPlugin)
+		dockplugin.InitDockPlugin(netPlugin, opts.PluginMode)
 
 	case "kubernetes":
 		k8splugin.InitCNIServer(netPlugin)
@@ -218,7 +220,8 @@ func (ag *Agent) HandleEvents() error {
 
 	go handlePolicyRuleEvents(ag.netPlugin, opts, recvErr)
 
-	if ag.pluginConfig.Instance.PluginMode == "docker" {
+	if ag.pluginConfig.Instance.PluginMode == "docker" ||
+		ag.pluginConfig.Instance.PluginMode == "swarm-mode" {
 		go ag.monitorDockerEvents(recvErr)
 	} else if ag.pluginConfig.Instance.PluginMode == "kubernetes" {
 		// start watching kubernetes events

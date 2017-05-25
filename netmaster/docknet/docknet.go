@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -124,7 +125,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 	docker, err := dockerclient.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
-		return errors.New("Unable to connect to docker")
+		return fmt.Errorf("Unable to connect to docker: %s", err.Error())
 	}
 
 	// Check if the network already exists
@@ -184,6 +185,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 		}
 
 		log.Infof("Creating docker network: %+v", nwCreate)
+		log.Infof("         docker ipam config: %+v", *nwCreate.IPAM)
 
 		// Create network
 		resp, err := docker.NetworkCreate(context.Background(), docknetName, nwCreate)
@@ -195,25 +197,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 		nwID = resp.ID
 	}
 
-	// Get the state driver
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		log.Warnf("Couldn't read global config %v", err)
-		return err
-	}
-
-	// save docknet oper state
-	dnetOper := DnetOperState{
-		TenantName:  tenantName,
-		NetworkName: networkName,
-		ServiceName: serviceName,
-		DocknetUUID: nwID,
-	}
-	dnetOper.ID = fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName)
-	dnetOper.StateDriver = stateDriver
-
-	// write the dnet oper state
-	return dnetOper.Write()
+	return CreateDockNetState(tenantName, networkName, serviceName, nwID)
 }
 
 // DeleteDockNet deletes a network in docker daemon
@@ -249,10 +233,47 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 		log.Infof("Ignoring error in deleting docker network %s. Err: %v", docknetName, err)
 	}
 
+	err = DeleteDockNetState(tenantName, networkName, serviceName)
+	if docknetDeleted && strings.Contains(err.Error(), "Key not found") {
+		// Ignore the error as docknet was already deleted
+		err = nil
+	}
+	return err
+}
+
+// CreateDockNetState creates an entry in the docknet state store
+func CreateDockNetState(tenantName, networkName, serviceName, docknetID string) error {
+	log.Infof("Adding DockNetState for %s.%s.%s --> %s", tenantName, networkName, serviceName, docknetID)
+
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
-		log.Warnf("Couldn't read global config %v", err)
+		log.Warnf("Couldn't get state driver for docknet add %v", err)
+		return err
+	}
+
+	// save docknet oper state
+	dnetOper := DnetOperState{
+		TenantName:  tenantName,
+		NetworkName: networkName,
+		ServiceName: serviceName,
+		DocknetUUID: docknetID,
+	}
+	dnetOper.ID = fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName)
+	dnetOper.StateDriver = stateDriver
+
+	// write the dnet oper state
+	return dnetOper.Write()
+}
+
+// DeleteDockNetState delete the docknet entry from state store
+func DeleteDockNetState(tenantName, networkName, serviceName string) error {
+	log.Infof("Deleting DockNetState for %s.%s.%s", tenantName, networkName, serviceName)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		log.Warnf("Couldn't get state driver for docknet del %v", err)
 		return err
 	}
 
@@ -262,16 +283,13 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	dnetOper.StateDriver = stateDriver
 
 	// write the dnet oper state
-	err = dnetOper.Clear()
-	if docknetDeleted && err != nil {
-		// Ignore the error as docknet was already deleted
-		err = nil
-	}
-	return err
+	return dnetOper.Clear()
 }
 
 // FindDocknetByUUID find the docknet by UUID
 func FindDocknetByUUID(dnetID string) (*DnetOperState, error) {
+	log.Infof("find docker network '%s' ", dnetID)
+
 	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {

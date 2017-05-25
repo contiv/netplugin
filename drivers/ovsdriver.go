@@ -170,13 +170,13 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 
 	// Create Vxlan switch
 	d.switchDb["vxlan"], err = NewOvsSwitch(vxlanBridgeName, "vxlan", info.VtepIP,
-		info.FwdMode, nil, info.HostPvtNW)
+		info.FwdMode, nil, info.HostPvtNW, info.VxlanUDPPort)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}
 	// Create Vlan switch
 	d.switchDb["vlan"], err = NewOvsSwitch(vlanBridgeName, "vlan", info.VtepIP,
-		info.FwdMode, info.UplinkIntf, info.HostPvtNW)
+		info.FwdMode, info.UplinkIntf, info.HostPvtNW, info.VxlanUDPPort)
 	if err != nil {
 		log.Fatalf("Error creating vlan switch. Err: %v", err)
 	}

@@ -18,10 +18,13 @@ package dockplugin
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -32,6 +35,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	dockerclient "github.com/docker/docker/client"
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"golang.org/x/net/context"
 )
@@ -65,7 +69,6 @@ func deleteNetwork(w http.ResponseWriter, r *http.Request) {
 		httpError(w, "Could not read and parse the delete network request", err)
 		return
 	}
-
 	dnresp := api.DeleteNetworkResponse{}
 	content, err = json.Marshal(dnresp)
 	if err != nil {
@@ -371,11 +374,52 @@ func leave(w http.ResponseWriter, r *http.Request) {
 }
 
 func allocateNetwork(w http.ResponseWriter, r *http.Request) {
-	resp := api.AllocateNetworkResponse{}
 
-	content, err := json.Marshal(resp)
+	var (
+		content []byte
+		err     error
+		decoder = json.NewDecoder(r.Body)
+		anreq   = api.AllocateNetworkRequest{}
+	)
+
+	logEvent("allocateNetwork")
+
+	err = decoder.Decode(&anreq)
 	if err != nil {
-		httpError(w, "Could not generate a response", err)
+		httpError(w, "Could not read and parse the allocateNetwork request", err)
+		return
+	}
+
+	log.Infof("AllocateNetworkRequest: %+v", anreq)
+
+	// If we are in swarm-mode:
+	//     - if tag is given, it indicates the epg or network
+	//     - else if subnet given create a contiv network
+	// In swarm-mode libnetwork api for allocateNetwork is called
+	// once in the cluster and createNetwork is called in every
+	// node where a container in the network is instantiated.
+	// We process only allocateNetwork in this case.
+	//
+	if pluginMode == "swarm-mode" {
+		tag := ""
+		log.Infof("Options: %+v", anreq.Options)
+		if _, tagOk := anreq.Options["contiv-tag"]; tagOk {
+			log.Infof("contiv-tag %+v ", anreq.Options["contiv-tag"])
+			tag = anreq.Options["contiv-tag"]
+		}
+		err = createNetworkHelper(anreq.NetworkID, tag, anreq.IPv4Data, anreq.IPv6Data)
+		if err != nil {
+			httpError(w, "createNetwork failed! ", err)
+		}
+	} else {
+		log.Infof("ClusterMode is %s", master.GetClusterMode())
+	}
+
+	resp := api.AllocateNetworkResponse{}
+	resp.Options = anreq.Options
+	content, err = json.Marshal(resp)
+	if err != nil {
+		httpError(w, "failed to marshal JSON for AllocateNetwork response", err)
 		return
 	}
 
@@ -383,11 +427,33 @@ func allocateNetwork(w http.ResponseWriter, r *http.Request) {
 }
 
 func freeNetwork(w http.ResponseWriter, r *http.Request) {
-	resp := api.FreeNetworkResponse{}
+	var (
+		content []byte
+		err     error
+		decoder = json.NewDecoder(r.Body)
+	)
 
-	content, err := json.Marshal(resp)
+	logEvent("freeNetwork")
+
+	req := api.FreeNetworkRequest{}
+	err = decoder.Decode(&req)
 	if err != nil {
-		httpError(w, "Could not generate a response", err)
+		httpError(w, "Could not read and parse the freeNetwork request", err)
+		return
+	}
+
+	if pluginMode == "swarm-mode" {
+		err = deleteNetworkHelper(req.NetworkID)
+		if err != nil {
+			httpError(w, "Could not delete network", err)
+			return
+		}
+	}
+
+	resp := api.FreeNetworkResponse{}
+	content, err = json.Marshal(resp)
+	if err != nil {
+		httpError(w, "failed to marshal JSON for freeNetwork response", err)
 		return
 	}
 
@@ -397,9 +463,11 @@ func freeNetwork(w http.ResponseWriter, r *http.Request) {
 func programExternalConnectivity(w http.ResponseWriter, r *http.Request) {
 	resp := api.ProgramExternalConnectivityResponse{}
 
+	logEvent("program externalConnectivity")
+
 	content, err := json.Marshal(resp)
 	if err != nil {
-		httpError(w, "Could not generate a response", err)
+		httpError(w, "failed to marshal JSON for externalConnectivity request", err)
 		return
 	}
 
@@ -409,9 +477,53 @@ func programExternalConnectivity(w http.ResponseWriter, r *http.Request) {
 func revokeExternalConnectivity(w http.ResponseWriter, r *http.Request) {
 	resp := api.RevokeExternalConnectivityResponse{}
 
+	logEvent("revoke externalConnectivity")
+
 	content, err := json.Marshal(resp)
 	if err != nil {
-		httpError(w, "Could not generate a response", err)
+		httpError(w, "failed to marshal JSON for externalConnectivity response", err)
+		return
+	}
+
+	w.Write(content)
+}
+
+func discoverNew(w http.ResponseWriter, r *http.Request) {
+	resp := api.DiscoveryResponse{}
+
+	logEvent("discoverNew")
+
+	content, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		httpError(w, "Could not read contents of discoverNew", err)
+		return
+	}
+	log.Infof("DiscoverNew content: %s", string(content))
+
+	content, err = json.Marshal(resp)
+	if err != nil {
+		httpError(w, "failed to marshall JSON for discoverNew", err)
+		return
+	}
+
+	w.Write(content)
+}
+
+func discoverDelete(w http.ResponseWriter, r *http.Request) {
+	resp := api.DiscoveryResponse{}
+
+	logEvent("discoverDelete")
+
+	content, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		httpError(w, "Could not read contents of discoverDelete", err)
+		return
+	}
+	log.Infof("DiscoverDelete content: %s", string(content))
+
+	content, err = json.Marshal(resp)
+	if err != nil {
+		httpError(w, "failed to marshall JSON for discoverDelete", err)
 		return
 	}
 
@@ -459,6 +571,10 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 	dnetOper, err := docknet.FindDocknetByUUID(nwID)
 	if err == nil {
 		return dnetOper.TenantName, dnetOper.NetworkName, dnetOper.ServiceName, nil
+	}
+	if pluginMode == "swarm-mode" {
+		log.Errorf("Unable to find docknet info in objstore")
+		return "", "", "", err
 	}
 
 	// create docker client
@@ -522,4 +638,174 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 	}
 
 	return tenantName, netName, serviceName, nil
+}
+
+// FindGroupFromTag finds the group that has matching tag
+func FindGroupFromTag(epgTag string) (*mastercfg.EndpointGroupState, error) {
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return nil, err
+	}
+
+	epgCfg := &mastercfg.EndpointGroupState{}
+	epgCfg.StateDriver = stateDriver
+
+	epgList, err := epgCfg.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var epg *mastercfg.EndpointGroupState
+	found := false
+	for _, epgP := range epgList {
+		epg = epgP.(*mastercfg.EndpointGroupState)
+		if epg.GroupTag == epgTag {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("Couldn't find group matching the tag %s", epgTag)
+	}
+	return epg, nil
+}
+
+// FindNetworkFromTag finds the network that has matching tag
+func FindNetworkFromTag(nwTag string) (*mastercfg.CfgNetworkState, error) {
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return nil, err
+	}
+	nwCfg := &mastercfg.CfgNetworkState{}
+	nwCfg.StateDriver = stateDriver
+	nwList, err := nwCfg.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	var nw *mastercfg.CfgNetworkState
+	found := false
+	for _, nwP := range nwList {
+		nw = nwP.(*mastercfg.CfgNetworkState)
+		if nw.NetworkTag == nwTag {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("Couldn't find network matching the tag %s", nwTag)
+	}
+	return nw, nil
+}
+
+// createNetworkHelper creates the association between docker network and contiv network
+//  if tag is given map docker net to epg or network, else create a contiv network
+func createNetworkHelper(networkID string, tag string, IPv4Data, IPv6Data []driverapi.IPAMData) error {
+	var tenantName, networkName, serviceName string
+	var err error
+	if tag != "" {
+		// we need to map docker network to policy group or network using the tag
+		log.Infof("Received tag %s", tag)
+		var nw *mastercfg.CfgNetworkState
+		epg, err := FindGroupFromTag(tag)
+		if err != nil {
+			nw, err = FindNetworkFromTag(tag)
+			if err != nil {
+				return errors.New("failed to lookup tag")
+			}
+		}
+		if epg != nil {
+			tenantName = epg.TenantName
+			networkName = epg.NetworkName
+			serviceName = epg.GroupName
+		} else if nw != nil {
+			tenantName = nw.Tenant
+			networkName = nw.NetworkName
+			serviceName = ""
+		}
+	} else if len(IPv4Data) > 0 {
+		// if subnet is specified in docker command, we create a contiv network
+		subnetPool := ""
+		gateway := ""
+		if IPv4Data[0].Pool != nil {
+			subnetPool = IPv4Data[0].Pool.String()
+		}
+		if IPv4Data[0].Gateway != nil {
+			gateway = strings.Split(IPv4Data[0].Gateway.String(), "/")[0]
+		}
+		subnetv6 := ""
+		gatewayv6 := ""
+		if len(IPv6Data) > 0 {
+			if IPv6Data[0].Pool != nil {
+				subnetv6 = IPv6Data[0].Pool.String()
+			}
+			if IPv6Data[0].Gateway != nil {
+				gatewayv6 = strings.Split(IPv6Data[0].Gateway.String(), "/")[0]
+			}
+		}
+		// build key and URL
+		keyStr := "default" + ":" + networkID
+		url := "/api/v1/networks/" + keyStr + "/"
+
+		tenantName = "default"
+		networkName = networkID
+		serviceName = ""
+
+		req := client.Network{
+			TenantName:  tenantName,
+			NetworkName: networkName,
+			Subnet:      subnetPool,
+			Gateway:     gateway,
+			Ipv6Subnet:  subnetv6,
+			Ipv6Gateway: gatewayv6,
+			Encap:       "vxlan",
+		}
+
+		var resp client.Network
+		err = cluster.MasterPostReq(url, &req, &resp)
+		if err != nil {
+			log.Errorf("failed to create network in netmaster: %s", err.Error())
+			return errors.New("failed to create network in netmaster")
+		}
+		log.Infof("Created contiv network %+v", req)
+	}
+	// Create docknet oper state to map the docker network to contiv network
+	// We do not create a network in docker as it is created explicitly by user
+	err = docknet.CreateDockNetState(tenantName, networkName, serviceName, networkID)
+	if err != nil {
+		log.Errorf("Error creating docknet state: %s", err.Error())
+		return errors.New("Error creating docknet state")
+	}
+	return nil
+}
+
+// deleteNetworkHelper removes the association between docker network and contiv network
+func deleteNetworkHelper(networkID string) error {
+	netID := networkID + ".default"
+	_, err := netdGetNetwork(netID)
+	if err == nil {
+		// if we find a contiv network with the ID hash, then it must be
+		// a docker created network (from the libnetwork create api).
+		// build key and URL
+		keyStr := "default" + ":" + networkID
+		url := "/api/v1/networks/" + keyStr + "/"
+
+		err = cluster.MasterDelReq(url)
+		if err != nil {
+			log.Errorf("Failed to delete network: %s", err.Error())
+			return errors.New("Failed to delete network")
+		}
+		log.Infof("Deleted contiv network %v", networkID)
+	} else {
+		log.Infof("Could not find contiv network %v", networkID)
+	}
+	dnet, err := docknet.FindDocknetByUUID(networkID)
+	if err == nil {
+		// delete the dnet oper state
+		err = docknet.DeleteDockNetState(dnet.TenantName, dnet.NetworkName, dnet.ServiceName)
+		if err != nil {
+			log.Errorf("Couldn't delete docknet for nwID %s", networkID)
+		}
+		log.Infof("Deleted docker network mapping for %v", networkID)
+	}
+	return nil
 }

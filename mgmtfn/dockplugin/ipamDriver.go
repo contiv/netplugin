@@ -17,6 +17,7 @@ package dockplugin
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -79,23 +80,62 @@ func requestPool(w http.ResponseWriter, r *http.Request) {
 
 	// build response
 	PoolID := preq.Pool
+	Pool := ""
 
-	// Docker 1.10+ supports IPAM options. so, we pass the network id as pool-id
-	// In docker 1.9, we pass the address pool back as pool id
-	// HACK alert: This is very fragile. SImplify this when we stop supporting docker 1.9
-	tenant, okt := preq.Options["tenant"]
-	network, okn := preq.Options["network"]
-	epg, oke := preq.Options["group"]
-	if okt && okn {
-		if oke {
-			PoolID = network + ":" + epg + "." + tenant + "|" + preq.Pool
+	tag, tagOk := preq.Options["contiv-tag"]
+	if tagOk {
+		log.Infof("Received contiv-tag: %v", tag)
+
+		// if the PoolRequest has a tag instead of the network or group,
+		//  match the tag to a group (else to network)
+		epgCfg, err := FindGroupFromTag(tag)
+		if err == nil {
+			log.Infof("Found matching epg ")
+
+			if len(epgCfg.IPPool) > 0 {
+				PoolID = epgCfg.NetworkName + ":" + epgCfg.GroupName + "." + epgCfg.TenantName + "|" + epgCfg.IPPool
+				Pool = epgCfg.IPPool
+			} else {
+				// Get the pool from the Network
+				nwCfg, err := netdGetNetwork(epgCfg.NetworkName + "." + epgCfg.TenantName)
+				if err != nil {
+					httpError(w, "failed to lookup network. ", err)
+					return
+				}
+				Pool = fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
+				PoolID = epgCfg.NetworkName + "." + epgCfg.TenantName + "|" + Pool
+			}
 		} else {
-			PoolID = network + "." + tenant + "|" + preq.Pool
+			nwCfg, err := FindNetworkFromTag(tag)
+			if err != nil {
+				httpError(w, "failed to lookup tag. ", err)
+				return
+			}
+			log.Infof("Found matching network ")
+			Pool = fmt.Sprintf("%s/%d", nwCfg.SubnetIP, nwCfg.SubnetLen)
+			PoolID = nwCfg.NetworkName + "." + nwCfg.Tenant + "|" + Pool
 		}
+		log.Infof("PoolID: %v", PoolID)
+	} else {
+		// Docker 1.10+ supports IPAM options. so, we pass the network id as pool-id
+		// In docker 1.9, we pass the address pool back as pool id
+		// HACK alert: This is very fragile. SImplify this when we stop supporting docker 1.9
+		tenant, okt := preq.Options["tenant"]
+		network, okn := preq.Options["network"]
+		epg, oke := preq.Options["group"]
+		if okt && okn {
+			if oke {
+				PoolID = network + ":" + epg + "." + tenant + "|" + preq.Pool
+			} else {
+				PoolID = network + "." + tenant + "|" + preq.Pool
+			}
+		}
+		Pool = preq.Pool
+		log.Infof("No tag, PoolID: %v", PoolID)
 	}
 	presp := api.RequestPoolResponse{
 		PoolID: PoolID,
-		Pool:   preq.Pool,
+		Pool:   Pool,
 	}
 
 	log.Infof("Sending RequestPoolResponse: %+v", presp)
@@ -106,7 +146,6 @@ func requestPool(w http.ResponseWriter, r *http.Request) {
 		httpError(w, "Could not generate requestPool response", err)
 		return
 	}
-
 	w.Write(content)
 }
 

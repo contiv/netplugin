@@ -61,6 +61,7 @@ type CfgNetworkState struct {
 	IPv6Gateway   string          `json:"ipv6Gateway"`
 	IPv6AllocMap  map[string]bool `json:"ipv6AllocMap"`
 	IPv6LastHost  string          `json:"ipv6LastHost"`
+	NetworkTag    string          `json:"networkTag"`
 }
 
 // Write the state.

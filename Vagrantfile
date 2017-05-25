@@ -115,7 +115,7 @@ fi
 # setup docker cluster store
 # No cluster store needed for swarm_mode
 if [[ #{docker_swarm} == "swarm_mode" ]]; then
-    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock!' /lib/systemd/system/docker.service
+    perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 !' /lib/systemd/system/docker.service
 else
     if [[ "$CONTIV_CLUSTER_STORE" == *"consul:"* ]]
     then
@@ -367,7 +367,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
 
             node.vm.provision "shell" do |s|
-                s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_ips[1]} netmaster' >> /etc/hosts;   echo '#{node_addr} #{node_name}' >> /etc/hosts"
+               if ENV["DOCKER_SWARM"] == "SWARM_MODE"
+                   # In swarm mode first VM is the master. Should make it configurable later
+                   s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_addr} #{node_name}' >> /etc/hosts"
+               else
+                   s.inline = "echo '#{node_ips[0]} netmaster' >> /etc/hosts; echo '#{node_ips[1]} netmaster' >> /etc/hosts;   echo '#{node_addr} #{node_name}' >> /etc/hosts"
+               end
             end
 
             provision_common_once_script = provision_common_once % {
