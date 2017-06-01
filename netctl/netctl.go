@@ -188,7 +188,7 @@ func listPolicies(ctx *cli.Context) {
 	policies, err := getClient(ctx).PolicyList()
 	errCheck(ctx, err)
 
-	var filtered []*contivClient.Policy
+	filtered := []*contivClient.Policy{}
 
 	for _, policy := range *policies {
 		if policy.TenantName == tenant || ctx.Bool("all") {
@@ -301,8 +301,8 @@ func listRules(ctx *cli.Context) {
 
 	writeRules := map[int][]*contivClient.Rule{}
 
-	var writePrio []int
-	var results []*contivClient.Rule
+	writePrio := []int{}
+	results := []*contivClient.Rule{}
 
 	for _, rule := range *rules {
 
@@ -429,7 +429,7 @@ func listNetProfiles(ctx *cli.Context) {
 	profileList, err := getClient(ctx).NetprofileList()
 	errCheck(ctx, err)
 
-	var filtered []*contivClient.Netprofile
+	filtered := []*contivClient.Netprofile{}
 
 	for _, profile := range *profileList {
 		if profile.TenantName == tenant || ctx.Bool("all") {
@@ -602,7 +602,7 @@ func listNetworks(ctx *cli.Context) {
 	netList, err := getClient(ctx).NetworkList()
 	errCheck(ctx, err)
 
-	var filtered []*contivClient.Network
+	filtered := []*contivClient.Network{}
 
 	if ctx.Bool("all") {
 		filtered = *netList
@@ -615,7 +615,7 @@ func listNetworks(ctx *cli.Context) {
 	}
 
 	if ctx.Bool("json") {
-		dumpJSONList(ctx, &filtered)
+		dumpJSONList(ctx, filtered)
 	} else if ctx.Bool("quiet") {
 		networks := ""
 		for _, network := range filtered {
@@ -1372,7 +1372,7 @@ func listExternalContracts(ctx *cli.Context) {
 	extContractsGroupsList, err := getClient(ctx).ExtContractsGroupList()
 	errCheck(ctx, err)
 
-	var filtered []*contivClient.ExtContractsGroup
+	filtered := []*contivClient.ExtContractsGroup{}
 
 	for _, extContractsGroup := range *extContractsGroupsList {
 		if extContractsGroup.TenantName == tenant || ctx.Bool("all") {
