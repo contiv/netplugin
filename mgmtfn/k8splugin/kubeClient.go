@@ -30,6 +30,7 @@ import (
 	"github.com/contiv/netplugin/core"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
+	"strconv"
 )
 
 const (
@@ -38,11 +39,12 @@ const (
 
 // APIClient defines information needed for the k8s api client
 type APIClient struct {
-	baseURL   string
-	watchBase string
-	client    *http.Client
-	podCache  podInfo
-	authToken string
+	apiServerPort uint16
+	baseURL       string
+	watchBase     string
+	client        *http.Client
+	podCache      podInfo
+	authToken     string
 }
 
 // SvcWatchResp is the response to a service watch
@@ -86,6 +88,17 @@ type podInfo struct {
 func NewAPIClient(serverURL, caFile, keyFile, certFile, authToken string) *APIClient {
 	useClientCerts := true
 	c := APIClient{}
+
+	c.apiServerPort = 6443 // default
+	port := strings.Split(serverURL, ":")
+	if len(port) > 0 {
+		if v, err := strconv.ParseUint(port[len(port)-1], 10, 16); err == nil {
+			c.apiServerPort = uint16(v)
+		} else {
+			log.Warnf("parse failed: %s, use default api server port: %d", err, c.apiServerPort)
+		}
+	}
+
 	c.baseURL = serverURL + "/api/v1/namespaces/"
 	c.watchBase = serverURL + "/api/v1/watch/"
 
@@ -296,8 +309,16 @@ func (c *APIClient) WatchServices(respCh chan SvcWatchResp) {
 			for _, port := range wss.Object.Spec.Ports {
 				ps := core.PortSpec{Protocol: string(port.Protocol),
 					SvcPort:  uint16(port.Port),
-					ProvPort: uint16(port.TargetPort),
 					NodePort: uint16(port.NodePort),
+				}
+
+				// handle 'kubernetes' service
+				// Use port from configuration till named ports are supported.
+				if resp.svcName == "kubernetes" && (len(wss.Object.ObjectMeta.Namespace) == 0 ||
+					wss.Object.ObjectMeta.Namespace == "default") {
+					ps.ProvPort = c.apiServerPort
+				} else {
+					ps.ProvPort = uint16(port.TargetPort)
 				}
 				sSpec.Ports = append(sSpec.Ports, ps)
 			}
