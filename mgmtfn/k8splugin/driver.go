@@ -26,6 +26,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -33,6 +34,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/k8sutils"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/vishvananda/netlink"
 )
@@ -90,6 +92,26 @@ func netdGetNetwork(networkID string) (*mastercfg.CfgNetworkState, error) {
 	return nwCfg, nil
 }
 
+// netdGetEpg is a utility that reads the n/w oper state
+func netdGetEpg(epgName, tenantName string) (*mastercfg.EndpointGroupState, error) {
+	// Get hold of the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return nil, err
+	}
+
+	// find the network from network id
+	epgCfg := &mastercfg.EndpointGroupState{}
+	epgCfg.StateDriver = stateDriver
+	epgKey := mastercfg.GetEndpointGroupKey(epgName, tenantName)
+	err = epgCfg.Read(epgKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return epgCfg, nil
+}
+
 // epCleanUp deletes the ep from netplugin and netmaster
 func epCleanUp(req *epSpec) error {
 	// first delete from netplugin
@@ -115,6 +137,85 @@ func epCleanUp(req *epSpec) error {
 	return err2
 }
 
+// create epg/policy if it doesn't exist
+func createEpgAndDefaultPolicy(tenantName, networkName, epgName string) error {
+	// check epg
+	if _, err := netdGetEpg(epgName, tenantName); err == nil {
+		return nil
+	}
+
+	log.Infof("check epg %s and policy", epgName)
+	nmLeader, err := cluster.GetLeaderNetmaster()
+	if err != nil {
+		log.Errorf("failed to get leader master, %s", err)
+		return err
+	}
+	log.Infof("netmaster node @%s", nmLeader)
+	contivClient, err := client.NewContivClient("http://" + nmLeader)
+	if err != nil {
+		log.Errorf("failed to create contivclient for network policy %s", err)
+		return err
+	}
+
+	policyName := k8sutils.EpgNameToPolicy(epgName)
+	if _, err := contivClient.PolicyGet(tenantName, policyName); err != nil {
+		if err := contivClient.PolicyPost(&client.Policy{TenantName: tenantName, PolicyName: policyName}); err != nil {
+			log.Errorf("failed to create policy: %s, %v", policyName, err)
+			return err
+		}
+
+		for func() error {
+			_, err := contivClient.PolicyGet(tenantName, policyName)
+			return err
+		}() != nil {
+			time.Sleep(time.Millisecond * 100)
+		}
+	}
+
+	for _, direction := range []string{"in", "out"} {
+		if _, err := contivClient.RuleGet(tenantName, policyName, k8sutils.DenyAllRuleID+direction); err != nil {
+			if err := contivClient.RulePost(&client.Rule{
+				TenantName: tenantName,
+				PolicyName: policyName,
+				RuleID:     k8sutils.DenyAllRuleID + direction,
+				Priority:   k8sutils.DenyAllPriority,
+				Direction:  direction,
+				Action:     "deny",
+			}); err != nil {
+				log.Errorf("failed to create default %s rule for policy %s, %v", direction, policyName, err)
+				return err
+			}
+
+			for func() error {
+				_, err := contivClient.RuleGet(tenantName, policyName, k8sutils.DenyAllRuleID+direction)
+				return err
+			}() != nil {
+				time.Sleep(time.Millisecond * 100)
+			}
+		}
+	}
+
+	if _, err := contivClient.EndpointGroupGet(tenantName, epgName); err != nil {
+		if err := contivClient.EndpointGroupPost(&client.EndpointGroup{
+			TenantName:  tenantName,
+			NetworkName: networkName,
+			GroupName:   epgName,
+			Policies:    []string{policyName},
+		}); err != nil {
+			log.Errorf("failed to create epg: %s, %v", epgName, err)
+			return err
+		}
+
+		for func() error {
+			_, err := contivClient.EndpointGroupGet(tenantName, epgName)
+			return err
+		}() != nil {
+			time.Sleep(time.Millisecond * 100)
+		}
+	}
+	return nil
+}
+
 // createEP creates the specified EP in contiv
 func createEP(req *epSpec) (*epAttr, error) {
 
@@ -123,6 +224,13 @@ func createEP(req *epSpec) (*epAttr, error) {
 	ep, err := netdGetEndpoint(netID + "-" + req.EndpointID)
 	if err == nil {
 		return nil, fmt.Errorf("EP %s already exists", req.EndpointID)
+	}
+
+	if len(req.Group) > 0 {
+		if err := createEpgAndDefaultPolicy(req.Tenant, req.Network, req.Group); err != nil {
+			log.Errorf("failed to create epg and policy, %s", err)
+			return nil, err
+		}
 	}
 
 	// Build endpoint request

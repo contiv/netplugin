@@ -222,6 +222,18 @@ func (d *MasterDaemon) registerRoutes(router *mux.Router) {
 		w.Write(ofnetMasterState)
 	})
 
+	// Debug REST endpoint for inspecting network policy
+	if d.ClusterMode == "kubernetes" {
+		s.HandleFunc("/debug/networkpolicy", func(w http.ResponseWriter, r *http.Request) {
+			npState, err := networkpolicy.InspectNetworkPolicyState()
+			if err != nil {
+				log.Errorf("Error fetching network policy state. Err: %v", err)
+				http.Error(w, "Error fetching network policy state", http.StatusInternalServerError)
+				return
+			}
+			w.Write(npState)
+		})
+	}
 }
 
 // runLeader runs leader loop
@@ -333,7 +345,10 @@ func (d *MasterDaemon) InitServices() {
 		isLeader := func() bool {
 			return d.currState == "leader"
 		}
-		networkpolicy.InitK8SServiceWatch(d.ListenURL, isLeader)
+
+		if err := networkpolicy.InitK8SServiceWatch(d.ListenURL, isLeader); err != nil {
+			log.Fatalf("failed init k8s service watch: %s", err)
+		}
 	}
 }
 
