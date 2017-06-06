@@ -63,10 +63,9 @@ func (s *StringSlice) Value() []string {
 
 // a daemon based on etcd client's Watch interface to trigger plugin's
 // network provisioning interfaces
-
 type cliOpts struct {
 	hostLabel    string
-	pluginMode   string // plugin could be docker | kubernetes
+	pluginMode   string // plugin could be docker | kubernetes | mesos
 	cfgFile      string
 	debug        bool
 	syslog       string
@@ -136,7 +135,7 @@ func main() {
 	flagSet.StringVar(&opts.pluginMode,
 		"plugin-mode",
 		"docker",
-		"plugin mode docker|kubernetes")
+		"plugin mode docker|kubernetes|swarm-mode|mesos")
 	flagSet.StringVar(&opts.cfgFile,
 		"config",
 		"",

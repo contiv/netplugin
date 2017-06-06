@@ -60,21 +60,23 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 
 	// Initialize appropriate plugin
 	switch opts.PluginMode {
-	case "swarm-mode":
+	case plugin.SwarmPlugin:
 		fallthrough
-	case "docker":
+	case plugin.DockerPlugin:
 		dockplugin.InitDockPlugin(netPlugin, opts.PluginMode)
 
-	case "kubernetes":
+	case plugin.K8sPlugin:
 		k8splugin.InitCNIServer(netPlugin)
 
-	case "test":
+	case plugin.MesosPlugin:
+		// init mesos plugin
+		mesosplugin.InitPlugin(netPlugin)
+
+	case plugin.TestPlugin:
 		// nothing to do. internal mode for testing
 	default:
 		log.Fatalf("Unknown plugin mode -- should be docker | kubernetes")
 	}
-	// init mesos plugin
-	mesosplugin.InitPlugin(netPlugin)
 
 	// create a new agent
 	agent := &Agent{
@@ -220,10 +222,10 @@ func (ag *Agent) HandleEvents() error {
 
 	go handlePolicyRuleEvents(ag.netPlugin, opts, recvErr)
 
-	if ag.pluginConfig.Instance.PluginMode == "docker" ||
-		ag.pluginConfig.Instance.PluginMode == "swarm-mode" {
+	if ag.pluginConfig.Instance.PluginMode == plugin.DockerPlugin ||
+		ag.pluginConfig.Instance.PluginMode == plugin.SwarmPlugin {
 		go ag.monitorDockerEvents(recvErr)
-	} else if ag.pluginConfig.Instance.PluginMode == "kubernetes" {
+	} else if ag.pluginConfig.Instance.PluginMode == plugin.K8sPlugin {
 		// start watching kubernetes events
 		k8splugin.InitKubServiceWatch(ag.netPlugin)
 	}
