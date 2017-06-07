@@ -135,14 +135,14 @@ func (s *systemtestSuite) testBasicStartStopContainer(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestBasicSvcDiscoveryVXLAN(c *C) {
-	if s.basicInfo.Scheduler == "k8" {
+	if s.basicInfo.Scheduler == kubeScheduler {
 		return
 	}
 	s.testBasicSvcDiscovery(c, "vxlan")
 }
 
 func (s *systemtestSuite) TestBasicSvcDiscoveryVLAN(c *C) {
-	if s.basicInfo.Scheduler == "k8" {
+	if s.basicInfo.Scheduler == kubeScheduler {
 		return
 	}
 	s.testBasicSvcDiscovery(c, "vlan")
@@ -221,18 +221,27 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 }
 
 func (s *systemtestSuite) TestBasicNetmasterPortListen(c *C) {
+	var masterNodeIndex int32
+	var masterNode *node
+	masterDefaultPort := "9999"
+
 	for _, node := range s.nodes {
 		// Stop all netmaster instances
 		c.Assert(node.stopNetmaster(), IsNil)
+		if node.Name() == "k8master" {
+			masterNode = node
+		}
 	}
 
 	for i := 0; i < s.basicInfo.Iterations; i++ {
-		masterNodeIndex := rand.Int31n(int32(len(s.nodes)))
-		masterNode := s.nodes[masterNodeIndex]
+		masterNodeIndex = 0
+		if s.basicInfo.Scheduler != kubeScheduler {
+			masterNodeIndex = rand.Int31n(int32(len(s.nodes)))
+			masterNode = s.nodes[masterNodeIndex]
+		}
 		masterIP, err := masterNode.getIPAddr(s.hostInfo.HostMgmtInterface)
 		c.Assert(err, IsNil)
 
-		masterDefaultPort := "9999"
 		masterListenPort := "999" + masterIP[len(masterIP)-1:]
 		masterCtrlPort := "888" + masterIP[len(masterIP)-1:]
 
@@ -251,6 +260,7 @@ func (s *systemtestSuite) TestBasicNetmasterPortListen(c *C) {
 		// Control port with non default port and wildcard IP is not valid
 		logrus.Infof("Checking case: --listen-url A.B.C.D:XXXX --control-url :YYYY")
 		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=%s:%s --control-url=:%s", masterIP, masterListenPort, masterCtrlPort)), IsNil)
+		time.Sleep(5 * time.Second)
 		c.Assert(masterNode.exec.runCommandUntilNoNetmasterError(), NotNil)
 
 		// Case: --listen-url :YYYY --control-url A.B.C.D:YYYY

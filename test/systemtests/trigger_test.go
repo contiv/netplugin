@@ -68,7 +68,7 @@ func (s *systemtestSuite) TestTriggerNetpluginUplinkUpgrade(c *C) {
 
 func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
-	if s.basicInfo.Scheduler == "k8" {
+	if s.basicInfo.Scheduler == kubeScheduler {
 		return
 	}
 
@@ -246,8 +246,8 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 }
 
 func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
-	// can not run this test on docker 1.10 & k8s
-	if s.basicInfo.Scheduler == "k8" {
+	// can not run this test on k8s
+	if s.basicInfo.Scheduler == kubeScheduler {
 		c.Skip("Skipping node reload test for k8s")
 	}
 
@@ -288,7 +288,7 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 
 		// reload VMs one at a time
 		for _, node := range s.nodes {
-			if s.basicInfo.Scheduler == "k8" && node.Name() == "k8master" {
+			if s.basicInfo.Scheduler == kubeScheduler && node.Name() == "k8master" {
 				continue
 			}
 			c.Assert(node.reloadNode(), IsNil)
@@ -390,7 +390,7 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 
 		// reload VMs one at a time
 		for _, node := range s.nodes {
-			if s.basicInfo.Scheduler == "k8" && node.Name() == "k8master" {
+			if s.basicInfo.Scheduler == kubeScheduler && node.Name() == "k8master" {
 				continue
 			}
 			nodeIP, err := node.getIPAddr("eth1")

@@ -2,9 +2,7 @@ package systemtests
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"strings"
 	. "testing"
 
 	"github.com/Sirupsen/logrus"
@@ -25,6 +23,7 @@ type systemtestSuite struct {
 }
 type BasicInfo struct {
 	Scheduler    string `json:"scheduler"`      //swarm, k8s or plain docker
+	InstallMode  string `json:"install_mode"`   //legacy or kubeadm
 	SwarmEnv     string `json:"swarm_variable"` //env variables to be set with swarm
 	Platform     string `json:"platform"`       //vagrant or baremetal
 	Product      string `json:"product"`        //for netplugin / volplugin
@@ -55,6 +54,13 @@ type GlobInfo struct {
 	Tenant  string `json:"tenant"`
 	Encap   string `json:"encap"`
 }
+
+const (
+	kubeScheduler  string = "k8s"
+	swarmScheduler string = "swarm"
+	legacyInstall  string = "legacy"
+	kubeadmInstall string = "kubeadm"
+)
 
 var sts = &systemtestSuite{}
 
@@ -117,7 +123,6 @@ func (s *systemtestSuite) SetUpTest(c *C) {
 	case "vagrant":
 		s.SetUpTestVagrant(c)
 	}
-
 }
 
 func (s *systemtestSuite) TearDownTest(c *C) {
@@ -149,19 +154,6 @@ func (s *systemtestSuite) TearDownTest(c *C) {
 func (s *systemtestSuite) TearDownSuite(c *C) {
 	for _, node := range s.nodes {
 		node.exec.cleanupContainers()
-	}
-
-	// Print all errors and fatal messages
-	for _, node := range s.nodes {
-		logrus.Infof("Checking for errors on %v", node.Name())
-		out, _ := node.runCommand(`for i in /tmp/net*; do grep "error\|fatal\|panic" $i; done`)
-		if strings.Contains(out, "No such file or directory") {
-			continue
-		}
-		if out != "" {
-			logrus.Errorf("Errors in logfiles on %s: \n", node.Name())
-			fmt.Printf("%s\n==========================\n\n", out)
-		}
 	}
 }
 

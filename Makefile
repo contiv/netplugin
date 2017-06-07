@@ -122,6 +122,8 @@ endif
 
 #kubernetes demo targets
 k8s-cluster:
+	cd vagrant/k8s/ && CONTIV_K8S_USE_KUBEADM=1 ./setup_cluster.sh
+k8s-legacy-cluster:
 	cd vagrant/k8s/ && ./setup_cluster.sh
 k8s-l3-cluster:
 	CONTIV_L3=1 make k8s-cluster
@@ -131,17 +133,20 @@ k8s-demo-start:
 	cd vagrant/k8s/ && ./restart_cluster.sh && vagrant ssh k8master
 k8s-destroy:
 	cd vagrant/k8s/ && vagrant destroy -f
-k8s-sanity-cluster:
-	cd vagrant/k8s/ && ./setup_cluster.sh
-k8s-test:
-	export CONTIV_K8=1 && \
+k8s-legacy-test:
+	export CONTIV_K8S_LEGACY=1 && \
 	make k8s-sanity-cluster && \
 	cd vagrant/k8s/ && \
 	vagrant ssh k8master -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"' && \
 	./start_sanity_service.sh
-	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8'
-	CONTIV_K8=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|TestBasic|TestNetwork|ACID|TestPolicy|TestTrigger"
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s'
+	CONTIV_K8S_LEGACY=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|TestBasic|TestNetwork|ACID|TestPolicy|TestTrigger"
 	cd vagrant/k8s && vagrant destroy -f
+k8s-test: k8s-cluster
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm'
+	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.f "00SSH|TestBasic|TestNetwork|TestPolicy"
+	cd vagrant/k8s && vagrant destroy -f
+
 # Mesos demo targets
 mesos-docker-demo:
 	cd vagrant/mesos-docker && \
