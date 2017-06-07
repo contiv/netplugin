@@ -75,4 +75,4 @@ High level `make` targets:
 ### How to Contribute
 Patches and contributions are welcome, please hit the GitHub page to open an
 issue or to submit patches send pull requests. Please sign your commits, and
-read [CONTRIBUTING.md](CONTRIBUTING.md)
+read [CONTRIBUTING.md](.github/CONTRIBUTING.md)
