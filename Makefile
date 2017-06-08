@@ -202,7 +202,7 @@ system-test:start
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop start ssh-build
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -contiv_l3 2
-	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v
+	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v -check.abort
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 l3-demo:
 	CONTIV_L3=1 CONTIV_NODES=3 vagrant up

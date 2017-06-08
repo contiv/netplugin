@@ -163,8 +163,6 @@ func inspectPolicy(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	policy := ctx.Args()[0]
 
-	fmt.Printf("Inspecting policy: %s tenant: %s\n", policy, tenant)
-
 	pol, err := getClient(ctx).PolicyInspect(tenant, policy)
 	errCheck(ctx, err)
 
@@ -188,7 +186,7 @@ func listPolicies(ctx *cli.Context) {
 	policies, err := getClient(ctx).PolicyList()
 	errCheck(ctx, err)
 
-	var filtered []*contivClient.Policy
+	filtered := []*contivClient.Policy{}
 
 	for _, policy := range *policies {
 		if policy.TenantName == tenant || ctx.Bool("all") {
@@ -301,8 +299,8 @@ func listRules(ctx *cli.Context) {
 
 	writeRules := map[int][]*contivClient.Rule{}
 
-	var writePrio []int
-	var results []*contivClient.Rule
+	writePrio := []int{}
+	results := []*contivClient.Rule{}
 
 	for _, rule := range *rules {
 
@@ -429,7 +427,7 @@ func listNetProfiles(ctx *cli.Context) {
 	profileList, err := getClient(ctx).NetprofileList()
 	errCheck(ctx, err)
 
-	var filtered []*contivClient.Netprofile
+	filtered := []*contivClient.Netprofile{}
 
 	for _, profile := range *profileList {
 		if profile.TenantName == tenant || ctx.Bool("all") {
@@ -492,7 +490,6 @@ func inspectNetprofile(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 	netprofile := ctx.Args()[0]
-	fmt.Printf("Inspecting netprofile:%s for %s", netprofile, tenant)
 
 	profileList, err := getClient(ctx).NetprofileInspect(tenant, netprofile)
 	errCheck(ctx, err)
@@ -577,8 +574,6 @@ func inspectNetwork(ctx *cli.Context) {
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 
-	fmt.Printf("Inspecting network: %s tenant: %s\n", network, tenant)
-
 	net, err := getClient(ctx).NetworkInspect(tenant, network)
 	errCheck(ctx, err)
 
@@ -602,7 +597,7 @@ func listNetworks(ctx *cli.Context) {
 	netList, err := getClient(ctx).NetworkList()
 	errCheck(ctx, err)
 
-	var filtered []*contivClient.Network
+	filtered := []*contivClient.Network{}
 
 	if ctx.Bool("all") {
 		filtered = *netList
@@ -615,7 +610,7 @@ func listNetworks(ctx *cli.Context) {
 	}
 
 	if ctx.Bool("json") {
-		dumpJSONList(ctx, &filtered)
+		dumpJSONList(ctx, filtered)
 	} else if ctx.Bool("quiet") {
 		networks := ""
 		for _, network := range filtered {
@@ -679,8 +674,6 @@ func inspectTenant(ctx *cli.Context) {
 
 	tenant := ctx.Args()[0]
 
-	fmt.Printf("Inspecting tenant: %s  ", tenant)
-
 	ten, err := getClient(ctx).TenantInspect(tenant)
 	errCheck(ctx, err)
 
@@ -726,8 +719,6 @@ func inspectEndpoint(ctx *cli.Context) {
 	}
 
 	epid := ctx.Args()[0]
-
-	fmt.Printf("Inspecting endpoint: %s\n", epid)
 
 	net, err := getClient(ctx).EndpointInspect(epid)
 	errCheck(ctx, err)
@@ -775,8 +766,6 @@ func inspectEndpointGroup(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 	endpointGroup := ctx.Args()[0]
-
-	fmt.Printf("Inspecting endpointGroup: %s tenant: %s\n", endpointGroup, tenant)
 
 	epg, err := getClient(ctx).EndpointGroupInspect(tenant, endpointGroup)
 	errCheck(ctx, err)
@@ -948,8 +937,6 @@ func inspectBgp(ctx *cli.Context) {
 
 	hostname := ctx.Args()[0]
 
-	fmt.Printf("netctl. Inspecting bgp: %s\n", hostname)
-
 	bgp, err := getClient(ctx).BgpInspect(hostname)
 	errCheck(ctx, err)
 
@@ -986,8 +973,6 @@ func inspectGlobal(ctx *cli.Context) {
 	if len(ctx.Args()) != 0 {
 		errExit(ctx, exitHelp, "More arguments than required", true)
 	}
-
-	fmt.Printf("Inspecting global\n")
 
 	ginfo, err := getClient(ctx).GlobalInspect("global")
 	errCheck(ctx, err)
@@ -1372,7 +1357,7 @@ func listExternalContracts(ctx *cli.Context) {
 	extContractsGroupsList, err := getClient(ctx).ExtContractsGroupList()
 	errCheck(ctx, err)
 
-	var filtered []*contivClient.ExtContractsGroup
+	filtered := []*contivClient.ExtContractsGroup{}
 
 	for _, extContractsGroup := range *extContractsGroupsList {
 		if extContractsGroup.TenantName == tenant || ctx.Bool("all") {
@@ -1457,8 +1442,6 @@ func inspectServiceLb(ctx *cli.Context) {
 
 	tenant := ctx.String("tenant")
 	service := ctx.Args()[0]
-
-	fmt.Printf("Inspecting service: %s tenant: %s\n", service, tenant)
 
 	net, err := getClient(ctx).ServiceLBInspect(tenant, service)
 	errCheck(ctx, err)

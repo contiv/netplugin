@@ -16,6 +16,8 @@ cleanup=false
 cstore_param=""
 vtep_ip_param=""
 vlan_if_param=""
+control_url=":9999"
+listen_url=":9999"
 
 #This needs to be fixed, we cant rely on the value being supplied from
 # parameters, just explosion of parameters is not a great solution
@@ -26,7 +28,7 @@ vlan_if_param=""
 #fixed as well. netplugin should have OVS locally.
 echo "0.0.0.0 localhost" >>/etc/hosts
 
-while getopts ":xmp:v:i:c:dr" opt; do
+while getopts ":xmp:v:i:c:drl:o:" opt; do
 	case $opt in
 		m)
 			netmaster=true
@@ -54,6 +56,12 @@ while getopts ":xmp:v:i:c:dr" opt; do
 			;;
 		d)
 			debug="-debug"
+			;;
+		l)
+			listen_url=$OPTARG
+			;;
+		o)
+			control_url=$OPTARG
 			;;
 		:)
 			echo "An argument required for $OPTARG was not passed"
@@ -110,9 +118,9 @@ if [ $netmaster == true ]; then
 	echo "Starting netmaster "
 	while true; do
 		if [ "$cstore" != "" ]; then
-			/contiv/bin/netmaster $debug -cluster-mode $plugin -cluster-store $cstore &>/var/contiv/log/netmaster.log
+			/contiv/bin/netmaster $debug -cluster-mode $plugin -cluster-store $cstore -listen-url $listen_url -control-url $control_url &>/var/contiv/log/netmaster.log
 		else
-			/contiv/bin/netmaster $debug -cluster-mode $plugin &>/var/contiv/log/netmaster.log
+			/contiv/bin/netmaster $debug -cluster-mode $plugin -listen-url $listen_url -control-url $control_url &>/var/contiv/log/netmaster.log
 		fi
 		echo "CRITICAL: netmaster has exited, Respawn in 5"
 		sleep 5
