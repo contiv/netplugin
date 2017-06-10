@@ -3,7 +3,6 @@ package systemtests
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"strings"
 	"time"
 
@@ -248,8 +247,8 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 
 func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 	// can not run this test on docker 1.10 & k8s
-	if os.Getenv("CONTIV_DOCKER_VERSION") == "1.10.3" || s.basicInfo.Scheduler == "k8" {
-		c.Skip("Skipping node reload test on [older docker version | consul | k8s]")
+	if s.basicInfo.Scheduler == "k8" {
+		c.Skip("Skipping node reload test for k8s")
 	}
 
 	network := &client.Network{
