@@ -15,7 +15,7 @@ BEGIN {
 }
 
 # netplugin_synced_gopath="/opt/golang"
-go_version = ENV['GO_VERSION'] || '1.7.5'
+go_version = ENV['GO_VERSION'] || '1.7.6'
 docker_version = ENV['CONTIV_DOCKER_VERSION'] || '1.12.6'
 docker_swarm = ENV['CONTIV_DOCKER_SWARM'] || 'classic_mode'
 gopath_folder = '/opt/gopath'
@@ -260,7 +260,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         config.vm.box_version = "0.7.0"
     else
         config.vm.box = "contiv/centos73"
-        config.vm.box_version = "0.10.1"
+        config.vm.box_version = "0.10.2"
     end
     config.vm.provider 'virtualbox' do |v|
         v.linked_clone = true if Vagrant::VERSION >= "1.8"
