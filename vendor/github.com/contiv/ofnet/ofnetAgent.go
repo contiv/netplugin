@@ -32,11 +32,11 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/libOpenflow/openflow13"
 	"github.com/contiv/ofnet/ofctrl"
 	"github.com/contiv/ofnet/ovsdbDriver"
 	"github.com/contiv/ofnet/rpcHub"
 	"github.com/jainvipin/bitset"
-	"github.com/shaleman/libOpenflow/openflow13"
 	cmap "github.com/streamrail/concurrent-map"
 )
 

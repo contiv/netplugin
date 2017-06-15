@@ -20,9 +20,9 @@ test: build
 host-build:
 	./checks "./*.go ./libpkt/ ./ofctrl/ ./ovsdbDriver/ ./ovsSwitch/ ./pqueue/ ./rpcHub/"
 	go get github.com/tools/godep
-	godep go install ./ ./ofctrl
+	go install ./ ./ofctrl
 
 host-test:
-	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./
-	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./ofctrl
-	sudo -E PATH=$(PATH) /opt/gopath/bin/godep go test -v ./pqueue
+	PATH=${PATH} sudo -E /usr/local/go/bin/go test -v ./
+	PATH=${PATH} sudo -E /usr/local/go/bin/go test -v ./ofctrl
+	PATH=${PATH} sudo -E /usr/local/go/bin/go test -v ./pqueue

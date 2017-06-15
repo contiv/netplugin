@@ -23,9 +23,9 @@ import (
 	"net/rpc"
 	"strings"
 
+	"github.com/contiv/libOpenflow/openflow13"
+	"github.com/contiv/libOpenflow/protocol"
 	"github.com/contiv/ofnet/ofctrl"
-	"github.com/shaleman/libOpenflow/openflow13"
-	"github.com/shaleman/libOpenflow/protocol"
 
 	log "github.com/Sirupsen/logrus"
 	cmap "github.com/streamrail/concurrent-map"

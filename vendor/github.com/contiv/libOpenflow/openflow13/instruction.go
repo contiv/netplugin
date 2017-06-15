@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/shaleman/libOpenflow/util"
+	"github.com/contiv/libOpenflow/util"
 )
 
 // ofp_instruction_type 1.3
