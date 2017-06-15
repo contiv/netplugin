@@ -1,0 +1,438 @@
+#!/usr/bin/env ruby
+
+# this program doesn't need to be super efficient because it is only run
+# once
+
+require 'json'
+require 'fileutils'
+VERSION = '1.4'
+
+def get_containers
+    `docker ps -q -a --no-trunc`.split
+end
+
+def get_docker_networks
+    `docker network ls -q --no-trunc`.split
+end
+
+def write_iptables(tmpdir)
+    system("iptables -S -v > #{tmpdir}/iptables.txt")
+end
+
+def write_ps(tmpdir)
+    system("ps auwwx > #{tmpdir}/ps.txt 2>&1")
+end
+
+def write_dmesg(tmpdir)
+    system("dmesg > #{tmpdir}/dmesg.log 2>&1")
+end
+
+def write_interfaces(tmpdir)
+    system("ifconfig -a > #{tmpdir}/interfaces.txt 2>&1")
+end
+
+def write_rpms(tmpdir)
+    system("rpm -qa|sort > #{tmpdir}/rpms.txt")
+end
+
+def write_selinux(tmpdir)
+    system("getenforce > #{tmpdir}/selinux.txt")
+end
+
+def write_firewalld(tmpdir)
+    system("systemctl status firewalld > #{tmpdir}/firewalld.txt 2>&1")
+end
+
+def write_docker_version(tmpdir)
+    system("docker version > #{tmpdir}>/docker-version.txt 2>&1")
+end
+
+def write_docker_images(tmpdir)
+    system("docker images > #{tmpdir}/docker-images.txt 2>&1")
+end
+
+def write_docker_info(tmpdir)
+    system("docker info > #{tmpdir}/docker-info.txt 2>&1")
+end
+
+def write_docker_networks(tmpdir)
+    system("docker network ls --no-trunc > #{tmpdir}/docker-networks.txt 2>&1")
+end
+
+def write_container_logs(tmpdir, id)
+    system("docker logs #{id} > #{tmpdir}/container-#{id}.log 2>&1")
+end
+
+def write_network_inspect(tmpdir, id)
+    system("docker network #{id} > #{tmpdir}/network-#{id}-inspect.json 2>&1")
+end
+
+def write_container_inspect(tmpdir, id)
+    system("docker inspect #{id} > #{tmpdir}/container-#{id}-inspect.json 2>&1")
+end
+
+def write_container_stats(tmpdir, id)
+    system("docker stats #{id} --no-stream > #{tmpdir}/container-#{id}-stats.txt 2>&1")
+end
+
+def write_docker_events(tmpdir)
+    system("docker events --since $(date +'%s' -d '1 day ago') --until $(date +'%s') > #{tmpdir}/docker-events.txt 2>&1")
+end
+
+def write_contiv_version(cmd, tmpdir)
+    system("#{cmd} version > #{tmpdir}/contiv-version.txt")
+end
+
+def copy_install_logs(tmpdir)
+    system("cp -a ./config/*.log #{tmpdir} 2>&1")
+end
+
+def copy_system_logs(tmpdir)
+    system("bzip2 -c /var/log/messages > #{tmpdir}/messages.bz2")
+end
+
+def copy_contiv_logs(tmpdir)
+    system("mkdir -p #{tmpdir}/contiv-logs/")
+    system("cp /var/contiv/log/* #{tmpdir}/contiv-logs/")
+    system("bzip2 #{tmpdir}/contiv-logs/*")
+end
+
+def get_netmaster_api_port
+    lines = %x{netstat -anp}.split(/\n/).grep(/netmaster/).grep(/:::|0.0.0.0/)
+    if lines.size >= 1
+        lines[0].split[3].split(/:+/)[1]
+    else
+        false
+    end
+end
+
+def netctl_installed?
+    $NETCTL_INSTALLED || $NETCTL_INSTALLED=system("which netctl > /dev/null 2>&1")
+end
+
+def netctl_path
+    $NETCTL_PATH || $NETCTL_PATH=%x{which netctl}.chomp
+end
+
+def get_contiv_tenants(cmd)
+    begin
+        JSON.parse(%x{#{cmd} tenant ls -j})
+    rescue
+        []
+    end
+end
+
+def get_contiv_tenant_inspect(cmd, tenant)
+    # get rid of bogus non json until code is fixed
+    begin
+        JSON.parse(%x(#{cmd} tenant inspect #{tenant}|sed -e '1 s/^[^{]*//'))
+        # replace with this when code is fixed
+        # JSON.parse(%x(#{cmd} tenant inspect #{tenant}))
+    rescue
+        []
+    end
+end
+
+def get_contiv_nets(cmd)
+    begin
+        JSON.parse(%x{#{cmd} net ls -a -j})
+    rescue
+        []
+    end
+end
+
+def get_contiv_groups(cmd)
+    begin
+        JSON.parse(%x{#{cmd} group ls -a -j})
+    rescue
+        []
+    end
+end
+
+def get_contiv_group_inspect(cmd, tenant, group)
+    begin
+        JSON.parse(%x{#{cmd} group inspect -t #{tenant} -j #{group}|tail -n +2})
+        # JSON.parse(%x{#{cmd} group inspect -t #{tenant} -j #{group}})
+        # replace with this when code fixed
+    rescue
+        []
+    end
+end
+
+def get_contiv_policies(cmd)
+    begin
+        JSON.parse(%x{#{cmd} policy ls -a -j})
+    rescue
+        []
+    end
+end
+
+def get_contiv_policy_rules(cmd, tenant, policy)
+    begin
+        JSON.parse(%x{#{cmd} policy rule-ls -t #{tenant} -j #{policy}})
+    rescue
+        []
+    end
+end
+
+def get_contiv_policy_inspect(cmd, tenant, policy)
+    begin
+        JSON.parse(%x{#{cmd} policy inspect -t #{tenant} #{policy}|tail -n +2})
+        # JSON.parse(%x{#{cmd} policy inspect -t #{tenant} #{policy}})
+        # replace with this when code is fixed
+    rescue
+        []
+    end
+end
+
+def get_contiv_bgp_config(cmd)
+    begin
+        JSON.parse(%x{#{cmd} bgp ls -j})
+    rescue
+        []
+    end
+end
+
+def get_netplugin_container
+    # assume netplugin is first container with netplugin name
+    list = %x{docker ps}.split(/\n/).grep(/netplugin/)
+    if list.size >= 1
+        list[0].split[0]
+    else
+        false
+    end
+end
+
+def get_etcd_container
+    list = %x{docker ps}.split(/\n/).grep(/\/etcd/)
+    if list.size >= 1
+        list[0].split[0]
+    else
+        false
+    end
+end
+
+def get_container_logpath(id)
+    begin
+        JSON.parse(%x{docker inspect #{id}})[0]["LogPath"]
+    rescue
+        []
+    end
+end
+
+def write_netmaster_status(tmpdir)
+    if k8s?
+        system("docker ps|grep netmaster > #{tmpdir}/netmaster-status.txt 2>&1")
+    else
+        system("systemctl status netmaster > #{tmpdir}/netmaster-status.txt 2>&1")
+    end
+end
+
+def write_etcd_cluster_health(tmpdir, id)
+    if k8s?
+        system("docker exec -it #{id} /etcdctl cluster-health > #{tmpdir}/etcd-cluster-health.txt")
+    else
+        system("/bin/etcdctl cluster-health > #{tmpdir}/etcd-cluster-health.txt 2>&1")
+    end
+end
+
+def write_etcd_logs(tmpdir, id)
+    logpath = get_container_logpath(id)
+    system("cp #{logpath} #{tmpdir}/etcd-log.json")
+end
+
+def k8s?
+    # cache whether kubernetes is available
+    $K8S || $K8S=system("which kubectl > /dev/null 2>&1")
+end
+
+def get_etcd_keys(id)
+    # assume if kubernetes is installed, etcd is running in a container
+    if k8s?
+        %x{docker exec -it #{id} /etcdctl ls -p --recursive /}.split(/\r?\n/)
+    else
+        %x{/bin/etcdctl ls -p --recursive}.split(/\r?\n/)
+    end
+end
+
+def get_etcd_key_value(id, key)
+    begin
+        if k8s?
+            JSON.parse(%x{docker exec -it #{id} /etcdctl get #{key}})
+        else
+            JSON.parse(%x{/bin/etcdctl get #{key}})
+        end
+    rescue
+        []
+    end
+end
+
+def write_ovs_show(tmpdir)
+    # assume if kubernetes is installed, netplugin is running in a container
+    if k8s?
+        id = get_netplugin_container
+        if id
+            system("docker exec -it #{id} /usr/bin/ovs-vsctl show > #{tmpdir}/ovs-vsctl-show.txt")
+        end
+    else
+        system("/bin/ovs-vsctl show > #{tmpdir}/ovs-vsctl-show.txt")
+    end
+end
+
+def write_vlan_flows(tmpdir)
+    # assume if kubernetes is installed, openvswitch is running in a container
+    if k8s?
+        id = get_netplugin_container
+        if id
+            system("docker exec -it #{id} /usr/bin/ovs-ofctl -O openflow13 dump-flows contivVlanBridge > #{tmpdir}/ovs-vlan-flows.txt")
+            system("docker exec -it #{id} /usr/bin/ovs-ofctl -O openflow13 dump-flows contivVxlanBridge > #{tmpdir}/ovs-vxlan-flows.txt")
+        end
+    else
+        system("/bin/ovs-ofctl -O openflow13 dump-flows contivVlanBridge > #{tmpdir}/ovs-vlan-flows.txt")
+        system("/bin/ovs-ofctl -O openflow13 dump-flows contivVxlanBridge > #{tmpdir}/ovs-vxlan-flows.txt")
+    end
+end
+
+def write_json(filename, data)
+    File.open(filename,"w") do |f|
+        f.write(data.to_json)
+    end
+end
+
+if ARGV.length < 1 || ARGV[0] == "-h" then
+    puts "get-diags.rb [-h] <TKT#>" 
+    puts "TKT# is ticket given by case worker"
+    puts "to capture contiv install logs, this must be run in contiv install dir"
+    puts "  install logs are located in @INSTALL_ROOT@/config/*.log"
+    exit 1
+end
+    
+tkt = ARGV[0]
+puts "TKT = #{tkt}"
+puts "If running on docker+swarm, make sure DOCKER_HOST is set first"
+puts "waiting 5 secs, press Ctrl-C to abort"
+sleep 5
+
+puts "Creating temp dir..."
+hostname = `hostname`.chomp
+now = Time.now.to_i
+tmpdir = "/var/tmp/docker-logs.#{tkt}.#{hostname}-#{now}"
+FileUtils.mkdir_p(tmpdir)
+
+puts "Writing ps data..."
+write_ps(tmpdir)
+puts "Writing dmesg..."
+write_dmesg(tmpdir)
+puts "Writing interface info..."
+write_interfaces(tmpdir)
+puts "Writing rpm info..."
+write_rpms(tmpdir)
+puts "Writing iptables rules..."
+write_iptables(tmpdir)
+puts "Writing selinux status..."
+write_selinux(tmpdir)
+puts "Writing firewalld status..."
+write_firewalld(tmpdir)
+if File.directory?("./config")
+    puts "Copying install logs..."
+    copy_install_logs(tmpdir)
+end
+puts "Copying system logs..."
+copy_system_logs(tmpdir)
+if File.directory?("/var/contiv/log")
+    puts "Copying contiv logs..."
+    copy_contiv_logs(tmpdir)
+end
+
+puts "Writing container info..."
+FileUtils.mkdir_p("#{tmpdir}/container-info")
+containers = get_containers
+containers.each do |id|
+    write_container_logs("#{tmpdir}/container-info",id)
+    write_container_inspect("#{tmpdir}/container-info",id)
+end
+
+puts "Writing docker network info..."
+FileUtils.mkdir_p("#{tmpdir}/network-info")
+nets = get_docker_networks
+nets.each do |id|
+    write_network_inspect("#{tmpdir}/network-info",id)
+end
+
+unless ENV.has_key?("DOCKER_HOST")
+    puts "If running docker+swarm, please set DOCKER_HOST to get correct docker info"
+end
+puts "Writing docker version..."
+write_docker_version(tmpdir)
+puts "Writing docker info..."
+write_docker_info(tmpdir)
+puts "Writing docker images..."
+write_docker_images(tmpdir)
+puts "Writing docker networks..."
+write_docker_networks(tmpdir)
+puts "Writing docker events..."
+write_docker_events(tmpdir)
+puts "Writing netmaster status..."
+write_netmaster_status(tmpdir)
+puts "Writing openvswitch info..."
+write_ovs_show(tmpdir)
+puts "Writing ovs flows..."
+write_vlan_flows(tmpdir)
+
+if netctl_installed?
+    cmd = netctl_path
+    puts "Writing contiv version..."
+    write_contiv_version(cmd, tmpdir)
+    tenants = get_contiv_tenants(cmd)
+    puts "Writing contiv tenants..."
+    write_json("#{tmpdir}/contiv-tenants.json",tenants)
+    nets = get_contiv_nets(cmd)
+    puts "Writing contiv nets..."
+    write_json("#{tmpdir}/contiv-nets.json",nets)
+    groups = get_contiv_groups(cmd)
+    puts "Writing contiv groups..."
+    write_json("#{tmpdir}/contiv-groups.json",groups)
+    puts "Writing contiv group details..."
+    groups.each do |g|
+        gi = get_contiv_group_inspect(cmd,g["tenantName"],g["groupName"])
+        write_json("#{tmpdir}/contiv-group-inspect-#{g['tenantName']}-#{g['groupName']}.json",gi)
+    end
+    policies = get_contiv_policies(cmd)
+    puts "Writing contiv policies..."
+    write_json("#{tmpdir}/contiv-policies.json",policies)
+    puts "Writing contiv policy details and rules..."
+    policies.each do |p|
+        rules = get_contiv_policy_rules(cmd,p["tenantName"],p["policyName"])
+        write_json("#{tmpdir}/contiv-policy-#{p['tenantName']}-#{p['policyName']}.json",rules)
+        p1 = get_contiv_policy_inspect(cmd,p["tenantName"],p["policyName"])
+        write_json("#{tmpdir}/contiv-policy-#{p['tenantName']}-#{p['policyName']}-inspect.json",p1)
+    end
+    bgp = get_contiv_bgp_config(cmd)
+    puts "Writing contiv bgp info..."
+    write_json("#{tmpdir}/contiv-bgp-config.json",bgp)
+end
+
+#eid = k8s? ? get_etcd_container : false
+eid = get_etcd_container
+if eid
+    puts "Writing etcd cluster health..."
+    write_etcd_cluster_health(tmpdir, eid)
+    puts "Writing etcd logs..."
+    write_etcd_logs(tmpdir, eid)
+    keys = get_etcd_keys(eid)
+    kv = {}
+    puts "Writing etcd keys..."
+    keys.each do |k|
+        unless k.match(/\/$/)
+            v = get_etcd_key_value(eid,k)
+            kv[k]=v
+        end
+    end
+    write_json("#{tmpdir}/etcd-values.json",kv)
+end
+
+system("tar cjf #{tmpdir}.tar.bz2 #{tmpdir} 2>/dev/null")
+puts "Directory #{tmpdir} is still present after tar"
+puts "You may delete using:"
+puts "rm -rf #{tmpdir}"
+puts "if you wish"
