@@ -14,7 +14,7 @@ Docker managed [plugins](https://docs.docker.com/engine/extend/) are run as runc
 ## Contiv plugin install
 Contiv plugin config options should be specified if it is different from default:
 
-docker plugin install contiv/v2plugin:1.0.0 ARG1=VALUE1 ARG2=VALUE2 ...
+docker plugin install contiv/v2plugin:<version-tag> ARG1=VALUE1 ARG2=VALUE2 ...
 ```
 ARG           : DESCRIPTION                                   : DEFAULT VALUE
 --------------:-----------------------------------------------:----------------------
@@ -35,7 +35,7 @@ Docker certified contiv plugin is avaliable on [Docker Store](https://store.dock
 docker plugin install store/contiv/v2plugin:1.0.0 iflist=eth1,eth2
 ```
 ### docker hub
-Contiv plugin released from contiv repo is also pushed to docker hub. iflist has the list of data interfaces used for vlan networks in contiv.
+Developer release of v2plugin from contiv repo is also pushed to docker hub
 ```
 docker plugin install contiv/v2plugin:1.0.0 iflist=eth1,eth2
 ```
@@ -125,7 +125,7 @@ docker plugin install contiv/v2plugin:1.0.0 iflist=eth1,eth2 plugin_role=worker
 
 ## Contiv plugin workflow (legacy docker mode)
   v2plugin can also run in legacy mode by setting the plugin_mode to docker explicitly when installing the plugin  
-  1.  Etcd cluster should be brought up on the hosts on localhost:2379.  
+  1. Etcd cluster should be brought up on the hosts on localhost:2379.  
   2. Install contiv v2plugin
   ```
   docker plugin install contiv/v2plugin:1.0.0 plugin-mode=docker iflist=<data ifs used for vlan networks>
