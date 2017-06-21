@@ -52,6 +52,20 @@ type NetPlugin struct {
 
 const defaultPvtSubnet = 0xac130000
 
+// Plugin mode constants
+const (
+	// Docker plugin
+	DockerPlugin = "docker"
+	// Kubernetes plugin
+	K8sPlugin = "kubernetes"
+	// Swarm mode plugin
+	SwarmPlugin = "swarm-mode"
+	// Mesos plugin
+	MesosPlugin = "mesos"
+	// Test plugin
+	TestPlugin = "test"
+)
+
 // Init initializes the NetPlugin instance via the configuration string passed.
 func (p *NetPlugin) Init(pluginConfig Config) error {
 	var err error
