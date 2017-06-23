@@ -18,7 +18,8 @@ package ofctrl
 
 import (
 	"errors"
-	"github.com/shaleman/libOpenflow/openflow13"
+
+	"github.com/contiv/libOpenflow/openflow13"
 )
 
 // Initialize the fgraph elements on the switch

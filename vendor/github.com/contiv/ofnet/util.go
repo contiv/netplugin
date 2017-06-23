@@ -24,9 +24,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/contiv/libOpenflow/openflow13"
+	"github.com/contiv/libOpenflow/protocol"
 	"github.com/contiv/ofnet/ofctrl"
-	"github.com/shaleman/libOpenflow/openflow13"
-	"github.com/shaleman/libOpenflow/protocol"
 	"github.com/vishvananda/netlink"
 
 	log "github.com/Sirupsen/logrus"

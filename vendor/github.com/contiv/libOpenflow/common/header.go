@@ -5,16 +5,17 @@ package common
 import (
 	"encoding/binary"
 	"errors"
+	"sync/atomic"
 
-	"github.com/shaleman/libOpenflow/util"
+	"github.com/contiv/libOpenflow/util"
 )
 
 var messageXid uint32 = 1
 
 func NewHeaderGenerator(ver int) func() Header {
 	return func() Header {
-		messageXid += 1
-		p := Header{uint8(ver), 0, 8, messageXid}
+		xid := atomic.AddUint32(&messageXid, 1)
+		p := Header{uint8(ver), 0, 8, xid}
 		return p
 	}
 }

@@ -605,6 +605,22 @@
 			"Rev": "e00f6dded54d05d37acb451c4533fe09fd40c69f"
 		},
 		{
+			"ImportPath": "github.com/contiv/libOpenflow/common",
+			"Rev": "a0b2f38509204a254a2f13c00b4663b9bd31559f"
+		},
+		{
+			"ImportPath": "github.com/contiv/libOpenflow/openflow13",
+			"Rev": "a0b2f38509204a254a2f13c00b4663b9bd31559f"
+		},
+		{
+			"ImportPath": "github.com/contiv/libOpenflow/protocol",
+			"Rev": "a0b2f38509204a254a2f13c00b4663b9bd31559f"
+		},
+		{
+			"ImportPath": "github.com/contiv/libOpenflow/util",
+			"Rev": "a0b2f38509204a254a2f13c00b4663b9bd31559f"
+		},
+		{
 			"ImportPath": "github.com/contiv/libovsdb",
 			"Comment": "v0.1-12-gd0061a5",
 			"Rev": "d0061a53e3588f553e0f56090d1b8d950746eff4"
@@ -619,23 +635,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "fe7f8c6e5ad4ff02d171f2f77443ae1e6c26e2c9"
+			"Rev": "b44a11b0bcffa08b3a7546e76fa2709457396867"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "fe7f8c6e5ad4ff02d171f2f77443ae1e6c26e2c9"
+			"Rev": "b44a11b0bcffa08b3a7546e76fa2709457396867"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "fe7f8c6e5ad4ff02d171f2f77443ae1e6c26e2c9"
+			"Rev": "b44a11b0bcffa08b3a7546e76fa2709457396867"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "fe7f8c6e5ad4ff02d171f2f77443ae1e6c26e2c9"
+			"Rev": "b44a11b0bcffa08b3a7546e76fa2709457396867"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "fe7f8c6e5ad4ff02d171f2f77443ae1e6c26e2c9"
+			"Rev": "b44a11b0bcffa08b3a7546e76fa2709457396867"
 		},
 		{
 			"ImportPath": "github.com/contiv/remotessh",
@@ -1175,22 +1191,6 @@
 		{
 			"ImportPath": "github.com/satori/go.uuid",
 			"Rev": "d41af8bb6a7704f00bc3b7cba9355ae6a5a80048"
-		},
-		{
-			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "ef74a407cc85370620a5515d627580b20f18a582"
-		},
-		{
-			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "ef74a407cc85370620a5515d627580b20f18a582"
-		},
-		{
-			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "ef74a407cc85370620a5515d627580b20f18a582"
-		},
-		{
-			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "ef74a407cc85370620a5515d627580b20f18a582"
 		},
 		{
 			"ImportPath": "github.com/spf13/afero",

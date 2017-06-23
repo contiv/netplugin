@@ -34,9 +34,9 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/libOpenflow/openflow13"
+	"github.com/contiv/libOpenflow/protocol"
 	"github.com/contiv/ofnet/ofctrl"
-	"github.com/shaleman/libOpenflow/openflow13"
-	"github.com/shaleman/libOpenflow/protocol"
 	cmap "github.com/streamrail/concurrent-map"
 )
 

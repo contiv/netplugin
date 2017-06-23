@@ -33,9 +33,9 @@ import (
 	"net/rpc"
 	"strings"
 
+	"github.com/contiv/libOpenflow/openflow13"
+	"github.com/contiv/libOpenflow/protocol"
 	"github.com/contiv/ofnet/ofctrl"
-	"github.com/shaleman/libOpenflow/openflow13"
-	"github.com/shaleman/libOpenflow/protocol"
 	"github.com/spf13/pflag"
 
 	log "github.com/Sirupsen/logrus"

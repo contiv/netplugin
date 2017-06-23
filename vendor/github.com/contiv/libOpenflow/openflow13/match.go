@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/shaleman/libOpenflow/util"
+	"github.com/contiv/libOpenflow/util"
 )
 
 // ofp_match 1.3

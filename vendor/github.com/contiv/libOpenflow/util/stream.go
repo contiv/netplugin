@@ -9,6 +9,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+const numParserGoroutines = 25
+
 type BufferPool struct {
 	Empty chan *bytes.Buffer
 	Full  chan *bytes.Buffer
@@ -35,6 +37,8 @@ type MessageStream struct {
 	pool *BufferPool
 	// Message parser
 	parser Parser
+	// Channel to shut down the parser goroutine
+	parserShutdown chan bool
 	// OpenFlow Version
 	Version uint8
 	// Channel on which to publish connection errors
@@ -54,6 +58,7 @@ func NewMessageStream(conn net.Conn, parser Parser) *MessageStream {
 		conn,
 		NewBufferPool(),
 		parser,
+		make(chan bool, 1), // parserShutdown
 		0,
 		make(chan error, 1),   // Error
 		make(chan Message, 1), // Inbound
@@ -63,10 +68,10 @@ func NewMessageStream(conn net.Conn, parser Parser) *MessageStream {
 
 	go m.outbound()
 	go m.inbound()
-
-	for i := 0; i < 25; i++ {
+	for i := 0; i < numParserGoroutines; i++ {
 		go m.parse()
 	}
+
 	return m
 }
 
@@ -81,6 +86,9 @@ func (m *MessageStream) outbound() {
 		case <-m.Shutdown:
 			log.Infof("Closing OpenFlow message stream.")
 			m.conn.Close()
+			for i := 0; i < numParserGoroutines; i++ {
+				m.parserShutdown <- true
+			}
 			return
 		case msg := <-m.Outbound:
 			// Forward outbound messages to conn
@@ -143,17 +151,21 @@ func (m *MessageStream) inbound() {
 
 // Parse incoming message
 func (m *MessageStream) parse() {
+	errMessage := "received: %v and encountered error: %v"
 	for {
-		b := <-m.pool.Full
-		log.Debugf("Rcvd: %v", b.Bytes())
-		msg, err := m.parser.Parse(b.Bytes())
-		// Log all message parsing errors.
-		if err != nil {
-			log.Print(err)
-		}
+		select {
+		case b := <-m.pool.Full:
+			msg, err := m.parser.Parse(b.Bytes())
+			// Log all message parsing errors.
+			if err != nil {
+				log.Errorf(errMessage, b.Bytes(), err)
+			}
 
-		m.Inbound <- msg
-		b.Reset()
-		m.pool.Empty <- b
+			m.Inbound <- msg
+			b.Reset()
+			m.pool.Empty <- b
+		case <-m.parserShutdown:
+			return
+		}
 	}
 }
