@@ -68,3 +68,6 @@ netplugin-version
 # release artifacts
 scripts/netContain/*.tgz
 scripts/netContain/*.tar.bz2
+
+vagrant/k8s/export/.contiv.yaml*
+vagrant/k8s/contrib

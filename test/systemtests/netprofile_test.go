@@ -565,7 +565,7 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 //the netmaster is back up and running.
 func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 
-	if s.basicInfo.Scheduler == "k8" {
+	if s.basicInfo.Scheduler == kubeScheduler {
 		return
 	}
 

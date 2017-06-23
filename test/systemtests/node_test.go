@@ -138,6 +138,7 @@ func (n *node) checkForNetpluginErrors() error {
 
 func (n *node) runCommandWithTimeOut(cmd string, tick, timeout time.Duration) error {
 	runCmd := func() (string, bool) {
+		logrus.Debugf("Running cmd: %s", cmd)
 		if err := n.tbnode.RunCommand(cmd); err != nil {
 			return "", false
 		}
