@@ -294,6 +294,10 @@ func listRules(ctx *cli.Context) {
 	errCheck(ctx, err)
 	policy := ctx.Args()[0]
 
+	// check if policy exists
+	_, err = getClient(ctx).PolicyGet(tenant, policy)
+	errCheck(ctx, err)
+
 	rules, err := getClient(ctx).RuleList()
 	errCheck(ctx, err)
 
