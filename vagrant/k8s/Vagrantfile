@@ -84,7 +84,7 @@ echo "export no_proxy='k8master,192.168.2.10,192.168.2.11,192.168.2.12,192.168.2
 echo "export no_proxy='k8master,192.168.2.10,192.168.2.11,192.168.2.12,192.168.2.13,netmaster,localhost,127.0.0.1'" >> ~/.profile
 source /etc/profile.d/envvar.sh
 # Change ownership for gopath folder
-chown -R vagrant #{gopath_folder}
+sudo chown -R vagrant #{gopath_folder}
 sudo yum install -y net-tools
 sudo yum install -y go
 sudo yum install -y git
