@@ -11,7 +11,6 @@ func (s *systemtestSuite) TestBasicHostAccess(c *C) {
 		c.Skip("Skipping basic host access test for routing mode")
 	}
 
-	time.Sleep(30 * time.Second)
 	global, err := s.cli.GlobalGet("global")
 	c.Assert(err, IsNil)
 	// save the FwdMode
