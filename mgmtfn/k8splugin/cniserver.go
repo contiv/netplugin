@@ -36,6 +36,11 @@ var kubeAPIClient *APIClient
 var pluginHost string
 var contivK8Config k8sutils.ContivConfig
 
+// GetK8sClusterIPRange returns k8s cluster ip range
+func GetK8sClusterIPRange() string {
+	return contivK8Config.SvcSubnet
+}
+
 // setUpAPIClient sets up an instance of the k8s api server
 func setUpAPIClient() *APIClient {
 	// Read config
