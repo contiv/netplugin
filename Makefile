@@ -25,6 +25,7 @@ GOLINT_CMD := golint -set_exit_status
 GOFMT_CMD := gofmt -s -l
 GOVET_CMD := go tool vet
 CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
+SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 
 all: build unit-test system-test ubuntu-tests
 
@@ -224,7 +225,7 @@ ubuntu-tests:
 
 system-test:start
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py
-	go test -v -timeout 480m ./test/systemtests -check.v -check.abort -check.f "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
+	go test -v -timeout 480m ./test/systemtests -check.v -check.abort -check.f $(SYSTEM_TESTS_TO_RUN)
 
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop start ssh-build
