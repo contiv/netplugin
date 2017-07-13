@@ -658,10 +658,6 @@
 			"Rev": "ced733d4710e93b663da5d09df720c6216796d0a"
 		},
 		{
-			"ImportPath": "github.com/contiv/systemtests-utils",
-			"Rev": "b0462e68014f35e222ac3d44a4f9c6323814c490"
-		},
-		{
 			"ImportPath": "github.com/coreos/etcd/Godeps/_workspace/src/github.com/ugorji/go/codec",
 			"Comment": "v2.3.8",
 			"Rev": "7e4fc7eaa931298732c880a703bccc9c177ae1de"
