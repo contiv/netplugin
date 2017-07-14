@@ -12,14 +12,14 @@ import (
 )
 
 func (s *systemtestSuite) TestInfraNetworkAddDeleteVXLAN(c *C) {
-	if s.basicInfo.Scheduler == "k8" {
+	if s.basicInfo.Scheduler == kubeScheduler {
 		return
 	}
 	s.testInfraNetworkAddDelete(c, "vxlan")
 }
 
 func (s *systemtestSuite) TestInfraNetworkAddDeleteVLAN(c *C) {
-	if s.basicInfo.Scheduler == "k8" {
+	if s.basicInfo.Scheduler == kubeScheduler {
 		return
 	}
 	s.testInfraNetworkAddDelete(c, "vlan")
@@ -200,6 +200,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteNoGatewayVXLAN(c *C) {
 func (s *systemtestSuite) TestNetworkAddDeleteNoGatewayVLAN(c *C) {
 	s.testNetworkAddDeleteNoGateway(c, "vlan")
 }
+
 func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 
 	if s.fwdMode == "routing" && encap == "vlan" {
@@ -380,6 +381,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		s.testNetworkAddDeleteTenant(c, "vxlan", fwdMode)
 		if fwdMode == "routing" {
+			c.Assert(s.TearDownDefaultNetwork(), IsNil)
 			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "bridge",
 				Name:             "global",
 				NetworkInfraType: "default",
@@ -389,9 +391,12 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				PvtSubnet:        "172.19.0.0/16",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
+			c.Assert(s.SetupDefaultNetwork(), IsNil)
+
 			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
 			fwdMode = "bridge"
 		} else {
+			c.Assert(s.TearDownDefaultNetwork(), IsNil)
 			c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
 				Name:             "global",
 				NetworkInfraType: "default",
@@ -401,6 +406,8 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				PvtSubnet:        "172.19.0.0/16",
 			}), IsNil)
 			time.Sleep(60 * time.Second)
+			c.Assert(s.SetupDefaultNetwork(), IsNil)
+
 			s.testNetworkAddDeleteTenant(c, "vxlan", "routing")
 			fwdMode = "routing"
 		}

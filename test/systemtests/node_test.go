@@ -8,7 +8,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/contiv/remotessh"
-	"github.com/contiv/systemtests-utils"
 )
 
 type node struct {
@@ -138,13 +137,14 @@ func (n *node) checkForNetpluginErrors() error {
 
 func (n *node) runCommandWithTimeOut(cmd string, tick, timeout time.Duration) error {
 	runCmd := func() (string, bool) {
+		logrus.Debugf("Running cmd: %s", cmd)
 		if err := n.tbnode.RunCommand(cmd); err != nil {
 			return "", false
 		}
 		return "", true
 	}
 	timeoutMessage := fmt.Sprintf("timeout reached trying to run %v on %q", cmd, n.Name())
-	_, err := utils.WaitForDone(runCmd, tick, timeout, timeoutMessage)
+	_, err := waitForDone(runCmd, tick, timeout, timeoutMessage)
 	return err
 }
 
@@ -265,4 +265,38 @@ func (n *node) checkSchedulerNetworkCreated(nwName string, expectedOp bool) erro
 
 func (n *node) checkSchedulerNetworkOnNodeCreated(nwName []string) error {
 	return n.exec.checkSchedulerNetworkOnNodeCreated(nwName, n)
+}
+
+// waitForDone polls for checkDoneFn function to return true up until specified timeout
+func waitForDone(doneFn func() (string, bool), tickDur time.Duration, timeoutDur time.Duration, timeoutMsg string) (string, error) {
+	tick := time.Tick(tickDur)
+	timeout := time.After(timeoutDur)
+	doneCount := 0
+	for {
+		select {
+		case <-tick:
+			if ctxt, done := doneFn(); done {
+				doneCount++
+				// add some resilliency to poll inorder to avoid false positives,
+				// while polling more frequently
+				if doneCount == 2 {
+					// end poll
+					return ctxt, nil
+
+				}
+
+			}
+			//continue polling
+		case <-timeout:
+			ctxt, done := doneFn()
+			if !done {
+				return ctxt, fmt.Errorf("wait timeout. Msg: %s", timeoutMsg)
+
+			}
+			return ctxt, nil
+
+		}
+
+	}
+
 }

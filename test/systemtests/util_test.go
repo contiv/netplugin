@@ -956,7 +956,7 @@ func (s *systemtestSuite) startListenersOnProviders(containers []*container, por
 func (s *systemtestSuite) getVTEPList() (map[string]bool, error) {
 	vtepMap := make(map[string]bool)
 	for _, n := range s.nodes {
-		if s.basicInfo.Scheduler == "k8" && n.Name() == "k8master" {
+		if s.basicInfo.Scheduler == kubeScheduler && n.Name() == "k8master" {
 			continue
 		}
 		vtep, err := n.getIPAddr(s.hostInfo.HostMgmtInterface)
@@ -1054,9 +1054,9 @@ func (s *systemtestSuite) verifyVTEPs() error {
 		time.Sleep(1 * time.Second)
 	}
 
-	logrus.Errorf("Node %s failed to verify all VTEPs", failNode)
+	logrus.Errorf("Node %s failed to verify all VTEPs. ERR: %v", failNode, err)
 	logrus.Infof("Debug output:\n %s", dbgOut)
-	return errors.New("Failed to verify VTEPs after 20 sec")
+	return errors.New("Failed to verify VTEPs after 60 sec")
 }
 
 func (s *systemtestSuite) verifyEPs(containers []*container) error {
@@ -1197,9 +1197,9 @@ func (s *systemtestSuite) SetUpSuiteBaremetal(c *C) {
 			node.suite = s
 
 			switch s.basicInfo.Scheduler {
-			case "k8":
+			case kubeScheduler:
 				node.exec = s.NewK8sExec(node)
-			case "swarm":
+			case swarmScheduler:
 				node.exec = s.NewSwarmExec(node)
 			default:
 				node.exec = s.NewDockerExec(node)
@@ -1240,7 +1240,7 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 	if s.fwdMode == "routing" {
 		contivL3Nodes := 2
 		switch s.basicInfo.Scheduler {
-		case "k8":
+		case kubeScheduler:
 			topDir := os.Getenv("GOPATH")
 			//topDir contains the godeps path. hence purging the gopath
 			topDir = strings.Split(topDir, ":")[1]
@@ -1248,7 +1248,11 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 			contivNodes = 4 // 3 contiv nodes + 1 k8master
 			c.Assert(s.vagrant.Setup(false, []string{"CONTIV_L3=1 VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
 
-		case "swarm":
+			// Sleep to give enough time for the netplugin pods to come up
+			logrus.Infof("Sleeping for 1 minute for pods to come up")
+			time.Sleep(time.Minute)
+
+		case swarmScheduler:
 			c.Assert(s.vagrant.Setup(false, append([]string{"CONTIV_NODES=3 CONTIV_L3=1"}, s.basicInfo.SwarmEnv), contivNodes+contivL3Nodes), IsNil)
 		default:
 			c.Assert(s.vagrant.Setup(false, []string{"CONTIV_NODES=3 CONTIV_L3=1"}, contivNodes+contivL3Nodes), IsNil)
@@ -1257,7 +1261,7 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 
 	} else {
 		switch s.basicInfo.Scheduler {
-		case "k8":
+		case kubeScheduler:
 			contivNodes = contivNodes + 1 //k8master
 
 			topDir := os.Getenv("GOPATH")
@@ -1271,7 +1275,11 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 
 			c.Assert(s.vagrant.Setup(false, []string{"VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
 
-		case "swarm":
+			// Sleep to give enough time for the netplugin pods to come up
+			logrus.Infof("Sleeping for 1 minute for pods to come up")
+			time.Sleep(time.Minute)
+
+		case swarmScheduler:
 			c.Assert(s.vagrant.Setup(false, append([]string{}, s.basicInfo.SwarmEnv), contivNodes), IsNil)
 		default:
 			c.Assert(s.vagrant.Setup(false, []string{}, contivNodes), IsNil)
@@ -1288,9 +1296,13 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 			node.tbnode = nodeObj
 			node.suite = s
 			switch s.basicInfo.Scheduler {
-			case "k8":
-				node.exec = s.NewK8sExec(node)
-			case "swarm":
+			case kubeScheduler:
+				if s.basicInfo.InstallMode == kubeadmInstall {
+					node.exec = s.NewK8sPodExec(node)
+				} else {
+					node.exec = s.NewK8sExec(node)
+				}
+			case swarmScheduler:
 				node.exec = s.NewSwarmExec(node)
 			default:
 				node.exec = s.NewDockerExec(node)
@@ -1342,7 +1354,7 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 	}
 
 	time.Sleep(5 * time.Second)
-	if s.basicInfo.Scheduler != "k8" {
+	if s.basicInfo.Scheduler != kubeScheduler {
 		for i := 0; i < 11; i++ {
 			_, err := s.cli.TenantGet("default")
 			if err == nil {
@@ -1412,7 +1424,8 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 	}
 
 	time.Sleep(5 * time.Second)
-	if s.basicInfo.Scheduler != "k8" {
+
+	if s.basicInfo.Scheduler != kubeScheduler {
 		for i := 0; i < 21; i++ {
 
 			_, err := s.cli.TenantGet("default")
@@ -1423,6 +1436,10 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			c.Assert((i < 30), Equals, true)
 			time.Sleep(1 * time.Second)
 		}
+	}
+
+	if s.basicInfo.Scheduler == kubeScheduler {
+		c.Assert(s.SetupDefaultNetwork(), IsNil)
 	}
 
 	if s.fwdMode == "routing" {
@@ -1441,6 +1458,9 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 func (s *systemtestSuite) verifyHostRoutes(routes []string, expect bool) error {
 
 	for _, n := range s.nodes {
+		if s.basicInfo.Scheduler == kubeScheduler && n.Name() == "k8master" {
+			continue
+		}
 		out, err := n.runCommand("ip route")
 		if err != nil {
 			logrus.Errorf("Error getting routes: %v", err)
@@ -1459,6 +1479,7 @@ func (s *systemtestSuite) verifyHostRoutes(routes []string, expect bool) error {
 
 	return nil
 }
+
 func (s *systemtestSuite) verifyHostPing(containers []*container) error {
 
 	for _, c := range containers {
@@ -1470,6 +1491,7 @@ func (s *systemtestSuite) verifyHostPing(containers []*container) error {
 
 	return nil
 }
+
 func (s *systemtestSuite) IsolationTest(containers []*container) error {
 	for _, c := range containers {
 		err := c.node.exec.checkPingFailure(c, "172.19.255.254")
@@ -1478,5 +1500,39 @@ func (s *systemtestSuite) IsolationTest(containers []*container) error {
 		}
 	}
 
+	return nil
+}
+
+func (s *systemtestSuite) TearDownDefaultNetwork() error {
+	if s.basicInfo.Scheduler != kubeScheduler {
+		return nil
+	}
+
+	err := s.cli.NetworkDelete("default", "default-net")
+	if err != nil {
+		logrus.Errorf("default-net not deleted. Err: %+v", err)
+		return err
+	}
+	time.Sleep(time.Second)
+	return nil
+}
+
+func (s *systemtestSuite) SetupDefaultNetwork() error {
+	if s.basicInfo.Scheduler != kubeScheduler {
+		return nil
+	}
+
+	err := s.cli.NetworkPost(&client.Network{
+		TenantName:  "default",
+		NetworkName: "default-net",
+		Subnet:      "100.10.1.0/24",
+		Gateway:     "100.10.1.254",
+		Encap:       "vxlan",
+	})
+	if err != nil {
+		logrus.Errorf("default-net not created. Err: %+v", err)
+		return err
+	}
+	time.Sleep(time.Second)
 	return nil
 }

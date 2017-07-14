@@ -23,9 +23,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/contiv/libOpenflow/openflow13"
+	"github.com/contiv/libOpenflow/protocol"
 	"github.com/contiv/ofnet/pqueue"
-	"github.com/shaleman/libOpenflow/openflow13"
-	"github.com/shaleman/libOpenflow/protocol"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/ofnet/ofctrl"
@@ -294,7 +294,7 @@ func (proxy *ServiceProxy) addService(svcName string) error {
 	}
 
 	// add all providers
-	for p, _ := range prov.Providers {
+	for p := range prov.Providers {
 		oState.addProvHdl(p)
 	}
 
@@ -452,7 +452,7 @@ func (proxy *ServiceProxy) delProvider(svcIP, provIP string) error {
 	}
 
 	// Remove flows NAT'ed to this provider
-	for epIP, _ := range operEntry.ProvHdl[provIP].ClientEPs {
+	for epIP := range operEntry.ProvHdl[provIP].ClientEPs {
 		for _, p := range operEntry.Ports {
 			operEntry.delNATFlow(proxy, epIP, "Dst", &p)
 			operEntry.delNATFlow(proxy, epIP, "Src", &p)
@@ -526,7 +526,7 @@ func (proxy *ServiceProxy) ProviderUpdate(svcName string, providers []string) {
 	}
 
 	// Delete any providers that disappeared
-	for p, _ := range currProvs.Providers {
+	for p := range currProvs.Providers {
 		_, found = newProvs[p]
 		if !found {
 			proxy.delProvider(sSpec.IpAddress, p)

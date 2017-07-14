@@ -18,8 +18,9 @@ package ofctrl
 
 import (
 	"fmt"
-	"github.com/shaleman/libOpenflow/openflow13"
 	"sync"
+
+	"github.com/contiv/libOpenflow/openflow13"
 
 	log "github.com/Sirupsen/logrus"
 )

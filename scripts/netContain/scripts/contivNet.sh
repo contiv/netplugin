@@ -19,6 +19,10 @@ vlan_if_param=""
 control_url=":9999"
 listen_url=":9999"
 
+# These files indicate if the netmaster/netplugin process needs to be restarted
+touch /tmp/restart_netmaster
+touch /tmp/restart_netplugin
+
 #This needs to be fixed, we cant rely on the value being supplied from
 # parameters, just explosion of parameters is not a great solution
 #export no_proxy="0.0.0.0, 172.28.11.253"
@@ -73,8 +77,7 @@ while getopts ":xmp:v:i:c:drl:o:" opt; do
 done
 
 if [ $cleanup == true ] || [ $reinit == true ]; then
-	ovs-vsctl del-br contivVlanBridge || true
-	ovs-vsctl del-br contivVxlanBridge || true
+	ovs-vsctl list-br | grep contiv | xargs -I % ovs-vsctl del-br % > /dev/null 2>&1
 	for p in $(ifconfig | grep vport | awk '{print $1}'); do
 		ip link delete $p type veth
 	done
@@ -114,34 +117,39 @@ if [ "$plugin" == "kubernetes" ]; then
    fi
 fi
 
+set +eo pipefail
+
 if [ $netmaster == true ]; then
 	echo "Starting netmaster "
 	while true; do
-		if [ "$cstore" != "" ]; then
-			/contiv/bin/netmaster $debug -cluster-mode $plugin -cluster-store $cstore -listen-url $listen_url -control-url $control_url &>/var/contiv/log/netmaster.log
-		else
-			/contiv/bin/netmaster $debug -cluster-mode $plugin -listen-url $listen_url -control-url $control_url &>/var/contiv/log/netmaster.log
+		if [ -f /tmp/restart_netmaster ]; then
+			if [ "$cstore" != "" ]; then
+				/contiv/bin/netmaster $debug -cluster-mode $plugin -cluster-store $cstore -listen-url $listen_url -control-url $control_url &>/var/contiv/log/netmaster.log
+			else
+				/contiv/bin/netmaster $debug -cluster-mode $plugin -listen-url $listen_url -control-url $control_url &>/var/contiv/log/netmaster.log
+			fi
+			echo "CRITICAL : Netmaster has exited. Trying to respawn in 5s"
 		fi
-		echo "CRITICAL: netmaster has exited, Respawn in 5"
 		sleep 5
 	done
 elif [ $netplugin == true ]; then
 	echo "Starting netplugin"
 	modprobe openvswitch
-	mkdir -p /var/contiv/log/
 
 	while true; do
-		if [ "$cstore" != "" ]; then
-			cstore_param="-cluster-store"
+		if [ -f /tmp/restart_netplugin ]; then
+			if [ "$cstore" != "" ]; then
+				cstore_param="-cluster-store"
+			fi
+			if [ "$vtep_ip" != "" ]; then
+				vtep_ip_param="-vtep-ip"
+			fi
+			if [ "$vlan_if" != "" ]; then
+				vlan_if_param="-vlan-if"
+			fi
+			/contiv/bin/netplugin $debug $cstore_param $cstore $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if -plugin-mode $plugin &>/var/contiv/log/netplugin.log
+			echo "CRITICAL : Netplugin has exited. Trying to respawn in 5s"
 		fi
-		if [ "$vtep_ip" != "" ]; then
-			vtep_ip_param="-vtep-ip"
-		fi
-		if [ "$vlan_if" != "" ]; then
-			vlan_if_param="-vlan-if"
-		fi
-		/contiv/bin/netplugin $debug $cstore_param $cstore $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if -plugin-mode $plugin &>/var/contiv/log/netplugin.log
-		echo "CRITICAL: netplugin has exited, Respawn in 5"
 		sleep 5
 	done
 fi

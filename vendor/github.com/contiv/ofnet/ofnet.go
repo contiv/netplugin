@@ -21,8 +21,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/contiv/libOpenflow/openflow13"
 	"github.com/contiv/ofnet/ofctrl"
-	"github.com/shaleman/libOpenflow/openflow13"
 )
 
 const (

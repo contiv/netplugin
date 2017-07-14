@@ -1,9 +1,9 @@
 package systemtests
 
 import (
-	"time"
-	"github.com/contiv/contivmodel/client"
 	. "github.com/contiv/check"
+	"github.com/contiv/contivmodel/client"
+	"time"
 )
 
 func (s *systemtestSuite) TestBasicHostAccess(c *C) {
@@ -11,16 +11,24 @@ func (s *systemtestSuite) TestBasicHostAccess(c *C) {
 		c.Skip("Skipping basic host access test for routing mode")
 	}
 
-	time.Sleep(30*time.Second)
 	global, err := s.cli.GlobalGet("global")
 	c.Assert(err, IsNil)
 	// save the FwdMode
 	fm := global.FwdMode
 	global.FwdMode = "routing"
+
+	c.Assert(s.TearDownDefaultNetwork(), IsNil)
 	c.Assert(s.cli.GlobalPost(global), IsNil)
+	time.Sleep(60 * time.Second)
+	c.Assert(s.SetupDefaultNetwork(), IsNil)
+
 	s.hostAccTest(c)
 	global.FwdMode = fm
+
+	c.Assert(s.TearDownDefaultNetwork(), IsNil)
 	c.Assert(s.cli.GlobalPost(global), IsNil)
+	time.Sleep(60 * time.Second)
+	c.Assert(s.SetupDefaultNetwork(), IsNil)
 }
 
 func (s *systemtestSuite) hostAccTest(c *C) {
@@ -55,7 +63,7 @@ func (s *systemtestSuite) hostAccTest(c *C) {
 		GroupName:   "epg-a",
 	}), IsNil)
 
-	time.Sleep(15*time.Second)
+	time.Sleep(15 * time.Second)
 	c.Assert(s.verifyHostRoutes([]string{"17.5.4.0/22", "13.5.7.0/24"}, true), IsNil)
 	// Create num_nodes + 1 containers
 	numContainters := len(s.nodes) + 1

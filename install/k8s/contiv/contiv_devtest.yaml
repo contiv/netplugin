@@ -1,0 +1,275 @@
+---
+# This ConfigMap is used to configure a self-hosted Contiv installation.
+# It can be used with an external cluster store(etcd or consul) or used
+# with the etcd instance being installed as contiv-etcd
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: contiv-config
+  namespace: kube-system
+data:
+  # The location of your cluster store. This is set to the
+  # avdertise-client value below from the contiv-etcd service.
+  # Change it to an external etcd/consul instance if required.
+  cluster_store: "etcd://__NETMASTER_IP__:6666"
+  # The CNI network configuration to install on each node.
+  cni_config: |-
+    {
+      "cniVersion": "0.1.0",
+      "name": "contiv-net",
+      "type": "contivk8s"
+    }
+  config: |-
+    {
+       "K8S_API_SERVER": "https://__NETMASTER_IP__:6443",
+       "K8S_CA": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+       "K8S_KEY": "",
+       "K8S_CERT": "",
+       "K8S_TOKEN": ""
+    }
+---
+
+# This manifest installs the Contiv etcd on the kubeadm master. 
+# If using an external etcd instance, this can be deleted. This uses a DaemonSet
+# to force it to run on the master even when the master isn't schedulable, and uses
+# nodeSelector to ensure it only runs on the master.
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: contiv-etcd
+  namespace: kube-system
+  labels:
+    k8s-app: contiv-etcd
+spec:
+  template:
+    metadata:
+      labels:
+        k8s-app: contiv-etcd
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+        scheduler.alpha.kubernetes.io/tolerations: |
+          [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
+           {"key":"CriticalAddonsOnly", "operator":"Exists"}]
+    spec:
+      # Only run this pod on the master.
+      nodeSelector:
+        kubeadm.alpha.kubernetes.io/role: master
+      hostNetwork: true
+      containers:
+        - name: contiv-etcd
+          image: gcr.io/google_containers/etcd:2.2.1
+          command: ["/bin/sh","-c"]
+          args: ["/usr/local/bin/etcd --name=contiv --data-dir=/var/etcd/contiv-data --advertise-client-urls=http://__NETMASTER_IP__:6666 --listen-client-urls=http://0.0.0.0:6666 --listen-peer-urls=http://0.0.0.0:6667"]
+          volumeMounts:
+            - name: var-etcd
+              mountPath: /var/etcd
+      volumes:
+        - name: var-etcd
+          hostPath:
+            path: /var/etcd
+
+---
+# This manifest installs contiv-netplugin container, as well
+# as the Contiv CNI plugins and network config on
+# each master and worker node in a Kubernetes cluster.
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: contiv-netplugin
+  namespace: kube-system
+  labels:
+    k8s-app: contiv-netplugin
+spec:
+  selector:
+    matchLabels:
+      k8s-app: contiv-netplugin
+  template:
+    metadata:
+      labels:
+        k8s-app: contiv-netplugin
+    spec:
+      hostNetwork: true
+      hostPID: true
+      containers:
+        # Runs netplugin container on each Kubernetes node.  This
+        # container programs network policy and routes on each
+        # host.
+        - name: contiv-netplugin
+          image: contiv/netplugin:k8s_devtest
+          args:
+            - -pkubernetes
+          env:
+            - name: VLAN_IF
+              value: __VLAN_IF__
+            - name: VTEP_IP
+              valueFrom:
+                 fieldRef:
+                    fieldPath: status.podIP
+            - name: CONTIV_ETCD
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: cluster_store
+            - name: CONTIV_CNI_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: cni_config
+            - name: CONTIV_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: config
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /etc/openvswitch
+              name: etc-openvswitch
+              readOnly: false
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: false
+            - mountPath: /var/run
+              name: var-run
+              readOnly: false
+            - mountPath: /var/contiv
+              name: var-contiv
+              readOnly: false
+            - mountPath: /etc/kubernetes/pki
+              name: etc-kubernetes-pki
+              readOnly: false
+            - mountPath: /etc/kubernetes/ssl
+              name: etc-kubernetes-ssl
+              readOnly: false
+            - mountPath: /opt/cni/bin
+              name: cni-bin-dir
+              readOnly: false
+            - mountPath: /etc/cni/net.d/
+              name: etc-cni-dir
+              readOnly: false
+            - mountPath: /contiv/bin
+              name: contiv-bin-dir
+              readOnly: false
+      volumes:
+        # Used by contiv-netplugin
+        - name: etc-openvswitch
+          hostPath:
+            path: /etc/openvswitch
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: var-run
+          hostPath:
+            path: /var/run
+        - name: var-contiv
+          hostPath:
+            path: /var/contiv
+        - name: etc-kubernetes-pki
+          hostPath:
+            path: /etc/kubernetes/pki
+        - name: etc-kubernetes-ssl
+          hostPath:
+            path: /etc/kubernetes/ssl
+        # Used to install CNI.
+        - name: cni-bin-dir
+          hostPath:
+            path: /opt/cni/bin
+        - name: etc-cni-dir
+          hostPath:
+            path: /etc/cni/net.d/
+        - name: contiv-bin-dir
+          hostPath:
+            path: /opt/gopath/bin
+---
+
+# This manifest deploys the Contiv API Server on Kubernetes.
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  name: contiv-netmaster
+  namespace: kube-system
+  labels:
+    k8s-app: contiv-netmaster
+spec:
+  # The netmaster should have 1, 3, 5 nodes of which one is active at any given time.
+  # More nodes are desired in a production environment for HA.
+  replicas: 1
+  template:
+    metadata:
+      name: contiv-netmaster
+      namespace: kube-system
+      labels:
+        k8s-app: contiv-netmaster
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+        scheduler.alpha.kubernetes.io/tolerations: |
+          [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
+           {"key":"CriticalAddonsOnly", "operator":"Exists"}]
+    spec:
+      # Only run this pod on the master.
+      nodeSelector:
+        kubeadm.alpha.kubernetes.io/role: master
+      # The netmaster must run in the host network namespace so that
+      # it isn't governed by policy that would prevent it from working.
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: contiv-netmaster
+          image: contiv/netplugin:k8s_devtest
+          args:
+            - -m
+            - -pkubernetes
+          env:
+            - name: CONTIV_ETCD
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: cluster_store
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /etc/openvswitch
+              name: etc-openvswitch
+              readOnly: false
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: false
+            - mountPath: /var/run
+              name: var-run
+              readOnly: false
+            - mountPath: /var/contiv
+              name: var-contiv
+              readOnly: false
+            - mountPath: /etc/kubernetes/ssl
+              name: etc-kubernetes-ssl
+              readOnly: false
+            - mountPath: /opt/cni/bin
+              name: cni-bin-dir
+              readOnly: false
+            - mountPath: /contiv/bin
+              name: contiv-bin-dir
+              readOnly: false
+      volumes:
+        # Used by contiv-netmaster
+        - name: etc-openvswitch
+          hostPath:
+            path: /etc/openvswitch
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: var-run
+          hostPath:
+            path: /var/run
+        - name: var-contiv
+          hostPath:
+            path: /var/contiv
+        - name: etc-kubernetes-ssl
+          hostPath:
+            path: /etc/kubernetes/ssl
+        - name: cni-bin-dir
+          hostPath:
+            path: /opt/cni/bin
+        - name: contiv-bin-dir
+          hostPath:
+            path: /opt/gopath/bin
+---

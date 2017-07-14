@@ -39,7 +39,7 @@ func (i *ICMP) UnmarshalBinary(data []byte) error {
 	i.Code = data[1]
 	i.Checksum = binary.BigEndian.Uint16(data[2:4])
 
-	for n, _ := range data[4:] {
+	for n := range data[4:] {
 		i.Data = append(i.Data, data[n])
 	}
 	return nil

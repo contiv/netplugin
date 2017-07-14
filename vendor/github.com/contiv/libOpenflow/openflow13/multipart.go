@@ -5,8 +5,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/shaleman/libOpenflow/common"
-	"github.com/shaleman/libOpenflow/util"
+	"github.com/contiv/libOpenflow/common"
+	"github.com/contiv/libOpenflow/util"
 )
 
 // ofp_multipart_request 1.3

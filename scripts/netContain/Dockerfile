@@ -30,5 +30,4 @@ RUN apt-get update \
 COPY ./bin /contiv/bin/
 COPY ./scripts /contiv/scripts/
 
-
 ENTRYPOINT ["/contiv/scripts/contivNet.sh"]

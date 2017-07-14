@@ -40,13 +40,13 @@ def parseSshConfig(inFd):
 
 def validateHostInfo(hostInfo, host):
     if hostInfo[host] is 'missing':
-        print "Info for {} not found".format(host) 
+        print ("Info for {} not found").format(host)
         sys.exit(-1)
     else:
         info = hostInfo[host]
         for attr in hostAttr:
             if info[attr] is 'missing':
-                print "{} not found for host {}".format(attr, host)
+                print ("{} not found for host {}").format(attr, host)
                 sys.exit(-1)
 
 def writeHostLine(outFd, hostInfo, hConfig, comVars):
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     # get the ssh config info from vagrant
     res = os.system("vagrant ssh-config > ./.out.vagrant")
     if res != 0:
-        print "Failed to get vagrant ssh config"
+        print("Failed to get vagrant ssh config")
         sys.exit(-1)
 
     inFd = open('./.out.vagrant')
