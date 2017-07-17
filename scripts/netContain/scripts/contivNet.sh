@@ -77,7 +77,8 @@ while getopts ":xmp:v:i:c:drl:o:" opt; do
 done
 
 if [ $cleanup == true ] || [ $reinit == true ]; then
-	ovs-vsctl list-br | grep contiv | xargs -I % ovs-vsctl del-br % > /dev/null 2>&1
+	ovs-vsctl del-br contivVlanBridge || true
+	ovs-vsctl del-br contivVxlanBridge || true
 	for p in $(ifconfig | grep vport | awk '{print $1}'); do
 		ip link delete $p type veth
 	done
