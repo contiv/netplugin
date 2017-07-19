@@ -262,8 +262,8 @@ host-integ-test: host-cleanup start-aci-gw
 
 start-aci-gw:
 	@echo dev: starting aci gw...
-	docker pull contiv/aci-gw:11-28-2016.1.3_2i
-	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" --name=contiv-aci-gw contiv/aci-gw:11-28-2016.1.3_2i
+	docker pull contiv/aci-gw:04-12-2017.2.2_1n
+	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" --name=contiv-aci-gw contiv/aci-gw:04-12-2017.2.2_1n
 
 host-build-docker-image:
 	./scripts/netContain/build_image.sh
