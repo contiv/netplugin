@@ -19,6 +19,11 @@ vlan_if_param=""
 control_url=":9999"
 listen_url=":9999"
 
+function die() {
+  echo "$*"
+  exit 1
+}
+
 # These files indicate if the netmaster/netplugin process needs to be restarted
 touch /tmp/restart_netmaster
 touch /tmp/restart_netplugin
@@ -135,7 +140,7 @@ if [ $netmaster == true ]; then
 	done
 elif [ $netplugin == true ]; then
 	echo "Starting netplugin"
-	modprobe openvswitch
+	modprobe openvswitch || die "failed to load openvswitch kernel module"
 
 	while true; do
 		if [ -f /tmp/restart_netplugin ]; then
