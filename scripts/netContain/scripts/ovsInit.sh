@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+modprobe openvswitch
+
 mkdir -p /var/run/openvswitch
 
 sleep 2
