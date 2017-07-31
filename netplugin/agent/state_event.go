@@ -238,7 +238,7 @@ func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkSta
 
 // processEpState restores endpoint state
 func processEpState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, epID string) error {
-	// take a lock to ensure we are programming one event at a time.
+	// take a lock in netplugin to ensure we are programming one event at a time.
 	// Also network create events need to be processed before endpoint creates
 	// and reverse shall happen for deletes. That order is ensured by netmaster,
 	// so we don't need to worry about that here
@@ -275,10 +275,6 @@ func processEpState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, epID st
 
 // processRemoteEpState updates endpoint state
 func processRemoteEpState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, epCfg *mastercfg.CfgEndpointState, isDelete bool) error {
-	// take a lock to ensure we are programming one event at a time.
-	netPlugin.Lock()
-	defer netPlugin.Unlock()
-
 	if !checkRemoteHost(epCfg.VtepIP, epCfg.HomingHost, opts.HostLabel) {
 		// Skip local endpoint update, as they are handled directly in dockplugin
 		return nil
@@ -503,9 +499,6 @@ func processSvcProviderUpdEvent(netPlugin *plugin.NetPlugin, svcProvider *master
 
 // processPolicyRuleState updates policy rule state
 func processPolicyRuleState(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ruleID string, isDelete bool) error {
-	netPlugin.Lock()
-	defer netPlugin.Unlock()
-
 	// read policy config
 	ruleCfg := &mastercfg.CfgPolicyRule{}
 	ruleCfg.StateDriver = netPlugin.StateDriver
