@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovsd
 
 import (
 	"fmt"
@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/state"
 )
 
 var ipTablesPath string

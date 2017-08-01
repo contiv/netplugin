@@ -1,6 +1,8 @@
-package drivers
+package ovsd
 
-import "github.com/contiv/netplugin/netmaster/mastercfg"
+import (
+	"github.com/contiv/netplugin/netmaster/mastercfg"
+)
 
 const (
 	operCreateBridge oper = iota
@@ -23,10 +25,6 @@ const (
 	hostPvtSubnet   = "172.20.0.0/16"
 
 	// StateOperPath is the path to the operations stored in state.
-	ovsOperPathPrefix      = mastercfg.StateOperPath + "ovs-driver/"
-	ovsOperPath            = ovsOperPathPrefix + "%s"
-	networkOperPathPrefix  = mastercfg.StateOperPath + "nets/"
-	endpointOperPathPrefix = mastercfg.StateOperPath + "eps/"
-	networkOperPath        = networkOperPathPrefix + "%s"
-	endpointOperPath       = endpointOperPathPrefix + "%s"
+	ovsOperPathPrefix = mastercfg.StateOperPath + "ovs-driver/"
+	ovsOperPath       = ovsOperPathPrefix + "%s"
 )

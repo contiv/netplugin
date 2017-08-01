@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovsd
 
 import (
 	"errors"
@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
@@ -482,7 +483,7 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 }
 
 // DeletePort removes a port from OVS
-func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState, skipVethPair bool) error {
+func (sw *OvsSwitch) DeletePort(epOper *drivers.OperEndpointState, skipVethPair bool) error {
 
 	if epOper.VtepIP != "" {
 		return nil

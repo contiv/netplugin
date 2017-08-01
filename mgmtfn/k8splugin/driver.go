@@ -54,14 +54,14 @@ type epAttr struct {
 }
 
 // netdGetEndpoint is a utility that reads the EP oper state
-func netdGetEndpoint(epID string) (*drivers.OvsOperEndpointState, error) {
+func netdGetEndpoint(epID string) (*drivers.OperEndpointState, error) {
 	// Get hold of the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return nil, err
 	}
 
-	operEp := &drivers.OvsOperEndpointState{}
+	operEp := &drivers.OperEndpointState{}
 	operEp.StateDriver = stateDriver
 	err = operEp.Read(epID)
 	if err != nil {

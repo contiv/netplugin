@@ -519,7 +519,7 @@ func (ac *APIController) EndpointGetOper(endpoint *contivModel.EndpointInspect) 
 				endpoint.Oper.ContainerID = ep.ContainerID
 				endpoint.Oper.ContainerName = ep.EPCommonName
 
-				epOper := &drivers.OvsOperEndpointState{}
+				epOper := &drivers.OperEndpointState{}
 				epOper.StateDriver = stateDriver
 				err := epOper.Read(ep.NetID + "-" + ep.EndpointID)
 				if err == nil {

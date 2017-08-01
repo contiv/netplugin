@@ -71,7 +71,7 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	case "test":
 		// nothing to do. internal mode for testing
 	default:
-		log.Fatalf("Unknown plugin mode -- should be docker | kubernetes")
+		log.Fatalf("Unknown plugin mode -- should be docker | swarm-mode | kubernetes")
 	}
 	// init mesos plugin
 	mesosplugin.InitPlugin(netPlugin)

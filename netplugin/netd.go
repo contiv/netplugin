@@ -76,6 +76,7 @@ type cliOpts struct {
 	vlanIntf     StringSlice // Uplink interface for VLAN switching
 	version      bool
 	dbURL        string // state store URL
+	nwDriver     string // network driver implementation (ovs/vpp)
 	vxlanUDPPort int    // Vxlan UDP port, default: 4789
 }
 
@@ -160,6 +161,10 @@ func main() {
 		"cluster-store",
 		"etcd://127.0.0.1:2379",
 		"state store url")
+	flagSet.StringVar(&opts.nwDriver,
+		"net-driver",
+		"ovs",
+		"network driver component ovs|vpp (vpp is not supported yet)")
 	flagSet.IntVar(&opts.vxlanUDPPort,
 		"vxlan-port",
 		4789,
@@ -211,6 +216,9 @@ func main() {
 	if opts.vtepIP == "" {
 		opts.vtepIP = opts.ctrlIP
 	}
+	if opts.nwDriver == "" {
+		opts.nwDriver = "ovs"
+	}
 
 	// parse store URL
 	parts := strings.Split(opts.dbURL, "://")
@@ -222,7 +230,7 @@ func main() {
 	// initialize the config
 	pluginConfig := plugin.Config{
 		Drivers: plugin.Drivers{
-			Network: "ovs",
+			Network: opts.nwDriver,
 			State:   stateStore,
 		},
 		Instance: core.InstanceInfo{
