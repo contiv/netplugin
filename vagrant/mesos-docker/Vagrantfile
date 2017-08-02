@@ -93,6 +93,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.box = "contiv/centos71-netplugin"
     config.vm.box_version = "0.3.1"
 
+    config.vm.provider 'virtualbox' do |v|
+      v.linked_clone = true if Vagrant::VERSION >= "1.8"
+    end
+
     num_nodes = 2
     if ENV['CONTIV_NODES'] && ENV['CONTIV_NODES'] != "" then
         num_nodes = ENV['CONTIV_NODES'].to_i
