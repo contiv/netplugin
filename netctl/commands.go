@@ -551,10 +551,6 @@ var Commands = []cli.Command{
 				ArgsUsage: "[hostname]",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "hostname",
-						Usage: "host name",
-					},
-					cli.StringFlag{
 						Name:  "router-ip",
 						Usage: "BGP my-router ip ",
 					},
