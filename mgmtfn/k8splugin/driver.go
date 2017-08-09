@@ -95,7 +95,7 @@ func epCleanUp(req *epSpec) error {
 	// first delete from netplugin
 	// ignore any errors as this is best effort
 	netID := req.Network + "." + req.Tenant
-	err1 := netPlugin.DeleteEndpoint(netID + "-" + req.EndpointID)
+	pluginErr := netPlugin.DeleteEndpoint(netID + "-" + req.EndpointID)
 
 	// now delete from master
 	delReq := master.DeleteEndpointRequest{
@@ -106,13 +106,19 @@ func epCleanUp(req *epSpec) error {
 	}
 
 	var delResp master.DeleteEndpointResponse
-	err2 := cluster.MasterPostReq("/plugin/deleteEndpoint", &delReq, &delResp)
+	masterErr := cluster.MasterPostReq("/plugin/deleteEndpoint", &delReq, &delResp)
 
-	if err1 != nil {
-		return err1
+	if pluginErr != nil {
+		log.Errorf("failed to delete endpoint: %s from netplugin %s",
+			netID+"-"+req.EndpointID, pluginErr)
+		return pluginErr
 	}
 
-	return err2
+	if masterErr != nil {
+		log.Errorf("failed to delete endpoint %+v from netmaster, %s", delReq, masterErr)
+	}
+
+	return masterErr
 }
 
 // createEP creates the specified EP in contiv
@@ -166,6 +172,7 @@ func createEP(req *epSpec) (*epAttr, error) {
 	// need to get the subnetlen from nw state.
 	nw, err := netdGetNetwork(netID)
 	if err != nil {
+		epCleanUp(req)
 		return nil, err
 	}
 
