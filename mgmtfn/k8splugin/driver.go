@@ -488,8 +488,10 @@ func deletePod(r *http.Request) (interface{}, error) {
 	}
 
 	netPlugin.DeleteHostAccPort(epReq.EndpointID)
-	err = epCleanUp(epReq)
+	if err = epCleanUp(epReq); err != nil {
+		log.Errorf("failed to delete pod, error: %s", err)
+	}
 	resp.Result = 0
 	resp.EndpointID = pInfo.InfraContainerID
-	return resp, err
+	return resp, nil
 }
