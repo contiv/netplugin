@@ -56,7 +56,7 @@ func (k *kubePod) newContainer(node *node, containerID, name string, spec contai
 	}
 	cont.eth0.ip = out
 
-	out, err = cont.node.exec.getIPv6Addr(cont, "eth0")
+	out, err = k8sMaster.exec.getIPv6Addr(cont, "eth0")
 	if err == nil {
 		cont.eth0.ipv6 = out
 	}
@@ -213,8 +213,21 @@ func (k *kubePod) getIPAddr(c *container, dev string) (string, error) {
 }
 
 func (k *kubePod) getIPv6Addr(c *container, dev string) (string, error) {
-	/*FIXME: fix for k8 v6 */
-	return "", nil
+	out, err := k8sMaster.tbnode.RunCommandWithOutput(
+		fmt.Sprintf("kubectl exec %s ip addr show dev %s | grep 'inet6.*scope.*global' | head -1",
+			c.containerID, dev))
+	if err != nil {
+		logrus.Errorf("Failed to get IPv6 for container %q", c.containerID)
+		logrus.Println(out)
+	}
+
+	parts := regexp.MustCompile(`\s+`).Split(strings.TrimSpace(out), -1)
+	if len(parts) < 2 {
+		return "", fmt.Errorf("Invalid output from container %q: %s", c.containerID, out)
+	}
+
+	parts = strings.Split(parts[1], "/")
+	return strings.TrimSpace(parts[0]), err
 }
 
 func (k *kubePod) getMACAddr(c *container, dev string) (string, error) {
