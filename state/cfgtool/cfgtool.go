@@ -193,7 +193,7 @@ func processState(stateDriver core.StateDriver, stateName, stateID, fieldName, s
 	typeRegistry[reflect.TypeOf(resources.AutoVXLANCfgResource{}).Name()] = &resources.AutoVXLANCfgResource{}
 	typeRegistry[reflect.TypeOf(resources.AutoVXLANOperResource{}).Name()] = &resources.AutoVXLANOperResource{}
 	typeRegistry[reflect.TypeOf(drivers.OvsDriverOperState{}).Name()] = &drivers.OvsDriverOperState{}
-	typeRegistry[reflect.TypeOf(drivers.OvsOperEndpointState{}).Name()] = &drivers.OvsOperEndpointState{}
+	typeRegistry[reflect.TypeOf(drivers.OperEndpointState{}).Name()] = &drivers.OperEndpointState{}
 	typeRegistry[reflect.TypeOf(docknet.DnetOperState{}).Name()] = &docknet.DnetOperState{}
 
 	// find the type by name

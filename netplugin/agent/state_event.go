@@ -214,7 +214,7 @@ func processNetEvent(netPlugin *plugin.NetPlugin, nwCfg *mastercfg.CfgNetworkSta
 	}
 	operStr := ""
 	if isDelete {
-		err = netPlugin.DeleteNetwork(nwCfg.ID, nwCfg.NwType, nwCfg.PktTagType, nwCfg.PktTag, nwCfg.ExtPktTag,
+		err = netPlugin.DeleteNetwork(nwCfg.ID, route, nwCfg.NwType, nwCfg.PktTagType, nwCfg.PktTag, nwCfg.ExtPktTag,
 			nwCfg.Gateway, nwCfg.Tenant)
 		operStr = "delete"
 		if err == nil && gwIP != "" {

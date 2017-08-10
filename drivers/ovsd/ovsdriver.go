@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovsd
 
 import (
 	"encoding/json"
@@ -26,6 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/nameserver"
 	"github.com/contiv/netplugin/utils/netutils"
@@ -220,7 +221,7 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 func (d *OvsDriver) DeleteHostAccPort(id string) error {
 	sw, found := d.switchDb["host"]
 	if found {
-		operEp := &OvsOperEndpointState{}
+		operEp := &drivers.OperEndpointState{}
 		operEp.StateDriver = d.oper.StateDriver
 		err := operEp.Read(id)
 		if err != nil {
@@ -293,7 +294,7 @@ func (d *OvsDriver) CreateNetwork(id string) error {
 }
 
 // DeleteNetwork deletes a network by named identifier
-func (d *OvsDriver) DeleteNetwork(id, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error {
+func (d *OvsDriver) DeleteNetwork(id, subnet, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error {
 	log.Infof("delete net %s, nwType %s, encap %s, tags: %d/%d", id, nwType, encap, pktTag, extPktTag)
 
 	// Find the switch based on network type
@@ -309,7 +310,7 @@ func (d *OvsDriver) DeleteNetwork(id, nwType, encap string, pktTag, extPktTag in
 		hostName, _ := os.Hostname()
 		epID := id + "-" + hostName
 
-		epOper := OvsOperEndpointState{}
+		epOper := drivers.OperEndpointState{}
 		epOper.StateDriver = d.oper.StateDriver
 		err := epOper.Read(epID)
 		if err == nil {
@@ -386,7 +387,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 	// Skip Veth pair creation for infra nw endpoints
 	skipVethPair := (cfgNw.NwType == "infra")
 
-	operEp := &OvsOperEndpointState{}
+	operEp := &drivers.OperEndpointState{}
 	operEp.StateDriver = d.oper.StateDriver
 	err = operEp.Read(id)
 	if core.ErrIfKeyExists(err) != nil {
@@ -445,7 +446,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		return err
 	}
 	// Save the oper state
-	operEp = &OvsOperEndpointState{
+	operEp = &drivers.OperEndpointState{
 		NetID:       cfgEp.NetID,
 		EndpointID:  cfgEp.EndpointID,
 		ServiceName: cfgEp.ServiceName,
@@ -517,7 +518,7 @@ func (d *OvsDriver) UpdateEndpointGroup(id string) error {
 
 // DeleteEndpoint deletes an endpoint by named identifier.
 func (d *OvsDriver) DeleteEndpoint(id string) error {
-	epOper := OvsOperEndpointState{}
+	epOper := drivers.OperEndpointState{}
 	epOper.StateDriver = d.oper.StateDriver
 	err := epOper.Read(id)
 	if err != nil {

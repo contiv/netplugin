@@ -113,7 +113,7 @@ type NetworkDriver interface {
 	Init(instInfo *InstanceInfo) error
 	Deinit()
 	CreateNetwork(id string) error
-	DeleteNetwork(id, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error
+	DeleteNetwork(id, subnet, nwType, encap string, pktTag, extPktTag int, gateway string, tenant string) error
 	CreateEndpoint(id string) error
 	UpdateEndpointGroup(id string) error
 	DeleteEndpoint(id string) error
