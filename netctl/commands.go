@@ -635,7 +635,7 @@ var Commands = []cli.Command{
 	},
 	{
 		Name:  "service",
-		Usage: "service object creation",
+		Usage: "service object creation (only for  docker version <= 1.12.x)",
 		Subcommands: []cli.Command{
 			{
 				Name:      "ls",
@@ -667,7 +667,7 @@ var Commands = []cli.Command{
 			},
 			{
 				Name:      "create",
-				Usage:     "Create Service object.",
+				Usage:     "Create Service object (only for docker version <= 1.12.x)",
 				ArgsUsage: "[servicename]",
 				Flags: []cli.Flag{
 					cli.StringFlag{
