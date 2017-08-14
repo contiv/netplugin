@@ -233,10 +233,16 @@ l3-test:
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -contiv_l3 2
 	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v -check.abort
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
-l3-demo:
+
+#l3-demo setup for docker/swarm
+l3-demo: demo
+	vagrant ssh netplugin-node1 -c 'netctl global set --fwd-mode routing'
+
+l3bgp-demo:
 	CONTIV_L3=1 CONTIV_NODES=3 vagrant up
 	make ssh-build
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
+	vagrant ssh netplugin-node1 -c 'sh /opt/gopath/src/github.com/contiv/netplugin/scripts/l3bgp_demo.sh'
 
 host-build:
 	@echo "dev: making binaries..."
