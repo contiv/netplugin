@@ -411,20 +411,30 @@ func addPod(r *http.Request) (interface{}, error) {
 		return resp, err
 	}
 
+	var epErr error
+
+	defer func() {
+		if epErr != nil {
+			log.Errorf("error %s, remove endpoint", epErr)
+			netPlugin.DeleteHostAccPort(epReq.EndpointID)
+			epCleanUp(epReq)
+		}
+	}()
+
 	// convert netns to pid that netlink needs
-	pid, err := nsToPID(pInfo.NwNameSpace)
-	if err != nil {
-		log.Errorf("Error moving to netns. Err: %v", err)
-		setErrorResp(&resp, "Error moving to netns", err)
-		return resp, err
+	pid, epErr := nsToPID(pInfo.NwNameSpace)
+	if epErr != nil {
+		log.Errorf("Error moving to netns. Err: %v", epErr)
+		setErrorResp(&resp, "Error moving to netns", epErr)
+		return resp, epErr
 	}
 
 	// Set interface attributes for the new port
-	err = setIfAttrs(pid, ep.PortName, ep.IPAddress, pInfo.IntfName)
-	if err != nil {
-		log.Errorf("Error setting interface attributes. Err: %v", err)
-		setErrorResp(&resp, "Error setting interface attributes", err)
-		return resp, err
+	epErr = setIfAttrs(pid, ep.PortName, ep.IPAddress, pInfo.IntfName)
+	if epErr != nil {
+		log.Errorf("Error setting interface attributes. Err: %v", epErr)
+		setErrorResp(&resp, "Error setting interface attributes", epErr)
+		return resp, epErr
 	}
 
 	// if Gateway is not specified on the nw, use the host gateway
@@ -455,11 +465,11 @@ func addPod(r *http.Request) (interface{}, error) {
 	}
 
 	// Set default gateway
-	err = setDefGw(pid, gw, gwIntf)
-	if err != nil {
-		log.Errorf("Error setting default gateway. Err: %v", err)
-		setErrorResp(&resp, "Error setting default gateway", err)
-		return resp, err
+	epErr = setDefGw(pid, gw, gwIntf)
+	if epErr != nil {
+		log.Errorf("Error setting default gateway. Err: %v", epErr)
+		setErrorResp(&resp, "Error setting default gateway", epErr)
+		return resp, epErr
 	}
 
 	resp.Result = 0
