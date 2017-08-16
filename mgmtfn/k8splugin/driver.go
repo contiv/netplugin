@@ -379,7 +379,7 @@ func setErrorResp(resp *cniapi.RspAddPod, msg string, err error) {
 }
 
 // addPod is the handler for pod additions
-func addPod(r *http.Request) (interface{}, error) {
+func addPod(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 
 	resp := cniapi.RspAddPod{}
 
@@ -469,7 +469,7 @@ func addPod(r *http.Request) (interface{}, error) {
 }
 
 // deletePod is the handler for pod deletes
-func deletePod(r *http.Request) (interface{}, error) {
+func deletePod(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 
 	resp := cniapi.RspAddPod{}
 

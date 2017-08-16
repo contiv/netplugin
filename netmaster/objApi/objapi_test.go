@@ -32,7 +32,6 @@ import (
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/resources"
-	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
@@ -124,8 +123,8 @@ func TestMain(m *testing.M) {
 
 	router := mux.NewRouter()
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
-	s.HandleFunc("/plugin/updateEndpoint", makeHTTPHandler(master.UpdateEndpointHandler))
-	s.HandleFunc("/plugin/createEndpoint", makeHTTPHandler(master.CreateEndpointHandler))
+	s.HandleFunc("/plugin/updateEndpoint", utils.MakeHTTPHandler(master.UpdateEndpointHandler))
+	s.HandleFunc("/plugin/createEndpoint", utils.MakeHTTPHandler(master.CreateEndpointHandler))
 	s = router.Methods("Get").Subrouter()
 
 	// create objdb client
@@ -2209,39 +2208,6 @@ func deleteNetwork(t *testing.T, network, tenant string) {
 	}
 }
 
-// Simple Wrapper for http handlers
-func makeHTTPHandler(handlerFunc httpAPIFunc) http.HandlerFunc {
-	// Create a closure and return an anonymous function
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Call the handler
-		resp, err := handlerFunc(w, r, mux.Vars(r))
-		if err != nil {
-			// Log error
-
-			// Send HTTP response
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			// Send HTTP response as Json
-			err = writeJSON(w, http.StatusOK, resp)
-			if err != nil {
-			}
-		}
-	}
-}
-
-// writeJSON: writes the value v to the http response stream as json with standard
-// json encoding.
-func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
-	// Set content type as json
-	w.Header().Set("Content-Type", "application/json")
-
-	// write the HTTP status code
-	w.WriteHeader(code)
-
-	// Write the Json output
-	return json.NewEncoder(w).Encode(v)
-}
-
 func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var (
@@ -2326,7 +2292,7 @@ func AddEP(tenant, nw, epg, id string) error {
 
 	var mresp master.CreateEndpointResponse
 	url := netmasterTestURL + "/plugin/createEndpoint"
-	return cluster.HTTPPost(url, &mreq, &mresp)
+	return utils.HTTPPost(url, &mreq, &mresp)
 }
 
 func TestEPCreate(t *testing.T) {
@@ -2385,5 +2351,3 @@ func TestClusterMode(t *testing.T) {
 		t.Fatalf("Error expected docker, got %s", insp.Oper.ClusterMode)
 	}
 }
-
-type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
