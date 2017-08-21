@@ -781,7 +781,7 @@ func inspectEndpointGroup(ctx *cli.Context) {
 
 func deleteEndpointGroup(ctx *cli.Context) {
 	if len(ctx.Args()) != 1 {
-		errExit(ctx, exitHelp, "Endpoint name required", true)
+		errExit(ctx, exitHelp, "EndpointGroup name required", true)
 	}
 
 	tenant := ctx.String("tenant")

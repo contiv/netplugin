@@ -206,6 +206,7 @@ func registerService(objClient objdb.API, ctrlIP, vtepIP, hostname string, vxlan
 		TTL:         10,
 		HostAddr:    vtepIP,
 		Port:        vxlanUDPPort,
+		Hostname:    hostname,
 	}
 
 	// Register the node with service registry
