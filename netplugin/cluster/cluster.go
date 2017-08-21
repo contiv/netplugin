@@ -273,7 +273,7 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, ctrlIP,
 					Port:     netplugin.PluginConfig.Instance.VxlanUDPPort,
 				})
 				if err != nil {
-					log.Errorf("Error adding node {%+v}. Err: %v", nodeInfo, err)
+					log.Errorf("Error deleting node {%+v}. Err: %v", nodeInfo, err)
 				}
 			}
 		case srvEvent := <-masterEventCh:

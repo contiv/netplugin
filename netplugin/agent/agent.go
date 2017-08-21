@@ -16,6 +16,7 @@ limitations under the License.
 package agent
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/contiv/netplugin/utils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -283,6 +285,9 @@ func (ag *Agent) serveRequests() {
 		w.Write(ns)
 	})
 
+	s = router.Methods("Delete").Subrouter()
+	s.HandleFunc("/debug/reclaimEndpoint/{id}", utils.MakeHTTPHandler(ag.ReclaimEndpointHandler))
+
 	// Create HTTP server and listener
 	server := &http.Server{Handler: router}
 	listener, err := net.Listen("tcp", listenURL)
@@ -294,4 +299,18 @@ func (ag *Agent) serveRequests() {
 
 	// start server
 	go server.Serve(listener)
+}
+
+// ReclaimEndpointHandler reclaims endpoint
+func (ag *Agent) ReclaimEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	epID := vars["id"]
+	// delete the endpoint
+	err := ag.netPlugin.DeleteEndpoint(epID)
+	if err != nil {
+		log.Errorf("Error deleting endpoint %v. Err: %v", epID, err)
+		http.Error(w, fmt.Sprintf("failed to delete endpoint: %+v", epID), 0)
+		return nil, err
+	}
+
+	return nil, nil
 }
