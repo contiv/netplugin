@@ -151,11 +151,15 @@ func (p *NetPlugin) DeleteEndpoint(id string) error {
 
 // CreateRemoteEndpoint creates an endpoint for a given ID.
 func (p *NetPlugin) CreateRemoteEndpoint(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.CreateRemoteEndpoint(id)
 }
 
 // DeleteRemoteEndpoint destroys an endpoint for an ID.
 func (p *NetPlugin) DeleteRemoteEndpoint(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DeleteRemoteEndpoint(id)
 }
 
@@ -338,10 +342,14 @@ func (p *NetPlugin) DelSvcSpec(svcName string, spec *core.ServiceSpec) {
 
 // AddPolicyRule creates a policy rule
 func (p *NetPlugin) AddPolicyRule(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.AddPolicyRule(id)
 }
 
 // DelPolicyRule creates a policy rule
 func (p *NetPlugin) DelPolicyRule(id string) error {
+	p.Lock()
+	defer p.Unlock()
 	return p.NetworkDriver.DelPolicyRule(id)
 }
