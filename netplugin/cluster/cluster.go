@@ -16,17 +16,15 @@ limitations under the License.
 package cluster
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/objdb"
 
@@ -74,85 +72,6 @@ func deleteMaster(netplugin *plugin.NetPlugin, srvInfo objdb.ServiceInfo) error 
 	})
 }
 
-// HTTPPost performs http POST operation
-func HTTPPost(url string, req interface{}, resp interface{}) error {
-	// Convert the req to json
-	jsonStr, err := json.Marshal(req)
-	if err != nil {
-		log.Errorf("Error converting request data(%#v) to Json. Err: %v", req, err)
-		return err
-	}
-
-	// Perform HTTP POST operation
-	res, err := http.Post(url, "application/json", strings.NewReader(string(jsonStr)))
-	if err != nil {
-		log.Errorf("Error during http POST. Err: %v", err)
-		return err
-	}
-
-	defer res.Body.Close()
-
-	// Check the response code
-	if res.StatusCode == http.StatusInternalServerError {
-		eBody, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return errors.New("HTTP StatusInternalServerError" + err.Error())
-		}
-		return errors.New(string(eBody))
-	}
-
-	if res.StatusCode != http.StatusOK {
-		log.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
-		return fmt.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
-	}
-
-	// Read the entire response
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Errorf("Error during ioutil readall. Err: %v", err)
-		return err
-	}
-
-	// Convert response json to struct
-	err = json.Unmarshal(body, resp)
-	if err != nil {
-		log.Errorf("Error during json unmarshall. Err: %v", err)
-		return err
-	}
-
-	log.Infof("Results for (%s): %+v\n", url, resp)
-
-	return nil
-}
-
-// HTTPDel performs http DELETE operation
-func HTTPDel(url string) error {
-	req, err := http.NewRequest("DELETE", url, nil)
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer res.Body.Close()
-
-	// Check the response code
-	if res.StatusCode == http.StatusInternalServerError {
-		eBody, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return errors.New("HTTP StatusInternalServerError " + err.Error())
-		}
-		return errors.New(string(eBody))
-	}
-
-	if res.StatusCode != http.StatusOK {
-		log.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
-		return fmt.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
-	}
-
-	log.Infof("Results for (%s): %+v\n", url, res)
-	return nil
-}
-
 // getMasterLockHolder returns the IP of current master lock hoder
 func getMasterLockHolder() (string, error) {
 	// Create the lock
@@ -180,6 +99,10 @@ func GetLeaderNetmaster() (string, error) {
 func masterReq(path string, req interface{}, resp interface{}, isDel bool) error {
 	const retryCount = 3
 
+	reqType := "POST"
+	if isDel {
+		reqType = "DELETE"
+	}
 	// first find the holder of master lock
 	masterNode, err := getMasterLockHolder()
 	if err == nil {
@@ -188,10 +111,11 @@ func masterReq(path string, req interface{}, resp interface{}, isDel bool) error
 
 		// Make the REST call to master
 		for i := 0; i < retryCount; i++ {
+
 			if isDel {
-				err = HTTPDel(url)
+				err = utils.HTTPDel(url)
 			} else {
-				err = HTTPPost(url, req, resp)
+				err = utils.HTTPPost(url, req, resp)
 			}
 			if err != nil && strings.Contains(err.Error(), "connection refused") {
 				log.Warnf("Error making POST request. Retrying...: Err: %v", err)
@@ -199,7 +123,7 @@ func masterReq(path string, req interface{}, resp interface{}, isDel bool) error
 				time.Sleep(time.Second)
 				continue
 			} else if err != nil {
-				log.Errorf("Error making POST request: Err: %v", err)
+				log.Errorf("Error making %s request: Err: %v", reqType, err)
 				return err
 			}
 
@@ -217,20 +141,20 @@ func masterReq(path string, req interface{}, resp interface{}, isDel bool) error
 		log.Infof("Making REST request to url: %s", url)
 
 		if isDel {
-			err = HTTPDel(url)
+			err = utils.HTTPDel(url)
 		} else {
-			err = HTTPPost(url, req, resp)
+			err = utils.HTTPPost(url, req, resp)
 		}
 		if err != nil {
-			log.Warnf("Error making POST request: Err: %v", err)
+			log.Warnf("Error making %s request: Err: %v", reqType, err)
 			// continue and try making POST call to next master
 		} else {
 			return nil
 		}
 	}
 
-	log.Errorf("Error making POST request. All master failed")
-	return errors.New("POST request failed")
+	log.Errorf("Error making %s request. All master failed", reqType)
+	return fmt.Errorf("%s request failed", reqType)
 }
 
 // MasterPostReq makes a POST request to master node

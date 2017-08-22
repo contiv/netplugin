@@ -33,8 +33,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-type httpAPIFunc func(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error)
-
 // get current version
 func getVersion(w http.ResponseWriter, r *http.Request) {
 	ver := version.Get()
@@ -121,41 +119,6 @@ func slaveProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Serve http
 	proxy.ServeHTTP(w, &newReq)
-}
-
-// Simple Wrapper for http handlers
-func makeHTTPHandler(handlerFunc httpAPIFunc) http.HandlerFunc {
-	// Create a closure and return an anonymous function
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Call the handler
-		resp, err := handlerFunc(w, r, mux.Vars(r))
-		if err != nil {
-			// Log error
-			log.Errorf("Handler for %s %s returned error: %s", r.Method, r.URL, err)
-
-			// Send HTTP response
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			// Send HTTP response as Json
-			err = writeJSON(w, http.StatusOK, resp)
-			if err != nil {
-				log.Errorf("Error generating json. Err: %v", err)
-			}
-		}
-	}
-}
-
-// writeJSON: writes the value v to the http response stream as json with standard
-// json encoding.
-func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
-	// Set content type as json
-	w.Header().Set("Content-Type", "application/json")
-
-	// write the HTTP status code
-	w.WriteHeader(code)
-
-	// Write the Json output
-	return json.NewEncoder(w).Encode(v)
 }
 
 func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.ResponseWriter, *http.Request) {
