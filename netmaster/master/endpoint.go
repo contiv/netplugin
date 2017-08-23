@@ -20,6 +20,7 @@ import (
 	"net"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
@@ -222,6 +223,60 @@ func CreateEndpoints(stateDriver core.StateDriver, tenant *intent.ConfigTenant) 
 		if err != nil {
 			log.Errorf("error writing nw config. Error: %s", err)
 			return err
+		}
+	}
+
+	return err
+}
+
+// DeleteEndpoints deletes the endpoints on a give host
+func DeleteEndpoints(hostAddr string) error {
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		return err
+	}
+
+	readEp := &mastercfg.CfgEndpointState{}
+	readEp.StateDriver = stateDriver
+	epCfgs, err := readEp.ReadAll()
+	if err != nil {
+		return err
+	}
+
+	for _, epCfg := range epCfgs {
+		ep := epCfg.(*mastercfg.CfgEndpointState)
+		nwCfg := &mastercfg.CfgNetworkState{}
+		nwCfg.StateDriver = stateDriver
+		err = nwCfg.Read(ep.NetID)
+		if err != nil {
+			log.Errorf("Network not found for NetID: %+v", ep.NetID)
+			continue
+		}
+
+		netID := nwCfg.NetworkName + "." + nwCfg.Tenant
+		epID := getEpName(netID, &intent.ConfigEP{Container: ep.EndpointID})
+		if ep.HomingHost == hostAddr {
+			log.Infof("Sending DeleteEndpoint for %+v", ep)
+			_, err = DeleteEndpointID(stateDriver, epID)
+			if err != nil {
+				log.Errorf("Error delete endpoint: %+v. Err: %+v", ep, err)
+			}
+			epOper := &drivers.OperEndpointState{}
+			epOper.StateDriver = stateDriver
+			err := epOper.Read(epID)
+			if err != nil {
+				log.Errorf("Failed to read epOper: %+v", epOper)
+				return err
+			}
+			err = epOper.Clear()
+			if err != nil {
+				log.Errorf("Error deleting oper state for %+v", epOper)
+			} else {
+				log.Infof("Deleted EP oper: %+v", epOper)
+			}
+		} else {
+			log.Infof("EP not on host: %+v", hostAddr)
 		}
 	}
 

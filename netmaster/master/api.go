@@ -379,7 +379,7 @@ func DeleteEndpointHandler(w http.ResponseWriter, r *http.Request, vars map[stri
 
 	log.Infof("Received DeleteEndpointRequest: %+v", epdelReq)
 
-	// Gte the state driver
+	// Get the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return nil, err
