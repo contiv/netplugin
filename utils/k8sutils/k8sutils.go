@@ -7,6 +7,7 @@ import (
 	"github.com/contiv/client-go/kubernetes"
 	k8sRest "github.com/contiv/client-go/rest"
 	"io/ioutil"
+	"strconv"
 	"strings"
 )
 
@@ -25,7 +26,28 @@ const (
 	contivKubeCfgFile = "/opt/contiv/config/contiv.json"
 	defSvcSubnet      = "10.254.0.0/16"
 	tokenFile         = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	// DenyAllRuleID default deny all rule id
+	DenyAllRuleID = "deny-all-0-"
+	// DenyAllPriority default deny all rule priority
+	DenyAllPriority = 1
+
+	// K8sTenantLabel  k8s tenant label used by contiv
+	K8sTenantLabel = "io.contiv.tenant"
+	// K8sNetworkLabel k8s network label used by contiv
+	K8sNetworkLabel = "io.contiv.network"
+	// K8sGroupLabel k8s group label used by contiv
+	K8sGroupLabel = "io.contiv.net-group"
 )
+
+// EpgNameToPolicy generate policy name from endpoint group
+func EpgNameToPolicy(epgName string) string {
+	return epgName + "-policy"
+}
+
+// PolicyToRuleID generate rule id from policy details
+func PolicyToRuleID(epgName string, protocol string, port int, direction string) string {
+	return epgName + "-" + protocol + "-" + strconv.Itoa(port) + "-" + direction
+}
 
 // GetK8SConfig reads and parses the contivKubeCfgFile
 func GetK8SConfig(pCfg *ContivConfig) error {
