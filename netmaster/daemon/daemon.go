@@ -162,10 +162,46 @@ func (d *MasterDaemon) agentDiscoveryLoop() {
 			var res bool
 			log.Infof("Unregister node %+v", nodeInfo)
 			d.ofnetMaster.UnRegisterNode(&nodeInfo, &res)
+
+			go d.startDeferredCleanup(nodeInfo, agentEv.ServiceInfo.Hostname)
 		}
 
 		// Dont process next peer event for another 100ms
 		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func (d *MasterDaemon) startDeferredCleanup(host ofnet.OfnetNode, hostName string) {
+	timeout := make(chan bool, 1)
+	timeoutDuration := 24 * time.Hour
+	go func() {
+		log.Infof("Started GC timer for 1 day for node: %+v", host)
+		time.Sleep(timeoutDuration)
+		timeout <- true
+	}()
+
+	for {
+		select {
+		case <-time.After(timeoutDuration / 10):
+			hostKey := fmt.Sprintf("%s:%d", host.HostAddr, host.HostPort)
+			srvList, err := d.objdbClient.GetService("netplugin")
+			if err != nil {
+				log.Errorf("Error getting netplugin nodes. Err: %v", err)
+			}
+
+			for _, srv := range srvList {
+				serviceKey := fmt.Sprintf("%s:%d", srv.HostAddr, srv.Port)
+				if serviceKey == hostKey {
+					log.Infof("Aborting GC on node: %+v", host)
+					return
+				}
+			}
+		case <-timeout:
+			log.Infof("Started GC for node: %+v", host)
+			d.ofnetMaster.ClearNode(host)
+			master.DeleteEndpoints(hostName)
+			return
+		}
 	}
 }
 

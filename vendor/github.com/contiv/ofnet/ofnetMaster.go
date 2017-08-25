@@ -126,6 +126,34 @@ func (self *OfnetMaster) AddNode(hostInfo OfnetNode) error {
 	return nil
 }
 
+// ClearNode clears up the resources on the node for GC
+func (self *OfnetMaster) ClearNode(host OfnetNode) error {
+	self.masterMutex.Lock()
+	// Remove existing endpoints from the node
+	for _, ep := range self.endpointDb {
+		if host.HostAddr == ep.OriginatorIp.String() {
+			var resp bool
+			for _, node := range self.agentDb {
+				if host.HostAddr == node.HostAddr {
+					continue
+				}
+				log.Infof("Removing endpoint: %+v from node %s:%d", ep, node.HostAddr, node.HostPort)
+
+				client := rpcHub.Client(node.HostAddr, node.HostPort)
+				err := client.Call("OfnetAgent.EndpointDel", ep, &resp)
+				if err != nil {
+					log.Errorf("Error removing endpoint from %s. Err: %v", node.HostAddr, err)
+					// continue sending other endpoint delete
+				}
+				delete(self.endpointDb, ep.EndpointID)
+			}
+		}
+	}
+	self.masterMutex.Unlock()
+
+	return nil
+}
+
 // RegisterNode registers an agent
 func (self *OfnetMaster) RegisterNode(hostInfo *OfnetNode, ret *bool) error {
 	// Create a node
