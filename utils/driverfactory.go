@@ -5,6 +5,8 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/drivers/ovsd"
+	"github.com/contiv/netplugin/drivers/vppd"
 	"github.com/contiv/netplugin/state"
 )
 
@@ -18,8 +20,12 @@ type driverConfigTypes struct {
 
 var networkDriverRegistry = map[string]driverConfigTypes{
 	OvsNameStr: {
-		DriverType: reflect.TypeOf(drivers.OvsDriver{}),
-		ConfigType: reflect.TypeOf(drivers.OvsDriver{}),
+		DriverType: reflect.TypeOf(ovsd.OvsDriver{}),
+		ConfigType: reflect.TypeOf(ovsd.OvsDriver{}),
+	},
+	VppNameStr: {
+		DriverType: reflect.TypeOf(vppd.VppDriver{}),
+		ConfigType: reflect.TypeOf(vppd.VppDriver{}),
 	},
 	// fakedriver is used for tests, so not exposing a public name for it.
 	"fakedriver": {
@@ -51,6 +57,8 @@ const (
 	ConsulNameStr = "consul"
 	// OvsNameStr is a string constant for ovs driver
 	OvsNameStr = "ovs"
+	// VppNameStr is a string constant for vpp driver
+	VppNameStr = "vpp"
 )
 
 var (

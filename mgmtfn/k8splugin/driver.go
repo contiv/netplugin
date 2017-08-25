@@ -54,14 +54,14 @@ type epAttr struct {
 }
 
 // netdGetEndpoint is a utility that reads the EP oper state
-func netdGetEndpoint(epID string) (*drivers.OvsOperEndpointState, error) {
+func netdGetEndpoint(epID string) (*drivers.OperEndpointState, error) {
 	// Get hold of the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return nil, err
 	}
 
-	operEp := &drivers.OvsOperEndpointState{}
+	operEp := &drivers.OperEndpointState{}
 	operEp.StateDriver = stateDriver
 	err = operEp.Read(epID)
 	if err != nil {
@@ -95,7 +95,7 @@ func epCleanUp(req *epSpec) error {
 	// first delete from netplugin
 	// ignore any errors as this is best effort
 	netID := req.Network + "." + req.Tenant
-	err1 := netPlugin.DeleteEndpoint(netID + "-" + req.EndpointID)
+	pluginErr := netPlugin.DeleteEndpoint(netID + "-" + req.EndpointID)
 
 	// now delete from master
 	delReq := master.DeleteEndpointRequest{
@@ -106,13 +106,19 @@ func epCleanUp(req *epSpec) error {
 	}
 
 	var delResp master.DeleteEndpointResponse
-	err2 := cluster.MasterPostReq("/plugin/deleteEndpoint", &delReq, &delResp)
+	masterErr := cluster.MasterPostReq("/plugin/deleteEndpoint", &delReq, &delResp)
 
-	if err1 != nil {
-		return err1
+	if pluginErr != nil {
+		log.Errorf("failed to delete endpoint: %s from netplugin %s",
+			netID+"-"+req.EndpointID, pluginErr)
+		return pluginErr
 	}
 
-	return err2
+	if masterErr != nil {
+		log.Errorf("failed to delete endpoint %+v from netmaster, %s", delReq, masterErr)
+	}
+
+	return masterErr
 }
 
 // createEP creates the specified EP in contiv
@@ -166,6 +172,7 @@ func createEP(req *epSpec) (*epAttr, error) {
 	// need to get the subnetlen from nw state.
 	nw, err := netdGetNetwork(netID)
 	if err != nil {
+		epCleanUp(req)
 		return nil, err
 	}
 
@@ -372,7 +379,7 @@ func setErrorResp(resp *cniapi.RspAddPod, msg string, err error) {
 }
 
 // addPod is the handler for pod additions
-func addPod(r *http.Request) (interface{}, error) {
+func addPod(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 
 	resp := cniapi.RspAddPod{}
 
@@ -404,20 +411,30 @@ func addPod(r *http.Request) (interface{}, error) {
 		return resp, err
 	}
 
+	var epErr error
+
+	defer func() {
+		if epErr != nil {
+			log.Errorf("error %s, remove endpoint", epErr)
+			netPlugin.DeleteHostAccPort(epReq.EndpointID)
+			epCleanUp(epReq)
+		}
+	}()
+
 	// convert netns to pid that netlink needs
-	pid, err := nsToPID(pInfo.NwNameSpace)
-	if err != nil {
-		log.Errorf("Error moving to netns. Err: %v", err)
-		setErrorResp(&resp, "Error moving to netns", err)
-		return resp, err
+	pid, epErr := nsToPID(pInfo.NwNameSpace)
+	if epErr != nil {
+		log.Errorf("Error moving to netns. Err: %v", epErr)
+		setErrorResp(&resp, "Error moving to netns", epErr)
+		return resp, epErr
 	}
 
 	// Set interface attributes for the new port
-	err = setIfAttrs(pid, ep.PortName, ep.IPAddress, pInfo.IntfName)
-	if err != nil {
-		log.Errorf("Error setting interface attributes. Err: %v", err)
-		setErrorResp(&resp, "Error setting interface attributes", err)
-		return resp, err
+	epErr = setIfAttrs(pid, ep.PortName, ep.IPAddress, pInfo.IntfName)
+	if epErr != nil {
+		log.Errorf("Error setting interface attributes. Err: %v", epErr)
+		setErrorResp(&resp, "Error setting interface attributes", epErr)
+		return resp, epErr
 	}
 
 	// if Gateway is not specified on the nw, use the host gateway
@@ -448,11 +465,11 @@ func addPod(r *http.Request) (interface{}, error) {
 	}
 
 	// Set default gateway
-	err = setDefGw(pid, gw, gwIntf)
-	if err != nil {
-		log.Errorf("Error setting default gateway. Err: %v", err)
-		setErrorResp(&resp, "Error setting default gateway", err)
-		return resp, err
+	epErr = setDefGw(pid, gw, gwIntf)
+	if epErr != nil {
+		log.Errorf("Error setting default gateway. Err: %v", epErr)
+		setErrorResp(&resp, "Error setting default gateway", epErr)
+		return resp, epErr
 	}
 
 	resp.Result = 0
@@ -462,7 +479,7 @@ func addPod(r *http.Request) (interface{}, error) {
 }
 
 // deletePod is the handler for pod deletes
-func deletePod(r *http.Request) (interface{}, error) {
+func deletePod(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
 
 	resp := cniapi.RspAddPod{}
 
@@ -488,8 +505,10 @@ func deletePod(r *http.Request) (interface{}, error) {
 	}
 
 	netPlugin.DeleteHostAccPort(epReq.EndpointID)
-	err = epCleanUp(epReq)
+	if err = epCleanUp(epReq); err != nil {
+		log.Errorf("failed to delete pod, error: %s", err)
+	}
 	resp.Result = 0
 	resp.EndpointID = pInfo.InfraContainerID
-	return resp, err
+	return resp, nil
 }

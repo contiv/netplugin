@@ -26,6 +26,7 @@ GOFMT_CMD := gofmt -s -l
 GOVET_CMD := go tool vet
 CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
 SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
+ACI_GW_IMAGE ?= "contiv/aci-gw:04-12-2017.2.2_1n"
 
 all: build unit-test system-test ubuntu-tests
 
@@ -232,10 +233,16 @@ l3-test:
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -contiv_l3 2
 	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v -check.abort
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
-l3-demo:
+
+#l3-demo setup for docker/swarm
+l3-demo: demo
+	vagrant ssh netplugin-node1 -c 'netctl global set --fwd-mode routing'
+
+l3bgp-demo:
 	CONTIV_L3=1 CONTIV_NODES=3 vagrant up
 	make ssh-build
 	vagrant ssh netplugin-node1 -c 'sudo -i bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart"'
+	vagrant ssh netplugin-node1 -c 'sh /opt/gopath/src/github.com/contiv/netplugin/scripts/l3bgp_demo.sh'
 
 host-build:
 	@echo "dev: making binaries..."
@@ -262,8 +269,8 @@ host-integ-test: host-cleanup start-aci-gw
 
 start-aci-gw:
 	@echo dev: starting aci gw...
-	docker pull contiv/aci-gw:04-12-2017.2.2_1n
-	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" --name=contiv-aci-gw contiv/aci-gw:04-12-2017.2.2_1n
+	docker pull $(ACI_GW_IMAGE) 
+	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" --name=contiv-aci-gw $(ACI_GW_IMAGE)
 
 host-build-docker-image:
 	./scripts/netContain/build_image.sh

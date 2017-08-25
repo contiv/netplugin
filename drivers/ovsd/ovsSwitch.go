@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drivers
+package ovsd
 
 import (
 	"errors"
@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
@@ -482,7 +483,7 @@ func (sw *OvsSwitch) UpdatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 }
 
 // DeletePort removes a port from OVS
-func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState, skipVethPair bool) error {
+func (sw *OvsSwitch) DeletePort(epOper *drivers.OperEndpointState, skipVethPair bool) error {
 
 	if epOper.VtepIP != "" {
 		return nil
@@ -491,20 +492,28 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState, skipVethPair bool)
 	// Get the OVS port name
 	ovsPortName := getOvsPortName(epOper.PortName, skipVethPair)
 
-	// Get the openflow port number for the interface
+	// Get the openflow port number for the interface and remove from ofnet
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
-	if err != nil {
-		log.Errorf("Could not find the OVS port %s. Err: %v", ovsPortName, err)
-		return err
-	}
-
-	// Remove info from ofnet
-	if sw.ofnetAgent != nil {
-		err = sw.ofnetAgent.RemoveLocalEndpoint(ofpPort)
-		if err != nil {
-			log.Errorf("Error removing port %s from ofnet. Err: %v", ovsPortName, err)
-			// continue with further cleanup
+	if err == nil {
+		if sw.ofnetAgent != nil {
+			err = sw.ofnetAgent.RemoveLocalEndpoint(ofpPort)
 		}
+	} else {
+		if sw.ofnetAgent != nil {
+			var tenantName string
+			netParts := strings.Split(epOper.NetID, ".")
+			if len(netParts) == 2 {
+				tenantName = netParts[1]
+			} else {
+				tenantName = "default"
+			}
+			epID := sw.ofnetAgent.GetEndpointIdByIpVrf(net.ParseIP(epOper.IPAddress), tenantName)
+			err = sw.ofnetAgent.RemoveLocalEndpointByID(epID)
+		}
+	}
+	if err != nil {
+		log.Errorf("Error removing endpoint %+v from ofnet. Err: %v", epOper, err)
+		// continue with further cleanup
 	}
 
 	// Delete it from ovsdb
@@ -519,7 +528,7 @@ func (sw *OvsSwitch) DeletePort(epOper *OvsOperEndpointState, skipVethPair bool)
 		// Delete a Veth pair
 		verr := deleteVethPair(ovsPortName, epOper.PortName)
 		if verr != nil {
-			log.Errorf("Error creating veth pairs. Err: %v", verr)
+			log.Errorf("Error deleting veth pairs. Err: %v", verr)
 			return verr
 		}
 	}

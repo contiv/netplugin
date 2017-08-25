@@ -23,8 +23,8 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 )
 
-// OvsOperEndpointState is the necessary data used to perform operations on endpoints.
-type OvsOperEndpointState struct {
+// OperEndpointState is the necessary data used to perform operations on endpoints.
+type OperEndpointState struct {
 	core.CommonState
 	NetID       string `json:"netID"`
 	EndpointID  string `json:"endpointID"`
@@ -39,7 +39,7 @@ type OvsOperEndpointState struct {
 }
 
 // Matches matches the fields updated from configuration state
-func (s *OvsOperEndpointState) Matches(c *mastercfg.CfgEndpointState) bool {
+func (s *OperEndpointState) Matches(c *mastercfg.CfgEndpointState) bool {
 	return s.NetID == c.NetID &&
 		s.EndpointID == c.EndpointID &&
 		s.IPAddress == c.IPAddress &&
@@ -50,24 +50,24 @@ func (s *OvsOperEndpointState) Matches(c *mastercfg.CfgEndpointState) bool {
 }
 
 // Write the state.
-func (s *OvsOperEndpointState) Write() error {
+func (s *OperEndpointState) Write() error {
 	key := fmt.Sprintf(endpointOperPath, s.ID)
 	return s.StateDriver.WriteState(key, s, json.Marshal)
 }
 
 // Read the state for a given identifier.
-func (s *OvsOperEndpointState) Read(id string) error {
+func (s *OperEndpointState) Read(id string) error {
 	key := fmt.Sprintf(endpointOperPath, id)
 	return s.StateDriver.ReadState(key, s, json.Unmarshal)
 }
 
 // ReadAll reads all state into separate objects.
-func (s *OvsOperEndpointState) ReadAll() ([]core.State, error) {
+func (s *OperEndpointState) ReadAll() ([]core.State, error) {
 	return s.StateDriver.ReadAllState(endpointOperPathPrefix, s, json.Unmarshal)
 }
 
 // Clear removes the state.
-func (s *OvsOperEndpointState) Clear() error {
+func (s *OperEndpointState) Clear() error {
 	key := fmt.Sprintf(endpointOperPath, s.ID)
 	return s.StateDriver.ClearState(key)
 }

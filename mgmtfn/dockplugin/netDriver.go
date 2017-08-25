@@ -530,14 +530,14 @@ func discoverDelete(w http.ResponseWriter, r *http.Request) {
 	w.Write(content)
 }
 
-func netdGetEndpoint(epID string) (*drivers.OvsOperEndpointState, error) {
+func netdGetEndpoint(epID string) (*drivers.OperEndpointState, error) {
 	// Get hold of the state driver
 	stateDriver, err := utils.GetStateDriver()
 	if err != nil {
 		return nil, err
 	}
 
-	operEp := &drivers.OvsOperEndpointState{}
+	operEp := &drivers.OperEndpointState{}
 	operEp.StateDriver = stateDriver
 	err = operEp.Read(epID)
 	if err != nil {

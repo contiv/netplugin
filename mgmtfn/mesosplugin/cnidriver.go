@@ -88,7 +88,7 @@ func parseMesosAgentIPAddr(pidList []byte) (string, error) {
 	return agentIPaddr, fmt.Errorf("failed to find the ip address of mesos agent")
 }
 
-func (cniReq *cniServer) createHostBrIntf(ovsEpDriver *drivers.OvsOperEndpointState) error {
+func (cniReq *cniServer) createHostBrIntf(ovsEpDriver *drivers.OperEndpointState) error {
 
 	hostBrIfName := netutils.GetHostIntfName(ovsEpDriver.PortName)
 
@@ -149,7 +149,7 @@ func (cniReq *cniServer) deleteHostBrIntf() error {
 }
 
 // configure cni namespace
-func (cniReq *cniServer) configureNetNs(ovsEpDriver *drivers.OvsOperEndpointState,
+func (cniReq *cniServer) configureNetNs(ovsEpDriver *drivers.OperEndpointState,
 	mResp *master.CreateEndpointResponse,
 	nwState *mastercfg.CfgNetworkState) error {
 
@@ -230,7 +230,7 @@ func (cniReq *cniServer) unlinkNetNs() error {
 
 func (cniReq *cniServer) createCniEndPoint() error {
 	var err error
-	ovsEpDriver := &drivers.OvsOperEndpointState{}
+	ovsEpDriver := &drivers.OperEndpointState{}
 	ovsEpDriver.StateDriver = stateDriver
 
 	nwState := &mastercfg.CfgNetworkState{}

@@ -86,8 +86,8 @@ func (d *testEpStateDriver) WriteState(key string, value core.State,
 	return d.validateKey(key)
 }
 
-func TestOvsOperEndpointStateRead(t *testing.T) {
-	epOper := &OvsOperEndpointState{}
+func TestOperEndpointStateRead(t *testing.T) {
+	epOper := &OperEndpointState{}
 	epOper.StateDriver = epStateDriver
 
 	err := epOper.Read(testEpID)
@@ -96,8 +96,8 @@ func TestOvsOperEndpointStateRead(t *testing.T) {
 	}
 }
 
-func TestOvsOperEndpointStateWrite(t *testing.T) {
-	epOper := &OvsOperEndpointState{}
+func TestOperEndpointStateWrite(t *testing.T) {
+	epOper := &OperEndpointState{}
 	epOper.StateDriver = epStateDriver
 	epOper.ID = testEpID
 
@@ -107,8 +107,8 @@ func TestOvsOperEndpointStateWrite(t *testing.T) {
 	}
 }
 
-func TestOvsOperEndpointStateClear(t *testing.T) {
-	epOper := &OvsOperEndpointState{}
+func TestOperEndpointStateClear(t *testing.T) {
+	epOper := &OperEndpointState{}
 	epOper.StateDriver = epStateDriver
 	epOper.ID = testEpID
 

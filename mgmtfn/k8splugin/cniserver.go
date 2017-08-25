@@ -16,8 +16,6 @@ limitations under the License.
 package k8splugin
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -25,11 +23,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/k8sutils"
 	"github.com/gorilla/mux"
 )
-
-type restAPIFunc func(r *http.Request) (interface{}, error)
 
 var netPlugin *plugin.NetPlugin
 var kubeAPIClient *APIClient
@@ -53,42 +50,6 @@ func setUpAPIClient() *APIClient {
 	return NewAPIClient(contivK8Config.K8sAPIServer, contivK8Config.K8sCa,
 		contivK8Config.K8sKey, contivK8Config.K8sCert, contivK8Config.K8sToken)
 
-}
-
-// Simple Wrapper for http handlers
-func makeHTTPHandler(handlerFunc restAPIFunc) http.HandlerFunc {
-	// Create a closure and return an anonymous function
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Call the handler
-		resp, err := handlerFunc(r)
-		if err != nil {
-			// Log error
-			log.Errorf("Handler for %s %s returned error: %s", r.Method, r.URL, err)
-
-			if resp == nil {
-				// Send HTTP response
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				// Send HTTP response as Json
-				content, err1 := json.Marshal(resp)
-				if err1 != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write(content)
-			}
-		} else {
-			// Send HTTP response as Json
-			content, err := json.Marshal(resp)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			w.Write(content)
-		}
-	}
 }
 
 // InitKubServiceWatch initializes the k8s service watch
@@ -170,9 +131,9 @@ func InitCNIServer(netplugin *plugin.NetPlugin) error {
 
 	// register handlers for cni
 	t := router.Headers("Content-Type", "application/json").Methods("POST").Subrouter()
-	t.HandleFunc(cniapi.EPAddURL, makeHTTPHandler(addPod))
-	t.HandleFunc(cniapi.EPDelURL, makeHTTPHandler(deletePod))
-	t.HandleFunc("/ContivCNI.{*}", unknownAction)
+	t.HandleFunc(cniapi.EPAddURL, utils.MakeHTTPHandler(addPod))
+	t.HandleFunc(cniapi.EPDelURL, utils.MakeHTTPHandler(deletePod))
+	t.HandleFunc("/ContivCNI.{*}", utils.UnknownAction)
 
 	driverPath := cniapi.ContivCniSocket
 	os.Remove(driverPath)
@@ -196,12 +157,4 @@ func InitCNIServer(netplugin *plugin.NetPlugin) error {
 
 func logEvent(ev string) {
 	log.Infof("Handling %q event", ev)
-}
-
-// Catchall for additional driver functions.
-func unknownAction(w http.ResponseWriter, r *http.Request) {
-	log.Infof("Unknown networkdriver action at %q", r.URL.Path)
-	content, _ := ioutil.ReadAll(r.Body)
-	log.Infof("Body content: %s", string(content))
-	w.WriteHeader(503)
 }

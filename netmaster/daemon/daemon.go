@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/contiv/netplugin/core"
+	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
@@ -162,6 +163,8 @@ func (d *MasterDaemon) agentDiscoveryLoop() {
 			var res bool
 			log.Infof("Unregister node %+v", nodeInfo)
 			d.ofnetMaster.UnRegisterNode(&nodeInfo, &res)
+
+			go d.startDeferredCleanup(nodeInfo, agentEv.ServiceInfo.Hostname)
 		}
 
 		// Dont process next peer event for another 100ms
@@ -169,16 +172,96 @@ func (d *MasterDaemon) agentDiscoveryLoop() {
 	}
 }
 
+func (d *MasterDaemon) startDeferredCleanup(host ofnet.OfnetNode, hostName string) {
+	timeout := make(chan bool, 1)
+	timeoutDuration := 24 * time.Hour
+	go func() {
+		log.Infof("Started GC timer for 1 day for node: %+v", host)
+		time.Sleep(timeoutDuration)
+		timeout <- true
+	}()
+
+	for {
+		select {
+		case <-time.After(timeoutDuration / 10):
+			hostKey := fmt.Sprintf("%s:%d", host.HostAddr, host.HostPort)
+			srvList, err := d.objdbClient.GetService("netplugin")
+			if err != nil {
+				log.Errorf("Error getting netplugin nodes. Err: %v", err)
+			}
+
+			for _, srv := range srvList {
+				serviceKey := fmt.Sprintf("%s:%d", srv.HostAddr, srv.Port)
+				if serviceKey == hostKey {
+					log.Infof("Aborting GC on node: %+v", host)
+					return
+				}
+			}
+		case <-timeout:
+			log.Infof("Started GC for node: %+v", host)
+			d.ofnetMaster.ClearNode(host)
+			master.DeleteEndpoints(hostName)
+			return
+		}
+	}
+}
+
+// getPluginAddress gets the adrress of the netplugin agent given the host name
+func (d *MasterDaemon) getPluginAddress(hostName string) (string, error) {
+	srvList, err := d.objdbClient.GetService("netplugin.vtep")
+	if err != nil {
+		log.Errorf("Error getting netplugin nodes. Err: %v", err)
+		return "", err
+	}
+
+	for _, srv := range srvList {
+		if srv.Hostname == hostName {
+			return srv.HostAddr, nil
+		}
+	}
+
+	return "", fmt.Errorf("Could not find plugin instance with name: %s", hostName)
+}
+
+// ClearEndpoints clears all the endpoints
+func (d *MasterDaemon) ClearEndpoints(stateDriver core.StateDriver, epCfgs *[]core.State, id, matchField string) error {
+	for _, epCfg := range *epCfgs {
+		ep := epCfg.(*mastercfg.CfgEndpointState)
+		if (matchField == "net" && ep.NetID == id) ||
+			(matchField == "group" && ep.ServiceName == id) ||
+			(matchField == "ep" && strings.Contains(ep.EndpointID, id)) {
+			// Delete the endpoint state from netmaster
+			_, err := master.DeleteEndpointID(stateDriver, ep.ID)
+			if err != nil {
+				return fmt.Errorf("Cannot cleanup EP: %s. Err: %+v", ep.EndpointID, err)
+			}
+
+			pluginAddress, err := d.getPluginAddress(ep.HomingHost)
+			if err != nil {
+				return err
+			}
+
+			epDelURL := "http://" + pluginAddress + ":9090/debug/reclaimEndpoint/" + ep.ID
+			err = utils.HTTPDel(epDelURL)
+			if err != nil {
+				return fmt.Errorf("Error sending HTTP delete request to %s. Err: %+v", pluginAddress, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // registerRoutes registers HTTP route handlers
 func (d *MasterDaemon) registerRoutes(router *mux.Router) {
 	// Add REST routes
 	s := router.Headers("Content-Type", "application/json").Methods("Post").Subrouter()
 
-	s.HandleFunc("/plugin/allocAddress", makeHTTPHandler(master.AllocAddressHandler))
-	s.HandleFunc("/plugin/releaseAddress", makeHTTPHandler(master.ReleaseAddressHandler))
-	s.HandleFunc("/plugin/createEndpoint", makeHTTPHandler(master.CreateEndpointHandler))
-	s.HandleFunc("/plugin/deleteEndpoint", makeHTTPHandler(master.DeleteEndpointHandler))
-	s.HandleFunc("/plugin/updateEndpoint", makeHTTPHandler(master.UpdateEndpointHandler))
+	s.HandleFunc("/plugin/allocAddress", utils.MakeHTTPHandler(master.AllocAddressHandler))
+	s.HandleFunc("/plugin/releaseAddress", utils.MakeHTTPHandler(master.ReleaseAddressHandler))
+	s.HandleFunc("/plugin/createEndpoint", utils.MakeHTTPHandler(master.CreateEndpointHandler))
+	s.HandleFunc("/plugin/deleteEndpoint", utils.MakeHTTPHandler(master.DeleteEndpointHandler))
+	s.HandleFunc("/plugin/updateEndpoint", utils.MakeHTTPHandler(master.UpdateEndpointHandler))
 
 	s = router.Methods("Get").Subrouter()
 
@@ -222,6 +305,98 @@ func (d *MasterDaemon) registerRoutes(router *mux.Router) {
 		w.Write(ofnetMasterState)
 	})
 
+	s = router.Methods("Delete").Subrouter()
+	s.HandleFunc("/debug/epcleanup/tenant/{tenant}/{category}/{id}", func(w http.ResponseWriter, r *http.Request) {
+		errStr := ""
+		var epCfgs []core.State
+
+		vars := mux.Vars(r)
+		tenantName := vars["tenant"]
+		category := vars["category"]
+		id := vars["id"]
+
+		// Get the state driver
+		stateDriver, err := utils.GetStateDriver()
+		if err != nil {
+			log.Errorf("error getting state drive. Error: %+v", err)
+			return
+		}
+
+		switch category {
+		case "net":
+			errStr = fmt.Sprintf("Received request to cleanup Network with ID: %s", id)
+			nwKey := mastercfg.GetNwCfgKey(id, tenantName)
+			nwCfg := &mastercfg.CfgNetworkState{}
+			nwCfg.StateDriver = stateDriver
+			err = nwCfg.Read(nwKey)
+			if err != nil {
+				log.Errorf("error reading network: %s. Error: %s", nwKey, err)
+				return
+			}
+
+			if nwCfg.EpCount == 0 {
+				return
+			}
+			readEp := &mastercfg.CfgEndpointState{}
+			readEp.StateDriver = stateDriver
+			epCfgs, err = readEp.ReadAll()
+			if err != nil {
+				log.Errorf("Could not read eps for network: %s. Err: %v", id, err)
+				return
+			}
+
+			id = id + "." + tenantName
+		case "group":
+			errStr = fmt.Sprintf("Received request to cleanup EPG with ID: %s", id)
+
+			epgKey := mastercfg.GetEndpointGroupKey(id, tenantName)
+			epgCfg := &mastercfg.EndpointGroupState{}
+			epgCfg.StateDriver = stateDriver
+			err = epgCfg.Read(epgKey)
+			if err != nil {
+				log.Errorf("error reading EPG: %s. Error: %s", epgKey, err)
+				return
+			}
+
+			if epgCfg.EpCount == 0 {
+				return
+			}
+			readEp := &mastercfg.CfgEndpointState{}
+			readEp.StateDriver = stateDriver
+			epCfgs, err = readEp.ReadAll()
+			if err != nil {
+				log.Errorf("Could not read eps for group: %s. Err: %v", id, err)
+				return
+			}
+		case "ep":
+			errStr = fmt.Sprintf("Received request to cleanup Endpoint with ID: %s", id)
+			readEp := &mastercfg.CfgEndpointState{}
+			readEp.StateDriver = stateDriver
+			epCfgs, err = readEp.ReadAll()
+			if err != nil {
+				log.Errorf("Could not read eps for group: %s. Err: %v", id, err)
+				return
+			}
+		default:
+			errStr = fmt.Sprintf("Unknown category error")
+			return
+		}
+		err = d.ClearEndpoints(stateDriver, &epCfgs, id, category)
+		if err != nil {
+			log.Errorf("Error during ClearEndpoints. Err: %+v", err)
+			return
+		}
+		http.Error(w, errStr, http.StatusOK)
+		return
+	})
+}
+
+func getEpName(networkName string, ep *intent.ConfigEP) string {
+	if ep.Container != "" {
+		return networkName + "-" + ep.Container
+	}
+
+	return ep.Host + "-native-intf"
 }
 
 // runLeader runs leader loop

@@ -118,16 +118,14 @@ if [ "$plugin" == "kubernetes" ]; then
    fi
 fi
 
-set +eo pipefail
-
 if [ $netmaster == true ]; then
 	echo "Starting netmaster "
 	while true; do
 		if [ -f /tmp/restart_netmaster ]; then
 			if [ "$cstore" != "" ]; then
-				/contiv/bin/netmaster $debug -cluster-mode $plugin -cluster-store $cstore -listen-url $listen_url -control-url $control_url &>/var/contiv/log/netmaster.log
+				/contiv/bin/netmaster $debug -cluster-mode $plugin -cluster-store $cstore -listen-url $listen_url -control-url $control_url || true
 			else
-				/contiv/bin/netmaster $debug -cluster-mode $plugin -listen-url $listen_url -control-url $control_url &>/var/contiv/log/netmaster.log
+				/contiv/bin/netmaster $debug -cluster-mode $plugin -listen-url $listen_url -control-url $control_url || true
 			fi
 			echo "CRITICAL : Netmaster has exited. Trying to respawn in 5s"
 		fi
@@ -147,7 +145,7 @@ elif [ $netplugin == true ]; then
 			if [ "$vlan_if" != "" ]; then
 				vlan_if_param="-vlan-if"
 			fi
-			/contiv/bin/netplugin $debug $cstore_param $cstore $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if -plugin-mode $plugin &>/var/contiv/log/netplugin.log
+			/contiv/bin/netplugin $debug $cstore_param $cstore $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if -plugin-mode $plugin || true
 			echo "CRITICAL : Netplugin has exited. Trying to respawn in 5s"
 		fi
 		sleep 5
