@@ -79,7 +79,7 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 
 // UnknownAction is a catchall handler for additional driver functions
 func UnknownAction(w http.ResponseWriter, r *http.Request) {
-	log.Infof("Unknown networkdriver action at %q", r.URL.Path)
+	log.Infof("Unknown action at %q", r.URL.Path)
 	content, _ := ioutil.ReadAll(r.Body)
 	log.Infof("Body content: %s", string(content))
 	http.NotFound(w, r)

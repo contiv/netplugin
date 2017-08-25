@@ -553,6 +553,10 @@ func (d *OvsDriver) DeleteEndpoint(id string) error {
 	d.oper.localEpInfoMutex.Lock()
 	delete(d.oper.LocalEpInfo, id)
 	d.oper.localEpInfoMutex.Unlock()
+	err = d.oper.Write()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

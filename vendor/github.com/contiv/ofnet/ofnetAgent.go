@@ -280,7 +280,8 @@ func (self *OfnetAgent) getEndpointByID(id string) *OfnetEndpoint {
 
 }
 
-func (self *OfnetAgent) getEndpointIdByIpVrf(ipAddr net.IP, vrf string) string {
+// GetEndpointIdByIpVrf constructs Endpoint ID from IP and VRF
+func (self *OfnetAgent) GetEndpointIdByIpVrf(ipAddr net.IP, vrf string) string {
 	return ipAddr.String() + ":" + vrf
 }
 
@@ -623,6 +624,31 @@ func (self *OfnetAgent) AddLocalEndpoint(endpoint EndpointInfo) error {
 	return nil
 }
 
+// Remove local endpoint by ID
+// - This function is an alternate of deleting endpoint, but not necessarily an optimized one.
+//   Use this function only when port number information is not available for the endpoint.
+//   Use the RemoveLocalEndpoint for an optimized way.
+func (self *OfnetAgent) RemoveLocalEndpointByID(epID string) error {
+	var ep *OfnetEndpoint
+	var epFound bool
+
+	for endpoint := range self.localEndpointDb.IterBuffered() {
+		ep = endpoint.Val.(*OfnetEndpoint)
+		log.Infof("Found EP in local endpoint DB: %+v", ep)
+		if ep.EndpointID == epID {
+			epFound = true
+			break
+		}
+	}
+
+	if !epFound {
+		err := fmt.Errorf("Received clear on non-existent endpoint ID: %s", epID)
+		log.Error(err)
+		return err
+	}
+	return self.RemoveLocalEndpoint(ep.PortNo)
+}
+
 // Remove local endpoint
 func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 	// increment stats
@@ -631,15 +657,17 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 	// find the local copy
 	epreg, _ := self.localEndpointDb.Get(string(portNo))
 	if epreg == nil {
-		log.Errorf("Endpoint not found for port %d", portNo)
-		return errors.New("Endpoint not found")
+		err := fmt.Errorf("Endpoint not found for port %d", portNo)
+		log.Error(err)
+		return err
 	}
 	ep := epreg.(*OfnetEndpoint)
-	log.Infof("Received local endpoint remove and withdraw for {%+v}", epreg)
+
+	log.Infof("Received local endpoint remove and withdraw for {%+v}", *ep)
 	// Call the datapath
 	err := self.datapath.RemoveLocalEndpoint(*ep)
 	if err != nil {
-		log.Errorf("Error deleting endpoint port %d. Err: %v", portNo, err)
+		log.Errorf("Error deleting endpoint info: %+v. Err: %v", *ep, err)
 	}
 
 	// delete the endpoint from local endpoint table
@@ -660,7 +688,7 @@ func (self *OfnetAgent) RemoveLocalEndpoint(portNo uint32) error {
 		client := rpcHub.Client(master.HostAddr, master.HostPort)
 		err := client.Call("OfnetMaster.EndpointDel", ep, &resp)
 		if err != nil {
-			log.Errorf("Failed to DELETE endpoint %+v on master %+v. Err: %v", epreg, master, err)
+			log.Errorf("Failed to DELETE endpoint %+v on master %+v. Err: %v", ep, master, err)
 		} else {
 			// increment stats
 			self.incrStats("EndpointDelSent")
@@ -776,7 +804,7 @@ func (self *OfnetAgent) AddNetwork(vlanId uint16, vni uint32, Gw string, Vrf str
 	vrf := self.vlanVrf[vlanId]
 	self.vlanVrfMutex.RUnlock()
 
-	gwEpid := self.getEndpointIdByIpVrf(net.ParseIP(Gw), *vrf)
+	gwEpid := self.GetEndpointIdByIpVrf(net.ParseIP(Gw), *vrf)
 
 	if Gw != "" && self.fwdMode == "routing" {
 		// Call the datapath

@@ -155,7 +155,7 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 
 	intf, _ := net.InterfaceByName(self.intfName)
 	vrf := "default"
-	epid := self.agent.getEndpointIdByIpVrf(net.ParseIP(self.routerIP), vrf)
+	epid := self.agent.GetEndpointIdByIpVrf(net.ParseIP(self.routerIP), vrf)
 	default_vlan := uint16(1)
 	_, ok := self.agent.createVrf(vrf)
 	if !ok {
@@ -309,7 +309,7 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 		return err
 	}
 
-	epid := self.agent.getEndpointIdByIpVrf(net.ParseIP(neighborInfo.NeighborIP), "default")
+	epid := self.agent.GetEndpointIdByIpVrf(net.ParseIP(neighborInfo.NeighborIP), "default")
 	epreg := &OfnetEndpoint{
 		EndpointID: epid,
 		IpAddr:     net.ParseIP(neighborInfo.NeighborIP),
@@ -492,7 +492,7 @@ func (self *OfnetBgp) modRib(path *table.Path) error {
 	endpointIPNet, _ := netlink.ParseIPNet(nlri.String())
 	log.Infof("Bgp Rib Received endpoint update for path %s", path.String())
 
-	nhEpid := self.agent.getEndpointIdByIpVrf(net.ParseIP(nextHop), "default")
+	nhEpid := self.agent.GetEndpointIdByIpVrf(net.ParseIP(nextHop), "default")
 
 	if ep := self.agent.getEndpointByID(nhEpid); ep == nil {
 		//the nexthop is not the directly connected eBgp peer
@@ -504,7 +504,7 @@ func (self *OfnetBgp) modRib(path *table.Path) error {
 	}
 
 	//check if bgp published a route local to the host
-	epid := self.agent.getEndpointIdByIpVrf(endpointIPNet.IP.Mask(endpointIPNet.Mask), "default")
+	epid := self.agent.GetEndpointIdByIpVrf(endpointIPNet.IP.Mask(endpointIPNet.Mask), "default")
 	var epreg *OfnetEndpoint
 	//Check if the route is local
 
