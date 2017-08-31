@@ -116,12 +116,14 @@ func (s *NetSetup) TestNetSetup(c *C) {
 	address := "192.168.68.68/24"
 	defGW := "192.168.68.1"
 	staticRoute := "192.168.32.0/24"
+	ipv6Address := "2001::100/100"
+	ipv6Gateway := "2001::1/100"
 
-	if err := setIfAttrs(s.pid, s.ifName, address, newName); err != nil {
+	if err := setIfAttrs(s.pid, s.ifName, address, ipv6Address, newName); err != nil {
 		c.Fatalf("setIfAttrs failed: %v", err)
 	}
 
-	if err := setDefGw(s.pid, defGW, newName); err != nil {
+	if err := setDefGw(s.pid, defGW, ipv6Gateway, newName); err != nil {
 		c.Fatalf("setDefGw failed: %v", err)
 	}
 

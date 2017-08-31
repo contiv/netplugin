@@ -48,9 +48,11 @@ type epSpec struct {
 
 // epAttr contains the assigned attributes of the created ep
 type epAttr struct {
-	IPAddress string
-	PortName  string
-	Gateway   string
+	IPAddress   string
+	PortName    string
+	Gateway     string
+	IPv6Address string
+	IPv6Gateway string
 }
 
 // netdGetEndpoint is a utility that reads the EP oper state
@@ -152,6 +154,7 @@ func createEP(req *epSpec) (*epAttr, error) {
 		return nil, err
 	}
 
+	// this response should contain IPv6 if the underlying network is configured with IPv6
 	log.Infof("Got endpoint create resp from master: %+v", mresp)
 
 	// Ask netplugin to create the endpoint
@@ -180,6 +183,11 @@ func createEP(req *epSpec) (*epAttr, error) {
 	epResponse.PortName = ep.PortName
 	epResponse.IPAddress = ep.IPAddress + "/" + strconv.Itoa(int(nw.SubnetLen))
 	epResponse.Gateway = nw.Gateway
+
+	if ep.IPv6Address != "" {
+		epResponse.IPv6Address = ep.IPv6Address + "/" + strconv.Itoa(int(nw.IPv6SubnetLen))
+		epResponse.IPv6Gateway = nw.IPv6Gateway
+	}
 
 	return &epResponse, nil
 }
@@ -237,8 +245,7 @@ func moveToNS(pid int, ifname string) error {
 }
 
 // setIfAttrs sets the required attributes for the container interface
-func setIfAttrs(pid int, ifname, cidr, newname string) error {
-
+func setIfAttrs(pid int, ifname, cidr, cidr6, newname string) error {
 	nsenterPath, err := osexec.LookPath("nsenter")
 	if err != nil {
 		return err
@@ -285,6 +292,17 @@ func setIfAttrs(pid int, ifname, cidr, newname string) error {
 	}
 	log.Infof("Output from ip assign: %v", assignIP)
 
+	if cidr6 != "" {
+		out, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
+			"-6", "address", "add", cidr6, "dev", newname).CombinedOutput()
+		if err != nil {
+			log.Errorf("unable to assign IPv6 %s to %s. Error: %s",
+				cidr6, newname, err)
+			return nil
+		}
+		log.Infof("Output of IPv6 assign: %v", out)
+	}
+
 	// Finally, mark the link up
 	bringUp, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
 		"link", "set", "dev", newname, "up").CombinedOutput()
@@ -324,7 +342,7 @@ func addStaticRoute(pid int, subnet, intfName string) error {
 }
 
 // setDefGw sets the default gateway for the container namespace
-func setDefGw(pid int, gw, intfName string) error {
+func setDefGw(pid int, gw, gw6, intfName string) error {
 	nsenterPath, err := osexec.LookPath("nsenter")
 	if err != nil {
 		return err
@@ -338,10 +356,19 @@ func setDefGw(pid int, gw, intfName string) error {
 	out, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", routePath, "add",
 		"default", "gw", gw, intfName).CombinedOutput()
 	if err != nil {
-		log.Errorf("unable to set default gw %s. Error: %s - %s",
-			gw, err, out)
+		log.Errorf("unable to set default gw %s. Error: %s - %s", gw, err, out)
 		return nil
 	}
+
+	if gw6 != "" {
+		out, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", routePath,
+			"-6", "add", "default", "gw", gw6, intfName).CombinedOutput()
+		if err != nil {
+			log.Errorf("unable to set default IPv6 gateway %s. Error: %s - %s", gw6, err, out)
+			return nil
+		}
+	}
+
 	return nil
 }
 
@@ -430,13 +457,14 @@ func addPod(w http.ResponseWriter, r *http.Request, vars map[string]string) (int
 	}
 
 	// Set interface attributes for the new port
-	epErr = setIfAttrs(pid, ep.PortName, ep.IPAddress, pInfo.IntfName)
+	epErr = setIfAttrs(pid, ep.PortName, ep.IPAddress, ep.IPv6Address, pInfo.IntfName)
 	if epErr != nil {
 		log.Errorf("Error setting interface attributes. Err: %v", epErr)
 		setErrorResp(&resp, "Error setting interface attributes", epErr)
 		return resp, epErr
 	}
 
+	//TODO: Host access needs to be enabled for IPv6
 	// if Gateway is not specified on the nw, use the host gateway
 	gwIntf := pInfo.IntfName
 	gw := ep.Gateway
@@ -446,7 +474,7 @@ func addPod(w http.ResponseWriter, r *http.Request, vars map[string]string) (int
 		if err != nil {
 			log.Errorf("Error setting host access. Err: %v", err)
 		} else {
-			err = setIfAttrs(pid, hostIf, hostIP, "host1")
+			err = setIfAttrs(pid, hostIf, hostIP, "", "host1")
 			if err != nil {
 				log.Errorf("Move to pid %d failed", pid)
 			} else {
@@ -465,7 +493,7 @@ func addPod(w http.ResponseWriter, r *http.Request, vars map[string]string) (int
 	}
 
 	// Set default gateway
-	epErr = setDefGw(pid, gw, gwIntf)
+	epErr = setDefGw(pid, gw, ep.IPv6Gateway, gwIntf)
 	if epErr != nil {
 		log.Errorf("Error setting default gateway. Err: %v", epErr)
 		setErrorResp(&resp, "Error setting default gateway", epErr)
@@ -474,7 +502,13 @@ func addPod(w http.ResponseWriter, r *http.Request, vars map[string]string) (int
 
 	resp.Result = 0
 	resp.IPAddress = ep.IPAddress
+
+	if ep.IPv6Address != "" {
+		resp.IPv6Address = ep.IPv6Address
+	}
+
 	resp.EndpointID = pInfo.InfraContainerID
+
 	return resp, nil
 }
 

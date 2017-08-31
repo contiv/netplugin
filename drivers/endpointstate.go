@@ -31,6 +31,7 @@ type OperEndpointState struct {
 	ServiceName string `json:"serviceName"`
 	ContUUID    string `json:"contUUID"`
 	IPAddress   string `json:"ipAddress"`
+	IPv6Address string `json:"ipv6Address"`
 	MacAddress  string `json:"macAddress"`
 	HomingHost  string `json:"homingHost"`
 	IntfName    string `json:"intfName"`
@@ -43,6 +44,7 @@ func (s *OperEndpointState) Matches(c *mastercfg.CfgEndpointState) bool {
 	return s.NetID == c.NetID &&
 		s.EndpointID == c.EndpointID &&
 		s.IPAddress == c.IPAddress &&
+		s.IPv6Address == c.IPv6Address &&
 		s.MacAddress == c.MacAddress &&
 		s.HomingHost == c.HomingHost &&
 		s.IntfName == c.IntfName &&

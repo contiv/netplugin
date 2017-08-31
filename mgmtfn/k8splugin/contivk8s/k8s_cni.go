@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -27,14 +28,20 @@ import (
 	"github.com/contiv/netplugin/version"
 
 	logger "github.com/Sirupsen/logrus"
+	ip "github.com/appc/cni/pkg/ip"
+	cni "github.com/appc/cni/pkg/plugin"
 )
+
+// CNIResponse response format expected from CNI plugins(version 0.1.0)
+type CNIResponse struct {
+	CNIVersion string `json:"cniVersion"`
+	cni.Result
+}
 
 //CNIError : return format from CNI plugin
 type CNIError struct {
 	CNIVersion string `json:"cniVersion"`
-	Code       uint   `json:"code"`
-	Msg        string `json:"msg"`
-	Details    string `json:"details,omitempty"`
+	cni.Error
 }
 
 var log *logger.Entry
@@ -91,9 +98,42 @@ func addPodToContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
 
 	log.Infof("EP created IP: %s\n", result.IPAddress)
 	// Write the ip address of the created endpoint to stdout
-	fmt.Printf("{\n\"cniVersion\": \"0.1.0\",\n")
-	fmt.Printf("\"ip4\": {\n")
-	fmt.Printf("\"ip\": \"%s\"\n}\n}\n", result.IPAddress)
+
+	// ParseCIDR returns a reference to IPNet
+	ip4Net, err := ip.ParseCIDR(result.IPAddress)
+	if err != nil {
+		log.Errorf("Failed to parse IPv4 CIDR: %v", err)
+		return
+	}
+
+	out := CNIResponse{
+		CNIVersion: "0.1.0",
+	}
+
+	out.IP4 = &cni.IPConfig{
+		IP: net.IPNet{IP: ip4Net.IP, Mask: ip4Net.Mask},
+	}
+
+	if result.IPv6Address != "" {
+		ip6Net, err := ip.ParseCIDR(result.IPv6Address)
+		if err != nil {
+			log.Errorf("Failed to parse IPv6 CIDR: %v", err)
+			return
+		}
+
+		out.IP6 = &cni.IPConfig{
+			IP: net.IPNet{IP: ip6Net.IP, Mask: ip6Net.Mask},
+		}
+	}
+
+	data, err := json.MarshalIndent(out, "", "    ")
+	if err != nil {
+		log.Errorf("Failed to marshal json: %v", err)
+		return
+	}
+
+	log.Infof("Response from CNI executable: \n%s", fmt.Sprintf("%s", data))
+	fmt.Printf(fmt.Sprintf("%s", data))
 }
 
 func deletePodFromContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
