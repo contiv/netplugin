@@ -839,7 +839,7 @@ func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
 
 		if err == nil && len(row) > 0 && len(row[0].Rows) > 0 {
 			value := row[0].Rows[0]["ofport"]
-			if reflect.TypeOf(value).Kind() == reflect.Float64 {
+			if value != -1 && reflect.TypeOf(value).Kind() == reflect.Float64 {
 				//retry few more time. Due to asynchronous call between
 				//port creation and populating ovsdb entry for the interface
 				//may not be populated instantly.
