@@ -26,11 +26,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
-	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
@@ -53,43 +51,6 @@ type epAttr struct {
 	Gateway     string
 	IPv6Address string
 	IPv6Gateway string
-}
-
-// netdGetEndpoint is a utility that reads the EP oper state
-func netdGetEndpoint(epID string) (*drivers.OperEndpointState, error) {
-	// Get hold of the state driver
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		return nil, err
-	}
-
-	operEp := &drivers.OperEndpointState{}
-	operEp.StateDriver = stateDriver
-	err = operEp.Read(epID)
-	if err != nil {
-		return nil, err
-	}
-
-	return operEp, nil
-}
-
-// netdGetNetwork is a utility that reads the n/w oper state
-func netdGetNetwork(networkID string) (*mastercfg.CfgNetworkState, error) {
-	// Get hold of the state driver
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		return nil, err
-	}
-
-	// find the network from network id
-	nwCfg := &mastercfg.CfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(networkID)
-	if err != nil {
-		return nil, err
-	}
-
-	return nwCfg, nil
 }
 
 // epCleanUp deletes the ep from netplugin and netmaster
@@ -128,7 +89,7 @@ func createEP(req *epSpec) (*epAttr, error) {
 
 	// if the ep already exists, treat as error for now.
 	netID := req.Network + "." + req.Tenant
-	ep, err := netdGetEndpoint(netID + "-" + req.EndpointID)
+	ep, err := utils.GetEndpoint(netID + "-" + req.EndpointID)
 	if err == nil {
 		return nil, fmt.Errorf("EP %s already exists", req.EndpointID)
 	}
@@ -165,7 +126,7 @@ func createEP(req *epSpec) (*epAttr, error) {
 		return nil, err
 	}
 
-	ep, err = netdGetEndpoint(netID + "-" + req.EndpointID)
+	ep, err = utils.GetEndpoint(netID + "-" + req.EndpointID)
 	if err != nil {
 		epCleanUp(req)
 		return nil, err
@@ -173,7 +134,7 @@ func createEP(req *epSpec) (*epAttr, error) {
 
 	log.Debug(ep)
 	// need to get the subnetlen from nw state.
-	nw, err := netdGetNetwork(netID)
+	nw, err := utils.GetNetwork(netID)
 	if err != nil {
 		epCleanUp(req)
 		return nil, err

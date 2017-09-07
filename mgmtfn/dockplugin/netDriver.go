@@ -25,7 +25,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel/client"
-	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
@@ -148,7 +147,7 @@ func deleteEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 		}
 
 		netID := netName + "." + tenantName
-		_, err = netdGetEndpoint(netID + "-" + delreq.EndpointID)
+		_, err = utils.GetEndpoint(netID + "-" + delreq.EndpointID)
 		if err != nil {
 			httpError(w, "Could not find endpoint", err)
 			return
@@ -232,7 +231,7 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		ep, err := netdGetEndpoint(netID + "-" + cereq.EndpointID)
+		ep, err := utils.GetEndpoint(netID + "-" + cereq.EndpointID)
 		if err != nil {
 			httpError(w, "Could not find created endpoint", err)
 			return
@@ -310,13 +309,13 @@ func join(w http.ResponseWriter, r *http.Request) {
 	}
 
 	netID := netName + "." + tenantName
-	ep, err := netdGetEndpoint(netID + "-" + jr.EndpointID)
+	ep, err := utils.GetEndpoint(netID + "-" + jr.EndpointID)
 	if err != nil {
 		httpError(w, "Could not find created endpoint", err)
 		return
 	}
 
-	nw, err := netdGetNetwork(netID)
+	nw, err := utils.GetNetwork(netID)
 	if err != nil {
 		httpError(w, "Could not get network", err)
 		return
@@ -528,41 +527,6 @@ func discoverDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(content)
-}
-
-func netdGetEndpoint(epID string) (*drivers.OperEndpointState, error) {
-	// Get hold of the state driver
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		return nil, err
-	}
-
-	operEp := &drivers.OperEndpointState{}
-	operEp.StateDriver = stateDriver
-	err = operEp.Read(epID)
-	if err != nil {
-		return nil, err
-	}
-
-	return operEp, nil
-}
-
-func netdGetNetwork(networkID string) (*mastercfg.CfgNetworkState, error) {
-	// Get hold of the state driver
-	stateDriver, err := utils.GetStateDriver()
-	if err != nil {
-		return nil, err
-	}
-
-	// find the network from network id
-	nwCfg := &mastercfg.CfgNetworkState{}
-	nwCfg.StateDriver = stateDriver
-	err = nwCfg.Read(networkID)
-	if err != nil {
-		return nil, err
-	}
-
-	return nwCfg, nil
 }
 
 // GetDockerNetworkName gets network name from network UUID
@@ -781,7 +745,7 @@ func createNetworkHelper(networkID string, tag string, IPv4Data, IPv6Data []driv
 // deleteNetworkHelper removes the association between docker network and contiv network
 func deleteNetworkHelper(networkID string) error {
 	netID := networkID + ".default"
-	_, err := netdGetNetwork(netID)
+	_, err := utils.GetNetwork(netID)
 	if err == nil {
 		// if we find a contiv network with the ID hash, then it must be
 		// a docker created network (from the libnetwork create api).

@@ -31,10 +31,9 @@ import (
 	osexec "os/exec"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/core"
 	"github.com/jainvipin/bitset"
 	netlink "github.com/vishvananda/netlink"
-
-	"github.com/contiv/netplugin/core"
 )
 
 var endianNess string
