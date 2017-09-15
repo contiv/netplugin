@@ -315,7 +315,7 @@ host-plugin-release:
 	sh scripts/v2plugin_rootfs.sh 
 	docker plugin create ${CONTIV_V2PLUGIN_NAME} install/v2plugin
 	@echo dev: pushing ${CONTIV_V2PLUGIN_NAME} to docker hub 
-	@echo dev: (need docker login with user in contiv org)
+	@echo dev: need docker login with user in contiv org
 	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
 # GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
