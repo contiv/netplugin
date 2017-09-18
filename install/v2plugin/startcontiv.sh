@@ -59,8 +59,8 @@ set +e
 
 echo "Starting Netplugin " >> $BOOTUP_LOGFILE
 while true ; do
-    echo "/netplugin $dbg_flag -plugin-mode=$plugin_mode $vxlan_port_cfg -vlan-if=$iflist -cluster-store=$cluster_store $ctrl_ip_cfg $vtep_ip_cfg" >> $BOOTUP_LOGFILE
-    /netplugin $dbg_flag -plugin-mode=$plugin_mode $vxlan_port_cfg -vlan-if=$iflist -cluster-store=$cluster_store $ctrl_ip_cfg $vtep_ip_cfg &> $log_dir/netplugin.log
+    echo "/netplugin $dbg_flag -plugin-mode=$plugin_mode $vxlan_port_cfg -vlan-if=$iflist -cluster-store=$cluster_store `if [ $cluster_tls_verify ]; then echo -db-tls-verify;fi` -db-tls-cert=$cluster_tls_cert -db-tls-key=$cluster_tls_key -db-tls-cacert=$cluster_tls_cacert $ctrl_ip_cfg=$vtep_ip_cfg" >> $BOOTUP_LOGFILE
+    /netplugin $dbg_flag -plugin-mode=$plugin_mode $vxlan_port_cfg -vlan-if=$iflist -cluster-store=$cluster_store `if [ $cluster_tls_verify ]; then echo -db-tls-verify;fi` -db-tls-cert=$cluster_tls_cert -db-tls-key=$cluster_tls_key -db-tls-cacert=$cluster_tls_cacert $ctrl_ip_cfg $vtep_ip_cfg &> $log_dir/netplugin.log
     echo "CRITICAL : Net Plugin has exited, Respawn in 5" >> $BOOTUP_LOGFILE
     mv $log_dir/netplugin.log $log_dir/netplugin.log.lastrun
     sleep 5
@@ -70,8 +70,8 @@ done &
 if [ $plugin_role == "master" ]; then
     echo "Starting Netmaster " >> $BOOTUP_LOGFILE
     while  true ; do
-        echo "/netmaster $dbg_flag -plugin-name=$plugin_name -cluster-mode=$plugin_mode -cluster-store=$cluster_store $listen_url_cfg $control_url_cfg" >> $BOOTUP_LOGFILE
-        /netmaster $dbg_flag -plugin-name=$plugin_name -cluster-mode=$plugin_mode -cluster-store=$cluster_store $listen_url_cfg $control_url_cfg &> $log_dir/netmaster.log
+        echo "/netmaster $dbg_flag -plugin-name=$plugin_name -cluster-mode=$plugin_mode -cluster-store=$cluster_store `if [ $cluster_tls_verify ]; then echo -cluster-tls-verify;fi`  -cluster-tls-cert $cluster_tls_cert -cluster-tls-key $cluster_tls_key -cluster-tls-cacert $cluster_tls_cacert $listen_url_cfg $control_url_cfg" >> $BOOTUP_LOGFILE
+        /netmaster $dbg_flag -plugin-name=$plugin_name -cluster-mode=$plugin_mode -cluster-store=$cluster_store `if [ $cluster_tls_verify ]; then echo -cluster-tls-verify;fi`  -cluster-tls-cert $cluster_tls_cert -cluster-tls-key $cluster_tls_key -cluster-tls-cacert $cluster_tls_cacert $listen_url_cfg $control_url_cfg &> $log_dir/netmaster.log
         echo "CRITICAL : Net Master has exited, Respawn in 5s" >> $BOOTUP_LOGFILE
 	mv $log_dir/netmaster.log $log_dir/netmaster.log.lastrun
         sleep 5

@@ -28,6 +28,9 @@ import (
 	"github.com/coreos/etcd/client"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/utils/netutils"
+	"net"
+	"net/http"
 )
 
 const (
@@ -58,9 +61,31 @@ func (d *EtcdStateDriver) Init(instInfo *core.InstanceInfo) error {
 		return errors.New("invalid etcd config")
 	}
 
+	log.Debugf("instance config: %+v", instInfo)
+
 	etcdURL := strings.Replace(instInfo.DbURL, "etcd://", "http://", 1)
+	if instInfo.DbTLSVerify {
+		etcdURL = strings.Replace(instInfo.DbURL, "etcd://", "https://", 1)
+	}
 	etcdConfig := client.Config{
 		Endpoints: []string{etcdURL},
+		Transport: client.DefaultTransport,
+	}
+
+	if instInfo.DbTLSVerify {
+		if tlsConfig, err := netutils.GetTLSConfigFromCerts(instInfo.DbTLSCert, instInfo.DbTLSKey, instInfo.DbTLSCaCert); err == nil {
+			// Set transport
+			etcdConfig.Transport = &http.Transport{
+				Dial: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout: 10 * time.Second,
+				TLSClientConfig:     tlsConfig,
+			}
+		} else {
+			return fmt.Errorf("Error get tls cert info: %v", err)
+		}
 	}
 
 	d.Client, err = client.New(etcdConfig)
@@ -68,7 +93,7 @@ func (d *EtcdStateDriver) Init(instInfo *core.InstanceInfo) error {
 		log.Fatalf("Error creating etcd client. Err: %v", err)
 	}
 
-	// Create keys api
+	// create keys api
 	d.KeysAPI = client.NewKeysAPI(d.Client)
 
 	return nil
