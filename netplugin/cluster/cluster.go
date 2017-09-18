@@ -321,11 +321,19 @@ func GetLocalAddr() (string, error) {
 }
 
 // Init initializes the cluster module
-func Init(storeURL string) error {
+func Init(storeURL, dbCert, dbKey, dbCacert string, dbTLSVerify bool) error {
 	var err error
 
+	config := &objdb.Config{}
+
+	if dbTLSVerify {
+		if tlsConfig, err := netutils.GetTLSConfigFromCerts(dbCert, dbKey, dbCacert); err == nil {
+			config.TLS = tlsConfig
+		}
+	}
+
 	// Create an objdb client
-	ObjdbClient, err = objdb.NewClient(storeURL)
+	ObjdbClient, err = objdb.NewClientWithConfig(storeURL, config)
 
 	return err
 }

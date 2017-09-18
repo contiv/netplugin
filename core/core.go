@@ -84,6 +84,10 @@ type InstanceInfo struct {
 	FwdMode      string      `json:"fwd-mode"`
 	ArpMode      string      `json:"arp-mode"`
 	DbURL        string      `json:"db-url"`
+	DbTLSVerify  bool        `json:"db-tls-verify"`
+	DbTLSCert    string      `json:"db-tls-cert"`
+	DbTLSKey     string      `json:"db-tls-key"`
+	DbTLSCaCert  string      `json:"db-tls-cacert"`
 	PluginMode   string      `json:"plugin-mode"`
 	HostPvtNW    int         `json:"host-pvt-nw"`
 	VxlanUDPPort int         `json:"vxlan-port"`

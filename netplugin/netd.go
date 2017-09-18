@@ -76,6 +76,10 @@ type cliOpts struct {
 	vlanIntf     StringSlice // Uplink interface for VLAN switching
 	version      bool
 	dbURL        string // state store URL
+	dbTLSVerify  bool
+	dbTLSCert    string
+	dbTLSKey     string
+	dbTLSCaCert  string
 	nwDriver     string // network driver implementation (ovs/vpp)
 	vxlanUDPPort int    // Vxlan UDP port, default: 4789
 }
@@ -161,6 +165,23 @@ func main() {
 		"cluster-store",
 		"etcd://127.0.0.1:2379",
 		"state store url")
+	flagSet.BoolVar(&opts.dbTLSVerify,
+		"db-tls-verify",
+		false,
+		"")
+	flagSet.StringVar(&opts.dbTLSCert,
+		"db-tls-cert",
+		"",
+		"db tls cert location")
+	flagSet.StringVar(&opts.dbTLSKey,
+		"db-tls-key",
+		"",
+		"db tls key location")
+	flagSet.StringVar(&opts.dbTLSCaCert,
+		"db-tls-cacert",
+		"",
+		"db tls ca cert location")
+
 	flagSet.StringVar(&opts.nwDriver,
 		"net-driver",
 		"ovs",
@@ -183,7 +204,7 @@ func main() {
 	// Make sure we are running as root
 	usr, err := user.Current()
 	if (err != nil) || (usr.Username != "root") {
-		log.Fatalf("This process can only be run as root")
+		log.Fatalf("This process can only be run as root, err: %v now: %s", err, usr.Username)
 	}
 
 	if opts.debug {
@@ -239,6 +260,10 @@ func main() {
 			VtepIP:       opts.vtepIP,
 			UplinkIntf:   opts.vlanIntf,
 			DbURL:        opts.dbURL,
+			DbTLSVerify:  opts.dbTLSVerify,
+			DbTLSCert:    opts.dbTLSCert,
+			DbTLSKey:     opts.dbTLSKey,
+			DbTLSCaCert:  opts.dbTLSCaCert,
 			PluginMode:   opts.pluginMode,
 			VxlanUDPPort: opts.vxlanUDPPort,
 		},

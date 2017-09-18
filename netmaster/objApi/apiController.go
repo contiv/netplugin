@@ -61,13 +61,13 @@ type BgpInspect struct {
 var apiCtrler *APIController
 
 // NewAPIController creates a new controller
-func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string) *APIController {
+func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string, config *objdb.Config) *APIController {
 	ctrler := new(APIController)
 	ctrler.router = router
 	ctrler.objdbClient = objdbClient
 
 	// init modeldb
-	modeldb.Init(storeURL)
+	modeldb.InitWithConfig(storeURL, config)
 
 	// initialize the model objects
 	contivModel.Init()
