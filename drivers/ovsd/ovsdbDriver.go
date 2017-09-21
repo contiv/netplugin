@@ -297,7 +297,7 @@ func (d *OvsdbDriver) GetPortOrIntfNameFromID(id string, isPort bool) (string, e
 }
 
 // CreatePort creates an OVS port
-func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, bandwidth int64) error {
+func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, bandwidth int64, ofPort uint32) error {
 	// intfName is assumed to be unique enough to become uuid
 	portUUIDStr := intfName
 	intfUUIDStr := fmt.Sprintf("Intf%s", intfName)
@@ -313,6 +313,10 @@ func (d *OvsdbDriver) CreatePort(intfName, intfType, id string, tag, burst int, 
 	intf := make(map[string]interface{})
 	intf["name"] = intfName
 	intf["type"] = intfType
+	if ofPort > 0 {
+		intf["ofport_request"] = ofPort
+	}
+
 	if bandwidth != 0 {
 		intf["ingress_policing_rate"] = bandwidth
 	}

@@ -46,6 +46,7 @@ const (
 	vlanCtrlerPort   = 6634
 	hostCtrlerPort   = 6635
 	hostVLAN         = 2
+	hostOFPort       = 1
 )
 
 // OvsSwitch represents on OVS bridge instance
@@ -348,7 +349,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		}
 	}
 	// Ask OVSDB driver to add the port
-	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag, burst, bandwidth)
+	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag, burst, bandwidth, 0)
 	if err != nil {
 		return err
 	}
@@ -685,7 +686,7 @@ func (sw *OvsSwitch) AddUplink(uplinkName string, intfList []string) error {
 		} else {
 			log.Debugf("Creating uplink port: %s", intfList[0])
 			// Ask OVSDB driver to add the port as a trunk port
-			err = sw.ovsdbDriver.CreatePort(intfList[0], "", uplinkName, 0, 0, 0)
+			err = sw.ovsdbDriver.CreatePort(intfList[0], "", uplinkName, 0, 0, 0, 0)
 			if err != nil {
 				log.Errorf("Error adding uplink %s to OVS. Err: %v", intfList[0], err)
 				return err
@@ -851,11 +852,14 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS
 	}
 
 	// Ask OVSDB driver to add the port as an access port
-	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN, 0, 0)
+	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN, 0, 0, hostOFPort)
 	if err != nil {
 		log.Errorf("Error adding hostport %s to OVS. Err: %v", intfName, err)
 		return "", err
 	}
+
+	// Wait a little for OVS to create the interface
+	time.Sleep(300 * time.Millisecond)
 
 	// Get the openflow port number for the interface
 	ofpPort, err := sw.ovsdbDriver.GetOfpPortNo(ovsPortName)
