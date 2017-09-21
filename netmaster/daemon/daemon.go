@@ -586,13 +586,13 @@ func (d *MasterDaemon) getMasterInfo() (map[string]interface{}, error) {
 	// get local ip
 	localIP, err := GetLocalAddr()
 	if err != nil {
-		return nil, errors.New("Error getting local IP address")
+		return nil, errors.New("error getting local IP address")
 	}
 
 	// get current holder of master lock
 	leader := leaderLock.GetHolder()
 	if leader == "" {
-		return nil, errors.New("Leader not found")
+		return nil, errors.New("leader not found")
 	}
 
 	// Get all netplugin services

@@ -86,7 +86,7 @@ func parseRange(rangeStr string) ([]uint, error) {
 			// some error checking
 			if min > max || min < 0 || max < 0 {
 				log.Errorf("Invalid range values: %v", subrange)
-				return nil, fmt.Errorf("Invalid range values")
+				return nil, fmt.Errorf("invalid range values")
 			}
 
 			for i := min; i <= max; i++ {
@@ -102,7 +102,7 @@ func parseRange(rangeStr string) ([]uint, error) {
 			values = append(values, uint(val))
 		} else {
 			log.Errorf("Invalid range: %v", subrange)
-			return nil, fmt.Errorf("Invalid range format")
+			return nil, fmt.Errorf("invalid range format")
 		}
 	}
 
@@ -169,7 +169,7 @@ func processResource(stateDriver core.StateDriver, rsrcName, rsrcVal string) err
 		}
 	} else {
 		log.Errorf("Unknown resource: %v", rsrcName)
-		return fmt.Errorf("Unknown resource")
+		return fmt.Errorf("unknown resource")
 	}
 
 	return nil
@@ -209,15 +209,15 @@ func processState(stateDriver core.StateDriver, stateName, stateID, fieldName, s
 				log.Debugf("Set: %+v", reflect.ValueOf(cfgType).Elem().FieldByName("StateDriver"))
 			} else {
 				log.Errorf("Invalid kind")
-				return fmt.Errorf("Can not set state driver")
+				return fmt.Errorf("can not set state driver")
 			}
 		} else {
 			log.Errorf("Could not find the field.")
-			return fmt.Errorf("Can not set state driver")
+			return fmt.Errorf("can not set state driver")
 		}
 	} else {
 		log.Errorf("Invalid type: %v", s.Kind())
-		return fmt.Errorf("Can not set state driver")
+		return fmt.Errorf("can not set state driver")
 	}
 
 	// read the object
@@ -269,11 +269,11 @@ func processState(stateDriver core.StateDriver, stateName, stateID, fieldName, s
 					f.SetBool(boolVal)
 				default:
 					log.Errorf("Invalid kind")
-					return fmt.Errorf("Invalid kind")
+					return fmt.Errorf("invalid kind")
 				}
 			} else {
 				log.Errorf("Could not find the field. or its not setable")
-				return fmt.Errorf("Could not find the field. or its not setable")
+				return fmt.Errorf("could not find the field. or its not setable")
 			}
 		} else {
 			log.Errorf("Invalid type: %v", s.Kind())

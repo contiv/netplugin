@@ -43,9 +43,9 @@ func aciHTTPGet(url string, jin, jout interface{}) error {
 
 	switch {
 	case r.StatusCode == int(404):
-		return errors.New("Page not found!")
+		return errors.New("page not found")
 	case r.StatusCode == int(403):
-		return errors.New("Access denied!")
+		return errors.New("access denied")
 	case r.StatusCode == int(500):
 		response, err := ioutil.ReadAll(r.Body)
 		if err != nil {

@@ -880,12 +880,12 @@ func (s *systemtestSuite) CheckBgpConnection(c *C) {
 					continue
 				}
 				if strings.Contains(bgp.Oper.NeighborStatus, "established") {
-					logrus.Infof("Bgp Connection on Node:%s established", n.Name())
+					logrus.Infof("the BGP Connection on Node:%s established", n.Name())
 					endChan <- nil
 					return
 				}
 			}
-			endChan <- errors.New("bgp connection failed")
+			endChan <- errors.New("the BGP connection failed")
 		}(*n)
 	}
 
@@ -911,7 +911,7 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) {
 					return
 				}
 			}
-			endChan <- errors.New("bgp connection failed")
+			endChan <- errors.New("the BGP connection failed")
 		}(*n)
 	}
 
@@ -932,7 +932,7 @@ func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.Testbe
 			return nil
 		}
 	}
-	return errors.New("BGP connection not established")
+	return errors.New("the BGP connection not established")
 }
 
 func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.TestbedNode) error {
@@ -947,7 +947,7 @@ func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.Test
 			return nil
 		}
 	}
-	return errors.New("BGP connection persists")
+	return errors.New("bgp connection persists")
 }
 
 func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*container) error {
@@ -980,7 +980,7 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 				}
 				time.Sleep(1 * time.Second)
 			}
-			endChan <- errors.New("Bgp Route distribution not complete")
+			endChan <- errors.New("the BGP route distribution is not complete")
 		}(n, containers)
 	}
 	for range s.nodes {
@@ -994,7 +994,7 @@ func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string, in
 	ipList := []string{}
 	expCount := len(s.nodes)
 	if inCluster {
-		expCount -= 1
+		expCount--
 	}
 	for i := 0; i < 120; i++ {
 		logrus.Infof("Checking Bgp container route distribution")
@@ -1030,5 +1030,5 @@ func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string, in
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return errors.New("Bgp Route distribution not complete")
+	return errors.New("bgp Route distribution not complete")
 }

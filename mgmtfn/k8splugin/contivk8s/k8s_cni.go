@@ -49,7 +49,7 @@ var log *logger.Entry
 func getPodInfo(ppInfo *cniapi.CNIPodAttr) error {
 	cniArgs := os.Getenv("CNI_ARGS")
 	if cniArgs == "" {
-		return fmt.Errorf("Error reading CNI_ARGS")
+		return fmt.Errorf("error reading CNI_ARGS")
 	}
 
 	// convert the cniArgs to json format
@@ -58,7 +58,7 @@ func getPodInfo(ppInfo *cniapi.CNIPodAttr) error {
 	cniJSON := strings.Replace(cniTmp1, ";", "\",\"", -1)
 	err := json.Unmarshal([]byte(cniJSON), ppInfo)
 	if err != nil {
-		return fmt.Errorf("Error parsing cni args: %s", err)
+		return fmt.Errorf("error parsing cni args: %s", err)
 	}
 
 	// nwNameSpace and ifname are passed as separate env vars

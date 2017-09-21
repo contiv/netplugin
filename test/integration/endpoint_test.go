@@ -249,7 +249,6 @@ func (its *integTestSuite) TestEndpointGroupCreateDelete(c *C) {
 		assertOnTrue(c, nInspect.Oper.AvailableIPAddresses != nwRange.availableIP,
 			fmt.Sprintf("invalid available  address %+v", nInspect))
 
-
 		// check epg
 		err = its.client.EndpointGroupPost(&client.EndpointGroup{
 			TenantName:       "default",

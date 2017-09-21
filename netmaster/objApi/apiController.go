@@ -235,7 +235,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 		//check if there exists any non default network and tenants
 		if numVlans+numVxlans > 0 {
 			log.Errorf("Unable to update forwarding mode due to existing %d vlans and %d vxlans", numVlans, numVxlans)
-			return fmt.Errorf("Please delete %v vlans and %v vxlans before changing forwarding mode", vlansInUse, vxlansInUse)
+			return fmt.Errorf("please delete %v vlans and %v vxlans before changing forwarding mode", vlansInUse, vxlansInUse)
 		}
 		if global.FwdMode == "routing" {
 			//check if  any bgp configurations exists.
@@ -264,7 +264,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	if global.PvtSubnet != params.PvtSubnet {
 		if (global.PvtSubnet != "" || params.PvtSubnet != defHostPvtNet) && numVlans+numVxlans > 0 {
 			log.Errorf("Unable to update provate subnet due to existing networks")
-			return fmt.Errorf("Please delete %v vlans and %v vxlans before changing private subnet", vlansInUse, vxlansInUse)
+			return fmt.Errorf("please delete %v vlans and %v vxlans before changing private subnet", vlansInUse, vxlansInUse)
 		}
 		globalCfg.PvtSubnet = params.PvtSubnet
 	}
@@ -669,7 +669,7 @@ func (ac *APIController) EndpointGroupCreate(endpointGroup *contivModel.Endpoint
 		netprofile := contivModel.FindNetprofile(profileKey)
 		if netprofile == nil {
 			log.Errorf("Error finding netprofile: %s", profileKey)
-			return errors.New("Netprofile not found")
+			return errors.New("netprofile not found")
 		}
 
 		// attach NetProfile to epg
@@ -774,7 +774,7 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 		netprofile := contivModel.FindNetprofile(profileKey)
 		if netprofile == nil {
 			log.Errorf("Error finding netprofile: %s", profileKey)
-			return errors.New("Netprofile not found")
+			return errors.New("netprofile not found")
 		}
 
 		// attach NetProfile to epg
@@ -802,7 +802,7 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 		netprofile := contivModel.FindNetprofile(paramsKey)
 		if netprofile == nil {
 			log.Errorf("Error finding netprofile: %s", paramsKey)
-			return errors.New("Netprofile not found")
+			return errors.New("netprofile not found")
 		}
 
 		// attach NetProfile to epg
@@ -819,7 +819,7 @@ func (ac *APIController) EndpointGroupUpdate(endpointGroup, params *contivModel.
 			epgnetprofile := contivModel.FindNetprofile(profileKey)
 			if epgnetprofile == nil {
 				log.Errorf("Error finding netprofile: %s", profileKey)
-				return errors.New("Netprofile not found")
+				return errors.New("netprofile not found")
 			}
 
 			//remove links and linksets from the old netprofile.
@@ -1020,7 +1020,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 		networkDetail := contivModel.FindNetwork(key)
 		if networkDetail == nil {
 			log.Errorf("Network key %s not found", key)
-			return fmt.Errorf("Network key %s not found", key)
+			return fmt.Errorf("network key %s not found", key)
 		}
 
 		// Check for overlapping subnetv6 if existing and current subnetv6 is non-empty
@@ -1028,7 +1028,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 			flagv6 := netutils.IsOverlappingSubnetv6(network.Ipv6Subnet, networkDetail.Ipv6Subnet)
 			if flagv6 == true {
 				log.Errorf("Overlapping of Subnetv6 Networks")
-				return errors.New("Network " + networkDetail.NetworkName + " conflicts with subnetv6  " + network.Ipv6Subnet)
+				return errors.New("network " + networkDetail.NetworkName + " conflicts with subnetv6  " + network.Ipv6Subnet)
 			}
 		}
 
@@ -1037,7 +1037,7 @@ func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 			flag := netutils.IsOverlappingSubnet(network.Subnet, networkDetail.Subnet)
 			if flag == true {
 				log.Errorf("Overlapping of Networks")
-				return errors.New("Network " + networkDetail.NetworkName + " conflicts with subnet " + network.Subnet)
+				return errors.New("network " + networkDetail.NetworkName + " conflicts with subnet " + network.Subnet)
 			}
 		}
 	}
@@ -1470,27 +1470,27 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 	// verify parameter values
 	if rule.Direction == "in" {
 		if rule.ToNetwork != "" || rule.ToEndpointGroup != "" || rule.ToIpAddress != "" {
-			return errors.New("Can not specify 'to' parameters in incoming rule")
+			return errors.New("can not specify 'to' parameters in incoming rule")
 		}
 		if rule.FromNetwork != "" && rule.FromIpAddress != "" {
-			return errors.New("Can not specify both from network and from ip address")
+			return errors.New("can not specify both from network and from ip address")
 		}
 
 		if rule.FromNetwork != "" && rule.FromEndpointGroup != "" {
-			return errors.New("Can not specify both from network and from EndpointGroup")
+			return errors.New("can not specify both from network and from EndpointGroup")
 		}
 	} else if rule.Direction == "out" {
 		if rule.FromNetwork != "" || rule.FromEndpointGroup != "" || rule.FromIpAddress != "" {
-			return errors.New("Can not specify 'from' parameters in outgoing rule")
+			return errors.New("can not specify 'from' parameters in outgoing rule")
 		}
 		if rule.ToNetwork != "" && rule.ToIpAddress != "" {
-			return errors.New("Can not specify both to-network and to-ip address")
+			return errors.New("can not specify both to-network and to-ip address")
 		}
 		if rule.ToNetwork != "" && rule.ToEndpointGroup != "" {
-			return errors.New("Can not specify both to-network and to-EndpointGroup")
+			return errors.New("can not specify both to-network and to-EndpointGroup")
 		}
 	} else {
-		return errors.New("Invalid direction for the rule")
+		return errors.New("invalid direction for the rule")
 	}
 
 	// Make sure endpoint groups and networks referred exists.
@@ -1517,7 +1517,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		net := contivModel.FindNetwork(netKey)
 		if net == nil {
 			log.Errorf("Network %s not found", netKey)
-			return errors.New("From Network not found")
+			return errors.New("from Network not found")
 		}
 	} else if rule.ToNetwork != "" {
 		netKey := rule.TenantName + ":" + rule.ToNetwork
@@ -1525,7 +1525,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 		net := contivModel.FindNetwork(netKey)
 		if net == nil {
 			log.Errorf("Network %s not found", netKey)
-			return errors.New("To Network not found")
+			return errors.New("to Network not found")
 		}
 	}
 
@@ -1573,7 +1573,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 // RuleUpdate updates the rule within a policy
 func (ac *APIController) RuleUpdate(rule, params *contivModel.Rule) error {
 	log.Infof("Received RuleUpdate: %+v, params: %+v", rule, params)
-	return errors.New("Can not update a rule after its created")
+	return errors.New("can not update a rule after its created")
 }
 
 // RuleDelete deletes the rule within a policy
@@ -2170,7 +2170,7 @@ func (ac *APIController) ServiceLBGetOper(serviceLB *contivModel.ServiceLBInspec
 	serviceID := master.GetServiceID(serviceLB.Config.ServiceName, serviceLB.Config.TenantName)
 	service := mastercfg.ServiceLBDb[serviceID]
 	if service == nil {
-		return errors.New("Invalid Service name. Oper state does not exist")
+		return errors.New("invalid Service name. Oper state does not exist")
 	}
 	serviceLB.Oper.ServiceVip = service.IPAddress
 	count := 0

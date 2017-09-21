@@ -113,7 +113,7 @@ func CreateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		case "default", "aci", "aci-opflex":
 			// These values are acceptable.
 		default:
-			return errors.New("Invalid fabric mode")
+			return errors.New("invalid fabric mode")
 		}
 		masterGc.NwInfraType = gc.NwInfraType
 	}
@@ -207,7 +207,7 @@ func UpdateGlobal(stateDriver core.StateDriver, gc *intent.ConfigGlobal) error {
 		case "default", "aci", "aci-opflex":
 			// These values are acceptable.
 		default:
-			return errors.New("Invalid fabric mode")
+			return errors.New("invalid fabric mode")
 		}
 		masterGc.NwInfraType = gc.NwInfraType
 	}
