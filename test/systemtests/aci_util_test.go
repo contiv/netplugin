@@ -64,11 +64,7 @@ func aciHTTPGet(url string, jin, jout interface{}) error {
 		return err
 	}
 
-	if err := json.Unmarshal(response, jout); err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(response, jout)
 }
 
 // GetEPFromAPIC checks learning
