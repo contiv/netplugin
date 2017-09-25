@@ -13,19 +13,18 @@
 #limitations under the License.
 ##
 
-# One Container for OVS / netplugin / netmaster 
+# One Container for OVS / netplugin / netmaster
 
-FROM ubuntu:16.04
+FROM alpine:3.6
+LABEL maintainer "Cisco Contiv (https://contiv.github.io)"
 
-# Make sure to Modify the Proxy Server values if required 
+# Make sure to Modify the Proxy Server values if required
 # ENV export http_proxy=http://proxy.localhost.com:8080
 # ENV export https_proxy=https://proxy.localhost.com:8080
 
-RUN apt-get update \
- && apt-get install -y openvswitch-switch=2.5.2-0ubuntu0.16.04.1 \
-        net-tools \
-        iptables \
- && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /etc/openvswitch \
+ && echo 'http://dl-cdn.alpinelinux.org/alpine/v3.4/main' >> /etc/apk/repositories \
+ && apk --no-cache add openvswitch=2.5.0-r0 iptables ca-certificates openssl curl bash
 
 COPY ./bin /contiv/bin/
 COPY ./scripts /contiv/scripts/
