@@ -88,10 +88,10 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 }
 
 /* TestACIDefaultGroup does the following:
- Logic is similar to TestACIMode but with containers using "default-group" 
- Containers get assigned to "default-group" either implicitly (when they have no group label)
- or explicitly (when they have a group label set to "default-group")
- The test covers both types of containers
+Logic is similar to TestACIMode but with containers using "default-group"
+Containers get assigned to "default-group" either implicitly (when they have no group label)
+or explicitly (when they have a group label set to "default-group")
+The test covers both types of containers
 */
 
 func (s *systemtestSuite) TestACIDefaultGroup(c *C) {
@@ -136,20 +136,20 @@ func (s *systemtestSuite) TestACIDefaultGroup(c *C) {
 	err = s.nodes[0].checkSchedulerNetworkCreated("epgb", true)
 	c.Assert(err, IsNil)
 
-        // Containers created without any explicit group label
+	// Containers created without any explicit group label
 	containersA, err := s.runContainersOnNode(s.basicInfo.Containers, "default-net-aci", "", "", s.nodes[0])
 	c.Assert(err, IsNil)
-        // Containers created with explicit group label "epgb"
+	// Containers created with explicit group label "epgb"
 	containersB, err := s.runContainersOnNode(s.basicInfo.Containers, "default-net-aci", "", "epgb", s.nodes[0])
 	c.Assert(err, IsNil)
-        // Containers created with explicit group label "default-group"
+	// Containers created with explicit group label "default-group"
 	containersC, err := s.runContainersOnNode(s.basicInfo.Containers, "default-net-aci", "", "default-group", s.nodes[0])
 	c.Assert(err, IsNil)
 
-        // Combine containersA and containersC since they are both effectively in the same default-group
-        containersDefault := append( containersA, containersC...)
+	// Combine containersA and containersC since they are both effectively in the same default-group
+	containersDefault := append(containersA, containersC...)
 
-	// Verify containers within the combined default-group can ping each other 
+	// Verify containers within the combined default-group can ping each other
 	c.Assert(s.pingTest(containersDefault), IsNil)
 	// Verify containers within epgb can ping each other
 	c.Assert(s.pingTest(containersB), IsNil)
@@ -495,7 +495,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		Port:              8000,
 		Action:            "allow",
 	}), IsNil)
-	err = errors.New("Forced")
+	err = errors.New("forced")
 	//c.Assert(err, IsNil)
 	time.Sleep(time.Second * 10)
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,

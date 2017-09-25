@@ -581,7 +581,7 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 	docker, err := dockerclient.NewClient("unix:///var/run/docker.sock", "", nil, nil)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
-		return "", "", "", errors.New("Unable to connect to docker")
+		return "", "", "", errors.New("unable to connect to docker")
 	}
 
 	nwIDFilter := filters.NewArgs()
@@ -594,9 +594,9 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 
 	if len(nwList) != 1 {
 		if len(nwList) == 0 {
-			err = errors.New("Network UUID not found")
+			err = errors.New("network UUID not found")
 		} else {
-			err = errors.New("More than one network found with the same ID")
+			err = errors.New("more than one network found with the same ID")
 		}
 		return "", "", "", err
 	}
@@ -634,7 +634,7 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 		}
 	} else {
 		log.Errorf("Invalid network name format for network %s", nw.Name)
-		return "", "", "", errors.New("Invalid format")
+		return "", "", "", errors.New("invalid format")
 	}
 
 	return tenantName, netName, serviceName, nil

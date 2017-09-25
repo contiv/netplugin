@@ -135,7 +135,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 		nwID = nw.ID
 	} else if err == nil && nw.Driver != netDriverName {
 		log.Errorf("Network name %s used by another driver %s", docknetName, nw.Driver)
-		return errors.New("Network name used by another driver")
+		return errors.New("network name used by another driver")
 	} else if err != nil {
 		// plugin options to be sent to docker
 		netPluginOptions := make(map[string]string)
@@ -182,6 +182,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 			IPAM:           &ipamCfg,
 			Options:        netPluginOptions,
 			Attachable:     true,
+			EnableIPv6:     (subnetCIDRv6 != ""),
 		}
 
 		log.Infof("Creating docker network: %+v", nwCreate)
@@ -210,7 +211,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	docker, err := dockerclient.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
-		return errors.New("Unable to connect to docker")
+		return errors.New("unable to connect to docker")
 	}
 
 	// check whether the network is present in docker
@@ -234,7 +235,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	}
 
 	err = DeleteDockNetState(tenantName, networkName, serviceName)
-	if docknetDeleted && strings.Contains(err.Error(), "Key not found") {
+	if docknetDeleted && strings.Contains(err.Error(), "key not found") {
 		// Ignore the error as docknet was already deleted
 		err = nil
 	}

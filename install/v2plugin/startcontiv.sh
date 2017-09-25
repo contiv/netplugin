@@ -59,8 +59,8 @@ set +e
 
 echo "Starting Netplugin " >> $BOOTUP_LOGFILE
 while true ; do
-    echo "/netplugin $dbg_flag -plugin-mode $plugin_mode $vxlan_port_cfg -vlan-if $iflist -cluster-store $cluster_store $ctrl_ip_cfg $vtep_ip_cfg" >> $BOOTUP_LOGFILE
-    /netplugin $dbg_flag -plugin-mode $plugin_mode $vxlan_port_cfg -vlan-if $iflist -cluster-store $cluster_store $ctrl_ip_cfg $vtep_ip_cfg &> $log_dir/netplugin.log
+    echo "/netplugin $dbg_flag -plugin-mode=$plugin_mode $vxlan_port_cfg -vlan-if=$iflist -cluster-store=$cluster_store $ctrl_ip_cfg $vtep_ip_cfg" >> $BOOTUP_LOGFILE
+    /netplugin $dbg_flag -plugin-mode=$plugin_mode $vxlan_port_cfg -vlan-if=$iflist -cluster-store=$cluster_store $ctrl_ip_cfg $vtep_ip_cfg &> $log_dir/netplugin.log
     echo "CRITICAL : Net Plugin has exited, Respawn in 5" >> $BOOTUP_LOGFILE
     mv $log_dir/netplugin.log $log_dir/netplugin.log.lastrun
     sleep 5

@@ -451,6 +451,7 @@ func (d *OvsDriver) CreateEndpoint(id string) error {
 		EndpointID:  cfgEp.EndpointID,
 		ServiceName: cfgEp.ServiceName,
 		IPAddress:   cfgEp.IPAddress,
+		IPv6Address: cfgEp.IPv6Address,
 		MacAddress:  cfgEp.MacAddress,
 		IntfName:    cfgEp.IntfName,
 		PortName:    intfName,

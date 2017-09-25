@@ -330,7 +330,7 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 	qdiscoutput := strings.Split(qdiscShow, "ingress")
 	if len(qdiscoutput) < 2 {
 		log.Errorf("Got `tc qdisco show` output:\n%s", qdiscShow)
-		return fmt.Errorf("Unexpected `tc qdisco show` output")
+		return fmt.Errorf("unexpected `tc qdisc show` output")
 	}
 	vvport := strings.Split(qdiscoutput[1], "parent")
 	vvPort := strings.Split(vvport[0], "dev ")
@@ -342,7 +342,7 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 	output := strings.Split(str, "rate ")
 	if len(output) < 2 {
 		log.Errorf("Got `tc -s filter show dev` output:\n%s", output)
-		return fmt.Errorf("Unexpected `tc -s filter show dev` output")
+		return fmt.Errorf("unexpected `tc -s filter show dev` output")
 	}
 	rate := strings.Split(output[1], "burst")
 	regex := regexp.MustCompile("[0-9]+")
@@ -354,13 +354,13 @@ func tcFilterCheckBw(expBw, expBurst int64) error {
 	expBw = expBw * 1024 * 1024 / 1000
 	if expBw != outputInt {
 		log.Errorf("Applied bandwidth: %dkbits does not match the tc rate: %d\n Output: %s", expBw, outputInt, str)
-		return errors.New("Applied bandwidth does not match the tc qdisc rate")
+		return errors.New("applied bandwidth does not match the tc qdisc rate")
 	}
 
 	// verify burst rate
 	if gotBurst != fmt.Sprintf(" %dKb ", expBurst) {
 		log.Errorf("Expected burst rate %dKb did not match got %s.\nOutput: %s", expBurst, gotBurst, str)
-		return errors.New("Applied burst does not match tc qdisc")
+		return errors.New("applied burst does not match tc qdisc")
 	}
 
 	return nil

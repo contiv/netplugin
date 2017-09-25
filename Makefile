@@ -3,7 +3,7 @@
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
-EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor install
+EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/netcontiv/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
@@ -15,9 +15,6 @@ NAME := netplugin
 VERSION_FILE := $(NAME)-version
 VERSION := `cat $(VERSION_FILE)`
 TAR_EXT := tar.bz2
-TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
-TAR_LOC := .
-TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
 GO_MIN_VERSION := 1.7
 GO_MAX_VERSION := 1.8
 GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
@@ -318,23 +315,10 @@ host-plugin-release:
 	sh scripts/v2plugin_rootfs.sh 
 	docker plugin create ${CONTIV_V2PLUGIN_NAME} install/v2plugin
 	@echo dev: pushing ${CONTIV_V2PLUGIN_NAME} to docker hub 
-	@echo dev: (need docker login with user in contiv org)
+	@echo dev: need docker login with user in contiv org
 	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
-only-tar:
-
-tar: clean-tar
-	CONTIV_NODES=1 ${MAKE} build
-	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s netcontiv -C $(GOPATH)/src/github.com/contiv/netplugin/scripts contrib/completion/bash/netctl -C $(GOPATH)/src/github.com/contiv/netplugin/scripts get-contiv-diags
-
-clean-tar:
-	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
-	@rm -f ${VERSION_FILE}
-
 # GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
-release: tar
-	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) VERSION=$(VERSION) \
+release:
 	OLD_VERSION=${OLD_VERSION} BUILD_VERSION=${BUILD_VERSION} \
 	USE_RELEASE=${USE_RELEASE} scripts/release.sh
-	@make clean-tar
-

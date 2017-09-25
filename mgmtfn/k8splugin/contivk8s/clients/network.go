@@ -86,7 +86,7 @@ func (c *NWClient) AddPod(podInfo interface{}) (*cniapi.RspAddPod, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &data, fmt.Errorf("Internal Server Error")
+		return &data, fmt.Errorf("internal server error")
 
 	case r.StatusCode != int(200):
 		log.Errorf("POST Status '%s' status code %d \n", r.Status, r.StatusCode)

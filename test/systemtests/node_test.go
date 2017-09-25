@@ -46,7 +46,7 @@ func (n *node) getIPAddr(dev string) (string, error) {
 
 	parts := regexp.MustCompile(`\s+`).Split(strings.TrimSpace(out), -1)
 	if len(parts) < 2 {
-		return "", fmt.Errorf("Invalid output from node %v: %s", n.tbnode, out)
+		return "", fmt.Errorf("invalid output from node %v: %s", n.tbnode, out)
 	}
 
 	parts = strings.Split(parts[1], "/")
@@ -159,7 +159,7 @@ func (n *node) checkPingWithCount(ipaddr string, count int) error {
 
 	if err != nil || strings.Contains(out, "0 received, 100% packet loss") {
 		logrus.Errorf("Ping from %s to %s FAILED: %q - %v", n.Name(), ipaddr, out, err)
-		return fmt.Errorf("Ping failed from %s to %s: %q - %v", n.Name(), ipaddr, out, err)
+		return fmt.Errorf("ping failed from %s to %s: %q - %v", n.Name(), ipaddr, out, err)
 	}
 
 	logrus.Infof("Ping from %s to %s SUCCEEDED", n.Name(), ipaddr)
@@ -236,7 +236,7 @@ func (n *node) bringUpIf(ifname, ipAddr string) error {
 		}
 	}
 
-	return fmt.Errorf("Failed to bring up interface")
+	return fmt.Errorf("failed to bring up interface")
 }
 
 func (n *node) waitForListeners() error {

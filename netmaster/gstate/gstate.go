@@ -212,7 +212,7 @@ func (gc *Cfg) AllocVXLAN(reqVxlan uint) (vxlan uint, localVLAN uint, err error)
 	}
 
 	if reqVxlan != 0 && reqVxlan <= g.FreeVXLANsStart {
-		return 0, 0, errors.New("Requested vxlan is out of range")
+		return 0, 0, errors.New("requested vxlan is out of range")
 	}
 
 	if (reqVxlan != 0) && (reqVxlan >= g.FreeVXLANsStart) {

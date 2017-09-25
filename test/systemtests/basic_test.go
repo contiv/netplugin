@@ -187,13 +187,13 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 		// create DNS container
 		dnsContainer, err := s.runContainersOnNode(1, "private", "default", "", s.nodes[0])
 		c.Assert(err, IsNil)
-		dnsIpAddr := dnsContainer[0].eth0.ip
+		dnsIPAddr := dnsContainer[0].eth0.ip
 
 		containers1, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private",
-			fmt.Sprintf("svc1%d", i), dnsIpAddr)
+			fmt.Sprintf("svc1%d", i), dnsIPAddr)
 		c.Assert(err, IsNil)
 		containers2, err := s.runContainersWithDNS(s.basicInfo.Containers, "default", "private",
-			fmt.Sprintf("svc2%d", i), dnsIpAddr)
+			fmt.Sprintf("svc2%d", i), dnsIPAddr)
 		c.Assert(err, IsNil)
 
 		containers := append(containers1, containers2...)
@@ -293,12 +293,12 @@ func checkNetmasterPortListener(port string) error {
 	clientURL := fmt.Sprintf("http://localhost:%s", port)
 	cliClient, err := client.NewContivClient(clientURL)
 	if err != nil {
-		return fmt.Errorf("Error initializing the contiv client. Err: %+v", err)
+		return fmt.Errorf("failed to initialize the contiv client. Err: %+v", err)
 	}
 
 	tenant, err := cliClient.TenantGet("default")
 	if err != nil || !strings.Contains(tenant.TenantName, "default") {
-		return fmt.Errorf("Client request to %s failed. Tenant: %+v. Err: %+v.", clientURL, tenant, err)
+		return fmt.Errorf("the client request to %s failed. tenant: %+v err: %+v", clientURL, tenant, err)
 	}
 
 	return nil

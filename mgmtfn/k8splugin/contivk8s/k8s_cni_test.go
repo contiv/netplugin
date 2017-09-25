@@ -48,7 +48,7 @@ func nsToPID(ns string) (int, error) {
 	// Make sure ns is well formed
 	ok := strings.HasPrefix(ns, "/proc/")
 	if !ok {
-		return -1, fmt.Errorf("Invalid nw name space: %v", ns)
+		return -1, fmt.Errorf("invalid network namespace: %v", ns)
 	}
 
 	elements := strings.Split(ns, "/")
@@ -86,7 +86,7 @@ func stubAddPod(r *http.Request) (interface{}, error) {
 		}
 	}
 	logger.Errorf("Failed pod %v", pInfo)
-	return resp, fmt.Errorf("Failed to add pod")
+	return resp, fmt.Errorf("failed to add pod")
 }
 
 // stubDeletePod is the handler for testing pod additions
@@ -112,7 +112,7 @@ func stubDeletePod(r *http.Request) (interface{}, error) {
 		return resp, nil
 	}
 	logger.Errorf("Failed pod %v", pInfo)
-	return resp, fmt.Errorf("Failed to delete pod")
+	return resp, fmt.Errorf("failed to delete pod")
 }
 
 // Simple Wrapper for http handlers
