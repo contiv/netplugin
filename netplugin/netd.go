@@ -66,7 +66,7 @@ func (s *StringSlice) Value() []string {
 
 type cliOpts struct {
 	hostLabel    string
-	pluginMode   string // plugin could be docker | kubernetes
+	pluginMode   string // plugin could be docker | kubernetes | swarm-mode
 	cfgFile      string
 	debug        bool
 	syslog       string
@@ -137,7 +137,7 @@ func main() {
 	flagSet.StringVar(&opts.pluginMode,
 		"plugin-mode",
 		"docker",
-		"plugin mode docker|kubernetes")
+		"plugin mode docker|kubernetes|swarm-mode")
 	flagSet.StringVar(&opts.cfgFile,
 		"config",
 		"",

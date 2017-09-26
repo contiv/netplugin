@@ -400,7 +400,7 @@ func allocateNetwork(w http.ResponseWriter, r *http.Request) {
 	// node where a container in the network is instantiated.
 	// We process only allocateNetwork in this case.
 	//
-	if pluginMode == "swarm-mode" {
+	if pluginMode == master.SwarmMode {
 		tag := ""
 		log.Infof("Options: %+v", anreq.Options)
 		if _, tagOk := anreq.Options["contiv-tag"]; tagOk {
@@ -442,7 +442,7 @@ func freeNetwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if pluginMode == "swarm-mode" {
+	if pluginMode == master.SwarmMode {
 		err = deleteNetworkHelper(req.NetworkID)
 		if err != nil {
 			httpError(w, "Could not delete network", err)
@@ -572,7 +572,7 @@ func GetDockerNetworkName(nwID string) (string, string, string, error) {
 	if err == nil {
 		return dnetOper.TenantName, dnetOper.NetworkName, dnetOper.ServiceName, nil
 	}
-	if pluginMode == "swarm-mode" {
+	if pluginMode == master.SwarmMode {
 		log.Errorf("Unable to find docknet info in objstore")
 		return "", "", "", err
 	}

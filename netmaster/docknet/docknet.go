@@ -287,6 +287,30 @@ func DeleteDockNetState(tenantName, networkName, serviceName string) error {
 	return dnetOper.Clear()
 }
 
+// GetDocknetState gets the docknet entry from state store
+func GetDocknetState(tenantName, networkName, serviceName string) (*DnetOperState, error) {
+	log.Infof("GetDocknetState for %s.%s.%s", tenantName, networkName, serviceName)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		log.Warnf("Couldn't get state driver for docknet %v", err)
+		return nil, err
+	}
+
+	// save docknet oper state
+	dnetOper := DnetOperState{}
+	dnetOper.ID = fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName)
+	dnetOper.StateDriver = stateDriver
+
+	// Read the dnet oper state
+	err = dnetOper.Read(dnetOper.ID)
+	if err == nil {
+		return &dnetOper, nil
+	}
+	return nil, err
+}
+
 // FindDocknetByUUID find the docknet by UUID
 func FindDocknetByUUID(dnetID string) (*DnetOperState, error) {
 	log.Infof("find docker network '%s' ", dnetID)

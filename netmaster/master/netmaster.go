@@ -33,6 +33,14 @@ const (
 	defaultInfraNetName = "infra"
 )
 
+// Plugin modes
+const (
+	Docker     = "docker"
+	Kubernetes = "kubernetes"
+	SwarmMode  = "swarm-mode"
+	Test       = "test"
+)
+
 // Run Time config of netmaster
 type nmRunTimeConf struct {
 	clusterMode string
@@ -43,13 +51,14 @@ var masterRTCfg nmRunTimeConf
 // SetClusterMode sets the cluster mode for the contiv plugin
 func SetClusterMode(cm string) error {
 	switch cm {
-	case "docker":
-	case "kubernetes":
-	case "swarm-mode":
-	case "test": // internal mode used for integration testing
+	case Docker:
+	case Kubernetes:
+	case SwarmMode:
+	case Test: // internal mode used for integration testing
 		break
 	default:
-		return core.Errorf("%s not a valid cluster mode {docker | kubernetes | swarm-mode}", cm)
+		return core.Errorf("%s not a valid cluster mode {%s | %s | %s}",
+			cm, Docker, Kubernetes, SwarmMode)
 	}
 
 	masterRTCfg.clusterMode = cm
