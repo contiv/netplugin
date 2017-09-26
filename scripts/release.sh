@@ -12,6 +12,17 @@ if [ -z "$(which github-release)" ]; then
 	exit 1
 fi
 
+
+if [ -z "${TAR_FILENAME-}" ]; then
+	echo "TAR_FILENAME needs to be defined to make a release"
+	exit 1
+fi
+
+if [ ! -f "$TAR_FILE" ]; then
+	echo "TAR_FILE ($TAR_FILE) doesn't exist"
+	exit 1
+fi
+
 if [ -z "$BUILD_VERSION" ]; then
 	echo "A release requires BUILD_VERSION to be defined"
 	exit 1
@@ -43,4 +54,6 @@ else
 fi
 
 set -x
-( (github-release -v release $pre_release -r netplugin -t $BUILD_VERSION -d "**Changelog**<br/>$changelog")) || exit 1
+( (github-release -v release $pre_release -r netplugin -t $BUILD_VERSION -d "**Changelog**<br/>$changelog") \
+	&& (github-release -v upload -r netplugin -t $BUILD_VERSION -n $TAR_FILENAME -f $TAR_FILE \
+		|| github-release -v delete -r netplugin -t $BUILD_VERSION)) || exit 1
