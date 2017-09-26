@@ -15,6 +15,9 @@ NAME := netplugin
 VERSION_FILE := $(NAME)-version
 VERSION := `cat $(VERSION_FILE)`
 TAR_EXT := tar.bz2
+TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
+TAR_LOC := .
+TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
 GO_MIN_VERSION := 1.7
 GO_MAX_VERSION := 1.8
 GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
@@ -318,7 +321,19 @@ host-plugin-release:
 	@echo dev: (need docker login with user in contiv org)
 	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
+only-tar:
+
+tar: clean-tar
+	CONTIV_NODES=1 ${MAKE} build
+	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s netcontiv -C $(GOPATH)/src/github.com/contiv/netplugin/scripts contrib/completion/bash/netctl -C $(GOPATH)/src/github.com/contiv/netplugin/scripts get-contiv-diags
+
+clean-tar:
+	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
+	@rm -f ${VERSION_FILE}
+
 # GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
-release:
+release: tar
+	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) \
 	OLD_VERSION=${OLD_VERSION} BUILD_VERSION=${BUILD_VERSION} \
 	USE_RELEASE=${USE_RELEASE} scripts/release.sh
+	@make clean-tar
