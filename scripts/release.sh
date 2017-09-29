@@ -1,11 +1,17 @@
 #!/bin/bash
+# Assumes following variables to be defined:
+#  OLD_VERSION - previous version against which to create changelog
+#  BUILD_VERSION - new version being released
+#  GITHUB_USER - contiv
+#  GITHUB_TOKEN - your github token
+#  USE_RELEASE - if 0 or not set, will make a pre-release
 
-set -euo pipefail
-
-if [ -z "${VERSION-}" ]; then
-	echo "VERSION needs to be defined to make a release"
+if [ -z "$(which github-release)" ]; then
+	echo "Please install github-release before running this script"
+	echo "You may download a release from https://github.com/aktau/github-release/releases or run 'go get github.com/aktau/github-release' if you have Go installed"
 	exit 1
 fi
+
 
 if [ -z "${TAR_FILENAME-}" ]; then
 	echo "TAR_FILENAME needs to be defined to make a release"
@@ -17,20 +23,22 @@ if [ ! -f "$TAR_FILE" ]; then
 	exit 1
 fi
 
-if [ -n "$USE_RELEASE" ]; then
-	if [ -z "$OLD_VERSION" ]; then
-		echo "A release requires OLD_VERSION to be defined"
-		exit 1
-	fi
-	if [ "$OLD_VERSION" != "none" ]; then
-		comparison="$OLD_VERSION..HEAD"
-	fi
-	pre_release=""
-else
-	latest_tag=$(git tag | egrep -v "^v" | grep UTC | sort -V | tail -1)
+if [ -z "$BUILD_VERSION" ]; then
+	echo "A release requires BUILD_VERSION to be defined"
+	exit 1
+fi
 
-	comparison="$latest_tag..HEAD"
-	echo "Making a pre-release..."
+if [ -z "$OLD_VERSION" ]; then
+	echo "A release requires OLD_VERSION to be defined"
+	exit 1
+fi
+
+if [ "$OLD_VERSION" != "none" ]; then
+	comparison="$OLD_VERSION..HEAD"
+fi
+
+if [ "$USE_RELEASE" != "1" ]; then
+	echo "Making a pre-release.."
 	pre_release="-p"
 fi
 
@@ -46,6 +54,6 @@ else
 fi
 
 set -x
-( (github-release -v release $pre_release -r netplugin -t $VERSION -d "**Changelog**<br/>$changelog") \
-	&& (github-release -v upload -r netplugin -t $VERSION -n $TAR_FILENAME -f $TAR_FILE \
-		|| github-release -v delete -r netplugin -t $VERSION)) || exit 1
+( (github-release -v release $pre_release -r netplugin -t $BUILD_VERSION -d "**Changelog**<br/>$changelog") \
+	&& (github-release -v upload -r netplugin -t $BUILD_VERSION -n $TAR_FILENAME -f $TAR_FILE \
+		|| github-release -v delete -r netplugin -t $BUILD_VERSION)) || exit 1

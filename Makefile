@@ -333,8 +333,7 @@ clean-tar:
 
 # GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
 release: tar
-	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) VERSION=$(VERSION) \
+	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) \
 	OLD_VERSION=${OLD_VERSION} BUILD_VERSION=${BUILD_VERSION} \
 	USE_RELEASE=${USE_RELEASE} scripts/release.sh
 	@make clean-tar
-
