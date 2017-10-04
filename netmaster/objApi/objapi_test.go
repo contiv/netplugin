@@ -2333,21 +2333,30 @@ func TestEPCreate(t *testing.T) {
 // TestClusterMode verifies cluster mode is correctly reflected.
 func TestClusterMode(t *testing.T) {
 
-	master.SetClusterMode("kubernetes")
+	master.SetClusterMode(master.Kubernetes)
 	insp, err := contivClient.GlobalInspect("global")
 	if err != nil {
 		t.Fatalf("Error inspecting global %v", err)
 	}
-	if insp.Oper.ClusterMode != "kubernetes" {
+	if insp.Oper.ClusterMode != master.Kubernetes {
 		t.Fatalf("Error expected kubernetes, got %s", insp.Oper.ClusterMode)
 	}
 
-	master.SetClusterMode("docker")
+	master.SetClusterMode(master.Docker)
 	insp, err = contivClient.GlobalInspect("global")
 	if err != nil {
 		t.Fatalf("Error inspecting global %v", err)
 	}
-	if insp.Oper.ClusterMode != "docker" {
+	if insp.Oper.ClusterMode != master.Docker {
+		t.Fatalf("Error expected docker, got %s", insp.Oper.ClusterMode)
+	}
+
+	master.SetClusterMode(master.SwarmMode)
+	insp, err = contivClient.GlobalInspect("global")
+	if err != nil {
+		t.Fatalf("Error inspecting global %v", err)
+	}
+	if insp.Oper.ClusterMode != master.SwarmMode {
 		t.Fatalf("Error expected docker, got %s", insp.Oper.ClusterMode)
 	}
 }

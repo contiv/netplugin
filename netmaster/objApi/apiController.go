@@ -25,6 +25,7 @@ import (
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
+	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
@@ -984,6 +985,22 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 			endpointGroup.GroupName, endpointGroup.Links.AppProfile.ObjKey)
 	}
 
+	// In swarm-mode work-flow, if epg is mapped to a docker network, reject the delete
+	if master.GetClusterMode() == master.SwarmMode {
+		dnet, err := docknet.GetDocknetState(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
+		if err == nil {
+			return fmt.Errorf("cannot delete group %s mapped to docker network %s",
+				endpointGroup.GroupName, dnet.DocknetUUID)
+		}
+		if !strings.Contains(strings.ToLower(err.Error()), "key not found") {
+			log.Errorf("Error getting docknet state for %s.%s. (retval = %s)",
+				endpointGroup.TenantName, endpointGroup.GroupName, err.Error())
+			return err
+		}
+		log.Infof("No docknet state for %s.%s. (retval = %s)",
+			endpointGroup.TenantName, endpointGroup.GroupName, err.Error())
+	}
+
 	// get the netprofile structure by finding the netprofile
 	profileKey := GetNetprofileKey(endpointGroup.TenantName, endpointGroup.NetProfile)
 	netprofile := contivModel.FindNetprofile(profileKey)
@@ -1170,6 +1187,22 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	if svcCount != 0 {
 		return core.Errorf("cannot delete %s has %d services ",
 			network.NetworkName, svcCount)
+	}
+
+	// In swarm-mode work-flow, if this is mapped to a docker network, reject delete
+	if master.GetClusterMode() == master.SwarmMode {
+		docknet, err := docknet.GetDocknetState(network.TenantName, network.NetworkName, "")
+		if err == nil {
+			return fmt.Errorf("cannot delete network %s mapped to docker network %s",
+				network.NetworkName, docknet.DocknetUUID)
+		}
+		if !strings.Contains(strings.ToLower(err.Error()), "key not found") {
+			log.Errorf("Error getting docknet state for %s.%s. (retval = %s)",
+				network.TenantName, network.NetworkName, err.Error())
+			return err
+		}
+		log.Infof("No docknet state for %s.%s. (retval = %s)",
+			network.TenantName, network.NetworkName, err.Error())
 	}
 
 	// Remove link

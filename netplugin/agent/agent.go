@@ -25,6 +25,7 @@ import (
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin"
 	"github.com/contiv/netplugin/mgmtfn/mesosplugin"
+	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
@@ -62,18 +63,19 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 
 	// Initialize appropriate plugin
 	switch opts.PluginMode {
-	case "swarm-mode":
+	case master.SwarmMode:
 		fallthrough
-	case "docker":
+	case master.Docker:
 		dockplugin.InitDockPlugin(netPlugin, opts.PluginMode)
 
-	case "kubernetes":
+	case master.Kubernetes:
 		k8splugin.InitCNIServer(netPlugin)
 
-	case "test":
+	case master.Test:
 		// nothing to do. internal mode for testing
 	default:
-		log.Fatalf("Unknown plugin mode -- should be docker | swarm-mode | kubernetes")
+		log.Fatalf("Unknown plugin mode -- should be %s | %s | %s",
+			master.Docker, master.SwarmMode, master.Kubernetes)
 	}
 	// init mesos plugin
 	mesosplugin.InitPlugin(netPlugin)
@@ -222,10 +224,10 @@ func (ag *Agent) HandleEvents() error {
 
 	go handlePolicyRuleEvents(ag.netPlugin, opts, recvErr)
 
-	if ag.pluginConfig.Instance.PluginMode == "docker" ||
-		ag.pluginConfig.Instance.PluginMode == "swarm-mode" {
+	if ag.pluginConfig.Instance.PluginMode == master.Docker ||
+		ag.pluginConfig.Instance.PluginMode == master.SwarmMode {
 		go ag.monitorDockerEvents(recvErr)
-	} else if ag.pluginConfig.Instance.PluginMode == "kubernetes" {
+	} else if ag.pluginConfig.Instance.PluginMode == master.Kubernetes {
 		// start watching kubernetes events
 		k8splugin.InitKubServiceWatch(ag.netPlugin)
 	}
