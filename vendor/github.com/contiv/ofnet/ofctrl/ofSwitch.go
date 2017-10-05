@@ -16,6 +16,7 @@ package ofctrl
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	"github.com/contiv/libOpenflow/common"
@@ -35,6 +36,7 @@ type OFSwitch struct {
 	dropAction   *Output
 	sendToCtrler *Output
 	normalLookup *Output
+	portMux      sync.Mutex
 	outputPorts  map[uint32]*Output
 }
 
