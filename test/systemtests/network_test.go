@@ -111,9 +111,18 @@ func (s *systemtestSuite) testNetworkAddDelete(c *C, encap string) {
 			numContainer = 4
 		}
 
-		for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+		// this ensures that the IPv6 path is encountered
+		networkIterations := numContainer / len(s.nodes)
+		if networkIterations < 2 {
+			networkIterations = 2
+		}
+
+		for networkNum := 0; networkNum < networkIterations; networkNum++ {
 			var v6subnet, v6gateway string
-			if networkNum%2 == 0 {
+
+			// IPv6 is not supported in `routing` mode. so,
+			// this `s.fwdMode == "routing"` check is needed here to avoid setting IPv6
+			if s.fwdMode == "routing" || networkNum%2 == 0 {
 				v6subnet = ""
 				v6gateway = ""
 			} else {
@@ -220,9 +229,18 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 			numContainer = 4
 		}
 
-		for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+		// this ensures that the IPv6 path is encountered
+		networkIterations := numContainer / len(s.nodes)
+		if networkIterations < 2 {
+			networkIterations = 2
+		}
+
+		for networkNum := 0; networkNum < networkIterations; networkNum++ {
 			var v6subnet string
-			if networkNum%2 == 0 {
+
+			// IPv6 is not supported in `routing` mode. so,
+			// this `s.fwdMode == "routing"` check is needed here to avoid setting IPv6
+			if s.fwdMode == "routing" || networkNum%2 == 0 {
 				v6subnet = ""
 			} else {
 				v6subnet = fmt.Sprintf("1001:%d::/120", networkNum)
@@ -310,9 +328,18 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 			c.Assert(s.cli.TenantPost(&client.Tenant{TenantName: tenantName}), IsNil)
 			tenantNames[tenantName] = []string{}
 
-			for networkNum := 0; networkNum < numContainer/len(s.nodes); networkNum++ {
+			// this ensures that the IPv6 path is encountered
+			networkIterations := numContainer / len(s.nodes)
+			if networkIterations < 2 {
+				networkIterations = 2
+			}
+
+			for networkNum := 0; networkNum < networkIterations; networkNum++ {
 				var v6subnet, v6gateway string
-				if networkNum%2 == 0 {
+
+				// IPv6 is not supported in `routing` mode. so,
+				// this `s.fwdMode == "routing"` check is needed here to avoid setting IPv6
+				if fwdmode == "routing" || networkNum%2 == 0 {
 					v6subnet = ""
 					v6gateway = ""
 				} else {

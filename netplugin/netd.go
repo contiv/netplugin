@@ -19,8 +19,8 @@ import (
 	"log/syslog"
 	"net/url"
 	"os"
-	"os/user"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/contiv/netplugin/core"
@@ -66,7 +66,7 @@ func (s *StringSlice) Value() []string {
 
 type cliOpts struct {
 	hostLabel    string
-	pluginMode   string // plugin could be docker | kubernetes
+	pluginMode   string // plugin could be docker | kubernetes | swarm-mode
 	cfgFile      string
 	debug        bool
 	syslog       string
@@ -137,7 +137,7 @@ func main() {
 	flagSet.StringVar(&opts.pluginMode,
 		"plugin-mode",
 		"docker",
-		"plugin mode docker|kubernetes")
+		"plugin mode docker|kubernetes|swarm-mode")
 	flagSet.StringVar(&opts.cfgFile,
 		"config",
 		"",
@@ -181,8 +181,8 @@ func main() {
 	}
 
 	// Make sure we are running as root
-	usr, err := user.Current()
-	if (err != nil) || (usr.Username != "root") {
+	uid := syscall.Getuid()
+	if uid != 0 {
 		log.Fatalf("This process can only be run as root")
 	}
 

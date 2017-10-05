@@ -100,7 +100,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName, ipPool, cfgdTag str
 	}
 
 	// params for docker network
-	if GetClusterMode() == "docker" {
+	if GetClusterMode() == Docker {
 		// Create each EPG as a docker network
 		err = docknet.CreateDockNet(tenantName, networkName, groupName, nwCfg)
 		if err != nil {
@@ -151,7 +151,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName, ipPool, cfgdTag str
 	if aciMode {
 		if epgCfg.PktTagType != "vlan" {
 			log.Errorf("Network type must be VLAN for ACI mode")
-			return errors.New("Network type must be VLAN for ACI mode")
+			return errors.New("network type must be VLAN for ACI mode")
 		}
 
 		pktTag, err := gCfg.AllocVLAN(0)
@@ -249,7 +249,7 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 		return err
 	}
 
-	if GetClusterMode() == "docker" {
+	if GetClusterMode() == Docker {
 		return docknet.DeleteDockNet(epgCfg.TenantName, epgCfg.NetworkName, epgCfg.GroupName)
 	}
 	return nil
@@ -266,7 +266,7 @@ func UpdateEndpointGroup(bandwidth, groupName, tenantName string, Dscp, burst in
 
 	key := mastercfg.GetEndpointGroupKey(groupName, tenantName)
 	if key == "" {
-		return errors.New("Error finding endpointGroup key ")
+		return errors.New("error finding endpointGroup key ")
 	}
 
 	// Read etcd driver

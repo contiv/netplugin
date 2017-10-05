@@ -135,7 +135,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 		nwID = nw.ID
 	} else if err == nil && nw.Driver != netDriverName {
 		log.Errorf("Network name %s used by another driver %s", docknetName, nw.Driver)
-		return errors.New("Network name used by another driver")
+		return errors.New("network name used by another driver")
 	} else if err != nil {
 		// plugin options to be sent to docker
 		netPluginOptions := make(map[string]string)
@@ -182,6 +182,7 @@ func CreateDockNet(tenantName, networkName, serviceName string, nwCfg *mastercfg
 			IPAM:           &ipamCfg,
 			Options:        netPluginOptions,
 			Attachable:     true,
+			EnableIPv6:     (subnetCIDRv6 != ""),
 		}
 
 		log.Infof("Creating docker network: %+v", nwCreate)
@@ -210,7 +211,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	docker, err := dockerclient.NewClient("unix:///var/run/docker.sock", "v1.23", nil, defaultHeaders)
 	if err != nil {
 		log.Errorf("Unable to connect to docker. Error %v", err)
-		return errors.New("Unable to connect to docker")
+		return errors.New("unable to connect to docker")
 	}
 
 	// check whether the network is present in docker
@@ -234,7 +235,7 @@ func DeleteDockNet(tenantName, networkName, serviceName string) error {
 	}
 
 	err = DeleteDockNetState(tenantName, networkName, serviceName)
-	if docknetDeleted && strings.Contains(err.Error(), "Key not found") {
+	if docknetDeleted && strings.Contains(err.Error(), "key not found") {
 		// Ignore the error as docknet was already deleted
 		err = nil
 	}
@@ -284,6 +285,30 @@ func DeleteDockNetState(tenantName, networkName, serviceName string) error {
 
 	// write the dnet oper state
 	return dnetOper.Clear()
+}
+
+// GetDocknetState gets the docknet entry from state store
+func GetDocknetState(tenantName, networkName, serviceName string) (*DnetOperState, error) {
+	log.Infof("GetDocknetState for %s.%s.%s", tenantName, networkName, serviceName)
+
+	// Get the state driver
+	stateDriver, err := utils.GetStateDriver()
+	if err != nil {
+		log.Warnf("Couldn't get state driver for docknet %v", err)
+		return nil, err
+	}
+
+	// save docknet oper state
+	dnetOper := DnetOperState{}
+	dnetOper.ID = fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName)
+	dnetOper.StateDriver = stateDriver
+
+	// Read the dnet oper state
+	err = dnetOper.Read(dnetOper.ID)
+	if err == nil {
+		return &dnetOper, nil
+	}
+	return nil, err
 }
 
 // FindDocknetByUUID find the docknet by UUID

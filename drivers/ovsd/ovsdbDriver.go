@@ -565,7 +565,7 @@ func (d *OvsdbDriver) UpdatePolicingRate(intfName string, burst int, bandwidth i
 
 	condition := libovsdb.NewCondition("name", "==", intfName)
 	if condition == nil {
-		return errors.New("Error getting the new condition")
+		return errors.New("error getting the new condition")
 	}
 	mutateOp := libovsdb.Operation{
 		Op:    "update",
@@ -843,8 +843,9 @@ func (d *OvsdbDriver) GetOfpPortNo(intfName string) (uint32, error) {
 				//retry few more time. Due to asynchronous call between
 				//port creation and populating ovsdb entry for the interface
 				//may not be populated instantly.
-				ofpPort := uint32(reflect.ValueOf(value).Float())
-				return ofpPort, nil
+				if ofpPort := reflect.ValueOf(value).Float(); ofpPort != -1 {
+					return uint32(ofpPort), nil
+				}
 			}
 		}
 		time.Sleep(300 * time.Millisecond)

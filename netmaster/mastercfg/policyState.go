@@ -195,7 +195,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		net := contivModel.FindNetwork(netKey)
 		if net == nil {
 			log.Errorf("Network %s not found", netKey)
-			return nil, errors.New("FromNetwork not found")
+			return nil, errors.New("the FromNetwork key wasn't found")
 		}
 
 		rule.FromIpAddress = net.Subnet
@@ -205,7 +205,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		net := contivModel.FindNetwork(netKey)
 		if net == nil {
 			log.Errorf("Network %s not found", netKey)
-			return nil, errors.New("ToNetwork not found")
+			return nil, errors.New("the ToNetwork key wasn't found")
 		}
 
 		rule.ToIpAddress = net.Subnet

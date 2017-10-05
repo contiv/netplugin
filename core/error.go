@@ -83,9 +83,9 @@ func Errorf(f string, args ...interface{}) *Error {
 	return e
 }
 
-// ErrIfKeyExists checks if the error message contains "Key not found".
+// ErrIfKeyExists checks if the error message contains "key not found".
 func ErrIfKeyExists(err error) error {
-	if err == nil || strings.Contains(err.Error(), "Key not found") {
+	if err == nil || strings.Contains(err.Error(), "key not found") {
 		return nil
 	}
 

@@ -105,8 +105,11 @@ func (self *OFSwitch) DefaultTable() *Table {
 
 // Return a output graph element for the port
 func (self *OFSwitch) OutputPort(portNo uint32) (*Output, error) {
-	if self.outputPorts[portNo] != nil {
-		return self.outputPorts[portNo], nil
+	self.portMux.Lock()
+	defer self.portMux.Unlock()
+
+	if val, ok := self.outputPorts[portNo]; ok {
+		return val, nil
 	}
 
 	// Create a new output element

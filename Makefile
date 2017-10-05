@@ -3,7 +3,7 @@
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
-EXCLUDE_DIRS := bin docs Godeps scripts test vagrant vendor install
+EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/netcontiv/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
@@ -318,7 +318,7 @@ host-plugin-release:
 	sh scripts/v2plugin_rootfs.sh 
 	docker plugin create ${CONTIV_V2PLUGIN_NAME} install/v2plugin
 	@echo dev: pushing ${CONTIV_V2PLUGIN_NAME} to docker hub 
-	@echo dev: (need docker login with user in contiv org)
+	@echo dev: need docker login with user in contiv org
 	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
 only-tar:

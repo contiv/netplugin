@@ -25,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netplugin/cluster"
+	"github.com/contiv/netplugin/utils"
 	"github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/libnetwork/netlabel"
 )
@@ -97,7 +98,7 @@ func requestPool(w http.ResponseWriter, r *http.Request) {
 				Pool = epgCfg.IPPool
 			} else {
 				// Get the pool from the Network
-				nwCfg, err := netdGetNetwork(epgCfg.NetworkName + "." + epgCfg.TenantName)
+				nwCfg, err := utils.GetNetwork(epgCfg.NetworkName + "." + epgCfg.TenantName)
 				if err != nil {
 					httpError(w, "failed to lookup network. ", err)
 					return

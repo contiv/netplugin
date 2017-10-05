@@ -26,6 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/netmaster/daemon"
 	"github.com/contiv/netplugin/netmaster/docknet"
+	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/version"
 )
 
@@ -153,7 +154,7 @@ func execOpts(opts *cliOpts) {
 	}
 	log.Infof("Control IP:Port %s:%s", controlIP, controlURL[1])
 
-	if opts.clusterMode == "docker" || opts.clusterMode == "swarm-mode" {
+	if opts.clusterMode == master.Docker || opts.clusterMode == master.SwarmMode {
 		docknet.UpdatePluginName(opts.pluginName)
 	}
 }

@@ -41,6 +41,16 @@
 			"Rev": "7f4b1adc791766938c29457bed0703fb9134421a"
 		},
 		{
+			"ImportPath": "github.com/appc/cni/pkg/ip",
+			"Comment": "v0.1.0",
+			"Rev": "8c8753e40992a00cb1309d3cc5697c7a958450ea"
+		},
+		{
+			"ImportPath": "github.com/appc/cni/pkg/plugin",
+			"Comment": "v0.1.0",
+			"Rev": "8c8753e40992a00cb1309d3cc5697c7a958450ea"
+		},
+		{
 			"ImportPath": "github.com/armon/go-radix",
 			"Rev": "fbd82e84e2b13651f3abc5ffd26b65ba71bc8f93"
 		},
@@ -635,23 +645,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "c73438ea8ef0dcf4b94a8904f3f3808132703eb6"
+			"Rev": "17e8080084990e098cdcfa131cbe5ab6f2407621"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "c73438ea8ef0dcf4b94a8904f3f3808132703eb6"
+			"Rev": "17e8080084990e098cdcfa131cbe5ab6f2407621"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "c73438ea8ef0dcf4b94a8904f3f3808132703eb6"
+			"Rev": "17e8080084990e098cdcfa131cbe5ab6f2407621"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "c73438ea8ef0dcf4b94a8904f3f3808132703eb6"
+			"Rev": "17e8080084990e098cdcfa131cbe5ab6f2407621"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "c73438ea8ef0dcf4b94a8904f3f3808132703eb6"
+			"Rev": "17e8080084990e098cdcfa131cbe5ab6f2407621"
 		},
 		{
 			"ImportPath": "github.com/contiv/remotessh",
@@ -681,6 +691,11 @@
 			"ImportPath": "github.com/coreos/etcd/pkg/types",
 			"Comment": "v2.3.8",
 			"Rev": "7e4fc7eaa931298732c880a703bccc9c177ae1de"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-iptables/iptables",
+			"Comment": "v0.2.0-2-gf2ede9c",
+			"Rev": "f2ede9c85e2fac4d72d5a9af0af59c0858d7a3bd"
 		},
 		{
 			"ImportPath": "github.com/coreos/go-oidc/http",

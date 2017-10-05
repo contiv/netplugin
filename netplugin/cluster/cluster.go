@@ -84,7 +84,7 @@ func getMasterLockHolder() (string, error) {
 	masterNode := leaderLock.GetHolder()
 	if masterNode == "" {
 		log.Errorf("No leader node found")
-		return "", errors.New("No leader node")
+		return "", errors.New("no leader node")
 	}
 
 	return masterNode, nil
@@ -153,8 +153,8 @@ func masterReq(path string, req interface{}, resp interface{}, isDel bool) error
 		}
 	}
 
-	log.Errorf("Error making %s request. All master failed", reqType)
-	return fmt.Errorf("%s request failed", reqType)
+	log.Errorf("error making %s request. all masters failed", reqType)
+	return fmt.Errorf("the %s request failed", reqType)
 }
 
 // MasterPostReq makes a POST request to master node

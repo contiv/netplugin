@@ -450,7 +450,7 @@ func processServiceLBEvent(netPlugin *plugin.NetPlugin, svcLBCfg *mastercfg.CfgS
 
 		portInfo := strings.Split(port, ":")
 		if len(portInfo) != 3 {
-			return errors.New("Invalid Port Format")
+			return errors.New("invalid Port Format")
 		}
 		svcPort := portInfo[0]
 		provPort := portInfo[1]

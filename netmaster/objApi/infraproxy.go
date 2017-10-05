@@ -126,7 +126,7 @@ func (ans *appNwSpec) validate() error {
 
 	if resp.Result != "success" {
 		log.Errorf("Validation failed. Error: %v", resp.Info)
-		return errors.New("Failed")
+		return errors.New("failed")
 	}
 
 	return nil
