@@ -24,7 +24,10 @@ LABEL maintainer "Cisco Contiv (https://contiv.github.io)"
 
 RUN mkdir -p /etc/openvswitch \
  && echo 'http://dl-cdn.alpinelinux.org/alpine/v3.4/main' >> /etc/apk/repositories \
- && apk --no-cache add openvswitch=2.5.0-r0 iptables ca-certificates openssl curl bash
+ && apk --no-cache add openvswitch=2.5.0-r0 iptables ca-certificates openssl curl bash \
+ && mv /var/run/* /run/ \
+ && rmdir /var/run \
+ && ln -s /run /var/run
 
 COPY ./bin /contiv/bin/
 COPY ./scripts /contiv/scripts/
