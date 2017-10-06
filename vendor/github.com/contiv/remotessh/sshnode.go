@@ -93,7 +93,7 @@ func newCmdStrWithSource(cmd string, env []string) string {
 
 		if len(kv) == 2 {
 			envstr += fmt.Sprintf("%s=%q ", kv[0], kv[1])
-		} else if len(kv) == 1 {
+		} else if len(kv) == 1  && len(envvar) > 0 {
 			envstr += fmt.Sprintf("%s= ", kv[0])
 		}
 	}
