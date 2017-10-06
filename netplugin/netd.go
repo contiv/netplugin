@@ -19,8 +19,8 @@ import (
 	"log/syslog"
 	"net/url"
 	"os"
+	"os/user"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/contiv/netplugin/core"
@@ -181,8 +181,8 @@ func main() {
 	}
 
 	// Make sure we are running as root
-	uid := syscall.Getuid()
-	if uid != 0 {
+	usr, err := user.Current()
+	if (err != nil) || (usr.Username != "root") {
 		log.Fatalf("This process can only be run as root")
 	}
 

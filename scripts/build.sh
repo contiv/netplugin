@@ -26,10 +26,10 @@ else
 fi
 
 echo $BUILD_VERSION >$VERSION_FILE
-GOGC=1500 CGO_ENABLED=0 go install \
-	-a -installsuffix cgo \
+
+GOGC=1500 go install \
 	-ldflags "-X $PKG_NAME.version=$BUILD_VERSION \
 	-X $PKG_NAME.buildTime=$BUILD_TIME \
 	-X $PKG_NAME.gitCommit=$GIT_COMMIT \
-	-s -w -d" -pkgdir /tmp/foo-cgo \
+	-s -w" \
 	-v $TO_BUILD
