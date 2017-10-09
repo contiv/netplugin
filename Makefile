@@ -87,7 +87,7 @@ checks: go-version gofmt-src golint-src govet-src misspell-src
 
 run-build: deps checks clean
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	USE_RELEASE=${USE_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
+	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
 	TO_BUILD="${TO_BUILD}" VERSION_FILE=${VERSION_FILE} \
 	scripts/build.sh
 
@@ -335,5 +335,5 @@ clean-tar:
 release: tar
 	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) \
 	OLD_VERSION=${OLD_VERSION} BUILD_VERSION=${BUILD_VERSION} \
-	USE_RELEASE=${USE_RELEASE} scripts/release.sh
+	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} scripts/release.sh
 	@make clean-tar
