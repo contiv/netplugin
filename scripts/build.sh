@@ -15,15 +15,7 @@ else
 	BUILD_VERSION="$VERSION"
 fi
 
-if command -v git &>/dev/null && git rev-parse &>/dev/null; then
-	GIT_COMMIT=$(git rev-parse --short HEAD)
-	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-		GIT_COMMIT="$GIT_COMMIT-unsupported"
-	fi
-else
-	echo >&2 'error: unable to determine the git revision'
-	exit 1
-fi
+GIT_COMMIT=$(./scripts/getGitCommit.sh)
 
 echo $BUILD_VERSION >$VERSION_FILE
 
@@ -32,4 +24,4 @@ GOGC=1500 go install \
 	-X $PKG_NAME.buildTime=$BUILD_TIME \
 	-X $PKG_NAME.gitCommit=$GIT_COMMIT \
 	-s -w" \
-	-v $TO_BUILD
+	$TO_BUILD

@@ -28,14 +28,28 @@ FROM golang:1.7.6
 #ENV https_proxy ""
 ARG http_proxy
 ARG https_proxy
-ENV GOPATH=/go/ NET_CONTAINER_BUILD=1
+
+WORKDIR /go/src/github.com/contiv/netplugin/
 
 ENTRYPOINT ["netplugin"]
 CMD ["--help"]
 
+# build the vendor dependencies
+COPY ./vendor/ /go/src/github.com/contiv/netplugin/vendor/
+# there is a bug in go-winio, remote the grep -v after this merges:
+# https://github.com/contiv/netplugin/pull/999
+RUN GOGC=1500 \
+  go install -ldflags "-s -w" \
+             $(go list ./vendor/... | grep -v go-winio)
+
+# build the netplugin binaries
 COPY ./ /go/src/github.com/contiv/netplugin/
 
-WORKDIR /go/src/github.com/contiv/netplugin/
+ARG BUILD_VERSION=""
+ARG USE_RELEASE=""
 
-RUN make build
-
+RUN GOPATH=/go/ \
+    BUILD_VERSION="${BUILD_VERSION}" \
+    USE_RELEASE="${USE_RELEASE}" \
+    make compile \
+    && netplugin -version

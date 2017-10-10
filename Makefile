@@ -1,5 +1,6 @@
 
-.PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src golint-src govet-src
+.PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
+	golint-src govet-src run-build compile-with-docker
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
@@ -86,15 +87,20 @@ endif
 
 checks: go-version gofmt-src golint-src govet-src misspell-src
 
+# fully prepares code for pushing to branch, includes building binaries
 run-build: deps checks clean
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
 	USE_RELEASE=${USE_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
 	TO_BUILD="${TO_BUILD}" VERSION_FILE=${VERSION_FILE} \
 	scripts/build.sh
 
+compile-with-docker:
+	docker build --build-arg USE_RELEASE=${USE_RELEASE} \
+	             --build-arg BUILD_VERSION=${BUILD_VERSION} \
+				 -t netplugin:$${BUILD_VERSION:-devBuild}-$$(./scripts/getGitCommit.sh) .
+
 build-docker-image: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-build-docker-image"'
-
 
 ifdef NET_CONTAINER_BUILD
 install-shell-completion:
