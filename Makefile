@@ -26,6 +26,7 @@ GOFMT_CMD := gofmt -s -l
 GOVET_CMD := go tool vet
 CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
 SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
+K8S_SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy"
 ACI_GW_IMAGE ?= "contiv/aci-gw:04-12-2017.2.2_1n"
 
 all: build unit-test system-test ubuntu-tests
@@ -161,13 +162,13 @@ k8s-legacy-test:
 k8s-test: k8s-cluster
 	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm'
-	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f "00SSH|TestBasic|TestNetwork|TestPolicy"
+	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f $(K8S_SYSTEM_TESTS_TO_RUN)
 	cd vagrant/k8s && vagrant destroy -f
 
 k8s-l3-test: k8s-l3-cluster
 	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm' -contiv_l3=1
-	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f "00SSH|TestBasic|TestNetwork|TestPolicy"
+	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f $(K8S_SYSTEM_TESTS_TO_RUN)
 	cd vagrant/k8s && CONTIV_L3=1 vagrant destroy -f
 # ===================================================================
 
