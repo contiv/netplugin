@@ -34,7 +34,8 @@ WORKDIR /go/src/github.com/contiv/netplugin/
 ENTRYPOINT ["netplugin"]
 CMD ["--help"]
 
-# build the vendor dependencies
+# by far, most of the compilation time is building vendor packages
+# build the vendor dependencies as a separate docker caching layer
 COPY ./vendor/ /go/src/github.com/contiv/netplugin/vendor/
 # there is a bug in go-winio, remote the grep -v after this merges:
 # https://github.com/contiv/netplugin/pull/999
@@ -52,4 +53,5 @@ RUN GOPATH=/go/ \
     BUILD_VERSION="${BUILD_VERSION}" \
     USE_RELEASE="${USE_RELEASE}" \
     make compile \
+    && cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl \
     && netplugin -version
