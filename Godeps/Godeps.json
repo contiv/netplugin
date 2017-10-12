@@ -19,7 +19,7 @@
 		{
 			"ImportPath": "github.com/Microsoft/go-winio",
 			"Comment": "v0.3.2",
-			"Rev": "862b6557927a5c5c81e411c12aa6de7e566cbb7a"
+			"Rev": "d8f60f2dd117cd64c2825143a89ecb6f158ad743"
 		},
 		{
 			"ImportPath": "github.com/PuerkitoBio/purell",
@@ -665,7 +665,7 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/remotessh",
-			"Rev": "ced733d4710e93b663da5d09df720c6216796d0a"
+			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/Godeps/_workspace/src/github.com/ugorji/go/codec",
@@ -1404,6 +1404,30 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "f7716cbe52baa25d2e9b0d0da546fcf909fc16b4"
+		},
+		{
+			"ImportPath": "github.com/contiv/remotessh/vendor/github.com/Sirupsen/logrus",
+			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
+		},
+		{
+			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/crypto/ssh",
+			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
+		},
+		{
+			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/sys/unix",
+			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
+		},
+		{
+			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/crypto/curve25519",
+			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
+		},
+		{
+			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/crypto/ed25519",
+			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
+		},
+		{
+			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/crypto/ed25519/internal/edwards25519",
+			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
 		}
 	]
 }
