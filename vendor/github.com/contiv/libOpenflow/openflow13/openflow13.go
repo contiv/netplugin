@@ -102,48 +102,48 @@ func Parse(b []byte) (message util.Message, err error) {
 	switch b[1] {
 	case Type_Hello:
 		message = new(common.Hello)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_Error:
 		message = new(ErrorMsg)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_EchoRequest:
 		message = new(common.Header)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_EchoReply:
 		message = new(common.Header)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_Experimenter:
 		message = new(VendorHeader)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_FeaturesRequest:
 		message = NewFeaturesRequest()
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_FeaturesReply:
 		message = NewFeaturesReply()
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_GetConfigRequest:
 		message = new(common.Header)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_GetConfigReply:
 		message = new(SwitchConfig)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_SetConfig:
 		message = NewSetConfig()
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_PacketIn:
 		message = new(PacketIn)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_FlowRemoved:
 		message = NewFlowRemoved()
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_PortStatus:
 		message = new(PortStatus)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_PacketOut:
 		break
 	case Type_FlowMod:
 		message = NewFlowMod()
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_GroupMod:
 		break
 	case Type_PortMod:
@@ -152,20 +152,20 @@ func Parse(b []byte) (message util.Message, err error) {
 		break
 	case Type_BarrierRequest:
 		message = new(common.Header)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_BarrierReply:
 		message = new(common.Header)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_QueueGetConfigRequest:
 		break
 	case Type_QueueGetConfigReply:
 		break
 	case Type_MultiPartRequest:
 		message = new(MultipartRequest)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	case Type_MultiPartReply:
 		message = new(MultipartReply)
-		message.UnmarshalBinary(b)
+		err = message.UnmarshalBinary(b)
 	default:
 		err = errors.New("An unknown v1.0 packet type was received. Parse function will discard data.")
 	}
@@ -348,7 +348,9 @@ func (p *PacketIn) UnmarshalBinary(data []byte) error {
 	p.Cookie = binary.BigEndian.Uint64(data[n:])
 	n += 8
 
-	err = p.Match.UnmarshalBinary(data[n:])
+	if err := p.Match.UnmarshalBinary(data[n:]); err != nil {
+		return err
+	}
 	n += p.Match.Len()
 
 	copy(p.pad, data[n:])
