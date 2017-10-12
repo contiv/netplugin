@@ -100,7 +100,7 @@ compile-with-docker:
 	docker build \
 		--build-arg NIGHTLY_RELEASE=${NIGHTLY_RELEASE} \
 		--build-arg BUILD_VERSION=${BUILD_VERSION} \
-		-t netplugin:$${BUILD_VERSION:-devBuild}-$$(./scripts/getGitCommit.sh) .
+		-t netplugin:$${BUILD_VERSION:-devbuild}-$$(./scripts/getGitCommit.sh) .
 
 build-docker-image: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-build-docker-image"'
