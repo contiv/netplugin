@@ -18,7 +18,7 @@
 		},
 		{
 			"ImportPath": "github.com/Microsoft/go-winio",
-			"Comment": "v0.3.2",
+			"Comment": "0.3.6-2-gd8f60f2",
 			"Rev": "d8f60f2dd117cd64c2825143a89ecb6f158ad743"
 		},
 		{
