@@ -25,7 +25,7 @@ build_version = ENV['BUILD_VERSION'] || ''
 cluster_ip_nodes = ''
 v2plugin_name = ENV['CONTIV_V2PLUGIN_NAME'] || 'contiv/v2netplugin:0.1'
 cluster_store = ENV['CONTIV_CLUSTER_STORE'] || 'etcd://localhost:2379'
-use_release = ENV['USE_RELEASE'] || ''
+nightly_release = ENV['NIGHTLY_RELEASE'] || ''
 node_os = ENV['CONTIV_NODE_OS'] || 'centos'
 base_ip = ENV['CONTIV_IP_PREFIX'] || '192.168.2.'
 num_nodes = ENV['CONTIV_NODES'].to_i == 0 ? 3 : ENV['CONTIV_NODES'].to_i
@@ -41,7 +41,7 @@ export GOSRC=\\\$GOPATH/src
 export PATH=\\\$PATH:/usr/local/go/bin:\\\$GOBIN
 export http_proxy='#{http_proxy}'
 export https_proxy='#{https_proxy}'
-export USE_RELEASE=#{use_release}
+export NIGHTLY_RELEASE=#{nightly_release}
 export no_proxy=%{cluster_ip_nodes},127.0.0.1,localhost,netmaster
 export CLUSTER_NODE_IPS=%{cluster_ip_nodes}
 export CONTIV_CLUSTER_STORE=#{cluster_store}
