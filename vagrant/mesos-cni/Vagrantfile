@@ -22,7 +22,7 @@ echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
 echo "export http_proxy='$4'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
-echo "export USE_RELEASE=$6" >> /etc/profile.d/envvar.sh
+echo "export NIGHTLY_RELEASE=$6" >> /etc/profile.d/envvar.sh
 echo "export no_proxy=$3,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 echo "export CLUSTER_NODE_IPS=$3" >> /etc/profile.d/envvar.sh
 echo "export CONTIV_CLUSTER_STORE=$7" >> /etc/profile.d/envvar.sh
@@ -166,7 +166,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common_once
-                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["USE_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
+                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["NIGHTLY_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
             end
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_common_always

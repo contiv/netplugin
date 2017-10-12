@@ -9,10 +9,10 @@ if [ -n "$BUILD_VERSION" ]; then
 	VERSION=$BUILD_VERSION
 fi
 
-if [ -z "$USE_RELEASE" ]; then
-	BUILD_VERSION="$VERSION-$BUILD_TIME"
-else
+if [ -z "$NIGHTLY_RELEASE" ]; then
 	BUILD_VERSION="$VERSION"
+else
+	BUILD_VERSION="$VERSION-$BUILD_TIME"
 fi
 
 GIT_COMMIT=$(./scripts/getGitCommit.sh)

@@ -13,10 +13,13 @@ The GITHUB_USER and GITHUB_TOKEN environment variables need to be set up.
 Automated releases are done using the scripts/REL.sh script. This script
 will prepare and release binaries to GitHub.
 
-The timestamp is appended to the release version.
+The timestamp is appended to the release version if NIGHTLY_RELEASE=1 is
+passed as an environment variable on build.
 
 An example of a such release tag is "1.0.0-beta-01-31-2017.21-11-13.UTC".
 
+Releases are marked as pre-releases by default. The pre-release needs to
+be marked by hand as a release.
 
 ### Manual releases
 
@@ -26,11 +29,11 @@ need to be provided manually.
 You'll find a few examples below:
 
 	# version/CURRENT_VERSION is 1.0.1
-	$ USE_RELEASE=1 OLD_VERSION=1.0 make release
+	$ OLD_VERSION=1.0 make release
 	# will release version 1.0.1 on GitHub
 
 	# version/CURRENT_VERSION is 1.0
-	$ USE_RELEASE=1 OLD_VERSION=none make release
+	$ OLD_VERSION=none make release
 	# will release version 1.0 when no previous stable release exists
 
 Please keep in mind that the release notes can be updated on GitHub manually.
@@ -67,13 +70,13 @@ related to BUILD_VERSION and version/CURRENT_VERSION above.
 5. Make the release to GitHub.
 	```
 	# BUILD_VERSION is used to override version/CURRENT_VERSION
-	USE_RELEASE=1 OLD_VERSION=1.1.0-beta.1 BUILD_VERSION=1.1.0-beta.2 make release
+	OLD_VERSION=1.1.0-beta.1 BUILD_VERSION=1.1.0-beta.2 make release
 	```
 
 	```
 	# version/CURRENT_VERSION is used for a new stable release
 	# version/CURRENT_VERSION is 1.1.1
-	USE_RELEASE=1 OLD_VERSION=1.1.0 make release
+	OLD_VERSION=1.1.0 make release
 	```
 
 ## Build and upload container image (manual only)

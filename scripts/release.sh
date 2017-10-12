@@ -4,7 +4,6 @@
 #  BUILD_VERSION - new version being released
 #  GITHUB_USER - contiv
 #  GITHUB_TOKEN - your github token
-#  USE_RELEASE - if 0 or not set, will make a pre-release
 
 if [ -z "$(which github-release)" ]; then
 	echo "Please install github-release before running this script"
@@ -37,11 +36,6 @@ if [ "$OLD_VERSION" != "none" ]; then
 	comparison="$OLD_VERSION..HEAD"
 fi
 
-if [ "$USE_RELEASE" != "1" ]; then
-	echo "Making a pre-release.."
-	pre_release="-p"
-fi
-
 if [ "$OLD_VERSION" != "none" ]; then
 	changelog=$(git log $comparison --oneline --no-merges --reverse)
 
@@ -54,6 +48,6 @@ else
 fi
 
 set -x
-( (github-release -v release $pre_release -r netplugin -t $BUILD_VERSION -d "**Changelog**<br/>$changelog") \
+( (github-release -v release --pre-release -r netplugin -t $BUILD_VERSION -d "**Changelog**<br/>$changelog") \
 	&& (github-release -v upload -r netplugin -t $BUILD_VERSION -n $TAR_FILENAME -f $TAR_FILE \
 		|| github-release -v delete -r netplugin -t $BUILD_VERSION)) || exit 1
