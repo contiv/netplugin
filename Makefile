@@ -1,5 +1,6 @@
 
-.PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src golint-src govet-src
+.PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
+	golint-src govet-src run-build compile-with-docker
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
@@ -86,23 +87,26 @@ endif
 
 checks: go-version gofmt-src golint-src govet-src misspell-src
 
-run-build: deps checks clean
+compile:
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
 	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
 	TO_BUILD="${TO_BUILD}" VERSION_FILE=${VERSION_FILE} \
 	scripts/build.sh
 
+# fully prepares code for pushing to branch, includes building binaries
+run-build: deps checks clean compile
+
+compile-with-docker:
+	docker build \
+		--build-arg NIGHTLY_RELEASE=${NIGHTLY_RELEASE} \
+		--build-arg BUILD_VERSION=${BUILD_VERSION} \
+		-t netplugin:$${BUILD_VERSION:-devbuild}-$$(./scripts/getGitCommit.sh) .
+
 build-docker-image: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-build-docker-image"'
 
-
-ifdef NET_CONTAINER_BUILD
-install-shell-completion:
-	cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
-else
 install-shell-completion:
 	sudo cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
-endif
 
 build: start ssh-build stop
 
@@ -116,12 +120,8 @@ update:
 
 # setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
 # up a cluster of <number> nodes. By default <number> = 1
-ifdef NET_CONTAINER_BUILD
-start:
-else
 start:
 	CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-$(DEFAULT_DOCKER_VERSION)}" CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
-endif
 
 # ===================================================================
 #kubernetes demo targets
@@ -195,12 +195,8 @@ mesos-cni-destroy:
 demo-ubuntu:
 	CONTIV_NODE_OS=ubuntu make demo
 
-ifdef NET_CONTAINER_BUILD
-stop:
-else
 stop:
 	CONTIV_NODES=$${CONTIV_NODES:-3} vagrant destroy -f
-endif
 
 demo: ssh-build
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart host-swarm-restart"'
@@ -208,13 +204,8 @@ demo: ssh-build
 ssh:
 	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
 
-ifdef NET_CONTAINER_BUILD
-ssh-build:
-	cd /go/src/github.com/contiv/netplugin && make run-build install-shell-completion
-else
 ssh-build: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build install-shell-completion"'
-endif
 
 unit-test: stop clean
 	./scripts/unittests -vagrant

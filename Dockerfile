@@ -28,14 +28,27 @@ FROM golang:1.7.6
 #ENV https_proxy ""
 ARG http_proxy
 ARG https_proxy
-ENV GOPATH=/go/ NET_CONTAINER_BUILD=1
+
+WORKDIR /go/src/github.com/contiv/netplugin/
 
 ENTRYPOINT ["netplugin"]
 CMD ["--help"]
 
+# by far, most of the compilation time is building vendor packages
+# build the vendor dependencies as a separate docker caching layer
+COPY ./vendor/ /go/src/github.com/contiv/netplugin/vendor/
+
+RUN GOGC=1500 go install -ldflags "-s -w" $(go list ./vendor/...)
+
+# build the netplugin binaries
 COPY ./ /go/src/github.com/contiv/netplugin/
 
-WORKDIR /go/src/github.com/contiv/netplugin/
+ARG BUILD_VERSION=""
+ARG NIGHTLY_RELEASE=""
 
-RUN make build
-
+RUN GOPATH=/go/ \
+    BUILD_VERSION="${BUILD_VERSION}" \
+    NIGHTLY_RELEASE="${NIGHTLY_RELEASE}" \
+    make compile \
+      && cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl \
+      && netplugin -version
