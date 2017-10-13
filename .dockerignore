@@ -6,3 +6,5 @@ docs/
 scripts/gobgp
 *.tar
 *.bz2
+# export from a docker container, no need to copy into any docker containers
+install/v2plugin/rootfs
