@@ -217,6 +217,7 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
+	@echo "system-test: running the following system tests:" $(SYSTEM_TESTS_TO_RUN)
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py
 	go test -v -timeout 480m ./test/systemtests -check.v -check.abort -check.f $(SYSTEM_TESTS_TO_RUN)
 
