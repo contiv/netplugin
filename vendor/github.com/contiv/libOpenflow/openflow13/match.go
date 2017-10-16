@@ -2,6 +2,7 @@ package openflow13
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
 
@@ -86,7 +87,9 @@ func (m *Match) UnmarshalBinary(data []byte) error {
 
 	for n < int(m.Length) {
 		field := new(MatchField)
-		field.UnmarshalBinary(data[n:])
+		if err := field.UnmarshalBinary(data[n:]); err != nil {
+			return err
+		}
 		m.Fields = append(m.Fields, *field)
 		n += int(field.Len())
 	}
@@ -140,7 +143,8 @@ func (m *MatchField) MarshalBinary() (data []byte, err error) {
 }
 
 func (m *MatchField) UnmarshalBinary(data []byte) error {
-	var n uint16 = 0
+	var n uint16
+	var err error
 	m.Class = binary.BigEndian.Uint16(data[n:])
 	n += 2
 
@@ -156,17 +160,21 @@ func (m *MatchField) UnmarshalBinary(data []byte) error {
 	m.Length = data[n]
 	n += 1
 
-	m.Value = DecodeMatchField(m.Class, m.Field, data[n:])
+	if m.Value, err = DecodeMatchField(m.Class, m.Field, data[n:]); err != nil {
+		return err
+	}
 	n += m.Value.Len()
 
 	if m.HasMask {
-		m.Mask = DecodeMatchField(m.Class, m.Field, data[n:])
+		if m.Mask, err = DecodeMatchField(m.Class, m.Field, data[n:]); err != nil {
+			return err
+		}
 		n += m.Mask.Len()
 	}
-	return nil
+	return err
 }
 
-func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
+func DecodeMatchField(class uint16, field uint8, data []byte) (util.Message, error) {
 	if class == OXM_CLASS_OPENFLOW_BASIC {
 		var val util.Message
 		val = nil
@@ -239,11 +247,11 @@ func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 
 		if val == nil {
 			log.Printf("Bad pkt class: %v field: %v data: %v", class, field, data)
-			return nil
+			return nil, fmt.Errorf("Bad pkt class: %v field: %v data: %v", class, field, data)
 		}
 
 		val.UnmarshalBinary(data)
-		return val
+		return val, nil
 	} else if class == OXM_CLASS_NXM_1 {
 		var val util.Message
 		switch field {
@@ -253,16 +261,16 @@ func DecodeMatchField(class uint16, field uint8, data []byte) util.Message {
 			val = new(TunnelIpv4DstField)
 		default:
 			log.Printf("Unhandled Field: %d in Class: %d", field, class)
-			return nil
+			return nil, fmt.Errorf("Bad pkt class: %v field: %v data: %v", class, field, data)
 		}
 
 		val.UnmarshalBinary(data)
-		return val
+		return val, nil
 	} else {
 		log.Panic("Unsupported match field: %d in class: %d", field, class)
 	}
 
-	return nil
+	return nil, nil
 }
 
 //  ofp_match_type 1.3

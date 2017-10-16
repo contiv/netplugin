@@ -1,5 +1,6 @@
 
-.PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src golint-src govet-src
+.PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
+	golint-src govet-src run-build compile-with-docker
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
@@ -26,6 +27,7 @@ GOFMT_CMD := gofmt -s -l
 GOVET_CMD := go tool vet
 CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
 SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
+K8S_SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy"
 ACI_GW_IMAGE ?= "contiv/aci-gw:04-12-2017.2.2_1n"
 
 all: build unit-test system-test ubuntu-tests
@@ -85,23 +87,26 @@ endif
 
 checks: go-version gofmt-src golint-src govet-src misspell-src
 
-run-build: deps checks clean
+compile:
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	USE_RELEASE=${USE_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
+	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
 	TO_BUILD="${TO_BUILD}" VERSION_FILE=${VERSION_FILE} \
 	scripts/build.sh
+
+# fully prepares code for pushing to branch, includes building binaries
+run-build: deps checks clean compile
+
+compile-with-docker:
+	docker build \
+		--build-arg NIGHTLY_RELEASE=${NIGHTLY_RELEASE} \
+		--build-arg BUILD_VERSION=${BUILD_VERSION} \
+		-t netplugin:$${BUILD_VERSION:-devbuild}-$$(./scripts/getGitCommit.sh) .
 
 build-docker-image: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-build-docker-image"'
 
-
-ifdef NET_CONTAINER_BUILD
-install-shell-completion:
-	cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
-else
 install-shell-completion:
 	sudo cp scripts/contrib/completion/bash/netctl /etc/bash_completion.d/netctl
-endif
 
 build: start ssh-build stop
 
@@ -115,12 +120,8 @@ update:
 
 # setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
 # up a cluster of <number> nodes. By default <number> = 1
-ifdef NET_CONTAINER_BUILD
-start:
-else
 start:
 	CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-$(DEFAULT_DOCKER_VERSION)}" CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
-endif
 
 # ===================================================================
 #kubernetes demo targets
@@ -161,13 +162,13 @@ k8s-legacy-test:
 k8s-test: k8s-cluster
 	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm'
-	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f "00SSH|TestBasic|TestNetwork|TestPolicy"
+	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f $(K8S_SYSTEM_TESTS_TO_RUN)
 	cd vagrant/k8s && vagrant destroy -f
 
 k8s-l3-test: k8s-l3-cluster
 	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm' -contiv_l3=1
-	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f "00SSH|TestBasic|TestNetwork|TestPolicy"
+	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f $(K8S_SYSTEM_TESTS_TO_RUN)
 	cd vagrant/k8s && CONTIV_L3=1 vagrant destroy -f
 # ===================================================================
 
@@ -194,12 +195,8 @@ mesos-cni-destroy:
 demo-ubuntu:
 	CONTIV_NODE_OS=ubuntu make demo
 
-ifdef NET_CONTAINER_BUILD
-stop:
-else
 stop:
 	CONTIV_NODES=$${CONTIV_NODES:-3} vagrant destroy -f
-endif
 
 demo: ssh-build
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-restart host-swarm-restart"'
@@ -207,13 +204,8 @@ demo: ssh-build
 ssh:
 	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
 
-ifdef NET_CONTAINER_BUILD
-ssh-build:
-	cd /go/src/github.com/contiv/netplugin && make run-build install-shell-completion
-else
 ssh-build: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build install-shell-completion"'
-endif
 
 unit-test: stop clean
 	./scripts/unittests -vagrant
@@ -225,6 +217,7 @@ ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
 system-test:start
+	@echo "system-test: running the following system tests:" $(SYSTEM_TESTS_TO_RUN)
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py
 	go test -v -timeout 480m ./test/systemtests -check.v -check.abort -check.f $(SYSTEM_TESTS_TO_RUN)
 
@@ -335,5 +328,5 @@ clean-tar:
 release: tar
 	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) \
 	OLD_VERSION=${OLD_VERSION} BUILD_VERSION=${BUILD_VERSION} \
-	USE_RELEASE=${USE_RELEASE} scripts/release.sh
+	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} scripts/release.sh
 	@make clean-tar

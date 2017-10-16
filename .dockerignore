@@ -1,0 +1,8 @@
+# we want to get the git commit SHA but not all the binary repo data
+.git/objects/pack
+bin/
+vagrant/
+docs/
+scripts/gobgp
+*.tar
+*.bz2
