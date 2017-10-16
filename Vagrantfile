@@ -29,6 +29,8 @@ nightly_release = ENV['NIGHTLY_RELEASE'] || ''
 node_os = ENV['CONTIV_NODE_OS'] || 'centos'
 base_ip = ENV['CONTIV_IP_PREFIX'] || '192.168.2.'
 num_nodes = ENV['CONTIV_NODES'].to_i == 0 ? 3 : ENV['CONTIV_NODES'].to_i
+num_vm_cpus = (ENV['CONTIV_CPUS'] || 4).to_i
+vm_memory = (ENV['CONTIV_MEMORY'] || 2048).to_i
 legacy_docker = docker_version >= "17.03" ? 0 : 1
 
 provision_common_once = <<SCRIPT
@@ -264,6 +266,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
     config.vm.provider 'virtualbox' do |v|
         v.linked_clone = true if Vagrant::VERSION >= "1.8"
+        v.memory = vm_memory
+        v.cpus = num_vm_cpus
     end
 
     node_ips = num_nodes.times.collect { |n| base_ip + "#{n+10}" }
