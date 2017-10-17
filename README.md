@@ -42,7 +42,7 @@ Optionally, variables can be passed to Makefile if needed. For example, to
 use 1GB memory for the vagrant VMs, run:
 
 ```
-CONTIV_MEMORY=1024 make demo
+CONTIV_MEMORY=4096 make demo
 ```
 
 #### Step 2: Create a network
