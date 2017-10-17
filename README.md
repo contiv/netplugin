@@ -39,11 +39,14 @@ $ vagrant ssh netplugin-node1
 ```
 
 Optionally, variables can be passed to Makefile if needed. For example, to
-use 4 GB memory for the vagrant VMs, run:
+use 4 GB memory and 2 CPUs for the vagrant VMs, run:
 
 ```
-CONTIV_MEMORY=4096 make demo
+CONTIV_MEMORY=4096 CONTIV_CPUS=2 make demo
 ```
+
+CONTIV_MEMORY and CONTIV_CPUS are set to 2048 and 4 as the default values
+respectively.
 
 #### Step 2: Create a network
 
