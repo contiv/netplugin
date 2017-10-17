@@ -1,4 +1,3 @@
-
 .PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
 	golint-src govet-src run-build compile-with-docker
 
@@ -16,6 +15,8 @@ NAME := netplugin
 VERSION_FILE := $(NAME)-version
 VERSION := `cat $(VERSION_FILE)`
 TAR_EXT := tar.bz2
+# BUILD_VERSION=1.2 make --> 1.2-1097d2a7, otherwise devbuild-1097d2a7
+export NETPLUGIN_CONTAINER_TAG := $(or $(BUILD_VERSION),devbuild)-$(shell ./scripts/getGitCommit.sh)
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
 TAR_LOC := .
 TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
@@ -314,11 +315,23 @@ host-plugin-release:
 	@echo dev: need docker login with user in contiv org
 	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
-only-tar:
+##########################
+## Packaging and Releasing
+##########################
 
-tar: clean-tar
-	CONTIV_NODES=1 ${MAKE} build
-	@tar -jcf $(TAR_FILE) -C $(GOPATH)/src/github.com/contiv/netplugin/bin netplugin netmaster netctl contivk8s netcontiv -C $(GOPATH)/src/github.com/contiv/netplugin/scripts contrib/completion/bash/netctl -C $(GOPATH)/src/github.com/contiv/netplugin/scripts get-contiv-diags
+# build tarball
+tar: compile-with-docker
+	@# $(TAR_FILE) depends on local file netplugin-version (exists in image),
+	@# but it is evaluated after we have extracted that file to local disk
+	docker rm netplugin-build || :
+	c_id=$$(docker create --name netplugin-build netplugin-build:$(NETPLUGIN_CONTAINER_TAG)) && \
+	docker cp $${c_id}:/go/src/github.com/contiv/netplugin/netplugin-version ./ && \
+	for f in netplugin netmaster netctl contivk8s netcontiv; do \
+		docker cp $${c_id}:/go/bin/$$f bin/$$f; done && \
+	docker rm $${c_id}
+	tar -jcf $(TAR_FILE) \
+		-C bin netplugin netmaster netctl contivk8s netcontiv \
+		-C ../scripts contrib/completion/bash/netctl get-contiv-diags
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)

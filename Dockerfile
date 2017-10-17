@@ -14,7 +14,7 @@
 ##
 
 ##
-# Container image for netplugin
+# Container image for compiled netplugin binaries
 #
 # Run netplugin:
 # docker run --net=host <image> -host-label=<label>
@@ -22,7 +22,7 @@
 
 FROM golang:1.7.6
 
-# Insert your proxy server settings if this build is running behind 
+# Insert your proxy server settings if this build is running behind
 # a proxy.
 #ENV http_proxy ""
 #ENV https_proxy ""
