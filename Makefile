@@ -27,9 +27,6 @@ TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
 GO_MIN_VERSION := 1.7
 GO_MAX_VERSION := 1.8
 GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
-GOLINT_CMD := golint -set_exit_status
-GOFMT_CMD := gofmt -s -l
-GOVET_CMD := go tool vet
 CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
 SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 K8S_SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy"
@@ -67,19 +64,20 @@ godep-restore:
 
 gofmt-src:
 	$(info +++ gofmt $(PKG_DIRS))
-	@for dir in $(PKG_DIRS); do $(GOFMT_CMD) $${dir} | grep "go"; [[ $$? -ne 0 ]] || exit 1; done
+	@[[ -z "$$(gofmt -s -d $(PKG_DIRS) | tee /dev/stderr)" ]] || exit 1
 
+# go lint does not automatically recurse
 golint-src:
 	$(info +++ golint $(PKG_DIRS))
-	@for dir in $(PKG_DIRS); do $(GOLINT_CMD) $${dir}/... || exit 1;done
+	@for dir in $(PKG_DIRS); do golint -set_exit_status $${dir}/...; done
 
 govet-src:
 	$(info +++ govet $(PKG_DIRS))
-	@for dir in $(PKG_DIRS); do $(GOVET_CMD) $${dir} || exit 1;done
+	@go tool vet $(PKG_DIRS)
 
 misspell-src:
 	$(info +++ check spelling $(PKG_DIRS))
-	misspell -locale US -error $(PKG_DIRS)
+	@misspell -locale US -error $(PKG_DIRS)
 
 go-version:
 	$(info +++ check go version)
@@ -90,7 +88,12 @@ ifneq ($(GO_VERSION), $(firstword $(sort $(GO_VERSION) $(GO_MAX_VERSION))))
 	$(error go version check failed, expected <= $(GO_MAX_VERSION), found $(GO_VERSION))
 endif
 
-checks: go-version gofmt-src golint-src govet-src misspell-src
+checks: go-version govet-src golint-src gofmt-src misspell-src
+
+# When multi-stage builds are available in VM, source can be copied into
+# container FROM the netplugin-build container to simplify this target
+checks-with-docker:
+	scripts/code_checks_in_docker.sh $(PKG_DIRS)
 
 compile:
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
@@ -267,7 +270,7 @@ host-integ-test: host-cleanup start-aci-gw
 
 start-aci-gw:
 	@echo dev: starting aci gw...
-	docker pull $(ACI_GW_IMAGE) 
+	docker pull $(ACI_GW_IMAGE)
 	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" --name=contiv-aci-gw $(ACI_GW_IMAGE)
 
 host-build-docker-image:
@@ -311,11 +314,11 @@ demo-v2plugin:
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-pluginfs-create host-plugin-restart host-swarm-restart"'
 
 # release a v2 plugin
-host-plugin-release: 
+host-plugin-release:
 	@echo dev: creating a docker v2plugin ...
-	sh scripts/v2plugin_rootfs.sh 
+	sh scripts/v2plugin_rootfs.sh
 	docker plugin create ${CONTIV_V2PLUGIN_NAME} install/v2plugin
-	@echo dev: pushing ${CONTIV_V2PLUGIN_NAME} to docker hub 
+	@echo dev: pushing ${CONTIV_V2PLUGIN_NAME} to docker hub
 	@echo dev: need docker login with user in contiv org
 	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
