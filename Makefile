@@ -1,3 +1,7 @@
+ifeq ($(GOPATH),)
+$(error GOPATH is not set. Set GOPATH by doing "export GOPATH=<your GOPATH>".)
+endif
+
 .PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
 	golint-src govet-src run-build compile-with-docker
 
