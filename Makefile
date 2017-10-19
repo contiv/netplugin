@@ -1,3 +1,8 @@
+# make BUILD_VERSION=1.2.3 [compile-with-docker] will set netplugin -version output
+# make BUILD_VERSION=1.2.3 tar will set the tar filename
+# default naming will otherwise be value of version/CURRENT_VERSION
+
+
 .PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
 	golint-src govet-src run-build compile-with-docker
 
@@ -15,8 +20,7 @@ NAME := netplugin
 VERSION_FILE := $(NAME)-version
 VERSION := `cat $(VERSION_FILE)`
 TAR_EXT := tar.bz2
-# BUILD_VERSION=1.2 make --> 1.2-1097d2a7, otherwise devbuild-1097d2a7
-export NETPLUGIN_CONTAINER_TAG := $(or $(BUILD_VERSION),devbuild)-$(shell ./scripts/getGitCommit.sh)
+NETPLUGIN_CONTAINER_TAG := $(shell ./scripts/getGitCommit.sh)
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
 TAR_LOC := .
 TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
@@ -104,7 +108,7 @@ compile-with-docker:
 	docker build \
 		--build-arg NIGHTLY_RELEASE=${NIGHTLY_RELEASE} \
 		--build-arg BUILD_VERSION=${BUILD_VERSION} \
-		-t netplugin-build:$${BUILD_VERSION:-devbuild}-$$(./scripts/getGitCommit.sh) .
+		-t netplugin-build:$(NETPLUGIN_CONTAINER_TAG) .
 
 build-docker-image: start
 	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make host-build-docker-image"'
