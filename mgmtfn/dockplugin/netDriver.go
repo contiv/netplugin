@@ -742,10 +742,22 @@ func createNetworkHelper(networkID string, tag string, IPv4Data, IPv6Data []driv
 	return nil
 }
 
-// deleteNetworkHelper removes the association between docker network and contiv network
+// deleteNetworkHelper removes the association between docker network
+// and contiv network. We have to remove docker network state before
+// remove network in contiv.
 func deleteNetworkHelper(networkID string) error {
+	dnet, err := docknet.FindDocknetByUUID(networkID)
+	if err == nil {
+		// delete the dnet oper state
+		err = docknet.DeleteDockNetState(dnet.TenantName, dnet.NetworkName, dnet.ServiceName)
+		if err != nil {
+			log.Errorf("Couldn't delete docknet for nwID %s", networkID)
+		}
+		log.Infof("Deleted docker network mapping for %v", networkID)
+	}
+
 	netID := networkID + ".default"
-	_, err := utils.GetNetwork(netID)
+	_, err = utils.GetNetwork(netID)
 	if err == nil {
 		// if we find a contiv network with the ID hash, then it must be
 		// a docker created network (from the libnetwork create api).
@@ -762,14 +774,6 @@ func deleteNetworkHelper(networkID string) error {
 	} else {
 		log.Infof("Could not find contiv network %v", networkID)
 	}
-	dnet, err := docknet.FindDocknetByUUID(networkID)
-	if err == nil {
-		// delete the dnet oper state
-		err = docknet.DeleteDockNetState(dnet.TenantName, dnet.NetworkName, dnet.ServiceName)
-		if err != nil {
-			log.Errorf("Couldn't delete docknet for nwID %s", networkID)
-		}
-		log.Infof("Deleted docker network mapping for %v", networkID)
-	}
+
 	return nil
 }
