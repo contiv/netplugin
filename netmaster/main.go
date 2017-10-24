@@ -155,7 +155,7 @@ func execOpts(opts *cliOpts) {
 	log.Infof("Control IP:Port %s:%s", controlIP, controlURL[1])
 
 	if opts.clusterMode == master.Docker || opts.clusterMode == master.SwarmMode {
-		docknet.UpdatePluginName(opts.pluginName, opt.pluginName)
+		docknet.UpdatePluginName(opts.pluginName, opts.pluginName)
 	}
 }
 

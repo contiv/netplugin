@@ -2,11 +2,11 @@ package dockplugin
 
 import (
 	"fmt"
-    "testing"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
+	"testing"
 )
 
 // initStateDriver initialize etcd state driver
@@ -20,12 +20,13 @@ func initStateDriver() (core.StateDriver, error) {
 func TestCreateAndDeleteNetwork(t *testing.T) {
 	// Update plugin driver for unit test
 	docknet.UpdatePluginName("bridge", "default")
-    initStateDriver()
+
+	initStateDriver()
 
 	tenantName := "t1"
 	networkName := "net1"
 	serviceName := ""
-    nwcfg := mastercfg.CfgNetworkState{
+	nwcfg := mastercfg.CfgNetworkState{
 		Tenant:      tenantName,
 		NetworkName: networkName,
 		PktTagType:  "vlan",
@@ -36,7 +37,7 @@ func TestCreateAndDeleteNetwork(t *testing.T) {
 		Gateway:     "10.0.0.1",
 	}
 
-    err := docknet.CreateDockNet(tenantName, networkName, "", &nwcfg)
+	err := docknet.CreateDockNet(tenantName, networkName, "", &nwcfg)
 	if err != nil {
 		t.Fatalf("Error creating docker network. Error: %v", err)
 		t.Fail()

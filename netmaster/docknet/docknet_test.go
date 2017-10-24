@@ -224,3 +224,21 @@ func TestDocknetCreateDelete(t *testing.T) {
 	checkDocknetCreate(t, "unit-test", "net1", "srv1", "10.1.1.1/24", "10.1.1.254")
 	checkDocknetDelete(t, "unit-test", "net1", "srv1")
 }
+
+func TestUpdatePluginName(t *testing.T) {
+	expectNetDriver := "bridge"
+	expectIPAMDriver := "default"
+	UpdatePluginName("bridge", "default")
+
+	if expectNetDriver != netDriverName {
+		t.Fatalf("Unexpected netdriver name. Expected: %s. Actual: %s",
+			expectNetDriver, netDriverName)
+		t.Fail()
+	}
+
+	if expectIPAMDriver != ipamDriverName {
+		t.Fatalf("Unexpected ipamdriver name. Expected: %s. Actual: %s",
+			expectIPAMDriver, ipamDriverName)
+		t.Fail()
+	}
+}
