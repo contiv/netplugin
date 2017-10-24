@@ -76,7 +76,7 @@ func checkDocknetCreate(t *testing.T, tenantName, networkName, serviceName, subn
 	// create a docker network
 	err := CreateDockNet(tenantName, networkName, serviceName, &nwcfg)
 	if err != nil {
-		t.Fatalf("Error creating docker ntework. Err: %v", err)
+		t.Fatalf("Error creating docker network. Err: %v", err)
 	}
 
 	// verify docknet state is created
@@ -204,8 +204,7 @@ func checkDocknetDelete(t *testing.T, tenantName, networkName, serviceName strin
 
 func TestMain(m *testing.M) {
 	// change driver names for unit-testing
-	netDriverName = "bridge"
-	ipamDriverName = "default"
+	UpdatePluginName("bridge", "default")
 
 	initStateDriver()
 

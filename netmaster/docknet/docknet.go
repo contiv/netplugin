@@ -102,10 +102,11 @@ func GetDocknetName(tenantName, networkName, epgName string) string {
 }
 
 // UpdatePluginName update the docker v2 plugin name
-func UpdatePluginName(pluginName string) {
-	log.Infof("docker v2plugin name (%s) updated to %s", netDriverName, pluginName)
-	netDriverName = pluginName
-	ipamDriverName = pluginName
+func UpdatePluginName(netdriver string, ipamDriver string) {
+	log.Infof("docker v2plugin (%s) updated to %s and ipam (%s) updated to %s",
+		netDriverName, netdriver, ipamDriverName, ipamDriver)
+	netDriverName = netdriver
+	ipamDriverName = ipamDriver
 }
 
 // CreateDockNet Creates a network in docker daemon
