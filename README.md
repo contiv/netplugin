@@ -30,9 +30,7 @@ that lives behind an OVS bridge and has its own unique interfaces.
 #### Step 1: Clone the project and bringup the VMs
 
 Note: if you have $GOPATH set, then please ensure either you unset GOPATH,
-or clone the tree in `$GOPATH/src/github.com/contiv/` location. If you are
-using a Makefile target that needs `GOPATH`, please set it by doing 
-`export GOPATH=<your GOPATH>`.
+or clone the tree in `$GOPATH/src/github.com/contiv/` location
 
 ```
 $ git clone https://github.com/contiv/netplugin
