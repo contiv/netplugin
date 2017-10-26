@@ -18,7 +18,7 @@ package modeldb
 // Wrapper for persistently storing object model
 
 import (
-	"github.com/contiv/objdb"
+	"github.com/contiv/netplugin/objdb"
 
 	log "github.com/Sirupsen/logrus"
 )
