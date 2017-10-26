@@ -608,11 +608,11 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel",
-			"Rev": "e00f6dded54d05d37acb451c4533fe09fd40c69f"
+			"Rev": "9c9072a6b720fb73b6fb133d738b80aceb18edfc"
 		},
 		{
 			"ImportPath": "github.com/contiv/contivmodel/client",
-			"Rev": "e00f6dded54d05d37acb451c4533fe09fd40c69f"
+			"Rev": "9c9072a6b720fb73b6fb133d738b80aceb18edfc"
 		},
 		{
 			"ImportPath": "github.com/contiv/libOpenflow/common",
@@ -634,14 +634,6 @@
 			"ImportPath": "github.com/contiv/libovsdb",
 			"Comment": "v0.1-12-gd0061a5",
 			"Rev": "d0061a53e3588f553e0f56090d1b8d950746eff4"
-		},
-		{
-			"ImportPath": "github.com/contiv/objdb",
-			"Rev": "f59313040a109900f9f00dacb1b23c2f5f337f25"
-		},
-		{
-			"ImportPath": "github.com/contiv/objdb/modeldb",
-			"Rev": "f59313040a109900f9f00dacb1b23c2f5f337f25"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",

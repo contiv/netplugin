@@ -24,9 +24,9 @@ import (
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/contiv/netplugin/objdb"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
-	"github.com/contiv/objdb"
 
 	log "github.com/Sirupsen/logrus"
 )

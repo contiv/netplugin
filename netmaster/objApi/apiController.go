@@ -30,10 +30,10 @@ import (
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/objdb"
+	"github.com/contiv/netplugin/objdb/modeldb"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
-	"github.com/contiv/objdb"
-	"github.com/contiv/objdb/modeldb"
 	"io/ioutil"
 	"net/http"
 
