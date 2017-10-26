@@ -161,7 +161,7 @@ func (ep *EtcdClient) ListDir(key string) ([]string, error) {
 			}
 		}
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 	}
 
