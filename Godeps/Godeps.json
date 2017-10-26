@@ -1404,30 +1404,6 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "f7716cbe52baa25d2e9b0d0da546fcf909fc16b4"
-		},
-		{
-			"ImportPath": "github.com/contiv/remotessh/vendor/github.com/Sirupsen/logrus",
-			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
-		},
-		{
-			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/crypto/ssh",
-			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
-		},
-		{
-			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/sys/unix",
-			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
-		},
-		{
-			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/crypto/curve25519",
-			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
-		},
-		{
-			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/crypto/ed25519",
-			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
-		},
-		{
-			"ImportPath": "github.com/contiv/remotessh/vendor/golang.org/x/crypto/ed25519/internal/edwards25519",
-			"Rev": "ef362a27f72ae57d1c83554fab574eebcec32d75"
 		}
 	]
 }
