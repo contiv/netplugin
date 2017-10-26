@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/objdb/modeldb"
+	"github.com/contiv/netplugin/objdb/modeldb"
 	"github.com/gorilla/mux"
 	"net/http"
 	"regexp"
