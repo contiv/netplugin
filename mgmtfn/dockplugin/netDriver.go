@@ -752,8 +752,12 @@ func deleteNetworkHelper(networkID string) error {
 		err = docknet.DeleteDockNetState(dnet.TenantName, dnet.NetworkName, dnet.ServiceName)
 		if err != nil {
 			log.Errorf("Couldn't delete docknet for nwID %s: %s", networkID, err.Error())
+			return errors.New("Failed to delete docket network state")
 		}
 		log.Infof("Deleted docker network mapping for %v", networkID)
+	} else {
+		log.Errorf("Couldn't find Docker network %s: %s", networkID, err.Error())
+		return errors.New("Unable to find Docker network")
 	}
 
 	netID := networkID + ".default"

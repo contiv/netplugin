@@ -6,22 +6,32 @@ import (
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/state"
 	"testing"
 )
 
-// initStateDriver initialize etcd state driver
-func initStateDriver() (core.StateDriver, error) {
-	instInfo := core.InstanceInfo{DbURL: "etcd://127.0.0.1:2379"}
+var stateDriver *state.FakeStateDriver
 
-	return utils.NewStateDriver(utils.EtcdNameStr, &instInfo)
+// initStateDriver initialize etcd state driver
+func initFakeStateDriver() {
+	instInfo := core.InstanceInfo{}
+	d, _ := utils.NewStateDriver("fakedriver", &instInfo)
+
+	stateDriver = d.(*state.FakeStateDriver)
+}
+
+
+func deinitStateDriver() {
+	utils.ReleaseStateDriver()
 }
 
 // Ensure deleteNetworkHelper can delete docker network without issue
 func TestCreateAndDeleteNetwork(t *testing.T) {
 	// Update plugin driver for unit test
-	docknet.UpdatePluginName("bridge", "default")
+	docknet.UpdateDockerV2PluginName("bridge", "default")
 
-	initStateDriver()
+	initFakeStateDriver()
+	defer deinitStateDriver()
 
 	tenantName := "t1"
 	networkName := "net1"
@@ -44,22 +54,38 @@ func TestCreateAndDeleteNetwork(t *testing.T) {
 	}
 
 	// Get Docker network UUID
-	stateDriver, err := utils.GetStateDriver()
 	dnetOper := docknet.DnetOperState{}
 	dnetOper.StateDriver = stateDriver
 
-	dnetOperErr := dnetOper.Read(
-		fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName))
+	dnetOperErr := dnetOper.Read(fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName))
 	if dnetOperErr != nil {
 		t.Fatalf("Unable to read network state. Error: %v", dnetOperErr)
 		t.Fail()
 	}
+	testData := make([]byte, 3)
+	networkID := dnetOper.DocknetUUID + ".default"
+	stateDriver.Write(networkID, testData)
 
 	// Delete Docker network by using helper
 	delErr := deleteNetworkHelper(dnetOper.DocknetUUID)
 
 	if delErr != nil {
 		t.Fatalf("Unable to delete docker network. Error: %v", delErr)
+		t.Fail()
+	}
+}
+
+func TestDeleteNonExistingNetwork(t *testing.T) {
+	// Update plugin driver for unit test
+	docknet.UpdateDockerV2PluginName("bridge", "default")
+
+	initFakeStateDriver()
+
+	// Delete Docker network by using helper
+	delErr := deleteNetworkHelper("non_existing_network_id")
+
+	if delErr == nil {
+		t.Fatalf("Expect deleteNetworkHelper returns error when network is not presented")
 		t.Fail()
 	}
 }

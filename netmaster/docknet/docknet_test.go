@@ -204,7 +204,7 @@ func checkDocknetDelete(t *testing.T, tenantName, networkName, serviceName strin
 
 func TestMain(m *testing.M) {
 	// change driver names for unit-testing
-	UpdatePluginName("bridge", "default")
+	UpdateDockerV2PluginName("bridge", "default")
 
 	initStateDriver()
 
@@ -225,10 +225,10 @@ func TestDocknetCreateDelete(t *testing.T) {
 	checkDocknetDelete(t, "unit-test", "net1", "srv1")
 }
 
-func TestUpdatePluginName(t *testing.T) {
+func TestUpdateDockerV2PluginName(t *testing.T) {
 	expectNetDriver := "bridge"
 	expectIPAMDriver := "default"
-	UpdatePluginName("bridge", "default")
+	UpdateDockerV2PluginName("bridge", "default")
 
 	if expectNetDriver != netDriverName {
 		t.Fatalf("Unexpected netdriver name. Expected: %s. Actual: %s",

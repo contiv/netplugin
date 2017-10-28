@@ -101,11 +101,11 @@ func GetDocknetName(tenantName, networkName, epgName string) string {
 	return netName
 }
 
-// UpdatePluginName update the docker v2 plugin name
-func UpdatePluginName(netdriver string, ipamDriver string) {
+// UpdateDockerV2PluginName update the docker v2 plugin name
+func UpdateDockerV2PluginName(netDriver string, ipamDriver string) {
 	log.Infof("docker v2plugin (%s) updated to %s and ipam (%s) updated to %s",
-		netDriverName, netdriver, ipamDriverName, ipamDriver)
-	netDriverName = netdriver
+		netDriverName, netDriver, ipamDriverName, ipamDriver)
+	netDriverName = netDriver
 	ipamDriverName = ipamDriver
 }
 
