@@ -5,8 +5,8 @@ import (
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
-	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/state"
+	"github.com/contiv/netplugin/utils"
 	"testing"
 )
 
@@ -16,10 +16,8 @@ var stateDriver *state.FakeStateDriver
 func initFakeStateDriver() {
 	instInfo := core.InstanceInfo{}
 	d, _ := utils.NewStateDriver("fakedriver", &instInfo)
-
 	stateDriver = d.(*state.FakeStateDriver)
 }
-
 
 func deinitStateDriver() {
 	utils.ReleaseStateDriver()
@@ -62,9 +60,10 @@ func TestCreateAndDeleteNetwork(t *testing.T) {
 		t.Fatalf("Unable to read network state. Error: %v", dnetOperErr)
 		t.Fail()
 	}
+
 	testData := make([]byte, 3)
-	networkID := dnetOper.DocknetUUID + ".default"
-	stateDriver.Write(networkID, testData)
+	networkID := mastercfg.StateConfigPath + "nets/" + dnetOper.DocknetUUID + ".default"
+	dnetOper.StateDriver.Write(networkID, testData)
 
 	// Delete Docker network by using helper
 	delErr := deleteNetworkHelper(dnetOper.DocknetUUID)
