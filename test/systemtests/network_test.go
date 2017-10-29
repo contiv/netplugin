@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"sync"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	. "github.com/contiv/check"
@@ -49,12 +48,7 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 				Encap:       encap,
 			}
 
-			c.Assert(s.cli.NetworkPost(network), IsNil)
-
-			// TBD: Need to fix timing issue
-			// where endpoint create is received on non-master node
-			// before network create is received
-			time.Sleep(5 * time.Second)
+			c.Assert(s.cli.NetworkPost(network, 2, 5, 1), IsNil)
 
 			netNames = append(netNames, network.NetworkName)
 		}
@@ -77,10 +71,8 @@ func (s *systemtestSuite) testInfraNetworkAddDelete(c *C, encap string) {
 			}
 		}
 		for _, netName := range netNames {
-			c.Assert(s.cli.NetworkDelete("default", netName), IsNil)
+			c.Assert(s.cli.NetworkDelete("default", netName, 2, 5, 0), IsNil)
 		}
-
-		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -359,14 +351,13 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 
 				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
 
-				c.Assert(s.cli.NetworkPost(network), IsNil)
+				c.Assert(s.cli.NetworkPost(network, 2, 5, 1), IsNil)
 				netNames = append(netNames, network.NetworkName)
 				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
 				pktTag++
 			}
 		}
 
-		time.Sleep(3 * time.Second)
 		for tenant, networks := range tenantNames {
 			endChan := make(chan error)
 			for _, network := range networks {
@@ -416,8 +407,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				Vxlans:           "1-10000",
 				ArpMode:          "proxy",
 				PvtSubnet:        "172.19.0.0/16",
-			}), IsNil)
-			time.Sleep(60 * time.Second)
+			}, 2, 60, 1), IsNil)
 			c.Assert(s.SetupDefaultNetwork(), IsNil)
 
 			s.testNetworkAddDeleteTenant(c, "vxlan", "bridge")
@@ -431,8 +421,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVXLAN(c *C) {
 				Vxlans:           "1-10000",
 				ArpMode:          "proxy",
 				PvtSubnet:        "172.19.0.0/16",
-			}), IsNil)
-			time.Sleep(60 * time.Second)
+			}, 2, 60, 1), IsNil)
 			c.Assert(s.SetupDefaultNetwork(), IsNil)
 
 			s.testNetworkAddDeleteTenant(c, "vxlan", "routing")
@@ -458,8 +447,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
 			PvtSubnet:        "172.19.0.0/16",
-		}), IsNil)
-		time.Sleep(60 * time.Second)
+		}, 2, 60, 1), IsNil)
 		c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: "routing",
 			Name:             "global",
 			NetworkInfraType: "default",
@@ -467,8 +455,7 @@ func (s *systemtestSuite) TestNetworkAddDeleteTenantFwdModeChangeVLAN(c *C) {
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
 			PvtSubnet:        "172.19.0.0/16",
-		}), IsNil)
-		time.Sleep(60 * time.Second)
+		}, 2, 60, 1), IsNil)
 	}
 }
 

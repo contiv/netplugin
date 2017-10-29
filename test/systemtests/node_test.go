@@ -124,8 +124,6 @@ func (n *node) runCommand(cmd string) (string, error) {
 		if err == nil || !strings.Contains(err.Error(), "EOF") {
 			break
 		}
-
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	return str, err

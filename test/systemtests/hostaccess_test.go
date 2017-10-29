@@ -3,7 +3,6 @@ package systemtests
 import (
 	. "github.com/contiv/check"
 	"github.com/contiv/contivmodel/client"
-	"time"
 )
 
 func (s *systemtestSuite) TestBasicHostAccess(c *C) {
@@ -18,16 +17,14 @@ func (s *systemtestSuite) TestBasicHostAccess(c *C) {
 	global.FwdMode = "routing"
 
 	c.Assert(s.TearDownDefaultNetwork(), IsNil)
-	c.Assert(s.cli.GlobalPost(global), IsNil)
-	time.Sleep(60 * time.Second)
+	c.Assert(s.cli.GlobalPost(global, 2, 60, 1), IsNil)
 	c.Assert(s.SetupDefaultNetwork(), IsNil)
 
 	s.hostAccTest(c)
 	global.FwdMode = fm
 
 	c.Assert(s.TearDownDefaultNetwork(), IsNil)
-	c.Assert(s.cli.GlobalPost(global), IsNil)
-	time.Sleep(60 * time.Second)
+	c.Assert(s.cli.GlobalPost(global, 2, 60, 1), IsNil)
 	c.Assert(s.SetupDefaultNetwork(), IsNil)
 }
 
@@ -61,9 +58,8 @@ func (s *systemtestSuite) hostAccTest(c *C) {
 		TenantName:  "default",
 		NetworkName: "bunker-net",
 		GroupName:   "epg-a",
-	}), IsNil)
+	}, 2, 15, 1), IsNil)
 
-	time.Sleep(15 * time.Second)
 	c.Assert(s.verifyHostRoutes([]string{"17.5.4.0/22", "13.5.7.0/24"}, true), IsNil)
 	// Create num_nodes + 1 containers
 	numContainters := len(s.nodes) + 1

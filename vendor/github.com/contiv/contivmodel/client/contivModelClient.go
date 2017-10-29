@@ -70,6 +70,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -965,8 +966,10 @@ func (c *ContivClient) AciGwInspect(name string) (*AciGwInspect, error) {
 	return &obj, nil
 }
 
-// AppProfilePost posts the appProfile object
-func (c *ContivClient) AppProfilePost(obj *AppProfile) error {
+// AppProfilePost posts the appProfile object and takes timers
+// as a variadic parameter. When timers is passed, this function
+// polls for the appProfile object created.
+func (c *ContivClient) AppProfilePost(obj *AppProfile, timers ...int) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.AppProfileName
 	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
@@ -977,7 +980,9 @@ func (c *ContivClient) AppProfilePost(obj *AppProfile) error {
 		log.Debugf("Error creating appProfile %+v. Err: %v", obj, err)
 		return err
 	}
-
+	if len(timers) == 3 {
+		c.PollAppProfileGet(obj.TenantName, obj.AppProfileName, timers)
+	}
 	return nil
 }
 
@@ -1014,8 +1019,26 @@ func (c *ContivClient) AppProfileGet(tenantName string, appProfileName string) (
 	return &obj, nil
 }
 
-// AppProfileDelete deletes the appProfile object
-func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string) error {
+// Poll for appProfile object
+func (c *ContivClient) PollAppProfileGet(tenantName string, appProfileName string, timers []int) {
+	// Get the timers
+	sleepTime := timers[0]
+	totalTime := timers[1]
+	// This parameter must be 1 for creation (post) and 0 for deletion (delete)
+	mustExist := timers[2]
+
+	for i := 0; i < totalTime/sleepTime; i++ {
+		_, err := c.AppProfileGet(tenantName, appProfileName)
+		if r := checkErrorAndSleep(mustExist, err, sleepTime); r == 1 {
+			break
+		}
+	}
+}
+
+// AppProfileDelete deletes the appProfile object and takes timers
+// as a variadic parameter. When timers is passed, this function
+// polls for the appProfile object deleted.
+func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string, timers ...int) error {
 	// build key and URL
 	keyStr := tenantName + ":" + appProfileName
 	url := c.baseURL + "/api/v1/appProfiles/" + keyStr + "/"
@@ -1026,7 +1049,9 @@ func (c *ContivClient) AppProfileDelete(tenantName string, appProfileName string
 		log.Debugf("Error deleting appProfile %s. Err: %v", keyStr, err)
 		return err
 	}
-
+	if len(timers) == 3 {
+		c.PollAppProfileGet(tenantName, appProfileName, timers)
+	}
 	return nil
 }
 
@@ -1146,8 +1171,10 @@ func (c *ContivClient) EndpointInspect(endpointID string) (*EndpointInspect, err
 	return &obj, nil
 }
 
-// EndpointGroupPost posts the endpointGroup object
-func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
+// EndpointGroupPost posts the endpointGroup object and takes timers
+// as a variadic parameter. When timers is passed, this function polls
+// for the endpointGroup object created.
+func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup, timers ...int) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.GroupName
 	url := c.baseURL + "/api/v1/endpointGroups/" + keyStr + "/"
@@ -1158,7 +1185,9 @@ func (c *ContivClient) EndpointGroupPost(obj *EndpointGroup) error {
 		log.Debugf("Error creating endpointGroup %+v. Err: %v", obj, err)
 		return err
 	}
-
+	if len(timers) == 3 {
+		c.PollEndpointGroupGet(obj.TenantName, obj.GroupName, timers)
+	}
 	return nil
 }
 
@@ -1193,6 +1222,22 @@ func (c *ContivClient) EndpointGroupGet(tenantName string, groupName string) (*E
 	}
 
 	return &obj, nil
+}
+
+// Poll for endpointGroup object
+func (c *ContivClient) PollEndpointGroupGet(tenantName string, groupName string, timers []int) {
+	// Get the timers
+	sleepTime := timers[0]
+	totalTime := timers[1]
+	// This parameter is 1 for creation and 0 for deletion
+	mustExist := timers[2]
+
+	for i := 0; i < totalTime/sleepTime; i++ {
+		_, err := c.EndpointGroupGet(tenantName, groupName)
+		if r := checkErrorAndSleep(mustExist, err, sleepTime); r == 1 {
+			break
+		}
+	}
 }
 
 // EndpointGroupDelete deletes the endpointGroup object
@@ -1310,8 +1355,10 @@ func (c *ContivClient) ExtContractsGroupInspect(tenantName string, contractsGrou
 	return &obj, nil
 }
 
-// GlobalPost posts the global object
-func (c *ContivClient) GlobalPost(obj *Global) error {
+// GlobalPost posts the global object and takes timers as a variadic
+// parameter. When timers is passed, this function polls for the global
+// object created.
+func (c *ContivClient) GlobalPost(obj *Global, timers ...int) error {
 	// build key and URL
 	keyStr := obj.Name
 	url := c.baseURL + "/api/v1/globals/" + keyStr + "/"
@@ -1322,7 +1369,9 @@ func (c *ContivClient) GlobalPost(obj *Global) error {
 		log.Debugf("Error creating global %+v. Err: %v", obj, err)
 		return err
 	}
-
+	if len(timers) == 3 {
+		c.PollGlobalGet(keyStr, timers)
+	}
 	return nil
 }
 
@@ -1357,6 +1406,42 @@ func (c *ContivClient) GlobalGet(name string) (*Global, error) {
 	}
 
 	return &obj, nil
+}
+
+// Check mustExist, err and sleep
+func checkErrorAndSleep(mustExist int, err error, sleepTime int) int {
+	if mustExist == 1 {
+		if err != nil {
+			time.Sleep(time.Duration(sleepTime) * time.Second)
+			return 0
+		} else {
+			return 1
+		}
+	} else if mustExist == 0 {
+		if err == nil {
+			time.Sleep(time.Duration(sleepTime) * time.Second)
+			return 0
+		} else {
+			return 1
+		}
+	}
+	return 1
+}
+
+// Poll for global object
+func (c *ContivClient) PollGlobalGet(name string, timers []int) {
+	// Get the timers
+	sleepTime := timers[0]
+	totalTime := timers[1]
+	// This parameter is 1 for creation and 0 for deletion
+	mustExist := timers[2]
+
+	for i := 0; i < totalTime/sleepTime; i++ {
+		_, err := c.GlobalGet(name)
+		if r := checkErrorAndSleep(mustExist, err, sleepTime); r == 1 {
+			break
+		}
+	}
 }
 
 // GlobalDelete deletes the global object
@@ -1474,8 +1559,10 @@ func (c *ContivClient) NetprofileInspect(tenantName string, profileName string) 
 	return &obj, nil
 }
 
-// NetworkPost posts the network object
-func (c *ContivClient) NetworkPost(obj *Network) error {
+// NetworkPost posts the network object and takes timers as a variadic
+// parameter. When timers is passed, this function polls for the network
+// object created.
+func (c *ContivClient) NetworkPost(obj *Network, timers ...int) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.NetworkName
 	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
@@ -1486,7 +1573,9 @@ func (c *ContivClient) NetworkPost(obj *Network) error {
 		log.Debugf("Error creating network %+v. Err: %v", obj, err)
 		return err
 	}
-
+	if len(timers) == 3 {
+		c.PollNetworkGet(obj.TenantName, obj.NetworkName, timers)
+	}
 	return nil
 }
 
@@ -1523,8 +1612,26 @@ func (c *ContivClient) NetworkGet(tenantName string, networkName string) (*Netwo
 	return &obj, nil
 }
 
-// NetworkDelete deletes the network object
-func (c *ContivClient) NetworkDelete(tenantName string, networkName string) error {
+// Poll for network object
+func (c *ContivClient) PollNetworkGet(tenantName string, networkName string, timers []int) {
+	// Get the timers
+	sleepTime := timers[0]
+	totalTime := timers[1]
+	// This parameter is 1 for creation and 0 for deletion
+	mustExist := timers[2]
+
+	for i := 0; i < totalTime/sleepTime; i++ {
+		_, err := c.NetworkGet(tenantName, networkName)
+		if r := checkErrorAndSleep(mustExist, err, sleepTime); r == 1 {
+			break
+		}
+	}
+}
+
+// NetworkDelete deletes the network object and takes timers as a variadic
+// parameter. When timers is passed, this function polls for the network
+// object deleted.
+func (c *ContivClient) NetworkDelete(tenantName string, networkName string, timers ...int) error {
 	// build key and URL
 	keyStr := tenantName + ":" + networkName
 	url := c.baseURL + "/api/v1/networks/" + keyStr + "/"
@@ -1535,7 +1642,9 @@ func (c *ContivClient) NetworkDelete(tenantName string, networkName string) erro
 		log.Debugf("Error deleting network %s. Err: %v", keyStr, err)
 		return err
 	}
-
+	if len(timers) == 3 {
+		c.PollNetworkGet(tenantName, networkName, timers)
+	}
 	return nil
 }
 
@@ -1638,8 +1747,10 @@ func (c *ContivClient) PolicyInspect(tenantName string, policyName string) (*Pol
 	return &obj, nil
 }
 
-// RulePost posts the rule object
-func (c *ContivClient) RulePost(obj *Rule) error {
+// RulePost posts the rule object and takes timers as a variadic
+// parameter. When timers is passed, this function polls for the rule
+// object created.
+func (c *ContivClient) RulePost(obj *Rule, timers ...int) error {
 	// build key and URL
 	keyStr := obj.TenantName + ":" + obj.PolicyName + ":" + obj.RuleID
 	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
@@ -1650,7 +1761,9 @@ func (c *ContivClient) RulePost(obj *Rule) error {
 		log.Debugf("Error creating rule %+v. Err: %v", obj, err)
 		return err
 	}
-
+	if len(timers) == 3 {
+		c.PollRuleGet(obj.TenantName, obj.PolicyName, obj.RuleID, timers)
+	}
 	return nil
 }
 
@@ -1687,8 +1800,26 @@ func (c *ContivClient) RuleGet(tenantName string, policyName string, ruleId stri
 	return &obj, nil
 }
 
-// RuleDelete deletes the rule object
-func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId string) error {
+// Poll for rule object
+func (c *ContivClient) PollRuleGet(tenantName string, policyName string, ruleId string, timers []int) {
+	// Get the timers
+	sleepTime := timers[0]
+	totalTime := timers[1]
+	// This parameter is 1 for creation and 0 for deletion
+	mustExist := timers[2]
+
+	for i := 0; i < totalTime/sleepTime; i++ {
+		_, err := c.RuleGet(tenantName, policyName, ruleId)
+		if r := checkErrorAndSleep(mustExist, err, sleepTime); r == 1 {
+			break
+		}
+	}
+}
+
+// RuleDelete deletes the rule object and takes timers as a variadic
+// parameter. When timers is passed, this function polls for the rule
+// object created.
+func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId string, timers ...int) error {
 	// build key and URL
 	keyStr := tenantName + ":" + policyName + ":" + ruleId
 	url := c.baseURL + "/api/v1/rules/" + keyStr + "/"
@@ -1699,7 +1830,9 @@ func (c *ContivClient) RuleDelete(tenantName string, policyName string, ruleId s
 		log.Debugf("Error deleting rule %s. Err: %v", keyStr, err)
 		return err
 	}
-
+	if len(timers) == 3 {
+		c.PollRuleGet(tenantName, policyName, ruleId, timers)
+	}
 	return nil
 }
 

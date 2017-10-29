@@ -111,7 +111,7 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 			Encap:       "vlan",
 		}
 
-		c.Assert(s.cli.NetworkPost(network), IsNil)
+		c.Assert(s.cli.NetworkPost(network, 2, 15, 1), IsNil)
 		netNames = append(netNames, network.NetworkName)
 	}
 
@@ -121,7 +121,6 @@ func (s *systemtestSuite) TestBgpContainerToNonContainerPing(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	time.Sleep(15 * time.Second)
 	endChan := make(chan error)
 
 	//FIXME make it variable number of quagga instances
@@ -175,7 +174,7 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 			Encap:       "vlan",
 		}
 
-		c.Assert(s.cli.NetworkPost(network), IsNil)
+		c.Assert(s.cli.NetworkPost(network, 2, 15, 1), IsNil)
 		netNames = append(netNames, network.NetworkName)
 	}
 
@@ -186,7 +185,6 @@ func (s *systemtestSuite) TestBgpTriggerPeerAddDelete(c *C) {
 		allcontainers = append(allcontainers, containers[name]...)
 	}
 
-	time.Sleep(5 * time.Second)
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		s.SetupBgp(c, false)
 		s.CheckBgpConnection(c)
@@ -510,19 +508,15 @@ func (s *systemtestSuite) TestBgpTriggerNetpluginRestart(c *C) {
 	for _, node := range s.nodes {
 		var err error
 		c.Assert(node.stopNetplugin(), IsNil)
-		logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
-		time.Sleep(1 * time.Minute)
-		time.Sleep(30 * time.Second)
+		time.Sleep(2 * time.Second)
 		c.Assert(node.rotateLog("netplugin"), IsNil)
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-		time.Sleep(15 * time.Second)
 		s.CheckBgpConnection(c)
 		err = s.CheckBgpRouteDistribution(c, allcontainers)
 		c.Assert(err, IsNil)
 		logrus.Infof("Running ping test")
 		c.Assert(s.pingTest(allcontainers), IsNil)
-		time.Sleep(5 * time.Minute)
 	}
 
 	for name := range containers {
@@ -626,8 +620,7 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 		)
 		iter++
 		c.Assert(nodeToStop.stopNetplugin(), IsNil)
-		logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
-		time.Sleep(2 * time.Minute)
+		time.Sleep(2 * time.Second)
 		s.SetupBgp(c, false)
 		for _, node := range s.nodes {
 
@@ -637,7 +630,6 @@ func (s *systemtestSuite) TestBgpMultiTrigger(c *C) {
 			}
 		}
 		c.Assert(nodeToStop.startNetplugin(""), IsNil)
-		time.Sleep(120 * time.Second)
 		nodeToStop.tbnode.RunCommandWithOutput("sudo ip link set inb01 up")
 		s.CheckBgpConnectionForaNode(c, nodeToStop.tbnode)
 
@@ -874,7 +866,7 @@ func (s *systemtestSuite) CheckBgpConnection(c *C) {
 	for _, n := range s.nodes {
 		go func(n node) {
 			for i := 0; i < 100; i++ {
-				time.Sleep(3 * time.Second)
+				time.Sleep(1 * time.Second)
 				bgp, err := s.cli.BgpInspect(n.Name())
 				if err != nil {
 					continue
@@ -900,7 +892,7 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) {
 	for _, n := range s.nodes {
 		go func(n node) {
 			for i := 0; i < 100; i++ {
-				time.Sleep(3 * time.Second)
+				time.Sleep(1 * time.Second)
 				bgp, err := s.cli.BgpInspect(n.Name())
 				if err != nil {
 					continue
@@ -922,7 +914,7 @@ func (s *systemtestSuite) CheckBgpNoConnection(c *C) {
 
 func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.TestbedNode) error {
 	for i := 0; i < 100; i++ {
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 		bgp, err := s.cli.BgpInspect(node.GetName())
 		if err != nil {
 			continue
@@ -937,7 +929,7 @@ func (s *systemtestSuite) CheckBgpConnectionForaNode(c *C, node remotessh.Testbe
 
 func (s *systemtestSuite) CheckBgpNoConnectionForaNode(c *C, node remotessh.TestbedNode) error {
 	for i := 0; i < 100; i++ {
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 		bgp, err := s.cli.BgpInspect(node.GetName())
 		if err != nil {
 			continue
@@ -978,7 +970,6 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 					logrus.Infof("Done checking container route distribution on node %s", n.Name())
 					return
 				}
-				time.Sleep(1 * time.Second)
 			}
 			endChan <- errors.New("the BGP route distribution is not complete")
 		}(n, containers)
@@ -986,7 +977,6 @@ func (s *systemtestSuite) CheckBgpRouteDistribution(c *C, containers []*containe
 	for range s.nodes {
 		c.Assert(<-endChan, IsNil)
 	}
-	time.Sleep(4 * time.Second)
 	return nil
 }
 
@@ -1028,7 +1018,6 @@ func (s *systemtestSuite) CheckBgpRouteDistributionIPList(c *C, ips []string, in
 				return nil
 			}
 		}
-		time.Sleep(1 * time.Second)
 	}
 	return errors.New("bgp Route distribution not complete")
 }
