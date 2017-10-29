@@ -13,9 +13,13 @@ import (
 var stateDriver *state.FakeStateDriver
 
 // initStateDriver initialize etcd state driver
-func initFakeStateDriver() {
+func initFakeStateDriver(t *testing.T) {
 	instInfo := core.InstanceInfo{}
-	d, _ := utils.NewStateDriver("fakedriver", &instInfo)
+	d, err := utils.NewStateDriver("fakedriver", &instInfo)
+	if err != nil {
+		t.Fatalf("failed to init statedriver. Error: %s", err)
+		t.Fail()
+	}
 	stateDriver = d.(*state.FakeStateDriver)
 }
 
@@ -28,7 +32,7 @@ func TestCreateAndDeleteNetwork(t *testing.T) {
 	// Update plugin driver for unit test
 	docknet.UpdateDockerV2PluginName("bridge", "default")
 
-	initFakeStateDriver()
+	initFakeStateDriver(t)
 	defer deinitStateDriver()
 
 	tenantName := "t1"
@@ -55,9 +59,9 @@ func TestCreateAndDeleteNetwork(t *testing.T) {
 	dnetOper := docknet.DnetOperState{}
 	dnetOper.StateDriver = stateDriver
 
-	dnetOperErr := dnetOper.Read(fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName))
-	if dnetOperErr != nil {
-		t.Fatalf("Unable to read network state. Error: %v", dnetOperErr)
+	err = dnetOper.Read(fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName))
+	if err != nil {
+		t.Fatalf("Unable to read network state. Error: %v", err)
 		t.Fail()
 	}
 
@@ -66,10 +70,10 @@ func TestCreateAndDeleteNetwork(t *testing.T) {
 	dnetOper.StateDriver.Write(networkID, testData)
 
 	// Delete Docker network by using helper
-	delErr := deleteNetworkHelper(dnetOper.DocknetUUID)
+	err = deleteNetworkHelper(dnetOper.DocknetUUID)
 
-	if delErr != nil {
-		t.Fatalf("Unable to delete docker network. Error: %v", delErr)
+	if err != nil {
+		t.Fatalf("Unable to delete docker network. Error: %v", err)
 		t.Fail()
 	}
 }
@@ -78,7 +82,7 @@ func TestDeleteNonExistingNetwork(t *testing.T) {
 	// Update plugin driver for unit test
 	docknet.UpdateDockerV2PluginName("bridge", "default")
 
-	initFakeStateDriver()
+	initFakeStateDriver(t)
 
 	// Delete Docker network by using helper
 	delErr := deleteNetworkHelper("non_existing_network_id")

@@ -751,13 +751,15 @@ func deleteNetworkHelper(networkID string) error {
 		// delete the dnet oper state
 		err = docknet.DeleteDockNetState(dnet.TenantName, dnet.NetworkName, dnet.ServiceName)
 		if err != nil {
-			log.Errorf("Couldn't delete docknet for nwID %s: %s", networkID, err.Error())
-			return errors.New("Failed to delete docket network state")
+			msg := fmt.Sprintf("Could not delete docknet for nwID %s: %s", networkID, err.Error())
+			log.Errorf(msg)
+			return errors.New(msg)
 		}
 		log.Infof("Deleted docker network mapping for %v", networkID)
 	} else {
-		log.Errorf("Couldn't find Docker network %s: %s", networkID, err.Error())
-		return errors.New("Unable to find Docker network")
+		msg := fmt.Sprintf("Could not find Docker network %s: %s", networkID, err.Error())
+		log.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	netID := networkID + ".default"
@@ -771,8 +773,9 @@ func deleteNetworkHelper(networkID string) error {
 
 		err = cluster.MasterDelReq(url)
 		if err != nil {
-			log.Errorf("Failed to delete network: %s", err.Error())
-			return errors.New("Failed to delete network")
+			msg := fmt.Sprintf("Failed to delete network: %s", err.Error())
+			log.Errorf(msg)
+			return errors.New(msg)
 		}
 		log.Infof("Deleted contiv network %v", networkID)
 	} else {
