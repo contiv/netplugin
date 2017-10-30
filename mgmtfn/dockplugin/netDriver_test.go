@@ -76,19 +76,11 @@ func TestCreateAndDeleteNetwork(t *testing.T) {
 		t.Fatalf("Unable to delete docker network. Error: %v", err)
 		t.Fail()
 	}
-}
 
-func TestDeleteNonExistingNetwork(t *testing.T) {
-	// Update plugin driver for unit test
-	docknet.UpdateDockerV2PluginName("bridge", "default")
-
-	initFakeStateDriver(t)
-
-	// Delete Docker network by using helper
-	delErr := deleteNetworkHelper("non_existing_network_id")
-
-	if delErr == nil {
-		t.Fatalf("Expect deleteNetworkHelper returns error when network is not presented")
+	// ensure network is not in the oper state
+	err = dnetOper.Read(fmt.Sprintf("%s.%s.%s", tenantName, networkName, serviceName))
+	if err == nil {
+		t.Fatalf("Fail to delete docket network")
 		t.Fail()
 	}
 }

@@ -759,7 +759,6 @@ func deleteNetworkHelper(networkID string) error {
 	} else {
 		msg := fmt.Sprintf("Could not find Docker network %s: %s", networkID, err.Error())
 		log.Errorf(msg)
-		return errors.New(msg)
 	}
 
 	netID := networkID + ".default"
