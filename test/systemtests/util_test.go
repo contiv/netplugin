@@ -1016,7 +1016,6 @@ func (s *systemtestSuite) verifyNodeRemoved(removed *node) error {
 		if err == nil {
 			return nil
 		}
-		time.Sleep(1 * time.Second)
 	}
 	logrus.Errorf("Node %s failed to verify node removal ERR: %v", failNode, err)
 	logrus.Infof("Debug output:\n %s", dbgOut)
@@ -1051,7 +1050,6 @@ func (s *systemtestSuite) verifyVTEPs() error {
 		if err == nil {
 			return nil
 		}
-		time.Sleep(1 * time.Second)
 	}
 
 	logrus.Errorf("Node %s failed to verify all VTEPs. ERR: %v", failNode, err)
@@ -1085,7 +1083,6 @@ func (s *systemtestSuite) verifyEPs(containers []*container) error {
 			logrus.Infof("EPs %v verified on all nodes", epList)
 			return nil
 		}
-		time.Sleep(1 * time.Second)
 	}
 	logrus.Errorf("Failed to verify EPs after 20 sec %v", err)
 	logrus.Infof("Debug output:\n %s", dbgOut)
@@ -1114,7 +1111,6 @@ func (s *systemtestSuite) verifyIPs(ipaddrs []string) error {
 				return nil
 			}
 		}
-		time.Sleep(1 * time.Second)
 	}
 
 	logrus.Errorf("Failed to verify EP after 20 sec %v ", err)
@@ -1345,15 +1341,11 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 
 	}
 
-	time.Sleep(15 * time.Second)
-
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(""), IsNil)
-		time.Sleep(1 * time.Second)
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != kubeScheduler {
 		for i := 0; i < 11; i++ {
 			_, err := s.cli.TenantGet("default")
@@ -1362,7 +1354,6 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 			}
 			// Fail if we reached last iteration
 			c.Assert((i < 10), Equals, true)
-			time.Sleep(500 * time.Millisecond)
 		}
 	}
 	if s.fwdMode == "routing" {
@@ -1373,8 +1364,7 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
 			PvtSubnet:        "172.19.0.0/16",
-		}), IsNil)
-		time.Sleep(40 * time.Second)
+		}, 2, 40, 1), IsNil)
 	}
 }
 
@@ -1407,8 +1397,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	time.Sleep(15 * time.Second)
-
 	errors = s.parallelExec(func(node *node) error {
 		return node.startNetmaster("")
 	})
@@ -1423,8 +1411,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
-
 	if s.basicInfo.Scheduler != kubeScheduler {
 		for i := 0; i < 21; i++ {
 
@@ -1434,7 +1420,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			}
 			// Fail if we reached last iteration
 			c.Assert((i < 30), Equals, true)
-			time.Sleep(1 * time.Second)
 		}
 	}
 
@@ -1450,8 +1435,7 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			Vxlans:           "1-10000",
 			ArpMode:          "proxy",
 			PvtSubnet:        "172.19.0.0/16",
-		}), IsNil)
-		time.Sleep(120 * time.Second)
+		}, 2, 120, 1), IsNil)
 	}
 }
 
@@ -1513,7 +1497,6 @@ func (s *systemtestSuite) TearDownDefaultNetwork() error {
 		logrus.Errorf("default-net not deleted. Err: %+v", err)
 		return err
 	}
-	time.Sleep(time.Second)
 	return nil
 }
 
@@ -1533,6 +1516,5 @@ func (s *systemtestSuite) SetupDefaultNetwork() error {
 		logrus.Errorf("default-net not created. Err: %+v", err)
 		return err
 	}
-	time.Sleep(time.Second)
 	return nil
 }

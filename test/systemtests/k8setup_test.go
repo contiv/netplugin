@@ -103,8 +103,8 @@ func (k *kubernetes) runContainer(spec containerSpec) (*container, error) {
 
 	//find out the node where pod is deployed
 
-	for i := 0; i < 50; i++ {
-		time.Sleep(5 * time.Second)
+	for i := 0; i < 125; i++ {
+		time.Sleep(2 * time.Second)
 		cmd = fmt.Sprintf("kubectl get pods -o wide | grep %s", spec.name)
 		////master.lock()
 		out, err = k8master.tbnode.RunCommandWithOutput(cmd)
@@ -240,6 +240,22 @@ func (k *kubernetes) getMACAddr(c *container, dev string) (string, error) {
 	return out, err
 }
 
+// execRetry retires the command until there is no error or for a specifed duration
+func (k *kubernetes) execRetry(c *container, args string, sleepTime int, totalTime int) (string, error) {
+	var out string
+	var err error
+
+	for i := 0; i < totalTime/sleepTime; i++ {
+		out, err = k.exec(c, args)
+		if err != nil {
+			time.Sleep(time.Duration(sleepTime) * time.Second)
+		} else {
+			return out, err
+		}
+	}
+	return out, err
+}
+
 func (k *kubernetes) exec(c *container, args string) (string, error) {
 	cmd := fmt.Sprintf("kubectl exec %s -- %s", c.containerID, args)
 	logrus.Infof("Exec: Running command %s", cmd)
@@ -281,12 +297,12 @@ func (k *kubernetes) stop(c *container) error {
 func (k *kubernetes) rm(c *container) error {
 	logrus.Infof("Removing Pod: %s on %s", c.containerID, c.node.Name())
 	k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod %s", c.name))
-	for i := 0; i < 80; i++ {
+	for i := 0; i < 200; i++ {
 		out, _ := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl get pod %s", c.containerID))
 		if strings.Contains(out, "not found") {
 			return nil
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	return fmt.Errorf("error Termininating pod %s on node %s", c.name, c.node.Name())
 }
@@ -298,7 +314,7 @@ func (k *kubernetes) startListener(c *container, port int, protocol string) erro
 		protoStr = "-u"
 	}
 
-	k.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
+	k.execRetry(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port), 2, 60)
 	return nil
 
 }
@@ -398,7 +414,7 @@ func (k *kubernetes) checkConnection(c *container, ipaddr, protocol string, port
 
 	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
-	out, err := k.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
+	out, err := k.execRetry(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port), 2, 60)
 	if err != nil && !strings.Contains(out, "open") {
 		logrus.Errorf("Connection from %v to ip %s on port %d FAILED", *c, ipaddr, port)
 	} else {
@@ -468,7 +484,7 @@ func (k *kubernetes) startNetmaster(args string) error {
 		return nil
 	}
 	logrus.Infof("Starting netmaster on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes " + args + " &> /tmp/netmaster.log")
+	return k.node.tbnode.RunCommand(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes " + args + " &> /tmp/netmaster.log")
 }
 
 func (k *kubernetes) cleanupMaster() {
