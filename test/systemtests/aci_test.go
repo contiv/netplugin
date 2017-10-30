@@ -381,7 +381,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		Protocol:          "tcp",
 		Port:              8001,
 		Action:            "allow",
-	}2, 10, 1), IsNil)
+	}, 2, 10, 1), IsNil)
 
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
