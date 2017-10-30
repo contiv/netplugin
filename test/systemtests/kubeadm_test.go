@@ -565,7 +565,8 @@ func (k *kubePod) startNetmaster(args string) error {
 
 	netmasterStartCmd := k.node.suite.basicInfo.BinPath + `/netmaster` + ` -cluster-store=` + k.node.suite.basicInfo.ClusterStore + ` -cluster-mode=kubernetes ` + args + ` > ` + netmasterLogLocation + ` 2>&1`
 
-	return k.podExec(podName, netmasterStartCmd, "kube-system")
+	_, podExecErr := k.podExec(podName, netmasterStartCmd, "kube-system")
+	return podExecErr
 }
 
 func (k *kubePod) cleanupMaster() {
