@@ -80,14 +80,13 @@ func (s *systemtestSuite) testServiceAddDeleteService(c *C, encap string) {
 				}
 				logrus.Infof("Creating network %s on tenant %s", network.NetworkName, network.TenantName)
 
-				c.Assert(s.cli.NetworkPost(network), IsNil)
+				c.Assert(s.cli.NetworkPost(network, 2, 6, 1), IsNil)
 				netNames = append(netNames, network.NetworkName)
 				tenantNames[tenantName] = append(tenantNames[tenantName], network.NetworkName)
 			}
 
 			serviceNetworks[tenantName] = s.createServiceNetworks(c, i, numSvcNet, tenantName, encap)
 		}
-		time.Sleep(6 * time.Second)
 		for tenant, networks := range tenantNames {
 			endChan := make(chan error)
 			for _, network := range networks {
@@ -564,13 +563,9 @@ func (s systemtestSuite) testServiceTriggerNetmasterSwitchover(c *C, encap strin
 						goto finished
 					}
 				}
-
-				time.Sleep(5 * time.Second)
 			}
 		finished:
 			c.Assert(oldLeader.startNetmaster(""), IsNil)
-			time.Sleep(10 * time.Second)
-
 			for tenant, serviceContainers := range servicesPerTenant {
 				for name, containers := range serviceContainers {
 					s.deleteProviders(c, containers)
@@ -735,12 +730,10 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 				}
 			}
 			c.Assert(node.stopNetplugin(), IsNil)
-			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
-			time.Sleep(2 * time.Minute)
+			time.Sleep(2 * time.Second)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
 			c.Assert(node.startNetplugin(""), IsNil)
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-			time.Sleep(20 * time.Second)
 			if s.fwdMode == "routing" && encap == "vlan" {
 				s.CheckBgpConnection(c)
 				for _, cList := range containers {
@@ -749,7 +742,6 @@ func (s systemtestSuite) testServiceTriggerNetpluginRestart(c *C, encap string) 
 				}
 			} else {
 				c.Assert(s.verifyVTEPs(), IsNil)
-				time.Sleep(2 * time.Second)
 			}
 			for _, ips := range serviceIPs {
 				endChan := make(chan error)

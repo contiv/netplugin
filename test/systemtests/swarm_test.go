@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type swarm struct {
@@ -199,6 +200,22 @@ func (w *swarm) getMACAddr(c *container, dev string) (string, error) {
 	return out, err
 }
 
+// execRetry retires the command until there is no error or for a specifed duration
+func (w *swarm) execRetry(c *container, args string, sleepTime int, totalTime int) (string, error) {
+	var out string
+	var err error
+
+	for i := 0; i < totalTime/sleepTime; i++ {
+		out, err = w.exec(c, args)
+		if err != nil {
+			time.Sleep(time.Duration(sleepTime) * time.Second)
+		} else {
+			return out, err
+		}
+	}
+	return out, err
+}
+
 func (w *swarm) exec(c *container, args string) (string, error) {
 	out, err := c.node.runCommand(fmt.Sprintf(w.env+"docker exec %s %s", c.containerID, args))
 	if err != nil {
@@ -250,7 +267,7 @@ func (w *swarm) startListener(c *container, port int, protocol string) error {
 	}
 
 	logrus.Infof("Starting a %s listener on %v port %d", protocol, c, port)
-	_, err := w.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
+	_, err := w.execRetry(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port), 2, 60)
 	return err
 }
 
@@ -359,7 +376,7 @@ func (w *swarm) checkConnection(c *container, ipaddr, protocol string, port int)
 
 	logrus.Infof("Checking connection from %v to ip %s on port %d", c, ipaddr, port)
 
-	_, err := w.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
+	_, err := w.execRetry(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port), 2, 60)
 	if err != nil {
 		logrus.Errorf("Connection from %v to ip %s on port %d FAILED", c, ipaddr, port)
 	} else {
@@ -408,7 +425,7 @@ func (w *swarm) stopNetmaster() error {
 
 func (w *swarm) startNetmaster(args string) error {
 	logrus.Infof("Starting netmaster on %s", w.node.Name())
-	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netmaster.log")
+	return w.node.tbnode.RunCommand("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netmaster.log")
 }
 func (w *swarm) cleanupMaster() {
 	logrus.Infof("Cleaning up master on %s", w.node.Name())
