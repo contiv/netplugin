@@ -240,7 +240,7 @@ func (k *kubernetes) getMACAddr(c *container, dev string) (string, error) {
 	return out, err
 }
 
-// execRetry retires the command until there is no error or for a specifed duration
+// execRetry retires the command until there is no error or for a specified duration
 func (k *kubernetes) execRetry(c *container, args string, sleepTime int, totalTime int) (string, error) {
 	var out string
 	var err error

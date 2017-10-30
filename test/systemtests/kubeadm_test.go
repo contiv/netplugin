@@ -249,7 +249,7 @@ func (k *kubePod) getMACAddr(c *container, dev string) (string, error) {
 }
 
 /*
-* execRetry retires the command until there is no error or for a specifed duration
+* execRetry retires the command until there is no error or for a specified duration
  */
 func (k *kubePod) execRetry(podName, args string, sleepTime int, totalTime int, ns ...string) (string, error) {
 	var out string
