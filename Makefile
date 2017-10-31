@@ -1,6 +1,5 @@
-# make BUILD_VERSION=1.2.3 [compile-with-docker] will set netplugin -version output
-# make BUILD_VERSION=1.2.3 tar will set the tar filename
-# default naming will otherwise be value of version/CURRENT_VERSION
+# BUILD_VERSION will affect archive filenames as well as -version
+# default version will be based on $(git describe --tags --always)
 
 
 .PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
@@ -14,13 +13,9 @@ TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contiv
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
 NAME := netplugin
-# We are using date based versioning, so for consistent version during a build
-# we evaluate and set the value of version once in a file and use it in 'tar'
-# and 'release' targets.
-VERSION_FILE := $(NAME)-version
-VERSION := `cat $(VERSION_FILE)`
+VERSION := $(shell scripts/getGitVersion.sh)
 TAR_EXT := tar.bz2
-NETPLUGIN_CONTAINER_TAG := $(shell ./scripts/getGitCommit.sh)
+NETPLUGIN_CONTAINER_TAG := $(shell ./scripts/getGitVersion.sh)
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
 TAR_LOC := .
 TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
@@ -97,17 +92,16 @@ checks-with-docker:
 
 compile:
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
-	TO_BUILD="${TO_BUILD}" VERSION_FILE=${VERSION_FILE} \
-	scripts/build.sh
+	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} TO_BUILD="${TO_BUILD}" \
+	BUILD_VERSION=$(VERSION) scripts/build.sh
 
 # fully prepares code for pushing to branch, includes building binaries
 run-build: deps checks clean compile
 
 compile-with-docker:
 	docker build \
-		--build-arg NIGHTLY_RELEASE=${NIGHTLY_RELEASE} \
-		--build-arg BUILD_VERSION=${BUILD_VERSION} \
+		--build-arg NIGHTLY_RELEASE=$(NIGHTLY_RELEASE) \
+		--build-arg BUILD_VERSION=$(VERSION) \
 		-t netplugin-build:$(NETPLUGIN_CONTAINER_TAG) .
 
 build-docker-image: start
@@ -342,11 +336,12 @@ tar: compile-with-docker
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
-	@rm -f ${VERSION_FILE}
 
 # GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
-release: tar
-	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) \
-	OLD_VERSION=${OLD_VERSION} BUILD_VERSION=${BUILD_VERSION} \
+release-built-version: tar
+	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) OLD_VERSION=${OLD_VERSION} \
 	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} scripts/release.sh
 	@make clean-tar
+release: export BUILD_VERSION=$(shell cat version/CURRENT_VERSION)
+release:
+	@make release-built-version BUILD_VERSION=$(shell cat version/CURRENT_VERSION)
