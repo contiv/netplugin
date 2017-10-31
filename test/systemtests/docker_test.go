@@ -212,21 +212,6 @@ func (d *docker) getMACAddr(c *container, dev string) (string, error) {
 	return out, err
 }
 
-func (d *docker) execRetry(c *container, args string, sleepTime int, totalTime int) (string, error) {
-	var out string
-	var err error
-
-	for i := 0; i < totalTime/sleepTime; i++ {
-		out, err = d.exec(c, args)
-		if err != nil {
-			time.Sleep(time.Duration(sleepTime) * time.Second)
-		} else {
-			return out, err
-		}
-	}
-	return out, err
-}
-
 func (d *docker) exec(c *container, args string) (string, error) {
 	out, err := c.node.runCommand(fmt.Sprintf("docker exec %s %s", c.containerID, args))
 	if err != nil {
@@ -275,7 +260,7 @@ func (d *docker) startListener(c *container, port int, protocol string) error {
 	}
 
 	logrus.Infof("Starting a %s listener on %v port %d", protocol, c, port)
-	_, err := d.execRetry(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port), 2, 60)
+	_, err := d.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
 	return err
 }
 
@@ -413,7 +398,7 @@ func (d *docker) checkConnection(c *container, ipaddr, protocol string, port int
 
 	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
-	_, err := d.execRetry(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port), 2, 60)
+	_, err := d.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil {
 		logrus.Errorf("Connection from %v to ip %s on port %d FAILED", c, ipaddr, port)
 	} else {
@@ -462,7 +447,7 @@ func (d *docker) stopNetmaster() error {
 func (d *docker) startNetmaster(args string) error {
 	cmd := d.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netmaster.log"
 	logrus.Infof("Starting netmaster on %s with command: %s", d.node.Name(), cmd)
-	return d.node.tbnode.RunCommand(cmd)
+	return d.node.tbnode.RunCommandBackground(cmd)
 }
 func (d *docker) cleanupMaster() {
 	logrus.Infof("Cleaning up master on %s", d.node.Name())

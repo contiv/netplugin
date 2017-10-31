@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -249,30 +248,6 @@ func (k *kubePod) getMACAddr(c *container, dev string) (string, error) {
 }
 
 /*
-* execRetry retires the command until there is no error or for a specified duration
- */
-func (k *kubePod) execRetry(podName, args string, sleepTime int, totalTime int, ns ...string) (string, error) {
-	var out string
-	var err error
-	namespace := "default"
-	if len(ns) != 0 {
-		namespace = ns[0]
-	}
-	cmd := `kubectl -n ` + namespace + ` exec ` + podName + ` -- ` + args
-
-	for i := 0; i < totalTime/sleepTime; i++ {
-		logrus.Debugf("Exec: Running command -- %s", cmd)
-		out, err := k8sMaster.runCommand(cmd)
-		if err != nil {
-			time.Sleep(time.Duration(sleepTime) * time.Second)
-		} else {
-			return out, err
-		}
-	}
-	return out, err
-}
-
-/*
 * exec is used to run a specific command using kubectl on the host
  */
 func (k *kubePod) exec(podName, args string, ns ...string) (string, error) {
@@ -374,7 +349,7 @@ func (k *kubePod) startListener(c *container, port int, protocol string) error {
 		protoStr = "-u"
 	}
 
-	k.execRetry(c.containerID, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port), 2, 60)
+	k.execBG(c.containerID, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
 	return nil
 
 }
@@ -474,7 +449,7 @@ func (k *kubePod) checkConnection(c *container, ipaddr, protocol string, port in
 
 	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
-	out, err := k.execRetry(c.containerID, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port), 2, 60)
+	out, err := k.exec(c.containerID, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil && !strings.Contains(out, "open") {
 		logrus.Errorf("Connection from %v to ip %s on port %d FAILED", *c, ipaddr, port)
 	} else {
@@ -565,8 +540,7 @@ func (k *kubePod) startNetmaster(args string) error {
 
 	netmasterStartCmd := k.node.suite.basicInfo.BinPath + `/netmaster` + ` -cluster-store=` + k.node.suite.basicInfo.ClusterStore + ` -cluster-mode=kubernetes ` + args + ` > ` + netmasterLogLocation + ` 2>&1`
 
-	_, podExecErr := k.podExec(podName, netmasterStartCmd, "kube-system")
-	return podExecErr
+	return k.podExecBG(podName, netmasterStartCmd, "kube-system")
 }
 
 func (k *kubePod) cleanupMaster() {

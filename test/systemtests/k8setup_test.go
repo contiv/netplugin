@@ -240,22 +240,6 @@ func (k *kubernetes) getMACAddr(c *container, dev string) (string, error) {
 	return out, err
 }
 
-// execRetry retires the command until there is no error or for a specified duration
-func (k *kubernetes) execRetry(c *container, args string, sleepTime int, totalTime int) (string, error) {
-	var out string
-	var err error
-
-	for i := 0; i < totalTime/sleepTime; i++ {
-		out, err = k.exec(c, args)
-		if err != nil {
-			time.Sleep(time.Duration(sleepTime) * time.Second)
-		} else {
-			return out, err
-		}
-	}
-	return out, err
-}
-
 func (k *kubernetes) exec(c *container, args string) (string, error) {
 	cmd := fmt.Sprintf("kubectl exec %s -- %s", c.containerID, args)
 	logrus.Infof("Exec: Running command %s", cmd)
@@ -314,7 +298,7 @@ func (k *kubernetes) startListener(c *container, port int, protocol string) erro
 		protoStr = "-u"
 	}
 
-	k.execRetry(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port), 2, 60)
+	k.execBG(c, fmt.Sprintf("nc -lk %s -p %v -e /bin/true", protoStr, port))
 	return nil
 
 }
@@ -414,7 +398,7 @@ func (k *kubernetes) checkConnection(c *container, ipaddr, protocol string, port
 
 	logrus.Infof("Checking connection from %s to ip %s on port %d", c, ipaddr, port)
 
-	out, err := k.execRetry(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port), 2, 60)
+	out, err := k.exec(c, fmt.Sprintf("nc -z -n -v -w 1 %s %s %v", protoStr, ipaddr, port))
 	if err != nil && !strings.Contains(out, "open") {
 		logrus.Errorf("Connection from %v to ip %s on port %d FAILED", *c, ipaddr, port)
 	} else {
@@ -484,7 +468,7 @@ func (k *kubernetes) startNetmaster(args string) error {
 		return nil
 	}
 	logrus.Infof("Starting netmaster on %s", k.node.Name())
-	return k.node.tbnode.RunCommand(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes " + args + " &> /tmp/netmaster.log")
+	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes " + args + " &> /tmp/netmaster.log")
 }
 
 func (k *kubernetes) cleanupMaster() {
