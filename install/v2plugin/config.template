@@ -102,7 +102,7 @@
              "value"
           ],
           ## Do not change the default value, this will be replaced with $CONTIV_V2PLUGIN_NAME
-          "Value": "PluginName"
+          "Value": "__CONTIV_V2PLUGIN_NAME__"
        }
     ],
     "mounts": [
