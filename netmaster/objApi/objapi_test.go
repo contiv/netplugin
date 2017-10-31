@@ -1418,8 +1418,12 @@ func TestNetworkPktRanges(t *testing.T) {
 
 // TestPolicyRules tests policy and rule REST objects
 func TestPolicyRules(t *testing.T) {
+	containerID1 := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
+	ep1 := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
 	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "", "")
 	checkCreateEpg(t, false, "default", "contiv", "group1", []string{}, []string{}, "")
+	createEPinEPG(t, "10.1.1.15", "default", "group1", containerID1, "default", ep1, []string{})
+
 	// create policy
 	checkCreatePolicy(t, false, "default", "policy1")
 
@@ -1434,6 +1438,14 @@ func TestPolicyRules(t *testing.T) {
 	checkCreateRule(t, false, "default", "policy1", "5", "out", "", "", "", "", "", "10.1.1.1/24", "tcp", "allow", 1, 80)
 	checkCreateRule(t, false, "default", "policy1", "6", "in", "", "group1", "", "", "", "", "", "deny", 1, 0)
 	checkCreateRule(t, false, "default", "policy1", "7", "out", "", "", "", "", "group1", "", "tcp", "allow", 1, 80)
+
+	// verify --to-ip, no linked epg fails
+	checkCreateRule(t, true, "default", "policy1", "to-ip", "in", "", "", "10.1.1.15", "", "", "10.2.1.31", "tcp", "allow", 1, 80)
+	// verify --to-ip not in epg fails
+	checkCreateEpg(t, false, "default", "contiv", "group1", []string{"policy1"}, []string{}, "")
+	checkCreateRule(t, true, "default", "policy1", "to-ip", "in", "", "", "10.2.1.115", "", "", "10.1.1.19", "tcp", "allow", 1, 80)
+	checkCreateRule(t, false, "default", "policy1", "to-ip", "in", "", "", "10.2.1.11", "", "", "10.1.1.15", "tcp", "allow", 1, 80)
+	checkCreateEpg(t, false, "default", "contiv", "group1", []string{}, []string{}, "")
 
 	// verify duplicate rule id fails
 	checkCreateRule(t, true, "default", "policy1", "1", "in", "", "", "", "", "", "", "tcp", "allow", 1, 80)
@@ -1479,6 +1491,7 @@ func TestPolicyRules(t *testing.T) {
 	// checkCreateRule(t, true, tenant, policy, ruleID, dir, fnet, fepg, fip, tnet, tepg, tip, proto, prio, port)
 
 	// delete rules
+	checkDeleteRule(t, false, "default", "policy1", "to-ip")
 	checkDeleteRule(t, false, "default", "policy1", "1")
 	checkDeleteRule(t, false, "default", "policy1", "2")
 	checkDeleteRule(t, false, "default", "policy1", "3")
@@ -1493,6 +1506,8 @@ func TestPolicyRules(t *testing.T) {
 
 	// delete policy
 	checkDeletePolicy(t, false, "default", "policy1")
+
+	deleteEP(t, "default", "default", ep1)
 	// delete the EPG
 	checkDeleteEpg(t, false, "default", "contiv", "group1")
 	// delete the network
@@ -2242,6 +2257,29 @@ func get(getAll bool, hook func(id string) ([]core.State, error)) func(http.Resp
 
 		w.Write(resp)
 		return
+	}
+}
+
+func createEPinEPG(t *testing.T, providerIP, network, epg, containerID, tenant, endpointID string, labels []string) {
+
+	epCfg := &mastercfg.CfgEndpointState{
+		NetID:            network,
+		EndpointID:       endpointID,
+		IPAddress:        providerIP,
+		EndpointGroupKey: epg + ":" + tenant,
+	}
+	epCfg.Labels = make(map[string]string)
+	for _, v := range labels {
+		key := strings.Split(v, "=")[0]
+		value := strings.Split(v, "=")[1]
+		epCfg.Labels[key] = value
+	}
+	epCfg.StateDriver = stateStore
+	netID := network + "." + tenant
+	epCfg.ID = netID + "-" + endpointID
+	err := epCfg.Write()
+	if err != nil {
+		t.Errorf("Error creating Ep :%s", err)
 	}
 }
 
