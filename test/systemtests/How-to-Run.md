@@ -11,7 +11,7 @@ Swarm -- Non-ACI
 ```
 A guide to running netplugin systemtests on Vagrant and Baremetal platforms:
 
-Customize the JSON file netplugin/systemtests/cfg.json according to your environment. A typical file for vagrant with swarm looks like:
+Customize the example JSON file `netplugin/systemtests/cfg.json.example` according to your environment and rename it to `netplugin/systemtests/cfg.json`. A typical file for vagrant with swarm looks like:
 ```
 [
     {
