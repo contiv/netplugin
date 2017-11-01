@@ -76,7 +76,7 @@ func checkDocknetCreate(t *testing.T, tenantName, networkName, serviceName, subn
 	// create a docker network
 	err := CreateDockNet(tenantName, networkName, serviceName, &nwcfg)
 	if err != nil {
-		t.Fatalf("Error creating docker ntework. Err: %v", err)
+		t.Fatalf("Error creating docker network. Err: %v", err)
 	}
 
 	// verify docknet state is created
@@ -204,8 +204,7 @@ func checkDocknetDelete(t *testing.T, tenantName, networkName, serviceName strin
 
 func TestMain(m *testing.M) {
 	// change driver names for unit-testing
-	netDriverName = "bridge"
-	ipamDriverName = "default"
+	UpdateDockerV2PluginName("bridge", "default")
 
 	initStateDriver()
 
@@ -224,4 +223,22 @@ func TestDocknetCreateDelete(t *testing.T) {
 	// test service names
 	checkDocknetCreate(t, "unit-test", "net1", "srv1", "10.1.1.1/24", "10.1.1.254")
 	checkDocknetDelete(t, "unit-test", "net1", "srv1")
+}
+
+func TestUpdateDockerV2PluginName(t *testing.T) {
+	expectNetDriver := "bridge"
+	expectIPAMDriver := "default"
+	UpdateDockerV2PluginName("bridge", "default")
+
+	if expectNetDriver != netDriverName {
+		t.Fatalf("Unexpected netdriver name. Expected: %s. Actual: %s",
+			expectNetDriver, netDriverName)
+		t.Fail()
+	}
+
+	if expectIPAMDriver != ipamDriverName {
+		t.Fatalf("Unexpected ipamdriver name. Expected: %s. Actual: %s",
+			expectIPAMDriver, ipamDriverName)
+		t.Fail()
+	}
 }

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euxo pipefail
+
 BUILD_TIME=$(date -u +%m-%d-%Y.%H-%M-%S.UTC)
 VERSION=$(cat version/CURRENT_VERSION | tr -d '\n')
 PKG_NAME=github.com/contiv/netplugin/version
@@ -19,7 +21,7 @@ GIT_COMMIT=$(./scripts/getGitCommit.sh)
 
 echo $BUILD_VERSION >$VERSION_FILE
 
-GOGC=1500 go install \
+GOGC=1500 go install -v \
 	-ldflags "-X $PKG_NAME.version=$BUILD_VERSION \
 	-X $PKG_NAME.buildTime=$BUILD_TIME \
 	-X $PKG_NAME.gitCommit=$GIT_COMMIT \

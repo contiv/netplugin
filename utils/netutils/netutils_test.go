@@ -523,3 +523,22 @@ func TestClearIPAddrRange(t *testing.T) {
 	}
 
 }
+
+func TestIsOverlappingSubnet(t *testing.T) {
+	testAddrRange := []struct {
+		src     string
+		match   string
+		overlap bool
+	}{
+		{src: "10.36.0.1/32", match: "10.36.0.0/24", overlap: true},
+		{src: "20.20.0.20/32", match: "20.20.0.0/16", overlap: true},
+		{src: "20.20.5.20/32", match: "20.20.0.0/24", overlap: false},
+	}
+
+	for _, i := range testAddrRange {
+
+		overlap := IsOverlappingSubnet(i.src, i.match)
+		assertOnTrue(t, overlap != i.overlap, fmt.Sprintf("%+v got %v ", i, overlap))
+	}
+
+}

@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/objdb/modeldb"
+	"github.com/contiv/netplugin/objdb/modeldb"
 	"github.com/gorilla/mux"
 	"net/http"
 	"regexp"
@@ -1138,7 +1138,7 @@ func httpGetAciGw(w http.ResponseWriter, r *http.Request, vars map[string]string
 	defer collections.aciGwMutex.Unlock()
 	obj := collections.aciGws[key]
 	if obj == nil {
-		log.Errorf("aciGw %s not found", key)
+		log.Infof("aciGw %s not found", key)
 		return nil, errors.New("aciGw not found")
 	}
 
@@ -1482,7 +1482,7 @@ func httpGetAppProfile(w http.ResponseWriter, r *http.Request, vars map[string]s
 	defer collections.appProfileMutex.Unlock()
 	obj := collections.appProfiles[key]
 	if obj == nil {
-		log.Errorf("appProfile %s not found", key)
+		log.Infof("appProfile %s not found", key)
 		return nil, errors.New("appProfile not found")
 	}
 
@@ -1813,7 +1813,7 @@ func httpGetBgp(w http.ResponseWriter, r *http.Request, vars map[string]string) 
 	defer collections.BgpMutex.Unlock()
 	obj := collections.Bgps[key]
 	if obj == nil {
-		log.Errorf("Bgp %s not found", key)
+		log.Infof("Bgp %s not found", key)
 		return nil, errors.New("Bgp not found")
 	}
 
@@ -2191,7 +2191,7 @@ func httpGetEndpointGroup(w http.ResponseWriter, r *http.Request, vars map[strin
 	defer collections.endpointGroupMutex.Unlock()
 	obj := collections.endpointGroups[key]
 	if obj == nil {
-		log.Errorf("endpointGroup %s not found", key)
+		log.Infof("endpointGroup %s not found", key)
 		return nil, errors.New("endpointGroup not found")
 	}
 
@@ -2526,7 +2526,7 @@ func httpGetExtContractsGroup(w http.ResponseWriter, r *http.Request, vars map[s
 	defer collections.extContractsGroupMutex.Unlock()
 	obj := collections.extContractsGroups[key]
 	if obj == nil {
-		log.Errorf("extContractsGroup %s not found", key)
+		log.Infof("extContractsGroup %s not found", key)
 		return nil, errors.New("extContractsGroup not found")
 	}
 
@@ -2857,7 +2857,7 @@ func httpGetGlobal(w http.ResponseWriter, r *http.Request, vars map[string]strin
 	defer collections.globalMutex.Unlock()
 	obj := collections.globals[key]
 	if obj == nil {
-		log.Errorf("global %s not found", key)
+		log.Infof("global %s not found", key)
 		return nil, errors.New("global not found")
 	}
 
@@ -3198,7 +3198,7 @@ func httpGetNetprofile(w http.ResponseWriter, r *http.Request, vars map[string]s
 	defer collections.netprofileMutex.Unlock()
 	obj := collections.netprofiles[key]
 	if obj == nil {
-		log.Errorf("netprofile %s not found", key)
+		log.Infof("netprofile %s not found", key)
 		return nil, errors.New("netprofile not found")
 	}
 
@@ -3536,7 +3536,7 @@ func httpGetNetwork(w http.ResponseWriter, r *http.Request, vars map[string]stri
 	defer collections.networkMutex.Unlock()
 	obj := collections.networks[key]
 	if obj == nil {
-		log.Errorf("network %s not found", key)
+		log.Infof("network %s not found", key)
 		return nil, errors.New("network not found")
 	}
 
@@ -3914,7 +3914,7 @@ func httpGetPolicy(w http.ResponseWriter, r *http.Request, vars map[string]strin
 	defer collections.policyMutex.Unlock()
 	obj := collections.policys[key]
 	if obj == nil {
-		log.Errorf("policy %s not found", key)
+		log.Infof("policy %s not found", key)
 		return nil, errors.New("policy not found")
 	}
 
@@ -4222,7 +4222,7 @@ func httpGetRule(w http.ResponseWriter, r *http.Request, vars map[string]string)
 	defer collections.ruleMutex.Unlock()
 	obj := collections.rules[key]
 	if obj == nil {
-		log.Errorf("rule %s not found", key)
+		log.Infof("rule %s not found", key)
 		return nil, errors.New("rule not found")
 	}
 
@@ -4639,7 +4639,7 @@ func httpGetServiceLB(w http.ResponseWriter, r *http.Request, vars map[string]st
 	defer collections.serviceLBMutex.Unlock()
 	obj := collections.serviceLBs[key]
 	if obj == nil {
-		log.Errorf("serviceLB %s not found", key)
+		log.Infof("serviceLB %s not found", key)
 		return nil, errors.New("serviceLB not found")
 	}
 
@@ -4988,7 +4988,7 @@ func httpGetTenant(w http.ResponseWriter, r *http.Request, vars map[string]strin
 	defer collections.tenantMutex.Unlock()
 	obj := collections.tenants[key]
 	if obj == nil {
-		log.Errorf("tenant %s not found", key)
+		log.Infof("tenant %s not found", key)
 		return nil, errors.New("tenant not found")
 	}
 
@@ -5296,7 +5296,7 @@ func httpGetVolume(w http.ResponseWriter, r *http.Request, vars map[string]strin
 	defer collections.volumeMutex.Unlock()
 	obj := collections.volumes[key]
 	if obj == nil {
-		log.Errorf("volume %s not found", key)
+		log.Infof("volume %s not found", key)
 		return nil, errors.New("volume not found")
 	}
 
@@ -5586,7 +5586,7 @@ func httpGetVolumeProfile(w http.ResponseWriter, r *http.Request, vars map[strin
 	defer collections.volumeProfileMutex.Unlock()
 	obj := collections.volumeProfiles[key]
 	if obj == nil {
-		log.Errorf("volumeProfile %s not found", key)
+		log.Infof("volumeProfile %s not found", key)
 		return nil, errors.New("volumeProfile not found")
 	}
 

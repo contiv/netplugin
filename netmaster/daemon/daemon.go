@@ -32,8 +32,8 @@ import (
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
 	"github.com/contiv/netplugin/netmaster/resources"
+	"github.com/contiv/netplugin/objdb"
 	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/objdb"
 	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
 

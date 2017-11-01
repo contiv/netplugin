@@ -227,9 +227,6 @@ func addRule(ctx *cli.Context) {
 		if ctx.String("to-network") != "" {
 			errExit(ctx, exitHelp, "Cant specify to-network for incoming rule", false)
 		}
-		if ctx.String("to-ip-address") != "" {
-			errExit(ctx, exitHelp, "Cant specify to-ip-address for incoming rule", false)
-		}
 
 		// If from EPG is specified, make sure from network is specified too
 		if ctx.String("from-group") != "" && ctx.String("from-network") != "" {
@@ -340,18 +337,19 @@ func listRules(ctx *cli.Context) {
 		writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		defer writer.Flush()
 		writer.Write([]byte("Incoming Rules:\n"))
-		writer.Write([]byte("Rule\tPriority\tFrom EndpointGroup\tFrom Network\tFrom IpAddress\tProtocol\tPort\tAction\n"))
-		writer.Write([]byte("----\t--------\t------------------\t------------\t---------\t--------\t----\t------\n"))
+		writer.Write([]byte("Rule\tPriority\tFrom EndpointGroup\tFrom Network\tFrom IpAddress\tTo IpAddress\tProtocol\tPort\tAction\n"))
+		writer.Write([]byte("----\t--------\t------------------\t------------\t---------\t------------\t--------\t----\t------\n"))
 
 		for _, rule := range results {
 			if rule.Direction == "in" {
 				writer.Write([]byte(fmt.Sprintf(
-					"%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
+					"%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 					rule.RuleID,
 					rule.Priority,
 					rule.FromEndpointGroup,
 					rule.FromNetwork,
 					rule.FromIpAddress,
+					rule.ToIpAddress,
 					rule.Protocol,
 					rule.Port,
 					rule.Action,

@@ -20,7 +20,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/objdb/modeldb"
+	"github.com/contiv/netplugin/objdb/modeldb"
 )
 
 // Some utility functions to work with the external contracts

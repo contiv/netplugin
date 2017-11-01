@@ -30,10 +30,10 @@ import (
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
+	"github.com/contiv/netplugin/objdb"
+	"github.com/contiv/netplugin/objdb/modeldb"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
-	"github.com/contiv/objdb"
-	"github.com/contiv/objdb/modeldb"
 	"io/ioutil"
 	"net/http"
 
@@ -1502,7 +1502,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 
 	// verify parameter values
 	if rule.Direction == "in" {
-		if rule.ToNetwork != "" || rule.ToEndpointGroup != "" || rule.ToIpAddress != "" {
+		if rule.ToNetwork != "" || rule.ToEndpointGroup != "" {
 			return errors.New("can not specify 'to' parameters in incoming rule")
 		}
 		if rule.FromNetwork != "" && rule.FromIpAddress != "" {
@@ -1569,6 +1569,55 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 	if policy == nil {
 		log.Errorf("Error finding policy %s", policyKey)
 		return core.Errorf("Policy not found")
+	}
+
+	if rule.Direction == "in" && rule.ToIpAddress != "" {
+		// rules from k8s network policy
+		// verify 'toIpAddress' is part of epg and subnet
+		if len(policy.LinkSets.EndpointGroups) != 1 {
+			errMsg := fmt.Errorf("failed to configure %s, %d endpoint groups linked to policy %s ",
+				rule.ToIpAddress,
+				len(policy.LinkSets.EndpointGroups),
+				rule.PolicyName)
+			log.Error(errMsg)
+			return errMsg
+		}
+		epgKey := ""
+		for key := range policy.LinkSets.EndpointGroups {
+			epgKey = strings.Replace(key, rule.TenantName+":", "", 1) + ":" + rule.TenantName
+		}
+
+		stateDriver, err := utils.GetStateDriver()
+		if err != nil {
+			log.Errorf("failed to configure %s, %s", rule.ToIpAddress, err)
+			return fmt.Errorf("failed to configure %s, unable to connect to key-value store",
+				rule.ToIpAddress)
+		}
+		readEp := &mastercfg.CfgEndpointState{}
+		readEp.StateDriver = stateDriver
+		epCfgs, err := readEp.ReadAll()
+		if err != nil {
+			log.Errorf("failed to configure %s, %s", rule.ToIpAddress, err)
+			return fmt.Errorf("failed to configure %s, unable to read endpoint state", rule.ToIpAddress)
+		}
+
+		// TODO: cache ip <--> epg for performance
+		if func(epgName string) bool {
+			for _, epCfg := range epCfgs {
+				if ep, ok := epCfg.(*mastercfg.CfgEndpointState); ok {
+					if ep.IPAddress == rule.ToIpAddress && ep.EndpointGroupKey == epgName {
+						return true
+					}
+				}
+			}
+			return false
+		}(epgKey) != true {
+			errMsg := fmt.Errorf("failed to configure %s, ip address is not in epg %s",
+				rule.ToIpAddress,
+				epgKey)
+			log.Error(errMsg)
+			return errMsg
+		}
 	}
 
 	// Trigger policyDB Update

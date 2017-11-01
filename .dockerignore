@@ -1,8 +1,12 @@
 # we want to get the git commit SHA but not all the binary repo data
 .git/objects/pack
 bin/
+.vagrant
 vagrant/
 docs/
 scripts/gobgp
 *.tar
 *.bz2
+# export from a docker container, no need to copy into any docker containers
+install/v2plugin/rootfs
+vagrant/k8s/export/netctl

@@ -239,6 +239,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 
 		// Set src/dest IP Address
 		ofnetRule.SrcIpAddr = rule.FromIpAddress
+		if len(rule.ToIpAddress) > 0 {
+			ofnetRule.DstIpAddr = rule.ToIpAddress
+		}
 
 		// set port numbers
 		ofnetRule.DstPort = uint16(rule.Port)
@@ -254,6 +257,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 
 		// Set src/dest IP Address
 		ofnetRule.DstIpAddr = rule.FromIpAddress
+		if len(rule.ToIpAddress) > 0 {
+			ofnetRule.SrcIpAddr = rule.ToIpAddress
+		}
 
 		// set port numbers
 		ofnetRule.SrcPort = uint16(rule.Port)
