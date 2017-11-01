@@ -116,7 +116,7 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
-			FwdMode:          "bridge",
+			FwdMode:          "", // set empty fwd mode by default
 			ArpMode:          "proxy",
 			PvtSubnet:        defHostPvtNet,
 		})
