@@ -28,9 +28,10 @@ GO_MIN_VERSION := 1.7
 GO_MAX_VERSION := 1.8
 GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
 CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
-SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
+SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Service|Network|Policy|TestTrigger|ACIM|Netprofile"
 K8S_SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy"
 ACI_GW_IMAGE ?= "contiv/aci-gw:04-12-2017.2.2_1n"
+L3_SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Service|Bgp|Network|Policy|TestTrigger|ACIM|Netprofile"
 
 all: build unit-test system-test ubuntu-tests
 
@@ -232,7 +233,7 @@ system-test:start
 l3-test:
 	CONTIV_L3=2 CONTIV_NODES=3 make stop start ssh-build
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -contiv_l3 2
-	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v -check.abort
+	CONTIV_L3=2 CONTIV_NODES=3 go test -v -timeout 900m ./test/systemtests -check.v -check.abort -check.f $(L3_SYSTEM_TESTS_TO_RUN)
 	CONTIV_L3=2 CONTIV_NODES=3 make stop
 
 #l3-demo setup for docker/swarm
