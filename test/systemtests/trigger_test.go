@@ -167,16 +167,26 @@ func (s *systemtestSuite) TestTriggerNetmasterControlPortSwitch(c *C) {
 			controlURLArg := "--listen-url " + ":" + masterPort
 			c.Assert(node.startNetmaster(controlURLArg), IsNil)
 		}
-		leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
-		c.Assert(err, IsNil)
-		leaderIP := strings.Split(leaderURL, ":")[0]
-		leaderPort := strings.Split(leaderURL, ":")[1]
-		masterPort = portBase[i%2] + leaderIP[len(leaderIP)-1:]
 
-		if strings.Compare(leaderPort, masterPort) != 0 {
-			err = fmt.Errorf("Netmaster port not using port %s. Using port: %s", masterPort, leaderPort)
+		for i := 0; i < 90; i++ {
+			leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+			c.Assert(err, IsNil)
+			leaderIP := strings.Split(leaderURL, ":")[0]
+			leaderPort := strings.Split(leaderURL, ":")[1]
+			masterPort = portBase[i%2] + leaderIP[len(leaderIP)-1:]
+
+			if strings.Compare(leaderPort, masterPort) != 0 {
+				logrus.Errorf("Retry %v: Netmaster port not using port %s. Using port: %s", i, masterPort, leaderPort)
+				time.Sleep(2 * time.Second)
+				if i == 89 {
+					err = fmt.Errorf("Retry %v: Netmaster port not using port %s. Using port: %s", i, masterPort, leaderPort)
+					c.Assert(err, IsNil)
+				}
+			} else {
+				break
+			}
 		}
-		c.Assert(err, IsNil)
+
 		clientURL := fmt.Sprintf("http://localhost:%s", leaderPort)
 		cliClient, err := client.NewContivClient(clientURL)
 		if err != nil {

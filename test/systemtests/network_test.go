@@ -2,6 +2,7 @@ package systemtests
 
 import (
 	"fmt"
+	"time"
 
 	"sync"
 
@@ -372,7 +373,19 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 						err = s.CheckBgpRouteDistribution(c, containers[network])
 						c.Assert(err, IsNil)
 					}
-					endChan <- s.pingTest(containers[network])
+
+					for i := 0; i < 90; i++ {
+						err = s.pingTest(containers[network])
+						if err == nil {
+							endChan <- err
+						} else {
+							time.Sleep(2 * time.Second)
+							if i == 89 {
+								endChan <- err
+							}
+						}
+					}
+
 				}(network, tenant, containers)
 			}
 

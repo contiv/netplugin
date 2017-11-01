@@ -660,12 +660,18 @@ func (s *systemtestSuite) checkIperfAcrossGroup(containers []*container, contain
 }
 
 func (s *systemtestSuite) checkIngressRate(containers []*container, bw string) error {
-	for _, cont := range containers {
-		fmt.Printf("Checking IngressRate for container %s for bw :%s ", cont, bw)
-		err := cont.node.exec.tcFilterShow(bw)
-		return err
+	cont := containers[0]
+	var err error
+	for i := 0; i < 90; i++ {
+		fmt.Printf("Retry %v: Checking IngressRate for container %s for bw :%s ", i, cont, bw)
+		err = cont.node.exec.tcFilterShow(bw)
+		if err == nil {
+			break
+		} else {
+			time.Sleep(2 * time.Second)
+		}
 	}
-	return nil
+	return err
 }
 
 func (s *systemtestSuite) checkNoConnections(containers []*container, port int) error {

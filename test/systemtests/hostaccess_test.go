@@ -1,6 +1,9 @@
 package systemtests
 
 import (
+	"time"
+
+	"github.com/Sirupsen/logrus"
 	. "github.com/contiv/check"
 	"github.com/contiv/contivmodel/client"
 )
@@ -60,7 +63,19 @@ func (s *systemtestSuite) hostAccTest(c *C) {
 		GroupName:   "epg-a",
 	}, 2, 15, 1), IsNil)
 
-	c.Assert(s.verifyHostRoutes([]string{"17.5.4.0/22", "13.5.7.0/24"}, true), IsNil)
+	for i := 0; i < 90; i++ {
+		err := s.verifyHostRoutes([]string{"17.5.4.0/22", "13.5.7.0/24"}, true)
+		if err == nil {
+			break
+		} else {
+			logrus.Errorf("Retry %v: verifyHostRoutes failed with error: %v", i, err)
+			time.Sleep(2 * time.Second)
+			if i == 89 {
+				c.Assert(err, IsNil)
+			}
+		}
+	}
+
 	// Create num_nodes + 1 containers
 	numContainters := len(s.nodes) + 1
 	epgNames := make([]string, numContainters)
@@ -77,7 +92,20 @@ func (s *systemtestSuite) hostAccTest(c *C) {
 	c.Assert(err, IsNil)
 	//make sure they can ping the master node.
 	dest := []string{masterIP}
-	c.Assert(s.pingTestToNonContainer(cList, dest), IsNil)
+
+	for i := 0; i < 90; i++ {
+		err = s.pingTestToNonContainer(cList, dest)
+		if err == nil {
+			break
+		} else {
+			logrus.Errorf("Retry %v: pingTestToNonContainer failed with error: %v", i, err)
+			time.Sleep(2 * time.Second)
+			if i == 89 {
+				c.Assert(err, IsNil)
+			}
+		}
+	}
+
 	// verify the containers cannot ping each other on the NAT interface
 	c.Assert(s.IsolationTest(cList), IsNil)
 	c.Assert(s.verifyHostPing(cList), IsNil)
