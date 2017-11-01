@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # script to create the config JSON input for the system tests
-import os 
+import os
 import json
-import argparse 
+import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-scheduler", default='docker', help="Scheduler used - docker or k8s")

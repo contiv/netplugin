@@ -391,8 +391,18 @@ func (w *swarm) cleanupContainers() error {
 	return w.node.tbnode.RunCommand("docker rm -f $(docker ps -a | grep alpine )")
 }
 func (w *swarm) startNetplugin(args string) error {
+	netMode := w.node.suite.globInfo.Encap
+	fwdMode := w.node.suite.fwdMode
+	var storeArgs string
+	if cStore := w.node.suite.basicInfo.ClusterStore; strings.HasPrefix(cStore, "etcd") {
+		storeArgs = " --etcd-endpoints " + strings.Replace(cStore, "etcd", "http", 1) + " "
+	} else {
+		storeArgs = " --consul-endpoints " + strings.Replace(cStore, "consul", "http", 1) + " "
+	}
+
 	logrus.Infof("Starting netplugin on %s", w.node.Name())
-	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + w.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log"
+
+	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin --netmode " + netMode + " --fwdmode " + fwdMode + " -plugin-mode docker -vlan-if " + w.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + "&> /tmp/netplugin.log"
 	return w.node.tbnode.RunCommandBackground(cmd)
 }
 

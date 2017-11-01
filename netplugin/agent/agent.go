@@ -50,7 +50,7 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	netPlugin := &plugin.NetPlugin{}
 
 	// init cluster state
-	err := cluster.Init(opts.DbURL)
+	err := cluster.Init(pluginConfig.Drivers.State, []string{opts.DbURL})
 	if err != nil {
 		log.Fatalf("Error initializing cluster. Err: %v", err)
 	}

@@ -443,8 +443,17 @@ func (k *kubernetes) startNetplugin(args string) error {
 	if k.node.Name() == "k8master" {
 		return nil
 	}
+	netMode := k.node.suite.globInfo.Encap
+	fwdMode := k.node.suite.fwdMode
+	var storeArgs string
+	if cStore := k.node.suite.basicInfo.ClusterStore; strings.HasPrefix(cStore, "etcd") {
+		storeArgs = " --etcd-endpoints " + strings.Replace(cStore, "etcd", "http", 1) + " "
+	} else {
+		storeArgs = " --consul-endpoints " + strings.Replace(cStore, "consul", "http", 1) + " "
+	}
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
+
+	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin --netmode " + netMode + " --fwdmode " + fwdMode + " -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + "&> /tmp/netplugin.log")
 }
 
 func (k *kubernetes) stopNetplugin() error {

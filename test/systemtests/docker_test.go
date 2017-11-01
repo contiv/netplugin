@@ -429,7 +429,16 @@ func (d *docker) cleanupContainers() error {
 }
 
 func (d *docker) startNetplugin(args string) error {
-	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netplugin.log"
+	netMode := d.node.suite.globInfo.Encap
+	fwdMode := d.node.suite.fwdMode
+	var storeArgs string
+	if cStore := d.node.suite.basicInfo.ClusterStore; strings.HasPrefix(cStore, "etcd") {
+		storeArgs = " --etcd-endpoints " + strings.Replace(cStore, "etcd", "http", 1) + " "
+	} else {
+		storeArgs = " --consul-endpoints " + strings.Replace(cStore, "consul", "http", 1) + " "
+	}
+
+	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin --netmode " + netMode + " --fwdmode " + fwdMode + " -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + " &> /tmp/netplugin.log"
 	logrus.Infof("Starting netplugin on %s with command: %s", d.node.Name(), cmd)
 	return d.node.tbnode.RunCommandBackground(cmd)
 }

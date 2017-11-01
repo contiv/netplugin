@@ -339,7 +339,15 @@ func InitGlobalSettings(stateDriver core.StateDriver, inst *core.InstanceInfo) e
 		logrus.Warnf("Sleep 1 second and retry pulling global settings")
 		time.Sleep(1 * time.Second)
 	}
+
+	// make sure local config matches netmaster config
+	if inst.FwdMode != "" && inst.FwdMode != gCfg.FwdMode {
+		err := fmt.Errorf("Netplugin's local forward mode [%v] doesn't match global settings [%v]", inst.FwdMode, gCfg.FwdMode)
+		logrus.Errorf(err.Error())
+		return err
+	}
 	inst.FwdMode = gCfg.FwdMode
+
 	logrus.Infof("Using forwarding mode: %v", inst.FwdMode)
 	net, err := netutils.CIDRToMask(gCfg.PvtSubnet)
 	if err != nil {

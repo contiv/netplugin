@@ -486,8 +486,17 @@ func (k *kubePod) startNetplugin(args string) error {
 		return err
 	}
 
+	netMode := k.node.suite.globInfo.Encap
+	fwdMode := k.node.suite.fwdMode
+	var storeArgs string
+	if cStore := k.node.suite.basicInfo.ClusterStore; strings.HasPrefix(cStore, "etcd") {
+		storeArgs = " --etcd-endpoints " + strings.Replace(cStore, "etcd", "http", 1) + " "
+	} else {
+		storeArgs = " --consul-endpoints " + strings.Replace(cStore, "consul", "http", 1) + " "
+	}
+
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin -plugin-mode=kubernetes -vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + ` -cluster-store=` + k.node.suite.basicInfo.ClusterStore + ` ` + args + ` > ` + netpluginLogLocation + ` 2>&1`
+	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin --netmode ` + netMode + ` --fwdmode ` + fwdMode + ` -plugin-mode=kubernetes -vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + ` > ` + netpluginLogLocation + ` 2>&1`
 
 	return k.podExecBG(podName, startNetpluginCmd, "kube-system")
 }
