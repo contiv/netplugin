@@ -142,6 +142,8 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
 func (s *systemtestSuite) TestTriggerNetmasterControlPortSwitch(c *C) {
 	var masterPort string
+	var leaderPort string
+
 	network := &client.Network{
 		TenantName:  "default",
 		NetworkName: "private",
@@ -172,7 +174,7 @@ func (s *systemtestSuite) TestTriggerNetmasterControlPortSwitch(c *C) {
 			leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 			c.Assert(err, IsNil)
 			leaderIP := strings.Split(leaderURL, ":")[0]
-			leaderPort := strings.Split(leaderURL, ":")[1]
+			leaderPort = strings.Split(leaderURL, ":")[1]
 			masterPort = portBase[i%2] + leaderIP[len(leaderIP)-1:]
 
 			if strings.Compare(leaderPort, masterPort) != 0 {
