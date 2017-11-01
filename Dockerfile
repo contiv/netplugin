@@ -37,6 +37,7 @@ CMD ["--help"]
 # by far, most of the compilation time is building vendor packages
 # build the vendor dependencies as a separate docker caching layer
 COPY ./vendor/ /go/src/github.com/contiv/netplugin/vendor/
+COPY ./objdb/ /go/src/github.com/contiv/netplugin/objdb/
 
 RUN GOGC=1500 go install -ldflags "-s -w" $(go list ./vendor/...)
 
