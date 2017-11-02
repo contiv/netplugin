@@ -395,7 +395,19 @@ func (s *systemtestSuite) testNetworkAddDeleteTenant(c *C, encap, fwdmode string
 
 			for _, network := range networks {
 				c.Assert(s.removeContainers(containers[network]), IsNil)
-				c.Assert(s.cli.NetworkDelete(tenant, network), IsNil)
+
+				for i := 0; i < 90; i++ {
+					err := s.cli.NetworkDelete(tenant, network)
+					if err == nil {
+						break
+					} else {
+						time.Sleep(2 * time.Second)
+						if i == 89 {
+							c.Assert(err, IsNil)
+						}
+					}
+				}
+
 			}
 
 			c.Assert(s.cli.TenantDelete(tenant), IsNil)

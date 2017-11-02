@@ -250,19 +250,7 @@ func (s *systemtestSuite) TestBasicNetmasterPortListen(c *C) {
 		logrus.Infof("Checking case: --listen-url :XXXX (:XXXX is not default port :9999)")
 		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s", masterListenPort)), IsNil)
 		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
-
-		for i := 0; i < 90; i++ {
-			err = checkNetmasterPortListener(masterListenPort)
-			if err == nil {
-				break
-			} else {
-				time.Sleep(2 * time.Second)
-				if i == 89 {
-					c.Assert(err, IsNil)
-				}
-			}
-		}
-
+		c.Assert(checkNetmasterPortListener(masterListenPort), NotNil)
 		c.Assert(checkNetmasterPortListener(masterCtrlPort), NotNil)
 		c.Assert(masterNode.stopNetmaster(), IsNil)
 
@@ -295,16 +283,29 @@ func (s *systemtestSuite) TestBasicNetmasterPortListen(c *C) {
 }
 
 func checkNetmasterPortListener(port string) error {
-	clientURL := fmt.Sprintf("http://localhost:%s", port)
-	cliClient, err := client.NewContivClient(clientURL)
-	if err != nil {
-		return fmt.Errorf("failed to initialize the contiv client. Err: %+v", err)
-	}
+	for i := 0; i < 90; i++ {
+		clientURL := fmt.Sprintf("http://localhost:%s", port)
+		cliClient, err := client.NewContivClient(clientURL)
+		if err != nil {
+			if i == 89 {
+				return fmt.Errorf("failed to initialize the contiv client. Err: %+v", err)
+			} else {
+				time.Sleep(2 * time.Second)
+				continue
+			}
+		}
 
-	tenant, err := cliClient.TenantGet("default")
-	if err != nil || !strings.Contains(tenant.TenantName, "default") {
-		return fmt.Errorf("the client request to %s failed. tenant: %+v err: %+v", clientURL, tenant, err)
+		tenant, err := cliClient.TenantGet("default")
+		if err != nil || !strings.Contains(tenant.TenantName, "default") {
+			if i == 89 {
+				return fmt.Errorf("the client request to %s failed. tenant: %+v err: %+v", clientURL, tenant, err)
+			} else {
+				time.Sleep(2 * time.Second)
+				continue
+			}
+		} else {
+			break
+		}
 	}
-
 	return nil
 }
