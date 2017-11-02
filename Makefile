@@ -334,11 +334,16 @@ tar: compile-with-docker
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
 
-# GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
+# do not run directly, use "release" target
 release-built-version: tar
 	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) OLD_VERSION=${OLD_VERSION} \
 	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} scripts/release.sh
 	@make clean-tar
+
+# run make as a subshell but with BUILD_VERSION set to write the correct
+# version everywhere
+#
+# GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
 release: export BUILD_VERSION=$(shell cat version/CURRENT_VERSION)
 release:
-	@make release-built-version BUILD_VERSION=$(shell cat version/CURRENT_VERSION)
+	@make release-built-version
