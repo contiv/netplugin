@@ -1,6 +1,5 @@
-# make BUILD_VERSION=1.2.3 [compile-with-docker] will set netplugin -version output
-# make BUILD_VERSION=1.2.3 tar will set the tar filename
-# default naming will otherwise be value of version/CURRENT_VERSION
+# BUILD_VERSION will affect archive filenames as well as -version
+# default version will be based on $(git describe --tags --always)
 
 
 .PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
@@ -14,13 +13,9 @@ TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contiv
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
 NAME := netplugin
-# We are using date based versioning, so for consistent version during a build
-# we evaluate and set the value of version once in a file and use it in 'tar'
-# and 'release' targets.
-VERSION_FILE := $(NAME)-version
-VERSION := `cat $(VERSION_FILE)`
+VERSION := $(shell scripts/getGitVersion.sh)
 TAR_EXT := tar.bz2
-NETPLUGIN_CONTAINER_TAG := $(shell ./scripts/getGitCommit.sh)
+NETPLUGIN_CONTAINER_TAG := $(shell ./scripts/getGitVersion.sh)
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
 TAR_LOC := .
 TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
@@ -97,17 +92,16 @@ checks-with-docker:
 
 compile:
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
-	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
-	TO_BUILD="${TO_BUILD}" VERSION_FILE=${VERSION_FILE} \
-	scripts/build.sh
+	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} TO_BUILD="${TO_BUILD}" \
+	BUILD_VERSION=$(VERSION) scripts/build.sh
 
 # fully prepares code for pushing to branch, includes building binaries
 run-build: deps checks clean compile
 
 compile-with-docker:
 	docker build \
-		--build-arg NIGHTLY_RELEASE=${NIGHTLY_RELEASE} \
-		--build-arg BUILD_VERSION=${BUILD_VERSION} \
+		--build-arg NIGHTLY_RELEASE=$(NIGHTLY_RELEASE) \
+		--build-arg BUILD_VERSION=$(VERSION) \
 		-t netplugin-build:$(NETPLUGIN_CONTAINER_TAG) .
 
 build-docker-image: start
@@ -328,11 +322,8 @@ host-plugin-release:
 
 # build tarball
 tar: compile-with-docker
-	@# $(TAR_FILE) depends on local file netplugin-version (exists in image),
-	@# but it is evaluated after we have extracted that file to local disk
 	docker rm netplugin-build || :
 	c_id=$$(docker create --name netplugin-build netplugin-build:$(NETPLUGIN_CONTAINER_TAG)) && \
-	docker cp $${c_id}:/go/src/github.com/contiv/netplugin/netplugin-version ./ && \
 	for f in netplugin netmaster netctl contivk8s netcontiv; do \
 		docker cp $${c_id}:/go/bin/$$f bin/$$f; done && \
 	docker rm $${c_id}
@@ -342,11 +333,19 @@ tar: compile-with-docker
 
 clean-tar:
 	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
-	@rm -f ${VERSION_FILE}
 
-# GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
-release: tar
-	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) \
-	OLD_VERSION=${OLD_VERSION} BUILD_VERSION=${BUILD_VERSION} \
+# do not run directly, use "release" target
+release-built-version: tar
+	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) OLD_VERSION=${OLD_VERSION} \
 	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} scripts/release.sh
 	@make clean-tar
+
+# The first "release" below is not a target, it is a "target-specific variable"
+#   and sets (and in this case exports) a variable to the target's environment
+# The second release runs make as a subshell but with BUILD_VERSION set
+# to write the correct version for assets everywhere
+#
+# GITHUB_USER and GITHUB_TOKEN are needed be set (used by github-release)
+release: export BUILD_VERSION=$(shell cat version/CURRENT_VERSION)
+release:
+	@make release-built-version

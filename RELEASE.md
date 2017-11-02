@@ -38,16 +38,8 @@ You'll find a few examples below:
 
 Please keep in mind that the release notes can be updated on GitHub manually.
 
-BUILD_VERSION can be used to override the version specified in
-version/CURRENT_VERSION. This variable should be used to avoid changing
-the version for every single beta/rc release.
-
-BUILD_VERSION shouln't be used to override the version for actual
+BUILD_VERSION will not override the version for actual
 releases (1.0, 1.0.1, 1.1.0 and so on).
-
-Automated nightly releases use the version from version/CURRENT_VERSION.
-These nightly releases also append a timestamp to the version found in
-that file.
 
 The release process can be found below.
 
@@ -61,20 +53,16 @@ release isn't made from the HEAD of master.
 	git push origin 1.0.1
 	```
 
-3. Write down the BUILD_VERSION or update version/CURRENT_VERSION. This
-will be needed for the next steps. Please refer to the explanation
-related to BUILD_VERSION and version/CURRENT_VERSION above.
+3. Update version/CURRENT_VERSION. This will be needed for the next steps.
 
 4. Make sure GITHUB_USER and GITHUB_TOKEN variables are exported in your environment.
 
 5. Make the release to GitHub.
 	```
-	# BUILD_VERSION is used to override version/CURRENT_VERSION
-	OLD_VERSION=1.1.0-beta.1 BUILD_VERSION=1.1.0-beta.2 make release
+	OLD_VERSION=1.1.0-beta.1 make release
 	```
 
 	```
-	# version/CURRENT_VERSION is used for a new stable release
 	# version/CURRENT_VERSION is 1.1.1
 	OLD_VERSION=1.1.0 make release
 	```
