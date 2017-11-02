@@ -340,10 +340,12 @@ release-built-version: tar
 	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} scripts/release.sh
 	@make clean-tar
 
-# run make as a subshell but with BUILD_VERSION set to write the correct
-# version everywhere
+# The first "release" below is not a target, it is a "target-specific variable"
+#   and sets (and in this case exports) a variable to the target's environment
+# The second release runs make as a subshell but with BUILD_VERSION set
+# to write the correct version for assets everywhere
 #
-# GITHUB_USER and GITHUB_TOKEN are needed be set to run github-release
+# GITHUB_USER and GITHUB_TOKEN are needed be set (used by github-release)
 release: export BUILD_VERSION=$(shell cat version/CURRENT_VERSION)
 release:
 	@make release-built-version
