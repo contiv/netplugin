@@ -22,7 +22,10 @@ import (
 	"strings"
 
 	"encoding/json"
-	"github.com/contiv/contivmodel"
+	"io/ioutil"
+	"net/http"
+
+	contivModel "github.com/contiv/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/docknet"
@@ -34,8 +37,6 @@ import (
 	"github.com/contiv/netplugin/objdb/modeldb"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
-	"io/ioutil"
-	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -225,21 +226,43 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 
 	gCfg := &gstate.Cfg{}
 	gCfg.StateDriver = stateDriver
-	numVlans, vlansInUse := gCfg.GetVlansInUse()
-	numVxlans, vxlansInUse := gCfg.GetVxlansInUse()
+	numVlans, _ := gCfg.GetVlansInUse()
+	numVxlans, _ := gCfg.GetVxlansInUse()
 
 	// Build global config
 	globalCfg := intent.ConfigGlobal{}
+
+	// only print count of "label" when num > 0
+	msgIfNonZero := func(num uint, label string) string {
+		if num <= 0 {
+			return ""
+		}
+		return fmt.Sprintf("%d %v", num, label)
+	}
+
+	// Generate helpful error message when networks exist
+	errExistingNetworks := func(optionLabel string) error {
+		msgs := []string{}
+		if vlMsg := msgIfNonZero(numVlans, "vlans"); vlMsg != "" {
+			msgs = append(msgs, vlMsg)
+		}
+		if vxlMsg := msgIfNonZero(numVxlans, "vxlans"); vxlMsg != "" {
+			msgs = append(msgs, vxlMsg)
+		}
+		msg := fmt.Sprintf("Unable to update %s due to existing %s",
+			optionLabel, strings.Join(msgs, " and "))
+		log.Errorf(msg)
+		return fmt.Errorf(msg)
+	}
 
 	//check for change in forwarding mode
 	if global.FwdMode != params.FwdMode {
 		//check if there exists any non default network and tenants
 		if numVlans+numVxlans > 0 {
-			log.Errorf("Unable to update forwarding mode due to existing %d vlans and %d vxlans", numVlans, numVxlans)
-			return fmt.Errorf("please delete %v vlans and %v vxlans before changing forwarding mode", vlansInUse, vxlansInUse)
+			return errExistingNetworks("forwarding mode")
 		}
 		if global.FwdMode == "routing" {
-			//check if  any bgp configurations exists.
+			//check if any bgp configurations exists.
 			bgpCfgs := &mastercfg.CfgBgpState{}
 			bgpCfgs.StateDriver = stateDriver
 			cfgs, _ := bgpCfgs.ReadAll()
@@ -264,8 +287,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	}
 	if global.PvtSubnet != params.PvtSubnet {
 		if (global.PvtSubnet != "" || params.PvtSubnet != defHostPvtNet) && numVlans+numVxlans > 0 {
-			log.Errorf("Unable to update provate subnet due to existing networks")
-			return fmt.Errorf("please delete %v vlans and %v vxlans before changing private subnet", vlansInUse, vxlansInUse)
+			return errExistingNetworks("private subnet")
 		}
 		globalCfg.PvtSubnet = params.PvtSubnet
 	}

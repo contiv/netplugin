@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/contiv/contivmodel"
+	contivModel "github.com/contiv/contivmodel"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
@@ -297,7 +297,7 @@ func checkInspectGlobal(t *testing.T, expError bool, allocedVlans, allocedVxlans
 }
 
 // checkGlobalSet sets global state and verifies state
-func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode, arpMode, pvtSubnet string) {
+func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode, arpMode, pvtSubnet string) *error {
 	gl := client.Global{
 		Name:             "global",
 		NetworkInfraType: fabMode,
@@ -358,7 +358,9 @@ func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode
 		if err := vlanRsrc.Read("global"); err != nil {
 			t.Fatalf("Error reading vlan resource. Err: %v", err)
 		}
+		return nil
 	}
+	return &err
 }
 
 // checkAciGwSet sets AciGw state and verifies verifies it
@@ -1318,7 +1320,79 @@ func TestDynamicGlobalVxlanRange(t *testing.T) {
 }
 
 // TestGlobalSetting tests global REST api
+func TestGlobalSettingFwdMode(t *testing.T) {
+	// set to default values (no-op)
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
+	// Create a vxlan network to verify you cannot change forward mode
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
+
+	// Should fail when changing the forwarding mode whenever there is a network
+	var err *error
+	var expErr string
+	err = checkGlobalSet(t, true, "default", "1-4094", "1-10000", "routing", "proxy", "172.19.0.0/16")
+	expErr = "Unable to update forwarding mode due to existing 1 vxlans"
+	if strings.TrimSpace((*err).Error()) != expErr {
+		t.Fatalf("Wrong error message, expected: '%v', got '%v'", expErr, (*err).Error())
+	}
+	// remove the vxlan network and add a vlan network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
+	err = checkGlobalSet(t, true, "default", "1-4094", "1-10000", "routing", "proxy", "172.19.0.0/16")
+	expErr = "Unable to update forwarding mode due to existing 1 vlans"
+	if strings.TrimSpace((*err).Error()) != expErr {
+		t.Fatalf("Wrong error message, expected: '%v', got '%v'", expErr, (*err).Error())
+	}
+
+	// remove the vlan network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+
+	// make sure can change forwarding mode after network deleted
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "routing", "proxy", "172.21.0.0/16")
+
+	// reset back to default values
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+}
+
+func TestGlobalSettingSubnet(t *testing.T) {
+	// set to default values (no-op)
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+	// Create a network to see if global subnet changes are blocked
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
+
+	var err *error
+	var expErr string
+	// This should fail
+	err = checkGlobalSet(t, true, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/16")
+	expErr = "Unable to update private subnet due to existing 1 vxlans"
+	if strings.TrimSpace((*err).Error()) != expErr {
+		t.Fatalf("Wrong error message, expected: '%v', got '%v'", expErr, (*err).Error())
+	}
+
+	// remove the vxlan network and add a vlan network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
+
+	// This should still fail
+	err = checkGlobalSet(t, true, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/16")
+	expErr = "Unable to update private subnet due to existing 1 vlans"
+	if strings.TrimSpace((*err).Error()) != expErr {
+		t.Fatalf("Wrong error message, expected: '%v', got '%v'", expErr, (*err).Error())
+	}
+
+	// remove the network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+	// make sure can change subnet after network deleted
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/16")
+	// reset back to default values
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+}
+
+// TestGlobalSetting tests global REST api
 func TestGlobalSetting(t *testing.T) {
+	// set to default values (no-op)
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	// try basic modification
 	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.20.0.0/16")
 	// set aci mode
@@ -1342,11 +1416,6 @@ func TestGlobalSetting(t *testing.T) {
 	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/16")
 	// Try invalid pvt subnet
 	checkGlobalSet(t, true, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/24")
-	// Try changing subnet with active network
-	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
-	checkGlobalSet(t, true, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
-	checkDeleteNetwork(t, false, "default", "contiv7")
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 
 	// reset back to default values
 	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
