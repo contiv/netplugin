@@ -322,11 +322,8 @@ host-plugin-release:
 
 # build tarball
 tar: compile-with-docker
-	@# $(TAR_FILE) depends on local file netplugin-version (exists in image),
-	@# but it is evaluated after we have extracted that file to local disk
 	docker rm netplugin-build || :
 	c_id=$$(docker create --name netplugin-build netplugin-build:$(NETPLUGIN_CONTAINER_TAG)) && \
-	docker cp $${c_id}:/go/src/github.com/contiv/netplugin/netplugin-version ./ && \
 	for f in netplugin netmaster netctl contivk8s netcontiv; do \
 		docker cp $${c_id}:/go/bin/$$f bin/$$f; done && \
 	docker rm $${c_id}
