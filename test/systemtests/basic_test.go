@@ -250,7 +250,19 @@ func (s *systemtestSuite) TestBasicNetmasterPortListen(c *C) {
 		logrus.Infof("Checking case: --listen-url :XXXX (:XXXX is not default port :9999)")
 		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s", masterListenPort)), IsNil)
 		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
-		c.Assert(checkNetmasterPortListener(masterListenPort), IsNil)
+
+		for i := 0; i < 90; i++ {
+			err = checkNetmasterPortListener(masterListenPort)
+			if err == nil {
+				break
+			} else {
+				time.Sleep(2 * time.Second)
+				if i == 89 {
+					c.Assert(err, IsNil)
+				}
+			}
+		}
+
 		c.Assert(checkNetmasterPortListener(masterCtrlPort), NotNil)
 		c.Assert(masterNode.stopNetmaster(), IsNil)
 

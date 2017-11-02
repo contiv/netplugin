@@ -195,7 +195,18 @@ func (s *systemtestSuite) TestTriggerNetmasterControlPortSwitch(c *C) {
 			logrus.Errorf("Error initializing the contiv client. Err: %+v", err)
 		}
 
-		c.Assert(cliClient.NetworkPost(network), IsNil)
+		for i := 0; i < 90; i++ {
+			err = cliClient.NetworkPost(network)
+			if err == nil {
+				break
+			} else {
+				time.Sleep(2 * time.Second)
+				if i == 89 {
+					c.Assert(err, IsNil)
+				}
+			}
+		}
+
 		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 		c.Assert(err, IsNil)
 		c.Assert(s.pingTest(containers), IsNil)
@@ -402,8 +413,20 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 			c.Assert(s.verifyVTEPs(), IsNil)
 
 			c.Assert(s.verifyEPs(containers), IsNil)
+
 			// test ping for all containers
-			c.Assert(s.pingTest(containers), IsNil)
+			for i := 0; i < 90; i++ {
+				err = s.pingTest(containers)
+				if err == nil {
+					break
+				} else {
+					time.Sleep(2 * time.Second)
+					if i == 89 {
+						c.Assert(err, IsNil)
+					}
+				}
+			}
+
 		}
 
 		for _, node := range s.nodes {
