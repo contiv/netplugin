@@ -124,8 +124,6 @@ func (n *node) runCommand(cmd string) (string, error) {
 		if err == nil || !strings.Contains(err.Error(), "EOF") {
 			break
 		}
-
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	return str, err
@@ -167,7 +165,16 @@ func (n *node) checkPingWithCount(ipaddr string, count int) error {
 }
 
 func (n *node) checkPing(ipaddr string) error {
-	return n.checkPingWithCount(ipaddr, 1)
+	var err error
+	for i := 0; i < 90; i++ {
+		err = n.checkPingWithCount(ipaddr, 1)
+		if err == nil {
+			break
+		} else {
+			time.Sleep(2 * time.Second)
+		}
+	}
+	return err
 }
 
 func (n *node) reloadNode() error {

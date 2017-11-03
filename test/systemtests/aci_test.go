@@ -74,7 +74,6 @@ func (s *systemtestSuite) TestACIMode(c *C) {
 	c.Assert(node1.rotateLog("netplugin"), IsNil)
 	c.Assert(node1.startNetplugin(""), IsNil)
 	c.Assert(node1.runCommandUntilNoError("pgrep netplugin"), IsNil)
-	time.Sleep(20 * time.Second)
 
 	c.Assert(s.pingTest(containersA), IsNil)
 	c.Assert(s.pingTest(containersB), IsNil)
@@ -207,8 +206,7 @@ func (s *systemtestSuite) TestACIPingGateway(c *C) {
 		TenantName:     s.globInfo.Tenant,
 		EndpointGroups: []string{"epga"},
 		AppProfileName: "profile1",
-	}), IsNil)
-	time.Sleep(5 * time.Second)
+	}, 2, 5, 1), IsNil)
 	containers, err := s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, []string{"epga"})
 	c.Assert(err, IsNil)
 
@@ -221,8 +219,7 @@ func (s *systemtestSuite) TestACIPingGateway(c *C) {
 
 	c.Assert(s.removeContainers(containersA), IsNil)
 	containersA = nil
-	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1"), IsNil)
-	time.Sleep(time.Second * 5)
+	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1", 2, 5, 0), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete(s.globInfo.Tenant, "epga"), IsNil)
 	c.Assert(s.cli.NetworkDelete(s.globInfo.Tenant, s.globInfo.Network), IsNil)
 }
@@ -282,14 +279,11 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		TenantName:     s.globInfo.Tenant,
 		EndpointGroups: []string{"epga", "epgb"},
 		AppProfileName: "profile1",
-	}), IsNil)
-
-	time.Sleep(5 * time.Second)
+	}, 2, 5, 1), IsNil)
 
 	groups := []string{"epga", "epgb"}
 	containers, err := s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, groups)
 	c.Assert(err, IsNil)
-	time.Sleep(time.Second * 20)
 	for key, value := range containers {
 		if value == "epga" {
 			containersA = append(containersA, key)
@@ -326,8 +320,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		NetworkName: s.globInfo.Network,
 		Policies:    []string{"policyAB"},
 		GroupName:   "epgb",
-	}), IsNil)
-	time.Sleep(time.Second * 10)
+	}, 2, 10, 1), IsNil)
 
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
@@ -360,8 +353,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		Protocol:          "tcp",
 		Port:              8000,
 		Action:            "allow",
-	}), IsNil)
-	time.Sleep(time.Second * 10)
+	}, 2, 10, 1), IsNil)
 
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
@@ -389,8 +381,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		Protocol:          "tcp",
 		Port:              8001,
 		Action:            "allow",
-	}), IsNil)
-	time.Sleep(time.Second * 10)
+	}, 2, 10, 1), IsNil)
 
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
@@ -409,8 +400,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 	}
 
 	// Delete ICMP rule
-	c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "1"), IsNil)
-	time.Sleep(time.Second * 10)
+	c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "1", 2, 10, 0), IsNil)
 
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
@@ -426,8 +416,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 	c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
 	c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
 	// Delete TCP 8000 rule
-	c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "2"), IsNil)
-	time.Sleep(time.Second * 10)
+	c.Assert(s.cli.RuleDelete(s.globInfo.Tenant, "policyAB", "2", 2, 10, 0), IsNil)
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
 		"epga",
@@ -442,8 +431,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 	c.Assert(s.pingFailureTest(containersA, containersB), IsNil)
 
 	// Delete the app profile
-	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1"), IsNil)
-	time.Sleep(time.Second * 5)
+	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1", 2, 5, 0), IsNil)
 
 	c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8000, 1, 3), IsNil)
 	c.Assert(s.checkNoConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
@@ -454,8 +442,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		TenantName:     s.globInfo.Tenant,
 		EndpointGroups: []string{"epga", "epgb"},
 		AppProfileName: "profile2",
-	}), IsNil)
-	time.Sleep(time.Second * 10)
+	}, 2, 10, 1), IsNil)
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile2",
 		"epga",
@@ -470,7 +457,6 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 	containersB = nil
 	containers, err = s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, groups)
 	c.Assert(err, IsNil)
-	time.Sleep(time.Second * 20)
 	for key, value := range containers {
 		if value == "epga" {
 			containersA2 = append(containersA2, key)
@@ -494,10 +480,9 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 		Protocol:          "tcp",
 		Port:              8000,
 		Action:            "allow",
-	}), IsNil)
+	}, 2, 10, 1), IsNil)
 	err = errors.New("forced")
 	//c.Assert(err, IsNil)
-	time.Sleep(time.Second * 10)
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile2",
 		"epga",
@@ -513,8 +498,7 @@ func (s *systemtestSuite) TestACIProfile(c *C) {
 	c.Assert(s.pingFailureTest(containersA2, containersB2), IsNil)
 
 	// Delete the app profile
-	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile2"), IsNil)
-	time.Sleep(time.Second * 5)
+	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile2", 2, 5, 0), IsNil)
 	c.Assert(s.checkNoConnectionPairRetry(containersA2, containersB2, 8000, 1, 3), IsNil)
 	c.Assert(s.checkNoConnectionPairRetry(containersA2, containersB2, 8001, 1, 3), IsNil)
 	c.Assert(s.pingFailureTest(containersA2, containersB2), IsNil)
@@ -580,14 +564,11 @@ func (s *systemtestSuite) TestACIGWRestart(c *C) {
 		TenantName:     s.globInfo.Tenant,
 		EndpointGroups: []string{"epga", "epgb"},
 		AppProfileName: "profile1",
-	}), IsNil)
-
-	time.Sleep(5 * time.Second)
+	}, 2, 5, 1), IsNil)
 
 	groups := []string{"epga", "epgb"}
 	containers, err := s.runContainersInGroups(s.basicInfo.Containers, s.globInfo.Network, s.globInfo.Tenant, groups)
 	c.Assert(err, IsNil)
-	time.Sleep(time.Second * 20)
 	for key, value := range containers {
 		if value == "epga" {
 			containersA = append(containersA, key)
@@ -626,8 +607,7 @@ func (s *systemtestSuite) TestACIGWRestart(c *C) {
 		NetworkName: s.globInfo.Network,
 		Policies:    []string{"policyAB"},
 		GroupName:   "epgb",
-	}), IsNil)
-	time.Sleep(time.Second * 10)
+	}, 2, 10, 1), IsNil)
 
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
@@ -652,8 +632,7 @@ func (s *systemtestSuite) TestACIGWRestart(c *C) {
 		Protocol:          "tcp",
 		Port:              8000,
 		Action:            "allow",
-	}), IsNil)
-	time.Sleep(time.Second * 10)
+	}, 2, 10, 1), IsNil)
 
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
@@ -677,7 +656,7 @@ func (s *systemtestSuite) TestACIGWRestart(c *C) {
 	for iNode := range s.nodes {
 		s.nodes[iNode].tbnode.RunCommand("sudo service aci-gw restart")
 	}
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	//Verifying the behavior didn't change after restarting the gateway
 	for _, cB := range containersB {
@@ -698,8 +677,7 @@ func (s *systemtestSuite) TestACIGWRestart(c *C) {
 		Protocol:          "tcp",
 		Port:              8001,
 		Action:            "allow",
-	}), IsNil)
-	time.Sleep(time.Second * 10)
+	}, 2, 10, 1), IsNil)
 
 	c.Assert(s.checkACILearning(s.globInfo.Tenant,
 		"profile1",
@@ -714,8 +692,7 @@ func (s *systemtestSuite) TestACIGWRestart(c *C) {
 	c.Assert(s.checkConnectionPairRetry(containersA, containersB, 8001, 1, 3), IsNil)
 
 	// Delete the app profile
-	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1"), IsNil)
-	time.Sleep(time.Second * 5)
+	c.Assert(s.cli.AppProfileDelete(s.globInfo.Tenant, "profile1", 2, 5, 0), IsNil)
 
 	c.Assert(s.removeContainers(append(containersA, containersB...)), IsNil)
 	containersA = nil

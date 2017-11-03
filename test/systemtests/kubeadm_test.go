@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
-	"os"
-	"time"
 )
 
 type kubePod struct {
@@ -112,8 +112,8 @@ func (k *kubePod) runContainer(spec containerSpec) (*container, error) {
 
 	//find out the node where pod is deployed
 
-	for i := 0; i < 50; i++ {
-		time.Sleep(5 * time.Second)
+	for i := 0; i < 125; i++ {
+		time.Sleep(2 * time.Second)
 		cmd = fmt.Sprintf("kubectl get pods -o wide | grep %s", spec.name)
 		out, err = k8sMaster.tbnode.RunCommandWithOutput(cmd)
 		if strings.Contains(out, "Running") {
@@ -332,12 +332,12 @@ func (k *kubePod) stop(c *container) error {
 func (k *kubePod) rm(c *container) error {
 	logrus.Infof("Removing Pod: %s on %s", c.containerID, c.node.Name())
 	k8sMaster.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod %s", c.name))
-	for i := 0; i < 80; i++ {
+	for i := 0; i < 200; i++ {
 		out, _ := k8sMaster.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl get pod %s", c.containerID))
 		if strings.Contains(out, "not found") {
 			return nil
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	return fmt.Errorf("Error Termininating pod %s on node %s", c.name, c.node.Name())
 }

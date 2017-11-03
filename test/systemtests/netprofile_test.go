@@ -543,7 +543,6 @@ func (s *systemtestSuite) testNetprofileTriggerNetpluginRestart(c *C, encap stri
 		c.Assert(node.startNetplugin(""), IsNil)
 
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-		time.Sleep(20 * time.Second)
 
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
@@ -636,8 +635,8 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 		c.Assert(leader.exec.stopNetmaster(), IsNil)
 		c.Assert(leader.rotateLog("netmaster"), IsNil)
 
-		for x := 0; x < 15; x++ {
-			logrus.Info("Waiting 5s for leader to change...")
+		for x := 0; x < 40; x++ {
+			logrus.Info("Waiting 2s for leader to change...")
 			newLeaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 			c.Assert(err, IsNil)
 
@@ -654,13 +653,12 @@ func (s *systemtestSuite) TestNetprofileUpdateNetmasterSwitchover(c *C) {
 				}
 			}
 
-			time.Sleep(5 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 
 	finished:
 
 		c.Assert(oldLeader.exec.startNetmaster(""), IsNil)
-		time.Sleep(5 * time.Second)
 		c.Assert(s.checkIngressRate(containers, netProfile.Bandwidth), IsNil)
 		c.Assert(s.startIperfClients(containers, netProfile.Bandwidth, false), IsNil)
 		for _, node := range s.nodes {

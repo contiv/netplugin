@@ -33,7 +33,6 @@ func (s *systemtestSuite) TestTriggerNetpluginUplinkUpgrade(c *C) {
 		s.hostInfo.HostDataInterfaces = singleUplink
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-		time.Sleep(20 * time.Second)
 		c.Assert(node.waitForListeners(), IsNil)
 		// Verify uplink state on each node
 		c.Assert(node.verifyUplinkState([]string{singleUplink}), IsNil)
@@ -45,7 +44,6 @@ func (s *systemtestSuite) TestTriggerNetpluginUplinkUpgrade(c *C) {
 		s.hostInfo.HostDataInterfaces = originalUplinks
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-		time.Sleep(20 * time.Second)
 		c.Assert(node.waitForListeners(), IsNil)
 		// Verify uplink state on each node
 		c.Assert(node.verifyUplinkState(uplinkIntfs), IsNil)
@@ -57,7 +55,6 @@ func (s *systemtestSuite) TestTriggerNetpluginUplinkUpgrade(c *C) {
 		s.hostInfo.HostDataInterfaces = singleUplink
 		c.Assert(node.startNetplugin(""), IsNil)
 		c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-		time.Sleep(20 * time.Second)
 		c.Assert(node.waitForListeners(), IsNil)
 		// Verify uplink state on each node
 		c.Assert(node.verifyUplinkState([]string{singleUplink}), IsNil)
@@ -110,8 +107,8 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 		c.Assert(leader.exec.stopNetmaster(), IsNil)
 		c.Assert(leader.rotateLog("netmaster"), IsNil)
 
-		for x := 0; x < 15; x++ {
-			logrus.Info("Waiting 5s for leader to change...")
+		for x := 0; x < 40; x++ {
+			logrus.Info("Waiting 2s for leader to change...")
 			newLeaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
 			c.Assert(err, IsNil)
 
@@ -128,12 +125,11 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 				}
 			}
 
-			time.Sleep(5 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 
 	finished:
 		c.Assert(oldLeader.exec.startNetmaster(""), IsNil)
-		time.Sleep(5 * time.Second)
 
 		c.Assert(s.pingTest(containers), IsNil)
 
@@ -146,6 +142,8 @@ func (s *systemtestSuite) TestTriggerNetmasterSwitchover(c *C) {
 
 func (s *systemtestSuite) TestTriggerNetmasterControlPortSwitch(c *C) {
 	var masterPort string
+	var leaderPort string
+
 	network := &client.Network{
 		TenantName:  "default",
 		NetworkName: "private",
@@ -170,27 +168,45 @@ func (s *systemtestSuite) TestTriggerNetmasterControlPortSwitch(c *C) {
 			masterPort = portBase[i%2] + nodeIP[len(nodeIP)-1:]
 			controlURLArg := "--listen-url " + ":" + masterPort
 			c.Assert(node.startNetmaster(controlURLArg), IsNil)
-			logrus.Info("Sleeping for a while to wait for netmaster to restart")
-			time.Sleep(15 * time.Second)
 		}
-		time.Sleep(20 * time.Second)
-		leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
-		c.Assert(err, IsNil)
-		leaderIP := strings.Split(leaderURL, ":")[0]
-		leaderPort := strings.Split(leaderURL, ":")[1]
-		masterPort = portBase[i%2] + leaderIP[len(leaderIP)-1:]
 
-		if strings.Compare(leaderPort, masterPort) != 0 {
-			err = fmt.Errorf("Netmaster port not using port %s. Using port: %s", masterPort, leaderPort)
+		for i := 0; i < 90; i++ {
+			leaderURL, err := s.clusterStoreGet("/contiv.io/lock/netmaster/leader")
+			c.Assert(err, IsNil)
+			leaderIP := strings.Split(leaderURL, ":")[0]
+			leaderPort = strings.Split(leaderURL, ":")[1]
+			masterPort = portBase[i%2] + leaderIP[len(leaderIP)-1:]
+
+			if strings.Compare(leaderPort, masterPort) != 0 {
+				logrus.Errorf("Retry %v: Netmaster port not using port %s. Using port: %s", i, masterPort, leaderPort)
+				time.Sleep(2 * time.Second)
+				if i == 89 {
+					err = fmt.Errorf("Retry %v: Netmaster port not using port %s. Using port: %s", i, masterPort, leaderPort)
+					c.Assert(err, IsNil)
+				}
+			} else {
+				break
+			}
 		}
-		c.Assert(err, IsNil)
+
 		clientURL := fmt.Sprintf("http://localhost:%s", leaderPort)
 		cliClient, err := client.NewContivClient(clientURL)
 		if err != nil {
 			logrus.Errorf("Error initializing the contiv client. Err: %+v", err)
 		}
 
-		c.Assert(cliClient.NetworkPost(network), IsNil)
+		for i := 0; i < 90; i++ {
+			err = cliClient.NetworkPost(network)
+			if err == nil {
+				break
+			} else {
+				time.Sleep(2 * time.Second)
+				if i == 89 {
+					c.Assert(err, IsNil)
+				}
+			}
+		}
+
 		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 		c.Assert(err, IsNil)
 		c.Assert(s.pingTest(containers), IsNil)
@@ -222,15 +238,11 @@ func (s *systemtestSuite) TestTriggerNetpluginDisconnect(c *C) {
 
 		for _, node := range s.nodes {
 			c.Assert(node.stopNetplugin(), IsNil)
-			logrus.Info("Sleeping for a while to wait for netplugin's TTLs to expire")
-			time.Sleep(15 * time.Second)
 			c.Assert(s.verifyNodeRemoved(node), IsNil)
-			time.Sleep(5 * time.Second)
 			c.Assert(node.rotateLog("netplugin"), IsNil)
 			c.Assert(node.startNetplugin(""), IsNil)
 
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-			time.Sleep(30 * time.Second)
 			c.Assert(node.waitForListeners(), IsNil)
 			c.Assert(s.verifyVTEPs(), IsNil)
 			c.Assert(s.verifyEPs(containers), IsNil)
@@ -293,14 +305,11 @@ func (s *systemtestSuite) TestTriggerNodeReload(c *C) {
 			}
 			c.Assert(node.reloadNode(), IsNil)
 
-			time.Sleep(20 * time.Second)
+			time.Sleep(5 * time.Second)
 			c.Assert(node.startNetplugin(""), IsNil)
 			c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-			time.Sleep(20 * time.Second)
 			c.Assert(node.startNetmaster(""), IsNil)
-			time.Sleep(1 * time.Second)
 			c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
-			time.Sleep(20 * time.Second)
 
 			// clear previous containers from reloaded node
 			node.exec.cleanupContainers()
@@ -351,11 +360,10 @@ func (s *systemtestSuite) TestTriggerClusterStoreRestart(c *C) {
 		for _, node := range s.nodes {
 			c.Assert(node.restartClusterStore(), IsNil)
 
-			time.Sleep(20 * time.Second)
+			time.Sleep(2 * time.Second)
 			c.Assert(s.verifyVTEPs(), IsNil)
 
 			c.Assert(s.verifyEPs(containers), IsNil)
-			time.Sleep(2 * time.Second)
 
 			// test ping for all containers
 			c.Assert(s.pingTest(containers), IsNil)
@@ -398,16 +406,27 @@ func (s *systemtestSuite) TestTriggerNetPartition(c *C) {
 
 			// flap the control interface
 			c.Assert(node.bringDownIf("eth1"), IsNil)
-			time.Sleep(25 * time.Second) // wait till sessions/locks timeout
+			time.Sleep(5 * time.Second) // wait till sessions/locks timeout
 			c.Assert(node.bringUpIf("eth1", nodeIP), IsNil)
 			time.Sleep(5 * time.Second) // wait till sessions/locks timeout
 
 			c.Assert(s.verifyVTEPs(), IsNil)
 
 			c.Assert(s.verifyEPs(containers), IsNil)
-			time.Sleep(2 * time.Second)
+
 			// test ping for all containers
-			c.Assert(s.pingTest(containers), IsNil)
+			for i := 0; i < 90; i++ {
+				err = s.pingTest(containers)
+				if err == nil {
+					break
+				} else {
+					time.Sleep(2 * time.Second)
+					if i == 89 {
+						c.Assert(err, IsNil)
+					}
+				}
+			}
+
 		}
 
 		for _, node := range s.nodes {
@@ -524,21 +543,15 @@ func (s *systemtestSuite) TestTriggers(c *C) {
 				c.Assert(node.rotateLog("netplugin"), IsNil)
 				c.Assert(node.startNetplugin(""), IsNil)
 				c.Assert(node.exec.runCommandUntilNoNetpluginError(), IsNil)
-				time.Sleep(30 * time.Second)
 			}
 		case 1:
 			logrus.Info("Triggering netmaster restart")
 			for _, node := range s.nodes {
 				c.Assert(node.exec.stopNetmaster(), IsNil)
 				c.Assert(node.rotateLog("netmaster"), IsNil)
-
-				time.Sleep(1 * time.Second)
-
 				c.Assert(node.exec.startNetmaster(""), IsNil)
-				time.Sleep(1 * time.Second)
 				c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 			}
-			time.Sleep(30 * time.Second)
 		case 2:
 			logrus.Info("Reloading containers")
 			c.Assert(s.removeContainers(containers), IsNil)

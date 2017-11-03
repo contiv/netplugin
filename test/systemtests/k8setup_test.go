@@ -103,8 +103,8 @@ func (k *kubernetes) runContainer(spec containerSpec) (*container, error) {
 
 	//find out the node where pod is deployed
 
-	for i := 0; i < 50; i++ {
-		time.Sleep(5 * time.Second)
+	for i := 0; i < 125; i++ {
+		time.Sleep(2 * time.Second)
 		cmd = fmt.Sprintf("kubectl get pods -o wide | grep %s", spec.name)
 		////master.lock()
 		out, err = k8master.tbnode.RunCommandWithOutput(cmd)
@@ -281,12 +281,12 @@ func (k *kubernetes) stop(c *container) error {
 func (k *kubernetes) rm(c *container) error {
 	logrus.Infof("Removing Pod: %s on %s", c.containerID, c.node.Name())
 	k8master.tbnode.RunCommand(fmt.Sprintf("kubectl delete pod %s", c.name))
-	for i := 0; i < 80; i++ {
+	for i := 0; i < 200; i++ {
 		out, _ := k8master.tbnode.RunCommandWithOutput(fmt.Sprintf("kubectl get pod %s", c.containerID))
 		if strings.Contains(out, "not found") {
 			return nil
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	return fmt.Errorf("error Termininating pod %s on node %s", c.name, c.node.Name())
 }

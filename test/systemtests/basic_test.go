@@ -203,7 +203,7 @@ func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
 			c.Assert(err, IsNil)
 		}
 		if s.fwdMode == "routing" && encap == "vlan" {
-			time.Sleep(5 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 
 		// Check name resolution
@@ -249,42 +249,59 @@ func (s *systemtestSuite) TestBasicNetmasterPortListen(c *C) {
 		// Requests to port other than masterListenPort(:XXXX) should not be honored
 		logrus.Infof("Checking case: --listen-url :XXXX (:XXXX is not default port :9999)")
 		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s", masterListenPort)), IsNil)
-		time.Sleep(40 * time.Second)
 		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
-		c.Assert(checkNetmasterPortListener(masterListenPort), IsNil)
+
+		for i := 0; i < 90; i++ {
+			err = checkNetmasterPortListener(masterListenPort)
+			if err == nil {
+				break
+			} else {
+				time.Sleep(2 * time.Second)
+				if i == 89 {
+					c.Assert(err, IsNil)
+				}
+			}
+		}
+
 		c.Assert(checkNetmasterPortListener(masterCtrlPort), NotNil)
 		c.Assert(masterNode.stopNetmaster(), IsNil)
-		time.Sleep(5 * time.Second)
 
 		// Case: --listen-url A.B.C.D:XXXX --control-url :YYYY
 		// Control port with non default port and wildcard IP is not valid
 		logrus.Infof("Checking case: --listen-url A.B.C.D:XXXX --control-url :YYYY")
 		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=%s:%s --control-url=:%s", masterIP, masterListenPort, masterCtrlPort)), IsNil)
-		time.Sleep(5 * time.Second)
 		c.Assert(masterNode.exec.runCommandUntilNoNetmasterError(), NotNil)
 
 		// Case: --listen-url :YYYY --control-url A.B.C.D:YYYY
 		// Requests to port other than YYYY(masterCtrlPort) should not be honored
 		logrus.Infof("Checking case: --listen-url :YYYY --control-url A.B.C.D:YYYY")
 		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s --control-url=%s:%s", masterCtrlPort, masterIP, masterCtrlPort)), IsNil)
-		time.Sleep(40 * time.Second)
 		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
 		c.Assert(checkNetmasterPortListener(masterListenPort), NotNil)
-		c.Assert(checkNetmasterPortListener(masterCtrlPort), IsNil)
+
+		for i := 0; i < 90; i++ {
+			err = checkNetmasterPortListener(masterCtrlPort)
+			if err == nil {
+				break
+			} else {
+				time.Sleep(2 * time.Second)
+				if i == 89 {
+					c.Assert(err, IsNil)
+				}
+			}
+		}
+
 		c.Assert(masterNode.stopNetmaster(), IsNil)
-		time.Sleep(5 * time.Second)
 
 		// Case: --listen-url :XXXX --control-url=A.B.C.D:YYYY
 		// Requests to port other than masterListenPort should not be honored
 		// masterCtrlPort is accessible only within the cluster for control pkts
 		logrus.Infof("Checking case: --listen-url :XXXX --control-url=A.B.C.D:YYYY")
 		c.Assert(masterNode.startNetmaster(fmt.Sprintf("--listen-url=:%s --control-url=%s:%s", masterListenPort, masterIP, masterCtrlPort)), IsNil)
-		time.Sleep(40 * time.Second)
 		c.Assert(checkNetmasterPortListener(masterDefaultPort), NotNil)
 		c.Assert(checkNetmasterPortListener(masterListenPort), IsNil)
 		c.Assert(checkNetmasterPortListener(masterCtrlPort), NotNil)
 		c.Assert(masterNode.stopNetmaster(), IsNil)
-		time.Sleep(5 * time.Second)
 	}
 
 }
