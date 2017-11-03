@@ -32,7 +32,7 @@ rm install/v2plugin/${TAR_FILE}
 id=$(docker create $DOCKER_IMAGE true)
 
 # create the rootfs archive based on the created container contents
-sudo docker export "${id}" > install/v2plugin/${V2PLUGIN_TAR_FILENAME}
+docker export "${id}" > install/v2plugin/${V2PLUGIN_TAR_FILENAME}
 
 # clean up created container
 docker rm -vf "${id}"
