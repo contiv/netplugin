@@ -304,11 +304,10 @@ host-plugin-create:
 
 # Note: only updates a single host
 # shortcut for an existing v2plugin cluster to update the netplugin
-# binaries, recommended uses:
+# binaries, recommended after updating netplugin source:
 # 'make node1-make-targets=host-plugin-update tar make-on-node1-dep'
-# on the VM: 'make compile archive host-plugin-update'
+# or on the VM: 'make compile archive host-plugin-update'
 host-plugin-update: host-plugin-remove unarchive host-plugin-create
-	rm -rf install/v2plugin/rootfs
 
 # cleanup all containers, recreate and start the v2plugin on all hosts
 # uses the latest compiled binaries

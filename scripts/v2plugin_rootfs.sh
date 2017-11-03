@@ -26,7 +26,7 @@ DOCKER_IMAGE=contivrootfs:${NETPLUGIN_CONTAINER_TAG}
 docker build -t ${DOCKER_IMAGE} \
     --build-arg TAR_FILE=$(basename "${TAR_FILE}") install/v2plugin
 
-rm install/v2plugin/${TAR_FILE}
+rm install/v2plugin/${TAR_FILE}  # this was a copy of netplugin archive
 
 # creates a ready to run container but doesn't run it
 id=$(docker create $DOCKER_IMAGE true)
