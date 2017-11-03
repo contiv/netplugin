@@ -5,6 +5,7 @@
 .PHONY: all all-CI build clean default unit-test release tar checks go-version gofmt-src \
 	golint-src govet-src run-build compile-with-docker
 
+DEFAULT_DOCKER_VERSION := 1.12.6
 SHELL := /bin/bash
 EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
@@ -126,7 +127,7 @@ update:
 # setting CONTIV_NODES=<number> while calling 'make demo' can be used to bring
 # up a cluster of <number> nodes. By default <number> = 1
 start:
-	CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
+	CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-$(DEFAULT_DOCKER_VERSION)}" CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 
 # ===================================================================
 #kubernetes demo targets
@@ -210,7 +211,7 @@ ssh:
 	@vagrant ssh netplugin-node1 -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin/ && bash"' || echo 'Please run "make demo"'
 
 ssh-build: start
-	$(call make-on-node1, run-build install-shell-completion)
+	vagrant ssh netplugin-node1 -c 'bash -lc "source /etc/profile.d/envvar.sh && cd /opt/gopath/src/github.com/contiv/netplugin && make run-build install-shell-completion"'
 
 unit-test: stop clean
 	./scripts/unittests -vagrant
