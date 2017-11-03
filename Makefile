@@ -19,7 +19,7 @@ TAR_EXT := tar.bz2
 export NETPLUGIN_CONTAINER_TAG := $(shell ./scripts/getGitVersion.sh)
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
 TAR_LOC := .
-export NETPLUGIN_TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
+export TAR_FILE := $(TAR_LOC)/$(TAR_FILENAME)
 export V2PLUGIN_TAR_FILENAME := v2plugin-$(VERSION).tar.gz
 GO_MIN_VERSION := 1.7
 GO_MAX_VERSION := 1.8
@@ -302,12 +302,16 @@ host-plugin-create:
 	docker plugin create ${CONTIV_V2PLUGIN_NAME} install/v2plugin
 	docker plugin enable ${CONTIV_V2PLUGIN_NAME}
 
-# re-deploy the v2plugin in docker with latest versioned binaries
+# Note: only updates a single host
+# shortcut for an existing v2plugin cluster to update the netplugin
+# binaries, recommended uses:
+# 'make node1-make-targets=host-plugin-update tar make-on-node1-dep'
+# on the VM: 'make compile archive host-plugin-update'
 host-plugin-update: host-plugin-remove unarchive host-plugin-create
 	rm -rf install/v2plugin/rootfs
 
 # cleanup all containers, recreate and start the v2plugin on all hosts
-# uses the latest compile binaries
+# uses the latest compiled binaries
 host-plugin-restart: unarchive
 	@echo dev: restarting services...
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python \
@@ -315,6 +319,7 @@ host-plugin-restart: unarchive
 			-plugintype "v2plugin"
 
 # unpack v2plugin archive created by host-pluginfs-create
+# Note: do not unpack locally to share with VM, unpack on the target machine
 host-pluginfs-unpack:
 	# clear out old plugin completely
 	sudo rm -rf install/v2plugin/rootfs
@@ -361,14 +366,9 @@ host-plugin-release: tar host-pluginfs-create host-pluginfs-unpack host-plugin-c
 	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
 # unarchive versioned binaries to bin, usually as a helper for other targets
-# uses the version stored in file 'netplugin-version' which is produced anytime
-# binaries are compiled (and that version can be set with env var
-# 'BUILD_VERSION'
 unarchive:
-	@# $(NETPLUGIN_TAR_FILE) depends on local file netplugin-version (exists in image),
-	@# but it is evaluated after we have extracted that file to local disk
 	@echo Updating bin/ with binaries versioned $(VERSION)
-	tar -xf $(NETPLUGIN_TAR_FILE) -C bin
+	tar -xf $(TAR_FILE) -C bin
 
 # pulls netplugin binaries from build container
 binaries-from-container:
@@ -386,7 +386,7 @@ binaries-from-container:
 archive:
 	$(TAR) --version | grep -q GNU \
 		|| (echo Please use GNU tar as \'gtar\' or \'tar\'; exit 1)
-	$(TAR) --owner=0 --group=0 -jcf $(NETPLUGIN_TAR_FILE) \
+	$(TAR) --owner=0 --group=0 -jcf $(TAR_FILE) \
 		-C bin netplugin netmaster netctl contivk8s netcontiv \
 		-C ../scripts contrib/completion/bash/netctl get-contiv-diags
 
@@ -399,7 +399,7 @@ clean-tar:
 
 # do not run directly, use "release" target
 release-built-version: tar
-	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(NETPLUGIN_TAR_FILE) OLD_VERSION=${OLD_VERSION} \
+	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) OLD_VERSION=${OLD_VERSION} \
 	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} scripts/release.sh
 	@make clean-tar
 
