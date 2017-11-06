@@ -302,13 +302,16 @@ host-plugin-create:
 	docker plugin create ${CONTIV_V2PLUGIN_NAME} install/v2plugin
 	docker plugin enable ${CONTIV_V2PLUGIN_NAME}
 
-# shortcut for an existing v2plugin cluster to update the netplugin
-# binaries, recommended after updating netplugin source:
-# 'make node1-make-targets=host-plugin-update tar make-on-node1-dep'
-# or on the VM: 'make compile archive host-plugin-update'
+# Shortcut for an existing v2plugin cluster to update the netplugin
+# binaries.
+# Recommended process after updating netplugin source:
+#     make compile archive host-plugin-update
 # Note: only updates a single host
-# Note: does not apply for 1.12 v2plugin
+# Note: only applies to v2plugin (which implies docker 1.13+)
 host-plugin-update: host-plugin-remove unarchive host-plugin-create
+# same behavior as host-plugin-update but runs locally with docker 1.13+
+plugin-update: tar
+	$(call make-on-node1, host-plugin-update)
 
 # cleanup all containers, recreate and start the v2plugin on all hosts
 # uses the latest compiled binaries
