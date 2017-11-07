@@ -232,22 +232,14 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 	// Build global config
 	globalCfg := intent.ConfigGlobal{}
 
-	// only print count of "label" when num > 0
-	msgIfNonZero := func(num uint, label string) string {
-		if num <= 0 {
-			return ""
-		}
-		return fmt.Sprintf("%d %v", num, label)
-	}
-
 	// Generate helpful error message when networks exist
 	errExistingNetworks := func(optionLabel string) error {
 		msgs := []string{}
-		if vlMsg := msgIfNonZero(numVlans, "vlans"); vlMsg != "" {
-			msgs = append(msgs, vlMsg)
+		if numVlans > 0 {
+			msgs = append(msgs, fmt.Sprintf("%d vlans", numVlans))
 		}
-		if vxlMsg := msgIfNonZero(numVxlans, "vxlans"); vxlMsg != "" {
-			msgs = append(msgs, vxlMsg)
+		if numVxlans > 0 {
+			msgs = append(msgs, fmt.Sprintf("%d vxlans", numVxlans))
 		}
 		msg := fmt.Sprintf("Unable to update %s due to existing %s",
 			optionLabel, strings.Join(msgs, " and "))
