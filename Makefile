@@ -6,6 +6,7 @@
 	golint-src govet-src run-build compile-with-docker
 
 DEFAULT_DOCKER_VERSION := 1.12.6
+V2PLUGIN_DOCKER_VERSION := 1.13.1
 SHELL := /bin/bash
 EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
@@ -351,13 +352,13 @@ v2plugin-install:
 		host-plugin-restart host-swarm-restart)
 
 # Just like demo-v2plugin except builds are done locally and cached
-demo-v2plugin-from-local: export CONTIV_DOCKER_VERSION ?= 1.13.1
+demo-v2plugin-from-local: export CONTIV_DOCKER_VERSION ?= $(V2PLUGIN_DOCKER_VERSION)
 demo-v2plugin-from-local: export CONTIV_DOCKER_SWARM := swarm_mode
 demo-v2plugin-from-local: tar host-pluginfs-create start v2plugin-install
 
 # demo v2plugin on VMs: creates plugin assets, starts docker swarm
 # then creates and enables v2plugin
-demo-v2plugin: export CONTIV_DOCKER_VERSION ?= 1.13.1
+demo-v2plugin: export CONTIV_DOCKER_VERSION ?= $(V2PLUGIN_DOCKER_VERSION)
 demo-v2plugin: export CONTIV_DOCKER_SWARM := swarm_mode
 demo-v2plugin: node1-make-targets := host-pluginfs-create
 demo-v2plugin: ssh-build make-on-node1-dep v2plugin-install
