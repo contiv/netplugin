@@ -85,21 +85,19 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 	// Wait for a second for master to initialize
 	time.Sleep(10 * time.Second)
 
-	// set forwarding mode if required
-	if its.fwdMode != "bridge" || its.fabricMode != "default" {
-		err := contivModel.CreateGlobal(&contivModel.Global{
-			Key:              "global",
-			Name:             "global",
-			NetworkInfraType: its.fabricMode,
-			Vlans:            "1-4094",
-			Vxlans:           "1-10000",
-			FwdMode:          its.fwdMode,
-			ArpMode:          its.arpMode,
-			PvtSubnet:        "172.19.0.0/16",
-		})
-		if err != nil {
-			log.Fatalf("Error creating global state. Err: %v", err)
-		}
+	err = contivModel.CreateGlobal(&contivModel.Global{
+		Key:              "global",
+		Name:             "global",
+		NetworkInfraType: its.fabricMode,
+		Vlans:            "1-4094",
+		Vxlans:           "1-10000",
+		FwdMode:          its.fwdMode,
+		ArpMode:          its.arpMode,
+		PvtSubnet:        "172.19.0.0/16",
+	})
+
+	if err != nil {
+		log.Fatalf("Error creating global state. Err: %v", err)
 	}
 
 	// Create a new agent
