@@ -7,11 +7,7 @@ NIGHTLY_RELEASE=${NIGHTLY_RELEASE:-}
 
 # calculate version
 if command -v git &>/dev/null && git rev-parse &>/dev/null; then
-	GIT_COMMIT=$(git describe --tags --always 2>/dev/null || echo unknown)
-	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-		GIT_COMMIT="$GIT_COMMIT-unsupported"
-	fi
-	VERSION=$GIT_COMMIT
+	VERSION=$(git describe --abbrev=7 --dirty=-unsupported --tags --always 2>/dev/null || echo unknown)
 else
 	echo >&2 'error: unable to determine the git revision'
 	exit 1
