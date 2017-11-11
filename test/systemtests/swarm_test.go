@@ -402,7 +402,7 @@ func (w *swarm) startNetplugin(args string) error {
 
 	logrus.Infof("Starting netplugin on %s", w.node.Name())
 
-	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin --netmode " + netMode + " --fwdmode " + fwdMode + " -plugin-mode docker -vlan-if " + w.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + "&> /tmp/netplugin.log"
+	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin --netmode " + netMode + " --fwdmode " + fwdMode + " --plugin-mode docker --vlan-if " + w.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + "&> /tmp/netplugin.log"
 	return w.node.tbnode.RunCommandBackground(cmd)
 }
 

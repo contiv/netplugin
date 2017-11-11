@@ -27,10 +27,10 @@ if [ $iflist == "" ]; then
     echo "iflist is empty. Host interface(s) should be specified to use vlan mode" >> $BOOTUP_LOGFILE
 fi
 if [ $ctrl_ip != "none" ]; then
-    ctrl_ip_cfg="-ctrl-ip=$ctrl_ip"
+    ctrl_ip_cfg="--ctrl-ip=$ctrl_ip"
 fi
 if [ $vtep_ip != "none" ]; then
-    vtep_ip_cfg="-vtep-ip=$vtep_ip"
+    vtep_ip_cfg="--vtep-ip=$vtep_ip"
 fi
 if [ $listen_url != ":9999" ]; then
     listen_url_cfg="-listen-url=$listen_url"
@@ -39,8 +39,15 @@ if [ $control_url != ":9999" ]; then
     control_url_cfg="-control-url=$control_url"
 fi
 if [ $vxlan_port != "4789" ]; then
-    vxlan_port_cfg="-vxlan-port=$vxlan_port"
+    vxlan_port_cfg="--vxlan-port=$vxlan_port"
 fi
+
+if [[ "$cluster_store" =~ ^etcd://.+ ]]; then
+    store_arg="--etcd-endpoints $(echo $cluster_store | sed s/etcd/http/)"
+else
+    store_arg="--consul-endpoints $(echo $cluster_store | sed s/consul/http/)"
+fi
+set -e
 
 echo "Loading OVS" >> $BOOTUP_LOGFILE
 (modprobe openvswitch) || (echo "Load ovs FAILED!!! " >> $BOOTUP_LOGFILE)
@@ -66,8 +73,8 @@ set +e
 
 echo "Starting Netplugin " >> $BOOTUP_LOGFILE
 while true ; do
-    echo "/netplugin $dbg_flag -plugin-mode=$plugin_mode $vxlan_port_cfg -vlan-if=$iflist -cluster-store=$cluster_store $ctrl_ip_cfg $vtep_ip_cfg" >> $BOOTUP_LOGFILE
-    /netplugin $dbg_flag -plugin-mode=$plugin_mode $vxlan_port_cfg -vlan-if=$iflist -cluster-store=$cluster_store $ctrl_ip_cfg $vtep_ip_cfg &> $log_dir/netplugin.log
+    echo "/netplugin $dbg_flag --plugin-mode=$plugin_mode $vxlan_port_cfg --vlan-if=$iflist $store_arg $ctrl_ip_cfg $vtep_ip_cfg" >> $BOOTUP_LOGFILE
+    /netplugin $dbg_flag --plugin-mode=$plugin_mode $vxlan_port_cfg --vlan-if=$iflist $store_arg $ctrl_ip_cfg $vtep_ip_cfg &> $log_dir/netplugin.log
     echo "CRITICAL : Net Plugin has exited, Respawn in 5" >> $BOOTUP_LOGFILE
     mv $log_dir/netplugin.log $log_dir/netplugin.log.lastrun
     sleep 5

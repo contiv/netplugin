@@ -438,7 +438,7 @@ func (d *docker) startNetplugin(args string) error {
 		storeArgs = " --consul-endpoints " + strings.Replace(cStore, "consul", "http", 1) + " "
 	}
 
-	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin --netmode " + netMode + " --fwdmode " + fwdMode + " -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + " &> /tmp/netplugin.log"
+	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin --netmode " + netMode + " --fwdmode " + fwdMode + " --plugin-mode docker --vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + " &> /tmp/netplugin.log"
 	logrus.Infof("Starting netplugin on %s with command: %s", d.node.Name(), cmd)
 	return d.node.tbnode.RunCommandBackground(cmd)
 }
