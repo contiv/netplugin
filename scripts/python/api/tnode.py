@@ -95,7 +95,7 @@ class Node:
         # TODO: determine the fwdmode and netmode
         fwd_arg = " --fwdmode bridge "
         net_arg = " --netmode vlan "
-        command = "sudo " + self.binpath + "/netplugin -vlan-if eth2 -vlan-if eth3 " + fwd_arg + fwd_arg + store_args + args + "> /tmp/netplugin.log 2>&1"
+        command = "sudo " + self.binpath + "/netplugin --vlan-if eth2 --vlan-if eth3 " + fwd_arg + fwd_arg + store_args + args + "> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()

@@ -342,7 +342,7 @@ func InitGlobalSettings(stateDriver core.StateDriver, inst *core.InstanceInfo) e
 
 	// make sure local config matches netmaster config
 	if inst.FwdMode != "" && inst.FwdMode != gCfg.FwdMode {
-		err := fmt.Errorf("Netplugin's local forward mode [%v] doesn't match global settings [%v]", inst.FwdMode, gCfg.FwdMode)
+		err := fmt.Errorf("netplugin's local forward mode %q doesn't match global settings %q", inst.FwdMode, gCfg.FwdMode)
 		logrus.Errorf(err.Error())
 		return err
 	}
@@ -351,7 +351,7 @@ func InitGlobalSettings(stateDriver core.StateDriver, inst *core.InstanceInfo) e
 	logrus.Infof("Using forwarding mode: %v", inst.FwdMode)
 	net, err := netutils.CIDRToMask(gCfg.PvtSubnet)
 	if err != nil {
-		err := fmt.Errorf("Error convert private subnet %v from CIDR to mask, error %v", gCfg.PvtSubnet, err.Error())
+		err := fmt.Errorf("error convert private subnet %v from CIDR to mask, error %v", gCfg.PvtSubnet, err.Error())
 		logrus.Errorf(err.Error())
 		return err
 	}

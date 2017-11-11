@@ -49,16 +49,16 @@ func (d *ConsulStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var endpoint *url.URL
 
 	if instInfo == nil || instInfo.DbURL == "" {
-		return errors.New("no Consul config found")
+		return errors.New("no consul config found")
 	}
 	endpoint, err = url.Parse(instInfo.DbURL)
+	if err != nil {
+		return err
+	}
 	if endpoint.Scheme == "consul" {
 		endpoint.Scheme = "http"
 	} else if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
-		return fmt.Errorf("invalid Consul URL scheme %q", endpoint.Scheme)
-	}
-	if err != nil {
-		return err
+		return fmt.Errorf("invalid consul URL scheme %q", endpoint.Scheme)
 	}
 	cfg := api.Config{
 		Address: endpoint.Host,

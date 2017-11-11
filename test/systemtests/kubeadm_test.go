@@ -496,7 +496,7 @@ func (k *kubePod) startNetplugin(args string) error {
 	}
 
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin --netmode ` + netMode + ` --fwdmode ` + fwdMode + ` -plugin-mode=kubernetes -vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + ` > ` + netpluginLogLocation + ` 2>&1`
+	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin --netmode ` + netMode + ` --fwdmode ` + fwdMode + ` --plugin-mode=kubernetes --vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + ` > ` + netpluginLogLocation + ` 2>&1`
 
 	return k.podExecBG(podName, startNetpluginCmd, "kube-system")
 }

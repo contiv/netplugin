@@ -13,7 +13,6 @@ netmaster=false
 netplugin=true
 debug=""
 cleanup=false
-cstore_param=""
 vtep_ip_param=""
 vlan_if_param=""
 control_url=":9999"
@@ -48,9 +47,6 @@ while getopts ":xmp:v:i:c:drl:o:t:" opt; do
 			;;
 		c)
 			cstore=$OPTARG
-			;;
-		t)
-			cstore_type=$OPTARG
 			;;
 		p)
 			plugin=$OPTARG
@@ -144,20 +140,13 @@ elif [ $netplugin == true ]; then
 
 	while true; do
 		if [ -f /tmp/restart_netplugin ]; then
-			if [ "$cstore" != "" ]; then
-				if [ "$cstore_type" = "etcd" ]; then
-					cstore_param="--etcd-endpoints"
-				else
-					cstore_param="--consul-endpoints"
-				fi
-			fi
 			if [ "$vtep_ip" != "" ]; then
-				vtep_ip_param="-vtep-ip"
+				vtep_ip_param="--vtep-ip"
 			fi
 			if [ "$vlan_if" != "" ]; then
-				vlan_if_param="-vlan-if"
+				vlan_if_param="--vlan-if"
 			fi
-			/contiv/bin/netplugin $debug $cstore_param $cstore $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if -plugin-mode $plugin || true
+			/contiv/bin/netplugin $debug $store_arg $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if --plugin-mode $plugin || true
 			echo "CRITICAL : Netplugin has exited. Trying to respawn in 5s"
 		fi
 		sleep 5

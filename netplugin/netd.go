@@ -125,13 +125,15 @@ func initNetPluginConifg(ctx *cli.Context) (plugin.Config, error) {
 
 	// 4. validate forward mode
 	forwardMode := strings.ToLower(ctx.String("fwdmode"))
-	if (networkMode == "vlan" && forwardMode == "bridge") || forwardMode == "routing" {
-		logrus.Infof("Using netplugin forwarding mode: %v", forwardMode)
-	} else if forwardMode == "" {
-		return plugin.Config{}, fmt.Errorf("netplugin network mode is not set")
-	} else {
-		return plugin.Config{}, fmt.Errorf("invalid netplugin forwarding mode: %v", forwardMode)
+	if forwardMode == "" {
+		return plugin.Config{}, fmt.Errorf("unknown netplugin forwarding mode: %v", forwardMode)
+	} else if forwardMode != "bridge" && forwardMode != "routing" {
+		return plugin.Config{}, fmt.Errorf("netplugin forwarding mode is not set")
+	} else if networkMode == "vxlan" && forwardMode == "bridge" {
+		return plugin.Config{}, fmt.Errorf("invalid netplugin forwarding mode: %q (network mode: %q)", forwardMode, networkMode)
 	}
+	// vxlan/vlan+routing, vlan+bridge are valid combinations
+	logrus.Infof("Using netplugin forwarding mode: %v", forwardMode)
 
 	// 5. validate and set other optional configs
 	hostLabel := ctx.String("host")
@@ -268,7 +270,7 @@ func main() {
 		cli.StringFlag{
 			Name:   "consul-endpoints, consul",
 			EnvVar: "CONTIV_NETPLUGIN_CONSUL_ENDPOINTS",
-			Usage:  "a comma-delimited list of netplugin consul endpoints",
+			Usage:  "a comma-delimited list of netplugin consul endpoints, ignored when etcd-endpoints is set",
 		},
 		cli.IntFlag{
 			Name:   "vxlan-port",
@@ -283,11 +285,12 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:   "fwdmode, forward-mode",
-			EnvVar: "CONTIV_NETPLUGIN_NET_MODE",
+			EnvVar: "CONTIV_NETPLUGIN_FORWARD_MODE",
 			Usage:  "set netplugin forwarding network mode, options: [bridge, routing]",
 		},
 		/*
 			// only ovs is supported
+			// TODO: turn it on when having more than one backend supported
 			cli.StringFlag {
 				Name: "driver, net-driver",
 				Value: "ovs",

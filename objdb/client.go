@@ -29,7 +29,7 @@ func InitClient(storeName string, storeURLs []string) (API, error) {
 	plugin := GetPlugin(storeName)
 	if plugin == nil {
 		log.Errorf("Invalid DB type %s", storeName)
-		return nil, errors.New("Unsupported DB type")
+		return nil, errors.New("unsupported DB type")
 	}
 	cl, err := plugin.NewClient(storeURLs)
 	if err != nil {
@@ -49,7 +49,7 @@ func NewClient(dbURL string) (API, error) {
 	parts := strings.Split(dbURL, "://")
 	if len(parts) < 2 {
 		log.Errorf("Invalid DB URL format %s", dbURL)
-		return nil, errors.New("Invalid DB URL")
+		return nil, errors.New("invalid DB URL")
 	}
 	clientName := parts[0]
 	clientURL := parts[1]

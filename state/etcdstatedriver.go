@@ -56,7 +56,7 @@ func (d *EtcdStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var endpoint *url.URL
 
 	if instInfo == nil || instInfo.DbURL == "" {
-		return errors.New("no Etcd config found")
+		return errors.New("no etcd config found")
 	}
 	endpoint, err = url.Parse(instInfo.DbURL)
 	if err != nil {
@@ -65,7 +65,7 @@ func (d *EtcdStateDriver) Init(instInfo *core.InstanceInfo) error {
 	if endpoint.Scheme == "etcd" {
 		endpoint.Scheme = "http"
 	} else if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
-		return core.Errorf("invalid Etcd URL scheme %q", endpoint.Scheme)
+		return core.Errorf("invalid etcd URL scheme %q", endpoint.Scheme)
 	}
 	// TODO: support multi-endpoints
 	etcdConfig := client.Config{
