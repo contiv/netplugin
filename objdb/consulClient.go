@@ -49,7 +49,7 @@ func init() {
 }
 
 // Init initializes the consul client
-func (cp *consulPlugin) NewClient(endpoints []string) (API, error) {
+func (cp *consulPlugin) NewClient(endpoints []string, config *Config) (API, error) {
 	cc := new(ConsulClient)
 
 	if len(endpoints) == 0 {

@@ -26,6 +26,11 @@ var defaultDbURL = "etcd://127.0.0.1:2379"
 
 // NewClient Create a new conf store
 func NewClient(dbURL string) (API, error) {
+	return NewClientWithConfig(dbURL, nil)
+}
+
+// NewClientWithConfig Create a new conf store with options
+func NewClientWithConfig(dbURL string, config *Config) (API, error) {
 	// check if we should use default db
 	if dbURL == "" {
 		dbURL = defaultDbURL
@@ -47,7 +52,7 @@ func NewClient(dbURL string) (API, error) {
 	}
 
 	// Initialize the objdb client
-	cl, err := plugin.NewClient([]string{"http://" + clientURL})
+	cl, err := plugin.NewClient([]string{"http://" + clientURL}, config)
 	if err != nil {
 		log.Errorf("Error creating client %s to url %s. Err: %v", clientName, clientURL, err)
 		return nil, err
