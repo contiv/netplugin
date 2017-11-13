@@ -88,6 +88,7 @@ if [ $plugin_role == "master" ]; then
         echo "Restarting Netmaster " >> $BOOTUP_LOGFILE
     done &
 
+    set -e
     echo "Waiting for netmaster to be ready for connections"
     # wait till netmaster starts to listen
     for i in $(seq 1 10); do
