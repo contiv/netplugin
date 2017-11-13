@@ -367,6 +367,7 @@ demo-v2plugin: ssh-build make-on-node1-dep v2plugin-install
 host-plugin-release: tar host-pluginfs-create host-pluginfs-unpack host-plugin-create
 	@echo dev: pushing ${CONTIV_V2PLUGIN_NAME} to docker hub
 	@echo dev: need docker login with user in contiv org
+	@echo "dev:   docker login --username <username>"
 	docker plugin push ${CONTIV_V2PLUGIN_NAME}
 
 # unarchive versioned binaries to bin, usually as a helper for other targets

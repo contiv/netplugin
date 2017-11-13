@@ -3,7 +3,7 @@
 ### Pre-requisite on the host
 # run a cluster store like etcd or consul
 
-set -eu
+set -e
 
 if [ $log_dir == "" ]; then
     log_dir="/var/log/contiv"
@@ -97,7 +97,7 @@ if [ $plugin_role == "master" ]; then
         sleep 1
     done
     if [ "$i" -ge "10" ]; then
-        echo "Failed to set forwarding mode, plugin will fail to enable"
+        echo "netmaster port not open (needed to set forwarding mode), plugin failed"
         exit 1
     fi
     sleep 1
