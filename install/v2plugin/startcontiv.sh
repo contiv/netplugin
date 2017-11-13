@@ -74,6 +74,10 @@ while true ; do
 done &
 
 if [ $plugin_role == "master" ]; then
+    if [ -z "$fwd_mode" ]; then
+        echo "fwd_mode is not set, plugin cannot be enabled"
+        exit 1
+    fi
     echo "Starting Netmaster " >> $BOOTUP_LOGFILE
     while  true ; do
         echo "/netmaster $dbg_flag -plugin-name=$plugin_name -cluster-mode=$plugin_mode -cluster-store=$cluster_store $listen_url_cfg $control_url_cfg" >> $BOOTUP_LOGFILE
