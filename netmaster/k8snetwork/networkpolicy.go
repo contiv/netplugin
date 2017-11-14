@@ -311,27 +311,6 @@ func (k8sNet *k8sContext) deleteDefaultIngressPolicy(ns string) {
 	}
 }
 
-func (k8sNet *k8sContext) processK8sNamespace(opCode watch.EventType, ns *v1.Namespace) {
-	if ns.Name == "kube-system" {
-		return
-	}
-
-	action := k8sNet.getIsolationPolicy(ns.Annotations)
-
-	npLog.Infof("process [%s] namespace isolation policy [%s], %+v", opCode, action, ns.Annotations)
-
-	switch opCode {
-	case watch.Added, watch.Modified:
-		if action == "none" {
-			k8sNet.deleteDefaultIngressPolicy(ns.Name)
-		} else {
-			k8sNet.updateDefaultIngressPolicy(ns.Name, action)
-		}
-	case watch.Deleted:
-		k8sNet.deleteDefaultIngressPolicy(ns.Name)
-	}
-}
-
 func (k8sNet *k8sContext) processK8sNetworkPolicy(opCode watch.EventType, np *v1beta1.NetworkPolicy) {
 	if np.Namespace == "kube-system" { // not applicable for system namespace
 		return
@@ -350,8 +329,6 @@ func (k8sNet *k8sContext) processK8sEvent(opCode watch.EventType, eventObj inter
 		return
 	}
 	switch objType := eventObj.(type) {
-	case *v1.Namespace:
-		k8sNet.processK8sNamespace(opCode, objType)
 
 	case *v1beta1.NetworkPolicy:
 		k8sNet.processK8sNetworkPolicy(opCode, objType)
@@ -374,14 +351,6 @@ func (k8sNet *k8sContext) watchK8sEvents(errChan chan error) {
 
 	selCase = append(selCase, reflect.SelectCase{Dir: reflect.SelectRecv,
 		Chan: reflect.ValueOf(npWatch.ResultChan())})
-
-	nsWatch, err := k8sNet.k8sClientSet.CoreV1().Namespaces().Watch(v1.ListOptions{})
-	if err != nil {
-		errChan <- fmt.Errorf("failed to watch namespaces, %s", err)
-		return
-	}
-	selCase = append(selCase, reflect.SelectCase{Dir: reflect.SelectRecv,
-		Chan: reflect.ValueOf(nsWatch.ResultChan())})
 
 	for {
 		_, recVal, ok := reflect.Select(selCase)

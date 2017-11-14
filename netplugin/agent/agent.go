@@ -139,7 +139,7 @@ func (ag *Agent) ProcessCurrentState() error {
 	if err == nil {
 		for idx, epgCfg := range epgCfgs {
 			epg := epgCfg.(*mastercfg.EndpointGroupState)
-			log.Infof("Read epg key[%d] %s, for group %s, populating state \n", idx, epg.GroupName)
+			log.Infof("Read epg key[%d] %s, populating state \n", idx, epg.GroupName)
 			processEpgEvent(ag.netPlugin, opts, epg.ID, false)
 		}
 	}
