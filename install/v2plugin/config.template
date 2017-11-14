@@ -103,6 +103,14 @@
           ],
           ## Do not change the default value, this will be replaced with $CONTIV_V2PLUGIN_NAME
           "Value": "__CONTIV_V2PLUGIN_NAME__"
+       },
+       {
+          "Description": "Forwarding mode for netplugin",
+          "Name": "fwd_mode",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
        }
     ],
     "mounts": [
