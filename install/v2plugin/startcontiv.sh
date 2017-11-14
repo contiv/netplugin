@@ -8,6 +8,11 @@ set -e
 if [ $log_dir == "" ]; then
     log_dir="/var/log/contiv"
 fi
+
+mkdir -p $log_dir
+mkdir -p /var/run/openvswitch
+mkdir -p /etc/openvswitch
+
 BOOTUP_LOGFILE="$log_dir/plugin_bootup.log"
 
 # Redirect stdout and stdin to BOOTUP_LOGFILE
@@ -15,10 +20,6 @@ exec 1<&-  # Close stdout
 exec 2<&-  # Close stderr
 exec 1<>$BOOTUP_LOGFILE  # stdout read and write to logfile instead of console
 exec 2>&1  # redirect stderr to where stdout is (logfile)
-
-mkdir -p $log_dir
-mkdir -p /var/run/openvswitch
-mkdir -p /etc/openvswitch
 
 echo "V2 Plugin logs" > $BOOTUP_LOGFILE
 
