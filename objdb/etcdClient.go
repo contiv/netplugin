@@ -25,6 +25,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
+	"net"
+	"net/http"
 )
 
 type etcdPlugin struct {
@@ -48,7 +50,7 @@ func init() {
 }
 
 // Initialize the etcd client
-func (ep *etcdPlugin) NewClient(endpoints []string) (API, error) {
+func (ep *etcdPlugin) NewClient(endpoints []string, config *Config) (API, error) {
 	var err error
 	var ec = new(EtcdClient)
 
@@ -62,6 +64,19 @@ func (ep *etcdPlugin) NewClient(endpoints []string) (API, error) {
 
 	etcdConfig := client.Config{
 		Endpoints: endpoints,
+		Transport: client.DefaultTransport,
+	}
+
+	if config != nil && config.TLS != nil {
+		// Set transport
+		etcdConfig.Transport = &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 10 * time.Second,
+			TLSClientConfig:     config.TLS,
+		}
 	}
 
 	// Create a new client

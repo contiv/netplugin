@@ -37,8 +37,10 @@ import (
 	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
 
+	"crypto/tls"
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/netmaster/k8snetwork"
+	"github.com/contiv/netplugin/utils/netutils"
 )
 
 const leaderLockTTL = 30
@@ -46,10 +48,14 @@ const leaderLockTTL = 30
 // MasterDaemon runs the daemon FSM
 type MasterDaemon struct {
 	// Public state
-	ListenURL    string // URL where netmaster listens for ext requests
-	ControlURL   string // URL where netmaster listens for ctrl pkts
-	ClusterStore string // state store URL
-	ClusterMode  string // cluster scheduler used docker/kubernetes/mesos etc
+	ListenURL        string // URL where netmaster listens for ext requests
+	ControlURL       string // URL where netmaster listens for ctrl pkts
+	ClusterStore     string // state store URL
+	ClusterTLSVerify bool
+	ClusterTLSCert   string
+	ClusterTLSKey    string
+	ClusterTLSCaCert string
+	ClusterMode      string // cluster scheduler used docker/kubernetes/mesos etc
 
 	// Private state
 	currState        string                          // Current state of the daemon
@@ -74,7 +80,7 @@ func (d *MasterDaemon) Init() {
 	}
 
 	// initialize state driver
-	d.stateDriver, err = initStateDriver(d.ClusterStore)
+	d.stateDriver, err = initStateDriver(d.ClusterStore, d.ClusterTLSCert, d.ClusterTLSKey, d.ClusterTLSCaCert, d.ClusterTLSVerify)
 	if err != nil {
 		log.Fatalf("Failed to init state-store. Error: %s", err)
 	}
@@ -85,8 +91,19 @@ func (d *MasterDaemon) Init() {
 		log.Fatalf("Failed to init resource manager. Error: %s", err)
 	}
 
+	var tlsConfig *tls.Config
+	if d.ClusterTLSVerify {
+		if tlsConfig, err = netutils.GetTLSConfigFromCerts(d.ClusterTLSCert, d.ClusterTLSKey, d.ClusterTLSCaCert); err != nil {
+			log.Warnf("Error get tls config from certs config: Err: %v", err)
+		}
+	}
+
 	// Create an objdb client
-	d.objdbClient, err = objdb.NewClient(d.ClusterStore)
+	d.objdbClient, err = objdb.NewClientWithConfig(d.ClusterStore,
+		&objdb.Config{
+			TLS: tlsConfig,
+		},
+	)
 	if err != nil {
 		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
 	}
@@ -403,8 +420,20 @@ func getEpName(networkName string, ep *intent.ConfigEP) string {
 func (d *MasterDaemon) runLeader() {
 	router := mux.NewRouter()
 
+	var tlsConfig *tls.Config
+	if d.ClusterTLSVerify {
+		var err error
+		if tlsConfig, err = netutils.GetTLSConfigFromCerts(d.ClusterTLSCert, d.ClusterTLSKey, d.ClusterTLSCaCert); err != nil {
+			log.Warnf("Error get tls config from certs config: Err: %v", err)
+		}
+	}
+
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router, d.objdbClient, d.ClusterStore)
+	d.apiController = objApi.NewAPIController(router, d.objdbClient, d.ClusterStore,
+		&objdb.Config{
+			TLS: tlsConfig,
+		},
+	)
 
 	//Restore state from clusterStore
 	d.restoreCache()

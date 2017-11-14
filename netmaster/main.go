@@ -31,14 +31,18 @@ import (
 )
 
 type cliOpts struct {
-	help         bool
-	debug        bool
-	pluginName   string
-	clusterStore string
-	listenURL    string
-	controlURL   string
-	clusterMode  string
-	version      bool
+	help             bool
+	debug            bool
+	pluginName       string
+	clusterStore     string
+	clusterTLSVerify bool
+	clusterTLSCert   string
+	clusterTLSKey    string
+	clusterTLSCaCert string
+	listenURL        string
+	controlURL       string
+	clusterMode      string
+	version          bool
 }
 
 const (
@@ -87,6 +91,22 @@ func parseOpts(opts *cliOpts) error {
 		"version",
 		false,
 		"prints current version")
+	flagSet.BoolVar(&opts.clusterTLSVerify,
+		"cluster-tls-verify",
+		false,
+		"")
+	flagSet.StringVar(&opts.clusterTLSCert,
+		"cluster-tls-cert",
+		"",
+		"cluster tls cert location")
+	flagSet.StringVar(&opts.clusterTLSKey,
+		"cluster-tls-key",
+		"",
+		"cluster tls key location")
+	flagSet.StringVar(&opts.clusterTLSCaCert,
+		"cluster-tls-cacert",
+		"",
+		"cluster tls ca cert location")
 
 	return flagSet.Parse(os.Args[1:])
 }
@@ -171,10 +191,14 @@ func main() {
 
 	// create master daemon
 	d := &daemon.MasterDaemon{
-		ListenURL:    opts.listenURL,
-		ControlURL:   opts.controlURL,
-		ClusterStore: opts.clusterStore,
-		ClusterMode:  opts.clusterMode,
+		ListenURL:        opts.listenURL,
+		ControlURL:       opts.controlURL,
+		ClusterStore:     opts.clusterStore,
+		ClusterTLSVerify: opts.clusterTLSVerify,
+		ClusterTLSCert:   opts.clusterTLSCert,
+		ClusterTLSKey:    opts.clusterTLSKey,
+		ClusterTLSCaCert: opts.clusterTLSCaCert,
+		ClusterMode:      opts.clusterMode,
 	}
 
 	// initialize master daemon

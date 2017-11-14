@@ -50,7 +50,7 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	netPlugin := &plugin.NetPlugin{}
 
 	// init cluster state
-	err := cluster.Init(opts.DbURL)
+	err := cluster.Init(opts.DbURL, opts.DbTLSCert, opts.DbTLSKey, opts.DbTLSCaCert, opts.DbTLSVerify)
 	if err != nil {
 		log.Fatalf("Error initializing cluster. Err: %v", err)
 	}

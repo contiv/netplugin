@@ -49,7 +49,7 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 // initStateDriver creates a state driver based on the cluster store URL
-func initStateDriver(clusterStore string) (core.StateDriver, error) {
+func initStateDriver(clusterStore, ClusterTLSCert, ClusterTLSKey, ClusterTLSCacert string, clusterTLSVerify bool) (core.StateDriver, error) {
 	// parse the state store URL
 	parts := strings.Split(clusterStore, "://")
 	if len(parts) < 2 {
@@ -67,7 +67,11 @@ func initStateDriver(clusterStore string) (core.StateDriver, error) {
 
 	// Setup instance info
 	instInfo := core.InstanceInfo{
-		DbURL: clusterStore,
+		DbURL:       clusterStore,
+		DbTLSVerify: clusterTLSVerify,
+		DbTLSCert:   ClusterTLSCert,
+		DbTLSKey:    ClusterTLSKey,
+		DbTLSCaCert: ClusterTLSCacert,
 	}
 
 	return utils.NewStateDriver(stateStore, &instInfo)
