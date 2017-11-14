@@ -5,9 +5,10 @@
 
 set -e
 
-if [ $log_dir == "" ]; then
+if [ "$log_dir" == "" ]; then
     log_dir="/var/log/contiv"
 fi
+mkdir -p $log_dir
 BOOTUP_LOGFILE="$log_dir/plugin_bootup.log"
 
 # Redirect stdout and stdin to BOOTUP_LOGFILE
