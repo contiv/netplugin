@@ -1023,6 +1023,11 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	log.Infof("Received NetworkCreate: %+v", network)
 
+	// Make sure global settings is valid
+	if err := validateGlobalConfig(network.Encap); err != nil {
+		return fmt.Errorf("Global configuration is not ready: %v", err.Error())
+	}
+
 	// Make sure tenant exists
 	if network.TenantName == "" {
 		return core.Errorf("Invalid tenant name")
@@ -2324,4 +2329,21 @@ func validatePorts(ports []string) bool {
 		}
 	}
 	return true
+}
+
+func validateGlobalConfig(netmode string) error {
+	globalConfig := contivModel.FindGlobal("global")
+	if globalConfig == nil {
+		return errors.New("global configuration is not ready")
+	}
+	if globalConfig.FwdMode == "" {
+		return errors.New("global forwarding mode is not set")
+	}
+	if strings.ToLower(netmode) == "vlan" && globalConfig.Vlans == "" {
+		return errors.New("global vlan range is not set")
+	}
+	if strings.ToLower(netmode) == "vxlan" && globalConfig.Vxlans == "" {
+		return errors.New("global vxlan range is not set")
+	}
+	return nil
 }
