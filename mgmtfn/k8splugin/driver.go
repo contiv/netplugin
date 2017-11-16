@@ -354,6 +354,12 @@ func getEPSpec(pInfo *cniapi.CNIPodAttr) (*epSpec, error) {
 	resp.Tenant = tenant
 	resp.Network = netw
 	resp.Group = epg
+
+	// non-system pod with no EPG ? configure it in namespace
+	if pInfo.K8sNameSpace != "kube-system" && len(resp.Group) <= 0 {
+		resp.Group = pInfo.K8sNameSpace
+	}
+
 	resp.EndpointID = pInfo.InfraContainerID
 	resp.Name = pInfo.Name
 
