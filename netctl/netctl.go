@@ -11,7 +11,6 @@ import (
 	"os"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -518,8 +517,6 @@ func createNetwork(ctx *cli.Context) {
 	subnetv6 := ctx.String("subnetv6")
 	gatewayv6 := ctx.String("gatewayv6")
 
-	pktTagInString := ctx.String("pkt-tag")
-
 	if subnet == "" {
 		errExit(ctx, exitHelp, "Subnet is required", true)
 	}
@@ -530,22 +527,14 @@ func createNetwork(ctx *cli.Context) {
 	}
 	if gatewayv6 != "" {
 		if ok := net.ParseIP(gatewayv6); ok == nil {
-			errExit(ctx, exitHelp, "Invalid IPv6 gateway", true)
-		}
-	}
-
-	var pktTag int
-	var err error
-	if len(pktTagInString) > 0 {
-		pktTag, err = strconv.Atoi(pktTagInString)
-		if err != nil {
-			errExit(ctx, exitHelp, "Invalid VLAN ID or VNI, expected an integer", true)
+			errExit(ctx, exitHelp, "Invalid IPv6 gateway ", true)
 		}
 	}
 
 	tenant := ctx.String("tenant")
 	network := ctx.Args()[0]
 	encap := ctx.String("encap")
+	pktTag := ctx.Int("pkt-tag")
 	nwType := ctx.String("nw-type")
 	nwTag := ctx.String("nw-tag")
 
