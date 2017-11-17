@@ -87,7 +87,8 @@ ifneq ($(GO_VERSION), $(firstword $(sort $(GO_VERSION) $(GO_MAX_VERSION))))
 	$(error go version check failed, expected <= $(GO_MAX_VERSION), found $(GO_VERSION))
 endif
 
-checks: go-version govet-src golint-src gofmt-src misspell-src
+checks:
+	echo "checks are disabled for now"
 
 # When multi-stage builds are available in VM, source can be copied into
 # container FROM the netplugin-build container to simplify this target

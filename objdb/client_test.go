@@ -527,7 +527,7 @@ func TestConsulServiceRegisterDeregister(t *testing.T) {
 }
 
 func testServiceRegisterDeregister(t *testing.T, dbClient API) {
-	srvTTL := 10
+	srvTTL := int64(10)
 
 	// Service info
 	service1Info := ServiceInfo{
@@ -612,7 +612,8 @@ func TestConsulServiceRegisterMultiple(t *testing.T) {
 }
 
 func testServiceMultipleRegister(t *testing.T, dbClient API) {
-	srvTTL := 10
+	srvTTL := int64(10)
+
 	// Service info
 	service1Info := ServiceInfo{
 		ServiceName: "athena",
@@ -669,7 +670,8 @@ func TestConsulServiceWatch(t *testing.T) {
 }
 
 func testServiceWatch(t *testing.T, dbClient API) {
-	srvTTL := 10
+	srvTTL := int64(10)
+
 	service1Info := ServiceInfo{
 		ServiceName: "athena",
 		TTL:         srvTTL,

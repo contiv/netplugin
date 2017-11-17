@@ -3,7 +3,7 @@ package networkpolicy
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
@@ -12,7 +12,7 @@ import (
 	"github.com/contiv/netplugin/state"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/ofnet"
-	etcdclient "github.com/coreos/etcd/client"
+	etcdclient "github.com/coreos/etcd/clientv3"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 	"hash/fnv"

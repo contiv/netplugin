@@ -25,7 +25,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/coreos/etcd/client"
+	client "github.com/coreos/etcd/clientv3"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -46,8 +46,7 @@ type EtcdStateDriverConfig struct {
 // EtcdStateDriver implements the StateDriver interface for an etcd based distributed
 // key-value store used to store config and runtime state for the netplugin.
 type EtcdStateDriver struct {
-	Client  client.Client
-	KeysAPI client.KeysAPI
+	Client *client.Client
 }
 
 // Init the driver with a core.Config.
@@ -68,14 +67,13 @@ func (d *EtcdStateDriver) Init(instInfo *core.InstanceInfo) error {
 		log.Fatalf("Error creating etcd client. Err: %v", err)
 	}
 
-	// Create keys api
-	d.KeysAPI = client.NewKeysAPI(d.Client)
-
 	return nil
 }
 
-// Deinit is currently a no-op.
-func (d *EtcdStateDriver) Deinit() {}
+// Deinit closes the etcd client connection.
+func (d *EtcdStateDriver) Deinit() {
+	d.Client.Close()
+}
 
 // Write state to key with value.
 func (d *EtcdStateDriver) Write(key string, value []byte) error {
@@ -85,8 +83,8 @@ func (d *EtcdStateDriver) Write(key string, value []byte) error {
 	var err error
 
 	for i := 0; i < maxEtcdRetries; i++ {
-		_, err = d.KeysAPI.Set(ctx, key, string(value[:]), nil)
-		if err != nil && err.Error() == client.ErrClusterUnavailable.Error() {
+		_, err = d.Client.KV.Put(ctx, key, string(value[:]))
+		if err != nil && err.Error() == client.ErrNoAvailableEndpoints.Error() {
 			// Retry after a delay
 			time.Sleep(time.Second)
 			continue
@@ -105,29 +103,32 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 	defer cancel()
 
 	var err error
-	var resp *client.Response
+	var resp *client.GetResponse
 
 	for i := 0; i < maxEtcdRetries; i++ {
-		resp, err = d.KeysAPI.Get(ctx, key, &client.GetOptions{Quorum: true})
-		if err == nil {
-			if resp != nil && resp.Node != nil {
-				return []byte(resp.Node.Value), nil
+		// etcd3 uses quorum for reads by default
+		resp, err = d.Client.KV.Get(ctx, key)
+		if err != nil {
+			if err.Error() == client.ErrNoAvailableEndpoints.Error() {
+				// Retry after a delay
+				time.Sleep(time.Second)
+				continue
+			}
+
+			if resp != nil && len(resp.Kvs) != 0 {
+				return []byte(resp.Kvs[0].Value), nil
 			}
 
 			return []byte{}, fmt.Errorf("error reading from etcd")
 		}
 
-		if client.IsKeyNotFound(err) {
+		if resp.Count == 0 {
 			return []byte{}, core.Errorf("key not found")
 		}
 
-		if err.Error() == client.ErrClusterUnavailable.Error() {
-			// Retry after a delay
-			time.Sleep(time.Second)
-			continue
-		}
+		// TODO: make sure there's only one key in the response?
 
-		return []byte{}, err
+		return resp.Kvs[0].Value, err
 	}
 
 	return []byte{}, err
@@ -139,77 +140,65 @@ func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	defer cancel()
 
 	var err error
-	var resp *client.Response
+	var resp *client.GetResponse
 
 	for i := 0; i < maxEtcdRetries; i++ {
-		resp, err = d.KeysAPI.Get(ctx, baseKey, &client.GetOptions{Recursive: true, Quorum: true})
-		if err == nil {
-			values := [][]byte{}
-			for _, node := range resp.Node.Nodes {
-				values = append(values, []byte(node.Value))
+		// etcd uses quorum for reads by default
+		resp, err = d.Client.KV.Get(ctx, baseKey, client.WithPrefix(), client.WithSort(client.SortByKey, client.SortAscend))
+		if err != nil {
+
+			if err.Error() == client.ErrNoAvailableEndpoints.Error() {
+				// Retry after a delay
+				time.Sleep(time.Second)
+				continue
 			}
-			return values, nil
 		}
 
-		if client.IsKeyNotFound(err) {
+		if resp.Count == 0 {
 			return [][]byte{}, core.Errorf("key not found")
 		}
 
-		if err.Error() == client.ErrClusterUnavailable.Error() {
-			// Retry after a delay
-			time.Sleep(time.Second)
-			continue
+		values := [][]byte{}
+		for _, node := range resp.Kvs {
+			values = append(values, []byte(node.Value))
 		}
-
-		return [][]byte{}, err
+		return values, nil
 	}
 
 	return [][]byte{}, err
 }
 
-func (d *EtcdStateDriver) channelEtcdEvents(watcher client.Watcher, rsps chan [2][]byte) {
-	for {
-		// block on change notifications
-		etcdRsp, err := watcher.Next(context.Background())
-		if err != nil {
-			log.Errorf("Error %v during watch", err)
-			time.Sleep(time.Second)
-			continue
-		}
+func (d *EtcdStateDriver) channelEtcdEvents(watcher client.WatchChan, rsps chan [2][]byte) {
+	for resp := range watcher {
 
-		// XXX: The logic below assumes that the node returned is always a node
-		// of interest. Eg: If we set a watch on /a/b/c, then we are mostly
-		// interested in changes in that directory i.e. changes to /a/b/c/d1..d2
-		// This works for now as the constructs like network and endpoints that
-		// need to be watched are organized as above. Need to revisit when
-		// this assumption changes.
-		rsp := [2][]byte{nil, nil}
-		eventStr := "create"
-		if etcdRsp.Node.Value != "" {
-			rsp[0] = []byte(etcdRsp.Node.Value)
-		}
-		if etcdRsp.PrevNode != nil && etcdRsp.PrevNode.Value != "" {
-			rsp[1] = []byte(etcdRsp.PrevNode.Value)
-			if etcdRsp.Node.Value != "" {
-				eventStr = "modify"
-			} else {
-				eventStr = "delete"
+		for _, ev := range resp.Events {
+			//			fmt.Printf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
+
+			rsp := [2][]byte{nil, nil}
+			eventStr := "create"
+			if string(ev.Kv.Value) != "" {
+				rsp[0] = ev.Kv.Value
 			}
-		}
 
-		log.Debugf("Received %q for key: %s", eventStr, etcdRsp.Node.Key)
-		//channel the translated response
-		rsps <- rsp
+			if ev.PrevKv != nil && string(ev.PrevKv.Value) != "" {
+				rsp[1] = ev.PrevKv.Value
+				if string(ev.Kv.Value) != "" {
+					eventStr = "modify"
+				} else {
+					eventStr = "delete"
+				}
+			}
+
+			log.Debugf("Received %q for key: %s", eventStr, ev.Kv.Key)
+			//channel the translated response
+			rsps <- rsp
+		}
 	}
 }
 
 // WatchAll state transitions from baseKey
 func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
-	watcher := d.KeysAPI.Watcher(baseKey, &client.WatcherOptions{Recursive: true})
-	if watcher == nil {
-		log.Errorf("etcd watch failed.")
-		return errors.New("etcd watch failed")
-	}
+	watcher := d.Client.Watch(context.Background(), baseKey, client.WithPrefix())
 
 	go d.channelEtcdEvents(watcher, rsps)
 
@@ -221,7 +210,7 @@ func (d *EtcdStateDriver) ClearState(key string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
-	_, err := d.KeysAPI.Delete(ctx, key, nil)
+	_, err := d.Client.KV.Delete(ctx, key)
 	return err
 }
 

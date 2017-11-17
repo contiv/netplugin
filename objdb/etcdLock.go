@@ -1,14 +1,15 @@
 package objdb
 
 import (
-	"strings"
+	"errors"
 	"sync"
 	"time"
 
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/coreos/etcd/client"
+	client "github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 )
 
 // Lock object
@@ -22,28 +23,38 @@ type etcdLock struct {
 	timeout     uint64
 	eventChan   chan LockEvent
 	stopChan    chan bool
-	watchCh     chan *client.Response
+	stoppedChan chan bool
+	watchCh     chan *client.WatchResponse
 	watchCtx    context.Context
 	watchCancel context.CancelFunc
-	kapi        client.KeysAPI
+	client      *client.Client
 	mutex       *sync.Mutex
+	leaseID     client.LeaseID
 }
 
 // NewLock Create a new lock
 func (ep *EtcdClient) NewLock(name string, myID string, ttl uint64) (LockInterface, error) {
 	watchCtx, watchCancel := context.WithCancel(context.Background())
+
+	lease, err := ep.client.Grant(context.TODO(), int64(ttl))
+	if err != nil {
+		return nil, errors.New("Failed to create lease: " + err.Error())
+	}
+
 	// Create a lock
 	return &etcdLock{
 		name:        name,
 		myID:        myID,
 		ttl:         time.Duration(ttl) * time.Second,
-		kapi:        ep.kapi,
+		client:      ep.client,
 		eventChan:   make(chan LockEvent, 1),
 		stopChan:    make(chan bool, 1),
-		watchCh:     make(chan *client.Response, 1),
+		stoppedChan: make(chan bool, 1),
+		watchCh:     make(chan *client.WatchResponse, 1),
 		watchCtx:    watchCtx,
 		watchCancel: watchCancel,
 		mutex:       new(sync.Mutex),
+		leaseID:     lease.ID,
 	}, nil
 }
 
@@ -51,6 +62,10 @@ func (ep *EtcdClient) NewLock(name string, myID string, ttl uint64) (LockInterfa
 func (lk *etcdLock) Acquire(timeout uint64) error {
 	lk.mutex.Lock()
 	defer lk.mutex.Unlock()
+
+	// TODO: we probably shouldn't allow acquiring a new lock
+	//       without explicitly freeing the old one (if one exists)...
+
 	lk.timeout = timeout
 
 	// Acquire in background
@@ -71,15 +86,16 @@ func (lk *etcdLock) Release() error {
 
 	// Send stop signal on stop channel
 	lk.stopChan <- true
+	<-lk.stoppedChan
 
 	// If the lock was acquired, release it
 	if lk.isAcquired {
-		// Delete the lock entry
-		resp, err := lk.kapi.Delete(context.Background(), keyName, &client.DeleteOptions{PrevValue: lk.myID})
+		// revoke the lease which deletes the attached lock key
+		resp, err := lk.client.Revoke(context.TODO(), lk.leaseID)
 		if err != nil {
-			log.Errorf("Error Deleting key. Err: %v", err)
+			log.Errorf("Error revoking lease %d for key %s. Err: %v", lk.leaseID, keyName, err)
 		} else {
-			log.Infof("Deleted key lock %s, Resp: %+v", keyName, resp)
+			log.Infof("Revoked lease %d for key %s, Resp: %+v", lk.leaseID, keyName, resp)
 		}
 
 		lk.isAcquired = false
@@ -99,6 +115,7 @@ func (lk *etcdLock) Kill() error {
 
 	// Send stop signal on stop channel
 	lk.stopChan <- true
+	<-lk.stoppedChan
 
 	return nil
 }
@@ -125,13 +142,17 @@ func (lk *etcdLock) GetHolder() string {
 	keyName := "/contiv.io/lock/" + lk.name
 
 	// Get the current value
-	resp, err := lk.kapi.Get(context.Background(), keyName, nil)
+	resp, err := lk.client.KV.Get(context.Background(), keyName)
 	if err != nil {
 		log.Warnf("Could not get current holder for lock %s", lk.name)
 		return ""
 	}
 
-	return resp.Node.Value
+	if resp.Count == 0 {
+		return "" // key not found therefore no leader
+	}
+
+	return string(resp.Kvs[0].Value)
 }
 
 // *********************** Internal functions *************
@@ -147,50 +168,56 @@ func (lk *etcdLock) acquireLock() {
 	for {
 		log.Infof("Getting the lock %s to see if its acquired", keyName)
 		// Get the key and see if we or someone else has already acquired the lock
-		resp, err := lk.kapi.Get(context.Background(), keyName, &client.GetOptions{Quorum: true})
+		resp, err := lk.client.KV.Get(context.Background(), keyName)
+
 		if err != nil {
-			if !client.IsKeyNotFound(err) {
+			if len(resp.Kvs) == 0 {
 				log.Errorf("Error getting the key %s. Err: %v", keyName, err)
 				// Retry after a second in case of error
 				time.Sleep(time.Second)
 				continue
-			} else {
-				log.Infof("Lock %s does not exist. trying to acquire it", keyName)
 			}
+		}
+
+		found := resp.Count > 0
+
+		if !found {
+			log.Infof("Lock %s does not exist. trying to acquire it", keyName)
 
 			// Try to acquire the lock
-			resp, err := lk.kapi.Set(context.Background(), keyName, lk.myID, &client.SetOptions{PrevExist: client.PrevNoExist, TTL: lk.ttl})
+			req := client.OpPut(keyName, lk.myID, client.WithLease(lk.leaseID))
+			cond := client.Compare(client.Version(keyName), "=", 0)
+			resp, err := lk.client.Txn(context.TODO()).If(cond).Then(req).Commit()
 			if err != nil {
-				if _, ok := err.(client.Error); ok && err.(client.Error).Code != client.ErrorCodeNodeExist {
-					log.Errorf("Error creating key %s. Err: %v", keyName, err)
-				} else {
-					log.Infof("Lock %s acquired by someone else", keyName)
-				}
-			} else {
-				log.Debugf("Acquired lock %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
-
-				lk.mutex.Lock()
-				// Successfully acquired the lock
-				lk.isAcquired = true
-				lk.holderID = lk.myID
-				lk.mutex.Unlock()
-
-				// Send acquired message to event channel
-				lk.eventChan <- LockEvent{EventType: LockAcquired}
-
-				// refresh it
-				lk.refreshLock()
-
-				lk.mutex.Lock()
-				// If lock is released, we are done, else go back and try to acquire it
-				if lk.isReleased {
-					lk.mutex.Unlock()
-					return
-				}
-				lk.mutex.Unlock()
+				log.Infof("Lock acquisition transaction failed: %v", err)
+				time.Sleep(time.Second)
+				continue
 			}
-		} else if resp.Node.Value == lk.myID {
-			log.Debugf("Already Acquired key %s. Resp: %#v, Node: %+v", keyName, resp, resp.Node)
+
+			log.Debugf("Acquired lock %s. Resp: %#v, PrevNode: %+v", keyName, resp, resp.Responses)
+
+			lk.mutex.Lock()
+			// Successfully acquired the lock
+			lk.isAcquired = true
+			lk.holderID = lk.myID
+			lk.mutex.Unlock()
+
+			// Send acquired message to event channel
+			lk.eventChan <- LockEvent{EventType: LockAcquired}
+
+			// refresh it
+			lk.refreshLock()
+
+			lk.mutex.Lock()
+			// If lock is released, we are done, else go back and try to acquire it
+			if lk.isReleased {
+				lk.mutex.Unlock()
+				return
+			}
+			lk.mutex.Unlock()
+
+		} else if string(resp.Kvs[0].Value) == lk.myID {
+			log.Debugf("Already Acquired key %s. Resp: %#v, Node: %+v", keyName, resp, resp.Kvs[0])
 
 			lk.mutex.Lock()
 			// We have already acquired the lock. just keep refreshing it
@@ -211,12 +238,12 @@ func (lk *etcdLock) acquireLock() {
 				return
 			}
 			lk.mutex.Unlock()
-		} else if resp.Node.Value != lk.myID {
-			log.Debugf("Lock already acquired by someone else. Resp: %+v, Node: %+v", resp, resp.Node)
+		} else if string(resp.Kvs[0].Value) != lk.myID {
+			log.Debugf("Lock already acquired by someone else. Resp: %+v, Node: %+v", resp, resp.Kvs[0])
 
 			lk.mutex.Lock()
 			// Set the current holder's ID
-			lk.holderID = resp.Node.Value
+			lk.holderID = string(resp.Kvs[0].Value)
 			lk.mutex.Unlock()
 
 			// Wait for changes on the lock
@@ -269,18 +296,24 @@ func (lk *etcdLock) waitForLock() {
 			}
 			lk.mutex.Unlock()
 		case watchResp := <-lk.watchCh:
+
+			// TODO: check to see if ev.Canceled and log ev.Err()
+
 			if watchResp != nil {
 				log.Debugf("Received watch notification(%s/%s): %+v", lk.name, lk.myID, watchResp)
 
-				if watchResp.Action == "expire" || watchResp.Action == "delete" ||
-					watchResp.Action == "compareAndDelete" {
-					log.Infof("Retrying to acquire lock")
-					return
+				for _, ev := range watchResp.Events {
+					if ev.Type == mvccpb.DELETE {
+						log.Infof("Retrying to acquire lock")
+						return
+					}
+
 				}
 			}
 		case <-lk.stopChan:
 			log.Infof("Stopping lock")
 			lk.watchCancel()
+			lk.stoppedChan <- true
 			return
 		}
 	}
@@ -290,16 +323,18 @@ func (lk *etcdLock) waitForLock() {
 func (lk *etcdLock) refreshLock() {
 	// Refresh interval is 1/3rd of TTL
 	refreshIntvl := lk.ttl / 3
-	keyName := "/contiv.io/lock/" + lk.name
 
 	// Loop forever
 	for {
 		select {
 		case <-time.After(refreshIntvl):
+
+			//			log.Infof("Refreshing lock with id: %d", lk.leaseID)
+
 			// Update TTL on the lock
-			resp, err := lk.kapi.Set(context.Background(), keyName, lk.myID, &client.SetOptions{PrevExist: client.PrevExist, PrevValue: lk.myID, TTL: lk.ttl})
+			_, err := lk.client.KeepAliveOnce(context.TODO(), lk.leaseID)
 			if err != nil {
-				log.Errorf("Error updating TTl. Err: %v", err)
+				log.Errorf("Error updating TTL. Err: %v", err)
 
 				lk.mutex.Lock()
 				// We are not master anymore
@@ -312,31 +347,34 @@ func (lk *etcdLock) refreshLock() {
 				return
 			}
 
-			log.Debugf("Refreshed TTL on lock %s, Resp: %+v", keyName, resp)
+			log.Debugf("Refreshed lock with id: %d", lk.leaseID)
 		case watchResp := <-lk.watchCh:
 			// Since we already acquired the lock, nothing to do here
 			if watchResp != nil {
 				log.Debugf("Received watch notification for(%s/%s): %+v",
 					lk.name, lk.myID, watchResp)
 
-				// See if we lost the lock
-				if string(watchResp.Node.Value) != lk.myID {
-					log.Infof("Holder %s lost the lock %s", lk.myID, lk.name)
+				for _, ev := range watchResp.Events {
+					// See if we lost the lock
+					if string(ev.Kv.Value) != lk.myID {
+						log.Infof("Holder %s lost the lock %s", lk.myID, lk.name)
 
-					lk.mutex.Lock()
-					// We are not master anymore
-					lk.isAcquired = false
-					lk.mutex.Unlock()
+						lk.mutex.Lock()
+						// We are not master anymore
+						lk.isAcquired = false
+						lk.mutex.Unlock()
 
-					// Send lock lost event
-					lk.eventChan <- LockEvent{EventType: LockLost}
+						// Send lock lost event
+						lk.eventChan <- LockEvent{EventType: LockLost}
 
-					return
+						return
+					}
 				}
 			}
 		case <-lk.stopChan:
 			log.Infof("Stopping lock")
 			lk.watchCancel()
+			lk.stoppedChan <- true
 			return
 		}
 	}
@@ -346,25 +384,10 @@ func (lk *etcdLock) refreshLock() {
 func (lk *etcdLock) watchLock() {
 	keyName := "/contiv.io/lock/" + lk.name
 
-	watcher := lk.kapi.Watcher(keyName, nil)
-	if watcher == nil {
-		log.Errorf("Error creating the watcher")
-		return
-	}
-	for {
-		resp, err := watcher.Next(lk.watchCtx)
-		if err != nil && (err.Error() == client.ErrClusterUnavailable.Error() ||
-			strings.Contains(err.Error(), "context canceled")) {
-			log.Infof("Stopping watch on key %s", keyName)
-			return
-		} else if err != nil {
-			log.Errorf("Error watching the key %s, Err %v.", keyName, err)
-		} else {
-			log.Debugf("Got Watch Resp: %+v", resp)
+	watcher := lk.client.Watch(context.Background(), keyName)
 
-			// send the event to watch channel
-			lk.watchCh <- resp
-		}
+	for resp := range watcher {
+		lk.watchCh <- &resp
 
 		lk.mutex.Lock()
 		// If the lock is released, we are done
@@ -373,5 +396,6 @@ func (lk *etcdLock) watchLock() {
 			return
 		}
 		lk.mutex.Unlock()
+
 	}
 }
