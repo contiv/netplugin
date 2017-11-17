@@ -72,7 +72,7 @@ func NewApp() *App {
 	return &App{
 		Name:         os.Args[0],
 		HelpName:     os.Args[0],
-		Usage:        "A new cli application",
+		Usage:        "A command line client for Contiv netplugin",
 		Version:      "0.0.0",
 		BashComplete: DefaultAppComplete,
 		Action:       helpCommand.Action,
