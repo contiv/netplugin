@@ -15,7 +15,7 @@ HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(
 HOST_GOROOT := `go env GOROOT`
 NAME := netplugin
 VERSION := $(shell scripts/getGitVersion.sh)
-TAR := $(shell command -v gtar || echo command -v tar || echo "Could not find tar")
+TAR := $(shell command -v gtar || command -v tar || echo "Could not find tar")
 TAR_EXT := tar.bz2
 export NETPLUGIN_CONTAINER_TAG := $(shell ./scripts/getGitVersion.sh)
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
@@ -381,7 +381,7 @@ binaries-from-container:
 	c_id=$$(docker create --name netplugin-build \
 		 netplugin-build:$(NETPLUGIN_CONTAINER_TAG)) && \
 	for f in netplugin netmaster netctl contivk8s netcontiv; do \
-		docker cp -a $${c_id}:/go/bin/$$f bin/$$f; done && \
+		docker cp $${c_id}:/go/bin/$$f bin/$$f; done && \
 	docker rm $${c_id}
 
 ##########################
