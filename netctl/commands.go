@@ -216,9 +216,9 @@ var Commands = []cli.Command{
 						Usage: "Encap type (vlan or vxlan)",
 						Value: "vxlan",
 					},
-					cli.StringFlag{
+					cli.IntFlag{
 						Name:  "pkt-tag, p",
-						Usage: "Packet tag (Vlan/Vxlan ids)",
+						Usage: "Packet tag (Vlan ID/VNI)",
 					},
 					cli.StringFlag{
 						Name:  "subnet, s",
