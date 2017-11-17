@@ -1,0 +1,58 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "policy",
+			"version": "v1",
+			"type": "object",
+			"key": [ "tenantName", "policyName" ],
+			"cfgProperties": {
+				"policyName": {
+					"type": "string",
+					"description": "Policy Name",
+					"title": "Policy Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+					"showSummary": true
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name",
+					"title": "Tenant Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+					"showSummary": true
+				}
+			},
+			"operProperties": {
+				"numEndpoints": {
+					"type": "int",
+					"title": "number of endpoints"
+				},
+				"policyViolations": {
+					"type": "int",
+					"title": "number of policyViolations"
+				},
+				"endpoints": {
+					"type": "array",
+					"items": "endpoint",
+					"title": "endpoints associate with the policy"
+				}
+			},
+			"link-sets": {
+				"endpointGroups": {
+					"ref": "endpointGroup"
+				},
+				"rules": {
+					"ref": "rule"
+
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				}
+			}
+		}
+	]
+}

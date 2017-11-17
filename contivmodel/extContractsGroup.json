@@ -1,0 +1,46 @@
+{
+		"name": "contivModel",
+			"objects": [
+				{
+					"name": "extContractsGroup",
+					"version": "v1",
+					"type": "object",
+					"key": [ "tenantName", "contractsGroupName" ],
+					"cfgProperties": {
+						"tenantName": {
+							"type": "string",
+							"title": "Tenant name",
+							"description": "Tenant name",
+							"length": 64,
+							"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+							"showSummary": true
+						},
+						"contractsGroupName": {
+							"type": "string",
+							"description": "Contracts group name",
+							"length": 64,
+							"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+							"title": "Contracts group name",
+							"showSummary": true
+						},
+						"contractsType": {
+							"type": "string",
+							"description": "Contracts type (Provided -or- Consumed)",
+							"title": "Contracts type",
+							"showSummary": true
+						},
+						"contracts": {
+							"type": "array",
+							"items": "string",
+							"description": "List of contracts provided or consumed",
+							"title": "Contracts list"
+						}
+					},
+					"link-sets": {
+						"endpointGroups": {
+							"ref": "endpointGroup"
+						}
+					}
+				}
+			]
+}

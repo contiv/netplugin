@@ -1,0 +1,126 @@
+#%RAML 1.0 Library
+types:
+  health:
+    properties:
+      status:
+        enum: [ "healthy", "unhealthy" ]
+      version: string
+      netmaster:
+        properties:
+          status:
+            enum: [ "healthy", "unhealthy" ]
+          reason: 
+            type: string
+            required: false
+            description: reason for netmaster being unhealthy
+          version: 
+            type: string
+            required: false
+            description: omitted in case netmaster is unhealthy
+    example: |
+      {"netmaster":{"status":"healthy","version":"1.0.0"},"status":"healthy","version":"1.0.0"}
+      
+  ldap_configuration:
+    properties:
+      server:
+        type: string
+        description: FQDN or IP address of AD server
+        example: auth.local.com
+      port:
+        type: integer
+        format: int16
+        minimum: 0
+        description: port where AD server is listening
+        example: 389
+      base_dn: 
+        type: string
+        description: Distinguished name for base entity. All search queries will be scope to this BaseDN
+        example: ou=eng,dc=auth,dc=com
+      service_account_dn:
+        type: string
+        description: DN of the service account. auth_proxy will use this account to communicate with AD server. Hence this account must have appropriate privileges, specifically for lookup.
+      service_account_password:
+        type: string
+      start_tls:
+        type: boolean
+        description: switch session to TLS after proxy connects to AD server. This option must be configured on AD server. Recommended to set to true in production environments.
+      insecure_skip_verify:
+        type: boolean
+        description: skip cert check on AD server. Recommended to set to false for production environments.
+  upd_ldap_configuration:
+    type: ldap_configuration
+
+
+  local_user:
+    properties:
+      username: string
+      password: string
+      firstname: 
+        type: string
+        example: John
+        required: false
+      lastname:
+        type: string
+        example: Doe
+        required: false
+      disable:
+        type: boolean
+        required: false
+    example:
+      username: johndoe
+      password: p@ssw0rd
+  upd_local_user:
+    properties:
+      firstname: 
+        type: string
+        required: false
+      lastname: 
+        type: string
+        required: false
+      disable: 
+        type: boolean
+        required: false
+      password:
+        type: string
+        required: false
+    example:
+      firstname: Jane
+      disable: true
+  local_users:
+    type: array
+    items: 
+      type: local_user
+
+  login:
+    properties:
+      username:
+        type: string
+        description: "username. If a local user doesn't exist by that name, AD authentication will be tried using sAMAccountName=username in BaseDN scope of the AD server (see ldap configuration for more details)"
+      password: string
+    example:
+      username: johndoe
+      password: p@ssw0rd
+  login_response:
+    properties:
+      token:
+        type: string
+        description: opaque token string, callers should set custom security header to this token before calling further APIs (see security information for protected APIs)
+
+
+  authorization:
+    properties:
+      principalName: string
+      local: boolean
+      role: string
+      tenantName: string
+    example:
+      principalName: johndoe
+      local: true
+      role: ops
+      tenantName: johnstenant
+  upd_authorization:
+    type: authorization
+  authorizations:
+    type: array
+    items:
+      type: authorization

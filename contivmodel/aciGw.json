@@ -1,0 +1,59 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "aciGw",
+			"version": "v1",
+			"type": "object",
+			"key": [ "name"],
+			"cfgProperties": {
+				"name": {
+					"type": "string",
+					"title": "name of this block(must be 'aciGw')",
+					"length": 64,
+					"format": "^(aciGw)$",
+					"ShowSummary": true
+				},
+				"pathBindings": {
+					"type": "string",
+					"title": "List of ACI fabric ports connected to cluster",
+					"length": 2048,
+					"format": "^$|^(topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\\\[eth[0-9]{1,2}/[0-9]{1,2}\\\\]){1}(,topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\\\[eth[0-9]{1,2}/[0-9]{1,2}\\\\])*$",
+					"ShowSummary": true
+				},
+				"nodeBindings": {
+					"type": "string",
+					"title": "List of ACI complete nodes to be bound",
+					"length": 2048,
+					"format": "^$|^(topology/pod-[0-9]{1,4}/node-[0-9]{1,4}){1}(,topology/pod-[0-9]{1,4}/node-[0-9]{1,4})*$",
+					"ShowSummary": true
+				},
+				"physicalDomain": {
+					"type": "string",
+					"title": "Name of the physical domain",
+					"length": 128,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+				},
+                                "enforcePolicies": {
+                                        "type": "string",
+                                        "title": "Enforce security policy",
+                                        "length": 64,
+                                        "format": "^(yes|no){1}$",
+                                        "ShowSummary": true
+                                },
+                                "includeCommonTenant": {
+                                        "type": "string",
+                                        "title": "Include common tenant when searching for objects",
+                                        "length": 64,
+                                        "format": "^(yes|no){1}$",
+                                        "ShowSummary": true
+                                }
+			},
+			"operProperties": {
+				"numAppProfiles": {
+					"type": "int"
+				}
+			}
+		}
+	]
+}

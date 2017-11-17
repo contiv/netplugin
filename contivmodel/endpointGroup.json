@@ -1,0 +1,126 @@
+{
+	"name": "contivModel",
+	"objects": [
+		{
+			"name": "endpointGroup",
+			"version": "v1",
+			"type": "object",
+			"key": [ "tenantName", "groupName" ],
+			"cfgProperties": {
+				"groupName": {
+					"type": "string",
+					"description": "Endpoint group Name",
+					"Title": "Group name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+					"ShowSummary": true
+				},
+				"tenantName": {
+					"type": "string",
+					"description": "Tenant Name",
+					"Title": "Tenant",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+					"ShowSummary": false
+				},
+				"networkName": {
+					"type": "string",
+					"Title": "Network",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+					"ShowSummary": true
+				},
+                                "ipPool": {
+                                        "type": "string",
+                                        "format": "^$|^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))?$",
+                                        "title": "IP-pool",
+                                        "showSummary": true
+                                },
+				"policies": {
+					"type": "array",
+					"items": "string",
+					"Title": "Policies",
+					"ShowSummary": true
+				},
+				"extContractsGrps": {
+					"type": "array",
+					"items": "string",
+					"Title": "External contracts",
+					"ShowSummary": true
+				},
+				"netProfile": {
+					"type": "string",
+					"Title": "Network profile name",
+					"Length": 64,
+					"ShowSummary": true
+				},
+				"cfgdTag": {
+					"type": "string",
+					"Title": "Configured Group Tag",
+					"Length": 128,
+					"format": "^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9]))?$",
+					"ShowSummary": true
+				}
+			},
+			"operProperties": {
+				"pktTag": {
+					"type": "int",
+					"title": "internal packet tag"
+				},
+				"externalPktTag": {
+					"type": "int",
+					"title": "external packet tag"
+				},
+				"numEndpoints": {
+					"type": "int",
+					"title": "number of endpoints"
+				},
+				"endpoints": {
+					"type": "array",
+					"items": "endpoint",
+					"title": "endpoints in the group"
+				},
+                                "allocatedIPAddresses": {
+                                        "type": "string",
+                                        "title": "allocated IP addresses"
+                                },
+                                "availableIPAddresses": {
+                                        "type": "string",
+                                        "title": "Available IP addresses"
+                                },
+                                "groupTag": {
+                                        "type": "string",
+                                        "title": "Derived EndpointGroup Tag"
+                                }
+			},
+			"link-sets": {
+				"services": {
+					"ref": "service"
+				},
+				"policies": {
+					"ref": "policy"
+				},
+				"matchRules": {
+					"ref": "rule"
+				},
+				"extContractsGrps": {
+					"ref": "extContractsGrp"
+				}
+			},
+			"links": {
+				"tenant": {
+					"ref": "tenant"
+				},
+				"network": {
+					"ref": "network"
+				},
+				"appProfile": {
+					"ref": "appProfile"
+				},
+				"netProfile": {
+					"ref": "netProfile"
+				}
+			}
+		}
+	]
+}
