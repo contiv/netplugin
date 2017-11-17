@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/client-go/kubernetes"
-	k8sRest "github.com/contiv/client-go/rest"
 	"io/ioutil"
+	"k8s.io/client-go/kubernetes"
+	k8sRest "k8s.io/client-go/rest"
 	"strings"
 )
 

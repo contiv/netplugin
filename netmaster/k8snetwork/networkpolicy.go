@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/client-go/kubernetes"
-	"github.com/contiv/client-go/pkg/api/v1"
-	"github.com/contiv/client-go/pkg/apis/extensions/v1beta1"
-	"github.com/contiv/client-go/pkg/watch"
 	"github.com/contiv/contivmodel/client"
 	"github.com/contiv/netplugin/utils/k8sutils"
+	"k8s.io/api/networking/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"reflect"
 	"strings"
 	"time"
@@ -311,7 +311,7 @@ func (k8sNet *k8sContext) deleteDefaultIngressPolicy(ns string) {
 	}
 }
 
-func (k8sNet *k8sContext) processK8sNetworkPolicy(opCode watch.EventType, np *v1beta1.NetworkPolicy) {
+func (k8sNet *k8sContext) processK8sNetworkPolicy(opCode watch.EventType, np *v1.NetworkPolicy) {
 	if np.Namespace == "kube-system" { // not applicable for system namespace
 		return
 	}
@@ -330,7 +330,7 @@ func (k8sNet *k8sContext) processK8sEvent(opCode watch.EventType, eventObj inter
 	}
 	switch objType := eventObj.(type) {
 
-	case *v1beta1.NetworkPolicy:
+	case *v1.NetworkPolicy:
 		k8sNet.processK8sNetworkPolicy(opCode, objType)
 	}
 }
@@ -343,7 +343,8 @@ func (k8sNet *k8sContext) watchK8sEvents(errChan chan error) {
 		time.Sleep(time.Millisecond * 100)
 	}
 
-	npWatch, err := k8sNet.k8sClientSet.ExtensionsV1beta1().NetworkPolicies("").Watch(v1.ListOptions{})
+	npWatch, err := k8sNet.k8sClientSet.Networking().NetworkPolicies("").Watch(meta_v1.ListOptions{})
+
 	if err != nil {
 		errChan <- fmt.Errorf("failed to watch network policy, %s", err)
 		return
