@@ -29,7 +29,7 @@ ovsdb-server --remote=punix:/var/run/openvswitch/db.sock \
              --private-key=db:Open_vSwitch,SSL,private_key \
              --certificate=db:Open_vSwitch,SSL,certificate \
              --bootstrap-ca-cert=db:Open_vSwitch,SSL,ca_cert \
-             --log-file=/var/contiv/log/ovs-db.log -vsyslog:dbg -vfile:dbg \
+             --log-file=/var/contiv/log/ovs-db.log -vsyslog:info -vfile:info \
              --pidfile --detach /etc/openvswitch/conf.db
 
 echo "INFO: Starting ovs-vswitchd"
