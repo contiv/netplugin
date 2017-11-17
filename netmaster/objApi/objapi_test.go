@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/contiv/contivmodel"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel"
+	"github.com/contiv/netplugin/contivmodel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -37,7 +37,7 @@ import (
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
-	etcdclient "github.com/coreos/etcd/client"
+	etcdclient "github.com/coreos/etcd/clientv3"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )

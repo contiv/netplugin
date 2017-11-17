@@ -165,9 +165,12 @@ SCRIPT
 provision_node = <<SCRIPT
 set -x
 
+curl -o /tmp/etcd.tar.gz -L https://github.com/coreos/etcd/releases/download/v3.2.10/etcd-v3.2.10-linux-amd64.tar.gz
+tar -C /tmp/ -xzf /tmp/etcd.tar.gz
+
 ## start etcd with generated config
 echo "#!/bin/bash" > /usr/bin/etcd.sh
-echo "etcd --name %{node_name} --data-dir /var/lib/etcd \
+echo "/tmp/etcd-v3.2.10-linux-amd64/etcd --name %{node_name} --data-dir /var/lib/etcd \
  -heartbeat-interval=100 -election-timeout=5000 \
  --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
  --advertise-client-urls http://%{node_addr}:2379,http://%{node_addr}:4001 \

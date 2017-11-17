@@ -22,7 +22,10 @@ import (
 	"strings"
 
 	"encoding/json"
-	"github.com/contiv/contivmodel"
+	"io/ioutil"
+	"net/http"
+
+	"github.com/contiv/netplugin/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/docknet"
@@ -34,8 +37,6 @@ import (
 	"github.com/contiv/netplugin/objdb/modeldb"
 	"github.com/contiv/netplugin/utils"
 	"github.com/contiv/netplugin/utils/netutils"
-	"io/ioutil"
-	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -66,11 +67,17 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 	ctrler.router = router
 	ctrler.objdbClient = objdbClient
 
+	log.Info("before modeldb init")
+
 	// init modeldb
 	modeldb.Init(storeURL)
 
+	log.Info("before contivmodel Init")
+
 	// initialize the model objects
 	contivModel.Init()
+
+	log.Info("before callbacks")
 
 	// Register Callbacks
 	contivModel.RegisterGlobalCallbacks(ctrler)

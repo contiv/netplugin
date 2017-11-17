@@ -22,7 +22,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/contiv/contivmodel"
+	"github.com/contiv/netplugin/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/daemon"
 	"github.com/contiv/netplugin/netplugin/agent"
