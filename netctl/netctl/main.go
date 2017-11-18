@@ -22,5 +22,6 @@ func main() {
 	// TODO: use sort.Slice() in go1.8
 	sort.Sort(byName(netctl.Commands))
 	app.Commands = netctl.Commands
+	app.Usage = "A command line client for Contiv netplugin"
 	app.Run(os.Args)
 }
