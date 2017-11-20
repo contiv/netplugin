@@ -1232,6 +1232,11 @@
 			"Rev": "708a42d246822952f38190a8d8c4e6b16a0e600c"
 		},
 		{
+			"ImportPath": "github.com/urfave/cli",
+			"Comment": "v1.19.1",
+			"Rev": "0bdeddeeb0f650497d603c4ad7b20cfe685682f6"
+		},
+		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "77483a0e697ebcc2584461e9624b611767e7d203"
 		},

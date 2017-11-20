@@ -321,11 +321,11 @@ func GetLocalAddr() (string, error) {
 }
 
 // Init initializes the cluster module
-func Init(storeURL string) error {
+func Init(storeDriver string, storeURLs []string) error {
 	var err error
 
 	// Create an objdb client
-	ObjdbClient, err = objdb.NewClient(storeURL)
+	ObjdbClient, err = objdb.InitClient(storeDriver, storeURLs)
 
 	return err
 }

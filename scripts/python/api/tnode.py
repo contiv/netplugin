@@ -87,7 +87,15 @@ class Node:
     # Start netplugin process on vagrant node
     def startNetplugin(self, args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "sudo " + self.binpath + "/netplugin -vlan-if eth2 -vlan-if eth3 -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " " + args + "> /tmp/netplugin.log 2>&1"
+        if os.environ["CONTIV_CLUSTER_STORE"].startswith("etcd"):
+            store_args = " --etcd-endpoints %s " % os.environ["CONTIV_CLUSTER_STORE"].replace("etcd", "http")
+        else:
+            store_args = " --consul-endpoints %s " % os.environ["CONTIV_CLUSTER_STORE"].replace("consul", "http")
+
+        # TODO: determine the fwdmode and netmode
+        fwd_arg = " --fwdmode bridge "
+        net_arg = " --netmode vlan "
+        command = "sudo " + self.binpath + "/netplugin --vlan-if eth2 --vlan-if eth3 " + fwd_arg + fwd_arg + store_args + args + "> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()

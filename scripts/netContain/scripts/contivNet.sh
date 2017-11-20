@@ -13,7 +13,6 @@ netmaster=false
 netplugin=true
 debug=""
 cleanup=false
-cstore_param=""
 vtep_ip_param=""
 vlan_if_param=""
 control_url=":9999"
@@ -32,7 +31,7 @@ touch /tmp/restart_netplugin
 #fixed as well. netplugin should have OVS locally.
 echo "0.0.0.0 localhost" >>/etc/hosts
 
-while getopts ":xmp:v:i:c:drl:o:" opt; do
+while getopts ":xmp:v:i:c:drl:o:t:" opt; do
 	case $opt in
 		m)
 			netmaster=true
@@ -59,7 +58,7 @@ while getopts ":xmp:v:i:c:drl:o:" opt; do
 			reinit=true
 			;;
 		d)
-			debug="-debug"
+			debug="--log-level debug"
 			;;
 		l)
 			listen_url=$OPTARG
@@ -133,19 +132,21 @@ if [ $netmaster == true ]; then
 	done
 elif [ $netplugin == true ]; then
 	echo "Starting netplugin"
+    if [[ "$cluster_store" =~ ^etcd://.+ ]]; then
+        store_arg="--etcd-endpoints $(echo $cluster_store | sed s/etcd/http/)"
+    elif [[ "$cluster_store" =~ ^consul://.+ ]]; then
+        store_arg="--consul-endpoints $(echo $cluster_store | sed s/consul/http/)"
+    fi
 
 	while true; do
 		if [ -f /tmp/restart_netplugin ]; then
-			if [ "$cstore" != "" ]; then
-				cstore_param="-cluster-store"
-			fi
 			if [ "$vtep_ip" != "" ]; then
-				vtep_ip_param="-vtep-ip"
+				vtep_ip_param="--vtep-ip"
 			fi
 			if [ "$vlan_if" != "" ]; then
-				vlan_if_param="-vlan-if"
+				vlan_if_param="--vlan-if"
 			fi
-			/contiv/bin/netplugin $debug $cstore_param $cstore $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if -plugin-mode $plugin || true
+			/contiv/bin/netplugin $debug $store_arg $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if --plugin-mode $plugin || true
 			echo "CRITICAL : Netplugin has exited. Trying to respawn in 5s"
 		fi
 		sleep 5
