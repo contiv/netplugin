@@ -3513,12 +3513,19 @@ func GetOperNetwork(obj *NetworkInspect) error {
 
 // LIST REST call
 func httpListNetworks(w http.ResponseWriter, r *http.Request, vars map[string]string) (interface{}, error) {
+	var netobj NetworkInspect
 	log.Debugf("Received httpListNetworks: %+v", vars)
 
 	list := make([]*Network, 0)
 	collections.networkMutex.Lock()
 	defer collections.networkMutex.Unlock()
 	for _, obj := range collections.networks {
+		netobj.Config = *obj
+		if err := GetOperNetwork(&netobj); err != nil {
+			log.Errorf("GetNetwork error for: %+v. Err: %v", netobj, err)
+			return nil, err
+		}
+		obj.PktTag = netobj.Oper.PktTag
 		list = append(list, obj)
 	}
 
