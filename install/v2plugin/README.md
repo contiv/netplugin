@@ -28,16 +28,18 @@ plugin_role   : In 'master' role, plugin runs netmaster       : master
 listen_url    : Netmaster url to listen http requests on      : ":9999"
 control_url   : Netmaster url for control messages            : ":9999"
 dbg_flag      : To enable debug mode, set to '-debug'         : ""
+fwd_mode      : Forwarding mode                               : ""
+
 ```
 ### docker store
 Docker certified contiv plugin is avaliable on [Docker Store](https://store.docker.com/plugins/803eecee-0780-401a-a454-e9523ccf86b3?tab=description).
 ```
-docker plugin install store/contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks>
+docker plugin install store/contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
 ```
 ### docker hub
 Developer release of v2plugin from contiv repo is also pushed to docker hub
 ```
-docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks>
+docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
 ```
 ### vagrant dev/demo setup
 To create a plugin from [contiv repo](https://github.com/contiv/netplugin), enable v2plugin and run docker in swarm-mode, use the Makefile target demo-v2plugin
@@ -48,7 +50,7 @@ make demo-v2plugin
 ## Contiv plugin-roles
 Contiv plugin runs both netplugin and netmaster by default. Contiv v2plugin can be run with only netplugin by setting the plugin_role to worker.
 ```
-docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks> plugin_role=worker
+docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks> plugin_role=worker fwd_mode=<bridge/routing>
 ```
 
 ## Contiv plugin swarm-mode workflow (recommended and default for v2plugin)
@@ -68,11 +70,11 @@ docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vl
   3. Install contiv v2plugin
   ```
   # on swarm manager node install plugin with 'master' role
-  docker plugin install contiv/v2plugin:<version-tag> plugin_role=master iflist=<data ifs used for vlan networks>
+  docker plugin install contiv/v2plugin:<version-tag> plugin_role=master iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
   ( allow/grant the install permissions when prompted )
 
   # on worker nodes, install plugin with 'worker' role
-  docker plugin install contiv/v2plugin:<version-tag> plugin_role=worker iflist=<data ifs used for vlan networks>
+  docker plugin install contiv/v2plugin:<version-tag> plugin_role=worker iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
 
   # to see if the plugin is installed and enabled
   docker plugin ls
@@ -81,7 +83,7 @@ docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vl
   ```
   ```
   If there are multiple local interfaces you need to specify the local IP address to use.
-  docker plugin install contiv/v2plugin:<version-tag> ctrl_ip=192.168.2.10 control_url=192.168.2.10:9999 iflist=eth2,eth3
+  docker plugin install contiv/v2plugin:<version-tag> ctrl_ip=192.168.2.10 control_url=192.168.2.10:9999 iflist=eth2,eth3 fwd_mode=bridge
   ```
   4. Debug logs
   ```
@@ -128,15 +130,15 @@ docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vl
   1. Etcd cluster should be brought up on the hosts on localhost:2379.  
   2. Install contiv v2plugin
   ```
-  docker plugin install contiv/v2plugin:<version-tag> plugin-mode=docker iflist=<data ifs used for vlan networks>
+  docker plugin install contiv/v2plugin:<version-tag> plugin-mode=docker iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
   ( allow/grant the install permissions when prompted )
 
   # on node where netmaster needs to run, install plugin with 'master' role
-  docker plugin install contiv/v2plugin:<version-tag> plugin_role=master iflist=<data ifs used for vlan networks>
+  docker plugin install contiv/v2plugin:<version-tag> plugin_role=master iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
   ( allow/grant the install permissions when prompted )
 
   # on all other nodes, install plugin with 'worker' role
-  docker plugin install contiv/v2plugin:<version-tag> plugin_role=worker iflist=<data ifs used for vlan networks>
+  docker plugin install contiv/v2plugin:<version-tag> plugin_role=worker iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
 
   # to see if the plugin is installed properly and enabled
   docker plugin ls

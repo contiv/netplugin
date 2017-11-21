@@ -117,7 +117,7 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 			NetworkInfraType: "default",
 			Vlans:            "1-4094",
 			Vxlans:           "1-10000",
-			FwdMode:          "bridge",
+			FwdMode:          "", // set empty fwd mode by default
 			ArpMode:          "proxy",
 			PvtSubnet:        defHostPvtNet,
 		})
@@ -1036,6 +1036,11 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 // NetworkCreate creates network
 func (ac *APIController) NetworkCreate(network *contivModel.Network) error {
 	log.Infof("Received NetworkCreate: %+v", network)
+
+	// Make sure global settings is valid
+	if err := validateGlobalConfig(network.Encap); err != nil {
+		return fmt.Errorf("Global configuration is not ready: %v", err.Error())
+	}
 
 	// Make sure tenant exists
 	if network.TenantName == "" {
@@ -2338,4 +2343,21 @@ func validatePorts(ports []string) bool {
 		}
 	}
 	return true
+}
+
+func validateGlobalConfig(netmode string) error {
+	globalConfig := contivModel.FindGlobal("global")
+	if globalConfig == nil {
+		return errors.New("global configuration is not ready")
+	}
+	if globalConfig.FwdMode == "" {
+		return errors.New("global forwarding mode is not set")
+	}
+	if strings.ToLower(netmode) == "vlan" && globalConfig.Vlans == "" {
+		return errors.New("global vlan range is not set")
+	}
+	if strings.ToLower(netmode) == "vxlan" && globalConfig.Vxlans == "" {
+		return errors.New("global vxlan range is not set")
+	}
+	return nil
 }

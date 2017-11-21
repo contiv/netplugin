@@ -43,9 +43,10 @@ cscope*
 .out.vagrant
 .etc_hosts
 
-# docker v2 plugin temp files
+# docker v2 plugin files
 install/v2plugin/rootfs
 install/v2plugin/config.json
+install/v2plugin/v2plugin-*.tar.gz
 
 # netcontain temporary build files
 scripts/netContain/bin

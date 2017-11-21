@@ -76,7 +76,8 @@ class Node:
     # Enable v2plugin on vagrant node
     def enableV2Plugin(self, role="master", args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "docker plugin set " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + " ctrl_ip="+ self.addr + " control_url=" + self.addr + ":9999 vxlan_port=8472 iflist=eth2,eth3 plugin_name=" + os.environ.get("CONTIV_V2PLUGIN_NAME","contiv/v2plugin:0.0") + args + " >> /tmp/netplugin.log 2>&1"
+        fwd_mode = os.environ.get("CONTIV_V2PLUGIN_FWDMODE", "bridge")
+        command = "docker plugin set " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + " ctrl_ip="+ self.addr + " control_url=" + self.addr + ":9999 vxlan_port=8472 iflist=eth2,eth3 plugin_name=" + os.environ.get("CONTIV_V2PLUGIN_NAME","contiv/v2plugin:0.0") + " fwd_mode=" + fwd_mode + " " + args + " >> /tmp/netplugin.log 2>&1"
         self.runCmd(command)
         command = "docker plugin enable " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") +  args + " >> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
@@ -107,13 +108,13 @@ class Node:
         # npThread.setDaemon(True)
         self.nmThread.start()
 
-    # Execute command in a thread 
+    # Execute command in a thread
     def runCmdThread(self, command):
         ssh_object = self.sshConnect(self.username, self.password)
         self.swThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         self.swThread.start()
-    
-    # Stop v2plugin by force rm 
+
+    # Stop v2plugin by force rm
     def stopV2Plugin(self, args=""):
         command = "docker plugin disable " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + "> /tmp/netplugin.log 2>&1"
         command = "docker plugin rm -f " + os.environ.get("CONTIV_V2PLUGIN_NAME", "contiv/v2plugin:0.0") + "> /tmp/netplugin.log 2>&1"
