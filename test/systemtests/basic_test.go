@@ -8,7 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	. "github.com/contiv/check"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 )
 
 func (s *systemtestSuite) TestBasicStartRemoveContainerVXLAN(c *C) {

@@ -22,7 +22,7 @@ import (
 	. "testing"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 
 	. "github.com/contiv/check"
 )

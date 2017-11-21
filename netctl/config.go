@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/codegangsta/cli"
-	contivClient "github.com/contiv/contivmodel/client"
+	contivClient "github.com/contiv/netplugin/contivmodel/client"
 )
 
 // Config represents the contents of ~/.netctl/config.json

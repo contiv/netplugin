@@ -1,0 +1,19 @@
+#%RAML 1.0 SecurityScheme
+
+description: |
+  A custom security scheme for authenticating requests.
+type: x-custom
+describedBy:
+  headers:
+    X-Auth-Token:
+      description: |
+        Used to send a custom token. Obtained via /login API.
+      type: string
+  responses:
+    401:
+      description: |
+        Authentication failed.
+    403:
+      description: | 
+        Forbidden.
+
