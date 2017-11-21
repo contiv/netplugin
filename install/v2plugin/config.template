@@ -40,6 +40,38 @@
           "Value": "etcd://localhost:2379"
        },
        {
+          "Description": "Etcd or Consul cluster store tlsverify",
+          "Name": "cluster_tls_verify",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "Etcd or Consul cluster store tls cert",
+          "Name": "cluster_tls_cert",
+          "Settable": [
+             "value"
+          ],
+          "Value": "/"
+       },
+       {
+          "Description": "Etcd or Consul cluster store tls key",
+          "Name": "cluster_tls_key",
+          "Settable": [
+             "value"
+          ],
+          "Value": "/"
+       },
+       {
+          "Description": "Etcd or Consul cluster store tls ca cert",
+          "Name": "cluster_tls_cacert",
+          "Settable": [
+             "value"
+          ],
+          "Value": "/"
+       },
+       {
           "Description": "Plugin mode set to docker or swarm-mode",
           "Name": "plugin_mode",
           "Settable": [
@@ -119,6 +151,12 @@
           "options": ["rbind"],
           "source": "/etc/openvswitch",
           "destination": "/etc/openvswitch"
+       },
+       {
+          "type": "bind",
+          "options": ["rbind"],
+          "source": "/etc/docker",
+          "destination": "/etc/docker"
        },
        {
           "type": "bind",

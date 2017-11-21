@@ -1,6 +1,7 @@
 package objdb
 
 import (
+	"crypto/tls"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -66,6 +67,12 @@ const (
 	WatchServiceEventError        // Error occurred while watching for service
 )
 
+// Config : config of plugins
+type Config struct {
+	TLS     *tls.Config
+	Options map[string]string
+}
+
 // WatchServiceEvent : watch event on services
 type WatchServiceEvent struct {
 	EventType   uint        // event type
@@ -75,7 +82,7 @@ type WatchServiceEvent struct {
 // Plugin interface
 type Plugin interface {
 	// Initialize the plugin, only called once
-	NewClient(endpoints []string) (API, error)
+	NewClient(endpoints []string, config *Config) (API, error)
 }
 
 // API Plugin API

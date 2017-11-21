@@ -90,6 +90,15 @@ func Init(dbURL string) {
 	}
 }
 
+// InitWithConfig initializes the modeldb
+func InitWithConfig(dbURL string, config *objdb.Config) {
+	var err error
+	cdb, err = objdb.NewClientWithConfig(dbURL, config)
+	if err != nil {
+		log.Fatalf("Error creating db client to URL: %s", dbURL)
+	}
+}
+
 // WriteObj writes the model to DB
 func WriteObj(objType, objKey string, value interface{}) error {
 	key := "/modeldb/" + objType + "/" + objKey
