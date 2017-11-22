@@ -272,8 +272,8 @@ start-aci-gw:
 	docker pull $(ACI_GW_IMAGE)
 	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" --name=contiv-aci-gw $(ACI_GW_IMAGE)
 
-host-build-docker-image:
-	./scripts/netContain/build_image.sh
+host-build-docker-image: compile-with-docker binaries-from-container
+	@./scripts/netContain/build_image.sh
 
 host-cleanup:
 	@echo dev: cleaning up services...
