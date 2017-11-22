@@ -24,7 +24,8 @@ https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
 build_version = ENV['BUILD_VERSION'] || ''
 cluster_ip_nodes = ''
 v2plugin_name = ENV['CONTIV_V2PLUGIN_NAME'] || 'contiv/v2netplugin:0.1'
-cluster_store = ENV['CONTIV_CLUSTER_STORE'] || 'etcd://localhost:2379'
+cluster_store_driver = ENV['CONTIV_CLUSTER_STORE_DRIVER'] || 'etcd'
+cluster_store_url = ENV['CONTIV_CLUSTER_STORE_URL'] || 'http://localhost:2379'
 nightly_release = ENV['NIGHTLY_RELEASE'] || ''
 node_os = ENV['CONTIV_NODE_OS'] || 'centos'
 base_ip = ENV['CONTIV_IP_PREFIX'] || '192.168.2.'
@@ -46,7 +47,8 @@ export https_proxy='#{https_proxy}'
 export NIGHTLY_RELEASE=#{nightly_release}
 export no_proxy=%{cluster_ip_nodes},127.0.0.1,localhost,netmaster
 export CLUSTER_NODE_IPS=%{cluster_ip_nodes}
-export CONTIV_CLUSTER_STORE=#{cluster_store}
+export CONTIV_CLUSTER_STORE_DRIVER=#{cluster_store_driver}
+export CONTIV_CLUSTER_STORE_URL=#{cluster_store_url}
 export CONTIV_V2PLUGIN_NAME=#{v2plugin_name}
 export CONTIV_DOCKER_SWARM=#{docker_swarm}
 export BUILD_VERSION=#{build_version}
@@ -119,7 +121,7 @@ fi
 if [[ #{docker_swarm} == "swarm_mode" ]]; then
     perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 !' /lib/systemd/system/docker.service
 else
-    if [[ "$CONTIV_CLUSTER_STORE" == *"consul:"* ]]
+    if [[ "$CONTIV_CLUSTER_STORE_DRIVER" == "consul" ]]
     then
         perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=consul://localhost:8500!' /lib/systemd/system/docker.service
     else
@@ -225,7 +227,7 @@ module VagrantPlugins
 
       def self.up_hook(arg)
         unless File.exist?(STATEFILE) # prevent it from writing more than once.
-          f = File.open(STATEFILE, "w") 
+          f = File.open(STATEFILE, "w")
           ENV.each do |x,y|
             f.puts "%s=%s" % [x,y]
           end
@@ -256,7 +258,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.box_check_update = false
     if Vagrant.has_plugin?("vagrant-vbguest")
         config.vbguest.auto_update = false
-    end 
+    end
     if node_os == "ubuntu" then
         config.vm.box = "contiv/ubuntu1604-netplugin"
         config.vm.box_version = "0.7.0"

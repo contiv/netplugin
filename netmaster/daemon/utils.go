@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
@@ -48,48 +47,11 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// initStateDriver creates a state driver based on the cluster store URL
-func initStateDriver(clusterStore string) (core.StateDriver, error) {
-	// parse the state store URL
-	parts := strings.Split(clusterStore, "://")
-	if len(parts) < 2 {
-		return nil, core.Errorf("Invalid state-store URL %q", clusterStore)
-	}
-	stateStore := parts[0]
-
-	// Make sure we support the statestore type
-	switch stateStore {
-	case utils.EtcdNameStr:
-	case utils.ConsulNameStr:
-	default:
-		return nil, core.Errorf("Unsupported state-store %q", stateStore)
-	}
-
-	// Setup instance info
-	instInfo := core.InstanceInfo{
-		DbURL: clusterStore,
-	}
-
-	return utils.NewStateDriver(stateStore, &instInfo)
-}
-
-// GetLocalAddr gets local address to be used
-func GetLocalAddr() (string, error) {
-	// get the ip address by local hostname
-	localIP, err := netutils.GetMyAddr()
-	if err == nil && netutils.IsAddrLocal(localIP) {
-		return localIP, nil
-	}
-
-	// Return first available address if we could not find by hostname
-	return netutils.GetFirstLocalAddr()
-}
-
 // slaveProxyHandler redirects to current master
 func slaveProxyHandler(w http.ResponseWriter, r *http.Request) {
 	log.Infof("proxy handler for %q ", r.URL.Path)
 
-	localIP, err := GetLocalAddr()
+	localIP, err := netutils.GetDefaultAddr()
 	if err != nil {
 		log.Fatalf("Error getting local IP address. Err: %v", err)
 	}

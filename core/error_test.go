@@ -34,7 +34,7 @@ func TestErrorStackTrace(t *testing.T) {
 	}
 
 	if e.Error() == "an error\n" {
-		t.Fatal("Error message did not yield stack trace with CONTIV_TRACE set")
+		t.Fatal("Error message did not yield stack trace")
 	}
 
 	lines := strings.Split(e.Error(), "\n")

@@ -175,7 +175,7 @@ func (n *node) reloadNode() error {
 }
 
 func (n *node) restartClusterStore() error {
-	if strings.Contains(n.suite.basicInfo.ClusterStore, "etcd://") {
+	if n.suite.basicInfo.ClusterStoreDriver == "etcd" {
 		logrus.Infof("Restarting etcd on %s", n.Name())
 
 		n.runCommand("sudo systemctl stop etcd")
@@ -183,7 +183,7 @@ func (n *node) restartClusterStore() error {
 		n.runCommand("sudo systemctl start etcd")
 
 		logrus.Infof("Restarted etcd on %s", n.Name())
-	} else if strings.Contains(n.suite.basicInfo.ClusterStore, "consul://") {
+	} else if n.suite.basicInfo.ClusterStoreDriver == "consul" {
 		logrus.Infof("Restarting consul on %s", n.Name())
 
 		n.runCommand("sudo systemctl stop consul")

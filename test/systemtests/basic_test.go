@@ -149,7 +149,7 @@ func (s *systemtestSuite) TestBasicSvcDiscoveryVLAN(c *C) {
 }
 
 func (s *systemtestSuite) testBasicSvcDiscovery(c *C, encap string) {
-	if !strings.Contains(s.basicInfo.ClusterStore, "etcd") {
+	if s.basicInfo.ClusterStoreDriver == "etcd" {
 		c.Skip("Skipping test")
 	}
 

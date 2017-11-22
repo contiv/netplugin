@@ -182,7 +182,11 @@ func TestMain(m *testing.M) {
 	}
 
 	// Create a new api controller
-	if apiController := objApi.NewAPIController(router, objdbClient, "etcd://127.0.0.1:2379"); apiController == nil {
+	apiConfig := &objApi.APIControllerConfig{
+		NetForwardMode: "bridge",
+		NetInfraType:   "default",
+	}
+	if apiController := objApi.NewAPIController(router, objdbClient, apiConfig); apiController == nil {
 		nptLog.Fatalf("failed to create api controller")
 	}
 

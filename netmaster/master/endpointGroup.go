@@ -100,7 +100,7 @@ func CreateEndpointGroup(tenantName, networkName, groupName, ipPool, cfgdTag str
 	}
 
 	// params for docker network
-	if GetClusterMode() == Docker {
+	if GetClusterMode() == core.Docker {
 		// Create each EPG as a docker network
 		err = docknet.CreateDockNet(tenantName, networkName, groupName, nwCfg)
 		if err != nil {
@@ -249,7 +249,7 @@ func DeleteEndpointGroup(tenantName, groupName string) error {
 		return err
 	}
 
-	if GetClusterMode() == Docker {
+	if GetClusterMode() == core.Docker {
 		return docknet.DeleteDockNet(epgCfg.TenantName, epgCfg.NetworkName, epgCfg.GroupName)
 	}
 	return nil
