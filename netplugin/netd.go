@@ -75,8 +75,7 @@ func startNetPlugin(pluginConfig *plugin.Config) {
 	}
 }
 
-func initNetPluginConifg(ctx *cli.Context) (plugin.Config, error) {
-
+func initNetPluginConfig(ctx *cli.Context) (plugin.Config, error) {
 	// 1. validate and set up log
 	if ctx.Bool("use-syslog") {
 		syslogURL := ctx.String("syslog-url")
@@ -301,7 +300,7 @@ func main() {
 	}
 	sort.Sort(cli.FlagsByName(app.Flags))
 	app.Action = func(ctx *cli.Context) error {
-		configs, err := initNetPluginConifg(ctx)
+		configs, err := initNetPluginConfig(ctx)
 		if err != nil {
 			errmsg := err.Error()
 			logrus.Error(errmsg)
