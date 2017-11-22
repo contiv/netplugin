@@ -1,5 +1,5 @@
 # RC file for passing or tuning contiv parameters correctly. Please set
-# them as necessary and described below. 
+# them as necessary and described below.
 
 # IF this contiv node needs to run as netmaster, set the following to 1
 IS_NETMASTER=0
@@ -8,7 +8,7 @@ IS_NETMASTER=0
 # netplugin process
 NETMASTER_IP="172.28.11.253"
 
-# VTEP IP address used for VXLAN encapsulation. This should be one 
+# VTEP IP address used for VXLAN encapsulation. This should be one
 # routable within the contiv cluster
 VTEP_IP="172.28.11.252"
 
@@ -18,5 +18,5 @@ VTEP_IP="172.28.11.252"
 # Also used for BGP when started
 VLAN_IF="ens32"
 
-#routing or bridged
+#routing or bridge
 CONTIV_FWD_MODE="routing"

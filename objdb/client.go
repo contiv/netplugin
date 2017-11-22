@@ -24,6 +24,21 @@ import (
 
 var defaultDbURL = "etcd://127.0.0.1:2379"
 
+// InitClient aims to support multi endpoints
+func InitClient(storeName string, storeURLs []string) (API, error) {
+	plugin := GetPlugin(storeName)
+	if plugin == nil {
+		log.Errorf("Invalid DB type %s", storeName)
+		return nil, errors.New("unsupported DB type")
+	}
+	cl, err := plugin.NewClient(storeURLs)
+	if err != nil {
+		log.Errorf("Error creating client %s to url %v. Err: %v", storeName, storeURLs, err)
+		return nil, err
+	}
+	return cl, nil
+}
+
 // NewClient Create a new conf store
 func NewClient(dbURL string) (API, error) {
 	// check if we should use default db
@@ -34,24 +49,10 @@ func NewClient(dbURL string) (API, error) {
 	parts := strings.Split(dbURL, "://")
 	if len(parts) < 2 {
 		log.Errorf("Invalid DB URL format %s", dbURL)
-		return nil, errors.New("Invalid DB URL")
+		return nil, errors.New("invalid DB URL")
 	}
 	clientName := parts[0]
 	clientURL := parts[1]
 
-	// Get the plugin
-	plugin := GetPlugin(clientName)
-	if plugin == nil {
-		log.Errorf("Invalid DB type %s", clientName)
-		return nil, errors.New("Unsupported DB type")
-	}
-
-	// Initialize the objdb client
-	cl, err := plugin.NewClient([]string{"http://" + clientURL})
-	if err != nil {
-		log.Errorf("Error creating client %s to url %s. Err: %v", clientName, clientURL, err)
-		return nil, err
-	}
-
-	return cl, nil
+	return InitClient(clientName, []string{"http://" + clientURL})
 }

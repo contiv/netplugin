@@ -61,17 +61,20 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 	}
 
 	// initialize the plugin config
+	// TODO: remove the hack
+	dbDriver := strings.Split(its.clusterStore, "://")[0]
+	dbURL := strings.Replace(its.clusterStore, dbDriver, "http", 1)
 	pluginConfig := plugin.Config{
 		Drivers: plugin.Drivers{
 			Network: "ovs",
-			State:   strings.Split(its.clusterStore, "://")[0],
+			State:   dbDriver,
 		},
 		Instance: core.InstanceInfo{
 			HostLabel:  hostLabel,
 			CtrlIP:     localIP,
 			VtepIP:     localIP,
 			UplinkIntf: []string{"eth2"},
-			DbURL:      its.clusterStore,
+			DbURL:      dbURL,
 			PluginMode: "test",
 		},
 	}

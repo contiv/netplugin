@@ -17,6 +17,8 @@ package state
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -44,13 +46,22 @@ type ConsulStateDriver struct {
 // Init the driver with a core.Config.
 func (d *ConsulStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var err error
+	var endpoint *url.URL
 
-	if instInfo == nil || !strings.Contains(instInfo.DbURL, "consul://") {
-		return errors.New("invalid consul config")
+	if instInfo == nil || instInfo.DbURL == "" {
+		return errors.New("no consul config found")
 	}
-
+	endpoint, err = url.Parse(instInfo.DbURL)
+	if err != nil {
+		return err
+	}
+	if endpoint.Scheme == "consul" {
+		endpoint.Scheme = "http"
+	} else if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
+		return fmt.Errorf("invalid consul URL scheme %q", endpoint.Scheme)
+	}
 	cfg := api.Config{
-		Address: strings.TrimPrefix(instInfo.DbURL, "consul://"),
+		Address: endpoint.Host,
 	}
 
 	d.Client, err = api.NewClient(&cfg)

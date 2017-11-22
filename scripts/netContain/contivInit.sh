@@ -15,7 +15,7 @@ echo "0.0.0.0 localhost" >>/etc/hosts
 export no_proxy="0.0.0.0, $NETMASTER_IP"
 
 if [ not $CONTIV_FWD_MODE == "routing" ]; then
-	CONTIV_FWD_MODE="bridged"
+	CONTIV_FWD_MODE="bridge"
 fi
 
-/contiv/bin/netplugin -vtep-ip $VTEP_IP -vlan-if $VLAN_IF -fwd-mode $CONTIV_FWD_MODE 2>/var/log/contiv/netplugin.errlog 1>/var/log/contiv/netplugin.log &
+/contiv/bin/netplugin --netmode vlan --plugin-mode docker --vtep-ip $VTEP_IP --vlan-if $VLAN_IF --fwdmode $CONTIV_FWD_MODE 2>/var/log/contiv/netplugin.errlog 1>/var/log/contiv/netplugin.log &
