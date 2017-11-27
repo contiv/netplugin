@@ -1,0 +1,720 @@
+#%RAML 1.0 Library
+types:
+  rule:
+    properties:
+      tenantName:
+        type: string
+        maxLength: 64
+        description: Tenant Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      policyName:
+        type: string
+        maxLength: 64
+        description: Policy Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      ruleId:
+        type: string
+        maxLength: 64
+        description: Rule Id
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      direction:
+        type: string
+        description: Direction
+        pattern: "^(in|out)$"
+      priority:
+        type: integer
+        description: Priority
+      fromEndpointGroup:
+        type: string
+        maxLength: 64
+        description: From Endpoint Group
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$"
+      toEndpointGroup:
+        type: string
+        maxLength: 64
+        description: To Endpoint Group
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$"
+      fromNetwork:
+        type: string
+        maxLength: 64
+        description: From Network
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$"
+      toNetwork:
+        type: string
+        maxLength: 64
+        description: To Network
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$"
+      fromIpAddress:
+        type: string
+        description: IP Address
+        pattern: "^(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?(/(3[0-1]|2[0-9]|1[0-9]|[1-9]))?)?$"
+      toIpAddress:
+        type: string
+        description: IP Address
+        pattern: "^(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?(/(3[0-1]|2[0-9]|1[0-9]|[1-9]))?)?$"
+      protocol:
+        type: string
+        description: Protocol
+        pattern: "^(tcp|udp|icmp||[0-9]{1,3}?)$"
+      port:
+        type: integer
+        description: Port No
+      action:
+        type: string
+        description: Action
+        pattern: "^(allow|deny)$"
+  rules:
+    type: array
+    items:
+      type: rule
+  upd_rule:
+    type: rule
+  inspect_rule:
+    properties:
+      Config:
+        type: rule
+  serviceLB:
+    properties:
+      tenantName:
+        type: string
+        maxLength: 64
+        description: Tenant Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      networkName:
+        type: string
+        maxLength: 64
+        description: Service network name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      serviceName:
+        type: string
+        maxLength: 256
+        description: service name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      ipAddress:
+        type: string
+        maxLength: 15
+        description: Service ip
+        pattern: "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})?$"
+      selectors:
+        type: array
+        items:
+          type: string
+        description: labels key value pair
+      ports:
+        type: array
+        items:
+          type: string
+        description: service provider port
+  serviceLBs:
+    type: array
+    items:
+      type: serviceLB
+  upd_serviceLB:
+    type: serviceLB
+  inspect_serviceLB:
+    properties:
+      Config:
+        type: serviceLB
+      Oper:
+        properties:
+          serviceVip:
+            type: string
+            description: allocated IP addresses
+          numProviders:
+            type: integer
+            description: " number of provider endpoints for the service"
+          providers:
+            type: array
+            items:
+              type: endpoint
+            description: provider endpoints for the service
+  endpointGroup:
+    properties:
+      groupName:
+        type: string
+        maxLength: 64
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      tenantName:
+        type: string
+        maxLength: 64
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      networkName:
+        type: string
+        maxLength: 64
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      ipPool:
+        type: string
+        description: IP-pool
+        pattern: "^$|^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))?$"
+      policies:
+        type: array
+        items:
+          type: string
+      extContractsGrps:
+        type: array
+        items:
+          type: string
+      netProfile:
+        type: string
+      cfgdTag:
+        type: string
+        pattern: "^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9]))?$"
+  endpointGroups:
+    type: array
+    items:
+      type: endpointGroup
+  upd_endpointGroup:
+    type: endpointGroup
+  inspect_endpointGroup:
+    properties:
+      Config:
+        type: endpointGroup
+      Oper:
+        properties:
+          pktTag:
+            type: integer
+            description: internal packet tag
+          externalPktTag:
+            type: integer
+            description: external packet tag
+          numEndpoints:
+            type: integer
+            description: number of endpoints
+          endpoints:
+            type: array
+            items:
+              type: endpoint
+            description: endpoints in the group
+          allocatedIPAddresses:
+            type: string
+            description: allocated IP addresses
+          availableIPAddresses:
+            type: string
+            description: Available IP addresses
+          groupTag:
+            type: string
+            description: Derived EndpointGroup Tag
+  volume:
+    properties:
+      volumeName:
+        type: string
+        description: Volume Name
+      tenantName:
+        type: string
+        description: Tenant Name
+      datastoreType:
+        type: string
+      poolName:
+        type: string
+      size:
+        type: string
+      mountPoint:
+        type: string
+  volumes:
+    type: array
+    items:
+      type: volume
+  upd_volume:
+    type: volume
+  inspect_volume:
+    properties:
+      Config:
+        type: volume
+  Bgp:
+    properties:
+      hostname:
+        type: string
+        maxLength: 256
+        description: host name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      routerip:
+        type: string
+        description: Bgp router intf ip
+        pattern: "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?/(3[0-1]|2[0-9]|1[0-9]|[1-9])$"
+      as:
+        type: string
+        maxLength: 64
+        description: AS id
+      neighbor-as:
+        type: string
+        maxLength: 64
+        description: AS id
+      neighbor:
+        type: string
+        maxLength: 15
+        description: Bgp  neighbor
+        pattern: "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})?$"
+  Bgps:
+    type: array
+    items:
+      type: Bgp
+  upd_Bgp:
+    type: Bgp
+  inspect_Bgp:
+    properties:
+      Config:
+        type: Bgp
+      Oper:
+        properties:
+          numRoutes:
+            type: integer
+            description: number of routes
+          neighborStatus:
+            type: string
+            description: neighbor status
+          adminStatus:
+            type: string
+            description: admin status
+          routes:
+            type: array
+            items:
+              type: string
+            description: routes
+  policy:
+    properties:
+      policyName:
+        type: string
+        maxLength: 64
+        description: Policy Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      tenantName:
+        type: string
+        maxLength: 64
+        description: Tenant Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+  policys:
+    type: array
+    items:
+      type: policy
+  upd_policy:
+    type: policy
+  inspect_policy:
+    properties:
+      Config:
+        type: policy
+      Oper:
+        properties:
+          numEndpoints:
+            type: integer
+            description: number of endpoints
+          policyViolations:
+            type: integer
+            description: number of policyViolations
+          endpoints:
+            type: array
+            items:
+              type: endpoint
+            description: endpoints associate with the policy
+  endpoint:
+    properties: {}
+  endpoints:
+    type: array
+    items:
+      type: endpoint
+  upd_endpoint:
+    type: endpoint
+  inspect_endpoint:
+    properties:
+      Config:
+        type: endpoint
+      Oper:
+        properties:
+          network:
+            type: string
+          endpointID:
+            type: string
+          serviceName:
+            type: string
+          endpointGroupId:
+            type: integer
+          endpointGroupKey:
+            type: string
+          ipAddress:
+            type: array
+            items:
+              type: string
+          macAddress:
+            type: string
+          homingHost:
+            type: string
+          intfName:
+            type: string
+          vtepIP:
+            type: string
+          labels:
+            type: string
+          containerID:
+            type: string
+          containerName:
+            type: string
+          virtualPort:
+            type: string
+  extContractsGroup:
+    properties:
+      tenantName:
+        type: string
+        maxLength: 64
+        description: Tenant name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      contractsGroupName:
+        type: string
+        maxLength: 64
+        description: Contracts group name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      contractsType:
+        type: string
+        description: Contracts type
+      contracts:
+        type: array
+        items:
+          type: string
+        description: Contracts list
+  extContractsGroups:
+    type: array
+    items:
+      type: extContractsGroup
+  upd_extContractsGroup:
+    type: extContractsGroup
+  inspect_extContractsGroup:
+    properties:
+      Config:
+        type: extContractsGroup
+  appProfile:
+    properties:
+      tenantName:
+        type: string
+        maxLength: 64
+        description: Tenant Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      appProfileName:
+        type: string
+        maxLength: 64
+        description: Application Profile Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      endpointGroups:
+        type: array
+        items:
+          type: string
+        description: Member groups of the appProf
+  appProfiles:
+    type: array
+    items:
+      type: appProfile
+  upd_appProfile:
+    type: appProfile
+  inspect_appProfile:
+    properties:
+      Config:
+        type: appProfile
+  network:
+    properties:
+      networkName:
+        type: string
+        maxLength: 64
+        description: Network name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      tenantName:
+        type: string
+        maxLength: 64
+        description: Tenant Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      nwType:
+        type: string
+        description: Network Type
+        pattern: "^(infra|data)$"
+      encap:
+        type: string
+        description: Encapsulation
+        pattern: "^(vlan|vxlan)$"
+      pktTag:
+        type: integer
+        description: Vlan/Vxlan Tag
+      subnet:
+        type: string
+        description: Subnet
+        pattern: "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))?/(3[0-1]|2[0-9]|1[0-9]|[1-9])$"
+      gateway:
+        type: string
+        description: Gateway
+        pattern: "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})?$"
+      ipv6Subnet:
+        type: string
+        description: IPv6Subnet
+        pattern: "^((((([0-9]|[a-f]|[A-F]){1,4})((\\\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\\\:){0,6}|\\\\:)((\\\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\\\:)))/(1[0-2][0-7]|[1-9][0-9]|[1-9]))?$"
+      ipv6Gateway:
+        type: string
+        description: IPv6Gateway
+        pattern: "^(((([0-9]|[a-f]|[A-F]){1,4})((\\\\:([0-9]|[a-f]|[A-F]){1,4}){7}))|(((([0-9]|[a-f]|[A-F]){1,4}\\\\:){0,6}|\\\\:)((\\\\:([0-9]|[a-f]|[A-F]){1,4}){0,6}|\\\\:)))?$"
+      cfgdTag:
+        type: string
+        maxLength: 128
+        description: Configured Network Tag
+        pattern: "^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9]))?$"
+  networks:
+    type: array
+    items:
+      type: network
+  upd_network:
+    type: network
+  inspect_network:
+    properties:
+      Config:
+        type: network
+      Oper:
+        properties:
+          pktTag:
+            type: integer
+            description: internal packet tag
+          externalPktTag:
+            type: integer
+            description: external packet tag
+          numEndpoints:
+            type: integer
+            description: external packet tag
+          allocatedAddressesCount:
+            type: integer
+            description: Vlan/Vxlan Tag
+          allocatedIPAddresses:
+            type: string
+            description: allocated IP addresses
+          availableIPAddresses:
+            type: string
+            description: Available IP addresses
+          endpoints:
+            type: array
+            items:
+              type: endpoint
+            description: endpoints in the network
+          networkTag:
+            type: string
+            description: Derived Network Tag
+  aciGw:
+    properties:
+      name:
+        type: string
+        maxLength: 64
+        description: name of this block(must be 'aciGw')
+        pattern: "^(aciGw)$"
+      pathBindings:
+        type: string
+        maxLength: 2048
+        description: List of ACI fabric ports connected to cluster
+        pattern: "^$|^(topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\\\[eth[0-9]{1,2}/[0-9]{1,2}\\\\]){1}(,topology/pod-[0-9]{1,4}/paths-[0-9]{1,4}/pathep-\\\\[eth[0-9]{1,2}/[0-9]{1,2}\\\\])*$"
+      nodeBindings:
+        type: string
+        maxLength: 2048
+        description: List of ACI complete nodes to be bound
+        pattern: "^$|^(topology/pod-[0-9]{1,4}/node-[0-9]{1,4}){1}(,topology/pod-[0-9]{1,4}/node-[0-9]{1,4})*$"
+      physicalDomain:
+        type: string
+        maxLength: 128
+        description: Name of the physical domain
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      enforcePolicies:
+        type: string
+        maxLength: 64
+        description: Enforce security policy
+        pattern: "^(yes|no){1}$"
+      includeCommonTenant:
+        type: string
+        maxLength: 64
+        description: Include common tenant when searching for objects
+        pattern: "^(yes|no){1}$"
+  aciGws:
+    type: array
+    items:
+      type: aciGw
+  upd_aciGw:
+    type: aciGw
+  inspect_aciGw:
+    properties:
+      Config:
+        type: aciGw
+      Oper:
+        properties:
+          numAppProfiles:
+            type: integer
+  global:
+    properties:
+      name:
+        type: string
+        maxLength: 64
+        description: name of this block(must be 'global')
+        pattern: "^(global)$"
+      networkInfraType:
+        type: string
+        maxLength: 64
+        description: Network infrastructure type
+        pattern: "^(aci|aci-opflex|default)?$"
+      vlans:
+        type: string
+        description: Allowed vlan range
+        pattern: "^([0-9]{1,4}?-[0-9]{1,4}?)$"
+      vxlans:
+        type: string
+        description: Allwed vxlan range
+        pattern: "^([0-9]{1,8}?-[0-9]{1,8}?)$"
+      fwdMode:
+        type: string
+        maxLength: 64
+        description: Forwarding Mode
+        pattern: "^(bridge|routing)?$"
+      arpMode:
+        type: string
+        maxLength: 64
+        description: ARP Mode
+        pattern: "^(proxy|flood)?$"
+      pvtSubnet:
+        type: string
+        description: Private Subnet used by host bridge
+        pattern: "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})/16$"
+  globals:
+    type: array
+    items:
+      type: global
+  upd_global:
+    type: global
+  inspect_global:
+    properties:
+      Config:
+        type: global
+      Oper:
+        properties:
+          numNetworks:
+            type: integer
+          defaultNetwork:
+            type: string
+          vlansInUse:
+            type: string
+          vxlansInUse:
+            type: string
+          freeVXLANsStart:
+            type: integer
+          clusterMode:
+            type: string
+  volumeProfile:
+    properties:
+      volumeProfileName:
+        type: string
+        description: Volume profile Name
+      tenantName:
+        type: string
+        description: Tenant Name
+      datastoreType:
+        type: string
+      poolName:
+        type: string
+      size:
+        type: string
+      mountPoint:
+        type: string
+  volumeProfiles:
+    type: array
+    items:
+      type: volumeProfile
+  upd_volumeProfile:
+    type: volumeProfile
+  inspect_volumeProfile:
+    properties:
+      Config:
+        type: volumeProfile
+  tenant:
+    properties:
+      tenantName:
+        type: string
+        maxLength: 64
+        description: Tenant Name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$"
+      defaultNetwork:
+        type: string
+        maxLength: 64
+        description: Network name
+        pattern: "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])?$"
+  tenants:
+    type: array
+    items:
+      type: tenant
+  upd_tenant:
+    type: tenant
+  inspect_tenant:
+    properties:
+      Config:
+        type: tenant
+      Oper:
+        properties:
+          totalNetworks:
+            type: integer
+            description: total number of networks
+          totalEPGs:
+            type: integer
+            description: total number of EPGs
+          totalNetprofiles:
+            type: integer
+            description: total number of Netprofiles
+          totalAppProfiles:
+            type: integer
+            description: total number of App-Profiles
+          totalServicelbs:
+            type: integer
+            description: total number of Servicelbs
+          totalPolicies:
+            type: integer
+            description: total number of totalPolicies
+          totalEndpoints:
+            type: integer
+            description: total number of endpoints in the tenant
+          endpoints:
+            type: array
+            items:
+              type: endpoint
+            description: endpoints in the tenant
+          networks:
+            type: array
+            items:
+              type: network
+            description: networks in the tenant
+          endpointGroups:
+            type: array
+            items:
+              type: endpointGroup
+            description: endpointGroups in the tenant
+          policies:
+            type: array
+            items:
+              type: policy
+            description: policies in the tenant
+          servicelbs:
+            type: array
+            items:
+              type: serviceLB
+            description: servicelbs in the tenant
+  netprofile:
+    properties:
+      profileName:
+        type: string
+        maxLength: 64
+        description: Network profile name
+      tenantName:
+        type: string
+        description: Tenant name
+      bandwidth:
+        type: string
+        maxLength: 64
+        description: Allocated bandwidth
+        pattern: "^([1-9][0-9]* (([kmgKMG{1}]bps)|[kmgKMG{1}]|(kb|Kb|Gb|gb|Mb|mb)))?$|^([1-9][0-9]*(((k|m|g|K|G|M)bps)|(k|m|g|K|M|G)|(kb|Kb|Gb|gb|Mb|mb)))?$"
+      DSCP:
+        type: integer
+        description: DSCP
+      burst:
+        type: integer
+        description: burst size
+  netprofiles:
+    type: array
+    items:
+      type: netprofile
+  upd_netprofile:
+    type: netprofile
+  inspect_netprofile:
+    properties:
+      Config:
+        type: netprofile

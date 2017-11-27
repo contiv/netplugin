@@ -1,0 +1,99 @@
+#%RAML 1.0
+title: Contiv
+description: Contiv API Specification
+version: v1
+baseUri:
+  value: https://{serverfqdn}:10000/api/{version}
+  (rediractable): true
+baseUriParameters:
+  serverfqdn:
+    type: string
+protocols: [  HTTPS ]
+mediaType: [ application/json ]
+
+resourceTypes:
+  collection: !include auth_proxy/schemas/collection.raml
+  non-upd-collection-item: !include auth_proxy/schemas/non-upd-collection-item.raml
+  collection-item: !include auth_proxy/schemas/collection-item.raml
+  ro-collection-item: !include auth_proxy/schemas/ro-collection-item.raml
+
+annotationTypes:
+  info:
+    properties:
+      license:
+        type: string
+        enum: [ "Apache 2.0" ]
+    allowedTargets: API
+  rediractable: boolean
+
+securitySchemes:
+  custom_scheme: !include auth_proxy/schemas/custom-scheme.raml
+
+# Resource templates
+uses:
+  auth_proxy: auth_proxy/libraries/auth_proxy.raml
+
+securedBy: custom_scheme
+
+# auth_proxy endpoints
+/auth_proxy:
+  displayName: Auth API
+  description: Authentication/Authorization related API
+
+  /health:
+    get:
+      description: Returns the health status of Contiv API server and its netmaster
+      securedBy: [ null ]
+      responses:
+        200:
+          body:
+            application/json:
+              type: auth_proxy.health
+
+  /login:
+    post:
+      description: Login to Contiv API server
+      securedBy: [ null ]
+      body:
+        application/json:
+          type: auth_proxy.login
+      responses:
+        200:
+          body:
+            application/json:
+              type: auth_proxy.login_response
+        400:
+        401:
+
+  /version:
+    get:
+      description: Returns the Contiv API server version
+      securedBy: [ null ]
+      responses:
+        200:
+          body:
+            application/json: |
+              { "version": "1.0.0" }
+
+  /authorizations:
+    type: {collection: {provider: auth_proxy}}
+    displayName: Authorizations
+
+    /{authzUUID}:
+      type: {non-upd-collection-item: {provider: auth_proxy}}
+      displayName: Authorization
+
+  /local_users:
+    type: {collection: {provider: auth_proxy}}
+    displayName: Local Users
+
+    /{username}:
+      type: {collection-item: {provider: auth_proxy}}
+      displayName: Local User
+      patch:
+
+  /ldap_configuration:
+    type: {collection-item: {provider: auth_proxy}}
+    displayName: LDAP Configuration
+    put:
+    patch:
