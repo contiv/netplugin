@@ -1,8 +1,8 @@
 # Contiv installation for Kubernetes
 
-This document details the setup instructions for Kubernetes version 1.4+ and higher for CentOS 7
+This document details the setup instructions for Kubernetes version 1.6+ and higher for CentOS 7
 
-Install kubernetes 1.4 or higher using http://kubernetes.io/docs/getting-started-guides/kubeadm/ and follow the instructions below.
+Install kubernetes 1.6 or higher using http://kubernetes.io/docs/getting-started-guides/kubeadm/ and follow the instructions below.
 
 ### Install Contiv
 * For ACI setups use contiv/contiv_aci.yaml instead of contiv/contiv.yaml.
