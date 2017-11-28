@@ -3,11 +3,12 @@ package k8sutils
 import (
 	"encoding/json"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/client-go/kubernetes"
-	k8sRest "github.com/contiv/client-go/rest"
 	"io/ioutil"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
+	k8sRest "k8s.io/client-go/rest"
 )
 
 // ContivConfig holds information passed via config file during cluster set up
