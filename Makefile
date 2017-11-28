@@ -8,7 +8,8 @@
 DEFAULT_DOCKER_VERSION := 1.12.6
 V2PLUGIN_DOCKER_VERSION := 1.13.1
 SHELL := /bin/bash
-EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install
+# TODO: contivmodel should be removed once its code passes golint and misspell
+EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install contivmodel
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/netcontiv/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`

@@ -1,0 +1,59 @@
+{
+    "name": "contivModel",
+    "objects":  [
+          {
+            "name": "netprofile",
+	    "version": "v1",
+            "type": "object",
+            "key":  ["tenantName",  "profileName"],
+	    "cfgProperties": {
+                    "profileName":  {
+                            "type": "string",
+                            "title":  "Network profile name",
+                            "length": 64,
+                            "ShowSummary":  true
+                      },
+                      "tenantName": {
+                              "type": "string",
+                              "description":  "Tenant name",
+                              "title":  "Tenant name",
+                              "ShowSummary":  true
+                      },
+                      "bandwidth":  {
+                              "type": "string",
+                              "length": 64,
+                              "format": "^([1-9][0-9]* (([kmgKMG{1}]bps)|[kmgKMG{1}]|(kb|Kb|Gb|gb|Mb|mb)))?$|^([1-9][0-9]*(((k|m|g|K|G|M)bps)|(k|m|g|K|M|G)|(kb|Kb|Gb|gb|Mb|mb)))?$",
+                              "title":  "Allocated bandwidth",
+                              "description":  "Amount of allocated outbound bandwidth",
+                              "ShowSummary":  true
+                      },
+                      "DSCP": {
+                              "type": "int",
+                              "min":  0,
+                              "max":  63,
+                              "default":  "0",
+                              "title":  "DSCP",
+                              "description":  "DSCP value",
+                              "ShowSummary":  true
+                      },
+                      "burst": {
+                              "type": "int",
+                              "title":  "burst size",
+                              "max": 10486,
+                              "description":  "burst size",
+                              "ShowSummary":  true
+                      }
+            },
+            "link-sets":  {
+                    "endpointGroups": {
+                            "ref":  "endpointGroup"
+                    }
+            },
+            "links":  {
+                    "tenant": {
+                            "ref":  "tenant"
+                    }
+                }
+            }
+        ]
+  }

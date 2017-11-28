@@ -1,0 +1,3 @@
+# data is extracted from this file and merged into spec/docs/contiv.html as part of the build process
+# but we don't actually need to keep it around.
+spec/docs/auth_proxy.html
