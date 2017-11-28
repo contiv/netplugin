@@ -607,14 +607,6 @@
 			"Rev": "97109fe21bf8cf9f43f26f1a1b5e3454ac084c35"
 		},
 		{
-			"ImportPath": "github.com/contiv/contivmodel",
-			"Rev": "9c9072a6b720fb73b6fb133d738b80aceb18edfc"
-		},
-		{
-			"ImportPath": "github.com/contiv/contivmodel/client",
-			"Rev": "9c9072a6b720fb73b6fb133d738b80aceb18edfc"
-		},
-		{
 			"ImportPath": "github.com/contiv/libOpenflow/common",
 			"Rev": "cb1835d1c11f5810c2fcf404a6d1eb907168f951"
 		},

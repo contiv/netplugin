@@ -31,7 +31,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	. "github.com/contiv/check"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 	"github.com/contiv/netplugin/mgmtfn/mesosplugin/cniapi"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"

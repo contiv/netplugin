@@ -22,7 +22,7 @@ import (
 	"time"
 
 	. "github.com/contiv/check"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 )
 
 func Test(t *testing.T) { TestingT(t) }

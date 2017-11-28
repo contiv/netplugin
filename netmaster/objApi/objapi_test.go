@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	contivModel "github.com/contiv/contivmodel"
-	"github.com/contiv/contivmodel/client"
+	contivModel "github.com/contiv/netplugin/contivmodel"
+	"github.com/contiv/netplugin/contivmodel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
