@@ -18,7 +18,7 @@ package integration
 import (
 	"time"
 
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 
 	. "github.com/contiv/check"
 )
