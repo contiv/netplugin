@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ### Pre-requisite on the host
 # run a cluster store like etcd or consul
@@ -71,16 +71,6 @@ echo "Started OVS, logs in $log_dir" >> $BOOTUP_LOGFILE
 
 set +e
 
-echo "Starting Netplugin " >> $BOOTUP_LOGFILE
-while true ; do
-    echo "/netplugin $dbg_flag --plugin-mode=$plugin_mode $vxlan_port_cfg --vlan-if=$iflist $store_arg $ctrl_ip_cfg $vtep_ip_cfg" >> $BOOTUP_LOGFILE
-    /netplugin $dbg_flag --plugin-mode=$plugin_mode $vxlan_port_cfg --vlan-if=$iflist $store_arg $ctrl_ip_cfg $vtep_ip_cfg &> $log_dir/netplugin.log
-    echo "CRITICAL : Net Plugin has exited, Respawn in 5" >> $BOOTUP_LOGFILE
-    mv $log_dir/netplugin.log $log_dir/netplugin.log.lastrun
-    sleep 5
-    echo "Restarting Netplugin " >> $BOOTUP_LOGFILE
-done &
-
 if [ $plugin_role == "master" ]; then
     if [ -z "$fwd_mode" ]; then
         echo "fwd_mode is not set, plugin cannot be enabled"
@@ -115,5 +105,24 @@ if [ $plugin_role == "master" ]; then
 else
     echo "Not starting netmaster as plugin role is" $plugin_role >> $BOOTUP_LOGFILE
 fi
+
+if [[ "$fwd_mode" == "bridge" ]]; then
+    network_mode=vlan
+else
+    network_mode=vxlan
+fi
+
+echo "Starting Netplugin"
+while true ; do
+    set -x
+    /netplugin $dbg_flag --plugin-mode=$plugin_mode $vxlan_port_cfg \
+        --vlan-if=$iflist $store_arg $ctrl_ip_cfg $vtep_ip_cfg \
+        --netmode $network_mode --fwdmode $fwd_mode &> $log_dir/netplugin.log
+    set +x
+    echo "CRITICAL : Net Plugin has exited, Respawn in 5"
+    mv $log_dir/netplugin.log $log_dir/netplugin.log.lastrun
+    sleep 5
+    echo "Restarting Netplugin"
+done &
 
 while true; do sleep 1; done
