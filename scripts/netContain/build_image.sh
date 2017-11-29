@@ -15,7 +15,7 @@ mkdir scripts/netContain/bin
 
 # it's expected that makefile targets compile-with-docker and
 # binaries-from-container have already been run
-tar c -C bin $NETPLUGIN_BINARIES | tar x -C scripts/netcontain/bin
+tar c -C bin $NETPLUGIN_BINARIES | tar x -C scripts/netContain/bin
 
 old_image=$(get_image_id)
 
