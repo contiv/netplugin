@@ -5,7 +5,8 @@ LABEL maintainer "Cisco Contiv (https://contiv.github.io)"
 
 RUN mkdir -p /run/docker/plugins /etc/openvswitch /var/run/contiv/log \
  && echo 'http://dl-cdn.alpinelinux.org/alpine/v3.4/main' >> /etc/apk/repositories \
- && apk --no-cache add openvswitch=2.5.0-r0 iptables ca-certificates openssl curl
+ && apk --no-cache add \
+      openvswitch=2.5.0-r0 iptables ca-certificates openssl curl bash
 
 # copy in binaries and scripts
 ARG TAR_FILE
