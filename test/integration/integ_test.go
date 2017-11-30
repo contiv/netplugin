@@ -54,7 +54,7 @@ func TestMain(m *M) {
 	flag.StringVar(&integ.arpMode, "arp-mode", "proxy", "ARP mode [ proxy | flood ]")
 	flag.StringVar(&integ.encap, "encap", "vlan", "Encap [ vlan | vxlan ]")
 	flag.StringVar(&integ.fabricMode, "fabric-mode", "default", "fabric-mode [ aci | default ]")
-	flag.StringVar(&integ.clusterStoreDriver, "cluster-store-driver", "etcd", "Cluster store dirver")
+	flag.StringVar(&integ.clusterStoreDriver, "cluster-store-driver", "etcd", "Cluster store driver")
 	flag.StringVar(&integ.clusterStoreURL, "cluster-store-url", "http://127.0.0.1:2379", "Cluster store URL")
 
 	flag.Parse()

@@ -65,7 +65,7 @@ func BuildDBFlags(binary string) []cli.Flag {
 		cli.StringFlag{
 			Name:   "consul-endpoints, consul",
 			EnvVar: fmt.Sprintf("CONTIV_%s_CONSUL_ENDPOINTS", binUpper),
-			Usage:  fmt.Sprintf("a comma-delimited list of %s consul endpoints, ignored when etcd-endpoints is set", binLower),
+			Usage:  fmt.Sprintf("a comma-delimited list of %s consul endpoints", binLower),
 		},
 	}
 }
@@ -138,7 +138,7 @@ func configureSyslog(binary string, loglevel logrus.Level, syslogRawURL string) 
 
 	hook, err = logrus_syslog.NewSyslogHook(syslogURL.Scheme, syslogURL.Host, priority, binary)
 	if err != nil {
-		return fmt.Errorf("Failed connectting to syslog %q: %v", syslogRawURL, err.Error())
+		return fmt.Errorf("Failed connecting to syslog %q: %v", syslogRawURL, err.Error())
 	}
 
 	logrus.AddHook(hook)
@@ -178,27 +178,32 @@ func InitLogging(binary string, ctx *cli.Context) error {
 func ValidateDBOptions(binary string, ctx *cli.Context) (*DBConfigs, error) {
 	var storeDriver string
 	var storeURL string
+	var storeURLs string
+	etcdURLs := ctx.String("etcd")
+	consulURLs := ctx.String("consul")
 
-	for _, kvStore := range []string{"etcd", "consul"} {
-		for _, endpoint := range strings.Split(ctx.String(kvStore), ",") {
-			_, err := url.Parse(endpoint)
-			if err != nil {
-				return nil, fmt.Errorf("invalid %s %v endpoint: %v", binary, kvStore, endpoint)
-			}
-			// TODO: support multi-endpoints
-			storeDriver = kvStore
-			storeURL = endpoint
-			logrus.Infof("Using %s state db endpoints: %v: %v", binary, storeDriver, storeURL)
-			break
-		}
-		if storeDriver != "" && storeURL != "" {
-			break
-		}
-	}
-	if storeDriver == "" || storeURL == "" {
-		logrus.Errorf("unknown %s db endpoints", binary)
+	if etcdURLs != "" && consulURLs != "" {
+		return nil, fmt.Errorf("ambiguous %s db endpoints, both etcd and consul specified: etcd: %s, consul: %s", binary, etcdURLs, consulURLs)
+	} else if etcdURLs == "" && consulURLs == "" {
 		return nil, fmt.Errorf("unknown %s db endpoints", binary)
+	} else if etcdURLs != "" {
+		storeDriver = "etcd"
+		storeURLs = etcdURLs
+	} else {
+		storeDriver = "consul"
+		storeURLs = consulURLs
 	}
+	for _, endpoint := range strings.Split(storeURLs, ",") {
+		_, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("invalid %s %v endpoint: %v", binary, storeDriver, endpoint)
+		}
+		// TODO: support multi-endpoints
+		storeURL = endpoint
+		logrus.Infof("Using %s state db endpoints: %v: %v", binary, storeDriver, storeURL)
+		break
+	}
+
 	return &DBConfigs{
 		StoreDriver: storeDriver,
 		StoreURL:    storeURL,

@@ -1099,8 +1099,8 @@ func ValidateBindAddress(address string) error {
 		return fmt.Errorf("bind address is not in 'ip:port' format, got %s", address)
 	}
 	port, err := strconv.Atoi(addr[1])
-	if err != nil {
-		return fmt.Errorf("bind port is a integer, got %v", port)
+	if err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("bind port is a integer between 1-65535, got %v", port)
 	}
 	return nil
 }

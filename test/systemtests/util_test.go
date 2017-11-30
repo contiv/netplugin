@@ -1345,15 +1345,12 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 
 	}
 
-	time.Sleep(15 * time.Second)
-
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(""), IsNil)
 		time.Sleep(1 * time.Second)
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != kubeScheduler {
 		for i := 0; i < 11; i++ {
 			_, err := s.cli.TenantGet("default")
@@ -1366,7 +1363,7 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 		}
 	}
 
-	time.Sleep(40 * time.Second)
+	time.Sleep(10 * time.Second)
 
 }
 
@@ -1399,8 +1396,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	time.Sleep(15 * time.Second)
-
 	errors = s.parallelExec(func(node *node) error {
 		return node.startNetmaster("")
 	})
@@ -1415,8 +1410,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
-
 	if s.basicInfo.Scheduler != kubeScheduler {
 		for i := 0; i < 21; i++ {
 
@@ -1429,7 +1422,7 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			time.Sleep(1 * time.Second)
 		}
 	}
-	time.Sleep(20 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	if s.basicInfo.Scheduler == kubeScheduler {
 		c.Assert(s.SetupDefaultNetwork(), IsNil)

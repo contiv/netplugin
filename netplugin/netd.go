@@ -69,17 +69,35 @@ func initNetPluginConfig(ctx *cli.Context) (*plugin.Config, error) {
 
 	// 4. validate and set other optional configs
 	hostLabel := ctx.String("host")
+	var configErr error
+	if hostLabel == "" {
+		hostLabel, configErr = os.Hostname()
+		if configErr != nil {
+			return nil, fmt.Errorf("Failed to get hostname: %s", configErr.Error())
+		}
+	}
 	logrus.Infof("Using netplugin host: %v", hostLabel)
 	controlIP := ctx.String("ctrl-ip")
+	if controlIP == "" {
+		controlIP, configErr = netutils.GetDefaultAddr()
+		if configErr != nil {
+			logrus.Fatal("Failed to get host address: %s", configErr.Error())
+		}
+	}
 	logrus.Infof("Using netplugin control IP: %v", controlIP)
+	// TODO: Ignore vtep ip if it's not vxlan mode
 	vtepIP := ctx.String("vtep-ip")
-	if netConfigs.NetworkMode == "vxlan" && vtepIP == "" {
-		return nil, fmt.Errorf("vtep-ip should be set when using VXLAN mode")
+	if vtepIP == "" {
+		vtepIP, configErr = netutils.GetDefaultAddr()
+		if configErr != nil {
+			logrus.Fatal("Failed to get host address: %s", configErr.Error())
+		}
 	}
 	logrus.Infof("Using netplugin VTEP IP: %v", vtepIP)
+
 	vlanUpLinks := strings.Split(ctx.String("vlan-uplinks"), ",")
 	if netConfigs.NetworkMode == "vlan" && len(vlanUpLinks) == 0 {
-		return nil, fmt.Errorf("vlan-uplinks should be set when using VLAN mode")
+		return nil, fmt.Errorf("vlan-uplinks must be set when using VLAN mode")
 	}
 	logrus.Infof("Using netplugin vlan uplinks: %v", vlanUpLinks)
 
@@ -105,36 +123,30 @@ func initNetPluginConfig(ctx *cli.Context) (*plugin.Config, error) {
 }
 
 func main() {
-	hostname, _ := os.Hostname()
-	localIP, _ := netutils.GetDefaultAddr()
 	app := cli.NewApp()
 	app.Version = version.String()
 	app.Usage = "Contiv netplugin service"
 	netpluginFlags := []cli.Flag{
 		cli.StringFlag{
 			Name:   "host, host-label",
-			Value:  hostname,
 			EnvVar: "CONTIV_NETPLUGIN_HOST",
-			Usage:  "set netplugin host to identify itself",
+			Usage:  "set netplugin host to identify itself (default: <host-name-reported-by-the-kernel>)",
 		},
 		cli.StringFlag{
 			Name:   "vtep-ip",
-			Value:  localIP,
 			EnvVar: "CONTIV_NETPLUGIN_VTEP_IP",
-			Usage:  "set netplugin vtep ip for vxlan communication",
+			Usage:  "set netplugin vtep ip for vxlan communication (default: <host-ip-from-local-resolver>)",
 		},
 		cli.StringFlag{
 			Name:   "ctrl-ip",
-			Value:  localIP,
 			EnvVar: "CONTIV_NETPLUGIN_CONTROL_IP",
-			Usage:  "set netplugin control ip for control plane communication",
+			Usage:  "set netplugin control ip for control plane communication (default: <host-ip-from-local-resolver>)",
 		},
 		cli.StringFlag{
 			Name:   "vlan-uplinks, vlan-if",
 			EnvVar: "CONTIV_NETPLUGIN_VLAN_UPLINKS",
 			Usage:  "a comma-delimited list of netplugin uplink interfaces",
 		},
-
 		cli.IntFlag{
 			Name:   "vxlan-port",
 			Value:  4789,
@@ -149,7 +161,9 @@ func main() {
 		if err != nil {
 			errmsg := err.Error()
 			logrus.Error(errmsg)
-			return cli.NewExitError(errmsg, (len(errmsg)%254 + 1))
+			// use 22 Invalid argument as error return code
+			// http://www-numi.fnal.gov/offline_software/srt_public_context/WebDocs/Errors/unix_system_errors.html
+			return cli.NewExitError(errmsg, 22)
 		}
 		startNetPlugin(configs)
 		return nil

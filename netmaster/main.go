@@ -43,10 +43,7 @@ type cliOpts struct {
 	version      bool
 }
 
-const (
-	binName     = "netmaster"
-	defaultPort = 9999
-)
+const binName = "netmaster"
 
 func initNetMaster(ctx *cli.Context) (*daemon.MasterDaemon, error) {
 	// 1. validate and init logging
@@ -84,14 +81,18 @@ func initNetMaster(ctx *cli.Context) (*daemon.MasterDaemon, error) {
 	}
 	logrus.Infof("Using netmaster external-address: %s", externalAddress)
 
-	internalAddress := ctx.String("interal-address")
+	internalAddress := ctx.String("internal-address")
 	if internalAddress == "" {
-		return nil, errors.New("netmaster interal-address is not set")
+		localIP, err := netutils.GetDefaultAddr()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get host address: %s", err.Error())
+		}
+		internalAddress = localIP + ":" + strings.Split(externalAddress, ":")[1]
 	} else if err := netutils.ValidateBindAddress(internalAddress); err != nil {
 		return nil, err
 	}
 
-	logrus.Infof("Using netmaster interal-address: %s", internalAddress)
+	logrus.Infof("Using netmaster internal-address: %s", internalAddress)
 
 	// 6. validate infra type
 	infra := strings.ToLower(ctx.String("infra"))
@@ -124,7 +125,6 @@ func startNetMaster(netmaster *daemon.MasterDaemon) {
 }
 
 func main() {
-	localIP, _ := netutils.GetDefaultAddr()
 	app := cli.NewApp()
 	app.Version = version.String()
 	app.Usage = "Contiv netmaster service"
@@ -133,7 +133,7 @@ func main() {
 			Name:   "infra, infra-type",
 			Value:  "default",
 			EnvVar: "CONTIV_NETMASTER_PLUGIN_HOST",
-			Usage:  "set netmaster infra tyoe, options [aci, default]",
+			Usage:  "set netmaster infra type, options [aci, default]",
 		},
 		cli.StringFlag{
 			Name:   "name, plugin-name",
@@ -143,15 +143,14 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:   "external-address, listen-url",
-			Value:  fmt.Sprintf("0.0.0.0:%d", defaultPort),
+			Value:  "0.0.0.0:9999",
 			EnvVar: "CONTIV_NETMASTER_EXTERNAL_ADDRESS",
 			Usage:  "set netmaster external address to listen on, used for general API service",
 		},
 		cli.StringFlag{
-			Name:   "interal-address, control-url",
-			Value:  fmt.Sprintf("%s:%d", localIP, defaultPort),
+			Name:   "internal-address, control-url",
 			EnvVar: "CONTIV_NETMASTER_INTERNAL_ADDRESS",
-			Usage:  "set netmaster internal address to listen on, used for RPC and leader election",
+			Usage:  "set netmaster internal address to listen on, used for RPC and leader election (default: <host-ip-from-local-resolver>:<port-of-external-address>)",
 		},
 	}
 	app.Flags = utils.FlattenFlags(netmasterFlags, utils.BuildDBFlags(binName), utils.BuildNetworkFlags(binName), utils.BuildLogFlags(binName))
@@ -161,7 +160,9 @@ func main() {
 		if err != nil {
 			errmsg := err.Error()
 			logrus.Error(errmsg)
-			return cli.NewExitError(errmsg, (len(errmsg)%254 + 1))
+			// use 22 Invalid argument as error return code
+			// http://www-numi.fnal.gov/offline_software/srt_public_context/WebDocs/Errors/unix_system_errors.html
+			return cli.NewExitError(errmsg, 22)
 		}
 		startNetMaster(netmaster)
 		return nil
