@@ -70,6 +70,6 @@ release isn't made from the HEAD of master.
 ## Build and upload container image (manual only)
 
 	1. cd scripts/netContain
-	2. ./ReleaseContainer.sh -v <version> -u contiv -i contiv/netplugin
+	2. ./release_image.sh -v <version> \[-i <image_name>] \[-t <image_tag>]
 
 Here <version> is a version that has been released using steps above and exists on github.
