@@ -579,14 +579,24 @@ func (k *kubePod) cleanupMaster() {
 }
 
 func getPodName(podRegex, nodeName string) (string, error) {
-	podNameCmd := `kubectl -n kube-system get pods -o wide | grep ` + podRegex + ` | grep ` + nodeName + ` | cut -d " " -f 1`
-	podName, err := k8sMaster.tbnode.RunCommandWithOutput(podNameCmd)
-	if err != nil {
-		logrus.Errorf("Couldn't fetch pod info on %s", nodeName)
-		return "", err
+	var err error
+	var podName string
+	for retry := 60; retry > 0; retry-- {
+		// only get running pods name
+		podNameCmd := `kubectl -n kube-system get pods -o wide | grep Running | grep ` + podRegex + ` | grep ` + nodeName + ` | cut -d " " -f 1`
+		podName, err = k8sMaster.tbnode.RunCommandWithOutput(podNameCmd)
+		podName = strings.TrimSpace(podName)
+		if err != nil || podName == "" {
+			logrus.Warnf("Couldn't fetch pod %s info on %s, retry in 5 sec", podRegex, nodeName)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
 	}
-	podName = strings.TrimSpace(podName)
-	return podName, nil
+	if podName == "" {
+		err = fmt.Errorf("Failed to find running pod %s on node %s", podRegex, nodeName)
+	}
+	return podName, err
 }
 
 func (k *kubePod) cleanupSlave() {
