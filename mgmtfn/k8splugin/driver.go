@@ -355,9 +355,12 @@ func getEPSpec(pInfo *cniapi.CNIPodAttr) (*epSpec, error) {
 	resp.Network = netw
 	resp.Group = epg
 
-	// non-system pod with no EPG ? configure it in namespace
+	// Pods need to be in a group to allow policies to be applied after pod
+	// creation, if a group is not specified by the user, then place pod
+	// into a group shared across the pod's namespace, as contiv group is part
+	// of a network and network is in a k8s namespace
 	if pInfo.K8sNameSpace != "kube-system" && len(resp.Group) <= 0 {
-		resp.Group = pInfo.K8sNameSpace
+		resp.Group = "ns-" + pInfo.K8sNameSpace + "-default"
 	}
 
 	resp.EndpointID = pInfo.InfraContainerID
