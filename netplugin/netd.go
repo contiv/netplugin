@@ -124,7 +124,7 @@ func initNetPluginConfig(ctx *cli.Context) (*plugin.Config, error) {
 
 func main() {
 	app := cli.NewApp()
-	app.Version = version.String()
+	app.Version = "\n" + version.String()
 	app.Usage = "Contiv netplugin service"
 	netpluginFlags := []cli.Flag{
 		cli.StringFlag{

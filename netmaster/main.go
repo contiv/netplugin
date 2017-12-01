@@ -126,7 +126,7 @@ func startNetMaster(netmaster *daemon.MasterDaemon) {
 
 func main() {
 	app := cli.NewApp()
-	app.Version = version.String()
+	app.Version = "\n" + version.String()
 	app.Usage = "Contiv netmaster service"
 	netmasterFlags := []cli.Flag{
 		cli.StringFlag{
