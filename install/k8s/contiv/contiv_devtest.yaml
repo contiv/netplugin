@@ -8,18 +8,21 @@ metadata:
   name: contiv-config
   namespace: kube-system
 data:
+  contiv_mode: kubernetes
+  contiv_fwdmode: routing
+  contiv_netmode: vxlan
   # The location of your cluster store. This is set to the
   # avdertise-client value below from the contiv-etcd service.
   # Change it to an external etcd/consul instance if required.
-  cluster_store: "etcd://__NETMASTER_IP__:6666"
+  contiv_etcd: "http://__NETMASTER_IP__:6666"
   # The CNI network configuration to install on each node.
-  cni_config: |-
+  contiv_cni_config: |-
     {
       "cniVersion": "0.1.0",
       "name": "contiv-net",
       "type": "contivk8s"
     }
-  config: |-
+  contiv_k8s_config: |-
     {
        "K8S_API_SERVER": "https://__NETMASTER_IP__:6443",
        "K8S_CA": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
@@ -29,7 +32,7 @@ data:
     }
 ---
 
-# This manifest installs the Contiv etcd on the kubeadm master. 
+# This manifest installs the Contiv etcd on the kubeadm master.
 # If using an external etcd instance, this can be deleted. This uses a DaemonSet
 # to force it to run on the master even when the master isn't schedulable, and uses
 # nodeSelector to ensure it only runs on the master.
@@ -96,30 +99,45 @@ spec:
         # host.
         - name: contiv-netplugin
           image: contiv/netplugin:k8s_devtest
-          args:
-            - -pkubernetes
           env:
-            - name: VLAN_IF
+            - name: CONTIV_ROLE
+              value: netplugin
+            - name: CONTIV_NETPLUGIN_VLAN_UPLINKS
               value: __VLAN_IF__
-            - name: VTEP_IP
-              valueFrom:
-                 fieldRef:
-                    fieldPath: status.podIP
-            - name: CONTIV_ETCD
+            - name: CONTIV_NETPLUGIN_MODE
               valueFrom:
                 configMapKeyRef:
                   name: contiv-config
-                  key: cluster_store
+                  key: contiv_mode
+            - name: CONTIV_NETPLUGIN_VTEP_IP
+              valueFrom:
+                 fieldRef:
+                    fieldPath: status.podIP
+            - name: CONTIV_NETPLUGIN_ETCD_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_etcd
             - name: CONTIV_CNI_CONFIG
               valueFrom:
                 configMapKeyRef:
                   name: contiv-config
-                  key: cni_config
-            - name: CONTIV_CONFIG
+                  key: contiv_cni_config
+            - name: CONTIV_K8S_CONFIG
               valueFrom:
                 configMapKeyRef:
                   name: contiv-config
-                  key: config
+                  key: contiv_k8s_config
+            - name: CONTIV_NETPLUGIN_FORWARD_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_fwdmode
+            - name: CONTIV_NETPLUGIN_NET_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_netmode
           securityContext:
             privileged: true
           volumeMounts:
@@ -135,6 +153,9 @@ spec:
             - mountPath: /var/contiv
               name: var-contiv
               readOnly: false
+            - mountPath: /var/log/contiv
+              name: var-log-contiv
+              readOnly: false
             - mountPath: /etc/kubernetes/pki
               name: etc-kubernetes-pki
               readOnly: false
@@ -149,6 +170,9 @@ spec:
               readOnly: false
             - mountPath: /contiv/bin
               name: contiv-bin-dir
+              readOnly: false
+            - mountPath: /contiv/scripts/
+              name: contiv-scripts-dir
               readOnly: false
       volumes:
         # Used by contiv-netplugin
@@ -177,9 +201,15 @@ spec:
         - name: etc-cni-dir
           hostPath:
             path: /etc/cni/net.d/
+        - name: var-log-contiv
+          hostPath:
+            path: /var/log/contiv
         - name: contiv-bin-dir
           hostPath:
             path: /opt/gopath/bin
+        - name: contiv-scripts-dir
+          hostPath:
+            path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
 ---
 
 # This manifest deploys the Contiv API Server on Kubernetes.
@@ -216,15 +246,34 @@ spec:
       containers:
         - name: contiv-netmaster
           image: contiv/netplugin:k8s_devtest
-          args:
-            - -m
-            - -pkubernetes
           env:
-            - name: CONTIV_ETCD
+            - name: CONTIV_ROLE
+              value: netmaster
+            - name: CONTIV_NETMASTER_MODE
               valueFrom:
                 configMapKeyRef:
                   name: contiv-config
-                  key: cluster_store
+                  key: contiv_mode
+            - name: CONTIV_NETMASTER_ETCD_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_etcd
+            - name: CONTIV_K8S_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_k8s_config
+            - name: CONTIV_NETMASTER_FORWARD_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_fwdmode
+            - name: CONTIV_NETMASTER_NET_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_netmode
           securityContext:
             privileged: true
           volumeMounts:
@@ -237,6 +286,9 @@ spec:
             - mountPath: /var/run
               name: var-run
               readOnly: false
+            - mountPath: /var/log/contiv
+              name: var-log-contiv
+              readOnly: false
             - mountPath: /var/contiv
               name: var-contiv
               readOnly: false
@@ -248,6 +300,9 @@ spec:
               readOnly: false
             - mountPath: /contiv/bin
               name: contiv-bin-dir
+              readOnly: false
+            - mountPath: /contiv/scripts/
+              name: contiv-scripts-dir
               readOnly: false
       volumes:
         # Used by contiv-netmaster
@@ -269,7 +324,13 @@ spec:
         - name: cni-bin-dir
           hostPath:
             path: /opt/cni/bin
+        - name: var-log-contiv
+          hostPath:
+            path: /var/log/contiv
         - name: contiv-bin-dir
           hostPath:
             path: /opt/gopath/bin
+        - name: contiv-scripts-dir
+          hostPath:
+            path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
 ---

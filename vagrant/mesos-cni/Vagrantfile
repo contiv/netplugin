@@ -30,7 +30,7 @@ echo "export CONTIV_CLUSTER_STORE_URL=$8" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
 if [[ $# -gt 10 ]] && [[ ${11} != "" ]]; then
-    shift; shift; shift; shift; shift; shift; shift; shift; shift; shift
+    shift 10
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 

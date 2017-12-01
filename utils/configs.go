@@ -254,8 +254,8 @@ func ValidateNetworkOptions(binary string, ctx *cli.Context) (*NetworkConfigs, e
 
 // FlattenFlags concatenate slices of flags into one slice
 func FlattenFlags(flagSlices ...[]cli.Flag) []cli.Flag {
-	flags := flagSlices[0]
-	for _, slice := range flagSlices[1:] {
+	var flags []cli.Flag
+	for _, slice := range flagSlices {
 		flags = append(flags, slice...)
 	}
 	return flags

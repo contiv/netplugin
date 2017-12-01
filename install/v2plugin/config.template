@@ -8,110 +8,237 @@
     },
     "env": [
        {
-          "Description": "To enable debug mode, set to '-debug'",
-          "Name": "dbg_flag",
+          "Description": "contiv net service net, options: [netmaster, netplugin]",
+          "Name": "CONTIV_ROLE",
           "Settable": [
              "value"
           ],
           "Value": ""
        },
        {
-          "Description": "Change the directory where the logs are saved",
-          "Name": "log_dir",
+          "Description": "contiv log file directory",
+          "Name": "CONTIV_LOG_DIR",
           "Settable": [
              "value"
           ],
           "Value": "/var/log/contiv"
        },
        {
-          "Description": "VLAN uplink interface used by OVS",
-          "Name": "iflist",
+          "Description": "a comma-delimited list of netplugin consul endpoints",
+          "Name": "CONTIV_NETPLUGIN_CONSUL_ENDPOINTS",
           "Settable": [
              "value"
           ],
           "Value": ""
        },
        {
-          "Description": "Etcd or Consul cluster store url",
-          "Name": "cluster_store",
-          "Settable": [
-             "value"
-          ],
-          "Value": "etcd://localhost:2379"
-       },
-       {
-          "Description": "Plugin mode set to docker or swarm-mode",
-          "Name": "plugin_mode",
-          "Settable": [
-             "value"
-          ],
-          "Value": "swarm-mode"
-       },
-       {
-          "Description": "Local IP address to be used by netplugin for control communication",
-          "Name": "ctrl_ip",
-          "Settable": [
-             "value"
-          ],
-          "Value": "none"
-       },
-       {
-          "Description": "Local VTEP IP address to be used by netplugin",
-          "Name": "vtep_ip",
-          "Settable": [
-             "value"
-          ],
-          "Value": "none"
-       },
-       {
-          "Description": "Vxlan UDP port number used for encapsulating vxlan packets",
-          "Name": "vxlan_port",
-          "Settable": [
-             "value"
-          ],
-          "Value": "8742"
-       },
-       {
-          "Description": "In 'master' role, plugin runs netmaster and netplugin",
-          "Name": "plugin_role",
-          "Settable": [
-             "value"
-          ],
-          "Value": "master"
-       },
-       {
-          "Description": "Netmaster url to listen http requests on",
-          "Name": "listen_url",
-          "Settable": [
-             "value"
-          ],
-          "Value": ":9999"
-       },
-       {
-          "Description": "Netmaster url for control messages",
-          "Name": "control_url",
-          "Settable": [
-             "value"
-          ],
-          "Value": ":9999"
-       },
-       {
-          "Description": "Network Driver name for requests to dockerd. Should be same as name:tag of the plugin",
-          "Name": "plugin_name",
-          "Settable": [
-             "value"
-          ],
-          ## Do not change the default value, this will be replaced with $CONTIV_V2PLUGIN_NAME
-          "Value": "__CONTIV_V2PLUGIN_NAME__"
-       },
-       {
-          "Description": "Forwarding mode for netplugin",
-          "Name": "fwd_mode",
+          "Description": "a comma-delimited list of netplugin etcd endpoints",
+          "Name": "CONTIV_NETPLUGIN_ETCD_ENDPOINTS",
           "Settable": [
              "value"
           ],
           "Value": ""
-       }
+       },
+       {
+          "Description": "a comma-delimited list of netplugin VLAN uplink interfaces used by OVS",
+          "Name": "CONTIV_NETPLUGIN_VLAN_UPLINKS",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin vtep ip for vxlan communication",
+          "Name": "CONTIV_NETPLUGIN_VTEP_IP",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin control ip for control plane communication",
+          "Name": "CONTIV_NETPLUGIN_CONTROL_IP",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin forwarding network mode, options: [bridge, routing]",
+          "Name": "CONTIV_NETPLUGIN_FORWARD_MODE",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin host to identify itself",
+          "Name": "CONTIV_NETPLUGIN_HOST",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin log level, options: [DEBUG, INFO, WARN, ERROR]",
+          "Name": "CONTIV_NETPLUGIN_LOG_LEVEL",
+          "Settable": [
+             "value"
+          ],
+          "Value": "INFO"
+       },
+       {
+          "Description": "netplugin mode, options: [docker, kubernetes, swarm-mode]",
+          "Name": "CONTIV_NETPLUGIN_MODE",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin network mode, options: [vlan, vxlan]",
+          "Name": "CONTIV_NETPLUGIN_NET_MODE",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin syslog url in format protocol://ip:port",
+          "Name": "CONTIV_NETPLUGIN_SYSLOG_URL",
+          "Settable": [
+             "value"
+          ],
+          "Value": "udp://127.0.0.1:514"
+       },
+       {
+          "Description": "netplugin send log to syslog if flag is provided",
+          "Name": "CONTIV_NETPLUGIN_USE_SYSLOG",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin log format to json if flag is provided",
+          "Name": "CONTIV_NETPLUGIN_USE_JSON_LOG",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netplugin VXLAN port",
+          "Name": "CONTIV_NETPLUGIN_VXLAN_PORT",
+          "Settable": [
+             "value"
+          ],
+          "Value": "4789"
+       },
+       {
+          "Description": "a comma-delimited list of netmaster consul endpoints",
+          "Name": "CONTIV_NETMASTER_CONSUL_ENDPOINTS",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "a comma-delimited list of netmaster etcd endpoints",
+          "Name": "CONTIV_NETMASTER_ETCD_ENDPOINTS",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netmaster forwarding network mode, options: [bridge, routing]",
+          "Name": "CONTIV_NETMASTER_FORWARD_MODE",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+              {
+          "Description": "netmaster external address to listen on, used for general API service",
+          "Name": "CONTIV_NETMASTER_EXTERNAL_ADDRESS",
+          "Settable": [
+             "value"
+          ],
+          "Value": "0.0.0.0:9999"
+       },
+       {
+          "Description": "netmaster internal address to listen on, used for RPC and leader election",
+          "Name": "CONTIV_NETMASTER_INTERNAL_ADDRESS",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netmaster infra type, options [aci, default]",
+          "Name": "CONTIV_NETMASTER_INFRA",
+          "Settable": [
+             "value"
+          ],
+          "Value": "default"
+       },
+       {
+          "Description": "netmaster log level, options: [DEBUG, INFO, WARN, ERROR]",
+          "Name": "CONTIV_NETMASTER_LOG_LEVEL",
+          "Settable": [
+             "value"
+          ],
+          "Value": "INFO"
+       },
+       {
+          "Description": "netmaster mode, options: [docker, kubernetes, swarm-mode]",
+          "Name": "CONTIV_NETMASTER_MODE",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netmaster plugin name for docker v2 plugin",
+          "Name": "CONTIV_NETMASTER_PLUGIN_NAME",
+          "Settable": [
+             "value"
+          ],
+          "Value": "netplugin"
+       },
+       {
+          "Description": "netmaster network mode, options: [vlan, vxlan]",
+          "Name": "CONTIV_NETMASTER_NET_MODE",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netmaster syslog url in format protocol://ip:port",
+          "Name": "CONTIV_NETMASTER_SYSLOG_URL",
+          "Settable": [
+             "value"
+          ],
+          "Value": "udp://127.0.0.1:514"
+       },
+       {
+          "Description": "netmaster send log to syslog if flag is provided",
+          "Name": "CONTIV_NETMASTER_USE_SYSLOG",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
+       {
+          "Description": "netmaster log format to json if flag is provided",
+          "Name": "CONTIV_NETMASTER_USE_JSON_LOG",
+          "Settable": [
+             "value"
+          ],
+          "Value": ""
+       },
     ],
     "mounts": [
        {
