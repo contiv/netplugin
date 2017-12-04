@@ -3,7 +3,9 @@
 
 set -euo pipefail
 
-modprobe openvswitch
+if [[ $(lsmod | cut -d" " -f1 | grep -q openvswitch) -eq 1 ]]; then
+	modprobe openvswitch
+fi
 
 mkdir -p /var/run/openvswitch
 mkdir -p /var/contiv/log/
