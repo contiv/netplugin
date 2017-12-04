@@ -3,8 +3,10 @@
 
 set -euo pipefail
 
-modprobe openvswitch || (echo "CRITICAL: Failed to load kernel module openvswitch" && exit 1 )
-echo "INFO: Loaded kernel module openvswitch"
+if [[ $(lsmod | cut -d" " -f1 | grep -q openvswitch) -eq 1 ]]; then
+	modprobe openvswitch || (echo "CRITICAL: Failed to load kernel module openvswitch" && exit 1 )
+	echo "INFO: Loaded kernel module openvswitch"
+fi
 
 mkdir -p /var/run/openvswitch
 mkdir -p /var/log/contiv/
