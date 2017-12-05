@@ -2,10 +2,10 @@
 
 # Start netplugin and netmaster
 import api.tnode
-import time
-import sys
-import os
 import argparse
+import os
+import re
+import time
 
 # Parse command line args
 # Create the parser and sub parser
@@ -45,6 +45,21 @@ if args.swarm == "swarm_mode":
         node.runCmdThread(command)
 
     time.sleep(15)
+
+    print "Check netplugin is installed and enabled"
+    out, x, y = nodes[0].runCmd("docker plugin ls")
+
+    installed = re.search('contiv/v2plugin', out[1])
+
+    if installed == None:
+        print "Make target failed: Contiv plugin is not installed"
+        os._exit(1)
+        
+    enabled = re.search('false', out[1])
+    if enabled != None:
+        print "Make target failed: Contiv plugin is installed but disabled"
+        os._exit(1)
+
     print "################### Swarm Mode is up  #####################"
 else:
     swarmScript= scriptPath + "/start-swarm.sh"
