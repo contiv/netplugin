@@ -16,18 +16,20 @@ limitations under the License.
 package main
 
 import (
-	"flag"
+	"errors"
 	"fmt"
 	"os"
-	"strconv"
+	"sort"
 	"strings"
-	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/daemon"
 	"github.com/contiv/netplugin/netmaster/docknet"
-	"github.com/contiv/netplugin/netmaster/master"
+	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/netplugin/version"
+	"github.com/urfave/cli"
 )
 
 type cliOpts struct {
@@ -41,148 +43,129 @@ type cliOpts struct {
 	version      bool
 }
 
-const (
-	defaultListenPort  = ":9999"
-	defaultControlPort = ":9999"
-)
+const binName = "netmaster"
 
-var flagSet *flag.FlagSet
+func initNetMaster(ctx *cli.Context) (*daemon.MasterDaemon, error) {
+	// 1. validate and init logging
+	if err := utils.InitLogging(binName, ctx); err != nil {
+		return nil, err
+	}
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
-	flagSet.PrintDefaults()
+	// 2. validate network configs
+	netConfigs, err := utils.ValidateNetworkOptions(binName, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. validate db configs
+	dbConfigs, err := utils.ValidateDBOptions(binName, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. set v2 plugin name if it's set
+	pluginName := ctx.String("name")
+	if netConfigs.Mode == core.Docker || netConfigs.Mode == core.SwarmMode {
+		logrus.Infof("Using netmaster docker v2 plugin name: %s", pluginName)
+		docknet.UpdateDockerV2PluginName(pluginName, pluginName)
+	} else {
+		logrus.Infof("Ignoring netmaster docker v2 plugin name: %s (netmaster mode: %s)", pluginName, netConfigs.Mode)
+	}
+
+	// 5. set plugin listen addresses
+	externalAddress := ctx.String("external-address")
+	if externalAddress == "" {
+		return nil, errors.New("netmaster external-address is not set")
+	} else if err := netutils.ValidateBindAddress(externalAddress); err != nil {
+		return nil, err
+	}
+	logrus.Infof("Using netmaster external-address: %s", externalAddress)
+
+	internalAddress := ctx.String("internal-address")
+	if internalAddress == "" {
+		localIP, err := netutils.GetDefaultAddr()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get host address: %s", err.Error())
+		}
+		internalAddress = localIP + ":" + strings.Split(externalAddress, ":")[1]
+	} else if err := netutils.ValidateBindAddress(internalAddress); err != nil {
+		return nil, err
+	}
+
+	logrus.Infof("Using netmaster internal-address: %s", internalAddress)
+
+	// 6. validate infra type
+	infra := strings.ToLower(ctx.String("infra"))
+	switch infra {
+	case "aci", "default":
+		logrus.Infof("Using netmaster infra type: %s", infra)
+	default:
+		return nil, fmt.Errorf("Unknown netmaster infra type: %s", infra)
+	}
+
+	return &daemon.MasterDaemon{
+		ListenURL:          externalAddress,
+		ControlURL:         internalAddress,
+		ClusterStoreDriver: dbConfigs.StoreDriver,
+		ClusterStoreURL:    dbConfigs.StoreURL, //TODO: support more than one url
+		ClusterMode:        netConfigs.Mode,
+		NetworkMode:        netConfigs.NetworkMode,
+		NetForwardMode:     netConfigs.ForwardMode,
+		NetInfraType:       infra,
+	}, nil
 }
 
-func parseOpts(opts *cliOpts) error {
-	flagSet = flag.NewFlagSet("netmaster", flag.ExitOnError)
-	flagSet.BoolVar(&opts.help,
-		"help",
-		false,
-		"prints this message")
-	flagSet.BoolVar(&opts.debug,
-		"debug",
-		false,
-		"Turn on debugging information")
-	flagSet.StringVar(&opts.pluginName,
-		"plugin-name",
-		"netplugin",
-		"Plugin name used for docker v2 plugin")
-	flagSet.StringVar(&opts.clusterStore,
-		"cluster-store",
-		"etcd://127.0.0.1:2379",
-		"Etcd or Consul cluster store url.")
-	flagSet.StringVar(&opts.controlURL,
-		"control-url",
-		defaultControlPort,
-		"URL for control protocol")
-	flagSet.StringVar(&opts.listenURL,
-		"listen-url",
-		defaultListenPort,
-		"URL to listen http requests on")
-	flagSet.StringVar(&opts.clusterMode,
-		"cluster-mode",
-		"docker",
-		"{docker, kubernetes, swarm-mode}")
-	flagSet.BoolVar(&opts.version,
-		"version",
-		false,
-		"prints current version")
-
-	return flagSet.Parse(os.Args[1:])
-}
-
-func execOpts(opts *cliOpts) {
-	var err error
-
-	if opts.help {
-		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]...\n", os.Args[0])
-		flagSet.PrintDefaults()
-		os.Exit(0)
-	}
-
-	if opts.version {
-		fmt.Printf(version.String())
-		os.Exit(0)
-	}
-
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true, TimestampFormat: time.StampNano})
-
-	if opts.debug {
-		log.SetLevel(log.DebugLevel)
-	}
-
-	// Validate listen and control URL options
-	listenURL := strings.Split(opts.listenURL, ":")
-	controlURL := strings.Split(opts.controlURL, ":")
-	if len(listenURL) != 2 {
-		log.Fatalf("Listen URL not in proper format. Valid format: [IP]:Port")
-	}
-	if len(controlURL) != 2 || (strings.Compare(controlURL[0], "0.0.0.0") == 0) {
-		log.Fatalf("Control URL not in proper format. Valid format: IP:Port")
-	}
-
-	listenIP := listenURL[0]
-	listenPort, err := strconv.Atoi(listenURL[1])
-	if err != nil {
-		log.Fatalf("Listen URL port not in valid format. Err: %+v", err)
-	}
-	log.Infof("Listen IP:Port %s:%d", listenIP, listenPort)
-
-	controlIP := controlURL[0]
-	controlPort, err := strconv.Atoi(controlURL[1])
-	if err != nil {
-		log.Fatalf("Control URL port not in valid format. Err: %+v", err)
-	}
-	if len(controlIP) == 0 {
-		if strings.Compare(opts.controlURL, defaultControlPort) != 0 {
-			// Case: If --control-url :XXXX, and :XXXX is not defaultControlPort; we error out
-			log.Fatalf("Control URL not in proper format. Valid format: IP:Port")
-		}
-		if len(listenIP) != 0 && (strings.Compare(listenIP, "0.0.0.0") != 0) && (controlPort == listenPort) {
-			// Case: --listen-url A.B.C.D:XXXX and --control-url :XXXX
-			controlIP = listenIP
-		} else {
-			// Case: [--listen-url A.B.C.D:XXXX] --control-url defaultControlPort
-			// Get the address to be used for local communication
-			controlIP, err = daemon.GetLocalAddr()
-			if err != nil {
-				log.Fatalf("Error getting local IP address for Control URL. Err: %v", err)
-			}
-			controlURL[1] = listenURL[1]
-		}
-		opts.controlURL = controlIP + ":" + controlURL[1]
-	}
-	log.Infof("Control IP:Port %s:%s", controlIP, controlURL[1])
-
-	if opts.clusterMode == master.Docker || opts.clusterMode == master.SwarmMode {
-		docknet.UpdateDockerV2PluginName(opts.pluginName, opts.pluginName)
-	}
+func startNetMaster(netmaster *daemon.MasterDaemon) {
+	// initialize master daemon
+	netmaster.Init()
+	// start monitoring services
+	netmaster.InitServices()
+	// Run daemon FSM
+	netmaster.RunMasterFsm()
 }
 
 func main() {
-	opts := cliOpts{}
-
-	if err := parseOpts(&opts); err != nil {
-		log.Fatalf("Failed to parse cli options. Error: %s", err)
+	app := cli.NewApp()
+	app.Version = "\n" + version.String()
+	app.Usage = "Contiv netmaster service"
+	netmasterFlags := []cli.Flag{
+		cli.StringFlag{
+			Name:   "infra, infra-type",
+			Value:  "default",
+			EnvVar: "CONTIV_NETMASTER_INFRA",
+			Usage:  "set netmaster infra type, options [aci, default]",
+		},
+		cli.StringFlag{
+			Name:   "name, plugin-name",
+			Value:  "netplugin",
+			EnvVar: "CONTIV_NETMASTER_PLUGIN_NAME",
+			Usage:  "set netmaster plugin name for docker v2 plugin",
+		},
+		cli.StringFlag{
+			Name:   "external-address, listen-url",
+			Value:  "0.0.0.0:9999",
+			EnvVar: "CONTIV_NETMASTER_EXTERNAL_ADDRESS",
+			Usage:  "set netmaster external address to listen on, used for general API service",
+		},
+		cli.StringFlag{
+			Name:   "internal-address, control-url",
+			EnvVar: "CONTIV_NETMASTER_INTERNAL_ADDRESS",
+			Usage:  "set netmaster internal address to listen on, used for RPC and leader election (default: <host-ip-from-local-resolver>:<port-of-external-address>)",
+		},
 	}
-
-	// execute options
-	execOpts(&opts)
-
-	// create master daemon
-	d := &daemon.MasterDaemon{
-		ListenURL:    opts.listenURL,
-		ControlURL:   opts.controlURL,
-		ClusterStore: opts.clusterStore,
-		ClusterMode:  opts.clusterMode,
+	app.Flags = utils.FlattenFlags(netmasterFlags, utils.BuildDBFlags(binName), utils.BuildNetworkFlags(binName), utils.BuildLogFlags(binName))
+	sort.Sort(cli.FlagsByName(app.Flags))
+	app.Action = func(ctx *cli.Context) error {
+		netmaster, err := initNetMaster(ctx)
+		if err != nil {
+			errmsg := err.Error()
+			logrus.Error(errmsg)
+			// use 22 Invalid argument as error return code
+			// http://www-numi.fnal.gov/offline_software/srt_public_context/WebDocs/Errors/unix_system_errors.html
+			return cli.NewExitError(errmsg, 22)
+		}
+		startNetMaster(netmaster)
+		return nil
 	}
-
-	// initialize master daemon
-	d.Init()
-
-	// start monitoring services
-	d.InitServices()
-
-	// Run daemon FSM
-	d.RunMasterFsm()
+	app.Run(os.Args)
 }

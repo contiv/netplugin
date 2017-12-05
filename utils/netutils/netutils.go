@@ -788,6 +788,18 @@ func GetFirstLocalAddr() (string, error) {
 	return "", errors.New("no address was found")
 }
 
+// GetDefaultAddr gets default address of local hostname
+func GetDefaultAddr() (string, error) {
+	// get the ip address by local hostname
+	localIP, err := GetMyAddr()
+	if err == nil && IsAddrLocal(localIP) {
+		return localIP, nil
+	}
+
+	// Return first available address if we could not find by hostname
+	return GetFirstLocalAddr()
+}
+
 // GetSubnetAddr returns a subnet given a subnet range
 func GetSubnetAddr(ipStr string, length uint) string {
 	subnetStr := ipStr
@@ -1078,4 +1090,17 @@ func DelIPRoute(cidr, gw string) error {
 	}
 
 	return netlink.RouteDel(&netlink.Route{Dst: dst, Gw: gwIP})
+}
+
+// ValidateBindAddress format in "address:port"
+func ValidateBindAddress(address string) error {
+	addr := strings.Split(address, ":")
+	if len(addr) != 2 {
+		return fmt.Errorf("bind address is not in 'ip:port' format, got %s", address)
+	}
+	port, err := strconv.Atoi(addr[1])
+	if err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("bind port is a integer between 1-65535, got %v", port)
+	}
+	return nil
 }

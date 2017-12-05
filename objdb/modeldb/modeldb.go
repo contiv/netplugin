@@ -82,12 +82,8 @@ func RemoveLinkSet(linkSet *(map[string]Link), obj ModelObj) error {
 var cdb objdb.API
 
 // Init initializes the modeldb
-func Init(dbURL string) {
-	var err error
-	cdb, err = objdb.NewClient(dbURL)
-	if err != nil {
-		log.Fatalf("Error creating db client to URL: %s", dbURL)
-	}
+func Init(objdbClient *objdb.API) {
+	cdb = *objdbClient
 }
 
 // WriteObj writes the model to DB

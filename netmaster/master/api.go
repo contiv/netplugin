@@ -25,6 +25,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/intent"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/utils"
@@ -191,7 +192,7 @@ func AllocAddressHandler(w http.ResponseWriter, r *http.Request, vars map[string
 	}
 
 	if networkID == "" {
-		if GetClusterMode() == SwarmMode {
+		if GetClusterMode() == core.SwarmMode {
 			// If the network was created using docker command,
 			// we get allocReq before the network is created. Here,
 			// we return the first IP in the subnet as gateway IP.

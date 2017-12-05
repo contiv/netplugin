@@ -134,7 +134,11 @@ func TestMain(m *testing.M) {
 	}
 
 	// Create a new api controller
-	apiController = NewAPIController(router, objdbClient, "etcd://127.0.0.1:2379")
+	apiConfig := &APIControllerConfig{
+		NetForwardMode: "bridge",
+		NetInfraType:   "default",
+	}
+	apiController = NewAPIController(router, objdbClient, apiConfig)
 
 	ofnetMaster := ofnet.NewOfnetMaster("127.0.0.1", ofnet.OFNET_MASTER_PORT)
 	if ofnetMaster == nil {
@@ -2489,30 +2493,30 @@ func TestEPCreate(t *testing.T) {
 // TestClusterMode verifies cluster mode is correctly reflected.
 func TestClusterMode(t *testing.T) {
 
-	master.SetClusterMode(master.Kubernetes)
+	master.SetClusterMode(core.Kubernetes)
 	insp, err := contivClient.GlobalInspect("global")
 	if err != nil {
 		t.Fatalf("Error inspecting global %v", err)
 	}
-	if insp.Oper.ClusterMode != master.Kubernetes {
+	if insp.Oper.ClusterMode != core.Kubernetes {
 		t.Fatalf("Error expected kubernetes, got %s", insp.Oper.ClusterMode)
 	}
 
-	master.SetClusterMode(master.Docker)
+	master.SetClusterMode(core.Docker)
 	insp, err = contivClient.GlobalInspect("global")
 	if err != nil {
 		t.Fatalf("Error inspecting global %v", err)
 	}
-	if insp.Oper.ClusterMode != master.Docker {
+	if insp.Oper.ClusterMode != core.Docker {
 		t.Fatalf("Error expected docker, got %s", insp.Oper.ClusterMode)
 	}
 
-	master.SetClusterMode(master.SwarmMode)
+	master.SetClusterMode(core.SwarmMode)
 	insp, err = contivClient.GlobalInspect("global")
 	if err != nil {
 		t.Fatalf("Error inspecting global %v", err)
 	}
-	if insp.Oper.ClusterMode != master.SwarmMode {
+	if insp.Oper.ClusterMode != core.SwarmMode {
 		t.Fatalf("Error expected docker, got %s", insp.Oper.ClusterMode)
 	}
 }

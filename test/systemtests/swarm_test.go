@@ -390,19 +390,23 @@ func (w *swarm) cleanupContainers() error {
 	// Removing all alpine container images
 	return w.node.tbnode.RunCommand("docker rm -f $(docker ps -a | grep alpine )")
 }
-func (w *swarm) startNetplugin(args string) error {
+
+func (w *swarm) commonArgs() string {
 	netMode := w.node.suite.globInfo.Encap
 	fwdMode := w.node.suite.fwdMode
+	mode := "swarm-mode"
 	var storeArgs string
-	if cStore := w.node.suite.basicInfo.ClusterStore; strings.HasPrefix(cStore, "etcd") {
-		storeArgs = " --etcd-endpoints " + strings.Replace(cStore, "etcd", "http", 1) + " "
+	if w.node.suite.basicInfo.ClusterStoreDriver == "etcd" {
+		storeArgs = " --etcd-endpoints " + w.node.suite.basicInfo.ClusterStoreURLs + " "
 	} else {
-		storeArgs = " --consul-endpoints " + strings.Replace(cStore, "consul", "http", 1) + " "
+		storeArgs = " --consul-endpoints " + w.node.suite.basicInfo.ClusterStoreURLs + " "
 	}
+	return " --netmode " + netMode + " --fwdmode " + fwdMode + " --mode " + mode + storeArgs
+}
 
+func (w *swarm) startNetplugin(args string) error {
 	logrus.Infof("Starting netplugin on %s", w.node.Name())
-
-	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin --netmode " + netMode + " --fwdmode " + fwdMode + " --plugin-mode docker --vlan-if " + w.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + "&> /tmp/netplugin.log"
+	cmd := "sudo " + w.node.suite.basicInfo.BinPath + "/netplugin --vlan-if " + w.node.suite.hostInfo.HostDataInterfaces + w.commonArgs() + args + "&> /tmp/netplugin.log"
 	return w.node.tbnode.RunCommandBackground(cmd)
 }
 
@@ -418,7 +422,11 @@ func (w *swarm) stopNetmaster() error {
 
 func (w *swarm) startNetmaster(args string) error {
 	logrus.Infof("Starting netmaster on %s", w.node.Name())
-	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + w.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netmaster.log")
+	var infraType string
+	if w.node.suite.basicInfo.AciMode == "on" {
+		infraType = " --infra aci "
+	}
+	return w.node.tbnode.RunCommandBackground("sudo " + w.node.suite.basicInfo.BinPath + "/netmaster" + infraType + w.commonArgs() + " &> /tmp/netmaster.log")
 }
 func (w *swarm) cleanupMaster() {
 	logrus.Infof("Cleaning up master on %s", w.node.Name())

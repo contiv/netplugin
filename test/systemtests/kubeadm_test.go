@@ -476,6 +476,19 @@ func (k *kubePod) cleanupContainers() error {
 	return nil
 }
 
+func (k *kubePod) commonArgs() string {
+	netMode := k.node.suite.globInfo.Encap
+	fwdMode := k.node.suite.fwdMode
+	mode := "kubernetes"
+	var storeArgs string
+	if k.node.suite.basicInfo.ClusterStoreDriver == "etcd" {
+		storeArgs = " --etcd-endpoints " + k.node.suite.basicInfo.ClusterStoreURLs + " "
+	} else {
+		storeArgs = " --consul-endpoints " + k.node.suite.basicInfo.ClusterStoreURLs + " "
+	}
+	return " --netmode " + netMode + " --fwdmode " + fwdMode + " --mode " + mode + storeArgs
+}
+
 func (k *kubePod) startNetplugin(args string) error {
 	if k.isMaster() {
 		return nil
@@ -486,17 +499,8 @@ func (k *kubePod) startNetplugin(args string) error {
 		return err
 	}
 
-	netMode := k.node.suite.globInfo.Encap
-	fwdMode := k.node.suite.fwdMode
-	var storeArgs string
-	if cStore := k.node.suite.basicInfo.ClusterStore; strings.HasPrefix(cStore, "etcd") {
-		storeArgs = " --etcd-endpoints " + strings.Replace(cStore, "etcd", "http", 1) + " "
-	} else {
-		storeArgs = " --consul-endpoints " + strings.Replace(cStore, "consul", "http", 1) + " "
-	}
-
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin --netmode ` + netMode + ` --fwdmode ` + fwdMode + ` --plugin-mode=kubernetes --vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + storeArgs + args + ` > ` + netpluginLogLocation + ` 2>&1`
+	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin --vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + k.commonArgs() + args + ` > ` + netpluginLogLocation + ` 2>&1`
 
 	return k.podExecBG(podName, startNetpluginCmd, "kube-system")
 }
@@ -546,8 +550,11 @@ func (k *kubePod) startNetmaster(args string) error {
 		logrus.Errorf("pod not found: %+v", err)
 		return err
 	}
-
-	netmasterStartCmd := k.node.suite.basicInfo.BinPath + `/netmaster` + ` -cluster-store=` + k.node.suite.basicInfo.ClusterStore + ` -cluster-mode=kubernetes ` + args + ` > ` + netmasterLogLocation + ` 2>&1`
+	var infraType string
+	if k.node.suite.basicInfo.AciMode == "on" {
+		infraType = " --infra aci "
+	}
+	netmasterStartCmd := k.node.suite.basicInfo.BinPath + `/netmaster` + infraType + k.commonArgs() + args + ` > ` + netmasterLogLocation + ` 2>&1`
 
 	return k.podExecBG(podName, netmasterStartCmd, "kube-system")
 }
@@ -562,8 +569,8 @@ func (k *kubePod) cleanupMaster() {
 		logrus.Errorf("pod not found: %+v", err)
 		return
 	}
-	clusterStoreInfo := strings.Split(k.node.suite.basicInfo.ClusterStore, "//")
-	etcdClient := "http://" + clusterStoreInfo[len(clusterStoreInfo)-1]
+	// TODO: support multi urls
+	etcdClient := k.node.suite.basicInfo.ClusterStoreURLs
 	logrus.Infof("Cleaning out etcd info on %s", etcdClient)
 
 	k.podExec(podName, `etcdctl -C `+etcdClient+` rm --recursive /contiv`, "kube-system")
@@ -572,14 +579,24 @@ func (k *kubePod) cleanupMaster() {
 }
 
 func getPodName(podRegex, nodeName string) (string, error) {
-	podNameCmd := `kubectl -n kube-system get pods -o wide | grep ` + podRegex + ` | grep ` + nodeName + ` | cut -d " " -f 1`
-	podName, err := k8sMaster.tbnode.RunCommandWithOutput(podNameCmd)
-	if err != nil {
-		logrus.Errorf("Couldn't fetch pod info on %s", nodeName)
-		return "", err
+	var err error
+	var podName string
+	for retry := 60; retry > 0; retry-- {
+		// only get running pods name
+		podNameCmd := `kubectl -n kube-system get pods -o wide | grep Running | grep ` + podRegex + ` | grep ` + nodeName + ` | cut -d " " -f 1`
+		podName, err = k8sMaster.tbnode.RunCommandWithOutput(podNameCmd)
+		podName = strings.TrimSpace(podName)
+		if err != nil || podName == "" {
+			logrus.Warnf("Couldn't fetch pod %s info on %s, retry in 5 sec", podRegex, nodeName)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
 	}
-	podName = strings.TrimSpace(podName)
-	return podName, nil
+	if podName == "" {
+		err = fmt.Errorf("Failed to find running pod %s on node %s", podRegex, nodeName)
+	}
+	return podName, err
 }
 
 func (k *kubePod) cleanupSlave() {

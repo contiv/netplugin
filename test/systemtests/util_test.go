@@ -860,12 +860,12 @@ func (s *systemtestSuite) getJSON(url string, target interface{}) error {
 }
 
 func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
-	if strings.Contains(s.basicInfo.ClusterStore, "etcd://") {
+	if s.basicInfo.ClusterStoreDriver == "etcd" {
 		var etcdKv map[string]interface{}
 
 		// Get from etcd
-		etcdURL := strings.Replace(s.basicInfo.ClusterStore, "etcd://", "http://", 1)
-		etcdURL = etcdURL + "/v2/keys" + path
+		// TODO: support multi urls
+		etcdURL := s.basicInfo.ClusterStoreURLs + "/v2/keys" + path
 
 		// get json from etcd
 		err := s.getJSON(etcdURL, &etcdKv)
@@ -886,12 +886,12 @@ func (s *systemtestSuite) clusterStoreGet(path string) (string, error) {
 		}
 
 		return value.(string), nil
-	} else if strings.Contains(s.basicInfo.ClusterStore, "consul://") {
+	} else if s.basicInfo.ClusterStoreDriver == "consul" {
 		var consulKv []map[string]interface{}
 
 		// Get from consul
-		consulURL := strings.Replace(s.basicInfo.ClusterStore, "consul://", "http://", 1)
-		consulURL = consulURL + "/v1/kv" + path
+		// TODO: support multi urls
+		consulURL := s.basicInfo.ClusterStoreURLs + "/v1/kv" + path
 
 		// get kv json from consul
 		err := s.getJSON(consulURL, &consulKv)
@@ -1318,17 +1318,6 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 	})
 }
 
-func (s *systemtestSuite) setGlobalSettings(c *C, mode string) {
-	c.Assert(s.cli.GlobalPost(&client.Global{FwdMode: mode,
-		Name:             "global",
-		NetworkInfraType: "default",
-		Vlans:            "1-4094",
-		Vxlans:           "1-10000",
-		ArpMode:          "proxy",
-		PvtSubnet:        "172.19.0.0/16",
-	}), IsNil)
-}
-
 func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 
 	for _, node := range s.nodes {
@@ -1356,15 +1345,12 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 
 	}
 
-	time.Sleep(15 * time.Second)
-
 	for _, node := range s.nodes {
 		c.Assert(node.startNetmaster(""), IsNil)
 		time.Sleep(1 * time.Second)
 		c.Assert(node.exec.runCommandUntilNoNetmasterError(), IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
 	if s.basicInfo.Scheduler != kubeScheduler {
 		for i := 0; i < 11; i++ {
 			_, err := s.cli.TenantGet("default")
@@ -1377,8 +1363,7 @@ func (s *systemtestSuite) SetUpTestBaremetal(c *C) {
 		}
 	}
 
-	s.setGlobalSettings(c, s.fwdMode)
-	time.Sleep(40 * time.Second)
+	time.Sleep(10 * time.Second)
 
 }
 
@@ -1411,8 +1396,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	time.Sleep(15 * time.Second)
-
 	errors = s.parallelExec(func(node *node) error {
 		return node.startNetmaster("")
 	})
@@ -1427,8 +1410,6 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	time.Sleep(5 * time.Second)
-
 	if s.basicInfo.Scheduler != kubeScheduler {
 		for i := 0; i < 21; i++ {
 
@@ -1441,9 +1422,7 @@ func (s *systemtestSuite) SetUpTestVagrant(c *C) {
 			time.Sleep(1 * time.Second)
 		}
 	}
-
-	s.setGlobalSettings(c, s.fwdMode)
-	time.Sleep(120 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	if s.basicInfo.Scheduler == kubeScheduler {
 		c.Assert(s.SetupDefaultNetwork(), IsNil)

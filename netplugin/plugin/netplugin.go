@@ -320,7 +320,7 @@ func InitGlobalSettings(stateDriver core.StateDriver, inst *core.InstanceInfo) e
 	// wait until able to get fwd mode and private subnet
 	for {
 		if err := gCfg.Read(""); err != nil {
-			logrus.Errorf("Error reading global settings from cluster store, error: %v", err.Error())
+			logrus.Warnf("Error reading global settings from cluster store, error: %v", err.Error())
 		} else {
 			if gCfg.FwdMode == "" || gCfg.PvtSubnet == "" {
 				if gCfg.FwdMode == "" {

@@ -44,13 +44,27 @@ import (
 )
 
 const (
-	defHostPvtNet = "172.19.0.0/16"
+	// TODO: all need to come from config
+	defaultHostPvtNet = "172.19.0.0/16"
+	defaultARPMode    = "proxy"
+	defaultVLANRange  = "1-4094"
+	defaultVXLANRange = "1-10000"
 )
 
 // APIController stores the api controller state
 type APIController struct {
 	router      *mux.Router
 	objdbClient objdb.API // Objdb client
+}
+
+// APIControllerConfig cofig options for API controller
+type APIControllerConfig struct {
+	NetPrivateCIDR string
+	NetARPMode     string
+	NetVLANRange   string
+	NetVXLANRange  string
+	NetForwardMode string
+	NetInfraType   string
 }
 
 // BgpInspect is bgp inspect struct
@@ -62,13 +76,13 @@ type BgpInspect struct {
 var apiCtrler *APIController
 
 // NewAPIController creates a new controller
-func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string) *APIController {
+func NewAPIController(router *mux.Router, objdbClient objdb.API, configs *APIControllerConfig) *APIController {
 	ctrler := new(APIController)
 	ctrler.router = router
 	ctrler.objdbClient = objdbClient
 
 	// init modeldb
-	modeldb.Init(storeURL)
+	modeldb.Init(&objdbClient)
 
 	// initialize the model objects
 	contivModel.Init()
@@ -90,41 +104,8 @@ func NewAPIController(router *mux.Router, objdbClient objdb.API, storeURL string
 	// Register routes
 	contivModel.AddRoutes(router)
 
-	// Init global state
-	gc := contivModel.FindGlobal("global")
-	if gc != nil {
-		// Cover any upgrade scenario
-		if gc.ArpMode == "" || gc.PvtSubnet == "" {
-			updGC := *gc
-			if updGC.ArpMode == "" {
-				updGC.ArpMode = "proxy"
-			}
-
-			if updGC.PvtSubnet == "" {
-				updGC.PvtSubnet = defHostPvtNet
-			}
-			log.Infof("Upgrading default global config")
-			err := contivModel.CreateGlobal(&updGC)
-			if err != nil {
-				log.Fatalf("Error creating global state. Err: %v", err)
-			}
-		}
-	} else {
-		log.Infof("Creating default global config")
-		err := contivModel.CreateGlobal(&contivModel.Global{
-			Key:              "global",
-			Name:             "global",
-			NetworkInfraType: "default",
-			Vlans:            "1-4094",
-			Vxlans:           "1-10000",
-			FwdMode:          "", // set empty fwd mode by default
-			ArpMode:          "proxy",
-			PvtSubnet:        defHostPvtNet,
-		})
-		if err != nil {
-			log.Fatalf("Error creating global state. Err: %v", err)
-		}
-	}
+	// Init global state from config
+	initGlobalConfigs(configs)
 
 	// Add default tenant if it doesnt exist
 	tenant := contivModel.FindTenant("default")
@@ -150,6 +131,38 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func initGlobalConfigs(configs *APIControllerConfig) error {
+	get := func(candidate, defaultStr string) string {
+		if candidate != "" {
+			return candidate
+		}
+		return defaultStr
+	}
+
+	globalConfig := contivModel.FindGlobal("global")
+	if globalConfig == nil {
+		globalConfig = &contivModel.Global{
+			Key:  "global",
+			Name: "global",
+		}
+	}
+	// set value from config
+	globalConfig.NetworkInfraType = configs.NetInfraType
+	globalConfig.FwdMode = configs.NetForwardMode
+	// set value from config or default value
+	// TODO: make them come from config
+	globalConfig.ArpMode = get(configs.NetARPMode, defaultARPMode)
+	globalConfig.PvtSubnet = get(configs.NetPrivateCIDR, defaultHostPvtNet)
+	globalConfig.Vlans = get(configs.NetVLANRange, defaultVLANRange)
+	globalConfig.Vxlans = get(configs.NetVXLANRange, defaultVXLANRange)
+	// contivModel.CreateGlobal does both creating and updating
+	if err := contivModel.CreateGlobal(globalConfig); err != nil {
+		return fmt.Errorf("Error creating global state. Err: %v", err.Error())
+	}
+	log.Infof("Initiated global configs: %+v", globalConfig)
+	return nil
 }
 
 // GlobalGetOper retrieves glboal operational information
@@ -278,7 +291,7 @@ func (ac *APIController) GlobalUpdate(global, params *contivModel.Global) error 
 		globalCfg.NwInfraType = params.NetworkInfraType
 	}
 	if global.PvtSubnet != params.PvtSubnet {
-		if (global.PvtSubnet != "" || params.PvtSubnet != defHostPvtNet) && numVlans+numVxlans > 0 {
+		if (global.PvtSubnet != "" || params.PvtSubnet != defaultHostPvtNet) && numVlans+numVxlans > 0 {
 			return errExistingNetworks("private subnet")
 		}
 		globalCfg.PvtSubnet = params.PvtSubnet
@@ -1000,7 +1013,7 @@ func (ac *APIController) EndpointGroupDelete(endpointGroup *contivModel.Endpoint
 	}
 
 	// In swarm-mode work-flow, if epg is mapped to a docker network, reject the delete
-	if master.GetClusterMode() == master.SwarmMode {
+	if master.GetClusterMode() == core.SwarmMode {
 		dnet, err := docknet.GetDocknetState(endpointGroup.TenantName, endpointGroup.NetworkName, endpointGroup.GroupName)
 		if err == nil {
 			return fmt.Errorf("cannot delete group %s mapped to docker network %s",
@@ -1209,7 +1222,7 @@ func (ac *APIController) NetworkDelete(network *contivModel.Network) error {
 	}
 
 	// In swarm-mode work-flow, if this is mapped to a docker network, reject delete
-	if master.GetClusterMode() == master.SwarmMode {
+	if master.GetClusterMode() == core.SwarmMode {
 		docknet, err := docknet.GetDocknetState(network.TenantName, network.NetworkName, "")
 		if err == nil {
 			return fmt.Errorf("cannot delete network %s mapped to docker network %s",

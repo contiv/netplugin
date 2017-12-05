@@ -190,7 +190,7 @@ func CreateNetwork(network intent.ConfigNetwork, stateDriver core.StateDriver, t
 		return nil
 	}
 
-	if GetClusterMode() == Docker {
+	if GetClusterMode() == core.Docker {
 		// Create the network in docker
 		err = docknet.CreateDockNet(tenantName, network.Name, "", nwCfg)
 		if err != nil {
@@ -264,7 +264,7 @@ func DeleteNetworkID(stateDriver core.StateDriver, netID string) error {
 			return core.Errorf("Error: Network has active endpoints")
 		}
 
-		if GetClusterMode() == Docker && aci == false {
+		if GetClusterMode() == core.Docker && aci == false {
 			// Delete the docker network
 			err = docknet.DeleteDockNet(nwCfg.Tenant, nwCfg.NetworkName, "")
 			if err != nil {

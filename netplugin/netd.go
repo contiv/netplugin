@@ -15,48 +15,22 @@ package main
 
 import (
 	"fmt"
-	"log/syslog"
-	"net/url"
 	"os"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/contiv/netplugin/core"
-	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netplugin/agent"
-	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/netplugin/version"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/Sirupsen/logrus/hooks/syslog"
 	"github.com/urfave/cli"
 )
 
-func configureSyslog(syslogParam string) {
-	var err error
-	var hook logrus.Hook
-
-	// disable colors if we're writing to syslog *and* we're the default text
-	// formatter, because the tty detection is useless here.
-	if tf, ok := logrus.StandardLogger().Formatter.(*logrus.TextFormatter); ok {
-		tf.DisableColors = true
-	}
-
-	u, err := url.Parse(syslogParam)
-	if err != nil {
-		logrus.Fatalf("Could not parse syslog spec: %v", err)
-	}
-
-	hook, err = logrus_syslog.NewSyslogHook(u.Scheme, u.Host, syslog.LOG_INFO, "netplugin")
-	if err != nil {
-		logrus.Fatalf("Could not connect to syslog: %v", err)
-	}
-
-	logrus.AddHook(hook)
-}
+const binName = "netplugin"
 
 func startNetPlugin(pluginConfig *plugin.Config) {
 	// Create a new agent
@@ -75,201 +49,103 @@ func startNetPlugin(pluginConfig *plugin.Config) {
 	}
 }
 
-func initNetPluginConfig(ctx *cli.Context) (plugin.Config, error) {
-	// 1. validate and set up log
-	if ctx.Bool("use-syslog") {
-		syslogURL := ctx.String("syslog-url")
-		configureSyslog(syslogURL)
-		logrus.Infof("Using netplugin syslog config: %v", syslogURL)
-	} else {
-		logrus.Info("Using netplugin syslog config: nil")
+func initNetPluginConfig(ctx *cli.Context) (*plugin.Config, error) {
+	// 1. validate and init logging
+	if err := utils.InitLogging(binName, ctx); err != nil {
+		return nil, err
 	}
 
-	logLevel, err := logrus.ParseLevel(ctx.String("log-level"))
+	// 2. validate network configs
+	netConfigs, err := utils.ValidateNetworkOptions(binName, ctx)
 	if err != nil {
-		return plugin.Config{}, err
-	}
-	logrus.SetLevel(logLevel)
-	logrus.Infof("Using netplugin log level: %v", logLevel)
-
-	if ctx.Bool("use-json-log") {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-		logrus.Info("Using netplugin log format: json")
-	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true, TimestampFormat: time.StampNano})
-		logrus.Info("Using netplugin log format: text")
+		return nil, err
 	}
 
-	// 2. validate and set plugin mode
-	pluginMode := strings.ToLower(ctx.String("mode"))
-	switch pluginMode {
-	case master.Docker, master.Kubernetes, master.SwarmMode, master.Test:
-		logrus.Infof("Using netplugin mode: %v", pluginMode)
-	case "":
-		return plugin.Config{}, fmt.Errorf("netplugin mode is not set")
-	default:
-		return plugin.Config{}, fmt.Errorf("unknown netplugin mode: %v", pluginMode)
+	// 3. validate db configs
+	dbConfigs, err := utils.ValidateDBOptions(binName, ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	// 3. validate and set network mode
-	networkMode := strings.ToLower(ctx.String("netmode"))
-	switch networkMode {
-	case "vlan", "vxlan":
-		logrus.Infof("Using netplugin network mode: %v", networkMode)
-	case "":
-		return plugin.Config{}, fmt.Errorf("netplugin network mode is not set")
-	default:
-		return plugin.Config{}, fmt.Errorf("unknown netplugin network mode: %v", networkMode)
-	}
-
-	// 4. validate forward mode
-	forwardMode := strings.ToLower(ctx.String("fwdmode"))
-	if forwardMode == "" {
-		return plugin.Config{}, fmt.Errorf("unknown netplugin forwarding mode: %v", forwardMode)
-	} else if forwardMode != "bridge" && forwardMode != "routing" {
-		return plugin.Config{}, fmt.Errorf("netplugin forwarding mode is not set")
-	} else if networkMode == "vxlan" && forwardMode == "bridge" {
-		return plugin.Config{}, fmt.Errorf("invalid netplugin forwarding mode: %q (network mode: %q)", forwardMode, networkMode)
-	}
-	// vxlan/vlan+routing, vlan+bridge are valid combinations
-	logrus.Infof("Using netplugin forwarding mode: %v", forwardMode)
-
-	// 5. validate and set other optional configs
+	// 4. validate and set other optional configs
 	hostLabel := ctx.String("host")
+	var configErr error
+	if hostLabel == "" {
+		hostLabel, configErr = os.Hostname()
+		if configErr != nil {
+			return nil, fmt.Errorf("Failed to get hostname: %s", configErr.Error())
+		}
+	}
 	logrus.Infof("Using netplugin host: %v", hostLabel)
 	controlIP := ctx.String("ctrl-ip")
+	if controlIP == "" {
+		controlIP, configErr = netutils.GetDefaultAddr()
+		if configErr != nil {
+			logrus.Fatal("Failed to get host address: %s", configErr.Error())
+		}
+	}
 	logrus.Infof("Using netplugin control IP: %v", controlIP)
+	// TODO: Ignore vtep ip if it's not vxlan mode
 	vtepIP := ctx.String("vtep-ip")
-	if networkMode == "vxlan" && vtepIP == "" {
-		return plugin.Config{}, fmt.Errorf("vtep-ip should be set when using VXLAN mode")
+	if vtepIP == "" {
+		vtepIP, configErr = netutils.GetDefaultAddr()
+		if configErr != nil {
+			logrus.Fatal("Failed to get host address: %s", configErr.Error())
+		}
 	}
 	logrus.Infof("Using netplugin VTEP IP: %v", vtepIP)
+
 	vlanUpLinks := strings.Split(ctx.String("vlan-uplinks"), ",")
-	if networkMode == "vlan" && len(vlanUpLinks) == 0 {
-		return plugin.Config{}, fmt.Errorf("vlan-uplinks should be set when using VLAN mode")
+	if netConfigs.NetworkMode == "vlan" && len(vlanUpLinks) == 0 {
+		return nil, fmt.Errorf("vlan-uplinks must be set when using VLAN mode")
 	}
 	logrus.Infof("Using netplugin vlan uplinks: %v", vlanUpLinks)
-
-	var stateStore string
-	var stateStoreURL string
-
-	for _, kvStore := range []string{"etcd", "consul"} {
-		for _, endpoint := range strings.Split(ctx.String(kvStore), ",") {
-			_, err := url.Parse(endpoint)
-			if err != nil {
-				return plugin.Config{}, fmt.Errorf("invalid netplugin %v endpoint: %v", kvStore, endpoint)
-			}
-			// TODO: support multi-endpoints
-			stateStore = kvStore
-			stateStoreURL = endpoint
-			logrus.Infof("Using netplugin state storage endpoints: %v: %v", stateStore, stateStoreURL)
-			break
-		}
-		if stateStore != "" && stateStoreURL != "" {
-			break
-		}
-	}
-	if stateStore == "" || stateStoreURL == "" {
-		logrus.Error("unknown netplugin storage endpoints")
-		return plugin.Config{}, fmt.Errorf("unknown netplugin endpoints")
-	}
 
 	vxlanPort := ctx.Int("vxlan-port")
 	logrus.Infof("Using netplugin vxlan port: %v", vxlanPort)
 
-	// initialize the config
-	pluginConfig := plugin.Config{
+	return &plugin.Config{
 		Drivers: plugin.Drivers{
 			Network: utils.OvsNameStr,
-			State:   stateStore,
+			State:   dbConfigs.StoreDriver,
 		},
 		Instance: core.InstanceInfo{
 			HostLabel:    hostLabel,
 			CtrlIP:       controlIP,
 			VtepIP:       vtepIP,
 			UplinkIntf:   vlanUpLinks,
-			DbURL:        stateStoreURL,
-			PluginMode:   pluginMode,
+			DbURL:        dbConfigs.StoreURL,
+			PluginMode:   netConfigs.Mode,
 			VxlanUDPPort: vxlanPort,
-			// TODO: pass in network mode
-			FwdMode: forwardMode,
+			FwdMode:      netConfigs.ForwardMode, // TODO: pass in network mode
 		},
-	}
-
-	return pluginConfig, nil
+	}, nil
 }
 
-/*
-netplugin supported models:
-vxlan+routing, vlan+bridge/routing
-*/
-
 func main() {
-	hostname, _ := os.Hostname()
-	localIP, _ := cluster.GetLocalAddr()
 	app := cli.NewApp()
 	app.Version = "\n" + version.String()
 	app.Usage = "Contiv netplugin service"
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "log-level",
-			Value:  "INFO",
-			EnvVar: "CONTIV_NETPLUGIN_LOG_LEVEL",
-			Usage:  "set netplugin log level, options: [DEBUG, INFO, WARN, ERROR]",
-		},
-		cli.BoolFlag{
-			Name:   "use-json-log, json-log",
-			EnvVar: "CONTIV_NETPLUGIN_USE_JSON_LOG",
-			Usage:  "set netplugin log format to json",
-		},
-		cli.BoolFlag{
-			Name:   "use-syslog, syslog",
-			EnvVar: "CONTIV_NETPLUGIN_USE_SYSLOG",
-			Usage:  "set netplugin send log to syslog or not",
-		},
-		cli.StringFlag{
-			Name:   "syslog-url",
-			Value:  "udp://127.0.0.1:514",
-			EnvVar: "CONTIV_NETPLUGIN_SYSLOG_URL",
-			Usage:  "set netplugin syslog url in format protocol://ip:port",
-		},
+	netpluginFlags := []cli.Flag{
 		cli.StringFlag{
 			Name:   "host, host-label",
-			Value:  hostname,
 			EnvVar: "CONTIV_NETPLUGIN_HOST",
-			Usage:  "set netplugin host to identify itself",
-		},
-		cli.StringFlag{
-			Name:   "mode, plugin-mode",
-			EnvVar: "CONTIV_NETPLUGIN_MODE",
-			Usage:  "set netplugin mode, options: [docker, kubernetes, swarm-mode]",
+			Usage:  "set netplugin host to identify itself (default: <host-name-reported-by-the-kernel>)",
 		},
 		cli.StringFlag{
 			Name:   "vtep-ip",
-			Value:  localIP,
 			EnvVar: "CONTIV_NETPLUGIN_VTEP_IP",
-			Usage:  "set netplugin vtep ip for vxlan communication",
+			Usage:  "set netplugin vtep ip for vxlan communication (default: <host-ip-from-local-resolver>)",
 		},
 		cli.StringFlag{
 			Name:   "ctrl-ip",
-			Value:  localIP,
 			EnvVar: "CONTIV_NETPLUGIN_CONTROL_IP",
-			Usage:  "set netplugin control ip for control plane communication",
+			Usage:  "set netplugin control ip for control plane communication (default: <host-ip-from-local-resolver>)",
 		},
 		cli.StringFlag{
 			Name:   "vlan-uplinks, vlan-if",
 			EnvVar: "CONTIV_NETPLUGIN_VLAN_UPLINKS",
 			Usage:  "a comma-delimited list of netplugin uplink interfaces",
-		},
-		cli.StringFlag{
-			Name:   "etcd-endpoints, etcd",
-			EnvVar: "CONTIV_NETPLUGIN_ETCD_ENDPOINTS",
-			Usage:  "a comma-delimited list of netplugin etcd endpoints",
-		},
-		cli.StringFlag{
-			Name:   "consul-endpoints, consul",
-			EnvVar: "CONTIV_NETPLUGIN_CONSUL_ENDPOINTS",
-			Usage:  "a comma-delimited list of netplugin consul endpoints, ignored when etcd-endpoints is set",
 		},
 		cli.IntFlag{
 			Name:   "vxlan-port",
@@ -277,36 +153,19 @@ func main() {
 			EnvVar: "CONTIV_NETPLUGIN_VXLAN_PORT",
 			Usage:  "set netplugin VXLAN port",
 		},
-		cli.StringFlag{
-			Name:   "netmode, network-mode",
-			EnvVar: "CONTIV_NETPLUGIN_NET_MODE",
-			Usage:  "set netplugin network mode, options: [vlan, vxlan]",
-		},
-		cli.StringFlag{
-			Name:   "fwdmode, forward-mode",
-			EnvVar: "CONTIV_NETPLUGIN_FORWARD_MODE",
-			Usage:  "set netplugin forwarding network mode, options: [bridge, routing]",
-		},
-		/*
-			// only ovs is supported
-			// TODO: turn it on when having more than one backend supported
-			cli.StringFlag {
-				Name: "driver, net-driver",
-				Value: "ovs",
-				EnvVar: "CONTIV_NETPLUGIN_DRIVER",
-				Usage: "set netplugin key-value store url, options: [ovs, vpp]",
-			}
-		*/
 	}
+	app.Flags = utils.FlattenFlags(netpluginFlags, utils.BuildDBFlags(binName), utils.BuildNetworkFlags(binName), utils.BuildLogFlags(binName))
 	sort.Sort(cli.FlagsByName(app.Flags))
 	app.Action = func(ctx *cli.Context) error {
 		configs, err := initNetPluginConfig(ctx)
 		if err != nil {
 			errmsg := err.Error()
 			logrus.Error(errmsg)
-			return cli.NewExitError(errmsg, (len(errmsg)%254 + 1))
+			// use 22 Invalid argument as error return code
+			// http://www-numi.fnal.gov/offline_software/srt_public_context/WebDocs/Errors/unix_system_errors.html
+			return cli.NewExitError(errmsg, 22)
 		}
-		startNetPlugin(&configs)
+		startNetPlugin(configs)
 		return nil
 	}
 	app.Run(os.Args)
