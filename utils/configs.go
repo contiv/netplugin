@@ -90,12 +90,12 @@ func BuildLogFlags(binary string) []cli.Flag {
 		cli.BoolFlag{
 			Name:   "use-json-log, json-log",
 			EnvVar: fmt.Sprintf("CONTIV_%s_USE_JSON_LOG", binUpper),
-			Usage:  fmt.Sprintf("set %s log format to json", binLower),
+			Usage:  fmt.Sprintf("set %s log format to json if this flag is provided", binLower),
 		},
 		cli.BoolFlag{
 			Name:   "use-syslog, syslog",
 			EnvVar: fmt.Sprintf("CONTIV_%s_USE_SYSLOG", binUpper),
-			Usage:  fmt.Sprintf("set %s send log to syslog or not", binLower),
+			Usage:  fmt.Sprintf("set %s send log to syslog if this flag is provided", binLower),
 		},
 		cli.StringFlag{
 			Name:   "syslog-url",
@@ -185,7 +185,7 @@ func ValidateDBOptions(binary string, ctx *cli.Context) (*DBConfigs, error) {
 	if etcdURLs != "" && consulURLs != "" {
 		return nil, fmt.Errorf("ambiguous %s db endpoints, both etcd and consul specified: etcd: %s, consul: %s", binary, etcdURLs, consulURLs)
 	} else if etcdURLs == "" && consulURLs == "" {
-		return nil, fmt.Errorf("unknown %s db endpoints", binary)
+		return nil, fmt.Errorf("unknown %s db endpoints, neither etcd or consul endpoints are specified", binary)
 	} else if etcdURLs != "" {
 		storeDriver = "etcd"
 		storeURLs = etcdURLs

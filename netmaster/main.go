@@ -69,7 +69,7 @@ func initNetMaster(ctx *cli.Context) (*daemon.MasterDaemon, error) {
 		logrus.Infof("Using netmaster docker v2 plugin name: %s", pluginName)
 		docknet.UpdateDockerV2PluginName(pluginName, pluginName)
 	} else {
-		logrus.Infof("Ignore netmaster docker v2 plugin name: %s (netmaster mode: %s)", pluginName, netConfigs.Mode)
+		logrus.Infof("Ignoring netmaster docker v2 plugin name: %s (netmaster mode: %s)", pluginName, netConfigs.Mode)
 	}
 
 	// 5. set plugin listen addresses
@@ -132,13 +132,13 @@ func main() {
 		cli.StringFlag{
 			Name:   "infra, infra-type",
 			Value:  "default",
-			EnvVar: "CONTIV_NETMASTER_PLUGIN_HOST",
+			EnvVar: "CONTIV_NETMASTER_INFRA",
 			Usage:  "set netmaster infra type, options [aci, default]",
 		},
 		cli.StringFlag{
 			Name:   "name, plugin-name",
 			Value:  "netplugin",
-			EnvVar: "CONTIV_NETMASTER_PLUGIN_HOST",
+			EnvVar: "CONTIV_NETMASTER_PLUGIN_NAME",
 			Usage:  "set netmaster plugin name for docker v2 plugin",
 		},
 		cli.StringFlag{
