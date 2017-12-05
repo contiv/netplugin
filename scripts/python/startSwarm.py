@@ -38,7 +38,7 @@ if args.swarm == "swarm_mode":
     nodes[0].runCmd("docker swarm init --advertise-addr " + nodes[0].addr + ":2377")
     # Get the token for joining swarm
     out, x, y = nodes[0].runCmd("docker swarm join-token worker -q")
-    token = out[0][:-1] #remove newline
+    token = out[0][:-1] #remove newlineØ
     # Make all workers join the swarm
     for node in nodes[1:]:
         command = "docker swarm join --token "+ token + " " + nodes[0].addr + ":2377"
@@ -47,7 +47,7 @@ if args.swarm == "swarm_mode":
     time.sleep(15)
 
     print "Check netplugin is installed and enabled"
-    out, x, y = nodes[0].runCmd("docker plugin ls")
+    out, _, _ = nodes[0].runCmd("docker plugin ls")
 
     installed = re.search('contiv/v2plugin', out[1])
 
