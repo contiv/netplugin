@@ -26,7 +26,7 @@ export V2PLUGIN_TAR_FILENAME := v2plugin-$(VERSION).tar.gz
 GO_MIN_VERSION := 1.7
 GO_MAX_VERSION := 1.8
 GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
-CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image tar host-pluginfs-create clean-tar"
+CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image host-build-ovs-image tar host-pluginfs-create clean-tar"
 SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 K8S_SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy"
 ACI_GW_IMAGE ?= "contiv/aci-gw:04-12-2017.2.2_1n"
@@ -255,6 +255,9 @@ start-aci-gw:
 
 host-build-docker-image: compile-with-docker binaries-from-container
 	@./scripts/netContain/build_image.sh
+
+host-build-ovs-image:
+	@./scripts/ovscontainer/build_image.sh
 
 host-cleanup:
 	@echo dev: cleaning up services...
