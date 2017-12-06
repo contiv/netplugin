@@ -171,9 +171,9 @@ spec:
             - mountPath: /contiv/bin
               name: contiv-bin-dir
               readOnly: false
-            - mountPath: /contiv/scripts/
-              name: contiv-scripts-dir
-              readOnly: false
+            # - mountPath: /contiv/scripts/
+            #   name: contiv-scripts-dir
+            #   readOnly: false
       volumes:
         # Used by contiv-netplugin
         - name: etc-openvswitch
@@ -207,9 +207,9 @@ spec:
         - name: contiv-bin-dir
           hostPath:
             path: /opt/gopath/bin
-        - name: contiv-scripts-dir
-          hostPath:
-            path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
+        # - name: contiv-scripts-dir
+        #   hostPath:
+        #     path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
 ---
 
 # This manifest deploys the Contiv API Server on Kubernetes.
@@ -301,9 +301,9 @@ spec:
             - mountPath: /contiv/bin
               name: contiv-bin-dir
               readOnly: false
-            - mountPath: /contiv/scripts/
-              name: contiv-scripts-dir
-              readOnly: false
+            # - mountPath: /contiv/scripts/
+            #   name: contiv-scripts-dir
+            #   readOnly: false
       volumes:
         # Used by contiv-netmaster
         - name: etc-openvswitch
@@ -330,7 +330,7 @@ spec:
         - name: contiv-bin-dir
           hostPath:
             path: /opt/gopath/bin
-        - name: contiv-scripts-dir
-          hostPath:
-            path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
+        # - name: contiv-scripts-dir
+        #   hostPath:
+        #     path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
 ---
