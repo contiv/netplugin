@@ -1,12 +1,10 @@
 #!/bin/bash
 #Start OVS in the Contiv container
 
-set -eu
+set -euo pipefail
 
 modprobe openvswitch || (echo "CRITICAL: Failed to load kernel module openvswitch" && exit 1 )
 echo "INFO: Loaded kernel module openvswitch"
-
-set -o pipefail
 
 mkdir -p /var/run/openvswitch
 mkdir -p /var/log/contiv/

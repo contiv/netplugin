@@ -58,7 +58,7 @@ CONTIV_NETMASTER_ETCD_ENDPOINTS=http://127.0.0.1:2379 CONTIV_NETMASTER_FORWARD_M
 ```
 ### docker hub
 Developer release of v2plugin from contiv repo is also pushed to docker hub
-Please update mode, forward modemode, net mode according to your deployment.
+Please update mode, forward mode, net mode according to your deployment.
 
 ```
 docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netmaster CONTIV_NETPLUGIN_ETCD_ENDPOINTS=http://127.0.0.1:2379 CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
@@ -73,7 +73,7 @@ make demo-v2plugin
 
 ## Contiv plugin-roles
 Contiv plugin runs both netplugin and netmaster by default. Contiv v2plugin can be run with only netplugin by setting the plugin_role to worker.
-Please update mode, forward modemode, net mode according to your deployment.
+Please update mode, forward mode, net mode according to your deployment.
 ```
 docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netmaster CONTIV_NETPLUGIN_ETCD_ENDPOINTS=http://127.0.0.1:2379 CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
 CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan \

@@ -14,7 +14,9 @@ data:
   # The location of your cluster store. This is set to the
   # avdertise-client value below from the contiv-etcd service.
   # Change it to an external etcd/consul instance if required.
-  contiv_etcd: "http://__NETMASTER_IP__:6666"
+  # this is not required for dev test, etcd or consul endpoints
+  # will be passed in in testing
+  # contiv_etcd: "http://__NETMASTER_IP__:6666"
   # The CNI network configuration to install on each node.
   contiv_cni_config: |-
     {
@@ -113,11 +115,12 @@ spec:
               valueFrom:
                  fieldRef:
                     fieldPath: status.podIP
-            - name: CONTIV_NETPLUGIN_ETCD_ENDPOINTS
-              valueFrom:
-                configMapKeyRef:
-                  name: contiv-config
-                  key: contiv_etcd
+            # set in testing codes
+            # - name: CONTIV_NETPLUGIN_ETCD_ENDPOINTS
+            #   valueFrom:
+            #     configMapKeyRef:
+            #       name: contiv-config
+            #       key: contiv_etcd
             - name: CONTIV_CNI_CONFIG
               valueFrom:
                 configMapKeyRef:
@@ -171,9 +174,9 @@ spec:
             - mountPath: /contiv/bin
               name: contiv-bin-dir
               readOnly: false
-            # - mountPath: /contiv/scripts/
-            #   name: contiv-scripts-dir
-            #   readOnly: false
+            - mountPath: /contiv/scripts/
+              name: contiv-scripts-dir
+              readOnly: false
       volumes:
         # Used by contiv-netplugin
         - name: etc-openvswitch
@@ -207,9 +210,9 @@ spec:
         - name: contiv-bin-dir
           hostPath:
             path: /opt/gopath/bin
-        # - name: contiv-scripts-dir
-        #   hostPath:
-        #     path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
+        - name: contiv-scripts-dir
+          hostPath:
+            path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
 ---
 
 # This manifest deploys the Contiv API Server on Kubernetes.
@@ -254,11 +257,12 @@ spec:
                 configMapKeyRef:
                   name: contiv-config
                   key: contiv_mode
-            - name: CONTIV_NETMASTER_ETCD_ENDPOINTS
-              valueFrom:
-                configMapKeyRef:
-                  name: contiv-config
-                  key: contiv_etcd
+            # set in testing codes
+            # - name: CONTIV_NETMASTER_ETCD_ENDPOINTS
+            #   valueFrom:
+            #     configMapKeyRef:
+            #       name: contiv-config
+            #       key: contiv_etcd
             - name: CONTIV_K8S_CONFIG
               valueFrom:
                 configMapKeyRef:
@@ -301,9 +305,9 @@ spec:
             - mountPath: /contiv/bin
               name: contiv-bin-dir
               readOnly: false
-            # - mountPath: /contiv/scripts/
-            #   name: contiv-scripts-dir
-            #   readOnly: false
+            - mountPath: /contiv/scripts/
+              name: contiv-scripts-dir
+              readOnly: false
       volumes:
         # Used by contiv-netmaster
         - name: etc-openvswitch
@@ -330,7 +334,7 @@ spec:
         - name: contiv-bin-dir
           hostPath:
             path: /opt/gopath/bin
-        # - name: contiv-scripts-dir
-        #   hostPath:
-        #     path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
+        - name: contiv-scripts-dir
+          hostPath:
+            path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
 ---

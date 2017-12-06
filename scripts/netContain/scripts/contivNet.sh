@@ -50,15 +50,12 @@ echo "INFO: Running contiv in mode $CONTIV_MODE"
 
 set -uo pipefail
 
-mkdir -p /opt/contiv/
+mkdir -p /opt/contiv/ /var/log/contiv
 
 if [ -d /var/contiv/log ]; then
     # /var/contiv/log/ is deprecated, move all data to /var/log/contiv
-    mkdir -p /var/log
-    mv /var/contiv/log /var/log/contiv
-    echo "INFO: Moved contiv log from /var/contiv/log (deprecated) to /var/log/contiv"
-else
-    mkdir -p /var/log/contiv
+    cp -a /var/contiv/log/* /var/log/contiv/
+    echo "INFO: Copied contiv log from /var/contiv/log (deprecated) to /var/log/contiv"
 fi
 
 if [ "$CONTIV_ROLE" = "netplugin" ]; then

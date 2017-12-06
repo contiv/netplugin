@@ -314,7 +314,7 @@ func (k *kubePod) podExecBG(podName, args string, ns ...string) error {
 	// Since the command is to run in BG in the pod and not on the node,
 	// RunCommandBackground is not required here
 
-	podCmd := `kubectl -n ` + namespace + ` exec ` + podName + ` -- nohup bash -c '\''` + args + ` &'\''`
+	podCmd := `kubectl -n ` + namespace + ` exec ` + podName + ` -- nohup sh -c '\''` + args + ` &'\''`
 	logrus.Debugf("Pod Exec BG: Running command -- %s", podCmd)
 	return k8sMaster.tbnode.RunCommand(podCmd)
 }
@@ -500,7 +500,8 @@ func (k *kubePod) startNetplugin(args string) error {
 	}
 
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	startNetpluginCmd := "unset CONTIV_NETPLUGIN_ETCD_ENDPOINTS && " + k.node.suite.basicInfo.BinPath + `/netplugin --vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + k.commonArgs() + args + ` > ` + netpluginLogLocation + ` 2>&1`
+	startNetpluginCmd := (k.node.suite.basicInfo.BinPath + `/netplugin --vlan-if=` +
+		k.node.suite.hostInfo.HostDataInterfaces + k.commonArgs() + args + ` > ` + netpluginLogLocation + ` 2>&1`)
 
 	return k.podExecBG(podName, startNetpluginCmd, "kube-system")
 }
@@ -554,8 +555,8 @@ func (k *kubePod) startNetmaster(args string) error {
 	if k.node.suite.basicInfo.AciMode == "on" {
 		infraType = " --infra aci "
 	}
-	// unset CONTIV_NETMASTER_ETCD_ENDPOINTS to be able to use other endpoint
-	netmasterStartCmd := "unset CONTIV_NETMASTER_ETCD_ENDPOINTS && " + k.node.suite.basicInfo.BinPath + `/netmaster` + infraType + k.commonArgs() + args + ` > ` + netmasterLogLocation + ` 2>&1`
+	netmasterStartCmd := (k.node.suite.basicInfo.BinPath + `/netmaster` +
+		infraType + k.commonArgs() + args + ` > ` + netmasterLogLocation + ` 2>&1`)
 
 	return k.podExecBG(podName, netmasterStartCmd, "kube-system")
 }

@@ -33,19 +33,14 @@ exec 2<&-  # Close stderr
 exec 1<>$BOOTUP_LOGFILE  # stdout read and write to logfile instead of console
 exec 2>&1  # redirect stderr to where stdout is (logfile)
 
-mkdir -p "$CONTIV_LOG_DIR"
-mkdir -p /var/run/openvswitch
-mkdir -p /etc/openvswitch
+mkdir -p "$CONTIV_LOG_DIR" /var/run/openvswitch /etc/openvswitch
 
 # setting up ovs
 # TODO: this is the same code in ovsInit.sh, needs to reduce the duplication
-modprobe openvswitch || (echo "CRITICAL: Failed to load kernel module openvswitch" && exit 1 )
-echo "INFO: Loaded kernel module openvswitch"
-
 set -uo pipefail
 
-mkdir -p /var/run/openvswitch
-mkdir -p /var/log/contiv/
+modprobe openvswitch || (echo "CRITICAL: Failed to load kernel module openvswitch" && exit 1 )
+echo "INFO: Loaded kernel module openvswitch"
 
 if [ -d "/etc/openvswitch" ]; then
     if [ -f "/etc/openvswitch/conf.db" ]; then
@@ -66,11 +61,11 @@ ovsdb-server --remote=punix:/var/run/openvswitch/db.sock \
              --private-key=db:Open_vSwitch,SSL,private_key \
              --certificate=db:Open_vSwitch,SSL,certificate \
              --bootstrap-ca-cert=db:Open_vSwitch,SSL,ca_cert \
-             --log-file=/var/log/contiv/ovs-db.log -vsyslog:info -vfile:info \
+             --log-file=$CONTIV_LOG_DIR/ovs-db.log -vsyslog:info -vfile:info \
              --pidfile --detach /etc/openvswitch/conf.db
 
 echo "INFO: Starting ovs-vswitchd"
-ovs-vswitchd -v --pidfile --detach --log-file=/var/log/contiv/ovs-vswitchd.log \
+ovs-vswitchd -v --pidfile --detach --log-file=$CONTIV_LOG_DIR/ovs-vswitchd.log \
     -vconsole:err -vsyslog:info -vfile:info &
 
 retry=0
@@ -97,7 +92,7 @@ if [ "$CONTIV_ROLE" = "netmaster" ]; then
     while  true ; do
         echo "INFO: Starting contiv netmaster"
         set -x
-        /contiv/bin/netmaster "$@" &> "$CONTIV_LOG_DIR/netmaster.log"
+        /contiv/bin/netmaster "$@" &>> "$CONTIV_LOG_DIR/netmaster.log"
         set +x
         echo "ERROR: Contiv netmaster has exited, restarting in 5s"
         sleep 5
@@ -107,7 +102,7 @@ fi
 while true ; do
     echo "INFO: Starting contiv netplugin"
     set -x
-    /contiv/bin/netplugin "$@" &> "$CONTIV_LOG_DIR/netplugin.log"
+    /contiv/bin/netplugin "$@" &>> "$CONTIV_LOG_DIR/netplugin.log"
     set +x
     echo "ERROR: Contiv netplugin has exited, restarting in 5s"
     sleep 5
