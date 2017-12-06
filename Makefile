@@ -9,7 +9,7 @@ DEFAULT_DOCKER_VERSION := 1.12.6
 V2PLUGIN_DOCKER_VERSION := 1.13.1
 SHELL := /bin/bash
 # TODO: contivmodel should be removed once its code passes golint and misspell
-EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install contivmodel
+EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install contivmodel venv
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/netcontiv/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
@@ -132,8 +132,17 @@ start:
 	CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-$(DEFAULT_DOCKER_VERSION)}" CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 
 # ===================================================================
+# kubernetes helper targets
+
+k8s-check-python-deps:
+	@command -v pip >/dev/null \
+		|| echo No pip available, make sure netaddr and parse packages are installed
+	@command -v pip >/dev/null && pip show -q netaddr && pip show -q parse \
+		|| (echo parse and netaddr python packages are required; exit 1)
+
+# ===================================================================
 # kubernetes cluster bringup/cleanup targets
-k8s-cluster:
+k8s-cluster: k8s-check-python-deps
 	cd vagrant/k8s/ && CONTIV_K8S_USE_KUBEADM=1 ./setup_cluster.sh
 
 k8s-l3-cluster:
@@ -147,11 +156,24 @@ k8s-l3-destroy:
 
 # ===================================================================
 # kubernetes test targets
-k8s-test: k8s-cluster
-	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
-	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm'
-	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f $(K8S_SYSTEM_TESTS_TO_RUN)
-	cd vagrant/k8s && vagrant destroy -f
+k8s-build: FIRST_MASTER_HOSTNAME:=k8master
+k8s-build: first_master_make_targets:="compile archive"
+k8s-build: export VAGRANT_CWD=$(PWD)/vagrant/k8s
+k8s-build: TO_BUILD := netplugin netmaster mgmtfn test/systemtests
+k8s-build: make-on-first-master-dep
+
+# for k8s-test, run-build will be run on the node instead of local
+k8s-test: FIRST_MASTER_HOSTNAME:=k8master
+k8s-test: first_master_make_targets:=run-build
+k8s-test: export VAGRANT_CWD:=$(PWD)/vagrant/k8s
+k8s-test: export CONTIV_K8S_USE_KUBEADM:=1 CONTIV_NODES:=3 PYTHONIOENCODING:=utf-8
+k8s-test: k8s-cluster make-on-first-master-dep
+k8s-test-now:
+	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python \
+		&& ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm'
+	go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f \
+		$(K8S_SYSTEM_TESTS_TO_RUN)
+	#cd vagrant/k8s && vagrant destroy -f
 
 k8s-l3-test: k8s-l3-cluster
 	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
@@ -204,7 +226,7 @@ integ-test: stop clean start ssh-build
 ubuntu-tests:
 	CONTIV_NODE_OS=ubuntu make clean build unit-test system-test stop
 
-system-test:start
+system-test: start
 	@echo "system-test: running the following system tests:" $(SYSTEM_TESTS_TO_RUN)
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py
 	go test -v -timeout 480m ./test/systemtests -check.v -check.abort -check.f $(SYSTEM_TESTS_TO_RUN)
@@ -293,7 +315,7 @@ host-plugin-create:
 host-plugin-update: host-plugin-remove unarchive host-plugin-create
 # same behavior as host-plugin-update but runs locally with docker 1.13+
 plugin-update: tar
-	$(call make-on-node1, host-plugin-update)
+	$(call make-on-first-master, host-plugin-update)
 
 # cleanup all containers, recreate and start the v2plugin on all hosts
 # uses the latest compiled binaries
@@ -315,21 +337,23 @@ host-pluginfs-unpack:
 		--exclude=etc/terminfo/v/vt220
 
 # Runs make targets on the first netplugin vagrant node
-# this is used as a macro like $(call make-on-node1, compile checks)
-make-on-node1 = vagrant ssh netplugin-node1 -c '\
+# this is used as a macro like $(call make-on-first-master, compile checks)
+
+FIRST_MASTER_HOSTNAME ?= netplugin-node1
+make-on-first-master = vagrant ssh $(FIRST_MASTER_HOSTNAME) -c '\
 	bash -lc "source /etc/profile.d/envvar.sh \
 	&& cd /opt/gopath/src/github.com/contiv/netplugin && make $(1)"'
 
-# Calls macro make-on-node1 but can be used as a dependecy by setting
-# the variable "node1-make-targets"
-make-on-node1-dep:
-	$(call make-on-node1, $(node1-make-targets))
+# Calls macro make-on-first-master but can be used as a dependecy by setting
+# the variable "first_master_make_targets"
+make-on-first-master-dep:
+	$(call make-on-first-master, $(first_master_make_targets))
 
 # assumes the v2plugin archive is available, installs the v2plugin and resets
 # everything on the vm to clean state
 v2plugin-install:
 	@echo Installing v2plugin
-	$(call make-on-node1, install-shell-completion host-pluginfs-unpack \
+	$(call make-on-first-master, install-shell-completion host-pluginfs-unpack \
 		host-plugin-restart host-swarm-restart)
 
 # Just like demo-v2plugin except builds are done locally and cached
@@ -341,8 +365,8 @@ demo-v2plugin-from-local: tar host-pluginfs-create start v2plugin-install
 # then creates and enables v2plugin
 demo-v2plugin: export CONTIV_DOCKER_VERSION ?= $(V2PLUGIN_DOCKER_VERSION)
 demo-v2plugin: export CONTIV_DOCKER_SWARM := swarm_mode
-demo-v2plugin: node1-make-targets := host-pluginfs-create
-demo-v2plugin: ssh-build make-on-node1-dep v2plugin-install
+demo-v2plugin: first_master_make_targets := host-pluginfs-create
+demo-v2plugin: ssh-build make-on-first-master-dep v2plugin-install
 
 # release a v2 plugin from the VM
 host-plugin-release: tar host-pluginfs-create host-pluginfs-unpack host-plugin-create

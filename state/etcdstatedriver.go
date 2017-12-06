@@ -127,7 +127,7 @@ func (d *EtcdStateDriver) Read(key string) ([]byte, error) {
 		}
 
 		if client.IsKeyNotFound(err) {
-			return []byte{}, core.Errorf("key not found")
+			return []byte{}, core.Errorf("key '%s' not found", key)
 		}
 
 		if err.Error() == client.ErrClusterUnavailable.Error() {

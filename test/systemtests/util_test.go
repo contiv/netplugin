@@ -186,7 +186,7 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 	for i := 0; i < num; i++ {
 		go func(i int) {
 			nodeNum := i % len(s.nodes)
-			var name string
+			var name, cname string
 
 			mutex.Lock()
 			if len(names) > 0 {
@@ -197,6 +197,9 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 
 			if name == "" {
 				name = fmt.Sprintf("%s-srv%d-%d", strings.Replace(networkName, "/", "-", -1), i, nodeNum)
+				cname = name
+			} else {
+				cname = fmt.Sprintf("%s-%d", name, i)
 			}
 
 			var serviceName string
@@ -205,7 +208,6 @@ func (s *systemtestSuite) runContainers(num int, withService bool, networkName s
 				serviceName = name
 			}
 
-			cname := fmt.Sprintf("%s-%d", name, i)
 			spec := containerSpec{
 				imageName:   "contiv/alpine",
 				networkName: networkName,
@@ -1249,8 +1251,8 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 			c.Assert(s.vagrant.Setup(false, []string{"CONTIV_L3=1 VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
 
 			// Sleep to give enough time for the netplugin pods to come up
-			logrus.Infof("Sleeping for 1 minute for pods to come up")
-			time.Sleep(time.Minute)
+			//logrus.Infof("Sleeping for 1 minute for pods to come up")
+			//			time.Sleep(time.Minute)
 
 		case swarmScheduler:
 			c.Assert(s.vagrant.Setup(false, append([]string{"CONTIV_NODES=3 CONTIV_L3=1"}, s.basicInfo.SwarmEnv), contivNodes+contivL3Nodes), IsNil)
@@ -1276,8 +1278,8 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 			c.Assert(s.vagrant.Setup(false, []string{"VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
 
 			// Sleep to give enough time for the netplugin pods to come up
-			logrus.Infof("Sleeping for 1 minute for pods to come up")
-			time.Sleep(time.Minute)
+			//logrus.Infof("Sleeping for 1 minute for pods to come up")
+			//time.Sleep(time.Minute)
 
 		case swarmScheduler:
 			c.Assert(s.vagrant.Setup(false, append([]string{}, s.basicInfo.SwarmEnv), contivNodes), IsNil)

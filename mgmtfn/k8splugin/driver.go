@@ -404,7 +404,7 @@ func addPod(w http.ResponseWriter, r *http.Request, vars map[string]string) (int
 	ep, err := createEP(epReq)
 	if err != nil {
 		log.Errorf("Error creating ep. Err: %v", err)
-		setErrorResp(&resp, "Error creating EP", err)
+		setErrorResp(&resp, "Error creating EP '"+epReq.Name+"'", err)
 		return resp, err
 	}
 

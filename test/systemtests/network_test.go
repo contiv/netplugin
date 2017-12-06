@@ -259,9 +259,13 @@ func (s *systemtestSuite) testNetworkAddDeleteNoGateway(c *C, encap string) {
 
 		for _, name := range netNames {
 			var err error
-			// There seem to be a docker bug in creating external connectivity if we run
-			// containers in parallel. So, running it serially for this test
-			containers[name], err = s.runContainersSerial(numContainer, false, name, "", nil)
+			if s.basicInfo.Scheduler == "k8s" {
+				containers[name], err = s.runContainers(numContainer, false, name, "", nil, nil)
+			} else {
+				// There seem to be a docker bug in creating external connectivity if we run
+				// containers in parallel. So, running it serially for this test
+				containers[name], err = s.runContainersSerial(numContainer, false, name, "", nil)
+			}
 			c.Assert(err, IsNil)
 		}
 
