@@ -135,11 +135,8 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 	d.localIP = info.VtepIP
 	// restore the driver's runtime state if it exists
 	err := d.oper.Read(info.HostLabel)
+	// despite the name, this returns the err if key not found
 	if core.ErrIfKeyExists(err) != nil {
-		log.Errorf("Failed to read driver oper state for key %q. Error: %s",
-			info.HostLabel, err)
-		return err
-	} else if err != nil {
 		// create the oper state as it is first time start up
 		d.oper.ID = info.HostLabel
 		d.oper.CurrPortNum = 0
@@ -152,6 +149,10 @@ func (d *OvsDriver) Init(info *core.InstanceInfo) error {
 		if err != nil {
 			return err
 		}
+	} else if err != nil {
+		log.Errorf("Failed to read driver oper state for key %q. Error: %s",
+			info.HostLabel, err)
+		return err
 	}
 
 	// make sure LocalEpInfo exists
