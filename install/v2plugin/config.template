@@ -13,7 +13,7 @@
           "Settable": [
              "value"
           ],
-          "Value": ""
+          "Value": "netplugin"
        },
        {
           "Description": "contiv log file directory",
@@ -37,7 +37,7 @@
           "Settable": [
              "value"
           ],
-          "Value": ""
+          "Value": "http://127.0.0.1:2379"
        },
        {
           "Description": "a comma-delimited list of netplugin VLAN uplink interfaces used by OVS",
@@ -149,7 +149,7 @@
           "Settable": [
              "value"
           ],
-          "Value": ""
+          "Value": "http://127.0.0.1:2379"
        },
        {
           "Description": "netmaster forwarding network mode, options: [bridge, routing]",

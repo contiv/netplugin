@@ -9,15 +9,16 @@ echo "$@"
 echo "INFO: Starting contiv net with ENV:"
 /usr/bin/env | grep CONTIV_
 
+# this is different between k8s and v2plugin because v2plugin have netmaster
+# in one container
 if [ -z "$CONTIV_ROLE" ]; then
-    echo "CRITICAL: ENV CONTIV_ROLE must be set"
-    echo "CRITICAL: Unknown contiv role"
-    exit 1
+    CONTIV_ROLE="netplugin"
 elif [ "$CONTIV_ROLE" != "netmaster" ] && [ "$CONTIV_ROLE" != "netplugin" ]; then
     echo "CRITICAL: ENV CONTIV_ROLE must be in [netmaster, netplugin]"
     echo "CRITICAL: Unknown contiv role"
     exit 1
 fi
+echo "INFO: Starting contiv net as role: $CONTIV_ROLE"
 
 # setting up logs
 if [ ! -z "$CONTIV_LOG_DIR" ]; then
