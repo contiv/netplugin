@@ -21,7 +21,7 @@ fi
 echo "INFO: Starting contiv net as role: $CONTIV_ROLE"
 
 # setting up logs
-if [ ! -z "$CONTIV_LOG_DIR" ]; then
+if [ -z "$CONTIV_LOG_DIR" ]; then
     CONTIV_LOG_DIR="/var/log/contiv"
 fi
 mkdir -p "$CONTIV_LOG_DIR"
