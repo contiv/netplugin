@@ -138,6 +138,7 @@ k8s-check-python-deps:
 	@(command -v pip >/dev/null && (pip show -q netaddr && pip show -q parse \
 		|| (echo parse and netaddr python packages are required; exit 1)) \
 	|| echo No pip available, make sure netaddr and parse packages are installed)
+
 # ===================================================================
 # kubernetes cluster bringup/cleanup targets
 k8s-cluster: k8s-check-python-deps
