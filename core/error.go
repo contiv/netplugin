@@ -79,12 +79,7 @@ func Errorf(f string, args ...interface{}) *Error {
 
 // ErrIfKeyExists checks if the error message contains "key not found".
 func ErrIfKeyExists(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	msg := err.Error()
-	if strings.HasPrefix(msg, "key ") && strings.HasSuffix(msg, " not found") {
+	if err == nil || strings.Contains(err.Error(), "key not found") {
 		return nil
 	}
 
