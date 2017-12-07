@@ -131,7 +131,6 @@ if [ $netmaster == true ]; then
 		sleep 5
 	done
 elif [ $netplugin == true ]; then
-	echo "Starting netplugin"
     if [[ "$cluster_store" =~ ^etcd://.+ ]]; then
         store_arg="--etcd-endpoints $(echo $cluster_store | sed s/etcd/http/)"
     elif [[ "$cluster_store" =~ ^consul://.+ ]]; then
@@ -146,7 +145,10 @@ elif [ $netplugin == true ]; then
 			if [ "$vlan_if" != "" ]; then
 				vlan_if_param="--vlan-if"
 			fi
+            echo "Starting netplugin $(date)"
+            set -x
 			/contiv/bin/netplugin $debug $store_arg $vtep_ip_param $vtep_ip $vlan_if_param $vlan_if --plugin-mode $plugin || true
+            set +x
 			echo "CRITICAL : Netplugin has exited. Trying to respawn in 5s"
 		fi
 		sleep 5

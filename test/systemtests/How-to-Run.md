@@ -1,3 +1,5 @@
+# A guide to running netplugin systemtests on Vagrant and Baremetal platforms:
+
 Current framework can run system-tests for
 
 ```
@@ -9,7 +11,6 @@ Baremetal-
 Swarm -- ACI
 Swarm -- Non-ACI
 ```
-A guide to running netplugin systemtests on Vagrant and Baremetal platforms:
 
 Customize the example JSON file `netplugin/systemtests/cfg.json.example` according to your environment and rename it to `netplugin/systemtests/cfg.json`. A typical file for vagrant with swarm looks like:
 ```
@@ -46,7 +47,8 @@ Customize the example JSON file `netplugin/systemtests/cfg.json.example` accordi
 ]
 ```
 
-Testing with Vagrant:
+
+### Testing with Vagrant:
 
 * Make a suitable JSON file on your local machine (inside the systemtests directory).
 * From the netplugin directory of your machine (outside the vagrant nodes), run:
@@ -54,7 +56,24 @@ Testing with Vagrant:
 ```
   make system-test
 ```
-Testing with Baremetal with Swarm:
+
+
+### Testing k8s with Vagrant:
+
+To run all the k8s system tests:
+
+```
+make k8s-test
+```
+
+To work on a single system test, such as TestNetworkAddDeleteNoGatewayVLAN:
+
+```
+  make K8S_SYSTEM_TESTS_TO_RUN=TestNetworkAddDeleteNoGatewayVLAN start k8s-test
+```
+
+
+### Testing with Baremetal with Swarm:
 
 For ACI testing , We need to have connectivity to APIC and ACI Fabric Switches from Baremetal VMs and Hosts.
 * You need to complete Pre-requisites, Step 1, Step 2, Step3 metioned here : https://github.com/contiv/demo/tree/master/net
@@ -84,7 +103,9 @@ godep go test -v -timeout 240m ./systemtests -check.v -check.f "TestACI"
 
 	This will run all the test functions which have the string TestACI
 ```
-Troubleshooting
+
+
+### Troubleshooting
 
 * First delete all netmaster, netctl, netplugin, contivk8s binaries from $GOBIN directory from all Nodes in the Cluster
 * You can perform following steps to clear etcd states

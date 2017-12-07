@@ -9,9 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"os"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type kubePod struct {
@@ -635,7 +636,9 @@ func (k *kubePod) runCommandUntilNoNetmasterError() error {
 	}
 
 	processCheckCmd := `kubectl -n kube-system exec ` + podName + ` -- pgrep netmaster`
-	return k8sMaster.runCommandUntilNoError(processCheckCmd)
+	err = k8sMaster.runCommandUntilNoError(processCheckCmd)
+	logrus.Infof("netmaster status check complete on: %s", k.node.Name())
+	return err
 }
 
 func (k *kubePod) runCommandUntilNoNetpluginError() error {
@@ -650,7 +653,8 @@ func (k *kubePod) runCommandUntilNoNetpluginError() error {
 	}
 
 	processCheckCmd := `kubectl -n kube-system exec ` + podName + ` -- pgrep netplugin`
-	return k8sMaster.runCommandUntilNoError(processCheckCmd)
+	err = k8sMaster.runCommandUntilNoError(processCheckCmd)
+	return err
 }
 
 func (k *kubePod) rotateNetmasterLog() error {

@@ -34,6 +34,12 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 		TenantName:  "default",
 	}), IsNil)
 
+	c.Assert(s.cli.EndpointGroupPost(&client.EndpointGroup{
+		GroupName:   "default",
+		NetworkName: "private",
+		TenantName:  "default",
+	}), IsNil)
+
 	for i := 0; i < s.basicInfo.Iterations; i++ {
 		containers, err := s.runContainers(s.basicInfo.Containers, false, "private", "", nil, nil)
 		c.Assert(err, IsNil)
@@ -68,6 +74,8 @@ func (s *systemtestSuite) testBasicStartRemoveContainer(c *C, encap string) {
 		c.Assert(s.pingTest(containers), IsNil)
 		c.Assert(s.removeContainers(containers), IsNil)
 	}
+
+	c.Assert(s.cli.EndpointGroupDelete("default", "default"), IsNil)
 	c.Assert(s.cli.EndpointGroupDelete("default", "epg1"), IsNil)
 	c.Assert(s.cli.NetworkDelete("default", "private"), IsNil)
 }
