@@ -34,7 +34,7 @@ COMMANDS:
 GLOBAL OPTIONS:
    --consul-endpoints value, --consul value                 a comma-delimited list of netplugin consul endpoints [$CONTIV_NETPLUGIN_CONSUL_ENDPOINTS]
    --ctrl-ip value                                          set netplugin control ip for control plane communication (default: <host-ip-from-local-resolver>) [$CONTIV_NETPLUGIN_CONTROL_IP]
-   --etcd-endpoints value, --etcd value                     a comma-delimited list of netplugin etcd endpoints [$CONTIV_NETPLUGIN_ETCD_ENDPOINTS]
+   --etcd-endpoints value, --etcd value                     a comma-delimited list of netplugin etcd endpoints (default: http://127.0.0.1:2379) [$CONTIV_NETPLUGIN_ETCD_ENDPOINTS]
    --fwdmode value, --forward-mode value                    set netplugin forwarding network mode, options: [bridge, routing] [$CONTIV_NETPLUGIN_FORWARD_MODE]
    --host value, --host-label value                         set netplugin host to identify itself (default: <host-name-reported-by-the-kernel>) [$CONTIV_NETPLUGIN_HOST]
    --log-level value                                        set netplugin log level, options: [DEBUG, INFO, WARN, ERROR] (default: "INFO") [$CONTIV_NETPLUGIN_LOG_LEVEL]
@@ -73,7 +73,7 @@ COMMANDS:
 
 GLOBAL OPTIONS:
    --consul-endpoints value, --consul value                 a comma-delimited list of netmaster consul endpoints [$CONTIV_NETMASTER_CONSUL_ENDPOINTS]
-   --etcd-endpoints value, --etcd value                     a comma-delimited list of netmaster etcd endpoints [$CONTIV_NETMASTER_ETCD_ENDPOINTS]
+   --etcd-endpoints value, --etcd value                     a comma-delimited list of netmaster etcd endpoints (default: http://127.0.0.1:2379) [$CONTIV_NETMASTER_ETCD_ENDPOINTS]
    --external-address value, --listen-url value             set netmaster external address to listen on, used for general API service (default: "0.0.0.0:9999") [$CONTIV_NETMASTER_EXTERNAL_ADDRESS]
    --fwdmode value, --forward-mode value                    set netmaster forwarding network mode, options: [bridge, routing] [$CONTIV_NETMASTER_FORWARD_MODE]
    --infra value, --infra-type value                        set netmaster infra type, options [aci, default] (default: "default") [$CONTIV_NETMASTER_INFRA]

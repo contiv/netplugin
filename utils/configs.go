@@ -60,7 +60,7 @@ func BuildDBFlags(binary string) []cli.Flag {
 		cli.StringFlag{
 			Name:   "etcd-endpoints, etcd",
 			EnvVar: fmt.Sprintf("CONTIV_%s_ETCD_ENDPOINTS", binUpper),
-			Usage:  fmt.Sprintf("a comma-delimited list of %s etcd endpoints", binLower),
+			Usage:  fmt.Sprintf("a comma-delimited list of %s etcd endpoints (default: http://127.0.0.1:2379)", binLower),
 		},
 		cli.StringFlag{
 			Name:   "consul-endpoints, consul",
@@ -185,7 +185,9 @@ func ValidateDBOptions(binary string, ctx *cli.Context) (*DBConfigs, error) {
 	if etcdURLs != "" && consulURLs != "" {
 		return nil, fmt.Errorf("ambiguous %s db endpoints, both etcd and consul specified: etcd: %s, consul: %s", binary, etcdURLs, consulURLs)
 	} else if etcdURLs == "" && consulURLs == "" {
-		return nil, fmt.Errorf("unknown %s db endpoints, neither etcd or consul endpoints are specified", binary)
+		// if neither etcd or consul is set, try etcd at http://127.0.0.1:2379
+		storeDriver = "etcd"
+		storeURLs = "http://127.0.0.1:2379"
 	} else if etcdURLs != "" {
 		storeDriver = "etcd"
 		storeURLs = etcdURLs
@@ -254,8 +256,8 @@ func ValidateNetworkOptions(binary string, ctx *cli.Context) (*NetworkConfigs, e
 
 // FlattenFlags concatenate slices of flags into one slice
 func FlattenFlags(flagSlices ...[]cli.Flag) []cli.Flag {
-	flags := flagSlices[0]
-	for _, slice := range flagSlices[1:] {
+	var flags []cli.Flag
+	for _, slice := range flagSlices {
 		flags = append(flags, slice...)
 	}
 	return flags

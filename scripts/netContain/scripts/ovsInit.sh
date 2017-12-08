@@ -3,12 +3,11 @@
 
 set -euo pipefail
 
-modprobe openvswitch
+modprobe openvswitch || (echo "CRITICAL: Failed to load kernel module openvswitch" && exit 1 )
+echo "INFO: Loaded kernel module openvswitch"
 
 mkdir -p /var/run/openvswitch
-mkdir -p /var/contiv/log/
-
-sleep 2
+mkdir -p /var/log/contiv/
 
 if [ -d "/etc/openvswitch" ]; then
     if [ -f "/etc/openvswitch/conf.db" ]; then
@@ -29,11 +28,11 @@ ovsdb-server --remote=punix:/var/run/openvswitch/db.sock \
              --private-key=db:Open_vSwitch,SSL,private_key \
              --certificate=db:Open_vSwitch,SSL,certificate \
              --bootstrap-ca-cert=db:Open_vSwitch,SSL,ca_cert \
-             --log-file=/var/contiv/log/ovs-db.log -vsyslog:info -vfile:info \
+             --log-file=/var/log/contiv/ovs-db.log -vsyslog:info -vfile:info \
              --pidfile --detach /etc/openvswitch/conf.db
 
 echo "INFO: Starting ovs-vswitchd"
-ovs-vswitchd -v --pidfile --detach --log-file=/var/contiv/log/ovs-vswitchd.log \
+ovs-vswitchd -v --pidfile --detach --log-file=/var/log/contiv/ovs-vswitchd.log \
     -vconsole:err -vsyslog:info -vfile:info &
 
 retry=0

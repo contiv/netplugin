@@ -4,125 +4,107 @@
 # run a cluster store like etcd or consul
 
 set -e
+echo "INFO: Starting contiv net with ARGS:"
+echo "$@"
+echo "INFO: Starting contiv net with ENV:"
+/usr/bin/env | grep CONTIV_
 
-if [ "$log_dir" == "" ]; then
-    log_dir="/var/log/contiv"
+# this is different between k8s and v2plugin because v2plugin have netmaster
+# in one container
+if [ -z "$CONTIV_ROLE" ]; then
+    CONTIV_ROLE="netplugin"
+elif [ "$CONTIV_ROLE" != "netmaster" ] && [ "$CONTIV_ROLE" != "netplugin" ]; then
+    echo "CRITICAL: ENV CONTIV_ROLE must be in [netmaster, netplugin]"
+    echo "CRITICAL: Unknown contiv role"
+    exit 1
 fi
-mkdir -p $log_dir
-BOOTUP_LOGFILE="$log_dir/plugin_bootup.log"
+echo "INFO: Starting contiv net as role: $CONTIV_ROLE"
 
+# setting up logs
+if [ -z "$CONTIV_LOG_DIR" ]; then
+    CONTIV_LOG_DIR="/var/log/contiv"
+fi
+mkdir -p "$CONTIV_LOG_DIR"
+echo "INFO: Logging contiv net under: $CONTIV_LOG_DIR"
+
+BOOTUP_LOGFILE="$CONTIV_LOG_DIR/plugin_bootup.log"
 # Redirect stdout and stdin to BOOTUP_LOGFILE
 exec 1<&-  # Close stdout
 exec 2<&-  # Close stderr
 exec 1<>$BOOTUP_LOGFILE  # stdout read and write to logfile instead of console
 exec 2>&1  # redirect stderr to where stdout is (logfile)
 
-mkdir -p $log_dir
-mkdir -p /var/run/openvswitch
-mkdir -p /etc/openvswitch
+mkdir -p "$CONTIV_LOG_DIR" /var/run/openvswitch /etc/openvswitch
 
-echo "V2 Plugin logs" > $BOOTUP_LOGFILE
+# setting up ovs
+# TODO: this is the same code in ovsInit.sh, needs to reduce the duplication
+set -uo pipefail
 
-if [ $iflist == "" ]; then
-    echo "iflist is empty. Host interface(s) should be specified to use vlan mode" >> $BOOTUP_LOGFILE
-fi
-if [ $ctrl_ip != "none" ]; then
-    ctrl_ip_cfg="--ctrl-ip=$ctrl_ip"
-fi
-if [ $vtep_ip != "none" ]; then
-    vtep_ip_cfg="--vtep-ip=$vtep_ip"
-fi
-if [ $listen_url != ":9999" ]; then
-    listen_url_cfg="-listen-url=$listen_url"
-fi
-if [ $control_url != ":9999" ]; then
-    control_url_cfg="-control-url=$control_url"
-fi
-if [ $vxlan_port != "4789" ]; then
-    vxlan_port_cfg="--vxlan-port=$vxlan_port"
-fi
+modprobe openvswitch || (echo "CRITICAL: Failed to load kernel module openvswitch" && exit 1 )
+echo "INFO: Loaded kernel module openvswitch"
 
-if [[ "$cluster_store" =~ ^etcd://.+ ]]; then
-    store_arg="--etcd-endpoints $(echo $cluster_store | sed s/etcd/http/)"
+if [ -d "/etc/openvswitch" ]; then
+    if [ -f "/etc/openvswitch/conf.db" ]; then
+        echo "INFO: The Open vSwitch database exists"
+    else
+        echo "INFO: The Open VSwitch database doesn't exist"
+        echo "INFO: Creating the Open VSwitch database..."
+        ovsdb-tool create /etc/openvswitch/conf.db /usr/share/openvswitch/vswitch.ovsschema
+    fi
 else
-    store_arg="--consul-endpoints $(echo $cluster_store | sed s/consul/http/)"
+    echo "CRITICAL: Open vSwitch is not mounted from host"
+    exit 1
 fi
-set -e
 
-echo "Loading OVS" >> $BOOTUP_LOGFILE
-(modprobe openvswitch) || (echo "Load ovs FAILED!!! " >> $BOOTUP_LOGFILE)
+echo "INFO: Starting ovsdb-server..."
+ovsdb-server --remote=punix:/var/run/openvswitch/db.sock \
+             --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
+             --private-key=db:Open_vSwitch,SSL,private_key \
+             --certificate=db:Open_vSwitch,SSL,certificate \
+             --bootstrap-ca-cert=db:Open_vSwitch,SSL,ca_cert \
+             --log-file=$CONTIV_LOG_DIR/ovs-db.log -vsyslog:info -vfile:info \
+             --pidfile --detach /etc/openvswitch/conf.db
 
-echo "  Cleaning up ovsdb files" >> $BOOTUP_LOGFILE
-rm -rf /var/run/openvswitch/*
-rm -rf /etc/openvswitch/conf.db
-rm -rf /etc/openvswitch/.conf.db.~lock~
+echo "INFO: Starting ovs-vswitchd"
+ovs-vswitchd -v --pidfile --detach --log-file=$CONTIV_LOG_DIR/ovs-vswitchd.log \
+    -vconsole:err -vsyslog:info -vfile:info &
 
-echo "  Creating OVS DB" >> $BOOTUP_LOGFILE
-(ovsdb-tool create  /etc/openvswitch/conf.db /usr/share/openvswitch/vswitch.ovsschema) || (while true; do sleep 1; done)
+retry=0
+while [[ $(ovsdb-client list-dbs | grep -c Open_vSwitch) -eq 0 ]] ; do
+    if [[ ${retry} -eq 5 ]]; then
+        echo "CRITICAL: Failed to start ovsdb in 5 seconds."
+        exit 1
+    else
+        echo "INFO: Waiting for ovsdb to start..."
+        sleep 1
+        ((retry+=1))
+    fi
+done
 
-echo "  Starting OVSBD server " >> $BOOTUP_LOGFILE
-ovsdb-server --remote=punix:/var/run/openvswitch/db.sock --remote=db:Open_vSwitch,Open_vSwitch,manager_options --private-key=db:Open_vSwitch,SSL,private_key --certificate=db:Open_vSwitch,SSL,certificate --bootstrap-ca-cert=db:Open_vSwitch,SSL,ca_cert --log-file=$log_dir/ovs-db.log -vsyslog:dbg -vfile:dbg --pidfile --detach /etc/openvswitch/conf.db >> $BOOTUP_LOGFILE
-echo "  Starting ovs-vswitchd " >> $BOOTUP_LOGFILE
-ovs-vswitchd -v --pidfile --detach --log-file=$log_dir/ovs-vswitchd.log -vconsole:err -vsyslog:info -vfile:info &
+echo "INFO: Setting OVS manager (tcp)..."
 ovs-vsctl set-manager tcp:127.0.0.1:6640
+
+echo "INFO: Setting OVS manager (ptcp)..."
 ovs-vsctl set-manager ptcp:6640
 
-echo "Started OVS, logs in $log_dir" >> $BOOTUP_LOGFILE
-
+# starting services
 set +e
-
-if [ $plugin_role == "master" ]; then
-    if [ -z "$fwd_mode" ]; then
-        echo "fwd_mode is not set, plugin cannot be enabled"
-        exit 1
-    fi
-    echo "Starting Netmaster " >> $BOOTUP_LOGFILE
+if [ "$CONTIV_ROLE" = "netmaster" ]; then
     while  true ; do
-        echo "/netmaster $dbg_flag -plugin-name=$plugin_name -cluster-mode=$plugin_mode -cluster-store=$cluster_store $listen_url_cfg $control_url_cfg" >> $BOOTUP_LOGFILE
-        /netmaster $dbg_flag -plugin-name=$plugin_name -cluster-mode=$plugin_mode -cluster-store=$cluster_store $listen_url_cfg $control_url_cfg &> $log_dir/netmaster.log
-        echo "CRITICAL : Net Master has exited, Respawn in 5s" >> $BOOTUP_LOGFILE
-	mv $log_dir/netmaster.log $log_dir/netmaster.log.lastrun
+        echo "INFO: Starting contiv netmaster"
+        set -x
+        /contiv/bin/netmaster "$@" &>> "$CONTIV_LOG_DIR/netmaster.log"
+        set +x
+        echo "ERROR: Contiv netmaster has exited, restarting in 5s"
         sleep 5
-        echo "Restarting Netmaster " >> $BOOTUP_LOGFILE
     done &
-
-    set -e
-    echo "Waiting for netmaster to be ready for connections"
-    # wait till netmaster starts to listen
-    for i in $(seq 1 10); do
-        [ "$(curl -s -o /dev/null -w '%{http_code}' $control_url)" != "000" ] \
-           && break
-        sleep 1
-    done
-    if [ "$i" -ge "10" ]; then
-        echo "netmaster port not open (needed to set forwarding mode), plugin failed"
-        exit 1
-    fi
-    sleep 1
-    echo "Netmaster ready for connections, setting forward mode to $fwd_mode"
-    /netctl --netmaster http://$control_url global set --fwd-mode "$fwd_mode"
-    echo "Forward mode is set"
-else
-    echo "Not starting netmaster as plugin role is" $plugin_role >> $BOOTUP_LOGFILE
 fi
 
-if [[ "$fwd_mode" == "bridge" ]]; then
-    network_mode=vlan
-else
-    network_mode=vxlan
-fi
-
-echo "Starting Netplugin"
 while true ; do
+    echo "INFO: Starting contiv netplugin"
     set -x
-    /netplugin $dbg_flag --plugin-mode=$plugin_mode $vxlan_port_cfg \
-        --vlan-if=$iflist $store_arg $ctrl_ip_cfg $vtep_ip_cfg \
-        --netmode $network_mode --fwdmode $fwd_mode &> $log_dir/netplugin.log
+    /contiv/bin/netplugin "$@" &>> "$CONTIV_LOG_DIR/netplugin.log"
     set +x
-    echo "CRITICAL : Net Plugin has exited, Respawn in 5"
-    mv $log_dir/netplugin.log $log_dir/netplugin.log.lastrun
+    echo "ERROR: Contiv netplugin has exited, restarting in 5s"
     sleep 5
-    echo "Restarting Netplugin"
-done &
-
-while true; do sleep 1; done
+done

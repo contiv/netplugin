@@ -24,8 +24,8 @@ const (
 	k8sMasterNode        = "k8master"
 	netmasterRestartFile = "/tmp/restart_netmaster"
 	netpluginRestartFile = "/tmp/restart_netplugin"
-	netmasterLogLocation = "/var/contiv/log/netmaster.log"
-	netpluginLogLocation = "/var/contiv/log/netplugin.log"
+	netmasterLogLocation = "/var/log/contiv/netmaster.log"
+	netpluginLogLocation = "/var/log/contiv//netplugin.log"
 )
 
 func (s *systemtestSuite) NewK8sPodExec(n *node) *kubePod {
@@ -500,7 +500,8 @@ func (k *kubePod) startNetplugin(args string) error {
 	}
 
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin --vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + k.commonArgs() + args + ` > ` + netpluginLogLocation + ` 2>&1`
+	startNetpluginCmd := (k.node.suite.basicInfo.BinPath + `/netplugin --vlan-if=` +
+		k.node.suite.hostInfo.HostDataInterfaces + k.commonArgs() + args + ` > ` + netpluginLogLocation + ` 2>&1`)
 
 	return k.podExecBG(podName, startNetpluginCmd, "kube-system")
 }
@@ -554,7 +555,8 @@ func (k *kubePod) startNetmaster(args string) error {
 	if k.node.suite.basicInfo.AciMode == "on" {
 		infraType = " --infra aci "
 	}
-	netmasterStartCmd := k.node.suite.basicInfo.BinPath + `/netmaster` + infraType + k.commonArgs() + args + ` > ` + netmasterLogLocation + ` 2>&1`
+	netmasterStartCmd := (k.node.suite.basicInfo.BinPath + `/netmaster` +
+		infraType + k.commonArgs() + args + ` > ` + netmasterLogLocation + ` 2>&1`)
 
 	return k.podExecBG(podName, netmasterStartCmd, "kube-system")
 }
@@ -680,7 +682,7 @@ func (k *kubePod) checkForNetpluginErrors() error {
 
 	// NOTE: Checking for error here could result in Error code: 123
 	// Err code 123 might be the case when grep results in no output
-	fatalCheckCmd := `ls /var/contiv/log/net* | xargs -r -I % grep --text -A 5 "panic\|fatal" %`
+	fatalCheckCmd := `ls /var/log/contiv/net* | xargs -r -I % grep --text -A 5 "panic\|fatal" %`
 	out, _ := k.podExec(podName, fatalCheckCmd, "kube-system")
 	if out != "" {
 		errStr := fmt.Sprintf("fatal error in netplugin logs on %s\n", k.node.Name())
@@ -689,7 +691,7 @@ func (k *kubePod) checkForNetpluginErrors() error {
 		return errors.New(errStr)
 	}
 
-	errCheckCmd := `ls /var/contiv/log/net* | xargs -r -I {} grep --text "error" {}`
+	errCheckCmd := `ls /var/log/contiv/net* | xargs -r -I {} grep --text "error" {}`
 	out, _ = k.podExec(podName, errCheckCmd, "kube-system")
 	if out != "" {
 		logrus.Errorf("error output in netplugin logs on %s: \n", k.node.Name())
@@ -708,8 +710,8 @@ func (k *kubePod) rotateLog(processName string) error {
 		return err
 	}
 
-	oldLogFile := fmt.Sprintf("/var/contiv/log/%s.log", processName)
-	newLogFilePrefix := fmt.Sprintf("/var/contiv/log/_%s", processName)
+	oldLogFile := fmt.Sprintf("/var/log/contiv/%s.log", processName)
+	newLogFilePrefix := fmt.Sprintf("/var/log/contiv/_%s", processName)
 	rotateLogCmd := `echo` + " `date +%s` " + `| xargs -I {} mv ` + oldLogFile + ` ` + newLogFilePrefix + `-{}.log`
 	_, err = k.podExec(podName, rotateLogCmd, "kube-system")
 	return err
