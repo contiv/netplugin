@@ -18,6 +18,7 @@ BEGIN {
 go_version = ENV['GO_VERSION'] || '1.7.6'
 docker_version = ENV['CONTIV_DOCKER_VERSION'] || '1.12.6'
 docker_swarm = ENV['CONTIV_DOCKER_SWARM'] || 'classic_mode'
+docker_ee_url = ENV['DOCKERURL']
 gopath_folder = '/opt/gopath'
 http_proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || ''
 https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
@@ -27,7 +28,7 @@ v2plugin_name = ENV['CONTIV_V2PLUGIN_NAME'] || 'contiv/v2netplugin:0.1'
 cluster_store_driver = ENV['CONTIV_CLUSTER_STORE_DRIVER'] || 'etcd'
 cluster_store_url = ENV['CONTIV_CLUSTER_STORE_URL'] || 'http://localhost:2379'
 nightly_release = ENV['NIGHTLY_RELEASE'] || ''
-node_os = ENV['CONTIV_NODE_OS'] || 'centos'
+node_os = ENV['CONTIV_NODE_OS'] != '' ? ENV['CONTIV_NODE_OS'] : 'centos'
 base_ip = ENV['CONTIV_IP_PREFIX'] || '192.168.2.'
 num_nodes = ENV['CONTIV_NODES'].to_i == 0 ? 3 : ENV['CONTIV_NODES'].to_i
 num_vm_cpus = (ENV['CONTIV_CPUS'] || 4).to_i
@@ -95,6 +96,16 @@ rm -rf /var/lib/docker
 if [[ "#{node_os}" == "ubuntu" ]] && [[ "$reinstall" -eq 1 ]]; then
     sudo apt-get purge docker-engine -y || :
     curl https://get.docker.com | sed s/docker-engine/docker-engine=#{docker_version}-0~xenial/g | bash
+elif [[ "#{node_os}" == "centos" ]] && [[ -n "#{docker_ee_url}" ]]; then
+    echo "Preparing for Docker EE installation"
+    sudo yum remove -y docker docker-common docker-selinux docker-engine-selinux docker-engine docker-ce || :
+    sudo rm /etc/yum.repos.d/*docker*
+    export DOCKERURL='#{docker_ee_url}'
+    sudo -E sh -c 'echo "$DOCKERURL/centos" > /etc/yum/vars/dockerurl'
+    sudo -E yum-config-manager --add-repo "$DOCKERURL/centos/docker-ee.repo"
+    echo "Installing Docker EE #{docker_version}"
+    sudo yum -y install docker-ee-#{docker_version}
+    sudo yum install -y yum-utils device-mapper-persistent-data lvm2
 elif [[ "$reinstall" -eq 1 ]] && [[ "#{legacy_docker}" -eq 1 ]]; then
     # cleanup openstack-kilo repo if required
     yum remove docker-engine -y || :
@@ -107,6 +118,7 @@ elif [[ "$reinstall" -eq 1 ]] && [[ "#{legacy_docker}" -eq 1 ]]; then
         curl https://get.docker.com | sed s/docker-engine/docker-engine-#{docker_version}/ | bash
     fi
 elif [[ "$reinstall" -eq 1 ]]; then
+    echo "Installing Docker CE #{docker_version}"
     yum remove docker-engine -y || :
     yum remove docker-ce || :
     yum-config-manager --disable openstack-kilo
@@ -130,7 +142,7 @@ else
 fi
 
 # setup docker remote api
-mkdir /etc/systemd/system/docker.service.d
+mkdir -p /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 echo "Environment=\\\"no_proxy=$CLUSTER_NODE_IPS,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
