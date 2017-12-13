@@ -81,7 +81,7 @@ func initNetPluginConfig(ctx *cli.Context) (*plugin.Config, error) {
 	if controlIP == "" {
 		controlIP, configErr = netutils.GetDefaultAddr()
 		if configErr != nil {
-			logrus.Fatal("Failed to get host address: %s", configErr.Error())
+			logrus.Fatalf("Failed to get host address: %s", configErr.Error())
 		}
 	}
 	logrus.Infof("Using netplugin control IP: %v", controlIP)
@@ -90,7 +90,7 @@ func initNetPluginConfig(ctx *cli.Context) (*plugin.Config, error) {
 	if vtepIP == "" {
 		vtepIP, configErr = netutils.GetDefaultAddr()
 		if configErr != nil {
-			logrus.Fatal("Failed to get host address: %s", configErr.Error())
+			logrus.Fatalf("Failed to get host address: %s", configErr.Error())
 		}
 	}
 	logrus.Infof("Using netplugin VTEP IP: %v", vtepIP)
