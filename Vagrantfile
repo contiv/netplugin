@@ -18,15 +18,17 @@ BEGIN {
 go_version = ENV['GO_VERSION'] || '1.7.6'
 docker_version = ENV['CONTIV_DOCKER_VERSION'] || '1.12.6'
 docker_swarm = ENV['CONTIV_DOCKER_SWARM'] || 'classic_mode'
+docker_ee_url = ENV['DOCKERURL']
 gopath_folder = '/opt/gopath'
 http_proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || ''
 https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
 build_version = ENV['BUILD_VERSION'] || ''
 cluster_ip_nodes = ''
 v2plugin_name = ENV['CONTIV_V2PLUGIN_NAME'] || 'contiv/v2netplugin:0.1'
-cluster_store = ENV['CONTIV_CLUSTER_STORE'] || 'etcd://localhost:2379'
+cluster_store_driver = ENV['CONTIV_CLUSTER_STORE_DRIVER'] || 'etcd'
+cluster_store_url = ENV['CONTIV_CLUSTER_STORE_URL'] || 'http://localhost:2379'
 nightly_release = ENV['NIGHTLY_RELEASE'] || ''
-node_os = ENV['CONTIV_NODE_OS'] || 'centos'
+node_os = ENV['CONTIV_NODE_OS'] != '' ? ENV['CONTIV_NODE_OS'] : 'centos'
 base_ip = ENV['CONTIV_IP_PREFIX'] || '192.168.2.'
 num_nodes = ENV['CONTIV_NODES'].to_i == 0 ? 3 : ENV['CONTIV_NODES'].to_i
 num_vm_cpus = (ENV['CONTIV_CPUS'] || 4).to_i
@@ -46,7 +48,8 @@ export https_proxy='#{https_proxy}'
 export NIGHTLY_RELEASE=#{nightly_release}
 export no_proxy=%{cluster_ip_nodes},127.0.0.1,localhost,netmaster
 export CLUSTER_NODE_IPS=%{cluster_ip_nodes}
-export CONTIV_CLUSTER_STORE=#{cluster_store}
+export CONTIV_CLUSTER_STORE_DRIVER=#{cluster_store_driver}
+export CONTIV_CLUSTER_STORE_URL=#{cluster_store_url}
 export CONTIV_V2PLUGIN_NAME=#{v2plugin_name}
 export CONTIV_DOCKER_SWARM=#{docker_swarm}
 export BUILD_VERSION=#{build_version}
@@ -93,6 +96,16 @@ rm -rf /var/lib/docker
 if [[ "#{node_os}" == "ubuntu" ]] && [[ "$reinstall" -eq 1 ]]; then
     sudo apt-get purge docker-engine -y || :
     curl https://get.docker.com | sed s/docker-engine/docker-engine=#{docker_version}-0~xenial/g | bash
+elif [[ "#{node_os}" == "centos" ]] && [[ -n "#{docker_ee_url}" ]]; then
+    echo "Preparing for Docker EE installation"
+    sudo yum remove -y docker docker-common docker-selinux docker-engine-selinux docker-engine docker-ce || :
+    sudo rm /etc/yum.repos.d/*docker*
+    export DOCKERURL='#{docker_ee_url}'
+    sudo -E sh -c 'echo "$DOCKERURL/centos" > /etc/yum/vars/dockerurl'
+    sudo -E yum-config-manager --add-repo "$DOCKERURL/centos/docker-ee.repo"
+    echo "Installing Docker EE #{docker_version}"
+    sudo yum -y install docker-ee-#{docker_version}
+    sudo yum install -y yum-utils device-mapper-persistent-data lvm2
 elif [[ "$reinstall" -eq 1 ]] && [[ "#{legacy_docker}" -eq 1 ]]; then
     # cleanup openstack-kilo repo if required
     yum remove docker-engine -y || :
@@ -105,6 +118,7 @@ elif [[ "$reinstall" -eq 1 ]] && [[ "#{legacy_docker}" -eq 1 ]]; then
         curl https://get.docker.com | sed s/docker-engine/docker-engine-#{docker_version}/ | bash
     fi
 elif [[ "$reinstall" -eq 1 ]]; then
+    echo "Installing Docker CE #{docker_version}"
     yum remove docker-engine -y || :
     yum remove docker-ce || :
     yum-config-manager --disable openstack-kilo
@@ -119,7 +133,7 @@ fi
 if [[ #{docker_swarm} == "swarm_mode" ]]; then
     perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 !' /lib/systemd/system/docker.service
 else
-    if [[ "$CONTIV_CLUSTER_STORE" == *"consul:"* ]]
+    if [[ "$CONTIV_CLUSTER_STORE_DRIVER" == "consul" ]]
     then
         perl -i -lpe 's!^ExecStart(.+)$!ExecStart$1 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --cluster-store=consul://localhost:8500!' /lib/systemd/system/docker.service
     else
@@ -128,7 +142,7 @@ else
 fi
 
 # setup docker remote api
-mkdir /etc/systemd/system/docker.service.d
+mkdir -p /etc/systemd/system/docker.service.d
 echo "[Service]" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 echo "Environment=\\\"no_proxy=$CLUSTER_NODE_IPS,127.0.0.1,localhost,netmaster\\\" \\\"http_proxy=$http_proxy\\\" \\\"https_proxy=$https_proxy\\\"" | sudo tee -a /etc/systemd/system/docker.service.d/http-proxy.conf
 sudo systemctl daemon-reload
@@ -225,7 +239,7 @@ module VagrantPlugins
 
       def self.up_hook(arg)
         unless File.exist?(STATEFILE) # prevent it from writing more than once.
-          f = File.open(STATEFILE, "w") 
+          f = File.open(STATEFILE, "w")
           ENV.each do |x,y|
             f.puts "%s=%s" % [x,y]
           end
@@ -256,7 +270,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.box_check_update = false
     if Vagrant.has_plugin?("vagrant-vbguest")
         config.vbguest.auto_update = false
-    end 
+    end
     if node_os == "ubuntu" then
         config.vm.box = "contiv/ubuntu1604-netplugin"
         config.vm.box_version = "0.7.0"

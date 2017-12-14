@@ -1,0 +1,173 @@
+#%RAML 1.0
+title: Contiv
+description: Contiv API Specification
+version: v1
+baseUri:
+  value: https://{serverfqdn}:10000/api/{version}
+  (rediractable): true
+baseUriParameters:
+  serverfqdn:
+    type: string
+protocols: [  HTTPS ]
+mediaType: [ application/json ]
+
+resourceTypes:
+  collection: !include netmaster/schemas/collection.raml
+  non-upd-collection-item: !include netmaster/schemas/non-upd-collection-item.raml
+  collection-item: !include netmaster/schemas/collection-item.raml
+  ro-collection-item: !include netmaster/schemas/ro-collection-item.raml
+
+annotationTypes:
+  info:
+    properties:
+      license:
+        type: string
+        enum: [ "Apache 2.0" ]
+    allowedTargets: API
+  rediractable: boolean
+
+securitySchemes:
+  custom_scheme: !include netmaster/schemas/custom-scheme.raml
+
+# Resource templates
+uses:
+  netmaster: netmaster/libraries/netmaster.raml
+
+securedBy: custom_scheme
+
+#Netmaster endpoints. Most of this can be auto-gen
+/inspect:
+  displayName: Inspect
+  description: Inspect APIs for various Contiv managed objects
+
+  /aciGws:
+    /aciGw:
+      type: {ro-collection-item: {provider: netmaster}}
+  /appProfiles:
+    /{tenantName}:{appProfileName}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /Bgps:
+    /{hostname}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /endpoints:
+    /{endpointID}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /endpointGroups:
+    /{tenantName}:{groupName}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /extContractsGroups:
+    /{tenantName}:{contractsGroupName}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /globals:
+    /global:
+      type: {ro-collection-item: {provider: netmaster}}
+  /netprofiles:
+    /{tenantName}:{profileName}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /networks:
+    /{tenantName}:{networkName}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /policys:
+    /{tenantName}:{policyName}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /rules:
+    /{tenantName}:{policyName}:{ruleId}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /serviceLBs:
+    /{tenantName}:{serviceName}:
+      type: {ro-collection-item: {provider: netmaster}}
+  /tenants:
+    /{tenantName}:
+      type: {ro-collection-item: {provider: netmaster}}
+
+/aciGws:
+  type: {collection: {provider: netmaster}}
+  displayName: ACI Gateways
+  description: ACI gateway settings
+
+  /aciGw:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/appProfiles:
+  type: {collection: {provider: netmaster}}
+  displayName: Application Profiles
+  
+  /{tenantName}:{appProfileName}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/Bgps:
+  type: {collection: {provider: netmaster}}
+  displayName: BGP
+  description: BGP settings
+
+  /{hostname}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/endpointGroups:
+  type: {collection: {provider: netmaster}}
+  displayName: Endpoint Groups
+  /{tenantName}:{groupName}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/extContractsGroups:
+  type: {collection: {provider: netmaster}}
+  displayName: External Contract Groups
+  /{tenantName}:{contractsGroupName}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/globals:
+  type: {collection: {provider: netmaster}}
+  displayName: Globals
+  description: Contiv global settings
+  
+  /global:
+    type: {collection-item: {provider: netmaster}}
+    displayName: Global
+    put:
+
+/netprofiles:
+  type: {collection: {provider: netmaster}}
+  displayName: Network Profiles
+  /{tenantName}:{profileName}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/networks:
+  type: {collection: {provider: netmaster}}
+  displayName: Networks
+  /{tenantName}:{networkName}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/policys:
+  type: {collection: {provider: netmaster}}
+  displayName: Policies
+  /{tenantName}:{policyName}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/rules:
+  type: {collection: {provider: netmaster}}
+  displayName: Rules
+  /{tenantName}:{policyName}:{ruleId}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/serviceLBs:
+  type: {collection: {provider: netmaster}}
+  displayName: Service Load Balancers
+  /{tenantName}:{serviceName}:
+    type: {collection-item: {provider: netmaster}}
+    put:
+
+/tenants:
+  type: {collection: {provider: netmaster}}
+  displayName: Tenants
+  /{tenantName}:
+    type: {collection-item: {provider: netmaster}}
+    put:

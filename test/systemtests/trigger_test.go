@@ -9,7 +9,7 @@ import (
 	. "github.com/contiv/check"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 )
 
 func (s *systemtestSuite) TestTriggerNetpluginUplinkUpgrade(c *C) {
@@ -168,7 +168,7 @@ func (s *systemtestSuite) TestTriggerNetmasterControlPortSwitch(c *C) {
 			nodeIP, err := node.getIPAddr(s.hostInfo.HostMgmtInterface)
 			c.Assert(err, IsNil)
 			masterPort = portBase[i%2] + nodeIP[len(nodeIP)-1:]
-			controlURLArg := "--listen-url " + ":" + masterPort
+			controlURLArg := "--listen-url " + "0.0.0.0:" + masterPort
 			c.Assert(node.startNetmaster(controlURLArg), IsNil)
 			logrus.Info("Sleeping for a while to wait for netmaster to restart")
 			time.Sleep(15 * time.Second)

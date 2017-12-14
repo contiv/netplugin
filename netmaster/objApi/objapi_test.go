@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/contiv/contivmodel"
-	"github.com/contiv/contivmodel/client"
+	contivModel "github.com/contiv/netplugin/contivmodel"
+	"github.com/contiv/netplugin/contivmodel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/gstate"
 	"github.com/contiv/netplugin/netmaster/intent"
@@ -134,7 +134,11 @@ func TestMain(m *testing.M) {
 	}
 
 	// Create a new api controller
-	apiController = NewAPIController(router, objdbClient, "etcd://127.0.0.1:2379")
+	apiConfig := &APIControllerConfig{
+		NetForwardMode: "bridge",
+		NetInfraType:   "default",
+	}
+	apiController = NewAPIController(router, objdbClient, apiConfig)
 
 	ofnetMaster := ofnet.NewOfnetMaster("127.0.0.1", ofnet.OFNET_MASTER_PORT)
 	if ofnetMaster == nil {
@@ -297,7 +301,10 @@ func checkInspectGlobal(t *testing.T, expError bool, allocedVlans, allocedVxlans
 }
 
 // checkGlobalSet sets global state and verifies state
-func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode, arpMode, pvtSubnet string) {
+// the return error can be used for validating the error produced
+// by contivClient.GlobalPost, a non-nil return is not an error, 'expError'
+// parameter determines if an err for GlobalPost is a failure for the test
+func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode, arpMode, pvtSubnet string) error {
 	gl := client.Global{
 		Name:             "global",
 		NetworkInfraType: fabMode,
@@ -358,7 +365,9 @@ func checkGlobalSet(t *testing.T, expError bool, fabMode, vlans, vxlans, fwdMode
 		if err := vlanRsrc.Read("global"); err != nil {
 			t.Fatalf("Error reading vlan resource. Err: %v", err)
 		}
+		return nil
 	}
+	return err
 }
 
 // checkAciGwSet sets AciGw state and verifies verifies it
@@ -869,6 +878,8 @@ func checkDeleteTenant(t *testing.T, expError bool, tenant string) {
 
 // TestTenantDelete tests deletion of tenant
 func TestTenantDelete(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 	// Create one tenant, two networks and 3 epgs
 	checkCreateTenant(t, false, "tenant1")
 	checkCreateNetwork(t, false, "tenant1", "net1", "data", "vlan", "10.1.1.1/16", "10.1.1.254", 1, "", "", "")
@@ -971,7 +982,8 @@ func TestTenantAddDelete(t *testing.T) {
 
 // TestOverlappingSubnets tests overlapping network create/delete REST api
 func TestOverlappingSubnets(t *testing.T) {
-
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 	// Non-overlapping subnet for same tenant - vlan & gateway
 	checkCreateNetwork(t, false, "default", "contiv1", "", "vlan", "10.1.1.0/24", "10.1.1.220", 1, "", "", "")
 	checkCreateNetwork(t, false, "default", "contiv2", "", "vlan", "10.1.2.0/24", "10.1.2.254", 2, "", "", "")
@@ -1094,6 +1106,9 @@ func TestNetworkAddDeleteACIMode(t *testing.T) {
 
 // TestNetworkAddDelete tests network create/delete REST api
 func TestNetworkAddDelete(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	// Basic vlan network
 	checkCreateNetwork(t, false, "default", "contiv", "", "vlan", "10.1.1.1/24", "10.1.1.254", 1, "", "", "")
 	checkInspectNetwork(t, false, "default", "contiv", "10.1.1.254", 1, 0)
@@ -1201,9 +1216,10 @@ func TestNetworkAddDelete(t *testing.T) {
 }
 
 func TestDynamicGlobalVlanRange(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 
 	// Basic vlan network creation
-
 	checkCreateNetwork(t, false, "default", "contiv1", "", "vlan", "10.1.1.1/24", "10.1.1.254", 10, "", "", "")
 	checkInspectNetwork(t, false, "default", "contiv1", "10.1.1.254", 10, 0)
 	//checkInspectGlobal(t, false, "1", "")
@@ -1265,7 +1281,8 @@ func TestDynamicGlobalVlanRange(t *testing.T) {
 }
 
 func TestDynamicGlobalVxlanRange(t *testing.T) {
-
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 	insp, _ := contivClient.GlobalInspect("global") // Basic vxlan network creation
 
 	log.Printf("THE GLOBAL DUMP: %#v \n", insp)
@@ -1318,7 +1335,79 @@ func TestDynamicGlobalVxlanRange(t *testing.T) {
 }
 
 // TestGlobalSetting tests global REST api
+func TestGlobalSettingFwdMode(t *testing.T) {
+	// set to default values (no-op)
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
+	// Create a vxlan network to verify you cannot change forward mode
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
+
+	// Should fail when changing the forwarding mode whenever there is a network
+	var err error
+	var expErr string
+	err = checkGlobalSet(t, true, "default", "1-4094", "1-10000", "routing", "proxy", "172.19.0.0/16")
+	expErr = "Unable to update forwarding mode due to existing 1 vxlans"
+	if strings.TrimSpace(err.Error()) != expErr {
+		t.Fatalf("Wrong error message, expected: '%v', got '%v'", expErr, err.Error())
+	}
+	// remove the vxlan network and add a vlan network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
+	err = checkGlobalSet(t, true, "default", "1-4094", "1-10000", "routing", "proxy", "172.19.0.0/16")
+	expErr = "Unable to update forwarding mode due to existing 1 vlans"
+	if strings.TrimSpace(err.Error()) != expErr {
+		t.Fatalf("Wrong error message, expected: '%v', got '%v'", expErr, err.Error())
+	}
+
+	// remove the vlan network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+
+	// make sure can change forwarding mode after network deleted
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "routing", "proxy", "172.21.0.0/16")
+
+	// reset back to default values
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+}
+
+func TestGlobalSettingSubnet(t *testing.T) {
+	// set to default values (no-op)
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+	// Create a network to see if global subnet changes are blocked
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
+
+	var err error
+	var expErr string
+	// This should fail
+	err = checkGlobalSet(t, true, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/16")
+	expErr = "Unable to update private subnet due to existing 1 vxlans"
+	if strings.TrimSpace(err.Error()) != expErr {
+		t.Fatalf("Wrong error message, expected: '%v', got '%v'", expErr, err.Error())
+	}
+
+	// remove the vxlan network and add a vlan network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+	checkCreateNetwork(t, false, "default", "contiv7", "", "vlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
+
+	// This should still fail
+	err = checkGlobalSet(t, true, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/16")
+	expErr = "Unable to update private subnet due to existing 1 vlans"
+	if strings.TrimSpace(err.Error()) != expErr {
+		t.Fatalf("Wrong error message, expected: '%v', got '%v'", expErr, err.Error())
+	}
+
+	// remove the network
+	checkDeleteNetwork(t, false, "default", "contiv7")
+	// make sure can change subnet after network deleted
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/16")
+	// reset back to default values
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+}
+
+// TestGlobalSetting tests global REST api
 func TestGlobalSetting(t *testing.T) {
+	// set to default values (no-op)
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	// try basic modification
 	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.20.0.0/16")
 	// set aci mode
@@ -1342,11 +1431,6 @@ func TestGlobalSetting(t *testing.T) {
 	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/16")
 	// Try invalid pvt subnet
 	checkGlobalSet(t, true, "default", "1-4094", "1-10000", "bridge", "proxy", "172.21.0.0/24")
-	// Try changing subnet with active network
-	checkCreateNetwork(t, false, "default", "contiv7", "", "vxlan", "16.1.1.1/24", "16.1.1.254", 3200, "", "", "")
-	checkGlobalSet(t, true, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
-	checkDeleteNetwork(t, false, "default", "contiv7")
-	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 
 	// reset back to default values
 	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
@@ -1380,6 +1464,9 @@ func TestAciGwSetting(t *testing.T) {
 
 // TestNetworkPktRanges tests pkt-tag ranges in network REST api
 func TestNetworkPktRanges(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	// verify auto allocation of vlans
 	checkCreateNetwork(t, false, "default", "contiv", "data", "vlan", "10.1.1.1/24", "10.1.1.254", 0, "", "", "")
 	verifyNetworkState(t, "default", "contiv", "data", "vlan", "10.1.1.1", "10.1.1.254", 24, 1, 0, "", "", 0)
@@ -1418,6 +1505,9 @@ func TestNetworkPktRanges(t *testing.T) {
 
 // TestPolicyRules tests policy and rule REST objects
 func TestPolicyRules(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	containerID1 := "723e55bf5b244f47c1b184cb786a1c2ad8870cc3a3db723c49ac09f68a9d1e69"
 	ep1 := "657355bf5b244f47c1b184cb786a14535d8870cc3a3db723c49ac09f68a9d6a5"
 	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "", "")
@@ -1516,6 +1606,9 @@ func TestPolicyRules(t *testing.T) {
 
 // TestEpgPolicies tests attaching policy to EPG
 func TestEpgPolicies(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	// create network
 	checkCreateNetwork(t, false, "default", "contiv", "data", "vxlan", "10.1.1.1/16", "10.1.1.254", 1, "", "", "")
 
@@ -1582,6 +1675,8 @@ func TestEpgPolicies(t *testing.T) {
 
 // TestExtContractsGroups tests management of external contracts groups
 func TestExtContractsGroups(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 	// create network for the test
 	checkCreateNetwork(t, false, "default", "test-net", "data", "vlan", "23.1.1.1/16", "23.1.1.254", 1, "", "", "")
 	// create contract groups used for the test
@@ -1620,6 +1715,8 @@ func TestExtContractsGroups(t *testing.T) {
 
 // TestAppProfile tests app-profile REST objects
 func TestAppProfile(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 	// Create two networks and 3 epgs
 	checkCreateNetwork(t, false, "default", "net1", "data", "vlan", "10.1.1.1/16", "10.1.1.254", 1, "", "", "")
 	checkCreateNetwork(t, false, "default", "net2", "data", "vlan", "20.1.1.1/16", "20.1.1.254", 2, "", "", "")
@@ -1650,6 +1747,8 @@ func TestAppProfile(t *testing.T) {
 
 //TestEpgNetprofile tests the netprofile netprofile REST objects.
 func TestEpgnpTenant(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 
 	//create a network,
 	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "", "")
@@ -1708,6 +1807,9 @@ func TestEpgnpTenant(t *testing.T) {
 }
 
 func TestEpgnp(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	//create a network and  netprofile
 	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "", "")
 	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "netprofile", "default")
@@ -1723,6 +1825,9 @@ func TestEpgnp(t *testing.T) {
 }
 
 func TestEpgUpdate(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	//create a network, netprofile and group.
 	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "", "")
 	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "netprofile", "default")
@@ -1774,6 +1879,9 @@ func TestEpgUpdate(t *testing.T) {
 }
 
 func TestDeleteEpgNp(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	//create a network, netprofile and group.
 	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "", "")
 	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "netprofile", "default")
@@ -1794,6 +1902,8 @@ func TestDeleteEpgNp(t *testing.T) {
 }
 
 func TestNetProfileupdate(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 
 	//create a network, netprofile.
 	checkCreateNetwork(t, false, "default", "np-net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "", "")
@@ -1830,6 +1940,9 @@ func TestNetProfileupdate(t *testing.T) {
 }
 
 func TestNetprofile(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	//create a network & netprofile
 	checkCreateNetwork(t, false, "default", "net", "data", "vxlan", "10.1.1.1/24", "10.1.1.254", 1, "", "", "")
 	checkCreateNetProfile(t, false, 5, 1500, "2gbps", "profile1", "default")
@@ -1889,6 +2002,8 @@ func TestNetprofile(t *testing.T) {
 }
 
 func TestServiceProviderUpdate(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 
 	labels := []string{"key1=value1", "key2=value2"}
 	port := []string{"80:8080:TCP"}
@@ -1954,6 +2069,8 @@ func TestServiceProviderUpdate(t *testing.T) {
 }
 
 func TestServiceProviderUpdateServiceAdd(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 
 	labels := []string{"key1=value1", "key2=value2"}
 	port := []string{"80:8080:TCP"}
@@ -2018,6 +2135,8 @@ func TestServiceProviderUpdateServiceAdd(t *testing.T) {
 }
 
 func TestServicePreferredIP(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
 
 	labels := []string{"key1=value1", "key2=value2"}
 	port := []string{"80:8080:TCP"}
@@ -2334,6 +2453,9 @@ func AddEP(tenant, nw, epg, id string) error {
 }
 
 func TestEPCreate(t *testing.T) {
+	// ensure global configs set
+	checkGlobalSet(t, false, "default", "1-4094", "1-10000", "bridge", "proxy", "172.19.0.0/16")
+
 	checkCreateTenant(t, false, "teatwo")
 	checkCreateNetwork(t, false, "teatwo", "t2-net", "data", "vlan",
 		"60.1.1.1/24", "60.1.1.254", 1, "", "", "")
@@ -2371,30 +2493,30 @@ func TestEPCreate(t *testing.T) {
 // TestClusterMode verifies cluster mode is correctly reflected.
 func TestClusterMode(t *testing.T) {
 
-	master.SetClusterMode(master.Kubernetes)
+	master.SetClusterMode(core.Kubernetes)
 	insp, err := contivClient.GlobalInspect("global")
 	if err != nil {
 		t.Fatalf("Error inspecting global %v", err)
 	}
-	if insp.Oper.ClusterMode != master.Kubernetes {
+	if insp.Oper.ClusterMode != core.Kubernetes {
 		t.Fatalf("Error expected kubernetes, got %s", insp.Oper.ClusterMode)
 	}
 
-	master.SetClusterMode(master.Docker)
+	master.SetClusterMode(core.Docker)
 	insp, err = contivClient.GlobalInspect("global")
 	if err != nil {
 		t.Fatalf("Error inspecting global %v", err)
 	}
-	if insp.Oper.ClusterMode != master.Docker {
+	if insp.Oper.ClusterMode != core.Docker {
 		t.Fatalf("Error expected docker, got %s", insp.Oper.ClusterMode)
 	}
 
-	master.SetClusterMode(master.SwarmMode)
+	master.SetClusterMode(core.SwarmMode)
 	insp, err = contivClient.GlobalInspect("global")
 	if err != nil {
 		t.Fatalf("Error inspecting global %v", err)
 	}
-	if insp.Oper.ClusterMode != master.SwarmMode {
+	if insp.Oper.ClusterMode != core.SwarmMode {
 		t.Fatalf("Error expected docker, got %s", insp.Oper.ClusterMode)
 	}
 }

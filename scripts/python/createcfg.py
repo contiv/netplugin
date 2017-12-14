@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # script to create the config JSON input for the system tests
-import os 
+import os
 import json
-import argparse 
+import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-scheduler", default='docker', help="Scheduler used - docker or k8s")
@@ -23,8 +23,10 @@ parser.add_argument("-short", default=False, help="Shorter version of system tes
 parser.add_argument("-containers", default=3, help="Number of containers for each test")
 parser.add_argument("-iterations", default=3, help="Number of iterations for each test")
 parser.add_argument("-enableDNS", default=False, help="Enabling DNS")
-parser.add_argument("-contiv_cluster_store", default="etcd://localhost:2379", help="cluster info")
-parser.add_argument("-k8s_contiv_cluster_store", default="etcd://netmaster:6666", help="cluster info")
+parser.add_argument("-contiv_cluster_store_driver", default="etcd", help="cluster store driver [etcd, consul]")
+parser.add_argument("-contiv_cluster_store_urls", default="http://localhost:2379", help="cluster store urls")
+parser.add_argument("-k8s_contiv_cluster_store_driver", default="etcd", help="k8s cluster store driver")
+parser.add_argument("-k8s_contiv_cluster_store_urls", default="http://netmaster:6666", help="k8s cluster store urls")
 parser.add_argument("-datainterfaces", default="eth2,eth3", help="Data interface")
 parser.add_argument("-l3_datainterfaces", default="eth2", help="Data interface")
 parser.add_argument("-k8s_datainterfaces", default="eth2", help="Data interface")
@@ -51,9 +53,11 @@ data['iterations'] = args.iterations
 data['enableDNS'] = args.enableDNS
 data['contiv_l3'] = args.contiv_l3
 if args.scheduler == 'k8s':
-    data['contiv_cluster_store'] = args.k8s_contiv_cluster_store
+    data['contiv_cluster_store_driver'] = args.k8s_contiv_cluster_store_driver
+    data['contiv_cluster_store_urls'] = args.k8s_contiv_cluster_store_urls
 else:
-    data['contiv_cluster_store'] = args.contiv_cluster_store
+    data['contiv_cluster_store_driver'] = args.contiv_cluster_store_driver
+    data['contiv_cluster_store_urls'] = args.contiv_cluster_store_urls
 data['keyFile'] = args.key_file
 data['binpath'] = args.binpath
 data['hostips'] = args.hostips

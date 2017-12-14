@@ -8,14 +8,15 @@
 DEFAULT_DOCKER_VERSION := 1.12.6
 V2PLUGIN_DOCKER_VERSION := 1.13.1
 SHELL := /bin/bash
-EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install
+# TODO: contivmodel should be removed once its code passes golint and misspell
+EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install contivmodel
 PKG_DIRS := $(filter-out $(EXCLUDE_DIRS),$(subst /,,$(sort $(dir $(wildcard */)))))
 TO_BUILD := ./netplugin/ ./netmaster/ ./netctl/netctl/ ./mgmtfn/k8splugin/contivk8s/ ./mgmtfn/mesosplugin/netcontiv/
 HOST_GOBIN := `if [ -n "$$(go env GOBIN)" ]; then go env GOBIN; else dirname $$(which go); fi`
 HOST_GOROOT := `go env GOROOT`
 NAME := netplugin
 VERSION := $(shell scripts/getGitVersion.sh)
-TAR := $(shell command -v gtar || echo command -v tar || echo "Could not find tar")
+TAR := $(shell command -v gtar || command -v tar || echo "Could not find tar")
 TAR_EXT := tar.bz2
 export NETPLUGIN_CONTAINER_TAG := $(shell ./scripts/getGitVersion.sh)
 TAR_FILENAME := $(NAME)-$(VERSION).$(TAR_EXT)
@@ -25,7 +26,7 @@ export V2PLUGIN_TAR_FILENAME := v2plugin-$(VERSION).tar.gz
 GO_MIN_VERSION := 1.7
 GO_MAX_VERSION := 1.8
 GO_VERSION := $(shell go version | cut -d' ' -f3 | sed 's/go//')
-CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image"
+CI_HOST_TARGETS ?= "host-unit-test host-integ-test host-build-docker-image tar host-pluginfs-create clean-tar"
 SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy|TestTrigger|ACIM|Netprofile"
 K8S_SYSTEM_TESTS_TO_RUN ?= "00SSH|Basic|Network|Policy"
 ACI_GW_IMAGE ?= "contiv/aci-gw:04-12-2017.2.2_1n"
@@ -131,18 +132,7 @@ start:
 	CONTIV_DOCKER_VERSION="$${CONTIV_DOCKER_VERSION:-$(DEFAULT_DOCKER_VERSION)}" CONTIV_NODE_OS=${CONTIV_NODE_OS} vagrant up
 
 # ===================================================================
-#kubernetes demo targets
-k8s-demo:
-	cd vagrant/k8s/ && ./copy_demo.sh
-
-k8s-demo-start:
-	cd vagrant/k8s/ && ./restart_cluster.sh && vagrant ssh k8master
-
-# ===================================================================
 # kubernetes cluster bringup/cleanup targets
-k8s-legacy-cluster:
-	cd vagrant/k8s/ && ./setup_cluster.sh
-
 k8s-cluster:
 	cd vagrant/k8s/ && CONTIV_K8S_USE_KUBEADM=1 ./setup_cluster.sh
 
@@ -157,15 +147,6 @@ k8s-l3-destroy:
 
 # ===================================================================
 # kubernetes test targets
-k8s-legacy-test:
-	export CONTIV_K8S_LEGACY=1 && \
-	make k8s-sanity-cluster && \
-	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"' && \
-	./start_sanity_service.sh
-	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s'
-	CONTIV_K8S_LEGACY=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f "00SSH|TestBasic|TestNetwork|ACID|TestPolicy|TestTrigger"
-	cd vagrant/k8s && vagrant destroy -f
-
 k8s-test: k8s-cluster
 	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm'
@@ -272,8 +253,8 @@ start-aci-gw:
 	docker pull $(ACI_GW_IMAGE)
 	docker run --net=host -itd -e "APIC_URL=SANITY" -e "APIC_USERNAME=IGNORE" -e "APIC_PASSWORD=IGNORE" --name=contiv-aci-gw $(ACI_GW_IMAGE)
 
-host-build-docker-image:
-	./scripts/netContain/build_image.sh
+host-build-docker-image: compile-with-docker binaries-from-container
+	@./scripts/netContain/build_image.sh
 
 host-cleanup:
 	@echo dev: cleaning up services...
@@ -381,7 +362,7 @@ binaries-from-container:
 	c_id=$$(docker create --name netplugin-build \
 		 netplugin-build:$(NETPLUGIN_CONTAINER_TAG)) && \
 	for f in netplugin netmaster netctl contivk8s netcontiv; do \
-		docker cp -a $${c_id}:/go/bin/$$f bin/$$f; done && \
+		docker cp $${c_id}:/go/bin/$$f bin/$$f; done && \
 	docker rm $${c_id}
 
 ##########################

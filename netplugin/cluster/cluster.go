@@ -26,7 +26,6 @@ import (
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/objdb"
 	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/netplugin/utils/netutils"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -308,24 +307,12 @@ func peerDiscoveryLoop(netplugin *plugin.NetPlugin, objClient objdb.API, ctrlIP,
 	}
 }
 
-// GetLocalAddr gets local address to be used
-func GetLocalAddr() (string, error) {
-	// get the ip address by local hostname
-	localIP, err := netutils.GetMyAddr()
-	if err == nil && netutils.IsAddrLocal(localIP) {
-		return localIP, nil
-	}
-
-	// Return first available address if we could not find by hostname
-	return netutils.GetFirstLocalAddr()
-}
-
 // Init initializes the cluster module
-func Init(storeURL string) error {
+func Init(storeDriver string, storeURLs []string) error {
 	var err error
 
 	// Create an objdb client
-	ObjdbClient, err = objdb.NewClient(storeURL)
+	ObjdbClient, err = objdb.InitClient(storeDriver, storeURLs)
 
 	return err
 }

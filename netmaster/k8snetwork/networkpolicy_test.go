@@ -3,7 +3,7 @@ package networkpolicy
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netmaster/objApi"
@@ -182,7 +182,11 @@ func TestMain(m *testing.M) {
 	}
 
 	// Create a new api controller
-	if apiController := objApi.NewAPIController(router, objdbClient, "etcd://127.0.0.1:2379"); apiController == nil {
+	apiConfig := &objApi.APIControllerConfig{
+		NetForwardMode: "bridge",
+		NetInfraType:   "default",
+	}
+	if apiController := objApi.NewAPIController(router, objdbClient, apiConfig); apiController == nil {
 		nptLog.Fatalf("failed to create api controller")
 	}
 

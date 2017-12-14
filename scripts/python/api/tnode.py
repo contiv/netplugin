@@ -18,6 +18,13 @@ def ssh_exec_thread(ssh_object, command):
     if exitCode != 0:
         print "Exit code: " + str(exitCode)
 
+def gen_cluster_store_args():
+    if os.environ["CONTIV_CLUSTER_STORE_DRIVER"] == "etcd":
+        store_args = " --etcd-endpoints %s " % os.environ["CONTIV_CLUSTER_STORE_URL"]
+    else:
+        store_args = " --consul-endpoints %s " % os.environ["CONTIV_CLUSTER_STORE_URL"]
+    return store_args
+
 # This class represents a vagrant node
 class Node:
     def __init__(self, addr, username='vagrant', password='vagrant', binpath='/opt/gopath/bin'):
@@ -87,7 +94,9 @@ class Node:
     # Start netplugin process on vagrant node
     def startNetplugin(self, args=""):
         ssh_object = self.sshConnect(self.username, self.password)
-        command = "sudo " + self.binpath + "/netplugin -vlan-if eth2 -vlan-if eth3 -cluster-store " + os.environ["CONTIV_CLUSTER_STORE"] + " " + args + "> /tmp/netplugin.log 2>&1"
+        # NOTE: this testing only used in mesos-docker
+        mode_args = " --fwdmode bridge --netmode vlan --mode docker "
+        command = "sudo " + self.binpath + "/netplugin --vlan-if eth2 --vlan-if eth3 " + mode_args + gen_cluster_store_args() + args + "> /tmp/netplugin.log 2>&1"
         self.npThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.npThread.start()
@@ -95,6 +104,8 @@ class Node:
     # Start netmaster process
     def startNetmaster(self):
         ssh_object = self.sshConnect(self.username, self.password)
+        # NOTE: this testing only used in mesos-docker
+        mode_args = " --fwdmode bridge --netmode vlan --mode docker "
         listenUrlArg = ""
         listenPort = os.environ.get("CONTIV_NETMASTER_LISTEN_PORT","")
         if listenPort:
@@ -103,7 +114,7 @@ class Node:
         ctrlPort = os.environ.get("CONTIV_NETMASTER_CONTROL_PORT","")
         if ctrlPort:
             ctrlUrlArg = " --control-url " + os.environ.get("CONTIV_NETMASTER_CONTROL_IP","") + ":" + ctrlPort
-        command = "GOPATH=/opt/gopath " + self.binpath + "/netmaster " + listenUrlArg + ctrlUrlArg + " -cluster-store " + os.environ.get("CONTIV_CLUSTER_STORE","etcd://localhost:2379") + " > /tmp/netmaster.log 2>&1"
+        command = "GOPATH=/opt/gopath " + self.binpath + "/netmaster " + listenUrlArg + ctrlUrlArg + mode_args + gen_cluster_store_args() + " > /tmp/netmaster.log 2>&1"
         self.nmThread = threading.Thread(target=ssh_exec_thread, args=(ssh_object, command))
         # npThread.setDaemon(True)
         self.nmThread.start()

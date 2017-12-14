@@ -22,10 +22,10 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/mgmtfn/dockplugin"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin"
 	"github.com/contiv/netplugin/mgmtfn/mesosplugin"
-	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netmaster/mastercfg"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
@@ -50,7 +50,7 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 	netPlugin := &plugin.NetPlugin{}
 
 	// init cluster state
-	err := cluster.Init(opts.DbURL)
+	err := cluster.Init(pluginConfig.Drivers.State, []string{opts.DbURL})
 	if err != nil {
 		log.Fatalf("Error initializing cluster. Err: %v", err)
 	}
@@ -63,19 +63,19 @@ func NewAgent(pluginConfig *plugin.Config) *Agent {
 
 	// Initialize appropriate plugin
 	switch opts.PluginMode {
-	case master.SwarmMode:
+	case core.SwarmMode:
 		fallthrough
-	case master.Docker:
+	case core.Docker:
 		dockplugin.InitDockPlugin(netPlugin, opts.PluginMode)
 
-	case master.Kubernetes:
+	case core.Kubernetes:
 		k8splugin.InitCNIServer(netPlugin)
 
-	case master.Test:
+	case core.Test:
 		// nothing to do. internal mode for testing
 	default:
 		log.Fatalf("Unknown plugin mode -- should be %s | %s | %s",
-			master.Docker, master.SwarmMode, master.Kubernetes)
+			core.Docker, core.SwarmMode, core.Kubernetes)
 	}
 	// init mesos plugin
 	mesosplugin.InitPlugin(netPlugin)
@@ -224,10 +224,10 @@ func (ag *Agent) HandleEvents() error {
 
 	go handlePolicyRuleEvents(ag.netPlugin, opts, recvErr)
 
-	if ag.pluginConfig.Instance.PluginMode == master.Docker ||
-		ag.pluginConfig.Instance.PluginMode == master.SwarmMode {
+	if ag.pluginConfig.Instance.PluginMode == core.Docker ||
+		ag.pluginConfig.Instance.PluginMode == core.SwarmMode {
 		go ag.monitorDockerEvents(recvErr)
-	} else if ag.pluginConfig.Instance.PluginMode == master.Kubernetes {
+	} else if ag.pluginConfig.Instance.PluginMode == core.Kubernetes {
 		// start watching kubernetes events
 		k8splugin.InitKubServiceWatch(ag.netPlugin)
 	}

@@ -17,17 +17,16 @@ package integration
 
 import (
 	"os"
-	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/contiv/contivmodel"
+	"github.com/contiv/netplugin/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/daemon"
 	"github.com/contiv/netplugin/netplugin/agent"
-	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/netplugin/plugin"
+	"github.com/contiv/netplugin/utils/netutils"
 )
 
 // NPCluster holds a new neplugin/netmaster cluster stats
@@ -47,31 +46,34 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 	}
 
 	// get local IP addr
-	localIP, err := cluster.GetLocalAddr()
+	localIP, err := netutils.GetDefaultAddr()
 	if err != nil {
 		log.Fatalf("Error getting local address. Err: %v", err)
 	}
 
 	// create master daemon
 	md := &daemon.MasterDaemon{
-		ListenURL:    ":9999",
-		ControlURL:   ":9999",
-		ClusterStore: its.clusterStore,
-		ClusterMode:  "test",
+		ListenURL:          "0.0.0.0:9999",
+		ControlURL:         "0.0.0.0:9999",
+		ClusterMode:        "test",
+		ClusterStoreDriver: its.clusterStoreDriver,
+		ClusterStoreURL:    its.clusterStoreURL,
+		NetworkMode:        its.encap,
+		NetForwardMode:     its.fwdMode,
+		NetInfraType:       its.fabricMode,
 	}
 
-	// initialize the plugin config
 	pluginConfig := plugin.Config{
 		Drivers: plugin.Drivers{
 			Network: "ovs",
-			State:   strings.Split(its.clusterStore, "://")[0],
+			State:   its.clusterStoreDriver,
 		},
 		Instance: core.InstanceInfo{
 			HostLabel:  hostLabel,
 			CtrlIP:     localIP,
 			VtepIP:     localIP,
 			UplinkIntf: []string{"eth2"},
-			DbURL:      its.clusterStore,
+			DbURL:      its.clusterStoreURL,
 			PluginMode: "test",
 		},
 	}

@@ -2,6 +2,7 @@ package netctl
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,8 +10,10 @@ import (
 	"path/filepath"
 
 	"github.com/codegangsta/cli"
-	contivClient "github.com/contiv/contivmodel/client"
+	contivClient "github.com/contiv/netplugin/contivmodel/client"
 )
+
+var errHomeDirectoryNotSet = errors.New("failed to detect HOME directory")
 
 // Config represents the contents of ~/.netctl/config.json
 type Config struct {
@@ -50,9 +53,19 @@ func configExists(ctx *cli.Context) bool {
 
 // configPath returns the full path to the user's netctl config file
 func configPath() string {
+	var homeDir string
+	// this fails for static binaries
 	usr, err := user.Current()
+	if err == nil {
+		homeDir = usr.HomeDir
+	}
+	// this should work where we don't have static binaries
 	if err != nil {
-		panic(err)
+		homeDir = os.Getenv("HOME")
+	}
+	// panic if we've failed to retrieve the home directory
+	if homeDir == "" {
+		panic(errHomeDirectoryNotSet)
 	}
 
 	return usr.HomeDir + "/.netctl/config.json"

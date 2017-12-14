@@ -439,12 +439,26 @@ func (k *kubernetes) cleanupContainers() error {
 	return nil
 }
 
+func (k *kubernetes) commonArgs() string {
+	netMode := k.node.suite.globInfo.Encap
+	fwdMode := k.node.suite.fwdMode
+	mode := "kubernetes"
+	var storeArgs string
+	if k.node.suite.basicInfo.ClusterStoreDriver == "etcd" {
+		storeArgs = " --etcd-endpoints " + k.node.suite.basicInfo.ClusterStoreURLs + " "
+	} else {
+		storeArgs = " --consul-endpoints " + k.node.suite.basicInfo.ClusterStoreURLs + " "
+	}
+	return " --netmode " + netMode + " --fwdmode " + fwdMode + " --mode " + mode + storeArgs
+}
+
 func (k *kubernetes) startNetplugin(args string) error {
 	if k.node.Name() == "k8master" {
 		return nil
 	}
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode kubernetes -vlan-if " + k.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + args + "&> /tmp/netplugin.log")
+
+	return k.node.tbnode.RunCommandBackground("sudo " + k.node.suite.basicInfo.BinPath + "/netplugin --vlan-if " + k.node.suite.hostInfo.HostDataInterfaces + k.commonArgs() + args + "&> /tmp/netplugin.log")
 }
 
 func (k *kubernetes) stopNetplugin() error {
@@ -467,8 +481,12 @@ func (k *kubernetes) startNetmaster(args string) error {
 	if k.node.Name() != "k8master" {
 		return nil
 	}
+	var infraType string
+	if k.node.suite.basicInfo.AciMode == "on" {
+		infraType = " --infra aci "
+	}
 	logrus.Infof("Starting netmaster on %s", k.node.Name())
-	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + k.node.suite.basicInfo.ClusterStore + " " + "--cluster-mode kubernetes " + args + " &> /tmp/netmaster.log")
+	return k.node.tbnode.RunCommandBackground(k.node.suite.basicInfo.BinPath + "/netmaster" + infraType + k.commonArgs() + args + " &> /tmp/netmaster.log")
 }
 
 func (k *kubernetes) cleanupMaster() {

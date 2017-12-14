@@ -16,30 +16,54 @@ Contiv plugin config options should be specified if it is different from default
 
 docker plugin install contiv/v2plugin:<version-tag> ARG1=VALUE1 ARG2=VALUE2 ...
 ```
-ARG           : DESCRIPTION                                   : DEFAULT VALUE
---------------:-----------------------------------------------:----------------------
-iflist        : VLAN uplink interface used by OVS             : ""
-cluster_store : Etcd or Consul cluster store url              : etcd://localhost:2379
-ctrl_ip       : Local IP address to be used by netplugin      : none
-                for control communication
-vtep_ip       : Local VTEP IP address to be used by netplugin : none
-plugin_role   : In 'master' role, plugin runs netmaster       : master
-                and netplugin
-listen_url    : Netmaster url to listen http requests on      : ":9999"
-control_url   : Netmaster url for control messages            : ":9999"
-dbg_flag      : To enable debug mode, set to '-debug'         : ""
-fwd_mode      : Forwarding mode                               : ""
-
+ARG                               : DESCRIPTION                                                               : DEFAULT VALUE
+----------------------------------:---------------------------------------------------------------------------:----------------------
+CONTIV_ROLE                       : contiv net service net, options: [netmaster, netplugin]                   : "netplugin"
+CONTIV_LOG_DIR                    : contiv log file directory                                                 : "/var/log/contiv"
+CONTIV_NETPLUGIN_CONSUL_ENDPOINTS : a comma-delimited list of netplugin consul endpoints                      : ""
+CONTIV_NETPLUGIN_ETCD_ENDPOINTS   : a comma-delimited list of netplugin etcd endpoints                        : "http://127.0.0.1:2379"
+CONTIV_NETPLUGIN_VLAN_UPLINKS     : a comma-delimited list of netplugin VLAN uplink interfaces used by OVS    : ""
+CONTIV_NETPLUGIN_VTEP_IP          : netplugin vtep ip for vxlan communication                                 : <host-ip-from-local-resolver>
+CONTIV_NETPLUGIN_CONTROL_IP       : netplugin control ip for control plane communication                      : <host-ip-from-local-resolver>
+CONTIV_NETPLUGIN_FORWARD_MODE     : netplugin forwarding network mode, options: [bridge, routing]             : ""
+CONTIV_NETPLUGIN_HOST             : netplugin host to identify itself                                         : <host-name-reported-by-the-kernel>
+CONTIV_NETPLUGIN_LOG_LEVEL        : netplugin log level, options: [DEBUG, INFO, WARN, ERROR]                  : "INFO"
+CONTIV_NETPLUGIN_MODE             : netplugin mode, options: [docker, kubernetes, swarm-mode]                 : ""
+CONTIV_NETPLUGIN_NET_MODE         : netplugin network mode, options: [vlan, vxlan]                            : ""
+CONTIV_NETPLUGIN_SYSLOG_URL       : netplugin syslog url in format protocol://ip:port                         : "udp://127.0.0.1:514"
+CONTIV_NETPLUGIN_USE_SYSLOG       : netplugin send log to syslog if flag is provided                          : <not-use-syslog>
+CONTIV_NETPLUGIN_USE_JSON_LOG     : netplugin log format to json if flag is provided                          : <not-use-json-format>
+CONTIV_NETPLUGIN_VXLAN_PORT       : netplugin VXLAN port                                                      : 4789
+CONTIV_NETMASTER_CONSUL_ENDPOINTS : a comma-delimited list of netmaster consul endpoints                      : ""
+CONTIV_NETMASTER_ETCD_ENDPOINTS   : a comma-delimited list of netmaster etcd endpoints                        : ""
+CONTIV_NETMASTER_FORWARD_MODE     : netmaster forwarding network mode, options: [bridge, routing]             : ""
+CONTIV_NETMASTER_EXTERNAL_ADDRESS : netmaster external address to listen on, used for general API service     : "0.0.0.0:9999"
+CONTIV_NETMASTER_INTERNAL_ADDRESS : netmaster internal address to listen on, used for RPC and leader election : <host-ip-from-local-resolver>:<port-of-external-address>
+CONTIV_NETMASTER_INFRA            : netmaster infra type, options [aci, default]                              : "default"
+CONTIV_NETMASTER_LOG_LEVEL        : netmaster log level, options: [DEBUG, INFO, WARN, ERROR]                  : "INFO"
+CONTIV_NETMASTER_MODE             : netmaster mode, options: [docker, kubernetes, swarm-mode]                 : ""
+CONTIV_NETMASTER_PLUGIN_NAME      : netmaster plugin name for docker v2 plugin                                : netplugin
+CONTIV_NETMASTER_NET_MODE         : netmaster network mode, options: [vlan, vxlan]                            : ""
+CONTIV_NETMASTER_SYSLOG_URL       : netmaster syslog url in format protocol://ip:port                         : "udp://127.0.0.1:514"
+CONTIV_NETMASTER_USE_SYSLOG       : netmaster send log to syslog if flag is provided                          : <not-use-syslog>
+CONTIV_NETMASTER_USE_JSON_LOG     : netmaster log format to json if flag is provided                          : <not-use-json-format>
 ```
 ### docker store
 Docker certified contiv plugin is avaliable on [Docker Store](https://store.docker.com/plugins/803eecee-0780-401a-a454-e9523ccf86b3?tab=description).
 ```
-docker plugin install store/contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
+docker plugin install store/contiv/v2plugin:<version-tag> \
+CONTIV_ROLE=netmaster CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
+CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan \
+CONTIV_NETMASTER_FORWARD_MODE=bridge CONTIV_NETMASTER_MODE=docker CONTIV_NETMASTER_NET_MODE=vlan
 ```
 ### docker hub
 Developer release of v2plugin from contiv repo is also pushed to docker hub
+Please update mode, forward mode, net mode according to your deployment.
+
 ```
-docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
+docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netmaster CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
+CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan \
+CONTIV_NETMASTER_FORWARD_MODE=bridge CONTIV_NETMASTER_MODE=docker CONTIV_NETMASTER_NET_MODE=vlan
 ```
 ### vagrant dev/demo setup
 To create a plugin from [contiv repo](https://github.com/contiv/netplugin), enable v2plugin and run docker in swarm-mode, use the Makefile target demo-v2plugin
@@ -49,8 +73,11 @@ make demo-v2plugin
 
 ## Contiv plugin-roles
 Contiv plugin runs both netplugin and netmaster by default. Contiv v2plugin can be run with only netplugin by setting the plugin_role to worker.
+Please update mode, forward mode, net mode according to your deployment.
 ```
-docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vlan networks> plugin_role=worker fwd_mode=<bridge/routing>
+docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netmaster CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
+CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan \
+CONTIV_NETMASTER_FORWARD_MODE=bridge CONTIV_NETMASTER_MODE=docker CONTIV_NETMASTER_NET_MODE=vlan
 ```
 
 ## Contiv plugin swarm-mode workflow (recommended and default for v2plugin)
@@ -65,16 +92,19 @@ docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vl
   docker swarm join-token worker -q
 
   # on worker nodes, use the token to join swarm
-  docker swarm join --token SWMTKN-1-4qgg20vkzhc3jhc765k5x0coyriggkdvw1t7fmbiimqguagqr7-8um9goip0d03yqmmrb4c4fh1j 192.168.2.10:2377  
-  ```  
+  docker swarm join --token SWMTKN-1-4qgg20vkzhc3jhc765k5x0coyriggkdvw1t7fmbiimqguagqr7-8um9goip0d03yqmmrb4c4fh1j 192.168.2.10:2377
+  ```
   3. Install contiv v2plugin
   ```
   # on swarm manager node install plugin with 'master' role
-  docker plugin install contiv/v2plugin:<version-tag> plugin_role=master iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
+  docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netmaster CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
+CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan \
+CONTIV_NETMASTER_FORWARD_MODE=bridge CONTIV_NETMASTER_MODE=docker CONTIV_NETMASTER_NET_MODE=vlan
   ( allow/grant the install permissions when prompted )
 
   # on worker nodes, install plugin with 'worker' role
-  docker plugin install contiv/v2plugin:<version-tag> plugin_role=worker iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
+  docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netplugin CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
+CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan
 
   # to see if the plugin is installed and enabled
   docker plugin ls
@@ -83,16 +113,17 @@ docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vl
   ```
   ```
   If there are multiple local interfaces you need to specify the local IP address to use.
-  docker plugin install contiv/v2plugin:<version-tag> ctrl_ip=192.168.2.10 control_url=192.168.2.10:9999 iflist=eth2,eth3 fwd_mode=bridge
+  docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netplugin CONTIV_NETPLUGIN_VLAN_UPLINKS=eth2,eth3 \
+CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan
   ```
   4. Debug logs
   ```
   # bootup logs are in /var/log/contiv/plugin_bootup.log
   # netplugin, netmaster and ovs logs are also in /var/log/contiv/
   ```
-  5. Docker workflow  
+  5. Docker workflow
 
-  5.1 Create docker network and start docker services  
+  5.1 Create docker network and start docker services
 
   This workflow doesn't support multi-tenancy and policy
   ```
@@ -126,19 +157,19 @@ docker plugin install contiv/v2plugin:<version-tag> iflist=<data ifs used for vl
   ```
 
 ## Contiv plugin workflow (legacy docker mode)
-  v2plugin can also run in legacy mode by setting the plugin_mode to docker explicitly when installing the plugin  
-  1. Etcd cluster should be brought up on the hosts on localhost:2379.  
+  v2plugin can also run in legacy mode by setting the plugin_mode to docker explicitly when installing the plugin
+  1. Etcd cluster should be brought up on the hosts on localhost:2379.
   2. Install contiv v2plugin
   ```
-  docker plugin install contiv/v2plugin:<version-tag> plugin-mode=docker iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
-  ( allow/grant the install permissions when prompted )
-
   # on node where netmaster needs to run, install plugin with 'master' role
-  docker plugin install contiv/v2plugin:<version-tag> plugin_role=master iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
+  docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netmaster CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
+CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan \
+CONTIV_NETMASTER_ETCD_ENDPOINTS=http://127.0.0.1:2379 CONTIV_NETMASTER_FORWARD_MODE=bridge CONTIV_NETMASTER_MODE=docker CONTIV_NETMASTER_NET_MODE=vlan
   ( allow/grant the install permissions when prompted )
 
   # on all other nodes, install plugin with 'worker' role
-  docker plugin install contiv/v2plugin:<version-tag> plugin_role=worker iflist=<data ifs used for vlan networks> fwd_mode=<bridge/routing>
+  docker plugin install contiv/v2plugin:<version-tag> CONTIV_ROLE=netplugin CONTIV_NETPLUGIN_VLAN_UPLINKS=eth2,eth3 \
+CONTIV_NETPLUGIN_FORWARD_MODE=bridge CONTIV_NETPLUGIN_MODE=docker CONTIV_NETPLUGIN_NET_MODE=vlan
 
   # to see if the plugin is installed properly and enabled
   docker plugin ls

@@ -2,7 +2,7 @@ package systemtests
 
 import (
 	. "github.com/contiv/check"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 	"time"
 )
 
@@ -19,7 +19,7 @@ func (s *systemtestSuite) TestBasicHostAccess(c *C) {
 
 	c.Assert(s.TearDownDefaultNetwork(), IsNil)
 	c.Assert(s.cli.GlobalPost(global), IsNil)
-	time.Sleep(60 * time.Second)
+	time.Sleep(30 * time.Second)
 	c.Assert(s.SetupDefaultNetwork(), IsNil)
 
 	s.hostAccTest(c)
@@ -27,7 +27,7 @@ func (s *systemtestSuite) TestBasicHostAccess(c *C) {
 
 	c.Assert(s.TearDownDefaultNetwork(), IsNil)
 	c.Assert(s.cli.GlobalPost(global), IsNil)
-	time.Sleep(60 * time.Second)
+	time.Sleep(30 * time.Second)
 	c.Assert(s.SetupDefaultNetwork(), IsNil)
 }
 

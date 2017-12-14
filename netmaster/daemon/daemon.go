@@ -34,6 +34,7 @@ import (
 	"github.com/contiv/netplugin/netmaster/resources"
 	"github.com/contiv/netplugin/objdb"
 	"github.com/contiv/netplugin/utils"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/contiv/ofnet"
 	"github.com/gorilla/mux"
 
@@ -46,10 +47,14 @@ const leaderLockTTL = 30
 // MasterDaemon runs the daemon FSM
 type MasterDaemon struct {
 	// Public state
-	ListenURL    string // URL where netmaster listens for ext requests
-	ControlURL   string // URL where netmaster listens for ctrl pkts
-	ClusterStore string // state store URL
-	ClusterMode  string // cluster scheduler used docker/kubernetes/mesos etc
+	ListenURL          string // URL where netmaster listens for ext requests
+	ControlURL         string // URL where netmaster listens for ctrl pkts
+	ClusterStoreDriver string // state store driver name
+	ClusterStoreURL    string // state store endpoint
+	ClusterMode        string // cluster scheduler used docker/kubernetes/mesos etc
+	NetworkMode        string // network mode (vlan or vxlan)
+	NetForwardMode     string // forwarding mode (bridge or routing)
+	NetInfraType       string // infra type (aci or default)
 
 	// Private state
 	currState        string                          // Current state of the daemon
@@ -70,13 +75,13 @@ func (d *MasterDaemon) Init() {
 	// set cluster mode
 	err := master.SetClusterMode(d.ClusterMode)
 	if err != nil {
-		log.Fatalf("Failed to set cluster-mode. Error: %s", err)
+		log.Fatalf("Failed to set cluster-mode %q. Error: %s", d.ClusterMode, err)
 	}
 
 	// initialize state driver
-	d.stateDriver, err = initStateDriver(d.ClusterStore)
+	d.stateDriver, err = utils.NewStateDriver(d.ClusterStoreDriver, &core.InstanceInfo{DbURL: d.ClusterStoreURL})
 	if err != nil {
-		log.Fatalf("Failed to init state-store. Error: %s", err)
+		log.Fatalf("Failed to init state-store: driver %q, URLs %q. Error: %s", d.ClusterStoreDriver, d.ClusterStoreURL, err)
 	}
 
 	// Initialize resource manager
@@ -86,9 +91,9 @@ func (d *MasterDaemon) Init() {
 	}
 
 	// Create an objdb client
-	d.objdbClient, err = objdb.NewClient(d.ClusterStore)
+	d.objdbClient, err = objdb.InitClient(d.ClusterStoreDriver, []string{d.ClusterStoreURL})
 	if err != nil {
-		log.Fatalf("Error connecting to state store: %v. Err: %v", d.ClusterStore, err)
+		log.Fatalf("Error connecting to state store: driver %q, URLs %q. Err: %v", d.ClusterStoreDriver, d.ClusterStoreURL, err)
 	}
 }
 
@@ -404,7 +409,11 @@ func (d *MasterDaemon) runLeader() {
 	router := mux.NewRouter()
 
 	// Create a new api controller
-	d.apiController = objApi.NewAPIController(router, d.objdbClient, d.ClusterStore)
+	apiConfig := &objApi.APIControllerConfig{
+		NetForwardMode: d.NetForwardMode,
+		NetInfraType:   d.NetInfraType,
+	}
+	d.apiController = objApi.NewAPIController(router, d.objdbClient, apiConfig)
 
 	//Restore state from clusterStore
 	d.restoreCache()
@@ -447,6 +456,7 @@ func (d *MasterDaemon) startListeners(router *mux.Router, stopChan chan bool) {
 	server := &http.Server{Handler: router}
 	server.SetKeepAlivesEnabled(false)
 
+	// bind on external address
 	listener, err := net.Listen("tcp", d.ListenURL)
 	if nil != err {
 		log.Fatalln(err)
@@ -457,20 +467,25 @@ func (d *MasterDaemon) startListeners(router *mux.Router, stopChan chan bool) {
 
 	go server.Serve(listener)
 
-	listenURL := strings.Split(d.ListenURL, ":")
-	controlURL := strings.Split(d.ControlURL, ":")
+	if d.ControlURL != d.ListenURL {
+		externalAddr := strings.Split(d.ListenURL, ":")
+		internalAddr := strings.Split(d.ControlURL, ":")
+		if externalAddr[0] == "0.0.0.0" && externalAddr[1] == internalAddr[1] {
+			// ignore internal bind if external and internal are on the same port and external bind on 0.0.0.0
+			log.Infof("Ignore creating API listener on %q because %q covers it", d.ControlURL, d.ListenURL)
+		} else {
+			// it should fail-fast if ControlURL and ListenURL have other overlapping
+			ctrlListener, err := net.Listen("tcp", d.ControlURL)
+			if nil != err {
+				log.Fatalln(err)
+			}
+			log.Infof("Netmaster listening on %s for control packets", d.ControlURL)
+			ctrlListener = utils.ListenWrapper(ctrlListener)
+			defer ctrlListener.Close()
 
-	if (strings.Compare(listenURL[1], controlURL[1]) != 0) || (len(listenURL[0]) != 0 && strings.Compare(listenURL[0], "0.0.0.0") != 0 && strings.Compare(listenURL[0], controlURL[0]) != 0) {
-		ctrlListener, err := net.Listen("tcp", d.ControlURL)
-		if nil != err {
-			log.Fatalln(err)
+			// start server
+			go server.Serve(ctrlListener)
 		}
-		log.Infof("Netmaster listening on %s for control packets", d.ControlURL)
-		ctrlListener = utils.ListenWrapper(ctrlListener)
-		defer ctrlListener.Close()
-
-		// start server
-		go server.Serve(ctrlListener)
 	}
 
 	// Wait till we are asked to stop
@@ -584,7 +599,7 @@ func (d *MasterDaemon) getMasterInfo() (map[string]interface{}, error) {
 	info := make(map[string]interface{})
 
 	// get local ip
-	localIP, err := GetLocalAddr()
+	localIP, err := netutils.GetDefaultAddr()
 	if err != nil {
 		return nil, errors.New("error getting local IP address")
 	}

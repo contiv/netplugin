@@ -22,20 +22,21 @@ import (
 	. "testing"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 
 	. "github.com/contiv/check"
 )
 
 type integTestSuite struct {
 	// test params
-	iterations   int    // number of iterations for multi-iteration tests
-	parallels    int    // number of parallel tests to run
-	fwdMode      string // forwarding mode bridging/routing
-	arpMode      string // ARP mode proxy/flood
-	encap        string // encap vlan/vxlan
-	fabricMode   string // aci or default
-	clusterStore string // cluster store URL
+	iterations         int    // number of iterations for multi-iteration tests
+	parallels          int    // number of parallel tests to run
+	fwdMode            string // forwarding mode bridging/routing
+	arpMode            string // ARP mode proxy/flood
+	encap              string // encap vlan/vxlan
+	fabricMode         string // aci or default
+	clusterStoreDriver string // cluster store URL
+	clusterStoreURL    string // cluster store URL
 
 	// internal state
 	npcluster *NPCluster           // netplugin + netmaster cluster
@@ -53,7 +54,8 @@ func TestMain(m *M) {
 	flag.StringVar(&integ.arpMode, "arp-mode", "proxy", "ARP mode [ proxy | flood ]")
 	flag.StringVar(&integ.encap, "encap", "vlan", "Encap [ vlan | vxlan ]")
 	flag.StringVar(&integ.fabricMode, "fabric-mode", "default", "fabric-mode [ aci | default ]")
-	flag.StringVar(&integ.clusterStore, "cluster-store", "etcd://127.0.0.1:2379", "Cluster store URL")
+	flag.StringVar(&integ.clusterStoreDriver, "cluster-store-driver", "etcd", "Cluster store driver")
+	flag.StringVar(&integ.clusterStoreURL, "cluster-store-url", "http://127.0.0.1:2379", "Cluster store URL")
 
 	flag.Parse()
 

@@ -18,7 +18,7 @@ package objApi
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/contivmodel"
+	"github.com/contiv/netplugin/contivmodel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/objdb/modeldb"
 )

@@ -24,8 +24,8 @@ const (
 	k8sMasterNode        = "k8master"
 	netmasterRestartFile = "/tmp/restart_netmaster"
 	netpluginRestartFile = "/tmp/restart_netplugin"
-	netmasterLogLocation = "/var/contiv/log/netmaster.log"
-	netpluginLogLocation = "/var/contiv/log/netplugin.log"
+	netmasterLogLocation = "/var/log/contiv/netmaster.log"
+	netpluginLogLocation = "/var/log/contiv//netplugin.log"
 )
 
 func (s *systemtestSuite) NewK8sPodExec(n *node) *kubePod {
@@ -476,6 +476,19 @@ func (k *kubePod) cleanupContainers() error {
 	return nil
 }
 
+func (k *kubePod) commonArgs() string {
+	netMode := k.node.suite.globInfo.Encap
+	fwdMode := k.node.suite.fwdMode
+	mode := "kubernetes"
+	var storeArgs string
+	if k.node.suite.basicInfo.ClusterStoreDriver == "etcd" {
+		storeArgs = " --etcd-endpoints " + k.node.suite.basicInfo.ClusterStoreURLs + " "
+	} else {
+		storeArgs = " --consul-endpoints " + k.node.suite.basicInfo.ClusterStoreURLs + " "
+	}
+	return " --netmode " + netMode + " --fwdmode " + fwdMode + " --mode " + mode + storeArgs
+}
+
 func (k *kubePod) startNetplugin(args string) error {
 	if k.isMaster() {
 		return nil
@@ -487,7 +500,8 @@ func (k *kubePod) startNetplugin(args string) error {
 	}
 
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
-	startNetpluginCmd := k.node.suite.basicInfo.BinPath + `/netplugin -plugin-mode=kubernetes -vlan-if=` + k.node.suite.hostInfo.HostDataInterfaces + ` -cluster-store=` + k.node.suite.basicInfo.ClusterStore + ` ` + args + ` > ` + netpluginLogLocation + ` 2>&1`
+	startNetpluginCmd := (k.node.suite.basicInfo.BinPath + `/netplugin --vlan-if=` +
+		k.node.suite.hostInfo.HostDataInterfaces + k.commonArgs() + args + ` > ` + netpluginLogLocation + ` 2>&1`)
 
 	return k.podExecBG(podName, startNetpluginCmd, "kube-system")
 }
@@ -537,8 +551,12 @@ func (k *kubePod) startNetmaster(args string) error {
 		logrus.Errorf("pod not found: %+v", err)
 		return err
 	}
-
-	netmasterStartCmd := k.node.suite.basicInfo.BinPath + `/netmaster` + ` -cluster-store=` + k.node.suite.basicInfo.ClusterStore + ` -cluster-mode=kubernetes ` + args + ` > ` + netmasterLogLocation + ` 2>&1`
+	var infraType string
+	if k.node.suite.basicInfo.AciMode == "on" {
+		infraType = " --infra aci "
+	}
+	netmasterStartCmd := (k.node.suite.basicInfo.BinPath + `/netmaster` +
+		infraType + k.commonArgs() + args + ` > ` + netmasterLogLocation + ` 2>&1`)
 
 	return k.podExecBG(podName, netmasterStartCmd, "kube-system")
 }
@@ -553,8 +571,8 @@ func (k *kubePod) cleanupMaster() {
 		logrus.Errorf("pod not found: %+v", err)
 		return
 	}
-	clusterStoreInfo := strings.Split(k.node.suite.basicInfo.ClusterStore, "//")
-	etcdClient := "http://" + clusterStoreInfo[len(clusterStoreInfo)-1]
+	// TODO: support multi urls
+	etcdClient := k.node.suite.basicInfo.ClusterStoreURLs
 	logrus.Infof("Cleaning out etcd info on %s", etcdClient)
 
 	k.podExec(podName, `etcdctl -C `+etcdClient+` rm --recursive /contiv`, "kube-system")
@@ -563,14 +581,24 @@ func (k *kubePod) cleanupMaster() {
 }
 
 func getPodName(podRegex, nodeName string) (string, error) {
-	podNameCmd := `kubectl -n kube-system get pods -o wide | grep ` + podRegex + ` | grep ` + nodeName + ` | cut -d " " -f 1`
-	podName, err := k8sMaster.tbnode.RunCommandWithOutput(podNameCmd)
-	if err != nil {
-		logrus.Errorf("Couldn't fetch pod info on %s", nodeName)
-		return "", err
+	var err error
+	var podName string
+	for retry := 60; retry > 0; retry-- {
+		// only get running pods name
+		podNameCmd := `kubectl -n kube-system get pods -o wide | grep Running | grep ` + podRegex + ` | grep ` + nodeName + ` | cut -d " " -f 1`
+		podName, err = k8sMaster.tbnode.RunCommandWithOutput(podNameCmd)
+		podName = strings.TrimSpace(podName)
+		if err != nil || podName == "" {
+			logrus.Warnf("Couldn't fetch pod %s info on %s, retry in 5 sec", podRegex, nodeName)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
 	}
-	podName = strings.TrimSpace(podName)
-	return podName, nil
+	if podName == "" {
+		err = fmt.Errorf("Failed to find running pod %s on node %s", podRegex, nodeName)
+	}
+	return podName, err
 }
 
 func (k *kubePod) cleanupSlave() {
@@ -654,7 +682,7 @@ func (k *kubePod) checkForNetpluginErrors() error {
 
 	// NOTE: Checking for error here could result in Error code: 123
 	// Err code 123 might be the case when grep results in no output
-	fatalCheckCmd := `ls /var/contiv/log/net* | xargs -r -I % grep --text -A 5 "panic\|fatal" %`
+	fatalCheckCmd := `ls /var/log/contiv/net* | xargs -r -I % grep --text -A 5 "panic\|fatal" %`
 	out, _ := k.podExec(podName, fatalCheckCmd, "kube-system")
 	if out != "" {
 		errStr := fmt.Sprintf("fatal error in netplugin logs on %s\n", k.node.Name())
@@ -663,7 +691,7 @@ func (k *kubePod) checkForNetpluginErrors() error {
 		return errors.New(errStr)
 	}
 
-	errCheckCmd := `ls /var/contiv/log/net* | xargs -r -I {} grep --text "error" {}`
+	errCheckCmd := `ls /var/log/contiv/net* | xargs -r -I {} grep --text "error" {}`
 	out, _ = k.podExec(podName, errCheckCmd, "kube-system")
 	if out != "" {
 		logrus.Errorf("error output in netplugin logs on %s: \n", k.node.Name())
@@ -682,8 +710,8 @@ func (k *kubePod) rotateLog(processName string) error {
 		return err
 	}
 
-	oldLogFile := fmt.Sprintf("/var/contiv/log/%s.log", processName)
-	newLogFilePrefix := fmt.Sprintf("/var/contiv/log/_%s", processName)
+	oldLogFile := fmt.Sprintf("/var/log/contiv/%s.log", processName)
+	newLogFilePrefix := fmt.Sprintf("/var/log/contiv/_%s", processName)
 	rotateLogCmd := `echo` + " `date +%s` " + `| xargs -I {} mv ` + oldLogFile + ` ` + newLogFilePrefix + `-{}.log`
 	_, err = k.podExec(podName, rotateLogCmd, "kube-system")
 	return err

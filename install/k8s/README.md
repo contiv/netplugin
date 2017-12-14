@@ -1,25 +1,25 @@
 # Contiv installation for Kubernetes
 
-This document details the setup instructions for Kubernetes version 1.4+ and higher for CentOS 7
+This document details the setup instructions for Kubernetes version 1.6+ and higher for CentOS 7
 
-Install kubernetes 1.4 or higher using http://kubernetes.io/docs/getting-started-guides/kubeadm/ and follow the instructions below.
+Install kubernetes 1.6 or higher using http://kubernetes.io/docs/getting-started-guides/kubeadm/ and follow the instructions below.
 
 ### Install Contiv
 * For ACI setups use contiv/contiv_aci.yaml instead of contiv/contiv.yaml.
 * Replace all instances of `__NETMASTER_IP__` in contiv/contiv.yaml with the master IP.
 * Replace `__VLAN_IF__` with the data plane interface.
   If there is no requirement to create vlan based networks there is no need for a seperate data interface and `__VLAN_IF__` can be set to "". If vlan based networks are to be created then a separate data interface is mandatory which can be set appropriately.
-* Optional: Replace the contiv version(v0.1-11-30-2016.20-08-20.UTC) with the desired release/test version.
+* Optional: Replace the contiv version(1.1.7) with the desired release/test version.
 * Optional ACI only steps:
   - Replace __APIC_xxx__ fields with their corresponding values.
   - Default value for __APIC_EPG_BRIDGE_DOMAIN__  is "not_specified"
   - Default value for __APIC_CONTRACTS_UNRESTRICTED_MODE__ is "no"
   - Password based authentication: When using password based authentication, APIC_CERT_DN fields must be deleted.
-  - Certificate based authentication: 
-    - When using certificate based authentication, APIC_PASSWORD can be empty. 
-    - Copy the certificate to a file named aci.key. 
-    - Create a secret by running the following on the management node 
-    ```sh 
+  - Certificate based authentication:
+    - When using certificate based authentication, APIC_PASSWORD can be empty.
+    - Copy the certificate to a file named aci.key.
+    - Create a secret by running the following on the management node
+    ```sh
     kubectl create secret generic aci.key --from-file=<path name of aci.key file> -n kube-system
     ```
 * On the management node, run

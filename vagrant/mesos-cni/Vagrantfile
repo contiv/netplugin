@@ -25,11 +25,12 @@ echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
 echo "export NIGHTLY_RELEASE=$6" >> /etc/profile.d/envvar.sh
 echo "export no_proxy=$3,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 echo "export CLUSTER_NODE_IPS=$3" >> /etc/profile.d/envvar.sh
-echo "export CONTIV_CLUSTER_STORE=$7" >> /etc/profile.d/envvar.sh
+echo "export CONTIV_CLUSTER_STORE_DRIVER=$7" >> /etc/profile.d/envvar.sh
+echo "export CONTIV_CLUSTER_STORE_URL=$8" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 
-if [[ $# -gt 9 ]] && [[ $10 != "" ]]; then
-    shift; shift; shift; shift; shift; shift; shift; shift; shift
+if [[ $# -gt 10 ]] && [[ ${11} != "" ]]; then
+    shift 10
     echo "export $@" >> /etc/profile.d/envvar.sh
 fi
 
@@ -38,18 +39,18 @@ chown -R vagrant #{gopath_folder}
 
 
 # Install specific docker version if required
-if [[ $8 != "" ]]; then
-    echo "Installing docker version " $8
-    if [[ $9 == "ubuntu" ]]; then
-        curl https://get.docker.com | sed s/docker-engine/docker-engine=$8-0~vivid/ | bash
+if [[ $9 != "" ]]; then
+    echo "Installing docker version " $9
+    if [[ ${10} == "ubuntu" ]]; then
+        curl https://get.docker.com | sed s/docker-engine/docker-engine=$9-0~vivid/ | bash
     else
         # cleanup openstack-kilo repo if required
         yum-config-manager --disable openstack-kilo
-        curl https://get.docker.com | sed s/docker-engine/docker-engine-$8/ | bash
+        curl https://get.docker.com | sed s/docker-engine/docker-engine-$9/ | bash
     fi
 fi
 # setup docker cluster store
-if [[ $7 == *"consul:"* ]]
+if [[ $7 == "consul" ]]
 then
     cp #{gopath_folder}/src/github.com/contiv/netplugin/scripts/docker.service.consul /lib/systemd/system/docker.service
 else
@@ -90,7 +91,7 @@ SCRIPT
 
 build_netplugin = <<BUILD_SCRIPT
 echo "============ build ================= "
-cd /opt/gopath/src/github.com/contiv/netplugin && make host-build 
+cd /opt/gopath/src/github.com/contiv/netplugin && make host-build
 BUILD_SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
@@ -120,7 +121,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
     node_names = num_nodes.times.collect { |n| "mesos-node#{n+1}" }
     node_peers = []
-     
+
     num_nodes.times do |n|
         node_name = node_names[n]
         node_addr = node_ips[n]
@@ -166,7 +167,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
             node.vm.provision "shell" do |s|
                 s.inline = provision_common_once
-                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["NIGHTLY_RELEASE"] || "", ENV["CONTIV_CLUSTER_STORE"] || "etcd://localhost:2379", ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
+                s.args = [node_name, node_addr, cluster_ip_nodes, ENV["http_proxy"] || "", ENV["https_proxy"] || "", ENV["NIGHTLY_RELEASE"] || "", \
+                        ENV["CONTIV_CLUSTER_STORE_DRIVER"] || "etcd", ENV["CONTIV_CLUSTER_STORE_URL"] || "http://localhost:2379", \
+                        ENV["CONTIV_DOCKER_VERSION"] || "", ENV['CONTIV_NODE_OS'] || "", *ENV['CONTIV_ENV']]
             end
             node.vm.provision "shell", run: "always" do |s|
                 s.inline = provision_common_always
@@ -201,7 +204,7 @@ if [[ "$NODEID" == "0" ]]; then
    service zookeeper restart
    nohup /usr/sbin/mesos-master  --ip=$NODEADDR --work_dir=/tmp/mesos_master > /tmp/mesos-master.log 2>&1 &
    nohup /home/vagrant/marathon/bin/start  --master $NODEADDR:5050 --zk zk://localhost:2181/marathon  \
-       --task_launch_timeout 300000 > /tmp/marathon.log 2>&1 & 
+       --task_launch_timeout 300000 > /tmp/marathon.log 2>&1 &
    docker run -itd --net host contiv/contiv-ui
 fi
 
@@ -228,7 +231,7 @@ nohup /usr/sbin/mesos-slave  --ip=$NODEADDR --work_dir=/var/lib/mesos/ \
 sleep 2
 
 SCRIPT
-            if n == 0 then 
+            if n == 0 then
                 node.vm.provision "shell", run: "always" do |s|
                     s.inline = build_netplugin
                     s.privileged = false

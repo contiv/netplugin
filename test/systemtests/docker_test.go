@@ -428,8 +428,21 @@ func (d *docker) cleanupContainers() error {
 	return d.node.tbnode.RunCommand("docker kill -s 9 `docker ps -aq`; docker rm -f `docker ps -aq`")
 }
 
+func (d *docker) commonArgs() string {
+	netMode := d.node.suite.globInfo.Encap
+	fwdMode := d.node.suite.fwdMode
+	mode := "docker"
+	var storeArgs string
+	if d.node.suite.basicInfo.ClusterStoreDriver == "etcd" {
+		storeArgs = " --etcd-endpoints " + d.node.suite.basicInfo.ClusterStoreURLs + " "
+	} else {
+		storeArgs = " --consul-endpoints " + d.node.suite.basicInfo.ClusterStoreURLs + " "
+	}
+	return " --netmode " + netMode + " --fwdmode " + fwdMode + " --mode " + mode + storeArgs
+}
+
 func (d *docker) startNetplugin(args string) error {
-	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin -plugin-mode docker -vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netplugin.log"
+	cmd := "sudo " + d.node.suite.basicInfo.BinPath + "/netplugin --vlan-if " + d.node.suite.hostInfo.HostDataInterfaces + d.commonArgs() + args + " &> /tmp/netplugin.log"
 	logrus.Infof("Starting netplugin on %s with command: %s", d.node.Name(), cmd)
 	return d.node.tbnode.RunCommandBackground(cmd)
 }
@@ -445,7 +458,11 @@ func (d *docker) stopNetmaster() error {
 }
 
 func (d *docker) startNetmaster(args string) error {
-	cmd := d.node.suite.basicInfo.BinPath + "/netmaster" + " --cluster-store " + d.node.suite.basicInfo.ClusterStore + " " + args + " &> /tmp/netmaster.log"
+	var infraType string
+	if d.node.suite.basicInfo.AciMode == "on" {
+		infraType = " --infra aci "
+	}
+	cmd := d.node.suite.basicInfo.BinPath + "/netmaster" + infraType + d.commonArgs() + args + " &> /tmp/netmaster.log"
 	logrus.Infof("Starting netmaster on %s with command: %s", d.node.Name(), cmd)
 	return d.node.tbnode.RunCommandBackground(cmd)
 }

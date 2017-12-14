@@ -7,7 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	. "github.com/contiv/check"
-	"github.com/contiv/contivmodel/client"
+	"github.com/contiv/netplugin/contivmodel/client"
 	"github.com/contiv/remotessh"
 )
 
@@ -22,20 +22,21 @@ type systemtestSuite struct {
 	globInfo  GlobInfo
 }
 type BasicInfo struct {
-	Scheduler    string `json:"scheduler"`      //swarm, k8s or plain docker
-	InstallMode  string `json:"install_mode"`   //legacy or kubeadm
-	SwarmEnv     string `json:"swarm_variable"` //env variables to be set with swarm
-	Platform     string `json:"platform"`       //vagrant or baremetal
-	Product      string `json:"product"`        //for netplugin / volplugin
-	AciMode      string `json:"aci_mode"`       //on/off
-	Short        bool   `json:"short"`
-	Containers   int    `json:"containers"`
-	Iterations   int    `json:"iterations"`
-	EnableDNS    bool   `json:"enableDNS"`
-	ClusterStore string `json:"contiv_cluster_store"`
-	ContivL3     string `json:"contiv_l3"`
-	KeyFile      string `json:"keyFile"`
-	BinPath      string `json:"binpath"` // /home/admin/bin or /opt/gopath/bin
+	Scheduler          string `json:"scheduler"`      //swarm, k8s or plain docker
+	InstallMode        string `json:"install_mode"`   //legacy or kubeadm
+	SwarmEnv           string `json:"swarm_variable"` //env variables to be set with swarm
+	Platform           string `json:"platform"`       //vagrant or baremetal
+	Product            string `json:"product"`        //for netplugin / volplugin
+	AciMode            string `json:"aci_mode"`       //on/off
+	Short              bool   `json:"short"`
+	Containers         int    `json:"containers"`
+	Iterations         int    `json:"iterations"`
+	EnableDNS          bool   `json:"enableDNS"`
+	ClusterStoreDriver string `json:"contiv_cluster_store_driver"`
+	ClusterStoreURLs   string `json:"contiv_cluster_store_urls"`
+	ContivL3           string `json:"contiv_l3"`
+	KeyFile            string `json:"keyFile"`
+	BinPath            string `json:"binpath"` // /home/admin/bin or /opt/gopath/bin
 }
 
 type HostInfo struct {

@@ -93,7 +93,7 @@ end
 
 def copy_contiv_logs(tmpdir)
     system("mkdir -p #{tmpdir}/contiv-logs/")
-    system("cp /var/contiv/log/* #{tmpdir}/contiv-logs/")
+    system("cp /var/log/contiv/* #{tmpdir}/contiv-logs/")
     system("bzip2 #{tmpdir}/contiv-logs/*")
 end
 
@@ -300,13 +300,13 @@ def write_json(filename, data)
 end
 
 if ARGV.length < 1 || ARGV[0] == "-h" then
-    puts "get-diags.rb [-h] <TKT#>" 
+    puts "get-diags.rb [-h] <TKT#>"
     puts "TKT# is ticket given by case worker"
     puts "to capture contiv install logs, this must be run in contiv install dir"
     puts "  install logs are located in @INSTALL_ROOT@/config/*.log"
     exit 1
 end
-    
+
 tkt = ARGV[0]
 puts "TKT = #{tkt}"
 puts "If running on docker+swarm, make sure DOCKER_HOST is set first"
