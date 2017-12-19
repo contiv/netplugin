@@ -106,6 +106,7 @@ run-build: deps checks clean compile archive
 
 compile-with-docker:
 	docker build \
+		-f Dockerfile-compile \
 		--build-arg NIGHTLY_RELEASE=$(NIGHTLY_RELEASE) \
 		--build-arg BUILD_VERSION=$(VERSION) \
 		-t netplugin-build:$(NETPLUGIN_CONTAINER_TAG) .
