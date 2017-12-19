@@ -50,36 +50,10 @@ echo "INFO: Running contiv in mode $CONTIV_MODE"
 
 set -uo pipefail
 
-mkdir -p /opt/contiv/ /var/log/contiv
-
-if [ -d /var/contiv/log ]; then
-    # /var/contiv/log/ is deprecated, move all data to /var/log/contiv
-    cp -a /var/contiv/log/* /var/log/contiv/
-    echo "INFO: Copied contiv log from /var/contiv/log (deprecated) to /var/log/contiv"
-fi
-
 if [ "$CONTIV_ROLE" = "netplugin" ]; then
     echo "INFO: Initializing OVS"
     /contiv/scripts/ovsInit.sh
     echo "INFO: Initialized OVS"
-fi
-
-if [ "$CONTIV_MODE" = "kubernetes" ]; then
-    echo "INFO: Setting kubernetes configs"
-    mkdir -p /opt/contiv/config
-    mkdir -p /var/contiv/config
-    echo ${CONTIV_K8S_CONFIG} > /var/contiv/config/contiv.json
-    set -x
-    cp /var/contiv/config/contiv.json /opt/contiv/config/contiv.json
-    set +x
-    if [ "$CONTIV_ROLE" = "netplugin" ]; then
-        mkdir -p /opt/cni/bin
-        cp /contiv/bin/contivk8s /opt/cni/bin/
-        mkdir -p /etc/cni/net.d/
-        set -x
-        echo ${CONTIV_CNI_CONFIG} > /etc/cni/net.d/1-contiv.conf
-        set +x
-    fi
 fi
 
 set +e
@@ -95,6 +69,8 @@ if [ "$CONTIV_ROLE" = "netmaster" ]; then
         sleep 5
     done
 elif [ "$CONTIV_ROLE" = "netplugin" ]; then
+    mkdir -p /opt/cni/bin
+    cp /contiv/bin/contivk8s /opt/cni/bin/
     while true; do
         echo "INFO: Starting contiv netplugin"
         if [ -f /tmp/restart_netplugin ]; then
