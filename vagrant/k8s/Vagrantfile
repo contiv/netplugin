@@ -49,18 +49,6 @@ echo "export https_proxy='$2'" >> /etc/profile.d/envvar.sh
 source /etc/profile.d/envvar.sh
 SCRIPT
 
-install_contiv = <<SCRIPT
-kubectl apply -f /shared/.contiv.yaml
-contiv_version=$(grep -m 1  "contiv/netplugin:" /shared/.contiv.yaml | awk -F ":" '{print $3}' | xargs)
-curl -L -O https://github.com/contiv/netplugin/releases/download/$contiv_version/netplugin-$contiv_version.tar.bz2
-tar xf netplugin-$contiv_version.tar.bz2 netctl
-rm -f netplugin-$contiv_version.tar.bz2
-chmod +x netctl
-mv netctl /usr/bin/
-kubectl get deployment/kube-dns -n kube-system -o json  > /shared/kube-dns.yaml
-kubectl delete deployment -n kube-system kube-dns
-SCRIPT
-
 # method to read the cluster config file
 def read_cluster_config
   if ENV['VAGRANT_CWD']  then
