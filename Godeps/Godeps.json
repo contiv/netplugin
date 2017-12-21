@@ -36,14 +36,14 @@
 			"Rev": "7f4b1adc791766938c29457bed0703fb9134421a"
 		},
 		{
-			"ImportPath": "github.com/appc/cni/pkg/ip",
-			"Comment": "v0.1.0",
-			"Rev": "8c8753e40992a00cb1309d3cc5697c7a958450ea"
+			"ImportPath": "github.com/containernetworking/cni/pkg/types",
+			"Comment": "v0.6.0",
+			"Rev": "a7885cb6f8ab03fba07852ded351e4f5e7a112bf"
 		},
 		{
-			"ImportPath": "github.com/appc/cni/pkg/plugin",
-			"Comment": "v0.1.0",
-			"Rev": "8c8753e40992a00cb1309d3cc5697c7a958450ea"
+			"ImportPath": "github.com/containernetworking/cni/pkg/types/current",
+			"Comment": "v0.6.0",
+			"Rev": "a7885cb6f8ab03fba07852ded351e4f5e7a112bf"
 		},
 		{
 			"ImportPath": "github.com/armon/go-radix",

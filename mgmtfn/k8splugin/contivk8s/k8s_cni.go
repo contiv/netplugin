@@ -28,11 +28,11 @@ import (
 	"github.com/contiv/netplugin/version"
 
 	logger "github.com/Sirupsen/logrus"
-	ip "github.com/appc/cni/pkg/ip"
-	cni "github.com/appc/cni/pkg/plugin"
+	ip "github.com/containernetworking/cni/pkg/types"
+	cni "github.com/containernetworking/cni/pkg/types/current"
 )
 
-// CNIResponse response format expected from CNI plugins(version 0.1.0)
+// CNIResponse response format expected from CNI plugins(version 0.6.0)
 type CNIResponse struct {
 	CNIVersion string `json:"cniVersion"`
 	cni.Result
@@ -41,7 +41,7 @@ type CNIResponse struct {
 //CNIError : return format from CNI plugin
 type CNIError struct {
 	CNIVersion string `json:"cniVersion"`
-	cni.Error
+	ip.Error
 }
 
 var log *logger.Entry
@@ -75,7 +75,7 @@ func addPodToContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
 		log.Errorf("EP create failed for pod: %s/%s",
 			pInfo.K8sNameSpace, pInfo.Name)
 		cerr := CNIError{}
-		cerr.CNIVersion = "0.1.0"
+		cerr.CNIVersion = "0.6.0"
 
 		if result != nil {
 			cerr.Code = result.Result
@@ -107,12 +107,13 @@ func addPodToContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
 	}
 
 	out := CNIResponse{
-		CNIVersion: "0.1.0",
+		CNIVersion: "0.6.0",
 	}
 
-	out.IP4 = &cni.IPConfig{
-		IP: net.IPNet{IP: ip4Net.IP, Mask: ip4Net.Mask},
-	}
+	out.IPs = append(out.IPs, &cni.IPConfig{
+		Version: "4",
+		Address: net.IPNet{IP: ip4Net.IP, Mask: ip4Net.Mask},
+	})
 
 	if result.IPv6Address != "" {
 		ip6Net, err := ip.ParseCIDR(result.IPv6Address)
@@ -121,9 +122,10 @@ func addPodToContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
 			return
 		}
 
-		out.IP6 = &cni.IPConfig{
-			IP: net.IPNet{IP: ip6Net.IP, Mask: ip6Net.Mask},
-		}
+		out.IPs = append(out.IPs, &cni.IPConfig{
+			Version: "6",
+			Address: net.IPNet{IP: ip6Net.IP, Mask: ip6Net.Mask},
+		})
 	}
 
 	data, err := json.MarshalIndent(out, "", "    ")

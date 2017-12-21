@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2016 CNI authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ip
+package types020_test
 
 import (
-	"io/ioutil"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+
+	"testing"
 )
 
-func EnableIP4Forward() error {
-	return echo1("/proc/sys/net/ipv4/ip_forward")
-}
-
-func EnableIP6Forward() error {
-	return echo1("/proc/sys/net/ipv6/conf/all/forwarding")
-}
-
-func echo1(f string) error {
-	return ioutil.WriteFile(f, []byte("1"), 0644)
+func TestTypes010(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "0.1.0/0.2.0 Types Suite")
 }
