@@ -23,7 +23,7 @@ type ContivConfig struct {
 
 // contivKubeCfgFile holds credentials to access k8s api server
 const (
-	contivKubeCfgFile = "/opt/contiv/config/contiv.json"
+	contivKubeCfgFile = "/var/contiv/config/contiv.json"
 	defSvcSubnet      = "10.254.0.0/16"
 	tokenFile         = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
