@@ -100,7 +100,7 @@ spec:
         # container programs network policy and routes on each
         # host.
         - name: contiv-netplugin
-          image: contiv/netplugin:k8s_devtest
+          image: contiv/netplugin:latest
           env:
             - name: CONTIV_ROLE
               value: netplugin
@@ -236,7 +236,7 @@ spec:
       hostPID: true
       containers:
         - name: contiv-netmaster
-          image: contiv/netplugin:k8s_devtest
+          image: contiv/netplugin:latest
           env:
             - name: CONTIV_ROLE
               value: netmaster
