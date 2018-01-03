@@ -1,0 +1,288 @@
+#!/usr/bin/env python
+
+import argparse
+from contextlib import contextmanager
+import os
+import sys
+import yaml
+
+
+class ContivComposer(object):
+    def add_systest(self, resource, args):
+        if self._is_resource(resource, 'ConfigMap', 'contiv-config',
+                             'kube-system'):
+            # pop contiv_etcd (etcd or consul endpoints will be passed in during testing)
+            resource['data'].pop('contiv_etcd')
+        if (self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
+                              'kube-system') or
+                self._is_resource(resource, 'ReplicaSet', 'contiv-netmaster',
+                                  'kube-system')):
+            for container in resource['spec']['template']['spec'][
+                    'containers']:
+                if container['name'] in ('contiv-netplugin',
+                                         'contiv-netmaster'):
+                    # pop etcd endpoints because test case will handle it
+                    container['env'] = [
+                        envar
+                        for envar in container['env']
+                        if envar[
+                            'name'] not in ('CONTIV_NETPLUGIN_ETCD_ENDPOINTS',
+                                            'CONTIV_NETMASTER_ETCD_ENDPOINTS')
+                    ]
+                    # make the container idle
+                    container['command'] = ['tail', '-f', '/dev/null']
+                    # add binary mount points to run tests
+                    container['volumeMounts'].append({
+                        'mountPath': '/contiv/bin',
+                        'name': 'contiv-bin-dir',
+                        'readOnly': False
+                    })
+                    container['volumeMounts'].append({
+                        'mountPath': '/contiv/scripts/',
+                        'name': 'contiv-scripts-dir',
+                        'readOnly': False
+                    })
+                    container['volumeMounts'].append({
+                        'mountPath': '/var/log/contiv',
+                        'name': 'contiv-log-dir',
+                        'readOnly': False
+                    })
+            resource['spec']['template']['spec']['volumes'].append({
+                'name': 'contiv-bin-dir',
+                'hostPath': {'path': '/opt/gopath/bin'}
+            })
+            resource['spec']['template']['spec']['volumes'].append({
+                'name': 'contiv-scripts-dir',
+                'hostPath':
+                {'path':
+                 '/opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/'
+                 }
+            })
+            # systest logging files
+            resource['spec']['template']['spec']['volumes'].append({
+                'name': 'contiv-log-dir',
+                'hostPath': {'path': '/var/log/contiv'}
+            })
+
+    def add_prometheus(self, resource, args):
+        if (self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
+                              'kube-system') or
+                self._is_resource(resource, 'ReplicaSet', 'contiv-netmaster',
+                                  'kube-system')):
+            if self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
+                                 'kube-system'):
+                exporter_port = '9004'
+                exporter_mode = 'netplugin'
+                exporter_name = 'netplugin-exporter'
+            else:
+                exporter_port = '9005'
+                exporter_mode = 'netmaster'
+                exporter_name = 'netmaster-exporter'
+
+            # add prometheus annotations
+            resource['spec']['template']['metadata']['annotations'][
+                'prometheus.io/scrape'] = 'true'
+            resource['spec']['template']['metadata']['annotations'][
+                'prometheus.io/port'] = exporter_port
+
+            # add stat exporter container
+            containers = resource['spec']['template']['spec']['containers']
+            exporter = [c for c in containers if c['name'] == exporter_name]
+            contiv_stat = {
+                "name": exporter_name,
+                # version updated later
+                "image": args.stat_exporter_img,
+                "env": [
+                    {'name': 'CONTIV_ETCD',
+                     'valueFrom': {'configMapKeyRef':
+                                   {'name': 'contiv-config',
+                                    'key':
+                                    'contiv_etcd'}}}, {'name': 'EXPORTER_MODE',
+                                                       'value': exporter_mode}
+                ]
+            }
+            if exporter == []:
+                containers.append(contiv_stat)
+            else:
+                exporter[0].update(contiv_stat)
+
+    def add_auth_proxy(self, resource, args):
+        if self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
+                             'kube-system'):
+            containers = resource['spec']['template']['spec']['containers']
+            auth_proxy = [c
+                          for c in containers
+                          if c['name'] == 'contiv-api-proxy']
+            auth_proxy_data = {
+                'name': 'contiv-api-proxy',
+                'image': args.auth_proxy_img,
+                'args': [
+                    '--tls-key-file=%s' % args.tls_key, '--tls-certificate=%s'
+                    % args.tls_cert, '--data-store-address=$(STORE_URL)',
+                    '--data-store-driver=$(STORE_DRIVER)',
+                    '--netmaster-address=localhost:9999'
+                ],
+                'env': [
+                    {'name': 'CONTIV_ETCD',
+                     'valueFrom': {'configMapKeyRef':
+                                   {'name': 'contiv-config',
+                                    'key': 'contiv_etcd'}}}, {'name':
+                                                              'STORE_DRIVER',
+                                                              'value': 'etcd'}
+                ],
+                'securityContext': {'privileged': False},
+                'volumeMounts': [
+                    {'mountPath': '/var/contiv',
+                     'name': 'var-contiv',
+                     'readOnly': False}
+                ],
+            }
+            if auth_proxy == []:
+                containers.append(auth_proxy_data)
+            else:
+                auth_proxy[0].update(auth_proxy_data)
+
+    def add_aci(self, resource, args):
+        raise Exception("Not implemented yet")
+
+    def compose(self, args):
+        if args.target not in ('add-systest', 'add-prometheus',
+                               'add-auth-proxy', 'add-aci'):
+            raise "unsupported compose target"
+        func = getattr(self, args.target.replace('-', '_'))
+        with self._compose_data(args.base_yaml, args.in_place) as data:
+            for resource in data:
+                func(resource, args)
+                self._update_images(resource, args)
+
+    def _is_resource(self, resource, kind, name, namespace=None):
+        return (resource['kind'] == kind and
+                resource['metadata']['name'] == name and
+                resource['metadata'].get('namespace') == namespace)
+
+    def _update_images(self, resource, args):
+        if self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
+                             'kube-system') or self._is_resource(
+                                 resource, 'ReplicaSet', 'contiv-netmaster',
+                                 'kube-system'):
+            if args.netplugin_img is not None:
+                name = 'contiv-netplugin' if resource[
+                    'kind'] == 'DaemonSet' else 'contiv-netmaster'
+                self._update_container_image(resource, name,
+                                             args.netplugin_img)
+            if args.netplugin_init_img is not None:
+                self._update_container_image(resource, 'contiv-netplugin-init',
+                                             args.netplugin_init_img)
+        if self._is_resource(resource, 'DaemonSet', 'contiv-ovs',
+                             'kube-system'):
+            self._update_container_image(resource, 'contiv-ovsdb-server',
+                                         args.ovs_img)
+            self._update_container_image(resource, 'contiv-ovs-vswitchd',
+                                         args.ovs_img)
+
+    def _update_container_image(self, resource, name, image):
+        # find container in a defination, return the location
+        # doesn't care if it's init container or container
+        for container in resource['spec']['template']['spec'].get('containers',
+                                                                  []):
+            if container['name'] == name:
+                container['image'] = image
+
+        for container in resource['spec']['template']['spec'].get(
+                'initContainers', []):
+            if container['name'] == name:
+                container['image'] = image
+
+    @contextmanager
+    def _compose_data(self, src, inplace):
+        access = os.W_OK if inplace is True else os.R_OK
+        if not os.access(src, access):
+            raise Exception("Failed to access %s", src)
+        with open(src, 'r') as f:
+            # load_all returns a generator
+            data = list(yaml.safe_load_all(f))
+            yield data
+
+        if data is None:
+            return
+        output = yaml.safe_dump_all(data,
+                                    default_flow_style=False,
+                                    default_style='')
+        if inplace is False:
+            sys.stdout.write(output)
+        else:
+            with open(src, 'w') as f:
+                f.write(output)
+
+
+def _add_common_args(parser):
+    parser.add_argument('-i',
+                        '--in-place',
+                        action='store_true',
+                        help='edit files in place')
+    parser.add_argument('--netplugin-img',
+                        default='contiv/netplugin:latest',
+                        help='contiv netplugin image to use')
+    parser.add_argument('--ovs-img',
+                        default='contiv/ovs:latest',
+                        help='contiv ovs image to use')
+    parser.add_argument('--netplugin-init-img',
+                        default='contiv/netplugin-init:latest',
+                        help='contiv netplugin-init image to use')
+    parser.add_argument('base_yaml',
+                        metavar='base-yaml',
+                        help='contiv base yaml file')
+
+
+def create_cli_args():
+    parser = argparse.ArgumentParser(
+        description='Contiv K8S resource composer.')
+    subclis = parser.add_subparsers(
+        title="supported subcommands",
+        dest="target",
+        description="Adding contiv extra components",
+        help="see subcommand -h")
+
+    # systest sub cli
+    systest_parser = subclis.add_parser(
+        'add-systest',
+        description="Add system test required updates")
+    _add_common_args(systest_parser)
+
+    # add prometheus
+    prometheus_parser = subclis.add_parser(
+        'add-prometheus',
+        description="Add prometheus required updates")
+    _add_common_args(prometheus_parser)
+    prometheus_parser.add_argument('--stat-exporter-img',
+                                   default='contiv/stats:latest',
+                                   help='netplugin stat exporter img to use')
+
+    # add auth proxy
+    auth_proxy_parser = subclis.add_parser(
+        'add-auth-proxy',
+        description="Add auth proxy required updates")
+    _add_common_args(auth_proxy_parser)
+    auth_proxy_parser.add_argument('--auth-proxy-img',
+                                   default='contiv/auth_proxy:latest',
+                                   help='auth proxy image to use')
+    auth_proxy_parser.add_argument(
+        '--tls-key',
+        required=True,
+        help='TLS key file path for auth proxy service')
+    auth_proxy_parser.add_argument(
+        '--tls-cert',
+        required=True,
+        help='TLS certificate file path for auth proxy service')
+
+    # add aci
+    aci_parser = subclis.add_parser(
+        'add-aci',
+        description="Add cisco ACI required updates")
+    _add_common_args(aci_parser)
+
+    return parser
+
+
+if __name__ == '__main__':
+    ContivComposer().compose(create_cli_args().parse_args())

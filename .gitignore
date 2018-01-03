@@ -71,5 +71,6 @@ netplugin-version
 scripts/netContain/*.tgz
 scripts/netContain/*.tar.bz2
 
-vagrant/k8s/export/.contiv.yaml*
+vagrant/k8s/export/admin.conf
+vagrant/k8s/export/*contiv*
 vagrant/k8s/contrib

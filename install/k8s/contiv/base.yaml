@@ -1,4 +1,100 @@
 ---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: contiv-netplugin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: contiv-netplugin
+subjects:
+- kind: ServiceAccount
+  name: contiv-netplugin
+  namespace: kube-system
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: contiv-netplugin
+  namespace: kube-system
+rules:
+  - apiGroups:
+    - ""
+    - extensions
+    resources:
+      - endpoints
+      - nodes
+      - namespaces
+      - networkpolicies
+      - pods
+      - services
+    verbs:
+      - watch
+      - list
+      - update
+      - get
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: contiv-netplugin
+  namespace: kube-system
+  labels:
+    kubernetes.io/cluster-service: "true"
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: contiv-netmaster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: contiv-netmaster
+subjects:
+- kind: ServiceAccount
+  name: contiv-netmaster
+  namespace: kube-system
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: contiv-netmaster
+  namespace: kube-system
+rules:
+  - apiGroups:
+    - ""
+    - extensions
+    resources:
+      - pods
+      - nodes
+      - namespaces
+      - networkpolicies
+    verbs:
+      - watch
+      - list
+      - update
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: contiv-netmaster
+  namespace: kube-system
+  labels:
+    kubernetes.io/cluster-service: "true"
+
+---
+
 # This ConfigMap is used to configure a self-hosted Contiv installation.
 # It can be used with an external cluster store(etcd or consul) or used
 # with the etcd instance being installed as contiv-etcd
@@ -11,13 +107,7 @@ data:
   contiv_mode: kubernetes
   contiv_fwdmode: routing
   contiv_netmode: vxlan
-  # The location of your cluster store. This is set to the
-  # avdertise-client value below from the contiv-etcd service.
-  # Change it to an external etcd/consul instance if required.
-  # this is not required for dev test, etcd or consul endpoints
-  # will be passed in in testing
-  # contiv_etcd: "http://__NETMASTER_IP__:6666"
-  # The CNI network configuration to install on each node.
+  contiv_etcd: "http://10.96.232.136:6666"
   contiv_cni_config: |-
     {
       "cniVersion": "0.6.0",
@@ -26,54 +116,16 @@ data:
     }
   contiv_k8s_config: |-
     {
-       "K8S_API_SERVER": "https://__NETMASTER_IP__:6443",
+       "K8S_API_SERVER": "https://__KUBERNETES_SERVICE_HOST__:__KUBERNETES_SERVICE_PORT__",
        "K8S_CA": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
        "K8S_KEY": "",
        "K8S_CERT": "",
-       "K8S_TOKEN": ""
+       "K8S_TOKEN": "__SERVICEACCOUNT_TOKEN__",
+       "SVC_SUBNET": "10.96.0.0/12"
     }
----
-
-# This manifest installs the Contiv etcd on the kubeadm master.
-# If using an external etcd instance, this can be deleted. This uses a DaemonSet
-# to force it to run on the master even when the master isn't schedulable, and uses
-# nodeSelector to ensure it only runs on the master.
-apiVersion: extensions/v1beta1
-kind: DaemonSet
-metadata:
-  name: contiv-etcd
-  namespace: kube-system
-  labels:
-    k8s-app: contiv-etcd
-spec:
-  template:
-    metadata:
-      labels:
-        k8s-app: contiv-etcd
-      annotations:
-        scheduler.alpha.kubernetes.io/critical-pod: ''
-        scheduler.alpha.kubernetes.io/tolerations: |
-          [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
-           {"key":"CriticalAddonsOnly", "operator":"Exists"}]
-    spec:
-      # Only run this pod on the master.
-      nodeSelector:
-        kubeadm.alpha.kubernetes.io/role: master
-      hostNetwork: true
-      containers:
-        - name: contiv-etcd
-          image: gcr.io/google_containers/etcd:2.2.1
-          command: ["/bin/sh","-c"]
-          args: ["/usr/local/bin/etcd --name=contiv --data-dir=/var/etcd/contiv-data --advertise-client-urls=http://__NETMASTER_IP__:6666 --listen-client-urls=http://0.0.0.0:6666 --listen-peer-urls=http://0.0.0.0:6667"]
-          volumeMounts:
-            - name: var-etcd
-              mountPath: /var/etcd
-      volumes:
-        - name: var-etcd
-          hostPath:
-            path: /var/etcd
 
 ---
+
 # This manifest installs contiv-netplugin container, as well
 # as the Contiv CNI plugins and network config on
 # each master and worker node in a Kubernetes cluster.
@@ -92,20 +144,49 @@ spec:
     metadata:
       labels:
         k8s-app: contiv-netplugin
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
     spec:
       hostNetwork: true
       hostPID: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      serviceAccountName: contiv-netplugin
+      initContainers:
+        - name: contiv-netplugin-init
+          image: contiv/netplugin-init:latest
+          env:
+            - name: CONTIV_ROLE
+              value: netplugin
+            - name: CONTIV_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_mode
+            - name: CONTIV_K8S_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_k8s_config
+            - name: CONTIV_CNI_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_cni_config
+          volumeMounts:
+            - mountPath: /var/contiv
+              name: var-contiv
+              readOnly: false
+            - mountPath: /etc/cni/net.d/
+              name: etc-cni-dir
+              readOnly: false
       containers:
-        # Runs netplugin container on each Kubernetes node.  This
-        # container programs network policy and routes on each
-        # host.
         - name: contiv-netplugin
           image: contiv/netplugin:latest
           env:
             - name: CONTIV_ROLE
               value: netplugin
-            - name: CONTIV_NETPLUGIN_VLAN_UPLINKS
-              value: __VLAN_IF__
             - name: CONTIV_NETPLUGIN_MODE
               valueFrom:
                 configMapKeyRef:
@@ -115,22 +196,11 @@ spec:
               valueFrom:
                  fieldRef:
                     fieldPath: status.podIP
-            # set in testing codes
-            # - name: CONTIV_NETPLUGIN_ETCD_ENDPOINTS
-            #   valueFrom:
-            #     configMapKeyRef:
-            #       name: contiv-config
-            #       key: contiv_etcd
-            - name: CONTIV_CNI_CONFIG
+            - name: CONTIV_NETPLUGIN_ETCD_ENDPOINTS
               valueFrom:
                 configMapKeyRef:
                   name: contiv-config
-                  key: contiv_cni_config
-            - name: CONTIV_K8S_CONFIG
-              valueFrom:
-                configMapKeyRef:
-                  name: contiv-config
-                  key: contiv_k8s_config
+                  key: contiv_etcd
             - name: CONTIV_NETPLUGIN_FORWARD_MODE
               valueFrom:
                 configMapKeyRef:
@@ -150,57 +220,23 @@ spec:
             - mountPath: /var/contiv
               name: var-contiv
               readOnly: false
-            - mountPath: /var/log/contiv
-              name: var-log-contiv
-              readOnly: false
-            - mountPath: /etc/kubernetes/pki
-              name: etc-kubernetes-pki
-              readOnly: false
-            - mountPath: /etc/kubernetes/ssl
-              name: etc-kubernetes-ssl
-              readOnly: false
             - mountPath: /opt/cni/bin
               name: cni-bin-dir
               readOnly: false
-            - mountPath: /etc/cni/net.d/
-              name: etc-cni-dir
-              readOnly: false
-            - mountPath: /contiv/bin
-              name: contiv-bin-dir
-              readOnly: false
-            - mountPath: /contiv/scripts/
-              name: contiv-scripts-dir
-              readOnly: false
       volumes:
-        # Used by contiv-netplugin
         - name: var-run
           hostPath:
             path: /var/run
         - name: var-contiv
           hostPath:
             path: /var/contiv
-        - name: etc-kubernetes-pki
-          hostPath:
-            path: /etc/kubernetes/pki
-        - name: etc-kubernetes-ssl
-          hostPath:
-            path: /etc/kubernetes/ssl
-        # Used to install CNI.
         - name: cni-bin-dir
           hostPath:
             path: /opt/cni/bin
         - name: etc-cni-dir
           hostPath:
             path: /etc/cni/net.d/
-        - name: var-log-contiv
-          hostPath:
-            path: /var/log/contiv
-        - name: contiv-bin-dir
-          hostPath:
-            path: /opt/gopath/bin
-        - name: contiv-scripts-dir
-          hostPath:
-            path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
+
 ---
 
 # This manifest deploys the Contiv API Server on Kubernetes.
@@ -223,17 +259,41 @@ spec:
         k8s-app: contiv-netmaster
       annotations:
         scheduler.alpha.kubernetes.io/critical-pod: ''
-        scheduler.alpha.kubernetes.io/tolerations: |
-          [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
-           {"key":"CriticalAddonsOnly", "operator":"Exists"}]
     spec:
-      # Only run this pod on the master.
-      nodeSelector:
-        kubeadm.alpha.kubernetes.io/role: master
       # The netmaster must run in the host network namespace so that
       # it isn't governed by policy that would prevent it from working.
       hostNetwork: true
-      hostPID: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      serviceAccountName: contiv-netmaster
+      initContainers:
+        - name: contiv-netplugin-init
+          image: contiv/netplugin-init:latest
+          env:
+            - name: CONTIV_ROLE
+              value: netmaster
+            - name: CONTIV_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_mode
+            - name: CONTIV_K8S_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_k8s_config
+            - name: CONTIV_CNI_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: contiv-config
+                  key: contiv_cni_config
+          volumeMounts:
+            - mountPath: /var/contiv
+              name: var-contiv
+              readOnly: false
       containers:
         - name: contiv-netmaster
           image: contiv/netplugin:latest
@@ -245,17 +305,11 @@ spec:
                 configMapKeyRef:
                   name: contiv-config
                   key: contiv_mode
-            # set in testing codes
-            # - name: CONTIV_NETMASTER_ETCD_ENDPOINTS
-            #   valueFrom:
-            #     configMapKeyRef:
-            #       name: contiv-config
-            #       key: contiv_etcd
-            - name: CONTIV_K8S_CONFIG
+            - name: CONTIV_NETMASTER_ETCD_ENDPOINTS
               valueFrom:
                 configMapKeyRef:
                   name: contiv-config
-                  key: contiv_k8s_config
+                  key: contiv_etcd
             - name: CONTIV_NETMASTER_FORWARD_MODE
               valueFrom:
                 configMapKeyRef:
@@ -267,50 +321,90 @@ spec:
                   name: contiv-config
                   key: contiv_netmode
           volumeMounts:
-            - mountPath: /var/run
-              name: var-run
-              readOnly: false
-            - mountPath: /var/log/contiv
-              name: var-log-contiv
-              readOnly: false
             - mountPath: /var/contiv
               name: var-contiv
               readOnly: false
-            - mountPath: /etc/kubernetes/ssl
-              name: etc-kubernetes-ssl
-              readOnly: false
-            - mountPath: /opt/cni/bin
-              name: cni-bin-dir
-              readOnly: false
-            - mountPath: /contiv/bin
-              name: contiv-bin-dir
-              readOnly: false
-            - mountPath: /contiv/scripts/
-              name: contiv-scripts-dir
-              readOnly: false
       volumes:
         # Used by contiv-netmaster
-        - name: var-run
-          hostPath:
-            path: /var/run
         - name: var-contiv
           hostPath:
             path: /var/contiv
-        - name: etc-kubernetes-ssl
+
+---
+
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: contiv-etcd
+  namespace: kube-system
+  labels:
+    k8s-app: contiv-etcd
+spec:
+  template:
+    metadata:
+      labels:
+        k8s-app: contiv-etcd
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+    spec:
+      # Only run this pod on the master.
+      tolerations:
+      - key: node.cloudprovider.kubernetes.io/uninitialized
+        value: "true"
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      - key: CriticalAddonsOnly
+        operator: Exists
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      hostNetwork: true
+      containers:
+        - name: contiv-etcd
+          image: quay.io/coreos/etcd:v3.2.4
+          command: ["/bin/sh","-c"]
+          args:
+            - ETCD_ADVERTISE_CLIENT_URLS=http://$CONTIV_ETCD_IP:6666 /usr/local/bin/etcd
+          env:
+            - name: CONTIV_ETCD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: ETCD_NAME
+              value: contiv-etcd
+            - name: ETCD_DATA_DIR
+              value: /var/lib/etcd/contiv-data
+            - name: ETCD_LISTEN_CLIENT_URLS
+              value: http://0.0.0.0:6666
+            - name: ETCD_LISTEN_PEER_URLS
+              value: http://0.0.0.0:6667
+          volumeMounts:
+            - name: var-etcd
+              mountPath: /var/etcd
+      volumes:
+        - name: var-etcd
           hostPath:
-            path: /etc/kubernetes/ssl
-        - name: cni-bin-dir
-          hostPath:
-            path: /opt/cni/bin
-        - name: var-log-contiv
-          hostPath:
-            path: /var/log/contiv
-        - name: contiv-bin-dir
-          hostPath:
-            path: /opt/gopath/bin
-        - name: contiv-scripts-dir
-          hostPath:
-            path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
+            path: /var/etcd
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: contiv-etcd
+  name: contiv-etcd
+  namespace: kube-system
+spec:
+  # Select the contiv-etcd pod running on the master.
+  selector:
+    k8s-app: contiv-etcd
+  # This ClusterIP needs to be known in advance, since we cannot rely
+  # on DNS to get access to etcd.
+  clusterIP: 10.96.232.136
+  ports:
+    - port: 6666
+
 ---
 # This manifest deploys the contiv-ovs pod.
 kind: DaemonSet
@@ -328,6 +422,8 @@ spec:
     metadata:
       labels:
         k8s-app: contiv-ovs
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
     spec:
       hostNetwork: true
       hostPID: true

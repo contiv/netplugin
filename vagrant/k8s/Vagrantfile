@@ -1,44 +1,36 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-require File.join(File.dirname(__FILE__), "..", "vagrant_version_check")
+require File.join(File.dirname(__FILE__), '..', 'vagrant_version_check')
 
-require "rubygems"
-require "json"
+require 'rubygems'
+require 'json'
 require 'fileutils'
+require 'securerandom'
 
-gopath_folder="/opt/gopath"
-master_ip = "192.168.2.10"
+gopath_folder = '/opt/gopath'
+master_ip = '192.168.2.10'
+master_port = '6443'
 
 http_proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || ''
 https_proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ''
 num_vm_cpus = (ENV['CONTIV_CPUS'] || 4).to_i
 vm_memory = (ENV['CONTIV_MEMORY'] || 2048).to_i
 
-# python -c 'import random; print "%0x.%0x" % (random.SystemRandom().getrandbits(3*8), random.SystemRandom().getrandbits(8*8))
-token = "d900e1.8a392798f13b33a4"
+token = "#{SecureRandom.hex(3)}.#{SecureRandom.hex(8)}"
 
 # method to create an etc_hosts file based on the cluster info
 def create_etc_hosts(cluster)
-  if ENV['VAGRANT_CWD'] then
-     folder = ENV['VAGRANT_CWD'] + "/export/.etc_hosts"
-     etc_file = open(folder, "w")
-  else
-     etc_file = open("./export/.etc_hosts", "w")
-  end
-  etc_file.write("127.0.0.1   localhost\n")
-
-  cluster.each do |role, member_list|
-    member_list.each do |member_info|
-      etc_file.write("#{member_info['contiv_control_ip']}   #{member_info['name']}\n")
-      if role == "master" then
-        etc_file.write("#{member_info['contiv_control_ip']}   netmaster \n")
-        master_ip = member_info['contiv_control_ip']
+  etc_file_path = "#{ENV['VAGRANT_CWD'] || '.'}/export/.etc_hosts"
+  File.open(etc_file_path, 'w') do |etc_file|
+    etc_file.write("127.0.0.1   localhost\n")
+    cluster.each do |role, member_list|
+      member_list.each do |member_info|
+        etc_file.write("#{member_info['contiv_control_ip']} " \
+                       "#{member_info['name']} #{role == 'master' ? 'netmaster' : ''}\n")
       end
     end
   end
-
-  etc_file.close
 end
 
 provision_quagga = <<SCRIPT
@@ -51,16 +43,8 @@ SCRIPT
 
 # method to read the cluster config file
 def read_cluster_config
-  if ENV['VAGRANT_CWD']  then
-      folder = ENV['VAGRANT_CWD'] + "/cluster_defs.json"
-      defs_file = open(folder)
-  else
-      defs_file = open("cluster_defs.json")
-  end
-  defs_json = defs_file.read
-  clust_cfg = JSON.parse(defs_json)
-  defs_file.close
-  return clust_cfg
+  cluster_json = "#{ENV['VAGRANT_CWD'] || '.'}/cluster_defs.json"
+  JSON.parse(File.read(cluster_json))
 end
 
 provision_k8 = <<SCRIPT
@@ -68,8 +52,10 @@ echo 'export GOPATH=#{gopath_folder}' > /etc/profile.d/envvar.sh
 echo 'export GOBIN=$GOPATH/bin' >> /etc/profile.d/envvar.sh
 echo 'export GOSRC=$GOPATH/src' >> /etc/profile.d/envvar.sh
 echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> /etc/profile.d/envvar.sh
+echo 'export KUBECONFIG=/etc/kubernetes/admin.conf' >> /etc/profile.d/envvar.sh
 echo "export http_proxy='$1'" >> /etc/profile.d/envvar.sh
 echo "export https_proxy='$1'" >> /etc/profile.d/envvar.sh
+echo 'export CONTIV_TEST=#{ENV['CONTIV_TEST']}' >> /etc/profile.d/envvar.sh
 echo "export no_proxy='k8master,192.168.2.10,192.168.2.11,192.168.2.12,192.168.2.13,netmaster,localhost,127.0.0.1'" >> /etc/profile.d/envvar.sh
 echo "export no_proxy='k8master,192.168.2.10,192.168.2.11,192.168.2.12,192.168.2.13,netmaster,localhost,127.0.0.1'" >> ~/.profile
 source /etc/profile.d/envvar.sh
@@ -92,60 +78,58 @@ def customize(v)
   1.upto(5) do |n|
     v.customize ['modifyvm', :id, "--nictype#{n}", 'virtio']
   end
-  v.customize ['modifyvm', :id, '--paravirtprovider', "kvm"]
-  v.linked_clone = true if Vagrant::VERSION >= "1.8"
+  v.customize ['modifyvm', :id, '--paravirtprovider', 'kvm']
+  v.linked_clone = true if Vagrant::VERSION >= '1.8'
 end
 
 Vagrant.configure(2) do |config|
-  if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "rhel7" then
+  if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == 'rhel7'
     config.registration.manager = 'subscription_manager'
     config.registration.username = ENV['CONTIV_RHEL_USER']
     config.registration.password = ENV['CONTIV_RHEL_PASSWD']
   end
-  if ENV['CONTIV_L3'] then
-    config.vm.define "quagga1" do |quagga1|
-
-      quagga1.vm.box = "contiv/quagga1"
-      quagga1.vm.box_version = "0.0.1"
-      quagga1.vm.host_name = "quagga1"
-      quagga1.vm.network :private_network, ip: "192.168.2.51", virtualbox__intnet: "true", auto_config: false
-      quagga1.vm.network "private_network",
-                       ip: "80.1.1.200",
-                       virtualbox__intnet: "contiv_orange"
-      quagga1.vm.network "private_network",
-                       ip: "70.1.1.2",
-                       virtualbox__intnet: "contiv_blue"
+  if ENV['CONTIV_L3']
+    config.vm.define 'quagga1' do |quagga1|
+      quagga1.vm.box = 'contiv/quagga1'
+      quagga1.vm.box_version = '0.0.1'
+      quagga1.vm.host_name = 'quagga1'
+      quagga1.vm.network :private_network, ip: '192.168.2.51', virtualbox__intnet: 'true', auto_config: false
+      quagga1.vm.network 'private_network',
+        ip: '80.1.1.200',
+        virtualbox__intnet: 'contiv_orange'
+      quagga1.vm.network 'private_network',
+        ip: '70.1.1.2',
+        virtualbox__intnet: 'contiv_blue'
 
       config.vm.provider 'virtualbox' do |v|
         customize(v)
       end
 
-      quagga1.vm.provision "shell" do |s|
+      quagga1.vm.provision 'shell' do |s|
         s.inline = provision_quagga
         s.args = [http_proxy, https_proxy]
       end
     end
-    config.vm.define "quagga2" do |quagga2|
-
-      quagga2.vm.box = "contiv/quagga2"
-      quagga2.vm.box_version = "0.0.1"
-      quagga2.vm.host_name = "quagga2"
-      quagga2.vm.network :private_network, ip: "192.168.2.52", virtualbox__intnet: "true", auto_config: false
-      quagga2.vm.network "private_network",
-                       ip: "70.1.1.1",
-                       virtualbox__intnet: "contiv_blue"
-      quagga2.vm.network "private_network",
-                       ip: "60.1.1.200",
-                       virtualbox__intnet: "contiv_green"
-      quagga2.vm.network "private_network",
-                       ip: "50.1.1.200",
-                       virtualbox__intnet: "contiv_yellow"
+    config.vm.define 'quagga2' do |quagga2|
+      quagga2.vm.box = 'contiv/quagga2'
+      quagga2.vm.box_version = '0.0.1'
+      quagga2.vm.host_name = 'quagga2'
+      quagga2.vm.network :private_network, ip: '192.168.2.52', virtualbox__intnet: 'true', auto_config: false
+      quagga2.vm.network 'private_network',
+        ip: '70.1.1.1',
+        virtualbox__intnet: 'contiv_blue'
+      quagga2.vm.network 'private_network',
+        ip: '60.1.1.200',
+        virtualbox__intnet: 'contiv_green'
+      quagga2.vm.network 'private_network',
+        ip: '50.1.1.200',
+        virtualbox__intnet: 'contiv_yellow'
 
       config.vm.provider 'virtualbox' do |v|
         customize(v)
       end
 
-      quagga2.vm.provision "shell" do |s|
+      quagga2.vm.provision 'shell' do |s|
         s.inline = provision_quagga
         s.args = [http_proxy, https_proxy]
       end
@@ -153,98 +137,91 @@ Vagrant.configure(2) do |config|
   end
 
   config.ssh.insert_key = false
-  config.ssh.private_key_path = "./../../scripts/insecure_private_key"
-  
-  config.vm.synced_folder "./export", "/shared"
-  config.vm.synced_folder "./../../../../../","/opt/gopath/src"
-  config.vm.synced_folder "./../../bin","/opt/gopath/bin"
+  config.ssh.private_key_path = './../../scripts/insecure_private_key'
+
+  config.vm.synced_folder './export', '/shared'
+  config.vm.synced_folder './../../../../../', '/opt/gopath/src'
+  config.vm.synced_folder './../../bin', '/opt/gopath/bin'
+
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = :box
+    config.cache.enable :yum
+  end
 
   n = 0
   cluster.each do |role, member_list|
     member_list.each do |member_info|
-      config.vm.define vm_name = member_info["name"] do |c|
-         if ENV['CONTIV_K8S_LEGACY'] == "1" then
-           c.vm.box_version = "0.0.4"
-           c.vm.box = "contiv/" + vm_name.gsub("-", "")
-	     else
-          if ENV['CONTIV_NODE_OS'] == "rhel7" then
+      config.vm.define vm_name = member_info['name'] do |c|
+        if ENV['CONTIV_K8S_LEGACY'] == '1'
+          c.vm.box_version = '0.0.4'
+          c.vm.box = 'contiv/' + vm_name.delete('-')
+        else
+          if ENV['CONTIV_NODE_OS'] == 'rhel7'
             # Download rhel7.2 box from https://access.redhat.com/downloads/content/293/ver=2/rhel---7/2.0.0/x86_64/product-software
             # Add it as rhel7 vagrant box add rhel-cdk-kubernetes-7.2-29.x86_64.vagrant-virtualbox.box --name=rhel7
-            c.vm.box = "rhel7"
+            c.vm.box = 'rhel7'
           else
-            c.vm.box = "contiv/centos73"
-            c.vm.box_version = "0.10.2"
+            c.vm.box = 'contiv/centos73'
+            c.vm.box_version = '0.10.2'
           end
-	    end # CONTIV_K8S_LEGACY == 1
+        end # CONTIV_K8S_LEGACY == 1
 
-	    c.vm.provision "shell" do |s|
+        c.vm.provision 'shell' do |s|
           s.inline = provision_k8
-          s.args = [ENV["http_proxy"] || "", ENV["https_proxy"] || ""]
+          s.args = [ENV['http_proxy'] || '', ENV['https_proxy'] || '']
         end
 
-        network_name = "contiv_purple"
-        if ENV['CONTIV_L3'] then
-            if vm_name == "k8node-03" then
-              network_name = "contiv_orange"
-            end
-	        if vm_name == "k8node-01" then
-              network_name = "contiv_yellow"
-            end
-	        if vm_name == "k8node-02" then
-              network_name = "contiv_green"
-            end
+        network_name = 'contiv_purple'
+        if ENV['CONTIV_L3']
+          network_name = 'contiv_orange' if vm_name == 'k8node-03'
+          network_name = 'contiv_yellow' if vm_name == 'k8node-01'
+          network_name = 'contiv_green' if vm_name == 'k8node-02'
         end
-	
+
         # configure ip address etc
         c.vm.hostname = vm_name
-        c.vm.network :private_network, ip: member_info["contiv_control_ip"], virtualbox__intnet: "true"
-        c.vm.network :private_network, ip: member_info["contiv_network_ip"], virtualbox__intnet: network_name, auto_config: false
-        c.vm.provider "virtualbox" do |v|
+        c.vm.network :private_network, ip: member_info['contiv_control_ip'], virtualbox__intnet: 'true'
+        c.vm.network :private_network, ip: member_info['contiv_network_ip'], virtualbox__intnet: network_name, auto_config: false
+        c.vm.provider 'virtualbox' do |v|
           customize(v)
-          v.memory = vm_memory
-          v.cpus = num_vm_cpus
+          if role == 'master'
+            v.memory = vm_memory * 2
+            v.cpus = num_vm_cpus * 2
+          else
+            v.memory = vm_memory
+            v.cpus = num_vm_cpus
+          end
           v.customize ['modifyvm', :id, '--nicpromisc2', 'allow-all']
           v.customize ['modifyvm', :id, '--nicpromisc3', 'allow-all']
         end # v
 
         # RHEL box that is available with the CDK comes with an older version
         # of k8s. Uninstall it and install openvswitch.
-        if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == "rhel7" then
-          c.vm.provision "shell", inline: <<-EOS
-            yum remove -y kubernetes-node-1.2.0-0.13.gitec7364b.el7.x86_64
-            yum remove -y kubernetes-client-1.2.0-0.13.gitec7364b.el7.x86_64
-            yum install -y https://cisco.box.com/shared/static/zzmpe1zesdpf270k9pml40rlm4o8fs56.rpm
-            EOS
+        if ENV['CONTIV_NODE_OS'] && ENV['CONTIV_NODE_OS'] == 'rhel7'
+          c.vm.provision 'shell', inline: <<-EOS
+          yum remove -y kubernetes-node-1.2.0-0.13.gitec7364b.el7.x86_64
+          yum remove -y kubernetes-client-1.2.0-0.13.gitec7364b.el7.x86_64
+          yum install -y https://cisco.box.com/shared/static/zzmpe1zesdpf270k9pml40rlm4o8fs56.rpm
+          EOS
         end
 
-        c.vm.provision "shell", inline: <<-EOS
-          sudo setenforce 0
-          sudo systemctl stop firewalld
-          sudo /etc/init.d/network restart
-          #copy the etc_hosts file we created
-          sudo cp /shared/.etc_hosts /etc/hosts
-          EOS
-
-        c.vm.provision :shell, path: "../../install/k8s/cluster/bootstrap_centos.sh"
-        if  role == "master" then
-           c.vm.network "forwarded_port", guest: 9999, host: 9999
-           # Install kubernetes on master
-           # With the latest 1.4.4 kube*, kubeadm hangs frequently while waiting for the control plane to be available.
-           # So using v1.4.1 as per https://github.com/kubernetes/kubernetes/issues/33729
-           c.vm.provision :shell, path: "../../install/k8s/cluster/k8smaster_centos.sh", args:[token, member_info["contiv_control_ip"], "v1.4.1"]
-           # Now install contiv
-           c.vm.provision :shell, inline: "kubectl apply -f /shared/.contiv.yaml"
-           c.vm.provision :shell, inline: "kubectl delete deployment -n kube-system kube-dns"
+        c.vm.provision :shell, path: '../../install/k8s/cluster/bootstrap_centos.sh'
+        if role == 'master'
+          c.vm.network 'forwarded_port', guest: 9999, host: 9999
+          # Install kubernetes on master
+          # With the latest 1.4.4 kube*, kubeadm hangs frequently while waiting for the control plane to be available.
+          # So using v1.4.1 as per https://github.com/kubernetes/kubernetes/issues/33729
+          c.vm.provision :shell, path: '../../install/k8s/cluster/k8smaster_centos.sh', args: [token, member_info['contiv_control_ip'], ENV['CONTIV_K8S_VERSION'] || 'stable']
         else
-           # Install kubernetes on nodes
-           c.vm.provision :shell, path: "../../install/k8s/cluster/k8sworker_centos.sh", args:[token, master_ip]
+          # Install kubernetes on nodes
+          c.vm.provision :shell, path: '../../install/k8s/cluster/k8sworker_centos.sh', args: [token, "#{master_ip}:#{master_port}"]
         end # if role
         fwd_port1 = 8880 + n
         fwd_port2 = 9990 + n
-        c.vm.network "forwarded_port", guest: fwd_port1, host: fwd_port1
-        c.vm.network "forwarded_port", guest: fwd_port2, host: fwd_port2
-        n = n + 1
+        c.vm.network 'forwarded_port', guest: fwd_port1, host: fwd_port1
+        c.vm.network 'forwarded_port', guest: fwd_port2, host: fwd_port2
+        n += 1
       end # c
     end # member_info
-  end #role
-end #config
+  end # role
+end # config

@@ -405,9 +405,6 @@ func (k *kubePod) startIperfClient(c *container, ip, limit string, isErr bool) e
 }
 
 func (k *kubePod) tcFilterShow(bw string) error {
-	if k.isMaster() {
-		return nil
-	}
 
 	qdiscShow, err := k.node.tbnode.RunCommandWithOutput("tc qdisc show")
 	if err != nil {
@@ -490,9 +487,6 @@ func (k *kubePod) commonArgs() string {
 }
 
 func (k *kubePod) startNetplugin(args string) error {
-	if k.isMaster() {
-		return nil
-	}
 	podName, err := getPodName("netplugin", k.node.Name())
 	if err != nil {
 		logrus.Errorf("pod not found: %+v", err)
@@ -602,9 +596,7 @@ func getPodName(podRegex, nodeName string) (string, error) {
 }
 
 func (k *kubePod) cleanupSlave() {
-	if k.isMaster() {
-		return
-	}
+
 	logrus.Infof("Cleaning up slave on %s", k.node.Name())
 	podName, err := getPodName("netplugin", k.node.Name())
 	if err != nil {
@@ -670,13 +662,10 @@ func waitUntilAllPodsReady() error {
 	if cliErr != nil {
 		return cliErr
 	}
-	return errors.New("Failed to wait all pods to runnning status")
+	return errors.New("Failed to wait all pods to running status")
 }
 
 func (k *kubePod) runCommandUntilNoNetpluginError() error {
-	if k.isMaster() {
-		return nil
-	}
 	logrus.Infof("Checking for netplugin status on: %s", k.node.Name())
 	podName, err := getPodName("netplugin", k.node.Name())
 	if err != nil {
@@ -696,17 +685,10 @@ func (k *kubePod) rotateNetmasterLog() error {
 }
 
 func (k *kubePod) rotateNetpluginLog() error {
-	if !k.isMaster() {
-		return k.rotateLog("netplugin")
-	}
-	return nil
+	return k.rotateLog("netplugin")
 }
 
 func (k *kubePod) checkForNetpluginErrors() error {
-	if k.isMaster() {
-		return nil
-	}
-
 	podName, err := getPodName("netplugin", k.node.Name())
 	if err != nil {
 		logrus.Errorf("pod not found: %+v", err)
@@ -825,9 +807,6 @@ func (k *kubePod) checkSchedulerNetworkOnNodeCreated(nwName []string, n *node) e
 }
 
 func (k *kubePod) waitForListeners() error {
-	if k.isMaster() {
-		return nil
-	}
 	return k.node.runCommandWithTimeOut("netstat -tlpn | grep 9090 | grep LISTEN", 500*time.Millisecond, 50*time.Second)
 }
 
@@ -889,9 +868,7 @@ func (k *kubePod) verifyAgents(agentIPs map[string]bool) (string, error) {
 func (k *kubePod) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 	var data interface{}
 	actVTEPs := make(map[string]uint32)
-	if k.isMaster() {
-		return "", nil
-	}
+
 	// read vtep information from inspect
 	cmd := "curl -s localhost:9090/inspect/driver | python -mjson.tool"
 	str, err := k.node.tbnode.RunCommandWithOutput(cmd)
@@ -957,9 +934,6 @@ func (k *kubePod) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 
 func (k *kubePod) verifyEPs(epList []string) (string, error) {
 	// read ep information from inspect
-	if k.isMaster() {
-		return "", nil
-	}
 	cmd := "curl -s localhost:9090/inspect/driver | python -mjson.tool"
 	str, err := k.node.tbnode.RunCommandWithOutput(cmd)
 	if err != nil {

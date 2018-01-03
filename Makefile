@@ -7,6 +7,7 @@
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 V2PLUGIN_DOCKER_VERSION := 1.13.1
+DEFAULT_CONTIV_K8S_VERSION := v1.8.6
 SHELL := /bin/bash
 # TODO: contivmodel should be removed once its code passes golint and misspell
 EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install contivmodel
@@ -135,7 +136,8 @@ start:
 # ===================================================================
 # kubernetes cluster bringup/cleanup targets
 k8s-cluster:
-	cd vagrant/k8s/ && CONTIV_K8S_USE_KUBEADM=1 ./setup_cluster.sh
+	vagrant plugin install vagrant-cachier
+	cd vagrant/k8s/ && vagrant up
 
 k8s-l3-cluster:
 	CONTIV_L3=1 make k8s-cluster
@@ -148,7 +150,8 @@ k8s-l3-destroy:
 
 # ===================================================================
 # kubernetes test targets
-k8s-test: k8s-cluster
+k8s-test:
+	CONTIV_TEST=1 make k8s-cluster
 	cd vagrant/k8s/ && vagrant ssh k8master -c 'bash -lc "cd /opt/gopath/src/github.com/contiv/netplugin && make run-build"'
 	cd $(GOPATH)/src/github.com/contiv/netplugin/scripts/python && PYTHONIOENCODING=utf-8 ./createcfg.py -scheduler 'k8s' -binpath contiv/bin -install_mode 'kubeadm'
 	CONTIV_K8S_USE_KUBEADM=1 CONTIV_NODES=3 go test -v -timeout 540m ./test/systemtests -check.v -check.abort -check.f $(K8S_SYSTEM_TESTS_TO_RUN)

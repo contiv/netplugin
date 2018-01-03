@@ -1,6 +1,6 @@
 #!/bin/bash
 #Initialize contiv container. Start OVS and netplugin
-set -e
+set -ex
 
 echo "INFO: Starting contiv net with ARGS:"
 echo "$@"
@@ -50,53 +50,21 @@ echo "INFO: Running contiv in mode $CONTIV_MODE"
 
 set -uo pipefail
 
-mkdir -p /opt/contiv/ /var/log/contiv
-
-if [ -d /var/contiv/log ]; then
-    # /var/contiv/log/ is deprecated, move all data to /var/log/contiv
-    cp -a /var/contiv/log/* /var/log/contiv/
-    echo "INFO: Copied contiv log from /var/contiv/log (deprecated) to /var/log/contiv"
-fi
-
-if [ "$CONTIV_MODE" = "kubernetes" ]; then
-    echo "INFO: Setting kubernetes configs"
-    mkdir -p /opt/contiv/config
-    mkdir -p /var/contiv/config
-    echo ${CONTIV_K8S_CONFIG} > /var/contiv/config/contiv.json
-    set -x
-    cp /var/contiv/config/contiv.json /opt/contiv/config/contiv.json
-    set +x
-    if [ "$CONTIV_ROLE" = "netplugin" ]; then
-        mkdir -p /opt/cni/bin
-        cp /contiv/bin/contivk8s /opt/cni/bin/
-        mkdir -p /etc/cni/net.d/
-        set -x
-        echo ${CONTIV_CNI_CONFIG} > /etc/cni/net.d/1-contiv.conf
-        set +x
-    fi
-fi
+mkdir -p /opt/contiv/
 
 set +e
 if [ "$CONTIV_ROLE" = "netmaster" ]; then
-    while true; do
-        echo "INFO: Starting contiv netmaster"
-        if [ -f /tmp/restart_netmaster ]; then
-            set -x
-            /contiv/bin/netmaster "$@"
-            set +x
-            echo "ERROR: Contiv netmaster has exited, restarting in 5s"
-        fi
-        sleep 5
-    done
+    echo "INFO: Starting contiv netmaster"
+    if [ -f /tmp/restart_netmaster ]; then
+        /contiv/bin/netmaster $@
+        echo "ERROR: Contiv netmaster exited with $?"
+    fi
 elif [ "$CONTIV_ROLE" = "netplugin" ]; then
-    while true; do
-        echo "INFO: Starting contiv netplugin"
-        if [ -f /tmp/restart_netplugin ]; then
-            set -x
-            /contiv/bin/netplugin "$@"
-            set +x
-            echo "ERROR: Contiv netplugin has exited, restarting in 5s"
-        fi
-        sleep 5
-    done
+    mkdir -p /opt/cni/bin
+    cp /contiv/bin/contivk8s /opt/cni/bin/
+    echo "INFO: Starting contiv netplugin"
+    if [ -f /tmp/restart_netplugin ]; then
+        /contiv/bin/netplugin $@
+        echo "ERROR: Contiv netplugin has exited with $?"
+    fi
 fi

@@ -1,1 +1,6 @@
-kubeadm join --token=$1 --skip-preflight-checks=true $2
+#!/bin/bash -x
+kubeadm join --token "$1" "$2" --ignore-preflight-errors all --discovery-token-unsafe-skip-ca-verification
+if [ ! -z "$CONTIV_TEST" ]; then
+    cp /shared/admin.conf /etc/kubernetes/admin.conf
+    chmod 0644 /etc/kubernetes/admin.conf
+fi
