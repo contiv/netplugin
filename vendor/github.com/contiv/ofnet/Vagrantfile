@@ -25,7 +25,6 @@ echo "export https_proxy='$5'" >> /etc/profile.d/envvar.sh
 echo "export no_proxy=192.168.2.10,192.168.2.11,127.0.0.1,localhost,netmaster" >> /etc/profile.d/envvar.sh
 echo "export CLUSTER_NODE_IPS=192.168.2.10,192.168.2.11" >> /etc/profile.d/envvar.sh
 
-
 source /etc/profile.d/envvar.sh
 
 # Change permissions for gopath folder
@@ -82,8 +81,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             end
 
             # mount the host directories
-            node.vm.synced_folder ".", File.join(gopath_folder, "src/github.com/contiv/ofnet"), rsync: true
-
+            node.vm.synced_folder ".", File.join(gopath_folder, "src/github.com/contiv/ofnet"), type: "rsync"
 
             node.vm.provision "shell" do |s|
                 s.inline = provision_common
