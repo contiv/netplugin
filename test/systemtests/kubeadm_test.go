@@ -612,6 +612,12 @@ func (k *kubePod) cleanupSlave() {
 		return
 	}
 
+	flowCleanupCmd := `ovs-vsctl list-br | grep contiv | xargs -rt -I % ovs-ofctl --protocols=OpenFlow13 del-flows %`
+	_, err = k.podExec(podName, flowCleanupCmd, "kube-system")
+	if err != nil {
+		logrus.Errorf("ovs flow cleanup failed with err: %+v", err)
+	}
+
 	ovsCleanupCmd := `ovs-vsctl list-br | grep contiv | xargs -rt -I % ovs-vsctl del-br %`
 	_, err = k.podExec(podName, ovsCleanupCmd, "kube-system")
 	if err != nil {
