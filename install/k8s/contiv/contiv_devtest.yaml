@@ -100,7 +100,7 @@ spec:
         # container programs network policy and routes on each
         # host.
         - name: contiv-netplugin
-          image: contiv/netplugin:k8s_devtest
+          image: contiv/netplugin:latest
           env:
             - name: CONTIV_ROLE
               value: netplugin
@@ -144,12 +144,6 @@ spec:
           securityContext:
             privileged: true
           volumeMounts:
-            - mountPath: /etc/openvswitch
-              name: etc-openvswitch
-              readOnly: false
-            - mountPath: /lib/modules
-              name: lib-modules
-              readOnly: false
             - mountPath: /var/run
               name: var-run
               readOnly: false
@@ -179,12 +173,6 @@ spec:
               readOnly: false
       volumes:
         # Used by contiv-netplugin
-        - name: etc-openvswitch
-          hostPath:
-            path: /etc/openvswitch
-        - name: lib-modules
-          hostPath:
-            path: /lib/modules
         - name: var-run
           hostPath:
             path: /var/run
@@ -248,7 +236,7 @@ spec:
       hostPID: true
       containers:
         - name: contiv-netmaster
-          image: contiv/netplugin:k8s_devtest
+          image: contiv/netplugin:latest
           env:
             - name: CONTIV_ROLE
               value: netmaster
@@ -278,15 +266,7 @@ spec:
                 configMapKeyRef:
                   name: contiv-config
                   key: contiv_netmode
-          securityContext:
-            privileged: true
           volumeMounts:
-            - mountPath: /etc/openvswitch
-              name: etc-openvswitch
-              readOnly: false
-            - mountPath: /lib/modules
-              name: lib-modules
-              readOnly: false
             - mountPath: /var/run
               name: var-run
               readOnly: false
@@ -310,12 +290,6 @@ spec:
               readOnly: false
       volumes:
         # Used by contiv-netmaster
-        - name: etc-openvswitch
-          hostPath:
-            path: /etc/openvswitch
-        - name: lib-modules
-          hostPath:
-            path: /lib/modules
         - name: var-run
           hostPath:
             path: /var/run
@@ -338,3 +312,62 @@ spec:
           hostPath:
             path: /opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/
 ---
+# This manifest deploys the contiv-ovs pod.
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: contiv-ovs
+  namespace: kube-system
+  labels:
+    k8s-app: contiv-ovs
+spec:
+  selector:
+    matchLabels:
+      k8s-app: contiv-ovs
+  template:
+    metadata:
+      labels:
+        k8s-app: contiv-ovs
+    spec:
+      hostNetwork: true
+      hostPID: true
+      containers:
+        # Runs ovs containers on each Kubernetes node.
+        - name: contiv-ovsdb-server
+          image: contiv/ovs:latest
+          command: ["/scripts/start-ovsdb-server.sh"]
+          securityContext:
+            privileged: false
+          volumeMounts:
+            - mountPath: /etc/openvswitch
+              name: etc-openvswitch
+              readOnly: false
+            - mountPath: /var/run
+              name: var-run
+              readOnly: false
+        - name: contiv-ovs-vswitchd
+          image: contiv/ovs:latest
+          command: ["/scripts/start-ovs-vswitchd.sh"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /etc/openvswitch
+              name: etc-openvswitch
+              readOnly: false
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
+            - mountPath: /var/run
+              name: var-run
+              readOnly: false
+      volumes:
+        # Used by contiv-ovs
+        - name: etc-openvswitch
+          hostPath:
+            path: /etc/openvswitch
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: var-run
+          hostPath:
+            path: /var/run

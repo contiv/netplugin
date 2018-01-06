@@ -612,6 +612,12 @@ func (k *kubePod) cleanupSlave() {
 		return
 	}
 
+	flowCleanupCmd := `ovs-vsctl list-br | grep contiv | xargs -rt -I % ovs-ofctl --protocols=OpenFlow13 del-flows %`
+	_, err = k.podExec(podName, flowCleanupCmd, "kube-system")
+	if err != nil {
+		logrus.Errorf("ovs flow cleanup failed with err: %+v", err)
+	}
+
 	ovsCleanupCmd := `ovs-vsctl list-br | grep contiv | xargs -rt -I % ovs-vsctl del-br %`
 	_, err = k.podExec(podName, ovsCleanupCmd, "kube-system")
 	if err != nil {
@@ -637,7 +643,34 @@ func (k *kubePod) runCommandUntilNoNetmasterError() error {
 	}
 
 	processCheckCmd := `kubectl -n kube-system exec ` + podName + ` -- pgrep netmaster`
-	return k8sMaster.runCommandUntilNoError(processCheckCmd)
+	if err := k8sMaster.runCommandUntilNoError(processCheckCmd); err != nil {
+		return err
+	}
+	return waitUntilAllPodsReady()
+}
+
+func waitUntilAllPodsReady() error {
+	// ensure all pods are running
+	var cliErr error
+	var badPodNum string
+	// wait up to 10 min
+	for retry := 120; retry > 0; retry-- {
+		// can't use --no-headers because it will have non-zero return code
+		badPodNum, cliErr = k8sMaster.tbnode.RunCommandWithOutput(`kubectl -n kube-system  get pods -owide |grep -c -v Running`)
+		if cliErr != nil {
+			logrus.Warnf("Got error %q while fetching pod status, retry in 5 sec", cliErr.Error())
+		} else if strings.TrimSpace(badPodNum) != "1" {
+			logrus.Warnf("Found %q pods are not running, retry in 5 sec", strings.TrimSpace(badPodNum))
+		} else {
+			return nil
+		}
+		time.Sleep(5 * time.Second)
+	}
+
+	if cliErr != nil {
+		return cliErr
+	}
+	return errors.New("Failed to wait all pods to runnning status")
 }
 
 func (k *kubePod) runCommandUntilNoNetpluginError() error {

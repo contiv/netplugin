@@ -58,12 +58,6 @@ if [ -d /var/contiv/log ]; then
     echo "INFO: Copied contiv log from /var/contiv/log (deprecated) to /var/log/contiv"
 fi
 
-if [ "$CONTIV_ROLE" = "netplugin" ]; then
-    echo "INFO: Initializing OVS"
-    /contiv/scripts/ovsInit.sh
-    echo "INFO: Initialized OVS"
-fi
-
 if [ "$CONTIV_MODE" = "kubernetes" ]; then
     echo "INFO: Setting kubernetes configs"
     mkdir -p /opt/contiv/config
