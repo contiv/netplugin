@@ -55,16 +55,11 @@ mkdir -p /opt/contiv/
 set +e
 if [ "$CONTIV_ROLE" = "netmaster" ]; then
     echo "INFO: Starting contiv netmaster"
-    if [ -f /tmp/restart_netmaster ]; then
-        /contiv/bin/netmaster $@
-        echo "ERROR: Contiv netmaster exited with $?"
-    fi
+    /contiv/bin/netmaster $@
 elif [ "$CONTIV_ROLE" = "netplugin" ]; then
     mkdir -p /opt/cni/bin
     cp /contiv/bin/contivk8s /opt/cni/bin/
     echo "INFO: Starting contiv netplugin"
-    if [ -f /tmp/restart_netplugin ]; then
-        /contiv/bin/netplugin $@
-        echo "ERROR: Contiv netplugin has exited with $?"
-    fi
+    /contiv/bin/netplugin $@
+    echo "ERROR: Contiv netplugin has exited with $?"
 fi
