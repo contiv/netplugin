@@ -494,6 +494,9 @@ func (k *kubePod) startNetplugin(args string) error {
 	}
 
 	logrus.Infof("Starting netplugin on %s", k.node.Name())
+	copyContivK8SCmd := `cp /contiv/bin/contivk8s /opt/cni/bin/contivk8s`
+	k.exec(podName, copyContivK8SCmd, "kube-system")
+
 	startNetpluginCmd := (k.node.suite.basicInfo.BinPath + `/netplugin --vlan-if=` +
 		k.node.suite.hostInfo.HostDataInterfaces + k.commonArgs() + args + ` > ` + netpluginLogLocation + ` 2>&1`)
 

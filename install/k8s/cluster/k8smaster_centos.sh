@@ -8,7 +8,11 @@ if [ ! -z "$CONTIV_TEST" ]; then
     chmod 0644 /etc/kubernetes/admin.conf
     cd /opt/gopath/src/github.com/contiv/netplugin/install/k8s/contiv/
     ./contiv-compose add-systest ./base.yaml > /shared/contiv.yaml
+    # remove kube-dns
+    # TODO: enable kube-dns
+    kubectl delete deployment -n kube-system kube-dns
 else
     cp /opt/gopath/src/github.com/contiv/netplugin/install/k8s/contiv/base.yaml /shared/contiv.yaml
 fi
+
 kubectl apply -f /shared/contiv.yaml

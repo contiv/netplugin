@@ -30,10 +30,7 @@ class ContivComposer(object):
                                             'CONTIV_NETMASTER_ETCD_ENDPOINTS')
                     ]
                     # make the container idle
-                    container['command'] = ["/bin/sh", "-c"]
-                    container['args'] = [
-                        'cp /contiv/bin/contivk8s /opt/cni/bin/contivk8s && tail -f /dev/null'
-                    ]
+                    container['command'] = ["tail", "-f", "/dev/null"]
                     # add binary mount points to run tests
                     container['volumeMounts'].append({
                         'mountPath': '/contiv/bin',
