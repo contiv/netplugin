@@ -5,7 +5,7 @@ if [ $EUID -ne 0 ]; then
   exit 1
 fi
 
-set -e
+set -ex
 
 swapoff -a
 setenforce 0
@@ -38,14 +38,16 @@ EOF
 
 sysctl --system
 
-yum remove -y docker \
-                  docker-common \
-                  container-selinux \
-                  docker-selinux \
-                  docker-engine \
-                  docker-engine-selinux
-
-yum install -y docker kubelet kubeadm kubectl
-
+yum remove -y docker docker-common container-selinux docker-selinux docker-engine docker-engine-selinux
+yum install -y docker
 systemctl enable docker && systemctl start docker
+
+k8s_version="$1"
+if [ "$k8s_version" = "stable" ]; then
+    yum install -y kubelet kubeadm kubectl
+else
+    v="${k8s_version#v}"
+    yum install -y "kubelet-$v" "kubeadm-$v" "kubectl-$v"
+fi
+
 systemctl enable kubelet && systemctl start kubelet

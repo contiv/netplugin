@@ -19,7 +19,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: contiv-netplugin
-  namespace: kube-system
 rules:
   - apiGroups:
     - ""
@@ -68,7 +67,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: contiv-netmaster
-  namespace: kube-system
 rules:
   - apiGroups:
     - ""
@@ -79,6 +77,7 @@ rules:
       - namespaces
       - networkpolicies
     verbs:
+      - get
       - watch
       - list
       - update

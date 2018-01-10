@@ -1,9 +1,9 @@
 #!/bin/bash -x
-kubeadm init --token $1 --apiserver-advertise-address $2 --ignore-preflight-errors all --kubernetes-version $3
-
+kubeadm init --token $1 --apiserver-advertise-address $2 --apiserver-bind-port $3 --kubernetes-version $4
+# --ignore-preflight-errors all
 kubectl taint nodes --all node-role.kubernetes.io/master-
 
-if [ ! -z "$CONTIV_TEST" ]; then
+if [ -n "$CONTIV_TEST" ]; then
     cp /etc/kubernetes/admin.conf /shared/admin.conf
     chmod 0644 /etc/kubernetes/admin.conf
     cd /opt/gopath/src/github.com/contiv/netplugin/install/k8s/contiv/
