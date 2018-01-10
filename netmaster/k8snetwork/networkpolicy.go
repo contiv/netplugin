@@ -373,14 +373,11 @@ func (k8sNet *k8sContext) watchK8sEvents(errChan chan error) {
 }
 
 // InitK8SServiceWatch monitor k8s services
-func InitK8SServiceWatch(listenURL string, isLeader func() bool) error {
+func InitK8SServiceWatch(listenAddr string, isLeader func() bool) error {
 	npLog = log.WithField("k8s", "netpolicy")
 
-	listenAddr := strings.Split(listenURL, ":")
-	if len(listenAddr[0]) <= 0 {
-		listenAddr[0] = "localhost"
-	}
-	contivClient, err := client.NewContivClient("http://" + listenAddr[0] + ":" + listenAddr[1])
+	npLog.Infof("Create contiv client at http://%s", listenAddr)
+	contivClient, err := client.NewContivClient("http://" + listenAddr)
 	if err != nil {
 		npLog.Errorf("failed to create contivclient %s", err)
 		return err
