@@ -109,7 +109,7 @@ data:
   contiv_etcd: "http://10.96.232.136:6666"
   contiv_cni_config: |-
     {
-      "cniVersion": "0.6.0",
+      "cniVersion": "0.3.1",
       "name": "contiv-net",
       "type": "contivk8s"
     }
@@ -180,6 +180,13 @@ spec:
             - mountPath: /etc/cni/net.d/
               name: etc-cni-dir
               readOnly: false
+        - name: contiv-cni
+          image: contiv/netplugin:latest
+          command: ["cp", "/contiv/bin/contivk8s", "/opt/cni/bin/contivk8s"]
+          volumeMounts:
+            - mountPath: /opt/cni/bin
+              name: cni-bin-dir
+              readOnly: false
       containers:
         - name: contiv-netplugin
           image: contiv/netplugin:latest
@@ -218,9 +225,6 @@ spec:
               readOnly: false
             - mountPath: /var/contiv
               name: var-contiv
-              readOnly: false
-            - mountPath: /opt/cni/bin
-              name: cni-bin-dir
               readOnly: false
       volumes:
         - name: var-run

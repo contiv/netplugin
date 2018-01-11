@@ -1,6 +1,6 @@
 #!/bin/bash -x
 kubeadm init --token $1 --apiserver-advertise-address $2 --apiserver-bind-port $3 --kubernetes-version $4
-# --ignore-preflight-errors all
+
 kubectl taint nodes --all node-role.kubernetes.io/master-
 
 if [ -n "$CONTIV_TEST" ]; then
@@ -12,7 +12,9 @@ if [ -n "$CONTIV_TEST" ]; then
     # TODO: enable kube-dns
     kubectl delete deployment -n kube-system kube-dns
 else
-    cp /opt/gopath/src/github.com/contiv/netplugin/install/k8s/contiv/base.yaml /shared/contiv.yaml
+    # update to use released version
+    cd /opt/gopath/src/github.com/contiv/netplugin/install/k8s/contiv/
+    ./contiv-compose use-release -v $(cat /opt/gopath/src/github.com/contiv/netplugin/version/CURRENT_VERSION) ./base.yaml > /shared/contiv.yaml
 fi
 
 kubectl apply -f /shared/contiv.yaml

@@ -47,7 +47,11 @@ if [ "$k8s_version" = "stable" ]; then
     yum install -y kubelet kubeadm kubectl
 else
     v="${k8s_version#v}"
-    yum install -y "kubelet-$v" "kubeadm-$v" "kubectl-$v"
+    extra_rpm=""
+    if [[ "$v" = 1.8* ]]; then
+        extra_rpm="kubernetes-cni-0.5.1-1"
+    fi
+    yum install -y "kubelet-$v" "kubeadm-$v" "kubectl-$v" "$extra_rpm"
 fi
 
 systemctl enable kubelet && systemctl start kubelet

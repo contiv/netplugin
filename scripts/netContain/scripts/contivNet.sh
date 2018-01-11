@@ -57,7 +57,6 @@ if [ "$CONTIV_ROLE" = "netmaster" ]; then
     echo "INFO: Starting contiv netmaster"
     /contiv/bin/netmaster $@
 elif [ "$CONTIV_ROLE" = "netplugin" ]; then
-    cp /contiv/bin/contivk8s /opt/cni/bin/
     echo "INFO: Starting contiv netplugin"
     /contiv/bin/netplugin $@
     echo "ERROR: Contiv netplugin has exited with $?"
