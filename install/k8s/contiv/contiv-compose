@@ -64,6 +64,14 @@ class ContivComposer(object):
                 'hostPath': {'path': '/var/log/contiv'}
             })
 
+        if self._is_resource(resource, 'ConfigMap', 'contiv-config',
+                             'kube-system'):
+            if args['k8s_api'] is not None:
+                k8s_config = resource['data']['contiv_k8s_config']
+                resource['data']['contiv_k8s_config'] = k8s_config.replace(
+                    'https://__KUBERNETES_SERVICE_HOST__:__KUBERNETES_SERVICE_PORT__',
+                    args['k8s_api'])
+
     def add_prometheus(self, resource, args):
         if (self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
                               'kube-system') or
@@ -108,7 +116,7 @@ class ContivComposer(object):
 
     def add_auth_proxy(self, resource, args):
         if self._is_resource(resource, 'ReplicaSet', 'contiv-netmaster',
-                                  'kube-system'):
+                             'kube-system'):
             containers = resource['spec']['template']['spec']['containers']
             auth_proxy = [c
                           for c in containers
@@ -117,8 +125,9 @@ class ContivComposer(object):
                 'name': 'contiv-api-proxy',
                 'image': 'contiv/auth_proxy:latest',
                 'args': [
-                    '--tls-key-file=%s' % args['tls_key'], '--tls-certificate=%s'
-                    % args['tls_cert'], '--data-store-address=$(STORE_URL)',
+                    '--tls-key-file=%s' % args['tls_key'],
+                    '--tls-certificate=%s' % args['tls_cert'],
+                    '--data-store-address=$(STORE_URL)',
                     '--data-store-driver=$(STORE_DRIVER)',
                     '--netmaster-address=localhost:9999'
                 ],
@@ -152,14 +161,17 @@ class ContivComposer(object):
     def use_release(self, resource, args):
         if args.get('version') is not None:
             args['netplugin_img'] = 'contiv/netplugin:%s' % args['use_release']
-            args['netplugin_init_img'] = 'contiv/netplugin-init:%s' % args['use_release']
+            args['netplugin_init_img'] = 'contiv/netplugin-init:%s' % args[
+                'use_release']
             args['stat_exporter_img'] = 'contiv/stats:%s' % args['use_release']
-            args['auth_proxy_img'] = 'contiv/auth_proxy:%s' % args['use_release']
+            args['auth_proxy_img'] = 'contiv/auth_proxy:%s' % args[
+                'use_release']
             args['ovs_img'] = 'contiv/ovs:%s' % args['use_release']
 
     def compose(self, args):
         if args['target'] not in ('add-systest', 'add-prometheus',
-                               'add-auth-proxy', 'add-aci', 'update-image', 'use-release'):
+                                  'add-auth-proxy', 'add-aci', 'update-image',
+                                  'use-release'):
             raise Exception("unsupported compose target %s" % args['target'])
         func = getattr(self, args['target'].replace('-', '_'))
         with self._compose_data(args['base_yaml'], args['in_place']) as data:
@@ -191,7 +203,7 @@ class ContivComposer(object):
                 self._update_container_image(resource, 'netmaster-exporter',
                                              args['stat_exporter_img'])
             if args.get('auth_proxy_img') is not None:
-                 self._update_container_image(resource, 'contiv-api-proxy',
+                self._update_container_image(resource, 'contiv-api-proxy',
                                              args['auth_proxy_img'])
         if self._is_resource(resource, 'DaemonSet', 'contiv-ovs',
                              'kube-system'):
@@ -200,7 +212,6 @@ class ContivComposer(object):
                                              args['ovs_img'])
                 self._update_container_image(resource, 'contiv-ovs-vswitchd',
                                              args['ovs_img'])
-
 
     def _update_container_image(self, resource, name, image):
         # find container in a defination, return the location
@@ -246,17 +257,16 @@ def _add_common_args(parser):
                         metavar='base-yaml',
                         help='contiv base yaml file')
 
+
 def _add_image_args(parser):
     parser.add_argument('--netplugin-img',
                         help='contiv netplugin image to use')
-    parser.add_argument('--ovs-img',
-                        help='contiv ovs image to use')
+    parser.add_argument('--ovs-img', help='contiv ovs image to use')
     parser.add_argument('--netplugin-init-img',
                         help='contiv netplugin-init image to use')
-    parser.add_argument('--auth-proxy-img',
-                               help='auth proxy image to use')
+    parser.add_argument('--auth-proxy-img', help='auth proxy image to use')
     parser.add_argument('--stat-exporter-img',
-                               help='netplugin stat exporter img to use')
+                        help='netplugin stat exporter img to use')
 
 
 def create_cli_args():
@@ -274,6 +284,7 @@ def create_cli_args():
         description="Add system test required updates")
     _add_common_args(systest_parser)
     _add_image_args(systest_parser)
+    systest_parser.add_argument('--k8s-api', help='k8s api endpoint')
 
     # add prometheus
     prometheus_parser = subclis.add_parser(
@@ -316,9 +327,10 @@ def create_cli_args():
         'use-release',
         description="Update images to use contiv release version")
     _add_common_args(release_parser)
-    release_parser.add_argument('-v', '--version',
-                                   default='latest',
-                                   help='the release version to use')
+    release_parser.add_argument('-v',
+                                '--version',
+                                default='latest',
+                                help='the release version to use')
 
     return parser
 

@@ -7,7 +7,7 @@ if [ -n "$CONTIV_TEST" ]; then
     cp /etc/kubernetes/admin.conf /shared/admin.conf
     chmod 0644 /etc/kubernetes/admin.conf
     cd /opt/gopath/src/github.com/contiv/netplugin/install/k8s/contiv/
-    ./contiv-compose add-systest ./base.yaml > /shared/contiv.yaml
+    ./contiv-compose add-systest --k8s-api https://$2:$3 ./base.yaml > /shared/contiv.yaml
     # remove kube-dns
     # TODO: enable kube-dns
     kubectl delete deployment -n kube-system kube-dns
