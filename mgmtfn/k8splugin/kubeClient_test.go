@@ -39,7 +39,7 @@ const (
 	testPodURL       = "/api/v1/namespaces/default/pods/test-pod"
 	svcWatchURL      = "/api/v1/watch/services"
 	epWatchURL       = "/api/v1/watch/endpoints"
-	contivKubeCfgDir = "/opt/contiv/config"
+	contivKubeCfgDir = "/var/contiv/config"
 	testCfgFile      = "/tmp/certs/contiv.json"
 	testServerURL    = "0.0.0.0:443"
 	testSvcPort      = 4639
