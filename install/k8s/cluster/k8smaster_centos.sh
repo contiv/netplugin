@@ -14,7 +14,7 @@ if [ -n "$CONTIV_TEST" ]; then
 else
     # update to use released version
     cd /opt/gopath/src/github.com/contiv/netplugin/install/k8s/contiv/
-    ./contiv-compose use-release -v $(cat /opt/gopath/src/github.com/contiv/netplugin/version/CURRENT_VERSION) ./contiv-base.yaml > /shared/contiv.yaml
+    ./contiv-compose use-release --k8s-api https://$2:$3 -v $(cat /opt/gopath/src/github.com/contiv/netplugin/version/CURRENT_VERSION) ./contiv-base.yaml > /shared/contiv.yaml
 fi
 
 kubectl apply -f /shared/contiv.yaml

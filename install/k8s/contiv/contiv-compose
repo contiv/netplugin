@@ -4,6 +4,10 @@ import argparse
 from contextlib import contextmanager
 import os
 import sys
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 import yaml
 
 
@@ -64,13 +68,6 @@ class ContivComposer(object):
                 'hostPath': {'path': '/var/log/contiv'}
             })
 
-        if self._is_resource(resource, 'ConfigMap', 'contiv-config',
-                             'kube-system'):
-            if args['k8s_api'] is not None:
-                k8s_config = resource['data']['contiv_k8s_config']
-                resource['data']['contiv_k8s_config'] = k8s_config.replace(
-                    'https://__KUBERNETES_SERVICE_HOST__:__KUBERNETES_SERVICE_PORT__',
-                    args['k8s_api'])
 
     def add_prometheus(self, resource, args):
         if (self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
@@ -178,6 +175,21 @@ class ContivComposer(object):
             for resource in data:
                 func(resource, args)
                 self._update_images(resource, args)
+                # update k8s api because netplugin doesn't work with service vip
+                # TODO: fix it in netplugin
+                self._update_k8s_api_config(resource, args)
+
+    def _update_k8s_api_config(self, resource, args):
+        if self._is_resource(resource, 'ConfigMap', 'contiv-config',
+                             'kube-system'):
+            if args['k8s_api'] is not None:
+                k8s_config = resource['data']['contiv_k8s_config']
+
+                resource['data']['contiv_k8s_config'] = k8s_config.replace(
+                    'https://__KUBERNETES_SERVICE_HOST__:__KUBERNETES_SERVICE_PORT__',
+                    args['k8s_api'])
+                resource['data']['contiv_etcd'] = "http://%s:6666" % urlparse(
+                    args['k8s_api']).hostname
 
     def _is_resource(self, resource, kind, name, namespace=None):
         return (resource['kind'] == kind and
@@ -249,6 +261,7 @@ class ContivComposer(object):
 
 
 def _add_common_args(parser):
+    parser.add_argument('--k8s-api', help='k8s api endpoint')
     parser.add_argument('-i',
                         '--in-place',
                         action='store_true',
@@ -284,7 +297,7 @@ def create_cli_args():
         description="Add system test required updates")
     _add_common_args(systest_parser)
     _add_image_args(systest_parser)
-    systest_parser.add_argument('--k8s-api', help='k8s api endpoint')
+
 
     # add prometheus
     prometheus_parser = subclis.add_parser(
@@ -331,7 +344,6 @@ def create_cli_args():
                                 '--version',
                                 default='latest',
                                 help='the release version to use')
-
     return parser
 
 
