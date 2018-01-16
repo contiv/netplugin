@@ -430,6 +430,9 @@ spec:
     spec:
       hostNetwork: true
       hostPID: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
       containers:
         # Runs ovs containers on each Kubernetes node.
         - name: contiv-ovsdb-server

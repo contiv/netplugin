@@ -15,6 +15,8 @@ systemctl disable firewalld
 
 cp /shared/.etc_hosts /etc/hosts
 
+mkdir -p /etc/docker
+
 cat <<EOF >> /etc/docker/daemon.json
 {
     "storage-driver": "devicemapper"
