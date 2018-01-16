@@ -299,7 +299,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 	var ovsIntfType string
 	var err error
 	vethCreated := false
-	dbUpdated := false
+	portCreated := false
 
 	// Get OVS port name
 	ovsPortName := getOvsPortName(intfName, skipVethPair)
@@ -308,7 +308,7 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 			if vethCreated {
 				deleteVethPair(intfName, ovsPortName)
 			}
-			if dbUpdated {
+			if portCreated {
 				sw.ovsdbDriver.DeletePort(intfName)
 			}
 		}
@@ -337,22 +337,15 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 		ovsIntfType = "internal"
 	}
 
-	// If the port already exists in OVS, remove it first
-	if sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
-		log.Debugf("Removing existing interface entry %s from OVS", ovsPortName)
-
-		// Delete it from ovsdb
-		err = sw.ovsdbDriver.DeletePort(ovsPortName)
+	// Recreating the OVS port will kill existing interface traffic, so only
+	// create if necessary.  Never delete + create.
+	if !sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
+		err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag, burst, bandwidth)
 		if err != nil {
-			log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
+			return err
 		}
+		portCreated = true
 	}
-	// Ask OVSDB driver to add the port
-	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsIntfType, cfgEp.ID, pktTag, burst, bandwidth)
-	if err != nil {
-		return err
-	}
-	dbUpdated = true
 
 	// Wait a little for OVS to create the interface
 	time.Sleep(300 * time.Millisecond)
@@ -839,22 +832,14 @@ func (sw *OvsSwitch) AddHostPort(intfName string, intfNum, network int, isHostNS
 
 	portID := "host" + intfName
 
-	// If the port already exists in OVS, remove it first
-	if sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
-		log.Infof("Removing existing interface entry %s from OVS", ovsPortName)
-
-		// Delete it from ovsdb
-		err := sw.ovsdbDriver.DeletePort(ovsPortName)
+	// Recreating the OVS port will kill existing interface traffic, so only
+	// create if necessary.  Never delete + create.
+	if !sw.ovsdbDriver.IsPortNamePresent(ovsPortName) {
+		err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN, 0, 0)
 		if err != nil {
-			log.Errorf("Error deleting port %s from OVS. Err: %v", ovsPortName, err)
+			log.Errorf("Error adding hostport %s to OVS. Err: %v", intfName, err)
+			return "", err
 		}
-	}
-
-	// Ask OVSDB driver to add the port as an access port
-	err = sw.ovsdbDriver.CreatePort(ovsPortName, ovsPortType, portID, hostVLAN, 0, 0)
-	if err != nil {
-		log.Errorf("Error adding hostport %s to OVS. Err: %v", intfName, err)
-		return "", err
 	}
 
 	// Get the openflow port number for the interface
