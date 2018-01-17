@@ -79,16 +79,30 @@
 				},
 				"fromIpAddress": {
 					"type": "string",
-					"title": "IP Address",
+					"title": "From IP Address",
 					"description": "Match from IP address. Valid only in incoming direction",
 					"format": "^(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?(/(3[0-1]|2[0-9]|1[0-9]|[1-9]))?)?$",
 					"showSummary": true
 				},
 				"toIpAddress": {
 					"type": "string",
-					"title": "IP Address",
+					"title": "To IP Address",
 					"description": "Match to IP address. Valid only in outgoing direction",
 					"format": "^(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})(\\\\-(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))?(/(3[0-1]|2[0-9]|1[0-9]|[1-9]))?)?$",
+					"showSummary": true
+				},
+				"fromTenantName": {
+					"type": "string",
+					"title": "From Tenant Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
+					"showSummary": true
+				},
+				"toTenantName": {
+					"type": "string",
+					"title": "To Tenant Name",
+					"length": 64,
+					"format": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\\\-]*[a-zA-Z0-9])\\\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\\\-]*[A-Za-z0-9])$",
 					"showSummary": true
 				},
 				"protocol": {

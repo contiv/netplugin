@@ -512,6 +512,7 @@ class objmodelClient:
 			"fromEndpointGroup": obj.fromEndpointGroup, 
 			"fromIpAddress": obj.fromIpAddress, 
 			"fromNetwork": obj.fromNetwork, 
+			"fromTenantName": obj.fromTenantName, 
 			"policyName": obj.policyName, 
 			"port": obj.port, 
 			"priority": obj.priority, 
@@ -521,6 +522,7 @@ class objmodelClient:
 			"toEndpointGroup": obj.toEndpointGroup, 
 			"toIpAddress": obj.toIpAddress, 
 			"toNetwork": obj.toNetwork, 
+			"toTenantName": obj.toTenantName, 
 	    })
 
 	    # Post the data

@@ -219,6 +219,8 @@ func addRule(ctx *cli.Context) {
 		errExit(ctx, exitHelp, "Policy name and Rule ID required", true)
 	}
 
+	toTenant := ctx.String("to-tenant")
+	fromTenant := ctx.String("from-tenant")
 	dir := ctx.String("direction")
 	if dir == "in" {
 		if ctx.String("to-group") != "" {
@@ -227,10 +229,18 @@ func addRule(ctx *cli.Context) {
 		if ctx.String("to-network") != "" {
 			errExit(ctx, exitHelp, "Cant specify to-network for incoming rule", false)
 		}
+		if toTenant != "" {
+			errExit(ctx, exitHelp, "Cant specify to-tenant for incoming rule", false)
+		}
 
-		// If from EPG is specified, make sure from network is specified too
-		if ctx.String("from-group") != "" && ctx.String("from-network") != "" {
-			errExit(ctx, exitHelp, "Can't specify both from-group argument and -from-network ", false)
+		// If from EPG is specified, make sure from network is not specified too
+		if ctx.String("from-group") != "" {
+			if ctx.String("from-network") != "" {
+				errExit(ctx, exitHelp, "Can't specify both from-group argument and -from-network ", false)
+			}
+			if fromTenant == "" {
+				fromTenant = ctx.String("tenant")
+			}
 		}
 	} else if dir == "out" {
 		if ctx.String("from-group") != "" {
@@ -242,10 +252,18 @@ func addRule(ctx *cli.Context) {
 		if ctx.String("from-ip-address") != "" {
 			errExit(ctx, exitHelp, "Cant specify from-ip-address for outgoing rule", false)
 		}
+		if fromTenant != "" {
+			errExit(ctx, exitHelp, "Cant specify from-tenant for incoming rule", false)
+		}
 
-		// If to EPG is specified, make sure to network is specified too
-		if ctx.String("to-group") != "" && ctx.String("to-network") != "" {
-			errExit(ctx, exitHelp, "Can't specify both -to-group and -to-network", false)
+		// If to EPG is specified, make sure to network is not specified too
+		if ctx.String("to-group") != "" {
+			if ctx.String("to-network") != "" {
+				errExit(ctx, exitHelp, "Can't specify both -to-group and -to-network", false)
+			}
+			if toTenant == "" {
+				toTenant = ctx.String("tenant")
+			}
 		}
 	} else {
 		errExit(ctx, exitHelp, "Unknown direction", false)
@@ -258,7 +276,9 @@ func addRule(ctx *cli.Context) {
 		Priority:          ctx.Int("priority"),
 		Direction:         ctx.String("direction"),
 		FromEndpointGroup: ctx.String("from-group"),
+		FromTenantName:    fromTenant,
 		ToEndpointGroup:   ctx.String("to-group"),
+		ToTenantName:      toTenant,
 		FromNetwork:       ctx.String("from-network"),
 		ToNetwork:         ctx.String("to-network"),
 		FromIpAddress:     ctx.String("from-ip-address"),

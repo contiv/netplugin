@@ -10,7 +10,7 @@ godep:
 	godep save ./...
 
 modelgen:
-	@if [ -z "`which modelgen`" ]; then go get -v github.com/contiv/modelgen; fi
+	@go get -u -v github.com/contiv/modelgen
 
 # systemtest runs all of the systemtests
 systemtests:

@@ -342,8 +342,9 @@ type Rule struct {
 	Action            string `json:"action,omitempty"`            // Action
 	Direction         string `json:"direction,omitempty"`         // Direction
 	FromEndpointGroup string `json:"fromEndpointGroup,omitempty"` // From Endpoint Group
-	FromIpAddress     string `json:"fromIpAddress,omitempty"`     // IP Address
+	FromIpAddress     string `json:"fromIpAddress,omitempty"`     // From IP Address
 	FromNetwork       string `json:"fromNetwork,omitempty"`       // From Network
+	FromTenantName    string `json:"fromTenantName,omitempty"`    // From Tenant Name
 	PolicyName        string `json:"policyName,omitempty"`        // Policy Name
 	Port              int    `json:"port,omitempty"`              // Port No
 	Priority          int    `json:"priority,omitempty"`          // Priority
@@ -351,8 +352,9 @@ type Rule struct {
 	RuleID            string `json:"ruleId,omitempty"`            // Rule Id
 	TenantName        string `json:"tenantName,omitempty"`        // Tenant Name
 	ToEndpointGroup   string `json:"toEndpointGroup,omitempty"`   // To Endpoint Group
-	ToIpAddress       string `json:"toIpAddress,omitempty"`       // IP Address
+	ToIpAddress       string `json:"toIpAddress,omitempty"`       // To IP Address
 	ToNetwork         string `json:"toNetwork,omitempty"`         // To Network
+	ToTenantName      string `json:"toTenantName,omitempty"`      // To Tenant Name
 
 	// add link-sets and links
 	LinkSets RuleLinkSets `json:"link-sets,omitempty"`
@@ -4497,6 +4499,15 @@ func ValidateRule(obj *Rule) error {
 		return errors.New("fromNetwork string invalid format")
 	}
 
+	if len(obj.FromTenantName) > 64 {
+		return errors.New("fromTenantName string too long")
+	}
+
+	fromTenantNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
+	if fromTenantNameMatch.MatchString(obj.FromTenantName) == false {
+		return errors.New("fromTenantName string invalid format")
+	}
+
 	if len(obj.PolicyName) > 64 {
 		return errors.New("policyName string too long")
 	}
@@ -4566,6 +4577,15 @@ func ValidateRule(obj *Rule) error {
 	toNetworkMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])?$")
 	if toNetworkMatch.MatchString(obj.ToNetwork) == false {
 		return errors.New("toNetwork string invalid format")
+	}
+
+	if len(obj.ToTenantName) > 64 {
+		return errors.New("toTenantName string too long")
+	}
+
+	toTenantNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
+	if toTenantNameMatch.MatchString(obj.ToTenantName) == false {
+		return errors.New("toTenantName string invalid format")
 	}
 
 	return nil

@@ -642,7 +642,7 @@ var RuleSummaryView = React.createClass({
 				<ModalTrigger modal={<RuleModalView rule={ rule }/>}>
 					<tr key={ rule.key } className="info">
 						
-						              
+						                
 					</tr>
 				</ModalTrigger>
 			);
@@ -654,7 +654,7 @@ var RuleSummaryView = React.createClass({
 				<thead>
 					<tr>
 					
-					              
+					                
 					</tr>
 				</thead>
 				<tbody>
@@ -680,9 +680,11 @@ var RuleModalView = React.createClass({
 			
 				<Input type='text' label='From Endpoint Group' ref='fromEndpointGroup' defaultValue={obj.fromEndpointGroup} placeholder='From Endpoint Group' />
 			
-				<Input type='text' label='IP Address' ref='fromIpAddress' defaultValue={obj.fromIpAddress} placeholder='IP Address' />
+				<Input type='text' label='From IP Address' ref='fromIpAddress' defaultValue={obj.fromIpAddress} placeholder='From IP Address' />
 			
 				<Input type='text' label='From Network' ref='fromNetwork' defaultValue={obj.fromNetwork} placeholder='From Network' />
+			
+				<Input type='text' label='From Tenant Name' ref='fromTenantName' defaultValue={obj.fromTenantName} placeholder='From Tenant Name' />
 			
 				<Input type='text' label='Policy Name' ref='policyName' defaultValue={obj.policyName} placeholder='Policy Name' />
 			
@@ -698,9 +700,11 @@ var RuleModalView = React.createClass({
 			
 				<Input type='text' label='To Endpoint Group' ref='toEndpointGroup' defaultValue={obj.toEndpointGroup} placeholder='To Endpoint Group' />
 			
-				<Input type='text' label='IP Address' ref='toIpAddress' defaultValue={obj.toIpAddress} placeholder='IP Address' />
+				<Input type='text' label='To IP Address' ref='toIpAddress' defaultValue={obj.toIpAddress} placeholder='To IP Address' />
 			
 				<Input type='text' label='To Network' ref='toNetwork' defaultValue={obj.toNetwork} placeholder='To Network' />
+			
+				<Input type='text' label='To Tenant Name' ref='toTenantName' defaultValue={obj.toTenantName} placeholder='To Tenant Name' />
 			
 			</div>
 	        <div className='modal-footer'>
