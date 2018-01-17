@@ -7,7 +7,7 @@
 
 DEFAULT_DOCKER_VERSION := 1.12.6
 V2PLUGIN_DOCKER_VERSION := 1.13.1
-CONTIV_K8S_VERSION := stable
+CONTIV_K8S_VERSION ?= stable
 SHELL := /bin/bash
 # TODO: contivmodel should be removed once its code passes golint and misspell
 EXCLUDE_DIRS := bin docs Godeps scripts vagrant vendor install contivmodel
