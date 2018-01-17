@@ -405,7 +405,9 @@ func (k *kubePod) startIperfClient(c *container, ip, limit string, isErr bool) e
 }
 
 func (k *kubePod) tcFilterShow(bw string) error {
-
+	if k.isMaster() {
+		return nil
+	}
 	qdiscShow, err := k.node.tbnode.RunCommandWithOutput("tc qdisc show")
 	if err != nil {
 		return err
@@ -869,6 +871,9 @@ func (k *kubePod) verifyAgents(agentIPs map[string]bool) (string, error) {
 }
 
 func (k *kubePod) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
+	if k.isMaster() {
+		return "", nil
+	}
 	var data interface{}
 	actVTEPs := make(map[string]uint32)
 
@@ -936,6 +941,9 @@ func (k *kubePod) verifyVTEPs(expVTEPS map[string]bool) (string, error) {
 }
 
 func (k *kubePod) verifyEPs(epList []string) (string, error) {
+	if k.isMaster() {
+		return "", nil
+	}
 	// read ep information from inspect
 	cmd := "curl -s localhost:9090/inspect/driver | python -mjson.tool"
 	str, err := k.node.tbnode.RunCommandWithOutput(cmd)
