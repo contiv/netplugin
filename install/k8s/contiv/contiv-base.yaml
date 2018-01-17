@@ -217,6 +217,9 @@ spec:
                 configMapKeyRef:
                   name: contiv-config
                   key: contiv_netmode
+          resources:
+            requests:
+              cpu: 250m
           securityContext:
             privileged: true
           volumeMounts:
