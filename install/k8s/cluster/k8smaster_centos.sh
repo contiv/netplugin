@@ -1,8 +1,6 @@
 #!/bin/bash -x
 kubeadm init --token $1 --apiserver-advertise-address $2 --apiserver-bind-port $3 --kubernetes-version $4
 
-kubectl taint nodes --all node-role.kubernetes.io/master-
-
 if [ -n "$CONTIV_TEST" ]; then
     cp /etc/kubernetes/admin.conf /shared/admin.conf
     chmod 0644 /etc/kubernetes/admin.conf
