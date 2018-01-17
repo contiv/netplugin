@@ -297,6 +297,13 @@ spec:
             - mountPath: /var/contiv
               name: var-contiv
               readOnly: false
+        - name: contiv-netctl
+          image: contiv/netplugin:latest
+          command: ["cp", "/contiv/bin/netctl", "/usr/local/sbin/netctl"]
+          volumeMounts:
+            - mountPath: /usr/local/sbin/
+              name: usr-local-sbin
+              readOnly: false
       containers:
         - name: contiv-netmaster
           image: contiv/netplugin:latest
@@ -332,6 +339,9 @@ spec:
         - name: var-contiv
           hostPath:
             path: /var/contiv
+        - name: usr-local-sbin
+          hostPath:
+            path: /usr/local/sbin/
 
 ---
 
