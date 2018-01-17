@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	contivNPChain = "CONTIV-NODEPORT"
+	contivNPChain    = "CONTIV-NODEPORT"
+	iptablesWaitLock = "5"
 )
 
 // Presence indicates presence of an item
@@ -52,8 +53,8 @@ func NewNodeProxy() (*NodeSvcProxy, error) {
 	}
 
 	// Install contiv chain and jump
-	out, err := osexec.Command(ipTablesPath, "-t", "nat", "-N",
-		contivNPChain).CombinedOutput()
+	out, err := osexec.Command(ipTablesPath, "-w", iptablesWaitLock,
+		"-t", "nat", "-N", contivNPChain).CombinedOutput()
 	if err != nil {
 		if !strings.Contains(string(out), "Chain already exists") {
 			log.Errorf("Failed to setup contiv nodeport chain %v out: %s",
@@ -62,13 +63,13 @@ func NewNodeProxy() (*NodeSvcProxy, error) {
 		}
 	}
 
-	_, err = osexec.Command(ipTablesPath, "-t", "nat", "-C",
-		"PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j",
+	_, err = osexec.Command(ipTablesPath, "-w", iptablesWaitLock, "-t", "nat",
+		"-C", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j",
 		contivNPChain).CombinedOutput()
 	if err != nil {
-		out, err = osexec.Command(ipTablesPath, "-t", "nat", "-I",
-			"PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j",
-			contivNPChain).CombinedOutput()
+		out, err = osexec.Command(ipTablesPath, "-w", iptablesWaitLock,
+			"-t", "nat", "-I", "PREROUTING", "-m", "addrtype", "--dst-type",
+			"LOCAL", "-j", contivNPChain).CombinedOutput()
 		if err != nil {
 			log.Errorf("Failed to setup contiv nodeport chain jump %v out: %s",
 				err, out)
@@ -78,7 +79,7 @@ func NewNodeProxy() (*NodeSvcProxy, error) {
 
 	// Flush any old rules we might have added. They will get re-added
 	// if the service is still active
-	osexec.Command(ipTablesPath, "-t", "nat", "-F",
+	osexec.Command(ipTablesPath, "-w", iptablesWaitLock, "-t", "nat", "-F",
 		contivNPChain).CombinedOutput()
 
 	proxy := NodeSvcProxy{}
@@ -200,8 +201,8 @@ func (p *NodeSvcProxy) SvcProviderUpdate(svcName string, providers []string) {
 }
 
 func (p *NodeSvcProxy) execNATRule(act, dport, dest string) (string, error) {
-	out, err := osexec.Command(p.ipTablesPath, "-t", "nat", act,
-		contivNPChain, "-p", "tcp", "-m", "tcp", "--dport",
+	out, err := osexec.Command(p.ipTablesPath, "-w", iptablesWaitLock,
+		"-t", "nat", act, contivNPChain, "-p", "tcp", "-m", "tcp", "--dport",
 		dport, "-j", "DNAT", "--to-destination",
 		dest).CombinedOutput()
 	return string(out), err
