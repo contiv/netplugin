@@ -93,8 +93,10 @@ func (self *PolicyAgent) SwitchDisconnected(sw *ofctrl.OFSwitch) {
 
 // DstGroupMetadata returns metadata for dst group
 func DstGroupMetadata(groupId int) (uint64, uint64) {
+	// shifted 1 for the VTEP
 	metadata := uint64(groupId) << 1
-	metadataMask := uint64(0xfffe)
+	// format((((1<<16)-1)<<1), 'x')
+	metadataMask := uint64(0x1fffe)
 	metadata = metadata & metadataMask
 
 	return metadata, metadataMask
@@ -102,8 +104,11 @@ func DstGroupMetadata(groupId int) (uint64, uint64) {
 
 // SrcGroupMetadata returns metadata for src group
 func SrcGroupMetadata(groupId int) (uint64, uint64) {
-	metadata := uint64(groupId) << 16
-	metadataMask := uint64(0x7fff0000)
+	// TODO(plockc): missing tenant still
+	// shift 30 for the dest tenant+group, 1 for the VTEP flag
+	metadata := uint64(groupId) << (30 + 1)
+	// format((((1<<16))-1)<<(30+1), 'x')
+	metadataMask := uint64(0x7fff80000000)
 	metadata = metadata & metadataMask
 
 	return metadata, metadataMask
@@ -139,23 +144,23 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 	self.agent.vrfMutex.RLock()
 	vrfid := self.agent.vrfNameIdMap[*vrf]
 	self.agent.vrfMutex.RUnlock()
-	vrfMetadata, vrfMetadataMask := Vrfmetadata(*vrfid)
-	// Install the Dst group lookup flow
+	vrfMetadata, vrfMetadataMask := VrfDestMetadata(*vrfid)
+	// match destination tenant and IP
 	dstGrpFlow, err := self.dstGrpTable.NewFlow(ofctrl.FlowMatch{
-		Priority:     FLOW_MATCH_PRIORITY,
-		Ethertype:    0x0800,
-		IpDa:         &endpoint.IpAddr,
-		Metadata:     &vrfMetadata,
-		MetadataMask: &vrfMetadataMask,
+		Priority:  FLOW_MATCH_PRIORITY,
+		Ethertype: 0x0800,
+		IpDa:      &endpoint.IpAddr,
 	})
 	if err != nil {
 		log.Errorf("Error adding dstGroup flow for %v. Err: %v", endpoint.IpAddr, err)
 		return err
 	}
 
-	// Format the metadata
-	metadata, metadataMask := DstGroupMetadata(endpoint.EndpointGroup)
+	// Format the metadata for the destination group
+	groupMetadata, groupMetadataMask := DstGroupMetadata(endpoint.EndpointGroup)
 
+	metadata := vrfMetadata | groupMetadata
+	metadataMask := vrfMetadataMask | groupMetadataMask
 	// Set dst GroupId
 	err = dstGrpFlow.SetMetadata(metadata, metadataMask)
 	if err != nil {
@@ -299,8 +304,10 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 	var ipDaMask *net.IP = nil
 	var ipSa *net.IP = nil
 	var ipSaMask *net.IP = nil
-	var md *uint64 = nil
-	var mdm *uint64 = nil
+	var metadata uint64 = 0     // for calculations of md
+	var metadataMask uint64 = 0 // for calculations of mdm
+	var md *uint64 = nil        // flow metadata
+	var mdm *uint64 = nil       // flow metadata mask
 	var flag, flagMask uint16
 	var flagPtr, flagMaskPtr *uint16
 	var err error
@@ -346,22 +353,29 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 		}
 	}
 
-	// parse source/dst endpoint groups
-	if rule.SrcEndpointGroup != 0 && rule.DstEndpointGroup != 0 {
-		srcMetadata, srcMetadataMask := SrcGroupMetadata(rule.SrcEndpointGroup)
-		dstMetadata, dstMetadataMask := DstGroupMetadata(rule.DstEndpointGroup)
-		metadata := srcMetadata | dstMetadata
-		metadataMask := srcMetadataMask | dstMetadataMask
-		md = &metadata
-		mdm = &metadataMask
-	} else if rule.SrcEndpointGroup != 0 {
-		srcMetadata, srcMetadataMask := SrcGroupMetadata(rule.SrcEndpointGroup)
-		md = &srcMetadata
-		mdm = &srcMetadataMask
-	} else if rule.DstEndpointGroup != 0 {
-		dstMetadata, dstMetadataMask := DstGroupMetadata(rule.DstEndpointGroup)
-		md = &dstMetadata
-		mdm = &dstMetadataMask
+	updateMetadata := func(meta uint64, mask uint64) (*uint64, *uint64) {
+		metadata |= meta
+		metadataMask |= mask
+		return &metadata, &metadataMask
+	}
+	// parse source/dst endpoint tenants and groups
+	if rule.SrcEndpointGroup != 0 {
+		if rule.SrcTenant == "" {
+			log.Errorf("Source group %v was provided without tenant",
+				rule.DstEndpointGroup)
+		}
+		md, mdm = updateMetadata(SrcGroupMetadata(rule.SrcEndpointGroup))
+		srcVrfId := self.agent.getvrfId(rule.SrcTenant)
+		md, mdm = updateMetadata(VrfSrcMetadata(*srcVrfId))
+	}
+	if rule.DstEndpointGroup != 0 {
+		if rule.DstTenant == "" {
+			log.Errorf("Destination group %v was provided without tenant",
+				rule.DstEndpointGroup)
+		}
+		md, mdm = updateMetadata(DstGroupMetadata(rule.DstEndpointGroup))
+		dstVrfId := self.agent.getvrfId(rule.DstTenant)
+		md, mdm = updateMetadata(VrfDestMetadata(*dstVrfId))
 	}
 
 	// Setup TCP flags

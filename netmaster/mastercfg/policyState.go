@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/contiv/netplugin/contivModel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/ofnet"
 )
@@ -216,11 +217,12 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		rule.ToIpAddress = net.Subnet
 	}
 
+	var remoteTenant string
 	if rule.FromTenantName != "" {
-		remoteTenant := rule.FromTenantName
+		remoteTenant = rule.FromTenantName
 	}
 	if rule.ToTenantName != "" {
-		remoteTenant := rule.ToTenantName
+		remoteTenant = rule.ToTenantName
 	}
 
 	// Set protocol
@@ -247,7 +249,7 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "inRx":
 		// Set src/dest endpoint group
 		ofnetRule.DstEndpointGroup = gp.EndpointGroupID
-		ofnetrule.dsttenant = rule.tenantname
+		ofnetRule.DstTenant = rule.TenantName
 		ofnetRule.SrcEndpointGroup = remoteEpgID
 		ofnetRule.SrcTenant = remoteTenant
 

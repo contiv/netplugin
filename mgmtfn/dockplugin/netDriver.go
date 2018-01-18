@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/contivmodel/client"
+	"github.com/contiv/netplugin/contivModel/client"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/netmaster/docknet"
 	"github.com/contiv/netplugin/netmaster/intent"

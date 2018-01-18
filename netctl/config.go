@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/codegangsta/cli"
-	contivClient "github.com/contiv/netplugin/contivmodel/client"
+	contivClient "github.com/contiv/netplugin/contivModel/client"
 )
 
 var errHomeDirectoryNotSet = errors.New("failed to detect HOME directory")

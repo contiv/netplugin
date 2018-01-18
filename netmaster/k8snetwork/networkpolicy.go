@@ -8,7 +8,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/netplugin/contivmodel/client"
+	"github.com/contiv/netplugin/contivModel/client"
 	"github.com/contiv/netplugin/utils/k8sutils"
 	"k8s.io/api/networking/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

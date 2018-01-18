@@ -263,15 +263,13 @@ func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		return errors.New("Invalid vrf name")
 	}
 
-	vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
+	vrfmetadata, vrfmetadataMask := VrfDestMetadata(*vrfid)
 
 	// Install the IP address
 	ipFlow, err := self.ipTable.NewFlow(ofctrl.FlowMatch{
-		Priority:     FLOW_MATCH_PRIORITY,
-		Ethertype:    0x0800,
-		IpDa:         &endpoint.IpAddr,
-		Metadata:     &vrfmetadata,
-		MetadataMask: &vrfmetadataMask,
+		Priority:  FLOW_MATCH_PRIORITY,
+		Ethertype: 0x0800,
+		IpDa:      &endpoint.IpAddr,
 	})
 	if err != nil {
 		log.Errorf("Error creating flow for endpoint: %+v. Err: %v", endpoint, err)
@@ -873,7 +871,7 @@ func (self *Vrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	//set vrf id as METADATA
-	metadata, metadataMask := Vrfmetadata(*vrfid)
+	metadata, metadataMask := VrfDestMetadata(*vrfid)
 
 	// Install the IP address
 	ipFlow, err := self.ipTable.NewFlow(ofctrl.FlowMatch{
@@ -1300,6 +1298,29 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 			self.agent.incrStats("ArpRespRcvd")
 		}
 	}
+}
+
+func VrfDestMetadata(vrfid uint16) (uint64, uint64) {
+	// 1 bit for VTEP, 16 for group
+	metadata := uint64(vrfid) << 17
+	// 14 bits shifted 1 for vtep flag and 16 for group
+	// format((((1<<14))-1)<<(1+16), 'x')
+	metadataMask := uint64(0x7ffe0000)
+	metadata = metadata & metadataMask
+
+	return metadata, metadataMask
+}
+
+func VrfSrcMetadata(vrfid uint16) (uint64, uint64) {
+	// 1 bit for VTEP, 30 for dest tenant+group, 16 for group
+	metadata := uint64(vrfid) << 47
+	// 14 bits shifted 1 for vtep flag and 30 for dest tenant+group
+	// and 16 for source group
+	// format((((1<<14))-1)<<(1+30+16), 'x')
+	metadataMask := uint64(0x1FFF800000000000)
+	metadata = metadata & metadataMask
+
+	return metadata, metadataMask
 }
 
 func Vrfmetadata(vrfid uint16) (uint64, uint64) {

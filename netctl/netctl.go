@@ -17,7 +17,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/codegangsta/cli"
-	contivClient "github.com/contiv/netplugin/contivmodel/client"
+	contivClient "github.com/contiv/netplugin/contivModel/client"
 	"github.com/contiv/netplugin/version"
 )
 
