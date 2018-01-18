@@ -15,8 +15,10 @@ class ContivComposer(object):
     def add_systest(self, resource, args):
         if self._is_resource(resource, 'ConfigMap', 'contiv-config',
                              'kube-system'):
-            # pop contiv_etcd (etcd or consul endpoints will be passed in during testing)
-            resource['data'].pop('contiv_etcd')
+            if args['start'] != True:
+                # pop contiv_etcd unless need start contiv service
+                # etcd or consul endpoints will be passed in during testing
+                resource['data'].pop('contiv_etcd')
         if (self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
                               'kube-system') or
                 self._is_resource(resource, 'ReplicaSet', 'contiv-netmaster',
@@ -25,32 +27,37 @@ class ContivComposer(object):
                     'containers']:
                 if container['name'] in ('contiv-netplugin',
                                          'contiv-netmaster'):
-                    # pop etcd endpoints because test case will handle it
-                    container['env'] = [
-                        envar
-                        for envar in container['env']
-                        if envar[
-                            'name'] not in ('CONTIV_NETPLUGIN_ETCD_ENDPOINTS',
-                                            'CONTIV_NETMASTER_ETCD_ENDPOINTS')
-                    ]
-                    # make the container idle
-                    container['command'] = ["tail", "-f", "/dev/null"]
+                    if args['start'] != True:
+                        # pop etcd endpoints because test case will handle it
+                        container['env'] = [
+                            envar
+                            for envar in container['env']
+                            if envar[
+                                'name'] not in (
+                                    'CONTIV_NETPLUGIN_ETCD_ENDPOINTS',
+                                    'CONTIV_NETMASTER_ETCD_ENDPOINTS')
+                        ]
+                        # make the container idle
+                        container['command'] = ["tail", "-f", "/dev/null"]
                     # add binary mount points to run tests
                     container['volumeMounts'].append({
                         'mountPath': '/contiv/bin',
                         'name': 'contiv-bin-dir',
-                        'readOnly': False
+                        'readOnly': True
                     })
+
                     container['volumeMounts'].append({
                         'mountPath': '/contiv/scripts/',
                         'name': 'contiv-scripts-dir',
-                        'readOnly': False
+                        'readOnly': True
                     })
-                    container['volumeMounts'].append({
-                        'mountPath': '/var/log/contiv',
-                        'name': 'contiv-log-dir',
-                        'readOnly': False
-                    })
+
+                    if args['start'] != True:
+                        container['volumeMounts'].append({
+                            'mountPath': '/var/log/contiv',
+                            'name': 'contiv-log-dir',
+                            'readOnly': False
+                        })
             resource['spec']['template']['spec']['volumes'].append({
                 'name': 'contiv-bin-dir',
                 'hostPath': {'path': '/opt/gopath/bin'}
@@ -62,12 +69,12 @@ class ContivComposer(object):
                  '/opt/gopath/src/github.com/contiv/netplugin/scripts/netContain/scripts/'
                  }
             })
-            # systest logging files
-            resource['spec']['template']['spec']['volumes'].append({
-                'name': 'contiv-log-dir',
-                'hostPath': {'path': '/var/log/contiv'}
-            })
-
+            if args['start'] != True:
+                # systest logging files
+                resource['spec']['template']['spec']['volumes'].append({
+                    'name': 'contiv-log-dir',
+                    'hostPath': {'path': '/var/log/contiv'}
+                })
 
     def add_prometheus(self, resource, args):
         if (self._is_resource(resource, 'DaemonSet', 'contiv-netplugin',
@@ -295,9 +302,11 @@ def create_cli_args():
     systest_parser = subclis.add_parser(
         'add-systest',
         description="Add system test required updates")
+    systest_parser.add_argument('--start',
+                                action='store_true',
+                                help='start contiv service')
     _add_common_args(systest_parser)
     _add_image_args(systest_parser)
-
 
     # add prometheus
     prometheus_parser = subclis.add_parser(

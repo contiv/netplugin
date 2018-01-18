@@ -40,6 +40,7 @@ EOF
 
 sysctl --system
 
+# the image comes with newer version of packages, remove them first
 yum remove -y docker docker-common container-selinux docker-selinux docker-engine docker-engine-selinux
 yum install -y docker
 systemctl enable docker && systemctl start docker
@@ -51,6 +52,8 @@ else
     v="${k8s_version#v}"
     extra_rpm=""
     if [[ "$v" = 1.8* ]]; then
+        # repo contains more than one kubernetes-cni-0.5.1
+        # will cause dependency error if not specified
         extra_rpm="kubernetes-cni-0.5.1-1"
     fi
     yum install -y "kubelet-$v" "kubeadm-$v" "kubectl-$v" "$extra_rpm"
