@@ -4503,7 +4503,7 @@ func ValidateRule(obj *Rule) error {
 		return errors.New("fromTenantName string too long")
 	}
 
-	fromTenantNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
+	fromTenantNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])?$")
 	if fromTenantNameMatch.MatchString(obj.FromTenantName) == false {
 		return errors.New("fromTenantName string invalid format")
 	}
@@ -4583,7 +4583,7 @@ func ValidateRule(obj *Rule) error {
 		return errors.New("toTenantName string too long")
 	}
 
-	toTenantNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
+	toTenantNameMatch := regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])?$")
 	if toTenantNameMatch.MatchString(obj.ToTenantName) == false {
 		return errors.New("toTenantName string invalid format")
 	}
