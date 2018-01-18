@@ -1248,10 +1248,6 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 			contivNodes = 4 // 3 contiv nodes + 1 k8master
 			c.Assert(s.vagrant.Setup(false, []string{"CONTIV_L3=1 VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
 
-			// Sleep to give enough time for the netplugin pods to come up
-			logrus.Infof("Sleeping for 1 minute for pods to come up")
-			time.Sleep(time.Minute)
-
 		case swarmScheduler:
 			c.Assert(s.vagrant.Setup(false, append([]string{"CONTIV_NODES=3 CONTIV_L3=1"}, s.basicInfo.SwarmEnv), contivNodes+contivL3Nodes), IsNil)
 		default:
@@ -1274,10 +1270,6 @@ func (s *systemtestSuite) SetUpSuiteVagrant(c *C) {
 			}
 
 			c.Assert(s.vagrant.Setup(false, []string{"VAGRANT_CWD=" + topDir + "/src/github.com/contiv/netplugin/vagrant/k8s/"}, contivNodes), IsNil)
-
-			// Sleep to give enough time for the netplugin pods to come up
-			logrus.Infof("Sleeping for 1 minute for pods to come up")
-			time.Sleep(time.Minute)
 
 		case swarmScheduler:
 			c.Assert(s.vagrant.Setup(false, append([]string{}, s.basicInfo.SwarmEnv), contivNodes), IsNil)

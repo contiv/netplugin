@@ -237,7 +237,11 @@ func (c *APIClient) GetPodLabel(ns, name, label string) (string, error) {
 		}
 	}
 
+	c.podCache.labelsMutex.Lock()
+	defer c.podCache.labelsMutex.Unlock()
+
 	res, found := c.podCache.labels[label]
+
 	if found {
 		return res, nil
 	}

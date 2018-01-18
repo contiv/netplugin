@@ -75,7 +75,7 @@ func addPodToContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
 		log.Errorf("EP create failed for pod: %s/%s",
 			pInfo.K8sNameSpace, pInfo.Name)
 		cerr := CNIError{}
-		cerr.CNIVersion = "0.6.0"
+		cerr.CNIVersion = "0.3.1"
 
 		if result != nil {
 			cerr.Code = result.Result
@@ -107,7 +107,7 @@ func addPodToContiv(nc *clients.NWClient, pInfo *cniapi.CNIPodAttr) {
 	}
 
 	out := CNIResponse{
-		CNIVersion: "0.6.0",
+		CNIVersion: "0.3.1",
 	}
 
 	out.IPs = append(out.IPs, &cni.IPConfig{
