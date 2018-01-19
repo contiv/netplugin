@@ -17,6 +17,7 @@ package ofnet
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/rpc"
 	"reflect"
@@ -365,7 +366,14 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 				rule.DstEndpointGroup)
 		}
 		md, mdm = updateMetadata(SrcGroupMetadata(rule.SrcEndpointGroup))
+	}
+	if rule.SrcTenant != "" {
 		srcVrfId := self.agent.getvrfId(rule.SrcTenant)
+		if srcVrfId == nil {
+			errMsg := fmt.Sprintf("VRF %s was not found", rule.SrcTenant)
+			log.Errorf(errMsg)
+			return errors.New(errMsg)
+		}
 		md, mdm = updateMetadata(VrfSrcMetadata(*srcVrfId))
 	}
 	if rule.DstEndpointGroup != 0 {
@@ -373,8 +381,16 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 			log.Errorf("Destination group %v was provided without tenant",
 				rule.DstEndpointGroup)
 		}
+
 		md, mdm = updateMetadata(DstGroupMetadata(rule.DstEndpointGroup))
+	}
+	if rule.DstTenant != "" {
 		dstVrfId := self.agent.getvrfId(rule.DstTenant)
+		if dstVrfId == nil {
+			errMsg := fmt.Sprintf("VRF %s was not found", rule.DstTenant)
+			log.Errorf(errMsg)
+			return errors.New(errMsg)
+		}
 		md, mdm = updateMetadata(VrfDestMetadata(*dstVrfId))
 	}
 

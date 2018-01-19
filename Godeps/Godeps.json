@@ -99,23 +99,23 @@
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet",
-			"Rev": "a5366b6229c72aee307c40b7405e55c795614fcf"
+			"Rev": "dd8738d62a190cfc5e3f60dd4f38bbc9be69ebe8"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ofctrl",
-			"Rev": "a5366b6229c72aee307c40b7405e55c795614fcf"
+			"Rev": "dd8738d62a190cfc5e3f60dd4f38bbc9be69ebe8"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/ovsdbDriver",
-			"Rev": "a5366b6229c72aee307c40b7405e55c795614fcf"
+			"Rev": "dd8738d62a190cfc5e3f60dd4f38bbc9be69ebe8"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/pqueue",
-			"Rev": "a5366b6229c72aee307c40b7405e55c795614fcf"
+			"Rev": "dd8738d62a190cfc5e3f60dd4f38bbc9be69ebe8"
 		},
 		{
 			"ImportPath": "github.com/contiv/ofnet/rpcHub",
-			"Rev": "a5366b6229c72aee307c40b7405e55c795614fcf"
+			"Rev": "dd8738d62a190cfc5e3f60dd4f38bbc9be69ebe8"
 		},
 		{
 			"ImportPath": "github.com/contiv/remotessh",
