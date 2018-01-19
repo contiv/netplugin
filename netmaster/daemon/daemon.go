@@ -523,7 +523,7 @@ func (d *MasterDaemon) InitServices() {
 		isLeader := func() bool {
 			return d.currState == "leader"
 		}
-		networkpolicy.InitK8SServiceWatch(d.ListenURL, isLeader)
+		networkpolicy.InitK8SServiceWatch(d.ControlURL, isLeader)
 	}
 }
 

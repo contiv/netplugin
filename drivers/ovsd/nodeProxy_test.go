@@ -29,8 +29,8 @@ var ipTablesPath string
 func verifyNATRule(nodePort uint16, destIP string, destPort uint16) error {
 	dport := fmt.Sprintf("%d", nodePort)
 	dest := fmt.Sprintf("%s:%d", destIP, destPort)
-	_, err := osexec.Command(ipTablesPath, "-t", "nat", "-C", contivNPChain,
-		"-p", "tcp", "-m", "tcp", "--dport", dport, "-j",
+	_, err := osexec.Command(ipTablesPath, "-w", "5", "-t", "nat", "-C",
+		contivNPChain, "-p", "tcp", "-m", "tcp", "--dport", dport, "-j",
 		"DNAT", "--to-destination", dest).CombinedOutput()
 	return err
 }
@@ -45,7 +45,7 @@ func TestNodeProxy(t *testing.T) {
 	}
 
 	// Verify PREROUTING jump rule exists
-	out, err := osexec.Command(ipTablesPath, "-t", "nat", "-C",
+	out, err := osexec.Command(ipTablesPath, "-w", "5", "-t", "nat", "-C",
 		"PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j",
 		contivNPChain).CombinedOutput()
 	if err != nil {
