@@ -386,6 +386,7 @@ archive:
 # build versioned archive of netplugin binaries
 tar:
 	rm -f $(TAR_FILE)
+	./install/k8s/contiv/contiv-compose use-release  -i -v $(BUILD_VERSION) install/k8s/contiv/contiv-base.yaml
 	$(TAR) -jcf $(TAR_FILE) -C install/k8s/contiv/ .
 
 # GITHUB_USER and GITHUB_TOKEN are needed be set (used by github-release)
