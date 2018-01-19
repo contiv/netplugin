@@ -384,24 +384,10 @@ archive:
 		-C ../scripts contrib/completion/bash/netctl get-contiv-diags
 
 # build versioned archive of netplugin binaries
-tar: compile-with-docker binaries-from-container archive
+tar:
+	rm -f $(TAR_FILE)
+	$(TAR) -jcf $(TAR_FILE) -C install/k8s/contiv/ .
 
-clean-tar:
-	@rm -f $(TAR_LOC)/*.$(TAR_EXT)
-	@rm -f install/v2plugin/v2plugin-*.tar.gz
-
-# do not run directly, use "release" target
-release-built-version: tar
-	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) OLD_VERSION=${OLD_VERSION} \
-	NIGHTLY_RELEASE=${NIGHTLY_RELEASE} scripts/release.sh
-	@make clean-tar
-
-# The first "release" below is not a target, it is a "target-specific variable"
-#   and sets (and in this case exports) a variable to the target's environment
-# The second release runs make as a subshell but with BUILD_VERSION set
-# to write the correct version for assets everywhere
-#
 # GITHUB_USER and GITHUB_TOKEN are needed be set (used by github-release)
-release: export BUILD_VERSION=$(shell cat version/CURRENT_VERSION)
-release:
-	@make release-built-version
+release: tar
+	TAR_FILENAME=$(TAR_FILENAME) TAR_FILE=$(TAR_FILE) scripts/release.sh
