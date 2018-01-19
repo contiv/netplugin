@@ -164,13 +164,13 @@ class ContivComposer(object):
 
     def use_release(self, resource, args):
         if args.get('version') is not None:
-            args['netplugin_img'] = 'contiv/netplugin:%s' % args['use_release']
+            args['netplugin_img'] = 'contiv/netplugin:%s' % args['version']
             args['netplugin_init_img'] = 'contiv/netplugin-init:%s' % args[
-                'use_release']
-            args['stat_exporter_img'] = 'contiv/stats:%s' % args['use_release']
+                'version']
+            args['stat_exporter_img'] = 'contiv/stats:%s' % args['version']
             args['auth_proxy_img'] = 'contiv/auth_proxy:%s' % args[
-                'use_release']
-            args['ovs_img'] = 'contiv/ovs:%s' % args['use_release']
+                'version']
+            args['ovs_img'] = 'contiv/ovs:%s' % args['version']
 
     def compose(self, args):
         if args['target'] not in ('add-systest', 'add-prometheus',
@@ -212,6 +212,10 @@ class ContivComposer(object):
                 self._update_container_image(resource, 'contiv-netplugin',
                                              args['netplugin_img'])
                 self._update_container_image(resource, 'contiv-netmaster',
+                                             args['netplugin_img'])
+                self._update_container_image(resource, 'contiv-netctl',
+                                             args['netplugin_img'])
+                self._update_container_image(resource, 'contiv-cni',
                                              args['netplugin_img'])
             if args.get('netplugin_init_img') is not None:
                 self._update_container_image(resource, 'contiv-netplugin-init',
