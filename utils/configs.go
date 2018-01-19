@@ -195,7 +195,7 @@ func ValidateDBOptions(binary string, ctx *cli.Context) (*DBConfigs, error) {
 		storeDriver = "consul"
 		storeURLs = consulURLs
 	}
-	for _, endpoint := range strings.Split(storeURLs, ",") {
+	for _, endpoint := range FilterEmpty(strings.Split(storeURLs, ",")) {
 		_, err := url.Parse(endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("invalid %s %v endpoint: %v", binary, storeDriver, endpoint)
@@ -204,6 +204,10 @@ func ValidateDBOptions(binary string, ctx *cli.Context) (*DBConfigs, error) {
 		storeURL = endpoint
 		logrus.Infof("Using %s state db endpoints: %v: %v", binary, storeDriver, storeURL)
 		break
+	}
+
+	if storeURL == "" {
+		return nil, fmt.Errorf("invalid %s %s endpoints: empty", binary, storeDriver)
 	}
 
 	return &DBConfigs{
@@ -261,4 +265,15 @@ func FlattenFlags(flagSlices ...[]cli.Flag) []cli.Flag {
 		flags = append(flags, slice...)
 	}
 	return flags
+}
+
+// FilterEmpty filters empty string from string slices
+func FilterEmpty(stringSlice []string) []string {
+	var result []string
+	for _, str := range stringSlice {
+		if str != "" {
+			result = append(result, str)
+		}
+	}
+	return result
 }

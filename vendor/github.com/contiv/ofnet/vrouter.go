@@ -507,7 +507,8 @@ func (self *Vrouter) AddHostPort(hp HostPortInfo) error {
 	// Set up DNAT for ingress traffic
 	inNATFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
 		InputPort: self.hostNATInfo.PortNo,
-		Priority:  FLOW_MATCH_PRIORITY,
+		// Put at lower priority than ARP rule
+		Priority: FLOW_MATCH_PRIORITY - 1,
 	})
 	inNATFlow.Next(self.hostDNATTable)
 

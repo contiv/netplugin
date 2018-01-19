@@ -95,7 +95,7 @@ func initNetPluginConfig(ctx *cli.Context) (*plugin.Config, error) {
 	}
 	logrus.Infof("Using netplugin VTEP IP: %v", vtepIP)
 
-	vlanUpLinks := strings.Split(ctx.String("vlan-uplinks"), ",")
+	vlanUpLinks := utils.FilterEmpty(strings.Split(ctx.String("vlan-uplinks"), ","))
 	if netConfigs.NetworkMode == "vlan" && len(vlanUpLinks) == 0 {
 		return nil, fmt.Errorf("vlan-uplinks must be set when using VLAN mode")
 	}
