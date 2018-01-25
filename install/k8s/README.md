@@ -48,9 +48,13 @@ netctl net create -t default --subnet=20.1.1.0/24 default-net
 netctl group create -t default default-net default-epg
 ```
 
-* When in vxlan mode, delete the kube-dns deployment as follows:
+* When in vxlan mode, delete the kube-dns as follows:
 ```sh
 kubectl delete deployment/kube-dns -n kube-system
+kubectl delete service kube-dns -n=kube-system
+kubectl delete serviceaccounts kube-dns -n=kube-system
+kubectl delete clusterrolebindings system:kube-dns -n=kube-system
+kubectl delete endpoint kube-dns -n=kube-system
 ```
 
 Note: netctl uses "netmaster" as the default netmaster host. So add a reference for "netmaster" in /etc/hosts or explicitly specify it as a parameter to all netctl calls.
