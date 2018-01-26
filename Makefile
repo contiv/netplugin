@@ -150,7 +150,7 @@ k8s-l3-destroy:
 
 # ===================================================================
 # kubernetes dev
-k8s-dev: checks-with-docker compile-with-docker binaries-from-container
+k8s-dev: compile-with-docker binaries-from-container
 	CONTIV_TEST="dev" make k8s-cluster
 
 # kubernetes test targets

@@ -189,9 +189,9 @@ type OfnetEndpoint struct {
 type OfnetPolicyRule struct {
 	RuleId           string // Unique identifier for the rule
 	Priority         int    // Priority for the rule (1..100. 100 is highest)
-	SrcTenant        string // For policy rules, reqiured to uniquely identify the SrcEndpointGroup
+	SrcVrf           string // For policy rules, reqiured to uniquely identify the SrcEndpointGroup
 	SrcEndpointGroup int    // Source endpoint group
-	DstTenant        string // For policy rules, required to uniquely identify the DstEndpointGroup
+	DstVrf           string // For policy rules, required to uniquely identify the DstEndpointGroup
 	DstEndpointGroup int    // Destination endpoint group
 	SrcIpAddr        string // source IP address and mask
 	DstIpAddr        string // Destination IP address and mask

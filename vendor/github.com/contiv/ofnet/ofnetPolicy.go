@@ -80,36 +80,56 @@ func (self *PolicyAgent) SwitchDisconnected(sw *ofctrl.OFSwitch) {
 }
 
 // Metadata Format
-//	 6			   3 3			   1 1			   0 0
-//	 3			   1 0             6 5			   1 0
-//  +-------------+-+---------------+---------------+-+
-//  |	....U	  |U|    SrcGrp     |    DstGrp     |V|
-//  +-------------+-+---------------+---------------+-+
+//          Source Tenant + Group
+//          0x1fff ffff 8000 0000                 Destination Tenant + Group
+//                     |                                  0x7FFF FFFE
+//            +--------+----------+                            |
+//            |                   v                   +--------+---------+
+//            v             Source Group              v                  v
+//      Source Tenant     0x7FFF 8000 0000   Destination Tenant  Destination Group
+//  0x1FFF 8000 0000 0000         |              0x7FFE 0000        0x0001 FFFE
+//            |                   |                   |                  |
+//    +-------+--------++---------+---------++--------+-----++-----------+------+
+//    |                ||                   ||              ||                  |
+//    v                vv                   vv              vv                  v
+// 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 000V
 //
-//	U: Unused
-//  SrcGrp:  Source endpoint group
-//  DstGrp: Destination endpoint group
 //  V: Received on VTEP Port. Dont flood back to VTEP ports.
-//
 
-// DstGroupMetadata returns metadata for dst group
-func DstGroupMetadata(groupId int) (uint64, uint64) {
-	// shifted 1 for the VTEP
-	metadata := uint64(groupId) << 1
-	// format((((1<<16)-1)<<1), 'x')
-	metadataMask := uint64(0x1fffe)
+// returns openflow metadata and mask values for dst group
+func DstGroupMetadata(vrfid uint16, groupId int) (uint64, uint64) {
+	// vrf:  shift 16 for src group, 1 for VTEP flag
+	// group: shift 1 for the VTEP flag
+	metadata := (uint64(vrfid) << 17) + (uint64(groupId) << 1)
+	// vrf:
+	//   14 bits shifted 1 for vtep flag and 16 for group
+	//   format((((1<<14))-1)<<(1+16), 'x')
+	//   0x7ffe0000
+	// group:
+	//   format((((1<<16)-1)<<1), 'x')
+	//   0x1fffe
+	metadataMask := uint64(0x7ffffffe)
 	metadata = metadata & metadataMask
 
 	return metadata, metadataMask
 }
 
-// SrcGroupMetadata returns metadata for src group
-func SrcGroupMetadata(groupId int) (uint64, uint64) {
-	// TODO(plockc): missing tenant still
-	// shift 30 for the dest tenant+group, 1 for the VTEP flag
-	metadata := uint64(groupId) << (30 + 1)
-	// format((((1<<16))-1)<<(30+1), 'x')
-	metadataMask := uint64(0x7fff80000000)
+// returns openflow metadata and mask for src group
+func SrcGroupMetadata(vrfid uint16, groupId int) (uint64, uint64) {
+	// vrf:
+	//   shift 30 for dest vrf+group, 16 for src group, 1 for VTEP flag = 47
+	// group:
+	//   shift 30 for the dest vrf+group, 1 for the VTEP flag
+	metadata := (uint64(vrfid) << 47) + (uint64(groupId) << (30 + 1))
+	// vrf:
+	//   14 bits shifted by 1: vtep flag + 30: dest vrf+group + 16: src group
+	//   format((((1<<14))-1)<<(1+30+16), 'x')
+	//   0x1FFF800000000000
+	// group:
+	//   16 bits shifted 30 for dest vrf+group plus 1 for vtep flag
+	//   format((((1<<16))-1)<<(30+1), 'x')
+	//   0x7fff80000000
+	metadataMask := uint64(0x1FFFFFFF80000000)
 	metadata = metadata & metadataMask
 
 	return metadata, metadataMask
@@ -145,12 +165,15 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 	self.agent.vrfMutex.RLock()
 	vrfid := self.agent.vrfNameIdMap[*vrf]
 	self.agent.vrfMutex.RUnlock()
+
 	vrfMetadata, vrfMetadataMask := VrfDestMetadata(*vrfid)
 	// match destination tenant and IP
 	dstGrpFlow, err := self.dstGrpTable.NewFlow(ofctrl.FlowMatch{
-		Priority:  FLOW_MATCH_PRIORITY,
-		Ethertype: 0x0800,
-		IpDa:      &endpoint.IpAddr,
+		Priority:     FLOW_MATCH_PRIORITY,
+		Ethertype:    0x0800,
+		IpDa:         &endpoint.IpAddr,
+		Metadata:     &vrfMetadata,
+		MetadataMask: &vrfMetadataMask,
 	})
 	if err != nil {
 		log.Errorf("Error adding dstGroup flow for %v. Err: %v", endpoint.IpAddr, err)
@@ -158,10 +181,8 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	// Format the metadata for the destination group
-	groupMetadata, groupMetadataMask := DstGroupMetadata(endpoint.EndpointGroup)
+	metadata, metadataMask := DstGroupMetadata(*vrfid, endpoint.EndpointGroup)
 
-	metadata := vrfMetadata | groupMetadata
-	metadataMask := vrfMetadataMask | groupMetadataMask
 	// Set dst GroupId
 	err = dstGrpFlow.SetMetadata(metadata, metadataMask)
 	if err != nil {
@@ -236,7 +257,7 @@ func (self *PolicyAgent) AddIpv6Endpoint(endpoint *OfnetEndpoint) error {
 	vrfid := self.agent.vrfNameIdMap[*vrf]
 	self.agent.vrfMutex.RUnlock()
 
-	vrfMetadata, vrfMetadataMask := Vrfmetadata(*vrfid)
+	vrfMetadata, vrfMetadataMask := VrfDestMetadata(*vrfid)
 	// Install the Dst group lookup flow
 	dstGrpFlow, err := self.dstGrpTable.NewFlow(ofctrl.FlowMatch{
 		Priority:     FLOW_MATCH_PRIORITY,
@@ -251,7 +272,7 @@ func (self *PolicyAgent) AddIpv6Endpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	// Format the metadata
-	metadata, metadataMask := DstGroupMetadata(endpoint.EndpointGroup)
+	metadata, metadataMask := DstGroupMetadata(*vrfid, endpoint.EndpointGroup)
 
 	// Set dst GroupId
 	err = dstGrpFlow.SetMetadata(metadata, metadataMask)
@@ -360,40 +381,46 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 		return &metadata, &metadataMask
 	}
 	// parse source/dst endpoint tenants and groups
-	if rule.SrcEndpointGroup != 0 {
-		if rule.SrcTenant == "" {
-			log.Errorf("Source group %v was provided without tenant",
-				rule.DstEndpointGroup)
-		}
-		md, mdm = updateMetadata(SrcGroupMetadata(rule.SrcEndpointGroup))
-	}
-	if rule.SrcTenant != "" {
-		srcVrfId := self.agent.getvrfId(rule.SrcTenant)
+	var srcVrfId *uint16
+	var dstVrfId *uint16
+	if rule.SrcVrf != "" {
+		srcVrfId = self.agent.getvrfId(rule.SrcVrf)
 		if srcVrfId == nil {
-			errMsg := fmt.Sprintf("VRF %s was not found", rule.SrcTenant)
+			errMsg := fmt.Sprintf("VRF %s was not found", rule.SrcVrf)
 			log.Errorf(errMsg)
 			return errors.New(errMsg)
 		}
 		md, mdm = updateMetadata(VrfSrcMetadata(*srcVrfId))
 	}
-	if rule.DstEndpointGroup != 0 {
-		if rule.DstTenant == "" {
-			log.Errorf("Destination group %v was provided without tenant",
-				rule.DstEndpointGroup)
+	if rule.SrcEndpointGroup != 0 {
+		if rule.SrcVrf == "" {
+			errMsg := fmt.Sprintf("Source group %v was provided without VRF",
+				rule.SrcEndpointGroup)
+			log.Errorf(errMsg)
+			return errors.New(errMsg)
 		}
 
-		md, mdm = updateMetadata(DstGroupMetadata(rule.DstEndpointGroup))
+		md, mdm = updateMetadata(SrcGroupMetadata(*srcVrfId, rule.SrcEndpointGroup))
 	}
-	if rule.DstTenant != "" {
-		dstVrfId := self.agent.getvrfId(rule.DstTenant)
+	if rule.DstVrf != "" {
+		dstVrfId = self.agent.getvrfId(rule.DstVrf)
 		if dstVrfId == nil {
-			errMsg := fmt.Sprintf("VRF %s was not found", rule.DstTenant)
+			errMsg := fmt.Sprintf("VRF %s was not found", rule.DstVrf)
 			log.Errorf(errMsg)
 			return errors.New(errMsg)
 		}
 		md, mdm = updateMetadata(VrfDestMetadata(*dstVrfId))
 	}
+	if rule.DstEndpointGroup != 0 {
+		if rule.DstVrf == "" {
+			errMsg := fmt.Sprintf("Destination group %v was provided without VRF",
+				rule.DstEndpointGroup)
+			log.Errorf(errMsg)
+			return errors.New(errMsg)
+		}
 
+		md, mdm = updateMetadata(DstGroupMetadata(*dstVrfId, rule.DstEndpointGroup))
+	}
 	// Setup TCP flags
 	if rule.IpProtocol == 6 && rule.TcpFlags != "" {
 		switch rule.TcpFlags {

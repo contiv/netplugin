@@ -90,7 +90,7 @@ func (sw *OvsSwitch) GetUplinkInterfaces(uplinkID string) []string {
 
 // NewOvsSwitch Creates a new OVS switch instance
 func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
-	vlanIntf []string, hostPvtNW int, vxlanUDPPort int) (*OvsSwitch, error) {
+	vlanIntf []string, hostPvtNW int, vxlanUDPPort int, endpointIpsAreUnique bool) (*OvsSwitch, error) {
 	var err error
 	var datapath string
 	var ofnetPort, ctrlrPort uint16
@@ -123,7 +123,7 @@ func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
 		}
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
-			ofnetPort, ctrlrPort, vlanIntf)
+			ofnetPort, ctrlrPort, vlanIntf, endpointIpsAreUnique)
 
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")
@@ -144,7 +144,7 @@ func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
 		}
 		// Create an ofnet agent
 		sw.ofnetAgent, err = ofnet.NewOfnetAgent(bridgeName, datapath, net.ParseIP(localIP),
-			ofnetPort, ctrlrPort, vlanIntf)
+			ofnetPort, ctrlrPort, vlanIntf, endpointIpsAreUnique)
 
 		if err != nil {
 			log.Fatalf("Error initializing ofnet")

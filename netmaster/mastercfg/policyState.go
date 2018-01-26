@@ -249,9 +249,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "inRx":
 		// Set src/dest endpoint group
 		ofnetRule.DstEndpointGroup = gp.EndpointGroupID
-		ofnetRule.DstTenant = rule.TenantName
+		ofnetRule.DstVrf = rule.TenantName
 		ofnetRule.SrcEndpointGroup = remoteEpgID
-		ofnetRule.SrcTenant = remoteTenant
+		ofnetRule.SrcVrf = remoteTenant
 
 		// Set src/dest IP Address
 		ofnetRule.SrcIpAddr = rule.FromIpAddress
@@ -269,9 +269,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "inTx":
 		// Set src/dest endpoint group
 		ofnetRule.SrcEndpointGroup = gp.EndpointGroupID
-		ofnetRule.SrcTenant = rule.TenantName
+		ofnetRule.SrcVrf = rule.TenantName
 		ofnetRule.DstEndpointGroup = remoteEpgID
-		ofnetRule.DstTenant = remoteTenant
+		ofnetRule.DstVrf = remoteTenant
 
 		// Set src/dest IP Address
 		ofnetRule.DstIpAddr = rule.FromIpAddress
@@ -284,9 +284,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "outRx":
 		// Set src/dest endpoint group
 		ofnetRule.DstEndpointGroup = gp.EndpointGroupID
-		ofnetRule.DstTenant = rule.TenantName
+		ofnetRule.DstVrf = rule.TenantName
 		ofnetRule.SrcEndpointGroup = remoteEpgID
-		ofnetRule.SrcTenant = remoteTenant
+		ofnetRule.SrcVrf = remoteTenant
 
 		// Set src/dest IP Address
 		ofnetRule.SrcIpAddr = rule.ToIpAddress
@@ -296,9 +296,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "outTx":
 		// Set src/dest endpoint group
 		ofnetRule.SrcEndpointGroup = gp.EndpointGroupID
-		ofnetRule.SrcTenant = rule.TenantName
+		ofnetRule.SrcVrf = rule.TenantName
 		ofnetRule.DstEndpointGroup = remoteEpgID
-		ofnetRule.DstTenant = remoteTenant
+		ofnetRule.DstVrf = remoteTenant
 
 		// Set src/dest IP Address
 		ofnetRule.DstIpAddr = rule.ToIpAddress

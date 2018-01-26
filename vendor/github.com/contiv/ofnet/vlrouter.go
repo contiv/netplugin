@@ -633,7 +633,7 @@ func (vl *Vlrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	//set vrf id as METADATA
-	//metadata, metadataMask := Vrfmetadata(*vrfid)
+	//metadata, metadataMask := VrfDestMetadata(*vrfid)
 
 	outPort, err := vl.ofSwitch.OutputPort(endpoint.PortNo)
 	if err != nil {
@@ -787,7 +787,7 @@ func (vl *Vlrouter) AddRemoteIpv6Flow(endpoint *OfnetEndpoint) error {
 	}
 
 	//set vrf id as METADATA
-	//metadata, metadataMask := Vrfmetadata(*vrfid)
+	//metadata, metadataMask := VrfDestMetadata(*vrfid)
 
 	outPort, err := vl.ofSwitch.OutputPort(endpoint.PortNo)
 	if err != nil {
