@@ -11,6 +11,10 @@ if [ -n "$CONTIV_TEST" ]; then
         # remove kube-dns
         # TODO: enable kube-dns
         kubectl delete deployment -n kube-system kube-dns
+        kubectl delete service kube-dns -n=kube-system
+        kubectl delete serviceaccounts kube-dns -n=kube-system
+        kubectl delete clusterrolebindings system:kube-dns -n=kube-system
+        kubectl delete endpoint kube-dns -n=kube-system
     elif [ "$CONTIV_TEST" = "dev" ]; then
         ./contiv-compose add-systest --start --k8s-api https://$2:$3 ./contiv-base.yaml > /shared/contiv.yaml
     fi
