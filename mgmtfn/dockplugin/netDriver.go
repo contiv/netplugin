@@ -190,7 +190,7 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		log.Infof("CreateEndpointRequest: %+v. Interface: %+v", cereq, cereq.Interface)
+		//log.Infof("CreateEndpointRequest: %+v. Interface: %+v", cereq, cereq.Interface)
 
 		tenantName, netName, serviceName, err := GetDockerNetworkName(cereq.NetworkID)
 		if err != nil {
@@ -213,6 +213,8 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 				ServiceName: serviceName,
 			},
 		}
+
+		log.Infof("CreateEndpointRequest: %+v. Interface: %+v", mreq, cereq.Interface)
 
 		var mresp master.CreateEndpointResponse
 		err = cluster.MasterPostReq("/plugin/createEndpoint", &mreq, &mresp)

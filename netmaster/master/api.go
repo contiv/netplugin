@@ -50,6 +50,9 @@ type AddressReleaseRequest struct {
 	NetworkID   string // Unique identifier for the network
 	IPv4Address string // Allocated address
 }
+type AddressReleaseResponse struct {
+	Status string
+}
 
 // CreateEndpointRequest has the endpoint create request from netplugin
 type CreateEndpointRequest struct {
