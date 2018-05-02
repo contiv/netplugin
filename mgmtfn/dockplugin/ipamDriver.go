@@ -287,6 +287,19 @@ func releaseAddress(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("Received ReleaseAddressRequest: %+v", areq)
 
+	//Build an release request to be sent to master
+	releaseReq := master.AddressReleaseRequest{
+		NetworkID:   areq.PoolID,
+		IPv4Address: areq.Address,
+	}
+	var releaseResp master.AddressReleaseResponse
+	err := cluster.MasterPostReq("/plugin/releaseAddress",
+		&releaseReq, &releaseRsp)
+	if err != nil {
+		httpError(w, "master failed to release request:%v address",
+			releaseReq, err)
+		return
+	}
 	// response
 	relResp := api.ReleaseAddressResponse{}
 
