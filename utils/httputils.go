@@ -131,7 +131,7 @@ func HTTPPost(url string, req interface{}, resp interface{}) error {
 		return err
 	}
 
-	log.Infof("Results for (%s): %+v\n", url, resp)
+	log.Debugf("Results for (%s): %+v\n", url, resp)
 
 	return nil
 }
@@ -160,6 +160,6 @@ func HTTPDel(url string) error {
 		return fmt.Errorf("HTTP error response. Status: %s, StatusCode: %d", res.Status, res.StatusCode)
 	}
 
-	log.Infof("Results for (%s): %+v\n", url, res)
+	log.Debugf("Results for (%s): %+v\n", url, res)
 	return nil
 }

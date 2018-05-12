@@ -512,9 +512,11 @@ func networkReleaseAddress(nwCfg *mastercfg.CfgNetworkState, epgCfg *mastercfg.E
 				nwCfg.EpAddrCount--
 			}
 			nwCfg.IPAllocMap.Clear(ipAddrValue)
+			log.Infof("Releasing IP Address: %v"+
+				"from networkId:%+v", ipAddrValue,
+				nwCfg.NetworkName)
 		}
 	}
-
 	err := nwCfg.Write()
 	if err != nil {
 		log.Errorf("error writing nw config. Error: %s", err)
