@@ -294,11 +294,9 @@ func releaseAddress(w http.ResponseWriter, r *http.Request) {
 		IPv4Address: areq.Address,
 	}
 	var releaseResp master.AddressReleaseResponse
-	err := cluster.MasterPostReq("/plugin/releaseAddress",
-		&releaseReq, &releaseRsp)
-	if err != nil {
-		httpError(w, "master failed to release request:%v address",
-			releaseReq, err)
+	if err = cluster.MasterPostReq("/plugin/releaseAddress",
+		&releaseReq, &releaseResp); err != nil {
+		httpError(w, "master failed to release request", err)
 		return
 	}
 	// response
