@@ -189,8 +189,6 @@ func createEndpoint(hostname string) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		//log.Infof("CreateEndpointRequest: %+v. Interface: %+v", cereq, cereq.Interface)
-
 		tenantName, netName, serviceName, err := GetDockerNetworkName(cereq.NetworkID)
 		if err != nil {
 			log.Errorf("Error getting network name for UUID: %s. Err: %v", cereq.NetworkID, err)
