@@ -38,7 +38,7 @@ import (
 
 const (
 	useVethPair      = true
-	vxlanEndpointMtu = 1450
+	vxlanEndpointMtu = 1400
 	vxlanOfnetPort   = 9002
 	vlanOfnetPort    = 9003
 	unusedOfnetPort  = 9004
