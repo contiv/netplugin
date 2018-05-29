@@ -50,12 +50,13 @@ const (
 
 // OvsSwitch represents on OVS bridge instance
 type OvsSwitch struct {
-	bridgeName  string
-	netType     string
-	uplinkDb    cmap.ConcurrentMap
-	ovsdbDriver *OvsdbDriver
-	ofnetAgent  *ofnet.OfnetAgent
-	hostPvtNW   int
+	bridgeName    string
+	netType       string
+	uplinkDb      cmap.ConcurrentMap
+	ovsdbDriver   *OvsdbDriver
+	ofnetAgent    *ofnet.OfnetAgent
+	hostPvtNW     int
+	vxlanEncapMtu int
 }
 
 // getPvtIP returns a private IP for the port
@@ -100,6 +101,10 @@ func NewOvsSwitch(bridgeName, netType, localIP, fwdMode string,
 	sw.netType = netType
 	sw.uplinkDb = cmap.New()
 	sw.hostPvtNW = hostPvtNW
+	sw.vxlanEncapMtu, err = netutils.GetHostLowestLinkMtu()
+	if err != nil {
+		log.Fatalf("Failed to get Host Node MTU. Err: %v", err)
+	}
 
 	// Create OVS db driver
 	sw.ovsdbDriver, err = NewOvsdbDriver(bridgeName, "secure", vxlanUDPPort)
@@ -359,7 +364,12 @@ func (sw *OvsSwitch) CreatePort(intfName string, cfgEp *mastercfg.CfgEndpointSta
 
 	// Set the link mtu to 1450 to allow for 50 bytes vxlan encap
 	// (inner eth header(14) + outer IP(20) outer UDP(8) + vxlan header(8))
-	err = setLinkMtu(intfName, vxlanEndpointMtu)
+	if sw.netType == "vxlan" {
+		correctMtu := sw.vxlanEncapMtu - 50 //Include Vxlan header size
+		err = setLinkMtu(intfName, correctMtu)
+	} else {
+		err = setLinkMtu(intfName, sw.vxlanEncapMtu)
+	}
 	if err != nil {
 		log.Errorf("Error setting link %s mtu. Err: %v", intfName, err)
 		return err
