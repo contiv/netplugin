@@ -3457,7 +3457,7 @@ func ValidateNetprofile(obj *Netprofile) error {
 		return errors.New("bandwidth string invalid format")
 	}
 
-	if obj.Burst > obj.Burst {
+	if obj.Burst > 10486 {
 		return errors.New("burst Value Out of bound")
 	}
 
