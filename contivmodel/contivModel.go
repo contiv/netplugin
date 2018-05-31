@@ -12,6 +12,8 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -3426,6 +3428,38 @@ func restoreNetprofile() error {
 	return nil
 }
 
+func ConvertBandwidth(bandwidth string) int {
+	var rate int
+	const (
+		kilobytes = 1024
+		megabytes = 1024 * kilobytes
+		gigabytes = 1024 * megabytes
+	)
+
+	regexp := regexp.MustCompile("[0-9]+")
+	bw := regexp.FindAllString(bandwidth, -1)
+	if len(bw) != 1 {
+		return errors.New("Multiple values found, convert bandwidth failed.")
+	}
+
+	bwParseInt64, err := strconv.ParseInt(bw[0], 10, 64)
+	if err != nil {
+		log.Errorf("error converting bandwidth string to uint64 %+v", err)
+	}
+
+	if strings.ContainsAny(bandwidth, "g|G") {
+		rate = gigabytes
+	} else if strings.ContainsAny(bandwidth, "m|M") {
+		rate = megabytes
+	} else if strings.ContainsAny(bandwidth, "k|K") {
+		rate = kilobytes
+	}
+
+	bwInt64 := bwParseInt64 * rate
+
+	return bwInt64
+}
+
 // Validate a netprofile object
 func ValidateNetprofile(obj *Netprofile) error {
 	collections.netprofileMutex.Lock()
@@ -3457,7 +3491,9 @@ func ValidateNetprofile(obj *Netprofile) error {
 		return errors.New("bandwidth string invalid format")
 	}
 
-	if obj.Burst > obj.Burst {
+	bwint64 := ConvertBandwidth(obj.Bandwidth)
+
+	if int64(obj.Burst) > bwint64 {
 		return errors.New("burst Value Out of bound")
 	}
 
