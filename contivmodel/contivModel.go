@@ -3428,7 +3428,7 @@ func restoreNetprofile() error {
 	return nil
 }
 
-func ConvertBandwidth(bandwidth string) int {
+func ConvertBandwidth(bandwidth string) int64 {
 	var rate int
 	const (
 		kilobytes = 1024
