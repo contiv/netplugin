@@ -1,7 +1,7 @@
 package objdb
 
 import (
-	"strings"
+	"reflect"
 	"sync"
 	"time"
 
@@ -353,12 +353,21 @@ func (lk *etcdLock) watchLock() {
 	}
 	for {
 		resp, err := watcher.Next(lk.watchCtx)
-		if err != nil && (err.Error() == client.ErrClusterUnavailable.Error() ||
-			strings.Contains(err.Error(), "context canceled")) {
-			log.Infof("Stopping watch on key %s", keyName)
-			return
-		} else if err != nil {
-			log.Errorf("Error watching the key %s, Err %v.", keyName, err)
+		if err != nil {
+			log.Infof("Watch %s next failed: %v %v", keyName, reflect.TypeOf(err), err)
+			switch err.(type) {
+			case *client.ClusterError:
+				// retry and wait for etcd cluster to recover!
+				time.Sleep(time.Second * 5)
+			case client.Error:
+				if err.(client.Error).Code == client.ErrorCodeEventIndexCleared {
+					watcher = lk.kapi.Watcher(keyName, nil)
+					log.Errorf("Watch next failed: reset watcher")
+				}
+			default:
+				// do nothing, just retry
+			}
+			continue
 		} else {
 			log.Debugf("Got Watch Resp: %+v", resp)
 
