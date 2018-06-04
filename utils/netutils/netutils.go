@@ -755,6 +755,30 @@ func GetLocalAddrList() ([]string, error) {
 	return addrList, err
 }
 
+//GetHostLowestLinkMtu return lowest mtu for host interface(excluding ovs
+//interface
+func GetHostLowestLinkMtu() (int, error) {
+
+	lowestMTU := 9000 //Jumbo frame MTU
+	intfList, err := net.Interfaces()
+	if err != nil {
+		return 0, err
+	}
+	// Loop thru each interface and add its ip addr to list
+	for _, intf := range intfList {
+		if strings.HasPrefix(intf.Name, "docker") || strings.HasPrefix(intf.Name, "veth") ||
+			strings.HasPrefix(intf.Name, "vport") || strings.HasPrefix(intf.Name, "lo") {
+			continue
+		}
+
+		lowestMTU = int(math.Min(float64(lowestMTU), float64(intf.MTU)))
+	}
+	if lowestMTU == 0 {
+		return 0, errors.New("Failed to find minimum MTU")
+	}
+	return lowestMTU, nil
+}
+
 // IsAddrLocal check if an address is local
 func IsAddrLocal(findAddr string) bool {
 	// get the local addr list

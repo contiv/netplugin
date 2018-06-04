@@ -123,7 +123,8 @@ func masterReq(path string, req interface{}, resp interface{}, isDel bool) error
 				time.Sleep(time.Second)
 				continue
 			} else if err != nil {
-				log.Errorf("Error making %s request: Err: %v", reqType, err)
+				log.Errorf("Error making %s request: Err: %v"+
+					"with resp:%+v", reqType, err, resp)
 				return err
 			}
 
