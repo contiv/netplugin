@@ -22,7 +22,7 @@ FROM ubuntu:16.04
 # ENV export https_proxy=https://proxy.localhost.com:8080
 
 RUN apt-get update \
- && apt-get install -y openvswitch-switch=2.5.2* \
+ && apt-get install -y openvswitch-switch=2.5.4* \
         net-tools \
         iptables \
  && rm -rf /var/lib/apt/lists/*
