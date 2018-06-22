@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
@@ -48,7 +49,7 @@ func NewNWClient() *NWClient {
 	c.baseURL = nwURL
 
 	transport := &http.Transport{Dial: unixDial}
-	c.client = &http.Client{Transport: transport}
+	c.client = &http.Client{Transport: transport,Timeout: 20 * time.Second}
 
 	return &c
 }
