@@ -18,7 +18,7 @@ package integration
 import (
 	"os"
 	"time"
-
+	"strings"
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/contiv/netplugin/contivmodel"
@@ -27,6 +27,9 @@ import (
 	"github.com/contiv/netplugin/netplugin/agent"
 	"github.com/contiv/netplugin/netplugin/plugin"
 	"github.com/contiv/netplugin/utils/netutils"
+	"github.com/contiv/netplugin/utils"
+	"net/url"
+	"fmt"
 )
 
 // NPCluster holds a new neplugin/netmaster cluster stats
@@ -40,6 +43,7 @@ type NPCluster struct {
 // NewNPCluster creates a new cluster of netplugin/netmaster
 func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 	// get local host name
+	storeURL := []string{}
 	hostLabel, err := os.Hostname()
 	if err != nil {
 		log.Fatalf("Failed to fetch hostname. Error: %s", err)
@@ -51,13 +55,25 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 		log.Fatalf("Error getting local address. Err: %v", err)
 	}
 
+
+	for _, endpoint := range utils.FilterEmpty(strings.Split(its.clusterStoreURL, ",")) {
+		_, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("invalid endpoint: %v", endpoint)
+		}
+		// TODO: support multi-endpoints
+		storeURL = append(storeURL,endpoint)
+		log.Infof("Using state db endpoints:  %v", storeURL)
+
+	}
+
 	// create master daemon
 	md := &daemon.MasterDaemon{
 		ListenURL:          "0.0.0.0:9999",
 		ControlURL:         "0.0.0.0:9999",
 		ClusterMode:        "test",
 		ClusterStoreDriver: its.clusterStoreDriver,
-		ClusterStoreURL:    its.clusterStoreURL,
+		ClusterStoreURL:    storeURL,
 		NetworkMode:        its.encap,
 		NetForwardMode:     its.fwdMode,
 		NetInfraType:       its.fabricMode,
@@ -73,7 +89,7 @@ func NewNPCluster(its *integTestSuite) (*NPCluster, error) {
 			CtrlIP:     localIP,
 			VtepIP:     localIP,
 			UplinkIntf: []string{"eth2"},
-			DbURL:      its.clusterStoreURL,
+			DbURL:      storeURL,
 			PluginMode: "test",
 		},
 	}

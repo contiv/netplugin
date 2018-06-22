@@ -48,10 +48,10 @@ func (d *ConsulStateDriver) Init(instInfo *core.InstanceInfo) error {
 	var err error
 	var endpoint *url.URL
 
-	if instInfo == nil || instInfo.DbURL == "" {
+	if instInfo == nil || len(instInfo.DbURL) == 0 {
 		return errors.New("no consul config found")
 	}
-	endpoint, err = url.Parse(instInfo.DbURL)
+	endpoint, err = url.Parse(instInfo.DbURL[0])
 	if err != nil {
 		return err
 	}

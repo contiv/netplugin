@@ -53,9 +53,9 @@ var stateStore core.StateDriver
 
 // initStateDriver initialize etcd state driver
 func initStateDriver() (core.StateDriver, error) {
-	instInfo := core.InstanceInfo{DbURL: "etcd://127.0.0.1:2379"}
+	instInfo := core.InstanceInfo{DbURL: []string{"etcd://127.0.0.1:2379"}}
 
-	return utils.NewStateDriver(utils.EtcdNameStr, &instInfo)
+	return utils.NewStateDriver(utils.EtcdNameStr, &instInfo),nil
 }
 
 type restAPIFunc func(r *http.Request) (interface{}, error)

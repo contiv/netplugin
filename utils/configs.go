@@ -73,7 +73,7 @@ func BuildDBFlags(binary string) []cli.Flag {
 // DBConfigs validated db configs
 type DBConfigs struct {
 	StoreDriver string
-	StoreURL    string
+	StoreURL    []string
 }
 
 // BuildLogFlags CLI logging flags for given binary
@@ -177,8 +177,9 @@ func InitLogging(binary string, ctx *cli.Context) error {
 // ValidateDBOptions returns error if db options are not valid
 func ValidateDBOptions(binary string, ctx *cli.Context) (*DBConfigs, error) {
 	var storeDriver string
-	var storeURL string
 	var storeURLs string
+
+	storeURL := []string{}
 	etcdURLs := ctx.String("etcd")
 	consulURLs := ctx.String("consul")
 
@@ -201,12 +202,12 @@ func ValidateDBOptions(binary string, ctx *cli.Context) (*DBConfigs, error) {
 			return nil, fmt.Errorf("invalid %s %v endpoint: %v", binary, storeDriver, endpoint)
 		}
 		// TODO: support multi-endpoints
-		storeURL = endpoint
+		storeURL = append(storeURL,endpoint)
 		logrus.Infof("Using %s state db endpoints: %v: %v", binary, storeDriver, storeURL)
-		break
+
 	}
 
-	if storeURL == "" {
+	if len(storeURL) == 0 {
 		return nil, fmt.Errorf("invalid %s %s endpoints: empty", binary, storeDriver)
 	}
 

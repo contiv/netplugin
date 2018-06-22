@@ -107,7 +107,7 @@ func initNetMaster(ctx *cli.Context) (*daemon.MasterDaemon, error) {
 		ListenURL:          externalAddress,
 		ControlURL:         internalAddress,
 		ClusterStoreDriver: dbConfigs.StoreDriver,
-		ClusterStoreURL:    dbConfigs.StoreURL, //TODO: support more than one url
+		ClusterStoreURL:    dbConfigs.StoreURL,
 		ClusterMode:        netConfigs.Mode,
 		NetworkMode:        netConfigs.NetworkMode,
 		NetForwardMode:     netConfigs.ForwardMode,
