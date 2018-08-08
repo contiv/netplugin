@@ -80,7 +80,7 @@ func stubAddPod(r *http.Request) (interface{}, error) {
 				err)
 		} else {
 			// respond with success
-			resp.IPAddress = utPodIP
+			resp.Attr.IPAddress = utPodIP
 			resp.EndpointID = pInfo.InfraContainerID
 			return resp, nil
 		}
