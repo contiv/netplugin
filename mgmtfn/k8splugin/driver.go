@@ -20,10 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	osexec "os/exec"
 	"strconv"
-	"strings"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
@@ -31,7 +28,6 @@ import (
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/utils"
-	"github.com/vishvananda/netlink"
 )
 
 // epSpec contains the spec of the Endpoint to be created

@@ -74,7 +74,6 @@ func getPodInfo(ppInfo *cniapi.CNIPodAttr) error {
 
 // nsToPID is a utility that extracts the PID from the netns
 func nsToPID(ns string) (int, error) {
-
 	elements := strings.Split(ns, "/")
 	return strconv.Atoi(elements[2])
 }

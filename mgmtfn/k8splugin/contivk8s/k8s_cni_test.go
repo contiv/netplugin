@@ -24,35 +24,70 @@ import (
 	"os"
 	osexec "os/exec"
 	"strconv"
-	"strings"
+
+	//"strings"
 	"testing"
 	"time"
 
 	logger "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/gorilla/mux"
+	"github.com/n3wt0nSAN/netplugin/utils/ns"
+	"github.com/vishvananda/netlink"
 )
 
 const (
-	utPodIP    = "44.55.66.77/22"
-	utCNIARG1  = "K8S_POD_NAMESPACE=utK8sNS"
-	utCNIARG2  = "K8S_POD_NAME=utPod"
-	utCNIARG3  = "K8S_POD_INFRA_CONTAINER_ID=8ec72deca647bfa60a4b815aa735c87de859b47e872828586749b9d852af1f49"
-	utCNINETNS = "/proc/98765/ns/net"
+	utPodIP        = "44.55.66.77/22"
+	utCNIARG1      = "K8S_POD_NAMESPACE=utK8sNS"
+	utCNIARG2      = "K8S_POD_NAME=utPod"
+	utCNIARG3      = "K8S_POD_INFRA_CONTAINER_ID=8ec72deca647bfa60a4b815aa735c87de859b47e872828586749b9d852af1f49"
+	utCNINETNSPid  = "/proc/98765/ns/net"
+	utCNINETNSPath = "/var/run/netns/netns_test"
+	utPodIface     = "testlinkfoo"
 )
 
 type restAPIFunc func(r *http.Request) (interface{}, error)
 
-// nsToPID is a utility that extracts the PID from the netns
-func nsToPID(ns string) (int, error) {
-	// Make sure ns is well formed
-	ok := strings.HasPrefix(ns, "/proc/")
-	if !ok {
-		return -1, fmt.Errorf("invalid network namespace: %v", ns)
+//// nsToPID is a utility that extracts the PID from the netns
+//func nsToPID(ns string) (int, error) {
+//	// Make sure ns is well formed
+//	ok := strings.HasPrefix(ns, "/proc/")
+//	if !ok {
+//		return -1, fmt.Errorf("invalid network namespace: %v", ns)
+//	}
+
+//	elements := strings.Split(ns, "/")
+//	return strconv.Atoi(elements[2])
+//}
+
+func SetUpTest() (string, int, error) {
+	la := netlink.NewLinkAttrs()
+	la.Name = utPodIface
+	n, err := ns.NewNS()
+	if err != nil {
+		return "", -1, err
 	}
 
-	elements := strings.Split(ns, "/")
-	return strconv.Atoi(elements[2])
+	ipPath, err := osexec.LookPath("ip")
+	if err != nil {
+		return "", -1, err
+	}
+
+	elements := strings.Split(n.Path(), "/")
+	cmd := osexec.Command(ipPath, "exec", elements[4], "sleep", "infinity")
+	if err = cmd.Start(); err != nil {
+		logger.Fatalf("failed to start the 'sleep 9999' process: %v", err)
+		return "", -1, err
+	}
+	pid := cmd.Process.Pid
+
+	dummy := &netlink.Dummy{LinkAttrs: la}
+	if err := netlink.LinkAdd(dummy); err != nil {
+		logger.Fatalf("failed to add dummy interface: %v", err)
+		return "", -1, err
+	}
+
+	return n.Path(), pid, nil
 }
 
 // stubAddPod is the handler for testing pod additions
@@ -184,23 +219,58 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestSetIfAttrs(t *testing.T) {
+	newName := "testlinknewname"
+	address := "192.168.68.68/24"
+	ipv6Address := "2001::100/100"
+	nspath := "/proc/1/ns/net"
+	ifName := "testlinkfoo"
+	if err := setIfAttrs(nspath, ifName, address, ipv6Address, newName); err != nil {
+		t.Errorf("setIfAttrs failed: %v", err)
+	}
+}
+
 func setupTestEnv() {
 	testCNIARGS := utCNIARG1 + ";" + utCNIARG2 + ";" + utCNIARG3
 	os.Setenv("CNI_ARGS", testCNIARGS)
-	os.Setenv("CNI_NETNS", utCNINETNS)
 	os.Setenv("CNI_IFNAME", "eth0")
+	return
 }
 
-// TestAddpod tests the AddPod interface
-func TestAddpod(m *testing.T) {
+// TestAddpodPid tests the AddPod interface using the pid
+func TestAddpodPid(t *testing.T) {
+	_, pid, err := SetUpTest()
+	if err != nil {
+		t.Errorf("TestAddpodPid failed: %v", err)
+	}
 	setupTestEnv()
+	os.Setenv("CNI_NETNS", "/proc/"+strconv.Itoa(pid)+"/ns/net")
 	os.Setenv("CNI_COMMAND", "ADD")
 	mainfunc()
 }
 
-// TestAddpod tests the DeletePod interface
-func TestDelpod(m *testing.T) {
+// TestAddpodPath tests the AddPod interface using the path
+func TestAddpodPath(t *testing.T) {
+	nspath, _, err := SetUpTest()
+	if err != nil {
+		t.Errorf("TestAddpodPid failed: %v", err)
+	}
 	setupTestEnv()
+	os.Setenv("CNI_NETNS", nspath)
+	os.Setenv("CNI_COMMAND", "ADD")
+	mainfunc()
+}
+
+// TestAddpodPid tests the DeletePod interface using the pid
+func TestDelpodPid(m *testing.T) {
+	setupTestEnv(utCNINETNSPid)
+	os.Setenv("CNI_COMMAND", "DEL")
+	mainfunc()
+}
+
+// TestAddpodPath tests the DeletePod interface using the path
+func TestDelpodPath(m *testing.T) {
+	setupTestEnv(utCNINETNSPath)
 	os.Setenv("CNI_COMMAND", "DEL")
 	mainfunc()
 }
