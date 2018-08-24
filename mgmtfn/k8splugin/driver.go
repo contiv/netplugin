@@ -20,10 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	osexec "os/exec"
 	"strconv"
-	"strings"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
@@ -31,8 +28,6 @@ import (
 	"github.com/contiv/netplugin/netmaster/master"
 	"github.com/contiv/netplugin/netplugin/cluster"
 	"github.com/contiv/netplugin/utils"
-	"github.com/contiv/netplugin/utils/netutils"
-	"github.com/vishvananda/netlink"
 )
 
 // epSpec contains the spec of the Endpoint to be created
@@ -153,186 +148,6 @@ func createEP(req *epSpec) (*epAttr, error) {
 	return &epResponse, nil
 }
 
-// getLink is a wrapper that fetches the netlink corresponding to the ifname
-func getLink(ifname string) (netlink.Link, error) {
-	// find the link
-	link, err := netlink.LinkByName(ifname)
-	if err != nil {
-		if !strings.Contains(err.Error(), "Link not found") {
-			log.Errorf("unable to find link %q. Error: %q", ifname, err)
-			return link, err
-		}
-		// try once more as sometimes (somehow) link creation is taking
-		// sometime, causing link not found error
-		time.Sleep(1 * time.Second)
-		link, err = netlink.LinkByName(ifname)
-		if err != nil {
-			log.Errorf("unable to find link %q. Error %q", ifname, err)
-		}
-		return link, err
-	}
-	return link, err
-}
-
-// nsToPID is a utility that extracts the PID from the netns
-func nsToPID(ns string) (int, error) {
-	// Make sure ns is well formed
-	ok := strings.HasPrefix(ns, "/proc/")
-	if !ok {
-		return -1, fmt.Errorf("invalid nw name space: %v", ns)
-	}
-
-	elements := strings.Split(ns, "/")
-	return strconv.Atoi(elements[2])
-}
-
-func moveToNS(pid int, ifname string) error {
-	// find the link
-	link, err := getLink(ifname)
-	if err != nil {
-		log.Errorf("unable to find link %q. Error %q", ifname, err)
-		return err
-	}
-
-	// move to the desired netns
-	err = netlink.LinkSetNsPid(link, pid)
-	if err != nil {
-		log.Errorf("unable to move interface %s to pid %d. Error: %s",
-			ifname, pid, err)
-		return err
-	}
-
-	return nil
-}
-
-// setIfAttrs sets the required attributes for the container interface
-func setIfAttrs(pid int, ifname, cidr, cidr6, newname string) error {
-	nsenterPath, err := osexec.LookPath("nsenter")
-	if err != nil {
-		return err
-	}
-	ipPath, err := osexec.LookPath("ip")
-	if err != nil {
-		return err
-	}
-
-	// find the link
-	link, err := getLink(ifname)
-	if err != nil {
-		log.Errorf("unable to find link %q. Error %q", ifname, err)
-		return err
-	}
-
-	// move to the desired netns
-	err = netlink.LinkSetNsPid(link, pid)
-	if err != nil {
-		log.Errorf("unable to move interface %s to pid %d. Error: %s",
-			ifname, pid, err)
-		return err
-	}
-
-	// rename to the desired ifname
-	nsPid := fmt.Sprintf("%d", pid)
-	rename, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath, "link",
-		"set", "dev", ifname, "name", newname).CombinedOutput()
-	if err != nil {
-		log.Errorf("unable to rename interface %s to %s. Error: %s",
-			ifname, newname, err)
-		return nil
-	}
-	log.Infof("Output from rename: %v", rename)
-
-	// set the ip address
-	assignIP, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
-		"address", "add", cidr, "dev", newname).CombinedOutput()
-
-	if err != nil {
-		log.Errorf("unable to assign ip %s to %s. Error: %s",
-			cidr, newname, err)
-		return nil
-	}
-	log.Infof("Output from ip assign: %v", assignIP)
-
-	if cidr6 != "" {
-		out, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
-			"-6", "address", "add", cidr6, "dev", newname).CombinedOutput()
-		if err != nil {
-			log.Errorf("unable to assign IPv6 %s to %s. Error: %s",
-				cidr6, newname, err)
-			return nil
-		}
-		log.Infof("Output of IPv6 assign: %v", out)
-	}
-
-	// Finally, mark the link up
-	bringUp, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
-		"link", "set", "dev", newname, "up").CombinedOutput()
-
-	if err != nil {
-		log.Errorf("unable to assign ip %s to %s. Error: %s",
-			cidr, newname, err)
-		return nil
-	}
-	log.Debugf("Output from ip assign: %v", bringUp)
-	return nil
-
-}
-
-func addStaticRoute(pid int, subnet, intfName string) error {
-	nsenterPath, err := osexec.LookPath("nsenter")
-	if err != nil {
-		return err
-	}
-
-	ipPath, err := osexec.LookPath("ip")
-	if err != nil {
-		return err
-	}
-
-	nsPid := fmt.Sprintf("%d", pid)
-	_, err = osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", ipPath,
-		"route", "add", subnet, "dev", intfName).CombinedOutput()
-
-	if err != nil {
-		log.Errorf("unable to add route %s via %s. Error: %s",
-			subnet, intfName, err)
-		return err
-	}
-
-	return nil
-}
-
-// setDefGw sets the default gateway for the container namespace
-func setDefGw(pid int, gw, gw6, intfName string) error {
-	nsenterPath, err := osexec.LookPath("nsenter")
-	if err != nil {
-		return err
-	}
-	routePath, err := osexec.LookPath("route")
-	if err != nil {
-		return err
-	}
-	// set default gw
-	nsPid := fmt.Sprintf("%d", pid)
-	out, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", routePath, "add",
-		"default", "gw", gw, intfName).CombinedOutput()
-	if err != nil {
-		log.Errorf("unable to set default gw %s. Error: %s - %s", gw, err, out)
-		return nil
-	}
-
-	if gw6 != "" {
-		out, err := osexec.Command(nsenterPath, "-t", nsPid, "-n", "-F", "--", routePath,
-			"-6", "add", "default", "gw", gw6, intfName).CombinedOutput()
-		if err != nil {
-			log.Errorf("unable to set default IPv6 gateway %s. Error: %s - %s", gw6, err, out)
-			return nil
-		}
-	}
-
-	return nil
-}
-
 // getEPSpec gets the EP spec using the pod attributes
 func getEPSpec(pInfo *cniapi.CNIPodAttr) (*epSpec, error) {
 	resp := epSpec{}
@@ -399,76 +214,12 @@ func addPod(w http.ResponseWriter, r *http.Request, vars map[string]string) (int
 		return resp, err
 	}
 
-	var epErr error
-
-	defer func() {
-		if epErr != nil {
-			log.Errorf("error %s, remove endpoint", epErr)
-			netPlugin.DeleteHostAccPort(epReq.EndpointID)
-			epCleanUp(epReq)
-		}
-	}()
-
-	// convert netns to pid that netlink needs
-	pid, epErr := nsToPID(pInfo.NwNameSpace)
-	if epErr != nil {
-		log.Errorf("Error moving to netns. Err: %v", epErr)
-		setErrorResp(&resp, "Error moving to netns", epErr)
-		return resp, epErr
-	}
-
-	// Set interface attributes for the new port
-	epErr = setIfAttrs(pid, ep.PortName, ep.IPAddress, ep.IPv6Address, pInfo.IntfName)
-	if epErr != nil {
-		log.Errorf("Error setting interface attributes. Err: %v", epErr)
-		setErrorResp(&resp, "Error setting interface attributes", epErr)
-		return resp, epErr
-	}
-
-	//TODO: Host access needs to be enabled for IPv6
-	// if Gateway is not specified on the nw, use the host gateway
-	gwIntf := pInfo.IntfName
-	gw := ep.Gateway
-	if gw == "" {
-		hostIf := netutils.GetHostIntfName(ep.PortName)
-		hostIP, err := netPlugin.CreateHostAccPort(hostIf, ep.IPAddress)
-		if err != nil {
-			log.Errorf("Error setting host access. Err: %v", err)
-		} else {
-			err = setIfAttrs(pid, hostIf, hostIP, "", "host1")
-			if err != nil {
-				log.Errorf("Move to pid %d failed", pid)
-			} else {
-				gw, err = netutils.HostIPToGateway(hostIP)
-				if err != nil {
-					log.Errorf("Error getting host GW ip: %s, err: %v", hostIP, err)
-				} else {
-					gwIntf = "host1"
-					// make sure service subnet points to eth0
-					svcSubnet := contivK8Config.SvcSubnet
-					addStaticRoute(pid, svcSubnet, pInfo.IntfName)
-				}
-			}
-		}
-
-	}
-
-	// Set default gateway
-	epErr = setDefGw(pid, gw, ep.IPv6Gateway, gwIntf)
-	if epErr != nil {
-		log.Errorf("Error setting default gateway. Err: %v", epErr)
-		setErrorResp(&resp, "Error setting default gateway", epErr)
-		return resp, epErr
-	}
-
 	resp.Result = 0
-	resp.IPAddress = ep.IPAddress
-
-	if ep.IPv6Address != "" {
-		resp.IPv6Address = ep.IPv6Address
-	}
 
 	resp.EndpointID = pInfo.InfraContainerID
+
+	resp.Attr = &cniapi.Attr{IPAddress: ep.IPAddress, PortName: ep.PortName,
+		Gateway: ep.Gateway, IPv6Address: ep.IPv6Address, IPv6Gateway: ep.IPv6Gateway}
 
 	return resp, nil
 }

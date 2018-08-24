@@ -40,10 +40,17 @@ type CNIPodAttr struct {
 
 // RspAddPod contains the response to the AddPod
 type RspAddPod struct {
-	Result      uint   `json:"result,omitempty"`
-	EndpointID  string `json:"endpointid,omitempty"`
+	Result     uint   `json:"result,omitempty"`
+	EndpointID string `json:"endpointid,omitempty"`
+	ErrMsg     string `json:"errmsg,omitempty"`
+	ErrInfo    string `json:"errinfo,omitempty"`
+	Attr       *Attr  `json:"epattr,omitempty"`
+}
+
+type Attr struct {
 	IPAddress   string `json:"ipaddress,omitempty"`
+	PortName    string `json:"portname,omitempty"`
+	Gateway     string `json:"gateway,omitempty"`
 	IPv6Address string `json:"ipv6address,omitempty"`
-	ErrMsg      string `json:"errmsg,omitempty"`
-	ErrInfo     string `json:"errinfo,omitempty"`
+	IPv6Gateway string `json:"ipv6gateway,omitempty"`
 }
