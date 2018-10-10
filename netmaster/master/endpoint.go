@@ -264,10 +264,10 @@ func DeleteEndpoints(hostAddr string) error {
 			}
 			epOper := &drivers.OperEndpointState{}
 			epOper.StateDriver = stateDriver
-			err := epOper.Read(epID)
+			err = epOper.Read(epID)
 			if err != nil {
 				log.Errorf("Failed to read epOper: %+v", epOper)
-				return err
+				continue
 			}
 			err = epOper.Clear()
 			if err != nil {
