@@ -4,7 +4,7 @@ go get github.com/tools/godep
 go get github.com/aktau/github-release
 go get github.com/contiv/modelgen
 
-if ! go get -u github.com/golang/lint/golint
+if ! go get -u golang.org/x/lint/golint
 then
   echo "!!! Could not install golint"
   exit 1

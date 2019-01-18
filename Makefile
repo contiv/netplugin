@@ -85,7 +85,7 @@ endif
 
 checks: go-version gofmt-src golint-src govet-src misspell-src
 
-run-build: deps checks clean
+run-build: deps clean
 	cd $(GOPATH)/src/github.com/contiv/netplugin && \
 	USE_RELEASE=${USE_RELEASE} BUILD_VERSION=${BUILD_VERSION} \
 	TO_BUILD="${TO_BUILD}" VERSION_FILE=${VERSION_FILE} \
