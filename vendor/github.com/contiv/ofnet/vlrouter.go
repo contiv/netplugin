@@ -38,6 +38,7 @@ import (
 	"github.com/contiv/libOpenflow/protocol"
 	"github.com/contiv/ofnet/ofctrl"
 	cmap "github.com/streamrail/concurrent-map"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
 // Vlrouter state.
@@ -338,14 +339,19 @@ func (vl *Vlrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 */
 func (vl *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 
+	var errList []error
+
 	log.Infof("Received Remove Local Endpoint for endpoint:{%+v}", endpoint)
+
 	// Remove the port vlan flow.
 	portVlanFlow := vl.portVlanFlowDb[endpoint.PortNo]
 	if portVlanFlow != nil {
 		err := portVlanFlow.Delete()
 		if err != nil {
+			errList = append(errList, err)
 			log.Errorf("Error deleting portvlan flow. Err: %v", err)
 		}
+		delete(vl.portVlanFlowDb, endpoint.PortNo)
 	}
 
 	// Remove dscp flows.
@@ -354,46 +360,46 @@ func (vl *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		for _, dflow := range dscpFlows {
 			err := dflow.Delete()
 			if err != nil {
+				errList = append(errList, err)
 				log.Errorf("Error deleting dscp flow {%+v}. Err: %v", dflow, err)
 			}
 		}
+		delete(vl.dscpFlowDb, endpoint.PortNo)
 	}
 
 	// Find the flow entry
 	flowId := endpoint.EndpointID
 	ipFlow := vl.flowDb[flowId]
-	if ipFlow == nil {
-		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
-		return errors.New("Flow not found")
-	}
-
-	// Delete the Fgraph entry
-	err := ipFlow.Delete()
-	if err != nil {
-		log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
+	if ipFlow != nil {
+		// Delete the Fgraph entry
+		err := ipFlow.Delete()
+		if err != nil {
+			errList = append(errList, err)
+			log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
+		}
+		delete(vl.flowDb, flowId)
 	}
 
 	flowId = endpoint.EndpointID + "vlan"
 	ipFlow = vl.flowDb[flowId]
-	if ipFlow == nil {
-		log.Errorf("Error finding the tagged flow for endpoint: %+v", endpoint)
-		return errors.New("Flow not found")
-	}
-
-	// Delete the Fgraph entry
-	err = ipFlow.Delete()
-	if err != nil {
-		log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
+	if ipFlow != nil {
+		// Delete the Fgraph entry
+		err := ipFlow.Delete()
+		if err != nil {
+			errList = append(errList, err)
+			log.Errorf("Error deleting the endpoint: %+v. Err: %v", endpoint, err)
+		}
+		delete(vl.flowDb, flowId)
 	}
 
 	vl.svcProxy.DelEndpoint(&endpoint)
 
 	// Remove the endpoint from policy tables
 	if !vl.agent.isInternalBgp(&endpoint) {
-		err = vl.policyAgent.DelEndpoint(&endpoint)
+		err := vl.policyAgent.DelEndpoint(&endpoint)
 		if err != nil {
+			errList = append(errList, err)
 			log.Errorf("Error deleting endpoint to policy agent{%+v}. Err: %v", endpoint, err)
-			return err
 		}
 	}
 
@@ -408,12 +414,14 @@ func (vl *Vlrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	vl.agent.DeleteLocalProtoRoute([]*OfnetProtoRouteInfo{path})
 
 	if endpoint.Ipv6Addr != nil && endpoint.Ipv6Addr.String() != "" {
-		err = vl.RemoveLocalIpv6Flow(endpoint)
+		err := vl.RemoveLocalIpv6Flow(endpoint)
 		if err != nil {
-			return err
+			errList = append(errList, err)
+			log.Errorf("Error deleting the endpoint ipv6 flow{%+v}. Err: %v", endpoint, err)
 		}
 	}
-	return nil
+
+	return utilerrors.NewAggregate(errList)
 }
 
 // UpdateLocalEndpoint update local endpoint state
