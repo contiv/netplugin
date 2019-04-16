@@ -27,6 +27,7 @@ import (
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/contivk8s/clients"
 	"github.com/contiv/netplugin/version"
 
+	"github.com/vishvananda/netns"
 	logger "github.com/Sirupsen/logrus"
 	ip "github.com/containernetworking/cni/pkg/types"
 	cni "github.com/containernetworking/cni/pkg/types/current"
@@ -63,6 +64,17 @@ func getPodInfo(ppInfo *cniapi.CNIPodAttr) error {
 
 	// nwNameSpace and ifname are passed as separate env vars
 	ppInfo.NwNameSpace = os.Getenv("CNI_NETNS")
+	if ppInfo.NwNameSpace != "" {
+		if !strings.HasPrefix(ppInfo.NwNameSpace, "/proc/") {
+			if nsHandle, err := netns.GetFromPath(ppInfo.NwNameSpace); err != nil {
+				return fmt.Errorf("error getting ns %s: %s", ppInfo.NwNameSpace, err)
+			} else if err = netns.Set(nsHandle); err != nil {
+				return fmt.Errorf("error switching to ns %s: %s", ppInfo.NwNameSpace, err)
+			}
+			ppInfo.NwNameSpace = fmt.Sprintf("/proc/%d/ns/net", os.Getpid())
+		}
+	}
+
 	ppInfo.IntfName = os.Getenv("CNI_IFNAME")
 	return nil
 }
@@ -152,10 +164,13 @@ func getPrefixedLogger() *logger.Entry {
 	var nsID string
 
 	netNS := os.Getenv("CNI_NETNS")
-	ok := strings.HasPrefix(netNS, "/proc/")
-	if ok {
-		elements := strings.Split(netNS, "/")
-		nsID = elements[2]
+	if netNS != "" {
+		if strings.HasPrefix(netNS, "/proc/") {
+			elements := strings.Split(netNS, "/")
+			nsID = elements[2]
+		} else {
+			nsID = netNS
+		}
 	} else {
 		nsID = "EMPTY"
 	}

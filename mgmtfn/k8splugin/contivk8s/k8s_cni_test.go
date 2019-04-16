@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
 	logger "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/mgmtfn/k8splugin/cniapi"
 	"github.com/gorilla/mux"
@@ -39,6 +40,7 @@ const (
 	utCNIARG2  = "K8S_POD_NAME=utPod"
 	utCNIARG3  = "K8S_POD_INFRA_CONTAINER_ID=8ec72deca647bfa60a4b815aa735c87de859b47e872828586749b9d852af1f49"
 	utCNINETNS = "/proc/98765/ns/net"
+	utCNINETNS2 = "/var/run/netns/cni-eb58672e-a27e-ac5d-73dd-7ebb56282818"
 )
 
 type restAPIFunc func(r *http.Request) (interface{}, error)
@@ -181,6 +183,22 @@ func setupTestServer() {
 // TestMain sets up an http server for testing k8s plugin REST interface
 func TestMain(m *testing.M) {
 	setupTestServer()
+
+	if err := os.MkdirAll("/var/run/netns", 0700); err != nil {
+		logger.Fatalf("mkdir error: %v\n", err)
+	}
+
+	if _, err := os.Stat(utCNINETNS2); err != nil {
+		if _, err := os.Create(utCNINETNS2); err != nil {
+			logger.Fatalf("create error: %v\n", err)
+		}
+	}
+
+	unix.Unmount(utCNINETNS2, 0)
+	if err := unix.Mount("/proc/1/ns/net", utCNINETNS2, "none", unix.MS_BIND, ""); err != nil {
+		logger.Fatalf("mount error: %v\n", err)
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -202,5 +220,21 @@ func TestAddpod(m *testing.T) {
 func TestDelpod(m *testing.T) {
 	setupTestEnv()
 	os.Setenv("CNI_COMMAND", "DEL")
+	mainfunc()
+}
+
+// TestAddpod tests the AddPod interface
+func TestAddpod2(m *testing.T) {
+	setupTestEnv()
+	os.Setenv("CNI_COMMAND", "ADD")
+	os.Setenv("CNI_NETNS", utCNINETNS2)
+	mainfunc()
+}
+
+// TestAddpod tests the DeletePod interface
+func TestDelpod2(m *testing.T) {
+	setupTestEnv()
+	os.Setenv("CNI_COMMAND", "DEL")
+	os.Setenv("CNI_NETNS", utCNINETNS2)
 	mainfunc()
 }
