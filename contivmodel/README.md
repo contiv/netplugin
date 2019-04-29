@@ -8,7 +8,7 @@ This is how current object model looks like:
 ### Using go client
 Here is an example of how to use contiv go client
 
-```
+```golang
 package main
 
 import (
@@ -30,9 +30,9 @@ func main() {
     }
     
     // Create policy
-    err = cl.PostPolicy(policy)
+    err = cl.PolicyPost(&policy)
     if err != nil {
-        log.Errorf("Policy Creation failed. Err: %v", err)
+        log.Fatalf("Policy Creation failed. Err: %v", err)
     }
 }
 ```
