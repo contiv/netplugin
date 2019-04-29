@@ -50,7 +50,7 @@ type MasterDaemon struct {
 	ListenURL          string // URL where netmaster listens for ext requests
 	ControlURL         string // URL where netmaster listens for ctrl pkts
 	ClusterStoreDriver string // state store driver name
-	ClusterStoreURL    string // state store endpoint
+	ClusterStoreURL    []string // state store endpoint
 	ClusterMode        string // cluster scheduler used docker/kubernetes/mesos etc
 	NetworkMode        string // network mode (vlan or vxlan)
 	NetForwardMode     string // forwarding mode (bridge or routing)
@@ -81,7 +81,7 @@ func (d *MasterDaemon) Init() {
 	// initialize state driver
 	d.stateDriver, err = utils.NewStateDriver(d.ClusterStoreDriver, &core.InstanceInfo{DbURL: d.ClusterStoreURL})
 	if err != nil {
-		log.Fatalf("Failed to init state-store: driver %q, URLs %q. Error: %s", d.ClusterStoreDriver, d.ClusterStoreURL, err)
+		log.Fatalf("Failed to init state-store: driver %q, URLs %v. Error: %s", d.ClusterStoreDriver, d.ClusterStoreURL, err)
 	}
 
 	// Initialize resource manager
@@ -91,9 +91,9 @@ func (d *MasterDaemon) Init() {
 	}
 
 	// Create an objdb client
-	d.objdbClient, err = objdb.InitClient(d.ClusterStoreDriver, []string{d.ClusterStoreURL})
+	d.objdbClient, err = objdb.InitClient(d.ClusterStoreDriver, d.ClusterStoreURL)
 	if err != nil {
-		log.Fatalf("Error connecting to state store: driver %q, URLs %q. Err: %v", d.ClusterStoreDriver, d.ClusterStoreURL, err)
+		log.Fatalf("Error connecting to state store: driver %q, URLs %v. Err: %v", d.ClusterStoreDriver, d.ClusterStoreURL, err)
 	}
 }
 

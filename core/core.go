@@ -83,7 +83,7 @@ type InstanceInfo struct {
 	RouterIP     string      `json:"router-ip"`
 	FwdMode      string      `json:"fwd-mode"`
 	ArpMode      string      `json:"arp-mode"`
-	DbURL        string      `json:"db-url"`
+	DbURL        []string     `json:"db-url"`
 	PluginMode   string      `json:"plugin-mode"`
 	HostPvtNW    int         `json:"host-pvt-nw"`
 	VxlanUDPPort int         `json:"vxlan-port"`

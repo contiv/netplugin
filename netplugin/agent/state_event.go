@@ -350,11 +350,11 @@ func processEpgEvent(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, ID str
 func processReinit(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, newCfg *mastercfg.GlobConfig) {
 
 	// parse store URL
-	parts := strings.Split(opts.DbURL, "://")
-	if len(parts) < 2 {
-		log.Fatalf("Invalid cluster-store-url %s", opts.DbURL)
+	//parts := strings.Split(opts.DbURL, "://")
+	if len(opts.DbURL) == 0 {
+		log.Fatalf("Invalid cluster-store-url %v", opts.DbURL)
 	}
-	stateStore := parts[0]
+	stateStore := strings.Split(opts.DbURL[0], "://")[0]
 	// initialize the config
 	pluginConfig := plugin.Config{
 		Drivers: plugin.Drivers{
@@ -412,11 +412,11 @@ func processGlobalConfigUpdEvent(netPlugin *plugin.NetPlugin, opts core.Instance
 func processARPModeChange(netPlugin *plugin.NetPlugin, opts core.InstanceInfo, arpMode string) {
 
 	// parse store URL
-	parts := strings.Split(opts.DbURL, "://")
-	if len(parts) < 2 {
-		log.Fatalf("Invalid cluster-store-url %s", opts.DbURL)
+	//parts := strings.Split(opts.DbURL, "://")
+	if len(opts.DbURL) == 0 {
+		log.Fatalf("Invalid cluster-store-url %v", opts.DbURL)
 	}
-	stateStore := parts[0]
+	stateStore := strings.Split(opts.DbURL[0], "://")[0]
 	// initialize the config
 	pluginConfig := plugin.Config{
 		Drivers: plugin.Drivers{
