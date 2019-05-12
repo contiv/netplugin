@@ -1598,6 +1598,7 @@ func (ac *APIController) RuleCreate(rule *contivModel.Rule) error {
 
 	// find the policy
 	policy := contivModel.FindPolicy(policyKey)
+	log.Infof("RuleCreate on Policy: %v", policy)
 	if policy == nil {
 		log.Errorf("Error finding policy %s", policyKey)
 		return core.Errorf("Policy not found")

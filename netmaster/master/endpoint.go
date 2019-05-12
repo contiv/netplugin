@@ -119,10 +119,7 @@ func CreateEndpoint(stateDriver core.StateDriver, nwCfg *mastercfg.CfgNetworkSta
 	epCfg.ServiceName = ep.ServiceName
 	epCfg.EPCommonName = epReq.EPCommonName
 
-	// In ACI mode, if a pod does not have a group label, we will assume "default-group"
-	isAci, _ := IsAciConfigured()
-
-	if isAci && (len(epCfg.ServiceName) == 0) {
+	if len(epCfg.ServiceName) == 0 {
 		epCfg.ServiceName = "default-group"
 		log.Infof("Over-riding null group with default-group for ep %s nw %s", epCfg.EndpointID, epCfg.NetID)
 	}
