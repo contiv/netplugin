@@ -26,6 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
+	"reflect"
 )
 
 // Service state
@@ -194,14 +195,22 @@ func (ep *EtcdClient) WatchService(name string, eventCh chan WatchServiceEvent, 
 		for {
 			// Block till next watch event
 			etcdRsp, err := watcher.Next(watchCtx)
-			if err != nil && err.Error() == client.ErrClusterUnavailable.Error() {
-				log.Infof("Stopping watch on key %s", keyName)
-				return
-			} else if err != nil {
-				log.Errorf("Error %v during watch. Watch thread exiting", err)
-				return
+			if err != nil {
+				log.Infof("Watch %s next failed: %v %v", keyName, reflect.TypeOf(err), err)
+				switch err.(type) {
+				case *client.ClusterError:
+					// retry and wait for etcd cluster to recover!
+					time.Sleep(time.Second * 5)
+				case client.Error:
+					if err.(client.Error).Code == client.ErrorCodeEventIndexCleared {
+						watcher = ep.kapi.Watcher(keyName, &client.WatcherOptions{Recursive: true})
+						log.Errorf("Watch next failed: reset watcher")
+					}
+				default:
+					// do nothing, just retry
+				}
+				continue
 			}
-
 			// Send it to watch channel
 			watchCh <- etcdRsp
 		}

@@ -176,16 +176,26 @@ func (d *EtcdStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	return [][]byte{}, err
 }
 
-func (d *EtcdStateDriver) channelEtcdEvents(watcher client.Watcher, rsps chan [2][]byte) {
+func (d *EtcdStateDriver) channelEtcdEvents(watcher client.Watcher, rsps chan [2][]byte, baseKey string) {
 	for {
 		// block on change notifications
 		etcdRsp, err := watcher.Next(context.Background())
 		if err != nil {
-			log.Errorf("Error %v during watch", err)
-			time.Sleep(time.Second)
+			log.Infof("Watch %s next failed: %v %v", baseKey, reflect.TypeOf(err), err)
+			switch err.(type) {
+			case *client.ClusterError:
+				// retry and wait for etcd cluster to recover!
+				time.Sleep(time.Second * 5)
+			case client.Error:
+				if err.(client.Error).Code == client.ErrorCodeEventIndexCleared {
+					watcher = d.KeysAPI.Watcher(baseKey, &client.WatcherOptions{Recursive: true})
+					log.Errorf("Watch next failed: reset watcher")
+				}
+			default:
+				// do nothing, just retry
+			}
 			continue
 		}
-
 		// XXX: The logic below assumes that the node returned is always a node
 		// of interest. Eg: If we set a watch on /a/b/c, then we are mostly
 		// interested in changes in that directory i.e. changes to /a/b/c/d1..d2
@@ -220,7 +230,7 @@ func (d *EtcdStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error {
 		return errors.New("etcd watch failed")
 	}
 
-	go d.channelEtcdEvents(watcher, rsps)
+	go d.channelEtcdEvents(watcher, rsps, baseKey)
 
 	return nil
 }
