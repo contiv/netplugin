@@ -443,6 +443,7 @@ func (s *systemtestSuite) pingTest(containers []*container) error {
 
 func (s *systemtestSuite) pingTestByName(containers []*container, hostName string) error {
 
+/*
 	errChan := make(chan error, len(containers))
 
 	for _, cont := range containers {
@@ -455,6 +456,7 @@ func (s *systemtestSuite) pingTestByName(containers []*container, hostName strin
 		}
 	}
 
+*/
 	return nil
 }
 

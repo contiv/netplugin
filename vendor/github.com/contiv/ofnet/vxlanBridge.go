@@ -67,6 +67,8 @@ type Vxlan struct {
 	// Flow Database
 	macFlowDb      map[string]*ofctrl.Flow   // Database of flow entries
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
+	ipgAllowFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
+	ipgDenyFlowDb  map[uint32]*ofctrl.Flow   // Database of flow entries
 	portDnsFlowDb  cmap.ConcurrentMap        // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
 
@@ -105,6 +107,8 @@ func NewVxlan(agent *OfnetAgent, rpcServ *rpc.Server) *Vxlan {
 	vxlan.vlanDb = make(map[uint16]*Vlan)
 	vxlan.macFlowDb = make(map[string]*ofctrl.Flow)
 	vxlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
+	vxlan.ipgAllowFlowDb = make(map[uint32]*ofctrl.Flow)
+	vxlan.ipgDenyFlowDb = make(map[uint32]*ofctrl.Flow)
 	vxlan.portDnsFlowDb = cmap.New()
 	vxlan.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
 
@@ -254,6 +258,14 @@ func (self *Vxlan) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 	// save the flow entry
 	self.portVlanFlowDb[endpoint.PortNo] = portVlanFlow
 
+	ipgAllowFlow, ipgDenyFlow, err := createIPGuardFlow(self.agent, self.ofSwitch, self.vlanTable, dNATTbl, &endpoint)
+	if err != nil {
+		log.Errorf("Error creating ipguard entry. Err: %v", err)
+		return err
+	}
+	self.ipgAllowFlowDb[endpoint.PortNo] = ipgAllowFlow
+	self.ipgDenyFlowDb[endpoint.PortNo] = ipgDenyFlow
+
 	// install DSCP flow entries if required
 	if endpoint.Dscp != 0 {
 		dscpV4Flow, dscpV6Flow, err := createDscpFlow(self.agent, self.vlanTable, dNATTbl, &endpoint)
@@ -353,6 +365,26 @@ func (self *Vxlan) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		}
 	}
 
+	// Remove IP guard flows
+	ipa := self.ipgAllowFlowDb[endpoint.PortNo]
+	if ipa != nil {
+		err := ipa.Delete()
+		if err != nil {
+			log.Errorf("Error deleting ipgAllow flow. Err: %v", err)
+		}
+		delete(self.ipgAllowFlowDb, endpoint.PortNo)
+	}
+
+	// Remove IP guard flows
+	ipd := self.ipgDenyFlowDb[endpoint.PortNo]
+	if ipd != nil {
+		err := ipd.Delete()
+		if err != nil {
+			log.Errorf("Error deleting ipgDeny flow. Err: %v", err)
+		}
+		delete(self.ipgDenyFlowDb, endpoint.PortNo)
+	}
+
 	// Remove dscp flows.
 	dscpFlows, found := self.dscpFlowDb[endpoint.PortNo]
 	if found {
@@ -442,19 +474,21 @@ func (self *Vxlan) UpdateLocalEndpoint(endpoint *OfnetEndpoint, epInfo EndpointI
 // to ofp port number.
 func (self *Vxlan) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 
-	dnsVtepFlow, err := self.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
-		InputPort:  portNo,
-		Ethertype:  protocol.IPv4_MSG,
-		IpProto:    protocol.Type_UDP,
-		UdpDstPort: 53,
-	})
-	if err != nil {
-		log.Errorf("Error creating nameserver flow entry. Err: %v", err)
-		return err
+	if EnableInlineDNS {
+		dnsVtepFlow, err := self.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
+			InputPort:  portNo,
+			Ethertype:  protocol.IPv4_MSG,
+			IpProto:    protocol.Type_UDP,
+			UdpDstPort: 53,
+		})
+		if err != nil {
+			log.Errorf("Error creating nameserver flow entry. Err: %v", err)
+			return err
+		}
+		dnsVtepFlow.Next(self.vlanTable)
+		self.portDnsFlowDb.Set(fmt.Sprintf("%d", portNo), dnsVtepFlow)
 	}
-	dnsVtepFlow.Next(self.vlanTable)
-	self.portDnsFlowDb.Set(fmt.Sprintf("%d", portNo), dnsVtepFlow)
 
 	// Install VNI to vlan mapping for each vni
 	sNATTbl := self.ofSwitch.GetTable(SRV_PROXY_SNAT_TBL_ID)
@@ -972,31 +1006,33 @@ func (self *Vxlan) initFgraph() error {
 		self.updateArpRedirectFlow(self.agent.arpMode)
 	}
 
-	// redirect dns requests from containers (oui 02:02:xx) to controller
-	macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
-	macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
-	dnsRedirectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:   DNS_FLOW_MATCH_PRIORITY,
-		MacSa:      &macSa,
-		MacSaMask:  &macSaMask,
-		Ethertype:  protocol.IPv4_MSG,
-		IpProto:    protocol.Type_UDP,
-		UdpDstPort: 53,
-	})
-	dnsRedirectFlow.Next(sw.SendToController())
+	if EnableInlineDNS {
+		// redirect dns requests from containers (oui 02:02:xx) to controller
+		macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
+		macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
+		dnsRedirectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:   DNS_FLOW_MATCH_PRIORITY,
+			MacSa:      &macSa,
+			MacSaMask:  &macSaMask,
+			Ethertype:  protocol.IPv4_MSG,
+			IpProto:    protocol.Type_UDP,
+			UdpDstPort: 53,
+		})
+		dnsRedirectFlow.Next(sw.SendToController())
 
-	// re-inject dns requests
-	dnsReinjectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
-		MacSa:      &macSa,
-		MacSaMask:  &macSaMask,
-		VlanId:     nameServerInternalVlanId,
-		Ethertype:  protocol.IPv4_MSG,
-		IpProto:    protocol.Type_UDP,
-		UdpDstPort: 53,
-	})
-	dnsReinjectFlow.PopVlan()
-	dnsReinjectFlow.Next(self.vlanTable)
+		// re-inject dns requests
+		dnsReinjectFlow, _ := self.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
+			MacSa:      &macSa,
+			MacSaMask:  &macSaMask,
+			VlanId:     nameServerInternalVlanId,
+			Ethertype:  protocol.IPv4_MSG,
+			IpProto:    protocol.Type_UDP,
+			UdpDstPort: 53,
+		})
+		dnsReinjectFlow.PopVlan()
+		dnsReinjectFlow.Next(self.vlanTable)
+	}
 
 	// Drop all packets that miss mac dest lookup AND vlan flood lookup
 	floodMissFlow, _ := self.macDestTable.NewFlow(ofctrl.FlowMatch{

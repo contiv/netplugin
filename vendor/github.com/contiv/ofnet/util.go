@@ -179,17 +179,7 @@ func createPortVlanFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, e
 		return nil, err
 	}
 
-	//set vrf id as METADATA
-	vrfid := agent.getvrfId(endpoint.Vrf)
-	metadata, metadataMask := Vrfmetadata(*vrfid)
-
-	// set source EPG id if required
-	if endpoint.EndpointGroup != 0 {
-		srcMetadata, srcMetadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
-		metadata = metadata | srcMetadata
-		metadataMask = metadataMask | srcMetadataMask
-
-	}
+	metadata, metadataMask := setupMetadata(agent, endpoint)
 
 	// set vlan if required
 	if agent.dpName == "vxlan" {
@@ -207,6 +197,22 @@ func createPortVlanFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, e
 	}
 
 	return portVlanFlow, nil
+}
+
+func setupMetadata(agent *OfnetAgent, endpoint *OfnetEndpoint) (uint64, uint64) {
+	//set vrf id as METADATA
+	vrfid := agent.getvrfId(endpoint.Vrf)
+	metadata, metadataMask := Vrfmetadata(*vrfid)
+
+	// set source EPG id if required
+	if endpoint.EndpointGroup != 0 {
+		srcMetadata, srcMetadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
+		metadata = metadata | srcMetadata
+		metadataMask = metadataMask | srcMetadataMask
+
+	}
+
+	return metadata, metadataMask
 }
 
 // createDscpFlow creates DSCP v4/v6 flows
@@ -238,17 +244,7 @@ func createDscpFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, endpo
 		return nil, nil, err
 	}
 
-	//set vrf id as METADATA
-	vrfid := agent.getvrfId(endpoint.Vrf)
-	metadata, metadataMask := Vrfmetadata(*vrfid)
-
-	// set source EPG id if required
-	if endpoint.EndpointGroup != 0 {
-		srcMetadata, srcMetadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
-		metadata = metadata | srcMetadata
-		metadataMask = metadataMask | srcMetadataMask
-
-	}
+	metadata, metadataMask := setupMetadata(agent, endpoint)
 
 	// set vlan if required
 	if agent.dpName == "vxlan" {
@@ -275,6 +271,56 @@ func createDscpFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, endpo
 	}
 
 	return dscpV4Flow, dscpV6Flow, nil
+}
+
+// createIPGuardFlow creates ip guard flow
+func createIPGuardFlow(agent *OfnetAgent, sw *ofctrl.OFSwitch, vlanTable, nextTable *ofctrl.Table, endpoint *OfnetEndpoint) (*ofctrl.Flow, *ofctrl.Flow, error) {
+
+	// Install a flow entry for ip src validation
+	ipgAllowFlow, err := vlanTable.NewFlow(ofctrl.FlowMatch{
+		Priority:  FLOW_IPGUARD_ALLOW_PRIORITY,
+		InputPort: endpoint.PortNo,
+		Ethertype: 0x0800,
+		IpSa:      &endpoint.IpAddr,
+	})
+	if err != nil {
+		log.Errorf("Error creating ip guard allow entry. Err: %v", err)
+		return nil, nil, err
+	}
+
+	// drop other ip packets
+	ipgDenyFlow, err := vlanTable.NewFlow(ofctrl.FlowMatch{
+		Priority:  FLOW_IPGUARD_DENY_PRIORITY,
+		InputPort: endpoint.PortNo,
+		Ethertype: 0x800,
+	})
+	if err != nil {
+		log.Errorf("Error creating ip guard deny entry. Err: %v", err)
+		return nil, nil, err
+	}
+
+	metadata, metadataMask := setupMetadata(agent, endpoint)
+	// set vlan if required
+	if agent.dpName == "vxlan" {
+		ipgAllowFlow.SetVlan(endpoint.Vlan)
+	}
+
+	// set metadata on the flow
+	ipgAllowFlow.SetMetadata(metadata, metadataMask)
+
+	// Point it to next table
+	err = ipgAllowFlow.Next(nextTable)
+	if err != nil {
+		log.Errorf("Error installing ipgAllowFlow entry. Err: %v", err)
+		return nil, nil, err
+	}
+	err = ipgDenyFlow.Next(sw.DropAction())
+	if err != nil {
+		log.Errorf("Error installing ipgDenyFlow entry. Err: %v", err)
+		return nil, nil, err
+	}
+
+	return ipgAllowFlow, ipgDenyFlow, nil
 }
 
 // getActiveLink returns an active member link

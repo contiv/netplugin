@@ -55,6 +55,8 @@ type VlanBridge struct {
 
 	// Flow Database
 	portVlanFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
+	ipgAllowFlowDb map[uint32]*ofctrl.Flow   // Database of flow entries
+	ipgDenyFlowDb  map[uint32]*ofctrl.Flow   // Database of flow entries
 	portDnsFlowDb  cmap.ConcurrentMap        // Database of flow entries
 	dscpFlowDb     map[uint32][]*ofctrl.Flow // Database of flow entries
 
@@ -110,6 +112,8 @@ func NewVlanBridge(agent *OfnetAgent, rpcServ *rpc.Server) *VlanBridge {
 
 	// init maps
 	vlan.portVlanFlowDb = make(map[uint32]*ofctrl.Flow)
+	vlan.ipgAllowFlowDb = make(map[uint32]*ofctrl.Flow)
+	vlan.ipgDenyFlowDb = make(map[uint32]*ofctrl.Flow)
 	vlan.portDnsFlowDb = cmap.New()
 	vlan.dscpFlowDb = make(map[uint32][]*ofctrl.Flow)
 	vlan.uplinkPortDb = cmap.New()
@@ -320,9 +324,16 @@ func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		log.Errorf("Error creating portvlan entry. Err: %v", err)
 		return err
 	}
-
 	// save the flow entry
 	vl.portVlanFlowDb[endpoint.PortNo] = portVlanFlow
+
+	ipgAllowFlow, ipgDenyFlow, err := createIPGuardFlow(vl.agent, vl.ofSwitch, vl.vlanTable, dNATTbl, &endpoint)
+	if err != nil {
+		log.Errorf("Error creating ipguard entry. Err: %v", err)
+		return err
+	}
+	vl.ipgAllowFlowDb[endpoint.PortNo] = ipgAllowFlow
+	vl.ipgDenyFlowDb[endpoint.PortNo] = ipgDenyFlow
 
 	// install DSCP flow entries if required
 	if endpoint.Dscp != 0 {
@@ -378,6 +389,8 @@ func (vl *VlanBridge) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 
 // RemoveLocalEndpoint Remove local endpoint
 func (vl *VlanBridge) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
+	vl.garpMutex.Lock()
+	defer vl.garpMutex.Unlock()
 	// Remove the port vlan flow.
 	portVlanFlow := vl.portVlanFlowDb[endpoint.PortNo]
 	if portVlanFlow != nil {
@@ -385,6 +398,26 @@ func (vl *VlanBridge) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 		if err != nil {
 			log.Errorf("Error deleting portvlan flow. Err: %v", err)
 		}
+	}
+
+	// Remove IP guard flows
+	ipa := vl.ipgAllowFlowDb[endpoint.PortNo]
+	if ipa != nil {
+		err := ipa.Delete()
+		if err != nil {
+			log.Errorf("Error deleting ipgAllow flow. Err: %v", err)
+		}
+		delete(vl.ipgAllowFlowDb, endpoint.PortNo)
+	}
+
+	// Remove IP guard flows
+	ipd := vl.ipgDenyFlowDb[endpoint.PortNo]
+	if ipd != nil {
+		err := ipd.Delete()
+		if err != nil {
+			log.Errorf("Error deleting ipgDeny flow. Err: %v", err)
+		}
+		delete(vl.ipgDenyFlowDb, endpoint.PortNo)
 	}
 
 	// Remove dscp flows.
@@ -399,8 +432,6 @@ func (vl *VlanBridge) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	}
 
 	// Remove from epg DB
-	vl.garpMutex.Lock()
-	defer vl.garpMutex.Unlock()
 	epgInfo, found := vl.epgToEPs[endpoint.EndpointGroup]
 	if found {
 		delete(epgInfo.epMap, endpoint.PortNo)
@@ -582,18 +613,21 @@ func (vl *VlanBridge) AddUplink(uplinkPort *PortInfo) error {
 	log.Infof("Adding uplink port: %+v", uplinkPort)
 
 	for _, link := range uplinkPort.MbrLinks {
-		dnsUplinkFlow, err := vl.inputTable.NewFlow(ofctrl.FlowMatch{
-			Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
-			InputPort:  link.OfPort,
-			Ethertype:  protocol.IPv4_MSG,
-			IpProto:    protocol.Type_UDP,
-			UdpDstPort: 53,
-		})
-		if err != nil {
-			log.Errorf("Error creating nameserver flow entry. Err: %v", err)
-			return err
+		if EnableInlineDNS {
+			dnsUplinkFlow, err := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+				Priority:   DNS_FLOW_MATCH_PRIORITY + 2,
+				InputPort:  link.OfPort,
+				Ethertype:  protocol.IPv4_MSG,
+				IpProto:    protocol.Type_UDP,
+				UdpDstPort: 53,
+			})
+			if err != nil {
+				log.Errorf("Error creating nameserver flow entry. Err: %v", err)
+				return err
+			}
+			dnsUplinkFlow.Next(vl.vlanTable)
+			vl.portDnsFlowDb.Set(fmt.Sprintf("%d", link.OfPort), dnsUplinkFlow)
 		}
-		dnsUplinkFlow.Next(vl.vlanTable)
 
 		// Install a flow entry for vlan mapping and point it to Mac table
 		portVlanFlow, err := vl.vlanTable.NewFlow(ofctrl.FlowMatch{
@@ -615,7 +649,6 @@ func (vl *VlanBridge) AddUplink(uplinkPort *PortInfo) error {
 
 		// save the flow entry
 		vl.portVlanFlowDb[link.OfPort] = portVlanFlow
-		vl.portDnsFlowDb.Set(fmt.Sprintf("%d", link.OfPort), dnsUplinkFlow)
 	}
 
 	err := uplinkPort.checkLinkStatus()
@@ -796,31 +829,33 @@ func (vl *VlanBridge) initFgraph() error {
 		vl.updateArpRedirectFlow(vl.agent.arpMode, false)
 	}
 
-	// redirect dns requests from containers (oui 02:02:xx) to controller
-	macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
-	macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
-	dnsRedirectFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:   DNS_FLOW_MATCH_PRIORITY,
-		MacSa:      &macSa,
-		MacSaMask:  &macSaMask,
-		Ethertype:  protocol.IPv4_MSG,
-		IpProto:    protocol.Type_UDP,
-		UdpDstPort: 53,
-	})
-	dnsRedirectFlow.Next(sw.SendToController())
+	if EnableInlineDNS {
+		// redirect dns requests from containers (oui 02:02:xx) to controller
+		macSaMask := net.HardwareAddr{0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}
+		macSa := net.HardwareAddr{0x02, 0x02, 0x00, 0x00, 0x00, 0x00}
+		dnsRedirectFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:   DNS_FLOW_MATCH_PRIORITY,
+			MacSa:      &macSa,
+			MacSaMask:  &macSaMask,
+			Ethertype:  protocol.IPv4_MSG,
+			IpProto:    protocol.Type_UDP,
+			UdpDstPort: 53,
+		})
+		dnsRedirectFlow.Next(sw.SendToController())
 
-	// re-inject dns requests
-	dnsReinjectFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
-		Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
-		MacSa:      &macSa,
-		MacSaMask:  &macSaMask,
-		VlanId:     nameServerInternalVlanId,
-		Ethertype:  protocol.IPv4_MSG,
-		IpProto:    protocol.Type_UDP,
-		UdpDstPort: 53,
-	})
-	dnsReinjectFlow.PopVlan()
-	dnsReinjectFlow.Next(vl.vlanTable)
+		// re-inject dns requests
+		dnsReinjectFlow, _ := vl.inputTable.NewFlow(ofctrl.FlowMatch{
+			Priority:   DNS_FLOW_MATCH_PRIORITY + 1,
+			MacSa:      &macSa,
+			MacSaMask:  &macSaMask,
+			VlanId:     nameServerInternalVlanId,
+			Ethertype:  protocol.IPv4_MSG,
+			IpProto:    protocol.Type_UDP,
+			UdpDstPort: 53,
+		})
+		dnsReinjectFlow.PopVlan()
+		dnsReinjectFlow.Next(vl.vlanTable)
+	}
 
 	// All packets that have gone thru policy lookup go thru normal OVS switching
 	normalLookupFlow, _ := vl.nmlTable.NewFlow(ofctrl.FlowMatch{

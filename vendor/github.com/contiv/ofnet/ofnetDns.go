@@ -20,6 +20,8 @@ import (
 
 const DnsMaxRespMsgSize = 1024
 
+var EnableInlineDNS = false
+
 type NameServer interface {
 	NsLookup([]byte, *string) ([]byte, error)
 }

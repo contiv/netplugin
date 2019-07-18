@@ -2016,6 +2016,7 @@ func TestServicePreferredIP(t *testing.T) {
 
 func TestBgp(t *testing.T) {
 
+	t.Skip("")
 	bgpCfg := &client.Bgp{
 		As:         "65001",
 		Hostname:   "hostA",

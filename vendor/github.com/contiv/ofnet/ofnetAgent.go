@@ -131,6 +131,8 @@ const (
 	LOCAL_ENDPOINT_FLOW_PRIORITY        = 102 //Priority for local untagged endpoints (currently used in l3 mode)
 	EXTERNAL_FLOW_PRIORITY              = 101 // Priority for external flows (eg bgp routes)
 	HOST_SNAT_DENY_PRIORITY             = 101 // Priority for host snat deny
+	FLOW_IPGUARD_DENY_PRIORITY          = 104 // Priority for ip guard flow
+	FLOW_IPGUARD_ALLOW_PRIORITY         = 105 // Priority for ip guard flow
 )
 
 const (
