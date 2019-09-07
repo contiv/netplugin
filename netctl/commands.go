@@ -347,8 +347,16 @@ var Commands = []cli.Command{
 						Usage: "From Endpoint Group Name (Valid in incoming direction only)",
 					},
 					cli.StringFlag{
+						Name:  "from-tenant",
+						Usage: "From Tenant Name (Valid in incoming direction only)",
+					},
+					cli.StringFlag{
 						Name:  "to-group, e",
 						Usage: "To Endpoint Group Name (Valid in outgoing direction only)",
+					},
+					cli.StringFlag{
+						Name:  "to-tenant",
+						Usage: "To Tenant Name (Valid in outgoing direction only)",
 					},
 					cli.StringFlag{
 						Name:  "from-network, n",

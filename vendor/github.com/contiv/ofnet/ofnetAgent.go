@@ -40,6 +40,10 @@ import (
 	cmap "github.com/streamrail/concurrent-map"
 )
 
+// these can be passed to NewOfnetAgent for endpointIPsAreUnique parameter
+const OFNET_AGENT_ENDPOINT_IPS_ARE_NOT_UNIQUE_PARAM = false
+const OFNET_AGENT_ENDPOINT_IPS_ARE_UNIQUE_PARAM = true
+
 // OfnetAgent state
 type OfnetAgent struct {
 	ctrler      *ofctrl.Controller // Controller instance
@@ -54,6 +58,11 @@ type OfnetAgent struct {
 	dpName      string             // Datapath type
 	datapath    OfnetDatapath      // Configured datapath
 	protopath   OfnetProto         // Configured protopath
+
+	// True if all requests to create endpoints no matter the VRF will have
+	// unique IPs, which would allow for inferring the VRF based on IP address
+	// True also allows endpoints in different VRFs to communicate directly
+	endpointIpsAreUnique bool
 
 	masterDb      map[string]*OfnetNode // list of Masters
 	masterDbMutex sync.Mutex            // Sync mutex for masterDb
@@ -147,8 +156,8 @@ const (
 
 // Create a new Ofnet agent and initialize it
 func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uint16,
-	ovsPort uint16, uplinkInfo []string) (*OfnetAgent, error) {
-	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d\n", bridgeName, dpName, localIp, rpcPort, ovsPort)
+	ovsPort uint16, uplinkInfo []string, endpointIpsAreUnique bool) (*OfnetAgent, error) {
+	log.Infof("Creating new ofnet agent for %s,%s,%d,%d,%d,%v\n", bridgeName, dpName, localIp, rpcPort, ovsPort, endpointIpsAreUnique)
 	agent := new(OfnetAgent)
 
 	// Init params
@@ -167,6 +176,8 @@ func NewOfnetAgent(bridgeName string, dpName string, localIp net.IP, rpcPort uin
 	agent.portVlanMap = make(map[uint32]*uint16)
 	agent.vniVlanMap = make(map[uint32]*uint16)
 	agent.vlanVniMap = make(map[uint16]*uint32)
+
+	agent.endpointIpsAreUnique = endpointIpsAreUnique
 
 	// Initialize vtep database
 	agent.vtepTable = make(map[string]*uint32)
@@ -251,6 +262,10 @@ func (self *OfnetAgent) incrErrStats(errName string) {
 	currStats := self.stats[errName+"-ERROR"]
 	currStats++
 	self.stats[errName+"-ERROR"] = currStats
+}
+
+func (a *OfnetAgent) IsEndpointIpsAreUnique() bool {
+	return a.endpointIpsAreUnique
 }
 
 // getEndpointId Get a unique identifier for the endpoint.

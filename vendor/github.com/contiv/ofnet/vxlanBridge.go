@@ -490,10 +490,11 @@ func (self *Vxlan) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 			return fmt.Errorf("Unable to find vrf for vlan %v", *vlan)
 		}
 		//set vrf id as METADATA
-		vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
+		vrfmetadata, vrfmetadataMask := VrfSrcMetadata(*vrfid)
+		dstVrfMetadata, dstVrfMetadataMask := VrfDestMetadata(*vrfid)
 
-		metadata := METADATA_RX_VTEP | vrfmetadata
-		metadataMask := METADATA_RX_VTEP | vrfmetadataMask
+		metadata := METADATA_RX_VTEP | vrfmetadata | dstVrfMetadata
+		metadataMask := METADATA_RX_VTEP | vrfmetadataMask | dstVrfMetadataMask
 
 		portVlanFlow.SetMetadata(metadata, metadataMask)
 
@@ -620,10 +621,11 @@ func (self *Vxlan) AddVlan(vlanId uint16, vni uint32, vrf string) error {
 			return fmt.Errorf("Unable to find vrf for vlan %v", *vlan)
 		}
 		//set vrf id as METADATA
-		vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
+		vrfmetadata, vrfmetadataMask := VrfSrcMetadata(*vrfid)
+		dstVrfMetadata, dstVrfMetadataMask := VrfDestMetadata(*vrfid)
 
-		metadata := METADATA_RX_VTEP | vrfmetadata
-		metadataMask := METADATA_RX_VTEP | vrfmetadataMask
+		metadata := METADATA_RX_VTEP | vrfmetadata | dstVrfMetadata
+		metadataMask := METADATA_RX_VTEP | vrfmetadataMask | dstVrfMetadataMask
 
 		portVlanFlow.SetMetadata(metadata, metadataMask)
 

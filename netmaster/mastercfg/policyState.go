@@ -23,7 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/contiv/netplugin/contivmodel"
+	"github.com/contiv/netplugin/contivModel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/ofnet"
 )
@@ -176,18 +176,24 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	ofnetRule.Priority = rule.Priority
 	ofnetRule.Action = rule.Action
 
+	// from/to tenant name was added for k8s network policy to be part of
+	// the group designation, otherwise the regular tenant (the tenant for
+	// the policy-rule) can be used
+
 	// See if user specified an endpoint Group in the rule
 	if rule.FromEndpointGroup != "" {
-		remoteEpgID, err = GetEndpointGroupID(stateStore, rule.FromEndpointGroup, rule.TenantName)
+		remoteEpgID, err = GetEndpointGroupID(stateStore, rule.FromEndpointGroup, rule.FromTenantName)
 		if err != nil {
 			log.Errorf("Error finding endpoint group %s/%s/%s. Err: %v",
-				rule.FromEndpointGroup, rule.FromNetwork, rule.TenantName, err)
+				rule.FromEndpointGroup, rule.FromNetwork, rule.FromTenantName, err)
+			return nil, errors.New("the FromEndpointGroup key wasn't found")
 		}
 	} else if rule.ToEndpointGroup != "" {
-		remoteEpgID, err = GetEndpointGroupID(stateStore, rule.ToEndpointGroup, rule.TenantName)
+		remoteEpgID, err = GetEndpointGroupID(stateStore, rule.ToEndpointGroup, rule.ToTenantName)
 		if err != nil {
 			log.Errorf("Error finding endpoint group %s/%s/%s. Err: %v",
-				rule.ToEndpointGroup, rule.ToNetwork, rule.TenantName, err)
+				rule.ToEndpointGroup, rule.ToNetwork, rule.ToTenantName, err)
+			return nil, errors.New("the ToEndpointGroup key wasn't found")
 		}
 	} else if rule.FromNetwork != "" {
 		netKey := rule.TenantName + ":" + rule.FromNetwork
@@ -209,6 +215,14 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 		}
 
 		rule.ToIpAddress = net.Subnet
+	}
+
+	var remoteTenant string
+	if rule.FromTenantName != "" {
+		remoteTenant = rule.FromTenantName
+	}
+	if rule.ToTenantName != "" {
+		remoteTenant = rule.ToTenantName
 	}
 
 	// Set protocol
@@ -235,7 +249,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "inRx":
 		// Set src/dest endpoint group
 		ofnetRule.DstEndpointGroup = gp.EndpointGroupID
+		ofnetRule.DstVrf = rule.TenantName
 		ofnetRule.SrcEndpointGroup = remoteEpgID
+		ofnetRule.SrcVrf = remoteTenant
 
 		// Set src/dest IP Address
 		ofnetRule.SrcIpAddr = rule.FromIpAddress
@@ -253,7 +269,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "inTx":
 		// Set src/dest endpoint group
 		ofnetRule.SrcEndpointGroup = gp.EndpointGroupID
+		ofnetRule.SrcVrf = rule.TenantName
 		ofnetRule.DstEndpointGroup = remoteEpgID
+		ofnetRule.DstVrf = remoteTenant
 
 		// Set src/dest IP Address
 		ofnetRule.DstIpAddr = rule.FromIpAddress
@@ -266,7 +284,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "outRx":
 		// Set src/dest endpoint group
 		ofnetRule.DstEndpointGroup = gp.EndpointGroupID
+		ofnetRule.DstVrf = rule.TenantName
 		ofnetRule.SrcEndpointGroup = remoteEpgID
+		ofnetRule.SrcVrf = remoteTenant
 
 		// Set src/dest IP Address
 		ofnetRule.SrcIpAddr = rule.ToIpAddress
@@ -276,7 +296,9 @@ func (gp *EpgPolicy) createOfnetRule(rule *contivModel.Rule, dir string) (*ofnet
 	case "outTx":
 		// Set src/dest endpoint group
 		ofnetRule.SrcEndpointGroup = gp.EndpointGroupID
+		ofnetRule.SrcVrf = rule.TenantName
 		ofnetRule.DstEndpointGroup = remoteEpgID
+		ofnetRule.DstVrf = remoteTenant
 
 		// Set src/dest IP Address
 		ofnetRule.DstIpAddr = rule.ToIpAddress

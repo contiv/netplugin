@@ -110,14 +110,15 @@ func initNetPluginConfig(ctx *cli.Context) (*plugin.Config, error) {
 			State:   dbConfigs.StoreDriver,
 		},
 		Instance: core.InstanceInfo{
-			HostLabel:    hostLabel,
-			CtrlIP:       controlIP,
-			VtepIP:       vtepIP,
-			UplinkIntf:   vlanUpLinks,
-			DbURL:        dbConfigs.StoreURL,
-			PluginMode:   netConfigs.Mode,
-			VxlanUDPPort: vxlanPort,
-			FwdMode:      netConfigs.ForwardMode, // TODO: pass in network mode
+			HostLabel:            hostLabel,
+			CtrlIP:               controlIP,
+			VtepIP:               vtepIP,
+			UplinkIntf:           vlanUpLinks,
+			DbURL:                dbConfigs.StoreURL,
+			PluginMode:           netConfigs.Mode,
+			VxlanUDPPort:         vxlanPort,
+			FwdMode:              netConfigs.ForwardMode, // TODO: pass in network mode
+			EndpointIpsAreUnique: true,
 		},
 	}, nil
 }

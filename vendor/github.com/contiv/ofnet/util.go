@@ -167,7 +167,8 @@ func buildUDPRespPkt(inEth *protocol.Ethernet, uData []byte) (*protocol.Ethernet
 	return outEth, nil
 }
 
-// createPortVlanFlow creates port vlan flow based on endpoint metadata
+// createPortVlanFlow creates port vlan flow (traffic coming out of a pod)
+// based on endpoint metadata
 func createPortVlanFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, endpoint *OfnetEndpoint) (*ofctrl.Flow, error) {
 	// Install a flow entry for vlan mapping
 	portVlanFlow, err := vlanTable.NewFlow(ofctrl.FlowMatch{
@@ -179,16 +180,24 @@ func createPortVlanFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, e
 		return nil, err
 	}
 
-	//set vrf id as METADATA
+	// set vrf id as METADATA for both source and destination
+	// this enables traffic to reach same VRF when there are overlapping
+	// IPs across VRFs and apply policy against the source VRF
+	// If IPs are unique and traffic is not isolated to single VRF (kubernetes)
+	// thn the table to set destination group will not match source VRF,
+	// just IP and rewrite the destination VRF
 	vrfid := agent.getvrfId(endpoint.Vrf)
-	metadata, metadataMask := Vrfmetadata(*vrfid)
+	metadata, metadataMask := VrfSrcMetadata(*vrfid)
+	destMetadata, destMetadataMask := VrfDestMetadata(*vrfid)
+	metadata = metadata | destMetadata
+	metadataMask = metadataMask | destMetadataMask
 
 	// set source EPG id if required
 	if endpoint.EndpointGroup != 0 {
-		srcMetadata, srcMetadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
-		metadata = metadata | srcMetadata
-		metadataMask = metadataMask | srcMetadataMask
-
+		srcMetadata, srcMetadataMask := SrcGroupMetadata(*vrfid, endpoint.EndpointGroup)
+		dstMetadata, dstMetadataMask := DstGroupMetadata(*vrfid, endpoint.EndpointGroup)
+		metadata = metadata | srcMetadata | dstMetadata
+		metadataMask = metadataMask | srcMetadataMask | dstMetadataMask
 	}
 
 	// set vlan if required
@@ -238,16 +247,24 @@ func createDscpFlow(agent *OfnetAgent, vlanTable, nextTable *ofctrl.Table, endpo
 		return nil, nil, err
 	}
 
-	//set vrf id as METADATA
+	// set vrf id as METADATA for both source and destination
+	// this enables traffic to reach same VRF when there are overlapping
+	// IPs across VRFs and apply policy against the source VRF
+	// If IPs are unique and traffic is not isolated to single VRF (kubernetes)
+	// thn the table to set destination group will not match source VRF,
+	// just IP and rewrite the destination VRF
 	vrfid := agent.getvrfId(endpoint.Vrf)
-	metadata, metadataMask := Vrfmetadata(*vrfid)
+	metadata, metadataMask := VrfSrcMetadata(*vrfid)
+	destMetadata, destMetadataMask := VrfDestMetadata(*vrfid)
+	metadata = metadata | destMetadata
+	metadataMask = metadataMask | destMetadataMask
 
 	// set source EPG id if required
 	if endpoint.EndpointGroup != 0 {
-		srcMetadata, srcMetadataMask := SrcGroupMetadata(endpoint.EndpointGroup)
-		metadata = metadata | srcMetadata
-		metadataMask = metadataMask | srcMetadataMask
-
+		srcMetadata, srcMetadataMask := SrcGroupMetadata(*vrfid, endpoint.EndpointGroup)
+		dstMetadata, dstMetadataMask := DstGroupMetadata(*vrfid, endpoint.EndpointGroup)
+		metadata = metadata | srcMetadata | dstMetadata
+		metadataMask = metadataMask | srcMetadataMask | dstMetadataMask
 	}
 
 	// set vlan if required

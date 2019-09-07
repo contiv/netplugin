@@ -229,7 +229,7 @@ func (self *OfnetMaster) UnRegisterNode(hostInfo *OfnetNode, ret *bool) error {
 // Add an Endpoint
 func (self *OfnetMaster) EndpointAdd(ep *OfnetEndpoint, ret *bool) error {
 
-	log.Infof("Received Endpoint CReate from Remote netplugin")
+	log.Infof("Received Endpoint Create from Remote netplugin")
 	// Check if we have the endpoint already and which is more recent
 	self.masterMutex.RLock()
 	oldEp := self.endpointDb[ep.EndpointID]

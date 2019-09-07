@@ -8,6 +8,7 @@ fi
 set -ex
 
 swapoff -a
+sudo sed -i '/swap/d' /etc/fstab
 setenforce 0
 systemctl stop firewalld
 systemctl disable firewalld

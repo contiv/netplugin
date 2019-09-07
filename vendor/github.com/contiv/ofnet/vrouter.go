@@ -263,7 +263,7 @@ func (self *Vrouter) AddLocalEndpoint(endpoint OfnetEndpoint) error {
 		return errors.New("Invalid vrf name")
 	}
 
-	vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
+	vrfmetadata, vrfmetadataMask := VrfDestMetadata(*vrfid)
 
 	// Install the IP address
 	ipFlow, err := self.ipTable.NewFlow(ofctrl.FlowMatch{
@@ -417,7 +417,7 @@ func (self *Vrouter) RemoveLocalEndpoint(endpoint OfnetEndpoint) error {
 	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
 	ipFlow := self.flowDb[flowId]
 	if ipFlow == nil {
-		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
+		log.Errorf("Error finding the flow to remove for local endpoint by IP and VLAN: %+v", endpoint)
 		return errors.New("Flow not found")
 	}
 
@@ -575,7 +575,7 @@ func (self *Vrouter) AddLocalIpv6Flow(endpoint OfnetEndpoint) error {
 	}
 
 	//Ip table look up will be vrf,ip
-	vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
+	vrfmetadata, vrfmetadataMask := VrfDestMetadata(*vrfid)
 	// Install the IPv6 address
 	ipv6Flow, err := self.ipTable.NewFlow(ofctrl.FlowMatch{
 		Priority:     FLOW_MATCH_PRIORITY,
@@ -625,7 +625,7 @@ func (self *Vrouter) RemoveLocalIpv6Flow(endpoint OfnetEndpoint) error {
 	flowId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
 	ipv6Flow := self.flowDb[flowId]
 	if ipv6Flow == nil {
-		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
+		log.Errorf("Error finding the ipv6 flow by IP and VLAN for local endpoint: %+v", endpoint)
 		return errors.New("Flow not found")
 	}
 
@@ -704,10 +704,11 @@ func (self *Vrouter) AddVtepPort(portNo uint32, remoteIp net.IP) error {
 		}
 
 		//set vrf id as METADATA
-		vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
+		vrfmetadata, vrfmetadataMask := VrfSrcMetadata(*vrfid)
+		dstVrfMetadata, dstVrfMetadataMask := VrfDestMetadata(*vrfid)
 
-		metadata := METADATA_RX_VTEP | vrfmetadata
-		metadataMask := METADATA_RX_VTEP | vrfmetadataMask
+		metadata := METADATA_RX_VTEP | vrfmetadata | dstVrfMetadata
+		metadataMask := METADATA_RX_VTEP | vrfmetadataMask | dstVrfMetadataMask
 
 		portVlanFlow.SetMetadata(metadata, metadataMask)
 
@@ -800,7 +801,7 @@ func (self *Vrouter) AddVlan(vlanId uint16, vni uint32, vrf string) error {
 		}
 
 		//set vrf id as METADATA
-		vrfmetadata, vrfmetadataMask := Vrfmetadata(*vrfid)
+		vrfmetadata, vrfmetadataMask := VrfSrcMetadata(*vrfid)
 
 		// Set the metadata to indicate packet came in from VTEP port
 		metadata := METADATA_RX_VTEP | vrfmetadata
@@ -873,7 +874,7 @@ func (self *Vrouter) AddEndpoint(endpoint *OfnetEndpoint) error {
 	}
 
 	//set vrf id as METADATA
-	metadata, metadataMask := Vrfmetadata(*vrfid)
+	metadata, metadataMask := VrfDestMetadata(*vrfid)
 
 	// Install the IP address
 	ipFlow, err := self.ipTable.NewFlow(ofctrl.FlowMatch{
@@ -934,7 +935,7 @@ func (self *Vrouter) RemoveEndpoint(endpoint *OfnetEndpoint) error {
 	flowId := self.agent.getEndpointIdByIpVlan(endpoint.IpAddr, endpoint.Vlan)
 	ipFlow := self.flowDb[flowId]
 	if ipFlow == nil {
-		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
+		log.Errorf("Error finding the flow to remove by IP and VLAN for endpoint: %+v", endpoint)
 		return errors.New("Flow not found")
 	}
 
@@ -990,7 +991,7 @@ func (self *Vrouter) AddRemoteIpv6Flow(endpoint *OfnetEndpoint) error {
 	}
 
 	//set vrf id as METADATA
-	metadata, metadataMask := Vrfmetadata(*vrfid)
+	metadata, metadataMask := VrfDestMetadata(*vrfid)
 
 	// Install the IP address
 	ipv6Flow, err := self.ipTable.NewFlow(ofctrl.FlowMatch{
@@ -1040,7 +1041,7 @@ func (self *Vrouter) RemoveRemoteIpv6Flow(endpoint *OfnetEndpoint) error {
 	flowId := self.agent.getEndpointIdByIpVlan(endpoint.Ipv6Addr, endpoint.Vlan)
 	ipv6Flow := self.flowDb[flowId]
 	if ipv6Flow == nil {
-		log.Errorf("Error finding the flow for endpoint: %+v", endpoint)
+		log.Errorf("Error finding the IPv6 flow for removal by IP and VLAN for endpoint: %+v", endpoint)
 		return errors.New("Flow not found")
 	}
 
@@ -1302,9 +1303,24 @@ func (self *Vrouter) processArp(pkt protocol.Ethernet, inPort uint32) {
 	}
 }
 
-func Vrfmetadata(vrfid uint16) (uint64, uint64) {
-	metadata := uint64(vrfid) << 32
-	metadataMask := uint64(0xFF00000000)
+func VrfDestMetadata(vrfid uint16) (uint64, uint64) {
+	// 1 bit for VTEP, 16 for group
+	metadata := uint64(vrfid) << 17
+	// 14 bits shifted 1 for vtep flag and 16 for group
+	// format((((1<<14))-1)<<(1+16), 'x')
+	metadataMask := uint64(0x7ffe0000)
+	metadata = metadata & metadataMask
+
+	return metadata, metadataMask
+}
+
+func VrfSrcMetadata(vrfid uint16) (uint64, uint64) {
+	// 1 bit for VTEP, 30 for dest tenant+group, 16 for group
+	metadata := uint64(vrfid) << 47
+	// 14 bits shifted 1 for vtep flag and 30 for dest tenant+group
+	// and 16 for source group
+	// format((((1<<14))-1)<<(1+30+16), 'x')
+	metadataMask := uint64(0x1FFF800000000000)
 	metadata = metadata & metadataMask
 
 	return metadata, metadataMask

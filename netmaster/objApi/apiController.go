@@ -25,7 +25,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	contivModel "github.com/contiv/netplugin/contivmodel"
+	contivModel "github.com/contiv/netplugin/contivModel"
 	"github.com/contiv/netplugin/core"
 	"github.com/contiv/netplugin/drivers"
 	"github.com/contiv/netplugin/netmaster/docknet"
