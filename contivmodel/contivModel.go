@@ -9,6 +9,7 @@ import (
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/netplugin/objdb/modeldb"
+	"github.com/contiv/netplugin/utils/netutils"
 	"github.com/gorilla/mux"
 	"net/http"
 	"regexp"
@@ -3457,7 +3458,8 @@ func ValidateNetprofile(obj *Netprofile) error {
 		return errors.New("bandwidth string invalid format")
 	}
 
-	if obj.Burst > 10486 {
+	bwint64 := netutils.ConvertBandwidth(obj.Bandwidth)
+	if int64(obj.Burst) > bwint64 {
 		return errors.New("burst Value Out of bound")
 	}
 
