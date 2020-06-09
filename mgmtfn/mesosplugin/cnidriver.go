@@ -153,7 +153,7 @@ func (cniReq *cniServer) configureNetNs(ovsEpDriver *drivers.OperEndpointState,
 	mResp *master.CreateEndpointResponse,
 	nwState *mastercfg.CfgNetworkState) error {
 
-	os.MkdirAll(netNsDir, 644)
+	os.MkdirAll(netNsDir, 0644)
 
 	// link new name space
 	if _, err := os.Stat(netNsDir + cniReq.pluginArgs.CniContainerid); err != nil {
