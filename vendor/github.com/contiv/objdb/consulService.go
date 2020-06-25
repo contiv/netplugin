@@ -177,7 +177,7 @@ func (cp *ConsulClient) WatchService(srvName string, eventCh chan WatchServiceEv
 				// Read the service instances
 				srvList, lastIdx, err = cp.getServiceInstances(keyName, lastIdx)
 				if err != nil {
-					if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
+					if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
 						log.Warnf("Consul service watch: server error: %v Retrying..", err)
 					} else {
 						log.Errorf("Error getting service instances for (%s): Err: %v. Exiting watch", srvName, err)

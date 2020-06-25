@@ -48,6 +48,9 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func InitStateDriver(clusterStore string) (core.StateDriver, error) {
+	return initStateDriver(clusterStore)
+}
 // initStateDriver creates a state driver based on the cluster store URL
 func initStateDriver(clusterStore string) (core.StateDriver, error) {
 	// parse the state store URL

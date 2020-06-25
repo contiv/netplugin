@@ -547,6 +547,70 @@ func GetpolicyKey(tenantName, policyName string) string {
 	return key
 }
 
+func ForceEPGCleanUP(tn, epg, nw string, policies, extContracts []string) []error {
+	var eList []error
+
+	keyStr := tn + ":" + epg
+	epg_stub := &contivModel.EndpointGroup{}
+	epg_stub.Key = keyStr
+	e1 := master.DeleteEndpointGroup(tn, epg)
+	eList = append(eList, e1)
+	for _, policyName := range policies {
+		policyKey := GetpolicyKey(tn, policyName)
+
+		// find the policy
+		policy := contivModel.FindPolicy(policyKey)
+		if policy == nil {
+			eList = append(eList, fmt.Errorf("Could not find policy %s", policyName))
+			continue
+		}
+
+		/* NA for Aci mode
+		// detach policy to epg
+		err := master.PolicyDetach(endpointGroup, policy)
+		if err != nil && err != master.EpgPolicyExists {
+			log.Errorf("Error detaching policy %s from epg %s", policyName, endpointGroup.Key)
+		}
+		*/
+
+		// Remove links
+		modeldb.RemoveLinkSet(&policy.LinkSets.EndpointGroups, epg_stub)
+		policy.Write()
+	}
+
+	for _, contractsGrp := range extContracts {
+		contractsGrpKey := tn + ":" + contractsGrp
+		contractsGrpObj := contivModel.FindExtContractsGroup(contractsGrpKey)
+
+		if contractsGrpObj != nil {
+			// Break any linkeage we might have set.
+			modeldb.RemoveLinkSet(&contractsGrpObj.LinkSets.EndpointGroups, epg_stub)
+			// Links broken, update the contracts group object.
+			err := contractsGrpObj.Write()
+			if err != nil {
+				eList = append(eList, err)
+			}
+		} else {
+			eList = append(eList, fmt.Errorf("Could not find extContract %s", contractsGrp))
+		}
+	}
+
+	// Remove the endpoint group from network and tenant link sets.
+	nwObjKey := tn + ":" + nw
+	network := contivModel.FindNetwork(nwObjKey)
+	if network != nil {
+		modeldb.RemoveLinkSet(&network.LinkSets.EndpointGroups, epg_stub)
+		network.Write()
+	}
+	tenant := contivModel.FindTenant(tn)
+	if tenant != nil {
+		modeldb.RemoveLinkSet(&tenant.LinkSets.EndpointGroups, epg_stub)
+		tenant.Write()
+	}
+
+	return eList
+}
+
 // Cleans up state off endpointGroup and related objects.
 func endpointGroupCleanup(endpointGroup *contivModel.EndpointGroup) error {
 	// delete the endpoint group state

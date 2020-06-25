@@ -75,7 +75,7 @@ func (d *ConsulStateDriver) Write(key string, value []byte) error {
 
 	for i := 0; i < maxConsulRetries; i++ {
 		_, err = d.Client.KV().Put(&api.KVPair{Key: key, Value: value}, nil)
-		if err != nil && (api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused")) {
+		if err != nil && (api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused")) {
 			// Retry after a delay
 			time.Sleep(time.Second)
 			continue
@@ -99,7 +99,7 @@ func (d *ConsulStateDriver) Read(key string) ([]byte, error) {
 	for i := 0; i < maxConsulRetries; i++ {
 		kv, _, err = d.Client.KV().Get(key, nil)
 		if err != nil {
-			if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
+			if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
 				time.Sleep(time.Second)
 				continue
 			}
@@ -128,7 +128,7 @@ func (d *ConsulStateDriver) ReadAll(baseKey string) ([][]byte, error) {
 	for i := 0; i < maxConsulRetries; i++ {
 		kvs, _, err = d.Client.KV().List(baseKey, nil)
 		if err != nil {
-			if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
+			if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
 				time.Sleep(time.Second)
 				continue
 			}
@@ -244,7 +244,7 @@ func (d *ConsulStateDriver) WatchAll(baseKey string, rsps chan [2][]byte) error 
 		default:
 			kvs, qm, err := d.Client.KV().List(baseKey, &api.QueryOptions{WaitIndex: waitIndex})
 			if err != nil {
-				if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
+				if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection refused") {
 					log.Warnf("Consul watch: server error: %v for %s. Retrying..", err, baseKey)
 					time.Sleep(5 * time.Second)
 					continue

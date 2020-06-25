@@ -74,7 +74,7 @@ func (cp *consulPlugin) NewClient(endpoints []string) (API, error) {
 	// verify we can reach the consul
 	_, _, err = client.KV().List("/", nil)
 	if err != nil {
-		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+		if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") ||
 			strings.Contains(err.Error(), "connection refused") {
 			for i := 0; i < maxConsulRetries; i++ {
 				_, _, err = client.KV().List("/", nil)
@@ -108,7 +108,7 @@ func (cp *ConsulClient) GetObj(key string, retVal interface{}) error {
 
 	resp, _, err := cp.client.KV().Get(key, &api.QueryOptions{RequireConsistent: true})
 	if err != nil {
-		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+		if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") ||
 			strings.Contains(err.Error(), "connection refused") {
 			for i := 0; i < maxConsulRetries; i++ {
 				resp, _, err = cp.client.KV().Get(key, &api.QueryOptions{RequireConsistent: true})
@@ -147,7 +147,7 @@ func (cp *ConsulClient) ListDir(key string) ([]string, error) {
 
 	kvs, _, err := cp.client.KV().List(key, nil)
 	if err != nil {
-		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+		if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") ||
 			strings.Contains(err.Error(), "connection refused") {
 			for i := 0; i < maxConsulRetries; i++ {
 				kvs, _, err = cp.client.KV().List(key, nil)
@@ -192,7 +192,7 @@ func (cp *ConsulClient) SetObj(key string, value interface{}) error {
 
 	_, err = cp.client.KV().Put(&api.KVPair{Key: key, Value: jsonVal}, nil)
 	if err != nil {
-		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+		if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") ||
 			strings.Contains(err.Error(), "connection refused") {
 			for i := 0; i < maxConsulRetries; i++ {
 				_, err = cp.client.KV().Put(&api.KVPair{Key: key, Value: jsonVal}, nil)
@@ -214,7 +214,7 @@ func (cp *ConsulClient) DelObj(key string) error {
 	key = processKey("/contiv.io/obj/" + processKey(key))
 	_, err := cp.client.KV().Delete(key, nil)
 	if err != nil {
-		if api.IsServerError(err) || strings.Contains(err.Error(), "EOF") ||
+		if api.IsRetryableError(err) || strings.Contains(err.Error(), "EOF") ||
 			strings.Contains(err.Error(), "connection refused") {
 			for i := 0; i < maxConsulRetries; i++ {
 				_, err = cp.client.KV().Delete(key, nil)

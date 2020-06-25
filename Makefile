@@ -49,7 +49,7 @@ test: build unit-test system-test ubuntu-tests
 default: build
 
 deps:
-	./scripts/deps
+#	./scripts/deps
 
 godep-save:
 	rm -rf vendor Godeps
