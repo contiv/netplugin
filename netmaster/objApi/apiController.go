@@ -601,11 +601,26 @@ func ForceEPGCleanUP(tn, epg, nw string, policies, extContracts []string) []erro
 	if network != nil {
 		modeldb.RemoveLinkSet(&network.LinkSets.EndpointGroups, epg_stub)
 		network.Write()
+	} else {
+		eList = append(eList, fmt.Errorf("Could not find network %s", nw))
 	}
+
 	tenant := contivModel.FindTenant(tn)
 	if tenant != nil {
 		modeldb.RemoveLinkSet(&tenant.LinkSets.EndpointGroups, epg_stub)
 		tenant.Write()
+	} else {
+		eList = append(eList, fmt.Errorf("Could not find tenant %s", tn))
+	}
+
+	epg_obj := contivModel.FindEndpointGroup(keyStr)
+	if epg_obj != nil {
+		err := epg_obj.Delete()
+		if err != nil {
+			eList = append(eList, fmt.Errorf("Error deleting epg %s %v", keyStr, err))
+		}
+	} else {
+		eList = append(eList, fmt.Errorf("Could not find epg %s in modeldb", keyStr))
 	}
 
 	return eList
