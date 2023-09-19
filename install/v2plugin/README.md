@@ -49,7 +49,7 @@ CONTIV_NETMASTER_USE_SYSLOG       : netmaster send log to syslog if flag is prov
 CONTIV_NETMASTER_USE_JSON_LOG     : netmaster log format to json if flag is provided                          : <not-use-json-format>
 ```
 ### docker store
-Docker certified contiv plugin is avaliable on [Docker Store](https://store.docker.com/plugins/803eecee-0780-401a-a454-e9523ccf86b3?tab=description).
+Docker certified contiv plugin is available on [Docker Store](https://store.docker.com/plugins/803eecee-0780-401a-a454-e9523ccf86b3?tab=description).
 ```
 docker plugin install store/contiv/v2plugin:<version-tag> \
 CONTIV_ROLE=netmaster CONTIV_NETPLUGIN_VLAN_UPLINKS=<VLAN-uplinks> \
