@@ -8,7 +8,7 @@ Install kubernetes 1.6 or higher using http://kubernetes.io/docs/getting-started
 * For ACI setups use contiv/contiv_aci.yaml instead of contiv/contiv.yaml.
 * Replace all instances of `__NETMASTER_IP__` in contiv/contiv.yaml with the master IP.
 * Replace `__VLAN_IF__` with the data plane interface.
-  If there is no requirement to create vlan based networks there is no need for a seperate data interface and `__VLAN_IF__` can be set to "". If vlan based networks are to be created then a separate data interface is mandatory which can be set appropriately.
+  If there is no requirement to create vlan based networks there is no need for a separate data interface and `__VLAN_IF__` can be set to "". If vlan based networks are to be created then a separate data interface is mandatory which can be set appropriately.
 * Optional: Replace the contiv version(1.1.7) with the desired release/test version.
 * Optional ACI only steps:
   - Replace __APIC_xxx__ fields with their corresponding values.
@@ -42,7 +42,7 @@ netctl global set --fabric-mode aci --vlan-range 1150-1170
 
 ### Using Contiv
 
-* On the managment node, create the default network and EPG. For example, a vxlan network can be created as follows:
+* On the management node, create the default network and EPG. For example, a vxlan network can be created as follows:
 ```sh
 netctl net create -t default --subnet=20.1.1.0/24 default-net
 netctl group create -t default default-net default-epg
